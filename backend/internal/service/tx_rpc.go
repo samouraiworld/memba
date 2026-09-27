@@ -279,7 +279,9 @@ func (s *MultisigService) Transactions(
 		return nil, internalError("Transactions: row iteration", err)
 	}
 
-	// Batch-load signatures for all transactions (fixes N+1 query).
+	// Batch-load only the signature metadata needed by list views (fixes N+1
+	// queries without returning potentially large signature values and body BLOBs).
+	// GetTransaction remains the full-detail endpoint for signing and export.
 	if len(txByID) > 0 {
 		ids := make([]interface{}, 0, len(txByID))
 		placeholders := make([]string, 0, len(txByID))
@@ -289,7 +291,7 @@ func (s *MultisigService) Transactions(
 		}
 
 		sigQuery := fmt.Sprintf(
-			"SELECT transaction_id, user_address, signature, body_bytes, created_at, verified FROM signatures WHERE transaction_id IN (%s)",
+			"SELECT transaction_id, user_address, created_at, verified FROM signatures WHERE transaction_id IN (%s)",
 			strings.Join(placeholders, ","),
 		)
 
@@ -306,11 +308,9 @@ func (s *MultisigService) Transactions(
 		for sigRows.Next() {
 			var txID uint32
 			var sig membav1.Signature
-			var bodyBytes []byte
-			if err := sigRows.Scan(&txID, &sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt, &sig.Verified); err != nil {
+			if err := sigRows.Scan(&txID, &sig.UserAddress, &sig.CreatedAt, &sig.Verified); err != nil {
 				continue
 			}
-			sig.BodyBytes = bodyBytes
 			if tx, ok := txByID[txID]; ok {
 				tx.Signatures = append(tx.Signatures, &sig)
 			}

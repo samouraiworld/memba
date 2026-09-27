@@ -29,14 +29,29 @@
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  cursor: pointer;
+}
+.k-msview__title-row {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 .k-msview__title-edit {
-  font-size: var(--pro-body, 14px);
-  opacity: 0.4;
+  background: none;
+  border: 0;
+  color: var(--color-k-accent-text);
+  cursor: pointer;
+  font-size: var(--pro-small, 12px);
+}
+.k-msview__title-edit:focus-visible,
+.k-msview__rename-input:focus-visible {
+  outline: 2px solid var(--color-k-accent-text);
+  outline-offset: 2px;
+}
+.k-msview__availability,
+.k-msview__history-note {
+  color: var(--color-text-secondary);
+  font-size: var(--pro-small, 12px);
+  margin-top: 8px;
 }
 
 /* ── Rename Form ─────────────────────────────────────────────── */
@@ -213,9 +228,14 @@
 
 .k-msview__tx-row {
   display: grid;
+  width: 100%;
   grid-template-columns: 1fr 1fr auto;
   padding: 14px 20px;
+  background: transparent;
+  border: 0;
   border-bottom: 1px solid var(--color-border);
+  color: inherit;
+  text-align: left;
   cursor: pointer;
   transition: background 0.15s;
   font-size: var(--pro-small, 13px);
@@ -223,6 +243,10 @@
 }
 .k-msview__tx-row:hover {
   background: var(--color-bg-card);
+}
+.k-msview__tx-row:focus-visible {
+  outline: 2px solid var(--color-k-accent-text);
+  outline-offset: -2px;
 }
 .k-msview__tx-type {
   color: var(--color-text);

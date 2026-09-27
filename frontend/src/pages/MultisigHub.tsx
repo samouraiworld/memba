@@ -15,7 +15,7 @@ import { useOutletContext } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { LockKey, Plus, MagnifyingGlass, Wallet, Users } from "@phosphor-icons/react"
 import { api } from "../lib/api"
-import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Multisig } from "../gen/memba/v1/memba_pb"
@@ -47,18 +47,7 @@ export default function MultisigHub() {
     // still-loading here (isPending alone would deadlock the redirect).
     const loading = enabled ? msQuery.isPending : false
 
-    // Join errors are UI state and stay local. The old fetch handler swallowed
-    // pure network errors (backend unreachable renders the empty state rather
-    // than a toast) and surfaced the rest — preserved here at derivation time.
     const [actionError, setActionError] = useState<string | null>(null)
-    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
-    const fetchError = (() => {
-        if (!msQuery.isError || fetchErrorDismissed) return null
-        const msg = msQuery.error instanceof Error ? msQuery.error.message : ""
-        const isNet = /failed to fetch|networkerror|econnrefused|timeout/i.test(msg)
-        return isNet ? null : (msg || "Failed to load multisigs")
-    })()
-    const error = actionError ?? fetchError
 
     const joined = multisigs.filter(m => m.joined)
     const discoverable = multisigs.filter(m => !m.joined)
@@ -100,11 +89,12 @@ export default function MultisigHub() {
                     <LockKey size={22} weight="duotone" />
                     <h1>Multisig Wallets</h1>
                 </div>
-                <button className="k-btn-primary msh-create-btn" onClick={() => navigate("/create")} data-testid="multisig-create-btn">
-                    <Plus size={14} weight="bold" /> Create New
+                <button type="button" className="k-btn-primary msh-create-btn" disabled={!ENABLE_NATIVE_GNO_MULTISIG} onClick={() => navigate("/create")} data-testid="multisig-create-btn">
+                    <Plus size={14} weight="bold" /> New multisig
                 </button>
             </div>
-            <p className="msh-subtitle">Manage your multisig wallets, review pending actions, and discover new wallets.</p>
+            <p className="msh-subtitle">{ENABLE_NATIVE_GNO_MULTISIG ? "Manage your multisig accounts and review their transactions." : "View your multisig accounts and transaction history."}</p>
+            {!ENABLE_NATIVE_GNO_MULTISIG && <p className="msh-notice" role="status">Native multisig registration is on hold pending release approval. Existing accounts are available as read-only history.</p>}
 
             {/* Loading */}
             {loading && (
@@ -114,22 +104,29 @@ export default function MultisigHub() {
                 </div>
             )}
 
+            {msQuery.isError && (
+                <div className="msh-load-error" role="alert">
+                    <p>Couldn’t load your multisig accounts. Check your connection and try again.</p>
+                    <button type="button" className="k-btn-secondary" onClick={() => { void msQuery.refetch() }}>Try again</button>
+                </div>
+            )}
+
             {/* My Wallets */}
-            {!loading && (
+            {!loading && !msQuery.isError && (
                 <section className="msh-section">
                     <div className="msh-section-header">
                         <Wallet size={16} />
                         <h2>My Wallets</h2>
-                        <span className="k-label">{joined.length} active</span>
+                        <span className="k-label">{joined.length} added</span>
                     </div>
 
                     {joined.length === 0 ? (
                         <div className="msh-empty">
                             <LockKey size={32} weight="thin" className="msh-empty-icon" />
-                            <p>No multisig wallets yet</p>
-                            <span>Create your first multisig wallet to get started with shared treasury management.</span>
-                            <button className="k-btn-primary" onClick={() => navigate("/create")}>
-                                Create Multisig →
+                            <p>No multisig accounts yet</p>
+                            <span>{ENABLE_NATIVE_GNO_MULTISIG ? "Create a multisig or import an existing account." : "Import an existing account to view its history."}</span>
+                            <button type="button" className="k-btn-secondary" onClick={() => navigate("/import")}>
+                                Import account
                             </button>
                         </div>
                     ) : (
@@ -138,11 +135,10 @@ export default function MultisigHub() {
                                 <div
                                     key={ms.address}
                                     className="msh-card"
-                                    onClick={() => navigate(`/multisig/${ms.address}`)}
                                     data-testid={`multisig-card-${ms.address}`}
                                 >
                                     <div className="msh-card-top">
-                                        <button type="button" className="msh-card-name" onClick={e => { e.stopPropagation(); navigate(`/multisig/${ms.address}`) }}>{ms.name || "Unnamed"}</button>
+                                        <button type="button" className="msh-card-name" aria-label={`View ${ms.name || "Unnamed"} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{ms.name || "Unnamed"}</button>
                                         <span className="msh-threshold">{ms.threshold}/{ms.membersCount}</span>
                                     </div>
                                     <div className="msh-card-addr">
@@ -161,22 +157,24 @@ export default function MultisigHub() {
             )}
 
             {/* Discoverable */}
-            {!loading && discoverable.length > 0 && (
+            {!loading && !msQuery.isError && multisigs.length === 50 && <p className="msh-notice" role="status">Showing the newest 50 accounts. Older accounts may not appear here.</p>}
+
+            {!loading && !msQuery.isError && discoverable.length > 0 && (
                 <section className="msh-section">
                     <div className="msh-section-header">
                         <MagnifyingGlass size={16} />
-                        <h2>Discovered Wallets</h2>
+                        <h2>Accounts shared with you</h2>
                         <span className="k-label">{discoverable.length} found</span>
                     </div>
                     <p className="msh-discover-hint">
-                        These multisigs include your address as a member. Join to start managing them.
+                        These accounts include your address as a member. Add one to your account list to view its history.
                     </p>
 
                     <div className="msh-grid">
                         {discoverable.map(ms => (
                             <div key={ms.address} className="msh-card msh-card-discover" data-testid={`multisig-discover-${ms.address}`}>
                                 <div className="msh-card-top">
-                                    <button type="button" className="msh-card-name" onClick={e => { e.stopPropagation(); navigate(`/multisig/${ms.address}`) }}>{ms.name || "Unnamed"}</button>
+                                    <button type="button" className="msh-card-name" aria-label={`View ${ms.name || "Unnamed"} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{ms.name || "Unnamed"}</button>
                                     <span className="msh-threshold msh-threshold-warn">{ms.threshold}/{ms.membersCount}</span>
                                 </div>
                                 <div className="msh-card-addr">
@@ -185,9 +183,9 @@ export default function MultisigHub() {
                                 <button
                                     className="k-btn-primary msh-join-btn"
                                     disabled={joiningAddr === ms.address}
-                                    onClick={(e) => { e.stopPropagation(); handleJoin(ms) }}
+                                    onClick={() => { void handleJoin(ms) }}
                                 >
-                                    {joiningAddr === ms.address ? "Joining..." : "✓ Join Multisig"}
+                                    {joiningAddr === ms.address ? "Adding..." : "Add account"}
                                 </button>
                             </div>
                         ))}
@@ -195,7 +193,7 @@ export default function MultisigHub() {
                 </section>
             )}
 
-            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} onRetry={() => { setActionError(null); setFetchErrorDismissed(false); void msQuery.refetch() }} />
+            <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
         </div>
     )
 }

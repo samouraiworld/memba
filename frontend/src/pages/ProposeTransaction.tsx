@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
@@ -12,10 +13,34 @@ import "./proposetransaction.css"
 
 type TxType = "send" | "call" | "grc20-transfer" | "grc20-mint" | "grc20-burn" | "grc20-approve"
 
+/** Parse GNOT without floating point, so the proposal contains exactly the amount reviewed. */
+function parseGnotUgnot(input: string): bigint {
+    const value = input.trim()
+    const match = /^(\d+)(?:\.(\d+))?$/.exec(value)
+    if (!match) throw new Error("Enter a plain GNOT amount without signs, separators, or units")
+    const fraction = match[2] ?? ""
+    if (fraction.length > 6) throw new Error("GNOT amounts support at most 6 decimal places")
+    const whole = match[1].replace(/^0+/, "") || "0"
+    if (whole.length > 13) throw new Error("Amount exceeds the on-chain maximum")
+    const ugnot = BigInt(whole) * BigInt(UGNOT_PER_GNOT) + BigInt(fraction.padEnd(6, "0") || "0")
+    if (ugnot > MAX_INT64) throw new Error("Amount exceeds the on-chain maximum")
+    return ugnot
+}
+
+function parseGrc20Units(input: string): bigint {
+    const value = input.trim()
+    if (!/^\d+$/.test(value)) throw new Error("Invalid amount — enter a nonnegative whole number")
+    if ((value.replace(/^0+/, "") || "0").length > 19) throw new Error(`Amount is too large — the on-chain maximum is ${MAX_INT64} (smallest unit).`)
+    const amount = BigInt(value)
+    if (amount > MAX_INT64) throw new Error(`Amount is too large — the on-chain maximum is ${MAX_INT64} (smallest unit).`)
+    return amount
+}
+
 export function ProposeTransaction() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
+    const queryClient = useQueryClient()
     const [txType, setTxType] = useState<TxType>("send")
 
     // Send fields
@@ -40,8 +65,16 @@ export function ProposeTransaction() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    let grcPreviewAmount: bigint | null = null
+    let grcPreviewError: string | null = null
+    if (grcAmount.trim()) {
+        try { grcPreviewAmount = parseGrc20Units(grcAmount) }
+        catch (err) { grcPreviewError = (err as Error).message }
+    }
+
     const handlePropose = async () => {
         if (!address) return
+        if (!ENABLE_NATIVE_GNO_MULTISIG) { setError("Native multisig proposals are on hold pending release approval"); return }
         if (!auth.isAuthenticated || !auth.token) {
             setError("Connect your wallet first")
             return
@@ -60,14 +93,11 @@ export function ProposeTransaction() {
                 setError("Invalid recipient address format")
                 return
             }
-            const gnotAmount = parseFloat(amount)
-            if (isNaN(gnotAmount) || gnotAmount <= 0) {
+            let ugnotAmount: bigint
+            try { ugnotAmount = parseGnotUgnot(amount) }
+            catch (err) { setError((err as Error).message); return }
+            if (ugnotAmount === 0n) {
                 setError("Amount must be greater than 0")
-                return
-            }
-            const ugnotAmount = Math.round(gnotAmount * UGNOT_PER_GNOT)
-            if (ugnotAmount <= 0) {
-                setError("Amount too small")
                 return
             }
 
@@ -76,7 +106,7 @@ export function ProposeTransaction() {
                 value: {
                     from_address: address,
                     to_address: trimmedRecipient,
-                    amount: [{ denom: "ugnot", amount: String(ugnotAmount) }],
+                    amount: [{ denom: "ugnot", amount: ugnotAmount.toString() }],
                 },
             }]
             type = "send"
@@ -100,14 +130,10 @@ export function ProposeTransaction() {
             // Parse send amount (optional GNOT to send with call)
             let sendCoins: string | undefined
             if (sendAmount.trim()) {
-                const sendGnot = parseFloat(sendAmount)
-                if (isNaN(sendGnot) || sendGnot < 0) {
-                    setError("Invalid send amount")
-                    return
-                }
-                if (sendGnot > 0) {
-                    sendCoins = `${Math.round(sendGnot * UGNOT_PER_GNOT)}ugnot`
-                }
+                let sendUgnot: bigint
+                try { sendUgnot = parseGnotUgnot(sendAmount) }
+                catch (err) { setError((err as Error).message); return }
+                if (sendUgnot > 0n) sendCoins = `${sendUgnot}ugnot`
             }
 
             msgs = [{
@@ -134,8 +160,10 @@ export function ProposeTransaction() {
             // as int64. Above that ceiling the proposed tx fails on-chain with an
             // opaque "strconv.ParseInt: value out of range", so guard it here.
             let grcAmt: bigint
-            try { grcAmt = BigInt(trimAmt) } catch { setError("Invalid amount — must be a whole number"); return }
-            if (grcAmt > MAX_INT64) { setError(`Amount is too large — the on-chain maximum is ${MAX_INT64} (smallest unit).`); return }
+            try { grcAmt = parseGrc20Units(trimAmt) }
+            catch (err) { setError((err as Error).message); return }
+            // Zero approval revokes an existing allowance; every other token operation moves or creates tokens.
+            if (grcAmt === 0n && txType !== "grc20-approve") { setError("Amount must be greater than 0"); return }
 
             let grcMsgs: AminoMsg[]
             switch (txType) {
@@ -162,6 +190,9 @@ export function ProposeTransaction() {
         setError(null)
 
         try {
+            const info = await api.multisigInfo({ authToken: auth.token, chainId: GNO_CHAIN_ID, multisigAddress: address })
+            if (!info.multisig) throw new Error("Cannot verify wallet identity")
+            if (!isNativeMultisig(info.multisig.pubkeyJson)) throw new Error("Legacy multisig history cannot create executable proposals on Gno")
             const accountInfo = await fetchAccountInfo(address)
 
             // Store the canonical sign-doc Adena actually signs (see lib/multisigTx),
@@ -171,13 +202,8 @@ export function ProposeTransaction() {
             // GRC20 ops are vm/MsgCall contract calls too — they need the higher
             // call gas budget, not the cheap send budget (else broadcast OOGs).
             const isContractCall = txType === "call" || txType.startsWith("grc20-")
-            const { msgsJson, feeJson: legacyFeeJson } = buildCanonicalProposePayload(msgs, isContractCall)
-            let feeJson = legacyFeeJson
-            if (ENABLE_NATIVE_GNO_MULTISIG) {
-                const info = await api.multisigInfo({ authToken: auth.token, chainId: GNO_CHAIN_ID, multisigAddress: address })
-                if (!info.multisig) throw new Error("Cannot verify wallet identity")
-                if (isNativeMultisig(info.multisig.pubkeyJson)) feeJson = nativeFeeJSON(nativeGas, nativeFee)
-            }
+            const { msgsJson } = buildCanonicalProposePayload(msgs, isContractCall)
+            const feeJson = nativeFeeJSON(nativeGas, nativeFee)
 
             const res = await api.createTransaction({
                 authToken: auth.token,
@@ -191,6 +217,8 @@ export function ProposeTransaction() {
                 type,
             })
 
+            // A cache refresh failure must not report a successfully created proposal as failed.
+            await queryClient.invalidateQueries({ queryKey: ["multisig"] }).catch(() => {})
             navigate(`/tx/${res.transactionId}?ms=${address}&chain=${GNO_CHAIN_ID}`)
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to create transaction"
@@ -219,6 +247,7 @@ export function ProposeTransaction() {
                     </p>
                 </div>
             )}
+            {!ENABLE_NATIVE_GNO_MULTISIG && <p role="status">Native multisig proposals are on hold pending release approval. Legacy accounts remain read-only history.</p>}
 
             <div className="ptx-tabs">
                 {(["send", "call", "grc20-transfer", "grc20-mint", "grc20-burn", "grc20-approve"] as TxType[]).map(tab => {
@@ -245,6 +274,7 @@ export function ProposeTransaction() {
                     <label className="k-label">Recipient Address</label>
                     <input
                         type="text"
+                        aria-label="Recipient address"
                         value={recipient}
                         onChange={(e) => setRecipient(e.target.value)}
                         placeholder="g1recipient..."
@@ -253,12 +283,12 @@ export function ProposeTransaction() {
                     />
                     <label className="k-label">Amount (GNOT)</label>
                     <input
-                        type="number"
+                        type="text"
+                        aria-label="Amount in GNOT"
+                        inputMode="decimal"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="1.0"
-                        min="0"
-                        step="0.000001"
                         disabled={loading}
                         className="ptx-input"
                     />
@@ -271,6 +301,7 @@ export function ProposeTransaction() {
                     <label className="k-label">Package Path</label>
                     <input
                         type="text"
+                        aria-label="Package path"
                         value={pkgPath}
                         onChange={(e) => setPkgPath(e.target.value)}
                         placeholder="gno.land/r/demo/boards"
@@ -280,6 +311,7 @@ export function ProposeTransaction() {
                     <label className="k-label">Function Name</label>
                     <input
                         type="text"
+                        aria-label="Function name"
                         value={funcName}
                         onChange={(e) => setFuncName(e.target.value)}
                         placeholder="CreateThread"
@@ -289,6 +321,7 @@ export function ProposeTransaction() {
                     <label className="k-label">Arguments (comma-separated)</label>
                     <input
                         type="text"
+                        aria-label="Arguments, comma-separated"
                         value={args}
                         onChange={(e) => setArgs(e.target.value)}
                         placeholder="arg1, arg2, arg3"
@@ -297,12 +330,12 @@ export function ProposeTransaction() {
                     />
                     <label className="k-label">Send Amount (optional GNOT)</label>
                     <input
-                        type="number"
+                        type="text"
+                        aria-label="Optional send amount in GNOT"
+                        inputMode="decimal"
                         value={sendAmount}
                         onChange={(e) => setSendAmount(e.target.value)}
                         placeholder="0"
-                        min="0"
-                        step="0.000001"
                         disabled={loading}
                         className="ptx-input"
                     />
@@ -317,7 +350,7 @@ export function ProposeTransaction() {
                 <div className="k-card ptx-form-card">
                     <label className="k-label">Token Symbol</label>
                     <input
-                        type="text" value={grcSymbol}
+                        type="text" aria-label="Token symbol" value={grcSymbol}
                         onChange={e => setGrcSymbol(e.target.value.toUpperCase())}
                         placeholder="e.g. SAM" maxLength={10}
                         disabled={loading} className="ptx-input"
@@ -326,31 +359,31 @@ export function ProposeTransaction() {
                         {txType === "grc20-approve" ? "Spender Address" : txType === "grc20-burn" ? "Burn From Address" : "Recipient Address"}
                     </label>
                     <input
-                        type="text" value={grcTo}
+                        type="text" aria-label={txType === "grc20-approve" ? "Spender address" : txType === "grc20-burn" ? "Burn from address" : "Recipient address"} value={grcTo}
                         onChange={e => setGrcTo(e.target.value)}
                         placeholder="g1..." disabled={loading}
                         className="ptx-input"
                     />
                     <label className="k-label">Amount (smallest unit)</label>
                     <input
-                        type="text" value={grcAmount}
-                        onChange={e => setGrcAmount(e.target.value.replace(/[^0-9]/g, ""))}
-                        placeholder="e.g. 1000000" disabled={loading}
+                        type="text" aria-label="Token amount in smallest unit" value={grcAmount}
+                        onChange={e => setGrcAmount(e.target.value)}
+                        placeholder="e.g. 1000000" disabled={loading} inputMode="numeric"
                         className="ptx-input"
-                        aria-invalid={BigInt(grcAmount.trim() || "0") > MAX_INT64}
+                        aria-invalid={Boolean(grcPreviewError) || (grcPreviewAmount === 0n && txType !== "grc20-approve")}
                     />
-                    {/* int64 ceiling warning */}
-                    {BigInt(grcAmount.trim() || "0") > MAX_INT64 && (
+                    {grcPreviewError && (
                         <div className="ptx-fee-disclosure" style={{ color: "var(--color-warning)" }}>
-                            ⚠ Amount exceeds the on-chain maximum ({MAX_INT64}). This proposal would fail when executed.
+                            ⚠ {grcPreviewError}
                         </div>
                     )}
                     {/* Mint fee disclosure */}
-                    {txType === "grc20-mint" && grcAmount.trim() && BigInt(grcAmount.trim() || "0") > 0n && BigInt(grcAmount.trim() || "0") <= MAX_INT64 && (
+                    {txType === "grc20-mint" && grcPreviewAmount !== null && grcPreviewAmount > 0n && (
                         <div className="ptx-fee-disclosure">
-                            💰 {feeDisclosure(BigInt(grcAmount.trim()), grcSymbol.trim() || "TOKEN")}
+                            💰 {feeDisclosure(grcPreviewAmount, grcSymbol.trim() || "TOKEN")}
                         </div>
                     )}
+                    {txType === "grc20-approve" && <p className="ptx-hint">Set the amount to 0 to revoke a spender's allowance.</p>}
                 </div>
             )}
 
@@ -364,6 +397,7 @@ export function ProposeTransaction() {
                 <label className="k-label">Memo (optional)</label>
                 <input
                     type="text"
+                    aria-label="Optional memo"
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
                     placeholder="Optional memo..."
@@ -378,8 +412,8 @@ export function ProposeTransaction() {
                 <button
                     className="k-btn-primary"
                     onClick={handlePropose}
-                    disabled={loading || !auth.isAuthenticated}
-                    style={{ opacity: !loading && auth.isAuthenticated ? 1 : 0.5 }}
+                    disabled={loading || !auth.isAuthenticated || !ENABLE_NATIVE_GNO_MULTISIG}
+                    style={{ opacity: !loading && auth.isAuthenticated && ENABLE_NATIVE_GNO_MULTISIG ? 1 : 0.5 }}
                 >
                     {loading ? "Proposing..." : txType === "send" ? "Propose Send" : txType.startsWith("grc20-") ? `Propose ${txType.replace("grc20-", "").replace(/^./, c => c.toUpperCase())}` : "Propose Call"}
                 </button>

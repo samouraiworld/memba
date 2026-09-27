@@ -53,6 +53,13 @@ Full changelogs are split by version range for easier navigation:
 - Clarify DAO capabilities and proposal errors, avoid unreliable list tallies, and constrain chain-supplied profile links.
 - Make DAO tabs, wizard choices and member editing usable by keyboard and in narrow windows; offer draft discard and accurate storage feedback.
 
+### Memba OS: Multisig production QA (2026-09-28)
+
+- Distinguish verified native transactions from unconfirmed or legacy hashes, and show submitted signatures separately from verified ones. Keep legacy and unreleased native actions read only, including direct proposal URLs and home signing actions.
+- Reject ambiguous GNOT and nonpositive token amounts, contain signing review focus, and block cross-network or unknown-message signing.
+- Keep completed transaction details reachable, show partial reads with retry, refresh account data after changes, and fit narrow account and creation windows.
+- Omit large signature and sign-body payloads from transaction lists while retaining them in the full detail read.
+
 ### Memba OS: bounded guest access (2026-09-27)
 
 - Keep public App Store browsing open while requiring a signed-in OS member session for publisher and curator windows. Check that session again immediately before any OS wallet broadcast, including actions in public classic pages, and stop queued signing reviews if it ends. Describe guest access without promising private account reads.

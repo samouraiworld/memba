@@ -406,6 +406,15 @@
 .memba-os .os-it.os-top { align-items: flex-start; }
 .memba-os .os-right { text-align: right; }
 .memba-os .os-pill.os-ok { background: var(--os-ok-bg); color: var(--os-ok); }
+.memba-os .os-msig { container-type: inline-size; }
+.memba-os .os-msig .os-big { overflow-wrap: anywhere; }
+@container (max-width: 420px) {
+  .memba-os .os-msig-head { flex-wrap: wrap; }
+  .memba-os .os-msig-head .os-right { width: 100%; text-align: left; }
+  .memba-os .os-msig-head .os-big { font-size: 20px; }
+  .memba-os .os-msig .os-it.os-top { flex-wrap: wrap; }
+  .memba-os .os-msig .os-it.os-top > .os-right { width: 100%; text-align: left; }
+}
 /* ⌥F full screen (D32): the window fills the screen on an opaque background */
 .memba-os .os-win:fullscreen { border-radius: 0; background: var(--os-opaque); }
 /* ── phone (day 6, mockup .phone .home .pdock .sheet) ── */

@@ -99,6 +99,12 @@
     box-sizing: border-box;
 }
 
+.ptx-page button:focus-visible,
+.ptx-page input:focus-visible {
+    outline: 2px solid var(--color-k-accent);
+    outline-offset: 2px;
+}
+
 .ptx-input:disabled {
     opacity: 0.5;
 }

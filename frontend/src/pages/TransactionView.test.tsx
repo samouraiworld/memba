@@ -177,6 +177,7 @@ describe("native confirmation and receipt recovery", () => {
     })
 
     it("persists the successful hash, survives remount, and retries only receipt verification", async () => {
+        const invalidated = vi.spyOn(QueryClient.prototype, "invalidateQueries")
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
         vi.mocked(broadcastNativeTransaction).mockResolvedValue(HASH)
         vi.mocked(api.completeTransaction).mockRejectedValueOnce(new Error("receipt unavailable")).mockImplementationOnce(async () => {
@@ -198,6 +199,7 @@ describe("native confirmation and receipt recovery", () => {
         await screen.findByText("Retry receipt verification")
         fireEvent.click(screen.getByText("Retry receipt verification"))
         await screen.findByText(/VERIFIED ON-CHAIN/)
+        await waitFor(() => expect(invalidated).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["multisig"] })))
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
         expect(api.completeTransaction).toHaveBeenCalledTimes(2)
         expect(vi.mocked(api.completeTransaction).mock.calls[1][0]).toMatchObject({ transactionId: 7, finalHash: HASH })
@@ -297,7 +299,7 @@ describe("native confirmation and receipt recovery", () => {
 
 describe("TransactionView — rendering", () => {
     it("renders parsed message, details and signature progress for a pending tx", async () => {
-        await renderTx(makeTx())
+        await renderTx(makeNativeTx())
         expect(screen.getByText(/Send 5 GNOT/)).toBeInTheDocument()
         expect(screen.getByText("test-13")).toBeInTheDocument()
         expect(screen.getByText("Sign Transaction")).toBeInTheDocument()
@@ -315,9 +317,8 @@ describe("TransactionView — rendering", () => {
         expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
         expect(screen.queryByText("Confirm & Broadcast")).not.toBeInTheDocument()
         expect(screen.getByText(/Legacy multisig records are read-only history/)).toBeInTheDocument()
-        // Signing and export stay available.
-        expect(screen.getByText("Sign Transaction")).toBeInTheDocument()
-        expect(screen.getByText("Export Unsigned TX")).toBeInTheDocument()
+        expect(screen.queryByText("Sign Transaction")).not.toBeInTheDocument()
+        expect(screen.queryByText("Paste gnokey Sig")).not.toBeInTheDocument()
         expect(api.completeTransaction).not.toHaveBeenCalled()
     })
 
@@ -333,7 +334,7 @@ describe("TransactionView — rendering", () => {
 
 describe("TransactionView — two-step confirmation (W2.4)", () => {
     it("Sign opens the review card and signs NOTHING until Confirm", async () => {
-        await renderTx(makeTx())
+        await renderTx(makeNativeTx())
         fireEvent.click(screen.getByText("Sign Transaction"))
 
         // Review card visible with the FULL recipient and network match.
@@ -346,17 +347,40 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
     })
 
     it("Cancel closes the review card without signing", async () => {
-        await renderTx(makeTx())
-        fireEvent.click(screen.getByText("Sign Transaction"))
+        await renderTx(makeNativeTx())
+        const opener = screen.getByText("Sign Transaction")
+        fireEvent.click(opener)
         fireEvent.click(screen.getByText("Cancel"))
         expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+        await waitFor(() => expect(document.activeElement).toBe(opener))
+        expect(mockAdena.signArbitrary).not.toHaveBeenCalled()
+    })
+
+    it("focuses and isolates review, traps Tab, and returns focus on Escape", async () => {
+        await renderTx(makeNativeTx())
+        const opener = screen.getByText("Sign Transaction")
+        fireEvent.click(opener)
+        const review = screen.getByRole("alertdialog")
+        await waitFor(() => expect(document.activeElement).toBe(review))
+        expect(review).toHaveAttribute("aria-modal", "true")
+        expect(opener.closest(".k-txview__actions")).toHaveProperty("inert", true)
+        const buttons = within(review).getAllByRole("button")
+        fireEvent.keyDown(review, { key: "Tab" })
+        expect(document.activeElement).toBe(buttons[0])
+        fireEvent.keyDown(review, { key: "Tab", shiftKey: true })
+        expect(document.activeElement).toBe(buttons[buttons.length - 1])
+        fireEvent.keyDown(review, { key: "Escape" })
+        await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument())
+        await waitFor(() => expect(document.activeElement).toBe(opener))
+        expect(opener.closest(".k-txview__actions")).toHaveProperty("inert", false)
         expect(mockAdena.signArbitrary).not.toHaveBeenCalled()
     })
 
     it("Confirm & Sign signs the canonical doc and submits the signature", async () => {
         mockAdena.signArbitrary.mockResolvedValue("base64sig")
         vi.mocked(api.signTransaction).mockResolvedValue({} as never)
-        await renderTx(makeTx())
+        const invalidated = vi.spyOn(QueryClient.prototype, "invalidateQueries")
+        await renderTx(makeNativeTx())
 
         fireEvent.click(screen.getByText("Sign Transaction"))
         fireEvent.click(screen.getByText("Confirm & Sign"))
@@ -369,12 +393,24 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
             transactionId: 7,
             signature: "base64sig",
         })
+        await waitFor(() => expect(invalidated).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["multisig"] })))
     })
 
-    it("warns loudly when the tx targets a DIFFERENT chain than the app", async () => {
-        await renderTx(makeTx({ chainId: "test-12" }))
-        fireEvent.click(screen.getByText("Sign Transaction"))
-        expect(screen.getByText(/DIFFERENT from this app's network \(test-13\)/)).toBeInTheDocument()
+    it("blocks a transaction for a different chain before opening review", async () => {
+        await renderTx({ ...makeNativeTx(), chainId: "test-12" })
+        expect(screen.getByText("Sign Transaction")).toBeDisabled()
+        expect(screen.getByRole("alert")).toHaveTextContent("different network")
+        expect(mockAdena.signArbitrary).not.toHaveBeenCalled()
+    })
+
+    it("blocks unknown messages whose effects cannot be reviewed", async () => {
+        const unknown = { ...makeNativeTx(), msgsJson: JSON.stringify([{ "@type": "/custom.MsgDrain", amount: "5000000ugnot" }]) }
+        vi.mocked(api.getTransaction).mockResolvedValue({ transaction: unknown, nativeTxBytes: new Uint8Array([1]) } as never)
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        expect(screen.getByRole("alert")).toHaveTextContent("Cannot safely review this message type")
+        expect(screen.getByText("Sign Transaction")).toBeDisabled()
+        expect(screen.getByText("Broadcast to Chain")).toBeDisabled()
     })
 
     it("Broadcast opens the review card with broadcast wording and runs only on Confirm", async () => {
@@ -483,13 +519,13 @@ describe("TransactionView — completion + verified flag", () => {
 
 describe("TransactionView — what a co-signer reads", () => {
     const TARGET = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
-    const callTx = (args: string[], memo = "") => makeTx({
+    const callTx = (args: string[], memo = "") => ({ ...makeNativeTx(),
         memo,
         msgsJson: JSON.stringify([{ type: "vm/MsgCall", value: { caller: "g1multisig000000000000000000000000000000", send: "", pkg_path: "gno.land/r/demo/bank", func: "Transfer", args } }]),
     })
 
     it("shows the recipient in full with a copy button on the page and in the review card", async () => {
-        await renderTx(makeTx())
+        await renderTx(makeNativeTx())
         const onPage = screen.getByText(FULL_RECIPIENT)
         expect(onPage).toHaveAttribute("dir", "ltr")
         expect(screen.getByRole("button", { name: `Copy ${FULL_RECIPIENT}` })).toBeInTheDocument()
@@ -523,4 +559,3 @@ describe("TransactionView — what a co-signer reads", () => {
         expect(document.body.textContent).not.toMatch(/[\u202E\u200B]/)
     })
 })
-

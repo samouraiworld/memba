@@ -8,6 +8,7 @@ vi.mock("../lib/config", () => config)
 vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ auth: { isAuthenticated: true, token: { userAddress: "test-member" } } }) }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock("../lib/api", () => ({ api: { createOrJoinMultisig: vi.fn() } }))
+vi.mock("@tanstack/react-query", async original => ({ ...(await original<typeof import("@tanstack/react-query")>()), useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
 vi.mock("../components/ui/ErrorToast", () => ({ ErrorToast: ({ message }: { message: string | null }) => message ? <p role="alert">{message}</p> : null }))
 import { api } from "../lib/api"
 import { CreateMultisig } from "./CreateMultisig"

@@ -65,6 +65,14 @@
     box-sizing: border-box;
 }
 
+.cms-input:focus-visible,
+.cms-input--sm:focus-visible,
+.cms-threshold-slider:focus-visible,
+.cms-page button:focus-visible {
+    outline: 2px solid var(--color-k-accent);
+    outline-offset: 2px;
+}
+
 .cms-input--sm {
     height: 36px;
     border-radius: 6px;
@@ -118,6 +126,13 @@
 .cms-member-inputs {
     display: flex;
     gap: 8px;
+}
+
+.cms-page { container-type: inline-size; }
+@container (max-width: 500px) {
+    .cms-member-inputs { flex-wrap: wrap; }
+    .cms-member-inputs .cms-input--sm { flex: 1 1 100% !important; min-width: 0; }
+    .cms-member-inputs button { white-space: nowrap; }
 }
 
 .cms-fetch-btn {

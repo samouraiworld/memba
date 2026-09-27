@@ -35,6 +35,7 @@ vi.mock("../../lib/quests", () => ({
 vi.mock("../../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/config")>()),
     GNO_CHAIN_ID: "gnoland-1",
+    ENABLE_NATIVE_GNO_MULTISIG: true,
 }))
 
 // ── Resolve mocked modules for per-test control ───────────────
@@ -118,7 +119,7 @@ describe("useHomeActions — with actions", () => {
                     sequence: 0,
                     creatorAddress: "g1other",
                     membersCount: 2,
-                    multisigPubkeyJson: "",
+                    multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}',
                 },
             ],
         })
@@ -153,6 +154,15 @@ describe("useHomeActions — with actions", () => {
         expect(signActions).toHaveLength(1)
         expect(signActions[0].accent).toBe("amber")
         expect(signActions[0].href).toContain("tx/99")
+    })
+
+    it("does not offer signing for legacy read-only history", async () => {
+        vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [{
+            id: 100, multisigPubkeyJson: "{}", signatures: [], finalHash: "", memo: "Legacy proposal",
+        }] } as never)
+        const { result } = renderHook(() => useHomeActions(makeAuth()), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.actions.filter(a => a.kind === "sign")).toHaveLength(0)
     })
 
     it("sets allCaughtUp to false when there are actions", async () => {

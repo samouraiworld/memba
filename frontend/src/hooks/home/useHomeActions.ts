@@ -16,7 +16,8 @@ import type { UnvotedProposal } from "../../lib/dao/voteScanner"
 import { api } from "../../lib/api"
 import { ExecutionState } from "../../gen/memba/v1/memba_pb"
 import { canApplyForMembership } from "../../lib/quests"
-import { GNO_CHAIN_ID } from "../../lib/config"
+import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID } from "../../lib/config"
+import { isNativeMultisig } from "../../lib/nativeMultisig"
 import type { LayoutContext } from "../../types/layout"
 import type { ActionAccent } from "../../components/home/ActionCard"
 
@@ -60,7 +61,7 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
                 limit: 20,
             })
         },
-        enabled: !!token,
+        enabled: !!token && ENABLE_NATIVE_GNO_MULTISIG,
         retry: false,
         staleTime: 60_000,
     })
@@ -69,7 +70,7 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
 
     // Filter to txs this user has not signed yet (mirrors Dashboard.tsx line 191-193)
     const unsignedTxs = pendingTxs.filter(
-        tx => !tx.signatures.some(s => s.userAddress === address)
+        tx => isNativeMultisig(tx.multisigPubkeyJson) && !tx.signatures.some(s => s.userAddress === address)
     )
 
     // ── BUILD ACTIONS ─────────────────────────────────────────
