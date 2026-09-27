@@ -4,14 +4,16 @@
  *
  * @module os/shell/Launcher
  */
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { DAO_REALM_PATH } from "../../lib/config"
 import { AppTile, ThingTile } from "./icons"
 import { launcherResults, type LaunchItem } from "./launchResults"
 import type { WindowSpec } from "./windows"
 
-export function Launcher({ network, open, onClose }: { network: string; open: (spec: WindowSpec) => void; onClose: () => void }) {
+export function Launcher({ network, open, onClose }: { network: string; open: (spec: WindowSpec) => void; onClose: (restoreFocus: boolean) => void }) {
+    const inputRef = useRef<HTMLInputElement>(null)
+    const resultsRef = useRef<HTMLUListElement>(null)
     const [q, setQ] = useState("")
     const [sel, setSel] = useState(0)
     const daos = useMemo(() => {
@@ -23,23 +25,39 @@ export function Launcher({ network, open, onClose }: { network: string; open: (s
     const current = Math.min(sel, Math.max(0, results.length - 1))
     const go = (item: LaunchItem | undefined) => {
         if (!item) return
-        onClose()
+        onClose(false)
         open(item.spec)
     }
 
+    const onDialogKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Escape") {
+            e.preventDefault()
+            onClose(true)
+        } else if (e.key === "Tab") {
+            // The result list can scroll, so it is a second keyboard stop. Keep
+            // both stops inside the modal instead of tabbing into the dock.
+            if (e.shiftKey && document.activeElement === inputRef.current) {
+                e.preventDefault()
+                resultsRef.current?.focus()
+            } else if (!e.shiftKey && document.activeElement === resultsRef.current) {
+                e.preventDefault()
+                inputRef.current?.focus()
+            }
+        }
+    }
+
     return (
-        <div className="os-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-            <div className="os-launch os-glass" role="dialog" aria-modal="true" aria-label="Search and commands">
-                <input className="os-launch-in" autoFocus value={q} placeholder="Search apps, DAOs, pages, addresses, commands…" aria-label="Search"
+        <div className="os-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(true) }}>
+            <div className="os-launch os-glass" role="dialog" aria-modal="true" aria-label="Search and commands" onKeyDown={onDialogKeyDown}>
+                <input ref={inputRef} className="os-launch-in" autoFocus value={q} placeholder="Search apps, DAOs, pages, addresses, commands…" aria-label="Search"
                     role="combobox" aria-expanded="true" aria-controls="os-launch-results" aria-activedescendant={results[current] ? `os-lr-${current}` : undefined}
                     onChange={(e) => { setQ(e.target.value); setSel(0) }}
                     onKeyDown={(e) => {
-                        if (e.key === "Escape") { e.preventDefault(); onClose() }
-                        else if (e.key === "ArrowDown") { e.preventDefault(); setSel((current + 1) % Math.max(1, results.length)) }
+                        if (e.key === "ArrowDown") { e.preventDefault(); setSel((current + 1) % Math.max(1, results.length)) }
                         else if (e.key === "ArrowUp") { e.preventDefault(); setSel((current - 1 + results.length) % Math.max(1, results.length)) }
                         else if (e.key === "Enter") { e.preventDefault(); go(results[current]) }
                     }} />
-                <ul className="os-launch-res" id="os-launch-results" role="listbox" aria-label="Results">
+                <ul ref={resultsRef} className="os-launch-res" id="os-launch-results" role="listbox" aria-label="Results" tabIndex={0}>
                     {results.length === 0 && <li className="os-sub os-launch-empty">No match. Try an app, a DAO name, a g1… address or a realm path.</li>}
                     {results.map((r, i) => (
                         <li key={r.id} id={`os-lr-${i}`} role="option" aria-selected={i === current} className="os-launch-r"

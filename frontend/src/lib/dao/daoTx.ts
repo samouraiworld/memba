@@ -82,7 +82,7 @@ const isV2Plan = (plan: DaoTxPlan) => plan.maxDepositUgnot !== undefined
  * realm rejects a repeat deterministically, so a retry would only re-prompt
  * the wallet and pay another fee.
  */
-export async function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string, beforeSign?: () => void | Promise<void>, sign: DaoSignOptions = {}) {
+export async function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string, beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>, sign: DaoSignOptions = {}) {
     const options = daoBroadcastOptions(plan, action, sign)
     return doContractBroadcast([plan.msg], memo, { ...options, ...(beforeSign ? { beforeSign } : {}) })
 }

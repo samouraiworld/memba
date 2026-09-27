@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RegisterSWOptions } from 'vite-plugin-pwa/types'
 import { withWalletActivity } from '../lib/walletActivity'
+import { setTxConfirmationCallback } from '../lib/grc20'
 import { SignerProvider } from '../os/sign/SignerProvider'
 import type { SignRequest } from '../os/sign/signer'
 import { useSigner } from '../os/sign/signerContext'
@@ -83,7 +84,14 @@ it('keeps reload disabled while a sent OS transaction is in the verification tra
     const request: SignRequest = {
         title: 'Vote', summary: 'Review a vote', lines: () => [], label: () => 'Vote',
         prepare: () => ({ msgs: [] }),
-        send: async (_choice, beforeSign) => { await beforeSign(); return { hash: 'sent-hash' } },
+        send: async (_choice, beforeSign) => {
+            const confirm = setTxConfirmationCallback(null)
+            setTxConfirmationCallback(confirm)
+            if (!confirm || !(await confirm([], ''))) throw new Error('Review did not approve this request')
+            const guard = await beforeSign()
+            if (guard && !guard()) throw new Error('Session changed')
+            return { hash: 'sent-hash' }
+        },
         verify: () => new Promise<boolean>(resolve => { resolveVerify = resolve }),
         verifyAttempts: 1,
     }

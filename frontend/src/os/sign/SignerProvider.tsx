@@ -32,9 +32,33 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     const [unread, setUnread] = useState(0)
     const [version, setVersion] = useState(0)
     const busy = useRef(false)
-    const member = useRef(session.status === "member")
-    useLayoutEffect(() => { member.current = session.status === "member" }, [session.status])
+    const reviewOpener = useRef<HTMLElement | null>(null)
+    const owner = session.status === "member" ? `${session.network.chainId}:${session.address}` : null
+    const ownerRef = useRef<string | null>(owner)
+    useLayoutEffect(() => {
+        ownerRef.current = owner
+        // An old request may still be waiting for RPC or wallet callbacks after
+        // this provider unmounts. It must never open Adena for the next account.
+        return () => { ownerRef.current = null }
+    }, [owner])
     const holdReload = review !== null || pending.length > 0
+    const reviewOpen = review !== null
+
+    useLayoutEffect(() => {
+        if (!reviewOpen) return
+        const opener = reviewOpener.current
+        const surfaces = [...document.querySelectorAll<HTMLElement>(".memba-os .os-menubar, .memba-os .os-desk, .memba-os .os-dock, .memba-os .os-phone, .memba-os .os-banner")]
+        const previous = surfaces.map((el) => ({ el, inert: el.hasAttribute("inert"), hidden: el.getAttribute("aria-hidden") }))
+        for (const el of surfaces) { el.setAttribute("inert", ""); el.setAttribute("aria-hidden", "true") }
+        return () => {
+            for (const { el, inert, hidden } of previous) {
+                if (!inert) el.removeAttribute("inert")
+                if (hidden === null) el.removeAttribute("aria-hidden")
+                else el.setAttribute("aria-hidden", hidden)
+            }
+            requestAnimationFrame(() => { if (opener?.isConnected && !opener.closest('[inert]')) opener.focus({ preventScroll: true }) })
+        }
+    }, [reviewOpen])
 
     // The global update notice lives above this provider. Hold its reload action
     // from the first review paint through preflight, Adena, and tray verification.
@@ -50,9 +74,11 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- requests carry their own choice type
     const sign = useCallback((req: SignRequest<any>) => {
         if (session.status !== "member") { session.openConnect(); return }
+        if (ownerRef.current !== owner) return
         if (busy.current) { toast("Finish the signature that's open first."); return }
+        reviewOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
         setReview({ req, choice: req.choice?.initial, acked: (req.acks ?? []).map(() => false), stage: "review", error: null })
-    }, [session, toast])
+    }, [session, toast, owner])
 
     const settle = useCallback((req: SignRequest<string>, choice: string | undefined, outcome: SettledOutcome) => {
         setVersion((v) => v + 1)
@@ -63,6 +89,8 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         if (!review || busy.current) return
         // The button is disabled in these cases; the sheet enforces them here too.
         if (session.status !== "member") return
+        const requestOwner = ownerRef.current
+        if (!requestOwner || requestOwner !== owner) return
         if (!review.acked.every(Boolean)) return
         if (session.walletChainId && session.walletChainId !== session.network.chainId) return
         const { req, choice } = review
@@ -74,8 +102,12 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         busy.current = true
         setReview((r) => r && { ...r, stage: "checking", error: null })
         const label = req.label(choice)
-        const res = await executeSignature(req, choice, msgs, () => setReview((r) => r && { ...r, stage: "wallet" }), () => member.current)
+        const sameOwner = () => ownerRef.current === requestOwner
+        const res = await executeSignature(req, choice, msgs, () => {
+            if (sameOwner()) setReview((r) => r && { ...r, stage: "wallet" })
+        }, sameOwner)
         busy.current = false
+        if (!sameOwner()) return
         if (res.outcome === "failed" || res.outcome === "cancelled") {
             if (res.outcome === "cancelled") { setReview(null); toast(res.error); settle(req, choice, "cancelled"); return }
             setReview((r) => r && { ...r, stage: "review", error: res.error })
@@ -95,6 +127,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         setReview(null)
         // Without a way to read the result back (older DAOs), "sent" is all we can say.
         const ok = req.verify ? await verifyWithRetries(() => req.verify!(choice, hash, res.result), req.verifyAttempts) : null
+        if (!sameOwner()) return
         setPending((p) => p.filter((x) => x.id !== id))
         const where = `${session.network.chainId} · ${hash.slice(0, 10)}…`
         notify(ok === true
@@ -104,7 +137,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
                 : { kind: "warn", title: `Submitted · ${label}`, sub: "The chain hasn't shown it yet. Don't send it again." })
         if (ok === false) toast(`Submitted: ${label}. Not visible on chain yet.`)
         settle(req, choice, ok === true ? "confirmed" : "submitted")
-    }, [review, notify, toast, settle, session.network.chainId, session.walletChainId, session.status])
+    }, [review, notify, toast, settle, session.network.chainId, session.walletChainId, session.status, owner])
 
     const cancel = useCallback(() => {
         if (review?.stage === "checking" || review?.stage === "wallet") return // the wallet request is in flight
@@ -145,6 +178,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
     onGo: () => void
     onCancel: () => void
 }) {
+    const dialog = useRef<HTMLDivElement>(null)
     const { req, choice, stage, error } = review
     const chain = session.network.chainId
     const wrongNet = !!session.walletChainId && session.walletChainId !== chain
@@ -154,10 +188,25 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
     const allAcked = review.acked.every(Boolean)
     const canGo = stage === "review" && session.status === "member" && !wrongNet && !prepareError && allAcked
 
+    useLayoutEffect(() => {
+        const el = dialog.current
+        if (!el) return
+        el.focus({ preventScroll: true })
+    }, [stage])
+
     return (
         <div className="os-scrim os-scrim-center">
-            <div className="os-review os-glass" role="dialog" aria-modal="true" aria-label={`Review · ${req.title}`}
-                onKeyDown={(e) => { if (e.key === "Escape") onCancel() }}>
+            <div ref={dialog} className="os-review os-glass" role="dialog" aria-modal="true" aria-label={`Review · ${req.title}`} tabIndex={-1}
+                onKeyDown={(e) => {
+                    if (e.key === "Escape") { e.preventDefault(); onCancel() }
+                    if (e.key !== "Tab") return
+                    const stops = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), summary, [tabindex="0"]') ?? [])]
+                    if (!stops.length) { e.preventDefault(); dialog.current?.focus(); return }
+                    const first = stops[0]
+                    const last = stops[stops.length - 1]
+                    if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus() }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+                }}>
                 {stage === "review" && (
                     <>
                         <div className="os-rvh">

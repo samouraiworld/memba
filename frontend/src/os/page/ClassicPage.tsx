@@ -37,7 +37,7 @@ function WindowOutlet({ layout }: { layout: LayoutContext }) {
 
 const pathOf = (to: To) => (typeof to === "string" ? to : createPath(to))
 
-export function ClassicPage({ network, page, query, layout, onGameExit }: {
+export function ClassicPage({ network, page, query, layout, onGameExit, active = true, onBackgroundReplace }: {
     network: string
     /** The classic page, relative to /:network ("" is the home page). */
     page: string
@@ -45,6 +45,8 @@ export function ClassicPage({ network, page, query, layout, onGameExit }: {
     query?: string
     layout: LayoutContext
     onGameExit?: () => void
+    active?: boolean
+    onBackgroundReplace?: (spec: NonNullable<ReturnType<typeof specForTarget>>) => void
 }) {
     const parent = useContext(UNSAFE_NavigationContext)
     const nav = useMemo(() => {
@@ -78,6 +80,12 @@ export function ClassicPage({ network, page, query, layout, onGameExit }: {
             }
             const spec = specFor(to)
             if (!spec) { window.location.assign(pathOf(to)); return }
+            if (replace && !active && onBackgroundReplace) {
+                // A classic app may canonicalise its root on mount. Doing that
+                // from a background window must not steal the front URL/focus.
+                onBackgroundReplace(spec)
+                return
+            }
             if (replace) parent.navigator.replace(urlForWindow(spec), state)
             else parent.navigator.push(urlForWindow(spec), state)
         }
@@ -96,7 +104,7 @@ export function ClassicPage({ network, page, query, layout, onGameExit }: {
                 go: (n: number) => window.history.go(n),
             },
         }
-    }, [parent, network, page, onGameExit])
+    }, [parent, network, page, onGameExit, active, onBackgroundReplace])
 
     return (
         <div className="os-classic">

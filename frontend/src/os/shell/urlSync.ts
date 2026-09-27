@@ -58,7 +58,9 @@ export function tokenToTarget(token: string): OsTarget | null {
     return t.kind === "desktop" || t.kind === "unknown" ? null : t
 }
 
-const MAX_W_TOKENS = 12
+// Keep the reader and writer on the same budget. A normal desk can hold all
+// apps plus extra DAO/proposal windows without losing the tail on reload.
+const MAX_W_TOKENS = 32
 
 /** A page window's query from a URL's search, without the reserved w key ("" when there is none). */
 export function pageQuery(search: string): string {
@@ -87,23 +89,29 @@ export function urlForWindows(wins: readonly OsWindow[]): string {
         .sort((a, b) => a.z - b.z)
         .map((w) => windowToken(w.target))
         .filter((t): t is string => t !== null)
+        .slice(-MAX_W_TOKENS)
     return others.length ? `${path}${path.includes("?") ? "&" : "?"}w=${others.join(",")}` : path
 }
 
 // ── saved session ──────────────────────────────────────────────────────────
 
 export const OS_WINDOWS_KEY = "memba_os_windows"
+/** An account and chain get their own browser-local layout. The old unscoped
+ * key is intentionally not read by the OS after this change. */
+export function windowsStorageKey(owner?: string): string {
+    return owner ? `${OS_WINDOWS_KEY}:${owner}` : OS_WINDOWS_KEY
+}
 
 type Saved = Pick<OsWindow, "x" | "y" | "width" | "height" | "z" | "min" | "max"> & { token: string; query?: string }
 
-export function saveWindows(wins: readonly OsWindow[]): void {
+export function saveWindows(wins: readonly OsWindow[], owner?: string): void {
     const saved: Saved[] = wins.flatMap((w) => {
         const token = windowToken(w.target)
         const query = w.target?.kind === "app" && w.target.query ? { query: w.target.query } : {}
         return token ? [{ token, ...query, x: w.x, y: w.y, width: w.width, height: w.height, z: w.z, min: w.min, max: w.max }] : []
-    })
+    }).sort((a, b) => a.z - b.z).slice(-(MAX_W_TOKENS + 1))
     try {
-        localStorage.setItem(OS_WINDOWS_KEY, JSON.stringify(saved))
+        localStorage.setItem(windowsStorageKey(owner), JSON.stringify(saved))
     } catch {
         // Storage refused: the session just isn't restored next time.
     }
@@ -112,15 +120,15 @@ export function saveWindows(wins: readonly OsWindow[]): void {
 const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback)
 
 /** The saved windows, re-validated (anything malformed is dropped). */
-export function loadSavedTargets(): { target: OsTarget; geom: Omit<Saved, "token" | "query"> }[] {
+export function loadSavedTargets(owner?: string): { target: OsTarget; geom: Omit<Saved, "token" | "query"> }[] {
     let raw: unknown
     try {
-        raw = JSON.parse(localStorage.getItem(OS_WINDOWS_KEY) ?? "[]")
+        raw = JSON.parse(localStorage.getItem(windowsStorageKey(owner)) ?? "[]")
     } catch {
         return []
     }
     if (!Array.isArray(raw)) return []
-    return raw.slice(0, MAX_W_TOKENS).flatMap((e: Partial<Saved>) => {
+    return raw.slice(-(MAX_W_TOKENS + 1)).flatMap((e: Partial<Saved>) => {
         const found = typeof e?.token === "string" ? tokenToTarget(e.token) : null
         if (!found) return []
         // A page's query comes back through URLSearchParams, so only a plain query string survives.

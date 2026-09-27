@@ -100,8 +100,26 @@ export interface MenuEntry { label: string; run: () => void }
 /** A right-click menu at a desk position; closes on Escape or any outside press. */
 export function ContextMenu({ x, y, entries, onClose }: { x: number; y: number; entries: (MenuEntry | "sep")[]; onClose: () => void }) {
     const ref = useRef<HTMLDivElement>(null)
+    const opener = useRef<HTMLElement | null>(null)
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.preventDefault()
+                onClose()
+                requestAnimationFrame(() => opener.current?.isConnected && opener.current.focus({ preventScroll: true }))
+                return
+            }
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return
+            const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])]
+            if (!items.length) return
+            const current = items.indexOf(document.activeElement as HTMLButtonElement)
+            const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1
+                : e.key === "ArrowDown" ? (current + 1) % items.length
+                    : (current - 1 + items.length) % items.length
+            e.preventDefault()
+            items[next].focus()
+        }
         const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) onClose() }
         window.addEventListener("keydown", onKey)
         window.addEventListener("pointerdown", onDown)

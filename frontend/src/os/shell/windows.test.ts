@@ -174,6 +174,24 @@ describe("windowsReducer", () => {
         expect(new Set(after.wins.map((w) => w.id)).size).toBe(2)
         expect(frontWindow(after.wins)?.key).toBe("app:feed")
     })
+
+    it("keeps restored and long-lived windows below modal layers", () => {
+        const base = run(open(appSpec("wallet")), open(appSpec("arcade")))
+        const hostile = base.wins.map((w, i) => ({ ...w, z: 941 + i * 1_000_000 }))
+        let s = windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: hostile })
+        expect(Math.max(...s.wins.map((w) => w.z))).toBe(2)
+        expect(frontWindow(s.wins)?.key).toBe("app:arcade")
+        for (let i = 0; i < 1_000; i++) s = windowsReducer(s, { type: "focus", id: s.wins[0].id })
+        expect(Math.max(...s.wins.map((w) => w.z))).toBeLessThan(500)
+    })
+
+    it("retargets a background redirect without raising its window", () => {
+        const s = run(open(appSpec("market")), open(appSpec("wallet")))
+        const market = byKey(s, "app:market")
+        const next = windowsReducer(s, { type: "retarget", id: market.id, spec: appSpec("market", "marketplace/services") })
+        expect(frontWindow(next.wins)?.key).toBe("app:wallet")
+        expect(byKey(next, "app:market").target).toMatchObject({ section: "marketplace/services" })
+    })
 })
 
 describe("maxGeometry", () => {

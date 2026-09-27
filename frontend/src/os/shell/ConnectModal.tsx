@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
 import { shortAddr } from "./format"
 import { ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
@@ -25,6 +25,13 @@ function Waiting({ label }: { label: string }) {
  */
 export function ConnectModal({ session }: { session: OsSession }) {
     const { stage, error, note } = session
+    const dialog = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+        if (!stage || !dialog.current) return
+        if (dialog.current.contains(document.activeElement)) return
+        const first = dialog.current.querySelector<HTMLElement>('button:not(:disabled), a[href]')
+        ;(first ?? dialog.current).focus({ preventScroll: true })
+    }, [stage])
     if (!stage) return null
     const closeable = !(stage === "activate" && session.activationForced) && stage !== "activatewait"
     let body: ReactNode
@@ -104,10 +111,29 @@ export function ConnectModal({ session }: { session: OsSession }) {
             body = <><Head title="Confirm in Adena" sub="Approve the activation." /><Waiting label="Waiting for Adena…" /></>
             break
     }
+    const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Escape" && closeable) {
+            e.preventDefault()
+            session.cancel()
+            return
+        }
+        if (e.key !== "Tab") return
+        const stops = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]') ?? [])
+        if (stops.length === 0) {
+            e.preventDefault()
+            dialog.current?.focus()
+        } else if (e.shiftKey && document.activeElement === stops[0]) {
+            e.preventDefault()
+            stops[stops.length - 1].focus()
+        } else if (!e.shiftKey && document.activeElement === stops[stops.length - 1]) {
+            e.preventDefault()
+            stops[0].focus()
+        }
+    }
     return (
         <div className="os-scrim os-scrim-center" onClick={(e) => { if (closeable && e.target === e.currentTarget) session.cancel() }}>
-            <div className="os-modal os-glass" role="dialog" aria-modal="true" aria-label="Connect a wallet"
-                onKeyDown={(e) => { if (e.key === "Escape" && closeable) session.cancel() }}>
+            <div ref={dialog} className="os-modal os-glass" role="dialog" aria-modal="true" aria-label="Connect a wallet" tabIndex={-1}
+                onKeyDown={onKeyDown}>
                 {body}
                 {error && <p className="os-note os-err" role="alert">{error}</p>}
             </div>

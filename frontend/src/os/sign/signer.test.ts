@@ -110,6 +110,24 @@ describe("executeSignature", () => {
         await expect(first).resolves.toEqual({ outcome: "sent", hash: "H", result: undefined })
     })
 
+    it("does not let a new account replace a pending account's review callback", async () => {
+        const classic = vi.fn(async () => true)
+        setTxConfirmationCallback(classic)
+        let release!: () => void
+        let started!: () => void
+        const waiting = new Promise<void>((resolve) => { release = resolve })
+        const entered = new Promise<void>((resolve) => { started = resolve })
+        const first = executeSignature(request({ receipt: false, recheck: async () => { started(); await waiting } }), "YES", [msg], () => {}, () => false)
+        await entered
+        const secondWallet = vi.fn(async () => ({ hash: "B" }))
+        const second = await executeSignature(request({ receipt: false, wallet: secondWallet }), "YES", [msg], () => {})
+        expect(second).toMatchObject({ outcome: "failed", error: expect.stringContaining("already waiting") })
+        expect(secondWallet).not.toHaveBeenCalled()
+        release()
+        await expect(first).resolves.toMatchObject({ outcome: "failed" })
+        expect(setTxConfirmationCallback(null)).toBe(classic)
+    })
+
     it("works through the real broadcaster's confirmation step", async () => {
         setTxConfirmationCallback(async () => true)
         const req: SignRequest<"YES"> = {

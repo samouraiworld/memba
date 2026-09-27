@@ -72,7 +72,7 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
         await page.reload()
         await expect(page.getByRole('region', { name: 'BARRICADE · Arcade' })).toBeVisible()
         if (device === 'desktop') await expect(page.getByRole('region', { name: 'Arcade', exact: true })).toBeVisible()
-        const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('memba_os_windows') ?? '[]') as { token: string }[])
+        const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('memba_os_windows:guest:gnoland-1') ?? '[]') as { token: string }[])
         expect(saved.map(({ token }) => token)).toEqual(expect.arrayContaining(['app.arcade', 'arcade.barricade']))
     })
 
