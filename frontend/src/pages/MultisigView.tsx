@@ -14,6 +14,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
 import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import type { LayoutContext } from "../types/layout"
 import "./multisigview.css"
 
@@ -152,7 +153,7 @@ export function MultisigView() {
                             </div>
                         ) : (
                             <div className="k-msview__title-row">
-                                <h2 className="k-msview__title">{multisig.name || "Multisig Wallet"}</h2>
+                                <h2 className="k-msview__title">{revealInvisibleFormatting(multisig.name || "Multisig Wallet")}</h2>
                                 <button type="button" className="k-msview__title-edit" aria-label="Rename multisig" onClick={() => { setEditName(multisig.name || ""); setEditing(true) }}>Rename</button>
                             </div>
                         )}

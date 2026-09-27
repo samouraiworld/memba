@@ -104,6 +104,20 @@ describe("MultisigHub", () => {
         await waitFor(() => expect(api.createOrJoinMultisig).toHaveBeenCalled())
     })
 
+    it("disables add when the public-key configuration is missing", async () => {
+        vi.mocked(api.multisigs).mockResolvedValue({ multisigs: [{ ...wallet(2, false), pubkeyJson: "" }] } as never)
+        renderHub()
+        const add = await screen.findByRole("button", { name: "Add account" })
+        expect(add).toBeDisabled()
+        expect(add).toHaveAttribute("title", "Public-key configuration unavailable")
+    })
+
+    it("reveals invisible formatting in account names", async () => {
+        vi.mocked(api.multisigs).mockResolvedValue({ multisigs: [{ ...wallet(1), name: "Team\u200Btreasury" }] } as never)
+        renderHub()
+        expect(await screen.findByRole("button", { name: /Team\[U\+200B\]treasury/ })).toBeInTheDocument()
+    })
+
     it("discloses the 50 account response cap", async () => {
         vi.mocked(api.multisigs).mockResolvedValue({ multisigs: Array.from({ length: 50 }, (_, i) => wallet(i)) } as never)
         renderHub()

@@ -126,12 +126,36 @@ test.describe('Memba OS multisig', () => {
 
     test('a shared configuration link identifies itself as unverified account data', async ({ page }) => {
         await setup(page)
-        const pubkey = btoa(JSON.stringify({ '@type': '/tm.PubKeyMultisig', threshold: '2', pubkeys: [{}, {}, {}] }))
+        const pubkey = btoa(JSON.stringify({ type: 'tendermint/PubKeyMultisigThreshold', value: { threshold: '2', pubkeys: [{}, {}, {}] } }))
         await page.goto(`${OS_ON}/os/multisig/import?pubkey=${encodeURIComponent(pubkey)}&name=Team%20treasury`)
         await expect(page.getByText('Shared multisig configuration')).toBeVisible()
         await expect(page.getByText('This link does not grant signing rights.', { exact: false })).toBeVisible()
         await expect(page.getByText('Threshold:', { exact: false })).toContainText('2/3')
         await expect(page.getByRole('textbox', { name: 'Wallet Name (optional)' })).toHaveValue('Team treasury')
         await expect(page.getByRole('textbox', { name: 'Multisig public-key JSON' })).toBeVisible()
+    })
+
+    test('a malformed shared threshold cannot crash the import window', async ({ page }) => {
+        await setup(page)
+        const pubkey = btoa(JSON.stringify({ '@type': '/tm.PubKeyMultisig', threshold: { nested: 'bad' }, pubkeys: [{}, {}] }))
+        await page.goto(`${OS_ON}/os/multisig/import?pubkey=${encodeURIComponent(pubkey)}`)
+        await expect(page.getByText('Shared multisig configuration')).toBeVisible()
+        await expect(page.getByText('Threshold:', { exact: false })).toContainText('?/2')
+        await expect(page.getByRole('textbox', { name: 'Multisig public-key JSON' })).toBeVisible()
+    })
+
+    test('a direct native transaction URL explains the release hold without signing controls', async ({ page }) => {
+        await setup(page)
+        await page.route('**/memba.v1.MultisigService/GetTransaction', route => route.fulfill({
+            status: 200, contentType: 'application/json', body: JSON.stringify({
+                transaction: { ...pending, multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}' },
+                nativeTxBytes: 'AQID',
+            }),
+        }))
+        await page.goto(`${OS_ON}/os/wallet/tx/7`)
+        await expect(page.getByText('Native signing and broadcasting are on hold pending release approval.')).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Sign Transaction' })).toHaveCount(0)
+        await expect(page.getByRole('button', { name: 'Broadcast to Chain' })).toHaveCount(0)
+        await expect(page.getByRole('button', { name: 'Paste gnokey Sig' })).toHaveCount(0)
     })
 })

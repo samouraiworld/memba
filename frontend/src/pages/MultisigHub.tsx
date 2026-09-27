@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query"
 import { LockKey, Plus, MagnifyingGlass, Wallet, Users } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Multisig } from "../gen/memba/v1/memba_pb"
@@ -59,7 +60,8 @@ export default function MultisigHub() {
     }, [auth.isAuthenticated, loading, navigate])
 
     const handleJoin = async (ms: Multisig) => {
-        if (!token || !ms.pubkeyJson) return
+        if (!token) return
+        if (!ms.pubkeyJson) { setActionError("This account cannot be added because its public-key configuration is unavailable."); return }
         setJoiningAddr(ms.address)
         try {
             await api.createOrJoinMultisig({
@@ -138,7 +140,7 @@ export default function MultisigHub() {
                                     data-testid={`multisig-card-${ms.address}`}
                                 >
                                     <div className="msh-card-top">
-                                        <button type="button" className="msh-card-name" aria-label={`View ${ms.name || "Unnamed"} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{ms.name || "Unnamed"}</button>
+                                        <button type="button" className="msh-card-name" aria-label={`View ${revealInvisibleFormatting(ms.name || "Unnamed")} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Unnamed")}</button>
                                         <span className="msh-threshold">{ms.threshold}/{ms.membersCount}</span>
                                     </div>
                                     <div className="msh-card-addr">
@@ -174,7 +176,7 @@ export default function MultisigHub() {
                         {discoverable.map(ms => (
                             <div key={ms.address} className="msh-card msh-card-discover" data-testid={`multisig-discover-${ms.address}`}>
                                 <div className="msh-card-top">
-                                    <button type="button" className="msh-card-name" aria-label={`View ${ms.name || "Unnamed"} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{ms.name || "Unnamed"}</button>
+                                    <button type="button" className="msh-card-name" aria-label={`View ${revealInvisibleFormatting(ms.name || "Unnamed")} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Unnamed")}</button>
                                     <span className="msh-threshold msh-threshold-warn">{ms.threshold}/{ms.membersCount}</span>
                                 </div>
                                 <div className="msh-card-addr">
@@ -182,7 +184,8 @@ export default function MultisigHub() {
                                 </div>
                                 <button
                                     className="k-btn-primary msh-join-btn"
-                                    disabled={joiningAddr === ms.address}
+                                    disabled={joiningAddr === ms.address || !ms.pubkeyJson}
+                                    title={!ms.pubkeyJson ? "Public-key configuration unavailable" : undefined}
                                     onClick={() => { void handleJoin(ms) }}
                                 >
                                     {joiningAddr === ms.address ? "Adding..." : "Add account"}

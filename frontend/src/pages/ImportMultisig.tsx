@@ -8,6 +8,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import { isNativeMultisig, nativeAddress, parseNativeMultisig } from "../lib/nativeMultisig"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 
 type ImportMode = "address" | "pubkey"
 
@@ -20,7 +21,7 @@ function parseSharedImport(searchParams: URLSearchParams): { pubkeyJson: string;
         // Verify it's valid multisig pubkey JSON
         const parsed = JSON.parse(decoded)
         if ((parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) || isNativeMultisig(decoded)) {
-            return { pubkeyJson: decoded, name: searchParams.get("name") || "" }
+            return { pubkeyJson: decoded, name: (searchParams.get("name") || "").slice(0, 256) }
         }
     } catch { /* invalid base64 or JSON — ignore */ }
     return null
@@ -187,8 +188,10 @@ export function ImportMultisig() {
                 let threshold = "?", members = "?"
                 try {
                     const parsed = JSON.parse(sharedImport.pubkeyJson)
-                    threshold = parsed.threshold || parsed.value?.threshold || "?"
-                    members = parsed.pubkeys?.length?.toString() || parsed.value?.pubkeys?.length?.toString() || "?"
+                    const rawThreshold: unknown = parsed.threshold ?? parsed.value?.threshold
+                    const rawMembers: unknown = parsed.pubkeys ?? parsed.value?.pubkeys
+                    if ((typeof rawThreshold === "string" && /^[1-9][0-9]*$/.test(rawThreshold)) || (typeof rawThreshold === "number" && Number.isSafeInteger(rawThreshold) && rawThreshold > 0)) threshold = String(rawThreshold)
+                    if (Array.isArray(rawMembers)) members = String(rawMembers.length)
                 } catch { /* ignore */ }
                 return (
                     <div className="k-card" style={{ borderColor: "var(--color-k-accent-border)", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -198,7 +201,7 @@ export function ImportMultisig() {
                         </div>
                         <p>Review the wallet address, ordered public keys, threshold and chain with the sender before importing. This link does not grant signing rights.</p>
                         <div style={{ display: "flex", gap: 16, fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)" }}>
-                            {sharedImport.name && <span>Name: <span style={{ color: "var(--color-text-secondary)" }}>{sharedImport.name}</span></span>}
+                            {sharedImport.name && <span>Name: <span style={{ color: "var(--color-text-secondary)" }}>{revealInvisibleFormatting(sharedImport.name)}</span></span>}
                             <span>Threshold: <span style={{ color: "var(--color-text-secondary)" }}>{threshold}/{members}</span></span>
                         </div>
                         {auth.isAuthenticated ? (

@@ -358,12 +358,16 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
 
     it("focuses and isolates review, traps Tab, and returns focus on Escape", async () => {
         await renderTx(makeNativeTx())
+        const chrome = document.createElement("button")
+        chrome.textContent = "Outside window"
+        document.body.appendChild(chrome)
         const opener = screen.getByText("Sign Transaction")
         fireEvent.click(opener)
         const review = screen.getByRole("alertdialog")
         await waitFor(() => expect(document.activeElement).toBe(review))
         expect(review).toHaveAttribute("aria-modal", "true")
         expect(opener.closest(".k-txview__actions")).toHaveProperty("inert", true)
+        expect(chrome).toHaveProperty("inert", true)
         const buttons = within(review).getAllByRole("button")
         fireEvent.keyDown(review, { key: "Tab" })
         expect(document.activeElement).toBe(buttons[0])
@@ -372,7 +376,9 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
         fireEvent.keyDown(review, { key: "Escape" })
         await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument())
         await waitFor(() => expect(document.activeElement).toBe(opener))
-        expect(opener.closest(".k-txview__actions")).toHaveProperty("inert", false)
+        expect(opener.closest(".k-txview__actions")).not.toHaveProperty("inert", true)
+        expect(chrome).not.toHaveProperty("inert", true)
+        chrome.remove()
         expect(mockAdena.signArbitrary).not.toHaveBeenCalled()
     })
 
@@ -382,8 +388,10 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
         const invalidated = vi.spyOn(QueryClient.prototype, "invalidateQueries")
         await renderTx(makeNativeTx())
 
-        fireEvent.click(screen.getByText("Sign Transaction"))
+        const opener = screen.getByText("Sign Transaction")
+        fireEvent.click(opener)
         fireEvent.click(screen.getByText("Confirm & Sign"))
+        await waitFor(() => expect(document.activeElement).toBe(opener))
 
         await waitFor(() => expect(api.signTransaction).toHaveBeenCalled())
         const signedDoc = JSON.parse(mockAdena.signArbitrary.mock.calls[0][0])

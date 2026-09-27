@@ -13,7 +13,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
-import { API_BASE_URL, GNO_CHAIN_ID } from "../lib/config"
+import { API_BASE_URL, ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID } from "../lib/config"
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
@@ -114,9 +114,20 @@ export function TransactionView() {
     useEffect(() => {
         if (!pendingAction || tx?.finalHash || !reviewRef.current) return
         const review = reviewRef.current
-        const siblings = Array.from(review.parentElement?.children ?? []).filter((node): node is HTMLElement => node instanceof HTMLElement && node !== review)
-        const priorInert = siblings.map(node => [node, node.inert] as const)
-        siblings.forEach(node => { node.inert = true })
+        // Isolate the review from all surrounding app chrome, not just the
+        // transaction view's siblings. An OS window/header may sit higher up.
+        const priorInert: Array<readonly [HTMLElement, boolean]> = []
+        let pathNode: HTMLElement = review
+        while (pathNode.parentElement) {
+            const parent = pathNode.parentElement
+            for (const sibling of parent.children) {
+                if (sibling instanceof HTMLElement && sibling !== pathNode) {
+                    priorInert.push([sibling, sibling.inert])
+                    sibling.inert = true
+                }
+            }
+            pathNode = parent
+        }
         review.focus()
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -146,7 +157,7 @@ export function TransactionView() {
         review.addEventListener("keydown", onKeyDown)
         return () => {
             review.removeEventListener("keydown", onKeyDown)
-            priorInert.forEach(([node, inert]) => { node.inert = !!inert })
+            priorInert.forEach(([node, inert]) => { node.inert = inert })
             if (restoreReviewFocus.current) {
                 restoreReviewFocus.current = false
                 requestAnimationFrame(() => { if (reviewOpener.current?.isConnected) reviewOpener.current.focus() })
@@ -387,18 +398,19 @@ export function TransactionView() {
 
             {/* ── Actions ─────────────────────────────────────── */}
             {reviewError && <p role="alert">{reviewError}</p>}
+            {native && !ENABLE_NATIVE_GNO_MULTISIG && !tx.finalHash && <p role="status">Native signing and broadcasting are on hold pending release approval.</p>}
             {native && receipt && !tx.finalHash && <div className="k-card" role="status">
                 <p>Broadcast receipt recovery — this saved hash is not proof of completion. The backend must verify it on-chain.</p>
                 <code style={{ overflowWrap: "anywhere" }}>{validReceiptHash(receipt) ? receipt : "Recovery record is unavailable or invalid; inspect it before continuing."}</code>
                 {recoveryWarning && <p role="alert">{recoveryWarning}</p>}
-                <p>Retry only saves the verified receipt. It does not broadcast again.</p>
-                <button className="k-btn-primary" disabled={actionLoading || !auth.isAuthenticated || !validReceiptHash(receipt)} onClick={() => void handleBroadcast()}>
+                <p>{ENABLE_NATIVE_GNO_MULTISIG ? "Retry only saves the verified receipt. It does not broadcast again." : "Receipt verification is on hold. Check this hash on-chain before any future retry."}</p>
+                <button className="k-btn-primary" disabled={!ENABLE_NATIVE_GNO_MULTISIG || actionLoading || !auth.isAuthenticated || !validReceiptHash(receipt)} onClick={() => void handleBroadcast()}>
                     {actionLoading ? "Checking receipt..." : "Retry receipt verification"}
                 </button>
             </div>}
             {native && txQuery.data?.nativeExportError && <p role="status">{txQuery.data.nativeExportError}</p>}
             {!native && !tx.finalHash && <p role="status">{LEGACY_READ_ONLY_MESSAGE}</p>}
-            {!tx.finalHash && auth.isAuthenticated && native && (
+            {!tx.finalHash && auth.isAuthenticated && native && ENABLE_NATIVE_GNO_MULTISIG && (
                 <div className="k-txview__actions">
                     <button
                         className="k-btn-primary"
@@ -448,7 +460,7 @@ export function TransactionView() {
             )}
 
             {/* ── W2.4: Review card — confirm before sign/broadcast ── */}
-            {pendingAction && !tx.finalHash && (
+            {pendingAction && !tx.finalHash && ENABLE_NATIVE_GNO_MULTISIG && (
                 <div ref={reviewRef} tabIndex={-1} className="k-card k-txview__confirm-card" role="alertdialog" aria-modal="true" aria-label="Review transaction" style={{
                     border: "1px solid var(--color-k-amber-border)",
                     display: "flex", flexDirection: "column", gap: 12, padding: 18,
@@ -499,6 +511,7 @@ export function TransactionView() {
                             disabled={actionLoading || !!reviewError || !!receipt}
                             onClick={() => {
                                 const action = pendingAction
+                                restoreReviewFocus.current = true
                                 setPendingAction(null)
                                 if (action === "sign") void handleSign()
                                 else void handleBroadcast()
@@ -511,7 +524,7 @@ export function TransactionView() {
             )}
 
             {/* ── Manual Signature Paste (air-gapped flow) ────── */}
-            {showManualSig && !tx.finalHash && auth.isAuthenticated && native && (
+            {showManualSig && !tx.finalHash && auth.isAuthenticated && native && ENABLE_NATIVE_GNO_MULTISIG && (
                 <div className="k-card k-txview__manual-form">
                     <p className="k-label">Paste gnokey Signature</p>
                     <p className="k-txview__manual-desc">
