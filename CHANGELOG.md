@@ -26,6 +26,9 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: native Feed home (2026-09-27)
 
 - Read and post from a native Feed window, with OS-session-gated writes, honest loading, empty, error and unavailable states, and the existing detail and moderation pages still available in their windows.
+### Memba OS: recent on-chain activity (2026-09-27)
+
+- Open a read-only Live window for a recent, diversified sample of indexed transactions and see the newest item in a quiet desktop ticker. Loading, empty, relay error and unsupported-network states are distinct; transaction links use a supported hash and chain.
 
 ### App updates: reload when ready (2026-09-26)
 
