@@ -49,9 +49,8 @@ for (const theme of ['light', 'dark'] as const) {
     })
 }
 
-// Tokens renders a native unavailable state on mainnet, so it has no classic
-// subtree to check. The sweep still covers every app listed here.
-const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'profile', 'news', 'explorer', 'feedback', 'dev-report']
+// Feed and Tokens now have native windows; this sweep covers classic pages.
+const APPS = ['store', 'settings', 'quests', 'validators', 'profile', 'news', 'explorer', 'feedback', 'dev-report']
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
     await guest(page)

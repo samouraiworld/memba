@@ -108,7 +108,7 @@ for (const scheme of ['light', 'dark'] as const) {
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
  * inside the window instead. Store's extensions sub-route isn't scanned separately —
  * this is the app's landing deep link, /os/<slug> (osPath.ts requires a slug). */
-const CLASSIC_APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'feedback']
+const CLASSIC_APPS = ['store', 'settings', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
@@ -132,6 +132,13 @@ for (const scheme of ['light', 'dark'] as const) {
                 expect(await classicViolations(page)).toEqual([])
             })
         }
+
+        test('Feed native unavailable window', async ({ page }) => {
+            await page.goto(`${OS_ON}/os/feed`)
+            const feed = page.getByRole('region', { name: 'Feed', exact: true })
+            await expect(feed.getByText('The Feed is disabled in this build.')).toBeVisible()
+            expect(await violations(page)).toEqual([])
+        })
 
         test('tokens native unavailable window', async ({ page }) => {
             await page.goto(`${OS_ON}/os/tokens`)
