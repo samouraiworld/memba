@@ -7,7 +7,11 @@
   box-shadow: 0 8px 24px -16px var(--os-shadow);
 }
 .memba-os .os-live-ticker:hover { border-color: var(--os-acc); }
-.memba-os .os-live-ticker-mark { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--os-acc); }
+.memba-os .os-live-ticker-mark { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--os-mut); }
+.memba-os .os-live-ticker[data-state="paused"] .os-live-ticker-mark { background: var(--os-warn); }
+.memba-os .os-live-ticker[data-state="unavailable"] .os-live-ticker-mark,
+.memba-os .os-live-ticker[data-state="loading"] .os-live-ticker-mark,
+.memba-os .os-live-ticker[data-state="error"] .os-live-ticker-mark { background: var(--os-mut); }
 .memba-os .os-live-ticker-text { display: grid; gap: 2px; min-width: 0; flex: 1; font-size: 11px; }
 .memba-os .os-live-ticker-text strong { font-size: 11px; }
 .memba-os .os-live-ticker-text > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--os-mut); }

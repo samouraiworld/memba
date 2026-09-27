@@ -42,4 +42,13 @@ describe("useRecentActivity", () => {
         expect(result.current.available).toBe(true)
         expect(result.current.updatedAt).toBeGreaterThan(0)
     })
+
+    it("does not poll while the OS Live surface is inactive", async () => {
+        vi.mocked(config.getIndexerUrl).mockReturnValue("https://indexer.example/graphql")
+        const { useRecentActivity } = await import("./useRecentActivity")
+        const { result } = renderHook(() => useRecentActivity("mainnet", false), { wrapper: makeWrapper() })
+        expect(result.current.available).toBe(true)
+        expect(result.current.loading).toBe(false)
+        expect(activity.fetchRecentActivity).not.toHaveBeenCalled()
+    })
 })

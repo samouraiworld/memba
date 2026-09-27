@@ -1,10 +1,10 @@
-import { useRecentActivity } from "../../../hooks/home/useRecentActivity"
 import { useNow } from "../../../hooks/home/useNow"
 import { relativeActivityTime, type ActivityItem } from "../../../lib/activity"
 import { INDEXER_PROXIED_NETWORK } from "../../../lib/config"
 import { txExplorerUrl } from "../../../lib/txExplorerUrl"
 import { Empty, ErrorState, Loading } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
+import { useLiveActivity } from "./liveState"
 import "./live.css"
 
 function shortHash(hash: string): string {
@@ -34,10 +34,13 @@ function ActivityRow({ item, chainId, now }: { item: ActivityItem; chainId: stri
 }
 
 function LiveContent({ session }: Pick<NativeViewProps, "session">) {
-    const { items, loading, error, available, updatedAt, refetch } = useRecentActivity(session.network.key)
+    const { activity, chain } = useLiveActivity()
+    const { items, loading, error, available, updatedAt, refetch } = activity
+    const chainStalled = chain.degraded
     const now = useNow(15_000)
 
-    const updated = updatedAt ? relativeActivityTime(new Date(updatedAt).toISOString(), now) : ""
+    const checked = updatedAt ? relativeActivityTime(new Date(updatedAt).toISOString(), now) : ""
+    const latestTransaction = items[0] ? relativeActivityTime(items[0].time, now) : ""
     return (
         <section className="os-live-window" aria-label="Recent on-chain activity">
             <header className="os-live-head">
@@ -50,10 +53,15 @@ function LiveContent({ session }: Pick<NativeViewProps, "session">) {
             {!available && <div className="os-note os-warn" role="status">Activity is unavailable on this network. The guarded indexer relay serves {INDEXER_PROXIED_NETWORK} only.</div>}
             {available && loading && <Loading label="Loading recent indexed transactions…" />}
             {available && !loading && error && <ErrorState message="Could not load recent activity from the indexer." onRetry={refetch} />}
-            {available && !loading && !error && items.length === 0 && <Empty title="No transactions appeared in the recent indexed sample. Check back after new blocks arrive." />}
+            {available && !loading && !error && chainStalled && <div className="os-note os-warn" role="status">Chain activity appears paused. The chain is halted or unreachable; any transactions below are the last indexed sample.</div>}
+            {available && !loading && !error && items.length === 0 && <Empty title={chainStalled ? "No recent transactions are available while chain activity is paused." : "No transactions appeared in the recent indexed sample. Check back after new blocks arrive."} />}
             {available && !loading && !error && items.length > 0 && (
                 <>
-                    <p className="os-live-update os-sub">{updated ? updated === "just now" ? "Updated just now" : `Updated ${updated} ago` : "Recent indexed sample"} · newest blocks first · up to 12 transactions</p>
+                    <p className="os-live-update os-sub">
+                        {checked ? checked === "just now" ? "Indexer checked just now" : `Indexer checked ${checked} ago` : "Indexed sample"}
+                        {latestTransaction && <> · latest sampled transaction {latestTransaction === "just now" ? "just now" : `${latestTransaction} ago`}</>}
+                        {" · "}newest blocks first · up to 12 transactions. Indexer tip freshness is not independently verified.
+                    </p>
                     <ol className="os-live-list">{items.map((item) => <ActivityRow key={item.txHash} item={item} chainId={session.network.chainId} now={now} />)}</ol>
                 </>
             )}

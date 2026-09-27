@@ -25,13 +25,13 @@ export interface RecentActivityResult {
 
 const LIMIT = 12
 
-export function useRecentActivity(networkKey: string): RecentActivityResult {
+export function useRecentActivity(networkKey: string, active = true): RecentActivityResult {
     const indexerUrl = getIndexerUrl()
 
     const query = useQuery({
         queryKey: ["useRecentActivity", networkKey, indexerUrl],
         queryFn: ({ signal }) => fetchRecentActivity(indexerUrl as string, { limit: LIMIT, signal }),
-        enabled: !!indexerUrl,
+        enabled: !!indexerUrl && active,
         staleTime: 25_000, // just under the poll interval → a real freshness window between fetches
         refetchInterval: 30_000, // tighter cadence (A3); pauses while the tab is hidden
         retry: false,
@@ -42,7 +42,7 @@ export function useRecentActivity(networkKey: string): RecentActivityResult {
     }
     return {
         items: query.data ?? [],
-        loading: query.isPending,
+        loading: active && query.isPending,
         error: query.isError,
         available: true,
         updatedAt: query.dataUpdatedAt,

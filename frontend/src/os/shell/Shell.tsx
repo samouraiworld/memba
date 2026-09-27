@@ -29,6 +29,7 @@ import { useIsMobile } from "../../hooks/useIsMobile"
 import { setWalletActionGuard } from "../../lib/grc20"
 import { PhoneShell } from "../phone/PhoneShell"
 import { LiveTicker } from "../apps/live/LiveTicker"
+import { LiveActivityProvider } from "../apps/live/LiveProvider"
 import { Launcher } from "./Launcher"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
 import {
@@ -294,6 +295,7 @@ export function Shell() {
     // A phone draws the same windows as full-screen sheets on a home screen (day 6).
     if (phone) {
         return (
+            <LiveActivityProvider networkKey={session.network.key} active={!locked && front?.app === "live"}>
             <SignerProvider session={session} toast={showToast}>
                 <PhoneShell session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={() => setLauncher(true)}
@@ -308,16 +310,18 @@ export function Shell() {
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
                 {shared}
             </SignerProvider>
+            </LiveActivityProvider>
         )
     }
     return (
+        <LiveActivityProvider networkKey={session.network.key} active={!locked}>
         <SignerProvider session={session} toast={showToast}>
             <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={() => setLauncher(true)} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop"
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
-                {!locked && <LiveTicker networkKey={session.network.key} onOpen={() => openApp("live")} />}
+                {!locked && <LiveTicker onOpen={() => openApp("live")} />}
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">
@@ -346,5 +350,6 @@ export function Shell() {
             <Dock wins={win.wins} openApp={openApp} restore={win.focus} />
             {shared}
         </SignerProvider>
+        </LiveActivityProvider>
     )
 }
