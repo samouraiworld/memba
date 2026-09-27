@@ -27,6 +27,7 @@ const PATHS = {
     folder: <path d="M3 7.5A2 2 0 015 5.5h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />,
     doc: <path d="M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6" />,
     term: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 10l3 2-3 2M12 15h5" /></>,
+    learn: <><path d="M12 6C9 4.5 5.5 4.5 3 6v13c2.5-1.5 6-1.5 9 0 3-1.5 6.5-1.5 9 0V6c-2.5-1.5-6-1.5-9 0z" /><path d="M12 6v13" /></>,
     home: <path d="M4 11l8-7 8 7v9H4z" />,
 } as const
 
@@ -35,7 +36,7 @@ export type IconName = keyof typeof PATHS
 const APP_ICON: Record<OsAppId, IconName> = {
     daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", live: "live", store: "store", arcade: "game", validators: "val",
     settings: "set", tokens: "tok", nft: "nft", market: "tag", quests: "quest", explorer: "exp", profile: "prof", news: "news",
-    devreport: "chart", terminal: "term",
+    devreport: "chart", terminal: "term", learn: "learn",
 }
 
 export function Icon({ name }: { name: IconName }) {

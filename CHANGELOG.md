@@ -29,6 +29,9 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: recent on-chain activity (2026-09-27)
 
 - Open a read-only Live window for a recent, diversified sample of indexed transactions and see the newest item in a quiet desktop ticker. Loading, empty, relay error and unsupported-network states are distinct; transaction links use a supported hash and chain.
+### Memba OS: Terminal and Learn beta (2026-09-27)
+
+- Explore deployed Gno realms, source, functions, package paths and balances from a read-only Terminal. Draft a realm in a locally saved, syntax-highlighted editor and learn with PeerDev lessons in the Learn app. The beta does not execute or deploy drafts.
 
 ### App updates: reload when ready (2026-09-26)
 

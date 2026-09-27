@@ -1,0 +1,56 @@
+.memba-os .os-wbody:has(> .os-terminal) { padding: 0; }
+.memba-os .os-terminal { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--os-ink); background: var(--os-opaque); }
+.memba-os .os-terminal-tabs { display: flex; gap: 3px; padding: 7px 12px; border-bottom: 1px solid var(--os-line); }
+.memba-os .os-terminal-tabs button { border: 0; background: transparent; color: var(--os-mut); font: 700 12px var(--os-font); border-radius: 7px; padding: 7px 11px; cursor: pointer; }
+.memba-os .os-terminal-tabs button:hover { background: var(--os-hover); }
+.memba-os .os-terminal-tabs button[aria-current="page"] { color: var(--os-acc-ink); background: var(--os-chip); }
+.memba-os .os-terminal-builder-loading { padding: 24px; color: var(--os-mut); }
+.memba-os .os-terminal-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid var(--os-line); }
+.memba-os .os-terminal-header h2 { margin: 0 0 4px; font-size: 21px; letter-spacing: -.025em; }
+.memba-os .os-terminal-header p { margin: 0; color: var(--os-mut); }
+.memba-os .os-terminal-context { display: flex; gap: 6px; flex: none; font: 600 11px var(--os-mono); }
+.memba-os .os-terminal-context span { border: 1px solid var(--os-line); background: var(--os-card); border-radius: 6px; padding: 5px 8px; }
+.memba-os .os-terminal-context span:last-child { color: var(--os-ok); }
+.memba-os .os-terminal-console { flex: 1; min-height: 0; overflow: auto; padding: 18px 22px; font: 12.5px/1.6 var(--os-mono); }
+.memba-os .os-terminal-console pre { font: inherit; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.memba-os .os-terminal-intro { color: var(--os-mut); }
+.memba-os .os-terminal-entry { padding-bottom: 18px; }
+.memba-os .os-terminal-command { font-weight: 700; color: var(--os-acc-ink); margin-bottom: 6px; overflow-wrap: anywhere; }
+.memba-os .os-terminal-command span { padding-right: 3px; }
+.memba-os .os-terminal-error { color: var(--os-err); }
+.memba-os .os-terminal-working { color: var(--os-mut); }
+.memba-os .os-terminal-prompt { display: flex; align-items: center; gap: 9px; padding: 11px 18px; border-top: 1px solid var(--os-line); font: 12.5px var(--os-mono); }
+.memba-os .os-terminal-prompt label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.memba-os .os-terminal-prompt > span { color: var(--os-acc-ink); font-size: 20px; font-weight: 700; }
+.memba-os .os-terminal-prompt input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--os-ink); font: inherit; padding: 7px 0; outline: none; }
+.memba-os .os-terminal-prompt:focus-within { box-shadow: inset 0 2px var(--os-acc); }
+.memba-os .os-terminal-prompt button { border: 0; border-radius: 7px; padding: 8px 10px; background: var(--os-acc); color: var(--os-on-acc); font: 700 11px var(--os-font); cursor: pointer; }
+.memba-os .os-terminal-prompt button:disabled { opacity: .5; cursor: default; }
+.memba-os .os-terminal-builder { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+.memba-os .os-terminal-builder-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 13px 18px; }
+.memba-os .os-terminal-builder-head h2 { margin: 0 0 3px; font-size: 18px; }
+.memba-os .os-terminal-builder-head p { margin: 0; color: var(--os-mut); }
+.memba-os .os-terminal-save { flex: none; font-size: 11px; color: var(--os-mut); }
+.memba-os .os-terminal-path { padding: 0 18px 10px; display: grid; gap: 5px; }
+.memba-os .os-terminal-path label { font-size: 11px; font-weight: 700; }
+.memba-os .os-terminal-path input { width: 100%; }
+.memba-os .os-terminal-validation { color: var(--os-err); font-size: 11px; }
+.memba-os .os-terminal-file-bar { display: flex; justify-content: space-between; padding: 7px 18px; background: var(--os-card); border-block: 1px solid var(--os-line); color: var(--os-mut); font: 11px var(--os-mono); }
+.memba-os .os-terminal-editor { flex: 1; min-height: 0; overflow: hidden; }
+.memba-os .os-terminal-editor .cm-editor { height: 100%; background: transparent; color: var(--os-ink); font: 12px/1.5 var(--os-mono); }
+.memba-os .os-terminal-editor .cm-scroller { overflow: auto; }
+.memba-os .os-terminal-editor .cm-gutters { background: var(--os-card); color: var(--os-mut); border-right: 1px solid var(--os-line); }
+.memba-os .os-terminal-editor .cm-activeLine, .memba-os .os-terminal-editor .cm-activeLineGutter { background: var(--os-hover); }
+.memba-os .os-terminal-builder-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--os-line); }
+.memba-os .os-terminal-builder-foot > span { margin-right: auto; }
+.memba-os .os-terminal-file-input { display: none; }
+@container os-window (max-width: 660px) {
+  .memba-os .os-terminal-builder-foot { flex-wrap: wrap; }
+  .memba-os .os-terminal-builder-foot > span { width: 100%; }
+}
+@container os-window (max-width: 560px) {
+  .memba-os .os-terminal-header { display: block; padding: 14px; }
+  .memba-os .os-terminal-context { margin-top: 10px; }
+  .memba-os .os-terminal-console { padding: 14px; }
+  .memba-os .os-terminal-prompt { padding: 8px 12px; }
+}

@@ -1,0 +1,70 @@
+import { lazy, Suspense, useRef, useState, type FormEvent } from "react"
+import type { NativeViewProps } from "../../native/types"
+import { HELP, runReadCommand } from "./commands"
+import "./terminal.css"
+
+const Builder = lazy(() => import("./Builder").then((module) => ({ default: module.Builder })))
+
+type Entry = { id: number; command: string; output: string; state: "ok" | "error" }
+
+export default function TerminalWindow({ section, session, openApp, fallback }: NativeViewProps) {
+    const [tab, setTab] = useState<"explore" | "build">("explore")
+    const [command, setCommand] = useState("")
+    const [entries, setEntries] = useState<Entry[]>([])
+    const [busy, setBusy] = useState(false)
+    const sequence = useRef(0)
+    const input = useRef<HTMLInputElement>(null)
+    const output = useRef<HTMLDivElement>(null)
+    if (section !== null) return <>{fallback}</>
+
+    async function submit(event: FormEvent) {
+        event.preventDefault()
+        const line = command.trim()
+        if (!line || busy) return
+        setCommand("")
+        if (line === "clear") { setEntries([]); return }
+        setBusy(true)
+        const id = ++sequence.current
+        try {
+            const result = await runReadCommand(line)
+            setEntries((old) => [...old.slice(-19), { id, command: line, output: result, state: "ok" }])
+        } catch (error) {
+            setEntries((old) => [...old.slice(-19), { id, command: line, output: (error instanceof Error ? error.message : "The query failed. Try again.").slice(0, 1000), state: "error" }])
+        } finally {
+            setBusy(false)
+            requestAnimationFrame(() => { output.current?.scrollTo({ top: output.current.scrollHeight }); input.current?.focus() })
+        }
+    }
+
+    return (
+        <div className="os-terminal">
+            <nav className="os-terminal-tabs" aria-label="Terminal sections">
+                <button type="button" aria-current={tab === "explore" ? "page" : undefined} onClick={() => setTab("explore")}>Explore</button>
+                <button type="button" aria-current={tab === "build" ? "page" : undefined} onClick={() => setTab("build")}>Build draft</button>
+                <button type="button" onClick={() => openApp("learn")}>Learn</button>
+            </nav>
+            {tab === "build" ? <Suspense fallback={<div className="os-terminal-builder-loading" role="status">Opening editor…</div>}>
+                <Builder key={`${session.network.chainId}:${session.address || "guest"}`} chainId={session.network.chainId} address={session.address} />
+            </Suspense> : <>
+                <header className="os-terminal-header">
+                    <div><h2>Terminal</h2><p>Explore packages and on-chain state with Gno queries.</p></div>
+                    <div className="os-terminal-context" aria-label="Terminal context"><span>{session.network.chainId}</span><span>read-only</span></div>
+                </header>
+                <div className="os-terminal-console" ref={output} role="log" aria-label="Terminal output" aria-live="polite">
+                    {entries.length === 0 && <pre className="os-terminal-intro">{HELP}</pre>}
+                    {entries.map((entry) => <div className="os-terminal-entry" key={entry.id}>
+                        <div className="os-terminal-command"><span aria-hidden="true">›</span> {entry.command}</div>
+                        <pre className={entry.state === "error" ? "os-terminal-error" : undefined}>{entry.output}</pre>
+                    </div>)}
+                    {busy && <p className="os-terminal-working" role="status">Reading {session.network.chainId}…</p>}
+                </div>
+                <form className="os-terminal-prompt" onSubmit={(event) => { void submit(event) }}>
+                    <label htmlFor="os-terminal-input">Command</label><span aria-hidden="true">›</span>
+                    <input id="os-terminal-input" ref={input} value={command} onChange={(event) => setCommand(event.target.value)}
+                        maxLength={2_000} autoComplete="off" autoCapitalize="off" spellCheck={false} placeholder="Type help or render r/gnoland/home" />
+                    <button type="submit" disabled={busy || !command.trim()}>Run query</button>
+                </form>
+            </>}
+        </div>
+    )
+}

@@ -1,0 +1,27 @@
+.memba-os .os-wbody:has(> .os-learn) { padding: 0; }
+.memba-os .os-learn { height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--os-opaque); }
+.memba-os .os-learn-header { padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--os-line); }
+.memba-os .os-learn-header h2 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.025em; }
+.memba-os .os-learn-header p { margin: 0; color: var(--os-mut); }
+.memba-os .os-learn-header .os-btn { flex: none; }
+.memba-os .os-learn-body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(230px, 1fr); gap: 20px; padding: 20px 22px; overflow: auto; }
+.memba-os .os-learn-video { min-width: 0; }
+.memba-os .os-learn-video iframe, .memba-os .os-learn-video-poster { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; }
+.memba-os .os-learn-video-poster { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 28px; background: linear-gradient(145deg, #233F6C, #14243E); color: #fff; }
+.memba-os .os-learn-play-mark { font-size: 24px; margin-bottom: 14px; }
+.memba-os .os-learn-video-poster b { font-size: 18px; }
+.memba-os .os-learn-video-poster p { max-width: 30ch; color: #C7D9EE; }
+.memba-os .os-learn-video-poster button { border: 0; border-radius: 8px; padding: 9px 13px; color: #182B49; background: #D9E8FB; font-weight: 700; cursor: pointer; }
+.memba-os .os-learn-video > a { display: inline-block; margin-top: 10px; color: var(--os-acc-ink); }
+.memba-os .os-learn-chapters h3 { margin: 0 0 12px; font-size: 15px; }
+.memba-os .os-learn-chapters ol { list-style: none; counter-reset: lessons; margin: 0; padding: 0; display: grid; gap: 8px; }
+.memba-os .os-learn-chapters li { counter-increment: lessons; }
+.memba-os .os-learn-chapters li a { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid var(--os-line); border-radius: 10px; background: var(--os-card); color: var(--os-ink); text-decoration: none; }
+.memba-os .os-learn-chapters li a:hover { border-color: var(--os-acc-ink); }
+.memba-os .os-learn-chapters li b::before { content: counter(lessons) '. '; color: var(--os-acc-ink); }
+.memba-os .os-learn-chapters li span { color: var(--os-mut); }
+.memba-os .os-learn-chapters li small { color: var(--os-acc-ink); }
+@container os-window (max-width: 700px) {
+  .memba-os .os-learn-body { grid-template-columns: 1fr; padding: 14px; }
+  .memba-os .os-learn-header { padding: 14px; }
+}

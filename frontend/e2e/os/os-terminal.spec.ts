@@ -1,0 +1,63 @@
+import { expect, test } from "@playwright/test"
+import { OS_ON } from "../../playwright.os.config"
+import { abortOnchainReads } from "../helpers/onchain"
+
+test.beforeEach(async ({ page }) => {
+    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]|youtube/, (route) => route.abort())
+    await abortOnchainReads(page)
+    await page.addInitScript(() => localStorage.setItem("memba_os_seen", "1"))
+    await page.setViewportSize({ width: 1400, height: 900 })
+})
+
+test("a guest can use bounded read commands without opening a wallet", async ({ page }) => {
+    await page.goto(`${OS_ON}/os/terminal`)
+    const terminal = page.getByRole("region", { name: "Terminal", exact: true })
+    await expect(terminal.getByText("gnoland-1")).toBeVisible()
+    const prompt = terminal.getByRole("textbox", { name: "Command" })
+    await prompt.fill("help")
+    await terminal.getByRole("button", { name: "Run query" }).click()
+    await expect(terminal.getByRole("log")).toContainText("render <realm>")
+    await prompt.fill("eval r/demo/boards Get()")
+    await prompt.press("Enter")
+    await expect(terminal.getByRole("log")).toContainText("Unknown command")
+    await expect(page.getByRole("dialog", { name: /Connect|Review/ })).toHaveCount(0)
+    await prompt.fill("clear")
+    await prompt.press("Enter")
+    await expect(terminal.getByRole("log")).not.toContainText("Unknown command")
+})
+
+test("a guest draft saves locally and Learn loads its video after a click", async ({ page }) => {
+    await page.goto(`${OS_ON}/os/terminal`)
+    const terminal = page.getByRole("region", { name: "Terminal", exact: true })
+    await terminal.getByRole("button", { name: "Build draft" }).click()
+    const path = terminal.getByRole("textbox", { name: "Realm path" })
+    await path.fill("gno.land/r/myname/tutorial")
+    await terminal.getByRole("button", { name: "Explore" }).click()
+    await terminal.getByRole("button", { name: "Build draft" }).click()
+    await expect(terminal.getByRole("textbox", { name: "Realm path" })).toHaveValue("gno.land/r/myname/tutorial")
+    await expect(terminal.getByText("The source must declare package tutorial.")).toBeVisible()
+    await expect(terminal.getByRole("textbox", { name: "Gno source editor" })).toBeVisible()
+    await expect(terminal.getByText("Saved locally")).toBeVisible()
+    await page.reload()
+    await page.getByRole("region", { name: "Terminal", exact: true }).getByRole("button", { name: "Build draft" }).click()
+    await expect(page.getByRole("textbox", { name: "Realm path" })).toHaveValue("gno.land/r/myname/tutorial")
+    await terminal.getByRole("button", { name: "Learn" }).click()
+    const learn = page.getByRole("region", { name: "Learn", exact: true })
+    await expect(learn.locator("iframe")).toHaveCount(0)
+    await learn.getByRole("button", { name: "Play playlist" }).click()
+    await expect(learn.locator("iframe")).toHaveAttribute("src", /youtube-nocookie\.com\/embed\/videoseries/)
+})
+
+test("an oversized source paste cannot replace a saved draft", async ({ page }) => {
+    await page.goto(`${OS_ON}/os/terminal`)
+    const terminal = page.getByRole("region", { name: "Terminal", exact: true })
+    await terminal.getByRole("button", { name: "Build draft" }).click()
+    const editor = terminal.getByRole("textbox", { name: "Gno source editor" })
+    await expect(editor).toContainText("Hello from Gno")
+    await editor.fill("x".repeat(32_769))
+    await expect(terminal.getByText("Keep this small package below 32 KB.")).toBeVisible()
+    await expect(editor).toContainText("Hello from Gno")
+    await page.reload()
+    await page.getByRole("region", { name: "Terminal", exact: true }).getByRole("button", { name: "Build draft" }).click()
+    await expect(page.getByRole("textbox", { name: "Gno source editor" })).toContainText("Hello from Gno")
+})
