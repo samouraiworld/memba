@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { subscribeTheme } from "../lib/themeStore"
@@ -14,7 +15,13 @@ function mockSystemDark(dark: boolean) {
     }))
 }
 
-const renderOs = () => render(<MemoryRouter initialEntries={["/os"]}><OsRoot /></MemoryRouter>)
+function renderOs() {
+    // main.tsx supplies this in the app; the shell's Live polling uses it.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={["/os"]}><OsRoot /></MemoryRouter></QueryClientProvider>
+    const result = render(tree())
+    return { ...result, rerenderOs: () => result.rerender(tree()) }
+}
 
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -90,11 +97,11 @@ describe("OsRoot", () => {
     it("keeps html[data-theme] equal to the OS theme across a re-render, and still restores the page theme on unmount", () => {
         document.documentElement.setAttribute("data-theme", "sepia")
         mockSystemDark(false)
-        const { rerender, unmount } = renderOs()
+        const { rerenderOs, unmount } = renderOs()
         expect(document.documentElement).toHaveAttribute("data-theme", "light")
 
         localStorage.setItem(OS_THEME_KEY, "dark")
-        rerender(<MemoryRouter initialEntries={["/os"]}><OsRoot /></MemoryRouter>)
+        rerenderOs()
         expect(document.documentElement).toHaveAttribute("data-theme", "dark")
 
         unmount()
