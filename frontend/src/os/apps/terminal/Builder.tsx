@@ -12,6 +12,27 @@ func Render(path string) string {
 
 interface Draft { path: string; source: string }
 
+function declaredPackage(source: string): string | null {
+    let offset = 0
+    while (offset < source.length) {
+        while (offset < source.length && /\s/.test(source[offset])) offset++
+        if (source.startsWith("//", offset)) {
+            const end = source.indexOf("\n", offset + 2)
+            if (end < 0) return null
+            offset = end + 1
+            continue
+        }
+        if (source.startsWith("/*", offset)) {
+            const end = source.indexOf("*/", offset + 2)
+            if (end < 0) return null
+            offset = end + 2
+            continue
+        }
+        break
+    }
+    return /^package[ \t]+([a-z][a-z0-9_]*)\b/.exec(source.slice(offset))?.[1] ?? null
+}
+
 function readDraft(key: string, address: string): Draft {
     const fresh = { path: `gno.land/r/${address || "yourname"}/hello`, source: START }
     try {
@@ -32,7 +53,7 @@ export function Builder({ chainId, address }: { chainId: string; address: string
     const fileInput = useRef<HTMLInputElement>(null)
     const pathError = validateRealmPath(draft.path)
     const packageName = draft.path.split("/").at(-1) ?? ""
-    const declaration = /^(?:(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/))*package\s+([a-z][a-z0-9_]*)\b/.exec(draft.source)?.[1]
+    const declaration = declaredPackage(draft.source)
     const sourceBytes = new TextEncoder().encode(draft.source).length
     const sourceError = !draft.source.trim() ? "Write some Gno source first."
         : declaration !== packageName ? `The source must declare package ${packageName || "<realm name>"}.` : null
