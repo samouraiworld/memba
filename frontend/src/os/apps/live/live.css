@@ -1,0 +1,32 @@
+.memba-os .os-live-ticker {
+  position: absolute; top: 16px; left: 16px; z-index: 2;
+  display: flex; align-items: center; gap: 10px;
+  width: min(360px, calc(100% - 32px)); min-height: 50px;
+  border: 1px solid var(--os-line); border-radius: 13px; padding: 8px 12px;
+  color: var(--os-ink); text-align: left; cursor: pointer;
+  box-shadow: 0 8px 24px -16px var(--os-shadow);
+}
+.memba-os .os-live-ticker:hover { border-color: var(--os-acc); }
+.memba-os .os-live-ticker-mark { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--os-acc); }
+.memba-os .os-live-ticker-text { display: grid; gap: 2px; min-width: 0; flex: 1; font-size: 11px; }
+.memba-os .os-live-ticker-text strong { font-size: 11px; }
+.memba-os .os-live-ticker-text > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--os-mut); }
+.memba-os .os-live-ticker-age { flex: none; font-size: 10px; color: var(--os-mut); }
+
+.memba-os .os-live-window { display: grid; align-content: start; gap: 14px; padding: 18px; min-width: 0; }
+.memba-os .os-live-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.memba-os .os-live-head h2 { margin: 0 0 4px; font-size: 19px; line-height: 1.3; }
+.memba-os .os-live-head p { margin: 0; max-width: 56ch; line-height: 1.45; }
+.memba-os .os-live-update { margin: 0; }
+.memba-os .os-live-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.memba-os .os-live-row { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid var(--os-line); border-radius: 11px; background: var(--os-card); }
+.memba-os .os-live-row-main, .memba-os .os-live-row-meta { display: flex; align-items: baseline; gap: 7px 10px; flex-wrap: wrap; min-width: 0; }
+.memba-os .os-live-row-main strong { font-size: 12px; font-weight: 700; }
+.memba-os .os-live-kind { color: var(--os-acc-ink); background: var(--os-chip); border-radius: 999px; padding: 2px 7px; font-size: 10px; font-weight: 800; text-transform: capitalize; }
+.memba-os .os-live-row-meta { font-size: 10.5px; }
+.memba-os .os-live-row-meta > span:first-child { overflow-wrap: anywhere; }
+.memba-os .os-live-row-meta a { color: var(--os-acc-ink); font-weight: 700; }
+@container os-window (max-width: 480px) {
+  .memba-os .os-live-ticker-age { display: none; }
+  .memba-os .os-live-head { display: grid; }
+}

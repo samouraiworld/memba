@@ -28,6 +28,7 @@ import { SignerProvider } from "../sign/SignerProvider"
 import { useIsMobile } from "../../hooks/useIsMobile"
 import { setWalletActionGuard } from "../../lib/grc20"
 import { PhoneShell } from "../phone/PhoneShell"
+import { LiveTicker } from "../apps/live/LiveTicker"
 import { Launcher } from "./Launcher"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
 import {
@@ -316,6 +317,7 @@ export function Shell() {
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={() => setLauncher(true)} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop"
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
+                {!locked && <LiveTicker networkKey={session.network.key} onOpen={() => openApp("live")} />}
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">

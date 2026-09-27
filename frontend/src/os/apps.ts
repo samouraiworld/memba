@@ -13,7 +13,7 @@
 export type AppTier = "mvp" | "v1.1" | "v1.2" | "v1.3"
 
 export type OsAppId =
-    | "daos" | "wallet" | "multisig" | "feed" | "store" | "arcade" | "validators" | "settings"
+    | "daos" | "wallet" | "multisig" | "feed" | "live" | "store" | "arcade" | "validators" | "settings"
     | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal"
 
 export interface OsApp {
@@ -39,6 +39,8 @@ export const OS_APPS: readonly OsApp[] = [
       routes: ["multisig", "create", "import", "multisig/:address", "multisig/:address/propose"] },
     { id: "feed", name: "Feed", slug: "feed", summary: "Posts, threads and moderation", tier: "mvp", tint: ["#FF9A62", "#F0703F"], dock: true,
       routes: ["feed", "feed/post/:id", "feed/user/:address", "feed/mod", "feed/transparency"] },
+    { id: "live", name: "Live", slug: "live", summary: "Recent on-chain activity", tier: "mvp", tint: ["#34BBAA", "#227C9D"], dock: false,
+      routes: [] },
     { id: "store", name: "App Store", slug: "store", summary: "On-chain app listings, submissions, extensions", tier: "mvp", tint: ["#46B8F0", "#1E90D8"], dock: true,
       routes: ["apps/*", "apps/submit", "apps/review", "apps/my-submissions", "extensions"] },
     { id: "arcade", name: "Arcade", slug: "arcade", summary: "Three playable games and daily challenges", tier: "mvp", tint: ["#F46BA0", "#D9467E"], dock: true,

@@ -10,6 +10,7 @@ const PATHS = {
     dao: <path d="M3 10l9-6 9 6M5 10v9h14v-9M9 19v-5h6v5" />,
     wal: <><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M16 12.5h2" /></>,
     feed: <path d="M5 6h14M5 11h14M5 16h9" />,
+    live: <><path d="M3 13h4l2-5 4 9 2-5h6" /><circle cx="12" cy="12" r="9" /></>,
     msig: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M3 19c1-3 3-4 5-4s4 1 5 4M11 19c1-3 3-4 5-4s4 1 5 4" /></>,
     store: <path d="M4 9h16l-1 10H5zM8 9a4 4 0 018 0" />,
     game: <><rect x="3" y="8" width="18" height="10" rx="5" /><path d="M8 11v4M6 13h4" /><circle cx="16" cy="12" r=".8" /><circle cx="17.6" cy="14.6" r=".8" /></>,
@@ -32,7 +33,7 @@ const PATHS = {
 export type IconName = keyof typeof PATHS
 
 const APP_ICON: Record<OsAppId, IconName> = {
-    daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", store: "store", arcade: "game", validators: "val",
+    daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", live: "live", store: "store", arcade: "game", validators: "val",
     settings: "set", tokens: "tok", nft: "nft", market: "tag", quests: "quest", explorer: "exp", profile: "prof", news: "news",
     devreport: "chart", terminal: "term",
 }
