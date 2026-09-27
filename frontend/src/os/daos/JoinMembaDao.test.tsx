@@ -22,11 +22,13 @@ vi.mock("./useOsDao", async original => ({
     useDaoProposals: vi.fn(),
     useDaoMembers: vi.fn(),
 }))
+vi.mock("../../hooks/useDaoKind", () => ({ useDaoKind: vi.fn() }))
 const { JoinMembaDao } = await import("./JoinMembaDao")
 const { DaoFolder } = await import("./DaoWindows")
 const { isFeedEnabled } = await import("../../lib/config")
 const { fetchJoinCandidates } = await import("../../lib/feedJoin")
 const { useDaoConfig, useDaoMembers, useDaoProposals } = await import("./useOsDao")
+const { useDaoKind } = await import("../../hooks/useDaoKind")
 
 beforeEach(() => {
     vi.mocked(isFeedEnabled).mockReturnValue(true)
@@ -34,6 +36,7 @@ beforeEach(() => {
     vi.mocked(useDaoConfig).mockReturnValue({ data: null, isPending: false, isError: false } as ReturnType<typeof useDaoConfig>)
     vi.mocked(useDaoProposals).mockReturnValue({ data: [], isPending: false, isError: false } as ReturnType<typeof useDaoProposals>)
     vi.mocked(useDaoMembers).mockReturnValue({ data: [], isPending: false, isError: false } as ReturnType<typeof useDaoMembers>)
+    vi.mocked(useDaoKind).mockReturnValue({ kind: "memba-v2", loading: false, error: null, capabilities: { propose: [] } } as unknown as ReturnType<typeof useDaoKind>)
 })
 
 describe("Memba DAO community applications", () => {
