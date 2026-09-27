@@ -3,12 +3,13 @@
  */
 import { isValidGnoAddressChecksum } from "./dao/address"
 import { queryEval, parseQevalJSON } from "./dao/shared"
-import { ACTIVE_NETWORK_KEY, currentNetworkKey, GNO_RPC_URL } from "./config"
+import { ACTIVE_NETWORK_KEY, currentNetworkKey, GNO_RPC_URL, isRealmValidOn } from "./config"
 import { decodeGoQuoted } from "./goQuote"
 import { AbciQueryError } from "./rpcFallback"
 
 export const TOKEN_LAUNCHPAD_PATH = "gno.land/r/samcrew/launchpad/tokens/v1"
 const MAX_INT64 = 9223372036854775807n
+const CFORD32 = "0123456789abcdefghjkmnpqrstvwxyz"
 export type TokenLaunchMode = "curve" | "direct_fixed" | "direct_capped" | "fairsale"
 export type TokenLaunchpadReadErrorCode = "network_changed" | "realm_error" | "rpc_error" | "unavailable" | "invalid_response"
 
@@ -78,11 +79,26 @@ function booleanField(row: Record<string, unknown>, key: string): boolean {
     return row[key] as boolean
 }
 
+// seqid.ID(n).String() uses cford32's seven-character compact encoding for
+// every Launchpad public ID (T1..T9999999999, all below 2^34).
+function registeredLedgerId(id: string): string {
+    let n = BigInt(id.slice(1))
+    const suffix = Array<string>(7)
+    for (let i = 6; i >= 0; i--) {
+        suffix[i] = CFORD32[Number(n & 31n)]
+        n >>= 5n
+    }
+    return `${TOKEN_LAUNCHPAD_PATH}.${id}.${suffix.join("")}`
+}
+
 /** Decode the exact TokenJSON/ListTokensJSON schema. Amounts must be decimal strings. */
 export function parseLaunchpadToken(value: unknown): LaunchpadToken {
     const row = record(value)
     const id = stringField(row, "id")
     if (!/^T[1-9][0-9]{0,9}$/.test(id)) invalid("invalid id")
+    const registryKey = stringField(row, "registryKey")
+    const grc20Id = stringField(row, "grc20Id")
+    if (registryKey !== `${TOKEN_LAUNCHPAD_PATH}.${id}` || grc20Id !== registeredLedgerId(id)) invalid("token registry identity mismatch")
     const mode = stringField(row, "mode")
     if (mode !== "curve" && mode !== "direct_fixed" && mode !== "direct_capped" && mode !== "fairsale") invalid("invalid mode")
     const decimals = row.decimals
@@ -98,8 +114,8 @@ export function parseLaunchpadToken(value: unknown): LaunchpadToken {
     if (mintRenounced && (mintAuthority !== "" || pendingMintAuthority !== "")) invalid("renounced mint authority is still set")
     return {
         id,
-        registryKey: stringField(row, "registryKey"),
-        grc20Id: stringField(row, "grc20Id"),
+        registryKey,
+        grc20Id,
         creator: addressField(row, "creator"),
         mode,
         name: stringField(row, "name"),
@@ -144,16 +160,17 @@ export interface TokenPageBatch {
 
 /** No persistent cache: every call reads the active chain and detects network switches. */
 export class TokenLaunchpadClient {
-    constructor(
-        readonly networkKey: string = ACTIVE_NETWORK_KEY,
-        readonly realmPath: string = TOKEN_LAUNCHPAD_PATH,
-    ) {}
+    readonly realmPath = TOKEN_LAUNCHPAD_PATH
+    constructor(readonly networkKey: string = ACTIVE_NETWORK_KEY) {}
 
     private assertNetwork(): void {
         // queryEval's RPC failover is tied to the app's active network. A client
         // captured before navigation must never read a different chain as its own.
         if (this.networkKey !== ACTIVE_NETWORK_KEY || currentNetworkKey() !== this.networkKey) {
             throw new TokenLaunchpadReadError("network_changed", "Launchpad network changed during read")
+        }
+        if (!isRealmValidOn(this.networkKey, this.realmPath)) {
+            throw new TokenLaunchpadReadError("unavailable", "Launchpad token realm is not enabled on this network")
         }
     }
 
@@ -212,7 +229,7 @@ export class TokenLaunchpadClient {
 
     async balanceOf(id: string, owner: string): Promise<bigint> {
         if (!/^T[1-9][0-9]{0,9}$/.test(id) || !isValidGnoAddressChecksum(owner)) invalid("invalid balance arguments")
-        return parseQevalInt64(await this.read(`BalanceOf(${JSON.stringify(id)}, ${JSON.stringify(owner)})`))
+        return parseQevalInt64(await this.read(`BalanceOf(${JSON.stringify(id)}, address(${JSON.stringify(owner)}))`))
     }
 
     /** Separate count read; ListTokensJSON deliberately returns no total. */

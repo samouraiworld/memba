@@ -3,6 +3,7 @@ import { AbciQueryError } from "./rpcFallback"
 
 const queryEval = vi.fn()
 const currentNetworkKey = vi.fn(() => "mainnet")
+const isRealmValidOn = vi.fn(() => true)
 vi.mock("./dao/shared", async (load) => ({
     ...(await load<typeof import("./dao/shared")>()),
     queryEval: (...args: unknown[]) => queryEval(...args),
@@ -12,16 +13,25 @@ vi.mock("./config", async (load) => ({
     ACTIVE_NETWORK_KEY: "mainnet",
     GNO_RPC_URL: "https://rpc.example",
     currentNetworkKey: () => currentNetworkKey(),
+    isRealmValidOn: (...args: unknown[]) => isRealmValidOn(...args),
 }))
 
 import { TokenLaunchpadClient, TokenLaunchpadReadError, parseLaunchpadToken, TOKEN_LAUNCHPAD_PATH } from "./tokenLaunchpadClient"
 
 const CREATOR = "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"
 const MAX = "9223372036854775807"
+const BASE32 = "0123456789abcdefghijklmnopqrstuv"
+const CFORD32 = "0123456789abcdefghjkmnpqrstvwxyz"
+
+function ledgerSuffix(id: string): string {
+    return Number(id.slice(1)).toString(32).padStart(7, "0")
+        .split("").map((digit) => CFORD32[BASE32.indexOf(digit)]).join("")
+}
 
 function token(id = "T1", ticker = "SAME") {
     return {
-        id, registryKey: `gno.land/r/nt/grc20reg/v0:${id}`, grc20Id: `ledger-${id}`,
+        id, registryKey: `${TOKEN_LAUNCHPAD_PATH}.${id}`,
+        grc20Id: `${TOKEN_LAUNCHPAD_PATH}.${id}.${ledgerSuffix(id)}`,
         creator: CREATOR, mode: "direct_fixed", name: "Example", ticker,
         decimals: 6, initialSupply: MAX, maxSupply: MAX, totalSupply: MAX,
         configVersion: "1", currencyKey: "ugnot", description: "", image: "",
@@ -35,6 +45,8 @@ function qjson(value: unknown): string { return `(${JSON.stringify(JSON.stringif
 beforeEach(() => {
     queryEval.mockReset()
     currentNetworkKey.mockReturnValue("mainnet")
+    isRealmValidOn.mockReset()
+    isRealmValidOn.mockReturnValue(true)
 })
 
 describe("Token Launchpad structured reader", () => {
@@ -52,6 +64,8 @@ describe("Token Launchpad structured reader", () => {
             { totalSupply: Number(MAX) }, { totalSupply: "01" }, { totalSupply: "-1" },
             { totalSupply: "9223372036854775808" }, { maxSupply: "1" },
             { creator: "g1invalid" }, { id: "T01" }, { registryKey: "" },
+            { registryKey: "gno.land/r/nt/grc20reg/v0:T1" },
+            { grc20Id: `${TOKEN_LAUNCHPAD_PATH}.T1.0000002` },
         ]) expect(() => parseLaunchpadToken({ ...token(), ...override })).toThrow(TokenLaunchpadReadError)
     })
 
@@ -92,6 +106,8 @@ describe("Token Launchpad structured reader", () => {
         await expect(client.listPage(0)).rejects.toMatchObject({ code: "rpc_error" })
         currentNetworkKey.mockReturnValueOnce("testnet")
         await expect(client.listPage(0)).rejects.toMatchObject({ code: "network_changed" })
+        isRealmValidOn.mockReturnValueOnce(false)
+        await expect(client.listPage(0)).rejects.toMatchObject({ code: "unavailable" })
         expect(queryEval).toHaveBeenCalledTimes(3)
     })
 
@@ -101,6 +117,11 @@ describe("Token Launchpad structured reader", () => {
             return qjson([])
         })
         await expect(new TokenLaunchpadClient().listPage(0)).rejects.toMatchObject({ code: "network_changed" })
+    })
+
+    it("keeps the unpublished token realm gated by the real mainnet allowlist", async () => {
+        const config = await vi.importActual<typeof import("./config")>("./config")
+        expect(config.isRealmValidOn("mainnet", TOKEN_LAUNCHPAD_PATH)).toBe(false)
     })
 
     it("reads detail and scalar getters with validated arguments and exact integer results", async () => {
@@ -115,7 +136,7 @@ describe("Token Launchpad structured reader", () => {
         expect(await client.totalSupply("T1")).toBe(9223372036854775807n)
         expect(await client.count()).toBe(1n)
         expect(await client.registryKeyOf("T1")).toBe("registry-key")
-        expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_PATH, `BalanceOf("T1", "${CREATOR}")`, true)
+        expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_PATH, `BalanceOf("T1", address("${CREATOR}"))`, true)
         await expect(client.token('T1");panic(1)//')).rejects.toMatchObject({ code: "invalid_response" })
         expect(queryEval).toHaveBeenCalledTimes(5)
     })
