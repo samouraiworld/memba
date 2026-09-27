@@ -3,8 +3,8 @@
  * (GetFeedTimeline / GetUserFeed / GetFeedThread). The timeline THROWS on a
  * failed request so the feed page can show an error with a retry: the backend
  * answers an empty list, not an error, when nothing is indexed, so a failure is
- * never "no posts yet". The other readers still return a safe empty shape on
- * any error.
+ * never "no posts yet". User and thread reads also throw so their pages can
+ * distinguish an unavailable service from a genuinely absent post or author.
  *
  * @module lib/feedApi
  */
@@ -35,24 +35,16 @@ export async function fetchFeedTimeline(cursor = 0n, limit = 20, viewer?: string
 
 /** One author's posts (includes their replies). */
 export async function fetchUserFeed(author: string, cursor = 0n, limit = 20): Promise<{ posts: FeedPost[]; nextCursor: bigint }> {
-    try {
-        const res = await api.getUserFeed({ author, cursor, limit })
-        return { posts: res.posts ?? [], nextCursor: res.nextCursor ?? 0n }
-    } catch {
-        return { posts: [], nextCursor: 0n }
-    }
+    const res = await api.getUserFeed({ author, cursor, limit })
+    return { posts: res.posts ?? [], nextCursor: res.nextCursor ?? 0n }
 }
 
 /** A post and its live replies (oldest-first). root is null when not found.
  *  `viewer` (optional) fills viewerHasFlagged on root + replies — see
  *  fetchFeedTimeline. */
 export async function fetchFeedThread(postId: bigint, cursor = 0n, limit = 50, viewer?: string): Promise<{ root: FeedPost | null; replies: FeedPost[]; nextCursor: bigint }> {
-    try {
-        const res = await api.getFeedThread({ postId, cursor, limit, viewerAddress: viewer ?? "" })
-        return { root: res.root ?? null, replies: res.replies ?? [], nextCursor: res.nextCursor ?? 0n }
-    } catch {
-        return { root: null, replies: [], nextCursor: 0n }
-    }
+    const res = await api.getFeedThread({ postId, cursor, limit, viewerAddress: viewer ?? "" })
+    return { root: res.root ?? null, replies: res.replies ?? [], nextCursor: res.nextCursor ?? 0n }
 }
 
 /** Replies to the caller's own posts (newest-first) + how many are unread

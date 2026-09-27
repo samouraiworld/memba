@@ -27,6 +27,7 @@ export function FeedComposer({
     submitLabel = "Post",
     initialBody,
     inputRef,
+    queueOnConnect = true,
 }: {
     connected: boolean
     address: string | undefined
@@ -39,6 +40,8 @@ export function FeedComposer({
     submitLabel?: string
     initialBody?: string
     inputRef?: Ref<HTMLTextAreaElement>
+    /** False for a multi-step login flow that may be cancelled after connecting the wallet. */
+    queueOnConnect?: boolean
 }) {
     const { switchNetwork } = useNetwork()
     const writable = isFeedWritable()
@@ -107,11 +110,11 @@ export function FeedComposer({
             // Connect on the action itself; the post fires from the effect once
             // the wallet is connected (props flow in on the next render).
             const ok = await onConnect()
-            if (ok !== false) setPending(true)
+            if (queueOnConnect && ok !== false) setPending(true)
             return
         }
         await broadcast(address, trimmed)
-    }, [connected, address, trimmed, overLimit, onConnect, broadcast])
+    }, [connected, address, trimmed, overLimit, onConnect, broadcast, queueOnConnect])
 
     // Fire the pending post the moment the wallet finishes connecting. A state
     // machine synchronizing with an external system (the wallet): the effect
@@ -174,7 +177,7 @@ export function FeedComposer({
                     data-testid="feed-post-btn"
                 >
                     <PaperPlaneTilt size={16} weight="fill" />
-                    {submitting || pending ? "Posting…" : !connected ? `Connect & ${submitLabel.toLowerCase()}` : submitLabel}
+                    {submitting || pending ? "Posting…" : !connected ? queueOnConnect ? `Connect & ${submitLabel.toLowerCase()}` : `Connect to ${submitLabel.toLowerCase()}` : submitLabel}
                 </button>
             </div>
             <p className="feed-composer__hint" data-testid="feed-composer-limits">{FEED_LIMITS_NOTE}</p>

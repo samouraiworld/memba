@@ -14,7 +14,7 @@ import { useParams } from "react-router-dom"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useAdena } from "../hooks/useAdena"
+import { useFeedViewer } from "../components/feed/useFeedViewer"
 import { EmptyState } from "../components/ui/EmptyState"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { FeedComposer } from "../components/feed/FeedComposer"
@@ -40,7 +40,7 @@ function parsePostId(raw: string | undefined): bigint | null {
 export default function FeedThread() {
     const { id } = useParams<{ id: string }>()
     const postId = parsePostId(id)
-    const { address, connected, connect } = useAdena()
+    const { address, connected, connect, queueOnConnect } = useFeedViewer()
     const nav = useNetworkNav()
 
     // Keyset pagination: page 0 is the oldest reply window; each page advances
@@ -132,10 +132,13 @@ export default function FeedThread() {
 
             {query.isLoading && !root ? (
                 <ConnectingLoader minHeight="30vh" />
+            ) : query.isError && !root ? (
+                <EmptyState icon="ti-alert-triangle" title="Couldn't load the thread" body="The Feed service didn't respond. The post may still be on-chain." action={{ label: "Retry", onClick: () => { void query.refetch() } }} />
             ) : !root ? (
                 <EmptyState icon="ti-message-off" title="Post not found" body="This post may not have indexed yet, or it was removed." />
             ) : (
                 <>
+                    {query.isError && <p className="feed-composer__error" role="status">New replies could not be loaded. Showing the last available replies.</p>}
                     <PostCard
                         post={root as UiPost}
                         connected={connected}
@@ -152,6 +155,7 @@ export default function FeedThread() {
                             connected={connected}
                             address={address}
                             onConnect={connect}
+                            queueOnConnect={queueOnConnect}
                             onPosted={onReplied}
                             replyTo={postId}
                             placeholder="Write a reply…"
@@ -189,6 +193,7 @@ export default function FeedThread() {
                                 {query.isFetchingNextPage ? "Loading…" : "Show more replies"}
                             </button>
                         )}
+                        {query.isFetchNextPageError && <p className="feed-composer__error" role="alert">More replies could not be loaded. <button type="button" className="feed-btn" onClick={() => void query.fetchNextPage()}>Retry</button></p>}
                     </div>
                 </>
             )}

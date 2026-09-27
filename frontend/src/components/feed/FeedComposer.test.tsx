@@ -56,6 +56,21 @@ describe("FeedComposer connect-on-action", () => {
         expect(onPosted).toHaveBeenCalledTimes(1)
     })
 
+    it("keeps an OS guest's draft actionable after a cancelled sign-in", async () => {
+        const onConnect = vi.fn().mockReturnValue(false)
+        const { rerender } = render(<FeedComposer connected={false} address={undefined} onConnect={onConnect} onPosted={() => {}} queueOnConnect={false} />)
+        const input = screen.getByTestId("feed-composer-input")
+        fireEvent.change(input, { target: { value: "my draft" } })
+        fireEvent.click(screen.getByRole("button", { name: "Connect to post" }))
+        expect(onConnect).toHaveBeenCalledOnce()
+        expect(screen.getByRole("button", { name: "Connect to post" })).toBeEnabled()
+        expect(input).toHaveValue("my draft")
+        rerender(<FeedComposer connected={true} address="g1meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" onConnect={onConnect} onPosted={() => {}} queueOnConnect={false} />)
+        expect(mockSubmit).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", { name: "Post" })).toBeEnabled()
+        expect(input).toHaveValue("my draft")
+    })
+
     it("still posts directly when already connected", async () => {
         mockSubmit.mockResolvedValue("hash")
         const onPosted = vi.fn()

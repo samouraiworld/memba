@@ -1,0 +1,5 @@
+.os-feed { min-width: 0; }
+.os-feed__stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; max-width: 680px; }
+.os-feed__stack h2 { margin: 0 0 4px; }
+.os-feed__stack .feed-list { min-width: 0; }
+.os-feed__stack .feed-post { max-width: 100%; }

@@ -9,9 +9,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
+import { FeedViewerProvider } from "../components/feed/FeedViewerProvider"
 
 vi.mock("react-router-dom", () => ({ useParams: () => ({ id: "100" }) }))
-vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ address: undefined, connected: false, connect: vi.fn() }) }))
+const wallet = vi.hoisted(() => ({ address: undefined as string | undefined, connected: false, connect: vi.fn() }))
+vi.mock("../hooks/useAdena", () => ({ useAdena: () => wallet }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock("../hooks/home/useActorUsernames", () => ({ useActorUsernames: () => new Map() }))
 vi.mock("../lib/feedApi", () => ({ fetchFeedThread: vi.fn() }))
@@ -31,6 +33,8 @@ function renderWithClient(ui: ReactNode) {
 }
 
 beforeEach(() => {
+    wallet.address = undefined
+    wallet.connected = false
     mockFetch.mockReset()
     // cursor 0 → root + first reply page (more available); cursor 2 → last page, end.
     mockFetch.mockImplementation((_postId: bigint, cursor: bigint) =>
@@ -49,6 +53,31 @@ beforeEach(() => {
 })
 
 describe("FeedThread reply pagination", () => {
+    it("shows a retry on service failure rather than saying the post is missing", async () => {
+        mockFetch.mockRejectedValueOnce(new Error("offline"))
+        renderWithClient(<FeedThread />)
+        expect(await screen.findByText("Couldn't load the thread")).toBeInTheDocument()
+        expect(screen.queryByText("Post not found")).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        expect(await screen.findByText("the root post")).toBeInTheDocument()
+    })
+
+    it("keeps a wallet-connected but unsigned OS guest out of reply writes", async () => {
+        wallet.address = "g1wallet"
+        wallet.connected = true
+        const connect = vi.fn().mockReturnValue(false)
+        renderWithClient(<FeedViewerProvider value={{ connected: false, address: undefined, connect, queueOnConnect: false }}><FeedThread /></FeedViewerProvider>)
+        await screen.findByText("the root post")
+        expect(mockFetch).toHaveBeenCalledWith(100n, 0n, 50, undefined)
+        const input = screen.getByRole("textbox", { name: "Write a reply" })
+        fireEvent.change(input, { target: { value: "draft reply" } })
+        fireEvent.click(screen.getByRole("button", { name: "Connect to reply" }))
+        expect(connect).toHaveBeenCalledOnce()
+        expect(wallet.connect).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", { name: "Connect to reply" })).toBeEnabled()
+        expect(input).toHaveValue("draft reply")
+    })
+
     it("renders the root and the first reply page", async () => {
         renderWithClient(<FeedThread />)
         await screen.findByText("the root post")

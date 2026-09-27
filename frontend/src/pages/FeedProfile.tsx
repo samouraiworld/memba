@@ -12,7 +12,7 @@ import { useParams } from "react-router-dom"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useAdena } from "../hooks/useAdena"
+import { useFeedViewer } from "../components/feed/useFeedViewer"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { EmptyState } from "../components/ui/EmptyState"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
@@ -28,7 +28,7 @@ const ADDR_RE = /^g1[0-9a-z]{6,}$/
 
 export default function FeedProfile() {
     const { address: profileAddr } = useParams<{ address: string }>()
-    const { address: selfAddress, connected, connect } = useAdena()
+    const { address: selfAddress, connected, connect } = useFeedViewer()
     const nav = useNetworkNav()
 
     const valid = !!profileAddr && ADDR_RE.test(profileAddr)
@@ -73,6 +73,8 @@ export default function FeedProfile() {
 
             {query.isLoading && posts.length === 0 ? (
                 <ConnectingLoader minHeight="30vh" />
+            ) : query.isError && posts.length === 0 ? (
+                <EmptyState icon="ti-alert-triangle" title="Couldn't load posts" body="The Feed service didn't respond. This account's posts may still be on-chain." action={{ label: "Retry", onClick: () => { void query.refetch() } }} />
             ) : posts.length === 0 ? (
                 <EmptyState
                     icon="ti-message-circle"
@@ -81,6 +83,7 @@ export default function FeedProfile() {
                 />
             ) : (
                 <>
+                    {query.isError && <p className="feed-composer__error" role="status">New posts could not be loaded. Showing the last available posts.</p>}
                     <div className="feed-list" data-testid="feed-profile-list">
                         {posts.map(post => (
                             <PostCard
@@ -107,6 +110,7 @@ export default function FeedProfile() {
                             {query.isFetchingNextPage ? "Loading…" : "Load older posts"}
                         </button>
                     )}
+                    {query.isFetchNextPageError && <p className="feed-composer__error" role="alert">Older posts could not be loaded. <button type="button" className="feed-btn" onClick={() => void query.fetchNextPage()}>Retry</button></p>}
                 </>
             )}
         </div>

@@ -23,6 +23,9 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: bounded guest access (2026-09-27)
 
 - Keep public App Store browsing open while requiring a signed-in OS member session for publisher and curator windows. Check that session again immediately before any OS wallet broadcast, including actions in public classic pages, and stop queued signing reviews if it ends. Describe guest access without promising private account reads.
+### Memba OS: native Feed home (2026-09-27)
+
+- Read and post from a native Feed window, with OS-session-gated writes, honest loading, empty, error and unavailable states, and the existing detail and moderation pages still available in their windows.
 
 ### App updates: reload when ready (2026-09-26)
 
