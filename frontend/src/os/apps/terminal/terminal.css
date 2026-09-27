@@ -14,6 +14,7 @@
 .memba-os .os-terminal-console { flex: 1; min-height: 0; overflow: auto; padding: 18px 22px; font: 12.5px/1.6 var(--os-mono); }
 .memba-os .os-terminal-console pre { font: inherit; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .memba-os .os-terminal-intro { color: var(--os-mut); }
+.memba-os .os-terminal-history-note { color: var(--os-mut); font-size: 11px; margin: 0 0 12px; }
 .memba-os .os-terminal-entry { padding-bottom: 18px; }
 .memba-os .os-terminal-command { font-weight: 700; color: var(--os-acc-ink); margin-bottom: 6px; overflow-wrap: anywhere; }
 .memba-os .os-terminal-command span { padding-right: 3px; }
@@ -31,12 +32,22 @@
 .memba-os .os-terminal-builder-head h2 { margin: 0 0 3px; font-size: 18px; }
 .memba-os .os-terminal-builder-head p { margin: 0; color: var(--os-mut); }
 .memba-os .os-terminal-save { flex: none; font-size: 11px; color: var(--os-mut); }
+.memba-os .os-terminal-conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 18px; border-block: 1px solid var(--os-err); color: var(--os-err); font-size: 12px; }
+.memba-os .os-terminal-conflict > span { flex: 1 1 200px; }
 .memba-os .os-terminal-path { padding: 0 18px 10px; display: grid; gap: 5px; }
 .memba-os .os-terminal-path label { font-size: 11px; font-weight: 700; }
 .memba-os .os-terminal-path input { width: 100%; }
 .memba-os .os-terminal-validation { color: var(--os-err); font-size: 11px; }
 .memba-os .os-terminal-file-bar { display: flex; justify-content: space-between; padding: 7px 18px; background: var(--os-card); border-block: 1px solid var(--os-line); color: var(--os-mut); font: 11px var(--os-mono); }
-.memba-os .os-terminal-editor { flex: 1; min-height: 0; overflow: hidden; }
+.memba-os .os-terminal-editor {
+  flex: 1; min-height: 0; overflow: hidden;
+  --os-code-keyword: #65348E; --os-code-value: #285F9A; --os-code-string: #9B2C1C;
+  --os-code-comment: #556835; --os-code-type: #086C5E;
+}
+.memba-os[data-os-theme="dark"] .os-terminal-editor {
+  --os-code-keyword: #D8B4FE; --os-code-value: #93C5FD; --os-code-string: #FDBA91;
+  --os-code-comment: #ACC394; --os-code-type: #6EE7D2;
+}
 .memba-os .os-terminal-editor .cm-editor { height: 100%; background: transparent; color: var(--os-ink); font: 12px/1.5 var(--os-mono); }
 .memba-os .os-terminal-editor .cm-scroller { overflow: auto; }
 .memba-os .os-terminal-editor .cm-gutters { background: var(--os-card); color: var(--os-mut); border-right: 1px solid var(--os-line); }
@@ -44,6 +55,11 @@
 .memba-os .os-terminal-builder-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--os-line); }
 .memba-os .os-terminal-builder-foot > span { margin-right: auto; }
 .memba-os .os-terminal-file-input { display: none; }
+.memba-os .os-ph-sheet-b:has(> .os-ph-body > .os-terminal) { display: flex; flex-direction: column; }
+.memba-os .os-ph-body:has(> .os-terminal) { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; padding: 0; }
+.memba-os .os-ph-body > .os-terminal { flex: 1; height: auto; }
+.memba-os .os-ph-body .os-terminal-builder { overflow-y: auto; }
+.memba-os .os-ph-body .os-terminal-editor { flex: 1 0 180px; min-height: 180px; }
 @container os-window (max-width: 660px) {
   .memba-os .os-terminal-builder-foot { flex-wrap: wrap; }
   .memba-os .os-terminal-builder-foot > span { width: 100%; }
@@ -53,4 +69,5 @@
   .memba-os .os-terminal-context { margin-top: 10px; }
   .memba-os .os-terminal-console { padding: 14px; }
   .memba-os .os-terminal-prompt { padding: 8px 12px; }
+  .memba-os .os-terminal-prompt button { flex: none; }
 }

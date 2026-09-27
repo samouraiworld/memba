@@ -63,12 +63,12 @@ function probe(rpcUrl: string, expectedChainId: string, key: string): Promise<vo
 }
 
 /** Verify that `rpcUrl` serves `expectedChainId`, using remembered answers when available. */
-export function assertRpcChain(rpcUrl: string, expectedChainId: string): Promise<void> {
+export function assertRpcChain(rpcUrl: string, expectedChainId: string, retryUnreachable = false): Promise<void> {
     const key = keyOf(rpcUrl, expectedChainId)
     const state = states.get(key)
     if (state?.kind === "verified") return Promise.resolve()
     if (state?.kind === "mismatch") return Promise.reject(state.error)
-    if (state?.kind === "unreachable" && Date.now() < state.until) return Promise.reject(state.error)
+    if (state?.kind === "unreachable" && Date.now() < state.until && !retryUnreachable) return Promise.reject(state.error)
     return probe(rpcUrl, expectedChainId, key)
 }
 
@@ -82,12 +82,12 @@ function needsCheck(rpcUrl: string): boolean {
  * Resolves as soon as one endpoint (in failover order) is verified; throws when
  * none can be verified.
  */
-export async function assertActiveRpcChain(): Promise<void> {
+export async function assertActiveRpcChain(retryUnreachable = false): Promise<void> {
     const urls = getRpcUrlsInOrder()
     let mismatch: RpcChainMismatchError | null = null
     for (let i = 0; i < urls.length; i++) {
         try {
-            await assertRpcChain(urls[i], GNO_CHAIN_ID)
+            await assertRpcChain(urls[i], GNO_CHAIN_ID, retryUnreachable)
         } catch (err) {
             if (err instanceof RpcChainMismatchError) mismatch ??= err
             continue

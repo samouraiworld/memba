@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { validateRealmPath } from "../../../lib/templates/sanitizer"
 import { CodeEditor, MAX_SOURCE_BYTES } from "./CodeEditor"
 
@@ -33,10 +33,14 @@ function declaredPackage(source: string): string | null {
     return /^package[ \t]+([a-z][a-z0-9_]*)\b/.exec(source.slice(offset))?.[1] ?? null
 }
 
-function readDraft(key: string, address: string): Draft {
-    const fresh = { path: `gno.land/r/${address || "yourname"}/hello`, source: START }
+function starterDraft(address: string): Draft {
+    return { path: `gno.land/r/${address || "yourname"}/hello`, source: START }
+}
+
+function parseDraft(raw: string | null, address: string): Draft {
+    const fresh = starterDraft(address)
     try {
-        const stored: unknown = JSON.parse(localStorage.getItem(key) ?? "null")
+        const stored: unknown = JSON.parse(raw ?? "null")
         if (!stored || typeof stored !== "object") return fresh
         const draft = stored as Record<string, unknown>
         if (typeof draft.path !== "string" || draft.path.length > 180 || typeof draft.source !== "string" || new TextEncoder().encode(draft.source).length > MAX_SOURCE_BYTES) return fresh
@@ -44,11 +48,23 @@ function readDraft(key: string, address: string): Draft {
     } catch { return fresh }
 }
 
+function readDraft(key: string, address: string): { draft: Draft; raw: string | null; failed: boolean } {
+    try {
+        const raw = localStorage.getItem(key)
+        return { draft: parseDraft(raw, address), raw, failed: false }
+    } catch { return { draft: starterDraft(address), raw: null, failed: true } }
+}
+
 export function Builder({ chainId, address }: { chainId: string; address: string }) {
     const key = `memba_os_terminal_draft:${chainId}:${address || "guest"}`
-    const [draft, setDraft] = useState(() => readDraft(key, address))
+    const [initial] = useState(() => readDraft(key, address))
+    const [draft, setDraft] = useState(initial.draft)
     const draftRef = useRef(draft)
-    const [storageError, setStorageError] = useState(false)
+    const lastStoredRaw = useRef(initial.raw)
+    const conflictRef = useRef(false)
+    const [conflict, setConflict] = useState(false)
+    const [storageError, setStorageError] = useState(initial.failed)
+    const storageErrorRef = useRef(initial.failed)
     const [importError, setImportError] = useState("")
     const fileInput = useRef<HTMLInputElement>(null)
     const pathError = validateRealmPath(draft.path)
@@ -57,6 +73,29 @@ export function Builder({ chainId, address }: { chainId: string; address: string
     const sourceBytes = new TextEncoder().encode(draft.source).length
     const sourceError = !draft.source.trim() ? "Write some Gno source first."
         : declaration !== packageName ? `The source must declare package ${packageName || "<realm name>"}.` : null
+
+    useEffect(() => {
+        const onStorage = (event: StorageEvent) => {
+            if (event.storageArea !== localStorage || event.key !== key) return
+            if (conflictRef.current) return
+            if (storageErrorRef.current) {
+                conflictRef.current = true
+                setConflict(true)
+                return
+            }
+            lastStoredRaw.current = event.newValue
+            const incoming = parseDraft(event.newValue, address)
+            draftRef.current = incoming
+            setDraft(incoming)
+        }
+        window.addEventListener("storage", onStorage)
+        return () => window.removeEventListener("storage", onStorage)
+    }, [key, address])
+
+    const markStorageError = (failed: boolean) => {
+        storageErrorRef.current = failed
+        setStorageError(failed)
+    }
 
     const update = (patch: Partial<Draft>) => {
         if (patch.source !== undefined) {
@@ -69,8 +108,44 @@ export function Builder({ chainId, address }: { chainId: string; address: string
         const next = { ...draftRef.current, ...patch }
         draftRef.current = next
         setDraft(next)
-        try { localStorage.setItem(key, JSON.stringify(next)); setStorageError(false) }
-        catch { setStorageError(true) }
+        if (conflictRef.current) return
+        try {
+            if (localStorage.getItem(key) !== lastStoredRaw.current) {
+                conflictRef.current = true
+                setConflict(true)
+                return
+            }
+            const raw = JSON.stringify(next)
+            localStorage.setItem(key, raw)
+            lastStoredRaw.current = raw
+            markStorageError(false)
+        }
+        catch { markStorageError(true) }
+    }
+
+    const loadOtherTab = () => {
+        try {
+            const incoming = readDraft(key, address)
+            if (incoming.failed) { markStorageError(true); return }
+            lastStoredRaw.current = incoming.raw
+            draftRef.current = incoming.draft
+            setDraft(incoming.draft)
+            conflictRef.current = false
+            setConflict(false)
+            markStorageError(false)
+            setImportError("")
+        } catch { markStorageError(true) }
+    }
+
+    const replaceOtherTab = () => {
+        try {
+            const raw = JSON.stringify(draftRef.current)
+            localStorage.setItem(key, raw)
+            lastStoredRaw.current = raw
+            conflictRef.current = false
+            setConflict(false)
+            markStorageError(false)
+        } catch { markStorageError(true) }
     }
 
     const exportSource = () => {
@@ -93,8 +168,13 @@ export function Builder({ chainId, address }: { chainId: string; address: string
         <div className="os-terminal-builder">
             <div className="os-terminal-builder-head">
                 <div><h2>Build a realm</h2><p>One Gno file, saved only in this browser. Source is public and permanent when deployed.</p></div>
-                <span className="os-terminal-save" role="status">{storageError ? "Could not save locally" : "Saved locally"}</span>
+                <span className="os-terminal-save" role="status">{conflict ? "Edits in this tab are unsaved" : storageError ? "Could not save locally" : "Saved locally"}</span>
             </div>
+            {conflict && <div className="os-terminal-conflict" role="alert">
+                <span>This draft changed in another tab. Your edits here are unsaved.</span>
+                <button type="button" className="os-btn os-quiet" onClick={loadOtherTab}>Load other tab</button>
+                <button type="button" className="os-btn os-quiet" onClick={replaceOtherTab}>Replace other tab</button>
+            </div>}
             <div className="os-terminal-path">
                 <label htmlFor="os-terminal-realm-path">Realm path</label>
                 <input id="os-terminal-realm-path" className="os-in os-mono" value={draft.path} onChange={(e) => update({ path: e.target.value })}
@@ -102,15 +182,19 @@ export function Builder({ chainId, address }: { chainId: string; address: string
                 {pathError && <span id="os-terminal-path-error" className="os-terminal-validation">{pathError}</span>}
             </div>
             <div className="os-terminal-file-bar"><span>{packageName || "hello"}.gno</span><span>Gno source</span></div>
-            <CodeEditor value={draft.source} onChange={(source) => update({ source })} onLimit={() => setImportError("Keep this small package below 32 KB.")} />
+            <CodeEditor value={draft.source} onChange={(source) => update({ source })} onLimit={() => setImportError("Keep this small package below 32 KB.")}
+                invalid={!!(sourceError || importError)} descriptionId="os-terminal-source-status" />
             <div className="os-terminal-builder-foot">
-                <span className={sourceError || importError ? "os-terminal-validation" : "os-sub"}>{importError || sourceError || `${sourceBytes.toLocaleString()} bytes · no local execution in this version`}</span>
+                <span id="os-terminal-source-status" role={sourceError || importError ? "status" : undefined}
+                    className={sourceError || importError ? "os-terminal-validation" : "os-sub"}>{importError || sourceError || `${sourceBytes.toLocaleString()} bytes · no local execution in this version`}</span>
                 <input ref={fileInput} className="os-terminal-file-input" type="file" accept=".gno,text/plain" tabIndex={-1}
                     onChange={(e) => { void importSource(e.target.files?.[0]); e.target.value = "" }} />
                 <button type="button" className="os-btn os-quiet" onClick={() => fileInput.current?.click()}>Import .gno</button>
                 <button type="button" className="os-btn os-quiet" onClick={exportSource}>Export .gno</button>
+                <a className="os-btn os-quiet" href="https://github.com/samouraiworld/peerdev/tree/main/gno-tutorials/short-tutorials/6-deploy-pkg"
+                    target="_blank" rel="noopener noreferrer">How to deploy ↗</a>
                 <button type="button" className="os-btn os-quiet" onClick={() => {
-                    if (window.confirm("Replace your saved draft with the starter example?")) update({ source: START })
+                    if (window.confirm("Replace your saved draft with the starter example?")) update(starterDraft(address))
                 }}>Reset example</button>
             </div>
         </div>

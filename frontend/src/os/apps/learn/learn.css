@@ -25,3 +25,6 @@
   .memba-os .os-learn-body { grid-template-columns: 1fr; padding: 14px; }
   .memba-os .os-learn-header { padding: 14px; }
 }
+@container os-window (max-width: 400px) {
+  .memba-os .os-learn-header { flex-wrap: wrap; }
+}

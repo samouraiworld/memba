@@ -27,8 +27,8 @@ export default function LearnWindow({ section, openApp, fallback }: NativeViewPr
                         <div className="os-learn-video-poster">
                             <div className="os-learn-play-mark" aria-hidden="true">▶</div>
                             <b>PeerDev Gno tutorials</b>
-                            <p>Play the learning series here. YouTube loads when you choose to play.</p>
-                            <button type="button" onClick={() => setPlay(true)}>Play playlist</button>
+                            <p>Load the player here. YouTube connects when you choose to load it.</p>
+                            <button type="button" onClick={() => setPlay(true)}>Load playlist</button>
                         </div>}
                     <a href={`https://www.youtube.com/playlist?list=${PLAYLIST}`} target="_blank" rel="noopener noreferrer">Open playlist on YouTube ↗</a>
                 </section>

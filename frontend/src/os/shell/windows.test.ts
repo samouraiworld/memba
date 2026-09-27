@@ -76,6 +76,17 @@ describe("windowsReducer", () => {
         expect(s.wins[0].width).toBeLessThanOrEqual(360)
     })
 
+    it("fits an open or restored window when the desktop shrinks", () => {
+        const large = { w: 1440, h: 870, top: 52 }
+        const small = { w: 1024, h: 738, top: 52 }
+        const opened = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("learn"), desk: large, center: true })
+        const fitted = windowsReducer(opened, { type: "fit", desk: small })
+        const window = fitted.wins[0]
+        expect(window.x + window.width).toBeLessThanOrEqual(small.w - 8)
+        expect(window.y + window.height).toBeLessThanOrEqual(small.h - DOCK_ROOM)
+        expect(windowsReducer(fitted, { type: "fit", desk: small })).toBe(fitted)
+    })
+
     it("moves, but always keeps the title bar reachable", () => {
         let s = run(open())
         const id = s.wins[0].id

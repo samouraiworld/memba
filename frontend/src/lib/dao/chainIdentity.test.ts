@@ -14,7 +14,7 @@ vi.mock("../rpcFallback", async (orig) => ({
     resilientAbciQuery: vi.fn(async () => "# DAO"),
 }))
 
-import { clearExcludedRpcEndpoints, directRpcCall, getRpcUrlsInOrder } from "../rpcFallback"
+import { clearExcludedRpcEndpoints, directRpcCall, getRpcUrlsInOrder, resilientAbciQueryDetailed } from "../rpcFallback"
 import { assertActiveRpcChain, assertRpcChain, clearRpcChainChecks, RpcChainMismatchError, UNREACHABLE_RETRY_MS } from "./chainIdentity"
 import { queryRender } from "./shared"
 
@@ -42,7 +42,7 @@ describe("RPC chain identity", () => {
         clearExcludedRpcEndpoints()
         status.mockReset()
     })
-    afterEach(() => vi.useRealTimers())
+    afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
     it("throws when an RPC answers for another chain", async () => {
         answering({ "https://rpc.one": "pearl-1" })
@@ -108,6 +108,40 @@ describe("RPC chain identity", () => {
     it("fails closed when no endpoint could be verified", async () => {
         answering({ "https://rpc.one": new Error("down"), "https://rpc.two": new Error("down") })
         await expect(assertActiveRpcChain()).rejects.toThrow(/verify/)
+    })
+
+    it("lets an explicit Terminal retry recover immediately after reconnecting", async () => {
+        answering({ "https://rpc.one": new Error("offline"), "https://rpc.two": new Error("offline") })
+        await expect(assertActiveRpcChain()).rejects.toThrow(/verify/)
+        answering({ "https://rpc.one": "gnoland-1", "https://rpc.two": "gnoland-1" })
+        await expect(assertActiveRpcChain(true)).resolves.toBeUndefined()
+        expect(callsTo("https://rpc.one")).toBe(2)
+    })
+
+    it("does not send ABCI data to a wrong-chain fallback while its status probe is pending", async () => {
+        status.mockImplementation((url: string) => url === "https://rpc.one"
+            ? Promise.resolve({ node_info: { network: "gnoland-1" } })
+            : new Promise((resolve) => setTimeout(() => resolve({ node_info: { network: "pearl-1" } }), 30)))
+        await assertRpcChain("https://rpc.one", "gnoland-1")
+        const fetchMock = vi.fn().mockRejectedValue(new Error("primary offline"))
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/gov/dao:",
+            (url) => assertRpcChain(url, "gnoland-1", true))).rejects.toThrow()
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+        expect(fetchMock.mock.calls.every(([url]) => url === "https://rpc.one")).toBe(true)
+    })
+
+    it("skips a primary whose status failed even when its ABCI endpoint could answer", async () => {
+        answering({ "https://rpc.one": new Error("status offline"), "https://rpc.two": "gnoland-1" })
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ result: { response: { ResponseBase: { Data: btoa("# safe fallback") } } } }),
+        })
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/gov/dao:",
+            (url) => assertRpcChain(url, "gnoland-1", true))).resolves.toEqual({ kind: "ok", text: "# safe fallback" })
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+        expect(fetchMock.mock.calls[0][0]).toBe("https://rpc.two")
     })
 
     it("strict DAO reads refuse to run when every endpoint serves another chain", async () => {

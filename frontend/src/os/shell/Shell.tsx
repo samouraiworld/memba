@@ -149,6 +149,10 @@ export function Shell() {
     const { dispatch } = win
 
     useEffect(() => {
+        dispatch({ type: "fit", desk: frameDesk })
+    }, [dispatch, frameDesk])
+
+    useEffect(() => {
         if (entry !== "lock") markSeen()
         const switched = takeNetworkSwitchNotice()
         // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot notice read from sessionStorage after a switch reload

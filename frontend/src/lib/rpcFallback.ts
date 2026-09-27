@@ -68,11 +68,21 @@ function orderedRpcUrls(): string[] {
 export async function resilientFetch(
     buildRequest: (rpcUrl: string) => { url: string; init: RequestInit },
     signal?: AbortSignal,
+    verifyEndpoint?: (rpcUrl: string) => Promise<void>,
 ): Promise<Response> {
     const urls = getRpcUrlsInOrder()
     let lastError: Error | null = null
 
     for (const rpcUrl of urls) {
+        // Strict callers can verify the endpoint actually used, including a
+        // fallback that was not yet checked when the URL list was captured.
+        if (verifyEndpoint) {
+            try { await verifyEndpoint(rpcUrl) }
+            catch (err) {
+                lastError = err instanceof Error ? err : new Error(String(err))
+                continue
+            }
+        }
         // W3.4: retry the SAME url on a fast transient failure (a network blip
         // or a 5xx) before failing over, so one hiccup on a healthy primary
         // doesn't demote it to a fallback. A timeout/abort is NOT retried (the
@@ -188,7 +198,10 @@ const _inflightAbci = new Map<string, Promise<AbciQueryResult>>()
 export async function resilientAbciQueryDetailed(
     path: string,
     data: string,
+    verifyEndpoint?: (rpcUrl: string) => Promise<void>,
 ): Promise<AbciQueryResult> {
+    // A guarded read must not share an unguarded request with the same path.
+    if (verifyEndpoint) return abciQueryDetailedUncoalesced(path, data, verifyEndpoint)
     const key = path + "\u0000" + data
     const existing = _inflightAbci.get(key)
     if (existing) return existing
@@ -207,6 +220,7 @@ export async function resilientAbciQueryDetailed(
 async function abciQueryDetailedUncoalesced(
     path: string,
     data: string,
+    verifyEndpoint?: (rpcUrl: string) => Promise<void>,
 ): Promise<AbciQueryResult> {
     const b64Data = btoa(data)
     const res = await resilientFetch((rpcUrl) => ({
@@ -221,7 +235,7 @@ async function abciQueryDetailedUncoalesced(
                 params: { path, data: b64Data },
             }),
         },
-    }))
+    }), undefined, verifyEndpoint)
     const json = await res.json()
     // A node can answer HTTP 200 with a TOP-LEVEL JSON-RPC error (not synced,
     // internal error, a proxy's JSON error body). That is a NODE failure, not

@@ -142,6 +142,7 @@ export type WindowsAction =
     | { type: "closeAll" }
     | { type: "minimiseAll" }
     | { type: "tile"; desk: DeskSize }
+    | { type: "fit"; desk: DeskSize }
     | { type: "next" }
     /** Replace everything (restoring a saved session). */
     | { type: "restore"; wins: OsWindow[] }
@@ -226,6 +227,21 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
             const height = Math.max(MIN_H, a.desk.h - top - DOCK_ROOM - 16)
             const byId = new Map(two.map((w, i) => [w.id, { x: 8 + i * half, y: top + 8, width: Math.max(MIN_W, half - 16), height, max: false }]))
             return { ...s, wins: s.wins.map((w) => (byId.has(w.id) ? { ...w, ...byId.get(w.id) } : w)) }
+        }
+        case "fit": {
+            const top = a.desk.top ?? 0
+            let changed = false
+            const wins = s.wins.map((w) => {
+                if (w.max) return w
+                const width = Math.min(w.width, Math.max(MIN_W, a.desk.w - 16))
+                const height = Math.min(w.height, Math.max(MIN_H, a.desk.h - top - DOCK_ROOM - 16))
+                const x = clamp(w.x, 8, Math.max(8, a.desk.w - width - 8))
+                const y = clamp(w.y, top + 8, Math.max(top + 8, a.desk.h - height - DOCK_ROOM))
+                if (width === w.width && height === w.height && x === w.x && y === w.y) return w
+                changed = true
+                return { ...w, width, height, x, y }
+            })
+            return changed ? { ...s, wins } : s
         }
         case "next": {
             // Bring the back-most visible window to the front: repeated ⌥` cycles through them all.
