@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 )
 
 // Unlike fakeBroadcaster's successful-call history, this counts every attempt,
@@ -40,6 +41,13 @@ func (b *attemptBroadcaster) LookupEntry(_ context.Context, run Run) (OnChainEnt
 }
 
 type broadcastOnlyAttempt struct{ calls int }
+
+type channelBroadcaster struct{ calls chan Run }
+
+func (b *channelBroadcaster) AttestScore(_ context.Context, run Run) (string, error) {
+	b.calls <- run
+	return "tx-" + run.LogHash, nil
+}
 
 func (b *broadcastOnlyAttempt) AttestScore(context.Context, Run) (string, error) {
 	b.calls++
@@ -135,6 +143,35 @@ func TestRunBatchOnce_StopsWhenReceiptFailureCannotBeRecorded(t *testing.T) {
 	n, err := RunBatchOnce(context.Background(), s, b, 2, atFixedDay)
 	if err == nil || n != 0 || len(b.calls) != 1 || b.calls[0].LogHash != "first" {
 		t.Fatalf("unrecorded failure must stop batch: n=%d err=%v calls=%+v", n, err, b.calls)
+	}
+}
+
+func TestDayCloseBatcher_StopsAfterUnrecordableReceiptFailure(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "first", "2026-07-09", 100)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_attested_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'attested' BEGIN SELECT RAISE(ABORT, 'receipt write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.db.Exec(`CREATE TRIGGER fail_failure_count BEFORE UPDATE ON arcade_runs
+		WHEN NEW.attest_failures > OLD.attest_failures BEGIN SELECT RAISE(ABORT, 'failure count write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &channelBroadcaster{calls: make(chan Run, 20)}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	StartDayCloseBatcher(ctx, s, b, BatcherConfig{Enabled: true, Interval: 10 * time.Millisecond})
+	select {
+	case <-b.calls:
+	case <-time.After(time.Second):
+		t.Fatal("batcher did not attempt the first broadcast")
+	}
+	select {
+	case run := <-b.calls:
+		t.Fatalf("batcher retried an unrecordable broadcast: %+v", run)
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 

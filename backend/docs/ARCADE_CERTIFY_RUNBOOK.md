@@ -373,6 +373,10 @@ the wiring is proven before any ceremony.
   disappears; play is unaffected.
 - **Backend:** unset `MEMBA_ARCADE_SUBMIT_ENABLED` → submit 404s; unset
   `MEMBA_ARCADE_ATTESTER_ENABLED` → the attester stops. Deploy.
+- If the log says `arcade day-close batcher stopped after failed cycle`, repair
+  the database, inspect the last broadcast and exact on-chain entry, then
+  restart the backend deliberately. The loop will not retry automatically when
+  it cannot persist an attestation outcome or failure count.
 - **Realm:** `Pause(true)` freezes all attestation (reads stay live);
   `RemoveAttester` revokes the key. Both are owner-only (on mainnet: a
   2-of-3 MsgCall via `tools/mainnet-manual`).

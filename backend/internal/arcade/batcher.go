@@ -3,6 +3,7 @@ package arcade
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 )
@@ -44,21 +45,26 @@ func StartDayCloseBatcher(ctx context.Context, store *Store, b Broadcaster, cfg 
 		ticker := time.NewTicker(cfg.Interval)
 		defer ticker.Stop()
 		for {
-			// Run once immediately, then on each tick. A panic in a cycle is
-			// isolated so the loop survives to the next tick.
-			func() {
+			// A failed cycle may have broadcast a transaction without being
+			// able to persist its outcome. Stop the loop so a broken database
+			// cannot spend gas again on the same run every tick.
+			n, err := func() (n int, err error) {
 				defer func() {
 					if r := recover(); r != nil {
-						slog.Error("arcade day-close batcher panicked", "recover", r)
+						err = fmt.Errorf("arcade day-close batcher panicked: %v", r)
 					}
 				}()
-				n, err := runBatchOnce(ctx, store, b, cfg.MaxPerCycle, time.Now)
-				if err != nil {
-					slog.Error("arcade day-close batch cycle failed", "error", err)
-				} else if n > 0 {
-					slog.Info("arcade day-close batch attested runs", "count", n)
-				}
+				return runBatchOnce(ctx, store, b, cfg.MaxPerCycle, time.Now)
 			}()
+			if err != nil {
+				if ctx.Err() == nil {
+					slog.Error("arcade day-close batcher stopped after failed cycle; operator restart required", "error", err)
+				}
+				return
+			}
+			if n > 0 {
+				slog.Info("arcade day-close batch attested runs", "count", n)
+			}
 			select {
 			case <-ctx.Done():
 				return
