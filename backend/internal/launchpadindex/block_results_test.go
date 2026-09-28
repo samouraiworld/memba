@@ -45,6 +45,10 @@ func TestParseBlockResultsPositionsAndFailedTx(t *testing.T) {
 	if len(got) != 1 || got[0].ID != "T1" || got[0].BlockHeight != 42 || got[0].TxIndex != 2 || got[0].EventIndex != 1 {
 		t.Fatalf("wrong validated event coordinates: %+v", got)
 	}
+	if len(got[0].RawAttributes) != 7 || got[0].RawAttributes[0].Key != "id" ||
+		got[0].RawAttributes[6].Key != "currency_key" {
+		t.Fatalf("raw event attributes lost or reordered: %+v", got[0].RawAttributes)
+	}
 	got, err = ParseBlockResults(blockBody(t, "43"), 43)
 	if err != nil || len(got) != 0 {
 		t.Fatalf("empty block: %+v, %v", got, err)

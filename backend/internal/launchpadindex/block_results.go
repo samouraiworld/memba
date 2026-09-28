@@ -12,9 +12,10 @@ import (
 // hash, confirmations, realm generation and block-header time.
 type ObservedCreation struct {
 	TokenCreated
-	BlockHeight int64
-	TxIndex     int
-	EventIndex  int
+	BlockHeight   int64
+	TxIndex       int
+	EventIndex    int
+	RawAttributes []Attribute
 }
 
 type blockResultsResponse struct {
@@ -102,6 +103,7 @@ func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, e
 			out = append(out, ObservedCreation{
 				TokenCreated: created, BlockHeight: height,
 				TxIndex: txIndex, EventIndex: eventIndex,
+				RawAttributes: append([]Attribute(nil), event.Attrs...),
 			})
 		}
 	}
