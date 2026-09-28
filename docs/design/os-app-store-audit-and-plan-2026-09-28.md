@@ -1,0 +1,100 @@
+# Memba OS App Store — audit and implementation proposal
+
+**Date:** 28 September 2026  
+**Status:** Audit and delivery plan. The first native catalogue implementation is on `feat/os-app-store-catalogue`; no chain transaction or production setting changed.  
+**Baseline:** Memba local `origin/main` at `839371d0`; live guest views of `memba.club/os/store` and `memba.samourai.app/mainnet/apps` inspected on 28 September. The root Memba checkout is at `620b76fa` and 14 commits behind that locally fetched remote ref, so code findings below use `origin/main` where relevant. Live configuration can change independently of Git.
+
+## Executive assessment
+
+The store has a solid onchain core: a live v3 registry, six seeded listings, a bounded read API, publisher and curator flows in code, and a separate reputation-isolated reviews realm in source. It is not yet a finished Memba OS App Store. The OS currently presents a static classic page inside a window; the classic site presents the onchain catalogue; the live cards rely on monograms and have no visible screenshots. Block Party already has detail copy, so each listing's actual fields should be audited before preparing updates. Onchain reviews are not deployed to mainnet.
+
+The recommended product model is **one discovery experience with explicit provenance**. A live registry listing, an independently linked ecosystem project, an extension, and an unreviewed submission can coexist in the same search and category system, but each must show its real status. “Curator approved” must not imply a code audit or safe transactions. The OS should use native Aqua components and open app details as OS windows, with the classic route remaining a functional fallback while migration proceeds.
+
+## Evidence and limits
+
+- Live beta OS Store: nine static ecosystem projects, search/category/availability controls, and “On-chain listings are unavailable here.” It is a classic page in an OS window. Live classic mainnet Store: six registry listings (Block Party, Space Invaders, BARRICADE, GnoSwap, Boards, Valopers) and seven unmatched static projects. The Block Party detail has a paragraph of copy but still no screenshot. Neither live view exposed App Store reviews or self-service submission to a guest.
+- Baseline code: `frontend/src/pages/AppStore.tsx`, `components/appstore/*`, `lib/appStore.ts`, `lib/appStoreSubmit.ts`, `lib/appStoreCuration.ts`, `lib/reviews.ts`, `os/apps.ts`, `os/native/registry.ts`, `os/kit/*`, `lib/config.ts` at local `origin/main`. Native `os/apps/store/native.tsx` did not exist at the audit baseline.
+- Chain source and deployment manifest: `samcrew-deployer/projects/memba/realms/memba_appstore_v3/*`, `memba_appstore_reviews_v1/*`, `memba_reviews_core_v1/*`, and `realms.manifest`; `Memba/realm-versions.json` mainnet comment records App Store reviews as absent.
+- Existing direction: `MEMBA_OS_DESIGN_PLAN_2026-09-25.md` (native Store wave 1, signing wave 3), `MEMBA_OS_BACKLOG_2026-09-26.md` N6, `memba-os-design/memba-os-mockup-v4.html` `STORESEC`/`KINDS.sapp`/`FLOWS.submit`, and `memba-arcade-a10-2026-09-26/owner-listing-checklist.md`.
+- This was a read-only audit. I did not test a signed wallet transaction, inspect Netlify settings, verify every candidate's current realm or website, or remeasure chain fees. Those are explicit implementation gates.
+
+## Cross-perspective audit
+
+| Lens | What works | Finding and evidence | Priority |
+|---|---|---|---|
+| Product and content | The registry gives durable, public listing identity and a curated lifecycle. The static directory already labels network availability and external projects honestly. | The live experience is split across beta and classic. Live cards have no visible artwork, while detail copy varies; the OS sees only static projects. The plan's “one catalogue” is currently a deduped sequence of two sections, not one searchable product. A store aspiring to broad Gno coverage needs an explicit distinction between onchain listings and editorial external tools. | **P0** |
+| UX and visual design | Memba OS has a coherent Aqua shell, native `AppShell`/card/empty/error components, and a detailed v4 Store mockup. | The OS Store is still the classic directory. Its generic form-first grid and long explanatory copy read like a directory, with little editorial hierarchy or app imagery. On desktop, the first viewport mostly shows controls; on phone, discovery will be even slower. The current classic “Featured” card is simply the first registry result (`AppStore.tsx:226`), not an editorial selection. | **P0** |
+| Discovery and data | Registry reads are bounded; static entries are deduped against matching live URLs or verified paths. | `fetchLiveApps(0, 30)` imposes an unpaged ceiling; search and filters in `EcosystemDirectory` apply only to static entries. There is no shared index for search, categories, top lists, developer pages, or stable editorial ordering. `fetchLiveApps` can turn a missing raw RPC response into `[]`, which risks an empty-state message when the service is unavailable. | **P0/P1** |
+| Onchain trust and reviews | The reviews engine provides one review per wallet/subject, ratings, comments, reactions, flags, author edits/deletes, O(1) subject summaries, and moderator hiding. App reviews have their own reputation store; the UI suppresses headline averages below three reviews. | `memba_appstore_reviews_v1` and its package dependency are not recorded as mainnet deployed. The realm source compiles `ModeratorAddress = g1x7k4628…`, documented as a testnet moderator (`memba_appstore_reviews_v1.gno:20-22`): this must be corrected and reviewed before publishing. The UI lists only the first 20 reviews (`ReviewsSection.tsx`), but the hero summary covers all; at scale those counts/averages can disagree. One wallet is not one person; the interface must avoid “verified user/purchase” claims. | **Release blocker for reviews** |
+| Engineering and performance | Realm v3 has bounded list windows, indexes, a flag threshold, and exact-fee registration; the frontend validates paths and uses a raster image proxy with monogram fallback. | The gallery, search, and editorial content are spread across registry fields and static frontend data. Per-card rating summaries still make up to 30 separate chain reads (concurrency capped at four). Current error handling and query keys need a network/path audit before native reuse. Large catalogues need pagination plus an indexed/cache read model; ranking cannot be invented from registry order. | **P1** |
+| Curation and operations | The v3 realm supports pending, live, rejected and delisted status, curator approval/rejection, reports, publisher resubmission, and a sealed seed. Owner checklist defines atomic updates to the six live listings. | The six live listings still need approved copy, square icons, screenshots, URL decisions, and verified source links. Live edits use `Delist → Restore → Edit → Approve` in one transaction and consume one of five resubmits; this is an owner multisig ceremony, not a routine content edit. New realm listings require fee/gas simulation and publisher/curator action. Offchain tools cannot be honestly “registered” under invented realm paths. | **P0** |
+| Accessibility and mobile | The existing static filters have labels and the OS kit supports responsive sidebar-to-tabs behavior and reduced motion. | The native Store needs full keyboard navigation, clear focus after opening/closing app windows, carousel controls with accessible labels, 44 px touch targets, readable status badges in both themes, and explicit network/destination notices. These need visual and assistive testing, not a mockup-only sign-off. | **P1 launch gate** |
+
+### Important corrections to existing documents
+
+1. N6 in the 26 September backlog says the App Store flag is off “in prod.” The live **beta** remains static, while the live **classic** mainnet site shows six onchain listings. State flags per site, not globally.
+2. `AppStore.tsx` contains a comment saying the app-reviews realm “is deployed but gated”; the mainnet deployment manifest says it is **not deployed**. Correct that comment and keep the flag off until chain verification.
+3. The code's `isAppReviewsAvailable()` checks the feature flag and the **static allowlist**, not a live contract health probe. The allowlist is useful as a release gate; it must be updated only after published package/realm verification and a read/write canary.
+4. The v4 mockup's three gradient screenshot placeholders are visual scaffolding. Production detail windows should show publisher-approved raster screenshots or a deliberate “No screenshots supplied” state, never fabricated previews.
+5. “Top by 30-day users” is a future analytics feature. Live activity has recently shipped, but a defensible 30-day unique-user dataset, methodology, and abuse controls were not established in this audit. Until then use labelled editorial rows and transparent sorting.
+
+## Proposed product and visual direction
+
+### Information architecture
+
+- **Discover:** one search across registry and editorial projects; editorial hero, “Made for Memba OS,” “Games,” “Tools for builders,” and recently updated rows. Featured placement is explicitly curated and dated. Results show one card per project, not duplicate onchain/static cards.
+- **Categories:** a fixed user-facing taxonomy (Games, DeFi, Governance, Social, Wallets, Explorers, Developer tools, Infrastructure, Creative) mapped from legacy free-text categories without changing the immutable v3 fields. Search, category, availability, and source type compose; URL state is shareable.
+- **App detail:** native OS window with real icon, name/tagline, honest status, primary Open action, destination/network disclosure, screenshot gallery, description, publisher and realm/source panel, “what's new” only where supplied and dated, onchain reviews when live, and Report. Third-party destinations remain external tabs.
+- **Extensions:** dedicated Store section for add-ons that actually connect to Memba, with compatibility and activation state. Do not label a planned integration “active.”
+- **Your listings / Curator queue:** role-aware sections. Existing classic routes can be bridged first, then replaced with native flows after the signing sheet and transaction review are ready.
+
+### Visual system
+
+Use the OS Store's sky-blue app tint within existing Aqua tokens, Manrope/JetBrains Mono, glass window chrome, compact navigation, and `AppShell` responsive pattern. Distinctive treatment should come from **real app art plus precise provenance**, not more glow: a strong editorial image/illustration, generous title typography, consistent square icon crops, screenshot rails, and fine mono realm metadata. On a 390 px phone, lead with one search field and one featured card before secondary filters; fold the sidebar into horizontal tabs or a filter sheet. Respect light/dark/reduced motion and maintain legible contrast on tinted badges. Show loading skeletons that preserve layout and clear empty/error/retry states.
+
+### Trust language
+
+Use “Listed onchain,” “Curator approved listing,” “Community review,” and “External project” as separate facts. Explain that approving a listing is not a security audit, and an onchain review proves wallet authorship rather than identity or use. Show review count beside every displayed average; keep the existing minimum sample threshold. Pending and auto-hidden listings should not share the approved discovery rows. Moderation actions must remain attributable, with a visible explanation of hide/appeal policy.
+
+## Technical approach and decisions
+
+1. **Shared catalogue view model.** Keep v3 as the authority for onchain status, publisher, text and media CIDs. Keep an editorial manifest for external tools, feature slots, taxonomy aliases, verified URLs, attribution and checked-at dates. Normalize by exact realm path first, then approved canonical URL; never merge solely by display name. Expose provenance, network, availability and a stable canonical ID to both OS and classic clients. Do not create an onchain entry for an absent realm.
+2. **Read path.** Add cursor/page loading over `ListLiveJSON` windows (or a server/indexed cache where justified), full-catalog search in a bounded indexed service, and explicit RPC error/retry/staleness states. Define a cache key that includes chain ID, realm path, query and status. Keep direct chain detail verification available. Ratings should use a batched getter or a documented indexer/cache with direct-chain fallback, not an unbounded N+1 read burst.
+3. **Reviews.** Review the dependency package and dedicated realm on current Gno runtime. Replace the testnet moderator constant with a verified mainnet authority or a safely governed admin model; test unauthorized moderation, author edits/deletes, flags, summaries, pagination and source/ABI compatibility. Deploy package before realm, verify both by `qfile`/qeval and a small wallet canary, add the realm to the mainnet manifest/allowlist, then enable `VITE_ENABLE_APP_REVIEWS` on the intended site. Review subject is the immutable canonical `pkgPath`. For external-only projects, defer ratings until a governed subject/identity policy exists; do not borrow a nearby realm's reviews.
+4. **Publisher writes.** Reuse the existing exact-fee `RegisterApp` builder, `EditListing` field mirror and curator methods, but bring them under the OS transaction review sheet. Read fee/treasury/pause/owner immediately before signing, display exact GNOT plus gas, simulate, and check postconditions. Submission and reviews should have independent launch gates: publishing does not technically require reviews, though both need safe signing and operations.
+5. **Operations.** Owner-approved listing content and art become an auditable content manifest. Verify target realm, icon and screenshot CIDs, URL ownership, network and source before any multisig transaction. Run the six-listing atomic update ceremony and new registrations only after exact values, fee and simulation are reviewed. Preserve the current live status throughout updates. The owner controls site flags and chain broadcasts.
+
+## Delivery sequence and acceptance
+
+| Step | Deliverable | Acceptance gate |
+|---|---|---|
+| 0. Truth and content | Fresh chain/site inventory; field-by-field audit of six listings, approved updates and media; candidate eligibility sheet; final copy and external URL decisions; corrected outdated docs/comments. | Each claimed mainnet realm resolves on `gnoland-1`; owner accepts exact eight fields and CIDs for every transaction. No phantom or duplicate listing. |
+| 1. Catalogue foundation | One typed catalogue selector for registry + editorial entries, canonical IDs, taxonomy, search/filter URL state, pagination, availability/error handling; classic Store consumes it. | Search finds live and external entries; one project appears once; page 2 works; RPC failure says unavailable, not “no apps”; offchain tools retain honest labels. |
+| 2. Native OS discovery and detail | `os/apps/store/native.tsx` plus Store-scoped styles and native detail window, built from OS kit. Real media, editorial hero, screenshot rail, source panel, open/pin/report behavior, keyboard and phone layouts. Classic paths deep-link into OS without leaving it. | Pixel review at desktop 1600, laptop, 390 and 320 px in light/dark; keyboard/screen-reader and reduced-motion checks; no clipped controls; all guest read flows work. |
+| 3. Onchain review release | Contract hardening, package + realm publication proposal, client pagination/summary consistency, native review form/cards/moderation copy. | Independent security review, realm tests, current-chain ABI checks, moderator authority proof, gas/canary, no cross-realm reputation bleed, correct edits/deletes/hide effects. Only then enable review flag. |
+| 4. Submission and curation | Native four-step Package → Details → Artwork → Review wizard, exact-fee review sheet, “Your listings,” curator queue, reject reasons and reports. | Fee/treasury/pause readback, simulation, wallet rejection/retry, duplicate and wrong-chain cases, edit preservation and postcondition tests. Separate owner go for money-path release and site flag. |
+| 5. Editorial depth and scale | Developer identity pages, dated “what's new,” optional installed/pinned state, analytics-backed Top when data is defensible, discovery telemetry without fake popularity. | Source/methodology for rankings documented; >30 entries searchable and pageable; indexing lag disclosed; curation updates remain traceable. |
+
+Each code step should be a coherent feature branch and PR, with focused tests, full frontend unit/lint/build, relevant OS and classic browser tests, both themes and phone, and a current-base review. Chain publication and production flags are separate operator gates. Do not couple a native UI merge to an unfinished mainnet ceremony: show a truthful fallback until its backing feature is verified live.
+
+## Release definition of done
+
+- Guest can search and open a useful, nonduplicated cross-ecosystem catalogue in Memba OS on desktop and phone. Every card identifies its source and network.
+- The six live onchain listings have approved descriptions, icons, and real screenshots; valid links open the intended app or source. Editorial picks are deliberate, current, and labelled.
+- An app detail opens within the OS and preserves navigation, focus, network context, and external-destination clarity. Classic links remain usable.
+- Onchain review write/edit/delete, aggregate display, pagination, moderation and failure/retry work against the deployed mainnet realm; the review flag stays off until then. No claim of verified use/purchase.
+- Publisher registration and curator decisions have exact fee, chain, authority, simulation and postcondition checks before their separate launch gate.
+- Production QA covers guest and member, desktop and phone, light and dark, healthy and failing RPC, missing images, empty and large catalogues, and a real returning-client update path.
+
+## Owner decisions requested before irreversible work
+
+1. Approve the **one catalogue, explicit provenance** model, including editorial external tools that cannot be registered as onchain realms.
+2. Approve the visual/content direction and the final six listing briefs, artwork, and target URLs before the multisig edit ceremony.
+3. Confirm the mainnet review moderator authority and policy (hide reasons, appeals, conflicts, and whether publisher self-reviews are labelled or excluded).
+4. Authorize each chain publication, paid registration, production flag change and money-path launch only against an exact, reviewable transaction/configuration plan.
+
+## Implementation ledger
+
+The first PR covers the shared read model and native OS guest discovery/detail. It adds bounded registry pagination, explicit fetch errors, cross-source search and provenance, native detail windows, and a truthful flag-off view. The classic Store and production flags remain separate until integration review. The remaining delivery sequence is: owner-approved content inventory and exact media/URL briefs; classic catalogue convergence; review realm authority/security and pagination; native review and submission/curator flows; finally controlled chain and site cutover. Each stage should have its own reviewable PR or transaction plan.
+
+The next code change should unify the classic Store on the same catalogue model, then prepare the dedicated reviews realm and its client pagination. Do not use a mainnet flag flip to simulate progress: the app-reviews realm is absent from the deployment manifest and its source still names a testnet moderator.

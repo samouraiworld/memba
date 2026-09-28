@@ -5,6 +5,8 @@ import {
     isAppStoreV3,
     APPSTORE_REALM_PATH,
     fetchLiveApps,
+    fetchLiveAppsPage,
+    fetchLiveCatalogue,
     fetchByStatus,
     fetchByPublisher,
     fetchAppStoreStats,
@@ -126,6 +128,35 @@ describe("fetchLiveApps (coerce drops unsafe pkgPaths)", () => {
         expect(apps).toHaveLength(1)
         expect(apps[0].pkgPath).toBe(safe.pkgPath)
         expect(apps.some((a) => a.pkgPath.includes("Evil"))).toBe(false)
+    })
+})
+
+describe("strict catalogue windows", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("distinguishes an unavailable registry from an empty one", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue(null)
+        await expect(fetchLiveAppsPage(0, 20)).rejects.toThrow("unavailable")
+    })
+
+    it("continues past a dropped unsafe entry and reports whether the cap was reached", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue("[unused]")
+        const safe = (n: number) => ({ id: n, pkgPath: `gno.land/r/samcrew/app_${n}`, name: `App ${n}`, status: "live" })
+        const parsed = vi.spyOn(shared, "parseQevalJSON")
+            .mockReturnValueOnce([safe(1), { id: 2, pkgPath: `gno.land/r/x") Evil("`, name: "Evil" }])
+            .mockReturnValueOnce([safe(3)])
+        const result = await fetchLiveCatalogue(2, 3)
+        expect(result).toMatchObject({ complete: true, apps: [{ name: "App 1" }, { name: "App 3" }] })
+        expect(parsed).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not claim full search when the bounded page cap is reached", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue("[unused]")
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue([
+            { id: 1, pkgPath: "gno.land/r/samcrew/a", name: "A", status: "live" },
+            { id: 2, pkgPath: "gno.land/r/samcrew/b", name: "B", status: "live" },
+        ])
+        await expect(fetchLiveCatalogue(2, 2)).resolves.toMatchObject({ complete: false })
     })
 })
 

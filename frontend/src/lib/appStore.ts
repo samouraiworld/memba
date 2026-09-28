@@ -119,6 +119,28 @@ export async function fetchLiveApps(offset: number, limit: number): Promise<AppL
     return parsed.map(coerce).filter((x): x is AppListing => x !== null)
 }
 
+/** Strict read for discovery: an unavailable or malformed registry must not look empty. */
+export async function fetchLiveAppsPage(offset: number, limit: number): Promise<{ apps: AppListing[]; windowSize: number }> {
+    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, `ListLiveJSON(${offset | 0}, ${limit | 0})`)
+    if (!raw) throw new Error("App Store registry is unavailable")
+    const parsed = parseQevalJSON(raw)
+    if (!Array.isArray(parsed)) throw new Error("App Store registry returned an invalid page")
+    return { apps: parsed.map(coerce).filter((x): x is AppListing => x !== null), windowSize: parsed.length }
+}
+
+/** Bounded full-catalog read for a small registry. `complete=false` forbids claiming full search. */
+export async function fetchLiveCatalogue(pageSize = 50, maxPages = 10): Promise<{ apps: AppListing[]; complete: boolean }> {
+    const safePageSize = Math.max(1, Math.min(100, Math.floor(pageSize)))
+    const safeMaxPages = Math.max(1, Math.min(20, Math.floor(maxPages)))
+    const apps: AppListing[] = []
+    for (let page = 0; page < safeMaxPages; page++) {
+        const batch = await fetchLiveAppsPage(page * safePageSize, safePageSize)
+        apps.push(...batch.apps)
+        if (batch.windowSize < safePageSize) return { apps, complete: true }
+    }
+    return { apps, complete: false }
+}
+
 /**
  * Fetch a bounded window of listings in a given `status` (v3 `ListByStatusJSON`). Returns [] on
  * any error, empty realm, or a realm that doesn't expose the getter (e.g. v2) — so callers can
