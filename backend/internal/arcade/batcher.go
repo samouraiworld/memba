@@ -197,12 +197,12 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 				}
 				continue
 			}
+			attested++
 			// The best is attested; retire this address's lesser runs on this
 			// (game, day) board — its runs in OTHER games are other boards.
 			if err := store.ResolveSupersededDaily(gd.Game, gd.Day, run.Addr, run.LogHash); err != nil {
-				slog.Error("arcade resolve superseded failed", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "error", err)
+				return attested, fmt.Errorf("arcade resolve superseded for %s/%s/%s: %w", gd.Game, gd.Day, run.Addr, err)
 			}
-			attested++
 		}
 	}
 	return attested, nil

@@ -206,6 +206,30 @@ func TestDayCloseBatcher_StopsAfterUnrecordablePermanentReject(t *testing.T) {
 	}
 }
 
+func TestRunBatchOnce_StopsWhenSupersededRunsCannotBeRetired(t *testing.T) {
+	s := batchStore(t)
+	mustInsertAddr(t, s, "lower", "g1alice", "2026-07-09", 100)
+	mustInsertAddr(t, s, "best", "g1alice", "2026-07-09", 200)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_superseded_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'skipped' BEGIN SELECT RAISE(ABORT, 'superseded write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &attemptBroadcaster{}
+	n, err := RunBatchOnce(context.Background(), s, b, 2, atFixedDay)
+	if err == nil || n != 1 || len(b.calls) != 1 || b.calls[0].LogHash != "best" {
+		t.Fatalf("failed superseded write must stop before lower broadcast: n=%d err=%v calls=%+v", n, err, b.calls)
+	}
+	best, _, err := s.GetRunByLogHash("best")
+	if err != nil || best.Status != "attested" {
+		t.Fatalf("best run lost its receipt: %+v %v", best, err)
+	}
+	lower, _, err := s.GetRunByLogHash("lower")
+	if err != nil || lower.Status != "verified" {
+		t.Fatalf("failed superseded write changed lower run: %+v %v", lower, err)
+	}
+}
+
 func TestRunBatchOnce_AttemptCapRetainsRetryParkingAndProgress(t *testing.T) {
 	s := batchStore(t)
 	mustInsert(t, s, "poison", "2026-07-09", 100)
