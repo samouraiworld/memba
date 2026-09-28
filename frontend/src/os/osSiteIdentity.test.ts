@@ -84,6 +84,18 @@ describe('beta identity', () => {
             for (const [name, css] of allowed) writeFileSync(resolve(dir, 'assets', name), css)
             expect(scan().status).toBe(0)
 
+            writeFileSync(resolve(dir, 'assets', 'BlockPartyGame-abc.css'), '@media(max-width:500px){.memba-os .k-bp-mode-btn{color:red}}')
+            expect(scan().status).toBe(0)
+            for (const css of [
+                'body.memba-os .k-bp-mode-btn{color:red}',
+                '.page .memba-os .k-bp-mode-btn{color:red}',
+                '.memba-os .k-bp-mode-btn:hover{color:red}',
+            ]) {
+                writeFileSync(resolve(dir, 'assets', 'BlockPartyGame-abc.css'), css)
+                expect(scan().status, css).toBe(1)
+            }
+            writeFileSync(resolve(dir, 'assets', 'BlockPartyGame-abc.css'), allowed[0][1])
+
             writeFileSync(resolve(dir, 'assets', 'Directory-def.css'), `${allowed[1][1]}.memba-os .os-boot{display:block}`)
             expect(scan().status).toBe(1)
             writeFileSync(resolve(dir, 'assets', 'Directory-def.css'), allowed[1][1])

@@ -47,6 +47,7 @@ const CLASSIC_OS_CSS_SELECTORS = [
     '.memba-os .si-button--primary{',
   ] },
 ]
+const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const BRAND_DIR = fileURLToPath(new URL('../src/os/brand/', import.meta.url))
 const brand = readdirSync(BRAND_DIR).filter(name => /\.(png|svg)$/.test(name)).map(name => {
   const bytes = readFileSync(join(BRAND_DIR, name))
@@ -90,7 +91,11 @@ for (const p of files) {
   if (rel.endsWith('.css')) {
     const exception = CLASSIC_OS_CSS_SELECTORS.find(entry => entry.chunk.test(rel))
     if (exception) for (const selector of exception.selectors) {
-      scopedText = scopedText.replaceAll(selector, selector.replace(SENTINEL, 'classic-os-scope'))
+      // A longer selector such as body.memba-os ... must not inherit this
+      // exemption merely because it contains the allowed selector substring.
+      const ruleStart = new RegExp(`(^|[{}])([\\s]*)(${escapeRegExp(selector)})`, 'g')
+      scopedText = scopedText.replace(ruleStart, (_match, boundary, space, exact) =>
+        boundary + space + exact.replace(SENTINEL, 'classic-os-scope'))
     }
   }
   if (scopedText.includes(SENTINEL)) leaks.push(`${rel} (contains "${SENTINEL}")`)
