@@ -225,3 +225,89 @@ describe("GnoloveReport — default state", () => {
         expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("PR Report")
     })
 })
+
+describe("GnoloveReport — report and status counts share one filter scope", () => {
+    const pr = (id: string, url: string, state: string) => ({
+        id, number: Number(id), title: `PR ${id}`, url, state,
+        authorLogin: "moul", mergedAt: state === "MERGED" ? "2026-09-15T12:00:00Z" : null,
+        createdAt: "2026-09-10T12:00:00Z", updatedAt: "2026-09-16T12:00:00Z",
+    })
+
+    beforeEach(() => {
+        mockedUseRepos.mockReturnValue(makeQuery([
+            { id: 1, owner: "gnolang", name: "gno" },
+            { id: 2, owner: "gnolang", name: "gnoverse" },
+        ]) as never)
+        mockedUseReport.mockReturnValue(makeQuery({
+            merged: [
+                pr("1", "https://github.com/gnolang/gno/pull/1", "MERGED"),
+                pr("2", "https://github.com/gnolang/gnoverse/pull/2", "MERGED"),
+            ],
+            in_progress: [], waiting_for_review: [], reviewed: [],
+            blocked: [pr("3", "https://github.com/gnolang/gno/pull/3", "OPEN")],
+        }) as never)
+    })
+
+    it("scopes tab badges and narrative stats to the selected repository", () => {
+        renderAt("/test12/gnolove/report?period=all&repos=gnolang/gno")
+        const tabs = screen.getByRole("tablist", { name: "Status filter" })
+        expect(within(tabs).getByRole("tab", { name: "All, 2 PRs" })).toBeInTheDocument()
+        expect(within(tabs).getByRole("tab", { name: "Merged, 1 PR" })).toBeInTheDocument()
+        expect(within(tabs).getByRole("tab", { name: "Blocked, 1 PR" })).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "🎉 Merged (1)" })).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "🚧 Blockers (1)" })).toBeInTheDocument()
+        expect(screen.queryByText("PR 2")).not.toBeInTheDocument()
+    })
+
+    it("applies the weekly activity window to status badges", () => {
+        mockedUseReport.mockReturnValue(makeQuery({
+            merged: [
+                pr("1", "https://github.com/gnolang/gno/pull/1", "MERGED"),
+                { ...pr("2", "https://github.com/gnolang/gno/pull/2", "MERGED"),
+                    createdAt: "2026-08-01T12:00:00Z", updatedAt: "2026-08-02T12:00:00Z",
+                    mergedAt: "2026-08-02T12:00:00Z" },
+            ],
+            in_progress: [], waiting_for_review: [], reviewed: [], blocked: [],
+        }) as never)
+        renderAt("/test12/gnolove/report?period=weekly&at=2026-W38")
+        const tabs = screen.getByRole("tablist", { name: "Status filter" })
+        expect(within(tabs).getByRole("tab", { name: "Merged, 1 PR" })).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "🎉 Merged (1)" })).toBeInTheDocument()
+        expect(screen.queryByText("PR 2")).not.toBeInTheDocument()
+    })
+
+    it("applies the selected status to Report view and its empty-state reset", () => {
+        renderAt("/test12/gnolove/report?period=all&repos=gnolang/gno&tab=merged")
+        expect(screen.getByRole("heading", { name: "🎉 Merged (1)" })).toBeInTheDocument()
+        expect(screen.queryByRole("heading", { name: /Blockers/ })).not.toBeInTheDocument()
+        expect(screen.queryByText("PR 3")).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole("tab", { name: /^In Progress/ }))
+        expect(screen.getByText(/No PRs match/)).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Show all statuses" }))
+        expect(screen.getByRole("heading", { name: "🚧 Blockers (1)" })).toBeInTheDocument()
+    })
+
+    it("keeps reviewed PRs separate from the waiting queue", () => {
+        mockedUseReport.mockReturnValue(makeQuery({
+            merged: [], in_progress: [], blocked: [],
+            waiting_for_review: [pr("4", "https://github.com/gnolang/gno/pull/4", "OPEN")],
+            reviewed: [pr("5", "https://github.com/gnolang/gno/pull/5", "OPEN")],
+        }) as never)
+        renderAt("/test12/gnolove/report?period=all&tab=reviewed")
+        expect(screen.getByRole("heading", { name: "✓ Reviewed (1)" })).toBeInTheDocument()
+        expect(screen.queryByRole("heading", { name: /Waiting for Review/ })).not.toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "#5" })).toBeInTheDocument()
+        expect(screen.queryByRole("link", { name: "#4" })).not.toBeInTheDocument()
+    })
+
+    it("labels an in-progress PR consistently in the table", () => {
+        mockedUseReport.mockReturnValue(makeQuery({
+            merged: [], waiting_for_review: [], reviewed: [], blocked: [],
+            in_progress: [pr("6", "https://github.com/gnolang/gno/pull/6", "OPEN")],
+        }) as never)
+        renderAt("/test12/gnolove/report?period=all&view=table&repos=gnolang/gno")
+        expect(screen.getByText("PR 6").closest(".gl-pr-row")?.querySelector(".gl-pr-state"))
+            .toHaveTextContent("In Progress")
+    })
+})

@@ -181,8 +181,13 @@ export async function getRepositories(signal?: AbortSignal): Promise<TRepository
 
 export async function getContributor(login: string, signal?: AbortSignal): Promise<TContributor | null> {
     if (!login) return null
-    const data = await fetchJson(apiUrl(`/contributors/${encodeURIComponent(login)}`), signal)
-    return ContributorSchema.parse(data)
+    try {
+        const data = await fetchJson(apiUrl(`/contributors/${encodeURIComponent(login)}`), signal)
+        return ContributorSchema.parse(data)
+    } catch (error) {
+        if (error instanceof HttpError && error.status === 404) return null
+        throw error
+    }
 }
 
 export async function getPackages(signal?: AbortSignal): Promise<TPackage[]> {

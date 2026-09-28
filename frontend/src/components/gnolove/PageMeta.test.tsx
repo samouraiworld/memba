@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from "vitest"
 import { render } from "@testing-library/react"
 import { PageMeta } from "./PageMeta"
+import { WindowActivityContext } from "../../os/page/WindowActivity"
 
 describe("PageMeta", () => {
     beforeEach(() => {
@@ -56,5 +57,29 @@ describe("PageMeta", () => {
         render(<PageMeta title="My Page" description="A test page" />)
         const desc = document.querySelector('meta[name="description"]')
         expect(desc?.getAttribute("content")).toBe("A test page")
+    })
+
+    it("restores the OS head when its window backgrounds and does not write while inactive", () => {
+        document.head.innerHTML = '<meta property="og:title" content="Memba OS"><meta property="og:url" content="https://memba.club/os"><meta name="description" content="OS home">'
+        document.title = "Original Title"
+        const { rerender } = render(
+            <WindowActivityContext.Provider value={true}>
+                <PageMeta title="Dev Report" description="Contributors" />
+            </WindowActivityContext.Provider>,
+        )
+        expect(document.title).toBe("Dev Report")
+        rerender(
+            <WindowActivityContext.Provider value={false}>
+                <PageMeta title="Inactive report" description="Inactive" />
+            </WindowActivityContext.Provider>,
+        )
+        expect(document.title).toBe("Original Title")
+        expect(document.querySelector('meta[property="og:title"]')?.getAttribute("content")).toBe("Memba OS")
+        expect(document.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("OS home")
+    })
+
+    it("strips tracking parameters and fragments from social URL", () => {
+        render(<PageMeta title="Report" url="https://memba.club/os/dev-report/report/?utm_source=x#status" />)
+        expect(document.querySelector('meta[property="og:url"]')?.getAttribute("content")).toBe("https://memba.club/os/dev-report/report")
     })
 })

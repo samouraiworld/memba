@@ -32,6 +32,12 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: Dev Report production QA (2026-09-28)
+
+- Align PR Report counts, narrative and exports with the selected period, team, repositories and status; make unavailable and empty data states distinct across AI Reports, milestones, boards and contributor profiles.
+- Keep Notable board items visible when live statuses outgrow board metadata, repair AI report deep links and Markdown exports, and use local calendar dates in contributor heatmaps.
+- Disclose built-in team rosters and completed milestone context, pause inactive window polling, restore page metadata when switching OS windows, and keep large report payloads out of browser storage.
+
 ### Memba OS: News production QA (2026-09-28)
 
 - Give each published Blog article a crawler-visible title, description, canonical URL and structured data on classic and OS routes; keep the OS sitemap and robots file on the OS host.

@@ -39,13 +39,24 @@ test.describe("Gnolove Team Hub canary", () => {
         expect(titleCount).toBeGreaterThanOrEqual(3)
     })
 
-    test("'Roster updated' chip is present in the header", async ({ page }) => {
+    test("header identifies the live or built-in roster", async ({ page }) => {
         await page.goto(HUB_PATH)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
 
-        // v6.2.2 renamed the chip from "Last sync" to "Roster updated"
-        // — assert the new label so accidental reverts trip CI.
-        await expect(page.locator(".gl-thub-chip-sync")).toContainText(/Roster updated/i, { timeout: 10_000 })
+        // A live roster has a deployment timestamp; CI may instead receive the
+        // built-in roster when Gnolove is unavailable. Both need honest source
+        // labels. Read text and title together so an async transition cannot
+        // mix the two states in the assertion.
+        const chip = page.locator(".gl-thub-chip-sync")
+        await expect(chip).toBeVisible({ timeout: 10_000 })
+        const { text, title } = await chip.evaluate((node) => ({
+            text: node.textContent?.trim() ?? "",
+            title: node.getAttribute("title") ?? "",
+        }))
+        expect(
+            (text.startsWith("Roster updated:") && title.startsWith("Team config (teams.yaml) deployed")) ||
+            (text === "Built-in roster" && title.includes("live roster data is unavailable")),
+        ).toBe(true)
     })
 
     test("period tablist drives URL state", async ({ page }) => {

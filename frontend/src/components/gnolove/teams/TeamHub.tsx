@@ -24,9 +24,18 @@ import { TeamHubFocusAreasCard } from "./TeamHubFocusAreasCard"
 import { TeamHubReportCard } from "./TeamHubReportCard"
 import { periodToBackendParam } from "../../../lib/gnolovePeriod"
 import type { Team } from "../../../lib/gnoloveConstants"
+import { useWindowActive } from "../../../os/page/WindowActivity"
+
+function decodeTeamParam(rawParam: string): string {
+    try {
+        return decodeURIComponent(rawParam)
+    } catch {
+        return rawParam
+    }
+}
 
 function findTeam(teams: Team[], rawParam: string): Team | null {
-    const decoded = decodeURIComponent(rawParam)
+    const decoded = decodeTeamParam(rawParam)
     const lower = decoded.toLowerCase()
     return (
         teams.find(t => t.slug.toLowerCase() === lower) ??
@@ -37,16 +46,17 @@ function findTeam(teams: Team[], rawParam: string): Team | null {
 
 export function TeamHub() {
     const np = useNetworkPath()
+    const windowActive = useWindowActive()
     const { teamName } = useParams<{ teamName: string }>()
     const { teams, lastSyncedAt } = useGnoloveTeams()
     const { period, repos, setPeriod } = useTeamProfileUrlState()
-    const health = useGnoloveBackendHealth()
+    const health = useGnoloveBackendHealth({ enabled: windowActive })
 
     const team = teamName ? findTeam(teams, teamName) : null
     const backHref = np("gnolove/teams")
 
-    const activeReposQuery = useGnoloveTeamActiveRepos(team?.slug, periodToBackendParam(period))
-    const teamStatsQuery = useGnoloveTeamStats(team?.slug, periodToBackendParam(period), repos)
+    const activeReposQuery = useGnoloveTeamActiveRepos(team?.slug, periodToBackendParam(period), windowActive)
+    const teamStatsQuery = useGnoloveTeamStats(team?.slug, periodToBackendParam(period), repos, windowActive)
 
     const cardErrorCount =
         (activeReposQuery.isError ? 1 : 0) +
@@ -57,13 +67,14 @@ export function TeamHub() {
         .sort()[0]
 
     if (!team) {
-        const decoded = teamName ? decodeURIComponent(teamName) : ""
+        const decoded = teamName ? decodeTeamParam(teamName) : ""
         return (
             <div className="gl-page">
                 <PageMeta title="Team not found | Gnolove · Memba" description="The requested team could not be found." noindex />
                 <Link to={backHref} className="gl-profile-back">&larr; Back to Teams</Link>
                 <div className="gl-empty">
-                    <p>Team not found: {decoded}</p>
+                    <h1>Team not found</h1>
+                    <p>No team matching {decoded} is in this directory.</p>
                     <Link to={backHref} className="gl-filter-btn gl-filter-btn--active" style={{ marginTop: 12, display: "inline-block" }}>See all teams &rarr;</Link>
                 </div>
             </div>

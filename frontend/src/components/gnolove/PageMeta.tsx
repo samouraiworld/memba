@@ -15,6 +15,7 @@
  */
 
 import { useEffect } from "react"
+import { useWindowActive } from "../../os/page/WindowActivity"
 
 interface PageMetaProps {
     title: string
@@ -41,7 +42,9 @@ function setOrCreateMeta(selector: string, attrName: string, value: string): { n
 }
 
 export function PageMeta({ title, description, image, url, noindex }: PageMetaProps) {
+    const windowActive = useWindowActive()
     useEffect(() => {
+        if (!windowActive) return
         const prevTitle = document.title
         document.title = title
 
@@ -55,7 +58,8 @@ export function PageMeta({ title, description, image, url, noindex }: PageMetaPr
             managed.push(setOrCreateMeta('meta[property="og:description"]', "content", description))
         }
 
-        const resolvedUrl = url ?? window.location.href
+        const location = new URL(url ?? window.location.href)
+        const resolvedUrl = `${location.origin}${location.pathname.replace(/\/+$/, "") || "/"}`
         managed.push(setOrCreateMeta('meta[property="og:url"]', "content", resolvedUrl))
 
         if (image) {
@@ -83,7 +87,7 @@ export function PageMeta({ title, description, image, url, noindex }: PageMetaPr
                 }
             }
         }
-    }, [title, description, image, url, noindex])
+    }, [title, description, image, url, noindex, windowActive])
 
     return null
 }

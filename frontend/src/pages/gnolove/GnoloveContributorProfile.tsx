@@ -17,6 +17,8 @@ import {
 } from "recharts"
 import { useGnoloveContributor } from "../../hooks/gnolove"
 import { TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
+import { localDateKey } from "../../lib/gnoloveTime"
+import { isTeamMember } from "../../lib/gnoloveReportFilters"
 
 
 // ── Contribution Heatmap (SVG) ──────────────────────────────
@@ -46,7 +48,7 @@ function ContributionHeatmap({ data }: { data: Array<{ date: string; count: numb
 
         while (currentDate <= now) {
             const dayIdx = (currentDate.getDay() + 6) % 7
-            const dateStr = currentDate.toISOString().split("T")[0]
+            const dateStr = localDateKey(currentDate)
             const count = dayMap.get(dateStr) ?? 0
             if (count > maxCount) maxCount = count
 
@@ -174,7 +176,7 @@ function isValidHttpUrl(url: string): boolean {
 
 function findTeam(login: string) {
     for (const team of TEAMS) {
-        if (team.members.includes(login)) return team
+        if (isTeamMember(team, login)) return team
     }
     return null
 }
@@ -193,7 +195,7 @@ const CHART_TOOLTIP_STYLE = {
 export default function GnoloveContributorProfile() {
     const np = useNetworkPath()
     const { login } = useParams<{ login: string }>()
-    const { data: contributor, isLoading } = useGnoloveContributor(login ?? "")
+    const { data: contributor, isLoading, isError, refetch } = useGnoloveContributor(login ?? "")
     const [copied, setCopied] = useState(false)
 
     const pageTitle = contributor?.name
@@ -280,16 +282,30 @@ export default function GnoloveContributorProfile() {
         )
     }
 
+    if (isError) {
+        return (
+            <div className="gl-page">
+                <PageMeta title="Contributor unavailable | Gnolove · Memba" noindex />
+                <Link to={np("gnolove")} className="gl-profile-back">&larr; Back to Contributors Overview</Link>
+                <div className="gl-empty" style={{ marginTop: 48 }}>
+                    <h1>Contributor unavailable</h1>
+                    <p>The contributor service could not be reached.</p>
+                    <button type="button" className="gl-filter-btn" onClick={() => refetch()}>Retry</button>
+                </div>
+            </div>
+        )
+    }
+
     // ── Not found state ─────────────────────────────────────
     if (!contributor) {
         return (
             <div className="gl-page">
-                <PageMeta title={pageTitle} />
+                <PageMeta title={pageTitle} noindex />
                 <Link to={np("gnolove")} className="gl-profile-back">
                     &larr; Back to Contributors Overview
                 </Link>
                 <div className="gl-empty" style={{ marginTop: 48 }}>
-                    <h2>Contributor not found</h2>
+                    <h1>Contributor not found</h1>
                     <p>
                         No contributor with the login <strong>@{login}</strong> was found.
                     </p>

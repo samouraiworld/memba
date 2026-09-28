@@ -9,24 +9,33 @@ import { PageMeta } from "../../components/gnolove/PageMeta"
 import { renderMarkdown } from "../../lib/markdownLite"
 
 export default function GnoloveMilestone() {
-    const { data: milestone, isLoading } = useGnoloveMilestone()
+    const { data: milestone, isLoading, isError, refetch } = useGnoloveMilestone()
 
     if (isLoading) {
         return (
-            <div className="gl-loading">
-                <div className="gl-skeleton" />
-                <div className="gl-skeleton" />
+            <div className="gl-page">
+                <PageMeta title="Milestone | Gnolove · Memba" />
+                <div className="gl-loading">
+                    <div className="gl-skeleton" />
+                    <div className="gl-skeleton" />
+                </div>
             </div>
         )
     }
 
     if (!milestone) {
-        return <div className="gl-empty"><p>No milestone data available.</p></div>
+        return <div className="gl-page gl-empty">
+            <PageMeta title="Milestone unavailable | Gnolove · Memba" noindex />
+            <h1>Milestone unavailable</h1>
+            <p>{isError ? "The milestone could not be loaded." : "No milestone data is available."}</p>
+            {isError && <button type="button" className="gl-filter-btn" onClick={() => refetch()}>Retry</button>}
+        </div>
     }
 
     const closedCount = milestone.issues.filter(i => i.state === "CLOSED").length
     const totalCount = milestone.issues.length
     const progress = totalCount > 0 ? Math.round((closedCount / totalCount) * 100) : 0
+    const complete = totalCount > 0 && closedCount === totalCount
 
     return (
         <div className="gl-page">
@@ -45,7 +54,7 @@ export default function GnoloveMilestone() {
                 </div>
                 <div className="gl-ms-progress-track">
                     <div
-                        className={`gl-ms-progress-fill${progress === 100 ? " gl-ms-progress-fill--done" : ""}`}
+                        className={`gl-ms-progress-fill${complete ? " gl-ms-progress-fill--done" : ""}`}
                         style={{ width: `${progress}%` }}
                     />
                 </div>
@@ -53,6 +62,8 @@ export default function GnoloveMilestone() {
 
             {milestone.description && (
                 <div className="gl-panel gl-mb-16">
+                    <h2 className="gl-panel-title">Original milestone description</h2>
+                    {complete && <p className="gl-panel-subtitle">This milestone is complete. Its original description below may still refer to work in progress.</p>}
                     {/* renderMarkdown escapes all HTML then applies safe markdown transforms; source is GitHub API */}
                     <div
                         className="gl-ms-description"

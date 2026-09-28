@@ -1,5 +1,13 @@
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000
 
+/** Calendar API dates are local day keys, not UTC timestamps. */
+export function localDateKey(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
 export function formatRelativeTime(iso: string | null | undefined, nowMs: number): string {
     if (!iso) return "—"
     const ts = new Date(iso).getTime()

@@ -12,8 +12,9 @@
  * under test. Only the data hooks are stubbed.
  */
 import { describe, it, expect, vi } from "vitest"
-import { render, screen, fireEvent, within } from "@testing-library/react"
+import { act, render, screen, fireEvent, within } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
+import { useGnoloveContributors } from "../../hooks/gnolove"
 
 vi.mock("../../hooks/gnolove", async () => {
     const actual = await vi.importActual<typeof import("../../hooks/gnolove")>("../../hooks/gnolove")
@@ -62,5 +63,29 @@ describe("GnoloveHome — time tablist keyboard (APG)", () => {
         const week = within(tablist).getByRole("tab", { name: "This Week" })
         expect(week).toHaveAttribute("aria-selected", "true")
         expect(week).toHaveAttribute("tabindex", "0")
+    })
+})
+
+describe("GnoloveHome — sync age", () => {
+    it("updates the last-sync label during a long visible session", () => {
+        vi.useFakeTimers()
+        try {
+            vi.setSystemTime(new Date("2026-09-28T12:05:00Z"))
+            vi.mocked(useGnoloveContributors).mockReturnValue({
+                data: { users: [], lastSyncedAt: "2026-09-28T12:00:00Z" },
+                isLoading: false,
+                isFetching: false,
+                isError: false,
+                refetch: vi.fn(),
+            } as never)
+            const view = renderHome()
+            expect(screen.getByText("Last sync: 5m ago")).toBeInTheDocument()
+            act(() => { vi.advanceTimersByTime(60_000) })
+            expect(screen.getByText("Last sync: 6m ago")).toBeInTheDocument()
+            view.unmount()
+        } finally {
+            vi.useRealTimers()
+            vi.mocked(useGnoloveContributors).mockReset()
+        }
     })
 })

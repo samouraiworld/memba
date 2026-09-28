@@ -1,8 +1,15 @@
 import { isWithinInterval } from "date-fns"
 import type { TPullRequest } from "./gnoloveSchemas"
 import type { ReportTab } from "./gnoloveConstants"
-import { TEAMS } from "./gnoloveConstants"
+import { TEAMS, type Team } from "./gnoloveConstants"
 import { extractRepoFromUrl } from "./gnoloveApi"
+
+/** GitHub logins are case-insensitive, while API casing may differ from the roster. */
+export function isTeamMember(team: Team, login: string | null | undefined): boolean {
+    if (!login) return false
+    const normalized = login.toLowerCase()
+    return team.members.some(member => member.toLowerCase() === normalized)
+}
 
 export function hasActivityInRange(pr: TPullRequest, start: Date, end: Date): boolean {
     const range = { start, end }
@@ -35,7 +42,7 @@ export function filterPrs(prs: TPullRequest[], criteria: FilterCriteria): TPullR
     if (criteria.teamName !== "all") {
         const team = TEAMS.find(t => t.name === criteria.teamName)
         if (team) {
-            result = result.filter(pr => pr.authorLogin && team.members.includes(pr.authorLogin))
+            result = result.filter(pr => isTeamMember(team, pr.authorLogin))
         }
     }
 
@@ -70,7 +77,7 @@ export function filterPrsByCategory(
     let result = prs ?? []
     if (teamName !== "all") {
         const team = TEAMS.find(t => t.name === teamName)
-        if (team) result = result.filter(pr => pr.authorLogin && team.members.includes(pr.authorLogin))
+        if (team) result = result.filter(pr => isTeamMember(team, pr.authorLogin))
     }
     if (selectedRepos.size > 0) {
         result = result.filter(pr => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { filterPrs, hasActivityInRange, type FilterCriteria } from "./gnoloveReportFilters"
+import { filterPrs, filterPrsByCategory, hasActivityInRange, isTeamMember, type FilterCriteria } from "./gnoloveReportFilters"
+import { TEAMS } from "./gnoloveConstants"
 import type { TPullRequest } from "./gnoloveSchemas"
 
 const makePr = (overrides: Partial<TPullRequest> = {}): TPullRequest => ({
@@ -66,6 +67,12 @@ describe("filterPrs", () => {
         expect(result[0].authorLogin).toBe("notJoon")
     })
 
+    it("includes mixed-case GitHub logins in team-filtered tables and exports", () => {
+        const pr = makePr({ authorLogin: "Kouteki" })
+        expect(filterPrs([pr], { ...baseCriteria, teamName: "Core Team" })).toEqual([pr])
+        expect(filterPrsByCategory([pr], "Core Team", new Set(), "all_time", baseCriteria.start, baseCriteria.end)).toEqual([pr])
+    })
+
     it("filters by selected repos", () => {
         const prs = [
             makePr({ url: "https://github.com/gnolang/gno/pull/1" }),
@@ -118,5 +125,14 @@ describe("filterPrs", () => {
         })
         expect(result).toHaveLength(1)
         expect(result[0].id).toBe("pr1")
+    })
+})
+
+describe("isTeamMember", () => {
+    it("matches GitHub login casing without matching absent logins", () => {
+        const core = TEAMS.find(team => team.name === "Core Team")!
+        expect(isTeamMember(core, "Kouteki")).toBe(true)
+        expect(isTeamMember(core, "not-kouteki")).toBe(false)
+        expect(isTeamMember(core, null)).toBe(false)
     })
 })

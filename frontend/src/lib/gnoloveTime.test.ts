@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest"
-import { formatRelativeTime, isStale } from "./gnoloveTime"
+import { formatRelativeTime, isStale, localDateKey } from "./gnoloveTime"
+
+describe("localDateKey", () => {
+    it("uses the calendar day in the viewer's time zone", () => {
+        expect(localDateKey(new Date(2026, 8, 28))).toBe("2026-09-28")
+        expect(localDateKey(new Date(2026, 0, 2))).toBe("2026-01-02")
+    })
+})
 
 const NOW = new Date("2026-05-25T12:00:00Z").getTime()
 

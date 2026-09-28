@@ -1,13 +1,14 @@
 import { useState, useMemo, useCallback } from "react"
 import { format, getISOWeek, getISOWeekYear } from "date-fns"
 import { TEAMS, TEAM_CSS_COLORS } from "../../../lib/gnoloveConstants"
-import type { Team } from "../../../lib/gnoloveConstants"
+import type { Team, ReportTab } from "../../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../../lib/gnoloveSchemas"
 import {
     buildShareUrl,
     type ReportPeriod, type ReportUrlState,
 } from "../../../lib/gnoloveReportUrl"
-import { filterPrsByCategory } from "../../../lib/gnoloveReportFilters"
+import { filterPrsByCategory, isTeamMember } from "../../../lib/gnoloveReportFilters"
+import { escapeMarkdownText, safeGitHubPrUrl } from "../../../lib/gnoloveExport"
 import type { EmptyReason } from "./types"
 import { EmptyStateMessage } from "./EmptyStateMessage"
 
@@ -21,6 +22,7 @@ interface ReportData {
 
 interface Props {
     report: ReportData | null | undefined
+    activeTab: ReportTab | "all"
     period: ReportPeriod
     start: Date
     end: Date
@@ -31,21 +33,45 @@ interface Props {
     emptyReason: EmptyReason
     onClearTeam: () => void
     onClearRepos: () => void
+    onClearTab: () => void
     onClearAll: () => void
 }
 
+const EMPTY_PRS: TPullRequest[] = []
+
+function prMarkdownLine(pr: TPullRequest, highlight = false): string {
+    const title = escapeMarkdownText(pr.title)
+    const url = safeGitHubPrUrl(pr.url)
+    const author = escapeMarkdownText(pr.authorLogin || "unknown")
+    return `- ${highlight ? `**${title}**` : title}${url ? ` - <${url}>` : ""} - @${author}`
+}
+
+function PRNumberLink({ pr }: { pr: TPullRequest }) {
+    const url = safeGitHubPrUrl(pr.url)
+    return url
+        ? <a href={url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>
+        : <span>#{pr.number}</span>
+}
+
 export function NarrativeReportView({
-    report, period, start, end, selectedTeam, selectedRepos,
+    report, activeTab, period, start, end, selectedTeam, selectedRepos,
     urlState, networkKey,
-    emptyReason, onClearTeam, onClearRepos, onClearAll,
+    emptyReason, onClearTeam, onClearRepos, onClearTab, onClearAll,
 }: Props) {
     const [copied, setCopied] = useState(false)
 
-    const merged = useMemo(() => filterPrsByCategory(report?.merged, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
-    const inProgress = useMemo(() => filterPrsByCategory(report?.in_progress, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
-    const waitingForReview = useMemo(() => filterPrsByCategory(report?.waiting_for_review, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
-    const reviewed = useMemo(() => filterPrsByCategory(report?.reviewed, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
-    const blocked = useMemo(() => filterPrsByCategory(report?.blocked, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
+    const scopedMerged = useMemo(() => filterPrsByCategory(report?.merged, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
+    const scopedInProgress = useMemo(() => filterPrsByCategory(report?.in_progress, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
+    const scopedWaitingForReview = useMemo(() => filterPrsByCategory(report?.waiting_for_review, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
+    const scopedReviewed = useMemo(() => filterPrsByCategory(report?.reviewed, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
+    const scopedBlocked = useMemo(() => filterPrsByCategory(report?.blocked, selectedTeam, selectedRepos, period, start, end), [report, selectedTeam, selectedRepos, period, start, end])
+
+    // Status tabs apply to both views and to the copied/downloaded report.
+    const merged = activeTab === "all" || activeTab === "merged" ? scopedMerged : EMPTY_PRS
+    const inProgress = activeTab === "all" || activeTab === "in_progress" ? scopedInProgress : EMPTY_PRS
+    const waitingForReview = activeTab === "all" || activeTab === "waiting_for_review" ? scopedWaitingForReview : EMPTY_PRS
+    const reviewed = activeTab === "all" || activeTab === "reviewed" ? scopedReviewed : EMPTY_PRS
+    const blocked = activeTab === "all" || activeTab === "blocked" ? scopedBlocked : EMPTY_PRS
 
     const allPrs = useMemo(
         () => [...merged, ...inProgress, ...waitingForReview, ...reviewed, ...blocked],
@@ -70,7 +96,7 @@ export function NarrativeReportView({
     )
 
     const getTeamForUser = (login: string): Team | undefined =>
-        TEAMS.find(t => t.members.includes(login))
+        TEAMS.find(t => isTeamMember(t, login))
 
     const reportId = useMemo(() => {
         switch (period) {
@@ -101,11 +127,12 @@ export function NarrativeReportView({
     const generateReportMd = useCallback((): string => {
         const filterUrl = buildShareUrl(window.location.origin, networkKey, urlState, { stripView: true })
         const lines: string[] = [
-            periodHeader,
+            escapeMarkdownText(periodHeader),
             "",
             "## Stats", "",
             `- PRs Merged: ${merged.length}`,
-            `- Waiting for Review: ${waitingForReview.length + reviewed.length}`,
+            `- Waiting for Review: ${waitingForReview.length}`,
+            `- Reviewed: ${reviewed.length}`,
             `- In Progress: ${inProgress.length}`,
             `- Blocked: ${blocked.length}`,
             `- Contributors Active: ${contributors.length}`,
@@ -114,48 +141,54 @@ export function NarrativeReportView({
         ]
         if (topMerged.length > 0) {
             for (const pr of topMerged) {
-                lines.push(`- **${pr.title}** - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+                lines.push(prMarkdownLine(pr, true))
             }
         } else {
             lines.push("None this period.")
         }
         lines.push("", "---", "")
 
-        const allWaiting = [...waitingForReview, ...reviewed]
-        if (allWaiting.length > 0) {
+        if (waitingForReview.length > 0) {
             lines.push("## 📋 Waiting for Review", "")
-            for (const pr of allWaiting) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+            for (const pr of waitingForReview) {
+                lines.push(prMarkdownLine(pr))
+            }
+            lines.push("", "---", "")
+        }
+        if (reviewed.length > 0) {
+            lines.push("## ✓ Reviewed", "")
+            for (const pr of reviewed) {
+                lines.push(prMarkdownLine(pr))
             }
             lines.push("", "---", "")
         }
         if (inProgress.length > 0) {
             lines.push("## 🚧 In Progress", "")
             for (const pr of inProgress) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+                lines.push(prMarkdownLine(pr))
             }
             lines.push("", "---", "")
         }
         if (blocked.length > 0) {
             lines.push("## 🚧 Blockers", "")
             for (const pr of blocked) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+                lines.push(prMarkdownLine(pr))
             }
             lines.push("", "---", "")
         }
         if (merged.length > 0) {
             lines.push("## 🎉 Merged", "")
             for (const pr of merged) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+                lines.push(prMarkdownLine(pr))
             }
             lines.push("", "---", "")
         }
         lines.push(
             `## 👥 Active Contributors (${contributors.length})`, "",
-            contributors.map(login => `@${login}`).join(" · "),
+            contributors.map(login => `@${escapeMarkdownText(login)}`).join(" · "),
             "", "---",
             `_Generated by Gnolove · ${reportId}_`,
-            `_Filter URL: ${filterUrl}_`,
+            `_Filter URL: ${escapeMarkdownText(filterUrl)}_`,
         )
         return lines.join("\n")
     }, [
@@ -194,10 +227,10 @@ export function NarrativeReportView({
                     reason={emptyReason}
                     selectedTeam={selectedTeam}
                     selectedRepos={Array.from(selectedRepos)}
-                    activeTab="all"
+                    activeTab={activeTab}
                     onClearTeam={onClearTeam}
                     onClearRepos={onClearRepos}
-                    onClearTab={() => { /* no-op for narrative view */ }}
+                    onClearTab={onClearTab}
                     onClearAll={onClearAll}
                 />
             </div>
@@ -226,8 +259,12 @@ export function NarrativeReportView({
                         <span className="gl-report-narrative__stat-label">Merged</span>
                     </div>
                     <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{waitingForReview.length + reviewed.length}</span>
+                        <span className="gl-report-narrative__stat-value">{waitingForReview.length}</span>
                         <span className="gl-report-narrative__stat-label">Waiting</span>
+                    </div>
+                    <div className="gl-report-narrative__stat">
+                        <span className="gl-report-narrative__stat-value">{reviewed.length}</span>
+                        <span className="gl-report-narrative__stat-label">Reviewed</span>
                     </div>
                     <div className="gl-report-narrative__stat">
                         <span className="gl-report-narrative__stat-value">{inProgress.length}</span>
@@ -252,7 +289,7 @@ export function NarrativeReportView({
                     <ul className="gl-report-narrative__list">
                         {topMerged.map(pr => (
                             <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: <strong>{pr.title}</strong>
+                                <PRNumberLink pr={pr} />: <strong>{pr.title}</strong>
                                 {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
                             </li>
                         ))}
@@ -262,13 +299,13 @@ export function NarrativeReportView({
                 )}
             </section>
 
-            {(waitingForReview.length + reviewed.length) > 0 && (
+            {waitingForReview.length > 0 && (
                 <section className="gl-report-narrative__section">
-                    <h2 className="gl-report-narrative__heading">📋 Waiting for Review ({waitingForReview.length + reviewed.length})</h2>
+                    <h2 className="gl-report-narrative__heading">📋 Waiting for Review ({waitingForReview.length})</h2>
                     <ul className="gl-report-narrative__list">
-                        {[...waitingForReview, ...reviewed].map(pr => (
+                        {waitingForReview.map(pr => (
                             <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                <PRNumberLink pr={pr} />: {pr.title}
                                 {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
                                 {pr.reviewDecision && (
                                     <span className={`gl-pr-state gl-pr-state--${pr.reviewDecision === "APPROVED" ? "open" : "waiting"}`} style={{ marginLeft: 6 }}>
@@ -281,13 +318,27 @@ export function NarrativeReportView({
                 </section>
             )}
 
+            {reviewed.length > 0 && (
+                <section className="gl-report-narrative__section">
+                    <h2 className="gl-report-narrative__heading">✓ Reviewed ({reviewed.length})</h2>
+                    <ul className="gl-report-narrative__list">
+                        {reviewed.map(pr => (
+                            <li key={pr.id}>
+                                <PRNumberLink pr={pr} />: {pr.title}
+                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
             {inProgress.length > 0 && (
                 <section className="gl-report-narrative__section">
                     <h2 className="gl-report-narrative__heading">🚧 In Progress ({inProgress.length})</h2>
                     <ul className="gl-report-narrative__list">
                         {inProgress.map(pr => (
                             <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                <PRNumberLink pr={pr} />: {pr.title}
                                 {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
                             </li>
                         ))}
@@ -301,7 +352,7 @@ export function NarrativeReportView({
                     <ul className="gl-report-narrative__list">
                         {blocked.map(pr => (
                             <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                <PRNumberLink pr={pr} />: {pr.title}
                                 {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
                             </li>
                         ))}
@@ -317,7 +368,7 @@ export function NarrativeReportView({
                             const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
                             return (
                                 <li key={pr.id}>
-                                    <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                    <PRNumberLink pr={pr} />: {pr.title}
                                     {pr.authorLogin && (
                                         <span className="gl-report-narrative__author">
                                             {" "}@{pr.authorLogin}
