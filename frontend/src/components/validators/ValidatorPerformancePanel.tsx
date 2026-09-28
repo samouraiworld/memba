@@ -14,9 +14,11 @@
  * opened, so the heavy per-block heatmap fan-out never runs on the default Overview view.
  */
 import { useQuery } from "@tanstack/react-query"
+import { useWindowActive } from "../../os/page/WindowActivity"
 import { GNO_MONITORING_CHAIN, GNO_RPC_URL, getTelemetryRpcUrl } from "../../lib/config"
 import {
     getValidators,
+    getValidatorRpcSnapshot,
     getNetworkStats,
     fetchBlockHeatmap,
     fetchLastBlockSignatures,
@@ -80,6 +82,7 @@ export function ValidatorPerformancePanel({
     isActive: boolean
 }) {
     const rpcUrl = getTelemetryRpcUrl()
+    const windowActive = useWindowActive()
 
     // The full metrics load, keyed by validator. React Query hands the queryFn
     // an AbortSignal that fires on key change/unmount — the old manual
@@ -87,14 +90,15 @@ export function ValidatorPerformancePanel({
     const perfEnabled = !!signingAddress && isActive
     const perfQuery = useQuery({
         queryKey: ["validators", "perf", signingAddress, rpcUrl],
-        enabled: perfEnabled,
+        enabled: perfEnabled && windowActive,
         queryFn: async ({ signal }) => {
+            const snapshot = await getValidatorRpcSnapshot(signal)
             const [allValidators, sigMap, monitoringMap] = await Promise.all([
-                getValidators(GNO_RPC_URL),
-                fetchLastBlockSignatures(GNO_RPC_URL, 100),
+                getValidators(GNO_RPC_URL, snapshot, signal),
+                fetchLastBlockSignatures(GNO_RPC_URL, 100, 10, snapshot, signal),
                 fetchAllMonitoringData(signal),
             ])
-            const networkStats = await getNetworkStats(GNO_RPC_URL, allValidators)
+            const networkStats = await getNetworkStats(GNO_RPC_URL, allValidators, signal, snapshot)
             const enriched = mergeWithMonitoringData(allValidators, monitoringMap)
             const found = enriched.find(
                 v => v.gnoAddr?.toLowerCase() === signingAddress.toLowerCase() ||
@@ -109,7 +113,7 @@ export function ValidatorPerformancePanel({
             const withSigs = { ...found, lastBlockSignatures: sigMap.get(sigKey) ?? [] }
             const healthMeta = computeHealthStatus(withSigs)
             const height = networkStats.blockHeight
-            const heatmap = height > 1 ? await fetchBlockHeatmap(rpcUrl, height, 100, signal) : []
+            const heatmap = height > 1 ? await fetchBlockHeatmap(rpcUrl, height, 100, signal, 10, snapshot) : []
             return {
                 validator: { ...withSigs, healthStatus: healthMeta.status, healthMeta } as ValidatorInfo,
                 stats: networkStats,
@@ -122,9 +126,9 @@ export function ValidatorPerformancePanel({
     // on its own so a monitoring outage never holds back the RPC metrics above.
     const reportsQuery = useQuery({
         queryKey: ["validators", "reports", GNO_MONITORING_CHAIN],
-        enabled: perfEnabled,
+        enabled: perfEnabled && windowActive,
         staleTime: 60_000,
-        refetchInterval: 60_000,
+        refetchInterval: windowActive ? 60_000 : false,
         queryFn: ({ signal }) => fetchValidatorReports(signal),
     })
 
@@ -198,7 +202,7 @@ export function ValidatorPerformancePanel({
                         <span className={`vd-stat-value vd-mono ${validator.missedBlocks >= 30 ? "vd-val-critical" : validator.missedBlocks >= 5 ? "vd-val-warn" : "vd-val-ok"}`}>
                             {validator.missedBlocks}
                         </span>
-                        <span className="vd-stat-hint">this period</span>
+                        <span className="vd-stat-hint">this month (UTC)</span>
                     </div>
                 )}
                 <div className="vd-stat-card">
@@ -228,7 +232,7 @@ export function ValidatorPerformancePanel({
                             <span className={`vd-perf-value ${missedLast! > 2 ? "vd-perf-value--warn" : "vd-perf-value--ok"}`}>{missedLast}</span>
                         </div>
                         <div className="vd-perf-item">
-                            <span className="vd-perf-label">Uptime</span>
+                            <span className="vd-perf-label">Sign rate</span>
                             <span className={`vd-perf-value ${Number(uptimeCalc) >= 99 ? "vd-perf-value--ok" : Number(uptimeCalc) >= 90 ? "vd-perf-value--warn" : "vd-perf-value--bad"}`}>{uptimeCalc}%</span>
                         </div>
                         {validator.participationRate != null && (

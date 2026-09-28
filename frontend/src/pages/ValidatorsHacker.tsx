@@ -25,12 +25,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../hooks/useNetworkNav"
+import { useWindowActive } from "../os/page/WindowActivity"
 import { GNO_CHAIN_ID, getTelemetryRpcUrl, getTelemetryRpcUrls } from "../lib/config"
 import {
     getAggregatedNetPeers,
     getMempoolStatus,
     fetchBlockHeatmap,
     getNodeStatus,
+    getValidatorRpcSnapshot,
     getNetworkStats,
     getValidators,
     mergeWithMonitoringData,
@@ -41,6 +43,7 @@ import {
     type NodeStatus,
     type NetworkStats,
     type ValidatorInfo,
+    type ValidatorRpcSnapshot,
 } from "../lib/validators"
 import {
     fetchMonitoringIncidents,
@@ -76,12 +79,14 @@ const NODESTATUS_MS = 60_000     // 60s: node identity (rarely changes)
 
 export default function ValidatorsHacker() {
     const np = useNetworkPath()
+    const windowActive = useWindowActive()
     const rpcUrl = getTelemetryRpcUrl()
     // Peer topology is aggregated across all trusted nodes: /net_info is
     // node-local, so a single RPC misses most of the network (the "missing
     // peers" bug). useMemo keeps the array reference stable across renders.
     const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
-    const isVisible = useRef(true)
+    const [documentVisible, setDocumentVisible] = useState(() => document.visibilityState === "visible")
+    const samplingActive = windowActive && documentVisible
     const mainAbort = useRef<AbortController | null>(null)
     // One in-flight pass per loop. Without this the intervals STACK: the heatmap
     // pass alone issues 100 /block calls in 10 sequential chunks at an 8s
@@ -90,7 +95,7 @@ export default function ValidatorsHacker() {
     // fallback, so stacked passes land on the same one or two hosts — a
     // self-inflicted DoS that gets worse exactly when the chain is already
     // struggling.
-    const inFlight = useRef<Set<string>>(new Set())
+    const heatmapInFlight = useRef(false)
     const latestHeightRef = useRef<number>(0) // tracks height without setState for heatmap interval
 
     // ── State ──────────────────────────────────────────────────
@@ -101,16 +106,23 @@ export default function ValidatorsHacker() {
     const [consensusView, setConsensusView] = useState<ConsensusView | null>(null)
     const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
     const [blockHeatmap, setBlockHeatmap] = useState<BlockSample[]>([])
+    const [heatmapSampleAt, setHeatmapSampleAt] = useState<number | null>(null)
     const [nodeStatus, setNodeStatus] = useState<NodeStatus | null>(null)
     const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null)
     const [incidents, setIncidents] = useState<MonitoringIncident[]>([])
+    const [incidentSampleAt, setIncidentSampleAt] = useState<number | null>(null)
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [mempoolCount, setMempoolCount] = useState<number | null>(null)
+    const [mempoolSampleAt, setMempoolSampleAt] = useState<number | null>(null)
     const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
     const [monitoringLoading, setMonitoringLoading] = useState(true)
     const [monitoringReachable, setMonitoringReachable] = useState<boolean | null>(null)
+    const [rpcSampleAt, setRpcSampleAt] = useState<number | null>(null)
+    const [peerSampleAt, setPeerSampleAt] = useState<number | null>(null)
+    const [monitoringSampleAt, setMonitoringSampleAt] = useState<number | null>(null)
+    const [clockNow, setClockNow] = useState(() => Date.now())
     // Lazy initializer — Date.now() during render is impure (react-hooks/purity)
     const [sessionStart] = useState(() => Date.now())
 
@@ -130,12 +142,16 @@ export default function ValidatorsHacker() {
 
     // ── Page Visibility API ────────────────────────────────────
     useEffect(() => {
-        const handleVisibility = () => {
-            isVisible.current = document.visibilityState === "visible"
-        }
+        const handleVisibility = () => setDocumentVisible(document.visibilityState === "visible")
         document.addEventListener("visibilitychange", handleVisibility)
         return () => document.removeEventListener("visibilitychange", handleVisibility)
     }, [])
+
+    useEffect(() => {
+        if (!samplingActive) return
+        const timer = window.setInterval(() => setClockNow(Date.now()), 5_000)
+        return () => window.clearInterval(timer)
+    }, [samplingActive])
 
     // ── Page Title ─────────────────────────────────────────────
     useEffect(() => {
@@ -143,23 +159,25 @@ export default function ValidatorsHacker() {
         return () => { document.title = "Memba" }
     }, [])
 
-    // Skip a tick when the tab is hidden or this loop's previous pass is still
-    // running. Returning early is correct rather than queueing: these are
-    // samplers, and the next tick will read fresher state than the one we skipped.
-    const guarded = useCallback(
-        (key: string, pass: () => Promise<void>) => async () => {
-            if (!isVisible.current || inFlight.current.has(key)) return
-            inFlight.current.add(key)
-            try {
-                await pass()
-            } catch {
-                /* resilient: a failed sample must not kill the loop */
-            } finally {
-                inFlight.current.delete(key)
+    // Bootstrap and the 30s interval share a slot: a degraded node must not
+    // receive two overlapping 100-block heatmap bursts.
+    const sampleHeatmap = useCallback(async (height: number, signal: AbortSignal, snapshot?: ValidatorRpcSnapshot) => {
+        if (height <= 1 || heatmapInFlight.current) return
+        heatmapInFlight.current = true
+        try {
+            const selected = snapshot ?? await getValidatorRpcSnapshot(signal)
+            const blocks = await fetchBlockHeatmap(rpcUrl, height, 100, signal, 10, selected)
+            if (!signal.aborted) {
+                setBlockHeatmap(blocks)
+                setHeatmapSampleAt(Date.now())
             }
-        },
-        [],
-    )
+        } catch (error) {
+            if (!signal.aborted) setHeatmapSampleAt(null)
+            throw error
+        } finally {
+            heatmapInFlight.current = false
+        }
+    }, [rpcUrl])
 
     // ── Initial full data load ─────────────────────────────────────
     // v2.17.2: Single parallel burst — eliminates sequential waterfall
@@ -168,51 +186,65 @@ export default function ValidatorsHacker() {
         const ctrl = new AbortController()
         mainAbort.current = ctrl
         setLoadError(null)
+        setRpcSampleAt(null)
+        setPeerSampleAt(null)
+
+        // These sources are independent of the RPC roster. Start them before
+        // the slower roster burst so one failed endpoint cannot block the live
+        // consensus and peer panels.
+        void getAggregatedNetPeers(telemetryRpcUrls, ctrl.signal)
+            .then(ni => {
+                if (ctrl.signal.aborted) return
+                setNetInfo(ni)
+                setPeerSampleAt(ni ? Date.now() : null)
+            })
+            .catch(() => { if (!ctrl.signal.aborted) { setNetInfo(null); setPeerSampleAt(null) } })
+        void fetchChainHealth(ctrl.signal)
+            .then(h => {
+                if (ctrl.signal.aborted) return
+                const usable = h?.rpcReachable && !h.isDisabled
+                setConsensusView(usable ? buildConsensusView(h) : null)
+                if (usable && h.latestBlockHeight) latestHeightRef.current = h.latestBlockHeight
+            })
+            .catch(() => { if (!ctrl.signal.aborted) setConsensusView(null) })
 
         try {
-            // Phase 1: ALL data sources in single parallel burst (was sequential)
-            const [nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
-                getNodeStatus(rpcUrl, ctrl.signal),
-                getNetworkStats(rpcUrl, undefined, ctrl.signal),
-                getValidators(rpcUrl),
-                fetchValoperMonikers(rpcUrl),            // v2.17.2: was missing in hacker view
+            const snapshot = await getValidatorRpcSnapshot(ctrl.signal)
+            // Optional sources may fail independently. Keep successful samples
+            // instead of discarding the entire cockpit on one rejected promise.
+            const [nsResult, statsResult, valResult, monikerResult, incidentsResult, monitoringResult] = await Promise.allSettled([
+                getNodeStatus(rpcUrl, ctrl.signal, snapshot),
+                getNetworkStats(rpcUrl, undefined, ctrl.signal, snapshot),
+                getValidators(rpcUrl, snapshot, ctrl.signal),
+                fetchValoperMonikers(rpcUrl, snapshot, ctrl.signal),
                 fetchMonitoringIncidents(ctrl.signal),   // v2.17.2: was sequential
                 fetchAllMonitoringData(ctrl.signal),     // v2.17.2: was sequential
             ])
 
             if (ctrl.signal.aborted) return
-
-            // Aggregated peers — fire-and-forget so a slow/dead telemetry node
-            // (8s timeout) never blocks the consensus dashboard's initial render.
-            getAggregatedNetPeers(telemetryRpcUrls, ctrl.signal)
-                .then(ni => { if (!ctrl.signal.aborted) setNetInfo(ni) })
-                .catch(() => { /* resilient */ })
-
-            fetchChainHealth(ctrl.signal)
-                .then(h => {
-                    if (ctrl.signal.aborted) return
-                    setConsensusView(h ? buildConsensusView(h) : null)
-                    // Fresher than the stats height set synchronously below: this
-                    // callback runs after it, so the heatmap tracks the live tip.
-                    if (h?.latestBlockHeight) latestHeightRef.current = h.latestBlockHeight
-                })
-                .catch(() => { /* resilient */ })
-
+            const nsData = nsResult.status === "fulfilled" ? nsResult.value : null
+            const statsData = statsResult.status === "fulfilled" ? statsResult.value : null
+            const valData = valResult.status === "fulfilled" ? valResult.value : null
+            const valoperMap = monikerResult.status === "fulfilled" ? monikerResult.value : new Map<string, string>()
+            const incidentsData = incidentsResult.status === "fulfilled" ? incidentsResult.value : null
+            const monitoringData = monitoringResult.status === "fulfilled" && monitoringResult.value
+                ? monitoringResult.value : new Map()
             setNodeStatus(nsData)
             setNetworkStats(statsData)
-            if (incidentsData) setIncidents(incidentsData)
-            setLastUpdated(Date.now())
+            setRpcSampleAt(statsData ? Date.now() : null)
+            if (incidentsData) {
+                setIncidents(incidentsData)
+                setIncidentSampleAt(Date.now())
+            } else setIncidentSampleAt(null)
+            if (statsData) setLastUpdated(Date.now())
+            if (!statsData && !valData) setLoadError("RPC samples unavailable. Retrying live telemetry.")
 
             // Track latest height via ref for heatmap interval
             const height = statsData?.blockHeight ?? 0
-            latestHeightRef.current = height
+            if (!latestHeightRef.current) latestHeightRef.current = height
 
             // Heatmap: fire-and-forget after initial render (needs height)
-            if (height > 1) {
-                fetchBlockHeatmap(rpcUrl, height, 100, ctrl.signal)
-                    .then(h => { if (!ctrl.signal.aborted) setBlockHeatmap(h) })
-                    .catch(() => { /* resilient */ })
-            }
+            void sampleHeatmap(height, ctrl.signal, snapshot).catch(() => { /* unavailable until next sample */ })
 
             // v2.17.2: Apply valopers monikers (primary) + monitoring data + health
             if (valData) {
@@ -223,11 +255,13 @@ export default function ValidatorsHacker() {
                     return { ...v, healthStatus: healthMeta.status, healthMeta }
                 })
                 setValidators(merged)
+                setMonitoringSampleAt(Date.now())
                 setMonitoringLoading(false)
                 // v2.17.2: Track monitoring API reachability for HackerStatusBar
                 const hasMonData = merged.some(v => v.participationRate != null || v.uptimePercent != null)
                 setMonitoringReachable(hasMonData)
             }
+            setMonitoringLoading(false)
         } catch (err) {
             if (!ctrl.signal.aborted) {
                 setLoadError(err instanceof Error ? err.message : "Failed to load validator data")
@@ -235,7 +269,7 @@ export default function ValidatorsHacker() {
         } finally {
             if (!ctrl.signal.aborted) setLoading(false)
         }
-    }, [rpcUrl, telemetryRpcUrls])
+    }, [rpcUrl, telemetryRpcUrls, sampleHeatmap])
 
     // ── Mount: initial load + independent polling intervals ────
     // Waived, not converted: this page is a deliberately hand-tuned telemetry
@@ -244,6 +278,20 @@ export default function ValidatorsHacker() {
     // infrastructure. Porting it to queries is a dedicated redesign with no
     // user-visible gain; the setStates ARE the telemetry stream.
     useEffect(() => {
+        if (!samplingActive) {
+            mainAbort.current?.abort()
+            return
+        }
+        // A parked OS window and a hidden browser tab have the same lifecycle:
+        // neither schedules telemetry. Each active period owns its own guards.
+        const inFlight = new Set<string>()
+        const guarded = (key: string, pass: () => Promise<void>) => async () => {
+            if (inFlight.has(key)) return
+            inFlight.add(key)
+            try { await pass() }
+            catch { /* a failed sample must not kill the loop */ }
+            finally { inFlight.delete(key) }
+        }
         // eslint-disable-next-line react-hooks/set-state-in-effect -- multi-cadence telemetry bootstrap
         loadAll()
 
@@ -256,8 +304,9 @@ export default function ValidatorsHacker() {
         const chainHealthInterval = setInterval(guarded("chainhealth", async () => {
             const h = await fetchChainHealth(abortCs.signal)
             if (abortCs.signal.aborted) return
-            setConsensusView(h ? buildConsensusView(h) : null)
-            if (h) {
+            const usable = h?.rpcReachable && !h.isDisabled
+            setConsensusView(usable ? buildConsensusView(h) : null)
+            if (usable) {
                 if (h.latestBlockHeight) latestHeightRef.current = h.latestBlockHeight
                 // The status bar's "Updated" readout means "last successful live
                 // sample". The deleted 2s loop used to stamp it; this loop now
@@ -268,14 +317,21 @@ export default function ValidatorsHacker() {
 
         // Mempool: 10s — pending transaction count
         const mempoolInterval = setInterval(guarded("mempool", async () => {
-            const data = await getMempoolStatus(rpcUrl, abortCs.signal)
-            if (data && !abortCs.signal.aborted) setMempoolCount(data.count)
+            const snapshot = await getValidatorRpcSnapshot(abortCs.signal)
+            const data = await getMempoolStatus(rpcUrl, abortCs.signal, snapshot)
+            if (!abortCs.signal.aborted) {
+                setMempoolCount(data?.count ?? null)
+                setMempoolSampleAt(data ? Date.now() : null)
+            }
         }), 10_000)
 
         // Peers: 15s — aggregated across all trusted nodes (full topology)
         const peersInterval = setInterval(guarded("peers", async () => {
             const data = await getAggregatedNetPeers(telemetryRpcUrls, abortCs.signal)
-            if (data && !abortCs.signal.aborted) setNetInfo(data)
+            if (!abortCs.signal.aborted) {
+                setNetInfo(data)
+                setPeerSampleAt(data ? Date.now() : null)
+            }
         }), PEERS_MS)
 
         // Heatmap: 30s — read height from ref (no nested setState)
@@ -284,22 +340,26 @@ export default function ValidatorsHacker() {
             if (height <= 1) return
             // Awaited, not fire-and-forget: the guard can only hold the slot for
             // work it can see finish, and this is the heaviest pass on the page.
-            const h = await fetchBlockHeatmap(rpcUrl, height, 100, abortCs.signal)
-            if (!abortCs.signal.aborted) setBlockHeatmap(h)
+            await sampleHeatmap(height, abortCs.signal)
         }), HEATMAP_MS)
 
         // Incidents: 30s (v2.17.1 — was one-shot)
         const incidentsInterval = setInterval(guarded("incidents", async () => {
             const data = await fetchMonitoringIncidents(abortCs.signal)
-            if (data && !abortCs.signal.aborted) setIncidents(data)
+            if (abortCs.signal.aborted) return
+            if (data) {
+                setIncidents(data)
+                setIncidentSampleAt(Date.now())
+            } else setIncidentSampleAt(null)
         }), INCIDENTS_MS)
 
         // Monitoring data + health + monikers: 60s (v2.17.2: added valopers)
         const monitoringInterval = setInterval(guarded("monitoring", async () => {
-            {
+            try {
+                const snapshot = await getValidatorRpcSnapshot(abortCs.signal)
                 const [valData, valoperMap, monData] = await Promise.all([
-                    getValidators(rpcUrl),
-                    fetchValoperMonikers(rpcUrl),
+                    getValidators(rpcUrl, snapshot, abortCs.signal),
+                    fetchValoperMonikers(rpcUrl, snapshot, abortCs.signal),
                     fetchAllMonitoringData(abortCs.signal),
                 ])
                 if (abortCs.signal.aborted) return
@@ -311,14 +371,31 @@ export default function ValidatorsHacker() {
                         return { ...v, healthStatus: healthMeta.status, healthMeta }
                     })
                     setValidators(merged)
+                    setMonitoringSampleAt(Date.now())
+                    setMonitoringLoading(false)
+                    setMonitoringReachable(merged.some(v => v.participationRate != null || v.uptimePercent != null))
+                    setLoadError(null)
                 }
+            } catch {
+                if (abortCs.signal.aborted) return
+                setMonitoringSampleAt(null)
+                setMonitoringReachable(null)
             }
         }), MONITORING_MS)
 
         // Node status: 60s
         const nodeInterval = setInterval(guarded("nodestatus", async () => {
-            const data = await getNodeStatus(rpcUrl, abortCs.signal)
-            if (data && !abortCs.signal.aborted) setNodeStatus(data)
+            const snapshot = await getValidatorRpcSnapshot(abortCs.signal)
+            const [nodeResult, statsResult] = await Promise.allSettled([
+                getNodeStatus(rpcUrl, abortCs.signal, snapshot),
+                getNetworkStats(rpcUrl, undefined, abortCs.signal, snapshot),
+            ])
+            if (abortCs.signal.aborted) return
+            setNodeStatus(nodeResult.status === "fulfilled" ? nodeResult.value : null)
+            const stats = statsResult.status === "fulfilled" ? statsResult.value : null
+            setNetworkStats(stats)
+            setRpcSampleAt(stats ? Date.now() : null)
+            if (stats) setLoadError(null)
         }), NODESTATUS_MS)
 
         return () => {
@@ -332,8 +409,16 @@ export default function ValidatorsHacker() {
             abortCs.abort()
             mainAbort.current?.abort()
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rpcUrl, telemetryRpcUrls, guarded])
+    }, [rpcUrl, telemetryRpcUrls, samplingActive, loadAll, sampleHeatmap])
+
+    const rpcFresh = samplingActive && rpcSampleAt !== null && clockNow - rpcSampleAt < 2 * NODESTATUS_MS
+    const peersFresh = samplingActive && peerSampleAt !== null && clockNow - peerSampleAt < 2 * PEERS_MS
+    const incidentsFresh = samplingActive && incidentSampleAt !== null && clockNow - incidentSampleAt < 2 * INCIDENTS_MS
+    const monitoringFresh = samplingActive && monitoringSampleAt !== null && clockNow - monitoringSampleAt < 2 * MONITORING_MS
+    const heatmapFresh = samplingActive && heatmapSampleAt !== null && clockNow - heatmapSampleAt < 2 * HEATMAP_MS
+    const mempoolFresh = samplingActive && mempoolSampleAt !== null && clockNow - mempoolSampleAt < 20_000
+    const currentStats = rpcFresh ? networkStats : null
+    const currentPeers = peersFresh ? netInfo : null
 
     return (
         <div className="vh-page" data-testid="validators-hacker-page">
@@ -347,12 +432,15 @@ export default function ValidatorsHacker() {
 
             {/* ── Persistent status bar ─────────────────────── */}
             <HackerStatusBar
-                stats={networkStats}
+                stats={currentStats}
                 consensus={consensusView}
-                netInfo={netInfo}
+                netInfo={currentPeers}
                 lastUpdated={lastUpdated}
-                monitoringReachable={monitoringReachable}
+                monitoringReachable={monitoringFresh ? monitoringReachable : null}
             />
+            {samplingActive && ((!rpcFresh && networkStats) || (!peersFresh && netInfo)) && (
+                <div className="hk-stale-notice" role="status">Live RPC or peer telemetry is stale. Historical values are hidden until a fresh sample arrives.</div>
+            )}
 
             {/* ── Error state ───────────────────────────── */}
             {loadError && (
@@ -373,39 +461,40 @@ export default function ValidatorsHacker() {
             <div className="hk-layout">
 
                 {/* Row 1: Connect + Network State + Consensus */}
-                <ConnectSection nodeStatus={nodeStatus} />
-                <NetworkStateGrid stats={networkStats} consensus={consensusView} peerCount={netInfo?.peerCount} mempoolCount={mempoolCount} />
+                <ConnectSection nodeStatus={rpcFresh ? nodeStatus : null} />
+                <NetworkStateGrid stats={currentStats} consensus={consensusView} peerCount={currentPeers?.peerCount} mempoolCount={rpcFresh && mempoolFresh ? mempoolCount : null} />
                 <ConsensusWidget view={consensusView} loading={loading} />
 
                 {/* Row 2: Recent Blocks (full width) */}
                 <BlockHeatmap
-                    blocks={blockHeatmap}
+                    blocks={rpcFresh && heatmapFresh ? blockHeatmap : []}
                     loading={loading}
                     totalValidators={consensusView?.valsetSize}
                 />
 
                 {/* Row 3: Validator Health Summary (full width, v2.17.1) */}
                 <ValidatorHealthGrid
-                    validators={validators}
+                    validators={monitoringFresh ? validators : []}
                     loading={monitoringLoading}
                 />
 
                 {/* Row 4: Peers (full width) */}
                 <PeerTable
-                    netInfo={netInfo}
+                    netInfo={currentPeers}
                     loading={loading}
                 />
 
                 {/* Row 5: Doctor (full width) */}
                 <DoctorPanel
-                    netInfo={netInfo}
+                    netInfo={currentPeers}
                     consensus={consensusView}
-                    localHeight={consensusView?.height ?? networkStats?.blockHeight ?? 0}
-                    incidents={incidents}
+                    localHeight={consensusView?.height ?? currentStats?.blockHeight ?? 0}
+                    incidents={incidentsFresh ? incidents : []}
+                    incidentsAvailable={incidentsFresh}
                 />
 
                 {/* Row 6: Node State (full width) */}
-                <NodeStatePanel nodeStatus={nodeStatus} loading={loading} sessionAge={sessionAgeStr} />
+                <NodeStatePanel nodeStatus={rpcFresh ? nodeStatus : null} loading={loading} sessionAge={sessionAgeStr} />
             </div>
         </div>
     )

@@ -22,5 +22,13 @@ describe("HackerStatusBar", () => {
     it("falls back to network stats when the consensus view is unavailable", () => {
         render(<HackerStatusBar stats={stats} consensus={null} netInfo={null} lastUpdated={null} />)
         expect(screen.getByText("4,000")).toBeInTheDocument()
+        expect(screen.getByText("RPC sample available")).toBeInTheDocument()
+    })
+
+    it("does not claim a connection or synced node without an RPC sample", () => {
+        render(<HackerStatusBar stats={null} consensus={null} netInfo={null} lastUpdated={null} monitoringReachable={false} />)
+        expect(screen.getByText("RPC sample unavailable")).toBeInTheDocument()
+        expect(screen.getByText("RPC status unavailable")).toBeInTheDocument()
+        expect(screen.getByText("metrics unavailable")).toBeInTheDocument()
     })
 })

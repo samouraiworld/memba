@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { fulfillOnchainReads, mockChainStatus, GNO_MONITORING_HOST } from './helpers/onchain'
+import { fulfillOnchainReads, mockAppChainStatus, GNO_MONITORING_HOST } from './helpers/onchain'
 
 /**
  * Validators page E2E tests — verify the validator dashboard renders
@@ -41,7 +41,7 @@ async function fulfillValidatorRoster(page: Page) {
     }
     const BLOCK = {
         block: {
-            header: { chain_id: 'e2e-offline', height: '435594', time: '2026-07-30T11:59:40.000Z' },
+            header: { chain_id: 'gnoland-1', height: '435594', time: '2026-07-30T11:59:40.000Z' },
             // tm2 commits carry `precommits`, not `signatures`.
             last_commit: {
                 precommits: [1, 2, 3].map(n => ({
@@ -62,7 +62,7 @@ async function fulfillValidatorRoster(page: Page) {
         peers: [{
             node_info: {
                 net_address: 'g1mockpeer0000000000000000000000000000001@203.0.113.7:26656',
-                network: 'e2e-offline',
+                network: 'gnoland-1',
                 moniker: 'e2e-peer-01',
                 other: { tx_index: 'off', rpc_address: 'tcp://203.0.113.7:26657' },
             },
@@ -75,7 +75,7 @@ async function fulfillValidatorRoster(page: Page) {
         route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
     await fulfillOnchainReads(page, ({ method }) => {
         if (method === 'validators') return VALIDATORS
-        if (method === 'status') return mockChainStatus()
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method === 'block') return BLOCK
         if (method === 'net_info') return NET_INFO
         return null

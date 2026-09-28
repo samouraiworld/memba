@@ -12,6 +12,7 @@
  */
 
 import { describe, test, expect, vi, afterEach } from "vitest"
+import { GNO_CHAIN_ID } from "./config"
 import { parseNetPeer, mergePeerLists, getAggregatedNetPeers, type PeerInfo } from "./validators"
 
 // Real shape of a gno test-13 /net_info peer (trimmed).
@@ -131,9 +132,12 @@ describe("mergePeerLists (multi-node aggregation)", () => {
 function netInfoResponse(peers: unknown[]) {
     return { ok: true, json: async () => ({ result: { listening: true, peers } }) } as unknown as Response
 }
-function peerRaw(id: string, moniker: string) {
+function statusResponse(network = GNO_CHAIN_ID) {
+    return { ok: true, json: async () => ({ result: { node_info: { network } } }) } as unknown as Response
+}
+function peerRaw(id: string, moniker: string, network = GNO_CHAIN_ID) {
     return {
-        node_info: { net_address: `${id}@1.2.3.4:26656`, moniker, network: "test-13" },
+        node_info: { net_address: `${id}@1.2.3.4:26656`, moniker, network },
         remote_ip: "1.2.3.4",
         is_outbound: false,
     }
@@ -149,6 +153,7 @@ describe("getAggregatedNetPeers (per-node routing)", () => {
         }
         const fetchMock = vi.fn(async (url: string | URL) => {
             const key = String(url)
+            if (key.includes("/status")) return statusResponse()
             const match = Object.keys(byUrl).find((k) => key.startsWith(k))
             if (!match) throw new Error("unexpected url " + key)
             return netInfoResponse(byUrl[match])
@@ -170,6 +175,7 @@ describe("getAggregatedNetPeers (per-node routing)", () => {
     test("skips a node that fails, still returns the others", async () => {
         const fetchMock = vi.fn(async (url: string | URL) => {
             if (String(url).startsWith("https://dead.example")) throw new Error("network")
+            if (String(url).includes("/status")) return statusResponse()
             return netInfoResponse([peerRaw("g1x", "X")])
         })
         vi.stubGlobal("fetch", fetchMock)
@@ -185,9 +191,37 @@ describe("getAggregatedNetPeers (per-node routing)", () => {
     })
 
     test("deduplicates repeated URLs so a node isn't queried twice", async () => {
-        const fetchMock = vi.fn(async () => netInfoResponse([peerRaw("g1a", "A")]))
+        const fetchMock = vi.fn(async (url: string | URL) => String(url).includes("/status")
+            ? statusResponse() : netInfoResponse([peerRaw("g1a", "A")]))
         vi.stubGlobal("fetch", fetchMock)
         await getAggregatedNetPeers(["https://a.example", "https://a.example"])
-        expect(fetchMock).toHaveBeenCalledTimes(1)
+        expect(fetchMock).toHaveBeenCalledTimes(2) // one identity check + one topology read
+    })
+
+    test("excludes a telemetry source serving another chain", async () => {
+        const fetchMock = vi.fn(async (url: string | URL) => {
+            const key = String(url)
+            if (key.includes("/status")) return statusResponse(key.startsWith("https://foreign.example") ? "gnoland1" : GNO_CHAIN_ID)
+            if (key.startsWith("https://foreign.example")) throw new Error("foreign /net_info must not be requested")
+            return netInfoResponse([peerRaw("g1local", "Local")])
+        })
+        vi.stubGlobal("fetch", fetchMock)
+        const result = await getAggregatedNetPeers(["https://foreign.example", "https://ok.example"])
+        expect(result?.peers.map(peer => peer.moniker)).toEqual(["Local"])
+        expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith("https://foreign.example/net_info"))).toBe(false)
+    })
+
+    test("drops peers advertising a foreign or missing network", async () => {
+        const fetchMock = vi.fn(async (url: string | URL) => String(url).includes("/status")
+            ? statusResponse()
+            : netInfoResponse([
+                peerRaw("g1same", "Same"),
+                peerRaw("g1foreign", "Foreign", "gnoland1"),
+                peerRaw("g1unknown", "Unknown", ""),
+            ]))
+        vi.stubGlobal("fetch", fetchMock)
+        const result = await getAggregatedNetPeers(["https://a.example"])
+        expect(result?.peerCount).toBe(1)
+        expect(result?.peers.map(peer => peer.moniker)).toEqual(["Same"])
     })
 })

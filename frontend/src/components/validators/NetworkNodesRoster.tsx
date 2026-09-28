@@ -12,7 +12,7 @@ import { useState, useMemo } from "react"
 import { buildNodeRoster, type NetInfo, type NodeRole } from "../../lib/validators"
 
 const ROLE_LABEL: Record<NodeRole, string> = {
-    validator: "Validator",
+    validator: "Possible validator",
     sentry: "Sentry",
     rpc: "RPC",
     snapshot: "Snapshot",
@@ -24,6 +24,45 @@ interface NetworkNodesRosterProps {
     /** Lowercased valoper monikers — helps tag community validators by name. */
     validatorMonikers: Set<string>
     loading: boolean
+}
+
+function NodeIdCell({ nodeId }: { nodeId: string }) {
+    const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+    if (!nodeId) return <span>—</span>
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(nodeId)
+            setCopyState("copied")
+        } catch {
+            setCopyState("failed")
+        }
+    }
+
+    return (
+        <details>
+            <summary
+                aria-label={`Node ID ${nodeId}. Show full ID and copy`}
+                style={{ minHeight: 44, cursor: "pointer", alignContent: "center" }}
+            >
+                {nodeId.slice(0, 12)}…
+            </summary>
+            <div style={{ maxWidth: "20rem", whiteSpace: "normal", overflowWrap: "anywhere" }}>{nodeId}</div>
+            <button
+                type="button"
+                onClick={() => void copy()}
+                aria-label={`Copy node ID ${nodeId}`}
+                style={{ minHeight: 44, padding: "8px 10px", cursor: "pointer" }}
+            >
+                Copy ID
+            </button>
+            {copyState !== "idle" && (
+                <span role="status" style={{ marginLeft: 8 }}>
+                    {copyState === "copied" ? "Copied" : "Copy failed"}
+                </span>
+            )}
+        </details>
+    )
 }
 
 export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: NetworkNodesRosterProps) {
@@ -44,8 +83,6 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
         )
     }, [roster, search])
 
-    const validatorCount = roster.filter(r => r.role === "validator").length
-
     return (
         <div className="val-roster" id="network-nodes" data-testid="network-nodes-roster">
             <div className="val-roster__head">
@@ -56,14 +93,18 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
                 </div>
                 <div className="val-roster__sub">
                     {netInfo
-                        ? `Full P2P roster aggregated across trusted RPC nodes · ${validatorCount} validator${validatorCount === 1 ? "" : "s"}`
+                        ? "Observed P2P peers across trusted RPC nodes · roles inferred from node names"
                         : "Peer topology unavailable right now"}
                 </div>
             </div>
 
             {netInfo && roster.length > 0 && (
                 <>
+                    <label htmlFor="val-roster-search" style={{ display: "block", marginBottom: 4 }}>
+                        Search network nodes
+                    </label>
                     <input
+                        id="val-roster-search"
                         type="text"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
@@ -76,7 +117,7 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Role</th>
+                                    <th>Inferred role</th>
                                     <th>Node ID</th>
                                     <th>IP</th>
                                     <th title="How many of our RPC nodes see this peer">Seen</th>
@@ -93,8 +134,8 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
                                                 {ROLE_LABEL[row.role]}
                                             </span>
                                         </td>
-                                        <td className="val-mono val-roster__dim" title={row.nodeId}>
-                                            {row.nodeId ? `${row.nodeId.slice(0, 12)}…` : "—"}
+                                        <td className="val-mono val-roster__dim">
+                                            <NodeIdCell nodeId={row.nodeId} />
                                         </td>
                                         <td className="val-mono val-roster__dim">{row.ip || "—"}</td>
                                         <td className="val-roster__seen" title={`Seen by ${row.seenByCount} RPC node(s)`}>

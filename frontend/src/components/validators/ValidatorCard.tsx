@@ -7,6 +7,7 @@ interface ValidatorCardProps {
     hasMonitoring: boolean
     /** Network-prefixed path to the validator's profile. */
     to: string
+    fromValidatorsQuery?: string
 }
 
 /**
@@ -21,7 +22,7 @@ interface ValidatorCardProps {
  * screen can never reveal, and cards only render on touch-sized screens — so the
  * accusation was visible and its evidence was not.
  */
-export function ValidatorCard({ v, hasMonitoring, to }: ValidatorCardProps) {
+export function ValidatorCard({ v, hasMonitoring, to, fromValidatorsQuery }: ValidatorCardProps) {
     const name = v.moniker || truncateValidatorAddr(v.address)
     const label = healthLabel(v.healthStatus)
     // Show the reason only when something is wrong: "All signals nominal" on every
@@ -32,6 +33,7 @@ export function ValidatorCard({ v, hasMonitoring, to }: ValidatorCardProps) {
     return (
         <Link
             to={to}
+            state={{ fromValidatorsQuery }}
             className="val-card"
             data-testid={`validator-card-${v.rank}`}
             // aria-label overrides everything inside the link, badge included, so it

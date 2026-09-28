@@ -3,7 +3,6 @@
  * NO additional RPC calls — 100% derived from state passed by parent.
  *
  * Alert types:
- * - Peers with unknown/closed RPC
  * - Peers that are KO behind (height < localHeight - 2)
  * - Low peer count (< 3)
  * - Chain not advancing (gnomonitoring is_stuck)
@@ -27,12 +26,12 @@ interface DoctorPanelProps {
     localHeight: number
     /** v2.17.0: monitoring incidents from gnomonitoring */
     incidents?: MonitoringIncident[]
+    /** True only while a recent incident fetch succeeded. */
+    incidentsAvailable?: boolean
 }
 
 function deriveDiagnostics(netInfo: NetInfo | null, consensus: ConsensusView | null, localHeight: number): Diagnostic[] {
     const diags: Diagnostic[] = []
-
-    if (!netInfo && !consensus) return diags
 
     const peers = netInfo?.peers ?? []
 
@@ -42,16 +41,6 @@ function deriveDiagnostics(netInfo: NetInfo | null, consensus: ConsensusView | n
             type: "error",
             message: `Low peer count: only ${peers.length} peer${peers.length === 1 ? "" : "s"} connected`,
             detail: "Healthy nodes should have 10+ peers. Check firewall and seed configuration.",
-        })
-    }
-
-    // Peers with no RPC (unknown)
-    const noRpc = peers.filter(p => !p.rpcAddr || p.rpcAddr === "")
-    if (noRpc.length > 0) {
-        diags.push({
-            type: "warn",
-            message: `${noRpc.length} peer${noRpc.length === 1 ? "" : "s"} with unknown/closed RPC`,
-            detail: noRpc.map(p => p.moniker || p.nodeId?.slice(0, 8) || "?").join(", "),
         })
     }
 
@@ -111,10 +100,24 @@ function deriveDiagnostics(netInfo: NetInfo | null, consensus: ConsensusView | n
 
 /** Derive alert-level diagnostics from monitoring incidents (v2.17.0). */
 function deriveIncidentDiagnostics(incidents: MonitoringIncident[]): Diagnostic[] {
-    if (!incidents || incidents.length === 0) return []
+    // A later RESOLVED row closes an earlier alert for the same validator.
+    // Match the health badge's 24h relevance window: an older alert or one
+    // without a trustworthy timestamp cannot establish current health.
+    const now = Date.now()
+    const latestByAddress = new Map<string, MonitoringIncident>()
+    for (const inc of incidents) {
+        const address = inc.addr?.toLowerCase()
+        const time = Date.parse(inc.timestamp)
+        if (!address || !Number.isFinite(time)) continue
+        const previous = latestByAddress.get(address)
+        if (!previous || time > Date.parse(previous.timestamp)) latestByAddress.set(address, inc)
+    }
 
-    return incidents
-        .filter(inc => inc.severity?.toUpperCase() === "CRITICAL" || inc.severity?.toUpperCase() === "WARNING")
+    return [...latestByAddress.values()]
+        .filter(inc =>
+            now - Date.parse(inc.timestamp) <= 24 * 60 * 60 * 1000 &&
+            (inc.severity?.toUpperCase() === "CRITICAL" || inc.severity?.toUpperCase() === "WARNING"),
+        )
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 5)
         .map(inc => ({
@@ -124,21 +127,22 @@ function deriveIncidentDiagnostics(incidents: MonitoringIncident[]): Diagnostic[
         }))
 }
 
-export function DoctorPanel({ netInfo, consensus, localHeight, incidents = [] }: DoctorPanelProps) {
+export function DoctorPanel({ netInfo, consensus, localHeight, incidents = [], incidentsAvailable = false }: DoctorPanelProps) {
     const networkDiags = deriveDiagnostics(netInfo, consensus, localHeight)
     const incidentDiags = deriveIncidentDiagnostics(incidents)
     const diags = [...incidentDiags, ...networkDiags] // incidents first (higher priority)
+    const complete = netInfo !== null && consensus !== null && incidentsAvailable
 
     return (
         <div className="hk-card hk-doctor" style={{ gridColumn: "1 / -1" }}>
             <div className="hk-card__title">
                 <span className="hk-card__icon">🩺</span>
                 DOCTOR
-                {diags.length === 0 && <span className="hk-badge hk-badge--ok" style={{ marginLeft: "auto" }}>ALL OK</span>}
+                {diags.length === 0 && complete && <span className="hk-badge hk-badge--ok" style={{ marginLeft: "auto" }}>ALL OK</span>}
             </div>
             {diags.length === 0 ? (
                 <div className="hk-doctor__ok">
-                    <span>No issues detected. Network appears healthy.</span>
+                    <span>{complete ? "No issues detected in the available network checks." : "Unable to assess all network checks — peer, consensus, or incident data is unavailable."}</span>
                 </div>
             ) : (
                 <div className="hk-doctor__alerts">

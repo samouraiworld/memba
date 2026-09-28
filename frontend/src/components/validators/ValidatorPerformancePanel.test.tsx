@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render as rtlRender, screen } from "@testing-library/react"
+import { render as rtlRender, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactElement } from "react"
+import { WindowActivityContext } from "../../os/page/WindowActivity"
 
 // Fresh client per render: retry off and zero cache sharing between tests.
 function render(ui: ReactElement) {
@@ -9,10 +10,14 @@ function render(ui: ReactElement) {
     return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
 }
 
-const { getValidators } = vi.hoisted(() => ({ getValidators: vi.fn(() => Promise.resolve([])) }))
+const { getValidators, TEST_SNAPSHOT } = vi.hoisted(() => ({
+    getValidators: vi.fn(() => Promise.resolve([])),
+    TEST_SNAPSHOT: { url: "https://verified.example", chainId: "gnoland-1", height: 100, blockHash: "abc", status: {} },
+}))
 
 vi.mock("../../lib/validators", () => ({
     getValidators,
+    getValidatorRpcSnapshot: vi.fn(() => Promise.resolve(TEST_SNAPSHOT)),
     getNetworkStats: vi.fn(() => Promise.resolve({ blockHeight: 1, totalValidators: 0 })),
     fetchBlockHeatmap: vi.fn(() => Promise.resolve([])),
     fetchLastBlockSignatures: vi.fn(() => Promise.resolve(new Map())),
@@ -34,6 +39,7 @@ vi.mock("../../lib/validatorReports", async (importOriginal) => ({
 }))
 
 import { ValidatorPerformancePanel } from "./ValidatorPerformancePanel"
+import { fetchLastBlockSignatures, getNetworkStats } from "../../lib/validators"
 import type { ValidatorReport, ValidatorReportPeriod } from "../../lib/validatorReports"
 
 const period: ValidatorReportPeriod = {
@@ -61,9 +67,21 @@ describe("ValidatorPerformancePanel", () => {
         expect(fetchValidatorReports).not.toHaveBeenCalled()
     })
 
-    it("an active validator triggers the (lazy) metrics fetch", () => {
+    it("an active validator triggers the (lazy) metrics fetch on one snapshot", async () => {
         render(<ValidatorPerformancePanel signingAddress="g1sign" isActive={true} />)
-        expect(getValidators).toHaveBeenCalledTimes(1)
+        await waitFor(() => expect(getValidators).toHaveBeenCalledTimes(1))
+        expect(getValidators).toHaveBeenCalledWith(expect.any(String), TEST_SNAPSHOT, expect.any(AbortSignal))
+        expect(fetchLastBlockSignatures).toHaveBeenCalledWith(expect.any(String), 100, 10, TEST_SNAPSHOT, expect.any(AbortSignal))
+        await waitFor(() => expect(getNetworkStats).toHaveBeenCalledWith(expect.any(String), [], expect.any(AbortSignal), TEST_SNAPSHOT))
+    })
+
+    it("does not start performance or report reads in a parked OS window", async () => {
+        render(<WindowActivityContext.Provider value={false}>
+            <ValidatorPerformancePanel signingAddress="g1sign" isActive />
+        </WindowActivityContext.Provider>)
+        await Promise.resolve()
+        expect(getValidators).not.toHaveBeenCalled()
+        expect(fetchValidatorReports).not.toHaveBeenCalled()
     })
 
     it("shows the validator's reliability score beside its live metrics", async () => {

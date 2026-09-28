@@ -62,6 +62,7 @@ vi.mock("../lib/validators", async () => {
     const actual = await vi.importActual<typeof import("../lib/validators")>("../lib/validators")
     return {
         ...actual,
+        getValidatorRpcSnapshot: vi.fn().mockResolvedValue({ url: "https://rpc.example", chainId: "test13", height: 12345, blockHash: "abc", status: {} }),
         getValidators: vi.fn().mockResolvedValue([VALIDATOR]),
         getNetworkStats: vi.fn().mockResolvedValue(STATS),
         getAggregatedNetPeers: vi.fn().mockResolvedValue(null),

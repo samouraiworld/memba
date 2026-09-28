@@ -24,12 +24,12 @@ import {
 import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl, isReviewsAvailable } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import {
-    fetchValopers,
+    findValoperForProfile,
     resolveValidatorProfile,
     type ValidatorProfileResolution,
 } from "../lib/valopers"
 import {
-    getValidators, truncateValidatorAddr,
+    getValidatorRpcSnapshot, getValidators, truncateValidatorAddr,
     fetchValoperMonikers, mergeValoperMonikers, mergeWithMonitoringData,
 } from "../lib/validators"
 import { fetchAllMonitoringData } from "../lib/gnomonitoring"
@@ -97,13 +97,51 @@ const SERVER_TYPE_LABEL: Record<string, string> = { "cloud": "Cloud", "on-prem":
 const TABS = ["Overview", "Quests", "Contributions", "Activity"] as const
 type TabKey = (typeof TABS)[number]
 
-function CopyBtn({ text }: { text: string }) {
-    const [copied, setCopied] = useState(false)
+function validatorReturnQuery(raw: string): string {
+    const source = new URLSearchParams(raw)
+    const safe = new URLSearchParams()
+    for (const key of ["tab", "q", "sort", "direction", "health", "page", "perPage"]) {
+        const value = source.get(key)
+        if (value !== null) safe.set(key, value)
+    }
+    return safe.toString()
+}
+
+function safeHttpUrl(raw: string): string | null {
+    try {
+        const url = new URL(raw)
+        return url.protocol === "https:" || url.protocol === "http:" ? url.href : null
+    } catch { return null }
+}
+
+function safeGithubUrl(raw: string): string | null {
+    const candidate = /^https?:\/\//i.test(raw) ? raw : /^[a-zA-Z0-9-]{1,39}$/.test(raw) ? `https://github.com/${raw}` : ""
+    const href = candidate ? safeHttpUrl(candidate) : null
+    if (!href) return null
+    const url = new URL(href)
+    const host = url.hostname.toLowerCase()
+    if ((host !== "github.com" && host !== "www.github.com") || url.username || url.password) return null
+    url.protocol = "https:"
+    return url.href
+}
+
+function CopyBtn({ text, label }: { text: string; label: string }) {
+    const [state, setState] = useState<"idle" | "copied" | "failed">("idle")
+    const copyLabel = `${label.charAt(0).toLowerCase()}${label.slice(1)}`
     return (
-        <button className="vd-copy" title="Copy to clipboard" aria-label="Copy"
-            onClick={() => { navigator.clipboard.writeText(text).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1400) }}>
-            {copied ? <CheckCircle size={13} weight="fill" /> : <Copy size={13} />}
-        </button>
+        <>
+            <button type="button" className="vd-copy" title={`Copy ${copyLabel}`} aria-label={`Copy ${copyLabel}`}
+                onClick={async () => {
+                    try {
+                        if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable")
+                        await navigator.clipboard.writeText(text)
+                        setState("copied")
+                    } catch { setState("failed") }
+                }}>
+                {state === "copied" ? <CheckCircle size={13} weight="fill" /> : <Copy size={13} />}
+            </button>
+            {state !== "idle" && <span className="vd-sr-only" role="status">{state === "copied" ? `${label} copied` : `Could not copy ${copyLabel}`}</span>}
+        </>
     )
 }
 
@@ -112,7 +150,7 @@ function AddrRow({ label, value, hint }: { label: string; value: string; hint?: 
     return (
         <div className="vd-row">
             <span className="vd-row__label">{label}{hint && <span className="vp-row__hint"> · {hint}</span>}</span>
-            <span className="vd-row__value vd-mono">{value}<CopyBtn text={value} /></span>
+            <span className="vd-row__value vd-mono">{value}<CopyBtn text={value} label={label} /></span>
         </div>
     )
 }
@@ -150,8 +188,20 @@ function ReviewsLaunchingSoon() {
 
 export default function ValidatorProfile() {
     const { address } = useParams<{ address: string }>()
+    return <ValidatorProfileForAddress key={address ?? ""} address={address} />
+}
+
+function ValidatorProfileForAddress({ address }: { address?: string }) {
     const location = useLocation()
     const np = useNetworkPath()
+    const returnState = location.state as { fromValidatorsTab?: unknown; fromValidatorsQuery?: unknown } | null
+    const fromUrl = new URLSearchParams(location.search).get("from")
+    const returnQuery = fromUrl
+        ? validatorReturnQuery(fromUrl)
+        : typeof returnState?.fromValidatorsQuery === "string"
+        ? validatorReturnQuery(returnState.fromValidatorsQuery)
+        : returnState?.fromValidatorsTab === "candidates" ? "tab=candidates" : ""
+    const backToValidators = `${np("validators")}${returnQuery ? `?${returnQuery}` : ""}`
     const ctx = useOutletContext<LayoutContext | null>()
 
     const [resolution, setResolution] = useState<ValidatorProfileResolution | null>(null)
@@ -227,12 +277,14 @@ export default function ValidatorProfile() {
         abortRef.current = ctrl
         setError(null)
         try {
-            const vals = await getValidators(GNO_RPC_URL)
+            const snapshot = await getValidatorRpcSnapshot(ctrl.signal)
+            if (ctrl.signal.aborted) return
+            const vals = await getValidators(GNO_RPC_URL, snapshot, ctrl.signal)
             if (ctrl.signal.aborted) return
             const activeSet = new Set(vals.map(v => v.gnoAddr))
-            const valopers = await fetchValopers(GNO_RPC_URL, activeSet)
+            const match = await findValoperForProfile(GNO_RPC_URL, address, activeSet, snapshot, ctrl.signal)
             if (ctrl.signal.aborted) return
-            const res = resolveValidatorProfile(address, valopers, activeSet)
+            const res = resolveValidatorProfile(address, match ? [match] : [], activeSet)
             setResolution(res)
             // Genesis: borrow the moniker from the consensus set (no valoper record).
             // getValidators returns moniker:"" — enrich (valopers + gnomonitoring) so a
@@ -243,7 +295,7 @@ export default function ValidatorProfile() {
                 if (!mon) {
                     try {
                         const [valoperMap, monitoringMap] = await Promise.all([
-                            fetchValoperMonikers(GNO_RPC_URL),
+                            fetchValoperMonikers(GNO_RPC_URL, snapshot, ctrl.signal),
                             fetchAllMonitoringData(ctrl.signal),
                         ])
                         if (ctrl.signal.aborted) return
@@ -272,7 +324,11 @@ export default function ValidatorProfile() {
     const refreshProfile = useCallback(async () => {
         const addr = resolution?.canonicalAddress
         if (!addr) return
-        try { setProfile(await fetchUserProfile(GNOLOVE_API_URL, addr)) } catch { /* keep previous */ }
+        const ctrl = abortRef.current
+        try {
+            const updated = await fetchUserProfile(GNOLOVE_API_URL, addr)
+            if (!ctrl?.signal.aborted) setProfile(updated)
+        } catch { /* keep previous */ }
     }, [resolution?.canonicalAddress])
 
     useEffect(() => {
@@ -293,13 +349,13 @@ export default function ValidatorProfile() {
 
     // ── Redirect a signing-address deep link (or the legacy route) to the canonical URL.
     if (resolution?.shouldRedirect) {
-        return <Navigate to={np(`validators/${resolution.canonicalAddress}`)} replace state={location.state} />
+        return <Navigate to={`${np(`validators/${resolution.canonicalAddress}`)}${location.search}`} replace state={location.state} />
     }
 
     if (loading) {
         return (
             <div className="vd-page">
-                <div className="vd-nav"><Link to={np("validators")} className="vd-back">← Validators</Link></div>
+                <div className="vd-nav"><Link to={backToValidators} className="vd-back">← Validators</Link></div>
                 <ConnectingLoader message="Loading validator…" minHeight="50vh" />
             </div>
         )
@@ -308,7 +364,7 @@ export default function ValidatorProfile() {
     if (error && !resolution) {
         return (
             <div className="vd-page">
-                <div className="vd-nav"><Link to={np("validators")} className="vd-back">← Validators</Link></div>
+                <div className="vd-nav"><Link to={backToValidators} className="vd-back">← Validators</Link></div>
                 <div className="vd-notfound">
                     <span className="vd-notfound__icon">⚠</span>
                     <h2>Failed to load validator</h2>
@@ -322,13 +378,13 @@ export default function ValidatorProfile() {
     if (!resolution || resolution.identityCase === "not-found") {
         return (
             <div className="vd-page">
-                <div className="vd-nav"><Link to={np("validators")} className="vd-back">← Validators</Link></div>
+                <div className="vd-nav"><Link to={backToValidators} className="vd-back">← Validators</Link></div>
                 <div className="vd-notfound" data-testid="vp-not-found">
                     <span className="vd-notfound__icon">⚠</span>
                     <h2>Validator not found</h2>
                     <p className="vd-mono">{address}</p>
                     <p>No validator or registered operator matches this address on <strong>{GNO_CHAIN_ID}</strong>.</p>
-                    <Link to={np("validators")} className="vd-btn-back">← Back to Validators</Link>
+                    <Link to={backToValidators} className="vd-btn-back">← Back to Validators</Link>
                 </div>
             </div>
         )
@@ -342,7 +398,11 @@ export default function ValidatorProfile() {
     const showAvatar = !!avatar && !avatarError
     const bio = profile?.bio || profile?.githubBio || valoper?.description || ""
     const social = profile?.socialLinks
-    const hasSocial = !!(social && (social.website || social.github || social.twitter))
+    const userRealmUrl = profile?.userRealmUrl ? safeHttpUrl(profile.userRealmUrl) : null
+    const websiteUrl = social?.website ? safeHttpUrl(social.website) : null
+    const githubUrl = social?.github ? safeGithubUrl(social.github) : null
+    const twitterUrl = social?.twitter ? safeHttpUrl(`https://x.com/${social.twitter.replace("@", "")}`) : null
+    const hasSocial = !!(websiteUrl || githubUrl || twitterUrl)
     const initials = moniker.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "?"
     const gnowebUrl = valoper
         ? `${getExplorerBaseUrl()}/r/gnops/valopers:${valoper.operatorAddress}`
@@ -368,7 +428,7 @@ export default function ValidatorProfile() {
     return (
         <div className="vd-page" data-testid="validator-profile-page" data-identity-case={resolution.identityCase}>
             <div className="vd-nav">
-                <Link to={np("validators")} className="vd-back">← Validators</Link>
+                <Link to={backToValidators} className="vd-back">← Validators</Link>
                 <span className="vd-nav__sep">/</span>
                 <span className="vd-nav__current">{moniker}</span>
                 <span className="vd-nav__chain">{GNO_CHAIN_ID}</span>
@@ -395,8 +455,8 @@ export default function ValidatorProfile() {
 
                     {profile?.username && (
                         <div className="vp-id__userrow">
-                            {profile.userRealmUrl
-                                ? <a href={profile.userRealmUrl} target="_blank" rel="noopener noreferrer" className="vp-id__username">{profile.username}</a>
+                            {userRealmUrl
+                                ? <a href={userRealmUrl} target="_blank" rel="noopener noreferrer" className="vp-id__username">{profile.username}</a>
                                 : <span className="vp-id__username">{profile.username}</span>}
                         </div>
                     )}
@@ -411,9 +471,9 @@ export default function ValidatorProfile() {
 
                     {hasSocial && (
                         <div className="vp-id__socials">
-                            {social!.website && <a href={social!.website} target="_blank" rel="noopener noreferrer" className="vp-soc" aria-label="Website" title="Website"><GlobeSimple size={16} /></a>}
-                            {social!.github && <a href={social!.github.startsWith("http") ? social!.github : `https://github.com/${social!.github}`} target="_blank" rel="noopener noreferrer" className="vp-soc" aria-label="GitHub" title="GitHub"><GithubLogo size={16} /></a>}
-                            {social!.twitter && <a href={`https://x.com/${social!.twitter.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="vp-soc" aria-label="Twitter / X" title="Twitter / X"><XLogo size={16} /></a>}
+                            {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="vp-soc" aria-label="Website" title="Website"><GlobeSimple size={16} /></a>}
+                            {githubUrl && <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="vp-soc" aria-label="GitHub" title="GitHub"><GithubLogo size={16} /></a>}
+                            {twitterUrl && <a href={twitterUrl} target="_blank" rel="noopener noreferrer" className="vp-soc" aria-label="Twitter / X" title="Twitter / X"><XLogo size={16} /></a>}
                         </div>
                     )}
 
@@ -521,8 +581,8 @@ export default function ValidatorProfile() {
                         </>
                     ) : (
                         <div className="vd-card vp-empty">
-                            <p>Quest progress is private to the wallet holder.</p>
-                            <p className="vp-empty__sub">Quests and XP are tracked per connected wallet, so they're only visible to the person who owns this address. Connect with this wallet to see your own quests, or explore the catalog on the GnoBuilders page.</p>
+                            <p>Connect the operator wallet to view quest progress here.</p>
+                            <p className="vp-empty__sub">This profile shows quests and XP for its connected operator. Connect with that wallet to see its progress here, or explore the GnoBuilders catalog.</p>
                             <Link to={np("quests")} className="vp-peek__link" style={{ marginTop: 8 }}>Open GnoBuilders →</Link>
                         </div>
                     )}

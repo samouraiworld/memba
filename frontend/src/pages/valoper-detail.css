@@ -622,3 +622,11 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 .vp-mapped-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .vp-mapped-name { font-size: var(--pro-body, 0.9rem); font-weight: 600; color: var(--color-text); }
 .vp-mapped-sub { font-size: var(--pro-small, 0.75rem); color: var(--color-text-secondary); margin-top: 0.1rem; }
+
+@container os-window (max-width: 640px) {
+    .vp-id { flex-direction: column; }
+    .vp-id__main { width: 100%; }
+    .vp-id__actions { align-self: stretch; }
+    .vp-edit-btn { width: 100%; justify-content: center; }
+    .vp-review-hero { flex-direction: column; align-items: flex-start; }
+}

@@ -27,6 +27,12 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: Validators production QA (2026-09-28)
+
+- Keep consensus, signing and operator reads on one verified chain and RPC snapshot; bound pagination and detail requests, scope caches, and cancel work when the window closes.
+- Pause Hacker polling in parked windows, distinguish stale telemetry from a live healthy sample, and correct peer and incident claims.
+- Preserve roster filters through profile visits, explain empty results, improve candidate navigation, copy controls and narrow-window layouts, and avoid unsafe or private RPC links.
+
 ### Memba OS: Arcade production QA (2026-09-28)
 
 - Keep Block Party input inside its active game window, preserve paused runs through OS minimising, and make all three games usable in narrow windows.

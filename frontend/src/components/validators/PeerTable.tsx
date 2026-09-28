@@ -10,16 +10,30 @@
 
 import type { NetInfo } from "../../lib/validators"
 import { useState } from "react"
+import { publicRpcLink } from "./nodeStateLinks"
 
 interface PeerTableProps {
     netInfo: NetInfo | null
     loading: boolean
 }
 
+function isPrivateHost(host: string): boolean {
+    const normalized = host.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "")
+    const octets = normalized.split(".").map(Number)
+    const privateIPv4 = octets.length === 4 && octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255) && (
+        octets[0] === 0 || octets[0] === 10 || octets[0] === 127 ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168)
+    )
+    return privateIPv4 || normalized === "localhost" || normalized.endsWith(".local") || normalized === "::1" ||
+        (normalized.includes(":") && (normalized.startsWith("fe80:") || normalized.startsWith("fc") || normalized.startsWith("fd")))
+}
+
 export function PeerTable({ netInfo, loading }: PeerTableProps) {
-    const [validatorsOnly, setValidatorsOnly] = useState(false)
+    const [rpcPeersOnly, setRpcPeersOnly] = useState(false)
     const peers = netInfo?.peers ?? []
-    const displayed = validatorsOnly
+    const displayed = rpcPeersOnly
         ? peers.filter(p => p.rpcAddr && p.rpcAddr.length > 0)
         : peers
     return (
@@ -43,10 +57,10 @@ export function PeerTable({ netInfo, loading }: PeerTableProps) {
                         <label className="hk-peers__toggle" style={{ marginLeft: "auto" }}>
                             <input
                                 type="checkbox"
-                                checked={validatorsOnly}
-                                onChange={e => setValidatorsOnly(e.target.checked)}
+                                checked={rpcPeersOnly}
+                                onChange={e => setRpcPeersOnly(e.target.checked)}
                             />
-                            only validators
+                            peers advertising RPC
                         </label>
                     </div>
 
@@ -66,32 +80,31 @@ export function PeerTable({ netInfo, loading }: PeerTableProps) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {displayed.map((peer) => {
+                                        {displayed.map((peer) => {
                                         const hasRpc = peer.rpcAddr && peer.rpcAddr.length > 0
-                                        const rpcLink = hasRpc && !peer.rpcAddr.includes("0.0.0.0")
-                                            ? `http://${peer.rpcAddr}` : undefined
+                                        const rpcLink = publicRpcLink(peer.rpcAddr)
                                         return (
                                         <tr key={peer.nodeId || peer.ip}>
                                             <td className="hk-peers__moniker">
                                                 {peer.moniker || <span className="hk-dimmed">unknown</span>}
                                             </td>
-                                            <td className="hk-mono hk-dimmed">{peer.ip || "—"}</td>
+                                            <td className="hk-mono hk-dimmed">{peer.ip ? isPrivateHost(peer.ip) ? "Private address" : peer.ip : "—"}</td>
                                             <td>
                                                 <span className={`hk-badge ${peer.isOutbound ? "hk-badge--out" : "hk-badge--in"}`}>
                                                     {peer.isOutbound ? "OUT" : "IN"}
                                                 </span>
                                             </td>
                                             <td className="hk-dimmed">{peer.network || "—"}</td>
-                                            <td className="hk-mono hk-dimmed" title={peer.nodeId}>
+                                            <td className="hk-mono hk-dimmed" title={isPrivateHost(peer.ip) ? undefined : peer.nodeId}>
                                                 {peer.nodeId ? `${peer.nodeId.slice(0, 10)}…` : "—"}
                                             </td>
                                             <td>
                                                 {hasRpc ? (
                                                     rpcLink ? (
                                                         <a href={rpcLink} target="_blank" rel="noopener noreferrer"
-                                                            className="hk-badge hk-badge--ok">OK rpc ↗</a>
+                                                            className="hk-badge hk-badge--out">RPC address ↗</a>
                                                     ) : (
-                                                        <span className="hk-badge hk-badge--warn">rpc-closed</span>
+                                                        <span className="hk-badge hk-badge--dim">No dialable address</span>
                                                     )
                                                 ) : (
                                                     <span className="hk-badge hk-badge--dim">—</span>

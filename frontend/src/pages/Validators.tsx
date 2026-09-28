@@ -16,6 +16,7 @@
  */
 
 import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
+import { useWindowActive } from "../os/page/WindowActivity"
 import { useIsMobile } from "../hooks/useIsMobile"
 import { ValidatorCard } from "../components/validators/ValidatorCard"
 import { ValidatorSortSelect, type SortKey } from "../components/validators/ValidatorSortSelect"
@@ -28,6 +29,7 @@ import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls, isReviewsAvailable } from "../lib/config"
 import {
     getValidators,
+    getValidatorRpcSnapshot,
     getNetworkStats,
     getAggregatedNetPeers,
     formatVotingPower,
@@ -46,7 +48,7 @@ import { ValoperPanel } from "../components/validators/ValoperPanel"
 import { ValidatorHoverCard } from "../components/validators/ValidatorHoverCard"
 import { ValidatorReviewStars, ValidatorReviewPreview } from "../components/validators/ValidatorReviewStars"
 import { buildSigningToOperator, resolveReviewSubjects } from "../components/validators/validatorReviewsData"
-import { fetchValopers, type ValoperWithStatus } from "../lib/valopers"
+import { computeValoperStatus, fetchValopers, type ValoperWithStatus } from "../lib/valopers"
 import { getDAOConfig } from "../lib/dao/config"
 import { buildGovernanceReadiness, GOVDAO_REALM_PATH } from "../lib/governanceReadiness"
 import { GovernanceReadinessPanel } from "../components/validators/GovernanceReadinessPanel"
@@ -68,6 +70,13 @@ import "./validators.css"
 import "../components/layout/professional-pilot.css"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
+const SORT_KEYS: readonly SortKey[] = ["rank", "votingPower", "powerPercent", "participationRate", "uptimePercent", "missedBlocks", "txContrib"]
+const HEALTH_FILTERS: readonly string[] = ["all", "healthy", "degraded", "down", "unknown"]
+
+function positivePageParam(raw: string | null, fallback: number): number {
+    const value = Number(raw)
+    return raw && Number.isSafeInteger(value) && value > 0 ? value : fallback
+}
 
 // Blocks of signing history shown per roster row. The roster strip is a
 // sparkline and the health engine only reads the leading run, so 100 bought
@@ -193,7 +202,26 @@ export default function Validators() {
     const navigate = useNetworkNav()
     const nk = useNetworkKey()
     const isMobile = useIsMobile()
+    const windowActive = useWindowActive()
     const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
+
+    // Derive the segment before the queries so expensive topology reads can
+    // stop while another segment (or another OS window) is in front.
+    const [searchParams, setSearchParams] = useSearchParams()
+    const tabParam = searchParams.get("tab")
+    const tab: OverviewTab = (OVERVIEW_TABS as readonly string[]).includes(tabParam ?? "")
+        ? (tabParam as OverviewTab)
+        : "validators"
+    const setTab = (t: OverviewTab) => setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        if (t === "validators") next.delete("tab"); else next.set("tab", t)
+        return next
+    })
+    // Classic pages embedded in OS windows receive a synthetic route location;
+    // router state does not survive that handoff. Carry the roster return view
+    // in the profile URL as well as the Link state.
+    const returnQueryString = searchParams.toString()
+    const profilePath = (addr: string) => `/${nk}/validators/${addr}${returnQueryString ? `?from=${encodeURIComponent(returnQueryString)}` : ""}`
 
     // ── Server state, in React Query ──────────────────────────
     // The roster poll: core fetch fan-out, sequential stats (H-11: stats needs
@@ -202,16 +230,18 @@ export default function Validators() {
     // is the old Page-Visibility gate (C2/M8), and the queryFn's AbortSignal
     // replaces the manual AbortController.
     const rosterQuery = useQuery({
-        queryKey: ["validators", "roster"],
-        refetchInterval: REFRESH_INTERVAL_MS,
+        queryKey: ["validators", "roster", nk],
+        enabled: windowActive,
+        refetchInterval: windowActive ? REFRESH_INTERVAL_MS : false,
         queryFn: async ({ signal }) => {
+            const snapshot = await getValidatorRpcSnapshot(signal)
             const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
-                getValidators(GNO_RPC_URL),
+                getValidators(GNO_RPC_URL, snapshot, signal),
                 fetchAllMonitoringData(signal),
-                fetchValoperMonikers(GNO_RPC_URL),
-                fetchLastBlockSignatures(GNO_RPC_URL, ROSTER_SIGNATURE_WINDOW),
+                fetchValoperMonikers(GNO_RPC_URL, snapshot, signal),
+                fetchLastBlockSignatures(GNO_RPC_URL, ROSTER_SIGNATURE_WINDOW, 10, snapshot, signal),
             ])
-            const netStats = await getNetworkStats(GNO_RPC_URL, vals, signal)
+            const netStats = await getNetworkStats(GNO_RPC_URL, vals, signal, snapshot)
             // v2.13: valoper monikers first (primary on-chain source), then
             // gnomonitoring enrichment, then signatures + health.
             const withMonikers = mergeValoperMonikers(vals, valoperMap)
@@ -239,6 +269,7 @@ export default function Validators() {
                 networkHealth: computeNetworkHealth(withHealth),
                 valoperMonikers: new Set([...valoperMap.values()].map(m => m.toLowerCase())),
                 activeSigning: new Set(withHealth.map(v => v.gnoAddr)),
+                snapshot,
             }
         },
     })
@@ -258,8 +289,9 @@ export default function Validators() {
     // Full network roster (peers aggregated across trusted RPCs) — best-effort
     // and independent, so a slow or dead telemetry node never delays the table.
     const netInfoQuery = useQuery({
-        queryKey: ["validators", "netpeers"],
-        refetchInterval: REFRESH_INTERVAL_MS,
+        queryKey: ["validators", "netpeers", nk],
+        enabled: windowActive && tab === "network",
+        refetchInterval: windowActive && tab === "network" ? REFRESH_INTERVAL_MS : false,
         queryFn: async ({ signal }) => {
             try {
                 return await getAggregatedNetPeers(telemetryRpcUrls, signal)
@@ -273,38 +305,47 @@ export default function Validators() {
     // Valoper onboarding registry — needs the active signing set, so it waits
     // for the roster (non-blocking for the table, exactly as before).
     const valopersQuery = useQuery({
-        queryKey: ["validators", "valopers"],
-        enabled: !!rosterQuery.data,
-        refetchInterval: REFRESH_INTERVAL_MS,
-        queryFn: async () => {
-            try {
-                return await fetchValopers(GNO_RPC_URL, rosterQuery.data!.activeSigning)
-            } catch {
-                return NO_VALOPERS
-            }
-        },
+        queryKey: ["validators", "valopers", nk, rosterQuery.data?.snapshot.url],
+        enabled: windowActive && !!rosterQuery.data,
+        refetchInterval: windowActive ? 5 * 60_000 : false,
+        queryFn: ({ signal }) => fetchValopers(GNO_RPC_URL, rosterQuery.data!.activeSigning, rosterQuery.data!.snapshot, signal),
     })
-    const valopers = valopersQuery.data ?? NO_VALOPERS
+    const valopers = useMemo(() => (valopersQuery.data ?? NO_VALOPERS).map(v => ({
+        ...v,
+        status: computeValoperStatus(v.signingAddress, rosterQuery.data?.activeSigning ?? new Set<string>()),
+    })), [valopersQuery.data, rosterQuery.data?.activeSigning])
     const valopersLoading = valopersQuery.isPending
 
-    const [sortKey, setSortKey] = useState<SortKey>("rank")
-    const [sortAsc, setSortAsc] = useState(true)
-    const [search, setSearch] = useState("")
-    const [healthFilter, setHealthFilter] = useState<ValidatorHealthStatus | "all">("all")
-    const [page, setPage] = useState(1)
-    const [pageSize, setPageSize] = useState(50)
+    const [sortKey, setSortKey] = useState<SortKey>(() => {
+        const value = searchParams.get("sort")
+        return SORT_KEYS.includes(value as SortKey) ? value as SortKey : "rank"
+    })
+    const [sortAsc, setSortAsc] = useState(() => searchParams.get("direction") !== "desc")
+    const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
+    const [healthFilter, setHealthFilter] = useState<ValidatorHealthStatus | "all">(() => {
+        const value = searchParams.get("health")
+        return HEALTH_FILTERS.includes(value ?? "") ? value as ValidatorHealthStatus | "all" : "all"
+    })
+    const [page, setPage] = useState(() => positivePageParam(searchParams.get("page"), 1))
+    const [pageSize, setPageSize] = useState(() => {
+        const value = positivePageParam(searchParams.get("perPage"), 50)
+        return [25, 50, 100].includes(value) ? value : 50
+    })
+
+    // Keep the roster's view state in the URL so a profile round trip and a
+    // copied deep link restore the same search, sorting, filter, and page.
+    useEffect(() => {
+        const next = new URLSearchParams(searchParams)
+        if (search) next.set("q", search); else next.delete("q")
+        if (sortKey !== "rank") next.set("sort", sortKey); else next.delete("sort")
+        if (!sortAsc) next.set("direction", "desc"); else next.delete("direction")
+        if (healthFilter !== "all") next.set("health", healthFilter); else next.delete("health")
+        if (page > 1) next.set("page", String(page)); else next.delete("page")
+        if (pageSize !== 50) next.set("perPage", String(pageSize)); else next.delete("perPage")
+        if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true })
+    }, [searchParams, setSearchParams, search, sortKey, sortAsc, healthFilter, page, pageSize])
 
     // Active segment (?tab=operators|network; default "validators"). Deep-linkable.
-    const [searchParams, setSearchParams] = useSearchParams()
-    const tabParam = searchParams.get("tab")
-    const tab: OverviewTab = (OVERVIEW_TABS as readonly string[]).includes(tabParam ?? "")
-        ? (tabParam as OverviewTab)
-        : "validators"
-    const setTab = (t: OverviewTab) => setSearchParams(prev => {
-        const next = new URLSearchParams(prev)
-        if (t === "validators") next.delete("tab"); else next.set("tab", t)
-        return next
-    })
     // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
     // shared hook Directory extracted; these segments had no keyboard support.
     const { tabProps } = useTabListKeyboard<OverviewTab>({
@@ -319,8 +360,8 @@ export default function Validators() {
     // cached for five minutes rather than riding the 30s roster poll. A failed
     // read resolves to null, which the panel reports as UNKNOWN — never zero.
     const govdaoQuery = useQuery({
-        queryKey: ["validators", "govdao", GOVDAO_REALM_PATH],
-        enabled: tab === "network",
+        queryKey: ["validators", "govdao", nk, GOVDAO_REALM_PATH],
+        enabled: windowActive && tab === "network",
         staleTime: 5 * 60_000,
         queryFn: () => getDAOConfig(GNO_RPC_URL, GOVDAO_REALM_PATH),
     })
@@ -650,7 +691,7 @@ export default function Validators() {
                 </div>
             </div>
 
-            {proUi && filtered.length === 0 && (
+            {filtered.length === 0 && (
                 <div className="pro-val-empty" role="status">
                     <h2>{validators.length === 0 ? "No validators returned" : "No matching validators"}</h2>
                     <p>{validators.length === 0 ? "The selected network returned an empty consensus set." : "Try another name, address or health state, or clear your filters."}</p>
@@ -659,14 +700,15 @@ export default function Validators() {
             )}
 
             {/* ── Validator Table ──────────────────────────────── */}
-            {isMobile ? (
+            {filtered.length > 0 && (isMobile ? (
                 <div className="val-cards" data-testid="validator-cards">
                     {paginated.map(v => (
                         <ValidatorCard
                             key={v.address}
                             v={v}
                             hasMonitoring={hasMonitoring}
-                            to={`/${nk}/validators/${v.gnoAddr || v.address}`}
+                            to={profilePath(v.gnoAddr || v.address)}
+                            fromValidatorsQuery={searchParams.toString()}
                         />
                     ))}
                 </div>
@@ -709,7 +751,7 @@ export default function Validators() {
                                 // without hiding the copy button and Gnoweb link inside it.
                                 onClick={e => {
                                     if (isFromInteractiveChild(e.target, e.currentTarget)) return
-                                    navigate(`/validators/${v.gnoAddr || v.address}`)
+                                    navigate(`validators/${v.gnoAddr || v.address}${returnQueryString ? `?from=${encodeURIComponent(returnQueryString)}` : ""}`, { state: { fromValidatorsQuery: returnQueryString } })
                                 }}
                                 style={{ cursor: "pointer" }}
                             >
@@ -722,7 +764,7 @@ export default function Validators() {
                                     <div className="val-addr-wrap">
                                         {v.moniker ? (
                                             <>
-                                                <Link to={`/${nk}/validators/${v.gnoAddr || v.address}`} className="val-moniker val-row-link">
+                                                <Link to={profilePath(v.gnoAddr || v.address)} state={{ fromValidatorsQuery: returnQueryString }} className="val-moniker val-row-link">
                                                     {v.moniker}
                                                 </Link>
                                                 <span className="val-addr-sub">
@@ -732,7 +774,7 @@ export default function Validators() {
                                             </>
                                         ) : (
                                             <>
-                                                <Link to={`/${nk}/validators/${v.gnoAddr || v.address}`} className="val-addr-full val-mono val-row-link">
+                                                <Link to={profilePath(v.gnoAddr || v.address)} state={{ fromValidatorsQuery: returnQueryString }} className="val-addr-full val-mono val-row-link">
                                                     {v.address}
                                                 </Link>
                                                 <span className="val-addr-sub">
@@ -835,7 +877,7 @@ export default function Validators() {
                     </tbody>
                 </table>
             </div>
-            )}
+            ))}
 
             {/* ── Pagination Controls ─────────────────────────── */}
             {totalPages > 1 && (
@@ -868,7 +910,9 @@ export default function Validators() {
                  Active validators already live in the Validators tab, so this focuses
                  on candidates. */}
             {tab === "candidates" && (
-                <ValoperPanel valopers={candidateValopers} loading={valopersLoading} />
+                <ValoperPanel valopers={candidateValopers} loading={valopersLoading}
+                    error={valopersQuery.isError ? "Operator registry unavailable. Retry to check the current list." : undefined}
+                    onRetry={() => void valopersQuery.refetch()} />
             )}
 
             {/* ── Network tab: governance readiness (read-only) ── */}
