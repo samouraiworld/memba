@@ -62,7 +62,7 @@ function stringField(row: Record<string, unknown>, key: string, allowEmpty = fal
 
 function decimalField(row: Record<string, unknown>, key: string): bigint {
     const raw = stringField(row, key)
-    if (!/^(0|[1-9][0-9]*)$/.test(raw)) invalid(`invalid ${key}`)
+    if (raw.length > 19 || !/^(0|[1-9][0-9]*)$/.test(raw)) invalid(`invalid ${key}`)
     const value = BigInt(raw)
     if (value > MAX_INT64) invalid(`${key} exceeds int64`)
     return value
@@ -140,7 +140,7 @@ function parseTokenPage(value: unknown, size: number): LaunchpadToken[] {
 
 function parseQevalInt64(raw: string): bigint {
     const match = raw.match(/^\(\s*(0|[1-9][0-9]*)\s+int64\s*\)\s*$/)
-    if (!match) invalid("invalid int64 result")
+    if (!match || match[1].length > 19) invalid("invalid int64 result")
     const value = BigInt(match[1])
     if (value > MAX_INT64) invalid("int64 result out of range")
     return value

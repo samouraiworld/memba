@@ -69,6 +69,14 @@ describe("Token Launchpad structured reader", () => {
         ]) expect(() => parseLaunchpadToken({ ...token(), ...override })).toThrow(TokenLaunchpadReadError)
     })
 
+    it("rejects oversized decimal strings before parsing them as integers", async () => {
+        const oversized = "9".repeat(100_000)
+        expect(() => parseLaunchpadToken({ ...token(), totalSupply: oversized }))
+            .toThrow(TokenLaunchpadReadError)
+        queryEval.mockResolvedValueOnce(`(${oversized} int64)`)
+        await expect(new TokenLaunchpadClient().count()).rejects.toMatchObject({ code: "invalid_response" })
+    })
+
     it("reads an empty list as success and pages through more than 100 tokens without using ticker as identity", async () => {
         queryEval.mockImplementation(async (_rpc, _path, expression: string, strict: boolean) => {
             expect(strict).toBe(true)
