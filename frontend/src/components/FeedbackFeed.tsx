@@ -34,7 +34,7 @@ export function FeedbackFeed() {
     useEffect(() => {
         if (!realmValid || !windowActive || status !== "loading") return
         let cancelled = false
-        queryRender(GNO_RPC_URL, FEEDBACK_REALM_PATH, "general")
+        queryRender(GNO_RPC_URL, FEEDBACK_REALM_PATH, "general", true)
             .then(raw => {
                 if (cancelled) return
                 // The shared board helper maps a failed or absent render to [].

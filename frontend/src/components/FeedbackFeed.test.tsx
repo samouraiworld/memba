@@ -21,6 +21,7 @@ describe("FeedbackFeed", () => {
         render(<FeedbackFeed />)
         expect(await screen.findByText(/No on-chain feedback has been posted yet/)).toBeInTheDocument()
         expect(screen.queryByText(/Be the first/)).toBeNull()
+        expect(queryRender).toHaveBeenCalledWith("https://rpc.example.test", "gno.land/r/samcrew/memba_feedback_v2", "general", true)
     })
 
     it("keeps a failed render distinct from an empty board and retries", async () => {
@@ -28,6 +29,7 @@ describe("FeedbackFeed", () => {
         render(<FeedbackFeed />)
         expect(await screen.findByText(/could not be loaded/)).toBeInTheDocument()
         expect(screen.queryByText(/No on-chain feedback/)).toBeNull()
+        expect(queryRender).toHaveBeenCalledWith("https://rpc.example.test", "gno.land/r/samcrew/memba_feedback_v2", "general", true)
         fireEvent.click(screen.getByRole("button", { name: "Retry" }))
         expect(await screen.findByText(/No on-chain feedback has been posted yet/)).toBeInTheDocument()
         expect(queryRender).toHaveBeenCalledTimes(2)
