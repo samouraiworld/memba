@@ -61,6 +61,7 @@
 .memba-os .os-store-trust code { font: 11px var(--os-mono); overflow-wrap: anywhere; }
 .memba-os .os-store-shots { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 5px; }
 .memba-os .os-store-shots img { width: 230px; height: 140px; flex: none; object-fit: cover; border: 1px solid var(--os-line); border-radius: 10px; }
+.memba-os .os-store-shot-unavailable { width: 230px; height: 140px; flex: none; display: grid; place-items: center; padding: 12px; border: 1px dashed var(--os-line); border-radius: 10px; color: var(--os-mut); font-size: 12px; text-align: center; }
 @container os-window (max-width: 560px) {
   .memba-os .os-store-hero { min-height: 0; padding: 16px; }
   .memba-os .os-store-hero h1 { font-size: 26px; }

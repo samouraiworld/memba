@@ -64,7 +64,7 @@ function StoreCard({ entry, onOpen }: { entry: CatalogueEntry; onOpen: () => voi
 
 function Screenshot({ cid, name, index }: { cid: string; name: string; index: number }) {
     const [failed, setFailed] = useState(false)
-    if (failed) return null
+    if (failed) return <span className="os-store-shot-unavailable" role="img" aria-label={`${name} screenshot ${index + 1} unavailable`}>Screenshot unavailable</span>
     return <img src={`${API_BASE_URL}/api/nft/image?cid=${encodeURIComponent(cid)}`} alt={`${name} screenshot ${index + 1}`} loading="lazy" onError={() => setFailed(true)} />
 }
 
@@ -86,9 +86,10 @@ function Detail({ section, session, open, close }: NativeViewProps) {
     const projectId = section?.startsWith("project/") ? section.slice(8) : null
     const project = ECOSYSTEM_PROJECTS.find((candidate) => candidate.id === projectId)
     const registryEnabled = isAppStoreEnabled() && isRealmValidOn(session.network.key, appStorePathFor(session.network.key))
+    const canReadListing = !!path && isSafeRealmPath(path) && registryEnabled
     const detail = useQuery({
         queryKey: ["appStore", "native-detail", session.network.chainId, path],
-        queryFn: () => fetchApp(path!), enabled: !!path && isSafeRealmPath(path) && registryEnabled,
+        queryFn: () => fetchApp(path!), enabled: canReadListing,
         staleTime: 60_000, retry: 1,
     })
     const listing = detail.data
@@ -101,9 +102,9 @@ function Detail({ section, session, open, close }: NativeViewProps) {
     return <div className="os-store-detail">
         <button type="button" className="os-store-back" onClick={back}>← Discover</button>
         {path && !registryEnabled && <div className="os-note" role="status">Onchain listings are unavailable in this build.</div>}
-        {detail.isPending && path && registryEnabled && <Loading label="Loading app details…" />}
+        {detail.isPending && canReadListing && <Loading label="Loading app details…" />}
         {detail.isError && <ErrorState message="App details could not be read from the registry." onRetry={() => void detail.refetch()} />}
-        {!entry && !detail.isPending && !detail.isError && <div className="os-note" role="status">This app was not found in the current catalogue.</div>}
+        {!entry && (projectId !== null || (!!path && !isSafeRealmPath(path)) || (canReadListing && !detail.isPending && !detail.isError)) && <div className="os-note" role="status">This app was not found in the current catalogue.</div>}
         {entry && <>
             <header className="os-store-detail-head">
                 <Artwork key={entry.id} entry={entry} large />
