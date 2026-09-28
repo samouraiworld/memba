@@ -3,7 +3,7 @@
 .memba-os .os-learn-header { padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--os-line); }
 .memba-os .os-learn-header h2 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.025em; }
 .memba-os .os-learn-header p { margin: 0; color: var(--os-mut); }
-.memba-os .os-learn-header .os-btn { flex: none; }
+.memba-os .os-learn-header .os-btn { flex: none; min-height: 44px; }
 .memba-os .os-learn-body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(230px, 1fr); gap: 20px; padding: 20px 22px; overflow: auto; }
 .memba-os .os-learn-video { min-width: 0; }
 .memba-os .os-learn-video iframe, .memba-os .os-learn-video-poster { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; }
@@ -11,8 +11,10 @@
 .memba-os .os-learn-play-mark { font-size: 24px; margin-bottom: 14px; }
 .memba-os .os-learn-video-poster b { font-size: 18px; }
 .memba-os .os-learn-video-poster p { max-width: 30ch; color: #fff; opacity: .8; }
-.memba-os .os-learn-video-poster button { border: 0; border-radius: 8px; padding: 9px 13px; color: #000; background: #D9E8FB; font-weight: 700; cursor: pointer; }
-.memba-os .os-learn-video > a { display: inline-block; margin-top: 10px; color: var(--os-acc-ink); }
+.memba-os .os-learn-video-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; }
+.memba-os .os-learn-video-actions button { min-height: 44px; border: 0; border-radius: 8px; padding: 9px 13px; color: #000; background: #D9E8FB; font-weight: 700; cursor: pointer; }
+.memba-os .os-learn-video-actions a { display: inline-flex; align-items: center; min-height: 44px; color: var(--os-acc-ink); }
+.memba-os .os-learn-player-help, .memba-os .os-learn-chapters-note { margin: 8px 0 12px; color: var(--os-mut); font-size: 13px; line-height: 1.5; }
 .memba-os .os-learn-chapters h3 { margin: 0 0 12px; font-size: 15px; }
 .memba-os .os-learn-chapters ol { list-style: none; counter-reset: lessons; margin: 0; padding: 0; display: grid; gap: 8px; }
 .memba-os .os-learn-chapters li { counter-increment: lessons; }

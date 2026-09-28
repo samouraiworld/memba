@@ -35,6 +35,11 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: Learn production QA (2026-09-28)
+
+- Point PeerDev cards to the explanatory lesson slides, correct the setup directory guidance, and label local and staging examples before users run commands.
+- Keep keyboard focus on a persistent playlist control, let users unload the video, and make Learn actions easier to tap on a phone.
+
 ### Memba OS: About and Feedback production QA (2026-09-28)
 
 - Show actual open feedback issues instead of pull requests, route submission through the existing GitHub templates, and disclose when GitHub sign-in is required.
