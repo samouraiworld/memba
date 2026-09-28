@@ -174,7 +174,9 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 			case errors.Is(err, ErrLogBoundElsewhere), errors.Is(err, ErrPermanentReject):
 				// Never attestable for us (bound elsewhere) or a deterministic
 				// shape rejection — retire it so it stops retrying.
-				retire(store, run.LogHash)
+				if e := store.MarkSkipped(run.LogHash); e != nil {
+					return attested, fmt.Errorf("arcade mark-skipped %s: %w", run.LogHash, e)
+				}
 				slog.Warn("arcade attest: permanent realm rejection — skipping run", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "logHash", run.LogHash, "error", err)
 				continue
 			default:
@@ -220,10 +222,4 @@ func recordAttestFailure(store *Store, run Run, gd GameDay, failure error) error
 	}
 	slog.Warn("arcade attest failed — will retry next cycle", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "attempt", failures, "error", failure)
 	return nil
-}
-
-func retire(store *Store, logHash string) {
-	if e := store.MarkSkipped(logHash); e != nil {
-		slog.Error("arcade mark-skipped failed", "logHash", logHash, "error", e)
-	}
 }

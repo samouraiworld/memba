@@ -42,11 +42,14 @@ func (b *attemptBroadcaster) LookupEntry(_ context.Context, run Run) (OnChainEnt
 
 type broadcastOnlyAttempt struct{ calls int }
 
-type channelBroadcaster struct{ calls chan Run }
+type channelBroadcaster struct {
+	calls  chan Run
+	result error
+}
 
 func (b *channelBroadcaster) AttestScore(_ context.Context, run Run) (string, error) {
 	b.calls <- run
-	return "tx-" + run.LogHash, nil
+	return "tx-" + run.LogHash, b.result
 }
 
 func (b *broadcastOnlyAttempt) AttestScore(context.Context, Run) (string, error) {
@@ -171,6 +174,34 @@ func TestDayCloseBatcher_StopsAfterUnrecordableReceiptFailure(t *testing.T) {
 	select {
 	case run := <-b.calls:
 		t.Fatalf("batcher retried an unrecordable broadcast: %+v", run)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestDayCloseBatcher_StopsAfterUnrecordablePermanentReject(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "first", "2026-07-09", 100)
+	mustInsert(t, s, "later", "2026-07-10", 100)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_skipped_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'skipped' BEGIN SELECT RAISE(ABORT, 'skip write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &channelBroadcaster{calls: make(chan Run, 20), result: ErrPermanentReject}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	StartDayCloseBatcher(ctx, s, b, BatcherConfig{Enabled: true, Interval: 10 * time.Millisecond})
+	select {
+	case run := <-b.calls:
+		if run.LogHash != "first" {
+			t.Fatalf("unexpected first broadcast: %+v", run)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("batcher did not attempt the first broadcast")
+	}
+	select {
+	case run := <-b.calls:
+		t.Fatalf("batcher continued after unrecordable rejection: %+v", run)
 	case <-time.After(100 * time.Millisecond):
 	}
 }
