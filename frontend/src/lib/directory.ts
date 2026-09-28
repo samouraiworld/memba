@@ -9,11 +9,12 @@
  */
 
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
-import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, currentNetworkKey } from "./config"
+import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, GRC20_FACTORY_PATH, currentNetworkKey } from "./config"
 import { directorySeeds } from "./directorySeeds"
 import { directorySeedData, fetchDirectoryDiscovery } from "./directoryDiscovery"
 export { SEED_PACKAGES, SEED_REALMS } from "./directorySeeds"
-import { listFactoryTokens } from "./grc20"
+import { listFactoryTokens, parseFactoryTokenList } from "./grc20"
+import { queryRender } from "./dao/shared"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -237,23 +238,38 @@ export function parseTokenRegistry(raw: string): DirectoryToken[] {
  * different results than the Tokens page. Now uses the same factory source.
  * Uses sessionStorage cache.
  */
-export async function fetchTokens(): Promise<DirectoryToken[]> {
-    const cached = getCached<DirectoryToken[]>("tokens")
+export async function fetchTokens(strict = false): Promise<DirectoryToken[]> {
+    // A verified Directory result must never inherit the best-effort Home
+    // cache: it may contain an unchecked response or an outage-derived [].
+    const cacheKey = strict ? "tokens_verified" : "tokens"
+    const cached = getCached<DirectoryToken[]>(cacheKey)
     if (cached) return cached
 
     try {
-        const factoryTokens = await listFactoryTokens(GNO_RPC_URL)
+        const factoryTokens = strict
+            ? parseFactoryTokenList(await readVerifiedFactoryTokens())
+            : await listFactoryTokens(GNO_RPC_URL)
         const tokens: DirectoryToken[] = factoryTokens.map(t => ({
             slug: t.symbol,
             name: t.name,
             symbol: t.symbol,
             path: `gno.land/r/samcrew/tokenfactory_v2:${t.symbol}`,
         }))
-        setCache("tokens", tokens)
+        setCache(cacheKey, tokens)
         return tokens
-    } catch {
+    } catch (err) {
+        // Keep the older best-effort Home reader's contract. The Directory
+        // requests strict mode so an outage reaches its Retry state.
+        if (strict) throw err
         return []
     }
+}
+
+/** Strict Directory read: the shared RPC helper verifies each failover endpoint. */
+async function readVerifiedFactoryTokens(): Promise<string> {
+    const listing = await queryRender(GNO_RPC_URL, GRC20_FACTORY_PATH, "", true)
+    if (!listing || listing.trim() === "404") throw new Error("Token factory listing could not be read on this network")
+    return listing
 }
 
 // ── User Parsing ─────────────────────────────────────────────

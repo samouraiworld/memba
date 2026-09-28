@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useOutletContext, useSearchParams } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { LinkSimple } from "@phosphor-icons/react"
@@ -7,6 +8,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import { isNativeMultisig, nativeAddress, parseNativeMultisig } from "../lib/nativeMultisig"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 
 type ImportMode = "address" | "pubkey"
 
@@ -19,7 +21,7 @@ function parseSharedImport(searchParams: URLSearchParams): { pubkeyJson: string;
         // Verify it's valid multisig pubkey JSON
         const parsed = JSON.parse(decoded)
         if ((parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) || isNativeMultisig(decoded)) {
-            return { pubkeyJson: decoded, name: searchParams.get("name") || "" }
+            return { pubkeyJson: decoded, name: (searchParams.get("name") || "").slice(0, 256) }
         }
     } catch { /* invalid base64 or JSON — ignore */ }
     return null
@@ -27,6 +29,7 @@ function parseSharedImport(searchParams: URLSearchParams): { pubkeyJson: string;
 
 export function ImportMultisig() {
     const navigate = useNetworkNav()
+    const queryClient = useQueryClient()
     const { auth } = useOutletContext<LayoutContext>()
     const [searchParams] = useSearchParams()
 
@@ -79,6 +82,8 @@ export function ImportMultisig() {
                 name: "",
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
+
+            void queryClient.invalidateQueries({ queryKey: ["multisig"] })
 
             if (joinRes.joined || joinRes.created) {
                 navigate(`/multisig/${joinRes.multisigAddress}`)
@@ -157,6 +162,7 @@ export function ImportMultisig() {
             })
 
             if (expectedAddress && res.multisigAddress !== expectedAddress) throw new Error("Imported identity does not match the server response")
+            void queryClient.invalidateQueries({ queryKey: ["multisig"] })
             navigate(`/multisig/${res.multisigAddress}`)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Import failed")
@@ -182,17 +188,20 @@ export function ImportMultisig() {
                 let threshold = "?", members = "?"
                 try {
                     const parsed = JSON.parse(sharedImport.pubkeyJson)
-                    threshold = parsed.value?.threshold || "?"
-                    members = parsed.value?.pubkeys?.length?.toString() || "?"
+                    const rawThreshold: unknown = parsed.threshold ?? parsed.value?.threshold
+                    const rawMembers: unknown = parsed.pubkeys ?? parsed.value?.pubkeys
+                    if ((typeof rawThreshold === "string" && /^[1-9][0-9]*$/.test(rawThreshold)) || (typeof rawThreshold === "number" && Number.isSafeInteger(rawThreshold) && rawThreshold > 0)) threshold = String(rawThreshold)
+                    if (Array.isArray(rawMembers)) members = String(rawMembers.length)
                 } catch { /* ignore */ }
                 return (
                     <div className="k-card" style={{ borderColor: "var(--color-k-accent-border)", display: "flex", flexDirection: "column", gap: 12 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 16, display: 'flex' }}><LinkSimple size={16} /></span>
-                            <span style={{ fontWeight: 600, fontSize: "var(--pro-body, 14px)" }}>You've been invited to join a multisig</span>
+                            <span style={{ fontWeight: 600, fontSize: "var(--pro-body, 14px)" }}>Shared multisig configuration</span>
                         </div>
+                        <p>Review the wallet address, ordered public keys, threshold and chain with the sender before importing. This link does not grant signing rights.</p>
                         <div style={{ display: "flex", gap: 16, fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)" }}>
-                            {sharedImport.name && <span>Name: <span style={{ color: "var(--color-text-secondary)" }}>{sharedImport.name}</span></span>}
+                            {sharedImport.name && <span>Name: <span style={{ color: "var(--color-text-secondary)" }}>{revealInvisibleFormatting(sharedImport.name)}</span></span>}
                             <span>Threshold: <span style={{ color: "var(--color-text-secondary)" }}>{threshold}/{members}</span></span>
                         </div>
                         {auth.isAuthenticated ? (
@@ -202,7 +211,7 @@ export function ImportMultisig() {
                                 onClick={handleImportByPubkey}
                                 style={{ alignSelf: "flex-start", opacity: loading ? 0.5 : 1 }}
                             >
-                                {loading ? "Importing..." : "✓ Import This Multisig"}
+                                {loading ? "Importing..." : "Import this account"}
                             </button>
                         ) : (
                             <p style={{ color: "var(--color-warning)", fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
@@ -253,8 +262,9 @@ export function ImportMultisig() {
             {mode === "address" && (
                 <>
                     <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <label className="k-label">Multisig Address</label>
+                        <label htmlFor="msig-import-address" className="k-label">Multisig Address</label>
                         <input
+                            id="msig-import-address"
                             type="text"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
@@ -263,7 +273,7 @@ export function ImportMultisig() {
                             style={{
                                 width: "100%", height: 44, padding: "0 16px", borderRadius: 8,
                                 background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-body, 14px)", outline: "none",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-body, 14px)",
                                 opacity: loading ? 0.5 : 1,
                             }}
                         />
@@ -278,7 +288,7 @@ export function ImportMultisig() {
                             disabled={!address.trim() || loading || !auth.isAuthenticated}
                             style={{ opacity: address.trim() && auth.isAuthenticated && !loading ? 1 : 0.5 }}
                         >
-                            {loading ? "Importing..." : "Import & Join"}
+                            {loading ? "Importing..." : "Import account"}
                         </button>
                         <button className="k-btn-secondary" onClick={() => navigate("/")}>
                             Cancel
@@ -291,8 +301,9 @@ export function ImportMultisig() {
             {mode === "pubkey" && (
                 <>
                     <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <label className="k-label">Wallet Name (optional)</label>
+                        <label htmlFor="msig-import-name" className="k-label">Wallet Name (optional)</label>
                         <input
+                            id="msig-import-name"
                             type="text"
                             value={walletName}
                             onChange={(e) => setWalletName(e.target.value)}
@@ -302,13 +313,14 @@ export function ImportMultisig() {
                             style={{
                                 width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
                                 background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontSize: "var(--pro-small, 13px)", outline: "none",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontSize: "var(--pro-small, 13px)",
                             }}
                         />
                     </div>
                     <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <label className="k-label">Amino Multisig Pubkey JSON</label>
+                        <label htmlFor="msig-import-pubkey" className="k-label">Multisig public-key JSON</label>
                         <textarea
+                            id="msig-import-pubkey"
                             value={pubkeyJson}
                             onChange={(e) => setPubkeyJson(e.target.value)}
                             placeholder={`{
@@ -326,12 +338,12 @@ export function ImportMultisig() {
                             style={{
                                 width: "100%", padding: "12px", borderRadius: 8,
                                 background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)", outline: "none",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
                                 resize: "vertical", lineHeight: 1.6, opacity: loading ? 0.5 : 1,
                             }}
                         />
                         <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
-                            Paste the full Amino-encoded multisig public key JSON. You can get this from gnokey or from another Memba user.
+                            Paste the full multisig public-key JSON from gnokey or another member. Confirm the configuration and derived address with the sender before importing.
                         </p>
                     </div>
                     <div style={{ display: "flex", gap: 12 }}>
@@ -341,7 +353,7 @@ export function ImportMultisig() {
                             disabled={!pubkeyJson.trim() || loading || !auth.isAuthenticated}
                             style={{ opacity: pubkeyJson.trim() && auth.isAuthenticated && !loading ? 1 : 0.5 }}
                         >
-                            {loading ? "Importing..." : "Import via Pubkey"}
+                            {loading ? "Importing..." : "Import configuration"}
                         </button>
                         <button className="k-btn-secondary" onClick={() => navigate("/")}>
                             Cancel

@@ -52,6 +52,14 @@ describe("namespace listing via vm/qpaths", () => {
         expect(result.items.map(item => [item.name, item.path])).toEqual([["avl", "/p/samcrew/avl"], ["piechart/v0", "/p/samcrew/piechart/v0"]])
     })
 
+    it("marks a listing at the node limit partial while retaining checked rows", async () => {
+        const paths = Array.from({ length: NAMESPACE_LISTING_LIMIT }, (_, i) => `gno.land/r/samcrew/item_${i}`)
+        stubRpc(() => abci(b64(paths.join("\n"))))
+        const result = await fetchNamespaceListing(GNOWEB, "samcrew", "r", GNO_CHAIN_ID)
+        expect(result.status).toBe("partial")
+        expect(result.items).toHaveLength(NAMESPACE_LISTING_LIMIT)
+    })
+
     it("drops paths from other namespaces, the other kind and malformed lines", async () => {
         stubRpc(() => abci(b64([
             "gno.land/r/samcrew/one",

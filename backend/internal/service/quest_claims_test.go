@@ -66,6 +66,71 @@ func (h *testHarness) reviewClaim(t *testing.T, adminToken *membav1.Token, claim
 	}
 }
 
+func TestSubmitQuestClaim_RejectsComingSoonSelfReport(t *testing.T) {
+	h := setup(t)
+	token := h.makeToken(t, "g1alice")
+	for _, questID := range []string{"deploy-full-dapp", "bug-hunter"} {
+		_, err := h.svc.SubmitQuestClaim(context.Background(), connect.NewRequest(&membav1.SubmitQuestClaimRequest{
+			AuthToken: token, QuestId: questID, ProofUrl: "https://example.com/proof",
+		}))
+		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("non-live self-report quest %s must be denied: %v", questID, err)
+		}
+	}
+	if n := h.countClaims(t, "g1alice", "deploy-full-dapp"); n != 0 {
+		t.Fatalf("non-live quest must have no new claim, got %d", n)
+	}
+}
+
+func TestReviewQuestClaim_CannotApprovePendingRetiredQuest(t *testing.T) {
+	for _, questID := range []string{"deploy-full-dapp", "bug-hunter"} {
+		t.Run(questID, func(t *testing.T) {
+			t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+			h := newVoucherHarness(t)
+			admin := h.makeToken(t, "g1admin")
+			const address = "g1alice"
+			result, err := h.db.Exec(
+				`INSERT INTO quest_claims (address, quest_id, proof_url, proof_text, status)
+				 VALUES (?, ?, 'https://example.com/proof', '', 'pending')`,
+				address, questID,
+			)
+			if err != nil {
+				t.Fatal("insert historical pending claim:", err)
+			}
+			claimID, err := result.LastInsertId()
+			if err != nil {
+				t.Fatal("claim ID:", err)
+			}
+
+			_, err = h.svc.ReviewQuestClaim(context.Background(), connect.NewRequest(&membav1.ReviewQuestClaimRequest{
+				AuthToken: admin, ClaimId: claimID, Approved: true,
+			}))
+			if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+				t.Fatalf("approval of non-live quest must fail closed: %v", err)
+			}
+			if claim := h.getClaim(t, address, questID); claim.status != "pending" {
+				t.Fatalf("failed approval must leave claim pending, got %q", claim.status)
+			}
+			if n := storedVoucherCount(t, h, address, questID); n != 0 {
+				t.Fatalf("failed approval must not issue voucher, got %d", n)
+			}
+			state, err := h.svc.loadUserQuestState(context.Background(), address)
+			if err != nil {
+				t.Fatal("load quest state:", err)
+			}
+			if state.TotalXp != 0 || len(state.Completed) != 0 {
+				t.Fatalf("failed approval must grant no XP or completion, got %+v", state)
+			}
+
+			// Reviewers can clear historical pending rows without granting rewards.
+			h.reviewClaim(t, admin, claimID, false)
+			if claim := h.getClaim(t, address, questID); claim.status != "rejected" {
+				t.Fatalf("rejection must remain available, got %q", claim.status)
+			}
+		})
+	}
+}
+
 // A rejected claim must not be a dead end: resubmitting reopens it as a fresh
 // pending claim carrying the new proof, with the previous review cleared.
 // (Previously INSERT OR IGNORE + UNIQUE(address, quest_id) made a rejection
@@ -309,6 +374,50 @@ func TestReviewQuestClaim_AlreadyReviewed_FailedPrecondition(t *testing.T) {
 	c := h.getClaim(t, "g1alice", "fix-upstream-bug")
 	if c.status != "approved" {
 		t.Fatalf("approved claim must stay approved, got %q", c.status)
+	}
+}
+
+func TestReviewQuestClaim_CompletionFailureLeavesClaimPendingForRetry(t *testing.T) {
+	t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+	admin := h.makeToken(t, "g1admin")
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof")
+	claim := h.getClaim(t, "g1alice", "fix-upstream-bug")
+
+	// Simulate a storage failure after the review status UPDATE. Both writes
+	// must roll back, otherwise the approved claim cannot be retried.
+	if _, err := h.db.Exec(`CREATE TRIGGER fail_quest_completion BEFORE INSERT ON quest_completions
+		WHEN NEW.quest_id = 'fix-upstream-bug'
+		BEGIN SELECT RAISE(ABORT, 'simulated completion insert failure'); END`); err != nil {
+		t.Fatal("create failure trigger:", err)
+	}
+	_, err := h.svc.ReviewQuestClaim(context.Background(), connect.NewRequest(&membav1.ReviewQuestClaimRequest{
+		AuthToken: admin, ClaimId: claim.id, Approved: true,
+	}))
+	if err == nil {
+		t.Fatal("approval must fail when its completion cannot be stored")
+	}
+	stillPending := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	if stillPending.status != "pending" || stillPending.reviewedBy.Valid || stillPending.reviewedAt.Valid {
+		t.Fatalf("failed approval must leave a retryable pending claim: %+v", stillPending)
+	}
+	var count int
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM quest_completions WHERE address = ? AND quest_id = ?`,
+		"g1alice", "fix-upstream-bug").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("failed approval must not store completion: count=%d err=%v", count, err)
+	}
+	if _, err := h.db.Exec(`DROP TRIGGER fail_quest_completion`); err != nil {
+		t.Fatal("drop failure trigger:", err)
+	}
+	h.reviewClaim(t, admin, claim.id, true)
+	approved := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	if approved.status != "approved" {
+		t.Fatalf("retry must approve claim, got %q", approved.status)
+	}
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM quest_completions WHERE address = ? AND quest_id = ?`,
+		"g1alice", "fix-upstream-bug").Scan(&count); err != nil || count != 1 {
+		t.Fatalf("retry must store one completion: count=%d err=%v", count, err)
 	}
 }
 

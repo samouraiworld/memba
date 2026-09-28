@@ -4,7 +4,7 @@ vi.mock("../../lib/dao/shared", async (orig) => ({ ...(await orig<typeof import(
 
 import { resolveUsernameToAddress } from "../../lib/dao/shared"
 import type { RecipientResolution } from "../../lib/nameResolve"
-import { buildSendMsg, checkSend, clearSendLock, formatUgnot, lookUpName, nameToLookUp, parseGnot, readRecipient, readRecipients, readSendLock, rememberRecipient, writeSendLock } from "./send"
+import { buildSendMsg, checkSend, clearRecipients, clearSendLock, formatUgnot, lookUpName, nameToLookUp, parseGnot, readRecipient, readRecipients, readSendLock, rememberRecipient, writeSendLock } from "./send"
 
 const A = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const B = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
@@ -17,8 +17,7 @@ describe("amounts", () => {
         expect(parseGnot("1")).toBe(1_000_000n)
         expect(parseGnot("12.5")).toBe(12_500_000n)
         expect(parseGnot("0.000001")).toBe(1n)
-        expect(parseGnot("1 000")).toBe(1_000_000_000n)
-        for (const bad of ["", "0", "0.0000001", "-1", "1e3", "abc", "1.2.3", "12,5", "1,000"]) expect(parseGnot(bad), bad).toBeNull()
+        for (const bad of ["", "0", "0.0000001", "-1", "1e3", "abc", "1.2.3", "12,5", "1,000", "1 000", "1_000", "1 2", "1.0 5"]) expect(parseGnot(bad), bad).toBeNull()
     })
 
     it("format exactly", () => {
@@ -122,6 +121,8 @@ describe("browser storage", () => {
         rememberRecipient("gnoland-1", A, B, true)
         expect(readRecipients("gnoland-1", A)).toEqual({ recent: [B], saved: [B] })
         expect(readRecipients("gnoland-1", B)).toEqual({ recent: [], saved: [] })
+        clearRecipients("gnoland-1", A)
+        expect(readRecipients("gnoland-1", A)).toEqual({ recent: [], saved: [] })
         localStorage.setItem(`memba_os_recipients:gnoland-1:${B}`, JSON.stringify({ recent: ["<script>"], saved: [] }))
         expect(readRecipients("gnoland-1", B)).toEqual({ recent: [], saved: [] })
     })

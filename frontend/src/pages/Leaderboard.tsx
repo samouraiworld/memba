@@ -12,56 +12,59 @@
  * Route: /:network/leaderboard
  */
 
-import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { useEffect } from "react"
+import { Link, useSearchParams } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useAdena } from "../hooks/useAdena"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { api } from "../lib/api"
 import { create } from "@bufbuild/protobuf"
 import { GetLeaderboardRequestSchema } from "../gen/memba/v1/memba_pb"
-import type { LeaderboardEntry } from "../gen/memba/v1/memba_pb"
 import { RankBadge } from "../components/quests/RankBadge"
 import { RANK_TIERS } from "../lib/gnobuilders"
 import { trackPageVisit } from "../lib/quests"
+import { useWindowActive } from "../os/page/WindowActivity"
 import "./leaderboard.css"
+
+const PAGE_SIZE = 50
 
 export default function Leaderboard() {
     const { address } = useAdena()
     const nk = useNetworkKey()
-    const PAGE_SIZE = 50
-    const [entries, setEntries] = useState<LeaderboardEntry[]>([])
-    const [totalCount, setTotalCount] = useState(0)
-    const [page, setPage] = useState(0)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(false)
+    const windowActive = useWindowActive()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const requestedPage = Number(searchParams.get("page"))
+    const page = Number.isSafeInteger(requestedPage) && requestedPage >= 1 && requestedPage <= 10_000
+        ? requestedPage - 1 : 0
+    const setPage = (nextPage: number) => setSearchParams(previous => {
+        const next = new URLSearchParams(previous)
+        if (nextPage <= 0) next.delete("page")
+        else next.set("page", String(nextPage + 1))
+        return next
+    }, { replace: true })
 
     useEffect(() => {
         document.title = "Leaderboard — Memba"
         trackPageVisit("leaderboard")
     }, [])
 
-    useEffect(() => {
-        let cancelled = false
-        queueMicrotask(() => { if (!cancelled) setLoading(true) })
-        api.getLeaderboard(create(GetLeaderboardRequestSchema, {
+    const leaderboard = useQuery({
+        queryKey: ["quests", "leaderboard", page],
+        enabled: windowActive,
+        queryFn: ({ signal }) => api.getLeaderboard(create(GetLeaderboardRequestSchema, {
             limit: PAGE_SIZE,
             offset: page * PAGE_SIZE,
-        }))
-            .then(resp => {
-                if (!cancelled) {
-                    setEntries(resp.entries || [])
-                    setTotalCount(resp.totalCount)
-                }
-            })
-            .catch(() => { if (!cancelled) setError(true) })
-            .finally(() => { if (!cancelled) setLoading(false) })
-        return () => { cancelled = true }
-    }, [page])
+        }), { signal }),
+        staleTime: 30_000,
+        retry: false,
+    })
 
+    const entries = leaderboard.data?.entries ?? []
+    const totalCount = leaderboard.data?.totalCount ?? 0
     const totalPages = Math.ceil(totalCount / PAGE_SIZE)
     // Cached per address set; a failed or unregistered lookup is simply absent.
-    const usernames = useActorUsernames(entries.map(e => e.address))
+    const usernames = useActorUsernames(windowActive ? entries.map(e => e.address) : [])
 
     const truncate = (addr: string) =>
         addr.length > 16 ? `${addr.slice(0, 10)}...${addr.slice(-4)}` : addr
@@ -76,15 +79,21 @@ export default function Leaderboard() {
                 </Link>
             </div>
 
-            {loading ? (
+            {leaderboard.isPending ? (
                 <div className="k-leaderboard-loading">Loading leaderboard...</div>
-            ) : error ? (
+            ) : leaderboard.isError ? (
                 <div className="k-leaderboard-error">
-                    Unable to load leaderboard. The backend may be unavailable.
+                    <p>Unable to load leaderboard. The backend may be unavailable.</p>
+                    <button type="button" className="k-leaderboard-page-btn" onClick={() => void leaderboard.refetch()}>Try again</button>
                 </div>
             ) : entries.length === 0 ? (
                 <div className="k-leaderboard-empty">
-                    No quest completions yet. Be the first to complete a quest!
+                    {page > 0 ? (
+                        <>
+                            <p>No players on this page.</p>
+                            <button type="button" className="k-leaderboard-page-btn" onClick={() => setPage(0)}>Back to first page</button>
+                        </>
+                    ) : "No quest completions yet. Be the first to complete a quest!"}
                 </div>
             ) : (
                 <div className="k-leaderboard-table-wrap">
@@ -146,7 +155,7 @@ export default function Leaderboard() {
                                 <button
                                     className="k-leaderboard-page-btn"
                                     disabled={page === 0}
-                                    onClick={() => setPage(p => p - 1)}
+                                    onClick={() => setPage(page - 1)}
                                 >
                                     Previous
                                 </button>
@@ -156,7 +165,7 @@ export default function Leaderboard() {
                                 <button
                                     className="k-leaderboard-page-btn"
                                     disabled={page >= totalPages - 1}
-                                    onClick={() => setPage(p => p + 1)}
+                                    onClick={() => setPage(page + 1)}
                                 >
                                     Next
                                 </button>

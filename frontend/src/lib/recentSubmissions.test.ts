@@ -47,6 +47,7 @@ describe("recent submissions response", () => {
 
     it("constructs exact official mainnet transaction and block RPC links", () => {
         expect(mainnetSubmissionTxUrl(HASH)).toBe(`https://rpc.gno.land/tx?hash=0x${HEX}`)
+        expect(mainnetSubmissionTxUrl(HASH, "test13")).toBeNull()
         expect(mainnetSubmissionBlockUrl(20_000)).toBe("https://rpc.gno.land/block?height=20000")
         expect(mainnetSubmissionTxUrl("bad")).toBeNull()
         expect(mainnetSubmissionBlockUrl(-1)).toBeNull()

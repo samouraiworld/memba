@@ -5,7 +5,7 @@
  *
  * @module os/wizard/WizardFrame
  */
-import type { ReactNode } from "react"
+import { useLayoutEffect, useRef, type ReactNode } from "react"
 
 export function WizardFrame({ steps, step, children, preview, note, onBack, onNext, nextLabel, nextDisabled }: {
     steps: readonly string[]
@@ -18,6 +18,16 @@ export function WizardFrame({ steps, step, children, preview, note, onBack, onNe
     nextLabel: string
     nextDisabled?: boolean
 }) {
+    const form = useRef<HTMLDivElement>(null)
+    const lastStep = useRef(step)
+    useLayoutEffect(() => {
+        if (lastStep.current === step) return
+        lastStep.current = step
+        const heading = form.current?.querySelector<HTMLElement>("h2, h3")
+        if (!heading) return
+        heading.tabIndex = -1
+        heading.focus({ preventScroll: true })
+    }, [step])
     return (
         <div className="os-wiz">
             <ol className="os-wiz-steps" aria-label="Steps">
@@ -28,7 +38,7 @@ export function WizardFrame({ steps, step, children, preview, note, onBack, onNe
                 ))}
             </ol>
             <div className="os-wiz-main">
-                <div className="os-wiz-form">{children}</div>
+                <div ref={form} className="os-wiz-form">{children}</div>
                 {preview && <aside className="os-wiz-preview" aria-label="Preview">{preview}</aside>}
             </div>
             <div className="os-wiz-foot">
@@ -56,7 +66,7 @@ export function Field({ label, htmlFor, hint, error, count, children }: {
                 {count && <span className="os-sub">{count}</span>}
             </span>
             {children}
-            {error ? <span className="os-fe" role="alert">{error}</span> : hint ? <span className="os-fh">{hint}</span> : null}
+            {error ? <span id={htmlFor ? `${htmlFor}-detail` : undefined} className="os-fe" role="alert">{error}</span> : hint ? <span id={htmlFor ? `${htmlFor}-detail` : undefined} className="os-fh">{hint}</span> : null}
         </div>
     )
 }

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
@@ -21,6 +22,7 @@ interface MemberEntry {
 
 export function CreateMultisig() {
     const navigate = useNetworkNav()
+    const queryClient = useQueryClient()
     const { auth } = useOutletContext<LayoutContext>()
     const [name, setName] = useState("")
     const [threshold, setThreshold] = useState(2)
@@ -136,6 +138,7 @@ export function CreateMultisig() {
             })
             if (res.multisigAddress !== expectedAddress) throw new Error("Server returned a different wallet identity; stop and review")
             setRegisteredAddress(expectedAddress)
+            void queryClient.invalidateQueries({ queryKey: ["multisig"] })
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create multisig")
         } finally {
@@ -174,8 +177,9 @@ export function CreateMultisig() {
 
             {/* Name */}
             <div className="k-card">
-                <label className="k-label cms-label">Wallet Name</label>
+                <label htmlFor="cms-wallet-name" className="k-label cms-label">Wallet Name</label>
                 <input
+                    id="cms-wallet-name"
                     type="text"
                     value={name}
                     disabled={loading}
@@ -200,6 +204,7 @@ export function CreateMultisig() {
                             <div className="cms-member-inputs">
                                 <input
                                     type="text"
+                                    aria-label={`Member ${i + 1} address`}
                                     value={m.address}
                                     disabled={loading}
                                     onChange={(e) => updateAddress(i, e.target.value)}
@@ -208,6 +213,7 @@ export function CreateMultisig() {
                                     style={{ flex: 1 }}
                                 />
                                 <button
+                                    aria-label={`Fetch member ${i + 1} public key`}
                                     onClick={() => fetchPubkey(i, members)}
                                     disabled={loading || m.fetching || !m.address.trim()}
                                     className={`cms-fetch-btn${m.pubkeyValue && !m.manualPubkey ? " cms-fetch-btn--ok" : ""}`}
@@ -215,9 +221,9 @@ export function CreateMultisig() {
                                 >
                                     {m.fetching ? "..." : m.pubkeyValue && !m.manualPubkey ? "✓ Key" : "Fetch Key"}
                                 </button>
-                                <button disabled={loading} className="k-btn-secondary" onClick={() => setMembers(prev => prev.map(row => row.id === m.id ? { ...row, showManualInput: true, revision: row.revision + 1, fetching: false } : row))}>Paste public key</button>
+                                <button disabled={loading} className="k-btn-secondary" aria-label={`Paste member ${i + 1} public key`} onClick={() => setMembers(prev => prev.map(row => row.id === m.id ? { ...row, showManualInput: true, revision: row.revision + 1, fetching: false } : row))}>Paste public key</button>
                                 {members.length > 2 && (
-                                    <button disabled={loading} onClick={() => removeMember(i)} className="cms-remove-btn">
+                                    <button disabled={loading} onClick={() => removeMember(i)} className="cms-remove-btn" aria-label={`Remove member ${i + 1}`}>
                                         ×
                                     </button>
                                 )}

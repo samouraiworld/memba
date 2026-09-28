@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import type { OsSession } from "../shell/useOsSession"
 import { useSigner } from "./signerContext"
 import { SignerProvider } from "./SignerProvider"
@@ -19,6 +20,48 @@ const session = (status: "member" | "guest", address = "g1alpha") => ({
 }) as unknown as OsSession
 
 describe("OS signing session boundary", () => {
+    it("releases a durable governance receipt after chain verification succeeds", async () => {
+        const receipt = { chainId: "gnoland-1", realmPath: "gno.land/r/test/dao", caller: "g1alpha", operation: "vote:51" }
+        const verified = {
+            ...request,
+            receipt,
+            send: vi.fn(async () => ({ hash: "CONFIRMED_HASH" })),
+            verify: vi.fn(async () => true),
+        }
+        function ConfirmedReview() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(verified)}>Open confirmed review</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><ConfirmedReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open confirmed review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(verified.verify).toHaveBeenCalledOnce())
+        await waitFor(() => expect(readGovernanceReceipt(receipt)).toBeNull())
+    })
+
+    it("retains a confirmed proposal ID after verification so a reload remains locked", async () => {
+        const receipt = { chainId: "gnoland-1", realmPath: "gno.land/r/test/dao", caller: "g1alpha", operation: "proposal" }
+        const verified = {
+            ...request,
+            receipt,
+            retainConfirmedReceipt: true,
+            send: vi.fn(async () => ({ hash: "PROPOSAL_HASH" })),
+            verify: vi.fn(async () => {
+                saveGovernanceReceipt(receipt, { phase: "confirmed", hash: "PROPOSAL_HASH", label: "Proposal", proposalId: 2 })
+                return true
+            }),
+        }
+        function ConfirmedProposal() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(verified)}>Open proposal review</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><ConfirmedProposal /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open proposal review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(verified.verify).toHaveBeenCalledOnce())
+        await waitFor(() => expect(readGovernanceReceipt(receipt)).toMatchObject({ phase: "confirmed", proposalId: 2 }))
+    })
+
     it("contains transaction review focus and returns it to the invoking control", async () => {
         const { container } = render(<SignerProvider session={session("member")} toast={vi.fn()}>
             <div className="memba-os"><main className="os-desk"><OpenReview /></main></div>

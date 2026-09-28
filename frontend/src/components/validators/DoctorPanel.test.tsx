@@ -11,6 +11,7 @@ import { render, screen } from "@testing-library/react"
 import { DoctorPanel } from "./DoctorPanel"
 import type { ConsensusView } from "../../lib/chainHealthApi"
 import type { NetInfo } from "../../lib/validators"
+import type { MonitoringIncident } from "../../lib/gnomonitoring"
 
 const view = (over: Partial<ConsensusView> = {}): ConsensusView => ({
     height: 4440, round: 0, isStuck: false, valsetSize: 4, totalVotingPower: 240,
@@ -44,7 +45,7 @@ describe("DoctorPanel — consensus diagnostics", () => {
     })
 
     it("reports all clear for a healthy, advancing chain on round 0", () => {
-        render(<DoctorPanel netInfo={healthyNet} consensus={view()} localHeight={4440} />)
+        render(<DoctorPanel netInfo={healthyNet} consensus={view()} localHeight={4440} incidentsAvailable />)
         expect(screen.getByText(/no issues detected/i)).toBeInTheDocument()
     })
 
@@ -52,13 +53,65 @@ describe("DoctorPanel — consensus diagnostics", () => {
         // The old "precommits below BFT threshold" alert was gated on round age,
         // which the REST payload does not carry. Without that gate a mid-round
         // snapshot is almost always partial — so it must NOT come back as an alert.
-        render(<DoctorPanel netInfo={healthyNet} consensus={view({ precommitCount: 1 })} localHeight={4440} />)
+        render(<DoctorPanel netInfo={healthyNet} consensus={view({ precommitCount: 1 })} localHeight={4440} incidentsAvailable />)
         expect(screen.getByText(/no issues detected/i)).toBeInTheDocument()
         expect(screen.queryByText(/below BFT threshold/i)).not.toBeInTheDocument()
     })
 
     it("still renders peer diagnostics when consensus data is unavailable", () => {
         render(<DoctorPanel netInfo={healthyNet} consensus={null} localHeight={4440} />)
+        expect(screen.getByText(/unable to assess all network checks/i)).toBeInTheDocument()
+        expect(screen.queryByText("ALL OK")).not.toBeInTheDocument()
+    })
+
+    it("does not claim the network is healthy without peer or consensus telemetry", () => {
+        render(<DoctorPanel netInfo={null} consensus={null} localHeight={0} />)
+        expect(screen.getByText(/unable to assess all network checks/i)).toBeInTheDocument()
+        expect(screen.queryByText("ALL OK")).not.toBeInTheDocument()
+    })
+
+    it("does not treat peers without advertised RPC as unhealthy", () => {
+        const privateRpcNet = {
+            ...healthyNet,
+            peers: healthyNet.peers.map(peer => ({ ...peer, rpcAddr: "" })),
+        } as NetInfo
+        render(<DoctorPanel netInfo={privateRpcNet} consensus={view()} localHeight={4440} incidentsAvailable />)
         expect(screen.getByText(/no issues detected/i)).toBeInTheDocument()
+    })
+
+    it("suppresses an incident after a later resolved event for that validator", () => {
+        const time = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString()
+        const incidents: MonitoringIncident[] = [
+            { addr: "g1abc", moniker: "alpha", severity: "WARNING", timestamp: time(10), details: "Missed blocks" },
+            { addr: "g1abc", moniker: "alpha", severity: "RESOLVED", timestamp: time(5), details: "Recovered" },
+        ]
+        render(<DoctorPanel netInfo={healthyNet} consensus={view()} localHeight={4440} incidents={incidents} incidentsAvailable />)
+        expect(screen.queryByText(/WARNING: alpha/)).not.toBeInTheDocument()
+        expect(screen.getByText(/no issues detected/i)).toBeInTheDocument()
+    })
+
+    it("shows the latest active incident for a validator", () => {
+        const time = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString()
+        const incidents: MonitoringIncident[] = [
+            { addr: "g1abc", moniker: "alpha", severity: "RESOLVED", timestamp: time(10), details: "Recovered" },
+            { addr: "g1abc", moniker: "alpha", severity: "CRITICAL", timestamp: time(5), details: "Stopped" },
+        ]
+        render(<DoctorPanel netInfo={healthyNet} consensus={view()} localHeight={4440} incidents={incidents} incidentsAvailable />)
+        expect(screen.getByText(/CRITICAL: alpha — Stopped/)).toBeInTheDocument()
+    })
+
+    it("does not present an old incident as a current alert", () => {
+        const incidents: MonitoringIncident[] = [
+            { addr: "g1abc", moniker: "alpha", severity: "CRITICAL", timestamp: new Date(Date.now() - 48 * 60 * 60_000).toISOString(), details: "Stopped" },
+        ]
+        render(<DoctorPanel netInfo={healthyNet} consensus={view()} localHeight={4440} incidents={incidents} incidentsAvailable />)
+        expect(screen.queryByText(/CRITICAL: alpha/)).not.toBeInTheDocument()
+        expect(screen.getByText(/no issues detected/i)).toBeInTheDocument()
+    })
+
+    it("withholds all clear when incidents could not be fetched", () => {
+        render(<DoctorPanel netInfo={healthyNet} consensus={view()} localHeight={4440} />)
+        expect(screen.queryByText("ALL OK")).not.toBeInTheDocument()
+        expect(screen.getByText(/incident data is unavailable/i)).toBeInTheDocument()
     })
 })

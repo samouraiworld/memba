@@ -59,19 +59,16 @@ export function parseGoString(out: string): string {
 /**
  * Quest IDs already recorded on-chain for address, read from the realm's
  * authoritative GetRecordedCompletions. Used to mark vouchers as ✓ attested vs
- * still-claimable. Returns an empty set on any read failure (degrade, not block).
+ * still-claimable. A failed read must reject: treating it as an empty record
+ * would offer an already-used voucher again and could cost the user gas.
  */
 export async function fetchRecordedQuestIds(realmPath: string, address: string): Promise<Set<string>> {
-    if (!realmPath || !address) return new Set()
-    try {
-        const out = await queryEval(GNO_RPC_URL, realmPath, `GetRecordedCompletions("${sanitize(address)}")`)
-        if (!out) return new Set()
-        const csv = parseGoString(out)
-        if (!csv) return new Set()
-        return new Set(csv.split(",").map(s => s.trim()).filter(Boolean))
-    } catch {
-        return new Set()
-    }
+    if (!realmPath || !address) throw new Error("Attestation record lookup requires a realm and address")
+    const out = await queryEval(GNO_RPC_URL, realmPath, `GetRecordedCompletions("${sanitize(address)}")`)
+    if (out == null || out === "") throw new Error("Attestation record status unavailable")
+    const csv = parseGoString(out)
+    if (!csv) return new Set()
+    return new Set(csv.split(",").map(s => s.trim()).filter(Boolean))
 }
 
 /**

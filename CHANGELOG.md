@@ -28,6 +28,43 @@ Full changelogs are split by version range for easier navigation:
 
 - Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
 
+### Memba OS: classic bundle guard
+
+- Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: News production QA (2026-09-28)
+
+- Give each published Blog article a crawler-visible title, description, canonical URL and structured data on classic and OS routes; keep the OS sitemap and robots file on the OS host.
+- Make Blog and Changelogs reachable from each other, restore keyboard focus and page metadata through OS window changes, improve narrow-screen filters and contrast, and link to the full changelog.
+- Update dated testnet launch guidance in six articles and show revision dates while preserving original publication dates. Bound and verify optional on-chain Blog reads, and ship a compact changelog digest instead of the full source file.
+
+### Memba OS: Explorer and Directory production QA (2026-09-28)
+
+- Verify the chain served by every Explorer RPC fallback and Directory token-factory read, keep verified token results separate from best-effort caches, bound source reads, and disclose partial listings and file caps.
+- Keep search, detail URLs, network switching and contributor links consistent; make mobile Directory cards, DAO search and source drawers readable.
+- Distinguish empty results from RPC outages, stale metrics and unverified editorial paths, with retry and accessible controls.
+
+### Memba OS: Quests production QA (2026-09-28)
+
+- Keep Quest Hub filters through detail visits, contain verification state to the current wallet and quest, refresh claim status, and make the leaderboard and reviewer queue usable in narrow windows.
+- Restrict verified rewards to claims the server can substantiate, including deployment proof type and historical XP provenance; block approval of pending retired claims and keep specialized deployments and faucet claims visible as coming soon.
+- Make candidature prompts use verified XP with clear loading, unavailable, and retry states; label local XP after a failed server refresh, guard attestation reads against RPC failure, and keep inactive OS windows from polling.
+
+### Memba OS: Validators production QA (2026-09-28)
+
+- Keep consensus, signing and operator reads on one verified chain and RPC snapshot; bound pagination and detail requests, scope caches, and cancel work when the window closes.
+- Pause Hacker polling in parked windows, distinguish stale telemetry from a live healthy sample, and correct peer and incident claims.
+- Preserve roster filters through profile visits, explain empty results, improve candidate navigation, copy controls and narrow-window layouts, and avoid unsafe or private RPC links.
+
+### Memba OS: Arcade production QA (2026-09-28)
+
+- Keep Block Party input inside its active game window, preserve paused runs through OS minimising, and make all three games usable in narrow windows.
+- Require finished server-replayed runs before awarding Daily scores or streaks; make Arcade attestation retries durable and distinguish an exact on-chain result from a superseded run.
+- Clarify which game scores are local, server verified, or on-chain, and improve game focus, sharing feedback, and wallet sign-in recovery.
+
+### Token Launchpad: creation event identity validation (2026-09-28)
+
+- Validate raw Launchpad token creation events before future indexing, including the emitting realm, canonical token and registry identities, creator checksum and duplicate attributes. Parse successful `/block_results` deliveries with exact event positions, while withholding any public record or inferred launch time.
+
 ### Memba OS: native Settings
 
 - Give Settings a native OS window with desktop appearance, wallpaper and icon size controls, honest notification availability, read-only network details, local gas defaults, account status and About access. Reset only disposable local UI data after confirmation, preserving unsent drafts, saved recipients and send locks.
@@ -37,6 +74,32 @@ Full changelogs are split by version range for easier navigation:
 - Partition saved windows and signing state by member and network, preserve layouts through wallet identity changes and lock/unlock, retain background page state and navigation, and prevent stale layouts and high windows from covering dialogs.
 - Clear account-scoped window layouts when Settings resets local UI data, while retaining drafts and send locks.
 - Record the cross-perspective production QA findings and feature-by-feature audit queue.
+
+### Memba OS: Settings production QA (2026-09-27)
+
+- Keep stored gas defaults within supported call and deploy limits, with clear validation in OS and Classic Settings.
+- Make reset clear the live layout and chain-scoped name caches, contain keyboard focus, and keep its actions reachable on small screens.
+- Correct Settings section navigation, cross-tab gas updates, network switching and feature availability copy.
+
+### Memba OS: Wallet and Send production QA (2026-09-27)
+
+- Keep balances tied to the active wallet and mark unavailable RPC results as unknown, so Send cannot use stale funds.
+- Hold each transfer's recovery record across tabs until its transaction is confirmed, and show a direct status check for submitted or uncertain outcomes.
+- Recheck the network fee before signing, reject ambiguous amounts, clarify recipient storage and copy actions, and improve form accessibility and mobile wallet guidance.
+
+### Memba OS: DAOs production QA (2026-09-28)
+
+- Read version-2 votes across pages and release verified vote locks; keep confirmed proposal receipts until the member starts another proposal, and keep proposal availability current as deadlines pass.
+- Retain proposal recovery when a wallet returns only a hash, instead of identifying a different same-title proposal as this transaction's result.
+- Clarify DAO capabilities and proposal errors, avoid unreliable list tallies, and constrain chain-supplied profile links.
+- Make DAO tabs, wizard choices and member editing usable by keyboard and in narrow windows; offer draft discard and accurate storage feedback.
+
+### Memba OS: Multisig production QA (2026-09-28)
+
+- Distinguish verified native transactions from unconfirmed or legacy hashes, and show submitted signatures separately from verified ones. Keep legacy and unreleased native actions read only, including direct proposal URLs and home signing actions.
+- Reject ambiguous GNOT and nonpositive token amounts, contain signing review focus, and block cross-network or unknown-message signing.
+- Keep completed transaction details reachable, show partial reads with retry, refresh account data after changes, and fit narrow account and creation windows.
+- Omit large signature and sign-body payloads from transaction lists while retaining them in the full detail read.
 
 ### Memba OS: bounded guest access (2026-09-27)
 
@@ -56,6 +119,9 @@ Full changelogs are split by version range for easier navigation:
 - Keep drafts in sync across tabs and stop stale saves from erasing source; make Reset restore a matching realm path and package. Improve editor contrast and phone scrolling, keep the command prompt above the dock, and keep resized windows in view.
 - Reconcile a draft when the editor mounts so a change from another tab cannot be missed before its storage listener starts.
 - Verify the chain identity of each RPC endpoint before Terminal reads it, including fallbacks. Give missing paths and connection failures concise messages, offer a working example, command recall, and a direct deployment lesson from Build.
+### Memba OS Meet (2026-09-27)
+
+- Add a guest-accessible Meet window for starting and joining Visio calls, keep an active call mounted while navigating, and keep invitation codes out of Memba URLs and telemetry.
 
 ### App updates: reload when ready (2026-09-26)
 

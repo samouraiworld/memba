@@ -25,22 +25,25 @@ const POLL_INTERVAL = 30_000
 export function ChainMetricsBanner() {
     const [metrics, setMetrics] = useState<ChainMetrics | null>(null)
     const [error, setError] = useState(false)
-    const isVisible = useRef(true)
-
-    useEffect(() => {
-        const handleVisibility = () => {
-            isVisible.current = document.visibilityState === "visible"
-        }
-        document.addEventListener("visibilitychange", handleVisibility)
-        return () => document.removeEventListener("visibilitychange", handleVisibility)
-    }, [])
+    const [lastChecked, setLastChecked] = useState<Date | null>(null)
+    const retryRef = useRef<(() => void) | null>(null)
 
     useEffect(() => {
         let mounted = true
-        const fetchMetrics = async () => {
-            if (!isVisible.current) return
+        let inFlight = false
+        let refreshOnSettle = false
+        let controller: AbortController | null = null
+        const fetchMetrics = async (queueIfBusy = false) => {
+            if (!mounted || document.visibilityState !== "visible") return
+            if (inFlight) {
+                if (queueIfBusy) refreshOnSettle = true
+                return
+            }
+            inFlight = true
+            const requestController = new AbortController()
+            controller = requestController
             try {
-                const stats = await getNetworkStats(GNO_RPC_URL)
+                const stats = await getNetworkStats(GNO_RPC_URL, undefined, requestController.signal)
                 if (!mounted) return
                 setMetrics({
                     blockHeight: stats.blockHeight,
@@ -48,21 +51,38 @@ export function ChainMetricsBanner() {
                     avgBlockTime: stats.avgBlockTime,
                     chainId: stats.chainId || GNO_CHAIN_ID,
                 })
+                setLastChecked(new Date())
                 setError(false)
             } catch {
-                if (mounted) setError(true)
+                if (mounted && !requestController.signal.aborted) setError(true)
+            } finally {
+                inFlight = false
+                controller = null
+                if (refreshOnSettle) {
+                    refreshOnSettle = false
+                    void fetchMetrics()
+                }
             }
         }
 
-        fetchMetrics()
-        const interval = setInterval(fetchMetrics, POLL_INTERVAL)
-        return () => { mounted = false; clearInterval(interval) }
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") void fetchMetrics(true)
+        }
+        retryRef.current = () => { void fetchMetrics(true) }
+        document.addEventListener("visibilitychange", handleVisibility)
+        void fetchMetrics()
+        const interval = setInterval(() => { void fetchMetrics() }, POLL_INTERVAL)
+        return () => {
+            mounted = false
+            controller?.abort()
+            retryRef.current = null
+            clearInterval(interval)
+            document.removeEventListener("visibilitychange", handleVisibility)
+        }
     }, [])
 
-    if (error && !metrics) return null
-
     return (
-        <div className="chain-metrics-banner">
+        <div className="chain-metrics-banner" aria-label="Chain metrics">
             {metrics ? (
                 <>
                     <div className="chain-metric">
@@ -84,10 +104,16 @@ export function ChainMetricsBanner() {
                         <span className="chain-metric__label">Chain</span>
                         <span className="chain-metric__value">{metrics.chainId}</span>
                     </div>
-                    <span className="chain-metric__live" title="Live — updates every 30s" />
+                    {!error && <span className="chain-metric__live" title="Latest check succeeded — refreshes every 30s" />}
                 </>
-            ) : (
+            ) : !error ? (
                 <div className="k-shimmer" style={{ height: 16, width: 200, borderRadius: 4 }} />
+            ) : null}
+            {error && (
+                <span className="chain-metric__label" role="status">
+                    {lastChecked ? `Stale · last checked ${lastChecked.toISOString().slice(11, 16)} UTC. Refresh failed.` : "Chain metrics unavailable."}
+                    {" "}<button type="button" className="dir-gnoweb-link" onClick={() => retryRef.current?.()}>Retry</button>
+                </span>
             )}
         </div>
     )

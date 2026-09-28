@@ -93,7 +93,7 @@ test.describe('Memba OS on a phone', () => {
         await expect(home.getByRole('button', { name: 'Send' })).toBeVisible()
         await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Wallet' }).click()
         await expect.poll(() => path(page)).toBe('/os/wallet')
-        await expect(sheet(page, 'Wallet').getByRole('button', { name: 'Receive' })).toBeVisible()
+        await expect(sheet(page, 'Wallet').getByRole('button', { name: 'Copy receive address' })).toBeVisible()
         await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Search' }).click()
         const search = page.getByRole('dialog', { name: 'Search and commands' })
         await search.getByRole('combobox', { name: 'Search' }).fill('validators')

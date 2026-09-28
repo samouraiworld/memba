@@ -14,6 +14,8 @@ interface QuestCardProps {
     quest: GnoQuest
     completed: boolean
     available: boolean
+    /** Canonical Hub filters to restore when the detail breadcrumb is followed. */
+    returnQuery?: string
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -23,14 +25,14 @@ const DIFFICULTY_COLORS: Record<string, string> = {
     expert: "var(--color-k-danger-text)",
 }
 
-export function QuestCard({ quest, completed, available }: QuestCardProps) {
+export function QuestCard({ quest, completed, available, returnQuery }: QuestCardProps) {
     const nk = useNetworkKey()
     const onNetwork = isQuestAvailableOnNetwork(quest.id, nk)
     const statusClass = completed ? "completed" : available && onNetwork ? "available" : "locked"
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "var(--color-k-muted)"
 
     return (
-        <Link to={`/${nk}/quests/${quest.id}`} className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`}>
+        <Link to={`/${nk}/quests/${quest.id}${returnQuery ? `?${new URLSearchParams({ from: returnQuery })}` : ""}`} className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`}>
             <div className="k-quest-card-header">
                 <span className="k-quest-card-icon">{quest.icon}</span>
                 <span className="k-quest-card-xp">+{quest.xp} XP</span>

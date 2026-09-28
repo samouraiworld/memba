@@ -285,6 +285,7 @@ describe("BlockPartyGame", () => {
       expect(intro).toHaveTextContent(/one ranked run per day/i);
       fireEvent.click(screen.getByRole("button", { name: /got it/i }));
       expect(screen.queryByRole("region", { name: /how to play/i })).toBeNull();
+      expect(screen.getByRole("grid", { name: /block party signal board/i })).toHaveFocus();
       expect(localStorage.getItem("bp:intro:v1")).toBe("1");
       first.unmount();
 

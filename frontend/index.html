@@ -32,7 +32,7 @@
     object-src 'none';
     base-uri 'self';
     connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.samourai.live https://*.sentry.io https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land https://*.gnoland.network wss://*.gnoland.network https://*.onbloc.xyz wss://*.onbloc.xyz https://clerk.samourai.app https://accounts.samourai.app https://plausible.io;
-    frame-src https://meet.jit.si https://8x8.vc https://accounts.samourai.app https://www.youtube-nocookie.com;
+    frame-src https://meet.jit.si https://8x8.vc https://accounts.samourai.app https://www.youtube-nocookie.com https://visio.samourai.app;
   " />
 
   <!-- Open Graph / Facebook -->
@@ -90,11 +90,17 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
   <!-- Privacy-friendly analytics by Plausible -->
-  <script async src="https://plausible.io/js/pa-MoHERbBsU4W0bR6B_n184.js"></script>
   <script>
     window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-    plausible.init()
+    // Meeting codes grant access. Strip them from pageviews, referrers and event properties.
+    function redactMeetAnalytics(value) {
+      if (typeof value === 'string') return value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[redacted]')
+      if (value && typeof value === 'object') Object.keys(value).forEach(function(key) { value[key] = redactMeetAnalytics(value[key]) })
+      return value
+    }
+    plausible.init({ transformRequest: redactMeetAnalytics })
   </script>
+  <script async src="https://plausible.io/js/pa-MoHERbBsU4W0bR6B_n184.js"></script>
 </head>
 
 <body>

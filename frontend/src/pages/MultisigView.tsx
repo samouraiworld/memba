@@ -1,27 +1,31 @@
 import { useState } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { api } from "../lib/api"
+import { isNativeMultisig } from "../lib/nativeMultisig"
 import { useBalance } from "../hooks/useBalance"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { StatusBadge } from "../components/ui/StatusBadge"
-import { getTxStatus } from "../components/ui/txStatus"
+import { getMultisigStatus } from "../components/ui/txStatus"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
-import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import type { LayoutContext } from "../types/layout"
 import "./multisigview.css"
 
 // Tab keys in display order — shared by the tablist markup and the keyboard hook.
 const TX_TAB_KEYS = ["pending", "executed"] as const
+const TX_PAGE_LIMIT = 50
 
 export function MultisigView() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNetworkNav()
+    const queryClient = useQueryClient()
     const { auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
@@ -41,39 +45,32 @@ export function MultisigView() {
 
     const { balance } = useBalance(address || null)
 
-    // Server state lives in React Query — keyed by multisig address AND auth
-    // token, so switching wallets refetches instead of serving the previous
-    // wallet's view from cache. Disabled until authenticated, which keeps the
-    // skeleton up exactly like the old early-return did.
-    const msQuery = useQuery({
-        queryKey: ["multisig", "view", address ?? "", token?.userAddress ?? ""],
-        enabled: !!token && !!address && auth.isAuthenticated,
-        queryFn: async () => {
-            const [infoRes, pendingRes, executedRes] = await Promise.all([
-                api.multisigInfo({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID }),
-                api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 }),
-                api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: 50 }),
-            ])
-            return {
-                multisig: infoRes.multisig ?? null,
-                pendingTxs: pendingRes.transactions,
-                executedTxs: executedRes.transactions,
-            }
-        },
+    // Read identity and the two lists independently, so a failed history
+    // request does not hide account details or the other transaction tab.
+    const enabled = !!token && !!address && auth.isAuthenticated
+    const key = [GNO_CHAIN_ID, address ?? "", token?.userAddress ?? ""]
+    const infoQuery = useQuery({
+        queryKey: ["multisig", "view-info", ...key],
+        enabled,
+        queryFn: async () => (await api.multisigInfo({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID })).multisig ?? null,
     })
-    const multisig = msQuery.data?.multisig ?? null
-    const pendingTxs = msQuery.data?.pendingTxs ?? []
-    const executedTxs = msQuery.data?.executedTxs ?? []
-    const loading = msQuery.isPending
+    const pendingQuery = useQuery({
+        queryKey: ["multisig", "view-pending", ...key],
+        enabled,
+        queryFn: async () => (await api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: TX_PAGE_LIMIT })).transactions,
+    })
+    const executedQuery = useQuery({
+        queryKey: ["multisig", "view-executed", ...key],
+        enabled,
+        queryFn: async () => (await api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: TX_PAGE_LIMIT })).transactions,
+    })
+    const multisig = infoQuery.data ?? null
+    const pendingTxs = pendingQuery.data ?? []
+    const executedTxs = executedQuery.data ?? []
+    const nativeEnabled = !!multisig && ENABLE_NATIVE_GNO_MULTISIG && isNativeMultisig(multisig.pubkeyJson)
 
-    // Rename errors are UI state and stay local; the fetch error comes from
-    // the query, with a dismissal flag so the toast doesn't resurrect itself.
+    // Rename errors stay local; failed reads appear beside the affected data.
     const [actionError, setActionError] = useState<string | null>(null)
-    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
-    const fetchError = msQuery.isError && !fetchErrorDismissed
-        ? (msQuery.error instanceof Error ? msQuery.error.message : "Failed to load multisig")
-        : null
-    const error = actionError ?? fetchError
 
     const formatDate = (dateStr: string) => {
         try {
@@ -94,7 +91,7 @@ export function MultisigView() {
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
             setEditing(false)
-            void msQuery.refetch()
+            void queryClient.invalidateQueries({ queryKey: ["multisig"] })
         } catch (err) {
             setActionError(err instanceof Error ? err.message : "Rename failed")
             setEditing(false)
@@ -114,13 +111,23 @@ export function MultisigView() {
     }
 
     // ── Loading ─────────────────────────────────────────
-    if (loading) {
+    if (infoQuery.isPending) {
         return (
             <div className="animate-fade-in k-msview">
                 <button className="k-msview__back" onClick={() => navigate("/")}>← Back to Dashboard</button>
                 <SkeletonCard /><SkeletonCard /><SkeletonCard />
             </div>
         )
+    }
+
+    if (!multisig) {
+        return <div className="animate-fade-in k-msview">
+            <button className="k-msview__back" onClick={() => navigate("/")}>← Back to Dashboard</button>
+            <div className="k-card k-msview__empty" role="alert">
+                <p>{infoQuery.isError ? "Could not load this multisig." : "This multisig was not found for your account."}</p>
+                {infoQuery.isError && <button type="button" className="k-btn-secondary" onClick={() => void infoQuery.refetch()}>Retry account details</button>}
+            </div>
+        </div>
     }
 
     return (
@@ -134,6 +141,7 @@ export function MultisigView() {
                             <div className="k-msview__rename">
                                 <input
                                     className="k-msview__rename-input"
+                                    aria-label="Multisig name"
                                     autoFocus
                                     value={editName}
                                     onChange={(e) => setEditName(e.target.value)}
@@ -144,14 +152,10 @@ export function MultisigView() {
                                 <button className="k-msview__rename-cancel" onClick={() => setEditing(false)}>Cancel</button>
                             </div>
                         ) : (
-                            <h2
-                                className="k-msview__title"
-                                onClick={() => { setEditName(multisig?.name || ""); setEditing(true) }}
-                                title="Click to rename"
-                            >
-                                {multisig?.name || "Multisig Wallet"}
-                                <span className="k-msview__title-edit">✏️</span>
-                            </h2>
+                            <div className="k-msview__title-row">
+                                <h2 className="k-msview__title">{revealInvisibleFormatting(multisig.name || "Multisig Wallet")}</h2>
+                                <button type="button" className="k-msview__title-edit" aria-label="Rename multisig" onClick={() => { setEditName(multisig.name || ""); setEditing(true) }}>Rename</button>
+                            </div>
                         )}
                         <div style={{ marginTop: 4 }}>
                             <CopyableAddress address={address || ""} fontSize={12} />
@@ -175,7 +179,7 @@ export function MultisigView() {
                         </button>
                     </div>
                     <div className="k-msview__actions">
-                        <button className="k-btn-primary" onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
+                        <button className="k-btn-primary" disabled={!nativeEnabled} onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
                             Propose Transaction
                         </button>
                         {multisig && (
@@ -208,11 +212,14 @@ export function MultisigView() {
                         )}
                     </div>
                 </div>
+                {!nativeEnabled && <p className="k-msview__availability" role="status">{isNativeMultisig(multisig.pubkeyJson) ? "Native signing and broadcasting are on hold pending release approval." : "Legacy multisig records are read-only history. They cannot be executed on Gno from Memba."}</p>}
             </div>
 
             {/* ── Action Required Banner ───────────────────── */}
+            {infoQuery.isError && <div className="k-card k-msview__empty" role="alert"><p>Could not refresh account details. Showing the last loaded details.</p><button type="button" className="k-btn-secondary" onClick={() => void infoQuery.refetch()}>Retry account details</button></div>}
             {(() => {
-                const userAddr = (auth as { address?: string }).address || ""
+                if (!nativeEnabled || !pendingQuery.isSuccess) return null
+                const userAddr = token?.userAddress || (auth as { address?: string }).address || ""
                 const unsignedCount = pendingTxs.filter(tx =>
                     !tx.signatures.some(s => s.userAddress === userAddr)
                 ).length
@@ -244,7 +251,7 @@ export function MultisigView() {
                 </div>
                 <div className="k-card">
                     <p className="k-label">Pending TX</p>
-                    <p className="k-value">{pendingTxs.length}</p>
+                    <p className="k-value">{pendingQuery.isError ? "—" : pendingQuery.isPending ? "Loading…" : pendingTxs.length >= TX_PAGE_LIMIT ? `${TX_PAGE_LIMIT}+` : pendingTxs.length}</p>
                 </div>
             </div>
 
@@ -279,20 +286,26 @@ export function MultisigView() {
                         className={`k-msview__tab ${txTab === "pending" ? "k-msview__tab--active" : ""}`}
                         onClick={() => setTxTab("pending")}
                     >
-                        Pending ({pendingTxs.length})
+                        Pending ({pendingQuery.isError ? "unavailable" : pendingQuery.isPending ? "…" : pendingTxs.length >= TX_PAGE_LIMIT ? `${TX_PAGE_LIMIT}+` : pendingTxs.length})
                     </button>
                     <button
                         {...tabProps("executed")}
                         className={`k-msview__tab ${txTab === "executed" ? "k-msview__tab--active" : ""}`}
                         onClick={() => setTxTab("executed")}
                     >
-                        Completed ({executedTxs.length})
+                        Completed ({executedQuery.isError ? "unavailable" : executedQuery.isPending ? "…" : executedTxs.length >= TX_PAGE_LIMIT ? `${TX_PAGE_LIMIT}+` : executedTxs.length})
                     </button>
                 </div>
-                {renderTxList(txTab === "pending" ? pendingTxs : executedTxs, txTab === "pending" ? "No pending transactions" : "No completed transactions")}
+                {(() => {
+                    const query = txTab === "pending" ? pendingQuery : executedQuery
+                    if (query.isPending) return <p className="k-msview__history-note" role="status">Loading {txTab} transactions…</p>
+                    if (query.isError && !query.data) return <div className="k-card k-msview__empty" role="alert"><p>Could not load {txTab} transactions.</p><button type="button" className="k-btn-secondary" onClick={() => void query.refetch()}>Retry {txTab} transactions</button></div>
+                    const txs = query.data ?? []
+                    return <>{query.isError && <p className="k-msview__history-note" role="alert">Could not refresh {txTab} transactions. Showing the last loaded list. <button type="button" className="k-btn-secondary" onClick={() => void query.refetch()}>Retry</button></p>}{txs.length >= TX_PAGE_LIMIT && <p className="k-msview__history-note" role="status">Showing the newest {TX_PAGE_LIMIT} {txTab} transactions. Older transactions may be hidden.</p>}{renderTxList(txs, txTab === "pending" ? "No pending transactions" : "No completed transactions")}</>
+                })()}
             </div>
 
-            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} />
+            <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
         </div>
     )
 
@@ -312,17 +325,18 @@ export function MultisigView() {
                     <span>Date</span>
                 </div>
                 {txs.map((tx) => {
-                    const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
+                    const status = getMultisigStatus(tx)
                     return (
-                        <div
+                        <button type="button"
                             key={tx.id}
                             className="k-activity-row k-msview__tx-row"
                             onClick={() => navigate(`/tx/${tx.id}?ms=${address}&chain=${GNO_CHAIN_ID}`)}
+                            aria-label={`Open transaction #${tx.id}, ${tx.type || "send"}`}
                         >
                             <span className="k-msview__tx-type">{tx.type || "send"}</span>
                             <span><StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} /></span>
                             <span className="k-msview__tx-date">{formatDate(tx.createdAt)}</span>
-                        </div>
+                        </button>
                     )
                 })}
             </div>

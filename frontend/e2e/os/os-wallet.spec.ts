@@ -7,11 +7,14 @@ import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 
 const ALICE = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
 const BOB = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
+const HASH = 'a'.repeat(64)
 
 async function offline(page: Page) {
     await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillOnchainReads(page, ({ method, path }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
+        if (method === 'tx') return { hash: HASH, height: '435604', tx_result: { ResponseBase: { Error: null } } }
+        if (method === 'abci_query' && path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
         // 250 GNOT
         if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"250000000ugnot"'
         return null
@@ -19,8 +22,8 @@ async function offline(page: Page) {
     await page.setViewportSize({ width: 1280, height: 860 })
 }
 
-async function member(page: Page, mode: 'ok' | 'timeout' = 'ok') {
-    await page.addInitScript(({ address, mode }) => {
+async function member(page: Page, mode: 'ok' | 'timeout' | 'hold-timeout' | 'empty-hash' = 'ok') {
+    await page.addInitScript(({ address, mode, hash }) => {
         localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
@@ -32,11 +35,19 @@ async function member(page: Page, mode: 'ok' | 'timeout' = 'ok') {
             On: () => true,
             DoContract: async (tx: unknown) => {
                 calls.push(tx)
-                if (mode === 'timeout') throw new Error('network timeout')
-                return { status: 'success', data: { hash: 'E2ESENDHASH' } }
+                if (mode === 'hold-timeout') {
+                    await new Promise<void>((resolve) => {
+                        ;(window as unknown as { __releaseAdena?: () => void }).__releaseAdena = resolve
+                    })
+                    throw new Error('network timeout')
+                }
+                if (mode === 'timeout') {
+                    throw new Error('network timeout')
+                }
+                return { status: 'success', data: { hash: mode === 'empty-hash' ? '' : hash } }
             },
         } })
-    }, { address: ALICE, mode })
+    }, { address: ALICE, mode, hash: HASH })
 }
 
 type AdenaCall = { messages: { type: string; value: Record<string, unknown> }[]; memo: string; gasWanted: number }
@@ -85,7 +96,7 @@ test.describe('Memba OS wallet', () => {
         expect(call.memo).toBe('thanks')
         await expect(win(page, 'Send')).toHaveCount(0)
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Sent · Send 1.5 GNOT')).toBeVisible()
+        await expect(page.getByText('Confirmed · Send 1.5 GNOT')).toBeVisible()
     })
 
     test('an @name is looked up in the user registry, shown with its address, signed to that address, and checked again before Adena', async ({ page }) => {
@@ -94,6 +105,8 @@ test.describe('Memba OS wallet', () => {
         const record = (addr: string, name: string) => `(&(struct{("${addr}" .uverse.address),("${name}" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)\n(true bool)`
         await fulfillOnchainReads(page, ({ method, path, arg }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (method === 'tx') return { hash: HASH, height: '435604', tx_result: { ResponseBase: { Error: null } } }
+            if (method === 'abci_query' && path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
             if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"250000000ugnot"'
             if (method === 'abci_query' && path === 'vm/qeval' && arg.includes('ResolveName("bob")')) return record(owner, 'bob')
             if (method === 'abci_query' && path === 'vm/qeval' && arg.includes('ResolveName(')) return '(nil *gno.land/r/sys/users.UserData)\n(false bool)'
@@ -170,5 +183,79 @@ test.describe('Memba OS wallet', () => {
         await again.getByLabel('I checked the previous transaction.').check()
         await again.getByRole('button', { name: 'Send again' }).click()
         await expect(again.getByLabel('To', { exact: true })).toBeVisible()
+    })
+
+    test('a success-shaped wallet response without a transaction hash keeps Send locked', async ({ page }) => {
+        await member(page, 'empty-hash')
+        await page.goto(`${OS_ON}/os/wallet/send`)
+        const send = win(page, 'Send')
+        await send.getByLabel('To', { exact: true }).fill(BOB)
+        await send.getByLabel('Amount', { exact: true }).fill('1')
+        await send.getByRole('button', { name: 'Review…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Send' })
+        await review.getByLabel(/I checked the full address/).check()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(send.getByText('Outcome unknown')).toBeVisible()
+        await page.reload()
+        await expect(win(page, 'Send').getByRole('button', { name: 'Send again' })).toBeDisabled()
+    })
+
+    test('a confirmed send recovered after reload retains its selected saved recipient', async ({ page }) => {
+        await member(page)
+        await page.addInitScript(({ address, to, hash }) => {
+            localStorage.setItem(`memba_os_send_lock:gnoland-1:${address}`, JSON.stringify({
+                id: 'recovered-attempt', label: 'Send 1 GNOT', hash, at: Date.now(), to, save: true,
+            }))
+        }, { address: ALICE, to: BOB, hash: HASH })
+        await page.goto(`${OS_ON}/os/wallet/send`)
+        const send = win(page, 'Send')
+        await expect(send.getByText('Waiting for confirmation')).toBeVisible()
+        await send.getByRole('button', { name: 'Check status' }).click()
+        await expect(send.getByLabel('To', { exact: true })).toBeVisible()
+        const records = await page.evaluate((address) => JSON.parse(localStorage.getItem(`memba_os_recipients:gnoland-1:${address}`) ?? 'null'), ALICE)
+        expect(records).toEqual({ recent: [BOB], saved: [BOB] })
+    })
+
+    test('a second tab cannot overwrite or clear an unresolved send from the same wallet', async ({ page, context }) => {
+        const second = await context.newPage()
+        await offline(second)
+        await member(page, 'hold-timeout')
+        await member(second)
+        await page.goto(`${OS_ON}/os/wallet/send`)
+        await second.goto(`${OS_ON}/os/wallet/send`)
+        for (const p of [page, second]) {
+            const send = win(p, 'Send')
+            await send.getByLabel('To', { exact: true }).fill(BOB)
+            await send.getByLabel('Amount', { exact: true }).fill('1')
+            await send.getByRole('button', { name: 'Review…' }).click()
+            await p.getByRole('dialog', { name: 'Review · Send' }).getByLabel(/I checked the full address/).check()
+        }
+        const review = second.getByRole('dialog', { name: 'Review · Send' })
+        const firstSign = page.getByRole('dialog', { name: 'Review · Send' }).getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect.poll(async () => (await calls(page)).length).toBe(1)
+        const secondSign = review.getByRole('button', { name: 'Sign in Adena' }).click()
+        expect(await calls(second)).toHaveLength(0)
+        await page.evaluate(() => (window as unknown as { __releaseAdena?: () => void }).__releaseAdena?.())
+        await secondSign
+        await firstSign
+        await expect(win(page, 'Send').getByText('Outcome unknown')).toBeVisible()
+        await expect(review.getByRole('alert')).toContainText('Another send may still be pending')
+        expect(await calls(second)).toHaveLength(0)
+        await second.reload()
+        await expect(win(second, 'Send').getByText('Outcome unknown')).toBeVisible()
+    })
+
+    test('a member can review a send on a 320 px phone without horizontal overflow', async ({ page }) => {
+        await page.setViewportSize({ width: 320, height: 568 })
+        await member(page)
+        await page.goto(`${OS_ON}/os/wallet/send`)
+        const send = win(page, 'Send')
+        await expect(send).toBeVisible()
+        await send.getByLabel('To', { exact: true }).fill(BOB)
+        await send.getByLabel('Amount', { exact: true }).fill('1')
+        await expect(send.getByLabel('Amount', { exact: true })).toHaveAttribute('aria-describedby', 'os-send-amount-detail')
+        await send.getByRole('button', { name: 'Review…' }).click()
+        await expect(page.getByRole('dialog', { name: 'Review · Send' })).toBeVisible()
+        expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(320)
     })
 })

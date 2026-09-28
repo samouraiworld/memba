@@ -13,6 +13,11 @@ const config: Record<BadgeStatus, { color: string; bg: string; label: string }> 
     signing: { color: "var(--color-primary)", bg: "rgba(0,212,170,0.08)", label: "Signing" },
     ready: { color: "var(--color-success)", bg: "rgba(34,197,94,0.08)", label: "Ready" },
     complete: { color: "var(--color-success)", bg: "rgba(34,197,94,0.08)", label: "Complete" },
+    verified: { color: "var(--color-success)", bg: "rgba(34,197,94,0.08)", label: "Verified on chain" },
+    unconfirmed: { color: "var(--color-k-warning, #ffc107)", bg: "rgba(255,193,7,0.12)", label: "Hash recorded · unconfirmed" },
+    "legacy-hash": { color: "var(--color-k-warning, #ffc107)", bg: "rgba(255,193,7,0.12)", label: "Legacy hash recorded" },
+    "read-only": { color: "var(--color-text-secondary)", bg: "rgba(128,128,128,0.12)", label: "Read-only history" },
+    "on-hold": { color: "var(--color-text-secondary)", bg: "rgba(128,128,128,0.12)", label: "Native activation on hold" },
 }
 
 export function StatusBadge({ status, sigCount, threshold, hash }: StatusBadgeProps) {

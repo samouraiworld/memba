@@ -34,7 +34,7 @@ export function buildShareText(opts: {
   const verdict = percentile != null
     ? `${rankFromPercentile(percentile)}-rank · beat ${percentile}%`
     : kind === "daily" ? "saved locally · unsubmitted" : "practice";
-  const resultUrl = buildDatedResultUrl(url, date);
+  const resultUrl = buildDatedResultUrl(url, kind === "daily" ? date : "");
   const headline = kind === "daily" && validDate(date)
     ? `Block Party result · ${date} · ${resultUrl}`
     : `Block Party practice result · ${resultUrl}`;
@@ -43,6 +43,6 @@ export function buildShareText(opts: {
     "",
     grid,
     "",
-    `${MOD_LABEL[modifier] ?? modifier} · ${verdict} · 🔥${streak}`,
+    `${MOD_LABEL[modifier] ?? modifier} · ${verdict}${kind === "daily" ? ` · 🔥${streak}` : ""}`,
   ].join("\n");
 }

@@ -10,10 +10,17 @@ import { bech32Encode } from "./realmAddress"
 import { voterMatchesUser } from "./voteScanner"
 import { resilientAbciQuery } from "../rpcFallback"
 
-vi.mock("../rpcFallback", async (orig) => ({
-    ...(await orig<typeof import("../rpcFallback")>()),
-    resilientAbciQuery: vi.fn(),
-}))
+vi.mock("../rpcFallback", async (orig) => {
+    const mock = vi.fn()
+    return {
+        ...(await orig<typeof import("../rpcFallback")>()),
+        resilientAbciQuery: mock,
+        resilientAbciQueryDetailed: async (path: string, data: string) => {
+            const value = await mock(path, data, true)
+            return value == null ? { kind: "empty" } : { kind: "ok", text: value }
+        },
+    }
+})
 
 const mockQuery = vi.mocked(resilientAbciQuery)
 const RPC = "https://rpc.example"

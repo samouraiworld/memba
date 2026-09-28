@@ -63,7 +63,7 @@ export function Layout() {
     const adena = useAdena()
     const auth = useAuth()
     const isMobile = useIsMobile()
-    const { compactBalance, balance, rawUgnot } = useBalance(adena.connected ? adena.address : null)
+    const { compactBalance, balance, rawUgnot, loading: balanceLoading, error: balanceError, refetch: refreshBalance } = useBalance(adena.connected ? adena.address : null)
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
@@ -393,6 +393,9 @@ export function Layout() {
                 <ActivationModal
                     address={adena.address}
                     rawUgnot={rawUgnot}
+                    balanceLoading={balanceLoading}
+                    balanceError={balanceError}
+                    onRetryBalance={() => { void refreshBalance() }}
                     faucetUrl={GNO_FAUCET_URL}
                     onSuccess={() => window.location.reload()}
                     onDismiss={!auth.isAuthenticated ? () => setNeedsActivation(false) : undefined}

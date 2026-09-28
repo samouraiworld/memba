@@ -5,6 +5,7 @@
  */
 
 import type { NodeStatus } from "../../lib/validators"
+import { publicRpcLink } from "./nodeStateLinks"
 
 interface NodeStatePanelProps {
     nodeStatus: NodeStatus | null
@@ -33,6 +34,12 @@ function val(v: string | undefined, fallback = "unknown"): string {
     return v || fallback
 }
 
+function nodeTime(value: string | undefined): string {
+    if (!value) return "unknown"
+    const time = new Date(value)
+    return Number.isFinite(time.getTime()) ? time.toISOString() : "unknown"
+}
+
 export function NodeStatePanel({ nodeStatus, loading, sessionAge }: NodeStatePanelProps) {
     const title = nodeStatus?.moniker ? `NODE STATE · ${nodeStatus.moniker.toUpperCase()}` : "NODE STATE"
 
@@ -57,10 +64,10 @@ export function NodeStatePanel({ nodeStatus, loading, sessionAge }: NodeStatePan
         ? `https://github.com/gnolang/gno/releases/tag/${gnoVersion}`
         : undefined
 
-    // Only show RPC link when it's a real public address (not listen-only 0.0.0.0)
+    // A status response may expose a bind address or private endpoint. It is
+    // useful diagnostic text, but cannot be a navigable public RPC link.
     const rpcAddrRaw = nodeStatus?.rpcAddr ?? ""
-    const isPublicRpc = rpcAddrRaw && !rpcAddrRaw.includes("0.0.0.0")
-    const rpcLink = isPublicRpc ? `http://${rpcAddrRaw}` : undefined
+    const rpcLink = publicRpcLink(rpcAddrRaw)
 
     return (
         <div className={`hk-card hk-nsg hk-node-state ${loading ? "hk-card--loading" : ""}`}
@@ -85,7 +92,7 @@ export function NodeStatePanel({ nodeStatus, loading, sessionAge }: NodeStatePan
                     <NsRow label="app hash" value={val(nodeStatus?.genesisHash)} />
                     <NsRow label="catching up" value={nodeStatus ? (nodeStatus.catchingUp ? "yes" : "no") : "unknown"} mono={false} />
                     <NsRow label="session age" value={sessionAge ?? "—"} mono={false} />
-                    <NsRow label="node time (UTC)" value={nodeStatus?.nodeTime ? new Date(nodeStatus.nodeTime).toISOString() : "unknown"} />
+                    <NsRow label="node time (UTC)" value={nodeTime(nodeStatus?.nodeTime)} />
                     <NsRow label="timeouts" value={NA} mono={false} />
                     <NsRow label="chain data" value={NA} mono={false} />
                     <NsRow label="process mem" value={NA} mono={false} />

@@ -16,6 +16,8 @@ import { itemForTarget, type DeskItemType } from "./desk"
 import { specForTarget, urlForWindow, type OsWindow, type WindowSpec } from "./windows"
 import { useSigner } from "../sign/signerContext"
 import { LiveTicker } from "../apps/live/LiveTicker"
+import { newRoomId } from "../apps/meet/rooms"
+import { appSpec } from "./windows"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
@@ -153,6 +155,7 @@ export function MenuBar(p: MenuBarProps) {
                     </div>
                     <div className="os-menu os-menu-top" role="menu" aria-label="Memba">
                         <Item onClick={run(p.openSearch)} hint="⌘K">Search and commands…</Item>
+                        <Item onClick={run(() => p.openSpec(appSpec("meet", newRoomId())))}>New meeting</Item>
                         <Item onClick={run(() => p.openApp("settings"))}>Open Settings…</Item>
                         <Item onClick={run(() => p.openSpec(specForTarget({ kind: "feedback" })!))}>Send feedback…</Item>
                         <Item onClick={run(() => p.openSpec(specForTarget({ kind: "about" })!))}>About Memba OS</Item>
@@ -243,8 +246,8 @@ export function MenuBar(p: MenuBarProps) {
                             </div>
                         ))}
                         {guest
-                            ? <div className="os-gate"><span>Connect for DAO, multisig and prize alerts.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
-                            : signer.notices.length === 0 && <p className="os-sub os-pad">You're all caught up. Votes, signature requests and replies will show here.</p>}
+                            ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
+                            : signer.notices.length === 0 && <p className="os-sub os-pad">No signing activity in this session.</p>}
                     </div>
                 </div>
             )

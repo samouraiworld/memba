@@ -7,6 +7,7 @@
  * Render output is never parsed, and the read cost stays bounded per page.
  */
 import { GNO_CHAIN_ID } from "../config"
+import type { VoteChoice } from "./builders"
 import { resolveDaoKind } from "./kind"
 import {
     MEMBA_V2_MAX_PAGE,
@@ -27,6 +28,8 @@ export const V2_MAX_PROPOSAL_PAGES = 10
 
 /** Members are at most 100, so two pages always hold the whole roster. */
 const V2_MAX_MEMBER_PAGES = 2
+/** A v2 electorate contains at most 100 members and each member votes once. */
+const V2_MAX_VOTES = 100
 
 export function v2Context(rpcUrl: string, realmPath: string): MembaV2Context {
     return { rpcUrl, chainId: GNO_CHAIN_ID, realmPath }
@@ -167,4 +170,21 @@ export async function readV2VoteRecords(rpcUrl: string, realmPath: string, id: n
 
 export function hasVotedOnV2(rpcUrl: string, realmPath: string, id: number, voter: string): Promise<boolean> {
     return hasVotedV2(v2Context(rpcUrl, realmPath), id, voter)
+}
+
+/** Find one vote across every allowed page. Missing or truncated pages are an
+ * unavailable read, not proof that the member chose nothing. */
+export async function findV2VoterChoice(rpcUrl: string, realmPath: string, id: number, voter: string, signal?: AbortSignal): Promise<VoteChoice | null> {
+    const ctx = v2Context(rpcUrl, realmPath)
+    let offset = 0
+    for (let page = 0; page < V2_MAX_MEMBER_PAGES; page++) {
+        const result = await readV2Votes(ctx, id, { offset, limit: MEMBA_V2_MAX_PAGE }, signal)
+        if (result.total > V2_MAX_VOTES) throw new Error("Vote count exceeds the DAO member limit")
+        if (result.votes.length !== Math.min(MEMBA_V2_MAX_PAGE, Math.max(0, result.total - offset))) throw new Error("Truncated vote page")
+        const match = result.votes.find((vote) => vote.voter === voter)
+        if (match) return match.choice
+        offset += result.votes.length
+        if (offset >= result.total) return null
+    }
+    throw new Error("Vote page limit reached before the voter could be checked")
 }

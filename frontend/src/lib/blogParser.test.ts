@@ -25,6 +25,21 @@ describe("parseBlogArticle", () => {
         expect(parseBlogArticle("x.md", "no front matter")).toBeNull()
         expect(parseBlogArticle("x.md", "---\ntitle: T\n---\nbody")).toBeNull()
         expect(parseBlogArticle("x.md", "---\ntitle: T\ndate: yesterday\n---\nbody")).toBeNull()
+        expect(parseBlogArticle("x.md", "---\ntitle: T\ndate: 2026-02-30\n---\nbody")).toBeNull()
+        expect(parseBlogArticle("x.md", "---\ntitle: T\ndate: 2026-07-04\nupdated: yesterday\n---\nbody")).toBeNull()
+        expect(parseBlogArticle("x.md", "---\ntitle: T\ndate: 2026-07-04\nupdated: 2026-09-31\n---\nbody")).toBeNull()
+        expect(parseBlogArticle("x.md", "---\ntitle: T\ndate: 2026-07-04\nupdated: 2026-01-01\n---\nbody")).toBeNull()
+    })
+
+    it("keeps publication date while recording a later revision", () => {
+        const a = parseBlogArticle("2026-07-04-x.md", RAW.replace("date: 2026-07-04", "date: 2026-07-04\nupdated: 2026-09-28"))!
+        expect(a.date).toBe("2026-07-04")
+        expect(a.updated).toBe("2026-09-28")
+    })
+
+    it("accepts leap days that exist", () => {
+        const a = parseBlogArticle("2024-02-29-x.md", RAW.replace("2026-07-04", "2024-02-29"))
+        expect(a?.date).toBe("2024-02-29")
     })
 
     it("slugFromPath strips date prefix and extension only", () => {

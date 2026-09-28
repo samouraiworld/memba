@@ -1,6 +1,6 @@
 /**
  * HackerStatusBar — Gnockpit-style persistent top status strip.
- * Shows: Block height | synced/catching-up | Peers | connected dot | Monitoring API | Updated Xs ago.
+ * Shows: Block height | RPC sync state | Peers | RPC sample | Validator metrics | Updated Xs ago.
  * Receives props from parent (no own polling — parent drives data).
  */
 
@@ -13,7 +13,7 @@ interface HackerStatusBarProps {
     consensus: ConsensusView | null
     netInfo: NetInfo | null
     lastUpdated: number | null // timestamp of last successful fetch
-    /** Whether the gnomonitoring API is reachable (v2.17.2) */
+    /** Whether validator monitoring metrics were present in the last roster sample. */
     monitoringReachable?: boolean | null
 }
 
@@ -36,7 +36,7 @@ export function HackerStatusBar({ stats, consensus, netInfo, lastUpdated, monito
             </span>
 
             <span className={`hk-status-bar__sync ${synced === null ? "" : synced ? "hk-status-bar__sync--ok" : "hk-status-bar__sync--warn"}`}>
-                {synced === null ? "connecting…" : synced ? "synced" : "catching up"}
+                {synced === null ? "RPC status unavailable" : synced ? "RPC synced" : "RPC catching up"}
             </span>
 
             <span className="hk-status-bar__sep">·</span>
@@ -48,20 +48,20 @@ export function HackerStatusBar({ stats, consensus, netInfo, lastUpdated, monito
             <span className="hk-status-bar__sep">·</span>
 
             <span className="hk-status-bar__conn">
-                <span className="hk-status-bar__dot" />
-                connected
+                <span className={`hk-status-bar__dot ${stats ? "hk-status-bar__dot--green" : ""}`} />
+                {stats ? "RPC sample available" : "RPC sample unavailable"}
             </span>
 
             <span className="hk-status-bar__sep">·</span>
 
-            {/* v2.17.2: Monitoring API health indicator */}
-            <span className="hk-status-bar__conn" title="gnomonitoring API status">
+            {/* This prop reports the presence of validator metrics, not API reachability. */}
+            <span className="hk-status-bar__conn" title="Validator monitoring metrics in the roster sample">
                 <span className={`hk-status-bar__dot ${
                     monitoringReachable === true ? "hk-status-bar__dot--green"
                     : monitoringReachable === false ? "hk-status-bar__dot--red"
                     : ""
                 }`} />
-                monitoring
+                {monitoringReachable === false ? "metrics unavailable" : "monitoring metrics"}
             </span>
 
             <span className="hk-status-bar__sep" style={{ marginLeft: "auto" }} />

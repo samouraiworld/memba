@@ -43,16 +43,8 @@ const (
 	// (216_000 = 1 hour — SI daily runs live in minutes; the engine itself
 	// steps 600k ticks in ~0.2s, so ticks alone are cheap).
 	//
-	// ⚠ The REAL CPU ceiling is the PRODUCT MaxFinalTick × MaxEventsInvaders:
-	// the frontend verifier's inputAtTick does a linear scan of the delta list
-	// per tick (O(T×D) total), so an adversarial log (all deltas packed at
-	// tick 0) costs ~T×D scan steps. Benchmarked through the real worker
-	// (M-series laptop): 216k×10k packed = 1.9s; the originally-planned
-	// 600k×60k packed = 31.5s — past the 20s runner timeout before prod's
-	// slower vCPUs are even considered. Raising EITHER cap needs a re-bench,
-	// or an O(T+D) input cursor in the frontend verifier first (an M3-side
-	// refactor — the worker deliberately runs the frontend's simulateReplay
-	// verbatim rather than porting the loop).
+	// The shared frontend verifier now uses an O(ticks + deltas) input cursor.
+	// Keep this bound to limit replay CPU and require a benchmark before raising it.
 	MaxFinalTick = 216_000
 
 	// MaxSeedLen bounds the seed string. Daily seeds are "<game>-YYYY-MM-DD"
@@ -107,9 +99,8 @@ func ValidateJob(job Job) error {
 	if err := validateSeed(job.Seed); err != nil {
 		return err
 	}
-	// finalTick is a Space Invaders concept (the sim runs to a tick count, not
-	// to a terminal phase): required and bounded there, forbidden elsewhere so a
-	// stray field can't smuggle meaning into a game that ignores it.
+	// finalTick is Space Invaders-only. The worker also checks that the state at
+	// this tick is terminal; a caller cannot certify an in-progress score.
 	if game == gameInvaders {
 		if job.FinalTick <= 0 {
 			return fmt.Errorf("finalTick must be positive for %s", game)

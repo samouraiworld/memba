@@ -14,8 +14,6 @@ import { getDAOConfig, getDAOMembers, invalidateProposalCache, type DaoAction } 
 import type { DaoProposalKind } from "../../lib/dao/kind"
 import { isValidGnoAddressChecksum } from "../../lib/dao/address"
 import { resolveRegisteredUsername } from "../../lib/dao/shared"
-import { readV2Proposals } from "../../lib/dao/membaV2"
-import { v2Context } from "../../lib/dao/membaV2Shell"
 import { broadcastDaoTx, planDaoTx, planNeedsDepositOverride, proposalIdFromTxResult, type DaoTxPlan } from "../../lib/dao/daoTx"
 import { WalletNetworkError } from "../../lib/walletNetworkGuard"
 import { DepositOverride } from "./DepositOverride"
@@ -57,20 +55,6 @@ function parsePower(raw: string): number | null {
     if (!/^[0-9]{1,10}$/.test(digits)) return null
     const n = Number(digits)
     return n >= 1 && n <= V2_MAX_POWER ? n : null
-}
-
-async function findCreatedProposal(realmPath: string, author: string, title: string, after: number): Promise<number | null> {
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-            const page = await readV2Proposals(v2Context(GNO_RPC_URL, realmPath), 0, 20)
-            const match = page.proposals.find((p) => p.author === author && p.title === title && p.id > after)
-            if (match) return match.id
-        } catch {
-            // The node may not have the new block yet.
-        }
-        await new Promise((r) => setTimeout(r, 1500))
-    }
-    return null
 }
 
 type Props = { realmPath: string; encodedSlug: string; kinds: ReadonlyArray<DaoProposalKind> }
@@ -215,7 +199,6 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
     const submit = async () => {
         setShowErrors(true)
         if (blocked || !plan || !action || disabled || !depositApproved || governanceRequestActive(scope)) return
-        const before = config.proposal_count
         const submittedTitle = title
         let finish = () => {}
         let walletStarted = false
@@ -242,7 +225,9 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
             invalidateProposalCache(realmPath)
             void queryClient.invalidateQueries({ queryKey: ["dao", "proposals", realmPath] })
             void queryClient.invalidateQueries({ queryKey: ["dao", "config", realmPath] })
-            const id = proposalIdFromTxResult(res.result) ?? await findCreatedProposal(realmPath, caller, submittedTitle, before)
+            // A same-title proposal on the chain may belong to another tab or
+            // transaction. Only this transaction's result can identify its ID.
+            const id = proposalIdFromTxResult(res.result)
             if (!isCurrent()) return
             if (id !== null) {
                 try { saveGovernanceReceipt(scope, { phase: "confirmed", hash: res.hash, label: submittedTitle, proposalId: id }) } catch { /* Known hash remains in memory. */ }
@@ -392,7 +377,8 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
                 {receipt.hash && <code>Transaction {receipt.hash}</code>}
                 <label><input type="checkbox" checked={recoveryAcknowledged} onChange={e => setRecoveryAcknowledged(e.target.checked)} /> I checked the previous transaction and want to review another proposal.</label>
                 <button type="button" className="k-btn-secondary" disabled={busy || !recoveryAcknowledged} onClick={() => {
-                    try { clearGovernanceReceipt(scope); clearProposalDraft(draftScope); setReceipt(null); setLocked(false); setTitle(""); setDescription(""); setTx({ phase: "idle" }); setRecoveryAcknowledged(false) }
+                    if (!clearProposalDraft(draftScope)) { setStorageWarning("Browser storage refused to remove the saved draft. Try again or clear this site's storage in your browser."); return }
+                    try { clearGovernanceReceipt(scope); setReceipt(null); setLocked(false); setTitle(""); setDescription(""); setTx({ phase: "idle" }); setRecoveryAcknowledged(false) }
                     catch (error) { setStorageWarning(error instanceof Error ? error.message : "Could not clear the saved attempt.") }
                 }}>Review another proposal</button>
             </div>}

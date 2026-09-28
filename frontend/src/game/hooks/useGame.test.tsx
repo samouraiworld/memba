@@ -75,6 +75,23 @@ describe("useGame", () => {
     await waitFor(() => expect(Number(localStorage.getItem("bp:best:practice"))).toBe(result.current.score));
   });
 
+  it("does not save the previous ranked score as a practice best during mode switch", () => {
+    const { result, rerender } = renderHook(
+      ({ mode }: { mode: "ranked" | "practice" }) =>
+        useGame({ seed: 12345, modifier: "standard", mode, moveBudget: 30 }),
+      { initialProps: { mode: "ranked" as const } },
+    );
+    const dirs = ["U", "R", "D", "L"] as const;
+    for (let i = 0; i < 12 && result.current.score === 0; i++) {
+      act(() => result.current.play(dirs[i % dirs.length]));
+    }
+    expect(result.current.score).toBeGreaterThan(0);
+    rerender({ mode: "practice" });
+    expect(localStorage.getItem("bp:best:practice")).toBeNull();
+    act(() => result.current.restart(77));
+    expect(Number(localStorage.getItem("bp:best:practice") ?? 0)).toBe(0);
+  });
+
   it("restart(seed, log) resumes a saved round by replaying it", () => {
     const log = legalLog(12345, 6);
     const live = renderHook(() => useGame({ seed: 12345, modifier: "standard", mode: "ranked", moveBudget: 30 }));

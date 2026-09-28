@@ -373,11 +373,23 @@ the wiring is proven before any ceremony.
   disappears; play is unaffected.
 - **Backend:** unset `MEMBA_ARCADE_SUBMIT_ENABLED` → submit 404s; unset
   `MEMBA_ARCADE_ATTESTER_ENABLED` → the attester stops. Deploy.
+- If the log says `arcade day-close batcher stopped after failed cycle`, repair
+  the database, inspect the last broadcast and exact on-chain entry, then
+  restart the backend deliberately. The loop will not retry automatically when
+  it cannot persist an attestation outcome or failure count.
 - **Realm:** `Pause(true)` freezes all attestation (reads stay live);
   `RemoveAttester` revokes the key. Both are owner-only (on mainnet: a
   2-of-3 MsgCall via `tools/mainnet-manual`).
-- A run parked `errored` (too many transient attest failures) can be requeued by
-  flipping its `arcade_runs.status` back to `verified`.
+- After the cause is fixed and the chain entry is checked, requeue an `errored`
+  run by resetting its durable retry count in the same update:
+
+  ```sql
+  UPDATE arcade_runs SET status = 'verified', attest_failures = 0
+  WHERE input_log_sha256 = '<reviewed-log-hash>' AND status = 'errored';
+  ```
+
+  A parked higher-scoring run holds lower runs for that address and game-day
+  until the operator requeues it or deliberately retires it as `skipped`.
 
 ## Deferred (v1-optional, not built)
 

@@ -25,7 +25,7 @@ const REALM_CATEGORY_COLORS: Record<string, string> = {
     unknown: "var(--color-text-secondary)",
 }
 
-export function RealmsTab() {
+export function RealmsTab({ onOpenDetail }: { onOpenDetail?: (path: string) => void } = {}) {
     const { networkKey } = useNetwork()
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
@@ -159,8 +159,8 @@ export function RealmsTab() {
                                                     className="dir-render-preview__link dir-render-preview__link--primary"
                                                     onClick={(e) => {
                                                         e.stopPropagation()
-                                                        setDrawerPath(r.path)
-                                                        setDrawerGnowebUrl(r.gnowebUrl)
+                                                        if (onOpenDetail) onOpenDetail(r.path)
+                                                        else { setDrawerPath(r.path); setDrawerGnowebUrl(r.gnowebUrl) }
                                                     }}
                                                 >
                                                     View Details →
@@ -201,7 +201,7 @@ export function RealmsTab() {
                 </div>
             )}
 
-            <RecentSubmissionsSection kind="realm" />
+            <RecentSubmissionsSection kind="realm" filter={search} />
 
             {/* Detail drawer */}
             {drawerPath && (

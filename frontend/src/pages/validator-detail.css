@@ -532,3 +532,30 @@ h1.vd-moniker {
 [data-theme="light"] .vd-page .hm-legend__item--warn { color: var(--color-k-warning-text); }
 [data-theme="light"] .vd-page .hm-legend__item--critical { color: var(--color-k-danger-text); }
 [data-theme="light"] .vd-page .hm-legend__item--empty { color: var(--color-k-muted); }
+
+/* A desktop viewport can still host a phone-width OS window. Mirror the
+   profile's viewport layout using that window as the sizing boundary. */
+@container os-window (max-width: 768px) {
+    .vd-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .vd-header-card { flex-direction: column; }
+    .vd-header-card__right { justify-content: flex-start; }
+}
+
+@container os-window (max-width: 480px) {
+    .vd-row { flex-direction: column; align-items: stretch; gap: 0.2rem; }
+    .vd-row__label { min-width: 0; }
+    .vd-row__value { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+    .vd-page .hm-grid { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+}
+
+.vd-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

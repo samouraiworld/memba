@@ -14,9 +14,10 @@ import { getDAOConfig, getDAOMembers, getProposalDetail, type VoteChoice } from 
 import { broadcastDaoTx, planDaoTx, planNeedsDepositOverride, type DaoTxPlan } from "../../lib/dao/daoTx"
 import type { GovernanceScope } from "../../lib/dao/governanceRecovery"
 import type { DaoKind } from "../../lib/dao/kind"
-import { readV2Proposal, readV2Votes } from "../../lib/dao/membaV2"
-import { hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
+import { readV2Proposal } from "../../lib/dao/membaV2"
+import { findV2VoterChoice, hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
 import { formatUgnot } from "../../lib/dao/v2Budget"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { canVoteNow, VOTES_ARE_FINAL } from "../../lib/dao/v2Lifecycle"
 import type { SignRequest } from "../sign/signer"
 import type { ProposalView } from "./useOsDao"
@@ -54,17 +55,18 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
 
     return {
         title: "Vote",
-        summary: `Vote on #${proposal.id} “${proposal.title}”`,
-        sub: ctx.daoName,
+        summary: `Vote on #${proposal.id} “${revealInvisibleFormatting(proposal.title)}”`,
+        sub: revealInvisibleFormatting(ctx.daoName),
         choice: { label: "Your vote", options: VOTE_OPTIONS, initial: "Yes" },
         lines: (choice) => [
             ["Your vote", choice ?? "Yes"],
             ...(ctx.power !== null ? [["Your voting power", `${ctx.power} of ${proposal.whole}`] as [string, string]] : []),
             ...(cap !== undefined ? [["Storage deposit", `up to ${formatUgnot(cap)}`] as [string, string]] : []),
+            ...(sample.gasWanted !== undefined ? [["Gas limit", sample.gasWanted.toLocaleString("en-US")] as [string, string]] : []),
             ["Network", GNO_CHAIN_ID],
         ],
         acks: overCeiling && cap !== undefined ? [`I approve a storage-deposit cap of ${formatUgnot(cap)}, above the usual 10 GNOT limit.`] : [],
-        note: v2 ? VOTES_ARE_FINAL : "Votes are final.",
+        note: `${v2 ? VOTES_ARE_FINAL : "Votes are final."} Adena shows the final network fee before you sign.`,
         label: (choice) => `Vote ${choice ?? "Yes"} on #${proposal.id}`,
         receipt: voteScope(realmPath, caller, proposal.id),
         prepare: (choice) => ({ msgs: [plan(choice).msg] }),
@@ -89,8 +91,7 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
         verify: v2
             ? async (choice) => {
                 if (!(await hasVotedOnV2(GNO_RPC_URL, realmPath, proposal.id, caller))) return false
-                const votes = await readV2Votes(v2Context(GNO_RPC_URL, realmPath), proposal.id)
-                return votes.votes.some((v) => v.voter === caller && v.choice === CHOICE[choice ?? "Yes"])
+                return await findV2VoterChoice(GNO_RPC_URL, realmPath, proposal.id, caller) === CHOICE[choice ?? "Yes"]
             }
             : undefined,
     }

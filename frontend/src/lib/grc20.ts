@@ -241,7 +241,8 @@ export interface GasPrice { gas: number; ugnot: number }
 /** Used when `auth/gasprice` cannot be read: the value gnoland-1 and pearl-1 reported on 2026-09-17. */
 export const FALLBACK_GAS_PRICE: GasPrice = { gas: 1000, ugnot: 1 }
 
-const gasPriceCache = new Map<string, GasPrice>()
+const gasPriceCache = new Map<string, { price: GasPrice; at: number }>()
+const GAS_PRICE_CACHE_MS = 30_000
 
 /** Test hook. */
 export function __resetGasPriceCache() {
@@ -252,10 +253,7 @@ export function __resetGasPriceCache() {
  * The chain's current gas price from `auth/gasprice`, cached per chain. Falls
  * back to {@link FALLBACK_GAS_PRICE} when no endpoint of that chain answers.
  */
-export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: string[] = getRpcUrlsInOrder()): Promise<GasPrice> {
-    const cached = gasPriceCache.get(chainId)
-    if (cached) return cached
-    try {
+async function readNetworkGasPrice(chainId: string, rpcUrls: string[]): Promise<GasPrice> {
         const raw = JSON.parse(await abciQueryText({ rpcUrl: rpcUrls[0] ?? "", rpcUrls, chainId }, "auth/gasprice", "")) as { gas?: unknown; price?: unknown }
         const gas = Number(raw.gas)
         const match = typeof raw.price === "string" ? /^([0-9]{1,15})ugnot$/.exec(raw.price) : null
@@ -266,8 +264,21 @@ export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: s
         // Refuse a price above ten times the default: a misreporting endpoint
         // must not be able to inflate fees.
         if (price.ugnot * FALLBACK_GAS_PRICE.gas > 10 * FALLBACK_GAS_PRICE.ugnot * price.gas) throw new Error("Gas price out of range")
-        gasPriceCache.set(chainId, price)
         return price
+}
+
+/** A fresh, validated quote for a transfer's final pre-sign check. */
+export async function networkGasPriceFresh(chainId: string = GNO_CHAIN_ID, rpcUrls: string[] = getRpcUrlsInOrder()): Promise<GasPrice> {
+    const price = await readNetworkGasPrice(chainId, rpcUrls)
+    gasPriceCache.set(chainId, { price, at: Date.now() })
+    return price
+}
+
+export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: string[] = getRpcUrlsInOrder()): Promise<GasPrice> {
+    const cached = gasPriceCache.get(chainId)
+    if (cached && Date.now() - cached.at < GAS_PRICE_CACHE_MS) return cached.price
+    try {
+        return await networkGasPriceFresh(chainId, rpcUrls)
     } catch {
         return FALLBACK_GAS_PRICE
     }
@@ -285,7 +296,7 @@ export function feeForGasWanted(gasWanted: number, price: GasPrice): number {
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; gasFee?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
 ): Promise<{ hash: string; result?: unknown }> {
     return withWalletActivity(() => broadcastContract(msgs, memo, opts))
 }
@@ -314,10 +325,13 @@ async function walletStillSafe(attempt: number, lastError: Error | null, allowOs
 async function broadcastContract(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; gasFee?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
 ): Promise<{ hash: string; result?: unknown }> {
     if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
         throw new Error(`Invalid gas limit: must be a whole number between 1 and ${MAX_GAS_WANTED}`)
+    }
+    if (opts?.gasFee !== undefined && (!Number.isSafeInteger(opts.gasFee) || opts.gasFee <= 0)) {
+        throw new Error("Invalid network fee")
     }
 
     // First-time wallet activation precedes OS sign-in. Only its exact Bio
@@ -353,7 +367,7 @@ async function broadcastContract(
     // the wallet sign UI just to fail with "package already exists".
     const isDeploy = opts?.gas === "deploy"
     const gasWanted = opts?.gasWanted ?? (isDeploy ? gas.deployWanted : gas.wanted)
-    const gasFee = opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee
+    const gasFee = opts?.gasFee ?? (opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee)
     const maxRetries = isDeploy || opts?.retry === false ? 0 : 2
     let lastError: Error | null = null
 
@@ -394,9 +408,11 @@ async function broadcastContract(
                     throw new Error(errMsg)
                 }
                 lastError = new Error(errMsg)
-            } else {
+            } else if (res.status === "success") {
                 // `result` is the wallet's broadcast result (e.g. the call's return data).
                 return { hash: res.data?.hash || "", result: res.data }
+            } else {
+                throw new Error("Adena returned an indeterminate transaction status")
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
@@ -433,6 +449,11 @@ export async function listFactoryTokens(rpcUrl: string): Promise<TokenInfo[]> {
     const data = await queryRender(rpcUrl, GRC20_FACTORY_PATH, "")
     if (!data) return []
 
+    return parseFactoryTokenList(data)
+}
+
+/** Parse a token-factory Render listing without choosing its transport or trust policy. */
+export function parseFactoryTokenList(data: string): TokenInfo[] {
     const tokens: TokenInfo[] = []
     // Parse markdown list items: "- [Name \($SYMBOL\)](link)" (factory escapes parens)
     const re = /\[(.+?)\s+\\?\(\$([A-Z0-9]+)\\?\)\]/g

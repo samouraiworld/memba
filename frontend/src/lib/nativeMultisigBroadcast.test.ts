@@ -34,6 +34,24 @@ describe("native binary broadcast boundary", () => {
         await expect(broadcastNativeTransaction("native-local", bytes)).rejects.toThrow()
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
+    it.each([
+        { name: "lost response", reply: () => Promise.reject(new Error("connection reset")) },
+        { name: "server error", reply: () => Promise.resolve(new Response("", { status: 502 })) },
+        { name: "unreadable reply", reply: () => Promise.resolve(new Response("not JSON", { status: 200 })) },
+    ])("reports the deterministic hash when broadcast has an uncertain $name", async ({ reply }) => {
+        fetchMock.mockResolvedValueOnce(respond(status())).mockImplementationOnce(reply)
+        await expect(broadcastNativeTransaction("native-local", bytes)).rejects.toThrow(`outcome unknown. Expected transaction hash ${hash}`)
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+    it.each([
+        { name: "missing height", change: (r: ReturnType<typeof receipt>) => { r.result.height = "" } },
+        { name: "missing hash", change: (r: ReturnType<typeof receipt>) => { r.result.hash = "" } },
+    ])("does not call a malformed success reply a confirmed execution: $name", async ({ change }) => {
+        const r = receipt()
+        change(r)
+        fetchMock.mockResolvedValueOnce(respond(status())).mockResolvedValueOnce(respond(r))
+        await expect(broadcastNativeTransaction("native-local", bytes)).rejects.toThrow(`outcome unknown. Expected transaction hash ${hash}`)
+    })
     it.each(["check_tx", "deliver_tx"] as const)("rejects %s errors even when a hash is returned", async phase => {
         const r = receipt(); r.result[phase].ResponseBase.Error = { message: "rejected" } as never
         fetchMock.mockResolvedValueOnce(respond(status())).mockResolvedValueOnce(respond(r))

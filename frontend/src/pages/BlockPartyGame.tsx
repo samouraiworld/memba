@@ -8,7 +8,7 @@ import { useNetwork } from "../hooks/useNetwork";
 import { buildTokenRequestInfo } from "../lib/loginChallenge";
 import { useDailyChallenge } from "../game/hooks/useDailyChallenge";
 import { useGame, type GameMode } from "../game/hooks/useGame";
-import { useKeyboard } from "../game/hooks/useKeyboard";
+import { isGameKeyEvent, useKeyboard } from "../game/hooks/useKeyboard";
 import { Board } from "../game/components/Board";
 import { ScoreBar } from "../game/components/ScoreBar";
 import { ModifierBadge } from "../game/components/ModifierBadge";
@@ -23,6 +23,7 @@ import { getLocalBest, getLocalStreak } from "../game/lib/localStore";
 import { clearRun, loadRun, saveRun } from "../game/lib/runStore";
 import { haptic, HAPTIC_GAME_OVER, HAPTIC_MERGE } from "../game/lib/haptics";
 import { seedScoreCeiling, type Modifier } from "../game/engine";
+import { useWindowActive } from "../os/page/WindowActivity";
 import "./blockparty.css";
 
 // First-visit intro, shown once per browser. Versioned: the pre-mainnet
@@ -78,6 +79,9 @@ function useUtcDate(): string {
 }
 
 export default function BlockPartyGame() {
+  const gamePageRef = useRef<HTMLDivElement>(null);
+  const practiceResultHeadingRef = useRef<HTMLHeadingElement>(null);
+  const windowActive = useWindowActive();
   const adena = useAdena();
   const auth = useAuth();
   const network = useNetwork();
@@ -117,6 +121,7 @@ export default function BlockPartyGame() {
   const [showIntro, setShowIntro] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const authBusyRef = useRef(false);
+  const [connectPending, setConnectPending] = useState(false);
 
   useEffect(() => {
     const markOnline = () => setOnline(true);
@@ -184,6 +189,13 @@ export default function BlockPartyGame() {
     moveBudget,
   });
 
+  useEffect(() => {
+    if (!over || ranked || !windowActive) return;
+    if (document.activeElement === document.body || gamePageRef.current?.contains(document.activeElement)) {
+      practiceResultHeadingRef.current?.focus({ preventScroll: true });
+    }
+  }, [over, ranked, windowActive]);
+
   // A locked Daily board has no budget to show — "0 remaining" reads as spent.
   const shownMovesLeft = ranked && !canPlayRanked ? Infinity : movesLeft;
 
@@ -237,19 +249,20 @@ export default function BlockPartyGame() {
     [ranked, canPlayRanked, dismissIntro, play]
   );
 
-  useKeyboard(onMove, !over && (ranked ? canPlayRanked : true));
+  useKeyboard(onMove, windowActive && !over && (ranked ? canPlayRanked : true), gamePageRef);
 
   // Practice-only undo. Ranked never registers the shortcut.
   useEffect(() => {
-    if (ranked) return;
+    if (ranked || !windowActive) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!isGameKeyEvent(e, gamePageRef.current)) return;
       if (!isUndoKey(e)) return;
       e.preventDefault();
       undo();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ranked, undo]);
+  }, [ranked, undo, windowActive]);
 
   const refreshAfterVerify = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["bp", "leaderboard"] });
@@ -258,15 +271,11 @@ export default function BlockPartyGame() {
   const you = auth.address || (adena.connected ? adena.address : "") || undefined;
 
   // ── Auth bridge: same challenge-response pattern as components/layout/Layout.tsx ──
-  const authenticate = useCallback(async () => {
+  const finishAuthentication = useCallback(async () => {
     if (authBusyRef.current) return;
     authBusyRef.current = true;
     setAuthError(null);
     try {
-      if (!adena.connected) {
-        const ok = await adena.connect();
-        if (!ok) return;
-      }
       if (auth.isAuthenticated) return;
 
       const challengeRes = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId);
@@ -308,6 +317,31 @@ export default function BlockPartyGame() {
     }
   }, [adena, auth, network.chainId]);
 
+  const authenticate = useCallback(async () => {
+    if (authBusyRef.current || connectPending) return;
+    if (adena.connected) {
+      await finishAuthentication();
+      return;
+    }
+    authBusyRef.current = true;
+    setAuthError(null);
+    try {
+      if (await adena.connect()) setConnectPending(true);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Wallet connection failed");
+    } finally {
+      authBusyRef.current = false;
+    }
+  }, [adena, connectPending, finishAuthentication]);
+
+  useEffect(() => {
+    if (!connectPending || !adena.connected) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- consume the explicit connection handoff before signing with this render's wallet state.
+    setConnectPending(false);
+    // The connected wallet values now belong to this render.
+    void finishAuthentication();
+  }, [connectPending, adena.connected, finishAuthentication]);
+
   const date = challenge?.date ?? today;
 
   const playCachedPractice = useCallback(() => {
@@ -333,7 +367,7 @@ export default function BlockPartyGame() {
   );
 
   return (
-    <div className="k-bp-page">
+    <div className="k-bp-page" ref={gamePageRef}>
       <div className="k-bp-orbit k-bp-orbit--one" aria-hidden="true" />
       <div className="k-bp-orbit k-bp-orbit--two" aria-hidden="true" />
       <header className="k-bp-header">
@@ -430,7 +464,12 @@ export default function BlockPartyGame() {
             </p>
           )}
 
-          {showIntro && (!ranked || canPlayRanked) && <FirstRunIntro onDismiss={dismissIntro} />}
+          {showIntro && (!ranked || canPlayRanked) && (
+            <FirstRunIntro onDismiss={() => {
+              dismissIntro();
+              if (windowActive) gamePageRef.current?.querySelector<HTMLElement>('[role="grid"]')?.focus({ preventScroll: true });
+            }} />
+          )}
 
           <div className={`k-bp-board-wrap ${ranked && !canPlayRanked ? "k-bp-board-wrap--locked" : ""}`}>
             <Board board={board} moveLog={moveLog} onMove={onMove} disabled={ranked && !canPlayRanked} />
@@ -459,6 +498,7 @@ export default function BlockPartyGame() {
           {over && ranked && canPlayRanked && (
             <>
               <GameOverSheet
+                chainId={chainId}
                 date={date}
                 score={score}
                 par={reachablePar}
@@ -477,10 +517,10 @@ export default function BlockPartyGame() {
           {over && !ranked && (
             <div className="k-bp-over" role="dialog" aria-label="Practice round complete">
               <span className="k-bp-over-kicker">Practice · not ranked</span>
-              <h2 className="k-bp-over-title">No moves left</h2>
+              <h2 ref={practiceResultHeadingRef} tabIndex={-1} className="k-bp-over-title">No moves left</h2>
               <p className="k-bp-over-score"><span className="sr-only">Final score </span>{score.toLocaleString()}</p>
               <p className="k-bp-over-note">Your best practice score: {Math.max(score, getLocalBest("practice")).toLocaleString()}</p>
-              <ShareCard kind="practice" date={date} board={board} streak={getLocalStreak().current} modifier={modifier} />
+              <ShareCard kind="practice" date="" board={board} streak={0} modifier={modifier} />
               <div className="k-bp-over-actions">
                 <button className="k-bp-btn" type="button" onClick={undo} disabled={!canUndo}>
                   Undo last move
@@ -518,10 +558,11 @@ export default function BlockPartyGame() {
             {challenge?.ready && (
               <SeedProof height={challenge.blockHeight} hash={challenge.blockHash} />
             )}
-            {ranked && !featurePaused && <DailyLeaderboardPanel date={date} scope={network.chainId} you={you} />}
+            {canPlayRanked && <DailyLeaderboardPanel date={date} scope={network.chainId} you={you} />}
             <StreakBadge
               address={adena.connected ? adena.address : undefined}
-              localStreak={getLocalStreak().current}
+              scope={chainId}
+              localStreak={getLocalStreak(chainId).current}
             />
           </div>
         </aside>

@@ -11,14 +11,14 @@ afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
     it("round-trip every linkable window", () => {
-        for (const url of ["/os/feed", "/os/feed/post/12", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
+        for (const url of ["/os/feed", "/os/feed/post/12", "/os/meet", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)
             expect(tokenToTarget(windowToken(t)!), url).toEqual(t)
         }
     })
 
     it("refuse anything a typed link would refuse", () => {
-        for (const bad of ["app.nope", "arcade.invalid", "arcade.game/other", "dao.<b>", "prop.memba_dao.x", "prop.12", "msig.g1short", "feed", ".feed", "x.y"]) {
+        for (const bad of ["app.nope", "meet.bad-room", "meet.abc-defg-hij", "meet.abc-defg-hij/extra", "arcade.invalid", "arcade.game/other", "dao.<b>", "prop.memba_dao.x", "prop.12", "msig.g1short", "feed", ".feed", "x.y"]) {
             expect(tokenToTarget(bad), bad).toBeNull()
         }
     })
@@ -87,6 +87,16 @@ describe("URL ⇄ windows", () => {
 })
 
 describe("saved session", () => {
+    it("keeps a meeting room out of URLs and saved windows", () => {
+        let state = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("meet", "abc-defg-hij"), desk })
+        expect(urlForWindows(state.wins)).toBe('/os/meet')
+        const withFeed = windowsReducer(state, { type: 'open', spec: appSpec('feed'), desk })
+        expect(urlForWindows(withFeed.wins)).toBe('/os/feed?w=app.meet')
+        state = windowsReducer(state, { type: "minimise", id: state.wins[0].id })
+        saveWindows(state.wins)
+        expect(localStorage.getItem(OS_WINDOWS_KEY)).not.toContain('abc-defg-hij')
+        expect(loadSavedTargets()[0]).toMatchObject({ target: { kind: "app", app: "meet", section: null }, geom: { min: true } })
+    })
     it("partitions window paths and page queries by chain and account", () => {
         const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed", null, "compose=join"), desk })
         saveWindows(s.wins, "member:gnoland-1:g1alpha")

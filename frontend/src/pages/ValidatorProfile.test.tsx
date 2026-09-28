@@ -18,8 +18,8 @@ vi.hoisted(() => {
     window.history.replaceState(null, "", "/test13/")
 })
 
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
-import { MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom"
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react"
+import { Link, MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderWithProviders, mockLayoutContext } from "../test/test-utils"
 import type { LayoutContext } from "../types/layout"
@@ -31,10 +31,14 @@ import type { ValoperWithStatus } from "../lib/valopers"
 // Keep resolveValidatorProfile + types REAL (pure); only stub the network fetch.
 vi.mock("../lib/valopers", async (orig) => ({
     ...(await orig<typeof import("../lib/valopers")>()),
-    fetchValopers: vi.fn(),
+    findValoperForProfile: vi.fn(),
 }))
 vi.mock("../lib/validators", async (orig) => ({
     ...(await orig<typeof import("../lib/validators")>()),
+    getValidatorRpcSnapshot: vi.fn().mockResolvedValue({
+        url: "https://rpc.test13.testnets.gno.land", chainId: "test13", height: 100,
+        blockHash: "test-hash", status: { node_info: { network: "test13" }, sync_info: { latest_block_height: "100" } },
+    }),
     getValidators: vi.fn(),
 }))
 vi.mock("../lib/profile", () => ({ fetchUserProfile: vi.fn(), updateBackendProfile: vi.fn() }))
@@ -57,7 +61,7 @@ vi.mock("../hooks/gnolove", () => ({ useGnoloveContributor: vi.fn(() => ({ data:
 vi.mock("../hooks/gnolove/useGnoloveTeams", () => ({ useGnoloveTeam: vi.fn(() => null) }))
 
 import ValidatorProfile from "./ValidatorProfile"
-import { fetchValopers } from "../lib/valopers"
+import { findValoperForProfile } from "../lib/valopers"
 import { getValidators } from "../lib/validators"
 import { fetchUserProfile, updateBackendProfile } from "../lib/profile"
 import { useAddressActivity } from "../hooks/useAddressActivity"
@@ -81,7 +85,8 @@ const validator = (gnoAddr: string, moniker: string): ValidatorInfo =>
 
 function setData(valopers: ValoperWithStatus[], activeGnoAddrs: string[] = []) {
     vi.mocked(getValidators).mockResolvedValue(activeGnoAddrs.map(a => validator(a, a === GENESIS ? "gfanton-1" : "")))
-    vi.mocked(fetchValopers).mockResolvedValue(valopers)
+    vi.mocked(findValoperForProfile).mockImplementation(async (_rpc, address) =>
+        valopers.find(v => v.operatorAddress === address || v.signingAddress === address) ?? null)
 }
 
 function setActivity(over: Partial<ReturnType<typeof useAddressActivity>> = {}) {
@@ -184,6 +189,57 @@ describe("ValidatorProfile — resolution & routing", () => {
         renderAt(SIGN)
         await waitFor(() => expect(screen.getByTestId("loc")).toHaveTextContent(`/test13/validators/${OPERATOR}`))
     })
+
+    it("clears the previous profile when navigating to another operator", async () => {
+        const second = "g1second000000000000000000000000000000000"
+        const secondMoniker = "second-validator"
+        setData([valoper(), valoper({ operatorAddress: second, moniker: secondMoniker })], [])
+        let resolveFirst: (profile: UserProfile) => void = () => {}
+        vi.mocked(fetchUserProfile).mockImplementation((_, addr) => addr === OPERATOR
+            ? new Promise<UserProfile>(resolve => { resolveFirst = resolve })
+            : Promise.resolve(makeProfile({ address: second, bio: "Second operator bio" })))
+        renderWithProviders(
+            <Routes>
+                <Route path="/:network/validators/:address" element={<><Link to={`/test13/validators/${second}`}>Next operator</Link><ValidatorProfile /></>} />
+            </Routes>,
+            { route: `/test13/validators/${OPERATOR}` },
+        )
+        await screen.findByRole("heading", { name: MONIKER })
+        fireEvent.click(screen.getByRole("link", { name: "Next operator" }))
+        await screen.findByRole("heading", { name: secondMoniker })
+        await screen.findByText("Second operator bio")
+        await act(async () => { resolveFirst(makeProfile({ bio: "First operator bio" })) })
+        expect(screen.queryByText("First operator bio")).not.toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: secondMoniker })).toBeInTheDocument()
+    })
+
+    it("returns to Candidates when opened from that segment", async () => {
+        setData([valoper()], [])
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(
+            <QueryClientProvider client={client}>
+                <MemoryRouter initialEntries={[{ pathname: `/test13/validators/${OPERATOR}`, state: { fromValidatorsTab: "candidates" } }]}>
+                    <Routes><Route path="/:network/validators/:address" element={<ValidatorProfile />} /></Routes>
+                </MemoryRouter>
+            </QueryClientProvider>,
+        )
+        await screen.findByRole("heading", { name: MONIKER })
+        expect(screen.getByRole("link", { name: "← Validators" })).toHaveAttribute("href", "/test13/validators?tab=candidates")
+    })
+
+    it("returns to the same roster query after opening a validator", async () => {
+        setData([valoper()], [])
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(
+            <QueryClientProvider client={client}>
+                <MemoryRouter initialEntries={[{ pathname: `/test13/validators/${OPERATOR}`, state: { fromValidatorsQuery: "q=gno-core&sort=votingPower&direction=desc" } }]}>
+                    <Routes><Route path="/:network/validators/:address" element={<ValidatorProfile />} /></Routes>
+                </MemoryRouter>
+            </QueryClientProvider>,
+        )
+        await screen.findByRole("heading", { name: MONIKER })
+        expect(screen.getByRole("link", { name: "← Validators" })).toHaveAttribute("href", "/test13/validators?q=gno-core&sort=votingPower&direction=desc")
+    })
 })
 
 describe("ValidatorProfile — identity header & tabs", () => {
@@ -221,6 +277,47 @@ describe("ValidatorProfile — identity header & tabs", () => {
         renderAt(OPERATOR)
         const link = await screen.findByRole("link", { name: /@satoshi/i })
         expect(link).toHaveAttribute("href", "https://test13.testnets.gno.land/u/satoshi")
+    })
+
+    it("does not render unsafe profile links", async () => {
+        vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile({
+            username: "@satoshi", userRealmUrl: "javascript:alert(1)",
+            socialLinks: { website: "javascript:alert(1)", github: "https://not-github.example/operator", twitter: "" },
+        }))
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        await screen.findByText("@satoshi")
+        expect(screen.queryByRole("link", { name: "@satoshi" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("link", { name: "Website" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("link", { name: "GitHub" })).not.toBeInTheDocument()
+    })
+
+    it("keeps a GitHub-labelled link on GitHub and upgrades it to HTTPS", async () => {
+        vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile({
+            socialLinks: { website: "", github: "http://github.com/operator", twitter: "" },
+        }))
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        expect(await screen.findByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/operator")
+    })
+
+    it("reports copy success only after the clipboard write succeeds", async () => {
+        const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard")
+        const writeText = vi.fn().mockRejectedValueOnce(new Error("denied")).mockResolvedValueOnce(undefined)
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } })
+        try {
+            renderAt(OPERATOR)
+            await screen.findByRole("heading", { name: MONIKER })
+            const copy = screen.getByRole("button", { name: "Copy operator address" })
+            fireEvent.click(copy)
+            expect(await screen.findByRole("status", { name: "" })).toHaveTextContent("Could not copy operator address")
+            fireEvent.click(copy)
+            await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Operator address copied"))
+            expect(writeText).toHaveBeenCalledWith(OPERATOR)
+        } finally {
+            if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard)
+            else Reflect.deleteProperty(navigator, "clipboard")
+        }
     })
 
     it("renders the bio as sanitized markdown, not raw ### / ** markup", async () => {
@@ -373,12 +470,12 @@ describe("ValidatorProfile — Contributions / Activity / Quests / Reviews", () 
         expect(within(screen.getByTestId("vp-tab-activity")).getByText(/Raise the gas cap/)).toBeInTheDocument()
     })
 
-    it("Quests tab shows the private note for a non-owner / disconnected viewer", async () => {
+    it("Quests tab prompts a non-owner to connect the operator wallet", async () => {
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         fireEvent.click(screen.getByRole("tab", { name: "Quests" }))
         const panel = screen.getByTestId("vp-tab-quests")
-        expect(within(panel).getByText(/private to the wallet holder/i)).toBeInTheDocument()
+        expect(within(panel).getByText(/connect the operator wallet/i)).toBeInTheDocument()
         expect(within(panel).queryByTestId("vp-quest-row")).not.toBeInTheDocument()
     })
 
@@ -524,7 +621,7 @@ describe("ValidatorProfile — Quests owner-gate", () => {
         fireEvent.click(screen.getByRole("tab", { name: "Quests" }))
         const panel = screen.getByTestId("vp-tab-quests")
         expect(within(panel).getByText(/20 XP/i)).toBeInTheDocument()
-        expect(within(panel).queryByText(/private to the wallet holder/i)).not.toBeInTheDocument()
+        expect(within(panel).queryByText(/connect the operator wallet/i)).not.toBeInTheDocument()
     })
 
     it("prefers backend quest XP over localStorage for the owner", async () => {

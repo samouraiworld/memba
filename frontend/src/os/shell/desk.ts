@@ -1,12 +1,13 @@
 /**
  * Desktop items (D6): your things (DAOs, multisigs, bookmarked proposals)
  * and the apps you pin, on a grid anchored to the right edge as in mockup v4.
- * Stored in this browser (D3), one desk per wallet address; guests start from
+ * Stored in this browser (D3), one desk per network and wallet; guests start from
  * the built-in featured desk (D14) until memba_dao can set it on chain.
  *
  * @module os/shell/desk
  */
 import { OS_APPS } from "../apps"
+import { DEFAULT_NETWORK } from "../../lib/config"
 import { parseOsPath, type OsTarget } from "./osPath"
 
 export type DeskItemType = "app" | "dao" | "prop" | "msig"
@@ -28,8 +29,29 @@ export const FEATURED_DESK: readonly DeskItem[] = [
     { ty: "app", ref: "arcade", c: 0, r: 2 },
 ]
 
-export function deskKey(address: string | null): string {
+export function deskKey(address: string | null, networkKey = DEFAULT_NETWORK): string {
+    return `memba_os_desk:${networkKey}:${address || "guest"}`
+}
+
+function legacyDeskKey(address: string | null): string {
     return `memba_os_desk:${address || "guest"}`
+}
+
+function migrationKey(address: string | null): string {
+    return `memba_os_desk:migrated:${address || "guest"}`
+}
+
+/** Old unscoped pins belong only to the configured default network. */
+function migrateLegacyDesk(address: string | null, networkKey: string): void {
+    if (networkKey !== DEFAULT_NETWORK) return
+    const key = deskKey(address, networkKey)
+    if (localStorage.getItem(migrationKey(address)) !== null) return
+    const legacy = localStorage.getItem(legacyDeskKey(address))
+    if (legacy === null) return
+    // A scoped desk created by a newer tab wins over a stale legacy desk.
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, legacy)
+    localStorage.setItem(migrationKey(address), "1")
+    localStorage.removeItem(legacyDeskKey(address))
 }
 
 /** What an item opens, validated like a typed link. Null if the item is malformed. */
@@ -116,9 +138,10 @@ export function nearestCell(x: number, y: number, deskWidth: number): { c: numbe
 
 const TYPES: readonly DeskItemType[] = ["app", "dao", "prop", "msig"]
 
-export function loadDesk(address: string | null): DeskItem[] {
+export function loadDesk(address: string | null, networkKey = DEFAULT_NETWORK): DeskItem[] {
     try {
-        const raw = localStorage.getItem(deskKey(address))
+        migrateLegacyDesk(address, networkKey)
+        const raw = localStorage.getItem(deskKey(address, networkKey))
         if (raw === null) return address ? [] : FEATURED_DESK.map((i) => ({ ...i }))
         const parsed: unknown = JSON.parse(raw)
         if (!Array.isArray(parsed)) return []
@@ -135,9 +158,9 @@ export function loadDesk(address: string | null): DeskItem[] {
     }
 }
 
-export function saveDesk(address: string | null, items: readonly DeskItem[]): void {
+export function saveDesk(address: string | null, items: readonly DeskItem[], networkKey = DEFAULT_NETWORK): void {
     try {
-        localStorage.setItem(deskKey(address), JSON.stringify(items))
+        localStorage.setItem(deskKey(address, networkKey), JSON.stringify(items))
     } catch {
         // Storage refused: changes last for this visit only.
     }

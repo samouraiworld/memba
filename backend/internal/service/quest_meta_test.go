@@ -77,3 +77,35 @@ func TestCompleteQuest_AutoGrantsEarn500XP(t *testing.T) {
 		t.Fatal("expected earn-500-xp to be auto-granted at >= 500 XP")
 	}
 }
+
+func TestGrantDerivedMetaQuests_DoesNotNewlyGrantComingSoonMilestone(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	if !h.svc.grantDerivedMetaQuests(ctx, "g1alice", &membav1.UserQuestState{TotalXp: 1000}) {
+		t.Fatal("live 500-XP milestone should be granted")
+	}
+	var liveCount, comingSoonCount int
+	if err := h.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM quest_completions WHERE address = 'g1alice' AND quest_id = 'earn-500-xp'`,
+	).Scan(&liveCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM quest_completions WHERE address = 'g1alice' AND quest_id = 'earn-1000-xp'`,
+	).Scan(&comingSoonCount); err != nil {
+		t.Fatal(err)
+	}
+	if liveCount != 1 || comingSoonCount != 0 {
+		t.Fatalf("only live milestone should be newly granted: 500=%d 1000=%d", liveCount, comingSoonCount)
+	}
+	// A historical row remains visible and retains its published XP.
+	if _, err := h.db.ExecContext(ctx,
+		`INSERT INTO quest_completions (address, quest_id, completed_at) VALUES ('g1alice', 'earn-1000-xp', '2026-01-01T00:00:00Z')`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.svc.GetUserQuests(ctx, connect.NewRequest(&membav1.GetUserQuestsRequest{Address: "g1alice"}))
+	if err != nil || resp.Msg.State.TotalXp != 75 {
+		t.Fatalf("historical 1000-XP completion should retain 50 XP: state=%v err=%v", resp, err)
+	}
+}

@@ -13,7 +13,7 @@
  * a replay (see render/fx.parity.test).
  */
 
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { isBarricade25DEnabled, isBarricadeCertifyEnabled } from "../../lib/config"
 import { applyEvent, initState, tick } from "./sim/engine"
@@ -32,6 +32,7 @@ import { interpPositions } from "./render/interp"
 import { buildShareText } from "./render/sharecard"
 import { GameAudio } from "./render/audio"
 import { useGameLoop } from "./hooks/useGameLoop"
+import { useWindowActive } from "../../os/page/WindowActivity"
 import "./barricade.css"
 
 // The on-chain certify control is a lazy chunk: it pulls in the wallet hooks, so
@@ -41,6 +42,13 @@ const BarricadeCertify = lazy(() => import("./BarricadeCertify"))
 // Lazy so the three / react-three-fiber stack lands in the async vendor-three chunk
 // (bundle CI gate + Workbox precache-exclusion enforce it), never the eager bundle.
 const Barricade3D = lazy(() => import("./render/three/Barricade3D"))
+
+class RendererBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
+    state = { failed: false }
+    static getDerivedStateFromError() { return { failed: true } }
+    componentDidCatch() { this.props.onFailure() }
+    render() { return this.state.failed ? null : this.props.children }
+}
 
 // Logical canvas coordinate space; the backing store is scaled by devicePixelRatio.
 const CW = 390
@@ -138,11 +146,13 @@ function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, vi
 }
 
 export default function Barricade() {
+    const windowActive = useWindowActive()
     const shellRef = useRef<HTMLDivElement | null>(null)
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const stageRef = useRef<HTMLDivElement | null>(null)
     const viewRef = useRef({ width: CW, height: CH })
     const resultHeadingRef = useRef<HTMLHeadingElement | null>(null)
+    const pauseFocusPendingRef = useRef(false)
     const stateRef = useRef<SimState>(initState("idle"))
     const wavesRef = useRef<WaveScript[]>(buildWaves("idle"))
     const eventsRef = useRef<SimEvent[]>([])
@@ -158,12 +168,14 @@ export default function Barricade() {
     const audioRef = useRef<GameAudio | null>(null)
 
     const [status, setStatus] = useState<RunStatus>("ready")
+    const [renderer3d, setRenderer3d] = useState(RENDER_3D)
     const [canFullscreen, setCanFullscreen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [fullscreenError, setFullscreenError] = useState("")
     const [isDaily, setIsDaily] = useState(true)
     const [muted, setMuted] = useState(true)
     const [copied, setCopied] = useState(false)
+    const [shareError, setShareError] = useState("")
     const [armed, setArmed] = useState(false) // molotov aim mode: next canvas tap lobs
     const [aim, setAim] = useState({ lane: 0, dist: Math.round(LANE_LENGTH / 2) })
     const [hud, setHud] = useState<HudMirror>(() => projectHud(initState("idle")))
@@ -184,8 +196,8 @@ export default function Barricade() {
         // machine plates. The compact 2D path remains the fast fallback, but it
         // should not fall back to placeholder identity just because a phone did
         // not opt into the perspective renderer.
-        if (!RENDER_3D) loadBarricadeArt()
-    }, [])
+        if (!renderer3d) loadBarricadeArt()
+    }, [renderer3d])
 
     useEffect(() => {
         const audio = new GameAudio(true)
@@ -261,8 +273,23 @@ export default function Barricade() {
     }, [])
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- OS focus is external state; freeze the mounted run as soon as the window becomes inactive.
+        if (!windowActive) setStatus((current) => current === "playing" ? "paused" : current)
+    }, [windowActive])
+
+    useEffect(() => {
         if (status === "done") resultHeadingRef.current?.focus()
     }, [status])
+
+    useEffect(() => {
+        if (!windowActive) {
+            pauseFocusPendingRef.current = false
+            return
+        }
+        if (status !== "paused" || !pauseFocusPendingRef.current) return
+        pauseFocusPendingRef.current = false
+        stageRef.current?.querySelector<HTMLButtonElement>(".bar-pause button")?.focus({ preventScroll: true })
+    }, [status, windowActive])
 
     const start = useCallback((daily: boolean) => {
         const seed = daily ? dailySeed() : `practice-${Date.now()}-${practiceCounter.current++}`
@@ -278,6 +305,7 @@ export default function Barricade() {
         setAim({ lane: 0, dist: Math.round(LANE_LENGTH / 2) })
         setHud(projectHud(stateRef.current))
         setResult(null)
+        setShareError("")
         setStatus("playing")
         stageRef.current?.focus()
     }, [])
@@ -361,7 +389,7 @@ export default function Barricade() {
             // 3D: publish the two latest sim states + sub-tick alpha for the R3F scene
             // to read in its own loop. The sim still advances in exactly ONE place
             // (useGameLoop → onSteps); this is a pure read-side handoff, no 2D canvas.
-            if (RENDER_3D) {
+            if (renderer3d) {
                 snapStore.publish(tickPrevRef.current, s, alpha)
                 prevStateRef.current = s
                 return
@@ -378,15 +406,29 @@ export default function Barricade() {
             else draw(ctx, s, view, fx, interp)
             prevStateRef.current = s
         },
-        [snapStore],
+        [snapStore, renderer3d],
     )
 
-    useGameLoop(status === "playing", onSteps, onFrame)
+    useGameLoop(status === "playing" && windowActive, onSteps, onFrame)
+
+    const priorShopPhase = useRef(hud.phase)
+    useEffect(() => {
+        const previous = priorShopPhase.current
+        priorShopPhase.current = hud.phase
+        if (!windowActive || status !== "playing") return
+        if (hud.phase === "choice" && previous !== "choice") {
+            stageRef.current?.querySelector<HTMLButtonElement>(".bar-shop button:not(:disabled)")?.focus({ preventScroll: true })
+        } else if (previous === "choice" && hud.phase !== "choice" && document.activeElement === document.body) {
+            stageRef.current?.focus({ preventScroll: true })
+        }
+    }, [hud.phase, status, windowActive])
 
     // Attract / idle scene on the ready screen — the game at rest, so the first
     // thing a player sees is alive, not a dead black box. Render-only.
     useEffect(() => {
-        if (status !== "ready") return
+        // Game windows remain mounted when parked, but their hidden attract
+        // scene must not keep painting at display refresh rate.
+        if (status !== "ready" || !windowActive) return
         const canvas = canvasRef.current
         const ctx = canvas?.getContext("2d")
         if (!canvas || !ctx) return
@@ -406,17 +448,17 @@ export default function Barricade() {
         }
         raf = requestAnimationFrame(paint)
         return () => cancelAnimationFrame(raf)
-    }, [status])
+    }, [status, windowActive])
 
     // Low-frequency HUD mirror for the DOM buttons (never per-frame setState).
     useEffect(() => {
-        if (status !== "playing") return
+        if (status !== "playing" || !windowActive) return
         const t = setInterval(() => {
             const s = stateRef.current
             setHud(projectHud(s))
         }, 200)
         return () => clearInterval(t)
-    }, [status])
+    }, [status, windowActive])
 
     const onCanvasPointer = useCallback(
         (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -484,6 +526,7 @@ export default function Barricade() {
         if (status !== "playing") return
         if (key === "p") {
             e.preventDefault()
+            pauseFocusPendingRef.current = true
             setStatus("paused")
             return
         }
@@ -529,6 +572,7 @@ export default function Barricade() {
         }
         if (key === "escape") {
             e.preventDefault()
+            pauseFocusPendingRef.current = true
             setStatus("paused")
             return
         }
@@ -542,9 +586,8 @@ export default function Barricade() {
         setMuted((m) => !m)
     }, [])
 
-    // Copy a spoiler-free, Wordle-style share card to the clipboard — the growth
-    // engine. Explicit tap only, never auto-shared. No-ops where clipboard is
-    // unavailable (e.g. insecure context).
+    // Copy a spoiler-free share card. If clipboard access fails, show the text
+    // so the player can still select and copy it.
     const share = useCallback(() => {
         if (!result) return
         const text = buildShareText({
@@ -556,13 +599,17 @@ export default function Barricade() {
             date: result.seed.slice(-10),
         })
         const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined
-        if (!clip?.writeText) return
+        if (!clip?.writeText) {
+            setShareError("Clipboard unavailable here. Select and copy your result below.")
+            return
+        }
         clip.writeText(text).then(
             () => {
+                setShareError("")
                 setCopied(true)
                 window.setTimeout(() => setCopied(false), 2000)
             },
-            () => {},
+            () => setShareError("Clipboard access failed. Select and copy your result below."),
         )
     }, [result])
 
@@ -570,7 +617,7 @@ export default function Barricade() {
         <div
             ref={shellRef}
             className={`bar-shell${status === "done" ? " bar-shell--done" : ""}`}
-            data-renderer={RENDER_3D ? "3d" : RENDER_25D ? "2.5d" : "2d"}
+            data-renderer={renderer3d ? "3d" : RENDER_25D ? "2.5d" : "2d"}
         >
             <Link className="bar-exit bar-exit--compact" to="../.." relative="path">Exit game</Link>
             <header className="bar-wordmark">
@@ -596,6 +643,20 @@ export default function Barricade() {
             </header>
             {fullscreenError && <p className="bar-fullscreen-error" role="alert">{fullscreenError}</p>}
 
+            {status === "ready" && (
+                <div className="bar-panel">
+                    <div className="bar-controls bar-controls--start">
+                        <button className="k-btn-primary" onClick={() => start(true)}>Daily run</button>
+                        <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
+                    </div>
+                    <p className="bar-hint">
+                        At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane and you fire automatically;
+                        shove its nearest machine or aim a molotov farther up the street. Defeated machines fill Rally and drop scrap for the
+                        between-wave shop. Everyone gets the same daily seed. Daily results are saved on this device; Practice uses a separate run.
+                    </p>
+                </div>
+            )}
+
             <p id="bar-game-controls" className="bar-sr-only">
                 Focus the playfield. Use left and right arrows or 1, 2, 3 to move lanes. R rallies, M aims a molotov, S shoves, and P pauses. While aiming, use arrows to choose lane and range, then Enter to throw.
             </p>
@@ -611,10 +672,12 @@ export default function Barricade() {
                     if (e.target === e.currentTarget || e.target instanceof HTMLCanvasElement) e.currentTarget.focus()
                 }}
             >
-                {RENDER_3D ? (
-                    <Suspense fallback={<div className="bar-canvas" aria-label="Barricade play area" />}>
-                        <Barricade3D store={snapStore} onGroundTap={handleGroundTap} />
-                    </Suspense>
+                {renderer3d ? (
+                    <RendererBoundary onFailure={() => setRenderer3d(false)}>
+                        <Suspense fallback={<div className="bar-canvas" aria-label="Barricade play area" />}>
+                            <Barricade3D store={snapStore} onGroundTap={handleGroundTap} running={status === "playing" && windowActive} />
+                        </Suspense>
+                    </RendererBoundary>
                 ) : (
                     <canvas
                         ref={canvasRef}
@@ -629,8 +692,8 @@ export default function Barricade() {
                     </div>
                 )}
                 {status === "paused" && (
-                    <div className="bar-pause">
-                        <strong>Run paused</strong>
+                    <div className="bar-pause" role="dialog" aria-labelledby="bar-pause-title">
+                        <strong id="bar-pause-title">Run paused</strong>
                         <span>Your run is held until you resume.</span>
                         <button className="k-btn-primary" onClick={() => { setStatus("playing"); stageRef.current?.focus() }}>Resume run</button>
                     </div>
@@ -670,20 +733,6 @@ export default function Barricade() {
                 </p>
             )}
 
-            {status === "ready" && (
-                <div className="bar-panel">
-                    <div className="bar-controls bar-controls--start">
-                        <button className="k-btn-primary" onClick={() => start(true)}>Daily run</button>
-                        <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
-                    </div>
-                    <p className="bar-hint">
-                        At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane and you fire automatically;
-                        shove its nearest machine or aim a molotov farther up the street. Defeated machines fill Rally and drop scrap for the
-                        between-wave shop. Everyone gets the same daily seed. Practice runs do not count.
-                    </p>
-                </div>
-            )}
-
             {status === "playing" && hud.phase !== "choice" && (
                 <div className="bar-controls bar-controls--playing">
                     <button
@@ -713,7 +762,7 @@ export default function Barricade() {
                     >
                         {hud.shoveCooldownSeconds > 0 ? `Shove ${hud.shoveCooldownSeconds}s` : "Shove"}
                     </button>
-                    <button className="k-btn-secondary" onClick={() => { setStatus("paused"); stageRef.current?.focus() }}>
+                    <button className="k-btn-secondary" onClick={() => { pauseFocusPendingRef.current = true; setStatus("paused") }}>
                         Pause
                     </button>
                     <button
@@ -769,6 +818,12 @@ export default function Barricade() {
                             Back
                         </button>
                     </div>
+                    {shareError && (
+                        <div className="bar-share-fallback" role="alert">
+                            <p>{shareError}</p>
+                            <textarea readOnly aria-label="Result text to copy" value={buildShareText({ score: result.score, won: result.won, waves: result.waves, total: WAVE_TOTAL, overtimeRound: result.overtimeRound, date: result.seed.slice(-10) })} onFocus={(e) => e.currentTarget.select()} />
+                        </div>
+                    )}
                     {isBarricadeCertifyEnabled() && isDaily && result.verified && (
                         <div className="bar-certify">
                             <Suspense fallback={null}>

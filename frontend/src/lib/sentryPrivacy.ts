@@ -2,6 +2,9 @@ import type { Breadcrumb, Event } from '@sentry/react'
 
 function redactText(value: string): string {
     value = value.replace(/g1[a-z0-9]{38}/gi, '[REDACTED_ADDRESS]')
+    // Visio room slugs grant access, including when they appear in OS URLs,
+    // saved-window query tokens, referrers or an outbound Visio link.
+    value = value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[REDACTED_MEETING]')
     // Same matches as eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+,
     // without quadratic retries on a long run of `eyJ` with no dots.
     const word = /[A-Za-z0-9_-]+/g
@@ -123,9 +126,16 @@ export function redactSentryBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb | nul
 
 /** Defense in depth for breadcrumbs supplied directly on events or by processors. */
 export function redactSentryEvent<T extends Event>(event: T): T {
+    const scrub = <V>(value: V): V | undefined => redactSentryBreadcrumb({ data: { value } })?.data?.value as V | undefined
     return {
         ...event,
         ...(typeof event.message === 'string' && { message: redactText(event.message) }),
+        ...(typeof event.transaction === 'string' && { transaction: redactText(event.transaction) }),
+        ...(event.request && { request: scrub(event.request) }),
+        ...(event.contexts && { contexts: scrub(event.contexts) }),
+        ...(event.extra && { extra: scrub(event.extra) }),
+        ...(event.tags && { tags: scrub(event.tags) }),
+        ...(event.spans && { spans: scrub(event.spans) }),
         ...(event.exception && { exception: {
             ...event.exception,
             values: event.exception.values?.map(value => ({
@@ -135,4 +145,13 @@ export function redactSentryEvent<T extends Event>(event: T): T {
         ...(event.breadcrumbs && { breadcrumbs: event.breadcrumbs
             .map(redactSentryBreadcrumb).filter((value): value is Breadcrumb => value !== null) }),
     }
+}
+
+/** Standalone tracing spans bypass beforeSendTransaction in Sentry v10. */
+export function redactSentrySpan<T extends { span_id: string; trace_id: string; start_timestamp: number; data: object }>(span: T): T {
+    const safe = redactSentryBreadcrumb({ data: { span } })?.data?.span
+    if (safe && typeof safe === 'object') return safe as T
+    // beforeSendSpan may not drop a span; retain only SDK trace identifiers.
+    return { span_id: span.span_id, trace_id: span.trace_id, start_timestamp: span.start_timestamp,
+        data: {}, description: '[REDACTED]' } as unknown as T
 }

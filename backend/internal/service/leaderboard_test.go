@@ -30,9 +30,9 @@ func TestGetLeaderboard_OrdersByXPDesc(t *testing.T) {
 	ctx := context.Background()
 
 	// off_chain quests: connect-wallet=10, use-cmdk=10, switch-network=15, submit-feedback=20
-	h.complete(t, "g1alice", "connect-wallet", "submit-feedback")             // 30
-	h.complete(t, "g1bob", "connect-wallet")                                  // 10
-	h.complete(t, "g1carol", "connect-wallet", "use-cmdk", "switch-network")  // 35
+	h.complete(t, "g1alice", "connect-wallet", "submit-feedback")            // 30
+	h.complete(t, "g1bob", "connect-wallet")                                 // 10
+	h.complete(t, "g1carol", "connect-wallet", "use-cmdk", "switch-network") // 35
 
 	resp, err := h.svc.GetLeaderboard(ctx, connect.NewRequest(&membav1.GetLeaderboardRequest{Limit: 50}))
 	if err != nil {
@@ -121,6 +121,55 @@ func TestGetLeaderboard_StaleCacheServesThenRepairs(t *testing.T) {
 	}
 	if !seen["g1alice"] || !seen["g1bob"] {
 		t.Fatalf("expected both alice and bob, got %v", seen)
+	}
+}
+
+// A failed rank-cache write after an existing user's second completion keeps
+// the user_ranks row count unchanged. The aggregate completion check must
+// still schedule a repair, or that user's XP and rank stay stale indefinitely.
+func TestGetLeaderboard_RepairsExistingUserCacheWriteFailure(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	h.complete(t, "g1alice", "connect-wallet") // cached: 1 quest, 10 XP
+	if _, err := h.db.ExecContext(ctx, `CREATE TRIGGER fail_rank_cache_update BEFORE INSERT ON user_ranks
+		WHEN NEW.address = 'g1alice'
+		BEGIN SELECT RAISE(ABORT, 'simulated rank cache failure'); END`); err != nil {
+		t.Fatal("create failure trigger:", err)
+	}
+	h.complete(t, "g1alice", "submit-feedback") // completion succeeds; cache write fails
+	var cachedQuestCount int
+	if err := h.db.QueryRowContext(ctx, `SELECT quests_completed FROM user_ranks WHERE address = 'g1alice'`).Scan(&cachedQuestCount); err != nil || cachedQuestCount != 1 {
+		t.Fatalf("fixture must hold stale existing row: quests=%d err=%v", cachedQuestCount, err)
+	}
+	if _, err := h.db.ExecContext(ctx, `DROP TRIGGER fail_rank_cache_update`); err != nil {
+		t.Fatal("drop failure trigger:", err)
+	}
+
+	if _, err := h.svc.GetLeaderboard(ctx, connect.NewRequest(&membav1.GetLeaderboardRequest{Limit: 50})); err != nil {
+		t.Fatal("GetLeaderboard:", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var cachedXP, cachedQuests int
+		if err := h.db.QueryRowContext(ctx,
+			`SELECT total_xp, quests_completed FROM user_ranks WHERE address = 'g1alice'`,
+		).Scan(&cachedXP, &cachedQuests); err != nil {
+			t.Fatal("read repaired rank cache:", err)
+		}
+		if cachedXP == 30 && cachedQuests == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("existing-user cache did not repair: xp=%d quests=%d", cachedXP, cachedQuests)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	resp, err := h.svc.GetLeaderboard(ctx, connect.NewRequest(&membav1.GetLeaderboardRequest{Limit: 50}))
+	if err != nil {
+		t.Fatal("GetLeaderboard after repair:", err)
+	}
+	if len(resp.Msg.Entries) != 1 || resp.Msg.Entries[0].TotalXp != 30 || resp.Msg.Entries[0].QuestsCompleted != 2 {
+		t.Fatalf("repaired leaderboard must show 30 XP and 2 quests: %+v", resp.Msg.Entries)
 	}
 }
 

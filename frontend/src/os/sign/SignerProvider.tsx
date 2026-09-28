@@ -6,6 +6,7 @@
  * @module os/sign/SignerProvider
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { clearGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { beginWalletActivity } from "../../lib/walletActivity"
 import type { OsSession } from "../shell/useOsSession"
 import { adenaChecklist, type SignRow } from "./decode"
@@ -125,15 +126,20 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         const id = ++seq
         setPending((p) => [...p, { id, label }])
         setReview(null)
-        // Without a way to read the result back (older DAOs), "sent" is all we can say.
+        // A wallet return alone is submission, not chain confirmation.
         const ok = req.verify ? await verifyWithRetries(() => req.verify!(choice, hash, res.result), req.verifyAttempts) : null
         if (!sameOwner()) return
         setPending((p) => p.filter((x) => x.id !== id))
+        // Votes can release their lock after verification. A proposal's
+        // confirmed ID must survive reload until the member starts another.
+        if (ok === true && req.receipt && !req.retainConfirmedReceipt) {
+            try { clearGovernanceReceipt(req.receipt) } catch { /* retain the conservative lock if storage refuses */ }
+        }
         const where = `${session.network.chainId} · ${hash.slice(0, 10)}…`
         notify(ok === true
             ? { kind: "ok", title: `Confirmed · ${label}`, sub: where }
             : ok === null
-                ? { kind: "ok", title: `Sent · ${label}`, sub: where }
+                ? { kind: "ok", title: `Submitted · ${label}`, sub: where }
                 : { kind: "warn", title: `Submitted · ${label}`, sub: "The chain hasn't shown it yet. Don't send it again." })
         if (ok === false) toast(`Submitted: ${label}. Not visible on chain yet.`)
         settle(req, choice, ok === true ? "confirmed" : "submitted")
@@ -218,7 +224,18 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                             {req.choice && (
                                 <div className="os-segm" role="radiogroup" aria-label={req.choice.label}>
                                     {req.choice.options.map((o) => (
-                                        <button key={o} type="button" role="radio" aria-checked={choice === o} onClick={() => onChoice(o)}>{o}</button>
+                                        <button key={o} type="button" role="radio" aria-checked={choice === o} tabIndex={choice === o ? 0 : -1}
+                                            onKeyDown={(event) => {
+                                                const options = req.choice!.options
+                                                const index = options.indexOf(o)
+                                                const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
+                                                    : event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % options.length
+                                                        : event.key === "ArrowLeft" || event.key === "ArrowUp" ? (index + options.length - 1) % options.length : -1
+                                                if (next < 0) return
+                                                event.preventDefault()
+                                                onChoice(options[next])
+                                                event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus()
+                                            }} onClick={() => onChoice(o)}>{o}</button>
                                     ))}
                                 </div>
                             )}

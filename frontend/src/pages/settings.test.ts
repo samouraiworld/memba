@@ -1,74 +1,7 @@
 /**
  * Unit tests for Settings page utilities.
  */
-import { describe, it, expect, beforeEach } from "vitest"
-
-const SETTINGS_KEY = "memba_settings"
-
-interface UserSettings {
-    gasWanted: number
-    gasFee: number
-}
-
-function defaults(): UserSettings {
-    return { gasWanted: 10000000, gasFee: 1000000 }
-}
-
-function loadSettings(): UserSettings {
-    try {
-        const raw = localStorage.getItem(SETTINGS_KEY)
-        if (raw) return { ...defaults(), ...JSON.parse(raw) }
-    } catch { /* ignore */ }
-    return defaults()
-}
-
-function saveSettings(s: UserSettings) {
-    try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
-    } catch { /* quota */ }
-}
-
-// ── localStorage Tests ────────────────────────────────────────
-
-describe("Settings localStorage", () => {
-    beforeEach(() => {
-        localStorage.clear()
-    })
-
-    it("returns defaults when nothing saved", () => {
-        const s = loadSettings()
-        expect(s.gasWanted).toBe(10000000)
-        expect(s.gasFee).toBe(1000000)
-    })
-
-    it("persists and loads custom gas settings", () => {
-        saveSettings({ gasWanted: 5000000, gasFee: 500000 })
-        const s = loadSettings()
-        expect(s.gasWanted).toBe(5000000)
-        expect(s.gasFee).toBe(500000)
-    })
-
-    it("merges partial saved data with defaults", () => {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ gasWanted: 1234 }))
-        const s = loadSettings()
-        expect(s.gasWanted).toBe(1234)
-        expect(s.gasFee).toBe(1000000) // default
-    })
-
-    it("handles corrupted localStorage gracefully", () => {
-        localStorage.setItem(SETTINGS_KEY, "NOT_JSON{{{")
-        const s = loadSettings()
-        expect(s.gasWanted).toBe(10000000) // defaults
-    })
-
-    it("saves and overwrites previous settings", () => {
-        saveSettings({ gasWanted: 1, gasFee: 2 })
-        saveSettings({ gasWanted: 3, gasFee: 4 })
-        const s = loadSettings()
-        expect(s.gasWanted).toBe(3)
-        expect(s.gasFee).toBe(4)
-    })
-})
+import { describe, it, expect } from "vitest"
 
 // ── Token Path Validation (BT-M1) ────────────────────────────
 

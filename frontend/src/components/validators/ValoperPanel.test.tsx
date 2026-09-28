@@ -18,7 +18,7 @@ vi.hoisted(() => {
     window.history.replaceState(null, "", "/test13/")
 })
 
-import { screen, within } from "@testing-library/react"
+import { fireEvent, screen, within } from "@testing-library/react"
 import { renderWithProviders } from "../../test/test-utils"
 import { ValoperPanel } from "./ValoperPanel"
 import type { ValoperWithStatus } from "../../lib/valopers"
@@ -144,7 +144,7 @@ describe("ValoperPanel — preserved behaviour", () => {
     it("keeps the top summary line with active + candidate counts", () => {
         renderWithProviders(<ValoperPanel valopers={MIXED} loading={false} />)
         expect(
-            screen.getByText(/registered validator operators · 2 active · 3 candidates/i),
+            screen.getByText(/registered operators · 2 in the active consensus set · 3 candidates/i),
         ).toBeInTheDocument()
     })
 
@@ -166,14 +166,35 @@ describe("ValoperPanel — preserved behaviour", () => {
         expect(screen.getAllByText("Signing").length).toBeGreaterThan(0)
     })
 
-    it("keeps each card a keyboard-reachable button (a11y)", () => {
+    it("separates the internal profile button from the external link", () => {
         renderWithProviders(<ValoperPanel valopers={MIXED} loading={false} />)
         const cards = screen.getAllByTestId("valoper-card")
         expect(cards.length).toBe(MIXED.length)
         cards.forEach(card => {
-            expect(card).toHaveAttribute("role", "button")
-            expect(card).toHaveAttribute("tabindex", "0")
+            const open = within(card).getByRole("button", { name: /open memba profile/i })
+            const external = within(card).getByRole("link", { name: /view on gnoweb/i })
+            expect(open).not.toContainElement(external)
+            expect(external.closest("button, [role=button]")).toBeNull()
+            const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
+            external.dispatchEvent(event)
+            expect(event.defaultPrevented).toBe(false)
         })
+    })
+
+    it("offers current validator onboarding guidance", () => {
+        renderWithProviders(<ValoperPanel valopers={[]} loading={false} />)
+        expect(screen.getByRole("link", { name: /become a validator/i })).toHaveAttribute(
+            "href", "https://docs.gno.land/builders/running-a-node/#become-a-validator",
+        )
+    })
+
+    it("distinguishes a registry outage from an empty registry", () => {
+        const retry = vi.fn()
+        renderWithProviders(<ValoperPanel valopers={[]} loading={false} error="RPC unavailable" onRetry={retry} />)
+        expect(screen.getByRole("alert")).toHaveTextContent(/registry unavailable/i)
+        expect(screen.queryByText(/no valopers registered yet/i)).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        expect(retry).toHaveBeenCalledOnce()
     })
 
     it("links valoper profiles to a test13 gnoweb host, never mainnet gno.land (regression)", () => {

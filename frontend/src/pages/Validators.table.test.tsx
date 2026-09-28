@@ -60,6 +60,7 @@ vi.mock("../lib/validators", async () => {
     const actual = await vi.importActual<typeof import("../lib/validators")>("../lib/validators")
     return {
         ...actual,
+        getValidatorRpcSnapshot: vi.fn().mockResolvedValue({ url: "https://rpc.example", chainId: "test13", height: 12345, blockHash: "abc", status: {} }),
         getValidators: vi.fn().mockResolvedValue([VALIDATOR]),
         getNetworkStats: vi.fn().mockResolvedValue(STATS),
         getAggregatedNetPeers: vi.fn().mockResolvedValue(null),
@@ -94,7 +95,8 @@ const START = "/test13/validators"
 const PROFILE = `/${DEFAULT_NETWORK}/validators/${VALIDATOR.gnoAddr}`
 
 function LocationProbe() {
-    return <output data-testid="location">{useLocation().pathname}</output>
+    const location = useLocation()
+    return <><output data-testid="location">{location.pathname}</output><output data-testid="query">{location.search}</output></>
 }
 
 async function renderTable(overrides: Partial<ValidatorInfo> = {}) {
@@ -117,6 +119,19 @@ describe("Validators table — sortable headers", () => {
         expect(select).toHaveValue("50")
         fireEvent.change(select, { target: { value: "25" } })
         expect(select).toHaveValue("25")
+    })
+
+    it("restores search, sort, and page size from the URL and keeps edits there", async () => {
+        renderWithProviders(<><Validators /><LocationProbe /></>, {
+            route: `${START}?q=test-validator&sort=votingPower&direction=desc&perPage=25`,
+        })
+        await screen.findByTestId("validator-table")
+        expect(screen.getByRole("textbox", { name: "Search validators" })).toHaveValue("test-validator")
+        expect(screen.getByRole("columnheader", { name: /Voting Power/ })).toHaveAttribute("aria-sort", "descending")
+        expect(screen.getByTestId("validator-page-size")).toHaveValue("25")
+        fireEvent.change(screen.getByRole("textbox", { name: "Search validators" }), { target: { value: "different" } })
+        expect(screen.getByTestId("query")).toHaveTextContent("q=different")
+        expect(screen.getByTestId("query")).toHaveTextContent("sort=votingPower")
     })
 
     it("sorts from a real button inside the header cell", async () => {
@@ -232,6 +247,17 @@ describe("Validators presentation preview — recoverable states", () => {
         expect(screen.queryByRole("heading", { name: "No matching validators" })).not.toBeInTheDocument()
     })
 
+    it("shows an accessible no-results state and clears the search in the classic view", async () => {
+        vi.mocked(isProValidatorsRoute).mockReturnValue(false)
+        renderWithProviders(<Validators />, { route: START })
+        await screen.findByTestId("validator-row-1")
+        fireEvent.change(screen.getByRole("textbox", { name: "Search validators" }), { target: { value: "no-match" } })
+        expect(screen.getByRole("status")).toHaveTextContent("No matching validators")
+        expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Clear filters" }))
+        expect(screen.getByTestId("validator-row-1")).toBeInTheDocument()
+    })
+
     it("retains network context while the first roster is pending", async () => {
         let resolveRoster!: (rows: ValidatorInfo[]) => void
         vi.mocked(getValidators).mockReturnValueOnce(new Promise(resolve => { resolveRoster = resolve }))
@@ -256,11 +282,28 @@ describe("Validators presentation preview — recoverable states", () => {
         render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[START]}><Validators /></MemoryRouter></QueryClientProvider>)
         await screen.findByTestId("validator-row-1")
         vi.mocked(getValidators).mockRejectedValueOnce(new Error("Refresh unavailable"))
-        await act(async () => { await client.refetchQueries({ queryKey: ["validators", "roster"], exact: true }) })
+        await act(async () => { await client.refetchQueries({ queryKey: ["validators", "roster"] }) })
         expect(await screen.findByText(/Refresh failed. Showing the last retrieved data./)).toBeInTheDocument()
+        expect(screen.queryByText("✅ Synced")).not.toBeInTheDocument()
+        expect(screen.getByText("Last retrieved height")).toBeInTheDocument()
+        expect(screen.getByText("Network health · last retrieved")).toBeInTheDocument()
         expect(screen.getByTestId("validator-row-1")).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Retry" }))
         await screen.findByTestId("validator-row-1")
+        client.clear()
+    })
+
+    it("marks retained data as stale in the classic view after a refresh failure", async () => {
+        vi.mocked(isProValidatorsRoute).mockReturnValue(false)
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[START]}><Validators /></MemoryRouter></QueryClientProvider>)
+        await screen.findByTestId("validator-row-1")
+        vi.mocked(getValidators).mockRejectedValueOnce(new Error("Refresh unavailable"))
+        await act(async () => { await client.refetchQueries({ queryKey: ["validators", "roster"] }) })
+        expect(await screen.findByRole("alert")).toHaveTextContent("Heights, health, and counts are not live")
+        expect(screen.queryByText("✅ Synced")).not.toBeInTheDocument()
+        expect(screen.getByText("Last retrieved height")).toBeInTheDocument()
+        expect(screen.getByTestId("validator-row-1")).toBeInTheDocument()
         client.clear()
     })
 })

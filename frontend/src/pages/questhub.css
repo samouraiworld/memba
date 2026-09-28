@@ -81,6 +81,23 @@
     color: var(--color-k-dim);
 }
 
+.k-questhub-xp-unavailable {
+    max-width: 220px;
+    font-size: var(--pro-small, 0.75rem);
+    color: var(--color-k-dim);
+    text-align: right;
+}
+
+.k-questhub-xp-retry {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-k-accent-text);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .k-questhub-progress-bar {
     width: 200px;
     height: 6px;
@@ -501,6 +518,8 @@
     font-size: 1rem;
     font-weight: 600;
     color: var(--color-k-accent-text);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .k-questdetail-desc {
@@ -727,6 +746,34 @@
     .k-questhub-select,
     .k-questhub-search {
         width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .k-questhub { padding: var(--space-3); }
+    .k-questhub-hero {
+        padding: var(--space-4);
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+    .k-questhub-hero h1 { font-size: 1.5rem; }
+    .k-questhub-hero-stats { gap: var(--space-1); }
+    .k-questdetail-deploy-row {
+        flex-direction: column;
+    }
+}
+
+@container os-window (max-width: 480px) {
+    .k-questhub { padding: var(--space-3); }
+    .k-questhub-hero {
+        padding: var(--space-4);
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+    .k-questhub-hero h1 { font-size: 1.5rem; }
+    .k-questhub-hero-stats { gap: var(--space-1); }
+    .k-questdetail-deploy-row {
+        flex-direction: column;
     }
 }
 

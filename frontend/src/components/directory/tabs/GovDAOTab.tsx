@@ -4,11 +4,11 @@
  * @module components/directory/tabs/GovDAOTab
  */
 
-import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowRight } from "@phosphor-icons/react"
-import { GNO_RPC_URL } from "../../../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID } from "../../../lib/config"
 import { encodeSlug } from "../../../lib/daoSlug"
-import { getDAOProposals, type DAOProposal } from "../../../lib/dao"
+import { fetchVerifiedDirectoryGovDAOProposals } from "../../../lib/directoryGovDao"
 import { formatRelativeTime } from "../../../lib/blockTime"
 import { SkeletonCard } from "../../ui/LoadingSkeleton"
 import type { TabProps } from "./types"
@@ -16,18 +16,12 @@ import type { TabProps } from "./types"
 const GOVDAO_PATH = "gno.land/r/gov/dao"
 
 export function GovDAOTab({ navigate }: TabProps) {
-    const [proposals, setProposals] = useState<DAOProposal[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-
-    useEffect(() => {
-        let cancelled = false
-        getDAOProposals(GNO_RPC_URL, GOVDAO_PATH)
-            .then(p => { if (!cancelled) setProposals(p.slice(0, 20)) })
-            .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load GovDAO proposals") })
-            .finally(() => { if (!cancelled) setLoading(false) })
-        return () => { cancelled = true }
-    }, [])
+    const query = useQuery({
+        queryKey: ["directory", "govdao", GNO_CHAIN_ID],
+        queryFn: () => fetchVerifiedDirectoryGovDAOProposals(GNO_RPC_URL, GOVDAO_PATH),
+        retry: false,
+    })
+    const proposals = query.data?.slice(0, 20) ?? []
 
     const statusColor = (s: string) => {
         if (s === "open") return "var(--color-brand)"
@@ -53,12 +47,12 @@ export function GovDAOTab({ navigate }: TabProps) {
                 </button>
             </div>
 
-            {loading ? (
+            {query.isPending ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     <SkeletonCard /><SkeletonCard /><SkeletonCard />
                 </div>
-            ) : error ? (
-                <div className="dir-error"><p>{error}</p></div>
+            ) : query.isError ? (
+                <div className="dir-error" role="status"><p>{query.error instanceof Error ? query.error.message : "Failed to load GovDAO proposals"}</p><button type="button" className="k-btn-secondary" onClick={() => void query.refetch()}>Retry</button></div>
             ) : proposals.length === 0 ? (
                 <div className="dir-empty"><p>No proposals found</p></div>
             ) : (

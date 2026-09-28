@@ -183,7 +183,9 @@ func TestCompleteQuest_ConflictingDeployProofGetsNoVoucher(t *testing.T) {
 	}
 	h.svc.SetAttestationSigner(signer)
 	token := h.makeToken(t, deployTestAddr)
-	const proof = "gno.land/r/alice/foo"
+	// The verifier seam intentionally lets both live IDs race with one proof,
+	// exercising the unique DB constraint independently of type validation.
+	const proof = "gno.land/p/alice/foo"
 
 	var entered sync.WaitGroup
 	entered.Add(2)
@@ -198,7 +200,7 @@ func TestCompleteQuest_ConflictingDeployProofGetsNoVoucher(t *testing.T) {
 		return !used, nil
 	}
 
-	quests := []string{"deploy-hello-pkg", "deploy-counter-pkg"}
+	quests := []string{"deploy-hello-pkg", "deploy-hello-realm"}
 	errs := make([]error, len(quests))
 	var done sync.WaitGroup
 	for i, q := range quests {
@@ -281,7 +283,7 @@ func TestCompleteQuest_IdempotentRetryKeepsVoucher(t *testing.T) {
 	complete := func() {
 		t.Helper()
 		if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
-			AuthToken: token, QuestId: "deploy-hello-pkg", Proof: "gno.land/r/alice/foo",
+			AuthToken: token, QuestId: "deploy-hello-pkg", Proof: "gno.land/p/alice/foo",
 		})); err != nil {
 			t.Fatal("idempotent retry must succeed:", err)
 		}
@@ -319,7 +321,7 @@ func TestCompleteQuest_ConflictNoSignerNoBadge(t *testing.T) {
 	h.stubChainVerify(true)
 	token := h.makeToken(t, deployTestAddr)
 	ctx := context.Background()
-	const proof = "gno.land/r/alice/foo"
+	const proof = "gno.land/p/alice/foo"
 
 	if _, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
 		AuthToken: token, QuestId: "deploy-hello-pkg", Proof: proof,
@@ -328,7 +330,7 @@ func TestCompleteQuest_ConflictNoSignerNoBadge(t *testing.T) {
 	}
 
 	_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "deploy-counter-pkg", Proof: proof,
+		AuthToken: token, QuestId: "deploy-hello-realm", Proof: proof,
 	}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("conflicting proof must be rejected with FailedPrecondition, got %v", err)
@@ -340,7 +342,7 @@ func TestCompleteQuest_ConflictNoSignerNoBadge(t *testing.T) {
 	if n := countRows(t, h, `SELECT COUNT(*) FROM badge_mints WHERE address = ?`, deployTestAddr); n != 1 {
 		t.Fatalf("want exactly 1 badge mint (the stored quest), got %d", n)
 	}
-	if n := countRows(t, h, `SELECT COUNT(*) FROM badge_mints WHERE address = ? AND quest_id = 'deploy-counter-pkg'`, deployTestAddr); n != 0 {
+	if n := countRows(t, h, `SELECT COUNT(*) FROM badge_mints WHERE address = ? AND quest_id = 'deploy-hello-realm'`, deployTestAddr); n != 0 {
 		t.Fatal("no badge mint may be queued for the rejected quest")
 	}
 	resp, err := h.svc.GetUserQuests(ctx, connect.NewRequest(&membav1.GetUserQuestsRequest{Address: deployTestAddr}))

@@ -21,6 +21,13 @@ import (
 
 func todayUTC() string { return time.Now().UTC().Format("2006-01-02") }
 
+// Uncached historical requests can trigger chain RPC work and permanently
+// materialize a challenge. Keep that public derivation window bounded; older
+// challenges already in the database remain readable for audit/history.
+const maxUncachedChallengeAgeDays = 30
+
+var errChallengeBeforeGenesis = errors.New("date precedes the seed chain's genesis day")
+
 func validBlockPartyDate(date string) bool {
 	parsed, err := time.Parse("2006-01-02", date)
 	return err == nil && parsed.Format("2006-01-02") == date
@@ -53,6 +60,12 @@ func (s *MultisigService) ensureChallenge(ctx context.Context, date string) (blo
 	if err != nil {
 		return blockparty.Challenge{}, false, err
 	}
+	// The first chain block can satisfy "first block after midnight" for dates
+	// before the chain existed. Such a date has no daily challenge and must not
+	// be cached as though it did.
+	if blk.Height == 1 && date < blk.Time.UTC().Format("2006-01-02") {
+		return blockparty.Challenge{}, false, errChallengeBeforeGenesis
+	}
 	seed := blockparty.DeriveSeed(blk.Hash, date)
 	c := blockparty.Challenge{
 		Date: date, Height: blk.Height, Hash: blk.Hash, Seed: seed,
@@ -76,14 +89,25 @@ func (s *MultisigService) GetDailyChallenge(
 	if gateErr := s.requireBlockParty(); gateErr != nil {
 		return nil, gateErr
 	}
+	now := time.Now().UTC()
 	date := req.Msg.Date
 	if date == "" {
-		date = todayUTC()
+		date = now.Format("2006-01-02")
 	}
 	if !validBlockPartyDate(date) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("date must be YYYY-MM-DD (UTC)"))
 	}
+	// Existing immutable archive rows are safe to serve regardless of age.
+	// Only an uncached date may cause chain work or create a new row.
+	if _, cached, err := blockparty.GetChallenge(s.db, date); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	} else if !cached && (date < now.AddDate(0, 0, -maxUncachedChallengeAgeDays).Format("2006-01-02") || date > now.Format("2006-01-02")) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("uncached date is outside the recent challenge window"))
+	}
 	c, ready, err := s.ensureChallenge(ctx, date)
+	if errors.Is(err, errChallengeBeforeGenesis) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -159,6 +183,9 @@ func (s *MultisigService) SubmitScore(
 	if !ok {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid or oversized move log"))
 	}
+	if len(moves) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("move log must contain a completed run"))
+	}
 	// 4) challenge must be ready
 	c, ready, err := s.ensureChallenge(ctx, date)
 	if err != nil {
@@ -174,11 +201,17 @@ func (s *MultisigService) SubmitScore(
 	// 6) replay stepwise, rejecting any no-op move (padding/DoS guard)
 	st := engine.InitGame(c.Seed, c.Modifier)
 	for _, m := range moves {
+		if st.Over {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("move log continues after game over"))
+		}
 		ns := engine.Step(st, m)
 		if ns.RngCallCount == st.RngCallCount { // no board change => no-op => illegal
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("move log contains a no-op move"))
 		}
 		st = ns
+	}
+	if len(moves) != blockparty.MoveBudget(c.Modifier) && !st.Over {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("move log must reach the end of the run"))
 	}
 	score := st.Score
 	// 7) one-per-day insert (first-write-wins)

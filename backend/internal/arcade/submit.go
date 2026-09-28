@@ -70,8 +70,7 @@ type submitRequest struct {
 	Seed       string          `json:"seed"`
 	SimVersion int64           `json:"simVersion"`
 	Events     json.RawMessage `json:"events"`
-	// FinalTick is Space Invaders-only (its sim runs to a tick count, not a
-	// terminal phase): required >0 for an invaders seed, and must be 0/absent
+	// FinalTick is Space Invaders-only: required >0 for an invaders seed, and must be 0/absent
 	// for BARRICADE — anything else is rejected before a verify is spent.
 	FinalTick    int64  `json:"finalTick"`
 	ClaimedScore int64  `json:"claimedScore"`
@@ -210,10 +209,14 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 				// binds a log to its first submitter).
 				existing, ok, gerr := cfg.Store.GetRunByLogHash(logHash)
 				if gerr == nil && ok && existing.Addr == addr {
-					// Echo the STORED row's game/day/mode/stats (the same log
-					// resubmitted on a later day must report its original
-					// attribution, not today's).
-					writeVerified(w, logHash, existing.Game, existing.Day, existing.Mode, existing.Stats, res)
+					// A later worker build can recompute a different verdict for the
+					// same canonical log. The immutable stored row is the attestation
+					// source of truth, including score, hash and sim version.
+					writeVerified(w, existing.LogHash, existing.Game, existing.Day, existing.Mode, existing.Stats, Result{
+						Score: existing.Score, Waves: existing.Waves, Won: existing.Won,
+						OvertimeRound: existing.OvertimeRound, StateHash: existing.StateHash,
+						SimVersion: existing.SimVersion,
+					})
 					return
 				}
 				slog.Warn("arcade submit: duplicate log from a different address", "addr", addr, "logHash", logHash)

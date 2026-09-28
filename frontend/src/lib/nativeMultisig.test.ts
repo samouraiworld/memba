@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createNativeMultisig, memberAddress, nativeAddress, nativePreimage, parseNativeMultisig } from "./nativeMultisig"
+import { createNativeMultisig, isNativeMultisig, memberAddress, nativeAddress, nativePreimage, parseNativeMultisig } from "./nativeMultisig"
 import { pubkeyToAddress } from "./dao/realmAddress"
 
 const hexKeys = ["0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"]
@@ -31,5 +31,9 @@ describe("native Gno identity (pinned node vectors)", () => {
         for (const threshold of ["0", "3", "02", "1.5"]) expect(() => parseNativeMultisig(raw.replace('"2"', JSON.stringify(threshold)))).toThrow()
         expect(() => memberAddress(btoa("a".repeat(33)))).toThrow()
         expect(() => parseNativeMultisig(raw.replace('"threshold"', '"extra":1,"threshold"'))).toThrow()
+    })
+    it("does not treat an unrelated typed public key as a native Gno multisig", () => {
+        expect(isNativeMultisig(raw)).toBe(true)
+        expect(isNativeMultisig('{"@type":"/cosmos.crypto.multisig.LegacyAminoPubKey"}')).toBe(false)
     })
 })

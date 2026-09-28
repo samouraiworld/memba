@@ -1,19 +1,19 @@
-import { useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee, type ParsedField } from "../lib/parseMsgs"
 import { SignedAddress, SignedArgs, SignedText } from "../components/ui/SigningValue"
 import { StatusBadge } from "../components/ui/StatusBadge"
-import { getTxStatus } from "../components/ui/txStatus"
+import { getMultisigStatus } from "../components/ui/txStatus"
 import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
-import { API_BASE_URL, GNO_CHAIN_ID } from "../lib/config"
+import { API_BASE_URL, ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID } from "../lib/config"
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
@@ -21,7 +21,7 @@ import { isNativeMultisig } from "../lib/nativeMultisig"
 import { assertNativeAction, broadcastNativeTransaction } from "../lib/nativeMultisigBroadcast"
 import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "../lib/nativeReceipt"
 
-const LEGACY_READ_ONLY_MESSAGE = "Legacy multisig records are read-only history: this proposal cannot be broadcast or completed from Memba."
+const LEGACY_READ_ONLY_MESSAGE = "Legacy multisig records are read-only history: this proposal cannot be signed or broadcast from Memba."
 
 /** Build deterministic Amino sign doc from transaction data. */
 function buildSignDoc(tx: Transaction): Record<string, unknown> {
@@ -51,6 +51,7 @@ export function TransactionView() {
     const navigate = useNetworkNav()
     const { adena, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
+    const queryClient = useQueryClient()
 
     // Server state (the transaction itself) lives in React Query, keyed by tx
     // id AND auth token — switching wallets must refetch, not serve the other
@@ -78,7 +79,10 @@ export function TransactionView() {
     // Full addresses everywhere: a shortened one hides the bytes a lookalike forges.
     const parsedMsgs = tx ? parseMsgs(tx.msgsJson, { full: true }) : []
     const fee = parseFee(tx?.feeJson ?? "")
+    const unreviewable = parsedMsgs.length === 0 || parsedMsgs.some(msg => msg.fields.some(field => field.key === "Raw" || field.key === "Raw Data"))
     const reviewError = parsedMsgs.find(msg => msg.reviewError)?.reviewError || fee.reviewError
+        || (unreviewable ? "Cannot safely review this message type. Inspect the unsigned transaction before signing." : undefined)
+        || (tx && tx.chainId !== GNO_CHAIN_ID ? "This transaction is for a different network. Switch to its network before signing." : undefined)
 
     // Action errors (sign / broadcast / manual sig) are UI state and stay
     // local; the fetch error comes from the query, with a dismissal flag so
@@ -99,13 +103,75 @@ export function TransactionView() {
     // button opens a review card (full recipients, fee, network match,
     // irreversibility warning); only its Confirm runs the action.
     const [pendingAction, setPendingAction] = useState<"sign" | "broadcast" | null>(null)
+    const reviewRef = useRef<HTMLDivElement>(null)
+    const reviewOpener = useRef<HTMLButtonElement | null>(null)
+    const restoreReviewFocus = useRef(false)
+    const refreshAccounts = () => queryClient.invalidateQueries({
+        queryKey: ["multisig"],
+        predicate: query => query.queryKey[1] !== "tx",
+    })
+
+    useEffect(() => {
+        if (!pendingAction || tx?.finalHash || !reviewRef.current) return
+        const review = reviewRef.current
+        // Isolate the review from all surrounding app chrome, not just the
+        // transaction view's siblings. An OS window/header may sit higher up.
+        const priorInert: Array<readonly [HTMLElement, boolean]> = []
+        let pathNode: HTMLElement = review
+        while (pathNode.parentElement) {
+            const parent = pathNode.parentElement
+            for (const sibling of parent.children) {
+                if (sibling instanceof HTMLElement && sibling !== pathNode) {
+                    priorInert.push([sibling, sibling.inert])
+                    sibling.inert = true
+                }
+            }
+            pathNode = parent
+        }
+        review.focus()
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                event.preventDefault()
+                event.stopPropagation()
+                restoreReviewFocus.current = true
+                setPendingAction(null)
+                return
+            }
+            if (event.key !== "Tab") return
+            const controls = Array.from(review.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled])'))
+            if (controls.length === 0) { event.preventDefault(); return }
+            const first = controls[0]
+            const last = controls[controls.length - 1]
+            if (document.activeElement === review) {
+                event.preventDefault()
+                ;(event.shiftKey ? last : first).focus()
+            } else if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault()
+                last.focus()
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault()
+                first.focus()
+            }
+        }
+        review.addEventListener("keydown", onKeyDown)
+        return () => {
+            review.removeEventListener("keydown", onKeyDown)
+            priorInert.forEach(([node, inert]) => { node.inert = inert })
+            if (restoreReviewFocus.current) {
+                restoreReviewFocus.current = false
+                requestAnimationFrame(() => { if (reviewOpener.current?.isConnected) reviewOpener.current.focus() })
+            }
+        }
+    }, [pendingAction, tx?.finalHash])
 
     const handleSign = async () => {
         if (!token || !tx || actionLoading || reviewError || receipt) return
         setActionLoading(true)
         setActionError(null)
         try {
-            if (isNativeMultisig(tx.multisigPubkeyJson)) assertNativeAction(tx.chainId)
+            if (!native) throw new Error(LEGACY_READ_ONLY_MESSAGE)
+            assertNativeAction(tx.chainId)
             const signDoc = JSON.stringify(buildSignDoc(tx))
             const signDocBytes = new TextEncoder().encode(signDoc)
 
@@ -124,6 +190,7 @@ export function TransactionView() {
             })
 
             await txQuery.refetch()
+            await refreshAccounts()
         } catch (err) {
             setActionError(err instanceof Error ? err.message : "Failed to sign")
         } finally {
@@ -145,7 +212,10 @@ export function TransactionView() {
                 // state first; completed rows reject another Complete RPC.
                 if (fresh.transaction.finalHash) {
                     const refreshed = await txQuery.refetch()
-                    if (refreshed.data?.transaction?.finalHash) clearNativeReceipt(receiptKey)
+                    if (refreshed.data?.transaction?.finalHash) {
+                        clearNativeReceipt(receiptKey)
+                        await refreshAccounts()
+                    }
                     return
                 }
                 let hash = readNativeReceipt(receiptKey)
@@ -161,7 +231,10 @@ export function TransactionView() {
                 const refreshed = await txQuery.refetch()
                 // Keep the hint if refresh fails or remains stale: never turn
                 // a successful broadcast back into a broadcast-ready button.
-                if (refreshed.data?.transaction?.finalHash) clearNativeReceipt(receiptKey)
+                if (refreshed.data?.transaction?.finalHash) {
+                    clearNativeReceipt(receiptKey)
+                    await refreshAccounts()
+                }
                 return
             }
             // Legacy (non-native) records are read-only history: their addresses
@@ -219,7 +292,7 @@ export function TransactionView() {
 
     // ── Parse data ────────────────────────────────────────────
     const nativeReady = !!txQuery.data?.nativeTxBytes?.length
-    const status = getTxStatus(tx.finalHash, native && !nativeReady ? 0 : tx.signatures.length, tx.threshold)
+    const status = getMultisigStatus(tx, nativeReady)
 
     return (
         <div className="animate-fade-in k-txview">
@@ -325,23 +398,24 @@ export function TransactionView() {
 
             {/* ── Actions ─────────────────────────────────────── */}
             {reviewError && <p role="alert">{reviewError}</p>}
+            {native && !ENABLE_NATIVE_GNO_MULTISIG && !tx.finalHash && <p role="status">Native signing and broadcasting are on hold pending release approval.</p>}
             {native && receipt && !tx.finalHash && <div className="k-card" role="status">
                 <p>Broadcast receipt recovery — this saved hash is not proof of completion. The backend must verify it on-chain.</p>
                 <code style={{ overflowWrap: "anywhere" }}>{validReceiptHash(receipt) ? receipt : "Recovery record is unavailable or invalid; inspect it before continuing."}</code>
                 {recoveryWarning && <p role="alert">{recoveryWarning}</p>}
-                <p>Retry only saves the verified receipt. It does not broadcast again.</p>
-                <button className="k-btn-primary" disabled={actionLoading || !auth.isAuthenticated || !validReceiptHash(receipt)} onClick={() => void handleBroadcast()}>
+                <p>{ENABLE_NATIVE_GNO_MULTISIG ? "Retry only saves the verified receipt. It does not broadcast again." : "Receipt verification is on hold. Check this hash on-chain before any future retry."}</p>
+                <button className="k-btn-primary" disabled={!ENABLE_NATIVE_GNO_MULTISIG || actionLoading || !auth.isAuthenticated || !validReceiptHash(receipt)} onClick={() => void handleBroadcast()}>
                     {actionLoading ? "Checking receipt..." : "Retry receipt verification"}
                 </button>
             </div>}
             {native && txQuery.data?.nativeExportError && <p role="status">{txQuery.data.nativeExportError}</p>}
             {!native && !tx.finalHash && <p role="status">{LEGACY_READ_ONLY_MESSAGE}</p>}
-            {!tx.finalHash && auth.isAuthenticated && (
+            {!tx.finalHash && auth.isAuthenticated && native && ENABLE_NATIVE_GNO_MULTISIG && (
                 <div className="k-txview__actions">
                     <button
                         className="k-btn-primary"
                         disabled={actionLoading || !!reviewError || !!receipt || tx.signatures.some(s => s.userAddress === adena.address)}
-                        onClick={() => setPendingAction("sign")}
+                        onClick={event => { reviewOpener.current = event.currentTarget; restoreReviewFocus.current = false; setPendingAction("sign") }}
                         style={{ opacity: actionLoading ? 0.5 : 1 }}
                     >
                         {actionLoading ? "Signing..." : tx.signatures.some(s => s.userAddress === adena.address) ? "Already Signed" : "Sign Transaction"}
@@ -351,7 +425,7 @@ export function TransactionView() {
                             className="k-btn-primary"
                             style={{ background: "var(--color-k-accent-hover)", opacity: actionLoading ? 0.5 : 1 }}
                             disabled={actionLoading || !!reviewError}
-                            onClick={() => setPendingAction("broadcast")}
+                            onClick={event => { reviewOpener.current = event.currentTarget; restoreReviewFocus.current = false; setPendingAction("broadcast") }}
                         >
                             {actionLoading ? "Broadcasting..." : "Broadcast to Chain"}
                         </button>
@@ -386,8 +460,8 @@ export function TransactionView() {
             )}
 
             {/* ── W2.4: Review card — confirm before sign/broadcast ── */}
-            {pendingAction && !tx.finalHash && (
-                <div className="k-card k-txview__confirm-card" role="alertdialog" aria-label="Review transaction" style={{
+            {pendingAction && !tx.finalHash && ENABLE_NATIVE_GNO_MULTISIG && (
+                <div ref={reviewRef} tabIndex={-1} className="k-card k-txview__confirm-card" role="alertdialog" aria-modal="true" aria-label="Review transaction" style={{
                     border: "1px solid var(--color-k-amber-border)",
                     display: "flex", flexDirection: "column", gap: 12, padding: 18,
                 }}>
@@ -431,12 +505,13 @@ export function TransactionView() {
                             : "Broadcasting is an on-chain action that costs gas and cannot be undone."}
                     </p>
                     <div style={{ display: "flex", gap: 8 }}>
-                        <button className="k-btn-secondary" onClick={() => setPendingAction(null)}>Cancel</button>
+                        <button className="k-btn-secondary" onClick={() => { restoreReviewFocus.current = true; setPendingAction(null) }}>Cancel</button>
                         <button
                             className="k-btn-primary"
                             disabled={actionLoading || !!reviewError || !!receipt}
                             onClick={() => {
                                 const action = pendingAction
+                                restoreReviewFocus.current = true
                                 setPendingAction(null)
                                 if (action === "sign") void handleSign()
                                 else void handleBroadcast()
@@ -449,7 +524,7 @@ export function TransactionView() {
             )}
 
             {/* ── Manual Signature Paste (air-gapped flow) ────── */}
-            {showManualSig && !tx.finalHash && auth.isAuthenticated && (
+            {showManualSig && !tx.finalHash && auth.isAuthenticated && native && ENABLE_NATIVE_GNO_MULTISIG && (
                 <div className="k-card k-txview__manual-form">
                     <p className="k-label">Paste gnokey Signature</p>
                     <p className="k-txview__manual-desc">
@@ -471,7 +546,7 @@ export function TransactionView() {
                             setActionLoading(true)
                             setActionError(null)
                             try {
-                                if (isNativeMultisig(tx.multisigPubkeyJson)) assertNativeAction(tx.chainId)
+                                assertNativeAction(tx.chainId)
                                 const signDoc = JSON.stringify(buildSignDoc(tx))
                                 await api.signTransaction({
                                     authToken: token,
@@ -482,6 +557,7 @@ export function TransactionView() {
                                 setManualSig("")
                                 setShowManualSig(false)
                                 await txQuery.refetch()
+                                await refreshAccounts()
                             } catch (err) {
                                 setActionError(err instanceof Error ? err.message : "Failed to submit signature")
                             } finally {

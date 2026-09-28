@@ -13,13 +13,14 @@ vi.mock("./api", () => ({
     },
 }))
 
-import { syncQuestsToBackend, completeQuestVerified } from "./quests"
+import { syncQuestsToBackend, completeQuestVerified, completeQuest, setQuestWalletAddress } from "./quests"
 
 const STORAGE_KEY = "memba_quests"
 
 describe("syncQuestsToBackend merge (P1-2)", () => {
     beforeEach(() => {
         localStorage.clear()
+        setQuestWalletAddress(null)
         syncQuestsMock.mockReset()
     })
 
@@ -70,11 +71,43 @@ describe("syncQuestsToBackend merge (P1-2)", () => {
         expect(result.completed.map(c => c.questId).sort()).toEqual(["connect-wallet", "use-cmdk"])
         expect(result.totalXP).toBe(20) // connect-wallet(10) + use-cmdk(10)
     })
+
+    it("writes a late sync response only to the authenticated wallet", async () => {
+        const alice = "g1alice"
+        const bob = "g1bob"
+        setQuestWalletAddress(alice)
+        completeQuest("connect-wallet")
+        let release: (value: unknown) => void = () => {}
+        syncQuestsMock.mockImplementation(() => new Promise(resolve => { release = resolve }))
+        const pending = syncQuestsToBackend(create(TokenSchema, { userAddress: alice }))
+        setQuestWalletAddress(bob)
+        completeQuest("use-cmdk")
+        release({ state: { completed: [{ questId: "visit-5-pages", completedAt: "2026-01-01T00:00:00Z" }] } })
+        await pending
+        const a = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_${alice}`)!)
+        const b = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_${bob}`)!)
+        expect(a.completed.map((c: { questId: string }) => c.questId).sort()).toEqual(["connect-wallet", "visit-5-pages"])
+        expect(b.completed.map((c: { questId: string }) => c.questId)).toEqual(["use-cmdk"])
+    })
+
+    it("retains a same-wallet completion earned while sync is pending", async () => {
+        const alice = "g1alice"
+        setQuestWalletAddress(alice)
+        completeQuest("connect-wallet")
+        let release: (value: unknown) => void = () => {}
+        syncQuestsMock.mockImplementation(() => new Promise(resolve => { release = resolve }))
+        const pending = syncQuestsToBackend(create(TokenSchema, { userAddress: alice }))
+        completeQuest("use-cmdk")
+        release({ state: { completed: [] } })
+        const merged = await pending
+        expect(merged.completed.map(c => c.questId).sort()).toEqual(["connect-wallet", "use-cmdk"])
+    })
 })
 
 describe("completeQuestVerified (backend-gated)", () => {
     beforeEach(() => {
         localStorage.clear()
+        setQuestWalletAddress(null)
         completeQuestMock.mockReset()
     })
 
@@ -96,5 +129,20 @@ describe("completeQuestVerified (backend-gated)", () => {
             completeQuestVerified("deploy-hello-pkg", "gno.land/r/alice/foo", create(TokenSchema, {})),
         ).rejects.toThrow()
         expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    })
+
+    it("records a late verified completion only for the token's wallet", async () => {
+        const alice = "g1alice"
+        const bob = "g1bob"
+        setQuestWalletAddress(alice)
+        let release: (value: unknown) => void = () => {}
+        completeQuestMock.mockImplementation(() => new Promise(resolve => { release = resolve }))
+        const pending = completeQuestVerified("deploy-hello-pkg", "gno.land/r/alice/foo", create(TokenSchema, { userAddress: alice }))
+        setQuestWalletAddress(bob)
+        completeQuest("use-cmdk")
+        release({ state: { completed: [] } })
+        await pending
+        expect(JSON.parse(localStorage.getItem(`${STORAGE_KEY}_${alice}`)!).completed.map((c: { questId: string }) => c.questId)).toContain("deploy-hello-pkg")
+        expect(JSON.parse(localStorage.getItem(`${STORAGE_KEY}_${bob}`)!).completed.map((c: { questId: string }) => c.questId)).toEqual(["use-cmdk"])
     })
 })

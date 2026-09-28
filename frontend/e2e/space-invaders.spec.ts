@@ -48,12 +48,12 @@ test.describe('Space Invaders', () => {
 		await expect(readyPrompt).toBeHidden({ timeout: 10_000 })
 		await expect(page.getByText(/relay online/i).first()).toBeVisible()
 
-		// Keyboard-only pause/resume keeps control ownership on the game surface,
-		// so movement and fire work immediately after resuming.
+		// Keyboard pause moves focus to the Resume action; activating it returns
+		// control to the game surface for movement and fire.
 		await surface.press('p')
 		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeVisible()
-		await expect(surface).toBeFocused()
-		await surface.press('p')
+		await expect(page.getByRole('button', { name: /resume defense/i })).toBeFocused()
+		await page.keyboard.press('Enter')
 		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeHidden()
 		await expect(surface).toBeFocused()
 		// Hold each gameplay key long enough for the rAF loop to sample it.
@@ -84,7 +84,8 @@ test.describe('Space Invaders', () => {
 
 		await surface.press('Escape')
 		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeVisible()
-		await surface.press('Escape')
+		await expect(page.getByRole('button', { name: /resume defense/i })).toBeFocused()
+		await page.keyboard.press('Escape')
 		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeHidden()
 		await expect(surface).toBeFocused()
 	})

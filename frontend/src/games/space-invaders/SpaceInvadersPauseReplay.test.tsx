@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import SpaceInvaders from "./SpaceInvaders";
+import { WindowActivityContext } from "../../os/page/WindowActivity";
 
 // Determinism fix 1 (pause) — the replay-fidelity pin. While paused the shell
 // must consume NO engine ticks (skip stepping, drop the rAF accumulator), so
@@ -79,6 +80,23 @@ function gameSurface(): HTMLElement {
 }
 
 describe("pause determinism (daily replay fidelity)", () => {
+  it("pauses a running OS game when its window moves to the background", () => {
+    const { rerender } = render(
+      <WindowActivityContext.Provider value={true}>
+        <SpaceInvaders initialState={{ phase: "playing" }} />
+      </WindowActivityContext.Provider>,
+    );
+    flushFrame(0);
+    rerender(
+      <WindowActivityContext.Provider value={false}>
+        <SpaceInvaders initialState={{ phase: "playing" }} />
+      </WindowActivityContext.Provider>,
+    );
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
+    flushFrame(10_000);
+    expect(screen.queryByRole("heading", { name: /game over/i })).toBeNull();
+  });
+
   it("records a between-frame touch tap at the consumed tick and verifies the resulting daily run", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));

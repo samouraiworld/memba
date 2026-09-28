@@ -2,9 +2,10 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { resilientFetch } from "../lib/rpcFallback";
 
 interface BalanceState {
+    address: string | null;
     balance: string; // human-readable full precision, e.g. "1.500001 GNOT"
     compactBalance: string; // compact for header, e.g. "1.5 GNOT"
-    rawUgnot: bigint;
+    rawUgnot?: bigint; // absent until this address has a trustworthy chain response
     loading: boolean;
     error: string | null;
 }
@@ -32,24 +33,35 @@ export function formatGnotCompact(ugnot: bigint): string {
 
 export function useBalance(address: string | null, refreshInterval = 30000) {
     const [state, setState] = useState<BalanceState>({
+        address: null,
         balance: "— GNOT",
         compactBalance: "— GNOT",
-        rawUgnot: 0n,
         loading: false,
         error: null,
     });
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const requestSeq = useRef(0);
 
     const fetchBalance = useCallback(async () => {
-        if (!address) return;
-
-        // S3: Validate address format to prevent ABCI URL injection.
-        if (!/^g(no)?1[a-z0-9]{38,}$/.test(address)) {
-            setState((s) => ({ ...s, loading: false, error: "Invalid address format" }));
+        const request = ++requestSeq.current;
+        // Start state changes after the effect's synchronous setup. An account
+        // switch can invalidate this request before the microtask runs.
+        await Promise.resolve();
+        if (request !== requestSeq.current) return;
+        if (!address) {
+            setState({ address: null, balance: "— GNOT", compactBalance: "— GNOT", loading: false, error: null });
             return;
         }
 
-        setState((s) => ({ ...s, loading: true, error: null }));
+        // S3: Validate address format to prevent ABCI URL injection.
+        if (!/^g(no)?1[a-z0-9]{38,}$/.test(address)) {
+            setState({ address, balance: "? GNOT", compactBalance: "? GNOT", loading: false, error: "Invalid address format" });
+            return;
+        }
+
+        setState((s) => s.address === address
+            ? { ...s, loading: true, error: null }
+            : { address, balance: "— GNOT", compactBalance: "— GNOT", loading: true, error: null });
         try {
             // Use JSON-RPC POST with RPC failover for reliability
             const res = await resilientFetch((rpcUrl) => ({
@@ -71,21 +83,28 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
             const json = await res.json();
 
             // Try ResponseBase.Value first, then Data (different RPC versions)
-            const rawValue = json?.result?.response?.ResponseBase?.Value
-                || json?.result?.response?.ResponseBase?.Data
-                || json?.result?.response?.value;
+            const response = json?.result?.response;
+            if (response?.ResponseBase?.Error || response?.error) throw new Error("Balance query failed");
+            const rawValue = response?.ResponseBase?.Value
+                || response?.ResponseBase?.Data
+                || response?.value;
 
             if (!rawValue) {
-                setState({ balance: "0 GNOT", compactBalance: "0 GNOT", rawUgnot: 0n, loading: false, error: null });
-                return;
+                throw new Error("Balance response was missing");
             }
 
             const decoded = atob(rawValue);
-            // Parse the balance string, format: "12345ugnot"
-            const match = decoded.match(/(\d+)ugnot/);
+            // The bank endpoint returns Amino JSON of the coin string. An
+            // explicit empty coin string means zero; missing/malformed data
+            // means the balance is unknown.
+            const coins: unknown = JSON.parse(decoded);
+            if (typeof coins !== "string") throw new Error("Unexpected balance response");
+            if (coins && !/^[0-9]+[a-zA-Z][a-zA-Z0-9/._-]*(?:,[0-9]+[a-zA-Z][a-zA-Z0-9/._-]*)*$/.test(coins)) throw new Error("Unexpected balance response");
+            const match = /(?:^|,)([0-9]+)ugnot(?:,|$)/.exec(coins);
             const ugnot = match ? BigInt(match[1]) : 0n;
 
-            setState({
+            if (request === requestSeq.current) setState({
+                address,
                 balance: formatGnot(ugnot),
                 compactBalance: formatGnotCompact(ugnot),
                 rawUgnot: ugnot,
@@ -94,18 +113,20 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
             });
         } catch (err) {
             console.warn("[useBalance] Failed to fetch balance:", err);
-            setState((s) => ({
-                ...s,
+            if (request === requestSeq.current) setState({
+                address,
                 balance: "? GNOT",
                 compactBalance: "? GNOT",
                 loading: false,
                 error: err instanceof Error ? err.message : "Failed to fetch balance",
-            }));
+            });
         }
     }, [address]);
 
     useEffect(() => {
-        fetchBalance();
+        const requests = requestSeq;
+        let active = true;
+        queueMicrotask(() => { if (active) void fetchBalance() });
         if (address && refreshInterval > 0) {
             // W4: skip the RPC round-trip while the tab is hidden — several
             // components mount this hook, so an unguarded 30s interval
@@ -115,9 +136,16 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
             }, refreshInterval);
         }
         return () => {
+            active = false;
+            requests.current++;
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
     }, [address, refreshInterval, fetchBalance]);
 
-    return { ...state, refetch: fetchBalance };
+    // An account switch must mask the previous account's balance on the very first render,
+    // before the effect above has a chance to start the next request.
+    return {
+        ...(state.address === address ? state : { address, balance: "— GNOT", compactBalance: "— GNOT", rawUgnot: undefined, loading: !!address, error: null }),
+        refetch: fetchBalance,
+    };
 }

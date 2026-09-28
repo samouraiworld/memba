@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { gameApi } from "../../lib/gameApi";
 import "./panels.css";
-export function StreakBadge({ address, localStreak }: { address?: string; localStreak: number }) {
+export function StreakBadge({ address, scope, localStreak }: { address?: string; scope: string; localStreak: number }) {
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: ["bp", "streak", address],
+    queryKey: ["bp", "streak", scope, address],
     queryFn: () => gameApi.getStreak(address!),
     enabled: !!address,
   });

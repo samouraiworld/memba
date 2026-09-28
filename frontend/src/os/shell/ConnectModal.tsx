@@ -25,6 +25,7 @@ function Waiting({ label }: { label: string }) {
  */
 export function ConnectModal({ session }: { session: OsSession }) {
     const { stage, error, note } = session
+    const mobileBrowser = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
     const dialog = useRef<HTMLDivElement>(null)
     useEffect(() => {
         if (!stage || !dialog.current) return
@@ -48,17 +49,18 @@ export function ConnectModal({ session }: { session: OsSession }) {
             break
         case "missing":
             body = <>
-                <Head title="Adena isn’t installed" sub="Adena is the gno.land wallet. Install it, then come back to this tab." />
-                <div className="os-card">
+                <Head title={mobileBrowser ? "Wallet connection needs desktop" : "Adena isn’t installed"}
+                    sub={mobileBrowser ? "Adena's mobile wallet is not available yet. You can keep browsing here, then connect from a supported desktop browser." : "Adena is the gno.land wallet. Install it, then come back to this tab."} />
+                {!mobileBrowser && <div className="os-card">
                     <ol className="os-steps">
-                        <li>Get Adena at <a href="https://www.adena.app" target="_blank" rel="noreferrer">adena.app</a> (Chrome, Brave, Firefox)</li>
+                        <li>Get Adena at <a href="https://www.adena.app" target="_blank" rel="noreferrer">adena.app</a> (Chrome, Edge or Brave)</li>
                         <li>Create or import your account</li>
                         <li>Come back here and press Continue</li>
                     </ol>
-                </div>
+                </div>}
                 <div className="os-row os-end">
                     <button type="button" className="os-btn os-quiet" onClick={session.cancel}>Not now</button>
-                    <button type="button" className="os-btn" onClick={session.recheck} autoFocus>Continue</button>
+                    {!mobileBrowser && <button type="button" className="os-btn" onClick={session.recheck} autoFocus>Continue</button>}
                 </div>
             </>
             break
@@ -101,9 +103,11 @@ export function ConnectModal({ session }: { session: OsSession }) {
                     <dt>How often</dt><dd>Once, never again</dd>
                 </dl>
                 {session.noFunds && <p className="os-note os-warn" role="status">This address holds no GNOT yet. Send it a little (0.01 GNOT is enough), then activate.</p>}
+                {session.balanceUnknown && <p className="os-note os-warn" role="status">{session.balanceError ? "Balance unavailable. Retry the check before activating." : "Checking this address's GNOT balance…"}</p>}
                 <div className="os-row os-end">
                     {closeable && <button type="button" className="os-btn os-quiet" onClick={session.cancel}>Later</button>}
-                    <button type="button" className="os-btn" onClick={session.activate} disabled={session.noFunds} autoFocus>Activate in Adena</button>
+                    {session.balanceUnknown && <button type="button" className="os-btn os-quiet" onClick={() => { void session.refreshBalance() }}>Retry balance check</button>}
+                    <button type="button" className="os-btn" onClick={session.activate} disabled={session.noFunds || session.balanceUnknown} autoFocus>Activate in Adena</button>
                 </div>
             </>
             break

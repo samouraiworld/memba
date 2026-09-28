@@ -9,7 +9,7 @@
  *
  * @module os/daos/CreateDaoWizard
  */
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react"
 import { GNO_CHAIN_ID } from "../../lib/config"
 import { assertCanDeployTo } from "../../lib/dao/namespace"
 import { assertPathAvailable, listPendingDAOs, removePendingDAO, waitForPackage } from "../../lib/dao/packageStatus"
@@ -66,6 +66,9 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     const [checked, setChecked] = useState<Checked | null>(null)
     const [checkRev, setCheckRev] = useState(0)
     const [outcome, setOutcome] = useState<Outcome | null>(null)
+    const [draftSaved, setDraftSaved] = useState(true)
+    const [draftClearWarning, setDraftClearWarning] = useState(false)
+    const skipSave = useRef(false)
     const [, rerender] = useState(0)
 
     const path = realmPathFor(wallet, draft.name)
@@ -76,7 +79,10 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     const current = checked?.key === checkKey ? checked : null
 
     // The automatic draft (D18). A finished deploy clears it.
-    useEffect(() => { if (!outcome) saveDaoDraft(GNO_CHAIN_ID, wallet, draft) }, [wallet, draft, outcome])
+    useEffect(() => {
+        if (outcome || skipSave.current) { skipSave.current = false; return }
+        setDraftSaved(saveDaoDraft(GNO_CHAIN_ID, wallet, draft))
+    }, [wallet, draft, outcome])
 
     useEffect(() => {
         let active = true
@@ -101,6 +107,27 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
 
     const set = (patch: Partial<DaoDraft>) => { setDraft((d) => ({ ...d, ...patch })); setError(null) }
     const setMember = (i: number, patch: Partial<DaoDraft["members"][number]>) => set({ members: draft.members.map((m, j) => (j === i ? { ...m, ...patch } : m)) })
+    const discardDraft = () => {
+        if (!clearDaoDraft(GNO_CHAIN_ID, wallet)) { setError("Browser storage refused to remove the saved draft. Try again or clear this site's storage in your browser."); return }
+        skipSave.current = true
+        setDraft(emptyDaoDraft(wallet))
+        setStep(0)
+        setError(null)
+        setAck(false)
+        setChecked(null)
+        setCheckRev((rev) => rev + 1)
+        setDraftSaved(true)
+    }
+    const clearCompletedDraft = () => setDraftClearWarning(!clearDaoDraft(GNO_CHAIN_ID, wallet))
+    const onPresetKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        const next = event.key === "Home" ? 0 : event.key === "End" ? DAO_PRESETS.length - 1
+            : event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % DAO_PRESETS.length
+                : event.key === "ArrowLeft" || event.key === "ArrowUp" ? (index + DAO_PRESETS.length - 1) % DAO_PRESETS.length : -1
+        if (next < 0) return
+        event.preventDefault()
+        setDraft((d) => applyPreset(d, DAO_PRESETS[next].id))
+        event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus()
+    }
     const openDao = () => {
         const name = nameForRealm(path)
         close()
@@ -125,6 +152,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                     <li className={res?.kind === "live" ? "os-done" : "os-cur"}>{res?.kind === "live" ? "Package live" : inert || res?.kind === "pending" ? "Waiting for network approval" : "Checking the network"}</li>
                 </ol>
                 {res?.kind === "live" && <p className="os-note os-ok">Members can make proposals right away.</p>}
+                {draftClearWarning && <p className="os-note os-warn">Your DAO is live, but browser storage kept its old draft. <button type="button" className="os-btn os-quiet os-inline" onClick={clearCompletedDraft}>Remove saved draft</button></p>}
                 {(res?.kind === "pending" && !res.unconfirmed) || (!res && inert)
                     ? <p className="os-note os-warn">gno.land reviews new packages before they go live. Your DAO becomes usable once the network enables it. Nothing else to do.</p> : null}
                 {res?.kind === "pending" && res.unconfirmed && <p className="os-note os-warn">The package status couldn't be read yet. This doesn't mean it failed. Check again before deploying anything else to this address.</p>}
@@ -142,7 +170,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     if (saved && onReview) {
         return <SavedSubmission wallet={wallet} path={path} name={draft.name} txHash={saved.txHash} orgId={saved.orgId ?? null} inFlight={inFlight}
             unknown={outcome?.kind === "unknown"}
-            onLive={() => { clearDaoDraft(GNO_CHAIN_ID, wallet); setOutcome({ kind: "result", result: { kind: "live" }, hash: saved.txHash }) }}
+            onLive={() => { clearCompletedDraft(); setOutcome({ kind: "result", result: { kind: "live" }, hash: saved.txHash }) }}
             onReleased={() => { setOutcome(null); setAck(false); setCheckRev((r) => r + 1) }} />
     }
 
@@ -183,7 +211,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                 wallet, config, checks: current.checks, price, lines: reviewLines, warns: reviewWarns,
                 onSubmitted: (hash) => setOutcome({ kind: "submitted", hash }),
                 onResult: (result, hash) => {
-                    if (result.kind === "live") clearDaoDraft(GNO_CHAIN_ID, wallet)
+                    if (result.kind === "live") clearCompletedDraft()
                     setOutcome({ kind: "result", result, hash })
                 },
             })
@@ -206,8 +234,9 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                 </Field>
                 <Field label="Starting point" hint="You can adjust the thresholds in step 3.">
                     <div className="os-opt" role="radiogroup" aria-label="Starting point">
-                        {DAO_PRESETS.map((p) => (
-                            <button key={p.id} type="button" role="radio" aria-checked={draft.preset === p.id} onClick={() => { setDraft((d) => applyPreset(d, p.id)); setError(null) }}>
+                        {DAO_PRESETS.map((p, index) => (
+                            <button key={p.id} type="button" role="radio" aria-checked={draft.preset === p.id} tabIndex={draft.preset === p.id ? 0 : -1}
+                                onKeyDown={(event) => onPresetKey(event, index)} onClick={() => { setDraft((d) => applyPreset(d, p.id)); setError(null) }}>
                                 <b>{p.name}</b>
                                 <span className="os-sub">{p.threshold} % to pass{p.quorum ? ` · ${p.quorum} % quorum` : ""}</span>
                                 <span className="os-sub">Votes last {formatSeconds(p.votingPeriodSeconds)}</span>
@@ -309,7 +338,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
         <WizardFrame steps={DAO_STEPS} step={step} onBack={() => { setError(null); setStep(step - 1) }} onNext={next}
             nextLabel={onReview ? "Deploy with Adena…" : "Continue"}
             nextDisabled={onReview && (!current || !("checks" in current) || inFlight)}
-            note={error ? <span className="os-fe" role="alert">{error}</span> : "Your draft is saved in this browser."}
+            note={<>{error && <span className="os-fe" role="alert">{error}</span>}<span>{draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{draftSaved && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
             preview={(
                 <div className="os-stack os-tight">
                     <h3 className="os-h os-flush">Your DAO</h3>

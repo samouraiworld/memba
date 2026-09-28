@@ -58,8 +58,9 @@ export function hashState(s: GameState): number {
  *  had tick ≤ j, so it can never be the scan's break point at a later tick —
  *  and both take the last consumed delta (or idle) as the active input.
  *  verify.cursor.test.ts pins the equivalence against inputAtTick itself. */
-export function simulateReplay(log: ReplayLog): { state: GameState; score: number; hash: number } {
+export function simulateReplay(log: ReplayLog): { state: GameState; score: number; hash: number; firstGameoverTick: number | null } {
   let s = newGame(log.seed);
+  let firstGameoverTick: number | null = null;
   const inputs = log.inputs;
   let cursor = 0;
   let active: InputIntent = { move: 0, fire: false, pause: false };
@@ -70,6 +71,7 @@ export function simulateReplay(log: ReplayLog): { state: GameState; score: numbe
       cursor++;
     }
     s = step(s, FIXED_MS, active);
+    if (firstGameoverTick === null && s.phase === "gameover") firstGameoverTick = i + 1;
   }
-  return { state: s, score: s.score, hash: hashState(s) };
+  return { state: s, score: s.score, hash: hashState(s), firstGameoverTick };
 }

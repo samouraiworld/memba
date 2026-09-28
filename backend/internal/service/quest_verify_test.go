@@ -86,6 +86,25 @@ func TestCompleteQuest_OnChain_RejectedWhenNotMet(t *testing.T) {
 	}
 }
 
+func TestCompleteQuest_RejectsNonLiveOnChainEvenWhenGenericVerifierPasses(t *testing.T) {
+	for _, questID := range []string{"faucet-claim", "deploy-counter-pkg", "deploy-dao-realm", "deploy-3-chains"} {
+		t.Run(questID, func(t *testing.T) {
+			h := setup(t)
+			h.stubChainVerify(true) // a generic owned-path/account check is insufficient
+			token := h.makeToken(t, "g1alice")
+			_, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
+				AuthToken: token, QuestId: questID, Proof: "gno.land/p/alice/any",
+			}))
+			if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+				t.Fatalf("non-live on-chain quest %s must be denied: %v", questID, err)
+			}
+			if n := countRows(t, h, `SELECT COUNT(*) FROM quest_completions WHERE address = 'g1alice'`); n != 0 {
+				t.Fatalf("denied quest must not earn XP, got %d completions", n)
+			}
+		})
+	}
+}
+
 // on_chain quests with no registered server verifier are NOT grantable — they
 // stay "coming soon" until a verifier lands. Uses the real default verifier
 // (no stub) with an unregistered deploy quest, which returns false WITHOUT a
@@ -167,7 +186,7 @@ func TestCompleteQuest_Deploy_VerifiesAndStoresProof(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "deploy-hello-pkg", Proof: "gno.land/r/alice/foo",
+		AuthToken: token, QuestId: "deploy-hello-pkg", Proof: "gno.land/p/alice/foo",
 	}))
 	if err != nil {
 		t.Fatal("CompleteQuest(deploy-hello-pkg):", err)
@@ -181,7 +200,7 @@ func TestCompleteQuest_Deploy_VerifiesAndStoresProof(t *testing.T) {
 		addr, "deploy-hello-pkg").Scan(&proof); err != nil {
 		t.Fatal(err)
 	}
-	if proof != "gno.land/r/alice/foo" {
+	if proof != "gno.land/p/alice/foo" {
 		t.Fatalf("expected stored proof, got %q", proof)
 	}
 }
@@ -233,6 +252,44 @@ func TestCanonicalizeProof(t *testing.T) {
 	}
 }
 
+func TestDeployProofMatchesQuest(t *testing.T) {
+	for _, tc := range []struct {
+		questID, path string
+		want          bool
+	}{
+		{"deploy-hello-pkg", "gno.land/p/alice/foo", true},
+		{"deploy-hello-pkg", "gno.land/r/alice/foo", false},
+		{"deploy-hello-realm", "gno.land/r/alice/foo", true},
+		{"deploy-hello-realm", "gno.land/p/alice/foo", false},
+		{"deploy-counter-pkg", "gno.land/p/alice/foo", false},
+	} {
+		if got := deployProofMatchesQuest(tc.questID, tc.path); got != tc.want {
+			t.Errorf("deployProofMatchesQuest(%q, %q) = %v, want %v", tc.questID, tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestCandidatureRenderHasExactApplicant(t *testing.T) {
+	const addr = "g1abcdefghijklmnopqrstuvwxyz0123456789ab"
+	const other = "g1zyxwvutsrqponmlkjihgfedcba9876543210ab"
+	for _, tc := range []struct {
+		name, render string
+		want         bool
+	}{
+		{"matching detail", "# Application: " + addr + "\n\n**Status:** pending", true},
+		{"missing application", "# Application Not Found\nNo application for " + addr, false},
+		{"unrelated detail", "# Application: " + other + "\n\n**Status:** pending", false},
+		{"applicant echoed in bio", "# Application: " + other + "\n\n## Bio\n# Application: " + addr, false},
+		{"generic page", "# MembaDAO Candidature\n" + addr, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := candidatureRenderHasApplicant(tc.render, addr); got != tc.want {
+				t.Fatalf("candidatureRenderHasApplicant() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestProofUsedForOtherDeploy_CanonicalVariants(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()
@@ -255,7 +312,7 @@ func TestProofUsedForOtherDeploy_CanonicalVariants(t *testing.T) {
 	}
 }
 
-// off_chain quests remain low-trust accepts (documented trade-off, low XP).
+// Live off_chain quests remain low-trust accepts (documented trade-off, low XP).
 func TestCompleteQuest_OffChainAccepted(t *testing.T) {
 	h := setup(t)
 	token := h.makeToken(t, "g1alice")
@@ -272,6 +329,38 @@ func TestCompleteQuest_OffChainAccepted(t *testing.T) {
 	}
 }
 
+func TestCompleteQuest_RejectsComingSoonOffChain(t *testing.T) {
+	h := setup(t)
+	token := h.makeToken(t, "g1alice")
+	ctx := context.Background()
+	for _, questID := range []string{"season-1-complete", "first-100-users", "perfect-week", "read-docs"} {
+		_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+			AuthToken: token, QuestId: questID,
+		}))
+		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("CompleteQuest(%s) must reject a coming-soon quest, got %v", questID, err)
+		}
+	}
+	resp, err := h.svc.GetUserQuests(ctx, connect.NewRequest(&membav1.GetUserQuestsRequest{Address: "g1alice"}))
+	if err != nil || resp.Msg.State.TotalXp != 0 {
+		t.Fatalf("rejected quests must not earn XP: response=%v err=%v", resp, err)
+	}
+}
+
+func TestCompleteQuest_PreservesAutoTrackedHiddenAndLegacy(t *testing.T) {
+	for _, questID := range []string{"easter-egg-konami", "view-profile", "directory-tabs"} {
+		t.Run(questID, func(t *testing.T) {
+			h := setup(t)
+			token := h.makeToken(t, "g1alice")
+			if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
+				AuthToken: token, QuestId: questID,
+			})); err != nil {
+				t.Fatalf("existing app trigger %s must remain completable: %v", questID, err)
+			}
+		})
+	}
+}
+
 // SyncQuests applies the same gate: unverifiable/self_report entries are
 // skipped, valid off_chain ones imported.
 func TestSyncQuests_SkipsUnverifiable(t *testing.T) {
@@ -283,9 +372,10 @@ func TestSyncQuests_SkipsUnverifiable(t *testing.T) {
 	resp, err := h.svc.SyncQuests(ctx, connect.NewRequest(&membav1.SyncQuestsRequest{
 		AuthToken: token,
 		Completions: []*membav1.QuestCompletion{
-			{QuestId: "connect-wallet"},     // off_chain -> imported
-			{QuestId: "fix-upstream-bug"},   // self_report -> skipped
-			{QuestId: "register-username"},  // on_chain, verifier false -> skipped
+			{QuestId: "connect-wallet"},    // off_chain -> imported
+			{QuestId: "fix-upstream-bug"},  // self_report -> skipped
+			{QuestId: "register-username"}, // on_chain, verifier false -> skipped
+			{QuestId: "season-1-complete"}, // coming soon off_chain -> skipped
 		},
 	}))
 	if err != nil {
@@ -296,5 +386,109 @@ func TestSyncQuests_SkipsUnverifiable(t *testing.T) {
 	}
 	if len(resp.Msg.State.Completed) != 1 {
 		t.Fatalf("expected 1 completion, got %d", len(resp.Msg.State.Completed))
+	}
+}
+
+func TestSyncQuests_QueuesQuestAndRankBadges(t *testing.T) {
+	h := setup(t)
+	token := h.makeToken(t, "g1alice")
+	ctx := context.Background()
+	completions := []*membav1.QuestCompletion{
+		{QuestId: "connect-wallet"},
+		{QuestId: "submit-feedback"},
+		{QuestId: "easter-egg-konami"},
+		{QuestId: "share-link"},
+	}
+	for range 2 { // a later sync must not create duplicate mints
+		if _, err := h.svc.SyncQuests(ctx, connect.NewRequest(&membav1.SyncQuestsRequest{
+			AuthToken: token, Completions: completions,
+		})); err != nil {
+			t.Fatal("SyncQuests:", err)
+		}
+	}
+	var count int
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM badge_mints WHERE address = 'g1alice' AND quest_id IN ('connect-wallet', 'submit-feedback', 'easter-egg-konami', 'share-link')`).Scan(&count); err != nil || count != 4 {
+		t.Fatalf("expected one badge per synced quest: count=%d err=%v", count, err)
+	}
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM badge_mints WHERE address = 'g1alice' AND quest_id = 'rank:1'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("expected one Bronze rank badge from 55 XP: count=%d err=%v", count, err)
+	}
+}
+
+func TestCompleteQuest_CreateTeamRequiresOwnedThreeMemberTeam(t *testing.T) {
+	h := setup(t)
+	token := h.makeToken(t, "g1alice")
+	ctx := context.Background()
+	claim := func() error {
+		_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+			AuthToken: token, QuestId: "create-team",
+		}))
+		return err
+	}
+	if code := connect.CodeOf(claim()); code != connect.CodeFailedPrecondition {
+		t.Fatalf("without a team, direct claim must fail, got %s", code)
+	}
+	if _, err := h.db.Exec(`INSERT INTO teams (id, name, invite_code, created_by) VALUES ('team1', 'Team', 'INVITE01', 'g1alice')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.db.Exec(`INSERT INTO team_members (team_id, address, role) VALUES
+		('team1', 'g1alice', 'admin'), ('team1', 'g1bob', 'member')`); err != nil {
+		t.Fatal(err)
+	}
+	if code := connect.CodeOf(claim()); code != connect.CodeFailedPrecondition {
+		t.Fatalf("two-member team must not satisfy quest, got %s", code)
+	}
+	if _, err := h.db.Exec(`INSERT INTO team_members (team_id, address, role) VALUES ('team1', 'g1carol', 'member')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := claim(); err != nil {
+		t.Fatalf("creator/admin with three-member team should complete quest: %v", err)
+	}
+}
+
+func TestSyncQuests_SkipsNonLiveOnChainEvenWhenGenericVerifierPasses(t *testing.T) {
+	h := setup(t)
+	h.stubChainVerify(true)
+	token := h.makeToken(t, "g1alice")
+	resp, err := h.svc.SyncQuests(context.Background(), connect.NewRequest(&membav1.SyncQuestsRequest{
+		AuthToken: token,
+		Completions: []*membav1.QuestCompletion{
+			{QuestId: "faucet-claim"},
+			{QuestId: "deploy-counter-pkg"},
+			{QuestId: "connect-wallet"},
+		},
+	}))
+	if err != nil {
+		t.Fatal("SyncQuests:", err)
+	}
+	if resp.Msg.State.TotalXp != 10 || len(resp.Msg.State.Completed) != 1 {
+		t.Fatalf("only live connect-wallet should sync: %+v", resp.Msg.State)
+	}
+}
+
+func TestSyncQuests_DeduplicatesVerificationWithinBatch(t *testing.T) {
+	h := setup(t)
+	verificationCalls := 0
+	h.svc.verifyOnChainQuest = func(_ context.Context, _, _, _ string) (bool, error) {
+		verificationCalls++
+		return true, nil
+	}
+	token := h.makeToken(t, "g1alice")
+	resp, err := h.svc.SyncQuests(context.Background(), connect.NewRequest(&membav1.SyncQuestsRequest{
+		AuthToken: token,
+		Completions: []*membav1.QuestCompletion{
+			{QuestId: "join-dao"},
+			{QuestId: "join-dao"},
+			{QuestId: " join-dao "},
+		},
+	}))
+	if err != nil {
+		t.Fatal("SyncQuests:", err)
+	}
+	if verificationCalls != 1 {
+		t.Fatalf("duplicate on-chain quest must be verified once, got %d calls", verificationCalls)
+	}
+	if len(resp.Msg.State.Completed) != 1 || resp.Msg.State.TotalXp != validQuests["join-dao"] {
+		t.Fatalf("one verified completion expected, got %+v", resp.Msg.State)
 	}
 }

@@ -25,7 +25,9 @@ const UGNOT = 1_000_000n
  * is 12.5 in much of the world and must not become 125.
  */
 export function parseGnot(text: string): bigint | null {
-    const t = text.trim().replace(/[\s_]/g, "")
+    // Internal separators are ambiguous across locales: "1 2" must never
+    // silently turn into a different amount in the review sheet.
+    const t = text.trim()
     const m = /^(\d{1,12})(?:\.(\d{1,6}))?$/.exec(t)
     if (!m) return null
     const v = BigInt(m[1]) * UGNOT + BigInt((m[2] ?? "").padEnd(6, "0"))
@@ -124,6 +126,7 @@ export function checkSend(d: SendDraft, ctx: { from: string; balance: bigint | n
     else if (recipient.kind === "pending") problems.to = `Looking up @${recipient.name}…`
     else if (to === ctx.from) problems.to = "That's your own address."
     if (ugnot === null) problems.amount = d.amount.includes(",") ? "Use a dot for decimals, and no commas (12.5)." : "Enter an amount, up to 6 decimals."
+    else if (ctx.balance === null) problems.amount = "Balance unavailable. Wait for a fresh balance before sending."
     else if (ctx.balance !== null && ugnot + ctx.fee > ctx.balance) problems.amount = `More than you have (${formatUgnot(ctx.balance)}), keeping ${formatUgnot(ctx.fee)} for the fee.`
     if ([...d.memo].length > MEMO_MAX) problems.memo = `Up to ${MEMO_MAX} characters.`
     const tiers: string[] = []
@@ -158,16 +161,23 @@ export function rememberRecipient(chainId: string, wallet: string, address: stri
     try { localStorage.setItem(peopleKey(chainId, wallet), JSON.stringify(next)) } catch { /* storage refused */ }
 }
 
+export function clearRecipients(chainId: string, wallet: string): void {
+    try { localStorage.removeItem(peopleKey(chainId, wallet)) } catch { /* storage unavailable */ }
+}
+
 // ── The send lock: an attempt saved before the wallet opens ────────────────
 
 const lockKey = (chainId: string, wallet: string) => `memba_os_send_lock:${chainId}:${wallet}`
 
-export interface SendLock { label: string; hash: string; at: number }
+export interface SendLock { label: string; hash: string; at: number; id?: string; to?: string; save?: boolean }
 
 export function readSendLock(chainId: string, wallet: string): SendLock | null {
     try {
         const v: unknown = JSON.parse(localStorage.getItem(lockKey(chainId, wallet)) ?? "null")
-        if (v && typeof v === "object" && typeof (v as SendLock).label === "string" && typeof (v as SendLock).hash === "string" && typeof (v as SendLock).at === "number") return v as SendLock
+        if (v && typeof v === "object" && typeof (v as SendLock).label === "string" && typeof (v as SendLock).hash === "string" && typeof (v as SendLock).at === "number" &&
+            ((v as SendLock).id === undefined || typeof (v as SendLock).id === "string") &&
+            ((v as SendLock).to === undefined || typeof (v as SendLock).to === "string") &&
+            ((v as SendLock).save === undefined || typeof (v as SendLock).save === "boolean")) return v as SendLock
     } catch { /* unreadable */ }
     return null
 }
@@ -177,6 +187,24 @@ export function writeSendLock(chainId: string, wallet: string, lock: SendLock): 
     localStorage.setItem(lockKey(chainId, wallet), JSON.stringify(lock))
 }
 
-export function clearSendLock(chainId: string, wallet: string): void {
-    try { localStorage.removeItem(lockKey(chainId, wallet)) } catch { /* nothing to clear */ }
+/** Claim once under a cross-tab mutex; never replace an unresolved attempt. */
+export function claimSendLock(chainId: string, wallet: string, lock: SendLock): void {
+    if (readSendLock(chainId, wallet)) throw new Error("Another send may still be pending. Check its outcome before sending again.")
+    writeSendLock(chainId, wallet, lock)
+    if (readSendLock(chainId, wallet)?.id !== lock.id) throw new Error("Couldn't secure this send. Nothing was sent.")
+}
+
+/** Only the attempt that created a lock may update or clear it. */
+export function updateSendLockHash(chainId: string, wallet: string, id: string, hash: string): void {
+    const current = readSendLock(chainId, wallet)
+    if (!current || current.id !== id) throw new Error("The send recovery record changed. Check this transaction before sending again.")
+    writeSendLock(chainId, wallet, { ...current, hash })
+}
+
+export function clearSendLock(chainId: string, wallet: string, id?: string): void {
+    try {
+        const current = readSendLock(chainId, wallet)
+        if (!current || current.id !== id) return
+        localStorage.removeItem(lockKey(chainId, wallet))
+    } catch { /* keep the conservative lock */ }
 }

@@ -43,6 +43,29 @@
     animation: val-pulse 1.2s ease infinite;
 }
 
+.val-page > .pro-val-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--color-warning, #c68b30);
+    border-radius: 8px;
+    color: var(--color-text);
+    background: var(--color-surface, rgba(198, 139, 48, 0.1));
+}
+
+.val-page > .pro-val-notice button {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+
 /* Hacker view link button in header */
 .val-hacker-btn {
     display: inline-flex;
@@ -731,29 +754,6 @@
         padding: 16px 12px 32px;
     }
 
-    /* Section tabs as equal, shrinkable columns. The desktop strip is a
-       nowrap flex row that scrolls; on a phone it clipped its last tab and
-       gave no sign it could scroll. Implicit columns with a 0 minimum can
-       never overflow, whatever the tab count, and labels may wrap instead. */
-    .val-segtabs {
-        display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: minmax(0, 1fr);
-        gap: 0;
-        overflow-x: visible;
-    }
-
-    .val-segtab {
-        justify-content: center;
-        flex-wrap: wrap;
-        row-gap: 2px;
-        white-space: normal;
-        text-align: center;
-        min-height: var(--mb-touch-min, 44px);
-        padding: 8px 4px;
-        font-size: var(--pro-small, 0.8rem);
-    }
-
     .val-segtab__count {
         padding: 1px 6px;
     }
@@ -1319,12 +1319,23 @@
 .val-valoper-card__addrs > div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--pro-small, 12px); }
 .val-valoper-card__addrs dt { color: var(--color-text-muted); }
 .val-valoper-card__addrs dd { margin: 0; color: var(--color-text-secondary); }
+.val-valoper-card__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: auto; }
+.val-valoper-card__open {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-k-accent-text);
+    font: inherit;
+    font-size: var(--pro-small, 12px);
+    font-weight: 600;
+    cursor: pointer;
+}
+.val-valoper-card__open:hover { text-decoration: underline; }
 .val-valoper-card__profile {
     font-size: var(--pro-small, 12px);
     font-weight: 600;
     color: var(--color-k-accent-text);
     text-decoration: none;
-    margin-top: auto;
 }
 .val-valoper-card__profile:hover { text-decoration: underline; }
 
@@ -1447,4 +1458,50 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Keep all three destinations visible in both a small viewport and a narrow
+   OS window. A scrolling strip clipped the Network tab with no affordance. */
+@media (max-width: 768px) {
+    .val-segtabs {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0;
+        overflow-x: visible;
+    }
+
+    .val-segtab {
+        min-width: 0;
+        justify-content: center;
+        flex-wrap: wrap;
+        row-gap: 2px;
+        white-space: normal;
+        text-align: center;
+        min-height: var(--mb-touch-min, 44px);
+        padding: 8px 4px;
+        font-size: var(--pro-small, 0.8rem);
+    }
+}
+
+@container os-window (max-width: 480px) {
+    .val-segtabs {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0;
+        overflow-x: visible;
+    }
+
+    .val-segtab {
+        min-width: 0;
+        justify-content: center;
+        flex-wrap: wrap;
+        row-gap: 2px;
+        white-space: normal;
+        text-align: center;
+        min-height: var(--mb-touch-min, 44px);
+        padding: 8px 4px;
+        font-size: var(--pro-small, 0.8rem);
+    }
 }

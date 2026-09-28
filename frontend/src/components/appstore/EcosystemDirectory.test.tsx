@@ -25,7 +25,11 @@ describe("ecosystem discovery controls", () => {
     it("keeps mainnet realm destinations explicit when browsing from Pearl", () => {
         vi.stubEnv("VITE_ENABLE_EXPLORER", "true")
         renderWithProviders(<Harness />, { route: "/pearl/apps?q=boards" })
-        expect(screen.getByRole("link", { name: "Mainnet Explorer" })).toHaveAttribute("href", "/mainnet/directory?tab=explorer&realm=r/gnoland/boards2/v0")
+        const explorerHref = screen.getByRole("link", { name: "Mainnet Explorer" }).getAttribute("href")!
+        const explorerUrl = new URL(explorerHref, "https://memba.test")
+        expect(explorerUrl.pathname).toBe("/mainnet/directory")
+        expect(explorerUrl.searchParams.get("tab")).toBe("explorer")
+        expect(explorerUrl.searchParams.get("realm")).toBe("r/gnoland/boards2/v0")
         expect(screen.getByRole("link", { name: "Boards source (opens in a new tab)" })).toHaveAttribute("href", "https://gno.land/r/gnoland/boards2/v0$source")
         expect(screen.getByTestId("location")).toHaveTextContent("/pearl/apps")
     })

@@ -3,8 +3,8 @@ import { ValidatorHealthStatus } from "./validatorHealth"
 import type { ValidatorHealthMeta } from "./validatorHealth"
 import { hexToBech32 } from "./dao/realmAddress"
 import { fetchValoperListPaged } from "./valopers"
-import { getExplorerBaseUrl } from "./config"
-import { resilientRpcCall, directRpcCall } from "./rpcFallback"
+import { GNO_CHAIN_ID, getExplorerBaseUrl } from "./config"
+import { resilientRpcCall, directRpcCall, getRpcUrlsInOrder, excludeRpcEndpoint } from "./rpcFallback"
 import { isRealMoniker } from "./gnomonitoring"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -87,34 +87,134 @@ async function rpcCall(
     return resilientRpcCall(method, params, signal)
 }
 
+/** A single verified node and tip for one coherent validator roster sample. */
+export interface ValidatorRpcSnapshot {
+    url: string
+    chainId: string
+    height: number
+    blockHash: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    status: any
+}
+
+/** Select a reachable node by its reported chain identity, not its hostname.
+ * All reads in a roster sample use the returned node and height. */
+export async function getValidatorRpcSnapshot(signal?: AbortSignal): Promise<ValidatorRpcSnapshot> {
+    let lastError: unknown = new Error("No validator RPC endpoints available")
+    for (const url of getRpcUrlsInOrder()) {
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const status = await directRpcCall(url, "/status", {}, signal) as any
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+            const chainId = status?.node_info?.network
+            if (chainId !== GNO_CHAIN_ID) {
+                // A repointed host must not serve any of this session's chain reads.
+                excludeRpcEndpoint(url)
+                lastError = new Error(`Validator RPC chain mismatch: expected ${GNO_CHAIN_ID}, got ${chainId || "unknown"}`)
+                continue
+            }
+            const height = Number(status?.sync_info?.latest_block_height)
+            if (!Number.isSafeInteger(height) || height < 1) {
+                lastError = new Error("Validator RPC returned an invalid block height")
+                continue
+            }
+            return { url, chainId, height, blockHash: status?.sync_info?.latest_block_hash || "", status }
+        } catch (error) {
+            lastError = error
+        }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+function snapshotCall(
+    snapshot: ValidatorRpcSnapshot | undefined,
+    rpcUrl: string,
+    method: string,
+    params: Record<string, string> = {},
+    signal?: AbortSignal,
+): Promise<unknown> {
+    return snapshot
+        ? directRpcCall(snapshot.url, method, params, signal)
+        : rpcCall(rpcUrl, method, params, signal)
+}
+
 // ── Validators ────────────────────────────────────────────────
 
 /** Fetch all validators from the active consensus set (auto-paginated). */
-export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
+export async function getValidators(rpcUrl: string, snapshot?: ValidatorRpcSnapshot, signal?: AbortSignal): Promise<ValidatorInfo[]> {
     const PER_PAGE = 100
+    const MAX_VALIDATORS = 1_000
+    const selected = snapshot ?? await getValidatorRpcSnapshot(signal)
+    const height = { height: String(selected.height) }
 
     // Page 1 — also gives us the total count
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await rpcCall(rpcUrl, "/validators", { per_page: String(PER_PAGE), page: "1" }) as any
+    const result = await snapshotCall(selected, rpcUrl, "/validators", { per_page: String(PER_PAGE), page: "1", ...height }, signal) as any
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+    if (result?.block_height && Number(result.block_height) !== selected.height) {
+        throw new Error("Validator RPC returned a roster from a different height")
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let validators: any[] = result?.validators || []
-    const total = parseInt(result?.total || "0", 10)
+    const declaredTotal = result?.total == null ? null : Number(result.total)
+    if (declaredTotal !== null && (!Number.isSafeInteger(declaredTotal) || declaredTotal < 0 || declaredTotal > MAX_VALIDATORS)) {
+        throw new Error("Validator RPC returned an invalid or excessive roster size")
+    }
 
-    // Auto-paginate: fetch remaining pages in parallel if total > PER_PAGE
-    if (total > PER_PAGE) {
-        const totalPages = Math.ceil(total / PER_PAGE)
+    // Gno's tm2 may omit `total`. In that case continue while a full page is
+    // returned, with the same fixed height and a hard ceiling.
+    if (declaredTotal !== null && declaredTotal > PER_PAGE) {
+        const totalPages = Math.ceil(declaredTotal / PER_PAGE)
         const pagePromises: Promise<unknown>[] = []
         for (let p = 2; p <= totalPages; p++) {
             pagePromises.push(
-                rpcCall(rpcUrl, "/validators", { per_page: String(PER_PAGE), page: String(p) })
+                snapshotCall(selected, rpcUrl, "/validators", { per_page: String(PER_PAGE), page: String(p), ...height }, signal)
             )
         }
         const pages = await Promise.all(pagePromises)
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
         for (const page of pages) {
+            if ((page as { block_height?: string })?.block_height && Number((page as { block_height: string }).block_height) !== selected.height) {
+                throw new Error("Validator RPC returned a roster page from a different height")
+            }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const pageVals = (page as any)?.validators || []
             validators = validators.concat(pageVals)
         }
+    } else if (declaredTotal === null && validators.length === PER_PAGE) {
+        for (let page = 2; page <= MAX_VALIDATORS / PER_PAGE + 1; page++) {
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+            if (page > MAX_VALIDATORS / PER_PAGE) throw new Error("Validator roster exceeds safe pagination limit")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const next = await snapshotCall(selected, rpcUrl, "/validators", { per_page: String(PER_PAGE), page: String(page), ...height }, signal) as any
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+            if (next?.block_height && Number(next.block_height) !== selected.height) {
+                throw new Error("Validator RPC returned a roster page from a different height")
+            }
+            const pageVals = Array.isArray(next?.validators) ? next.validators : []
+            validators = validators.concat(pageVals)
+            if (pageVals.length < PER_PAGE) break
+        }
+    }
+
+    // A moving unpinned set or inconsistent RPC page must never become a
+    // plausible-looking roster with duplicate or missing-address rows. This
+    // also matters when tm2 omits `total`: deduplicating first would hide a
+    // missing validator on a short final page.
+    const addresses = new Set<string>()
+    for (const validator of validators) {
+        const address = validator?.address
+        if (typeof address !== "string" || !address.trim()) {
+            throw new Error("Incomplete validator roster: invalid or missing address")
+        }
+        const key = address.toLowerCase()
+        if (addresses.has(key)) throw new Error("Incomplete validator roster: duplicate address")
+        addresses.add(key)
+    }
+    const expected = declaredTotal ?? validators.length
+    if (validators.length !== expected) {
+        throw new Error(`Incomplete validator roster: expected ${expected}, received ${validators.length} unique addresses`)
     }
 
     const totalPower = validators.reduce((sum: number, v: { voting_power: string }) =>
@@ -226,20 +326,20 @@ export function mergeWithMonitoringData(
  */
 
 // v2.17.2: In-memory cache — valopers monikers change very rarely
-let _valoperCache: { data: Map<string, string>; ts: number } | null = null
+const _valoperCache = new Map<string, { data: Map<string, string>; ts: number }>()
 const VALOPER_CACHE_TTL_MS = 5 * 60_000 // 5 minutes
 
-export async function fetchValoperMonikers(rpcUrl: string): Promise<Map<string, string>> {
-    // Return cached data if still fresh
-    if (_valoperCache && Date.now() - _valoperCache.ts < VALOPER_CACHE_TTL_MS) {
-        return _valoperCache.data
-    }
-
+export async function fetchValoperMonikers(rpcUrl: string, snapshot?: ValidatorRpcSnapshot, signal?: AbortSignal): Promise<Map<string, string>> {
     const monikerMap = new Map<string, string>()
     try {
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+        const selected = snapshot ?? await getValidatorRpcSnapshot(signal)
+        const cacheKey = `${selected.chainId}\u0000${selected.url}`
+        const cached = _valoperCache.get(cacheKey)
+        if (cached && Date.now() - cached.ts < VALOPER_CACHE_TTL_MS) return cached.data
         // Read ALL pages (the roster paginates at 50/page) so every registered valoper
         // is tagged, not just the first 50.
-        const entries = await fetchValoperListPaged(rpcUrl)
+        const entries = await fetchValoperListPaged(rpcUrl, selected, signal)
         for (const { moniker, operatorAddress } of entries) {
             if (moniker && operatorAddress) {
                 monikerMap.set(operatorAddress.toLowerCase(), moniker)
@@ -247,9 +347,10 @@ export async function fetchValoperMonikers(rpcUrl: string): Promise<Map<string, 
         }
         // Cache successful result (only when non-empty, to avoid pinning a transient miss)
         if (monikerMap.size > 0) {
-            _valoperCache = { data: monikerMap, ts: Date.now() }
+            _valoperCache.set(cacheKey, { data: monikerMap, ts: Date.now() })
         }
-    } catch {
+    } catch (error) {
+        if (signal?.aborted) throw error
         // Best-effort: valopers query may fail on some chains
     }
     return monikerMap
@@ -316,9 +417,10 @@ export async function getNetworkStats(
     rpcUrl: string,
     prefetchedValidators?: ValidatorInfo[],
     signal?: AbortSignal,
+    snapshot?: ValidatorRpcSnapshot,
 ): Promise<NetworkStats> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const status = await rpcCall(rpcUrl, "/status", {}, signal) as any
+    const selected = snapshot ?? await getValidatorRpcSnapshot(signal)
+    const status = selected.status
     const latestHeight = parseInt(status?.sync_info?.latest_block_height || "0", 10)
     const latestBlockTime = status?.sync_info?.latest_block_time || ""
     const catchingUp = status?.sync_info?.catching_up || false
@@ -327,16 +429,14 @@ export async function getNetworkStats(
     // Validator count: use prefetched data when available, skip redundant RPC
     let totalValidators = 0
     let totalVotingPower = 0
-    if (prefetchedValidators && prefetchedValidators.length > 0) {
+    if (prefetchedValidators) {
         totalValidators = prefetchedValidators.length
         totalVotingPower = prefetchedValidators.reduce((sum, v) => sum + v.votingPower, 0)
     } else {
-        // Fallback: fetch the validator set via RPC (no prefetched data).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "100" }, signal) as any
-        const totals = countValidatorTotals(valResult)
-        totalValidators = totals.count
-        totalVotingPower = totals.votingPower
+        // Use the same pinned, complete roster rather than page 1's count.
+        const vals = await getValidators(rpcUrl, selected, signal)
+        totalValidators = vals.length
+        totalVotingPower = vals.reduce((sum, v) => sum + v.votingPower, 0)
     }
 
     // Calculate avg block time from last 10 blocks
@@ -344,7 +444,10 @@ export async function getNetworkStats(
     if (latestHeight > 10) {
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const recentBlock = await rpcCall(rpcUrl, "/block", { height: String(latestHeight - 10) }, signal) as any
+            const recentBlock = await snapshotCall(selected, rpcUrl, "/block", { height: String(latestHeight - 10) }, signal) as any
+            if (recentBlock?.block?.header?.chain_id !== selected.chainId || Number(recentBlock?.block?.header?.height) !== latestHeight - 10) {
+                throw new Error("Validator RPC returned a block from another chain or height")
+            }
             const oldTime = new Date(recentBlock?.block?.header?.time || 0).getTime()
             const newTime = new Date(latestBlockTime).getTime()
             if (oldTime > 0 && newTime > oldTime) {
@@ -381,7 +484,11 @@ export async function getNetworkStats(
 /** Signer set per block height. Blocks are IMMUTABLE once committed, so a height
  *  read once never needs reading again — this is what turns a 100-block poll
  *  into a 2-4 block poll in steady state. */
-const blockSignerCache = new Map<number, Set<string>>()
+interface CachedSigners { hash: string; signers: Set<string> }
+interface SignerCache { blocks: Map<number, CachedSigners>; tip: { height: number; hash: string } | null }
+// A height has meaning only within one chain and one node's fork. Never reuse
+// signers obtained from a different endpoint after failover.
+const blockSignerCache = new Map<string, SignerCache>()
 
 /** Cache ceiling. Comfortably above the largest window any caller asks for (the
  *  profile's 100) so a normal poll is always a pure cache hit, while a chain that
@@ -407,57 +514,90 @@ export function __resetBlockSigCacheForTests(): void {
  * know the roster must seed those entries themselves, or the totally-down
  * validator silently reads as "no data" rather than "missed everything".
  *
- * Only heights missing from the cache are fetched. A block that fails to load is
- * simply absent from the window rather than recorded as a miss — a transport
- * failure is not evidence about a validator.
+ * Only heights missing from the cache are fetched. If any block fails to load,
+ * the entire window is unavailable rather than recording an apparent healthy
+ * sample from fewer blocks. The missing height stays uncached for the next poll.
  */
 export async function fetchLastBlockSignatures(
     rpcUrl: string,
     blockCount: number = 20,
     chunkSize: number = 10,
+    snapshot?: ValidatorRpcSnapshot,
+    signal?: AbortSignal,
 ): Promise<Map<string, boolean[]>> {
     const result = new Map<string, boolean[]>()
     try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const status = await rpcCall(rpcUrl, "/status") as any
-        const latestHeight = parseInt(status?.sync_info?.latest_block_height || "0", 10)
+        const selected = snapshot ?? await getValidatorRpcSnapshot(signal)
+        const latestHeight = selected.height
         if (latestHeight < 2) return result
+
+        const cacheKey = `${selected.chainId}\u0000${selected.url}`
+        let cache = blockSignerCache.get(cacheKey)
+        if (!cache) {
+            cache = { blocks: new Map(), tip: null }
+            blockSignerCache.set(cacheKey, cache)
+        }
+        if (!selected.blockHash) cache.blocks.clear()
+        // The same node may restart onto another fork. Confirm the last known
+        // tip's hash before reusing any older signer rows; if identity cannot
+        // be confirmed, discard the cache rather than inferring health from it.
+        if (cache.tip?.hash) {
+            let previousHash = ""
+            if (cache.tip.height === latestHeight) previousHash = selected.blockHash
+            else if (cache.tip.height < latestHeight) {
+                try {
+                    const previous = await snapshotCall(selected, rpcUrl, "/block", { height: String(cache.tip.height) }, signal) as { block_id?: { hash?: string } }
+                    previousHash = previous?.block_id?.hash || ""
+                } catch { /* pruned or unavailable: invalidate and re-read the window */ }
+            }
+            if (!previousHash || previousHash !== cache.tip.hash) cache.blocks.clear()
+        }
+        cache.tip = { height: latestHeight, hash: selected.blockHash }
 
         const startHeight = Math.max(2, latestHeight - blockCount + 1)
         const heights: number[] = []
         for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
 
-        const missing = heights.filter(h => !blockSignerCache.has(h))
+        const missing = heights.filter(h => !cache.blocks.has(h))
         for (let i = 0; i < missing.length; i += chunkSize) {
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
             const chunk = missing.slice(i, i + chunkSize)
             await Promise.all(chunk.map(async h => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const b = await rpcCall(rpcUrl, "/block", { height: String(h) }).catch(() => null) as any
+                const b = await snapshotCall(selected, rpcUrl, "/block", { height: String(h) }, signal).catch(() => null) as any
+                if (signal?.aborted) return
                 if (!b) return // leave uncached so the next tick retries
+                const blockHeight = Number(b?.block?.header?.height)
+                if (Number.isFinite(blockHeight) && blockHeight !== h) return
+                if (b?.block?.header?.chain_id !== selected.chainId) return
+                const hash = b?.block_id?.hash || ""
+                if (!hash) return // no immutable identity: do not cache this result
                 const signers = new Set<string>()
                 for (const pc of b?.block?.last_commit?.precommits || []) {
                     // null slot = this validator missed the block.
                     if (pc?.validator_address) signers.add(pc.validator_address.toLowerCase())
                 }
-                blockSignerCache.set(h, signers)
+                cache.blocks.set(h, { hash, signers })
             }))
         }
 
         // Drop heights that have fallen out of any window we will serve.
         const floor = latestHeight - MAX_CACHED_HEIGHTS
-        for (const h of blockSignerCache.keys()) {
-            if (h < floor) blockSignerCache.delete(h)
+        for (const h of cache.blocks.keys()) {
+            if (h < floor) cache.blocks.delete(h)
         }
 
-        const available = heights.filter(h => blockSignerCache.has(h))
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+        if (heights.some(h => !cache.blocks.has(h))) return result
         const allAddrs = new Set<string>()
-        for (const h of available) {
-            for (const addr of blockSignerCache.get(h)!) allAddrs.add(addr)
+        for (const h of heights) {
+            for (const addr of cache.blocks.get(h)!.signers) allAddrs.add(addr)
         }
         for (const addr of allAddrs) {
-            result.set(addr, available.map(h => blockSignerCache.get(h)!.has(addr)))
+            result.set(addr, heights.map(h => cache.blocks.get(h)!.signers.has(addr)))
         }
-    } catch {
+    } catch (error) {
+        if (signal?.aborted) throw error
         // Graceful degradation — return empty map
     }
     return result
@@ -506,11 +646,13 @@ export interface NodeStatus {
 export async function getNodeStatus(
     rpcUrl: string,
     signal?: AbortSignal,
+    snapshot?: ValidatorRpcSnapshot,
 ): Promise<NodeStatus | null> {
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const st = await rpcCall(rpcUrl, "/status", {}, signal) as any
+        const st = snapshot?.status ?? await rpcCall(rpcUrl, "/status", {}, signal) as any
         if (!st) return null
+        if (snapshot && st?.node_info?.network !== snapshot.chainId) return null
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ni: any = st.node_info || {}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -690,6 +832,11 @@ export async function getNetPeers(
     signal?: AbortSignal,
 ): Promise<NetInfo | null> {
     try {
+        // Topology is node-local, so every source must be checked individually.
+        // A trusted hostname can be repointed to another chain without changing
+        // its URL; mixing that node's peers into this network is misleading.
+        const status = await directRpcCall(rpcUrl, "/status", {}, signal) as { node_info?: { network?: string } }
+        if (status?.node_info?.network !== GNO_CHAIN_ID || signal?.aborted) return null
         // Direct (no-failover) call: aggregation needs THIS node's peers. The
         // resilient layer ignores the URL and always hits the primary, which
         // would make getAggregatedNetPeers query one node N times.
@@ -701,6 +848,7 @@ export async function getNetPeers(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rawPeers: any[] = result.peers || []
         const peers: PeerInfo[] = rawPeers.map(parseNetPeer)
+            .filter(peer => peer.network === GNO_CHAIN_ID)
 
         return { listening, peers, peerCount: peers.length }
     } catch {
@@ -806,10 +954,11 @@ export function buildNodeRoster(
 export async function getMempoolStatus(
     rpcUrl: string,
     signal?: AbortSignal,
+    snapshot?: ValidatorRpcSnapshot,
 ): Promise<{ count: number; totalBytes: number } | null> {
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await rpcCall(rpcUrl, "/num_unconfirmed_txs", {}, signal) as any
+        const result = await snapshotCall(snapshot, rpcUrl, "/num_unconfirmed_txs", {}, signal) as any
         return {
             count: parseInt(result?.n_txs || result?.total || "0", 10),
             totalBytes: parseInt(result?.total_bytes || "0", 10),
@@ -842,13 +991,15 @@ export async function fetchBlockHeatmap(
     blockCount: number = 100,
     signal?: AbortSignal,
     chunkSize: number = 10,
+    snapshot?: ValidatorRpcSnapshot,
 ): Promise<BlockSample[]> {
     const n = Math.min(blockCount, MAX_HACKER_BLOCKS)
-    if (latestHeight < 2 || n < 1) return []
+    const tip = snapshot ? Math.min(latestHeight, snapshot.height) : latestHeight
+    if (tip < 2 || n < 1) return []
 
-    const startHeight = Math.max(2, latestHeight - n + 1)
+    const startHeight = Math.max(2, tip - n + 1)
     const heights: number[] = []
-    for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
+    for (let h = tip; h >= startHeight; h--) heights.push(h)
 
     // ── Chunked fetch ──
     // Split heights into groups of chunkSize, process each group sequentially
@@ -856,22 +1007,25 @@ export async function fetchBlockHeatmap(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allBlocks: (any | null)[] = []
     for (let i = 0; i < heights.length; i += chunkSize) {
-        if (signal?.aborted) break
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
         const chunk = heights.slice(i, i + chunkSize)
         const chunkResults = await Promise.all(
             chunk.map(h =>
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                rpcCall(rpcUrl, "/block", { height: String(h) }, signal).catch(() => null) as Promise<any>
+                snapshotCall(snapshot, rpcUrl, "/block", { height: String(h) }, signal).catch(() => null) as Promise<any>
             )
         )
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
         allBlocks.push(...chunkResults)
     }
 
     const samples: BlockSample[] = []
-    for (const block of allBlocks) {
+    for (let i = 0; i < allBlocks.length; i++) {
+        const block = allBlocks[i]
         if (!block) continue
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const header: any = block?.block?.header || {}
+        if (snapshot && (header.chain_id !== snapshot.chainId || Number(header.height) !== heights[i])) continue
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const precommits: any[] = block?.block?.last_commit?.precommits || []
         const signerCount = precommits.filter(

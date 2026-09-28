@@ -85,6 +85,13 @@ describe("useNetwork.switchNetwork — quest credit is awarded from EVERY surfac
         expect(window.location.href).toBe("/test13/settings")
     })
 
+    it("preserves Directory tab, search and selected path on a classic network switch", () => {
+        vi.stubGlobal("location", { pathname: "/topaz/directory", search: "?tab=realms&q=boards&realm=r%2Fgov%2Fdao", href: "" })
+        const { result } = renderHook(() => useNetwork(), { wrapper })
+        result.current.switchNetwork("test13")
+        expect(window.location.href).toBe("/test13/directory?tab=realms&q=boards&realm=r%2Fgov%2Fdao")
+    })
+
     it("does nothing when 'switching' to the network already active", () => {
         // Not a switch: it would award the quest and full-page-load to the same
         // URL. The guard lives here rather than at the five call sites, which

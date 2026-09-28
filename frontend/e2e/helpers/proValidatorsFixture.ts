@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { fulfillOnchainReads, mockChainStatus, GNO_MONITORING_HOST } from './onchain'
+import { fulfillOnchainReads, mockAppChainStatus, GNO_MONITORING_HOST } from './onchain'
 
 /** Test-only deterministic roster, never imported by application source. */
 export async function fulfillProValidatorRoster(page: Page, mode: 'healthy' | 'mixed' | 'missing' | 'empty' | 'large' | 'resolved' = 'healthy') {
@@ -18,10 +18,10 @@ export async function fulfillProValidatorRoster(page: Page, mode: 'healthy' | 'm
         validators: ids.map(n => validator(n, String((count + 1 - n) * 10))),
     }
     const now = Date.now()
-    const STATUS = { ...mockChainStatus(), sync_info: { latest_block_height: '435604', latest_block_time: new Date(now).toISOString(), catching_up: false } }
+    const STATUS = { ...mockAppChainStatus('gnoland-1'), sync_info: { latest_block_height: '435604', latest_block_time: new Date(now).toISOString(), catching_up: false } }
     const BLOCK = {
         block: {
-            header: { chain_id: 'e2e-offline', height: '435594', time: new Date(now - 40_000).toISOString() },
+            header: { chain_id: 'gnoland-1', height: '435594', time: new Date(now - 40_000).toISOString() },
             // tm2 commits carry `precommits`, not `signatures`.
             last_commit: {
                 precommits: (hasSignatures ? ids : []).map(n => ({
@@ -42,7 +42,7 @@ export async function fulfillProValidatorRoster(page: Page, mode: 'healthy' | 'm
         peers: [{
             node_info: {
                 net_address: 'g1mockpeer0000000000000000000000000000001@203.0.113.7:26656',
-                network: 'e2e-offline',
+                network: 'gnoland-1',
                 moniker: 'e2e-peer-01',
                 other: { tx_index: 'off', rpc_address: 'tcp://203.0.113.7:26657' },
             },

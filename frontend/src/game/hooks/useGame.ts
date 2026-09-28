@@ -4,10 +4,10 @@ import { setLocalBest } from "../lib/localStore";
 
 export type GameMode = "ranked" | "practice";
 
-type Internal = { game: GameState; log: string; seed: number };
+type Internal = { game: GameState; log: string; seed: number; mode: GameMode };
 
-function fresh(seed: number, modifier: Modifier): Internal {
-  return { game: initGame(seed, modifier), log: "", seed };
+function fresh(seed: number, modifier: Modifier, mode: GameMode): Internal {
+  return { game: initGame(seed, modifier), log: "", seed, mode };
 }
 
 /**
@@ -16,7 +16,7 @@ function fresh(seed: number, modifier: Modifier): Internal {
  * accepted it: no no-op moves, nothing after game over, nothing past the
  * budget. The backend applies the same rules to a submitted replay.
  */
-export function replayLog(seed: number, modifier: Modifier, log: string, budget: number): Internal | null {
+export function replayLog(seed: number, modifier: Modifier, log: string, budget: number, mode: GameMode = "ranked"): Internal | null {
   let game = initGame(seed, modifier);
   for (let i = 0; i < log.length; i++) {
     const m = log[i];
@@ -25,21 +25,22 @@ export function replayLog(seed: number, modifier: Modifier, log: string, budget:
     if (next === game) return null;
     game = next;
   }
-  return { game, log, seed };
+  return { game, log, seed, mode };
 }
 
 export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode; moveBudget: number }) {
   const { modifier, mode, moveBudget } = opts;
-  const [internal, setInternal] = useState<Internal>(() => fresh(opts.seed, modifier));
+  const [internal, setInternal] = useState<Internal>(() => fresh(opts.seed, modifier, mode));
   const seedRef = useRef(opts.seed);
 
   const play = useCallback((m: Move) => {
     setInternal((prev) => {
+      if (prev.mode !== mode) return prev;
       if (prev.game.over) return prev;
       if (mode === "ranked" && prev.game.moves >= moveBudget) return prev;
       const next = step(prev.game, m);
       if (next === prev.game) return prev; // no-op: unchanged, not counted, not logged
-      return { game: next, log: prev.log + m, seed: prev.seed };
+      return { game: next, log: prev.log + m, seed: prev.seed, mode: prev.mode };
     });
   }, [mode, moveBudget]);
 
@@ -51,8 +52,8 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
   const restart = useCallback((seed?: number, log = ""): boolean => {
     const s = seed ?? seedRef.current;
     seedRef.current = s;
-    const restored = log ? replayLog(s, modifier, log, mode === "ranked" ? moveBudget : Infinity) : null;
-    setInternal(restored ?? fresh(s, modifier));
+    const restored = log ? replayLog(s, modifier, log, mode === "ranked" ? moveBudget : Infinity, mode) : null;
+    setInternal(restored ?? fresh(s, modifier, mode));
     return log === "" || restored !== null;
   }, [modifier, mode, moveBudget]);
 
@@ -61,7 +62,7 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
     if (mode !== "practice") return;
     setInternal((prev) => {
       if (prev.log.length === 0) return prev;
-      return replayLog(prev.seed, prev.game.modifier, prev.log.slice(0, -1), Infinity) ?? prev;
+      return replayLog(prev.seed, prev.game.modifier, prev.log.slice(0, -1), Infinity, "practice") ?? prev;
     });
   }, [mode]);
 
@@ -74,8 +75,8 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
   // crash. Write monotonically as the score advances; the storage helper is
   // guarded for private browsing and quota failures.
   useEffect(() => {
-    if (mode === "practice") setLocalBest("practice", game.score);
-  }, [mode, game.score]);
+    if (mode === "practice" && internal.mode === "practice") setLocalBest("practice", game.score);
+  }, [mode, internal.mode, game.score]);
 
   return {
     board: game.board,

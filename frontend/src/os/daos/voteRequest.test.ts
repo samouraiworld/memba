@@ -5,6 +5,7 @@ const chain = vi.hoisted(() => ({
     members: [{ address: "g1member" }] as { address: string }[],
     proposal: { electorate_version: 3, open: true },
     voted: false as boolean | null,
+    choice: null as "YES" | "NO" | "ABSTAIN" | null,
 }))
 
 vi.mock("../../lib/dao", async (orig) => ({
@@ -20,6 +21,7 @@ vi.mock("../../lib/dao/membaV2", async (orig) => ({
 vi.mock("../../lib/dao/membaV2Shell", async (orig) => ({
     ...(await orig<typeof import("../../lib/dao/membaV2Shell")>()),
     hasVotedOnV2: vi.fn(async () => chain.voted),
+    findV2VoterChoice: vi.fn(async () => chain.choice),
 }))
 vi.mock("../../lib/dao/v2Lifecycle", async (orig) => ({
     ...(await orig<typeof import("../../lib/dao/v2Lifecycle")>()),
@@ -42,6 +44,7 @@ beforeEach(() => {
     chain.members = [{ address: "g1member" }]
     chain.proposal = { electorate_version: 3, open: true }
     chain.voted = false
+    chain.choice = null
 })
 
 describe("voteRequest · version-2 re-checks (as on the classic proposal page)", () => {
@@ -64,6 +67,16 @@ describe("voteRequest · version-2 re-checks (as on the classic proposal page)",
 })
 
 describe("voteRequest · messages", () => {
+    it("verifies the chosen vote after the member's record is found beyond the first page", async () => {
+        chain.voted = true
+        chain.choice = "NO"
+        const req = voteRequest(ctx())
+        await expect(req.verify!("No", "hash", undefined)).resolves.toBe(true)
+        await expect(req.verify!("Yes", "hash", undefined)).resolves.toBe(false)
+        chain.choice = null
+        await expect(req.verify!("No", "hash", undefined)).resolves.toBe(false)
+    })
+
     it("builds the version-2 Vote call with a deposit cap, and the choice follows the sheet", () => {
         const req = voteRequest(ctx())
         const yes = req.prepare("Yes").msgs[0]

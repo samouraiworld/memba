@@ -19,6 +19,10 @@ describe('professional crawler cards', () => {
         const original = response(html.replaceAll('/brand/folded-m/share.png', '/og-image.jpg'))
         expect(await handler(new Request('https://example.com/mainnet/validators', { headers: { 'user-agent': 'Twitterbot/1.0' } }), { next: async () => original })).toBe(original)
     })
+    it('preserves committed article metadata in the downstream HTML', async () => {
+        const original = response(html.replace('</head>', '<meta name="memba-static-article" content="inside-memba"><meta property="og:type" content="article"></head>'))
+        expect(await handler(new Request('https://example.com/mainnet/blog/inside-memba', { headers: { 'user-agent': 'Twitterbot/1.0' } }), { next: async () => original })).toBe(original)
+    })
     it.each(['mainnet/validators', 'pearl/dao/gno.land/r/gov/dao', 'mainnet/dao/gno.land/r/gov/dao/proposal/4'])('uses absolute brand image and network metadata for %s', async path => {
         const result = await handler(new Request(`https://example.com/${path}?private-query=removed`, { headers: { 'user-agent': 'Twitterbot/1.0' } }), { next: async () => response() })
         const text = await result.text()

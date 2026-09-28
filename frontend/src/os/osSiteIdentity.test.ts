@@ -1,4 +1,4 @@
-import { readFileSync, mkdtempSync, rmSync, writeFileSync, copyFileSync } from 'node:fs'
+import { readFileSync, mkdtempSync, rmSync, writeFileSync, copyFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -67,6 +67,41 @@ describe('beta identity', () => {
                 rmSync(resolve(dir, file))
             }
             copyFileSync('public/icons/icon-192.png', resolve(dir, 'icon-192.png'))
+            expect(scan().status).toBe(0)
+        } finally { rmSync(dir, { recursive: true, force: true }) }
+    })
+
+    it('allows only known classic CSS overrides while catching any extra OS selector', () => {
+        const dir = mkdtempSync(resolve(tmpdir(), 'os-scope-gate-'))
+        const scan = () => spawnSync(process.execPath, ['scripts/check-os-chunk.mjs', dir], { encoding: 'utf8' })
+        try {
+            mkdirSync(resolve(dir, 'assets'))
+            const allowed = [
+                ['BlockPartyGame-abc.css', '.memba-os .k-bp-mode-btn{color:red}.memba-os .k-bp-mode-btn--active{color:white}'],
+                ['Directory-def.css', '.memba-os .os-classic .drawer-panel{background:black}'],
+                ['SpaceInvadersGame-ghi.css', '.memba-os .si-button--primary{color:white}'],
+            ] as const
+            for (const [name, css] of allowed) writeFileSync(resolve(dir, 'assets', name), css)
+            expect(scan().status).toBe(0)
+
+            writeFileSync(resolve(dir, 'assets', 'BlockPartyGame-abc.css'), '@media(max-width:500px){.memba-os .k-bp-mode-btn{color:red}}')
+            expect(scan().status).toBe(0)
+            for (const css of [
+                'body.memba-os .k-bp-mode-btn{color:red}',
+                '.page .memba-os .k-bp-mode-btn{color:red}',
+                '.memba-os .k-bp-mode-btn:hover{color:red}',
+            ]) {
+                writeFileSync(resolve(dir, 'assets', 'BlockPartyGame-abc.css'), css)
+                expect(scan().status, css).toBe(1)
+            }
+            writeFileSync(resolve(dir, 'assets', 'BlockPartyGame-abc.css'), allowed[0][1])
+
+            writeFileSync(resolve(dir, 'assets', 'Directory-def.css'), `${allowed[1][1]}.memba-os .os-boot{display:block}`)
+            expect(scan().status).toBe(1)
+            writeFileSync(resolve(dir, 'assets', 'Directory-def.css'), allowed[1][1])
+            writeFileSync(resolve(dir, 'assets', 'Other.css'), allowed[1][1])
+            expect(scan().status).toBe(1)
+            rmSync(resolve(dir, 'assets', 'Other.css'))
             expect(scan().status).toBe(0)
         } finally { rmSync(dir, { recursive: true, force: true }) }
     })

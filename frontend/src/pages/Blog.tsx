@@ -6,14 +6,15 @@
  * (escaped content, protocol-whitelisted links) + DOMPurify, matching the
  * house pattern for realm Render output.
  */
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
 import { sanitizeMarkdownHtml } from "../lib/sanitizeMarkdownHtml"
 import { Rss, ArrowLeft } from "@phosphor-icons/react"
-import { useBlogArticles, useBlogArticle } from "../lib/blogSource"
+import { useBlogArticles } from "../lib/blogSource"
 import { renderMarkdown } from "../lib/markdownLite"
 import { applyArticleHeadMeta, clearArticleHeadMeta } from "../lib/blogMeta"
 import { useNetworkKey } from "../hooks/useNetworkNav"
+import { useWindowActive } from "../os/page/WindowActivity"
 import "./blog.css"
 
 function formatDate(date: string): string {
@@ -30,17 +31,31 @@ function readingTime(body: string): string {
 
 export function BlogList() {
     const nk = useNetworkKey()
-    useEffect(() => { document.title = "Blog — Memba" }, [])
+    const windowActive = useWindowActive()
+    const headingRef = useRef<HTMLHeadingElement>(null)
+    useEffect(() => {
+        if (!windowActive) return
+        const previousTitle = document.title
+        document.title = "Blog — Memba"
+        headingRef.current?.focus()
+        return () => {
+            if (document.title === "Blog — Memba") document.title = previousTitle
+        }
+    }, [windowActive])
 
     const { articles } = useBlogArticles()
     const [featured, ...rest] = articles
 
     return (
         <div id="blog-page" className="blog-shell">
+            <nav className="news-section-nav" aria-label="News sections">
+                <Link to={`/${nk}/blog`} aria-current="page">Blog</Link>
+                <Link to={`/${nk}/changelogs`}>Changelogs</Link>
+            </nav>
             {/* ── Masthead ─────────────────────────────────────── */}
             <header className="blog-masthead">
                 <div className="blog-masthead__kicker">Memba · gno.land</div>
-                <h1 className="blog-masthead__title">Blog</h1>
+                <h1 ref={headingRef} tabIndex={-1} className="blog-masthead__title">Blog</h1>
                 <p className="blog-masthead__sub">
                     Field notes on Memba and the gno.land ecosystem — releases, security, and what we're building.
                 </p>
@@ -102,21 +117,44 @@ export function BlogList() {
 export function BlogArticlePage() {
     const { slug } = useParams<{ slug: string }>()
     const nk = useNetworkKey()
-    const article = useBlogArticle(slug)
+    const windowActive = useWindowActive()
+    const { articles, loading } = useBlogArticles()
+    const article = slug ? articles.find(a => a.slug === slug) : undefined
+    const headingRef = useRef<HTMLHeadingElement>(null)
 
     useEffect(() => {
-        document.title = article ? `${article.title} — Memba` : "Blog — Memba"
+        if (windowActive) headingRef.current?.focus()
+    }, [article?.slug, loading, slug, windowActive])
+
+    useEffect(() => {
+        if (!windowActive) return
         if (!article) return
         // Per-article OG/description + BlogPosting JSON-LD (wins over the
         // generic /blog payload — see lib/blogMeta.ts for the ordering contract).
         applyArticleHeadMeta(article, window.location.href)
         return clearArticleHeadMeta
-    }, [article])
+    }, [article, windowActive])
+
+    useEffect(() => {
+        if (!windowActive || article) return
+        const previousTitle = document.title
+        document.title = "Blog — Memba"
+        return () => {
+            if (document.title === "Blog — Memba") document.title = previousTitle
+        }
+    }, [article, windowActive])
 
     if (!article) {
         return (
             <div id="blog-page" className="blog-shell">
-                <p className="blog-empty">Article not found.</p>
+                <nav className="news-section-nav" aria-label="News sections">
+                    <Link to={`/${nk}/blog`} aria-current="page">Blog</Link>
+                    <Link to={`/${nk}/changelogs`}>Changelogs</Link>
+                </nav>
+                <h1 ref={headingRef} tabIndex={-1} className="blog-title">{loading ? "Loading article" : "Article not found"}</h1>
+                <p className="blog-empty" role={loading ? "status" : undefined}>
+                    {loading ? "Checking for the latest post…" : "This article is unavailable."}
+                </p>
                 <Link to={`/${nk}/blog`} className="blog-back">← All articles</Link>
             </div>
         )
@@ -124,13 +162,18 @@ export function BlogArticlePage() {
 
     return (
         <article id="blog-page" className="blog-shell blog-article">
+            <nav className="news-section-nav" aria-label="News sections">
+                <Link to={`/${nk}/blog`} aria-current="page">Blog</Link>
+                <Link to={`/${nk}/changelogs`}>Changelogs</Link>
+            </nav>
             <Link to={`/${nk}/blog`} className="blog-back">
                 <ArrowLeft size={13} aria-hidden="true" /> All articles
             </Link>
             <div className="blog-article__kicker">Memba · gno.land</div>
-            <h1 className="blog-title">{article.title}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className="blog-title">{article.title}</h1>
             <div className="blog-meta">
-                <span>{formatDate(article.date)}</span>
+                <span>Published {formatDate(article.date)}</span>
+                {article.updated && <span>Updated {formatDate(article.updated)}</span>}
                 <span aria-hidden="true">·</span>
                 <span>{readingTime(article.body)}</span>
                 {article.tags.map(t => <span key={t} className="blog-tag">{t}</span>)}
@@ -138,7 +181,7 @@ export function BlogArticlePage() {
             <div
                 className="blog-body"
                 data-testid="blog-body"
-                dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(article.body, { images: true })) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(article.body, { images: article.source !== "onchain" })) }}
             />
         </article>
     )

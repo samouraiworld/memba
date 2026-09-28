@@ -25,19 +25,35 @@ export async function broadcastNativeTransaction(chain: string, bytes: Uint8Arra
     if (!statusRes.ok) throw new Error("Unable to verify RPC chain")
     const status = record(record(await statusRes.json()).result)
     if (record(status.node_info).network !== chain || record(status.sync_info).catching_up !== false) throw new Error("RPC is on a different chain or catching up")
-    // JSON-RPC bodies go to the root; /broadcast_tx_commit is the form/query API.
-    const response = await fetch(GNO_RPC_URL, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", method: "broadcast_tx_commit", params: { tx: btoa(Array.from(bytes, b => String.fromCharCode(b)).join("")) }, id: 1 }),
-    })
-    if (!response.ok) throw new Error("Native broadcast failed; check the transaction hash before retrying")
-    const body = record(await response.json())
-    if (body.error) throw new Error("Native RPC rejected the transaction")
-    const result = record(body.result)
-    if (!successfulExecution(result.check_tx) || !successfulExecution(result.deliver_tx) || !/^[1-9][0-9]*$/.test(String(result.height))) throw new Error("Native CheckTx or DeliverTx failed; transaction was not marked complete")
     const expected = Array.from(sha256(bytes), b => b.toString(16).padStart(2, "0")).join("").toUpperCase()
+    const uncertain = () => new Error(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Check it on-chain before retrying.`)
+    // JSON-RPC bodies go to the root; /broadcast_tx_commit is the form/query API.
+    let response: Response
+    try {
+        response = await fetch(GNO_RPC_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", method: "broadcast_tx_commit", params: { tx: btoa(Array.from(bytes, b => String.fromCharCode(b)).join("")) }, id: 1 }),
+        })
+    } catch { throw uncertain() }
+    if (!response.ok) throw uncertain()
+    let body: Record<string, unknown>
+    try { body = record(await response.json()) } catch { throw uncertain() }
+    if (body.error) throw new Error("Native RPC rejected the transaction")
+    let result: Record<string, unknown>
+    try { result = record(body.result) } catch { throw uncertain() }
+    let checkOk: boolean, deliverOk: boolean
+    try {
+        checkOk = successfulExecution(result.check_tx)
+        deliverOk = successfulExecution(result.deliver_tx)
+    } catch { throw uncertain() }
+    if (!checkOk || !deliverOk) throw new Error("Native CheckTx or DeliverTx failed; transaction was not marked complete")
+    if (!/^[1-9][0-9]*$/.test(String(result.height))) throw uncertain()
     const hash = typeof result.hash === "string" ? result.hash : ""
-    const actual = /^[0-9a-f]{64}$/i.test(hash) ? hash.toUpperCase() : Array.from(atob(hash), c => c.charCodeAt(0).toString(16).padStart(2, "0")).join("").toUpperCase()
+    if (!hash) throw uncertain()
+    let actual: string
+    try {
+        actual = /^[0-9a-f]{64}$/i.test(hash) ? hash.toUpperCase() : Array.from(atob(hash), c => c.charCodeAt(0).toString(16).padStart(2, "0")).join("").toUpperCase()
+    } catch { throw uncertain() }
     if (actual !== expected) throw new Error("RPC returned a different transaction hash")
     return expected
 }

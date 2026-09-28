@@ -54,16 +54,34 @@ export { OS_NET_SWITCHED_KEY }
 
 export function switchOsNetwork(key: string): void {
     if (!NETWORKS[key] || key === ACTIVE_NETWORK_KEY) return
-    completeQuest("switch-network")
-    const questAddr = getQuestWalletAddress()
-    if (questAddr) trackNetworkVisit(questAddr, key)
+    let oldPreference: string | null | undefined
+    let oldEcho: string | null | undefined
     try {
+        oldPreference = localStorage.getItem(NETWORK_PREF_STORAGE_KEY)
+        oldEcho = localStorage.getItem(NETWORK_ECHO_STORAGE_KEY)
         localStorage.setItem(NETWORK_PREF_STORAGE_KEY, key)
         localStorage.setItem(NETWORK_ECHO_STORAGE_KEY, key)
-        sessionStorage.setItem(OS_NET_SWITCHED_KEY, key)
     } catch {
+        // A failed second write must not leave the first write changing the
+        // selected chain on the next visit without this page having reloaded.
+        if (oldPreference !== undefined) {
+            try {
+                if (oldPreference === null) localStorage.removeItem(NETWORK_PREF_STORAGE_KEY)
+                else localStorage.setItem(NETWORK_PREF_STORAGE_KEY, oldPreference)
+                if (oldEcho === null) localStorage.removeItem(NETWORK_ECHO_STORAGE_KEY)
+                else if (oldEcho !== undefined) localStorage.setItem(NETWORK_ECHO_STORAGE_KEY, oldEcho)
+            } catch { /* storage may remain unavailable */ }
+        }
         return // without storage the reload would land on the same network
     }
+    // The notice is optional; private browsers can deny sessionStorage while
+    // allowing the local preference needed for the switch itself.
+    try { sessionStorage.setItem(OS_NET_SWITCHED_KEY, key) } catch { /* no toast after reload */ }
+    try {
+        completeQuest("switch-network")
+        const questAddr = getQuestWalletAddress()
+        if (questAddr) trackNetworkVisit(questAddr, key)
+    } catch { /* quest tracking cannot prevent an already-persisted switch */ }
     // Module-load config (RPC, registry paths) is computed once: reload to apply it.
     window.location.reload()
 }

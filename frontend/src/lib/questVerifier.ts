@@ -15,9 +15,6 @@ import { queryRender, queryEval } from "./dao/shared"
 import { isFullGnoAddress, sameFullAddress } from "./addressMatch"
 import { fetchAccountInfo } from "./account"
 import { fetchBackendProfile } from "./profile"
-import { api } from "./api"
-import { create } from "@bufbuild/protobuf"
-import { GetMyTeamsRequestSchema } from "../gen/memba/v1/memba_pb"
 import { loadQuestProgress } from "./quests"
 import { ALL_QUESTS, type GnoQuest } from "./gnobuilders"
 import type { Token } from "../gen/memba/v1/memba_pb"
@@ -52,7 +49,7 @@ export async function verifyQuest(
     if (!quest) return ERROR("Unknown quest: " + questId)
 
     // Check if already completed
-    const state = loadQuestProgress()
+    const state = loadQuestProgress(address)
     if (state.completed.some(c => c.questId === questId)) {
         return VERIFIED
     }
@@ -306,18 +303,12 @@ async function verifyOffChain(
             return NOT_VERIFIED("Copy and share a team invite code")
 
         case "create-team": {
-            if (!authToken) return NOT_VERIFIED("Sign in to verify")
-            const resp = await api.getMyTeams(create(GetMyTeamsRequestSchema, { authToken }))
-            const ownedTeams = resp.teams?.filter(t => t.members?.some(
-                m => m.address === address && m.role === 2 /* ADMIN */
-            ))
-            if (ownedTeams && ownedTeams.length > 0) {
-                // Check if team has 3+ members
-                const bigTeam = ownedTeams.find(t => (t.members?.length || 0) >= 3)
-                if (bigTeam) return VERIFIED
-                return NOT_VERIFIED("Your team needs 3+ members")
-            }
-            return NOT_VERIFIED("Create a team first")
+            // The server checks creator identity, admin membership and the
+            // 3-member threshold together. A client team list cannot prove
+            // creator identity and must not grant an optimistic completion.
+            return authToken
+                ? NOT_VERIFIED("Verify this team with Memba")
+                : NOT_VERIFIED("Sign in to verify")
         }
 
         case "complete-all-everyone": {

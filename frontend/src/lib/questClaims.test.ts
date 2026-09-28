@@ -90,7 +90,7 @@ describe("submitQuestClaim local hint", () => {
     it("records the optimistic hint after a successful submit", async () => {
         submitQuestClaimMock.mockResolvedValue({ status: "pending" })
 
-        await submitQuestClaim(create(TokenSchema, {}), "g1alice", "fix-upstream-bug", "https://x", "")
+        await submitQuestClaim(create(TokenSchema, { userAddress: "g1alice" }), "g1alice", "fix-upstream-bug", "https://x", "")
 
         expect(hasSubmittedClaim("g1alice", "fix-upstream-bug")).toBe(true)
     })
@@ -99,8 +99,16 @@ describe("submitQuestClaim local hint", () => {
         submitQuestClaimMock.mockRejectedValue(new Error("boom"))
 
         await expect(
-            submitQuestClaim(create(TokenSchema, {}), "g1alice", "fix-upstream-bug", "https://x", ""),
+            submitQuestClaim(create(TokenSchema, { userAddress: "g1alice" }), "g1alice", "fix-upstream-bug", "https://x", ""),
         ).rejects.toThrow()
         expect(hasSubmittedClaim("g1alice", "fix-upstream-bug")).toBe(false)
+    })
+
+    it("rejects a stale wallet token before writing a claim or local hint", async () => {
+        await expect(
+            submitQuestClaim(create(TokenSchema, { userAddress: "g1alice" }), "g1bob", "fix-upstream-bug", "https://x", ""),
+        ).rejects.toThrow(/Sign in with the wallet/)
+        expect(submitQuestClaimMock).not.toHaveBeenCalled()
+        expect(hasSubmittedClaim("g1bob", "fix-upstream-bug")).toBe(false)
     })
 })

@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query"
 import { resolveOnChainUsername } from "../../lib/profile"
 
 const EMPTY = new Map<string, string>()
+const MAX_PARALLEL_LOOKUPS = 6
 
 export function useActorUsernames(actors: string[]): Map<string, string> {
     // Stable, deduped key so the query only re-runs when the actor SET changes.
@@ -21,18 +22,20 @@ export function useActorUsernames(actors: string[]): Map<string, string> {
 
     const query = useQuery({
         queryKey: ["actorUsernames", distinct],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             const map = new Map<string, string>()
+            let next = 0
             await Promise.all(
-                distinct.map(async (addr) => {
-                    try {
-                        // resolveOnChainUsername returns a display-ready "@handle";
-                        // store the BARE handle so the consumer owns the "@" prefix
-                        // (avoids "@@handle").
-                        const name = (await resolveOnChainUsername(addr)).replace(/^@/, "")
-                        if (name) map.set(addr, name)
-                    } catch {
-                        /* best-effort: leave this actor as a truncated address */
+                Array.from({ length: Math.min(MAX_PARALLEL_LOOKUPS, distinct.length) }, async () => {
+                    while (!signal.aborted && next < distinct.length) {
+                        const addr = distinct[next++]
+                        try {
+                            // Store the bare handle; consumers add their own @.
+                            const name = (await resolveOnChainUsername(addr)).replace(/^@/, "")
+                            if (name) map.set(addr, name)
+                        } catch {
+                            /* best-effort: leave this actor as a truncated address */
+                        }
                     }
                 }),
             )

@@ -19,6 +19,7 @@ import { assertActiveRpcChain, assertRpcChain, clearRpcChainChecks, RpcChainMism
 import { queryRender } from "./shared"
 
 const status = vi.mocked(directRpcCall)
+const daoResponse = () => Response.json({ result: { response: { ResponseBase: { Data: btoa("# DAO"), Error: null } } } })
 type Answer = string | Error | "hang"
 const answering = (byUrl: Record<string, Answer>) => status.mockImplementation((url: string) => {
     const v = byUrl[url]
@@ -80,18 +81,21 @@ describe("RPC chain identity", () => {
     it("does not wait for a hanging fallback once the primary is verified", async () => {
         vi.useFakeTimers()
         answering({ "https://rpc.one": "gnoland-1", "https://rpc.two": "hang" })
+        vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => daoResponse()))
         expect((await settledWithoutTime(queryRender("https://rpc.one", "gno.land/r/gov/dao", "", true))).done).toBe(true)
         // A second strict read neither waits nor probes the hanging fallback again.
         const second = await settledWithoutTime(queryRender("https://rpc.one", "gno.land/r/gov/dao", "", true))
         expect(second).toEqual({ done: true, value: "# DAO" })
-        expect(callsTo("https://rpc.two")).toBe(1)
+        expect(callsTo("https://rpc.two")).toBe(0)
     })
 
-    it("keeps reads working and excludes a fallback that serves another chain", async () => {
+    it("strict reads exclude a wrong-chain fallback when the primary query fails", async () => {
         answering({ "https://rpc.one": "gnoland-1", "https://rpc.two": "pearl-1" })
-        await expect(queryRender("https://rpc.one", "gno.land/r/gov/dao", "", true)).resolves.toBe("# DAO")
-        await vi.waitFor(() => expect(getRpcUrlsInOrder()).toEqual(["https://rpc.one"]))
-        await expect(assertActiveRpcChain()).resolves.toBeUndefined()
+        const fetchMock = vi.fn().mockRejectedValue(new Error("primary offline"))
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(queryRender("https://rpc.one", "gno.land/r/gov/dao", "", true)).rejects.toThrow()
+        expect(fetchMock.mock.calls.every(([url]) => url === "https://rpc.one")).toBe(true)
+        expect(getRpcUrlsInOrder()).toEqual(["https://rpc.one"])
     })
 
     it("uses a verified fallback when the primary serves another chain", async () => {

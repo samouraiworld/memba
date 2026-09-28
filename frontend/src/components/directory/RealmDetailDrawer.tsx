@@ -82,15 +82,15 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     const gnowebLink = gnowebUrl === canonicalLink ? gnowebUrl : canonicalLink
 
     // Render() output — packages have none, so the query stays disabled there.
-    const renderQuery = useDirectoryRender(isPackage ? null : path)
+    const renderQuery = useDirectoryRender(!isPackage && tab === "render" ? path : null)
     const renderOutput = renderQuery.data ?? null
     const renderLoading = renderQuery.loading
 
-    // Source code — RPC vm/qfile first (CORS-safe), gnoweb scrape fallback.
-    // The old retry nonce becomes refetch().
+    // Source and info both need qfile; delay its bounded RPC reads until used.
     const sourceQuery = useQuery({
         retry: false, refetchOnWindowFocus: false,
         queryKey: ["realm", "source", networkKey, path, resolvedGnowebUrl],
+        enabled: tab === "source" || tab === "info",
         queryFn: async () => {
             const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
             try {
@@ -101,7 +101,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
         },
     })
     const source = sourceQuery.data ?? null
-    const sourceLoading = sourceQuery.isPending
+    const sourceLoading = sourceQuery.isFetching
     const sourceActiveFile =
         pickedFile && source?.files.some(f => f.name === pickedFile)
             ? pickedFile
@@ -143,6 +143,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
 
                 {/* Tab Content */}
                 <div className="drawer-content" role="tabpanel" aria-labelledby={`directory-drawer-tab-${tab}`} tabIndex={0}>
+                    {tab !== "render" && source?.truncated && <p className="drawer-source__partial" role="status">Showing the first 24 source files. More files exist in this package.</p>}
                     {/* Render Tab */}
                     {tab === "render" && !isPackage && (
                         <div className="drawer-render">

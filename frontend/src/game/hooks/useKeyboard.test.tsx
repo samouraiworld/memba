@@ -10,6 +10,7 @@
  * working from it and from the page body.
  */
 import { render, fireEvent, screen } from "@testing-library/react";
+import { useRef } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { useKeyboard } from "./useKeyboard";
 import type { Move } from "../engine";
@@ -23,6 +24,12 @@ function Harness({ onMove, enabled = true }: { onMove: (m: Move) => void; enable
       <div role="grid" tabIndex={0} data-testid="board" />
     </div>
   );
+}
+
+function WindowHarness({ onMove }: { onMove: (m: Move) => void }) {
+  const scope = useRef<HTMLDivElement>(null);
+  useKeyboard(onMove, true, scope);
+  return <div className="os-win"><div ref={scope}><div role="grid" data-testid="window-board" /></div></div>;
 }
 
 describe("useKeyboard", () => {
@@ -65,5 +72,20 @@ describe("useKeyboard", () => {
     rerender(<Harness onMove={onMove} enabled />);
     fireEvent.keyDown(screen.getByTestId("board"), { key: "Enter" });
     expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it("accepts only keys inside the front OS game window", () => {
+    const onMove = vi.fn();
+    render(<><WindowHarness onMove={onMove} /><div data-testid="other-window" /></>);
+    const board = screen.getByTestId("window-board");
+    const gameWindow = board.closest(".os-win")!;
+    fireEvent.keyDown(screen.getByTestId("other-window"), { key: "ArrowRight" });
+    expect(onMove).not.toHaveBeenCalled();
+    gameWindow.classList.add("os-inactive");
+    fireEvent.keyDown(board, { key: "ArrowRight" });
+    expect(onMove).not.toHaveBeenCalled();
+    gameWindow.classList.remove("os-inactive");
+    fireEvent.keyDown(board, { key: "ArrowRight" });
+    expect(onMove).toHaveBeenCalledWith("R");
   });
 });

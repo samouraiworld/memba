@@ -23,7 +23,7 @@ export function memberAddress(value: string, prefix = "g"): string {
 }
 
 export function isNativeMultisig(raw: string): boolean {
-    try { const v: unknown = JSON.parse(raw); return !!v && typeof v === "object" && "@type" in v } catch { return false }
+    try { const v: unknown = JSON.parse(raw); return !!v && typeof v === "object" && "@type" in v && v["@type"] === NATIVE_MULTISIG_TYPE } catch { return false }
 }
 
 export function parseNativeMultisig(raw: string): NativeMultisig {

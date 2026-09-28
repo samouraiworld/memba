@@ -442,6 +442,12 @@ describe('parseProposalAuthor', () => {
         expect(r.authorProfile).toBe('/u/zooma')
     })
 
+    it('does not turn chain supplied author URLs into arbitrary links', () => {
+        expect(_parseProposalAuthor('Author: [@zooma](javascript:alert(1))').authorProfile).toBe('')
+        expect(_parseProposalAuthor('Author: [@zooma](https://gno.land.evil/u/zooma)').authorProfile).toBe('')
+        expect(_parseProposalAuthor('Author: [@zooma](https://gno.land/u/zooma)').authorProfile).toBe('https://gno.land/u/zooma')
+    })
+
     it('captures a bare g1 address author (was dropped on the detail page)', () => {
         const r = _parseProposalAuthor('## Prop #22 - X\nAuthor: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\n\nbody')
         expect(r.author).toBe('g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5')

@@ -12,7 +12,7 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useEffect, useCallback, useMemo, useDeferredValue } from "react"
+import { useEffect, useCallback, useMemo, useDeferredValue, useState } from "react"
 import { useDirectoryUrlState } from "../hooks/useDirectoryUrlState"
 import { type DirectoryTab, resolveActiveTab } from "../lib/directoryUrl"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
@@ -30,6 +30,8 @@ import { RealmDetailDrawer } from "../components/directory/RealmDetailDrawer"
 import { toExplorerRelPath } from "../lib/explorerLink"
 import "./directory.css"
 import { revealInvisibleFormatting } from "../lib/dao/v2Text"
+import { useNetwork } from "../hooks/useNetwork"
+import { supportsRecentSubmissions, useRecentSubmissions } from "../hooks/useRecentSubmissions"
 
 // W5.2: Packages leads — it is by far the most-filled tab on test13 today
 // (DAO count is still small). Revisit the order once DAOs catch up.
@@ -45,6 +47,7 @@ const TAB_DEFS: { key: DirectoryTab; label: string }[] = [
 
 export function Directory() {
     const navigate = useNetworkNav()
+    const { networkKey } = useNetwork()
     const [urlState, setUrlState] = useDirectoryUrlState()
     // Explorer is the merged-in realm viewer, shown as a gated last tab. A deep-link
     // to ?tab=explorer with the flag off falls back to the default tab, so there is
@@ -56,13 +59,17 @@ export function Directory() {
         () => explorerOn ? [...TAB_DEFS, { key: "explorer" as DirectoryTab, label: "🔎 Explorer" }] : TAB_DEFS,
         [explorerOn],
     )
-    const tab: DirectoryTab = resolveActiveTab(urlState.tab, explorerOn)
+    const tab: DirectoryTab = urlState.tab === "explorer" && !explorerOn && urlState.realm.startsWith("r/")
+        ? "realms"
+        : resolveActiveTab(urlState.tab, explorerOn)
     const globalSearch = urlState.q
+    const recentSubmissions = useRecentSubmissions(networkKey, globalSearch.trim().length > 0 && !globalSearch.startsWith("gno.land/"))
     const deferredGlobalSearch = useDeferredValue(globalSearch)
-    const previewPath = globalSearch.startsWith("gno.land/r/") ? globalSearch : null
+    const previewPath = globalSearch.startsWith("gno.land/r/") && isValidRealmPath(globalSearch.replace(/^gno\.land/, "")) ? globalSearch : null
     const preview = useDirectoryRender(previewPath, 300)
     const realmPreview = preview.data && preview.data.trim() !== "404" ? { path: previewPath!, content: preview.data.slice(0, 500) } : null
     const packagePath = globalSearch.startsWith("gno.land/p/") && isValidRealmPath(globalSearch.replace(/^gno\.land/, "")) ? globalSearch : null
+    const invalidPath = globalSearch.startsWith("gno.land/") && !previewPath && !packagePath
 
     // M6 pattern: page title + quest tracking. Track the initial (possibly
     // deep-linked via ?tab=) tab once on mount.
@@ -74,8 +81,11 @@ export function Directory() {
     }, [])
 
     // Cross-tab search data (loaded once for filtering)
-    const allDAOs = useMemo(() => getDirectoryDAOs(), [])
-    const { discovery, isPending: discoveryLoading, refetch: retryDiscovery } = useDirectoryDiscovery()
+    const [daoRefreshKey, setDaoRefreshKey] = useState(0)
+    // Browser storage changes after Save; the key explicitly invalidates the snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const allDAOs = useMemo(() => getDirectoryDAOs(networkKey), [networkKey, daoRefreshKey])
+    const { discovery, isPending: discoveryLoading, refetch: retryDiscovery } = useDirectoryDiscovery(daoRefreshKey)
     const allPackages = discovery.packages
     const allRealms = discovery.realms
     const openResult = (path: string) => setUrlState({
@@ -83,7 +93,8 @@ export function Directory() {
         realm: toExplorerRelPath(path),
     })
     const selectedPath = `/${toExplorerRelPath(urlState.realm)}`
-    const showSelectedDrawer = !explorerOn && ["packages", "realms"].includes(tab) && isValidRealmPath(selectedPath)
+    const showSelectedDrawer = !explorerOn && isValidRealmPath(selectedPath)
+        && ((tab === "packages" && selectedPath.startsWith("/p/")) || (tab === "realms" && selectedPath.startsWith("/r/")))
 
 
     // Cross-tab search results
@@ -101,10 +112,14 @@ export function Directory() {
         const daos = allDAOs.filter(matchDAO).slice(0, 5)
         const packages = allPackages.filter(matchPkg).slice(0, 5)
         const realms = allRealms.filter(matchRealm).slice(0, 5)
+        const listedPaths = new Set([...allPackages, ...allRealms].map(item => item.path))
+        const recent = (recentSubmissions.data?.rows ?? [])
+            .filter(row => row.path.toLowerCase().includes(q) && !listedPaths.has(row.path))
+            .slice(0, 5)
 
-        if (daos.length === 0 && packages.length === 0 && realms.length === 0) return null
-        return { daos, packages, realms }
-    }, [deferredGlobalSearch, allDAOs, allPackages, allRealms])
+        if (daos.length === 0 && packages.length === 0 && realms.length === 0 && recent.length === 0) return null
+        return { daos, packages, realms, recent }
+    }, [deferredGlobalSearch, allDAOs, allPackages, allRealms, recentSubmissions.data])
 
     const handleGlobalSearch = useCallback((query: string) => {
         setUrlState({ q: query })
@@ -112,7 +127,7 @@ export function Directory() {
 
     const selectTab = useCallback((key: DirectoryTab) => {
         trackDirectoryTab(key)
-        setUrlState({ tab: key })
+        setUrlState({ tab: key, realm: "" })
     }, [setUrlState])
 
     // APG tabs pattern: Arrow/Home/End move between tabs, with a roving tabindex.
@@ -130,7 +145,7 @@ export function Directory() {
         <div className="dir-page">
             <div className="dir-header">
                 <h1>📂 Directory</h1>
-                <p>Discover DAOs, tokens, packages, realms, and users on gno.land</p>
+                <p>Browse listed DAOs, factory tokens, packages, realms, and DAO members on gno.land</p>
             </div>
 
             {/* Phase 3a: Live chain metrics */}
@@ -145,12 +160,12 @@ export function Directory() {
             <div role="search" aria-label="Search directory">
             <input
                 type="text"
-                placeholder="Search across all tabs or enter a gno.land/ path..."
+                placeholder="Search or paste a gno.land/ path…"
                 value={globalSearch}
                 onChange={e => handleGlobalSearch(e.target.value)}
                 className="dir-search dir-search--global"
                 data-testid="global-search"
-                aria-label="Search across all tabs or enter a gno.land path"
+                aria-label="Search DAOs, realms, packages, and recent submissions or enter a gno.land path"
             />
             </div>
 
@@ -170,6 +185,7 @@ export function Directory() {
                                         <span className="dir-cross-item__icon">🏛️</span>
                                         <span className="dir-cross-item__name">{revealInvisibleFormatting(d.name)}</span>
                                         <span className="dir-cross-item__path">{d.path}</span>
+                                        <span className="dir-cross-item__path">DAO path · deployment not checked</span>
                                     </button>
                                 ))}
                                 {crossTabResults.daos.length >= 5 && (
@@ -216,6 +232,20 @@ export function Directory() {
                             </div>
                         </div>
                     )}
+                    {crossTabResults.recent.length > 0 && (
+                        <div className="dir-cross-section">
+                            <div className="dir-cross-section__header">Recent on-chain submissions · activation not checked ({crossTabResults.recent.length})</div>
+                            <div className="dir-cross-section__items">
+                                {crossTabResults.recent.map(row => (
+                                    <button key={row.path} type="button" className="dir-cross-item" onClick={() => openResult(row.path)}>
+                                        <span className="dir-cross-item__icon">{row.kind === "package" ? "📦" : "🌐"}</span>
+                                        <span className="dir-cross-item__name">{row.path.split("/").at(-1)}</span>
+                                        <span className="dir-cross-item__path">{row.path}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -225,10 +255,11 @@ export function Directory() {
                 && !crossTabResults && (
                 <div className="dir-cross-results" role="status" aria-live="polite">
                     <div className="dir-empty">
-                        <p>No DAOs, realms, or packages match "{globalSearch.trim()}". Try a tab below or enter a full <code>gno.land/</code> path.</p>
+                        <p>No listed DAOs, realms, or packages match "{globalSearch.trim()}". {supportsRecentSubmissions(networkKey) && (recentSubmissions.isPending ? "Checking recent submissions…" : recentSubmissions.isError ? "Recent submissions are unavailable." : "No recent submissions match in the checked window.")} Try a tab below or enter a full <code>gno.land/</code> path.</p>
                     </div>
                 </div>
             )}
+            {invalidPath && <p className="dir-discovery-status" role="status">Enter a complete <code>gno.land/r/owner/name</code> realm or <code>gno.land/p/owner/name</code> package path.</p>}
 
             {/* Realm path preview */}
             {preview.loading && <p role="status">Loading realm preview…</p>}
@@ -247,6 +278,7 @@ export function Directory() {
                 </a>
             )}
 
+            <p className="dir-tab-hint">Scroll tabs for more categories →</p>
             <div className="dir-tabs" role="tablist">
                 {tabDefs.map(t => (
                     <button
@@ -263,10 +295,10 @@ export function Directory() {
 
             {/* M2 audit fix: tabpanel role + aria-labelledby for complete ARIA pattern */}
             <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
-                {tab === "daos" && <DAOsTab navigate={navigate} />}
+                {tab === "daos" && <DAOsTab navigate={navigate} onSave={() => setDaoRefreshKey(key => key + 1)} />}
                 {tab === "tokens" && <TokensTab />}
-                {tab === "packages" && <PackagesTab />}
-                {tab === "realms" && <RealmsTab />}
+                {tab === "packages" && <PackagesTab onOpenDetail={openResult} />}
+                {tab === "realms" && <RealmsTab onOpenDetail={openResult} />}
                 {tab === "users" && <UsersTab navigate={navigate} />}
                 {tab === "govdao" && <GovDAOTab navigate={navigate} />}
                 {tab === "leaderboard" && <LeaderboardTab navigate={navigate} />}

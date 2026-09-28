@@ -20,7 +20,9 @@ export function Explorer() {
 
     useEffect(() => {
         const rel = toExplorerRelPath(splat)
-        nav(rel ? `directory?tab=explorer&realm=${rel}` : "directory?tab=explorer", { replace: true })
+        const params = new URLSearchParams({ tab: "explorer" })
+        if (rel) params.set("realm", rel)
+        nav(`directory?${params.toString()}`, { replace: true })
     }, [nav, splat])
 
     return null

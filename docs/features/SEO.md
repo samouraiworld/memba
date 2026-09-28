@@ -47,9 +47,29 @@ search-console coverage showing section pages unindexed after ~4 weeks;
 non-Google engines becoming a measurable traffic source; the blog (W6.4)
 needing social-preview fidelity beyond what static OG tags give it.
 
+## News article metadata (2026-09-28)
+
+The mainnet Blog met the social-preview trigger above. The build now emits an
+article-specific HTML shell for each committed Markdown post. These files keep
+the Vite app and CSP, while putting the article title, description, canonical
+URL, Open Graph and Twitter metadata, and `BlogPosting` JSON-LD in the HTTP
+response. Netlify serves the real file ahead of the unforced SPA fallback.
+React still renders the article body; this is not general page prerendering.
+
+Classic builds publish `/mainnet/blog/<slug>/` shells and the classic sitemap.
+The OS beta build also publishes `/os/news/<slug>/` shells and an OS-host
+sitemap and robots file. The shared RSS feed continues to use classic Blog
+URLs. Editorial revisions keep the original publication date and set an
+`updated` date for sitemap `lastmod` and JSON-LD `dateModified`.
+
+The on-chain Blog realm is not deployed on mainnet and its flag remains off.
+If it is enabled later, its content and the static feed, sitemap, and HTML
+shells need a coordinated publishing policy before launch.
+
 ## Verification
 
 - Lighthouse SEO target: ≥95 on the key routes (home, /dao, /directory,
   /validators, /marketplace).
-- `npm run build && head dist/sitemap.xml` — 13 URLs, network-prefixed.
+- `npm run build && head dist/sitemap.xml` — classic routes and committed Blog
+  articles use mainnet URLs; an OS build uses `memba.club/os` URLs.
 - Rich-results test on `/` for the Organization/WebApplication graph.

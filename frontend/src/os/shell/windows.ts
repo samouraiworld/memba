@@ -62,7 +62,7 @@ export function appSpec(app: OsAppId, section: string | null = null, query?: str
     // Games open beside the lobby. BARRICADE's stage and side panel need the
     // desk's available space rather than the standard 960 px page window.
     const game = app === "arcade" && ["game", "space-invaders", "barricade"].includes(section ?? "")
-    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
+    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "meet" ? [1040, 720] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
     return { key: game ? `game:${section}` : `app:${app}`, title: game ? `${section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : getApp(app).name, app, width, height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 
@@ -117,7 +117,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
     const t = w.target
     if (!t) return "/os"
     switch (t.kind) {
-        case "app": return `/os/${getApp(t.app).slug}${t.section ? `/${t.section}` : ""}${t.query ? `?${t.query}` : ""}`
+        case "app": return `/os/${getApp(t.app).slug}${t.app !== "meet" && t.section ? `/${t.section}` : ""}${t.query ? `?${t.query}` : ""}`
         case "dao": return `/os/dao/${encodeURIComponent(t.name)}${t.section === "overview" ? "" : `/${t.section}`}`
         case "proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/${t.n}`
         case "new-proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/new`
@@ -175,6 +175,9 @@ function place(spec: WindowSpec, n: number, desk: DeskSize, center: boolean) {
 
 /** A link with no query of its own (a ?w= token, the dock) keeps the page's current query; another page starts clean. */
 function keepQuery(next: OsTarget | null, prev: OsTarget | null): OsTarget | null {
+    // The active Meet room lives only in window memory. A URL/dock navigation
+    // back to /os/meet must not silently end an ongoing call.
+    if (next?.kind === "app" && next.app === "meet" && !next.section && prev?.kind === "app" && prev.app === "meet" && prev.section) return prev
     if (next?.kind !== "app" || next.query !== undefined || prev?.kind !== "app") return next
     return prev.app === next.app && prev.section === next.section && prev.query !== undefined ? { ...next, query: prev.query } : next
 }

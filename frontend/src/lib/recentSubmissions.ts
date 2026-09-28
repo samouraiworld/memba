@@ -89,7 +89,8 @@ export function parseRecentSubmissions(value: unknown): RecentSubmissionsDocumen
 }
 
 /** The official RPC serves exact transaction and block JSON on gnoland-1. */
-export function mainnetSubmissionTxUrl(hash: string): string | null {
+export function mainnetSubmissionTxUrl(hash: string, chainId = MAINNET_CHAIN_ID): string | null {
+    if (chainId !== MAINNET_CHAIN_ID) return null
     const hex = normalizeTxHashHex(hash)
     return hex ? `https://rpc.gno.land/tx?hash=0x${hex}` : null
 }

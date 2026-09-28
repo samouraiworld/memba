@@ -2,6 +2,7 @@
 
 .k-leaderboard {
     max-width: 800px;
+    min-width: 0;
     margin: 0 auto;
     padding: var(--space-6);
     font-family: var(--font-ui, 'JetBrains Mono', monospace);
@@ -44,7 +45,8 @@
 .k-leaderboard-table-wrap {
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 .k-leaderboard-table {
@@ -151,4 +153,48 @@
     .k-leaderboard-table td:nth-child(3) {
         display: none;
     }
+}
+
+@media (max-width: 420px) {
+    .k-leaderboard { padding: var(--space-3); }
+    .k-leaderboard-table th:nth-child(5),
+    .k-leaderboard-table td:nth-child(5) { display: none; }
+    .k-leaderboard-table th,
+    .k-leaderboard-table td { padding: var(--space-2); }
+    .k-leaderboard-table { table-layout: fixed; }
+    .k-leaderboard-table th:first-child,
+    .k-leaderboard-table td:first-child { width: 40px; }
+    .k-leaderboard-table th:nth-child(4),
+    .k-leaderboard-table td:nth-child(4) { width: 64px; }
+    .k-leaderboard-addr { overflow-wrap: anywhere; }
+    .k-leaderboard-footer { justify-content: center; }
+    .k-leaderboard-pagination { flex-wrap: wrap; justify-content: center; }
+    .k-leaderboard-loading,
+    .k-leaderboard-error,
+    .k-leaderboard-empty { padding: var(--space-6) var(--space-2); }
+}
+
+/* OS windows can be narrow even when the browser viewport is wide. */
+@container os-window (max-width: 640px) {
+    .k-leaderboard-table th:nth-child(3),
+    .k-leaderboard-table td:nth-child(3) { display: none; }
+}
+
+@container os-window (max-width: 420px) {
+    .k-leaderboard { padding: var(--space-3); }
+    .k-leaderboard-table th:nth-child(5),
+    .k-leaderboard-table td:nth-child(5) { display: none; }
+    .k-leaderboard-table th,
+    .k-leaderboard-table td { padding: var(--space-2); }
+    .k-leaderboard-table { table-layout: fixed; }
+    .k-leaderboard-table th:first-child,
+    .k-leaderboard-table td:first-child { width: 40px; }
+    .k-leaderboard-table th:nth-child(4),
+    .k-leaderboard-table td:nth-child(4) { width: 64px; }
+    .k-leaderboard-addr { overflow-wrap: anywhere; }
+    .k-leaderboard-footer { justify-content: center; }
+    .k-leaderboard-pagination { flex-wrap: wrap; justify-content: center; }
+    .k-leaderboard-loading,
+    .k-leaderboard-error,
+    .k-leaderboard-empty { padding: var(--space-6) var(--space-2); }
 }

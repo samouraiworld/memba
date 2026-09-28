@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { APP_VERSION } from "../../../lib/config"
-import { getGasConfig } from "../../../lib/gasConfig"
+import { getGasConfig, MAX_DEFAULT_GAS_FEE_UGNOT, MAX_DEFAULT_GAS_WANTED, parseDefaultGasInput } from "../../../lib/gasConfig"
 import { useOsAppearance, type OsIconSize } from "../../appearance"
 import { setLiveWidget, setSkipIntro, useLiveWidget, useSkipIntro } from "../../preferences"
 import { AppShell, type ShellSection } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
+import { selectableOsNetworks, switchOsNetwork } from "../../shell/network"
 import { WALLPAPERS } from "../../wallpapers"
 import { resetLocalUiData } from "./localData"
 import "./native.css"
@@ -20,80 +21,123 @@ const sections: readonly ShellSection[] = [
     { id: "about", name: "About", icon: "doc" },
 ]
 
-const MAX_GAS_WANTED = Math.floor(Number.MAX_SAFE_INTEGER / 5)
-
-function validGas(value: string, max = Number.MAX_SAFE_INTEGER): number | null {
-    if (!/^[1-9]\d*$/.test(value)) return null
-    const parsed = Number(value)
-    return Number.isSafeInteger(parsed) && parsed <= max ? parsed : null
-}
-
 function ResetSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+    const dialogRef = useRef<HTMLDialogElement>(null)
     const cancelRef = useRef<HTMLButtonElement>(null)
-    useEffect(() => { cancelRef.current?.focus() }, [])
-    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === "Escape") { event.preventDefault(); onCancel() }
-        if (event.key !== "Tab") return
-        const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button"))
-        if (buttons.length === 0) return
-        if (event.shiftKey && document.activeElement === buttons[0]) { event.preventDefault(); buttons[buttons.length - 1].focus() }
-        else if (!event.shiftKey && document.activeElement === buttons[buttons.length - 1]) { event.preventDefault(); buttons[0].focus() }
-    }
-    return <div className="os-set-overlay">
-        <div className="os-set-dialog os-glass" role="dialog" aria-modal="true" aria-label="Reset local app data" onKeyDown={onKeyDown}>
+    useEffect(() => {
+        const dialog = dialogRef.current
+        dialog?.showModal()
+        cancelRef.current?.focus()
+        return () => { if (dialog?.open) dialog.close() }
+    }, [])
+    return <dialog ref={dialogRef} className="os-set-dialog os-glass" aria-modal="true" aria-label="Reset local app data"
+        onCancel={(event) => { event.preventDefault(); onCancel() }}>
             <h3>Reset local app data?</h3>
-            <p>This resets desktop layout, open windows, appearance, gas defaults, network preference and cached names on this device. The current page stays open until you revisit it.</p>
+            <p>This closes other open windows and resets desktop layout, appearance, gas defaults, network preference and cached names on this device. Settings stays open.</p>
             <p><strong>Kept:</strong> unsent DAO and Terminal drafts, saved recipients, send locks, wallet sessions and on-chain data.</p>
             <div className="os-set-actions">
                 <button ref={cancelRef} type="button" className="os-btn os-quiet" onClick={onCancel}>Cancel</button>
                 <button type="button" className="os-btn" onClick={onConfirm}>Confirm reset</button>
             </div>
-        </div>
-    </div>
+    </dialog>
 }
 
-export default function SettingsWindow({ section, session, open, openApp }: NativeViewProps) {
+function readRawGas(): string | null {
+    try { return localStorage.getItem("memba_settings") } catch { return null }
+}
+
+function gasFields() {
+    const config = getGasConfig()
+    return { wanted: String(config.wanted), fee: String(config.fee) }
+}
+
+export default function SettingsWindow({ section, session, open, openApp, fallback }: NativeViewProps) {
     const initial = sections.some(({ id }) => id === section) ? section! : "desktop"
-    const [current, setCurrent] = useState(initial)
+    const [selection, setSelection] = useState({ section, current: initial })
+    const current = selection.section === section ? selection.current : initial
+    const setCurrent = (next: string) => setSelection({ section, current: next })
     const appearance = useOsAppearance()
     const liveWidget = useLiveWidget()
     const skipIntro = useSkipIntro()
     const [confirmReset, setConfirmReset] = useState(false)
     const [resetStatus, setResetStatus] = useState("")
-    const [gas, setGas] = useState(() => {
-        const config = getGasConfig()
-        return { wanted: String(config.wanted), fee: String(config.fee) }
-    })
+    const [gas, setGas] = useState(gasFields)
     const [gasStatus, setGasStatus] = useState("")
+    const [gasErrors, setGasErrors] = useState({ wanted: "", fee: "" })
+    const [gasDirty, setGasDirty] = useState(false)
+    const [gasConflict, setGasConflict] = useState(false)
+    const gasSource = useRef(readRawGas())
+    const gasWantedRef = useRef<HTMLInputElement>(null)
+    const gasFeeRef = useRef<HTMLInputElement>(null)
     const resetTrigger = useRef<HTMLButtonElement>(null)
+    const networks = selectableOsNetworks()
 
-    const closeReset = () => { setConfirmReset(false); resetTrigger.current?.focus() }
+    const reloadGas = useCallback(() => {
+        gasSource.current = readRawGas()
+        setGas(gasFields())
+        setGasDirty(false)
+        setGasConflict(false)
+        setGasErrors({ wanted: "", fee: "" })
+        setGasStatus("")
+    }, [])
+    useEffect(() => {
+        const changed = (event: StorageEvent) => {
+            if (event.key !== null && event.key !== "memba_settings") return
+            if (gasDirty) setGasConflict(true)
+            else reloadGas()
+        }
+        window.addEventListener("storage", changed)
+        return () => window.removeEventListener("storage", changed)
+    }, [gasDirty, reloadGas])
+
+    const closeReset = () => {
+        setConfirmReset(false)
+        requestAnimationFrame(() => resetTrigger.current?.focus())
+    }
     const reset = () => {
         try {
             const count = resetLocalUiData(localStorage)
             appearance.reset()
             setLiveWidget(false)
             setSkipIntro(false)
-            const config = getGasConfig()
-            setGas({ wanted: String(config.wanted), fee: String(config.fee) })
+            reloadGas()
+            window.dispatchEvent(new Event("memba-os-local-ui-reset"))
             setResetStatus(`Local app data reset (${count} saved items removed). Drafts and send locks were kept.`)
         } catch {
-            setResetStatus("Local storage refused the reset. No wallet or on-chain data was changed.")
+            setResetStatus("Local storage interrupted the reset. Some preferences may have been removed; check them before trying again. No wallet or on-chain data was changed.")
         }
         closeReset()
     }
     const saveGas = () => {
-        const gasWanted = validGas(gas.wanted, MAX_GAS_WANTED)
-        const gasFee = validGas(gas.fee)
+        const gasWanted = parseDefaultGasInput(gas.wanted, MAX_DEFAULT_GAS_WANTED)
+        const gasFee = parseDefaultGasInput(gas.fee, MAX_DEFAULT_GAS_FEE_UGNOT)
+        const errors = {
+            wanted: gasWanted === null ? `Enter a whole number from 1 to ${MAX_DEFAULT_GAS_WANTED.toLocaleString("en-US")}.` : "",
+            fee: gasFee === null ? `Enter a whole number from 1 to ${MAX_DEFAULT_GAS_FEE_UGNOT.toLocaleString("en-US")} ugnot (10 GNOT).` : "",
+        }
+        setGasErrors(errors)
         if (gasWanted === null || gasFee === null) {
-            setGasStatus("Gas wanted and gas fee must be positive whole numbers; gas wanted must keep the deploy limit within the safe integer range.")
+            setGasStatus("Correct the highlighted gas default before saving.")
+            ;(gasWanted === null ? gasWantedRef : gasFeeRef).current?.focus()
             return
         }
         try {
-            localStorage.setItem("memba_settings", JSON.stringify({ gasWanted, gasFee }))
+            if (gasConflict || readRawGas() !== gasSource.current) {
+                setGasConflict(true)
+                setGasStatus("Gas defaults changed elsewhere. Load the latest values before saving.")
+                return
+            }
+            const saved = JSON.stringify({ gasWanted, gasFee })
+            localStorage.setItem("memba_settings", saved)
+            gasSource.current = saved
+            setGasDirty(false)
             setGasStatus("Gas defaults saved on this device. Review each transaction before signing.")
         } catch { setGasStatus("This browser could not save gas defaults.") }
     }
+
+    if (section !== null && !sections.some(({ id }) => id === section)) return fallback
+    const feeValue = parseDefaultGasInput(gas.fee, MAX_DEFAULT_GAS_FEE_UGNOT)
+    const feeGnot = feeValue === null ? null : (feeValue / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 6 })
 
     return <AppShell label="Settings" sections={sections} current={current} onSelect={setCurrent}>
         <div className="os-settings">
@@ -138,37 +182,44 @@ export default function SettingsWindow({ section, session, open, openApp }: Nati
                 </div>
             </>}
             {current === "notifications" && <>
-                <header><h2>Notifications</h2><p className="os-sub">Recent Memba alerts appear in the menu-bar bell, or the phone notification sheet.</p></header>
-                <div className="os-set-card"><h3>Delivery</h3><p>Memba currently shows alerts inside the app. Browser and email notification controls are not available in this beta.</p></div>
+                <header><h2>Notifications</h2><p className="os-sub">Signing and transaction status appears in the menu-bar bell or phone notification sheet while this session is open.</p></header>
+                <div className="os-set-card"><h3>Delivery</h3><p>Feed replies appear in Feed. Browser and email notification controls are not available in this beta.</p></div>
             </>}
             {current === "safety" && <>
                 <header><h2>Safety</h2><p className="os-sub">Local data controls affect only this browser.</p></header>
-                <div className="os-set-card"><h3>Before you sign</h3><p>Check the selected chain, account, recipient, amount and gas in the review shown for each transaction. Memba never changes on-chain data from Settings.</p></div>
-                <div className="os-set-card"><h3>Reset local app data</h3><p>Reset open windows, desktop layout, appearance, gas defaults and cached names. Unsent drafts and send locks remain saved.</p>
+                <div className="os-set-card"><h3>Before you sign</h3><p>Check the transaction details Memba shows, then verify the account, network and gas in Adena before approving. Memba never changes on-chain data from Settings.</p></div>
+                <div className="os-set-card"><h3>Reset local app data</h3><p>Close other open windows and reset desktop layout, appearance, gas defaults and cached names. Unsent drafts and send locks remain saved.</p>
                     <button ref={resetTrigger} type="button" className="os-btn os-quiet" onClick={() => { setResetStatus(""); setConfirmReset(true) }}>Reset local app data</button>
                     {resetStatus && <p role="status" className="os-note">{resetStatus}</p>}
                 </div>
             </>}
             {current === "network" && <>
-                <header><h2>Network</h2><p className="os-sub">The menu bar owns network switching for every OS app.</p></header>
-                <dl className="os-set-details os-set-card"><dt>Selected network</dt><dd>{session.network.label}</dd><dt>Chain ID</dt><dd className="os-mono">{session.network.chainId}</dd><dt>RPC host</dt><dd className="os-mono">{session.network.rpcHost}</dd></dl>
+                <header><h2>Network</h2><p className="os-sub">Settings shows the network selected for Memba OS. Switching reloads this page and may require reconnecting Adena.</p></header>
+                <dl className="os-set-details os-set-card"><dt>Selected network</dt><dd>{session.network.label}</dd><dt>Chain ID</dt><dd className="os-mono">{session.network.chainId}</dd><dt>Configured primary RPC</dt><dd className="os-mono">{session.network.rpcHost}</dd></dl>
+                {networks.length > 1 ? <div className="os-set-card"><h3>Switch network</h3><p className="os-sub">Check the selected chain in Adena before signing after a switch.</p><div className="os-set-choice">{networks.map((network) => <button type="button" key={network.key} className="os-btn os-quiet" disabled={network.key === session.network.key} onClick={() => switchOsNetwork(network.key)}>{network.key === session.network.key ? `${network.label} (selected)` : `Switch to ${network.label}`}</button>)}</div></div>
+                    : <p className="os-note">Only {session.network.label} is available in this build.</p>}
             </>}
             {current === "transactions" && <>
                 <header><h2>Transactions</h2><p className="os-sub">Defaults are stored on this device. A transaction's own estimate or review can override them.</p></header>
                 <div className="os-set-card os-set-form">
                     <label htmlFor="os-settings-gas-wanted">Gas wanted</label>
-                    <input id="os-settings-gas-wanted" type="number" min="1" step="1" value={gas.wanted} onChange={(event) => { setGas((value) => ({ ...value, wanted: event.target.value })); setGasStatus("") }} />
+                    <input ref={gasWantedRef} id="os-settings-gas-wanted" type="number" min="1" max={MAX_DEFAULT_GAS_WANTED} step="1" value={gas.wanted} aria-invalid={!!gasErrors.wanted} aria-describedby={`os-settings-gas-wanted-help${gasErrors.wanted ? " os-settings-gas-wanted-error" : ""}`} onChange={(event) => { setGas((value) => ({ ...value, wanted: event.target.value })); setGasDirty(true); setGasErrors((value) => ({ ...value, wanted: "" })); setGasStatus("") }} />
+                    <p id="os-settings-gas-wanted-help" className="os-sub">Maximum {MAX_DEFAULT_GAS_WANTED.toLocaleString("en-US")} gas; deploys may use five times this default.</p>
+                    {gasErrors.wanted && <p id="os-settings-gas-wanted-error" className="os-note os-err">{gasErrors.wanted}</p>}
                     <label htmlFor="os-settings-gas-fee">Gas fee (ugnot)</label>
-                    <input id="os-settings-gas-fee" type="number" min="1" step="1" value={gas.fee} onChange={(event) => { setGas((value) => ({ ...value, fee: event.target.value })); setGasStatus("") }} />
+                    <input ref={gasFeeRef} id="os-settings-gas-fee" type="number" min="1" max={MAX_DEFAULT_GAS_FEE_UGNOT} step="1" value={gas.fee} aria-invalid={!!gasErrors.fee} aria-describedby={`os-settings-gas-fee-help${gasErrors.fee ? " os-settings-gas-fee-error" : ""}`} onChange={(event) => { setGas((value) => ({ ...value, fee: event.target.value })); setGasDirty(true); setGasErrors((value) => ({ ...value, fee: "" })); setGasStatus("") }} />
+                    <p id="os-settings-gas-fee-help" className="os-sub">1 GNOT = 1,000,000 ugnot. {feeGnot === null ? "" : `This is ${feeGnot} GNOT. `}Maximum default: 10 GNOT.</p>
+                    {gasErrors.fee && <p id="os-settings-gas-fee-error" className="os-note os-err">{gasErrors.fee}</p>}
                     <button type="button" className="os-btn" onClick={saveGas}>Save gas defaults</button>
-                    {gasStatus && <p role={gasStatus.startsWith("Gas wanted") || gasStatus.startsWith("This browser") ? "alert" : "status"} className="os-note">{gasStatus}</p>}
+                    {gasConflict && <button type="button" className="os-btn os-quiet" onClick={reloadGas}>Load latest gas defaults</button>}
+                    {gasStatus && <p role={gasStatus.startsWith("Gas defaults saved") ? "status" : "alert"} className="os-note">{gasStatus}</p>}
                 </div>
             </>}
             {current === "account" && <>
                 <header><h2>Account</h2><p className="os-sub">Your wallet connects to Memba when you choose an action that needs it.</p></header>
                 <div className="os-set-card">
                     {session.status === "member" ? <><h3>Connected account</h3><p className="os-mono os-set-address">{session.address}</p></> : <><h3>Browsing as a guest</h3><p>You can read public information without a wallet. Connect when you want to post, vote or sign.</p><button type="button" className="os-btn" onClick={session.openConnect}>Connect wallet</button></>}
-                    <button type="button" className="os-btn os-quiet" onClick={() => openApp("profile")}>Open Profile</button>
+                    {session.status === "member" && <button type="button" className="os-btn os-quiet" onClick={() => openApp("profile")}>Open Profile</button>}
                 </div>
             </>}
             {current === "about" && <>

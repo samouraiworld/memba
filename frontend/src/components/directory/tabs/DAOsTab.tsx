@@ -12,7 +12,7 @@ import { encodeSlug } from "../../../lib/daoSlug"
 import { DAOCard, FeaturedDAOs } from "../index"
 import type { TabProps } from "./types"
 
-export function DAOsTab({ navigate }: TabProps) {
+export function DAOsTab({ navigate, onSave }: TabProps & { onSave?: () => void }) {
     const [search, setSearch] = useState("")
     // I2 audit fix: useDeferredValue for search — smooth typing with large datasets
     const deferredSearch = useDeferredValue(search)
@@ -53,8 +53,10 @@ export function DAOsTab({ navigate }: TabProps) {
                     onChange={e => setSearch(e.target.value)}
                     className="dir-search"
                     data-testid="dao-search"
+                    aria-label="Search DAOs"
                 />
                 <button
+                    type="button"
                     className="k-btn-primary dir-create-btn"
                     onClick={() => navigate("/dao/create")}
                     data-testid="create-dao-btn"
@@ -84,7 +86,7 @@ export function DAOsTab({ navigate }: TabProps) {
                             metadata={metadata.get(dao.path)}
                             degraded={degraded.has(dao.path)}
                             onClick={() => navigate(`/dao/${encodeSlug(dao.path)}`)}
-                            onSave={() => setDaoRefreshKey(k => k + 1)}
+                            onSave={() => { setDaoRefreshKey(k => k + 1); onSave?.() }}
                         />
                     ))}
                 </div>

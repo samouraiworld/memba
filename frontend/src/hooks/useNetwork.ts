@@ -68,7 +68,10 @@ export function useNetwork() {
         const restPath = (firstSegment && NETWORKS[firstSegment])
             ? "/" + segments.slice(1).join("/")
             : currentPath
-        window.location.href = `/${key}${restPath || "/dashboard"}`
+        // Directory uses URL-backed tab, search and detail state. Keep it when
+        // switching chains so the same view can be inspected on each network.
+        const query = restPath.startsWith("/directory") ? window.location.search : ""
+        window.location.href = `/${key}${restPath || "/dashboard"}${query}`
     }, [networkKey])
 
     return {

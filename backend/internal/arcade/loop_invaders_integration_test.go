@@ -28,11 +28,11 @@ import (
 // (loop_integration_test.go) is deliberately untouched.
 const (
 	siSeed      = "invaders-2026-07-13"
-	siFinalTick = 600
+	siFinalTick = 6275
 	siEvents    = `[[5,10,0,0],[60,10,1,0],[240,-10,1,0],[420,0,1,0],[540,3,1,0]]`
-	siScore     = 300
-	siStateHash = "a7d393c2"
-	siStats     = `{"wave":1,"shots":48,"hits":11}`
+	siScore     = 3879
+	siStateHash = "a2c31fd8"
+	siStats     = `{"wave":2,"shots":509,"hits":91}`
 )
 
 // siExpectedLogHash re-derives the commitment the worker must produce:
@@ -40,9 +40,51 @@ const (
 // delta as tick|move10|fire|pause, ';'-joined) — pinned here in Go so a
 // canonical-form drift in the worker fails loudly.
 func siExpectedLogHash() string {
-	canonical := siSeed + "\n" + "600;5|10|0|0;60|10|1|0;240|-10|1|0;420|0|1|0;540|3|1|0"
+	canonical := siSeed + "\n" + "6275;5|10|0|0;60|10|1|0;240|-10|1|0;420|0|1|0;540|3|1|0"
 	sum := sha256.Sum256([]byte(canonical))
 	return hex.EncodeToString(sum[:])
+}
+
+func TestInvadersWorkerRejectsNonterminalReplay(t *testing.T) {
+	bin := os.Getenv("MEMBA_ARCADE_NODE_BIN")
+	if bin == "" {
+		bin = "node"
+	}
+	if _, err := exec.LookPath(bin); err != nil {
+		t.Skipf("node (%q) not on PATH", bin)
+	}
+	runner, err := arcade.NewRunner(arcade.Config{NodeBin: bin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = runner.Close() })
+	result, err := runner.Verify(context.Background(), arcade.Job{
+		Game: "invaders", Seed: siSeed, SimVersion: 1, FinalTick: 600, Events: json.RawMessage(siEvents),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Error, "gameover") {
+		t.Fatalf("unfinished replay accepted: result=%+v err=%v", result, err)
+	}
+}
+
+func TestInvadersWorkerRejectsPostTerminalPadding(t *testing.T) {
+	bin := os.Getenv("MEMBA_ARCADE_NODE_BIN")
+	if bin == "" {
+		bin = "node"
+	}
+	if _, err := exec.LookPath(bin); err != nil {
+		t.Skipf("node (%q) not on PATH", bin)
+	}
+	runner, err := arcade.NewRunner(arcade.Config{NodeBin: bin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = runner.Close() })
+	result, err := runner.Verify(context.Background(), arcade.Job{
+		Game: "invaders", Seed: siSeed, SimVersion: 1, FinalTick: siFinalTick + 1, Events: json.RawMessage(siEvents),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Error, "continues after gameover") {
+		t.Fatalf("post-terminal replay accepted: result=%+v err=%v", result, err)
+	}
 }
 
 // TestArcadeLoop_SubmitVerifyStoreAttest_Invaders exercises the WHOLE backend
@@ -73,8 +115,8 @@ func TestArcadeLoop_SubmitVerifyStoreAttest_Invaders(t *testing.T) {
 		Enabled: true, Store: store, Auth: fakeAuth{addr: "g1alice"}, Verifier: runner, Now: submitNow,
 		EnabledGames: arcade.ParseEnabledGames("barricade,invaders"),
 	})
-	body := `{"seed":"` + siSeed + `","simVersion":1,"finalTick":600,"events":` + siEvents +
-		`,"claimedScore":300,"claimedHash":"` + siStateHash + `"}`
+	body := `{"seed":"` + siSeed + `","simVersion":1,"finalTick":6275,"events":` + siEvents +
+		`,"claimedScore":3879,"claimedHash":"` + siStateHash + `"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/arcade/submit", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer x")
 	rr := httptest.NewRecorder()
@@ -106,7 +148,7 @@ func TestArcadeLoop_SubmitVerifyStoreAttest_Invaders(t *testing.T) {
 	// ── 2. Stored 'verified' with the re-simulated multi-game fields ─────────
 	got, ok, _ := store.GetRunByLogHash(resp.LogHash)
 	if !ok || got.Status != "verified" || got.Game != "invaders" || got.Score != siScore ||
-		got.StateHash != siStateHash || got.Stats != siStats || got.Addr != "g1alice" || got.Waves != 1 {
+		got.StateHash != siStateHash || got.Stats != siStats || got.Addr != "g1alice" || got.Waves != 2 {
 		t.Fatalf("stored run wrong: %+v (ok=%v)", got, ok)
 	}
 

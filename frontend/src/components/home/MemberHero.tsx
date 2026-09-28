@@ -17,6 +17,7 @@
 import { Link, useOutletContext } from "react-router-dom"
 import type { LayoutContext } from "../../types/layout"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { isQuestAvailableOnNetwork } from "../../lib/questNetwork"
 import { useMemberIdentity } from "../../hooks/home/useMemberIdentity"
 import { useMemberStanding, type MemberStanding } from "../../hooks/home/useMemberStanding"
 import "./home.css"
@@ -60,6 +61,7 @@ export function WalletChips({ balance, rawUgnot, address }: { balance: string; r
 /** Right-side standing card — the member's XP / rank / candidature progress. */
 function MemberStandingCard({ standing, networkKey }: { standing: MemberStanding; networkKey: string }) {
     const { totalXP, rank, xpToCandidature, candidatureProgress, isEligible } = standing
+    const candidatureAvailable = isQuestAvailableOnNetwork("submit-candidature", networkKey)
     const pct = Math.round(candidatureProgress * 100)
 
     return (
@@ -86,12 +88,12 @@ function MemberStandingCard({ standing, networkKey }: { standing: MemberStanding
                 aria-valuenow={pct}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label="Progress to Memba DAO candidature"
+                aria-label="Verified XP progress to Memba DAO candidature"
             >
                 <div className="member-standing__bar-fill" style={{ width: `${pct}%` }} />
             </div>
 
-            {isEligible ? (
+            {isEligible && candidatureAvailable ? (
                 <Link
                     to={`/${networkKey}/candidature`}
                     className="member-standing__cta member-standing__cta--eligible"
@@ -102,7 +104,9 @@ function MemberStandingCard({ standing, networkKey }: { standing: MemberStanding
             ) : (
                 <>
                     <span className="member-standing__hint">
-                        {xpToCandidature.toLocaleString()} XP to Memba DAO candidature
+                        {candidatureAvailable
+                            ? `${xpToCandidature.toLocaleString()} verified XP to Memba DAO candidature`
+                            : "Candidature is not available on this network yet"}
                     </span>
                     <Link
                         to={`/${networkKey}/quests`}

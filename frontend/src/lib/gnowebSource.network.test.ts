@@ -15,7 +15,14 @@ const mocks = vi.hoisted(() => ({
     abci: vi.fn<(path: string, data: string) => Promise<string | null>>(),
 }))
 
-vi.mock("./rpcFallback", () => ({ resilientAbciQuery: mocks.abci }))
+vi.mock("./rpcFallback", () => ({
+    resilientAbciQueryDetailed: async (path: string, data: string, verify?: (url: string) => Promise<void>) => {
+        await verify?.("https://rpc.example")
+        const value = await mocks.abci(path, data)
+        return value == null ? { kind: "empty" } : { kind: "ok", text: value }
+    },
+}))
+vi.mock("./dao/chainIdentity", () => ({ assertRpcChain: vi.fn().mockResolvedValue(undefined) }))
 
 const gno = (label: string) => `package memba_dao\n\nfunc Render(path string) string { return "${label}" }\n`
 
@@ -74,7 +81,7 @@ describe("realm source cache network isolation", () => {
         expect(mocks.abci.mock.calls.length).toBe(calls)
     })
 
-    it("scopes the gnoweb HTML fallback cache per chain", async () => {
+    it("does not serve or cache unverified HTML fallback source", async () => {
         const html = (label: string) =>
             `<h3>memba_dao.gno</h3><pre><code>${gno(label).replace(/</g, "&lt;")}</code></pre>`
         const fetchMock = vi.fn(async (url: string) => {
@@ -85,14 +92,13 @@ describe("realm source cache network isolation", () => {
 
         const pearl = await onChain("pearl-1", null)
         const first = await pearl.fetchRealmSourceSmart("https://pearl.example", REALM)
-        expect(allContent(first)).toContain("testnet")
-        const fetchesAfterPearl = fetchMock.mock.calls.length
+        expect(first).toBeNull()
+        expect(fetchMock).not.toHaveBeenCalled()
 
         const mainnet = await onChain("gnoland-1", null)
-        const second = await mainnet.fetchRealmSource("https://gno.example", REALM)
-        expect(fetchMock.mock.calls.length).toBeGreaterThan(fetchesAfterPearl)
-        expect(allContent(second)).toContain("mainnet")
-        expect(allContent(second)).not.toContain("testnet")
+        const second = await mainnet.fetchRealmSourceSmart("https://gno.example", REALM)
+        expect(second).toBeNull()
+        expect(fetchMock).not.toHaveBeenCalled()
     })
 
     it("ignores legacy unscoped entries", async () => {
@@ -108,7 +114,7 @@ describe("realm source cache network isolation", () => {
     })
 
     it("rejects a scoped entry whose recorded chain does not match", async () => {
-        sessionStorage.setItem(`${LEGACY_KEY}::gnoland-1`, JSON.stringify({
+        sessionStorage.setItem(`memba_gnosrc_verified_qfile_${REALM}::gnoland-1`, JSON.stringify({
             data: { files: [{ name: "memba_dao.gno", content: "mismatched", lines: 1 }], functions: [], imports: [] },
             ts: Date.now(),
             chainId: "pearl-1",
@@ -123,7 +129,7 @@ describe("realm source cache network isolation", () => {
     it("records the chain on written entries", async () => {
         const mainnet = await onChain("gnoland-1", gno("mainnet"))
         await mainnet.fetchRealmSourceSmart("https://gno.example", REALM)
-        const raw = sessionStorage.getItem(`${LEGACY_KEY}::gnoland-1`)
+        const raw = sessionStorage.getItem(`memba_gnosrc_verified_qfile_${REALM}::gnoland-1`)
         expect(raw).not.toBeNull()
         expect(JSON.parse(raw!).chainId).toBe("gnoland-1")
         expect(sessionStorage.getItem(LEGACY_KEY)).toBeNull()

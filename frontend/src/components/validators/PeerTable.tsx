@@ -10,6 +10,7 @@
 
 import type { NetInfo } from "../../lib/validators"
 import { useState } from "react"
+import { isPrivatePeerHost, peerHostLabel, publicRpcLink } from "./nodeStateLinks"
 
 interface PeerTableProps {
     netInfo: NetInfo | null
@@ -17,9 +18,9 @@ interface PeerTableProps {
 }
 
 export function PeerTable({ netInfo, loading }: PeerTableProps) {
-    const [validatorsOnly, setValidatorsOnly] = useState(false)
+    const [rpcPeersOnly, setRpcPeersOnly] = useState(false)
     const peers = netInfo?.peers ?? []
-    const displayed = validatorsOnly
+    const displayed = rpcPeersOnly
         ? peers.filter(p => p.rpcAddr && p.rpcAddr.length > 0)
         : peers
     return (
@@ -43,10 +44,10 @@ export function PeerTable({ netInfo, loading }: PeerTableProps) {
                         <label className="hk-peers__toggle" style={{ marginLeft: "auto" }}>
                             <input
                                 type="checkbox"
-                                checked={validatorsOnly}
-                                onChange={e => setValidatorsOnly(e.target.checked)}
+                                checked={rpcPeersOnly}
+                                onChange={e => setRpcPeersOnly(e.target.checked)}
                             />
-                            only validators
+                            peers advertising RPC
                         </label>
                     </div>
 
@@ -66,32 +67,31 @@ export function PeerTable({ netInfo, loading }: PeerTableProps) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {displayed.map((peer) => {
+                                        {displayed.map((peer) => {
                                         const hasRpc = peer.rpcAddr && peer.rpcAddr.length > 0
-                                        const rpcLink = hasRpc && !peer.rpcAddr.includes("0.0.0.0")
-                                            ? `http://${peer.rpcAddr}` : undefined
+                                        const rpcLink = publicRpcLink(peer.rpcAddr)
                                         return (
                                         <tr key={peer.nodeId || peer.ip}>
                                             <td className="hk-peers__moniker">
                                                 {peer.moniker || <span className="hk-dimmed">unknown</span>}
                                             </td>
-                                            <td className="hk-mono hk-dimmed">{peer.ip || "—"}</td>
+                                            <td className="hk-mono hk-dimmed">{peerHostLabel(peer.ip)}</td>
                                             <td>
                                                 <span className={`hk-badge ${peer.isOutbound ? "hk-badge--out" : "hk-badge--in"}`}>
                                                     {peer.isOutbound ? "OUT" : "IN"}
                                                 </span>
                                             </td>
                                             <td className="hk-dimmed">{peer.network || "—"}</td>
-                                            <td className="hk-mono hk-dimmed" title={peer.nodeId}>
+                                            <td className="hk-mono hk-dimmed" title={isPrivatePeerHost(peer.ip) ? undefined : peer.nodeId}>
                                                 {peer.nodeId ? `${peer.nodeId.slice(0, 10)}…` : "—"}
                                             </td>
                                             <td>
                                                 {hasRpc ? (
                                                     rpcLink ? (
                                                         <a href={rpcLink} target="_blank" rel="noopener noreferrer"
-                                                            className="hk-badge hk-badge--ok">OK rpc ↗</a>
+                                                            className="hk-badge hk-badge--out">RPC address ↗</a>
                                                     ) : (
-                                                        <span className="hk-badge hk-badge--warn">rpc-closed</span>
+                                                        <span className="hk-badge hk-badge--dim">No dialable address</span>
                                                     )
                                                 ) : (
                                                     <span className="hk-badge hk-badge--dim">—</span>

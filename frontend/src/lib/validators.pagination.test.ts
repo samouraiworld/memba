@@ -4,12 +4,95 @@
  * Verifies auto-pagination in getValidators() and formatting helpers.
  */
 
-import { describe, test, expect } from "vitest"
+import { describe, test, expect, vi, beforeEach } from "vitest"
+import { GNO_CHAIN_ID } from "./config"
+
+const { directRpcCall, getRpcUrlsInOrder, excludeRpcEndpoint } = vi.hoisted(() => ({
+    directRpcCall: vi.fn(), getRpcUrlsInOrder: vi.fn(), excludeRpcEndpoint: vi.fn(),
+}))
+vi.mock("./rpcFallback", () => ({
+    resilientRpcCall: vi.fn(), directRpcCall, getRpcUrlsInOrder, excludeRpcEndpoint,
+}))
 import {
+    getValidators,
+    getValidatorRpcSnapshot,
     formatVotingPower,
     formatBlockTime,
     truncateValidatorAddr,
 } from "./validators"
+
+const row = (n: number) => ({ address: `g1validator${String(n).padStart(6, "0")}`, voting_power: "10", proposer_priority: "0" })
+const status = (network: string) => ({ node_info: { network }, sync_info: { latest_block_height: "123", latest_block_hash: "abc" } })
+
+describe("verified validator roster", () => {
+    beforeEach(() => {
+        directRpcCall.mockReset()
+        getRpcUrlsInOrder.mockReturnValue(["https://primary", "https://backup"])
+        excludeRpcEndpoint.mockReset()
+    })
+
+    test("rejects wrong-chain primary and pins every page to a verified fallback and height", async () => {
+        directRpcCall.mockImplementation((url: string, method: string, params?: Record<string, string>) => {
+            if (method === "/status") return Promise.resolve(status(url === "https://primary" ? "gnoland1" : GNO_CHAIN_ID))
+            if (method === "/validators") {
+                expect(url).toBe("https://backup")
+                expect(params?.height).toBe("123")
+                return Promise.resolve({ total: "102", validators: params?.page === "1" ? Array.from({ length: 100 }, (_, i) => row(i)) : [row(100), row(101)] })
+            }
+            throw new Error(`Unexpected ${method}`)
+        })
+        const roster = await getValidators("https://primary")
+        expect(roster).toHaveLength(102)
+        expect(excludeRpcEndpoint).toHaveBeenCalledWith("https://primary")
+    })
+
+    test("fails closed when every endpoint reports the wrong chain", async () => {
+        directRpcCall.mockResolvedValue(status("gnoland1"))
+        await expect(getValidatorRpcSnapshot()).rejects.toThrow(/chain mismatch/)
+        expect(excludeRpcEndpoint).toHaveBeenCalledTimes(2)
+    })
+
+    test("rejects excessive totals before page fan-out", async () => {
+        directRpcCall.mockImplementation((_url: string, method: string) => method === "/status"
+            ? Promise.resolve(status(GNO_CHAIN_ID))
+            : Promise.resolve({ total: "100000", validators: [row(0)] }))
+        await expect(getValidators("https://primary")).rejects.toThrow(/excessive roster size/)
+        expect(directRpcCall.mock.calls.filter(([, method]) => method === "/validators")).toHaveLength(1)
+    })
+
+    test("rejects duplicate pages instead of publishing incorrect voting power", async () => {
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => method === "/status"
+            ? Promise.resolve(status(GNO_CHAIN_ID))
+            : Promise.resolve({ total: "101", validators: params?.page === "1" ? Array.from({ length: 100 }, (_, i) => row(i)) : [row(0)] }))
+        await expect(getValidators("https://primary")).rejects.toThrow(/Incomplete validator roster/)
+    })
+
+    test("rejects a short duplicate final page when the RPC omits total", async () => {
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => method === "/status"
+            ? Promise.resolve(status(GNO_CHAIN_ID))
+            : Promise.resolve({ validators: params?.page === "1" ? Array.from({ length: 100 }, (_, i) => row(i)) : [row(0)] }))
+        await expect(getValidators("https://primary")).rejects.toThrow(/duplicate address/)
+        expect(directRpcCall.mock.calls.filter(([, method]) => method === "/validators")).toHaveLength(2)
+    })
+
+    test("rejects rows without an address when the RPC omits total", async () => {
+        directRpcCall.mockImplementation((_url: string, method: string) => method === "/status"
+            ? Promise.resolve(status(GNO_CHAIN_ID))
+            : Promise.resolve({ validators: [row(0), { voting_power: "10" }] }))
+        await expect(getValidators("https://primary")).rejects.toThrow(/invalid or missing address/)
+    })
+
+    test("does not fan out pagination after the caller aborts the first page", async () => {
+        const controller = new AbortController()
+        directRpcCall.mockImplementation((_url: string, method: string) => {
+            if (method === "/status") return Promise.resolve(status(GNO_CHAIN_ID))
+            controller.abort()
+            return Promise.resolve({ total: "201", validators: Array.from({ length: 100 }, (_, i) => row(i)) })
+        })
+        await expect(getValidators("https://primary", undefined, controller.signal)).rejects.toMatchObject({ name: "AbortError" })
+        expect(directRpcCall.mock.calls.filter(([, method]) => method === "/validators")).toHaveLength(1)
+    })
+})
 
 describe("formatVotingPower", () => {
     test("formats millions", () => {

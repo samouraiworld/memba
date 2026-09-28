@@ -6,7 +6,7 @@
  * into ProposeTransaction / TransactionView.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render as rtlRender, screen, fireEvent } from "@testing-library/react"
+import { render as rtlRender, screen, fireEvent, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactElement } from "react"
 
@@ -23,7 +23,7 @@ vi.mock("../hooks/useNetworkNav", () => ({
 }))
 
 const mockAuth = {
-    token: { value: "test-token" },
+    token: { value: "test-token", userAddress: "g1member" },
     isAuthenticated: true,
 }
 const MULTISIG = "g1multisig000000000000000000000000000000"
@@ -47,6 +47,7 @@ vi.mock("../hooks/useBalance", () => ({
 vi.mock("../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../lib/config")>()),
     GNO_CHAIN_ID: "test-13",
+    ENABLE_NATIVE_GNO_MULTISIG: true,
 }))
 
 import { MultisigView } from "./MultisigView"
@@ -63,7 +64,7 @@ function makeMultisig() {
         threshold: 2,
         membersCount: 2,
         usersAddresses: [MEMBER_A, MEMBER_B],
-        pubkeyJson: JSON.stringify({ value: { threshold: "2", pubkeys: [] } }),
+        pubkeyJson: JSON.stringify({ "@type": "/tm.PubKeyMultisig", threshold: "2", pubkeys: [] }),
     }
 }
 
@@ -116,6 +117,8 @@ describe("MultisigView", () => {
         expect(screen.getByText("Treasury Ops")).toBeInTheDocument()
         expect(screen.getByText("12.5 GNOT")).toBeInTheDocument()
         expect(screen.getAllByText("Member")).toHaveLength(2)
+        fireEvent.click(screen.getByRole("button", { name: "Rename multisig" }))
+        expect(screen.getByRole("textbox", { name: "Multisig name" })).toHaveValue("Treasury Ops")
     })
 
     it("shows pending by default and switches to completed on tab click", async () => {
@@ -159,5 +162,52 @@ describe("MultisigView", () => {
     it("renders empty states when there are no transactions", async () => {
         await renderView({ pending: [], executed: [] })
         expect(screen.getByText(/No pending transactions/)).toBeInTheDocument()
+    })
+
+    it("keeps account details and completed history when pending history fails, then retries just that tab", async () => {
+        vi.mocked(api.multisigInfo).mockResolvedValue({ multisig: makeMultisig() } as never)
+        let pendingCalls = 0
+        vi.mocked(api.transactions).mockImplementation(async (req: { executionState?: number }) => {
+            if (req.executionState === 1 && pendingCalls++ === 0) throw new Error("offline")
+            return { transactions: req.executionState === 1 ? [makeListedTx(7)] : [makeListedTx(3, "HASH")] } as never
+        })
+        render(<MultisigView />)
+        await screen.findByText("Treasury Ops")
+        await screen.findByText("Could not load pending transactions.")
+        expect(screen.getAllByText("Member")).toHaveLength(2)
+        expect(screen.getByText("12.5 GNOT")).toBeInTheDocument()
+        expect(screen.getByText("—")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("tab", { name: /Completed \(1\)/ }))
+        expect(screen.getByRole("button", { name: /Open transaction #3/ })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("tab", { name: /Pending \(unavailable\)/ }))
+        fireEvent.click(screen.getByRole("button", { name: "Retry pending transactions" }))
+        await waitFor(() => expect(screen.getByRole("button", { name: /Open transaction #7/ })).toBeInTheDocument())
+        expect(api.multisigInfo).toHaveBeenCalledTimes(1)
+    })
+
+    it("discloses a full 50-item page without claiming it is the total", async () => {
+        await renderView({ pending: Array.from({ length: 50 }, (_, i) => makeListedTx(i + 1)), executed: [] })
+        expect(screen.getByRole("tab", { name: /Pending \(50\+\)/ })).toBeInTheDocument()
+        expect(screen.getByText(/Showing the newest 50 pending transactions/)).toBeInTheDocument()
+    })
+
+    it("does not offer a proposal for legacy history", async () => {
+        vi.mocked(api.multisigInfo).mockResolvedValue({ multisig: { ...makeMultisig(), pubkeyJson: `{}` } } as never)
+        vi.mocked(api.transactions).mockResolvedValue({ transactions: [] } as never)
+        render(<MultisigView />)
+        await screen.findByText("Treasury Ops")
+        expect(screen.getByRole("button", { name: "Propose a new transaction" })).toBeDisabled()
+        expect(screen.getByText(/Legacy multisig records are read-only history/)).toBeInTheDocument()
+        expect(screen.queryByText(/need.*your signature/)).not.toBeInTheDocument()
+    })
+
+    it("offers account-info retry when identity read fails", async () => {
+        vi.mocked(api.multisigInfo).mockRejectedValueOnce(new Error("offline"))
+            .mockResolvedValueOnce({ multisig: makeMultisig() } as never)
+        vi.mocked(api.transactions).mockResolvedValue({ transactions: [] } as never)
+        render(<MultisigView />)
+        await screen.findByText("Could not load this multisig.")
+        fireEvent.click(screen.getByRole("button", { name: "Retry account details" }))
+        await screen.findByText("Treasury Ops")
     })
 })

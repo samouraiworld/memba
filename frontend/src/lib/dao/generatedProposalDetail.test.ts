@@ -3,9 +3,16 @@ import { resilientAbciQuery } from '../rpcFallback'
 import { getProposalDetail } from './proposals'
 import { clearDaoDialects, setDaoDialect } from './shared'
 
-vi.mock('../rpcFallback', async original => ({
-    ...await original<typeof import('../rpcFallback')>(), resilientAbciQuery: vi.fn(),
-}))
+vi.mock('../rpcFallback', async original => {
+    const mock = vi.fn()
+    return {
+        ...await original<typeof import('../rpcFallback')>(), resilientAbciQuery: mock,
+        resilientAbciQueryDetailed: async (path: string, data: string) => {
+            const value = await mock(path, data, true)
+            return value == null ? { kind: 'empty' } : { kind: 'ok', text: value }
+        },
+    }
+})
 const query = vi.mocked(resilientAbciQuery)
 const rpc = 'https://rpc.example'
 const realm = 'gno.land/r/team/generated'

@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
+import { DEFAULT_NETWORK, NETWORKS } from "../../lib/config"
+import { resetLocalUiData } from "../apps/settings/localData"
 import {
     addItem, cellPosition, cleanUp, deskKey, FEATURED_DESK, freeSlot, itemForTarget, itemTarget, loadDesk, moveItem,
     nearestCell, removeItem, saveDesk, type DeskItem,
@@ -6,6 +8,7 @@ import {
 import { parseOsPath } from "./osPath"
 
 const ADDR = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
+const OTHER_NETWORK = Object.keys(NETWORKS).find((key) => key !== DEFAULT_NETWORK)!
 afterEach(() => localStorage.clear())
 
 describe("desk grid", () => {
@@ -68,6 +71,45 @@ describe("desk storage", () => {
         expect(loadDesk(ADDR)).toHaveLength(1)
         expect(loadDesk(null)).toEqual(FEATURED_DESK)
         expect(localStorage.getItem(deskKey(ADDR))).toContain("feed")
+    })
+
+    it("does not show a wallet's DAO pins on another chain", () => {
+        const pins: DeskItem[] = [{ ty: "dao", ref: "memba_dao", c: 0, r: 0 }]
+        saveDesk(ADDR, pins, DEFAULT_NETWORK)
+        expect(loadDesk(ADDR, OTHER_NETWORK)).toEqual([])
+        saveDesk(ADDR, [{ ty: "app", ref: "feed", c: 0, r: 0 }], OTHER_NETWORK)
+        expect(loadDesk(ADDR, DEFAULT_NETWORK)).toEqual(pins)
+        expect(loadDesk(ADDR, OTHER_NETWORK)).toHaveLength(1)
+    })
+
+    it("migrates legacy pins to the configured default chain only once", () => {
+        const legacyKey = `memba_os_desk:${ADDR}`
+        const marker = `memba_os_desk:migrated:${ADDR}`
+        const pins: DeskItem[] = [{ ty: "dao", ref: "memba_dao", c: 0, r: 0 }]
+        localStorage.setItem(legacyKey, JSON.stringify(pins))
+        expect(loadDesk(ADDR, OTHER_NETWORK)).toEqual([])
+        expect(localStorage.getItem(legacyKey)).not.toBeNull()
+        expect(loadDesk(ADDR, DEFAULT_NETWORK)).toEqual(pins)
+        expect(localStorage.getItem(deskKey(ADDR, DEFAULT_NETWORK))).toBe(JSON.stringify(pins))
+        expect(localStorage.getItem(marker)).toBe("1")
+        expect(localStorage.getItem(legacyKey)).toBeNull()
+        expect(resetLocalUiData(localStorage)).toBeGreaterThan(0)
+        expect(localStorage.getItem(marker)).toBeNull()
+        expect(localStorage.getItem(deskKey(ADDR, DEFAULT_NETWORK))).toBeNull()
+        localStorage.setItem(marker, "1")
+        localStorage.removeItem(deskKey(ADDR, DEFAULT_NETWORK))
+        localStorage.setItem(legacyKey, JSON.stringify([{ ty: "app", ref: "wallet", c: 0, r: 0 }]))
+        expect(loadDesk(ADDR, DEFAULT_NETWORK)).toEqual([])
+    })
+
+    it("keeps a newer scoped desk if a stale legacy key remains", () => {
+        const legacyKey = `memba_os_desk:${ADDR}`
+        const scoped = [{ ty: "app", ref: "feed", c: 0, r: 0 }]
+        localStorage.setItem(deskKey(ADDR, DEFAULT_NETWORK), JSON.stringify(scoped))
+        localStorage.setItem(legacyKey, JSON.stringify([{ ty: "dao", ref: "memba_dao", c: 0, r: 0 }]))
+        expect(loadDesk(ADDR, DEFAULT_NETWORK)).toEqual(scoped)
+        expect(localStorage.getItem(legacyKey)).toBeNull()
+        expect(localStorage.getItem(`memba_os_desk:migrated:${ADDR}`)).toBe("1")
     })
 
     it("drops malformed or hostile entries", () => {

@@ -44,8 +44,9 @@ export function saveProposalDraft(scope: GovernanceScope, draft: ProposalDraft) 
     localStorage.setItem(draftKey(scope), JSON.stringify(draft))
 }
 export function clearProposalDraft(scope: GovernanceScope) {
-    localStorage.removeItem(draftKey(scope))
-    drafts.delete(draftKey(scope))
+    try { localStorage.removeItem(draftKey(scope)); return true }
+    catch { return false }
+    finally { drafts.delete(draftKey(scope)) }
 }
 /** Test isolation for page-lifetime fallbacks. */
 export function clearGovernanceMemory() { memory.clear(); drafts.clear(); active.clear() }

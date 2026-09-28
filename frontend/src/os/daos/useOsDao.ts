@@ -8,13 +8,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { getDAOConfig, getDAOMembers, getDAOProposals, getProposalDetail, getProposalVotes, type DAOProposal, type VoteRecord } from "../../lib/dao"
-import { readV2Proposal, readV2Votes, type MembaV2Proposal } from "../../lib/dao/membaV2"
-import { hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
+import { readV2Proposal, type MembaV2Proposal } from "../../lib/dao/membaV2"
+import { findV2VoterChoice, hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
 import { canVoteNow, V2_STATUS_LABELS } from "../../lib/dao/v2Lifecycle"
 import { useDaoKind } from "../../hooks/useDaoKind"
 
 export function useDaoConfig(realmPath: string) {
-    return useQuery({ queryKey: ["dao", "config", realmPath], queryFn: () => getDAOConfig(GNO_RPC_URL, realmPath, true), staleTime: 30_000 })
+    return useQuery({ queryKey: ["dao", "config", realmPath, "full"], queryFn: () => getDAOConfig(GNO_RPC_URL, realmPath, true), staleTime: 30_000 })
 }
 
 export function useDaoMembers(realmPath: string, memberstorePath: string | undefined, enabled = true) {
@@ -106,8 +106,8 @@ export function useMyVote(realmPath: string, id: number, address: string, v2: bo
         queryFn: async ({ signal }) => {
             const voted = await hasVotedOnV2(GNO_RPC_URL, realmPath, id, address)
             if (!voted) return { voted: false as const, choice: null }
-            const votes = await readV2Votes(v2Context(GNO_RPC_URL, realmPath), id, { offset: 0, limit: 50 }, signal)
-            return { voted: true as const, choice: votes.votes.find((v) => v.voter === address)?.choice ?? null }
+            const choice = await findV2VoterChoice(GNO_RPC_URL, realmPath, id, address, signal).catch(() => null)
+            return { voted: true as const, choice }
         },
         staleTime: 10_000,
     })

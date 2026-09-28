@@ -32,6 +32,9 @@ import { LiveTicker } from "../apps/live/LiveTicker"
 import { LiveActivityProvider } from "../apps/live/LiveProvider"
 import { Launcher } from "./Launcher"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
+import { MeetStage } from "../apps/meet/MeetStage"
+import { normaliseRoomId } from "../apps/meet/rooms"
+import { MeetStageContext } from "../apps/meet/stageContext"
 import {
     appSpec, EMPTY_WINDOWS, newDaoSpec, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
     type DeskSize, type OsWindow, type WindowSpec, type WindowsState,
@@ -43,6 +46,7 @@ const MENU_BAR = 30
  * windows placed while it shows start below it, so it never covers their title bar. */
 const BANNER_ROOM = 52
 const PHONE_LAYOUT_QUERY = "(max-width: 768px), (max-width: 1100px) and (max-height: 500px)"
+const LOCAL_UI_RESET_REVISION_KEY = "memba_os_ui_reset_revision"
 
 function subscribePhoneLayout(onChange: () => void): () => void {
     const query = window.matchMedia(PHONE_LAYOUT_QUERY)
@@ -98,6 +102,7 @@ export function Shell() {
     const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
     const location = useLocation()
     const navigate = useNavigate()
+    const [meetSlot, setMeetSlot] = useState<HTMLDivElement | null>(null)
 
     // ── desk size (windows and items are placed in it) ──
     // A state ref: the desk mounts again after a phone → desktop switch, and must be observed again.
@@ -174,6 +179,7 @@ export function Shell() {
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
     const skipNextOwnerWrite = useRef<string | null>(null)
+    const resetLayoutPending = useRef(false)
 
     useLayoutEffect(() => {
         const previous = previousStorageOwner.current
@@ -261,6 +267,10 @@ export function Shell() {
         const skipOwnerWrite = skipNextOwnerWrite.current === storageOwner
         if (skipOwnerWrite) skipNextOwnerWrite.current = null
         let skipStorageWrite = locked || skipLockWrite.current || skipOwnerWrite
+        if (resetLayoutPending.current) {
+            if (win.wins.every((w) => w.app === "settings")) skipStorageWrite = true
+            else resetLayoutPending.current = false
+        }
         if (!initialSaveChecked.current) {
             initialSaveChecked.current = true
             try {
@@ -295,7 +305,35 @@ export function Shell() {
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
-    const deskItems = useDesk(deskOwner)
+    const deskItems = useDesk(deskOwner, session.network.key)
+    const { resetFromStorage: resetDeskFromStorage } = deskItems
+    // Reset is dispatched by Settings after the saved UI keys are removed. Keep
+    // that window on screen, and leave the cleared layout absent until the user
+    // opens another window. The revision notifies other open OS tabs; their
+    // storage event runs the same cleanup without broadcasting it again.
+    useEffect(() => {
+        const applyReset = () => {
+            resetLayoutPending.current = true
+            resetDeskFromStorage()
+            const settings = win.wins.find((w) => w.app === "settings")
+            dispatch({ type: "restore", wins: settings ? [{ ...settings, min: false }] : [] })
+        }
+        const onLocalReset = () => {
+            applyReset()
+            try {
+                localStorage.setItem(LOCAL_UI_RESET_REVISION_KEY, `${Date.now()}:${Math.random()}`)
+            } catch { /* local reset still applies if storage refuses the notification */ }
+        }
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === LOCAL_UI_RESET_REVISION_KEY && event.newValue !== null) applyReset()
+        }
+        window.addEventListener("memba-os-local-ui-reset", onLocalReset)
+        window.addEventListener("storage", onStorage)
+        return () => {
+            window.removeEventListener("memba-os-local-ui-reset", onLocalReset)
+            window.removeEventListener("storage", onStorage)
+        }
+    }, [resetDeskFromStorage, dispatch, win.wins])
 
     const unlock = () => {
         skipLockWrite.current = false
@@ -334,6 +372,7 @@ export function Shell() {
     }, [])
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            if (document.querySelector('[aria-modal="true"]')) return
             // ⌘K / Ctrl+K opens search, from anywhere (D13).
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !locked && !session.stage) {
                 e.preventDefault()
@@ -350,6 +389,8 @@ export function Shell() {
                 // ⌥F: the front window full screen and back (D32: every game has a full-screen mode).
                 e.preventDefault()
                 if (document.fullscreenElement) void document.exitFullscreen()
+                else if (front.target?.kind === "app" && front.target.app === "meet" && front.target.section)
+                    void document.querySelector<HTMLIFrameElement>(".meet-stage iframe")?.requestFullscreen?.()
                 else void document.querySelector<HTMLElement>(`[data-win="${CSS.escape(front.key)}"]`)?.requestFullscreen?.()
             }
         }
@@ -386,6 +427,10 @@ export function Shell() {
     }
 
     const visible = visibleWindows(win.wins)
+    const meetWindow = win.wins.find((w) => w.target?.kind === "app" && w.target.app === "meet" && !!w.target.section)
+    const meetRoom = meetWindow?.target?.kind === "app" && meetWindow.target.section ? normaliseRoomId(meetWindow.target.section) : null
+    const meetStage = meetWindow && meetRoom ? <MeetStage key="meet-stage" roomId={meetRoom} slot={meetSlot} minimized={meetWindow.min}
+        foreground={front?.id === meetWindow.id && !modalBlocked} restore={() => win.focus(meetWindow.id)} /> : null
     const shared = (
         <>
             {booting && (
@@ -410,13 +455,14 @@ export function Shell() {
             )}
         </>
     )
-    // A phone draws the same windows as full-screen sheets on a home screen (day 6).
-    if (phone) {
-        return (
-            <LiveActivityProvider networkKey={session.network.key} active={!locked && front?.app === "live"}>
-            <SignerProvider key={signerOwner} session={session} toast={showToast}>
-                <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
-                <PhoneShell locked={modalBlocked} session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+    // The video stays at one React position while the visible layout changes.
+    return (
+        <LiveActivityProvider networkKey={session.network.key} active={!locked && (!phone || front?.app === "live")}>
+        <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
+            <MeetStageContext.Provider value={setMeetSlot}>
+            {phone ? <>
+                <PhoneShell locked={modalBlocked} session={session} front={front} wins={win.wins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
@@ -427,16 +473,7 @@ export function Shell() {
                         win.minimiseAll()
                     }} />
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
-                </div>
-                {shared}
-            </SignerProvider>
-            </LiveActivityProvider>
-        )
-    }
-    return (
-        <LiveActivityProvider networkKey={session.network.key} active={!locked}>
-        <SignerProvider key={signerOwner} session={session} toast={showToast}>
-            <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
+            </> : <>
             <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
@@ -456,8 +493,8 @@ export function Shell() {
                         </div>
                     </div>
                 )}
-                {visible.map((w) => (
-                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                {win.wins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
+                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
@@ -469,6 +506,9 @@ export function Shell() {
                 </div>
             )}
             <Dock wins={win.wins} openApp={openApp} restore={win.focus} locked={modalBlocked} />
+            </>}
+            {meetStage}
+            </MeetStageContext.Provider>
             </div>
             {shared}
         </SignerProvider>

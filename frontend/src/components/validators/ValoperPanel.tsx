@@ -1,5 +1,5 @@
 /**
- * ValoperPanel — surfaces the test13 validator-onboarding registry
+ * ValoperPanel — surfaces the validator-operator registry
  * (gno.land/r/gnops/valopers) on the Validators page.
  *
  * Shows every registered operator, split into two clearly-separated groups:
@@ -10,7 +10,7 @@
  * since they are not yet validators. It also makes the onboarding identity model
  * legible — operator address (stable identity) vs signing address (rotatable
  * consensus key) — and links out to the onboarding flow. This is the visible
- * payoff of the valoper system the gno core team shipped for test13.
+ * payoff of the valoper system.
  */
 import { useMemo, type HTMLAttributes } from "react"
 import { type ValoperWithStatus } from "../../lib/valopers"
@@ -47,8 +47,8 @@ function CandidatePreview({ v }: { v: ValoperWithStatus }) {
 const profileUrl = (operatorAddress: string) =>
     `${getExplorerBaseUrl()}/r/gnops/valopers:${operatorAddress}`
 
-// The test13 validator onboarding write-up.
-const ONBOARDING_URL = "https://gno.land/r/gnoland/blog:p/validator-test13"
+// Current network-neutral operator guidance; a test13 guide is not a mainnet CTA.
+const ONBOARDING_URL = "https://docs.gno.land/builders/running-a-node/#become-a-validator"
 
 const byMoniker = (a: ValoperWithStatus, b: ValoperWithStatus) =>
     a.moniker.localeCompare(b.moniker)
@@ -56,9 +56,11 @@ const byMoniker = (a: ValoperWithStatus, b: ValoperWithStatus) =>
 interface ValoperPanelProps {
     valopers: ValoperWithStatus[]
     loading: boolean
+    error?: string | null
+    onRetry?: () => void
 }
 
-export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
+export function ValoperPanel({ valopers, loading, error, onRetry }: ValoperPanelProps) {
     const nav = useNetworkNav()
 
     // Split into the two groups, each alphabetical by moniker. Candidates are
@@ -75,7 +77,7 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
     }, [valopers])
 
     const goTo = (v: ValoperWithStatus) =>
-        nav(`validators/${v.operatorAddress}`, { state: { valoper: v } })
+        nav(`validators/${v.operatorAddress}?from=tab%3Dcandidates`, { state: { valoper: v, fromValidatorsTab: "candidates" } })
 
     return (
         <div className="val-valopers" data-testid="valoper-panel">
@@ -91,7 +93,7 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                 </div>
                 <div className="val-valopers__sub">
                     {valopers.length > 0
-                        ? `Registered validator operators · ${active.length} active · ${candidates.length} candidate${candidates.length === 1 ? "" : "s"}`
+                        ? `Registered operators · ${active.length} in the active consensus set · ${candidates.length} candidate${candidates.length === 1 ? "" : "s"}. The Validators tab shows the full consensus set, including operators without registry profiles.`
                         : "Operators who registered on-chain to run a validator"}
                 </div>
                 <a
@@ -104,7 +106,12 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                 </a>
             </div>
 
-            {valopers.length === 0 && !loading && (
+            {error && (
+                <div className="val-valopers__empty" role="alert">
+                    Operator registry unavailable. {onRetry && <button type="button" onClick={onRetry}>Retry</button>}
+                </div>
+            )}
+            {valopers.length === 0 && !loading && !error && (
                 <div className="val-valopers__empty">No valopers registered yet.</div>
             )}
 
@@ -158,23 +165,16 @@ interface ValoperCardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /** A single valoper profile card. Status is conveyed by the enclosing section,
- *  so the card itself carries no redundant status badge. Forwards extra DOM props
+ *  so the card itself carries no redundant status badge. The two actions are
+ *  siblings so keyboard and screen-reader users can activate either one.
+ *  Forwards extra DOM props
  *  (hover/focus handlers) so the hovercard wrapper can drive the preview. */
 function ValoperCard({ valoper: v, onOpen, ...rest }: ValoperCardProps) {
     return (
         <div
-            className="val-valoper-card val-valoper-card--clickable"
+            className="val-valoper-card"
             data-testid="valoper-card"
-            role="button"
-            tabIndex={0}
             {...rest}
-            onClick={() => onOpen(v)}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    onOpen(v)
-                }
-            }}
         >
             <div className="val-valoper-card__top">
                 <span className="val-valoper-card__moniker" data-testid="valoper-card-moniker">
@@ -207,15 +207,12 @@ function ValoperCard({ valoper: v, onOpen, ...rest }: ValoperCardProps) {
                 </div>
             </dl>
 
-            <a
-                className="val-valoper-card__profile"
-                href={profileUrl(v.operatorAddress)}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-            >
-                View on gnoweb ↗
-            </a>
+            <div className="val-valoper-card__actions">
+                <button type="button" className="val-valoper-card__open" onClick={() => onOpen(v)}>Open Memba profile →</button>
+                <a className="val-valoper-card__profile" href={profileUrl(v.operatorAddress)} target="_blank" rel="noopener noreferrer">
+                    View on gnoweb ↗
+                </a>
+            </div>
         </div>
     )
 }

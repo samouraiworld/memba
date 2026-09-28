@@ -149,6 +149,7 @@
 .memba-os .os-note.os-err { background: var(--os-err-bg); color: var(--os-err); }
 
 /* windows */
+.memba-os .os-parked { display: none !important; }
 .memba-os .os-win {
   position: absolute; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--os-radius-win);
   box-shadow: 0 30px 70px -22px var(--os-shadow), 0 0 0 .5px var(--os-line); animation: os-pop .22s cubic-bezier(.2, .9, .3, 1.2);
@@ -295,8 +296,10 @@
 .memba-os .os-nc-fail { box-shadow: inset 3px 0 0 var(--os-err); cursor: default; }
 
 /* DAO folder and proposal windows */
-.memba-os .os-folder { display: grid; gap: 14px; }
-.memba-os .os-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--os-hover); justify-self: start; flex-wrap: wrap; }
+.memba-os .os-folder { display: grid; gap: 14px; min-width: 0; }
+.memba-os .os-folder-body, .memba-os .os-folder .os-list { min-width: 0; }
+.memba-os .os-folder .os-list .os-mono { overflow-wrap: anywhere; }
+.memba-os .os-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--os-hover); min-width: 0; width: 100%; box-sizing: border-box; flex-wrap: wrap; }
 .memba-os .os-tab { border: 0; background: none; cursor: pointer; font: 700 12px var(--os-font); color: var(--os-mut); padding: 5px 12px; border-radius: 8px; }
 .memba-os .os-tab[aria-selected="true"] { background: var(--os-card); color: var(--os-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 .memba-os .os-tally { display: grid; gap: 4px; font-size: 12px; font-weight: 700; }
@@ -340,10 +343,12 @@
 .memba-os .os-fh { color: var(--os-mut); font-size: 11.5px; }
 .memba-os .os-ta { min-height: 96px; resize: vertical; line-height: 1.5; }
 .memba-os .os-opt { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
-.memba-os .os-opt button {
+.memba-os .os-opt button, .memba-os .os-opt .os-asset {
   border: 1px solid var(--os-line); background: var(--os-card); border-radius: 12px; padding: 10px 12px; cursor: pointer;
   text-align: left; display: grid; gap: 4px; justify-items: start; font: inherit; color: inherit;
 }
+.memba-os .os-opt .os-asset { cursor: default; }
+.memba-os .os-opt .os-asset-selected { border-color: var(--os-acc); box-shadow: inset 0 0 0 1px var(--os-acc); }
 .memba-os .os-opt button[aria-checked="true"] { border-color: var(--os-acc); box-shadow: inset 0 0 0 1px var(--os-acc); }
 .memba-os .os-opt button:disabled { opacity: .55; cursor: not-allowed; }
 .memba-os .os-opt button.os-danger b { color: var(--os-err); }
@@ -360,6 +365,12 @@
 .memba-os .os-card.os-dim { opacity: .7; }
 .memba-os .os-card.os-row { flex-wrap: nowrap; }
 .memba-os .os-mrow { display: grid; grid-template-columns: minmax(0, 1fr) 72px 110px 26px; gap: 8px; align-items: center; }
+.memba-os .os-mrow > .os-in { min-width: 0; width: 100%; }
+@container os-window (max-width: 480px) {
+  .memba-os .os-mrow { grid-template-columns: minmax(65px, 1fr) minmax(100px, 1fr) 26px; }
+  .memba-os .os-mrow[aria-hidden="true"] { display: none; }
+  .memba-os .os-mrow > .os-in:first-child { grid-column: 1 / -1; }
+}
 .memba-os .os-xbtn {
   width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--os-line); background: var(--os-card);
   color: var(--os-mut); font: 700 14px var(--os-font); cursor: pointer;
@@ -396,6 +407,15 @@
 .memba-os .os-it.os-top { align-items: flex-start; }
 .memba-os .os-right { text-align: right; }
 .memba-os .os-pill.os-ok { background: var(--os-ok-bg); color: var(--os-ok); }
+.memba-os .os-msig { container-type: inline-size; }
+.memba-os .os-msig .os-big { overflow-wrap: anywhere; }
+@container (max-width: 420px) {
+  .memba-os .os-msig-head { flex-wrap: wrap; }
+  .memba-os .os-msig-head .os-right { width: 100%; text-align: left; }
+  .memba-os .os-msig-head .os-big { font-size: 20px; }
+  .memba-os .os-msig .os-it.os-top { flex-wrap: wrap; }
+  .memba-os .os-msig .os-it.os-top > .os-right { width: 100%; text-align: left; }
+}
 /* ⌥F full screen (D32): the window fills the screen on an opaque background */
 .memba-os .os-win:fullscreen { border-radius: 0; background: var(--os-opaque); }
 /* ── phone (day 6, mockup .phone .home .pdock .sheet) ── */
@@ -436,6 +456,8 @@
 .memba-os .os-ph-sheet {
   flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--os-opaque); animation: os-sheet .22s ease-out;
 }
+.memba-os .os-ph-game-slot { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.memba-os .os-ph-game-slot[hidden] { display: none !important; }
 @keyframes os-sheet { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .memba-os .os-ph-sheet-h { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; }
 .memba-os .os-ph-title { margin: 6px 16px 8px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }

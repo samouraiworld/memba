@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { fulfillOnchainReads, mockChainStatus, GNO_MONITORING_HOST } from './helpers/onchain'
+import { fulfillOnchainReads, mockAppChainStatus, GNO_MONITORING_HOST } from './helpers/onchain'
 
 /**
  * Validators page E2E tests — verify the validator dashboard renders
@@ -21,7 +21,7 @@ import { fulfillOnchainReads, mockChainStatus, GNO_MONITORING_HOST } from './hel
  * nothing in the test touches the network:
  *  - /block (~100 calls for the signature window) — same body for any height,
  *    every validator signs → health "Healthy" and no abort-retry latency;
- *  - /net_info — one peer, so the 5-card stat grid keeps its Network card;
+ *  - /net_info — one peer when the Network segment is opened;
  *  - abci_query (valopers qrender) — empty → the on-chain moniker overlay
  *    just stays absent;
  *  - gnomonitoring (GNO_MONITORING_HOST, excluded from isOnchainRead — layered route,
@@ -41,7 +41,7 @@ async function fulfillValidatorRoster(page: Page) {
     }
     const BLOCK = {
         block: {
-            header: { chain_id: 'e2e-offline', height: '435594', time: '2026-07-30T11:59:40.000Z' },
+            header: { chain_id: 'gnoland-1', height: '435594', time: '2026-07-30T11:59:40.000Z' },
             // tm2 commits carry `precommits`, not `signatures`.
             last_commit: {
                 precommits: [1, 2, 3].map(n => ({
@@ -62,7 +62,7 @@ async function fulfillValidatorRoster(page: Page) {
         peers: [{
             node_info: {
                 net_address: 'g1mockpeer0000000000000000000000000000001@203.0.113.7:26656',
-                network: 'e2e-offline',
+                network: 'gnoland-1',
                 moniker: 'e2e-peer-01',
                 other: { tx_index: 'off', rpc_address: 'tcp://203.0.113.7:26657' },
             },
@@ -75,7 +75,7 @@ async function fulfillValidatorRoster(page: Page) {
         route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
     await fulfillOnchainReads(page, ({ method }) => {
         if (method === 'validators') return VALIDATORS
-        if (method === 'status') return mockChainStatus()
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method === 'block') return BLOCK
         if (method === 'net_info') return NET_INFO
         return null
@@ -124,9 +124,9 @@ test.describe('Validators Page', () => {
         const statsGrid = page.locator('[data-testid="network-stats"]')
         await expect(statsGrid).toBeVisible({ timeout: 20_000 })
 
-        // Should have 5 stat cards
+        // Network peers load in their own segment, leaving four overview cards.
         const cards = statsGrid.locator('.val-stat-card')
-        await expect(cards).toHaveCount(5)
+        await expect(cards).toHaveCount(4)
 
         // Block height should be a number
         const blockHeight = cards.first().locator('.val-stat-value')
@@ -250,7 +250,7 @@ test.describe('Validators Page — table accessibility (offline)', () => {
     test('page-size selector has an accessible name and remains usable', async ({ page }) => {
         await fulfillValidatorRoster(page)
         await page.setViewportSize({ width: 1280, height: 800 })
-        await page.goto('/gnoland1/validators')
+        await page.goto('/validators')
 
         // Wait for the populated roster, not just the shell: loading/error
         // states omit the toolbar and can make a live-RPC axe scan pass vacuously.

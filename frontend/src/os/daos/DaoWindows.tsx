@@ -5,19 +5,21 @@
  *
  * @module os/daos/DaoWindows
  */
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { clearGovernanceReceipt, readGovernanceReceipt } from "../../lib/dao/governanceRecovery"
+import { invalidateProposalCache } from "../../lib/dao/proposals"
 import { hasInvisibleFormatting, revealInvisibleFormatting } from "../../lib/dao/v2Text"
-import { formatChainTime, relativeTime } from "../../lib/dao/v2Lifecycle"
-import { DAO_REALM_PATH } from "../../lib/config"
+import { canVoteNow, executionState, formatChainTime, relativeTime, V2_STATUS_EXPLANATIONS } from "../../lib/dao/v2Lifecycle"
+import { ACTIVE_NETWORK_KEY, DAO_REALM_PATH } from "../../lib/config"
 import { shortAddr } from "../shell/format"
 import { ThingTile } from "../shell/icons"
 import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
+import { useDaoKind } from "../../hooks/useDaoKind"
 import { nameForRealm, realmForName } from "./daoNames"
 import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
 import { voteRequest, voteScope } from "./voteRequest"
@@ -118,11 +120,28 @@ export function DaoFolder({ name, section, open }: { name: string; section: DaoS
 }
 
 function DaoFolderBody({ name, realmPath, section, open }: { name: string; realmPath: string; section: DaoSection; open: (spec: WindowSpec) => void }) {
+    const kind = useDaoKind(realmPath)
     const config = useDaoConfig(realmPath)
     const proposals = useDaoProposals(realmPath, section === "proposals" || section === "overview")
     const members = useDaoMembers(realmPath, config.data?.memberstorePath, section === "members" && !config.isPending)
+    const tabs = useRef<Partial<Record<DaoSection, HTMLButtonElement | null>>>({})
+    const tabId = (id: DaoSection) => `os-dao-${name}-${id}`
+    const panelId = `os-dao-${name}-panel`
+    const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, id: DaoSection) => {
+        const index = TABS.findIndex((tab) => tab.id === id)
+        const next = event.key === "Home" ? 0 : event.key === "End" ? TABS.length - 1
+            : event.key === "ArrowRight" ? (index + 1) % TABS.length
+                : event.key === "ArrowLeft" ? (index + TABS.length - 1) % TABS.length : -1
+        if (next < 0) return
+        event.preventDefault()
+        const target = TABS[next].id
+        open(daoSpec(name, target))
+        requestAnimationFrame(() => tabs.current[target]?.focus())
+    }
     let body: ReactNode
-    if (config.isPending) body = <Loading what="the DAO" />
+    if (kind.loading) body = <Loading what="the DAO contract" />
+    else if (kind.kind === "weighted") body = <div className="os-note os-warn">This DAO uses weighted voting. <a href={`/${ACTIVE_NETWORK_KEY}/weighted-dao/${realmPath}`}>Open its weighted DAO workspace</a> to see its points and proposals.</div>
+    else if (config.isPending) body = <Loading what="the DAO" />
     else if (config.isError) body = <Failed what="this DAO" retry={() => void config.refetch()} />
     else if (!config.data) body = <p className="os-note os-warn">No DAO answers at {realmPath} on this network.</p>
     else if (section === "overview") {
@@ -142,7 +161,7 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
                 </dl>
                 <section>
                     <h3 className="os-h">Open proposals</h3>
-                    {proposals.isPending ? <Loading what="proposals" /> : open3.length
+                    {proposals.isPending ? <Loading what="proposals" /> : proposals.isError ? <Failed what="proposals" retry={() => void proposals.refetch()} /> : open3.length
                         ? <ul className="os-list">{open3.map((p) => (
                             <li key={p.id}><button type="button" className="os-it os-click" onClick={() => open(specForTarget({ kind: "proposal", dao: name, n: p.id })!)}>
                                 <ThingTile icon="doc" size={28} /><span className="os-grow"><b>#{p.id} {revealInvisibleFormatting(p.title)}</b></span>
@@ -153,17 +172,20 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
             </div>
         )
     } else if (section === "proposals") {
-        const newProposal = (
+        const newProposal = kind.loading ? <Loading what="DAO capabilities" /> : kind.error ? <Failed what="DAO capabilities" />
+            : kind.kind === "memba-v2" ? (
             <div className="os-row os-end">
                 <button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "new-proposal", dao: name })!)}>New proposal</button>
             </div>
-        )
+        ) : kind.capabilities.propose.length > 0
+            ? <p className="os-sub">New proposals for this DAO contract use the <a href={`/${ACTIVE_NETWORK_KEY}/dao/${realmPath}/propose`}>classic proposal form</a>.</p>
+            : <p className="os-sub">This DAO contract does not accept new proposals through Memba.</p>
         const list = proposals.isPending ? <Loading what="proposals" /> : proposals.isError ? <Failed what="proposals" retry={() => void proposals.refetch()} /> : (proposals.data ?? []).length === 0
             ? <p className="os-sub">No proposals yet.</p>
             : <ul className="os-list">{(proposals.data ?? []).map((p) => (
                 <li key={p.id}><button type="button" className="os-it os-click" onClick={() => open(specForTarget({ kind: "proposal", dao: name, n: p.id })!)}>
                     <ThingTile icon="doc" size={28} />
-                    <span className="os-grow"><b>#{p.id} {revealInvisibleFormatting(p.title)}</b><span className="os-sub os-block">{p.status} · {p.yesVotes} yes · {p.noVotes} no</span></span>
+                    <span className="os-grow"><b>#{p.id} {revealInvisibleFormatting(p.title)}</b><span className="os-sub os-block">{p.status.charAt(0).toUpperCase() + p.status.slice(1)}</span></span>
                 </button></li>
             ))}</ul>
         body = <div className="os-stack os-tight">{newProposal}{list}</div>
@@ -172,8 +194,8 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
             : <ul className="os-list">{(members.data ?? []).map((m) => (
                 <li key={m.address} className="os-it">
                     <span className="os-av" aria-hidden="true">{(m.username || m.address).replace(/^@/, "").slice(0, 1).toUpperCase()}</span>
-                    <span className="os-grow"><b>{m.username || shortAddr(m.address)}</b><span className="os-sub os-block os-mono">{m.address}</span></span>
-                    <span className="os-sub">{[m.tier, ...m.roles].filter(Boolean).join(" · ")}</span>
+                    <span className="os-grow"><b>{m.username ? revealInvisibleFormatting(m.username) : shortAddr(m.address)}</b><span className="os-sub os-block os-mono">{m.address}</span></span>
+                    <span className="os-sub">{[m.tier, ...m.roles].filter(Boolean).map(revealInvisibleFormatting).join(" · ")}</span>
                 </li>
             ))}</ul>
     } else {
@@ -189,10 +211,12 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
         <div className="os-folder">
             <div className="os-tabs" role="tablist" aria-label="DAO sections">
                 {TABS.map((t) => (
-                    <button key={t.id} type="button" role="tab" aria-selected={section === t.id} className="os-tab" onClick={() => open(daoSpec(name, t.id))}>{t.label}</button>
+                    <button key={t.id} ref={(node) => { tabs.current[t.id] = node }} id={tabId(t.id)} type="button" role="tab" aria-selected={section === t.id}
+                        aria-controls={panelId} tabIndex={section === t.id ? 0 : -1} className="os-tab" onKeyDown={(event) => onTabKey(event, t.id)}
+                        onClick={() => open(daoSpec(name, t.id))}>{t.label}</button>
                 ))}
             </div>
-            <div className="os-folder-body" role="tabpanel">
+            <div id={panelId} className="os-folder-body" role="tabpanel" aria-labelledby={tabId(section)} tabIndex={0}>
                 {name === "memba_dao" && section === "overview"
                     ? <div className="os-stack">{body}<JoinMembaDao open={open} /></div>
                     : body}
@@ -238,20 +262,23 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     const v2 = kind.kind === "memba-v2"
     const members = useDaoMembers(realmPath, config.data?.memberstorePath, member && !config.isPending)
     const myVote = useMyVote(realmPath, n, session.address, v2)
-    const [checked, setChecked] = useState(false)
+    const [checkedScope, setCheckedScope] = useState<string | null>(null)
     const [, rerender] = useState(0)
     const now = useNowSeconds()
 
     // After a signature settles, read the proposal, the tally and my vote again.
     useEffect(() => {
         if (signer.version === 0) return
+        invalidateProposalCache(realmPath)
         void queryClient.invalidateQueries({ queryKey: ["dao"] })
-    }, [signer.version, queryClient])
+    }, [signer.version, queryClient, realmPath])
 
     if (kind.loading || q.isPending) return <Loading what={`proposal #${n}`} />
     if (kind.error || q.isError) return <Failed what={`proposal #${n}`} retry={() => void q.refetch()} />
     const p = q.data!
+    const openNow = p.v2 ? canVoteNow(p.v2, now) : p.open
     const scope = member ? voteScope(realmPath, session.address, n) : null
+    const scopeKey = scope ? JSON.stringify(scope) : null
     const receipt = scope ? readGovernanceReceipt(scope) : null
     const me = members.data?.find((m) => m.address === session.address)
     const invisible = hasInvisibleFormatting(p.title) || hasInvisibleFormatting(p.description)
@@ -265,14 +292,14 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
                 <b>Outcome unknown.</b>
                 <span>A previous vote attempt is saved. Check its outcome before voting again.</span>
                 {receipt.hash && <code className="os-mono os-break">Transaction {receipt.hash}</code>}
-                <label className="os-ack"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> I checked the transaction and want to review this vote again.</label>
-                <button type="button" className="os-btn os-quiet" disabled={!checked} onClick={() => {
-                    try { clearGovernanceReceipt(scope!); setChecked(false); rerender((x) => x + 1); void queryClient.invalidateQueries({ queryKey: ["dao"] }) } catch { /* a request is still in flight */ }
+                <label className="os-ack"><input type="checkbox" checked={checkedScope === scopeKey} onChange={(e) => setCheckedScope(e.target.checked ? scopeKey : null)} /> I checked the transaction and want to review this vote again.</label>
+                <button type="button" className="os-btn os-quiet" disabled={checkedScope !== scopeKey} onClick={() => {
+                    try { clearGovernanceReceipt(scope!); setCheckedScope(null); rerender((x) => x + 1); void queryClient.invalidateQueries({ queryKey: ["dao"] }) } catch { /* a request is still in flight */ }
                 }}>Review the vote again</button>
             </div>
         )
-    } else if (myVote.data?.voted) action = <p className="os-note">You voted <b>{myVote.data.choice === "YES" ? "Yes" : myVote.data.choice === "NO" ? "No" : "Abstain"}</b>. Votes are final.</p>
-    else if (!p.open) action = <p className="os-sub">Voting is closed.</p>
+    } else if (myVote.data?.voted) action = <p className="os-note">{myVote.data.choice === null ? "Your vote is recorded; the choice could not be read right now." : <>You voted <b>{myVote.data.choice === "YES" ? "Yes" : myVote.data.choice === "NO" ? "No" : "Abstain"}</b>. Votes are final.</>}</p>
+    else if (!openNow) action = <p className="os-sub">Voting is closed.</p>
     else if (members.isSuccess && !me) action = <p className="os-sub">Only members of this DAO can vote.</p>
     else {
         action = (
@@ -288,7 +315,8 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
             <div>
                 <div className="os-row os-tight-row"><span className="os-pill">{p.statusLabel}</span><span className="os-sub">{config.data?.name || dao}</span></div>
                 <h3 className="os-holding-title">{revealInvisibleFormatting(p.title)}</h3>
-                <div className="os-sub">by {p.author.startsWith("g1") ? shortAddr(p.author) : p.author}{p.endsAt ? ` · ${p.open ? "voting ends" : "voting ended"} ${relativeTime(p.endsAt, now)} (${formatChainTime(p.endsAt)})` : ""}</div>
+                <div className="os-sub">by {p.author.startsWith("g1") ? shortAddr(p.author) : p.author}{p.endsAt && p.v2?.status === "ACTIVE" ? ` · ${openNow ? "voting ends" : "voting period ended"} ${relativeTime(p.endsAt, now)} (${formatChainTime(p.endsAt)})` : ""}</div>
+                {p.v2 && !openNow && <p className="os-sub">{p.v2.status === "ACTIVE" ? "The voting deadline has passed. Refresh for the chain's final status." : V2_STATUS_EXPLANATIONS[p.v2.status]}</p>}
             </div>
             {invisible && <p className="os-note os-warn" role="alert">This proposal contains invisible formatting characters, shown as [U+XXXX]. They can make text read differently from what it says.</p>}
             {p.tallyKnown ? (
@@ -300,6 +328,19 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
                 </div>
             ) : <p className="os-sub">The votes couldn't be read right now.</p>}
             <div className="os-vote">{action}</div>
+            {p.v2?.status === "ACCEPTED" && (
+                <p className="os-note">
+                    {executionState(p.v2, now) === "open" ? "This proposal can now be executed. "
+                        : executionState(p.v2, now) === "too-early" ? `Execution opens ${relativeTime(p.v2.executable_at, now)}. `
+                            : "The execution window has closed. "}
+                    <a href={`/${ACTIVE_NETWORK_KEY}/dao/${realmPath}/proposal/${n}`}>
+                        {executionState(p.v2, now) === "open" ? "Execute on the DAO page" : "View execution details on the DAO page"}
+                    </a>
+                </p>
+            )}
+            {!p.v2 && p.statusLabel === "Passed" && kind.capabilities.execute && (
+                <p className="os-note">This proposal passed. A DAO member can execute it on the <a href={`/${ACTIVE_NETWORK_KEY}/dao/${realmPath}/proposal/${n}`}>DAO proposal page</a>.</p>
+            )}
             {p.description && (
                 <section>
                     <h3 className="os-h">Description</h3>

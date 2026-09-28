@@ -59,8 +59,10 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const status: SessionStatus = member ? "member" : resuming ? "resuming" : "guest"
     // Untransacted wallet in an address-only session: activation isn't optional (same rule as Layout).
     const activationForced = member && !adena.pubkeyJSON
-    const { rawUgnot, loading: balanceLoading, balance } = useBalance(adena.connected ? adena.address : null)
-    const balanceKnown = !balanceLoading && !balance.startsWith("—")
+    const { rawUgnot, loading: balanceLoading, balance, error: balanceError, refetch: refreshBalance } = useBalance(adena.connected ? adena.address : null)
+    const balanceKnown = !balanceLoading && rawUgnot !== undefined
+    const spendableUgnot = balanceLoading ? undefined : rawUgnot
+    const displayedBalance = balanceLoading ? "— GNOT" : balance
 
     useEffect(() => {
         if (!adena.reconnecting) return
@@ -198,12 +200,12 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     // and signing out go through the OS flow, not the page's own wallet calls.
     const layout = useMemo<LayoutContext>(() => ({
         adena: { ...adena, connect: async () => { openConnect(); return false }, disconnect },
-        balance,
-        rawUgnot,
+        balance: displayedBalance,
+        rawUgnot: spendableUgnot,
         auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: auth.loading, error: auth.error },
         isLoggingIn: resuming || stage === "loginwait",
         syncTimedOut: resumeTimedOut,
-    }), [adena, openConnect, disconnect, balance, rawUgnot, auth.token, auth.isAuthenticated, auth.address, auth.loading, auth.error, resuming, stage, resumeTimedOut])
+    }), [adena, openConnect, disconnect, displayedBalance, spendableUgnot, auth.token, auth.isAuthenticated, auth.address, auth.loading, auth.error, resuming, stage, resumeTimedOut])
 
     return {
         status,
@@ -213,10 +215,13 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         /** The chain Adena is on ("" before it reports one). */
         walletChainId: adena.chainId,
         network,
+        balanceError,
+        refreshBalance,
         stage: activationForced && stage !== "activatewait" ? ("activate" as const) : stage,
         activationForced,
         /** Known to be empty: activation can't pay its fee yet. */
         noFunds: balanceKnown && rawUgnot === 0n,
+        balanceUnknown: !balanceKnown,
         error,
         note,
         openConnect,

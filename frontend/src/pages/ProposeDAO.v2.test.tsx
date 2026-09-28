@@ -162,7 +162,7 @@ describe("version-2 propose form", () => {
         expect(state.broadcast.mock.calls[0][0][0].value.max_deposit).toBe("12000000ugnot")
     })
 
-    it("finds the new proposal by author and title when the wallet result carries no id", async () => {
+    it("keeps a hash-only proposal in recovery even when another proposal has the same author and title", async () => {
         state.broadcast.mockResolvedValue({ hash: "b".repeat(64), result: { hash: "b".repeat(64) } })
         state.proposals.mockResolvedValue({
             next_before: 0,
@@ -175,7 +175,10 @@ describe("version-2 propose form", () => {
         mount()
         fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Ship it" } })
         fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
-        await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/proposal/6`))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledOnce())
+        expect(screen.getByTestId("location")).toHaveTextContent(`/propose`)
+        expect(await screen.findByText(/A proposal submission is recorded/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Submitted" })).toBeDisabled()
     })
 
     it("builds an add-member proposal with power and roles, and refuses bad targets before signing", async () => {

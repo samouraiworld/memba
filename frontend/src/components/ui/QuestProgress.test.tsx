@@ -140,7 +140,7 @@ describe("QuestProgress — Expanded State", () => {
 })
 
 describe("QuestProgress — Candidature CTA", () => {
-    it("shows CTA when eligible (own profile)", () => {
+    it("does not promise candidature from mutable local XP (own profile)", () => {
         vi.mocked(questsMock.loadQuestProgress).mockReturnValue({
             completed: [
                 { questId: "q1", completedAt: Date.now() },
@@ -152,13 +152,14 @@ describe("QuestProgress — Candidature CTA", () => {
         vi.mocked(questsMock.canApplyForMembership).mockReturnValue(true)
 
         renderWithRouter(<QuestProgress />)
-        // Eligible badge should show in collapsed state
-        expect(screen.getByText("✦ Eligible")).toBeInTheDocument()
+        // Local progress must not promise eligibility in collapsed state.
+        expect(screen.queryByText("✦ Eligible")).not.toBeInTheDocument()
 
-        // Expand and check CandidatureUnlock component (v3.2 replacement)
+        // The legacy ring still shows local progress; the candidature CTA uses
+        // authoritative verified XP and must stay locked without a backend read.
         fireEvent.click(screen.getByTestId("quest-hub-toggle"))
-        expect(screen.getByTestId("candidature-unlock-ready")).toBeInTheDocument()
-        expect(screen.getByText("🚀 Claim Candidature →")).toBeInTheDocument()
+        expect(screen.getByTestId("candidature-unlock-locked")).toBeInTheDocument()
+        expect(screen.queryByText("🚀 Claim Candidature →")).not.toBeInTheDocument()
     })
 
     it("shows locked state when not eligible", () => {

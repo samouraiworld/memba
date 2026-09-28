@@ -24,8 +24,8 @@ var workerBundle []byte
 // server-side from the seed, never client-sent), the seed, the sim version it
 // was played on, and the raw input log. Marshaled verbatim onto the worker's
 // stdin. An empty Game is grandfathered as "barricade" (the pre-multigame job
-// shape); FinalTick is Space Invaders-only (its sim runs to a tick count, not
-// a terminal phase) and must be 0 for every other game.
+// shape); FinalTick is Space Invaders-only and must identify a terminal
+// replay state. It must be 0 for every other game.
 type Job struct {
 	Game       string          `json:"game,omitempty"`
 	Seed       string          `json:"seed"`

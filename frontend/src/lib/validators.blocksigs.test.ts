@@ -12,9 +12,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { GNO_CHAIN_ID } from "./config"
 
-const { resilientRpcCall } = vi.hoisted(() => ({ resilientRpcCall: vi.fn() }))
-vi.mock("./rpcFallback", () => ({ resilientRpcCall }))
+const { directRpcCall, getRpcUrlsInOrder, excludeRpcEndpoint } = vi.hoisted(() => ({
+    directRpcCall: vi.fn(), getRpcUrlsInOrder: vi.fn(), excludeRpcEndpoint: vi.fn(),
+}))
+vi.mock("./rpcFallback", () => ({
+    resilientRpcCall: vi.fn(), directRpcCall, getRpcUrlsInOrder, excludeRpcEndpoint,
+}))
 
 const { fetchLastBlockSignatures, __resetBlockSigCacheForTests } = await import("./validators")
 
@@ -24,7 +29,9 @@ const VAL_B = "g1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 /** gno nil-pads precommits to valset size — a miss is a null slot, not an omission. */
 function block(height: number, signers: string[], valset = [VAL_A, VAL_B]) {
     return {
+        block_id: { hash: `hash-${height}` },
         block: {
+            header: { height: String(height), chain_id: GNO_CHAIN_ID },
             last_commit: {
                 precommits: valset.map((addr) =>
                     signers.includes(addr) ? { validator_address: addr, height: String(height) } : null,
@@ -35,9 +42,9 @@ function block(height: number, signers: string[], valset = [VAL_A, VAL_B]) {
 }
 
 function mockChain(tip: number, signersAt: (h: number) => string[]) {
-    resilientRpcCall.mockImplementation((method: string, params?: Record<string, string>) => {
+    directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => {
         if (method === "/status") {
-            return Promise.resolve({ sync_info: { latest_block_height: String(tip) } })
+            return Promise.resolve({ node_info: { network: GNO_CHAIN_ID }, sync_info: { latest_block_height: String(tip), latest_block_hash: `hash-${tip}` } })
         }
         if (method === "/block") {
             const h = Number(params?.height)
@@ -49,14 +56,16 @@ function mockChain(tip: number, signersAt: (h: number) => string[]) {
 
 /** Heights actually requested from the chain, in call order. */
 function requestedHeights(): number[] {
-    return resilientRpcCall.mock.calls
-        .filter(([method]) => method === "/block")
-        .map(([, params]) => Number(params.height))
+    return directRpcCall.mock.calls
+        .filter(([, method]) => method === "/block")
+        .map(([, , params]) => Number(params.height))
 }
 
 describe("fetchLastBlockSignatures", () => {
     beforeEach(() => {
-        resilientRpcCall.mockReset()
+        directRpcCall.mockReset()
+        getRpcUrlsInOrder.mockReturnValue(["rpc"])
+        excludeRpcEndpoint.mockReset()
         __resetBlockSigCacheForTests()
     })
 
@@ -84,12 +93,12 @@ describe("fetchLastBlockSignatures", () => {
         const first = requestedHeights().length
         expect(first).toBe(20)
 
-        resilientRpcCall.mockClear()
+        directRpcCall.mockClear()
         mockChain(103, () => [VAL_A, VAL_B])
         const map = await fetchLastBlockSignatures("rpc", 20)
 
-        // Three new heights; the other 17 come from cache.
-        expect(requestedHeights().sort((a, b) => a - b)).toEqual([101, 102, 103])
+        // Verify the previous tip's hash, then fetch three new heights.
+        expect(requestedHeights().sort((a, b) => a - b)).toEqual([100, 101, 102, 103])
         // …and the window is still complete and correctly ordered.
         expect(map.get(VAL_A)).toHaveLength(20)
     })
@@ -98,7 +107,7 @@ describe("fetchLastBlockSignatures", () => {
         mockChain(100, () => [VAL_A, VAL_B])
         await fetchLastBlockSignatures("rpc", 20)
 
-        resilientRpcCall.mockClear()
+        directRpcCall.mockClear()
         mockChain(100, () => [VAL_A, VAL_B])
         const map = await fetchLastBlockSignatures("rpc", 20)
 
@@ -140,7 +149,66 @@ describe("fetchLastBlockSignatures", () => {
     })
 
     it("degrades to an empty map when /status fails, without throwing", async () => {
-        resilientRpcCall.mockRejectedValue(new Error("RPC down"))
+        directRpcCall.mockRejectedValue(new Error("RPC down"))
         await expect(fetchLastBlockSignatures("rpc", 20)).resolves.toEqual(new Map())
+    })
+
+    it("keeps the whole sample unavailable when the newest block fails, then retries it", async () => {
+        let failNewest = true
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => {
+            if (method === "/status") return Promise.resolve({ node_info: { network: GNO_CHAIN_ID }, sync_info: { latest_block_height: "100", latest_block_hash: "hash-100" } })
+            if (method === "/block") {
+                const height = Number(params?.height)
+                if (height === 100 && failNewest) return Promise.reject(new Error("block unavailable"))
+                return Promise.resolve(block(height, [VAL_A, VAL_B]))
+            }
+            return Promise.resolve(null)
+        })
+
+        expect(await fetchLastBlockSignatures("rpc", 5)).toEqual(new Map())
+        expect(requestedHeights()).toHaveLength(5)
+
+        failNewest = false
+        directRpcCall.mockClear()
+        const recovered = await fetchLastBlockSignatures("rpc", 5)
+        expect(requestedHeights()).toEqual([100])
+        expect(recovered.get(VAL_A)).toEqual([true, true, true, true, true])
+    })
+
+    it("does not reuse signer rows from a different endpoint at the same height", async () => {
+        mockChain(100, () => [VAL_A])
+        await fetchLastBlockSignatures("rpc", 5)
+        directRpcCall.mockClear()
+        getRpcUrlsInOrder.mockReturnValue(["rpc-b"])
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => {
+            if (method === "/status") return Promise.resolve({ node_info: { network: GNO_CHAIN_ID }, sync_info: { latest_block_height: "100", latest_block_hash: "fork-100" } })
+            if (method === "/block") {
+                const h = Number(params?.height)
+                return Promise.resolve({ ...block(h, [VAL_B]), block_id: { hash: `fork-${h}` } })
+            }
+            return Promise.resolve(null)
+        })
+        const map = await fetchLastBlockSignatures("rpc", 5)
+        expect(requestedHeights()).toHaveLength(5)
+        expect(map.has(VAL_A)).toBe(false)
+        expect(map.get(VAL_B)?.every(Boolean)).toBe(true)
+    })
+
+    it("invalidates the same endpoint's signer cache after a fork", async () => {
+        mockChain(100, () => [VAL_A])
+        await fetchLastBlockSignatures("rpc", 5)
+        directRpcCall.mockClear()
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => {
+            if (method === "/status") return Promise.resolve({ node_info: { network: GNO_CHAIN_ID }, sync_info: { latest_block_height: "100", latest_block_hash: "fork-100" } })
+            if (method === "/block") {
+                const h = Number(params?.height)
+                return Promise.resolve({ ...block(h, [VAL_B]), block_id: { hash: `fork-${h}` } })
+            }
+            return Promise.resolve(null)
+        })
+        const map = await fetchLastBlockSignatures("rpc", 5)
+        expect(requestedHeights()).toHaveLength(5)
+        expect(map.has(VAL_A)).toBe(false)
+        expect(map.get(VAL_B)?.every(Boolean)).toBe(true)
     })
 })

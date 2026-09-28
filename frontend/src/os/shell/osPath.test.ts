@@ -18,6 +18,8 @@ describe("parseOsPath", () => {
         expect(parseOsPath("/os/wallet")).toEqual({ kind: "app", app: "wallet", section: null })
         expect(parseOsPath("/os/dev-report")).toEqual({ kind: "app", app: "devreport", section: null })
         expect(parseOsPath("/os/wallet/send")).toEqual({ kind: "app", app: "wallet", section: "send" })
+        expect(parseOsPath("/os/meet")).toEqual({ kind: "app", app: "meet", section: null })
+        expect(parseOsPath("/os/meet/abc-defg-hij").kind).toBe("unknown")
     })
 
     it("reads DAO folders and their sections", () => {

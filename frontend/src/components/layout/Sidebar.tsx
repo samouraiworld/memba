@@ -4,7 +4,6 @@ import { ProSidebar } from "./ProSidebar"
 import { Link, useLocation } from "react-router-dom"
 import { Gear } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
-import { canApplyForMembership } from "../../lib/quests"
 import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
 import { NAV, MODE_SECTIONS, navEntryAvailable, navForGroup } from "../../lib/navManifest"
 import { navFlagOn } from "../../lib/navFlags"
@@ -235,7 +234,6 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, fe
                             id="candidature"
                             connected={connected}
                             collapsed={collapsed}
-                            badge={canApplyForMembership() ? 1 : undefined}
                         />
                     )}
                     {/* Utility tail — public tools clustered next to Feedback. */}

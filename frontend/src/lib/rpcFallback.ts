@@ -337,7 +337,9 @@ export async function directRpcCall(
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT)
-    if (signal) signal.addEventListener("abort", () => controller.abort(), { once: true })
+    const abort = () => controller.abort()
+    if (signal?.aborted) controller.abort()
+    else signal?.addEventListener("abort", abort, { once: true })
 
     try {
         const res = await fetch(url.toString(), {
@@ -350,5 +352,6 @@ export async function directRpcCall(
         return json.result
     } finally {
         clearTimeout(timeout)
+        signal?.removeEventListener("abort", abort)
     }
 }

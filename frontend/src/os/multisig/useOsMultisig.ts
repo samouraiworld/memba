@@ -25,7 +25,13 @@ export function useMyMultisigs(auth: Auth) {
     })
 }
 
-export interface MultisigDetail { multisig: Multisig | null; pending: Transaction[]; executed: Transaction[] }
+export interface MultisigDetail {
+    multisig: Multisig | null
+    pending: Transaction[]
+    executed: Transaction[]
+    pendingError: boolean
+    executedError: boolean
+}
 
 export function useMultisigDetail(auth: Auth, address: string) {
     const token = auth.token
@@ -33,12 +39,19 @@ export function useMultisigDetail(auth: Auth, address: string) {
         queryKey: ["multisig", "os-detail", address, token?.userAddress ?? ""],
         enabled: !!token && auth.isAuthenticated,
         queryFn: async (): Promise<MultisigDetail> => {
-            const [info, pending, executed] = await Promise.all([
+            const [info, pending, executed] = await Promise.allSettled([
                 api.multisigInfo({ authToken: token!, multisigAddress: address, chainId: GNO_CHAIN_ID }),
                 api.transactions({ authToken: token!, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 }),
                 api.transactions({ authToken: token!, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: 50 }),
             ])
-            return { multisig: info.multisig ?? null, pending: pending.transactions, executed: executed.transactions }
+            if (info.status === "rejected") throw info.reason
+            return {
+                multisig: info.value.multisig ?? null,
+                pending: pending.status === "fulfilled" ? pending.value.transactions : [],
+                executed: executed.status === "fulfilled" ? executed.value.transactions : [],
+                pendingError: pending.status === "rejected",
+                executedError: executed.status === "rejected",
+            }
         },
     })
 }

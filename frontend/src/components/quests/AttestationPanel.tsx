@@ -46,7 +46,9 @@ export function AttestationPanel({ address }: { address: string }) {
             return { state: isAttestationClaimable(s, signer) ? s : null, recorded: rec }
         },
     })
-    const state: AttestationState | null = attQuery.data?.state ?? null
+    // React Query retains the last good data after a failed refetch. Do not
+    // expose those cached vouchers when the on-chain recorded set is unknown.
+    const state: AttestationState | null = attQuery.isError ? null : attQuery.data?.state ?? null
     const recorded = attQuery.data?.recorded ?? new Set<string>()
     // refetch is referentially stable — the attest callback deps on it.
     const { refetch: refetchAttestation } = attQuery
@@ -76,6 +78,15 @@ export function AttestationPanel({ address }: { address: string }) {
             setBusy(null)
         }
     }, [state, address, refetchAttestation])
+
+    if (attQuery.isError) {
+        return (
+            <section className="k-attest" aria-label="On-chain quest attestation">
+                <div className="k-attest-error" role="alert">Could not check on-chain attestation status. No attestation can be sent until this check succeeds.</div>
+                <button type="button" className="k-attest-btn" onClick={() => void refetchAttestation()}>Retry attestation check</button>
+            </section>
+        )
+    }
 
     // Dormant: nothing to attest (attestation disabled, or no completions yet).
     if (!state || state.vouchers.length === 0) return null

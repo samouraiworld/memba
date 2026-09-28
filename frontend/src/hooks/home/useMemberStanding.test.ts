@@ -39,7 +39,7 @@ beforeEach(() => { vi.clearAllMocks() })
 describe("useMemberStanding", () => {
     it("uses backend XP as authoritative over local when both are present", async () => {
         vi.mocked(quests.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 50 })
-        vi.mocked(quests.fetchUserQuests).mockResolvedValue({ completed: [], totalXP: 200 })
+        vi.mocked(quests.fetchUserQuests).mockResolvedValue({ completed: [], totalXP: 200, verifiedXP: 200 })
         const { useMemberStanding } = await import("./useMemberStanding")
         const { result } = renderHook(() => useMemberStanding("g1abc", true), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.totalXP).toBe(200))
@@ -50,17 +50,48 @@ describe("useMemberStanding", () => {
         expect(result.current.isEligible).toBe(false)
     })
 
-    it("falls back to local XP when the backend is unreachable (degrade, not block)", async () => {
+    it("shows provisional rank but does not unlock candidature when the backend is unreachable", async () => {
         vi.mocked(quests.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 400 })
         vi.mocked(quests.fetchUserQuests).mockResolvedValue(null)
         const { useMemberStanding } = await import("./useMemberStanding")
         const { result } = renderHook(() => useMemberStanding("g1abc", true), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.totalXP).toBe(400))
-        // 400 ≥ 350 → eligible, Gold Architect, xpToCandidature clamps to 0.
+        // 400 local XP may render a Gold rank; it is not verified XP.
         expect(result.current.rank.name).toBe("Gold Architect")
-        expect(result.current.isEligible).toBe(true)
+        expect(result.current.isEligible).toBe(false)
+        expect(result.current.xpToCandidature).toBe(350)
+        expect(result.current.candidatureProgress).toBe(0)
+    })
+
+    it("unlocks candidature only from backend verified XP", async () => {
+        vi.mocked(quests.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 999 })
+        vi.mocked(quests.fetchUserQuests).mockResolvedValue({ completed: [], totalXP: 400, verifiedXP: 350 })
+        const { useMemberStanding } = await import("./useMemberStanding")
+        const { result } = renderHook(() => useMemberStanding("g1abc", true), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.isEligible).toBe(true))
         expect(result.current.xpToCandidature).toBe(0)
-        expect(result.current.candidatureProgress).toBe(1)
+    })
+
+    it("refreshes verified eligibility after a quest completion", async () => {
+        vi.mocked(quests.fetchUserQuests)
+            .mockResolvedValueOnce({ completed: [], totalXP: 100, verifiedXP: 100 })
+            .mockResolvedValueOnce({ completed: [], totalXP: 360, verifiedXP: 360 })
+        const { useMemberStanding } = await import("./useMemberStanding")
+        const { result } = renderHook(() => useMemberStanding("g1abc", true), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.totalXP).toBe(100))
+        window.dispatchEvent(new Event("quest-completed"))
+        await waitFor(() => expect(result.current.isEligible).toBe(true))
+    })
+
+    it("reads provisional XP from the requested wallet during a handoff", async () => {
+        vi.mocked(quests.loadQuestProgress).mockImplementation(wallet => ({
+            completed: [], totalXP: wallet === "g1bob" ? 20 : 999,
+        }))
+        vi.mocked(quests.fetchUserQuests).mockImplementation(() => new Promise(() => {}))
+        const { useMemberStanding } = await import("./useMemberStanding")
+        const { result } = renderHook(() => useMemberStanding("g1bob", true), { wrapper: makeWrapper() })
+        expect(result.current.totalXP).toBe(20)
+        expect(result.current.isEligible).toBe(false)
     })
 
     it("is honest about a brand-new member (0 XP → Newcomer rung, not an empty/error)", async () => {

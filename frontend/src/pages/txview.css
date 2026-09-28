@@ -250,6 +250,14 @@
   outline: none;
 }
 
+.k-txview__confirm-card {
+  scroll-margin-block: 24px;
+}
+.k-txview__confirm-card:focus {
+  outline: 3px solid var(--color-k-accent);
+  outline-offset: 3px;
+}
+
 /* ── Final Hash ──────────────────────────────────────────────── */
 
 .k-txview__hash-card {

@@ -39,7 +39,7 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: '
         }
 
         await page.goto('/mainnet/directory?tab=realms')
-        const realms = page.getByRole('region', { name: 'Recent package submissions · gno.land' })
+        const realms = page.getByRole('region', { name: 'Recent realm submissions · gno.land' })
         await expect(realms.getByText(REALM)).toBeVisible()
         await expect(realms.getByText(PACKAGE)).toHaveCount(0)
         const realmCalls = calls

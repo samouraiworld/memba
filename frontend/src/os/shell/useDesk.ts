@@ -6,23 +6,27 @@ import { addItem, cleanUp, loadDesk, moveItem, removeItem, saveDesk, sameItem, t
  * the guest desk. `owner` undefined means "not known yet" (a session is still
  * resuming): no items are shown rather than flashing the guest desk.
  */
-export function useDesk(owner: string | null | undefined) {
-    const [state, setState] = useState(() => ({ owner, items: owner === undefined ? [] : loadDesk(owner) }))
+export function useDesk(owner: string | null | undefined, networkKey: string) {
+    const [state, setState] = useState(() => ({ owner, networkKey, items: owner === undefined ? [] : loadDesk(owner, networkKey) }))
     // Another owner (sign-in, sign-out): load their desk. Adjusting state while
     // rendering is React's pattern for state derived from a changing prop.
-    if (state.owner !== owner) setState({ owner, items: owner === undefined ? [] : loadDesk(owner) })
+    if (state.owner !== owner || state.networkKey !== networkKey) {
+        setState({ owner, networkKey, items: owner === undefined ? [] : loadDesk(owner, networkKey) })
+    }
 
     const update = useCallback((fn: (items: DeskItem[]) => DeskItem[]) => {
         setState((s) => {
             if (s.owner === undefined) return s
             const items = fn(s.items)
-            saveDesk(s.owner, items)
+            saveDesk(s.owner, items, s.networkKey)
             return { ...s, items }
         })
     }, [])
 
     return {
-        items: state.owner === owner ? state.items : [],
+        items: state.owner === owner && state.networkKey === networkKey ? state.items : [],
+        /** Re-read after Settings clears local UI data without saving the old items again. */
+        resetFromStorage: useCallback(() => setState((s) => ({ ...s, items: s.owner === undefined ? [] : loadDesk(s.owner, s.networkKey) })), []),
         isPinned: (item: { ty: DeskItemType; ref: string }) => state.items.some((i) => sameItem(i, item)),
         pin: useCallback((item: { ty: DeskItemType; ref: string }) => update((items) => addItem(items, item)), [update]),
         unpin: useCallback((index: number) => update((items) => removeItem(items, index)), [update]),

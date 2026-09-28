@@ -166,9 +166,10 @@ type Drag = { mode: "move" | "resize"; sx: number; sy: number; ox: number; oy: n
  * dragging, the frame moves through its own style and commits on release, so
  * the window's content doesn't re-render on every pointer move.
  */
-export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "close"> & {
+export function WindowFrame({ win, active, parked = false, desk, frame, ...a }: Omit<Actions, "close"> & {
     win: OsWindow
     active: boolean
+    parked?: boolean
     desk: DeskSize
     frame: FrameActions
 }) {
@@ -230,9 +231,9 @@ export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "c
     }, [active])
 
     return (
-        <section ref={ref} className={`os-win os-glass${active ? "" : " os-inactive"}${win.max ? " os-max" : ""}`} style={style}
-            aria-label={win.title} data-win={win.key} tabIndex={-1} onPointerDown={() => { if (!active) frame.focus(win.id) }}
-            onFocusCapture={() => { if (!active) frame.focus(win.id) }}>
+        <section ref={ref} className={`${parked ? "os-parked" : "os-win"} os-glass${active ? "" : " os-inactive"}${win.max ? " os-max" : ""}`} style={style}
+            aria-label={win.title} aria-hidden={parked} inert={parked} data-win={win.key} tabIndex={-1} onPointerDown={() => { if (!active && !parked) frame.focus(win.id) }}
+            onFocusCapture={() => { if (!active && !parked) frame.focus(win.id) }}>
             <div className="os-tb" onPointerDown={(e) => begin("move", e)} {...handlers} onDoubleClick={(e) => { if (!(e.target as HTMLElement).closest("button")) frame.toggleMax(win.id) }}>
                 <span className="os-lights">
                     <button type="button" className="os-light-close" aria-label={`Close ${win.title}`} onClick={() => frame.close(win.id)}><span aria-hidden="true">×</span></button>

@@ -12,6 +12,14 @@ vi.mock("../../lib/grc20", () => ({
 import { ActivationModal } from "./ActivationModal"
 
 describe("ActivationModal", () => {
+    it("offers a balance retry after the RPC fails in the forced flow", () => {
+        const retry = vi.fn()
+        render(<ActivationModal address="g1..." balanceError="RPC unavailable" onRetryBalance={retry} faucetUrl="https://faucet.gno.land" onSuccess={() => {}} />)
+        expect(screen.getByText(/Could not check your GNOT balance/)).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Retry balance check" }))
+        expect(retry).toHaveBeenCalledOnce()
+    })
+
     it("shows the faucet nudge if balance is 0", () => {
         render(
             <ActivationModal
@@ -40,6 +48,29 @@ describe("ActivationModal", () => {
         )
         expect(screen.queryByText(/You need a tiny amount of GNOT to activate/i)).not.toBeInTheDocument()
         expect(screen.getByRole("button", { name: /Activate My Wallet/i })).toBeInTheDocument()
+    })
+
+    it("does not activate from a retained balance while refreshing or after a failed check", () => {
+        doContractBroadcast.mockClear()
+        const retry = vi.fn()
+        const props = { address: "g1...", rawUgnot: 500000n, onRetryBalance: retry, faucetUrl: "https://faucet.gno.land", onSuccess: vi.fn() }
+        const { rerender } = render(<ActivationModal {...props} />)
+        expect(screen.getByRole("button", { name: /Activate My Wallet/i })).toBeEnabled()
+
+        rerender(<ActivationModal {...props} balanceLoading />)
+        expect(screen.queryByRole("button", { name: /Activate My Wallet/i })).not.toBeInTheDocument()
+        expect(screen.getByText(/Checking your GNOT balance/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Retry balance check" })).toBeDisabled()
+
+        rerender(<ActivationModal {...props} balanceError="RPC unavailable" />)
+        expect(screen.queryByRole("button", { name: /Activate My Wallet/i })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Retry balance check" }))
+        expect(retry).toHaveBeenCalledOnce()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+
+        rerender(<ActivationModal {...props} rawUgnot={0n} />)
+        expect(screen.getByText(/You need a tiny amount of GNOT to activate/i)).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Activate My Wallet/i })).not.toBeInTheDocument()
     })
 
     it("activates through the guarded broadcaster, never window.adena directly (W2.1)", async () => {

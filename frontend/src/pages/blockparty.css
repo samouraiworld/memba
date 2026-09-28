@@ -93,6 +93,8 @@
   box-shadow: 0 8px 18px -14px var(--color-k-accent);
 }
 .k-bp-mode-btn--active:hover { background: var(--color-k-accent-hover); color: var(--color-k-on-accent); }
+.memba-os .k-bp-mode-btn { color: var(--color-k-muted); }
+.memba-os .k-bp-mode-btn--active { color: var(--color-k-on-accent); }
 
 .k-bp-layout {
   display: grid;
@@ -342,4 +344,25 @@
 @media (prefers-reduced-motion: reduce) {
   .k-bp-intro, .k-bp-pulse { animation: none; }
   .k-bp-page *, .k-bp-page *::before, .k-bp-page *::after { scroll-behavior: auto !important; transition: none !important; }
+}
+
+/* Classic pages can live in a narrow OS window on a wide desktop. */
+@container os-window (max-width: 760px) {
+  .k-bp-page { width: min(100%, 520px); }
+  .k-bp-layout { grid-template-columns: minmax(0, 1fr); }
+  .k-bp-side { position: static; }
+  .k-bp-header-row { align-items: flex-end; justify-content: space-between; text-align: left; }
+  .k-bp-title { font-size: clamp(2rem, 12cqw, 3.1rem); }
+  .k-bp-modes { position: static; width: 100%; margin: 0; }
+  .k-bp-play { display: block; }
+  .k-bp-play > .k-bp-tools { flex-direction: row; }
+  .k-bp-board-wrap, .k-bp-scorebar { margin-block: revert; }
+}
+
+@container os-window (max-width: 360px) {
+  .k-bp-page { padding-inline: var(--space-2); }
+  .k-bp-header { margin-bottom: var(--space-3); }
+  .k-bp-header-row { gap: var(--space-2); }
+  .k-bp-mission { grid-template-columns: auto minmax(0, 1fr); }
+  .k-bp-mission > span:last-child { grid-column: 2; padding: 0; border: 0; }
 }

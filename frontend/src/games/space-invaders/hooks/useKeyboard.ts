@@ -58,7 +58,7 @@ export interface KeyboardOptions {
   onConfirm?: () => void;
 }
 
-export function useKeyboard(scopeRef?: RefObject<HTMLElement | null>, options?: KeyboardOptions): () => InputIntent {
+export function useKeyboard(scopeRef?: RefObject<HTMLElement | null>, options?: KeyboardOptions & { active?: boolean }): () => InputIntent {
   // Held keys per action, so releasing A while ArrowLeft is still down keeps
   // the relay moving (and vice versa).
   const held = useRef<Record<"left" | "right" | "fire", Set<string>>>({
@@ -68,6 +68,7 @@ export function useKeyboard(scopeRef?: RefObject<HTMLElement | null>, options?: 
   });
   const pauseEdge = useRef(false);
   const onConfirmRef = useRef(options?.onConfirm);
+  const active = options?.active ?? true;
   useEffect(() => {
     onConfirmRef.current = options?.onConfirm;
   });
@@ -81,6 +82,7 @@ export function useKeyboard(scopeRef?: RefObject<HTMLElement | null>, options?: 
       pauseEdge.current = false;
     };
     const down = (e: KeyboardEvent) => {
+      if (!active) return;
       const scope = scopeRef?.current;
       if (scope && (!(e.target instanceof Node) || !scope.contains(e.target))) return;
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -126,7 +128,7 @@ export function useKeyboard(scopeRef?: RefObject<HTMLElement | null>, options?: 
       document.removeEventListener("visibilitychange", visibility);
       reset();
     };
-  }, [scopeRef]);
+  }, [scopeRef, active]);
 
   return useCallback(() => {
     const keys = held.current;

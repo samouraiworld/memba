@@ -20,6 +20,8 @@ export function windowToken(t: OsTarget | null): string | null {
         case "app":
             if (isJoinFeedTarget(t)) return "feed.join"
             if (t.app === "feed" && t.section && /^post\/[1-9]\d{0,19}$/.test(t.section)) return `feed.post.${t.section.slice(5)}`
+            // Meet room codes grant access: never put them in URLs or saved windows.
+            if (t.app === "meet") return "app.meet"
             if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
             return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`

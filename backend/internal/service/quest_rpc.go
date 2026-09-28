@@ -137,7 +137,8 @@ var validQuests = map[string]uint32{
 }
 
 // selfReportQuests is the set of quest IDs that require manual proof submission.
-// Only these quests can be submitted via SubmitQuestClaim.
+// This class includes historical and coming-soon IDs for registry parity;
+// selfReportClaimableQuests below controls new submissions.
 var selfReportQuests = map[string]bool{
 	"deploy-test-pkg":  true,
 	"deploy-full-dapp": true,
@@ -148,6 +149,15 @@ var selfReportQuests = map[string]bool{
 	"gas-optimization": true,
 	"mentor-developer": true,
 	"bug-hunter":       true,
+}
+
+// Only the curated live self-report quests accept new claims. Existing
+// completions and approved claims for the other IDs retain their historical XP.
+var selfReportClaimableQuests = map[string]bool{
+	"deploy-test-pkg": true, "write-10-tests": true,
+	"fix-upstream-bug": true, "audit-realm": true,
+	"build-mcp-tool": true, "gas-optimization": true,
+	"mentor-developer": true,
 }
 
 // rankThresholds maps tier numbers to XP thresholds.
@@ -499,12 +509,19 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 	if len(completions) > maxSyncBatch {
 		completions = completions[:maxSyncBatch]
 	}
+	seenQuestIDs := make(map[string]bool, len(completions))
 
 	for _, c := range completions {
 		questID := strings.TrimSpace(c.QuestId)
 		if _, ok := validQuests[questID]; !ok {
 			continue // skip unknown quests
 		}
+		// One batch spends one rate-limit token, so duplicate IDs must not
+		// multiply expensive on-chain verification work within that batch.
+		if seenQuestIDs[questID] {
+			continue
+		}
+		seenQuestIDs[questID] = true
 
 		// P0-1: apply the same server-side gate as CompleteQuest — skip
 		// self_report/social entries and on_chain entries whose condition
@@ -527,6 +544,9 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 		if err != nil {
 			return nil, internalError("SyncQuests", err)
 		}
+		// Match CompleteQuest: a completion imported from another device must
+		// queue its badge too. The queue has a unique key and tolerates repeats.
+		s.queueBadgeMint(ctx, userAddr, questID)
 
 		// Q-05: issue an attestation voucher for synced completions too, so a
 		// verified quest that reaches the backend only via sync still attests.
@@ -551,15 +571,18 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 
 	// Update rank cache after sync
 	s.updateUserRankCache(ctx, userAddr, state)
+	s.checkAndQueueRankBadge(ctx, userAddr, state.TotalXp)
 
 	return connect.NewResponse(&membav1.SyncQuestsResponse{State: state}), nil
 }
 
-// grantDerivedMetaQuests grants the server-derived XP-milestone meta-quests
-// (earn-500-xp / earn-1000-xp) from authoritative state — they are never client-
-// claimable (verifyQuestCompletable rejects them). Returns true if it inserted any,
-// so the caller reloads state. (complete-all-everyone / top-10-leaderboard derivation
-// — category set / leaderboard position — is deferred; they stay non-claimable.)
+// Only currently live server-derived milestones may be granted. Keep other
+// meta IDs in validQuests for historical XP, but do not newly issue them before
+// their launch conditions are available.
+var liveDerivedQuestThresholds = map[string]uint32{"earn-500-xp": 500}
+
+// grantDerivedMetaQuests derives the curated live milestones from authoritative
+// server XP. Clients cannot claim these IDs directly.
 func (s *MultisigService) grantDerivedMetaQuests(ctx context.Context, addr string, state *membav1.UserQuestState) bool {
 	completed := make(map[string]bool, len(state.Completed))
 	for _, c := range state.Completed {
@@ -577,25 +600,23 @@ func (s *MultisigService) grantDerivedMetaQuests(ctx context.Context, addr strin
 			granted = true
 		}
 	}
-	if state.TotalXp >= 500 {
-		grant("earn-500-xp")
-	}
-	if state.TotalXp >= 1000 {
-		grant("earn-1000-xp")
+	for questID, threshold := range liveDerivedQuestThresholds {
+		if state.TotalXp >= threshold {
+			grant(questID)
+		}
 	}
 	return granted
 }
 
 // completionVerified is the single rule for which stored completions are
-// verified: on_chain quests (re-verified on-chain at grant time) and self_report
-// quests whose claim an admin approved through ReviewQuestClaim. off_chain,
-// social, retired and legacy ids are self-claimed and never verified. It backs
-// both VerifiedXp (the candidature gate) and attestation vouchers (XP the realm
-// records permanently).
+// verified: currently live on_chain quests and self_report quests whose claim
+// an admin approved. Historical on_chain IDs whose old generic proof could
+// not establish the advertised action retain TotalXp/history, but no longer
+// contribute to candidature VerifiedXp or new/served attestation vouchers.
 func completionVerified(questID string, claimApproved bool) bool {
 	switch questVerification[questID] {
 	case "on_chain":
-		return true
+		return onChainClaimableQuests[questID]
 	case "self_report":
 		return claimApproved
 	default:
@@ -704,11 +725,14 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 	}
 	offset := req.Msg.Offset
 
-	// Count total users
+	// Count users and completions in one bounded aggregate read. A failed
+	// rank-cache write for an existing user leaves the row count unchanged,
+	// but its cached quests_completed sum falls behind this completion count.
 	var totalCount uint32
+	var completionCount uint64
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(DISTINCT address) FROM quest_completions`,
-	).Scan(&totalCount)
+		`SELECT COUNT(DISTINCT address), COUNT(*) FROM quest_completions`,
+	).Scan(&totalCount, &completionCount)
 	if err != nil {
 		return nil, internalError("GetLeaderboard.count", err)
 	}
@@ -721,14 +745,16 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 		}), nil
 	}
 
-	// Staleness check: if the cache holds fewer users than exist in
-	// quest_completions, it's incomplete/stale (e.g. a completion written
-	// without updating the cache).
+	// Detect both missing users and a failed cache update for an existing user.
+	// These aggregates keep expensive per-user recomputation off the read path.
 	var cachedCount uint32
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_ranks`).Scan(&cachedCount); err != nil {
+	var cachedCompletions uint64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*), COALESCE(SUM(quests_completed), 0) FROM user_ranks`,
+	).Scan(&cachedCount, &cachedCompletions); err != nil {
 		return nil, internalError("GetLeaderboard.cacheCount", err)
 	}
-	if cachedCount < totalCount {
+	if cachedCount < totalCount || cachedCompletions != completionCount {
 		if cachedCount == 0 {
 			// Empty cache (first boot): compute synchronously — there is
 			// nothing usable to serve.
@@ -947,6 +973,9 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 	if _, isSelfReport := selfReportQuests[questID]; !isSelfReport {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
+	if !selfReportClaimableQuests[questID] {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errQuestNotLive)
+	}
 
 	proofURL := strings.TrimSpace(req.Msg.ProofUrl)
 	proofText := strings.TrimSpace(req.Msg.ProofText)
@@ -1087,6 +1116,12 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 	if status != "pending" {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
 	}
+	// A claim submitted before a quest was retired may still be rejected, but
+	// approval must not create a new completion, XP, or voucher for a quest that
+	// is no longer live. Already approved claims remain historical evidence.
+	if approved && !selfReportClaimableQuests[questID] {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errQuestNotLive)
+	}
 
 	// Update claim status
 	newStatus := "rejected"
@@ -1094,12 +1129,18 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 		newStatus = "approved"
 	}
 
+	// Approval and its completion must commit together. If inserting the
+	// completion fails, leave the claim pending so a reviewer can retry.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, internalError("ReviewQuestClaim.begin", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	// The `status = 'pending'` guard (not the SELECT above) is the authoritative
-	// gate: two concurrent reviews can both pass the SELECT check, and without
-	// the guard the last write would win — an approve/reject pair could leave a
-	// granted completion behind a "rejected" claim. Exactly one review can
-	// affect the row; the loser sees 0 rows and returns FailedPrecondition.
-	res, err := s.db.ExecContext(ctx,
+	// gate: two concurrent reviews can both pass the SELECT check, but only one
+	// can update the row. The loser sees 0 rows and returns FailedPrecondition.
+	res, err := tx.ExecContext(ctx,
 		`UPDATE quest_claims SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
 		 WHERE id = ? AND status = 'pending'`,
 		newStatus, reviewerAddr, claimID,
@@ -1116,13 +1157,18 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 	// If approved, complete the quest for the user
 	if approved {
 		now := time.Now().UTC().Format(time.RFC3339)
-		if _, err := s.db.ExecContext(ctx,
+		if _, err := tx.ExecContext(ctx,
 			`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at) VALUES (?, ?, ?)`,
 			claimAddr, questID, now,
 		); err != nil {
 			return nil, internalError("ReviewQuestClaim.complete", err)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, internalError("ReviewQuestClaim.commit", err)
+	}
 
+	if approved {
 		// The approved claim makes this completion verified: attest it (Q-05).
 		// Best-effort and idempotent, like the other grant paths.
 		s.issueAttestationVoucher(ctx, claimAddr, questID)

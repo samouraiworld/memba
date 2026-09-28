@@ -4,7 +4,7 @@
  * Mocks:
  *   - useUnvotedProposals (on-chain vote scanner)
  *   - api.transactions (multisig backend)
- *   - canApplyForMembership (quest XP gate)
+ *   - resolveCandidatureEligibility (backend verified XP gate)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -18,6 +18,10 @@ vi.mock("../useUnvotedProposals", () => ({
     useUnvotedProposals: vi.fn(() => ({ proposals: [], loading: false })),
 }))
 
+const candidatureAvailable = { value: true }
+vi.mock("../useNetworkNav", () => ({ useNetworkKey: () => "test13" }))
+vi.mock("../../lib/questNetwork", () => ({ isQuestAvailableOnNetwork: () => candidatureAvailable.value }))
+
 vi.mock("../../lib/api", () => ({
     api: {
         transactions: vi.fn().mockResolvedValue({ transactions: [] }),
@@ -29,12 +33,13 @@ vi.mock("../../gen/memba/v1/memba_pb", () => ({
 }))
 
 vi.mock("../../lib/quests", () => ({
-    canApplyForMembership: vi.fn(() => false),
+    resolveCandidatureEligibility: vi.fn(() => Promise.resolve({ eligible: false, verifiedXP: 0 })),
 }))
 
 vi.mock("../../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/config")>()),
     GNO_CHAIN_ID: "gnoland-1",
+    ENABLE_NATIVE_GNO_MULTISIG: true,
 }))
 
 // ── Resolve mocked modules for per-test control ───────────────
@@ -118,12 +123,12 @@ describe("useHomeActions — with actions", () => {
                     sequence: 0,
                     creatorAddress: "g1other",
                     membersCount: 2,
-                    multisigPubkeyJson: "",
+                    multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}',
                 },
             ],
         })
 
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
     })
 
     it("returns a vote action (accent teal) for each unvoted proposal", async () => {
@@ -155,6 +160,15 @@ describe("useHomeActions — with actions", () => {
         expect(signActions[0].href).toContain("tx/99")
     })
 
+    it("does not offer signing for legacy read-only history", async () => {
+        vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [{
+            id: 100, multisigPubkeyJson: "{}", signatures: [], finalHash: "", memo: "Legacy proposal",
+        }] } as never)
+        const { result } = renderHook(() => useHomeActions(makeAuth()), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.actions.filter(a => a.kind === "sign")).toHaveLength(0)
+    })
+
     it("sets allCaughtUp to false when there are actions", async () => {
         const { result } = renderHook(
             () => useHomeActions(makeAuth()),
@@ -166,14 +180,14 @@ describe("useHomeActions — with actions", () => {
     })
 
     it("puts vote/sign actions before candidature", async () => {
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(true)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: true, verifiedXP: 350 })
 
         const { result } = renderHook(
             () => useHomeActions(makeAuth()),
             { wrapper: makeWrapper() },
         )
 
-        await waitFor(() => expect(result.current.loading).toBe(false))
+        await waitFor(() => expect(result.current.actions.some(a => a.kind === "candidature")).toBe(true))
 
         const kinds = result.current.actions.map(a => a.kind)
         const lastKind = kinds[kinds.length - 1]
@@ -197,7 +211,7 @@ describe("useHomeActions — empty / all caught up", () => {
             transactions: [],
         })
 
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
     })
 
     it("returns allCaughtUp === true when no proposals, no txs, no candidature", async () => {
@@ -221,7 +235,7 @@ describe("useHomeActions — chain scope", () => {
         })
         vi.mocked(apiMod.api.transactions).mockClear()
         vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [] })
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
 
         const { result } = renderHook(
             () => useHomeActions(makeAuth()),
@@ -268,7 +282,7 @@ describe("useHomeActions — signed tx excluded", () => {
             ],
         })
 
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
 
         const { result } = renderHook(
             () => useHomeActions(makeAuth()),
@@ -282,26 +296,48 @@ describe("useHomeActions — signed tx excluded", () => {
 })
 
 describe("useHomeActions — candidature", () => {
-    it("includes a candidature action when canApplyForMembership returns true", async () => {
+    it("includes a candidature action only when backend verified XP is eligible", async () => {
         vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
             proposals: [],
             loading: false,
             refresh: vi.fn(),
         })
         vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [] })
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(true)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: true, verifiedXP: 350 })
 
         const { result } = renderHook(
             () => useHomeActions(makeAuth()),
             { wrapper: makeWrapper() },
         )
 
-        await waitFor(() => expect(result.current.loading).toBe(false))
+        await waitFor(() => expect(result.current.actions.some(a => a.kind === "candidature")).toBe(true))
 
         const candidature = result.current.actions.filter(a => a.kind === "candidature")
         expect(candidature).toHaveLength(1)
         expect(candidature[0].href).toContain("candidature")
         expect(result.current.allCaughtUp).toBe(false)
+    })
+
+    it("refreshes the candidature action when a verified quest completes", async () => {
+        candidatureAvailable.value = true
+        vi.mocked(questsMod.resolveCandidatureEligibility)
+            .mockResolvedValueOnce({ eligible: false, verifiedXP: 100 })
+            .mockResolvedValueOnce({ eligible: true, verifiedXP: 350 })
+        const { result } = renderHook(() => useHomeActions(makeAuth()), { wrapper: makeWrapper() })
+        await waitFor(() => expect(questsMod.resolveCandidatureEligibility).toHaveBeenCalled())
+        window.dispatchEvent(new Event("quest-completed"))
+        await waitFor(() => expect(result.current.actions.some(a => a.kind === "candidature")).toBe(true))
+    })
+
+    it("does not offer candidature on a network without its realm", async () => {
+        candidatureAvailable.value = false
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockClear()
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: true, verifiedXP: 350 })
+        const { result } = renderHook(() => useHomeActions(makeAuth()), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.actions.some(a => a.kind === "candidature")).toBe(false)
+        expect(questsMod.resolveCandidatureEligibility).not.toHaveBeenCalled()
+        candidatureAvailable.value = true
     })
 })
 
@@ -312,7 +348,7 @@ describe("useHomeActions — unauthenticated", () => {
             loading: false,
             refresh: vi.fn(),
         })
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
 
         const { result } = renderHook(
             () => useHomeActions(makeAuth({ isAuthenticated: false, token: null, address: "" })),
@@ -343,7 +379,7 @@ describe("useHomeActions — exposes unvotedProposals for consumers", () => {
             refresh: vi.fn(),
         })
         vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [] })
-        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+        vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
 
         const { result } = renderHook(
             () => useHomeActions(makeAuth()),

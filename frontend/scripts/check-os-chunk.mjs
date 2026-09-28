@@ -12,10 +12,11 @@
  * chunk name, any file whose name contains "manrope", and — since a flag-off
  * build inlines the self-hosted font as base64 (vite.config.ts's
  * assetsInlineLimit override) rather than emitting a separate manrope-named
- * file — any text file whose *contents* contain "manrope" too. None of these
- * appear anywhere outside src/os, so any hit in dist/ is a leak. Beta brand
+ * file — any text file whose *contents* contain "manrope" too. Beta brand
  * paths and share filenames, exact artwork hashes (including renamed files),
- * and inline SVG/base64 contents are checked too. Positive
+ * and inline SVG/base64 contents are checked too. A short allowlist covers
+ * classic page CSS selectors that deliberately style those pages when embedded
+ * inside OS; it never exempts an entire file or OS chunk. Positive
  * control: run it on a beta build (VITE_MEMBA_OS=true
  * MEMBA_OS_BETA_SITE=true) and it must fail.
  *
@@ -31,6 +32,22 @@ const SENTINEL = "memba-os"
 const CHUNK_NAME = /^OsRoot[-.]/i
 const FONT_NAME = /manrope/i
 const BRAND_NAME = /(?:brand[\/]os(?:[\/]|$)|share-1200x(?:630|1200)|osSiteIdentity)/i
+// These are classic components, emitted in flag-off builds, with an OS-only
+// descendant override. Match the exact selector and chunk, so another OS
+// selector or root stylesheet in the same file still fails the gate.
+const CLASSIC_OS_CSS_SELECTORS = [
+  { chunk: /^assets\/BlockPartyGame-[\w-]+\.css$/, selectors: [
+    '.memba-os .k-bp-mode-btn{',
+    '.memba-os .k-bp-mode-btn--active{',
+  ] },
+  { chunk: /^assets\/Directory-[\w-]+\.css$/, selectors: [
+    '.memba-os .os-classic .drawer-panel{',
+  ] },
+  { chunk: /^assets\/SpaceInvadersGame-[\w-]+\.css$/, selectors: [
+    '.memba-os .si-button--primary{',
+  ] },
+]
+const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const BRAND_DIR = fileURLToPath(new URL('../src/os/brand/', import.meta.url))
 const brand = readdirSync(BRAND_DIR).filter(name => /\.(png|svg)$/.test(name)).map(name => {
   const bytes = readFileSync(join(BRAND_DIR, name))
@@ -70,7 +87,18 @@ for (const p of files) {
   const text = readFileSync(p, "utf8")
   if (BRAND_NAME.test(text) || brand.some(asset => text.includes(asset.base64)
     || (asset.svg && (text.includes(asset.svg) || text.includes(encodeURIComponent(asset.svg)))))) leaks.push(`${rel} (beta brand reference or inline artwork)`)
-  if (text.includes(SENTINEL)) leaks.push(`${rel} (contains "${SENTINEL}")`)
+  let scopedText = text
+  if (rel.endsWith('.css')) {
+    const exception = CLASSIC_OS_CSS_SELECTORS.find(entry => entry.chunk.test(rel))
+    if (exception) for (const selector of exception.selectors) {
+      // A longer selector such as body.memba-os ... must not inherit this
+      // exemption merely because it contains the allowed selector substring.
+      const ruleStart = new RegExp(`(^|[{}])([\\s]*)(${escapeRegExp(selector)})`, 'g')
+      scopedText = scopedText.replace(ruleStart, (_match, boundary, space, exact) =>
+        boundary + space + exact.replace(SENTINEL, 'classic-os-scope'))
+    }
+  }
+  if (scopedText.includes(SENTINEL)) leaks.push(`${rel} (contains "${SENTINEL}")`)
   else if (FONT_NAME.test(text)) leaks.push(`${rel} (contains "manrope" — a flag-off build inlines the font as base64; see assetsInlineLimit in vite.config.ts)`)
 }
 

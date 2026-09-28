@@ -1,0 +1,92 @@
+/* Shared classic and OS News changelog controls. Text colors use the existing
+   theme-aware AA tokens rather than the brighter decorative accent swatches. */
+.news-changelog-page {
+    width: 100%;
+    max-width: 680px;
+    min-width: 0;
+}
+
+.news-changelog-title {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.news-changelog-full {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 20px;
+    color: var(--color-k-accent-text, var(--color-text));
+    font: 600 var(--pro-small, 12px) var(--font-ui, "JetBrains Mono", monospace);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.news-changelog-full:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+}
+
+.news-changelog-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 24px;
+}
+
+.news-changelog-filter {
+    padding: 6px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font: 500 var(--pro-caption, 11px) var(--font-ui, "JetBrains Mono", monospace);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.news-changelog-filter--all,
+.news-changelog-tag--memba,
+.news-changelog-filter--memba {
+    --news-tag-ink: var(--color-k-accent-text, var(--color-text));
+}
+
+.news-changelog-tag--network,
+.news-changelog-filter--network {
+    --news-tag-ink: var(--color-k-purple-text, var(--color-text));
+}
+
+.news-changelog-tag--gno-core,
+.news-changelog-filter--gno-core {
+    --news-tag-ink: var(--color-k-warning-text, var(--color-text));
+}
+
+.news-changelog-filter--all { --news-tag-ink: var(--color-text); }
+
+.news-changelog-filter[aria-pressed="true"] {
+    color: var(--news-tag-ink);
+    border-color: var(--news-tag-ink);
+    background: var(--color-surface-active);
+    font-weight: 700;
+}
+
+.news-changelog-filter:hover { background: var(--color-surface-hover); }
+.news-changelog-filter:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.news-changelog-tag {
+    padding: 2px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    color: var(--news-tag-ink);
+    background: transparent;
+    font: 600 var(--pro-caption, 10px) var(--font-ui, "JetBrains Mono", monospace);
+}
+
+.news-changelog-item {
+    overflow-wrap: anywhere;
+}

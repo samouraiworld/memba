@@ -5,18 +5,56 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 )
 
 // Unlike fakeBroadcaster's successful-call history, this counts every attempt,
 // including calls whose response reports a failed or already-delivered tx.
 type attemptBroadcaster struct {
-	calls  []Run
-	result error
+	calls         []Run
+	result        error
+	failLogHash   string
+	lookupErr     error
+	lookupMissing bool
+	lookupLower   bool
 }
 
 func (b *attemptBroadcaster) AttestScore(_ context.Context, run Run) (string, error) {
 	b.calls = append(b.calls, run)
+	if b.failLogHash != "" && run.LogHash != b.failLogHash {
+		return "tx-" + run.LogHash, nil
+	}
 	return "tx-" + run.LogHash, b.result
+}
+
+func (b *attemptBroadcaster) LookupEntry(_ context.Context, run Run) (OnChainEntry, bool, error) {
+	if b.lookupErr != nil {
+		return OnChainEntry{}, false, b.lookupErr
+	}
+	if b.lookupMissing {
+		return OnChainEntry{}, false, nil
+	}
+	if b.lookupLower {
+		return OnChainEntry{LogHash: run.LogHash, Score: run.Score - 1}, true, nil
+	}
+	return OnChainEntry{LogHash: run.LogHash, Score: run.Score}, true, nil
+}
+
+type broadcastOnlyAttempt struct{ calls int }
+
+type channelBroadcaster struct {
+	calls  chan Run
+	result error
+}
+
+func (b *channelBroadcaster) AttestScore(_ context.Context, run Run) (string, error) {
+	b.calls <- run
+	return "tx-" + run.LogHash, b.result
+}
+
+func (b *broadcastOnlyAttempt) AttestScore(context.Context, Run) (string, error) {
+	b.calls++
+	return "", ErrAlreadyOnChain
 }
 
 func TestRunBatchOnce_AttemptCapIncludesEveryOutcome(t *testing.T) {
@@ -75,12 +113,120 @@ func TestRunBatchOnce_AttemptCapIncludesPostBroadcastStorageFailure(t *testing.T
 		t.Fatal(err)
 	}
 	b := &attemptBroadcaster{}
-	n, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay)
+	for cycle := 0; cycle < maxAttestRetries; cycle++ {
+		n, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay)
+		if err != nil || n != 0 || len(b.calls) != cycle+1 {
+			t.Fatalf("cycle %d: attempts=%d attested=%d err=%v", cycle, len(b.calls), n, err)
+		}
+	}
+	r, _, err := s.GetRunByLogHash("run-9")
+	if err != nil || r.Status != "errored" {
+		t.Fatalf("receipt-write failure not parked: %+v %v", r, err)
+	}
+	if _, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay); err != nil || len(b.calls) != maxAttestRetries+1 {
+		t.Fatalf("later board did not progress after parking: attempts=%d err=%v", len(b.calls), err)
+	}
+}
+
+func TestRunBatchOnce_StopsWhenReceiptFailureCannotBeRecorded(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "first", "2026-07-09", 100)
+	mustInsert(t, s, "later", "2026-07-10", 100)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_attested_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'attested' BEGIN SELECT RAISE(ABORT, 'receipt write failed'); END`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.calls) != 1 || n != 0 {
-		t.Fatalf("attempts=%d, attested=%d; want 1 and 0", len(b.calls), n)
+	_, err = s.db.Exec(`CREATE TRIGGER fail_failure_count BEFORE UPDATE ON arcade_runs
+		WHEN NEW.attest_failures > OLD.attest_failures BEGIN SELECT RAISE(ABORT, 'failure count write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &attemptBroadcaster{}
+	n, err := RunBatchOnce(context.Background(), s, b, 2, atFixedDay)
+	if err == nil || n != 0 || len(b.calls) != 1 || b.calls[0].LogHash != "first" {
+		t.Fatalf("unrecorded failure must stop batch: n=%d err=%v calls=%+v", n, err, b.calls)
+	}
+}
+
+func TestDayCloseBatcher_StopsAfterUnrecordableReceiptFailure(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "first", "2026-07-09", 100)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_attested_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'attested' BEGIN SELECT RAISE(ABORT, 'receipt write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.db.Exec(`CREATE TRIGGER fail_failure_count BEFORE UPDATE ON arcade_runs
+		WHEN NEW.attest_failures > OLD.attest_failures BEGIN SELECT RAISE(ABORT, 'failure count write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &channelBroadcaster{calls: make(chan Run, 20)}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	StartDayCloseBatcher(ctx, s, b, BatcherConfig{Enabled: true, Interval: 10 * time.Millisecond})
+	select {
+	case <-b.calls:
+	case <-time.After(time.Second):
+		t.Fatal("batcher did not attempt the first broadcast")
+	}
+	select {
+	case run := <-b.calls:
+		t.Fatalf("batcher retried an unrecordable broadcast: %+v", run)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestDayCloseBatcher_StopsAfterUnrecordablePermanentReject(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "first", "2026-07-09", 100)
+	mustInsert(t, s, "later", "2026-07-10", 100)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_skipped_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'skipped' BEGIN SELECT RAISE(ABORT, 'skip write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &channelBroadcaster{calls: make(chan Run, 20), result: ErrPermanentReject}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	StartDayCloseBatcher(ctx, s, b, BatcherConfig{Enabled: true, Interval: 10 * time.Millisecond})
+	select {
+	case run := <-b.calls:
+		if run.LogHash != "first" {
+			t.Fatalf("unexpected first broadcast: %+v", run)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("batcher did not attempt the first broadcast")
+	}
+	select {
+	case run := <-b.calls:
+		t.Fatalf("batcher continued after unrecordable rejection: %+v", run)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestRunBatchOnce_StopsWhenSupersededRunsCannotBeRetired(t *testing.T) {
+	s := batchStore(t)
+	mustInsertAddr(t, s, "lower", "g1alice", "2026-07-09", 100)
+	mustInsertAddr(t, s, "best", "g1alice", "2026-07-09", 200)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_superseded_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'skipped' BEGIN SELECT RAISE(ABORT, 'superseded write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &attemptBroadcaster{}
+	n, err := RunBatchOnce(context.Background(), s, b, 2, atFixedDay)
+	if err == nil || n != 1 || len(b.calls) != 1 || b.calls[0].LogHash != "best" {
+		t.Fatalf("failed superseded write must stop before lower broadcast: n=%d err=%v calls=%+v", n, err, b.calls)
+	}
+	best, _, err := s.GetRunByLogHash("best")
+	if err != nil || best.Status != "attested" {
+		t.Fatalf("best run lost its receipt: %+v %v", best, err)
+	}
+	lower, _, err := s.GetRunByLogHash("lower")
+	if err != nil || lower.Status != "verified" {
+		t.Fatalf("failed superseded write changed lower run: %+v %v", lower, err)
 	}
 }
 
@@ -89,10 +235,9 @@ func TestRunBatchOnce_AttemptCapRetainsRetryParkingAndProgress(t *testing.T) {
 	mustInsert(t, s, "poison", "2026-07-09", 100)
 	mustInsert(t, s, "later", "2026-07-10", 100)
 	b := &attemptBroadcaster{result: errors.New("temporary failure")}
-	failures := map[string]int{}
 	for cycle := 0; cycle < maxAttestRetries; cycle++ {
 		before := len(b.calls)
-		if _, err := runBatchOnce(context.Background(), s, b, 1, atFixedDay, failures); err != nil {
+		if _, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay); err != nil {
 			t.Fatal(err)
 		}
 		if len(b.calls)-before != 1 {
@@ -105,8 +250,81 @@ func TestRunBatchOnce_AttemptCapRetainsRetryParkingAndProgress(t *testing.T) {
 	}
 	b.result = nil
 	before := len(b.calls)
-	n, err := runBatchOnce(context.Background(), s, b, 1, atFixedDay, failures)
+	n, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay)
 	if err != nil || n != 1 || len(b.calls)-before != 1 || b.calls[len(b.calls)-1].LogHash != "later" {
 		t.Fatalf("later board failed to progress: n=%d err=%v calls=%+v", n, err, b.calls)
+	}
+}
+
+func TestRunBatchOnce_UnresolvedAlreadyOnChainReadbackParksAfterBoundedAttempts(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		make func() (Broadcaster, func() int)
+	}{
+		{"reader absent", func() (Broadcaster, func() int) {
+			b := &broadcastOnlyAttempt{}
+			return b, func() int { return b.calls }
+		}},
+		{"lookup error", func() (Broadcaster, func() int) {
+			b := &attemptBroadcaster{result: ErrAlreadyOnChain, lookupErr: errors.New("rpc unavailable")}
+			return b, func() int { return len(b.calls) }
+		}},
+		{"entry missing", func() (Broadcaster, func() int) {
+			b := &attemptBroadcaster{result: ErrAlreadyOnChain, lookupMissing: true}
+			return b, func() int { return len(b.calls) }
+		}},
+		{"entry lower", func() (Broadcaster, func() int) {
+			b := &attemptBroadcaster{result: ErrAlreadyOnChain, lookupLower: true}
+			return b, func() int { return len(b.calls) }
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := batchStore(t)
+			mustInsert(t, s, "unresolved", "2026-07-09", 100)
+			b, calls := tc.make()
+			for cycle := 0; cycle < maxAttestRetries; cycle++ {
+				n, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay)
+				if err != nil || n != 0 {
+					t.Fatalf("cycle %d: n=%d err=%v; unresolved readback must remain unconfirmed", cycle, n, err)
+				}
+				if got := calls(); got != cycle+1 {
+					t.Fatalf("cycle %d made %d broadcasts", cycle, got)
+				}
+			}
+			r, _, err := s.GetRunByLogHash("unresolved")
+			if err != nil || r.Status != "errored" {
+				t.Fatalf("unresolved run was not parked: %+v %v", r, err)
+			}
+			var failures int
+			if err := s.db.QueryRow(`SELECT attest_failures FROM arcade_runs WHERE input_log_sha256 = ?`, r.LogHash).Scan(&failures); err != nil || failures != maxAttestRetries {
+				t.Fatalf("failure count=%d err=%v, want %d", failures, err, maxAttestRetries)
+			}
+			if _, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay); err != nil || calls() != maxAttestRetries {
+				t.Fatalf("parked run retried: calls=%d err=%v", calls(), err)
+			}
+		})
+	}
+}
+
+func TestRunBatchOnce_ReadbackFailureDoesNotBlockAnotherBoard(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "poison", "2026-07-09", 100)
+	mustInsert(t, s, "later", "2026-07-10", 100)
+	b := &attemptBroadcaster{
+		result:      ErrAlreadyOnChain,
+		failLogHash: "poison",
+		lookupErr:   errors.New("rpc unavailable"),
+	}
+	n, err := RunBatchOnce(context.Background(), s, b, 2, atFixedDay)
+	if err != nil || n != 1 || len(b.calls) != 2 {
+		t.Fatalf("n=%d err=%v calls=%+v; later board should progress", n, err, b.calls)
+	}
+	later, _, err := s.GetRunByLogHash("later")
+	if err != nil || later.Status != "attested" {
+		t.Fatalf("later board was not attested: %+v %v", later, err)
+	}
+	poison, _, err := s.GetRunByLogHash("poison")
+	if err != nil || poison.Status != "verified" {
+		t.Fatalf("unresolved board changed status: %+v %v", poison, err)
 	}
 }

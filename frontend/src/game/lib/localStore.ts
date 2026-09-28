@@ -1,4 +1,3 @@
-const STREAK_KEY = "bp:streak";
 const EMPTY_STREAK = Object.freeze({ current: 0, lastDate: "" });
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -47,9 +46,31 @@ export function setLocalBest(key: string, score: number): void {
   }
 }
 
-export function getLocalStreak(): LocalStreak {
+// Old bp:best:<date> and bp:streak records have no recorded network. Keep
+// them in storage as legacy data, but never attribute them to a chain.
+function dailyKey(chainId: string, date: string): string | null {
+  return chainId && validDate(date) ? `daily:${encodeURIComponent(chainId)}:best:${date}` : null;
+}
+
+function streakKey(chainId: string): string | null {
+  return chainId ? `bp:daily:${encodeURIComponent(chainId)}:streak` : null;
+}
+
+export function getLocalDailyBest(chainId: string, date: string): number {
+  const key = dailyKey(chainId, date);
+  return key ? getLocalBest(key) : 0;
+}
+
+export function setLocalDailyBest(chainId: string, date: string, score: number): void {
+  const key = dailyKey(chainId, date);
+  if (key) setLocalBest(key, score);
+}
+
+export function getLocalStreak(chainId: string): LocalStreak {
+  const key = streakKey(chainId);
+  if (!key) return { ...EMPTY_STREAK };
   try {
-    const raw = storage()?.getItem(STREAK_KEY);
+    const raw = storage()?.getItem(key);
     if (!raw) return { ...EMPTY_STREAK };
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== "object") return { ...EMPTY_STREAK };
@@ -70,10 +91,11 @@ function dayGap(a: string, b: string): number {
   return (Date.parse(`${b}T00:00:00.000Z`) - Date.parse(`${a}T00:00:00.000Z`)) / 86_400_000;
 }
 
-export function bumpLocalStreak(date: string): LocalStreak {
-  if (!validDate(date)) return getLocalStreak();
+export function bumpLocalStreak(chainId: string, date: string): LocalStreak {
+  const key = streakKey(chainId);
+  if (!key || !validDate(date)) return getLocalStreak(chainId);
 
-  const previous = getLocalStreak();
+  const previous = getLocalStreak(chainId);
   // Late effects, restored browser tabs, and old result sheets must never
   // rewind the last played date or destroy a newer streak.
   if (previous.lastDate && dayGap(previous.lastDate, date) < 0) return previous;
@@ -86,7 +108,7 @@ export function bumpLocalStreak(date: string): LocalStreak {
   }
   const next = { current, lastDate: date };
   try {
-    storage()?.setItem(STREAK_KEY, JSON.stringify(next));
+    storage()?.setItem(key, JSON.stringify(next));
   } catch {
     // Return the useful in-memory result even when it cannot be persisted.
   }

@@ -1,6 +1,7 @@
 ---
 title: Quests and on-chain XP — rewards you can verify
 date: 2026-07-08
+updated: 2026-09-28
 description: The GnoBuilders program pays XP for real activity and settles it through an on-chain attestation realm, ranked on a public leaderboard. The product and the settlement path.
 tags: memba, quests, gnobuilders, engineering
 ---
@@ -19,9 +20,9 @@ rewarding you for using it.
 
 ## Under the hood (engineering scope)
 
-Verified activity settles through an **attestation realm** on test13, which
-records a signed voucher on-chain rather than trusting the browser. The public
-leaderboard and XP totals you see are a **backend projection over that verified
+At publication, verified activity settled through an **attestation realm** on
+test13, which recorded a signed voucher on-chain rather than trusting the
+browser. The public leaderboard and XP totals you see are a **backend projection over that verified
 activity** — the attestation realm is the settlement mechanism, not the table's
 live data source (that path is still rolling out). The client tracks progress
 offline-first (so it works before you're authenticated) and syncs to the backend
@@ -36,4 +37,4 @@ dress up an optimistic counter as a settled one.
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). Start a
-[quest](https://memba.samourai.app/test13/quests).
+[quest on mainnet](https://memba.samourai.app/mainnet/quests).

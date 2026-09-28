@@ -36,10 +36,8 @@ const INVADERS_SIM_VERSION = 1
 
 /** Space Invaders caps — mirror MaxEventsInvaders / MaxFinalTick in
  *  backend/internal/arcade/validate.go (the Go gate runs first; these are the
- *  worker's own defense in depth for direct callers). The binding constraint
- *  is their PRODUCT: simulateReplay's inputAtTick scans the delta list per
- *  tick (O(finalTick × deltas)), so raising either cap needs a re-benchmark
- *  against the 20s runner timeout — see validate.go for the numbers. */
+ *  worker's own defense in depth for direct callers). The shared replay uses
+ *  an O(ticks + deltas) cursor; benchmark before raising either cap. */
 const MAX_INVADERS_EVENTS = 10_000
 const MAX_FINAL_TICK = 216_000
 
@@ -246,6 +244,12 @@ function processInvaders(job: Partial<Job>): string {
         finalTick,
         inputs,
     })
+    if (r.state.phase !== "gameover") {
+        return fail("run has not reached gameover")
+    }
+    if (r.firstGameoverTick !== finalTick) {
+        return fail("run continues after gameover")
+    }
     // Same commitment recipe as BARRICADE: sha256 over the seed and the
     // canonical (JSON-independent) log — with the finalTick bound in, since the
     // run's identity includes how long it ran.
