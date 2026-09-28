@@ -17,16 +17,20 @@ var ErrInvalidBlockHeader = errors.New("invalid Launchpad block header")
 // RPC-reported block ID, not independently verified consensus evidence.
 // A tailer must still verify its endpoint, confirmation depth and reorgs.
 type BlockHeader struct {
-	ChainID string
-	Height  int64
-	Hash    [32]byte
-	Time    time.Time
+	ChainID    string
+	Height     int64
+	Hash       [32]byte
+	ParentHash [32]byte
+	Time       time.Time
 }
 
 type rpcHeader struct {
-	ChainID string `json:"chain_id"`
-	Height  string `json:"height"`
-	Time    string `json:"time"`
+	ChainID     string `json:"chain_id"`
+	Height      string `json:"height"`
+	Time        string `json:"time"`
+	LastBlockID *struct {
+		Hash string `json:"hash"`
+	} `json:"last_block_id"`
 }
 
 type rpcBlockResponse struct {
@@ -85,17 +89,28 @@ func ParseBlockHeader(body []byte, expectedChainID string, expectedHeight int64)
 	if err != nil || !metaTime.Equal(blockTime) || metaTime.Unix() <= 0 {
 		return BlockHeader{}, ErrInvalidBlockHeader
 	}
-	hashText := response.Result.BlockMeta.BlockID.Hash
-	hashBytes, err := base64.StdEncoding.DecodeString(hashText)
-	if err != nil || len(hashBytes) != 32 || base64.StdEncoding.EncodeToString(hashBytes) != hashText {
+	hash, ok := canonicalHash(response.Result.BlockMeta.BlockID.Hash)
+	if !ok || meta.LastBlockID == nil {
 		return BlockHeader{}, ErrInvalidBlockHeader
 	}
-	var hash [32]byte
-	copy(hash[:], hashBytes)
+	parentHash, ok := canonicalHash(meta.LastBlockID.Hash)
+	if !ok {
+		return BlockHeader{}, ErrInvalidBlockHeader
+	}
 	return BlockHeader{
 		ChainID: expectedChainID, Height: expectedHeight,
-		Hash: hash, Time: metaTime.UTC(),
+		Hash: hash, ParentHash: parentHash, Time: metaTime.UTC(),
 	}, nil
+}
+
+func canonicalHash(value string) ([32]byte, bool) {
+	decoded, err := base64.StdEncoding.DecodeString(value)
+	if err != nil || len(decoded) != 32 || base64.StdEncoding.EncodeToString(decoded) != value {
+		return [32]byte{}, false
+	}
+	var hash [32]byte
+	copy(hash[:], decoded)
+	return hash, true
 }
 
 // Keep unknown header fields in the equality check: a future chain upgrade

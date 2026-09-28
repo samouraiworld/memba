@@ -53,12 +53,17 @@ func TestParseBlockHeaderRealRPCFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	wantParent, err := base64.StdEncoding.DecodeString("d9gMXvDn05WbJWwuv+Q3Ag2Egbn9VQfed+ZYG13GPgk=")
+	if err != nil {
+		t.Fatal(err)
+	}
 	wantTime, err := time.Parse(time.RFC3339Nano, "2026-06-16T19:32:17.211442967Z")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.ChainID != "test-13" || got.Height != 260001 ||
-		string(got.Hash[:]) != string(wantHash) || !got.Time.Equal(wantTime) || got.Time.Location() != time.UTC {
+		string(got.Hash[:]) != string(wantHash) || string(got.ParentHash[:]) != string(wantParent) ||
+		!got.Time.Equal(wantTime) || got.Time.Location() != time.UTC {
 		t.Fatalf("wrong block observation: %+v", got)
 	}
 }
@@ -86,6 +91,14 @@ func TestParseBlockHeaderRejectsMismatchAndMissingEvidence(t *testing.T) {
 		}},
 		{"short hash", "test-13", 260001, func(b map[string]any) {
 			blockResult(b)["block_meta"].(map[string]any)["block_id"].(map[string]any)["hash"] = "AA=="
+		}},
+		{"missing parent hash", "test-13", 260001, func(b map[string]any) {
+			delete(metaHeader(b), "last_block_id")
+			delete(fullHeader(b), "last_block_id")
+		}},
+		{"short parent hash", "test-13", 260001, func(b map[string]any) {
+			metaHeader(b)["last_block_id"].(map[string]any)["hash"] = "AA=="
+			fullHeader(b)["last_block_id"].(map[string]any)["hash"] = "AA=="
 		}},
 		{"missing metadata", "test-13", 260001, func(b map[string]any) { delete(blockResult(b), "block_meta") }},
 		{"missing full block", "test-13", 260001, func(b map[string]any) { delete(blockResult(b), "block") }},
