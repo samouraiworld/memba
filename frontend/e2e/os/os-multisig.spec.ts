@@ -30,7 +30,7 @@ async function setup(page: Page) {
         return null
     })
     await page.addInitScript(({ address }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
         Object.defineProperty(window, 'adena', { value: {
@@ -71,7 +71,7 @@ test.describe('Memba OS multisig', () => {
 
     test('a guest is asked to connect', async ({ page }) => {
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
         await expect(page.getByText('Only members of a multisig can see and sign its transactions.')).toBeVisible()
     })

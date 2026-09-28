@@ -16,7 +16,7 @@ for (const [width, label] of [[1280, 'desktop'], [375, 'phone']] as const) {
         test.beforeEach(async ({ page }) => {
             await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
             await fulfillGovernance(page)
-            await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+            await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
             await page.setViewportSize({ width, height: 800 })
         })
 
@@ -40,7 +40,7 @@ test.describe('Memba OS window failure', () => {
     test('a window whose code cannot load fails inside itself; the other windows keep working', async ({ page }) => {
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
         await fulfillGovernance(page)
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })
         // The Multisig app's module never arrives (a stale chunk after a deploy, or the network).
         // The once-per-session automatic reload runs first; the second failure stays in the window.

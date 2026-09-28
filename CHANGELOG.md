@@ -24,6 +24,9 @@ Full changelogs are split by version range for easier navigation:
 
 - Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.
 - Preview identity fields, images, links, templates and section order in a local draft with undo. Mainnet uses the live caller-owned profile realm for a versioned layout document; publishing stays off by default until wallet and gas rehearsal is complete.
+### Memba OS: quieter Live and repeat welcome
+
+- Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
 
 ### Memba OS: native Settings
 

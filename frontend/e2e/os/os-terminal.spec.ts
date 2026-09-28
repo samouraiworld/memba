@@ -5,7 +5,7 @@ import { abortOnchainReads } from "../helpers/onchain"
 test.beforeEach(async ({ page }) => {
     await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]|youtube/, (route) => route.abort())
     await abortOnchainReads(page)
-    await page.addInitScript(() => localStorage.setItem("memba_os_seen", "1"))
+    await page.addInitScript(() => localStorage.setItem("memba_os_skip_intro", "1"))
     await page.setViewportSize({ width: 1400, height: 900 })
 })
 
@@ -119,7 +119,7 @@ test("draft changes sync across tabs and stale writes need an explicit choice", 
     const first = page.getByRole("region", { name: "Terminal", exact: true })
     await first.getByRole("button", { name: "Build draft" }).click()
     const secondPage = await context.newPage()
-    await secondPage.addInitScript(() => localStorage.setItem("memba_os_seen", "1"))
+    await secondPage.addInitScript(() => localStorage.setItem("memba_os_skip_intro", "1"))
     await secondPage.goto(`${OS_ON}/os/terminal`)
     const second = secondPage.getByRole("region", { name: "Terminal", exact: true })
     await second.getByRole("button", { name: "Build draft" }).click()
@@ -148,7 +148,7 @@ test("a failed local save is not erased by another tab", async ({ page, context 
     const first = page.getByRole("region", { name: "Terminal", exact: true })
     await first.getByRole("button", { name: "Build draft" }).click()
     const secondPage = await context.newPage()
-    await secondPage.addInitScript(() => localStorage.setItem("memba_os_seen", "1"))
+    await secondPage.addInitScript(() => localStorage.setItem("memba_os_skip_intro", "1"))
     await secondPage.goto(`${OS_ON}/os/terminal`)
     const second = secondPage.getByRole("region", { name: "Terminal", exact: true })
     await second.getByRole("button", { name: "Build draft" }).click()

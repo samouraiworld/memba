@@ -6,7 +6,7 @@ import { OS_ON } from '../../playwright.os.config'
 async function openLobby(page: Page, width: number) {
     await page.setViewportSize({ width, height: width < 600 ? 812 : 900 })
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     await page.goto(`${OS_ON}/os/arcade`)

@@ -42,6 +42,16 @@ it('notifies without navigating and reloads only after the user clicks', async (
     expect(reload).toHaveBeenCalledTimes(1)
 })
 
+it('can be deferred to a compact update action and reopened', () => {
+    render(<UpdateNotice />)
+    act(() => { pwa.options?.onNeedRefresh?.() })
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }))
+    expect(screen.queryByRole('complementary', { name: 'App update' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Update available/ }))
+    expect(screen.getByRole('button', { name: 'Reload to update' })).toBeEnabled()
+    expect(reload).not.toHaveBeenCalled()
+})
+
 it('keeps the reload action disabled for a pending wallet decision', async () => {
     render(<UpdateNotice />)
     act(() => { pwa.options?.onNeedRefresh?.() })

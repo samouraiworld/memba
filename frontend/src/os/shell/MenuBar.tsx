@@ -15,6 +15,7 @@ import type { OsSession } from "./useOsSession"
 import { itemForTarget, type DeskItemType } from "./desk"
 import { specForTarget, urlForWindow, type OsWindow, type WindowSpec } from "./windows"
 import { useSigner } from "../sign/signerContext"
+import { LiveTicker } from "../apps/live/LiveTicker"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
@@ -107,7 +108,7 @@ export function MenuBar(p: MenuBarProps) {
     }, [panel, focusOpener])
 
     const toggle = (id: PanelId) => (e: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchor(e.currentTarget.offsetLeft)
+        setAnchor(e.currentTarget.getBoundingClientRect().left - (barRef.current?.getBoundingClientRect().left ?? 0))
         panelOpener.current = e.currentTarget
         setPanel((cur) => (cur === id ? null : id))
     }
@@ -272,9 +273,14 @@ export function MenuBar(p: MenuBarProps) {
             {p.front && <button type="button" className="os-mb" {...mb("app")}>{p.front.app ? OS_APPS.find((a) => a.id === p.front?.app)?.name : p.front.title}</button>}
             <button type="button" className="os-mb" {...mb("window")}>Window</button>
             <span className="os-sp" />
-            <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${net.chainId}`} {...mb("net")}>
-                <i aria-hidden="true" /><span className="os-mono">{net.chainId}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}
-            </button>
+            <div className="os-net-wrap">
+                <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${net.chainId}`} {...mb("net")}>
+                    <i aria-hidden="true" /><span className="os-mono">{net.chainId}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}
+                </button>
+                {!panel && <div className="os-live-popover os-glass" role="group" aria-label="Live activity preview">
+                    <LiveTicker onOpen={() => p.openApp("live")} />
+                </div>}
+            </div>
             {signer.pending.length > 0 && (
                 <span className="os-mb" role="status" title="Waiting for the chain"><span className="os-spin" aria-hidden="true" />{signer.pending.length} pending</span>
             )}

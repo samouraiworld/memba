@@ -40,7 +40,7 @@ test.describe('Memba OS pages in a narrow window', () => {
     test('Arcade lobby fits a 360 px window', async ({ page }) => {
         await fulfillGovernance(page)
         await page.addInitScript(() => {
-            localStorage.setItem('memba_os_seen', '1')
+            localStorage.setItem('memba_os_skip_intro', '1')
             localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([{ token: 'app.arcade', x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
         })
         await page.setViewportSize({ width: 1280, height: 800 })
@@ -62,7 +62,7 @@ test.describe('Memba OS pages in a narrow window', () => {
             })
             await fulfillGovernance(page)
             await page.addInitScript((app) => {
-                localStorage.setItem('memba_os_seen', '1')
+                localStorage.setItem('memba_os_skip_intro', '1')
                 localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([{ token: `app.${app}`, x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
             }, app)
             await page.setViewportSize({ width: 1280, height: 800 })

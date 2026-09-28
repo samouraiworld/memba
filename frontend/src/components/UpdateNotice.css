@@ -5,17 +5,22 @@
     z-index: 2000;
     box-sizing: border-box;
     width: min(360px, calc(100vw - 32px));
-    padding: 16px;
+    padding: 18px;
     border: 1px solid var(--color-border);
     border-radius: 12px;
     background: var(--color-bg-card);
     color: var(--color-text);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, .28);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .24);
     font: 14px/1.45 var(--font-sans);
 }
 
+.memba-update-head { display: flex; align-items: center; gap: 11px; }
+.memba-update-head > div { display: grid; gap: 2px; }
+.memba-update-mark { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; background: var(--color-brand); color: var(--color-k-on-accent); font-size: 25px; }
 .memba-update h2 { margin: 0; font: 700 15px/1.4 var(--font-sans); }
-.memba-update p { margin: 6px 0 12px; color: var(--color-text-secondary); }
+.memba-update-head span:not(.memba-update-mark) { color: var(--color-text-secondary); font-size: 12px; }
+.memba-update p { margin: 12px 0 14px; color: var(--color-text-secondary); }
+.memba-update-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .memba-update button {
     min-height: 40px;
     padding: 8px 14px;
@@ -27,11 +32,13 @@
     font-weight: 700;
     cursor: pointer;
 }
+.memba-update .memba-update-later { background: transparent; color: var(--color-text); border: 1px solid var(--color-border); }
+.memba-update-mini { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 2000; min-height: 40px; padding: 8px 14px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-bg-card); color: var(--color-text); box-shadow: 0 10px 28px rgba(0, 0, 0, .2); font: 700 13px var(--font-sans); cursor: pointer; }
 .memba-update button:disabled { opacity: .55; cursor: not-allowed; }
-.memba-update button:focus-visible { outline: 2px solid var(--color-text); outline-offset: 3px; }
+.memba-update button:focus-visible, .memba-update-mini:focus-visible { outline: 2px solid var(--color-text); outline-offset: 3px; }
 
 @media (max-width: 600px) {
-    .memba-update {
+    .memba-update, .memba-update-mini {
         right: 16px;
         bottom: calc(88px + env(safe-area-inset-bottom));
     }

@@ -28,7 +28,7 @@ const settled = async (page: Page, name: string) => {
 test.describe('Memba OS windows', () => {
     test.beforeEach(async ({ page }) => {
         await offline(page)
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })
     })
 
@@ -161,7 +161,7 @@ test.describe('Memba OS windows', () => {
 test.describe('Memba OS desktop items', () => {
     test.beforeEach(async ({ page }) => {
         await offline(page)
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })
     })
 

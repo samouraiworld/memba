@@ -17,7 +17,7 @@ for (const theme of ['light', 'dark'] as const) {
         await guest(page)
         await page.emulateMedia({ colorScheme: theme })
         await page.addInitScript(() => {
-            localStorage.setItem('memba_os_seen', '1')
+            localStorage.setItem('memba_os_skip_intro', '1')
             localStorage.setItem('memba_os_booted', '1')
         })
         // /os/extensions (a plausible-looking probe path) isn't a valid OS deep
@@ -55,7 +55,7 @@ const APPS = ['store', 'quests', 'validators', 'profile', 'news', 'explorer', 'f
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
     await guest(page)
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     await page.goto(`${OS_ON}/os/tokens`)
@@ -109,7 +109,7 @@ test('no Beta teal inside the app windows', async ({ page }) => {
     test.setTimeout(APPS.length * 40_000 + 30_000)
     await guest(page)
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     const hits: string[] = []
@@ -126,7 +126,7 @@ test('no Beta teal inside the app windows (dark: validators, dev-report)', async
     await guest(page)
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     const hits: string[] = []
@@ -137,7 +137,7 @@ test('no Beta teal inside the app windows (dark: validators, dev-report)', async
 test('a checkbox inside a classic window keeps a visible focus ring', async ({ page }) => {
     await guest(page)
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     await page.goto(`${OS_ON}/os/news`)
@@ -162,7 +162,7 @@ test('a checkbox inside a classic window keeps a visible focus ring', async ({ p
 test('the route-fallback loader inside a window hides its logo and stays compact', async ({ page }) => {
     await guest(page)
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     await page.goto(`${OS_ON}/os/news`)
@@ -190,7 +190,7 @@ test('the route-fallback loader inside a window hides its logo and stays compact
 test('kit.css scopes the sidebar nav to a direct child, not a classic <nav> in the section', async ({ page }) => {
     await guest(page)
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
     // Mount both navigation shapes in the live theme to check that sidebar
@@ -218,7 +218,7 @@ for (const view of [
 ] as const) {
     test(`classic News layout and font · ${view.name}`, async ({ page }, testInfo) => {
         await guest(page)
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.emulateMedia({ colorScheme: view.theme, reducedMotion: 'reduce' })
         await page.setViewportSize({ width: view.width, height: view.height })
         await page.goto(`${OS_ON}/os/news`)

@@ -12,7 +12,7 @@ import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
 async function guest(page: Page) {
     await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await abortOnchainReads(page)
-    await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+    await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
     await page.setViewportSize({ width: 1400, height: 900 })
 }
 

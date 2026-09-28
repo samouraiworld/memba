@@ -9,6 +9,8 @@
 .memba-os .os-set-choice { display: flex; flex-wrap: wrap; gap: 8px; }
 .memba-os .os-set-choice button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--os-line); border-radius: 10px; background: var(--os-hover); cursor: pointer; font-weight: 700; }
 .memba-os .os-set-choice button[aria-pressed="true"] { border-color: var(--os-acc); background: var(--os-chip); color: var(--os-acc-ink); }
+.memba-os .os-set-toggle { display: flex; align-items: center; gap: 10px; width: fit-content; min-height: 44px; font-weight: 700; cursor: pointer; }
+.memba-os .os-set-toggle input { width: 18px; height: 18px; accent-color: var(--os-acc); cursor: pointer; }
 .memba-os .os-set-wallpapers { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
 .memba-os .os-set-wallpapers button { display: grid; gap: 7px; text-align: left; padding: 7px; border: 1px solid var(--os-line); border-radius: 10px; background: var(--os-hover); cursor: pointer; font-weight: 700; min-height: 96px; }
 .memba-os .os-set-wallpapers button[aria-pressed="true"] { border-color: var(--os-acc); box-shadow: inset 0 0 0 1px var(--os-acc); color: var(--os-acc-ink); }

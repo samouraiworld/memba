@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { APP_VERSION } from "../../../lib/config"
 import { getGasConfig } from "../../../lib/gasConfig"
 import { useOsAppearance, type OsIconSize } from "../../appearance"
+import { setLiveWidget, setSkipIntro, useLiveWidget, useSkipIntro } from "../../preferences"
 import { AppShell, type ShellSection } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
@@ -55,6 +56,8 @@ export default function SettingsWindow({ section, session, open, openApp }: Nati
     const initial = sections.some(({ id }) => id === section) ? section! : "desktop"
     const [current, setCurrent] = useState(initial)
     const appearance = useOsAppearance()
+    const liveWidget = useLiveWidget()
+    const skipIntro = useSkipIntro()
     const [confirmReset, setConfirmReset] = useState(false)
     const [resetStatus, setResetStatus] = useState("")
     const [gas, setGas] = useState(() => {
@@ -69,6 +72,8 @@ export default function SettingsWindow({ section, session, open, openApp }: Nati
         try {
             const count = resetLocalUiData(localStorage)
             appearance.reset()
+            setLiveWidget(false)
+            setSkipIntro(false)
             const config = getGasConfig()
             setGas({ wanted: String(config.wanted), fee: String(config.fee) })
             setResetStatus(`Local app data reset (${count} saved items removed). Drafts and send locks were kept.`)
@@ -120,6 +125,16 @@ export default function SettingsWindow({ section, session, open, openApp }: Nati
                         {(["small", "medium", "large"] as OsIconSize[]).map((value) => <button key={value} type="button" aria-label={`${value[0].toUpperCase()}${value.slice(1)} icons`}
                             aria-pressed={appearance.iconSize === value} onClick={() => appearance.setIconSize(value)}>{value[0].toUpperCase()}{value.slice(1)}</button>)}
                     </div>
+                </div>
+                <div className="os-set-card">
+                    <h3>Live activity</h3>
+                    <p className="os-sub">Hover or focus the network in the menu bar to check Live activity. Add the widget if you also want it on your desktop.</p>
+                    <label className="os-set-toggle"><input type="checkbox" checked={liveWidget} onChange={(event) => setLiveWidget(event.target.checked)} />Add the Widget</label>
+                </div>
+                <div className="os-set-card">
+                    <h3>Welcome screen</h3>
+                    <p className="os-sub">By default, the introduction and Connect or Guest choice appear each time you open Memba OS. Direct links open their content immediately.</p>
+                    <label className="os-set-toggle"><input type="checkbox" checked={skipIntro} onChange={(event) => setSkipIntro(event.target.checked)} />Skip intro automatically</label>
                 </div>
             </>}
             {current === "notifications" && <>

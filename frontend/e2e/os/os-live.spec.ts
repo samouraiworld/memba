@@ -6,7 +6,7 @@ import { settleAnimations } from './settle'
 for (const [width, name] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`Live keeps an indexer failure distinct from an empty sample on ${name}`, async ({ page }) => {
         await page.setViewportSize({ width, height: 800 })
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.route(/\/api\/indexer/, route => route.fulfill({ status: 503, body: 'offline' }))
         await page.route(/memba\.v1\.|\.gno\.land|gnolove|clerk[.-]/, route => route.abort())
         await page.goto(`${OS_ON}/os/live`)
@@ -18,6 +18,8 @@ for (const [width, name] of [[1280, 'desktop'], [375, 'phone']] as const) {
         await expect(live.getByText('No transactions appeared in the recent indexed sample.')).toHaveCount(0)
 
         if (name === 'desktop') {
+            await expect(page.getByRole('main', { name: 'Desktop' }).locator('.os-live-ticker')).toHaveCount(0)
+            await page.getByRole('button', { name: 'Network: gnoland-1' }).hover()
             const ticker = page.getByRole('button', { name: /Open Live activity.*Activity could not be refreshed/ })
             await expect(ticker).toHaveAttribute('data-state', 'error')
         }
