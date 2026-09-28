@@ -8,6 +8,7 @@ import { Routes, Route } from "react-router-dom"
 import { renderWithProviders } from "../test/test-utils"
 
 const ADDR = "g1abcdefghijklmnopqrstuvwxyz0123456789ab"
+const tokenWallet = { address: ADDR }
 
 vi.mock("../hooks/useAdena", () => ({
     useAdena: () => ({
@@ -24,7 +25,7 @@ vi.mock("../hooks/useAdena", () => ({
 }))
 
 vi.mock("../hooks/useAuth", () => ({
-    useAuth: () => ({ token: { userAddress: ADDR }, address: ADDR, loading: false, error: null }),
+    useAuth: () => ({ token: { userAddress: tokenWallet.address }, address: tokenWallet.address, loading: false, error: null }),
 }))
 
 const completeQuestVerified = vi.fn()
@@ -48,6 +49,7 @@ describe("QuestDetail — quest realm not on this network", () => {
     beforeEach(() => {
         completeQuestVerified.mockReset()
         localStorage.clear()
+        tokenWallet.address = ADDR
     })
 
     it.each(["join-dao", "create-token", "submit-candidature"])(
@@ -83,5 +85,23 @@ describe("QuestDetail — quest realm not on this network", () => {
         renderQuest("/pearl/quests/join-dao")
         fireEvent.click(screen.getByRole("button", { name: /verify on-chain/i }))
         await waitFor(() => expect(screen.getByText(/complete the action, then try again/i)).toBeInTheDocument())
+    })
+
+    it("waits for the server before completing a creator-only team quest", async () => {
+        completeQuestVerified.mockRejectedValue(new Error("team creator requirement not met"))
+        renderQuest("/pearl/quests/create-team")
+        fireEvent.click(screen.getByRole("button", { name: "Verify with Memba" }))
+        await waitFor(() => expect(screen.getByText(/Couldn't verify this action yet/)).toBeInTheDocument())
+        expect(screen.queryByText("Completed")).toBeNull()
+        expect(completeQuestVerified).toHaveBeenCalledWith("create-team", "", expect.objectContaining({ userAddress: ADDR }))
+    })
+
+    it("blocks generic completion while auth still belongs to the previous wallet", () => {
+        tokenWallet.address = "g1previouswallet"
+        renderQuest("/pearl/quests/connect-wallet")
+        fireEvent.click(screen.getByRole("button", { name: "Check Completion" }))
+        expect(screen.getByText("Sign in with this wallet to verify.")).toBeInTheDocument()
+        expect(screen.queryByText("Completed")).toBeNull()
+        expect(localStorage.getItem(`memba_quests_${ADDR}`)).toBeNull()
     })
 })

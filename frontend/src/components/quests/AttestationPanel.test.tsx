@@ -102,4 +102,21 @@ describe("AttestationPanel", () => {
         expect(await screen.findByText("✓ on-chain")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Attest on-chain" })).toBeNull()
     })
+
+    it("does not offer a voucher when the on-chain record lookup fails", async () => {
+        fetchRecorded.mockRejectedValue(new Error("RPC unavailable"))
+        renderPanel()
+        await waitFor(() => expect(fetchRecorded).toHaveBeenCalled())
+        expect(await screen.findByRole("alert")).toHaveTextContent(/Could not check on-chain attestation status/)
+        expect(screen.getByRole("button", { name: "Retry attestation check" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Attest on-chain" })).toBeNull()
+        expect(broadcast).not.toHaveBeenCalled()
+    })
+
+    it("retries the read and reveals vouchers only after the recorded set is known", async () => {
+        fetchRecorded.mockRejectedValueOnce(new Error("RPC unavailable")).mockResolvedValueOnce(new Set())
+        renderPanel()
+        fireEvent.click(await screen.findByRole("button", { name: "Retry attestation check" }))
+        expect(await screen.findByRole("button", { name: "Attest on-chain" })).toBeInTheDocument()
+    })
 })

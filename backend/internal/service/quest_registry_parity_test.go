@@ -4,6 +4,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -113,6 +114,57 @@ func TestSelfReportSetsConsistent(t *testing.T) {
 	for id, vtype := range questVerification {
 		if vtype == "self_report" && !selfReportQuests[id] {
 			t.Errorf("%q is questVerification=self_report but missing from selfReportQuests", id)
+		}
+	}
+}
+
+// New claims must match the curated frontend launch set. The hidden Konami
+// trigger and two legacy auto-tracked IDs remain claimable outside that set.
+func TestClaimableQuestCatalogParity(t *testing.T) {
+	data, err := os.ReadFile("../../../frontend/src/lib/gnobuilders.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	start := strings.Index(source, "export const LIVE_QUEST_IDS")
+	if start < 0 {
+		t.Fatal("LIVE_QUEST_IDS missing")
+	}
+	end := strings.Index(source[start:], "])")
+	if end < 0 {
+		t.Fatal("LIVE_QUEST_IDS closing delimiter missing")
+	}
+	block := source[start : start+end]
+	live := map[string]bool{}
+	for _, match := range regexp.MustCompile(`"([a-z0-9-]+)"`).FindAllStringSubmatch(block, -1) {
+		live[match[1]] = true
+	}
+	claimable := map[string]bool{}
+	for id := range offChainClaimableQuests {
+		if id != "easter-egg-konami" && id != "view-profile" && id != "directory-tabs" {
+			claimable[id] = true
+		}
+	}
+	for id := range onChainClaimableQuests {
+		claimable[id] = true
+	}
+	for id := range selfReportClaimableQuests {
+		claimable[id] = true
+	}
+	for id := range liveDerivedQuestThresholds {
+		if !metaQuests[id] {
+			t.Errorf("derived quest %q is not classified as a meta quest", id)
+		}
+		claimable[id] = true
+	}
+	for id := range live {
+		if !claimable[id] {
+			t.Errorf("frontend live quest %q has no server grant path", id)
+		}
+	}
+	for id := range claimable {
+		if !live[id] {
+			t.Errorf("server-claimable quest %q is not in frontend live catalog", id)
 		}
 	}
 }

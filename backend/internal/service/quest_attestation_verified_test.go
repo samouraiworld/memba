@@ -49,13 +49,16 @@ func TestCompletionVerified_Classification(t *testing.T) {
 		approved bool
 		want     bool
 	}{
-		{"register-username", false, true},  // on_chain
-		{"connect-wallet", false, false},    // off_chain
-		{"first-100-users", false, false},   // off_chain, 50 XP
-		{"season-1-complete", false, false}, // off_chain, 100 XP
-		{"earn-500-xp", false, false},       // server-derived meta, off_chain
-		{"view-profile", false, false},      // legacy id, no verification class
-		{"directory-tabs", false, false},    // legacy id, no verification class
+		{"register-username", false, true},   // on_chain
+		{"deploy-hello-pkg", false, true},    // current live on_chain
+		{"deploy-counter-pkg", false, false}, // historical generic deploy proof
+		{"faucet-claim", false, false},       // funded account did not prove faucet
+		{"connect-wallet", false, false},     // off_chain
+		{"first-100-users", false, false},    // off_chain, 50 XP
+		{"season-1-complete", false, false},  // off_chain, 100 XP
+		{"earn-500-xp", false, false},        // server-derived meta, off_chain
+		{"view-profile", false, false},       // legacy id, no verification class
+		{"directory-tabs", false, false},     // legacy id, no verification class
 		{"gnodaokit-extension", false, false},
 		{"follow-twitter", false, false}, // social
 		{"bug-hunter", false, false},     // self_report, not approved
@@ -69,10 +72,40 @@ func TestCompletionVerified_Classification(t *testing.T) {
 	}
 }
 
-// Bug A: off_chain and legacy quests are self-claimed, so CompleteQuest must
-// store them (they still count toward TotalXp) but never sign a voucher.
+func TestHistoricalNonLiveOnChainRetainsTotalButNotVerifiedXP(t *testing.T) {
+	h := newVoucherHarness(t)
+	ctx := context.Background()
+	const addr = "g1alice"
+	for _, questID := range []string{"deploy-counter-pkg", "faucet-claim", "register-username"} {
+		if _, err := h.db.ExecContext(ctx,
+			`INSERT INTO quest_completions (address, quest_id, completed_at) VALUES (?, ?, '2026-09-01T00:00:00Z')`, addr, questID,
+		); err != nil {
+			t.Fatal(err)
+		}
+		h.svc.issueAttestationVoucher(ctx, addr, questID)
+	}
+	resp, err := h.svc.GetUserQuests(ctx, connect.NewRequest(&membav1.GetUserQuestsRequest{Address: addr}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.State.TotalXp != 55 || resp.Msg.State.VerifiedXp != 20 {
+		t.Fatalf("historical completions retain 55 total XP but only live proof earns 20 verified XP: %+v", resp.Msg.State)
+	}
+	if n := storedVoucherCount(t, h, addr, "deploy-counter-pkg"); n != 0 {
+		t.Fatalf("historical generic deploy must not receive a new voucher, got %d", n)
+	}
+	if n := storedVoucherCount(t, h, addr, "faucet-claim"); n != 0 {
+		t.Fatalf("historical funded-account claim must not receive a new voucher, got %d", n)
+	}
+	if got := servedVoucherQuests(t, h, addr); len(got) != 1 || !got["register-username"] {
+		t.Fatalf("only current live on-chain proof voucher should be served, got %v", got)
+	}
+}
+
+// Bug A: currently claimable off_chain and legacy quests are self-claimed, so
+// CompleteQuest stores them but must never sign a voucher.
 func TestCompleteQuest_UnverifiedQuestGetsNoVoucher(t *testing.T) {
-	for _, quest := range []string{"connect-wallet", "first-100-users", "season-1-complete", "view-profile", "directory-tabs"} {
+	for _, quest := range []string{"connect-wallet", "easter-egg-konami", "view-profile", "directory-tabs"} {
 		t.Run(quest, func(t *testing.T) {
 			h := newVoucherHarness(t)
 			token := h.makeToken(t, "g1alice")
@@ -103,7 +136,7 @@ func TestSyncQuests_OnlyVerifiedQuestsGetVouchers(t *testing.T) {
 		AuthToken: token,
 		Completions: []*membav1.QuestCompletion{
 			{QuestId: "use-cmdk", CompletedAt: "2026-06-27T00:00:00Z"},          // off_chain
-			{QuestId: "first-100-users", CompletedAt: "2026-06-27T00:00:00Z"},   // off_chain
+			{QuestId: "first-100-users", CompletedAt: "2026-06-27T00:00:00Z"},   // coming soon, skipped
 			{QuestId: "register-username", CompletedAt: "2026-06-27T00:00:00Z"}, // on_chain
 		},
 	})); err != nil {
@@ -115,6 +148,9 @@ func TestSyncQuests_OnlyVerifiedQuestsGetVouchers(t *testing.T) {
 	}
 	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = 'g1dave'`); n != 1 {
 		t.Fatalf("want exactly 1 stored voucher, got %d", n)
+	}
+	if n := countRows(t, h, `SELECT COUNT(*) FROM quest_completions WHERE address = 'g1dave' AND quest_id = 'first-100-users'`); n != 0 {
+		t.Fatalf("coming-soon off-chain quest must not sync, got %d completions", n)
 	}
 }
 
@@ -154,16 +190,16 @@ func TestReviewQuestClaim_ApprovalIssuesVoucher(t *testing.T) {
 	user := h.makeToken(t, "g1alice")
 	admin := h.makeToken(t, "g1admin")
 
-	h.submitClaim(t, user, "bug-hunter", "https://example.com/issue/1", "found it")
-	if n := storedVoucherCount(t, h, "g1alice", "bug-hunter"); n != 0 {
+	h.submitClaim(t, user, "write-10-tests", "https://example.com/issue/1", "found it")
+	if n := storedVoucherCount(t, h, "g1alice", "write-10-tests"); n != 0 {
 		t.Fatal("a submitted claim must not be attested before review")
 	}
-	h.reviewClaim(t, admin, h.getClaim(t, "g1alice", "bug-hunter").id, true)
+	h.reviewClaim(t, admin, h.getClaim(t, "g1alice", "write-10-tests").id, true)
 
-	if n := storedVoucherCount(t, h, "g1alice", "bug-hunter"); n != 1 {
+	if n := storedVoucherCount(t, h, "g1alice", "write-10-tests"); n != 1 {
 		t.Fatalf("approval must sign exactly one voucher, got %d", n)
 	}
-	if got := servedVoucherQuests(t, h, "g1alice"); !got["bug-hunter"] {
+	if got := servedVoucherQuests(t, h, "g1alice"); !got["write-10-tests"] {
 		t.Fatalf("approved quest voucher must be served, got %v", got)
 	}
 }
@@ -175,8 +211,8 @@ func TestReviewQuestClaim_RejectionIssuesNoVoucher(t *testing.T) {
 	user := h.makeToken(t, "g1bob")
 	admin := h.makeToken(t, "g1admin")
 
-	h.submitClaim(t, user, "bug-hunter", "https://example.com/issue/2", "")
-	h.reviewClaim(t, admin, h.getClaim(t, "g1bob", "bug-hunter").id, false)
+	h.submitClaim(t, user, "write-10-tests", "https://example.com/issue/2", "")
+	h.reviewClaim(t, admin, h.getClaim(t, "g1bob", "write-10-tests").id, false)
 
 	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = 'g1bob'`); n != 0 {
 		t.Fatalf("rejection must not sign a voucher, got %d", n)
@@ -193,7 +229,7 @@ func TestGetAttestationVouchers_FiltersStoredUnverifiedVouchers(t *testing.T) {
 
 	// Pre-existing vouchers signed by the CURRENT key on the CURRENT chain, as
 	// the pre-fix code would have stored them.
-	stale := []string{"connect-wallet", "first-100-users", "season-1-complete", "view-profile", "bug-hunter"}
+	stale := []string{"connect-wallet", "first-100-users", "season-1-complete", "view-profile", "bug-hunter", "faucet-claim", "deploy-counter-pkg"}
 	for _, quest := range stale {
 		v, err := signer.IssueVoucher(addr, quest, int(validQuests[quest]))
 		if err != nil {

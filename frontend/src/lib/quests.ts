@@ -111,8 +111,8 @@ export function getQuestWalletAddress(): string | null {
  * Generate a storage key scoped to the active wallet.
  * Returns "baseKey_g1addr" when connected, "baseKey" when not.
  */
-function _scopedKey(baseKey: string): string {
-    return _questWalletAddr ? `${baseKey}_${_questWalletAddr}` : baseKey
+function _scopedKey(baseKey: string, walletAddr: string | null = _questWalletAddr): string {
+    return walletAddr ? `${baseKey}_${walletAddr}` : baseKey
 }
 
 /**
@@ -147,9 +147,9 @@ function _migrateGlobalToWallet(address: string): void {
 }
 
 /** Load quest progress from localStorage (scoped to active wallet). */
-export function loadQuestProgress(): UserQuestState {
+export function loadQuestProgress(walletAddr: string | null = _questWalletAddr): UserQuestState {
     try {
-        const raw = localStorage.getItem(_scopedKey(STORAGE_KEY_BASE))
+        const raw = localStorage.getItem(_scopedKey(STORAGE_KEY_BASE, walletAddr))
         if (!raw) return { completed: [], totalXP: 0 }
         const state = JSON.parse(raw) as UserQuestState
         return {
@@ -162,9 +162,9 @@ export function loadQuestProgress(): UserQuestState {
 }
 
 /** Save quest progress to localStorage (scoped to active wallet). */
-function saveQuestProgress(state: UserQuestState): void {
+function saveQuestProgress(state: UserQuestState, walletAddr: string | null = _questWalletAddr): void {
     try {
-        localStorage.setItem(_scopedKey(STORAGE_KEY_BASE), JSON.stringify(state))
+        localStorage.setItem(_scopedKey(STORAGE_KEY_BASE, walletAddr), JSON.stringify(state))
     } catch { /* quota */ }
 }
 
@@ -203,13 +203,15 @@ export function completeQuest(questId: string, authToken?: Token): QuestResult |
     const quest = _findQuest(questId)
     if (!quest) return null
 
-    const state = loadQuestProgress()
+    const walletAddr = authToken?.userAddress || _questWalletAddr
+    if (walletAddr) _migrateGlobalToWallet(walletAddr)
+    const state = loadQuestProgress(walletAddr)
     if (state.completed.some(q => q.questId === questId)) return null // already done
 
     const wasBelowThreshold = state.totalXP < CANDIDATURE_XP_THRESHOLD
     state.completed.push({ questId, completedAt: Date.now() })
     state.totalXP += quest.xp
-    saveQuestProgress(state)
+    saveQuestProgress(state, walletAddr)
 
     // Notify UI components (QuestHub, QuestProgress) to refresh
     window.dispatchEvent(new CustomEvent("quest-completed", { detail: { questId } }))
@@ -242,20 +244,26 @@ export async function completeQuestVerified(
     proof: string,
     authToken: Token,
 ): Promise<QuestResult> {
+    // Capture the authenticated wallet before the async server call. The user
+    // can switch accounts while verification is in flight.
+    const walletAddr = authToken.userAddress || _questWalletAddr
+    if (walletAddr) _migrateGlobalToWallet(walletAddr)
     // Server is authoritative — it re-verifies the proof on-chain (namespace
     // ownership + existence). This throws on rejection.
     await api.completeQuest(create(CompleteQuestRequestSchema, { authToken, questId, proof }))
 
     const quest = _findQuest(questId)
-    const state = loadQuestProgress()
+    const state = loadQuestProgress(walletAddr)
     if (state.completed.some(q => q.questId === questId)) {
         return { state, unlockedCandidature: false }
     }
     const wasBelowThreshold = state.totalXP < CANDIDATURE_XP_THRESHOLD
     state.completed.push({ questId, completedAt: Date.now() })
     state.totalXP += quest?.xp ?? 0
-    saveQuestProgress(state)
-    window.dispatchEvent(new CustomEvent("quest-completed", { detail: { questId } }))
+    saveQuestProgress(state, walletAddr)
+    if (_questWalletAddr === walletAddr) {
+        window.dispatchEvent(new CustomEvent("quest-completed", { detail: { questId } }))
+    }
     trackEvent("Quest Completed", { questId, xp: quest?.xp ?? 0 })
     return {
         state,
@@ -325,7 +333,9 @@ export function getCompletionPercent(): number {
  * Merges local completions with server state, server is authoritative for XP.
  */
 export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestState> {
-    const local = loadQuestProgress()
+    const walletAddr = authToken.userAddress || _questWalletAddr
+    if (walletAddr) _migrateGlobalToWallet(walletAddr)
+    const local = loadQuestProgress(walletAddr)
 
     // Upload local completions to backend (server ignores duplicates + validates quest IDs)
     const completions = local.completed.map(c =>
@@ -346,18 +356,21 @@ export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestSt
                 questId: c.questId,
                 completedAt: new Date(c.completedAt).getTime(),
             }))
+            // Re-read the same wallet after the response. A completion earned
+            // while the request was in flight must survive this merge.
+            const currentLocal = loadQuestProgress(walletAddr)
             // Merge, never overwrite: keep every local completion (a legitimately
             // earned one the server hasn't recorded yet — e.g. rejected by a
             // transient on-chain verify, or never uploaded — must NOT be silently
             // dropped; it can sync on a later retry). Add server completions we
             // lack (e.g. earned on another device). Recompute XP from the union.
             const byId = new Map<string, QuestProgress>()
-            for (const c of local.completed) byId.set(c.questId, c)
+            for (const c of currentLocal.completed) byId.set(c.questId, c)
             for (const c of serverCompleted) if (!byId.has(c.questId)) byId.set(c.questId, c)
             const completed = Array.from(byId.values())
             const totalXP = completed.reduce((sum, c) => sum + (_findQuest(c.questId)?.xp ?? 0), 0)
             const merged: UserQuestState = { completed, totalXP }
-            saveQuestProgress(merged)
+            saveQuestProgress(merged, walletAddr)
             return merged
         }
     } catch (err) {
@@ -402,8 +415,8 @@ export interface CandidatureEligibility {
  * backend-authoritative VERIFIED XP (proof-backed quests only — BE-4: self-granted
  * off_chain XP must not unlock candidature); localStorage is user-editable and must
  * not unlock the application form on its own (closes the localStorage-XP bypass).
- * Falls back to the local check when disconnected, or when the backend is
- * unreachable (degrade, not block).
+ * A connected wallet fails closed when the backend is unreachable: mutable
+ * local XP cannot prove eligibility to submit an application.
  */
 export async function resolveCandidatureEligibility(
     address: string | null | undefined,
@@ -411,7 +424,7 @@ export async function resolveCandidatureEligibility(
 ): Promise<CandidatureEligibility> {
     if (!address) return { eligible: canApplyForMembership(), verifiedXP: null }
     const state = await fetchQuests(address)
-    if (!state) return { eligible: canApplyForMembership(), verifiedXP: null }
+    if (!state) return { eligible: false, verifiedXP: null }
     const verifiedXP = state.verifiedXP ?? 0
     // Legacy grandfathering is deliberately NOT applied on the authoritative path:
     // isLegacyEligible() is a client-settable localStorage flag, and honoring it here
@@ -457,4 +470,3 @@ export function trackDirectoryTab(tabName: string, authToken?: Token): void {
         }
     } catch { /* */ }
 }
-

@@ -12,7 +12,7 @@
  * optimistic hint while the status loads or the backend is unreachable.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { fetchQuestClaimStatuses, hasSubmittedClaim, submitQuestClaim } from "../../lib/questClaims"
 import type { Token } from "../../gen/memba/v1/memba_pb"
 
@@ -30,6 +30,7 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
     const [proofText, setProofText] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState("")
+    const requestId = useRef(0)
     // Optimistic hint until the backend answers: a locally-recorded submission
     // renders as pending so the form doesn't flash open on reload.
     const [view, setView] = useState<ClaimView>(() =>
@@ -37,11 +38,24 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
 
     useEffect(() => {
         let cancelled = false
-        fetchQuestClaimStatuses(address).then(statuses => {
-            if (cancelled || !statuses) return // unreachable — keep the local hint
-            setView(statuses.get(questId)?.status ?? "none")
-        })
-        return () => { cancelled = true }
+        const refresh = () => {
+            if (document.visibilityState === "hidden") return
+            const request = ++requestId.current
+            fetchQuestClaimStatuses(address).then(statuses => {
+                if (cancelled || request !== requestId.current || !statuses) return // unreachable — keep the local hint
+                setView(statuses.get(questId)?.status ?? "none")
+            })
+        }
+        refresh()
+        // A reviewer can approve or reject while the applicant keeps this page
+        // open. Refresh on return and periodically while the page is visible.
+        const timer = window.setInterval(refresh, 30_000)
+        window.addEventListener("focus", refresh)
+        return () => {
+            cancelled = true
+            window.clearInterval(timer)
+            window.removeEventListener("focus", refresh)
+        }
     }, [address, questId])
 
     if (view === "pending") {
@@ -61,10 +75,14 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
     }
 
     const isResubmit = view === "rejected"
-    const canSubmit = !!authToken && (proofUrl.trim() !== "" || proofText.trim() !== "")
+    const signedInAsClaimant = !!authToken && authToken.userAddress === address
+    const canSubmit = signedInAsClaimant && (proofUrl.trim() !== "" || proofText.trim() !== "")
 
     const handleSubmit = async () => {
         if (!authToken || !canSubmit) return
+        // A pre-submit status read may still be in flight. Its old "none"
+        // response must not reopen the form after this submit succeeds.
+        requestId.current++
         setSubmitting(true)
         setError("")
         try {
@@ -114,7 +132,7 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
             >
                 {submitting ? "Submitting…" : isResubmit ? "Resubmit proof" : "Submit proof"}
             </button>
-            {!authToken && <p className="k-questdetail-hint">Connect your wallet to submit.</p>}
+            {!signedInAsClaimant && <p className="k-questdetail-hint">Sign in with this wallet to submit.</p>}
             {error && (
                 <div className="k-questdetail-result k-questdetail-result--error">
                     <span>{error}</span>

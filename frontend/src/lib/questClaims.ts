@@ -103,6 +103,9 @@ export async function submitQuestClaim(
     proofUrl: string,
     proofText: string,
 ): Promise<void> {
+    if (!authToken.userAddress || authToken.userAddress !== address) {
+        throw new Error("Sign in with the wallet submitting this claim")
+    }
     await api.submitQuestClaim(create(SubmitQuestClaimRequestSchema, {
         authToken,
         questId,
@@ -110,10 +113,10 @@ export async function submitQuestClaim(
         proofText,
     }))
     try {
-        const list = getSubmittedClaims(address)
+        const list = getSubmittedClaims(authToken.userAddress)
         if (!list.includes(questId)) {
             list.push(questId)
-            localStorage.setItem(claimsKey(address), JSON.stringify(list))
+            localStorage.setItem(claimsKey(authToken.userAddress), JSON.stringify(list))
         }
     } catch {
         /* best effort */

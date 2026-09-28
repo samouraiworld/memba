@@ -11,12 +11,14 @@
  * @module components/quests/CandidatureUnlock
  */
 
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
+import { useAuth } from "../../hooks/useAuth"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { isQuestAvailableOnNetwork } from "../../lib/questNetwork"
 import {
     CANDIDATURE_XP_THRESHOLD,
-    loadQuestProgress,
-    canApplyForMembership,
+    resolveCandidatureEligibility,
 } from "../../lib/quests"
 import "./candidatureunlock.css"
 
@@ -27,9 +29,38 @@ interface CandidatureUnlockProps {
 
 export function CandidatureUnlock({ hasPendingCandidature }: CandidatureUnlockProps) {
     const networkKey = useNetworkKey()
-    const state = loadQuestProgress()
-    const eligible = canApplyForMembership()
-    const percent = Math.round((state.totalXP / CANDIDATURE_XP_THRESHOLD) * 100)
+    const auth = useAuth()
+    return <CandidatureUnlockSession key={`${auth.address}:${networkKey}`} address={auth.address} networkKey={networkKey} hasPendingCandidature={hasPendingCandidature} />
+}
+
+function CandidatureUnlockSession({ address, networkKey, hasPendingCandidature }: { address: string; networkKey: string; hasPendingCandidature?: boolean }) {
+    const [verifiedXP, setVerifiedXP] = useState<number | null>(null)
+    const [eligible, setEligible] = useState(false)
+    const onNetwork = isQuestAvailableOnNetwork("submit-candidature", networkKey)
+    useEffect(() => {
+        let cancelled = false
+        let requestId = 0
+        const refresh = () => {
+            if (!address || !onNetwork || document.visibilityState === "hidden") return
+            const request = ++requestId
+            resolveCandidatureEligibility(address).then(result => {
+                if (cancelled || request !== requestId) return
+                setVerifiedXP(result.verifiedXP)
+                setEligible(result.eligible)
+            }).catch(() => {
+                if (!cancelled && request === requestId) setEligible(false)
+            })
+        }
+        refresh()
+        window.addEventListener("quest-completed", refresh)
+        window.addEventListener("focus", refresh)
+        return () => {
+            cancelled = true
+            window.removeEventListener("quest-completed", refresh)
+            window.removeEventListener("focus", refresh)
+        }
+    }, [address, onNetwork])
+    const percent = Math.round(((verifiedXP ?? 0) / CANDIDATURE_XP_THRESHOLD) * 100)
 
     // State 3: Pending candidature
     if (hasPendingCandidature) {
@@ -56,7 +87,7 @@ export function CandidatureUnlock({ hasPendingCandidature }: CandidatureUnlockPr
     }
 
     // State 2: Unlocked (eligible)
-    if (eligible) {
+    if (eligible && onNetwork) {
         return (
             <div
                 className="candidature-unlock candidature-unlock--unlocked"
@@ -66,7 +97,7 @@ export function CandidatureUnlock({ hasPendingCandidature }: CandidatureUnlockPr
                 <div className="candidature-unlock__body">
                     <h4 className="candidature-unlock__title">You're eligible for Memba DAO!</h4>
                     <p className="candidature-unlock__desc">
-                        You've earned {state.totalXP} XP from quests. Apply to become a member.
+                        You've earned {verifiedXP} verified XP from quests. Apply to become a member.
                     </p>
                 </div>
                 <Link
@@ -90,7 +121,7 @@ export function CandidatureUnlock({ hasPendingCandidature }: CandidatureUnlockPr
             <div className="candidature-unlock__body">
                 <h4 className="candidature-unlock__title">Memba DAO Candidature</h4>
                 <p className="candidature-unlock__desc">
-                    Complete quests to unlock membership!
+                    {onNetwork ? "Earn verified quest XP to unlock membership!" : "Candidature is not available on this network yet."}
                 </p>
                 <div className="candidature-unlock__progress">
                     <div className="candidature-unlock__bar">
@@ -100,7 +131,7 @@ export function CandidatureUnlock({ hasPendingCandidature }: CandidatureUnlockPr
                         />
                     </div>
                     <span className="candidature-unlock__xp">
-                        {state.totalXP}/{CANDIDATURE_XP_THRESHOLD} XP ({Math.min(percent, 100)}%)
+                        {verifiedXP === null ? "Verified XP unavailable" : `${verifiedXP}/${CANDIDATURE_XP_THRESHOLD} verified XP (${Math.min(percent, 100)}%)`}
                     </span>
                 </div>
             </div>

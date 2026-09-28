@@ -17,7 +17,7 @@ Started 27 September 2026. Each feature gets its own production baseline, cross-
 | Arcade: lobby, Block Party, Space Invaders, BARRICADE, runs, score verification and attestation | Ten-perspective production and local QA in `fix/os-arcade-production-qa`, stacked after Multisig PR #1352; on-chain certification remains release-gated |
 | App Store | Queued |
 | Validators: consensus, candidates, network nodes, Hacker telemetry, profiles | Ten-perspective production and local QA in `fix/os-validators-production-qa`, stacked after Arcade PR #1354 |
-| Quests | Queued |
+| Quests: Hub, detail, claims, leaderboard, XP, candidature and attestation | Ten-perspective production and local QA in `fix/os-quests-production-qa`, stacked after Validators PR #1356 |
 | Explorer | Queued |
 | Profile | Queued |
 | News | Queued |

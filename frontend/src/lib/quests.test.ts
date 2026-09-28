@@ -178,7 +178,7 @@ describe("resolveCandidatureEligibility (backend-authoritative, verified XP)", (
         expect(res.eligible).toBe(false)
         expect(res.verifiedXP).toBeNull()
     })
-    it("backend unreachable: degrades to the local check, does not crash", async () => {
+    it("backend unreachable: never unlocks a connected wallet from mutable local XP", async () => {
         const res = await resolveCandidatureEligibility("g1abc", async () => null)
         expect(res.eligible).toBe(false)
         expect(res.verifiedXP).toBeNull()

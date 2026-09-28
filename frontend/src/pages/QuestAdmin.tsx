@@ -9,13 +9,13 @@
  * Route: /:network/quest-admin
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Code, ConnectError } from "@connectrpc/connect"
 import { Link } from "react-router-dom"
 import { useAdena } from "../hooks/useAdena"
 import { useAuth } from "../hooks/useAuth"
 import { useNetworkKey } from "../hooks/useNetworkNav"
-import { ZOOMA_ADDRESS } from "../lib/membaDAO"
 import { listPendingClaims, reviewQuestClaim } from "../lib/questClaims"
 import { getQuestById } from "../lib/gnobuilders"
 import type { QuestClaim } from "../gen/memba/v1/memba_pb"
@@ -36,15 +36,15 @@ export default function QuestAdmin() {
     const { address } = useAdena()
     const auth = useAuth()
     const nk = useNetworkKey()
-    const isAdmin = !!address && address === ZOOMA_ADDRESS
+    const headingRef = useRef<HTMLHeadingElement>(null)
+    const listRef = useRef<HTMLDivElement>(null)
 
     const [busyId, setBusyId] = useState<bigint | null>(null)
 
-    // Pending claims, admin-gated. Disabled while not admin/authed — the old
-    // load() early-returned with loading=false, so a disabled query must not
-    // read as loading either.
+    // The backend's configurable reviewer allowlist is authoritative. A
+    // hardcoded address here locked out additional permitted reviewers.
     const queryClient = useQueryClient()
-    const claimsEnabled = !!auth.token && isAdmin
+    const claimsEnabled = !!auth.token && !!address && auth.token.userAddress === address
     const claimsKey = ["quests", "pending-claims", auth.token?.userAddress ?? ""]
     const claimsQuery = useQuery({
         queryKey: claimsKey,
@@ -56,7 +56,8 @@ export default function QuestAdmin() {
 
     // Review errors are UI state; the fetch error keeps its old fixed copy.
     const [actionError, setActionError] = useState("")
-    const error = actionError || (claimsQuery.isError ? "Failed to load claims." : "")
+    const forbidden = claimsQuery.error instanceof ConnectError && claimsQuery.error.code === Code.PermissionDenied
+    const error = actionError || (claimsQuery.isError && !forbidden ? "Failed to load claims." : "")
 
     useEffect(() => {
         document.title = "Quest Admin — Memba"
@@ -68,10 +69,15 @@ export default function QuestAdmin() {
         setActionError("")
         try {
             await reviewQuestClaim(auth.token, claim.id, approved)
-            // The old code removed the claim locally rather than refetching;
-            // same optimistic removal, applied to the cached list.
+            // Remove the reviewed row immediately, then fetch the next bounded
+            // batch so claim 101 becomes visible after claim 1 is processed.
             queryClient.setQueryData(claimsKey, (prev: QuestClaim[] | undefined) =>
                 (prev ?? []).filter(c => c.id !== claim.id))
+            const refreshed = await claimsQuery.refetch()
+            if (refreshed.isError) setActionError("Review saved, but the queue could not refresh. Retry loading claims.")
+            requestAnimationFrame(() => {
+                (listRef.current?.querySelector<HTMLElement>(".k-questadmin-claim-actions button:not(:disabled)") ?? headingRef.current)?.focus()
+            })
         } catch {
             setActionError("Review failed — please try again.")
         } finally {
@@ -79,11 +85,11 @@ export default function QuestAdmin() {
         }
     }
 
-    if (!isAdmin) {
+    if (!claimsEnabled || forbidden) {
         return (
             <div className="k-questhub">
                 <h1>Quest Admin</h1>
-                <p>This page is restricted to quest reviewers.</p>
+                <p>{forbidden ? "This page is restricted to quest reviewers." : "Connect and sign in with a reviewer wallet to see pending claims."}</p>
                 <Link to={`/${nk}/quests`} className="k-questhub-leaderboard-link">Back to Quests</Link>
             </div>
         )
@@ -93,20 +99,23 @@ export default function QuestAdmin() {
         <div className="k-questhub">
             <div className="k-questhub-hero">
                 <div className="k-questhub-hero-content">
-                    <h1>Quest Admin</h1>
+                    <h1 ref={headingRef} tabIndex={-1}>Quest Admin</h1>
                     <p className="k-questhub-subtitle">Self-report claim review</p>
                 </div>
             </div>
 
             {loading && <p className="k-questdetail-hint">Loading…</p>}
             {error && (
-                <div className="k-questdetail-result k-questdetail-result--error"><span>{error}</span></div>
+                <div className="k-questdetail-result k-questdetail-result--error" role="alert">
+                    <span>{error}</span>
+                    <button type="button" onClick={() => { setActionError(""); void claimsQuery.refetch() }}>Retry loading claims</button>
+                </div>
             )}
-            {!loading && claims.length === 0 && (
+            {claimsQuery.isSuccess && claims.length === 0 && !actionError && (
                 <div className="k-questhub-empty">No pending claims. 🎉</div>
             )}
 
-            <div className="k-questadmin-list" role="list" aria-label="Pending quest claims">
+            <div className="k-questadmin-list" role="list" aria-label="Pending quest claims" ref={listRef}>
                 {claims.map(claim => {
                     const quest = getQuestById(claim.questId)
                     const url = safeHttpUrl(claim.proofUrl)
@@ -125,10 +134,10 @@ export default function QuestAdmin() {
                                 : claim.proofUrl && <span className="k-questadmin-claim-url">{claim.proofUrl}</span>}
                             {claim.proofText && <p className="k-questadmin-claim-text">{claim.proofText}</p>}
                             <div className="k-questadmin-claim-actions">
-                                <button className="k-questdetail-verify-btn" disabled={busyId === claim.id} onClick={() => review(claim, true)}>
+                                <button className="k-questdetail-verify-btn" aria-label={`Approve ${quest?.title ?? claim.questId} claim from ${claim.address}`} disabled={busyId === claim.id} onClick={() => review(claim, true)}>
                                     Approve
                                 </button>
-                                <button className="k-questadmin-reject" disabled={busyId === claim.id} onClick={() => review(claim, false)}>
+                                <button className="k-questadmin-reject" aria-label={`Reject ${quest?.title ?? claim.questId} claim from ${claim.address}`} disabled={busyId === claim.id} onClick={() => review(claim, false)}>
                                     Reject
                                 </button>
                             </div>

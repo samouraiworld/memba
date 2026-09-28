@@ -4,7 +4,8 @@
  * registered username (r/sys/users) or a short address, never that title.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { screen, waitFor } from "@testing-library/react"
+import { screen, waitFor, fireEvent } from "@testing-library/react"
+import { useLocation } from "react-router-dom"
 import { create } from "@bufbuild/protobuf"
 import { renderWithProviders } from "../test/test-utils"
 import { GetLeaderboardResponseSchema, LeaderboardEntrySchema } from "../gen/memba/v1/memba_pb"
@@ -22,17 +23,22 @@ const Leaderboard = (await import("./Leaderboard")).default
 const ALICE = "g1alicealicealicealicealicealicealice00"
 const BOB = "g1bobbobbobbobbobbobbobbobbobbobbobbob00"
 
-function respond(entries: { address: string; username?: string }[]) {
+function respond(entries: { address: string; username?: string }[], totalCount = entries.length) {
     vi.mocked(api.getLeaderboard).mockResolvedValue(create(GetLeaderboardResponseSchema, {
         entries: entries.map((e, i) => create(LeaderboardEntrySchema, {
             address: e.address, username: e.username ?? "", rankTier: 0, rankName: "Newcomer",
             totalXp: 100 - i, questsCompleted: 1,
         })),
-        totalCount: entries.length,
+        totalCount,
     }))
 }
 
 const short = (a: string) => `${a.slice(0, 10)}...${a.slice(-4)}`
+
+function LocationProbe() {
+    const location = useLocation()
+    return <output data-testid="location">{location.search}</output>
+}
 
 beforeEach(() => {
     vi.clearAllMocks()
@@ -84,5 +90,34 @@ describe("Leaderboard player names", () => {
         await screen.findByText(short(ALICE))
         await waitFor(() => expect(resolveOnChainUsername).toHaveBeenCalledTimes(2))
         expect(vi.mocked(resolveOnChainUsername).mock.calls.map(c => c[0]).sort()).toEqual([ALICE, BOB].sort())
+    })
+
+    it("loads a shared page URL and updates the URL when paging", async () => {
+        respond([{ address: ALICE }], 120)
+        vi.mocked(resolveOnChainUsername).mockResolvedValue("")
+        renderWithProviders(<><Leaderboard /><LocationProbe /></>, { route: "/gnoland1/leaderboard?page=2" })
+        await screen.findByText(short(ALICE))
+        expect(vi.mocked(api.getLeaderboard).mock.calls[0][0].offset).toBe(50)
+        expect(screen.getByText("Page 2 of 3")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Next" }))
+        await waitFor(() => expect(vi.mocked(api.getLeaderboard).mock.calls.at(-1)?.[0].offset).toBe(100))
+        expect(screen.getByTestId("location")).toHaveTextContent("?page=3")
+    })
+
+    it("offers retry after a failed request and clears the error on success", async () => {
+        vi.mocked(api.getLeaderboard).mockRejectedValueOnce(new Error("offline"))
+        respond([{ address: ALICE }])
+        vi.mocked(resolveOnChainUsername).mockResolvedValue("")
+        renderWithProviders(<Leaderboard />, { route: "/gnoland1/leaderboard" })
+        fireEvent.click(await screen.findByRole("button", { name: "Try again" }))
+        expect(await screen.findByText(short(ALICE))).toBeInTheDocument()
+        expect(screen.queryByText(/Unable to load leaderboard/)).toBeNull()
+    })
+
+    it("gives an out-of-range shared page a direct way back", async () => {
+        respond([], 3)
+        renderWithProviders(<><Leaderboard /><LocationProbe /></>, { route: "/gnoland1/leaderboard?page=9" })
+        fireEvent.click(await screen.findByRole("button", { name: "Back to first page" }))
+        expect(screen.getByTestId("location")).toHaveTextContent("")
     })
 })

@@ -97,6 +97,7 @@ var (
 	errQuestNotMet       = errors.New("quest requirements not met on-chain")
 	errMetaServerDerived = errors.New("meta-quests are server-derived and cannot be claimed directly")
 	errQuestRetired      = errors.New("quest is retired and can no longer be completed")
+	errQuestNotLive      = errors.New("quest is not available to complete yet")
 	// errPackageNotFound is a node's answer that the queried package does not
 	// exist on its chain (ABCI /vm.InvalidPkgPathError). It is authoritative, so
 	// it neither fails over nor counts as an outage.
@@ -118,6 +119,28 @@ func (e *realmNotDeployedError) Error() string {
 // default below.
 var retiredQuests = map[string]bool{
 	"gnodaokit-extension": true,
+}
+
+// offChainClaimableQuests mirrors the off-chain actions that the app currently
+// completes, including its hidden Konami trigger and two legacy auto-tracked
+// IDs. Other off-chain catalog entries are still coming soon. Keeping their XP
+// values in validQuests preserves historical completions, but must not make a
+// direct CompleteQuest/SyncQuests call grant them before their flows launch.
+var offChainClaimableQuests = map[string]bool{
+	"connect-wallet": true, "setup-profile": true, "visit-5-pages": true,
+	"use-cmdk": true, "switch-network": true, "view-validator": true,
+	"share-link": true, "submit-feedback": true, "browse-proposals": true,
+	"create-team": true, "easter-egg-konami": true,
+	"view-profile": true, "directory-tabs": true,
+}
+
+// onChainClaimableQuests mirrors the curated live on-chain catalog. A generic
+// deploy path or funded account cannot prove specialized deployment semantics
+// or a faucet claim. Keep those IDs in validQuests for historical XP only.
+var onChainClaimableQuests = map[string]bool{
+	"register-username": true, "first-transaction": true,
+	"submit-candidature": true, "join-dao": true, "create-token": true,
+	"deploy-hello-pkg": true, "deploy-hello-realm": true,
 }
 
 // metaQuests are server-DERIVED achievements (XP milestones, leaderboard rank,
@@ -158,6 +181,9 @@ func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, ques
 	case "self_report", "social":
 		return connect.NewError(connect.CodeInvalidArgument, errProofRequired)
 	case "on_chain":
+		if !onChainClaimableQuests[questID] {
+			return connect.NewError(connect.CodeFailedPrecondition, errQuestNotLive)
+		}
 		ok, err := s.runOnChainVerify(ctx, addr, questID, proof)
 		if err != nil {
 			var notDeployed *realmNotDeployedError
@@ -170,10 +196,41 @@ func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, ques
 			return connect.NewError(connect.CodeFailedPrecondition, errQuestNotMet)
 		}
 		return nil
+	case "off_chain":
+		if offChainClaimableQuests[questID] {
+			if questID == "create-team" {
+				ok, err := s.verifyCreateTeamQuest(ctx, addr)
+				if err != nil {
+					return connect.NewError(connect.CodeFailedPrecondition, errVerifyUnavailable)
+				}
+				if !ok {
+					return connect.NewError(connect.CodeFailedPrecondition, errQuestNotMet)
+				}
+			}
+			return nil // low-trust app action; excluded from verified XP
+		}
+		return connect.NewError(connect.CodeFailedPrecondition, errQuestNotLive)
 	default:
-		// off_chain + legacy ids (view-profile/directory-tabs): low-trust accept.
-		return nil
+		// Legacy IDs absent from questVerification need an explicit allowlist too.
+		if offChainClaimableQuests[questID] {
+			return nil
+		}
+		return connect.NewError(connect.CodeFailedPrecondition, errQuestNotLive)
 	}
+}
+
+// create-team is backed by our own authoritative team tables. The signer must
+// still be an admin of a team they created, with at least three members, as the
+// frontend verifier requires. A direct CompleteQuest call cannot fake this.
+func (s *MultisigService) verifyCreateTeamQuest(ctx context.Context, addr string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM teams t
+		JOIN team_members owner ON owner.team_id = t.id AND owner.address = ? AND owner.role = 'admin'
+		WHERE t.created_by = ?
+		AND (SELECT COUNT(*) FROM team_members member WHERE member.team_id = t.id) >= 3`, addr, addr,
+	).Scan(&count)
+	return count > 0, err
 }
 
 // runOnChainVerify dispatches to the test seam if present, else the real impl.
@@ -219,19 +276,13 @@ func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, q
 		if err != nil {
 			return false, err
 		}
-		return renderExists(out), nil
+		return candidatureRenderHasApplicant(out, addr), nil
 	case "first-transaction":
 		seq, _, err := accountInfo(ctx, addr)
 		if err != nil {
 			return false, err
 		}
 		return seq > 0, nil
-	case "faucet-claim":
-		seq, accNum, err := accountInfo(ctx, addr)
-		if err != nil {
-			return false, err
-		}
-		return seq > 0 || accNum > 0, nil
 	case "join-dao":
 		// Membership from the realm-written cells of every memba_dao :members
 		// page (see verifyJoinDAO).
@@ -247,14 +298,16 @@ func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, q
 	}
 }
 
-// renderExists reports whether a vm/qrender result represents a present record
-// (non-empty and not a "not found" / 404 page).
-func renderExists(out string) bool {
-	if out == "" {
+// The candidature detail render starts with a realm-written applicant heading.
+// Requiring that first line to match the authenticated address prevents a
+// generic page, another applicant's record, or user-controlled bio text from
+// satisfying the quest if the realm ignores/changes the requested render path.
+func candidatureRenderHasApplicant(out, addr string) bool {
+	if !addrRe.MatchString(addr) {
 		return false
 	}
-	lower := strings.ToLower(out)
-	return !strings.Contains(lower, "not found") && !strings.Contains(lower, "404")
+	first, _, _ := strings.Cut(strings.TrimSpace(out), "\n")
+	return strings.TrimSpace(first) == "# Application: "+addr
 }
 
 // ── Deploy-quest verification ───────────────────────────────
@@ -299,9 +352,9 @@ func canonicalizeProof(raw string) (string, bool) {
 	return raw, true
 }
 
-// verifyDeployQuest confirms a deploy quest's proof path is (1) under the user's
-// registered @username namespace, (2) live on-chain, and (3) not already counted
-// for another of this user's deploy quests (so one deploy can't farm all 19).
+// verifyDeployQuest confirms a deploy quest's proof path has the expected
+// package/realm type, is under the user's @username namespace, exists on-chain,
+// and has not already been counted for another deploy quest.
 func (s *MultisigService) verifyDeployQuest(ctx context.Context, addr, questID, proof string) (bool, error) {
 	// Canonicalize so a single realm's string aliases (trailing/repeated slashes,
 	// file paths) can't each farm a different deploy quest. CompleteQuest stores
@@ -309,6 +362,9 @@ func (s *MultisigService) verifyDeployQuest(ctx context.Context, addr, questID, 
 	canon, ok := canonicalizeProof(proof)
 	if !ok {
 		return false, nil // not a valid gno.land/{r,p}/<ns>/<pkg> path
+	}
+	if !deployProofMatchesQuest(questID, canon) {
+		return false, nil
 	}
 	ns, _ := namespaceOf(canon) // canon is a valid pkg path -> ns present
 	owned, err := s.namespaceOwnedBy(ctx, ns, addr)
@@ -330,6 +386,17 @@ func (s *MultisigService) verifyDeployQuest(ctx context.Context, addr, questID, 
 		return false, err
 	}
 	return !used, nil
+}
+
+func deployProofMatchesQuest(questID, path string) bool {
+	switch questID {
+	case "deploy-hello-pkg":
+		return strings.HasPrefix(path, "gno.land/p/")
+	case "deploy-hello-realm":
+		return strings.HasPrefix(path, "gno.land/r/")
+	default:
+		return false
+	}
 }
 
 // namespaceOwnedBy reports whether the @username namespace `ns` resolves to

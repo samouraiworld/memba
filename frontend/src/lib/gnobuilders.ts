@@ -86,7 +86,7 @@ export const CANDIDATURE_XP_THRESHOLD_V2 = CANDIDATURE_XP_THRESHOLD
 
 const DEVELOPER_QUESTS: GnoQuest[] = [
     // Package Deployment Series (10)
-    { id: "deploy-hello-pkg", title: "Hello Gno", description: "Deploy a 'Hello World' package on Gno", xp: 20, icon: "📦", category: "developer", difficulty: "beginner", verification: "on_chain", season: 1 },
+    { id: "deploy-hello-pkg", title: "First Package", description: "Deploy a package under your Gno username namespace", xp: 20, icon: "📦", category: "developer", difficulty: "beginner", verification: "on_chain", season: 1 },
     { id: "deploy-counter-pkg", title: "State Machine", description: "Deploy a package with mutable state (counter)", xp: 25, icon: "🔢", category: "developer", difficulty: "beginner", verification: "on_chain", prerequisite: "deploy-hello-pkg", season: 1 },
     { id: "deploy-avl-pkg", title: "Tree Builder", description: "Deploy a package using AVL trees for storage", xp: 30, icon: "🌳", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-counter-pkg", season: 1 },
     { id: "deploy-interface-pkg", title: "Abstraction Master", description: "Deploy a package that exports an interface", xp: 30, icon: "🧩", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-avl-pkg", season: 1 },
@@ -98,7 +98,7 @@ const DEVELOPER_QUESTS: GnoQuest[] = [
     { id: "deploy-governance-pkg", title: "Governance Architect", description: "Deploy a governance package with custom voting conditions", xp: 60, icon: "🏛️", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-upgradable-pkg", season: 1 },
 
     // Realm Deployment Series (10)
-    { id: "deploy-hello-realm", title: "Realm Rookie", description: "Deploy your first realm with Render()", xp: 20, icon: "🌐", category: "developer", difficulty: "beginner", verification: "on_chain", season: 1 },
+    { id: "deploy-hello-realm", title: "First Realm", description: "Deploy a realm under your Gno username namespace", xp: 20, icon: "🌐", category: "developer", difficulty: "beginner", verification: "on_chain", season: 1 },
     { id: "deploy-grc20-realm", title: "Token Creator", description: "Deploy a GRC20 token realm", xp: 30, icon: "🪙", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
     { id: "deploy-grc721-realm", title: "NFT Artist", description: "Deploy a GRC721 NFT collection realm", xp: 35, icon: "🎨", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
     { id: "deploy-board-realm", title: "Forum Builder", description: "Deploy a realm with board/post functionality", xp: 30, icon: "📝", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
@@ -251,23 +251,17 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     "view-validator", "share-link", "submit-feedback", "browse-proposals",
     "visit-5-pages",
     // On-chain (path-keyed server verifiers in quest_verify.go — non-spoofable)
-    "register-username", "first-transaction", "faucet-claim", "submit-candidature",
+    "register-username", "first-transaction", "submit-candidature",
     // Computed / backend milestones
     "create-team", "earn-500-xp",
     // Self-report (proof submitted via SelfReportForm -> admin review). Excludes
     // the hidden bug-hunter quest so it stays discoverable.
-    "deploy-test-pkg", "deploy-full-dapp", "write-10-tests", "fix-upstream-bug",
+    "deploy-test-pkg", "write-10-tests", "fix-upstream-bug",
     "audit-realm", "build-mcp-tool", "gas-optimization", "mentor-developer",
-    // Deploy quests: backend verifies the submitted realm/package path is under
-    // the user's @username namespace, exists on-chain, and is distinct per quest.
-    // (deploy-3-chains/deploy-ibc-realm/render-masterclass stay coming-soon — one
-    // path can't prove "3 chains"/IBC, and render-masterclass isn't deploy-prefixed.)
-    "deploy-hello-pkg", "deploy-counter-pkg", "deploy-avl-pkg", "deploy-interface-pkg",
-    "deploy-import-pkg", "deploy-event-pkg", "deploy-ownable-pkg", "deploy-upgradable-pkg",
-    "deploy-governance-pkg",
-    "deploy-hello-realm", "deploy-grc20-realm", "deploy-grc721-realm", "deploy-board-realm",
-    "deploy-dao-realm", "deploy-crossing-realm", "deploy-escrow-realm",
-    "deploy-marketplace-realm", "deploy-multisig-realm",
+    // These two proofs establish namespace ownership and the matching package
+    // or realm path. Specialized deployment claims remain visible as coming
+    // soon until their semantics can be verified server-side.
+    "deploy-hello-pkg", "deploy-hello-realm",
     // Phase 3 on-chain verifiers (backend confirms from the user's address alone,
     // no proof input): join-dao parses memba_dao's authoritative :members render;
     // create-token checks the token factory's per-token **Admin** field.
@@ -282,7 +276,8 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
  * path, so they use their own input flow and are NOT in this set.
  */
 export const BACKEND_VERIFIED_QUESTS: ReadonlySet<string> = new Set([
-    "join-dao", "create-token",
+    "register-username", "first-transaction", "submit-candidature",
+    "join-dao", "create-token", "create-team",
 ])
 
 /** True if a quest is verified server-side from the user's address (no input). */

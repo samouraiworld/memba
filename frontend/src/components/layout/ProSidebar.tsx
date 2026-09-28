@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, MagnifyingGlass } from '@phosphor-icons/react'
 import { useNetworkKey } from '../../hooks/useNetworkNav'
-import { canApplyForMembership } from '../../lib/quests'
 import { ZOOMA_ADDRESS } from '../../lib/membaDAO'
 import { proEntries, PRO_NAV_GROUPS, proRouteActive } from '../../lib/proNavigation'
 import { navFlagOn } from '../../lib/navFlags'
@@ -15,7 +14,7 @@ export function ProSidebar({ connected, address, unvotedCount, notifUnreadCount,
         if (entry.id === 'profile' && !address) return null
         const to = entry.id === 'profile' ? `${entry.to}/${address}` : entry.to
         const active = proRouteActive(pathname, nk, to)
-        const count = entry.id === 'dao' ? unvotedCount + notifUnreadCount : entry.id === 'feed' ? feedReplyUnread : entry.id === 'candidature' && canApplyForMembership() ? 1 : 0
+        const count = entry.id === 'dao' ? unvotedCount + notifUnreadCount : entry.id === 'feed' ? feedReplyUnread : 0
         const soon = entry.flag && !navFlagOn(entry.flag)
         return <Link key={entry.id} to={`/${nk}${to}`} className={`k-sidebar-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined} aria-label={`${entry.label}${soon ? ', coming soon' : ''}${count > 0 ? `, ${count} notifications` : ''}`} title={collapsed ? entry.label : undefined}>
             <span className="k-sidebar-icon"><entry.Icon size={20} aria-hidden="true" /></span>

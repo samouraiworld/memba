@@ -27,6 +27,12 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: Quests production QA (2026-09-28)
+
+- Keep Quest Hub filters through detail visits, contain verification state to the current wallet and quest, refresh claim status, and make the leaderboard and reviewer queue usable in narrow windows.
+- Restrict verified rewards to claims the server can substantiate, including deployment proof type and historical XP provenance; keep specialized deployments and faucet claims visible as coming soon.
+- Make candidature prompts use verified XP, guard attestation reads against RPC failure, and keep inactive OS windows from polling.
+
 ### Memba OS: Validators production QA (2026-09-28)
 
 - Keep consensus, signing and operator reads on one verified chain and RPC snapshot; bound pagination and detail requests, scope caches, and cancel work when the window closes.

@@ -501,6 +501,8 @@
     font-size: 1rem;
     font-weight: 600;
     color: var(--color-k-accent-text);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .k-questdetail-desc {
@@ -727,6 +729,34 @@
     .k-questhub-select,
     .k-questhub-search {
         width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .k-questhub { padding: var(--space-3); }
+    .k-questhub-hero {
+        padding: var(--space-4);
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+    .k-questhub-hero h1 { font-size: 1.5rem; }
+    .k-questhub-hero-stats { gap: var(--space-1); }
+    .k-questdetail-deploy-row {
+        flex-direction: column;
+    }
+}
+
+@container os-window (max-width: 480px) {
+    .k-questhub { padding: var(--space-3); }
+    .k-questhub-hero {
+        padding: var(--space-4);
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+    .k-questhub-hero h1 { font-size: 1.5rem; }
+    .k-questhub-hero-stats { gap: var(--space-1); }
+    .k-questdetail-deploy-row {
+        flex-direction: column;
     }
 }
 

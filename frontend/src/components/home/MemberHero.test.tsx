@@ -100,7 +100,7 @@ describe("MemberHero — standing", () => {
 
     it("offers 'Earn XP' with the XP-to-candidature hint when below threshold", async () => {
         await renderHero()
-        expect(screen.getByText(/290 XP to Memba DAO candidature/)).toBeInTheDocument()
+        expect(screen.getByText(/290 verified XP to Memba DAO candidature/)).toBeInTheDocument()
         expect(screen.getByTestId("member-standing-quests")).toHaveAttribute("href", "/test13/quests")
         expect(screen.queryByTestId("member-standing-apply")).not.toBeInTheDocument()
     })
@@ -118,6 +118,6 @@ describe("MemberHero — standing", () => {
         await renderHero()
         expect(screen.getByTestId("member-standing-xp")).toHaveTextContent("0")
         expect(screen.getByText("newcomer")).toBeInTheDocument()
-        expect(screen.getByText(/350 XP to Memba DAO candidature/)).toBeInTheDocument()
+        expect(screen.getByText(/350 verified XP to Memba DAO candidature/)).toBeInTheDocument()
     })
 })

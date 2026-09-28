@@ -25,7 +25,7 @@ vi.mock("../../lib/questClaims", () => ({
 
 import { SelfReportForm } from "./SelfReportForm"
 
-const token = create(TokenSchema, {})
+const token = create(TokenSchema, { userAddress: "g1alice" })
 
 function statuses(entries: Record<string, string>) {
     const map = new Map<string, { status: string; createdAt: string; reviewedAt: string }>()
@@ -130,6 +130,41 @@ describe("SelfReportForm", () => {
         })
 
         await waitFor(() => expect(screen.getByText(/pending admin review/i)).toBeTruthy())
+    })
+
+    it("refreshes a pending claim when the applicant returns to the page", async () => {
+        fetchQuestClaimStatusesMock
+            .mockResolvedValueOnce(statuses({ "fix-upstream-bug": "pending" }))
+            .mockResolvedValueOnce(statuses({ "fix-upstream-bug": "approved" }))
+        render(<SelfReportForm questId="fix-upstream-bug" address="g1alice" authToken={token} />)
+        await screen.findByText(/pending admin review/i)
+        fireEvent.focus(window)
+        expect(await screen.findByText(/Proof approved/)).toBeInTheDocument()
+    })
+
+    it("does not restore a stale pending status after a newer approval read", async () => {
+        let resolveOld!: (value: ReturnType<typeof statuses>) => void
+        fetchQuestClaimStatusesMock
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+            .mockResolvedValueOnce(statuses({ "fix-upstream-bug": "approved" }))
+        render(<SelfReportForm questId="fix-upstream-bug" address="g1alice" authToken={token} />)
+        fireEvent.focus(window)
+        expect(await screen.findByText(/Proof approved/)).toBeInTheDocument()
+        await act(async () => { resolveOld(statuses({ "fix-upstream-bug": "pending" })) })
+        expect(screen.getByText(/Proof approved/)).toBeInTheDocument()
+    })
+
+    it("does not reopen the form when an old no-claim read finishes after submit", async () => {
+        let resolveOld!: (value: ReturnType<typeof statuses>) => void
+        fetchQuestClaimStatusesMock.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+        submitQuestClaimMock.mockResolvedValue(undefined)
+        render(<SelfReportForm questId="fix-upstream-bug" address="g1alice" authToken={token} />)
+        fireEvent.change(screen.getByLabelText("Proof URL"), { target: { value: "https://example.com/pr/1" } })
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: /submit proof/i })) })
+        expect(screen.getByText(/pending admin review/i)).toBeInTheDocument()
+        await act(async () => { resolveOld(statuses({})) })
+        expect(screen.getByText(/pending admin review/i)).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /submit proof/i })).toBeNull()
     })
 
     it("shows an error and keeps the form when submission fails", async () => {

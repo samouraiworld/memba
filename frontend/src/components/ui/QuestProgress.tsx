@@ -16,7 +16,6 @@ import {
     CANDIDATURE_XP_THRESHOLD,
     loadQuestProgress,
     fetchUserQuests,
-    canApplyForMembership,
 } from "../../lib/quests"
 import { ALL_QUESTS } from "../../lib/gnobuilders"
 import type { UserQuestState } from "../../lib/quests"
@@ -130,7 +129,9 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
     const percent = Math.min(100, Math.round((completedCount / totalQuests) * 100))
     // BE-4: for backend-fetched profiles the gate reads VERIFIED XP only —
     // off_chain XP never counts toward candidature.
-    const eligible = address ? (state.verifiedXP ?? 0) >= CANDIDATURE_XP_THRESHOLD : canApplyForMembership()
+    // Own-profile localStorage cannot establish verified XP. The expanded
+    // CandidatureUnlock fetches the authoritative backend gate separately.
+    const eligible = !!address && (state.verifiedXP ?? 0) >= CANDIDATURE_XP_THRESHOLD
 
     if (loading) {
         return (

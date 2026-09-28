@@ -13,7 +13,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { useAdena } from "../hooks/useAdena"
@@ -28,6 +28,7 @@ import {
     type QuestDifficulty,
 } from "../lib/gnobuilders"
 import { questHubStatus } from "../lib/questNetwork"
+import { useWindowActive } from "../os/page/WindowActivity"
 import { RankBadge } from "../components/quests/RankBadge"
 import { AttestationPanel } from "../components/quests/AttestationPanel"
 import { QuestCard } from "../components/quests/QuestCard"
@@ -40,10 +41,28 @@ type FilterCategory = QuestCategory | "all"
 const CATEGORY_TAB_KEYS: readonly FilterCategory[] = ["all", "developer", "everyone", "champion"]
 type FilterDifficulty = QuestDifficulty | "all"
 type FilterStatus = "all" | "available" | "completed" | "locked"
+const EMPTY_PROGRESS: UserQuestState = { completed: [], totalXP: 0 }
+
+function filterValue<T extends string>(value: string | null, options: readonly T[], fallback: T): T {
+    return value && options.includes(value as T) ? value as T : fallback
+}
 
 export default function QuestHub() {
     const nk = useNetworkKey()
-    const [category, setCategory] = useState<FilterCategory>("all")
+    const [searchParams, setSearchParams] = useSearchParams()
+    const category = filterValue(searchParams.get("category"), CATEGORY_TAB_KEYS, "all")
+    const difficulty: FilterDifficulty = filterValue(searchParams.get("difficulty"), ["all", "beginner", "intermediate", "advanced", "expert"] as const, "all")
+    const status: FilterStatus = filterValue(searchParams.get("status"), ["all", "available", "completed", "locked"] as const, "all")
+    const search = searchParams.get("q") ?? ""
+    const updateFilter = (key: "category" | "difficulty" | "status" | "q", value: string) => {
+        setSearchParams(previous => {
+            const next = new URLSearchParams(previous)
+            if (!value || value === "all") next.delete(key)
+            else next.set(key, value)
+            return next
+        }, { replace: true })
+    }
+    const setCategory = (value: FilterCategory) => updateFilter("category", value)
 
     // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
     // shared hook Directory extracted; these tabs had no keyboard support.
@@ -53,24 +72,35 @@ export default function QuestHub() {
         onSelect: setCategory,
         idFor: (k) => `quest-tab-${k}`,
     })
-    const [difficulty, setDifficulty] = useState<FilterDifficulty>("all")
-    const [status, setStatus] = useState<FilterStatus>("all")
-    const [search, setSearch] = useState("")
-
     const adena = useAdena()
-    const [questState, setQuestState] = useState(() => loadQuestProgress())
-    const [backendState, setBackendState] = useState<UserQuestState | null>(null)
+    const windowActive = useWindowActive()
+    const [localProgress, setLocalProgress] = useState(() => ({ address: adena.address, state: loadQuestProgress(adena.address || null) }))
+    const questState = localProgress.address === adena.address ? localProgress.state : EMPTY_PROGRESS
+    const [backendProgress, setBackendProgress] = useState<{ address: string; state: UserQuestState } | null>(null)
     const [backendLoading, setBackendLoading] = useState(false)
 
     useEffect(() => {
         document.title = "GnoBuilders — Memba"
         trackPageVisit("quests")
+    }, [])
 
+    useEffect(() => {
         // Refresh the local (optimistic) state on any completion.
-        const onQuestComplete = () => setQuestState(loadQuestProgress())
+        const onQuestComplete = () => setLocalProgress({ address: adena.address, state: loadQuestProgress(adena.address || null) })
         window.addEventListener("quest-completed", onQuestComplete)
         return () => window.removeEventListener("quest-completed", onQuestComplete)
-    }, [])
+    }, [adena.address])
+
+    useEffect(() => {
+        // Layout updates the wallet-scoped quest storage in its own effect.
+        // A microtask reads after that update, while the render above shows no
+        // progress from the previous wallet during the handoff.
+        let cancelled = false
+        queueMicrotask(() => {
+            if (!cancelled) setLocalProgress({ address: adena.address, state: loadQuestProgress(adena.address || null) })
+        })
+        return () => { cancelled = true }
+    }, [adena.address])
 
     // Backend XP/rank is authoritative — it's what the leaderboard shows. Fetch
     // it for the connected user and prefer it for display (P1-1); localStorage
@@ -78,25 +108,27 @@ export default function QuestHub() {
     // post-sync number lands without a reload.
     useEffect(() => {
         const addr = adena.address
-        if (!addr) return
+        if (!addr || !windowActive) return
         let cancelled = false
+        let requestId = 0
         const load = () => {
+            const currentRequest = ++requestId
             setBackendLoading(true)
             // fetchUserQuests resolves (never throws) — null on unreachable backend.
             fetchUserQuests(addr).then(s => {
-                if (cancelled) return
-                if (s) setBackendState(s)
+                if (cancelled || currentRequest !== requestId) return
+                if (s) setBackendProgress({ address: addr, state: s })
                 setBackendLoading(false)
             })
         }
         load()
         window.addEventListener("quest-completed", load)
-        return () => { cancelled = true; window.removeEventListener("quest-completed", load) }
-    }, [adena.address])
+        return () => { cancelled = true; requestId++; window.removeEventListener("quest-completed", load) }
+    }, [adena.address, windowActive])
 
     // Only trust the fetched backend state while a wallet is connected (it falls
     // back to localStorage when disconnected, without clearing state in-effect).
-    const effectiveBackend = adena.address ? backendState : null
+    const effectiveBackend = adena.address && backendProgress?.address === adena.address ? backendProgress.state : null
 
     // Prefer backend XP (authoritative); fall back to localStorage when offline.
     const displayXP = effectiveBackend ? effectiveBackend.totalXP : questState.totalXP
@@ -123,7 +155,7 @@ export default function QuestHub() {
 
     // First authoritative fetch in flight (wallet connected, no backend state yet):
     // signal "confirming" rather than letting the XP silently jump local→server (Q-11).
-    const confirmingXP = adena.address != null && backendLoading && backendState == null
+    const confirmingXP = !!adena.address && backendLoading && effectiveBackend == null
 
     // Curated, completable quests (Phase 0). Everything else is "coming soon".
     const liveQuests = useMemo(() => getLiveQuests(), [])
@@ -168,7 +200,16 @@ export default function QuestHub() {
 
     // Q-24: when a filter/search narrows the grid to nothing, offer a one-click reset.
     const filtersActive = category !== "all" || difficulty !== "all" || status !== "all" || search.trim() !== ""
-    const clearFilters = () => { setCategory("all"); setDifficulty("all"); setStatus("all"); setSearch("") }
+    const clearFilters = () => setSearchParams(previous => {
+        const next = new URLSearchParams(previous)
+        for (const key of ["category", "difficulty", "status", "q"]) next.delete(key)
+        return next
+    }, { replace: true })
+    const returnQuery = new URLSearchParams()
+    if (category !== "all") returnQuery.set("category", category)
+    if (difficulty !== "all") returnQuery.set("difficulty", difficulty)
+    if (status !== "all") returnQuery.set("status", status)
+    if (search) returnQuery.set("q", search)
 
     return (
         <div className="k-questhub">
@@ -239,7 +280,7 @@ export default function QuestHub() {
                     className="k-questhub-search"
                     placeholder="Search quests..."
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => updateFilter("q", e.target.value)}
                     aria-label="Search quests"
                 />
                 <select
@@ -247,7 +288,7 @@ export default function QuestHub() {
                     name="quest-difficulty"
                     className="k-questhub-select"
                     value={difficulty}
-                    onChange={e => setDifficulty(e.target.value as FilterDifficulty)}
+                    onChange={e => updateFilter("difficulty", e.target.value)}
                     aria-label="Filter by difficulty"
                 >
                     <option value="all">All difficulties</option>
@@ -261,7 +302,7 @@ export default function QuestHub() {
                     name="quest-status"
                     className="k-questhub-select"
                     value={status}
-                    onChange={e => setStatus(e.target.value as FilterStatus)}
+                    onChange={e => updateFilter("status", e.target.value)}
                     aria-label="Filter by status"
                 >
                     <option value="all">All statuses</option>
@@ -289,6 +330,7 @@ export default function QuestHub() {
                             quest={quest}
                             completed={completedIds.has(quest.id)}
                             available={isQuestAvailable(quest.id, completedIds)}
+                            returnQuery={returnQuery.toString()}
                         />
                     ))
                 )}

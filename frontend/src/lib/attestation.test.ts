@@ -18,6 +18,7 @@ const {
     parseGoString,
     buildRecordCompletionMsg,
     fetchRealmSignerHex,
+    fetchRecordedQuestIds,
     isAttestationClaimable,
     RECORD_COMPLETION_GAS_WANTED,
     RECORD_COMPLETION_MAX_DEPOSIT_UGNOT,
@@ -93,6 +94,17 @@ describe("fetchRealmSignerHex", () => {
         queryEval.mockRejectedValueOnce(new Error("rpc down"))
         await expect(fetchRealmSignerHex(REALM)).resolves.toBe("")
         await expect(fetchRealmSignerHex("")).resolves.toBe("")
+    })
+})
+
+describe("fetchRecordedQuestIds", () => {
+    beforeEach(() => queryEval.mockReset())
+
+    it("rejects an unavailable record read instead of assuming no quest was recorded", async () => {
+        queryEval.mockRejectedValueOnce(new Error("RPC unavailable"))
+        await expect(fetchRecordedQuestIds(REALM, "g1alice")).rejects.toThrow("RPC unavailable")
+        queryEval.mockResolvedValueOnce(null)
+        await expect(fetchRecordedQuestIds(REALM, "g1alice")).rejects.toThrow("status unavailable")
     })
 })
 

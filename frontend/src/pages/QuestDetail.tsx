@@ -7,8 +7,8 @@
  * Route: /:network/quests/:questId
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+import { useParams, Link, useLocation } from "react-router-dom"
 import { useAdena } from "../hooks/useAdena"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import { loadQuestProgress, completeQuest, completeQuestVerified } from "../lib/quests"
@@ -34,14 +34,35 @@ const DIFFICULTY_COLORS: Record<string, string> = {
     expert: "var(--color-k-danger-text)",
 }
 
+/** A profile link may carry the Hub's filter query for an explicit return. */
+function hubReturnQuery(search: string): string {
+    const from = new URLSearchParams(search).get("from")
+    if (!from || from.length > 256) return ""
+    const params = new URLSearchParams(from)
+    const allowed = new Set(["category", "difficulty", "status", "q"])
+    if ([...params.keys()].some(key => !allowed.has(key)) || [...params.values()].some(value => value.length > 100)) return ""
+    return params.toString()
+}
+
 export default function QuestDetail() {
     const { questId } = useParams<{ questId: string }>()
     const { address } = useAdena()
+    // A route or wallet change starts a new verification session. The previous
+    // session's result, proof field, and self-report status cannot carry over.
+    return <QuestDetailSession key={`${questId ?? ""}:${address ?? ""}`} questId={questId} address={address} />
+}
+
+function QuestDetailSession({ questId, address }: { questId: string | undefined; address: string | null | undefined }) {
     const auth = useAuth()
     const nk = useNetworkKey()
+    const location = useLocation()
+    const from = hubReturnQuery(location.search)
+    const hubPath = `/${nk}/quests${from ? `?${from}` : ""}`
+    const active = useRef(true)
+    const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const quest = questId ? getQuestById(questId) : undefined
-    const [state, setState] = useState(() => loadQuestProgress())
+    const [state, setState] = useState(() => loadQuestProgress(address || null))
     const completedIds = useMemo(() => new Set(state.completed.map(c => c.questId)), [state])
 
     const [verification, setVerification] = useState<QuestVerificationResult | null>(null)
@@ -50,16 +71,30 @@ export default function QuestDetail() {
     const [showCelebration, setShowCelebration] = useState(false)
 
     useEffect(() => {
+        active.current = true
+        return () => {
+            active.current = false
+            if (celebrationTimer.current) clearTimeout(celebrationTimer.current)
+        }
+    }, [])
+
+    const celebrate = useCallback(() => {
+        setShowCelebration(true)
+        if (celebrationTimer.current) clearTimeout(celebrationTimer.current)
+        celebrationTimer.current = setTimeout(() => setShowCelebration(false), 4000)
+    }, [])
+
+    useEffect(() => {
         document.title = quest ? `${quest.title} — GnoBuilders` : "Quest Not Found"
         trackPageVisit("quest-detail")
 
         // Refresh local quest state when any quest completes, so the status pill
         // and verification section reflect the new state immediately (no longer
         // celebrating success while the page still says "Available").
-        const onQuestComplete = () => setState(loadQuestProgress())
+        const onQuestComplete = () => setState(loadQuestProgress(address || null))
         window.addEventListener("quest-completed", onQuestComplete)
         return () => window.removeEventListener("quest-completed", onQuestComplete)
-    }, [quest])
+    }, [quest, address])
 
     const isCompleted = questId ? completedIds.has(questId) : false
     const isAvailable = questId ? isQuestAvailable(questId, completedIds) : false
@@ -86,26 +121,31 @@ export default function QuestDetail() {
 
     const handleVerify = useCallback(async () => {
         if (!questId || !address) return
+        if (!auth.token || auth.token.userAddress !== address) {
+            setVerification({ status: "not_verified", message: "Sign in with this wallet to verify." })
+            return
+        }
         setVerifying(true)
         try {
-            const result = await verifyQuest(questId, address, GNO_RPC_URL, auth.token ?? undefined)
+            const result = await verifyQuest(questId, address, GNO_RPC_URL, auth.token)
+            if (!active.current) return
             setVerification(result)
 
             if (result.status === "verified" && !isCompleted) {
-                completeQuest(questId, auth.token ?? undefined)
-                setShowCelebration(true)
-                setTimeout(() => setShowCelebration(false), 4000)
+                completeQuest(questId, auth.token)
+                setState(loadQuestProgress(address))
+                celebrate()
             }
         } catch {
-            setVerification({ status: "error", message: "Verification failed" })
+            if (active.current) setVerification({ status: "error", message: "Verification failed" })
         } finally {
-            setVerifying(false)
+            if (active.current) setVerifying(false)
         }
-    }, [questId, address, auth.token, isCompleted])
+    }, [questId, address, auth.token, isCompleted, celebrate])
 
     const handleDeploymentVerify = useCallback(async () => {
         if (!realmPath.trim() || !address || !questId) return
-        if (!auth.token) {
+        if (!auth.token || auth.token.userAddress !== address) {
             setVerification({ status: "not_verified", message: "Connect your wallet to verify." })
             return
         }
@@ -116,18 +156,18 @@ export default function QuestDetail() {
             // registered @username namespace, exists on-chain, and isn't already
             // used for another deploy quest. It throws if any check fails.
             await completeQuestVerified(questId, realmPath.trim(), auth.token)
+            if (!active.current) return
             setVerification({ status: "verified", message: "Verified!" })
-            setShowCelebration(true)
-            setTimeout(() => setShowCelebration(false), 4000)
+            celebrate()
         } catch {
-            setVerification({
-                status: "not_verified",
-                message: "Couldn't verify — the realm must exist and be under your registered @username namespace (and not already used for another deploy quest).",
+            if (active.current) setVerification({
+                status: "error",
+                message: "Verification didn't complete. Check that this path exists under your registered @username namespace, then try again.",
             })
         } finally {
-            setVerifying(false)
+            if (active.current) setVerifying(false)
         }
-    }, [realmPath, address, questId, auth.token])
+    }, [realmPath, address, questId, auth.token, celebrate])
 
     // Backend-verified on_chain quests (join-dao, create-token): the server
     // re-verifies on-chain from the user's address (no proof, no client pre-check
@@ -135,7 +175,7 @@ export default function QuestDetail() {
     // the requirement isn't met.
     const handleBackendVerify = useCallback(async () => {
         if (!questId || !address) return
-        if (!auth.token) {
+        if (!auth.token || auth.token.userAddress !== address) {
             setVerification({ status: "not_verified", message: "Connect your wallet to verify." })
             return
         }
@@ -143,32 +183,35 @@ export default function QuestDetail() {
         setVerification(null)
         try {
             await completeQuestVerified(questId, "", auth.token)
+            if (!active.current) return
             setVerification({ status: "verified", message: "Verified!" })
-            setShowCelebration(true)
-            setTimeout(() => setShowCelebration(false), 4000)
+            celebrate()
         } catch (err) {
-            setVerification({
+            if (active.current) setVerification({
                 status: "not_verified",
                 message: notOnNetworkMessage(err)
-                    ?? "Couldn't verify on-chain yet — complete the action, then try again.",
+                    ?? (quest?.verification === "off_chain"
+                        ? "Couldn't verify this action yet — complete the requirement, then try again."
+                        : "Couldn't verify on-chain yet — complete the action, then try again."),
             })
         } finally {
-            setVerifying(false)
+            if (active.current) setVerifying(false)
         }
-    }, [questId, address, auth.token])
+    }, [questId, address, auth.token, celebrate, quest?.verification])
 
     if (!quest) {
         return (
             <div className="k-questhub">
                 <h1>Quest Not Found</h1>
                 <p>No quest with ID: {questId}</p>
-                <Link to={`/${nk}/quests`}>Back to Quest Hub</Link>
+                <Link to={hubPath}>Back to Quest Hub</Link>
             </div>
         )
     }
 
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "var(--color-text-disabled)"
-    const isDeployQuest = quest.id.startsWith("deploy-")
+    const isDeployQuest = quest.id === "deploy-hello-pkg" || quest.id === "deploy-hello-realm"
+    const deployKind = quest.id === "deploy-hello-pkg" ? "package" : "realm"
     const isSelfReport = quest.verification === "self_report"
     const isBackendVerified = isBackendVerifiedQuest(quest.id)
 
@@ -176,7 +219,7 @@ export default function QuestDetail() {
         <div className="k-questhub">
             {/* Breadcrumb */}
             <div className="k-questdetail-breadcrumb">
-                <Link to={`/${nk}/quests`}>Quests</Link>
+                <Link to={hubPath}>Quests</Link>
                 <span> / </span>
                 <span>{quest.title}</span>
             </div>
@@ -252,7 +295,7 @@ export default function QuestDetail() {
                     <h3>Prerequisite Chain</h3>
                     <div className="k-questdetail-chain">
                         {prereqChain.map(p => (
-                            <Link key={p.id} to={`/${nk}/quests/${p.id}`} className="k-questdetail-chain-item">
+                            <Link key={p.id} to={`/${nk}/quests/${p.id}${location.search}`} className="k-questdetail-chain-item">
                                 <span>{p.icon}</span>
                                 <span>{p.title}</span>
                                 {completedIds.has(p.id) ? <span className="k-quest-card-status--done">done</span> : <span className="k-quest-card-status--locked">needed</span>}
@@ -276,12 +319,13 @@ export default function QuestDetail() {
                         <SelfReportForm questId={quest.id} address={address ?? ""} authToken={auth.token ?? null} />
                     ) : isDeployQuest && quest.verification === "on_chain" ? (
                         <div className="k-questdetail-deploy-form">
-                            <label>Enter your deployed realm/package path:</label>
+                            <label htmlFor="quest-deploy-path">Enter your deployed {deployKind} path:</label>
                             <div className="k-questdetail-deploy-row">
                                 <input
                                     type="text"
+                                    id="quest-deploy-path"
                                     className="k-questhub-search"
-                                    placeholder="gno.land/r/yourname/realm"
+                                    placeholder={`gno.land/${deployKind === "package" ? "p" : "r"}/yourname/${deployKind}`}
                                     value={realmPath}
                                     onChange={e => setRealmPath(e.target.value)}
                                 />
@@ -294,8 +338,8 @@ export default function QuestDetail() {
                                 </button>
                             </div>
                             <small className="k-questdetail-hint">
-                                Must be a realm/package you deployed under your registered
-                                @username namespace (e.g. <code>gno.land/r/yourname/realm</code>),
+                                Must be a {deployKind} you deployed under your registered
+                                @username namespace (e.g. <code>gno.land/{deployKind === "package" ? "p" : "r"}/yourname/{deployKind}</code>),
                                 live on-chain, and not already used for another deploy quest.
                             </small>
                         </div>
@@ -305,7 +349,7 @@ export default function QuestDetail() {
                             onClick={handleBackendVerify}
                             disabled={verifying || !address}
                         >
-                            {verifying ? "Verifying..." : "Verify on-chain"}
+                            {verifying ? "Verifying..." : quest.verification === "off_chain" ? "Verify with Memba" : "Verify on-chain"}
                         </button>
                     ) : (
                         <button
@@ -322,7 +366,7 @@ export default function QuestDetail() {
                     )}
 
                     {verification && (
-                        <div className={`k-questdetail-result k-questdetail-result--${verification.status}`}>
+                        <div className={`k-questdetail-result k-questdetail-result--${verification.status}`} role={verification.status === "error" ? "alert" : "status"}>
                             <span>{verification.status === "verified" ? "Verified!" : verification.status === "pending" ? "Pending..." : verification.message}</span>
                         </div>
                     )}
@@ -331,7 +375,7 @@ export default function QuestDetail() {
 
             {/* Back link */}
             <div className="k-questdetail-back">
-                <Link to={`/${nk}/quests`} className="k-questhub-leaderboard-link">
+                <Link to={hubPath} className="k-questhub-leaderboard-link">
                     Back to Quest Hub
                 </Link>
             </div>
