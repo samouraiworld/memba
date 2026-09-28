@@ -79,13 +79,16 @@ test.describe('Memba OS pages in windows', () => {
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/quests')
     })
 
-    test("a page's link to another app opens that app's window beside it", async ({ page }) => {
+    test('a link in Settings opens another system window beside it', async ({ page }) => {
         await page.goto(`${OS_ON}/os/settings`)
         const settings = win(page, 'Settings')
         await settings.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Account' }).click()
-        await settings.getByRole('button', { name: 'Open Profile' }).click()
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/profile')
-        await expect(win(page, 'Profile')).toBeVisible()
+        await expect(settings.getByRole('button', { name: 'Connect wallet' })).toBeVisible()
+        await expect(settings.getByRole('button', { name: 'Open Profile' })).toHaveCount(0)
+        await settings.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'About' }).click()
+        await settings.getByRole('button', { name: 'Open About Memba OS' }).click()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/about')
+        await expect(win(page, 'About Memba OS')).toBeVisible()
         await expect(win(page, 'Settings')).toBeVisible()
     })
 
