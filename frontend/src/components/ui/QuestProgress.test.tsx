@@ -34,10 +34,12 @@ vi.mock("../../lib/quests", () => ({
 
 // Mock gnobuilders module (ALL_QUESTS used for total count)
 vi.mock("../../lib/gnobuilders", () => ({
+    RETIRED_QUEST_IDS: new Set(["submit-feedback"]),
     ALL_QUESTS: [
         { id: "q1", title: "Quest Alpha", xp: 10 },
         { id: "q2", title: "Quest Beta", xp: 15 },
         { id: "q3", title: "Quest Gamma", xp: 20 },
+        { id: "submit-feedback", title: "Voice Heard", xp: 20 },
     ],
 }))
 
@@ -118,6 +120,16 @@ describe("QuestProgress — Expanded State", () => {
         expect(screen.getByTestId("quest-card-q1")).toBeInTheDocument()
         expect(screen.getByTestId("quest-card-q2")).toBeInTheDocument()
         expect(screen.getByTestId("quest-card-q3")).toBeInTheDocument()
+        expect(screen.queryByTestId("quest-card-submit-feedback")).toBeNull()
+    })
+
+    it("shows a retired card only for recorded historical completions", () => {
+        vi.mocked(questsMock.loadQuestProgress).mockReturnValue({
+            completed: [{ questId: "submit-feedback", completedAt: Date.now() }], totalXP: 20,
+        })
+        renderWithRouter(<QuestProgress />)
+        fireEvent.click(screen.getByTestId("quest-hub-toggle"))
+        expect(screen.getByTestId("quest-card-submit-feedback")).toHaveClass("quest-card--done")
     })
 
     it("marks completed quests with done class", () => {

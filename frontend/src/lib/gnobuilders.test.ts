@@ -13,6 +13,7 @@ import {
     isQuestAvailable,
     buildQuestXPMap,
     LIVE_QUEST_IDS,
+    RETIRED_QUEST_IDS,
     isQuestLive,
     isBackendVerifiedQuest,
     getLiveQuests,
@@ -282,9 +283,9 @@ describe("getVisibleQuests", () => {
         expect(found).toBeDefined()
     })
 
-    it("shows all non-hidden quests", () => {
+    it("shows all non-hidden, non-retired quests", () => {
         const visible = getVisibleQuests(new Set())
-        const nonHidden = ALL_QUESTS.filter(q => !q.hidden).length
+        const nonHidden = ALL_QUESTS.filter(q => !q.hidden && !RETIRED_QUEST_IDS.has(q.id)).length
         expect(visible.length).toBe(nonHidden)
     })
 })
@@ -349,18 +350,26 @@ describe("catalog curation", () => {
         }
     })
 
-    it("coming-soon excludes live and hidden quests", () => {
+    it("coming-soon excludes live, hidden and permanently retired quests", () => {
         const comingSoon = getComingSoonQuests()
         for (const q of comingSoon) {
             expect(isQuestLive(q.id), `${q.id} should not be live`).toBe(false)
+            expect(RETIRED_QUEST_IDS.has(q.id), `${q.id} should not be retired`).toBe(false)
             expect(q.hidden, `${q.id} should not be hidden`).toBeFalsy()
         }
+        expect(comingSoon.some(q => q.id === "submit-feedback")).toBe(false)
     })
 
-    it("live + coming-soon + hidden partition the full registry", () => {
+    it("keeps retired quest metadata visible only to historical completers", () => {
+        expect(getVisibleQuests(new Set()).some(q => q.id === "submit-feedback")).toBe(false)
+        expect(getVisibleQuests(new Set(["submit-feedback"])).some(q => q.id === "submit-feedback")).toBe(true)
+    })
+
+    it("live + coming-soon + hidden + retired partition the full registry", () => {
         const live = getLiveQuests().length
         const comingSoon = getComingSoonQuests().length
         const hidden = ALL_QUESTS.filter(q => q.hidden).length
-        expect(live + comingSoon + hidden).toBe(ALL_QUESTS.length)
+        const retired = ALL_QUESTS.filter(q => RETIRED_QUEST_IDS.has(q.id) && !q.hidden).length
+        expect(live + comingSoon + hidden + retired).toBe(ALL_QUESTS.length)
     })
 })

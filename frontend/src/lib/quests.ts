@@ -7,7 +7,7 @@
 
 import { api } from "./api"
 import { trackEvent } from "./analytics"
-import { ALL_QUESTS, CANDIDATURE_XP_THRESHOLD } from "./gnobuilders"
+import { ALL_QUESTS, CANDIDATURE_XP_THRESHOLD, RETIRED_QUEST_IDS } from "./gnobuilders"
 import { create } from "@bufbuild/protobuf"
 import {
     CompleteQuestRequestSchema,
@@ -337,8 +337,9 @@ export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestSt
     if (walletAddr) _migrateGlobalToWallet(walletAddr)
     const local = loadQuestProgress(walletAddr)
 
-    // Upload local completions to backend (server ignores duplicates + validates quest IDs)
-    const completions = local.completed.map(c =>
+    // Retired local-only actions cannot be claimed; the server returns any
+    // historical accepted completions in its authoritative state below.
+    const completions = local.completed.filter(c => !RETIRED_QUEST_IDS.has(c.questId)).map(c =>
         create(QuestCompletionSchema, {
             questId: c.questId,
             completedAt: new Date(c.completedAt).toISOString(),
@@ -365,7 +366,13 @@ export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestSt
             // dropped; it can sync on a later retry). Add server completions we
             // lack (e.g. earned on another device). Recompute XP from the union.
             const byId = new Map<string, QuestProgress>()
-            for (const c of currentLocal.completed) byId.set(c.questId, c)
+            const serverIds = new Set(serverCompleted.map(c => c.questId))
+            // A retired local-only action was never accepted by the server.
+            // Keep historical server completions, but stop displaying rejected
+            // local-only XP after an authoritative sync succeeds.
+            for (const c of currentLocal.completed) {
+                if (!RETIRED_QUEST_IDS.has(c.questId) || serverIds.has(c.questId)) byId.set(c.questId, c)
+            }
             for (const c of serverCompleted) if (!byId.has(c.questId)) byId.set(c.questId, c)
             const completed = Array.from(byId.values())
             const totalXP = completed.reduce((sum, c) => sum + (_findQuest(c.questId)?.xp ?? 0), 0)

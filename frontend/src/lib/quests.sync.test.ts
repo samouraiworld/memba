@@ -72,6 +72,30 @@ describe("syncQuestsToBackend merge (P1-2)", () => {
         expect(result.totalXP).toBe(20) // connect-wallet(10) + use-cmdk(10)
     })
 
+    it("drops a retired local-only completion after sync but keeps server-recorded history", async () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            completed: [{ questId: "connect-wallet", completedAt: 1000 }, { questId: "submit-feedback", completedAt: 2000 }],
+            totalXP: 30,
+        }))
+        syncQuestsMock.mockResolvedValueOnce({ state: {
+            completed: [{ questId: "connect-wallet", completedAt: "2026-01-01T00:00:00Z" }], totalXp: 10,
+        } })
+        const rejected = await syncQuestsToBackend(create(TokenSchema, {}))
+        expect(syncQuestsMock.mock.calls[0][0].completions.map((c: { questId: string }) => c.questId)).toEqual(["connect-wallet"])
+        expect(rejected.completed.map(c => c.questId)).toEqual(["connect-wallet"])
+        expect(rejected.totalXP).toBe(10)
+
+        syncQuestsMock.mockResolvedValueOnce({ state: {
+            completed: [
+                { questId: "connect-wallet", completedAt: "2026-01-01T00:00:00Z" },
+                { questId: "submit-feedback", completedAt: "2026-01-02T00:00:00Z" },
+            ], totalXp: 30,
+        } })
+        const historical = await syncQuestsToBackend(create(TokenSchema, {}))
+        expect(historical.completed.map(c => c.questId).sort()).toEqual(["connect-wallet", "submit-feedback"])
+        expect(historical.totalXP).toBe(30)
+    })
+
     it("writes a late sync response only to the authenticated wallet", async () => {
         const alice = "g1alice"
         const bob = "g1bob"

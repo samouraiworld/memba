@@ -222,6 +222,7 @@ export const TOTAL_POSSIBLE_XP_V2 = ALL_QUESTS.reduce((sum, q) => sum + q.xp, 0)
 /** Visible quests (exclude hidden until discovered) */
 export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
     return ALL_QUESTS.filter(q => {
+        if (RETIRED_QUEST_IDS.has(q.id)) return completedIds.has(q.id)
         // Hidden quests only visible if completed or prerequisite is met
         if (q.hidden) {
             if (completedIds.has(q.id)) return true
@@ -268,6 +269,9 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     "join-dao", "create-token",
 ])
 
+/** Kept in metadata for historical completions; never advertise as earnable. */
+export const RETIRED_QUEST_IDS: ReadonlySet<string> = new Set(["gnodaokit-extension", "submit-feedback"])
+
 /**
  * BACKEND_VERIFIED_QUESTS are on_chain quests the server verifies from the
  * authenticated user's address alone — no proof input and no (spoofable, wrong-
@@ -300,7 +304,7 @@ export function getLiveQuests(): GnoQuest[] {
  * Hidden quests stay hidden (discovered via play), so they're excluded here.
  */
 export function getComingSoonQuests(): GnoQuest[] {
-    return ALL_QUESTS.filter(q => !LIVE_QUEST_IDS.has(q.id) && !q.hidden)
+    return ALL_QUESTS.filter(q => !LIVE_QUEST_IDS.has(q.id) && !RETIRED_QUEST_IDS.has(q.id) && !q.hidden)
 }
 
 /** Get quests by category */

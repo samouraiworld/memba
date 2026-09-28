@@ -35,6 +35,12 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: About and Feedback production QA (2026-09-28)
+
+- Show actual open feedback issues instead of pull requests, route submission through the existing GitHub templates, and disclose when GitHub sign-in is required.
+- Distinguish an empty on-chain feedback board from failed reads, offer retry, and improve Feedback keyboard, mobile, contrast and error states while deferring inactive window reads.
+- Retire unverified feedback quest claims without removing server-recorded historical XP; hide the retired quest from prospective catalogs and reconcile rejected local-only rewards after sync.
+
 ### Memba OS: Dev Report production QA (2026-09-28)
 
 - Align PR Report counts, narrative and exports with the selected period, team, repositories and status; make unavailable and empty data states distinct across AI Reports, milestones, boards and contributor profiles.

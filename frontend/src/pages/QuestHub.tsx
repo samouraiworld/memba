@@ -24,6 +24,7 @@ import {
     isQuestAvailable,
     calculateRank,
     xpToNextRank,
+    RETIRED_QUEST_IDS,
     type QuestCategory,
     type QuestDifficulty,
 } from "../lib/gnobuilders"
@@ -42,9 +43,6 @@ const CATEGORY_TAB_KEYS: readonly FilterCategory[] = ["all", "developer", "every
 type FilterDifficulty = QuestDifficulty | "all"
 type FilterStatus = "all" | "available" | "completed" | "locked"
 const EMPTY_PROGRESS: UserQuestState = { completed: [], totalXP: 0 }
-// Keep historical local completions visible, but these quests are retired by
-// the backend and can never finish syncing if they were not recorded there.
-const RETIRED_LOCAL_QUEST_IDS = new Set(["gnodaokit-extension", "submit-feedback"])
 
 function filterValue<T extends string>(value: string | null, options: readonly T[], fallback: T): T {
     return value && options.includes(value as T) ? value as T : fallback
@@ -150,7 +148,10 @@ export default function QuestHub() {
     // Completed set = union of backend + local, so a just-completed quest shows
     // done immediately (optimistic) even before its backend sync lands.
     const completedIds = useMemo(() => {
-        const ids = new Set(questState.completed.map(c => c.questId))
+        const serverIds = new Set(effectiveBackend?.completed.map(c => c.questId) ?? [])
+        const ids = new Set(questState.completed
+            .filter(c => !effectiveBackend || !RETIRED_QUEST_IDS.has(c.questId) || serverIds.has(c.questId))
+            .map(c => c.questId))
         if (effectiveBackend) for (const c of effectiveBackend.completed) ids.add(c.questId)
         return ids
     }, [questState, effectiveBackend])
@@ -162,7 +163,7 @@ export default function QuestHub() {
     const syncing = useMemo(() => {
         if (!effectiveBackend) return false
         const backendIds = new Set(effectiveBackend.completed.map(c => c.questId))
-        return questState.completed.some(c => !RETIRED_LOCAL_QUEST_IDS.has(c.questId) && !backendIds.has(c.questId))
+        return questState.completed.some(c => !RETIRED_QUEST_IDS.has(c.questId) && !backendIds.has(c.questId))
     }, [effectiveBackend, questState])
 
     // First authoritative fetch in flight (wallet connected, no backend state yet):
