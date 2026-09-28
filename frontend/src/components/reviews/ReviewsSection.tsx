@@ -54,7 +54,7 @@ interface ReviewsSectionProps {
   paginate?: boolean
   /** Use the realm's all-review summary instead of the loaded page's subtotal. */
   useOnchainSummary?: boolean
-  /** Native OS read path until review writes use its transaction review sheet. */
+  /** Hide classic wallet controls when a native surface handles its own writes. */
   readOnly?: boolean
 }
 

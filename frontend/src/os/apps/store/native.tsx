@@ -13,6 +13,7 @@ import type { NativeViewProps } from "../../native/types"
 import { osTargetForClassic } from "../../page/classicRoute"
 import { Icon } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
+import { NativeReviewComposer } from "./NativeReviewComposer"
 import "./native.css"
 
 const sections = [
@@ -84,6 +85,7 @@ function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "sessio
 }
 
 function Detail({ section, session, open, close }: NativeViewProps) {
+    const [reviewRefresh, setReviewRefresh] = useState(0)
     const path = section?.startsWith("apps/") ? `gno.land/${section.slice(5)}` : null
     const projectId = section?.startsWith("project/") ? section.slice(8) : null
     const project = ECOSYSTEM_PROJECTS.find((candidate) => candidate.id === projectId)
@@ -119,7 +121,11 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                     <section><h2>About this app</h2><p>{listing?.descr || entry.project?.description || entry.tagline || "The publisher has not supplied a description yet."}</p></section>
                     {!!listing?.screenshotCIDs?.filter(isValidCid).length && <section><h2>Screenshots</h2><div className="os-store-shots">{listing.screenshotCIDs.filter(isValidCid).map((cid, i) => <Screenshot key={cid} cid={cid} name={entry.name} index={i} />)}</div></section>}
                     {entry.source === "registry" && (isAppReviewsAvailable()
-                        ? <div className="os-store-reviews"><ReviewsSection subject={entry.realmPath!} realmPath={MEMBA_DAO.appReviewsPath} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly /><a className="os-btn os-quiet" href={`https://memba.samourai.app/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Write or manage reviews ↗</a></div>
+                        ? <div className="os-store-reviews">
+                            {listing?.status === "live" && <NativeReviewComposer key={entry.realmPath} session={session} subject={entry.realmPath!} appName={entry.name} onSubmitted={() => setReviewRefresh(value => value + 1)} />}
+                            <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} realmPath={MEMBA_DAO.appReviewsPath} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly />
+                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => setReviewRefresh(value => value + 1)}>Refresh reviews</button><a className="os-btn os-quiet" href={`https://memba.samourai.app/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
+                        </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>
                 <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Publisher <code>{listing.publisher}</code></p>}{entry.project?.evidence && <p>Link checked {entry.project.evidence.checkedAt}</p>}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>

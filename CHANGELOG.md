@@ -49,6 +49,9 @@ Full changelogs are split by version range for easier navigation:
 ### App Store: shared classic discovery (2026-09-28)
 
 - Search and filter onchain listings and independent projects with the same catalogue controls on the classic Store. Read bounded registry pages beyond the old 30-item ceiling and disclose partial results.
+### Memba OS: native App Store review signing (2026-09-28)
+
+- Compose an onchain app rating inside the OS and review the exact PostReview call in its signing sheet. Recheck the live listing before Adena opens, preserve drafts until submission, and hold uncertain outcomes for a transaction check. Existing review reads stay paginated; classic review management remains available.
 
 ### Memba OS: quieter Live and repeat welcome
 
@@ -115,7 +118,7 @@ Full changelogs are split by version range for easier navigation:
 - Check `/status` chain identity and synchronization state, and cross-check `/block` metadata against the full header before using its reported block, parent hashes and timestamp in future Launchpad indexing.
 ### Memba OS: gated onchain App Store reviews (2026-09-28)
 
-- Read App Store reviews inside the native detail window when the dedicated realm is verified and enabled, with a clear path to the classic write flow until review actions use the OS transaction sheet. Keep wallet authorship distinct from proof of app use.
+- Read App Store reviews inside the native detail window when the dedicated realm is verified and enabled. Keep wallet authorship distinct from proof of app use.
 - Page through visible reviews after moderation, show the full onchain review count, and calculate decimal ratings from the exact sum. Offer retry when a review read fails.
 
 ### Memba OS: native Settings

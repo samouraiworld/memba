@@ -70,6 +70,18 @@
 .memba-os .os-store-reviews .reviews-section__form, .memba-os .os-store-reviews .review-card { padding: 14px; }
 .memba-os .os-store-reviews .reviews-section__title { font-size: 16px; }
 .memba-os .os-store-reviews button:focus-visible, .memba-os .os-store-reviews textarea:focus-visible { outline: 2px solid var(--os-acc-ink); outline-offset: 2px; }
+.memba-os .os-store-review-composer { display: grid; gap: 10px; width: 100%; min-width: 0; padding: 16px; border: 1px solid var(--os-line); border-radius: 14px; background: var(--os-card); }
+.memba-os .os-store-review-composer h2 { margin: 0; font-size: 16px; }
+.memba-os .os-store-review-composer > p { margin: 0; color: var(--os-mut); line-height: 1.45; }
+.memba-os .os-store-review-label { font-size: 11px; font-weight: 750; color: var(--os-ink); }
+.memba-os .os-store-review-label span { color: var(--os-mut); font-weight: 500; }
+.memba-os .os-store-review-composer textarea { width: 100%; min-height: 90px; resize: vertical; padding: 10px 12px; border: 1px solid var(--os-line); border-radius: 10px; background: var(--os-card); color: var(--os-ink); font: inherit; }
+.memba-os .os-store-review-composer small { justify-self: end; color: var(--os-mut); font: 10px var(--os-mono); }
+.memba-os .os-store-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.memba-os .os-store-review-actions a.os-btn { text-decoration: none; }
+.memba-os .os-store-review-composer > .os-store-review-error { color: var(--os-err); }
+.memba-os .os-store-review-composer > .os-store-review-message { color: var(--os-acc-ink); }
+.memba-os .os-store-review-composer > .os-store-review-disclosure { font-size: 11px; }
 @container os-window (max-width: 560px) {
   .memba-os .os-store-hero { min-height: 0; padding: 16px; }
   .memba-os .os-store-hero h1 { font-size: 26px; }
