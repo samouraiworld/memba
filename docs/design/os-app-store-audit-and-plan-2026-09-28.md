@@ -1,7 +1,8 @@
 # Memba OS App Store — audit and implementation proposal
 
-**Date:** 28 September 2026  
-**Status:** Audit and delivery plan. The first native catalogue implementation is on `feat/os-app-store-catalogue`; no chain transaction or production setting changed.  
+**Date:** 28 September 2026
+
+**Status:** Audit and delivery plan. The first native catalogue implementation is on `feat/os-app-store-catalogue`; no chain transaction or production setting changed.
 **Baseline:** Memba local `origin/main` at `839371d0`; live guest views of `memba.club/os/store` and `memba.samourai.app/mainnet/apps` inspected on 28 September. The root Memba checkout is at `620b76fa` and 14 commits behind that locally fetched remote ref, so code findings below use `origin/main` where relevant. Live configuration can change independently of Git.
 
 ## Executive assessment
