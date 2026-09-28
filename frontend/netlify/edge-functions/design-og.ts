@@ -10,6 +10,9 @@ export default async function handler(request: Request, context: EdgeContext): P
     const response = await context.next()
     if (!isBotUserAgent(request.headers.get('user-agent')) || !response.headers.get('content-type')?.includes('text/html')) return response
     const html = await response.clone().text()
+    // Build-time article shells already contain their own title, summary and
+    // canonical. Replacing those with section metadata would break previews.
+    if (html.includes('name="memba-static-article"')) return response
     // Only full-design builds carry this marker; legacy responses are preserved.
     if (!html.includes('/brand/folded-m/share.png')) return response
     const key = url.pathname.split('/')[1]

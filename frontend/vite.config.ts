@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -8,14 +9,34 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { assertOsFlagAllowed } from './src/os/osBuildGate'
-import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES } from './src/os/osSiteIdentity'
+import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES, OS_ORIGIN } from './src/os/osSiteIdentity'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
 import { readdirSync } from 'node:fs'
 import { parseBlogArticles, buildRssXml } from './src/lib/blogParser'
+import { staticBlogArticleHtml } from './src/lib/staticBlogHtml'
+import { parseChangelogMarkdown } from './src/lib/changelog'
 
 import { professionalBrandHtml } from './src/lib/proBrand'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const CHANGELOG_MODULE = 'virtual:memba-changelog'
+const CHANGELOG_RESOLVED = '\0' + CHANGELOG_MODULE
+const CHANGELOG_PATH = fileURLToPath(new URL('../CHANGELOG.md', import.meta.url))
+
+/** Ship only the rendered digest; the full Markdown stays in the repository. */
+function changelogDigestPlugin(): PluginOption {
+  return {
+    name: 'memba-changelog-digest',
+    resolveId(id) { return id === CHANGELOG_MODULE ? CHANGELOG_RESOLVED : undefined },
+    load(id) {
+      if (id !== CHANGELOG_RESOLVED) return undefined
+      this.addWatchFile(CHANGELOG_PATH)
+      const entries = parseChangelogMarkdown(readFileSync(CHANGELOG_PATH, 'utf-8'))
+      return `export default ${JSON.stringify(entries)};`
+    },
+  }
+}
+
 function buildIdentityPlugin(): PluginOption {
   let commit = process.env.COMMIT_REF || ''
   if (!commit) {
@@ -94,28 +115,61 @@ function osIdentityPlugin(mode: string): PluginOption {
 // W6.3 PR2: emit dist/sitemap.xml at build (static public routes; see
 // src/lib/sitemap.ts for the deliberate static-only scope decision).
 // robots.txt is a static file in public/ and needs no plugin.
-function sitemapPlugin(): PluginOption {
+function sitemapPlugin(mode: string): PluginOption {
   let outDir = 'dist'
+  let blogDir = 'content/blog'
+  const osBuild = osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env })
   return {
     name: 'memba-sitemap',
-    configResolved(config) { outDir = resolve(config.root, config.build.outDir) },
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir)
+      blogDir = resolve(config.root, 'content/blog')
+    },
     apply: 'build',
     closeBundle() {
       const lastmod = new Date().toISOString().slice(0, 10)
       mkdirSync(outDir, { recursive: true })
       // W6.4: blog articles from content/blog feed BOTH the RSS feed and the
       // sitemap's per-article entries (article date = truthful lastmod).
-      const blogDir = 'content/blog'
       const files: Record<string, string> = {}
-      try {
-        for (const f of readdirSync(blogDir)) {
-          if (f.endsWith('.md')) files[f] = readFileSync(`${blogDir}/${f}`, 'utf-8')
-        }
-      } catch { /* no blog dir → empty feed */ }
+      // A missing/unreadable article is a broken publish, not an empty feed.
+      // The committed blog directory is required by both the app and RSS.
+      for (const f of readdirSync(blogDir)) {
+        if (f.endsWith('.md')) files[f] = readFileSync(resolve(blogDir, f), 'utf-8')
+      }
       const articles = parseBlogArticles(files)
-      writeFileSync(`${outDir}/sitemap.xml`, buildSitemapXml(undefined, undefined, undefined, lastmod,
-        articles.map(a => ({ path: `/blog/${a.slug}`, lastmod: a.date }))))
+      if (articles.length !== Object.keys(files).length) throw new Error('Invalid blog article front matter')
+      const slugs = new Set<string>()
+      for (const article of articles) {
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug) || slugs.has(article.slug)) {
+          throw new Error(`Invalid or duplicate blog slug: ${article.slug}`)
+        }
+        slugs.add(article.slug)
+      }
+      const sitemap = osBuild
+        ? buildSitemapXml(OS_ORIGIN, 'os', ['/', '/news', '/news/changelogs'], lastmod,
+            articles.map(a => ({ path: `/news/${a.slug}`, lastmod: a.updated ?? a.date })))
+        : buildSitemapXml(undefined, undefined, undefined, lastmod,
+            articles.map(a => ({ path: `/blog/${a.slug}`, lastmod: a.updated ?? a.date })))
+      writeFileSync(`${outDir}/sitemap.xml`, sitemap)
+      if (osBuild) writeFileSync(`${outDir}/robots.txt`, `# Memba OS — ${OS_ORIGIN}\nUser-agent: *\nAllow: /\n\nSitemap: ${OS_ORIGIN}/sitemap.xml\n`)
       writeFileSync(`${outDir}/blog.rss`, buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, articles))
+      // Netlify serves committed article shells before its SPA catch-all. The
+      // React app still renders their bodies, while no-JS crawlers receive the
+      // article identity directly in the HTTP response.
+      const index = readFileSync(resolve(outDir, 'index.html'), 'utf-8')
+      for (const article of articles) {
+        const classicDir = resolve(outDir, SITEMAP_NETWORK, 'blog', article.slug)
+        mkdirSync(classicDir, { recursive: true })
+        writeFileSync(resolve(classicDir, 'index.html'), staticBlogArticleHtml(index, article,
+          `${SITE_ORIGIN}/${SITEMAP_NETWORK}/blog/${article.slug}`))
+        if (osBuild) {
+          const osDir = resolve(outDir, 'os/news', article.slug)
+          mkdirSync(osDir, { recursive: true })
+          writeFileSync(resolve(osDir, 'index.html'), staticBlogArticleHtml(index, article,
+            `${OS_ORIGIN}/os/news/${article.slug}`))
+        }
+      }
     },
   }
 }
@@ -157,9 +211,10 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    changelogDigestPlugin(),
     safeFlagsPlugin(),
     buildIdentityPlugin(),
-    sitemapPlugin(),
+    sitemapPlugin(mode),
     professionalBrandPlugin(),
     osIdentityPlugin(mode),
     // PWA: installable manifest + Workbox service worker. SW is OFF in dev
@@ -197,7 +252,7 @@ export default defineConfig(({ mode }) => ({
         // Wired ahead of the renderer: the vendor-three chunk itself is created when
         // the 3D renderer lands and lazily imports three.
         // Review-only brand specimens should not enter the production offline precache.
-        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**'],
+        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [

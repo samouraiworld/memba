@@ -1,6 +1,7 @@
 ---
 title: Validators, with receipts
 date: 2026-07-08
+updated: 2026-09-28
 description: Memba's validator view shows voting power, uptime, and participation — plus community review stars from an on-chain reviews realm and a live consensus telemetry feed. The product and the data plumbing.
 tags: memba, validators, engineering
 ---
@@ -36,4 +37,4 @@ stake behind.
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). See the
-[validators](https://memba.samourai.app/test13/validators).
+[validators on mainnet](https://memba.samourai.app/mainnet/validators).

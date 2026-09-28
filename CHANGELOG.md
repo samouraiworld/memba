@@ -27,6 +27,12 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: News production QA (2026-09-28)
+
+- Give each published Blog article a crawler-visible title, description, canonical URL and structured data on classic and OS routes; keep the OS sitemap and robots file on the OS host.
+- Make Blog and Changelogs reachable from each other, restore keyboard focus and page metadata through OS window changes, improve narrow-screen filters and contrast, and link to the full changelog.
+- Update dated testnet launch guidance in six articles and show revision dates while preserving original publication dates. Bound and verify optional on-chain Blog reads, and ship a compact changelog digest instead of the full source file.
+
 ### Memba OS: Explorer and Directory production QA (2026-09-28)
 
 - Verify the chain served by every Explorer RPC fallback and Directory token-factory read, keep verified token results separate from best-effort caches, bound source reads, and disclose partial listings and file caps.

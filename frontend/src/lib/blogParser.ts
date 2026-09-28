@@ -20,12 +20,22 @@ export interface BlogArticle {
     title: string
     /** YYYY-MM-DD */
     date: string
+    /** Last editorial revision; publication date remains unchanged. */
+    updated?: string
+    /** Remote realm copy; image loading is reserved for reviewed static posts. */
+    source?: "onchain"
     description: string
     tags: string[]
     body: string
 }
 
 const FRONT_MATTER_RE = /^---\n([\s\S]*?)\n---\n?/
+
+function isCalendarDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+    const parsed = new Date(`${value}T00:00:00Z`)
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+}
 
 /** Derive the slug from a file path: "2026-07-04-inside-memba.md" → "inside-memba". */
 export function slugFromPath(path: string): string {
@@ -46,13 +56,15 @@ export function parseBlogArticle(path: string, raw: string): BlogArticle | null 
         fields[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim()
     }
 
-    const { title, date, description } = fields
-    if (!title || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+    const { title, date, description, updated } = fields
+    if (!title || !date || !isCalendarDate(date)) return null
+    if (updated && (!isCalendarDate(updated) || updated < date)) return null
 
     return {
         slug: slugFromPath(path),
         title,
         date,
+        ...(updated ? { updated } : {}),
         description: description ?? "",
         tags: (fields.tags ?? "").split(",").map(t => t.trim()).filter(Boolean),
         body: raw.slice(m[0].length).trim(),

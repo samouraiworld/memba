@@ -1,6 +1,7 @@
 ---
 title: The Directory — one place to discover and read gno.land
 date: 2026-07-08
+updated: 2026-09-28
 description: How Memba's Directory unifies DAOs, tokens, packages, realms, users, and a read-only realm Explorer into a single deep-linkable hub — and how it reads the chain directly.
 tags: memba, directory, explorer, engineering
 ---
@@ -52,5 +53,5 @@ and "what the viewer expects."
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). Start
-at the [Directory](https://memba.samourai.app/test13/directory) and read some
-source.
+at the [mainnet Directory](https://memba.samourai.app/mainnet/directory) and
+read some source.

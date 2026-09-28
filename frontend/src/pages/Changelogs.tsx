@@ -8,12 +8,16 @@
  * @module pages/Changelogs
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link } from "react-router-dom"
 import { ClockCounterClockwise } from "@phosphor-icons/react"
-import changelogRaw from "../../../CHANGELOG.md?raw"
-import { parseChangelogMarkdown } from "../lib/changelog"
+import changelogEntries from "virtual:memba-changelog"
 import type { ChangelogTag as Tag } from "../lib/changelog"
 import { LEGACY_ENTRIES } from "../lib/changelogLegacy"
+import { useNetworkKey } from "../hooks/useNetworkNav"
+import { useWindowActive } from "../os/page/WindowActivity"
+import "./blog.css"
+import "./changelogs.css"
 
 interface ChangelogEntry {
     date: string
@@ -26,12 +30,6 @@ interface ChangelogEntry {
 
 // ── Tag styling ──────────────────────────────────────────────
 
-const TAG_COLORS: Record<Tag, string> = {
-    memba: "var(--color-brand)",
-    network: "var(--color-accent-purple-alt)",
-    "gno-core": "var(--color-accent-gold)",
-}
-
 const TAG_LABELS: Record<Tag, string> = {
     memba: "Memba",
     network: "Network",
@@ -42,10 +40,23 @@ const TAG_LABELS: Record<Tag, string> = {
 
 export function Changelogs() {
     const [filter, setFilter] = useState<Tag | "all">("all")
+    const nk = useNetworkKey()
+    const windowActive = useWindowActive()
+    const headingRef = useRef<HTMLHeadingElement>(null)
 
-    // Parsed once per mount (pure function over a build-time string).
+    useEffect(() => {
+        if (!windowActive) return
+        const previousTitle = document.title
+        document.title = "Changelogs — Memba"
+        headingRef.current?.focus()
+        return () => {
+            if (document.title === "Changelogs — Memba") document.title = previousTitle
+        }
+    }, [windowActive])
+
+    // The build plugin ships only the parsed digest, not the full changelog.
     const entries: ChangelogEntry[] = useMemo(
-        () => [...parseChangelogMarkdown(changelogRaw), ...LEGACY_ENTRIES],
+        () => [...changelogEntries, ...LEGACY_ENTRIES],
         [],
     )
 
@@ -67,38 +78,34 @@ export function Changelogs() {
     }
 
     return (
-        <div id="changelogs-page" style={{ maxWidth: 680 }}>
+        <div id="changelogs-page" className="news-changelog-page">
+            <nav className="news-section-nav" aria-label="News sections">
+                <Link to={`/${nk}/blog`}>Blog</Link>
+                <Link to={`/${nk}/changelogs`} aria-current="page">Changelogs</Link>
+            </nav>
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-                <ClockCounterClockwise size={22} color="var(--color-brand)" />
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0 }}>Changelogs</h2>
+                <ClockCounterClockwise size={22} color="var(--color-primary)" aria-hidden="true" />
+                <h1 ref={headingRef} tabIndex={-1} className="news-changelog-title">Changelogs</h1>
             </div>
 
             <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 20, lineHeight: 1.5 }}>
                 Memba releases and gno.land ecosystem updates.
             </p>
 
+            <a className="news-changelog-full" href="https://github.com/samouraiworld/memba/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">
+                Full changelog <span aria-hidden="true">↗</span>
+            </a>
+
             {/* Filter tabs */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
+            <div className="news-changelog-filters" role="group" aria-label="Filter changelogs">
                 {(["all", "memba", "network", "gno-core"] as const).map(tag => (
                     <button
                         key={tag}
+                        type="button"
+                        className={`news-changelog-filter news-changelog-filter--${tag}`}
+                        aria-pressed={filter === tag}
                         onClick={() => setFilter(tag)}
-                        style={{
-                            padding: "6px 14px",
-                            borderRadius: 8,
-                            border: `1px solid ${filter === tag ? (tag === "all" ? "rgba(255,255,255,0.15)" : TAG_COLORS[tag as Tag] + "44") : "rgba(255,255,255,0.06)"}`,
-                            background: filter === tag
-                                ? (tag === "all" ? "rgba(255,255,255,0.06)" : TAG_COLORS[tag as Tag] + "12")
-                                : "rgba(255,255,255,0.02)",
-                            color: filter === tag
-                                ? (tag === "all" ? "var(--color-surface-light)" : TAG_COLORS[tag as Tag])
-                                : "var(--color-text-secondary)",
-                            cursor: "pointer",
-                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                            fontSize: "var(--pro-caption, 11px)", fontWeight: 500,
-                            transition: "all 0.15s",
-                        }}
                     >
                         {tag === "all" ? "All" : TAG_LABELS[tag as Tag]}
                     </button>
@@ -132,7 +139,7 @@ export function Changelogs() {
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                                 {entry.version && (
                                     <span style={{
-                                        fontSize: "var(--pro-caption, 10px)", fontWeight: 700, color: "var(--color-primary)",
+                                        fontSize: "var(--pro-caption, 10px)", fontWeight: 700, color: "var(--color-k-accent-text, var(--color-text))",
                                         background: "rgba(0,212,170,0.1)", padding: "2px 8px",
                                         borderRadius: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
@@ -143,12 +150,7 @@ export function Changelogs() {
                                     {entry.title}
                                 </span>
                                 {entry.tags.map(tag => (
-                                    <span key={tag} style={{
-                                        fontSize: "var(--pro-caption, 9px)", color: `var(--pro-tag-text, ${TAG_COLORS[tag]})`,
-                                        background: TAG_COLORS[tag] + "12",
-                                        padding: "2px 6px", borderRadius: 4,
-                                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                                    }}>
+                                    <span key={tag} className={`news-changelog-tag news-changelog-tag--${tag}`}>
                                         {TAG_LABELS[tag]}
                                     </span>
                                 ))}
@@ -157,8 +159,8 @@ export function Changelogs() {
                             {/* Items */}
                             <ul style={{ margin: 0, paddingLeft: 16 }}>
                                 {entry.items.map((item, j) => (
-                                    <li key={j} style={{
-                                        fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", lineHeight: 1.7,
+                                    <li key={j} className="news-changelog-item" style={{
+                                        fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", lineHeight: 1.6,
                                         fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
                                         {item}

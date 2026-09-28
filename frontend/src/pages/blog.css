@@ -5,6 +5,39 @@
     max-width: 720px;
 }
 
+.news-section-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 22px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.news-section-nav a {
+    padding: 7px 11px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--color-text-secondary);
+    font: 600 var(--pro-small, 12px) var(--font-ui, "JetBrains Mono", ui-monospace, monospace);
+    text-decoration: none;
+}
+
+.news-section-nav a:hover,
+.news-section-nav a[aria-current="page"] {
+    color: var(--color-text);
+    background: var(--color-surface-active);
+}
+
+.news-section-nav a[aria-current="page"] {
+    border-color: var(--color-border);
+}
+
+.news-section-nav a:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
 /* ── Masthead ──────────────────────────────────────────────── */
 .blog-masthead {
     position: relative;

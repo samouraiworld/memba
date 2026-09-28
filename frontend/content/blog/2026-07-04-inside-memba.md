@@ -1,13 +1,14 @@
 ---
-title: Inside Memba — what's live on gno.land test13 today
+title: Inside Memba — a July 2026 tour of test13
 date: 2026-07-04
-description: A tour of Memba's shipped surface — multisig wallets, DAO governance, the marketplace, validators, and the on-chain directory — all running on gno.land test13.
+updated: 2026-09-28
+description: A July 2026 look at Memba's multisig wallets, DAO governance, marketplace, validators, and on-chain directory on the now-retired test13 network.
 tags: memba, features
 ---
 
-Memba is a Gno-native multisig wallet and DAO governance app. Everything below
-is live on [test13](https://memba.samourai.app/test13/) right now — not a
-roadmap, a tour.
+Memba is a Gno-native multisig wallet and DAO governance app. This is a July
+2026 snapshot of its test13 release. That network has since retired; feature
+availability on gno.land mainnet differs from what this tour describes.
 
 ## Multisig, the Gno way
 
@@ -54,5 +55,5 @@ leaderboard.
 
 Memba is built by [Samourai Coop](https://samourai.world) and developed in the
 open at [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba).
-New here? Start at the [directory](https://memba.samourai.app/test13/directory)
+New here? Start at the [mainnet directory](https://memba.samourai.app/mainnet/directory)
 and read some source.
