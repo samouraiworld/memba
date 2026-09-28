@@ -44,6 +44,13 @@ for (const path of ROUTES) {
         // own stabilization (retries until two consecutive shots match) then
         // settles any remaining synchronous paint.
         await expect(page.locator('[data-testid="sidebar"]')).toBeVisible()
+        // The offline stubs now surface explicit network and discovery notices.
+        // Wait for that settled state before recording its page layout.
+        if (path === '/' || path === '/test13/directory') await expect(page.getByRole('alert').filter({ hasText: 'is currently unreachable.' })).toBeVisible()
+        if (path === '/test13/directory') await expect(page.getByText('Live namespace discovery is unavailable or incomplete.')).toBeVisible()
+        // The floating health toast has its own tests; its arrival does not
+        // affect the page layout and can vary within a screenshot retry.
+        await page.addStyleTag({ content: '.net-status-toast { display: none !important; }' })
 
         await expect(page).toHaveScreenshot(
             // NOTE: the `|| '_home'` branch is dead (for '/', replace() yields

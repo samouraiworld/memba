@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Keep the default for local work, but allow parallel worktrees to run the
+// standard suite without reusing another checkout's Vite server on 5173.
+const MAIN_PORT = Number(process.env.MEMBA_E2E_MAIN_PORT) || 5173
+
 export default defineConfig({
     testDir: './e2e',
     fullyParallel: true,
@@ -26,7 +30,7 @@ export default defineConfig({
         timeout: 10_000,
     },
     use: {
-        baseURL: 'http://localhost:5173',
+        baseURL: `http://localhost:${MAIN_PORT}`,
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'on-first-retry',
@@ -40,8 +44,8 @@ export default defineConfig({
     ],
     webServer: [
         {
-            command: 'npm run dev',
-            url: 'http://localhost:5173',
+            command: MAIN_PORT === 5173 ? 'npm run dev' : `npm run dev -- --port ${MAIN_PORT} --strictPort`,
+            url: `http://localhost:${MAIN_PORT}`,
             reuseExistingServer: !process.env.CI,
             timeout: 60_000,
         },

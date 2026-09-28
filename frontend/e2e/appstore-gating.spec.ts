@@ -33,15 +33,15 @@ test.describe('App Store gating (VITE_ENABLE_APPSTORE=false)', () => {
         await expect(page.getByTestId('appstore-root')).toHaveCount(0)
     })
 
-    test('registry details, publishing and curation stay gated', async ({ page }) => {
-        const network = await resolveNetwork(page)
-        for (const path of ['r/samcrew/block_party', 'submit', 'review', 'my-submissions']) {
+    for (const path of ['r/samcrew/block_party', 'submit', 'review', 'my-submissions']) {
+        test(`${path} stays gated`, async ({ page }) => {
+            const network = await resolveNetwork(page)
             await page.goto(`/${network}/apps/${path}`, { waitUntil: 'domcontentloaded' })
             await expect(page.getByTestId('coming-soon-gate')).toBeVisible({ timeout: 10_000 })
             await expect(page.getByTestId('appstore-root')).toHaveCount(0)
             await expect(page.locator('.soon-preview a, .soon-preview button, .soon-preview input')).toHaveCount(0)
-        }
-    })
+        })
+    }
 
     test('the public App Store nav entry is available without a soon badge', async ({ page }) => {
         const network = await resolveNetwork(page)

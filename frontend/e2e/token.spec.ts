@@ -53,7 +53,9 @@ test.describe('Create Token Page', () => {
         // NetworkSync has no mismatch to reload over and the bare evaluate()
         // below keeps its execution context.
         let documentLoads = 0
-        page.on('load', () => { documentLoads++ })
+        // Firefox may emit the initial about:blank load after this listener is
+        // attached. Count only the document whose single-load behavior matters.
+        page.on('load', () => { if (new URL(page.url()).pathname === '/test13/create-token') documentLoads++ })
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/test13/create-token')
         // Then wait for the form before measuring: the threshold (380) is above

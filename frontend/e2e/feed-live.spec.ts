@@ -28,6 +28,21 @@ async function resolveNetwork(page: Page): Promise<string> {
     return network!
 }
 
+async function gotoFeed(page: Page, path: string): Promise<void> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            await page.goto(path, { waitUntil: 'commit' })
+            return
+        } catch (error) {
+            // Firefox can abort a navigation while the root redirect or the
+            // previous Feed document finishes loading. A second navigation
+            // still has to render the asserted page; other errors fail now.
+            if (attempt || !/NS_BINDING_ABORTED|NS_ERROR_FAILURE/.test(String(error))) throw error
+            await page.waitForLoadState('load').catch(() => {})
+        }
+    }
+}
+
 /** The core mobile invariant: no feed route may overflow a 375px viewport. */
 async function expectNoHorizontalOverflow(page: Page) {
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth)
@@ -42,7 +57,7 @@ test.describe('Feed live (VITE_ENABLE_FEED=true, stubbed backend)', () => {
     test('the live feed renders the fixture timeline (not the gate) and paginates', async ({ page }) => {
         await page.setViewportSize(DESKTOP)
         const network = await resolveNetwork(page)
-        await page.goto(`/${network}/feed`, { waitUntil: 'domcontentloaded' })
+        await gotoFeed(page, `/${network}/feed`)
 
         // Flag ON → the live feed, never the coming-soon gate.
         await expect(page.getByTestId('feed-page')).toBeVisible({ timeout: 10_000 })
@@ -67,7 +82,7 @@ test.describe('Feed live (VITE_ENABLE_FEED=true, stubbed backend)', () => {
     test('a tombstoned thread root shows a tombstone and NEVER leaks its body (P0)', async ({ page }) => {
         await page.setViewportSize(DESKTOP)
         const network = await resolveNetwork(page)
-        await page.goto(`/${network}/feed/post/${TOMBSTONE_ID}`, { waitUntil: 'domcontentloaded' })
+        await gotoFeed(page, `/${network}/feed/post/${TOMBSTONE_ID}`)
 
         await expect(page.getByTestId('feed-thread')).toBeVisible({ timeout: 10_000 })
         // The tombstone article renders (hidden-pending-moderation copy)…
@@ -80,7 +95,7 @@ test.describe('Feed live (VITE_ENABLE_FEED=true, stubbed backend)', () => {
     test('a busy thread renders its large reply set', async ({ page }) => {
         await page.setViewportSize(DESKTOP)
         const network = await resolveNetwork(page)
-        await page.goto(`/${network}/feed/post/${BUSY_THREAD_ID}`, { waitUntil: 'domcontentloaded' })
+        await gotoFeed(page, `/${network}/feed/post/${BUSY_THREAD_ID}`)
 
         await expect(page.getByTestId('feed-thread')).toBeVisible({ timeout: 10_000 })
         await expect(page.getByTestId('feed-thread-replies')).toBeVisible()
@@ -99,7 +114,7 @@ test.describe('Feed live (VITE_ENABLE_FEED=true, stubbed backend)', () => {
     test('a user profile timeline renders that author’s posts', async ({ page }) => {
         await page.setViewportSize(DESKTOP)
         const network = await resolveNetwork(page)
-        await page.goto(`/${network}/feed/user/${FEED_AUTHORS.A}`, { waitUntil: 'domcontentloaded' })
+        await gotoFeed(page, `/${network}/feed/user/${FEED_AUTHORS.A}`)
 
         await expect(page.getByTestId('feed-profile')).toBeVisible({ timeout: 10_000 })
         await expect(page.getByTestId('feed-profile-list')).toBeVisible()
@@ -108,11 +123,14 @@ test.describe('Feed live (VITE_ENABLE_FEED=true, stubbed backend)', () => {
     })
 
     test('no feed route overflows a 375px viewport', async ({ page }) => {
+        // Four full route visits and rendered-layout checks can exceed the
+        // single-route default under parallel Firefox/WebKit browser load.
+        test.setTimeout(90_000)
         await page.setViewportSize(MOBILE)
         const network = await resolveNetwork(page)
 
         for (const path of ['feed', `feed/post/${BUSY_THREAD_ID}`, `feed/post/${TOMBSTONE_ID}`, `feed/user/${FEED_AUTHORS.A}`]) {
-            await page.goto(`/${network}/${path}`, { waitUntil: 'domcontentloaded' })
+            await gotoFeed(page, `/${network}/${path}`)
             await expect(page.getByTestId(/feed-(page|thread|profile)/).first()).toBeVisible({ timeout: 10_000 })
             await expectNoHorizontalOverflow(page)
         }

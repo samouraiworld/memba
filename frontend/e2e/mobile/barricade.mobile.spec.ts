@@ -44,14 +44,16 @@ test('keeps start and live controls alongside the battlefield on portrait phones
 })
 
 test('loads the approved civic defender and machine art for the compact 2D fallback', async ({ page }) => {
+  const loadedArt = new Set<string>()
+  page.on('response', response => {
+    const path = new URL(response.url()).pathname
+    if (response.ok() && path.startsWith('/games/barricade/') && path.endsWith('.webp')) loadedArt.add(path)
+  })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(gameURL, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.bar-shell')).toHaveAttribute('data-renderer', '2d')
 
-  await expect.poll(async () => page.evaluate(() => performance
-    .getEntriesByType('resource')
-    .map(entry => new URL(entry.name).pathname)
-    .filter(path => path.startsWith('/games/barricade/'))), { timeout: 10_000 }).toEqual(expect.arrayContaining([
+  await expect.poll(() => [...loadedArt], { timeout: 10_000 }).toEqual(expect.arrayContaining([
       '/games/barricade/citizen.webp',
       '/games/barricade/drone.webp',
       '/games/barricade/walker.webp',
