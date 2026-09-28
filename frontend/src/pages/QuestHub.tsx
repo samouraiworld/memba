@@ -42,6 +42,9 @@ const CATEGORY_TAB_KEYS: readonly FilterCategory[] = ["all", "developer", "every
 type FilterDifficulty = QuestDifficulty | "all"
 type FilterStatus = "all" | "available" | "completed" | "locked"
 const EMPTY_PROGRESS: UserQuestState = { completed: [], totalXP: 0 }
+// Keep historical local completions visible, but these quests are retired by
+// the backend and can never finish syncing if they were not recorded there.
+const RETIRED_LOCAL_QUEST_IDS = new Set(["gnodaokit-extension", "submit-feedback"])
 
 function filterValue<T extends string>(value: string | null, options: readonly T[], fallback: T): T {
     return value && options.includes(value as T) ? value as T : fallback
@@ -159,7 +162,7 @@ export default function QuestHub() {
     const syncing = useMemo(() => {
         if (!effectiveBackend) return false
         const backendIds = new Set(effectiveBackend.completed.map(c => c.questId))
-        return questState.completed.some(c => !backendIds.has(c.questId))
+        return questState.completed.some(c => !RETIRED_LOCAL_QUEST_IDS.has(c.questId) && !backendIds.has(c.questId))
     }, [effectiveBackend, questState])
 
     // First authoritative fetch in flight (wallet connected, no backend state yet):

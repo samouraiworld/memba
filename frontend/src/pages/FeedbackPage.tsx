@@ -1,54 +1,95 @@
 /**
  * FeedbackPage — Feedback & Feature Requests hub.
  *
- * Dual-track approach (v2.10):
- * - Now: GitHub Issues integration (public repo, no auth needed)
- * - Later: On-chain feedback realm on betanet
- *
- * Fetches open issues labeled "feedback" from the Memba GitHub repo.
+ * GitHub issues for bugs and ideas, plus the feedback realm where deployed.
  *
  * @module pages/FeedbackPage
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { FeedbackFeed } from "../components/FeedbackFeed"
-import { completeQuest, trackPageVisit } from "../lib/quests"
+import { isFeedbackValid } from "../lib/config"
+import { trackPageVisit } from "../lib/quests"
+import { useWindowActive } from "../os/page/WindowActivity"
+import "./feedback.css"
 
 const GITHUB_REPO = "samouraiworld/Memba"
-const GITHUB_ISSUES_URL = `https://api.github.com/repos/${GITHUB_REPO}/issues`
-const GITHUB_NEW_ISSUE = `https://github.com/${GITHUB_REPO}/issues/new?template=feedback.md&title=%5BFeedback%5D+`
+const GITHUB_ISSUES_URL = `https://github.com/${GITHUB_REPO}/issues`
+const GITHUB_NEW_ISSUE = `${GITHUB_ISSUES_URL}/new/choose`
+const FEEDBACK_LABELS = new Set(["bug", "enhancement", "feedback"])
+const issueSearch = new URL("https://api.github.com/search/issues")
+issueSearch.searchParams.set("q", `repo:${GITHUB_REPO} is:issue is:open label:bug,enhancement,feedback`)
+issueSearch.searchParams.set("sort", "created")
+issueSearch.searchParams.set("order", "desc")
+issueSearch.searchParams.set("per_page", "15")
 
 interface GitHubIssue {
     id: number
     number: number
     title: string
-    html_url: string
+    state: string
+    pull_request?: unknown
     comments: number
     created_at: string
     labels: { name: string; color: string }[]
-    user: { login: string; avatar_url: string }
+    user: { login: string } | null
 }
 
 export default function FeedbackPage() {
+    const windowActive = useWindowActive()
+    const realmAvailable = isFeedbackValid()
     const [issues, setIssues] = useState<GitHubIssue[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
+    const [issueRetry, setIssueRetry] = useState(0)
+    const visited = useRef(false)
+    const loadedIssues = useRef(false)
 
     useEffect(() => {
-        document.title = "Feedback — Memba"
-        trackPageVisit("feedback")
+        if (!windowActive) return
+        const previousTitle = document.title
+        const title = "Feedback — Memba"
+        document.title = title
+        return () => { if (document.title === title) document.title = previousTitle }
+    }, [windowActive])
 
-        fetch(`${GITHUB_ISSUES_URL}?state=open&per_page=15&sort=created&direction=desc`, {
+    useEffect(() => {
+        if (!windowActive || loadedIssues.current) return
+        loadedIssues.current = true
+        if (!visited.current) {
+            trackPageVisit("feedback")
+            visited.current = true
+        }
+        const controller = new AbortController()
+        let completed = false
+
+        fetch(issueSearch.toString(), {
             headers: { Accept: "application/vnd.github.v3+json" },
+            signal: controller.signal,
         })
             .then(res => {
                 if (!res.ok) throw new Error("GitHub API error")
-                return res.json()
+                return res.json() as Promise<{ items: GitHubIssue[] }>
             })
-            .then((data: GitHubIssue[]) => setIssues(data))
-            .catch(() => setError(true))
-            .finally(() => setLoading(false))
-    }, [])
+            .then(data => {
+                if (!Array.isArray(data.items)) throw new Error("Invalid GitHub response")
+                if (!controller.signal.aborted) setIssues(data.items.filter(issue =>
+                    !issue.pull_request && issue.state === "open" &&
+                    Array.isArray(issue.labels) && issue.labels.some(label => FEEDBACK_LABELS.has(label.name.toLowerCase()))
+                ))
+            })
+            .catch(() => { if (!controller.signal.aborted) setError(true) })
+            .finally(() => {
+                completed = true
+                if (!controller.signal.aborted) setLoading(false)
+            })
+        return () => {
+            controller.abort()
+            // A window may become inactive before the request finishes.
+            // Let the next activation load its issue list.
+            if (!completed) loadedIssues.current = false
+        }
+    }, [windowActive, issueRetry])
 
     const formatDate = (iso: string) => {
         const d = new Date(iso)
@@ -63,21 +104,22 @@ export default function FeedbackPage() {
                     <span>📣</span> Feedback & Feature Requests
                 </h1>
                 <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginTop: 8, lineHeight: 1.6, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
-                    Help shape Memba's future. Report bugs, suggest features, or vote on community ideas.
+                    Help shape Memba's future. Report bugs, suggest features, or review community ideas.
                 </p>
             </div>
 
             {/* Submit Feedback CTA */}
-            <div style={{
+            <div className="feedback-submit-card" style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "14px 20px", borderRadius: 10,
+                padding: "14px 20px",
+                borderRadius: 10,
                 background: "rgba(0, 212, 170, 0.04)",
                 border: "1px solid rgba(0, 212, 170, 0.12)",
             }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div className="feedback-submit-copy" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <span style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Have an idea or found a bug?</span>
                     <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
-                        Open a GitHub issue — we review every submission.
+                        Open a GitHub issue to report a bug or suggest an improvement. A GitHub account is required.
                     </span>
                 </div>
                 <a
@@ -85,13 +127,12 @@ export default function FeedbackPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     id="feedback-submit-btn"
-                    onClick={() => completeQuest("submit-feedback")}
+                    className="feedback-submit-action"
                     style={{
                         padding: "8px 16px", borderRadius: 6, fontSize: "var(--pro-small, 12px)", fontWeight: 600,
                         background: "var(--color-brand)", color: "var(--color-text-contrast)", textDecoration: "none",
                         fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         transition: "opacity 0.15s",
-                        whiteSpace: "nowrap",
                     }}
                     onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
                     onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
@@ -102,12 +143,12 @@ export default function FeedbackPage() {
 
             {/* GitHub Issues */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div className="feedback-issues-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <h2 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
-                        Open Issues
+                        Open feedback issues
                     </h2>
                     <a
-                        href={`https://github.com/${GITHUB_REPO}/issues`}
+                        href={GITHUB_ISSUES_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
@@ -126,18 +167,29 @@ export default function FeedbackPage() {
                         ))}
                     </div>
                 ) : error ? (
-                    <div style={{
+                    <div role="alert" className="feedback-issues-error" style={{
                         padding: "16px 20px", borderRadius: 10,
                         background: "rgba(255, 59, 48, 0.03)",
                         border: "1px solid rgba(255, 59, 48, 0.1)",
                         fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
                         ⚠ Could not load GitHub issues. <a
-                            href={`https://github.com/${GITHUB_REPO}/issues`}
+                            href={GITHUB_ISSUES_URL}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ color: "var(--color-primary)" }}
                         >View directly on GitHub →</a>
+                        <button
+                            type="button"
+                            className="feedback-retry"
+                            style={{ display: "block", marginTop: 12 }}
+                            onClick={() => {
+                                loadedIssues.current = false
+                                setLoading(true)
+                                setError(false)
+                                setIssueRetry(n => n + 1)
+                            }}
+                        >Retry</button>
                     </div>
                 ) : issues.length === 0 ? (
                     <div style={{
@@ -146,18 +198,20 @@ export default function FeedbackPage() {
                         border: "1px solid rgba(255,255,255,0.06)",
                         fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
-                        No open issues. Be the first to submit feedback!
+                        No open feedback issues right now. Share a bug or idea through GitHub.
                     </div>
                 ) : (
                     issues.map(issue => (
                         <a
                             key={issue.id}
-                            href={issue.html_url}
+                            href={`${GITHUB_ISSUES_URL}/${issue.number}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            className="feedback-issue"
                             style={{
                                 display: "flex", alignItems: "flex-start", gap: 12,
-                                padding: "12px 16px", borderRadius: 8,
+                                padding: "12px 16px",
+                                borderRadius: 8,
                                 background: "rgba(255,255,255,0.02)",
                                 border: "1px solid rgba(255,255,255,0.06)",
                                 textDecoration: "none",
@@ -175,26 +229,29 @@ export default function FeedbackPage() {
                             <span style={{
                                 fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 minWidth: 30, textAlign: "right", paddingTop: 2,
-                            }}>
+                            }} className="feedback-issue-number">
                                 #{issue.number}
                             </span>
-                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                                <span style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)", lineHeight: 1.3 }}>
+                            <div className="feedback-issue-body" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                                <span className="feedback-issue-title" style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)", lineHeight: 1.3 }}>
                                     {issue.title}
                                 </span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                    {issue.labels.map(label => (
-                                        <span key={label.name} style={{
-                                            fontSize: "var(--pro-caption, 9px)", padding: "1px 6px", borderRadius: 3,
-                                            background: `#${label.color}22`,
-                                            color: `#${label.color}`,
-                                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                                        }}>
-                                            {label.name}
-                                        </span>
-                                    ))}
+                                <div className="feedback-issue-meta" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    {issue.labels.map(label => {
+                                        const tint = /^[0-9a-fA-F]{6}$/.test(label.color) ? label.color : "6B7280"
+                                        return (
+                                            <span key={label.name} style={{
+                                                fontSize: "var(--pro-caption, 9px)", padding: "1px 6px", borderRadius: 3,
+                                                background: `#${tint}22`,
+                                                color: "var(--color-text)",
+                                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
+                                            }}>
+                                                {label.name}
+                                            </span>
+                                        )
+                                    })}
                                     <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-dim)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
-                                        by {issue.user.login} · {formatDate(issue.created_at)}
+                                        by {issue.user?.login ?? "a former contributor"} · {formatDate(issue.created_at)}
                                         {issue.comments > 0 && ` · ${issue.comments} comment${issue.comments !== 1 ? "s" : ""}`}
                                     </span>
                                 </div>
@@ -204,7 +261,7 @@ export default function FeedbackPage() {
                 )}
             </div>
 
-            {/* On-chain Feedback — Future */}
+            {!realmAvailable && /* This network has no feedback realm yet. */
             <div style={{
                 padding: "16px 20px", borderRadius: 10,
                 background: "rgba(124, 58, 237, 0.03)",
@@ -216,7 +273,7 @@ export default function FeedbackPage() {
                         background: "rgba(124, 58, 237, 0.1)", color: "var(--color-k-purple-text)",
                         fontWeight: 700, letterSpacing: "0.05em",
                         fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                    }}>COMING ON BETANET</span>
+                    }}>NOT AVAILABLE HERE YET</span>
                     <span style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>
                         🔮 On-Chain Feedback Board
                     </span>
@@ -225,12 +282,12 @@ export default function FeedbackPage() {
                     fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.6,
                     fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
-                    A sovereign, on-chain feedback realm will be deployed on betanet, allowing fully decentralized feature voting and bug reporting directly from Memba.
+                    On-chain feedback is not available on this network yet. Use the GitHub issue form above to share a bug or idea.
                 </p>
-            </div>
+            </div>}
 
-            {/* FeedbackFeed — on-chain (shows "not deployed yet" gracefully) */}
-            <FeedbackFeed />
+            {/* FeedbackFeed distinguishes an empty live board from a failed realm read. */}
+            {realmAvailable && <FeedbackFeed />}
         </div>
     )
 }

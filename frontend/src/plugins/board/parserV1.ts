@@ -79,10 +79,10 @@ export function parseBoardHome(raw: string): BoardInfo {
  */
 export function parseThreadList(raw: string, channel: string): BoardThread[] {
     const threads: BoardThread[] = []
-    const threadPattern = /### \[([^\]]+)\]\(:([^/]+)\/(\d+)\)\s*\n([^\n]*)/g
+    const threadPattern = /### \[((?:\\.|[^\]])+)\]\(:([^/]+)\/(\d+)\)\s*\n([^\n]*)/g
     let match
     while ((match = threadPattern.exec(raw)) !== null) {
-        const title = match[1]
+        const title = match[1].replaceAll("\\]", "]").replaceAll("\\[", "[").replaceAll("\\\\", "\\")
         const id = parseInt(match[3], 10)
         const meta = match[4] || ""
 

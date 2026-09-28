@@ -248,7 +248,7 @@ export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
 export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     // Onboarding / off-chain (auto-tracked by UI actions or backend checks)
     "connect-wallet", "setup-profile", "use-cmdk", "switch-network",
-    "view-validator", "share-link", "submit-feedback", "browse-proposals",
+    "view-validator", "share-link", "browse-proposals",
     "visit-5-pages",
     // On-chain (path-keyed server verifiers in quest_verify.go — non-spoofable)
     "register-username", "first-transaction", "submit-candidature",

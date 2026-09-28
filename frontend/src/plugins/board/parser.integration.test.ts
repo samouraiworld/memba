@@ -55,6 +55,13 @@ describe("re-exported parse functions match V1", () => {
         expect(fromExport).toEqual(fromV1)
     })
 
+    it("keeps a feedback thread whose Markdown title contains an escaped bracket", () => {
+        const raw = "# #general\n\n### [Improve \\] labels](:general/7)\nby g1abc... | 2 replies | block 123"
+        expect(parseThreadList(raw, "general")).toEqual([
+            expect.objectContaining({ id: 7, title: "Improve ] labels", replyCount: 2 }),
+        ])
+    })
+
     it("parseACL re-export matches V1", () => {
         const fromExport = parseACL(sampleACL)
         const fromV1 = boardParserV1.parseACL(sampleACL)
