@@ -82,6 +82,9 @@ func TestParseBlockResultsFailsClosed(t *testing.T) {
 		{"malformed events field", blockBody(t, "42", map[string]any{"ResponseBase": map[string]any{"Error": nil, "Events": map[string]any{}}}), "decode Launchpad tx"},
 		{"duplicate raw attribute", blockBody(t, "42", blockTx(nil, blockEvent(TokenRealmPath, TokenCreatedType, bad))), "invalid LaunchpadTokenCreated"},
 		{"missing target type", blockBody(t, "42", blockTx(nil, blockEvent(TokenRealmPath, "", valid))), "has no type"},
+		{"null event entry", blockBody(t, "42", blockTx(nil, nil)), "has no type"},
+		{"empty event entry", blockBody(t, "42", blockTx(nil, map[string]any{})), "has no type"},
+		{"missing target package", blockBody(t, "42", blockTx(nil, blockEvent("", TokenCreatedType, valid))), "has no package path"},
 		{"rpc error", []byte(`{"error":{"message":"unavailable"}}`), "RPC error"},
 		{"bad JSON", []byte(`{`), "decode Launchpad"},
 	} {

@@ -83,11 +83,14 @@ func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, e
 			return nil, fmt.Errorf("decode Launchpad tx %d events: %w", txIndex, err)
 		}
 		for eventIndex, event := range events {
-			if event.PkgPath != TokenRealmPath {
-				continue
-			}
 			if event.Type == "" {
 				return nil, fmt.Errorf("launchpad tx %d event %d has no type", txIndex, eventIndex)
+			}
+			if event.Type == TokenCreatedType && event.PkgPath == "" {
+				return nil, fmt.Errorf("launchpad tx %d event %d has no package path", txIndex, eventIndex)
+			}
+			if event.PkgPath != TokenRealmPath {
+				continue
 			}
 			if event.Type != TokenCreatedType {
 				continue
