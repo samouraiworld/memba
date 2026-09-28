@@ -29,7 +29,7 @@ Full changelogs are split by version range for easier navigation:
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
 ### Memba OS: Explorer and Directory production QA (2026-09-28)
 
-- Verify the chain served by every Explorer RPC fallback, bound source reads, and disclose partial listings and file caps.
+- Verify the chain served by every Explorer RPC fallback and Directory token-factory read, keep verified token results separate from best-effort caches, bound source reads, and disclose partial listings and file caps.
 - Keep search, detail URLs, network switching and contributor links consistent; make mobile Directory cards, DAO search and source drawers readable.
 - Distinguish empty results from RPC outages, stale metrics and unverified editorial paths, with retry and accessible controls.
 

@@ -449,6 +449,11 @@ export async function listFactoryTokens(rpcUrl: string): Promise<TokenInfo[]> {
     const data = await queryRender(rpcUrl, GRC20_FACTORY_PATH, "")
     if (!data) return []
 
+    return parseFactoryTokenList(data)
+}
+
+/** Parse a token-factory Render listing without choosing its transport or trust policy. */
+export function parseFactoryTokenList(data: string): TokenInfo[] {
     const tokens: TokenInfo[] = []
     // Parse markdown list items: "- [Name \($SYMBOL\)](link)" (factory escapes parens)
     const re = /\[(.+?)\s+\\?\(\$([A-Z0-9]+)\\?\)\]/g
