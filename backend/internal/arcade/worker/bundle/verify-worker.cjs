@@ -1247,6 +1247,7 @@ function hashState2(s) {
 }
 function simulateReplay(log) {
   let s = newGame(log.seed);
+  let firstGameoverTick = null;
   const inputs = log.inputs;
   let cursor = 0;
   let active = { move: 0, fire: false, pause: false };
@@ -1257,8 +1258,9 @@ function simulateReplay(log) {
       cursor++;
     }
     s = step(s, FIXED_MS, active);
+    if (firstGameoverTick === null && s.phase === "gameover") firstGameoverTick = i + 1;
   }
-  return { state: s, score: s.score, hash: hashState2(s) };
+  return { state: s, score: s.score, hash: hashState2(s), firstGameoverTick };
 }
 
 // backend/internal/arcade/worker/verify_worker.ts
@@ -1390,6 +1392,9 @@ function processInvaders(job) {
   });
   if (r.state.phase !== "gameover") {
     return fail("run has not reached gameover");
+  }
+  if (r.firstGameoverTick !== finalTick) {
+    return fail("run continues after gameover");
   }
   const logHash = (0, import_node_crypto.createHash)("sha256").update(job.seed + "\n" + canonicalInvadersLog(finalTick, deltas)).digest("hex");
   const stats = JSON.stringify({ wave: r.state.wave, shots: r.state.shots, hits: r.state.hits });

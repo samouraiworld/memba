@@ -247,6 +247,9 @@ function processInvaders(job: Partial<Job>): string {
     if (r.state.phase !== "gameover") {
         return fail("run has not reached gameover")
     }
+    if (r.firstGameoverTick !== finalTick) {
+        return fail("run continues after gameover")
+    }
     // Same commitment recipe as BARRICADE: sha256 over the seed and the
     // canonical (JSON-independent) log — with the finalTick bound in, since the
     // run's identity includes how long it ran.

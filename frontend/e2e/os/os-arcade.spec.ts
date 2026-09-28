@@ -143,6 +143,20 @@ test('a phone Arcade run survives Home and Back in the same session', async ({ p
     expect(await snapshot()).toBe(played)
 })
 
+test('a desktop game pauses while wallet connection blocks the desk', async ({ page }) => {
+    test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the OS test-server game flags')
+    const lobby = await openLobby(page, 1440)
+    await lobby.getByRole('button', { name: /BARRICADE/ }).click()
+    const barricade = page.getByRole('region', { name: 'BARRICADE · Arcade' })
+    await barricade.getByRole('button', { name: 'Practice', exact: true }).click()
+    await expect(barricade.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+    await page.getByRole('status').getByRole('button', { name: 'Connect to vote' }).click()
+    await expect(page.getByRole('dialog', { name: /connect a wallet/i })).toBeVisible()
+    await expect(page.locator('.bar-pause')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Not now' }).click()
+    await expect(barricade.getByRole('dialog', { name: 'Run paused' })).toBeVisible()
+})
+
 test.describe('Arcade touch play in a phone context', () => {
     test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true })
 

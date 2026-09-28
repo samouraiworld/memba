@@ -181,6 +181,12 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 			}
 			if err := store.MarkAttested(run.LogHash, txHash, now().Unix()); err != nil {
 				slog.Error("arcade attest broadcast succeeded but mark failed", "logHash", run.LogHash, "txHash", txHash, "error", err)
+				// The broadcast may have spent gas. Bound repeated receipt-write
+				// failures; if storage cannot persist the failure count, stop this
+				// cycle before another broadcast.
+				if e := recordAttestFailure(store, run, gd, err); e != nil {
+					return attested, e
+				}
 				continue
 			}
 			// The best is attested; retire this address's lesser runs on this

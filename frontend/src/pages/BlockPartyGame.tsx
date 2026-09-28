@@ -561,6 +561,7 @@ export default function BlockPartyGame() {
             {canPlayRanked && <DailyLeaderboardPanel date={date} scope={network.chainId} you={you} />}
             <StreakBadge
               address={adena.connected ? adena.address : undefined}
+              scope={chainId}
               localStreak={getLocalStreak(chainId).current}
             />
           </div>

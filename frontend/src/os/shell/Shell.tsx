@@ -492,7 +492,7 @@ export function Shell() {
                     </div>
                 )}
                 {win.wins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
-                    <WindowFrame key={w.id} win={w} active={!w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}

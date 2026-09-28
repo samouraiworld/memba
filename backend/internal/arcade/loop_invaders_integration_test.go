@@ -66,6 +66,27 @@ func TestInvadersWorkerRejectsNonterminalReplay(t *testing.T) {
 	}
 }
 
+func TestInvadersWorkerRejectsPostTerminalPadding(t *testing.T) {
+	bin := os.Getenv("MEMBA_ARCADE_NODE_BIN")
+	if bin == "" {
+		bin = "node"
+	}
+	if _, err := exec.LookPath(bin); err != nil {
+		t.Skipf("node (%q) not on PATH", bin)
+	}
+	runner, err := arcade.NewRunner(arcade.Config{NodeBin: bin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = runner.Close() })
+	result, err := runner.Verify(context.Background(), arcade.Job{
+		Game: "invaders", Seed: siSeed, SimVersion: 1, FinalTick: siFinalTick + 1, Events: json.RawMessage(siEvents),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Error, "continues after gameover") {
+		t.Fatalf("post-terminal replay accepted: result=%+v err=%v", result, err)
+	}
+}
+
 // TestArcadeLoop_SubmitVerifyStoreAttest_Invaders exercises the WHOLE backend
 // certify loop for Space Invaders with the real node verify worker and a fake
 // broadcaster (no chain): submit a run on day D (game explicitly enabled) →

@@ -102,12 +102,39 @@ func TestRunBatchOnce_AttemptCapIncludesPostBroadcastStorageFailure(t *testing.T
 		t.Fatal(err)
 	}
 	b := &attemptBroadcaster{}
-	n, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay)
+	for cycle := 0; cycle < maxAttestRetries; cycle++ {
+		n, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay)
+		if err != nil || n != 0 || len(b.calls) != cycle+1 {
+			t.Fatalf("cycle %d: attempts=%d attested=%d err=%v", cycle, len(b.calls), n, err)
+		}
+	}
+	r, _, err := s.GetRunByLogHash("run-9")
+	if err != nil || r.Status != "errored" {
+		t.Fatalf("receipt-write failure not parked: %+v %v", r, err)
+	}
+	if _, err := RunBatchOnce(context.Background(), s, b, 1, atFixedDay); err != nil || len(b.calls) != maxAttestRetries+1 {
+		t.Fatalf("later board did not progress after parking: attempts=%d err=%v", len(b.calls), err)
+	}
+}
+
+func TestRunBatchOnce_StopsWhenReceiptFailureCannotBeRecorded(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "first", "2026-07-09", 100)
+	mustInsert(t, s, "later", "2026-07-10", 100)
+	_, err := s.db.Exec(`CREATE TRIGGER fail_attested_write BEFORE UPDATE ON arcade_runs
+		WHEN NEW.status = 'attested' BEGIN SELECT RAISE(ABORT, 'receipt write failed'); END`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.calls) != 1 || n != 0 {
-		t.Fatalf("attempts=%d, attested=%d; want 1 and 0", len(b.calls), n)
+	_, err = s.db.Exec(`CREATE TRIGGER fail_failure_count BEFORE UPDATE ON arcade_runs
+		WHEN NEW.attest_failures > OLD.attest_failures BEGIN SELECT RAISE(ABORT, 'failure count write failed'); END`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &attemptBroadcaster{}
+	n, err := RunBatchOnce(context.Background(), s, b, 2, atFixedDay)
+	if err == nil || n != 0 || len(b.calls) != 1 || b.calls[0].LogHash != "first" {
+		t.Fatalf("unrecorded failure must stop batch: n=%d err=%v calls=%+v", n, err, b.calls)
 	}
 }
 
