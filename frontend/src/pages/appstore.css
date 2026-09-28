@@ -58,6 +58,42 @@
     color: var(--color-k-edge-hover);
 }
 
+.appstore__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.875rem;
+    margin-bottom: var(--space-7, 2rem);
+}
+.appstore__filters label {
+    display: flex;
+    flex: 1 1 150px;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+    font-size: 0.875rem;
+    color: var(--color-k-dim);
+}
+.appstore__filters label:first-child { flex-basis: 260px; }
+.appstore__filters input,
+.appstore__filters select,
+.appstore__filters button {
+    min-height: 44px;
+    min-width: 0;
+    max-width: 100%;
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md, 10px);
+    background: var(--color-k-elevated);
+    color: var(--color-k-text);
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+}
+.appstore__filters button { cursor: pointer; }
+.appstore__filters :is(input, select, button):focus-visible {
+    outline: 2px solid var(--color-k-accent-text);
+    outline-offset: 2px;
+}
+
 /* ── Monogram (identity tile; gradient set inline) ─────────── */
 .appmono {
     flex: none;

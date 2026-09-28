@@ -28,6 +28,9 @@ Full changelogs are split by version range for easier navigation:
 ### Quests: retire unverified feedback claims
 
 - Reject new `submit-feedback` quest claims on the server while preserving XP from historically accepted completions.
+### App Store: shared classic discovery (2026-09-28)
+
+- Search and filter onchain listings and independent projects with the same catalogue controls on the classic Store. Read bounded registry pages beyond the old 30-item ceiling and disclose partial results.
 
 ### Memba OS: quieter Live and repeat welcome
 

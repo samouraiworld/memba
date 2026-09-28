@@ -18,6 +18,7 @@ let reviewsEnabled = false
 const fetchByStatus = vi.fn()
 const fetchApp = vi.fn()
 const fetchLiveApps = vi.fn()
+let catalogueComplete = true
 const fetchAppStoreStats = vi.fn()
 const fetchSummaries = vi.fn()
 
@@ -26,7 +27,7 @@ vi.mock("../lib/appStore", async (importActual) => {
     return {
         ...actual,
         isAppStoreV3: () => v3,
-        fetchLiveApps: (...a: unknown[]) => fetchLiveApps(...a),
+        fetchLiveCatalogue: async (...a: unknown[]) => ({ apps: await fetchLiveApps(...a), complete: catalogueComplete }),
         fetchByStatus: (...a: unknown[]) => fetchByStatus(...a),
         fetchApp: (...a: unknown[]) => fetchApp(...a),
         fetchAppStoreStats: (...a: unknown[]) => fetchAppStoreStats(...a),
@@ -49,6 +50,7 @@ vi.mock("../lib/config", async (importActual) => {
 // stats (masthead falls back to the window length), reviews off.
 beforeEach(() => {
     reviewsEnabled = false
+    catalogueComplete = true
     fetchLiveApps.mockReset().mockResolvedValue([])
     fetchAppStoreStats.mockReset().mockResolvedValue(null)
     fetchSummaries.mockReset().mockResolvedValue(new Map())
@@ -167,6 +169,37 @@ describe("AppGrid — masthead counts from GetStatsJSON (W0.6)", () => {
 })
 
 describe("AppGrid — one catalogue", () => {
+    it("uses one search and category filter for registry and editorial entries", async () => {
+        fetchLiveApps.mockResolvedValue([
+            listing({ pkgPath: "gno.land/r/gnoswap/router", name: "GnoSwap", category: "Exchange", status: "live" }),
+            listing({ pkgPath: "gno.land/r/samcrew/arcade", name: "Arcade", category: "Games", status: "live" }),
+        ])
+        renderWithProviders(<AppStore />, { route: "/mainnet/apps" })
+        const search = await screen.findByRole("searchbox", { name: "Search apps and projects" })
+        fireEvent.change(search, { target: { value: "bubble" } })
+        expect(await screen.findByRole("link", { name: "Visit Bubble Rumble (opens in a new tab)" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Arcade/ })).not.toBeInTheDocument()
+        fireEvent.change(search, { target: { value: "" } })
+        fireEvent.change(screen.getByRole("combobox", { name: "Category" }), { target: { value: "Games" } })
+        expect(await screen.findByRole("button", { name: /Arcade/ })).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "Visit Bubble Rumble (opens in a new tab)" })).toBeInTheDocument()
+        expect(screen.queryByRole("heading", { name: "GnoSwap" })).not.toBeInTheDocument()
+    })
+
+    it("shows listings beyond the first 30 and discloses a bounded partial result", async () => {
+        catalogueComplete = false
+        fetchLiveApps.mockResolvedValue(Array.from({ length: 31 }, (_, index) => listing({
+            id: index + 1,
+            pkgPath: `gno.land/r/samcrew/app${index + 1}`,
+            name: `App ${index + 1}`,
+            status: "live",
+        })))
+        renderWithProviders(<AppStore />, { route: "/mainnet/apps" })
+        expect(await screen.findByRole("button", { name: "App 31" })).toBeInTheDocument()
+        expect(screen.getByText(/More listings exist beyond this page/)).toBeInTheDocument()
+        expect(screen.queryByText("Spotlight")).not.toBeInTheDocument()
+    })
+
     it("places live registry cards before the unmatched static directory without duplicate apps", async () => {
         fetchLiveApps.mockResolvedValue([
             listing({ pkgPath: "gno.land/r/gnoswap/router", name: "GnoSwap", appURL: "https://gnoswap.io/", status: "live" }),

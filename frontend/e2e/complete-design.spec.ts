@@ -302,17 +302,20 @@ for (const network of ['mainnet', 'test13']) {
 
 for (const network of ['mainnet', 'test13']) {
     test(`ecosystem discovery interaction ${network}`, async ({ page }) => {
+        const integrated = process.env.DESIGN_REVIEW_FEATURES === 'true' && network === 'mainnet'
         await page.goto(`/${network}/apps?availability=mainnet`)
-        await expect(page.getByRole('status').filter({ hasText: 'projects found' })).toHaveText('5 projects found')
-        await page.getByRole('searchbox', { name: 'Search projects' }).fill('boards2/v0')
-        await expect(page.getByRole('link', { name: 'Boards source (opens in a new tab)' })).toHaveAttribute('href', 'https://gno.land/r/gnoland/boards2/v0$source')
+        await expect(page.getByRole('status').filter({ hasText: 'projects found' })).toContainText(/\d+ projects found/)
+        const search = page.getByRole('searchbox', { name: integrated ? 'Search apps and projects' : 'Search projects' })
+        await search.fill('boards2/v0')
+        if (integrated) await expect(page.getByText('Boards', { exact: true }).first()).toBeVisible()
+        else await expect(page.getByRole('link', { name: 'Boards source (opens in a new tab)' })).toHaveAttribute('href', 'https://gno.land/r/gnoland/boards2/v0$source')
         await page.reload()
-        await expect(page.getByRole('searchbox', { name: 'Search projects' })).toHaveValue('boards2/v0')
+        await expect(page.getByRole('searchbox', { name: integrated ? 'Search apps and projects' : 'Search projects' })).toHaveValue('boards2/v0')
         await page.getByRole('combobox', { name: 'Availability', exact: true }).selectOption('unknown')
         await expect(page.getByText('No projects match these filters.', { exact: false })).toBeVisible()
         await page.goBack()
         await expect(page.getByRole('combobox', { name: 'Availability', exact: true })).toHaveValue('mainnet')
-        await page.getByRole('button', { name: 'Reset filters' }).click()
+        await page.getByRole('button', { name: integrated ? 'Reset' : 'Reset filters' }).click()
         await expect(page.getByRole('link', { name: 'Visit mygnoscan (opens in a new tab)' })).toHaveAttribute('href', 'https://mygnoscan.moul.p2p.team/storage?network=mainnet')
         await expect(page.getByRole('button', { name: /connect wallet/i })).toHaveCount(0)
         if (process.env.DESIGN_REVIEW_FEATURES === 'true') {

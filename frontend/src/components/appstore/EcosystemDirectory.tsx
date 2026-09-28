@@ -2,17 +2,17 @@ import { ArrowUpRight, Wallet, ArrowsLeftRight, ChatsCircle, GameController, Cub
 import { useSearchParams } from "react-router-dom"
 import { notOnChain } from "../../lib/appCatalogue"
 import type { AppListing } from "../../lib/appStore"
-import { ECOSYSTEM_CATEGORIES, ECOSYSTEM_PROJECTS, filterEcosystemProjects, type EcosystemFilters } from "../../lib/ecosystemDirectory"
+import { ECOSYSTEM_CATEGORIES, ECOSYSTEM_PROJECTS, filterEcosystemProjects, type EcosystemFilters, type EcosystemProject } from "../../lib/ecosystemDirectory"
 import { parseEcosystemFilters, updateEcosystemFilters } from "../../lib/ecosystemDirectoryUrl"
 import { ExplorerLink } from "../directory/ExplorerLink"
 import "./ecosystem-directory.css"
 
 const ICONS = { Wallet, Exchange: ArrowsLeftRight, Community: ChatsCircle, Games: GameController, "Creative worlds": Cube, Explorer: MagnifyingGlass, "Developer tools": Code }
 
-export function EcosystemDirectory({ standalone = false, onChain }: { standalone?: boolean; onChain?: readonly Pick<AppListing, "pkgPath" | "appURL">[] }) {
+export function EcosystemDirectory({ standalone = false, onChain, filteredProjects }: { standalone?: boolean; onChain?: readonly Pick<AppListing, "pkgPath" | "appURL">[]; filteredProjects?: readonly EcosystemProject[] }) {
     const [params, setParams] = useSearchParams()
     const filters = parseEcosystemFilters(params)
-    const projects = filterEcosystemProjects(filters, standalone || !onChain ? ECOSYSTEM_PROJECTS : notOnChain(ECOSYSTEM_PROJECTS, onChain))
+    const projects = filteredProjects ?? filterEcosystemProjects(filters, standalone || !onChain ? ECOSYSTEM_PROJECTS : notOnChain(ECOSYSTEM_PROJECTS, onChain))
     const update = (patch: Partial<EcosystemFilters>) => setParams(previous => updateEcosystemFilters(previous, patch), { replace: Object.keys(patch).every(key => key === "q") })
     return (
         <section className="ecosystem-directory" aria-label="Gno ecosystem apps">
@@ -21,7 +21,7 @@ export function EcosystemDirectory({ standalone = false, onChain }: { standalone
                 {standalone ? <h1>App Store</h1> : <h2>More from the Gno ecosystem</h2>}
                 <p>{standalone ? "Tools for your next idea. Discover wallets, communities, creative worlds, and apps built around Gno." : "Projects and tools without a matching live registry listing."}</p>
             </header>
-            <div className="ecosystem-directory__filters" role="search" aria-label="Find ecosystem projects">
+            {filteredProjects === undefined && <div className="ecosystem-directory__filters" role="search" aria-label="Find ecosystem projects">
                 <label>Search projects<input type="search" maxLength={200} value={filters.q} onChange={event => update({ q: event.target.value })} placeholder="Name, category or realm path" /></label>
                 <label>Category<select value={filters.category} onChange={event => update({ category: parseEcosystemFilters(new URLSearchParams({ category: event.target.value })).category })}>
                     <option value="all">All categories</option>
@@ -31,8 +31,8 @@ export function EcosystemDirectory({ standalone = false, onChain }: { standalone
                     <option value="all">All availability</option><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option><option value="tools">Tools</option><option value="unknown">Not verified</option>
                 </select></label>
                 <button type="button" onClick={() => update({ q: "", category: "all", availability: "all" })}>Reset filters</button>
-            </div>
-            <p className="ecosystem-directory__note">Filters browse the whole ecosystem; they do not change your Memba network. Each destination’s network is shown below.</p>
+            </div>}
+            {filteredProjects === undefined && <p className="ecosystem-directory__note">Filters browse the whole ecosystem; they do not change your Memba network. Each destination’s network is shown below.</p>}
             <p className="ecosystem-directory__count" role="status">{projects.length} project{projects.length === 1 ? "" : "s"} found</p>
             {projects.length === 0 && <p>No projects match these filters. Try another search or reset the filters.</p>}
             <ul className="ecosystem-directory__grid">

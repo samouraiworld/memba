@@ -1,11 +1,9 @@
 /**
  * AppStore — the curated App Store surface at `/apps` (Wave 9).
  *
- * `/apps` lists live apps (read from `memba_appstore_v2.ListLiveJSON` via ABCI);
- * `/apps/<pkgPath>` shows one app's detail. Read-only: registering an app is a
- * wallet flow (later); this page only reads. Each app cross-links to the Explorer
- * (`/explorer/<pkgPath>`) — "read the contract you're about to use". Behind
- * `VITE_ENABLE_APPSTORE` (de-gated 2026-07-07; memba_appstore_v2 live on test13).
+ * `/apps` searches live registry listings and independently linked ecosystem
+ * projects through the shared catalogue model. `/apps/<pkgPath>` shows a registry
+ * detail. Publisher and curator actions live behind separate launch gates.
  *
  * The visual identity leans on the one thing a gno.land store has that an app
  * store of opaque binaries never can: every app is a public realm you can read
@@ -16,10 +14,10 @@
  */
 
 import { Suspense, useState, type CSSProperties } from "react"
-import { useParams, useNavigate, Link } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
-import { fetchLiveApps, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
+import { fetchLiveCatalogue, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
 import { fetchSummary, fetchSummaries, type SubjectSummary } from "../lib/reviews"
 import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
 import { MEMBA_DAO, API_BASE_URL, isAppReviewsAvailable, isAppStoreSubmitEnabled } from "../lib/config"
@@ -27,6 +25,8 @@ import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
 import { EcosystemDirectory } from "../components/appstore/EcosystemDirectory"
+import { buildCatalogue, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueFilters } from "../lib/appCatalogue"
+import { ECOSYSTEM_PROJECTS } from "../lib/ecosystemDirectory"
 import "./appstore.css"
 
 export function AppStore() {
@@ -192,19 +192,26 @@ function relPath(pkgPath: string): string {
 
 function AppGrid() {
     const { networkKey } = useNetwork()
+    const [params, setParams] = useSearchParams()
+    const filters = parseCatalogueFilters(params)
+    const updateFilters = (patch: Partial<CatalogueFilters>) => setParams(previous => updateCatalogueFilters(previous, patch), { replace: Object.keys(patch).every(key => key === "q") })
     const appReviews = isAppReviewsAvailable()
-    const { data: apps, isPending, isError } = useQuery({
-        queryKey: ["appStore", "live"],
-        queryFn: () => fetchLiveApps(0, 30),
+    const { data: catalogue, isPending, isError } = useQuery({
+        queryKey: ["appStore", "live-catalogue", networkKey],
+        queryFn: () => fetchLiveCatalogue(),
         staleTime: 60_000,
         gcTime: 300_000,
         retry: 1,
     })
+    const allApps = catalogue?.apps ?? []
+    const visible = filterCatalogue(buildCatalogue(allApps, ECOSYSTEM_PROJECTS, networkKey), filters)
+    const apps = visible.flatMap(entry => entry.listing ? [entry.listing] : [])
+    const editorial = visible.flatMap(entry => entry.project && entry.source === "editorial" ? [entry.project] : [])
 
     // Realm-level counts for the masthead (GetStatsJSON exists on v2 AND v3).
     // Falls back to the fetched window's length when the getter errors.
     const { data: stats } = useQuery({
-        queryKey: ["appStore", "stats"],
+        queryKey: ["appStore", "stats", networkKey],
         queryFn: fetchAppStoreStats,
         staleTime: 60_000,
         gcTime: 300_000,
@@ -213,9 +220,9 @@ function AppGrid() {
 
     // One batched, concurrency-capped summaries fetch for every visible card —
     // not a per-card query (plan A.5's realm-side batch getter is the real fix).
-    const subjects = (apps ?? []).map((a) => a.pkgPath)
+    const subjects = apps.map((a) => a.pkgPath)
     const { data: summaries } = useQuery({
-        queryKey: ["appStore", "summaries", subjects],
+        queryKey: ["appStore", "summaries", networkKey, subjects],
         queryFn: () => fetchSummaries(subjects, MEMBA_DAO.appReviewsPath),
         enabled: appReviews && subjects.length > 0,
         staleTime: 60_000,
@@ -223,8 +230,10 @@ function AppGrid() {
         retry: 1,
     })
 
-    const featured = apps?.[0]
-    const rest = apps?.slice(1) ?? []
+    const spotlightPath = ECOSYSTEM_PROJECTS.find(project => project.id === "gnoswap")?.realm?.path
+    const featured = !filters.q && filters.category === "all" && filters.availability === "all"
+        ? apps.find(app => app.pkgPath === spotlightPath) : undefined
+    const rest = apps.filter(app => app !== featured)
 
     return (
         <div className="appstore" data-testid="appstore-root">
@@ -236,9 +245,9 @@ function AppGrid() {
                 <p className="appstore__lede">
                     Listings from Memba’s registry. Inspect each app’s public realm and reviews before opening it.
                 </p>
-                {!isPending && !isError && apps && apps.length > 0 && (
+                {!isPending && !isError && allApps.length > 0 && (
                     <div className="appstore__stats">
-                        <span><strong>{stats?.live ?? apps.length}</strong> {(stats?.live ?? apps.length) === 1 ? "app" : "apps"}</span>
+                        <span><strong>{stats?.live ?? allApps.length}</strong> {(stats?.live ?? allApps.length) === 1 ? "app" : "apps"}</span>
                         {stats && stats.total > stats.live && (
                             <>
                                 <span className="appstore__dot" aria-hidden="true">·</span>
@@ -265,6 +274,19 @@ function AppGrid() {
                 )}
             </header>
 
+            <div className="appstore__filters" role="search" aria-label="Find apps and projects">
+                <label>Search apps and projects<input type="search" maxLength={200} value={filters.q} onChange={event => updateFilters({ q: event.target.value })} placeholder="Name, category or realm path" /></label>
+                <label>Category<select value={filters.category} onChange={event => updateFilters({ category: parseCatalogueFilters(new URLSearchParams({ category: event.target.value })).category })}>
+                    <option value="all">All categories</option>
+                    {CATALOGUE_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+                </select></label>
+                <label>Availability<select value={filters.availability} onChange={event => updateFilters({ availability: parseCatalogueFilters(new URLSearchParams({ availability: event.target.value })).availability })}>
+                    <option value="all">All availability</option><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option><option value="tools">Tools</option><option value="unknown">Not verified</option>
+                </select></label>
+                <button type="button" onClick={() => updateFilters({ q: "", category: "all", availability: "all" })}>Reset</button>
+            </div>
+            {catalogue && !catalogue.complete && <p className="appstore__notice" role="status">Showing the first {allApps.length} onchain listings. More listings exist beyond this page.</p>}
+
             {isPending ? (
                 <ul className="appstore__grid" aria-hidden="true">
                     {[0, 1, 2].map((i) => (
@@ -276,10 +298,10 @@ function AppGrid() {
                     <p className="appstore__notice-title">Couldn't reach the App Store</p>
                     <p className="appstore__muted">The realm didn't respond. Check your network, then reload.</p>
                 </div>
-            ) : !apps || apps.length === 0 ? (
+            ) : apps.length === 0 ? (
                 <div className="appstore__notice">
-                    <p className="appstore__notice-title">No apps listed yet</p>
-                    <p className="appstore__muted">Curated apps land here as they're published. Check back soon.</p>
+                    <p className="appstore__notice-title">{allApps.length ? "No onchain listings match these filters" : "No onchain apps listed yet"}</p>
+                    <p className="appstore__muted">Independent projects are shown below when they match your filters.</p>
                 </div>
             ) : (
                 <>
@@ -301,7 +323,7 @@ function AppGrid() {
                 </>
             )}
 
-            {!isPending && <EcosystemDirectory onChain={isError ? [] : apps ?? []} />}
+            {!isPending && <EcosystemDirectory filteredProjects={editorial} />}
 
             {/* Verified (live) apps are the default view above. On v3, pending-review apps are an
                 opt-in disclosure only — never a peer of the verified grid. */}
@@ -313,9 +335,9 @@ function AppGrid() {
 function FeaturedApp({ app, networkKey, summary }: { app: AppListing; networkKey: string; summary?: SubjectSummary }) {
     const rel = relPath(app.pkgPath)
     return (
-        <section className="appfeatured" aria-label={`Featured: ${app.name}`}>
+        <section className="appfeatured" aria-label={`Spotlight: ${app.name}`}>
             <p className="appfeatured__badge">
-                <span className="appfeatured__star" aria-hidden="true">★</span> Featured
+                <span className="appfeatured__star" aria-hidden="true">★</span> Spotlight
             </p>
             <div className="appfeatured__body">
                 <AppIcon app={app} size="lg" />
@@ -385,7 +407,7 @@ function AppCard({ app, networkKey, pending, summary }: { app: AppListing; netwo
 function PendingReviewSection({ networkKey }: { networkKey: string }) {
     const [open, setOpen] = useState(false)
     const { data: pending, isPending, isError } = useQuery({
-        queryKey: ["appStore", "pending"],
+        queryKey: ["appStore", "pending", networkKey],
         queryFn: () => fetchByStatus("pending", 0, 30),
         enabled: open,
         staleTime: 60_000,
@@ -444,7 +466,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
     const rel = relPath(pkgPath)
     const appReviews = isAppReviewsAvailable()
     const { data: app, isPending, isError } = useQuery({
-        queryKey: ["appStore", "detail", pkgPath],
+        queryKey: ["appStore", "detail", networkKey, pkgPath],
         queryFn: () => fetchApp(pkgPath),
         staleTime: 60_000,
         gcTime: 300_000,
@@ -454,7 +476,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
     // Only fetched when community reviews are enabled (the app-reviews realm is not on mainnet yet;
     // gated behind VITE_ENABLE_APP_REVIEWS until wired live).
     const { data: reviewSummary } = useQuery({
-        queryKey: ["appReviews", "summary", pkgPath],
+        queryKey: ["appReviews", "summary", networkKey, pkgPath],
         queryFn: () => fetchSummary(pkgPath, MEMBA_DAO.appReviewsPath),
         enabled: appReviews,
         staleTime: 60_000,
