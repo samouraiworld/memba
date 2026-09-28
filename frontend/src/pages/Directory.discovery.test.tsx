@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation, useNavigate } from "react-router-dom"
 const options = vi.hoisted(() => ({ explorer: true }))
 vi.mock("../lib/config", async importOriginal => ({ ...await importOriginal<typeof import("../lib/config")>(), isExplorerEnabled: () => options.explorer }))
 vi.mock("../lib/quests", () => ({ trackPageVisit: vi.fn(), trackDirectoryTab: vi.fn() }))
+vi.mock("../hooks/useRecentSubmissions", () => ({ useRecentSubmissions: () => ({ data: { rows: [{ path: "gno.land/p/moul/x/vm/riscv/v0", kind: "package" }] }, isPending: false, isError: false }) }))
 vi.mock("../components/directory", () => ({ ChainMetricsBanner: () => null }))
 vi.mock("../hooks/useDirectoryDiscovery", () => ({ useDirectoryDiscovery: () => ({ discovery: { status: "ready", packages: [{ name: "Boards package", path: "gno.land/p/demo/boards2", description: "reference" }], realms: [{ name: "Boards", path: "gno.land/r/gnoland/boards2/v0", description: "forum" }] }, isPending: false, refetch: vi.fn() }) }))
 vi.mock("../components/directory/tabs", () => ({
@@ -15,6 +16,13 @@ vi.mock("../components/directory/RealmDetailDrawer", () => ({ RealmDetailDrawer:
 import { Directory } from "./Directory"
 function History() { const location = useLocation(); const navigate = useNavigate(); return <><output data-testid="url">{location.pathname}{location.search}</output><button onClick={() => navigate(-1)}>Back</button></> }
 describe("Directory selected search destinations", () => {
+    it("finds a recent mainnet package that is absent from curated listings", async () => {
+        options.explorer = false
+        render(<MemoryRouter initialEntries={["/mainnet/directory?q=riscv"]}><QueryClientProvider client={new QueryClient()}><Directory /></QueryClientProvider></MemoryRouter>)
+        fireEvent.click(await screen.findByRole("button", { name: /gno.land\/p\/moul\/x\/vm\/riscv\/v0/ }))
+        expect(screen.getByTestId("selected-drawer")).toHaveTextContent("gno.land/p/moul/x/vm/riscv/v0:source")
+        expect(screen.queryByText(/No listed DAOs, realms, or packages match/)).not.toBeInTheDocument()
+    })
     it.each([true, false])("keeps query and exact realm through selection and Back, explorer=%s", async enabled => {
         options.explorer = enabled
         render(<MemoryRouter initialEntries={["/mainnet/directory?q=Boards"]}><QueryClientProvider client={new QueryClient()}><Directory /><History /></QueryClientProvider></MemoryRouter>)

@@ -40,12 +40,15 @@ export function parseDAORender(path: string, raw: string | null): DAOMetadata {
 
     const lines = raw.split("\n").map(l => l.trim()).filter(Boolean)
 
-    // Description: first non-heading, non-separator line
+    // A standalone Markdown link is navigation, not a DAO summary. GovDAO's
+    // Render begins with one, which otherwise appears as raw Markdown on cards.
     const descLine = lines.find(l =>
         !l.startsWith("#") &&
         !l.startsWith("|") &&
         !l.startsWith("---") &&
         !l.startsWith("*") &&
+        !/^\[[^\]]+\]\([^)]*\)$/.test(l) &&
+        !/^(?:author|members?|proposals?|status|threshold|quorum|votes?)\s*:/i.test(l) &&
         l.length > 5,
     )
     if (descLine) defaults.description = descLine.slice(0, 200)

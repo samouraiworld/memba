@@ -34,6 +34,14 @@ describe("network-scoped discovery", () => {
         expect(fetchNamespaceListing).toHaveBeenNthCalledWith(1, NETWORKS.mainnet.explorerUrl, "samcrew", "p", NETWORKS.mainnet.chainId)
         expect(fetchNamespaceListing).toHaveBeenCalledTimes(2)
     })
+    it("keeps verified prefix rows when a namespace listing hits its cap", async () => {
+        vi.mocked(fetchNamespaceListing)
+            .mockResolvedValueOnce({ status: "partial", items: [{ name: "capped", path: "/p/samcrew/capped", gnowebUrl: "https://gno.land/p/samcrew/capped" }] })
+            .mockResolvedValueOnce({ status: "ready", items: [] })
+        const result = await fetchDirectoryDiscovery("mainnet", [])
+        expect(result.status).toBe("partial")
+        expect(result.packages).toEqual([expect.objectContaining({ path: "gno.land/p/samcrew/capped", provenance: "namespace" })])
+    })
     it("distinguishes successful empty discovery from failure without mutating seeds", async () => {
         vi.mocked(fetchNamespaceListing).mockResolvedValue({ status: "ready", items: [] })
         const result = await fetchDirectoryDiscovery("pearl", [])

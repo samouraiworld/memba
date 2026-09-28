@@ -21,7 +21,7 @@ export function toExplorerRelPath(realmPath: string): string {
     let p = (realmPath || "").trim().replace(/^https?:\/\/[^/]+/, "")
     p = p.replace(/^gno\.land/, "").replace(/^\/+/, "")
     p = p.replace(/[:$?].*$/, "").replace(/\/+$/, "")
-    return p
+    return /^[rp]\/[a-z0-9_-]+\/[a-z0-9_-]+(?:\/[a-z0-9_-]+)*$/.test(p) ? p : ""
 }
 
 /**
@@ -30,5 +30,7 @@ export function toExplorerRelPath(realmPath: string): string {
  */
 export function explorerHref(networkKey: string, realmPath: string): string {
     const rel = toExplorerRelPath(realmPath)
-    return rel ? `/${networkKey}/directory?tab=explorer&realm=${rel}` : ""
+    if (!rel) return ""
+    const params = new URLSearchParams({ tab: "explorer", realm: rel })
+    return `/${networkKey}/directory?${params.toString()}`
 }

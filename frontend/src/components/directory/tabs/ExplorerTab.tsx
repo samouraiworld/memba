@@ -17,14 +17,16 @@
 
 import { useState, useMemo, type FormEvent } from "react"
 import { sanitizeMarkdownHtml } from "../../../lib/sanitizeMarkdownHtml"
-import { getExplorerBaseUrlFor } from "../../../lib/config"
+import { GNO_CHAIN_ID, getExplorerBaseUrlFor } from "../../../lib/config"
 import { useQuery } from "@tanstack/react-query"
 import { useDirectoryRender } from "../../../hooks/useDirectoryRender"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { useTabListKeyboard } from "../../../hooks/useTabListKeyboard"
-import { fetchRealmSourceSmart } from "../../../lib/gnowebSource"
+import { fetchRealmSourceSmart, isValidRealmPath } from "../../../lib/gnowebSource"
 import { renderMarkdown } from "../../../lib/markdownLite"
-import { fetchRealmFuncs, formatSignature, resolveFnList, type GnoFunc } from "../../../lib/gnoFuncs"
+import { formatSignature, parseQfuncs, resolveFnList, type GnoFunc } from "../../../lib/gnoFuncs"
+import { resilientAbciQueryDetailed } from "../../../lib/rpcFallback"
+import { assertRpcChain } from "../../../lib/dao/chainIdentity"
 import { toExplorerRelPath } from "../../../lib/explorerLink"
 import { SourceCodeView } from "../SourceCodeView"
 import { directorySeeds } from "../../../lib/directorySeeds"
@@ -36,6 +38,16 @@ type Tab = "render" | "source" | "functions"
 // hook. Prefixed ids: this tablist renders inside Directory's own tab panel,
 // whose tabs use the hook's default `tab-*` ids.
 const REALM_TAB_KEYS: readonly Tab[] = ["render", "source", "functions"]
+
+async function fetchVerifiedRealmFuncs(relPath: string): Promise<GnoFunc[]> {
+    if (!isValidRealmPath(relPath)) throw new Error("Invalid realm path")
+    const result = await resilientAbciQueryDetailed(
+        "vm/qfuncs", `gno.land${relPath}`,
+        rpcUrl => assertRpcChain(rpcUrl, GNO_CHAIN_ID),
+    )
+    if (result.kind === "abci-error") throw result.error
+    return result.kind === "empty" ? [] : parseQfuncs(result.text)
+}
 
 /** Normalize any user input / URL value to a `gno.land/...` pkg path (or ""). */
 function toRealmPath(raw: string): string {
@@ -120,23 +132,25 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
     const gnowebUrl = getExplorerBaseUrlFor(networkKey)
     const relPath = path.replace(/^gno\.land/, "")
     const shortName = path.split("/").pop() || path
-    const renderQuery = useDirectoryRender(isPackage ? null : path)
+    const renderQuery = useDirectoryRender(tab === "render" && !isPackage ? path : null)
     const render = renderQuery.data
     const renderLoading = renderQuery.loading
+    const funcsQuery = useQuery({
+        queryKey: ["realm", "functions", networkKey, path],
+        queryFn: () => fetchVerifiedRealmFuncs(relPath),
+        enabled: tab === "functions",
+        retry: false, refetchOnWindowFocus: false,
+    })
+    const funcs = funcsQuery.data ?? null
     const sourceQuery = useQuery({
         queryKey: ["realm", "source", networkKey, path, gnowebUrl],
         queryFn: () => fetchRealmSourceSmart(gnowebUrl, relPath),
+        enabled: tab === "source" || (tab === "functions" && (funcsQuery.isError || funcsQuery.isSuccess && !funcs?.length)),
         retry: false, refetchOnWindowFocus: false,
     })
     const source = sourceQuery.data
     const sourceLoading = sourceQuery.isFetching
     const activeFile = source?.files[0]?.name ?? ""
-    const funcsQuery = useQuery({
-        queryKey: ["realm", "functions", networkKey, path],
-        queryFn: () => fetchRealmFuncs(relPath),
-        retry: false, refetchOnWindowFocus: false,
-    })
-    const funcs = funcsQuery.data ?? null
     const sourceNames = useMemo(
         () => (source?.functions ?? []).filter((f) => f.isExported).map((f) => f.name),
         [source],
@@ -206,6 +220,7 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                                 </a>
                             </div>
                             <SourceCodeView files={source.files} activeFile={activeFile} />
+                            {source.truncated && <p className="realmview__muted" role="status">Showing the first 24 source files. More files exist in this package.</p>}
                         </>
                     ) : (
                         <p className="realmview__muted" role="status">Source unavailable for this path. <button className="explorer__go" onClick={() => void sourceQuery.refetch()}>Retry source</button></p>

@@ -237,7 +237,7 @@ export function parseTokenRegistry(raw: string): DirectoryToken[] {
  * different results than the Tokens page. Now uses the same factory source.
  * Uses sessionStorage cache.
  */
-export async function fetchTokens(): Promise<DirectoryToken[]> {
+export async function fetchTokens(strict = false): Promise<DirectoryToken[]> {
     const cached = getCached<DirectoryToken[]>("tokens")
     if (cached) return cached
 
@@ -251,7 +251,10 @@ export async function fetchTokens(): Promise<DirectoryToken[]> {
         }))
         setCache("tokens", tokens)
         return tokens
-    } catch {
+    } catch (err) {
+        // Keep the older best-effort Home reader's contract. The Directory
+        // requests strict mode so an outage reaches its Retry state.
+        if (strict) throw err
         return []
     }
 }

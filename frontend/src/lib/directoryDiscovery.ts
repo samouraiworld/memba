@@ -35,7 +35,7 @@ export async function fetchDirectoryDiscovery(networkKey: string, daos: Director
     ])
     const checkedAt = new Date().toISOString()
     for (const [kind, listing] of [["p", packages], ["r", realms]] as const) {
-        if (listing.status !== "ready") continue
+        if (listing.status === "unavailable") continue
         for (const item of listing.items) {
             const path = `gno.land${item.path}`
             const rows = kind === "p" ? result.packages : result.realms

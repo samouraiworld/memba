@@ -22,9 +22,9 @@ describe("toExplorerRelPath", () => {
 
 describe("explorerHref", () => {
     it("builds the network-prefixed Directory explorer-tab route", () => {
-        expect(explorerHref("test13", "gno.land/r/x/y")).toBe("/test13/directory?tab=explorer&realm=r/x/y")
+        expect(explorerHref("test13", "gno.land/r/x/y")).toBe("/test13/directory?tab=explorer&realm=r%2Fx%2Fy")
         expect(explorerHref("test13", "gno.land/r/samcrew/memba_feed_v1")).toBe(
-            "/test13/directory?tab=explorer&realm=r/samcrew/memba_feed_v1",
+            "/test13/directory?tab=explorer&realm=r%2Fsamcrew%2Fmemba_feed_v1",
         )
     })
     it("returns '' when the realm path is unusable (caller renders nothing)", () => {

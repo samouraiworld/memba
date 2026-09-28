@@ -27,7 +27,7 @@ export function TokensTab() {
     const factoryAvailable = isTokenFactoryValid()
     const tokensQuery = useQuery({
         queryKey: ["directory", "tokens"],
-        queryFn: fetchTokens,
+        queryFn: () => fetchTokens(true),
         enabled: factoryAvailable,
     })
     // Stable fallback: a fresh [] here would churn the filter memo every render.
@@ -67,6 +67,7 @@ export function TokensTab() {
                 onChange={e => { setSearch(e.target.value); setPage(0) }}
                 className="dir-search"
                 data-testid="token-search"
+                aria-label="Search tokens"
             />
 
             {loading ? (

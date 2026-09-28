@@ -7,19 +7,25 @@
  *   2. gnomod.toml (and legacy gno.mod) captured as gnoModContent
  *   3. per-file failure tolerated (fail per-file, not per-realm)
  *   4. SSRF guard + empty-listing → null
- *   5. Smart(): session-cache hit → no RPC; RPC failure → gnoweb fallback
+ *   5. Smart(): verified session-cache hit → no RPC; RPC failure stays unavailable
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { fetchRealmSourceViaRpc, fetchRealmSourceSmart } from "./gnowebSource"
 
 const mocks = vi.hoisted(() => ({
     abci: vi.fn<(path: string, data: string) => Promise<string | null>>(),
+    verify: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock("./rpcFallback", async (importOriginal) => ({
     ...(await importOriginal<typeof import("./rpcFallback")>()),
-    resilientAbciQuery: mocks.abci,
+    resilientAbciQueryDetailed: async (path: string, data: string, verify?: (url: string) => Promise<void>) => {
+        await verify?.("https://rpc.example")
+        const value = await mocks.abci(path, data)
+        return value == null ? { kind: "empty" } : { kind: "ok", text: value }
+    },
 }))
+vi.mock("./dao/chainIdentity", () => ({ assertRpcChain: mocks.verify }))
 
 const REALM = "/r/samcrew/memba_dao"
 const PKG = `gno.land${REALM}`
@@ -37,6 +43,7 @@ function mockChain(responses: Record<string, string | null>) {
 
 beforeEach(() => {
     mocks.abci.mockReset()
+    mocks.verify.mockClear()
     sessionStorage.clear()
 })
 
@@ -119,20 +126,48 @@ describe("fetchRealmSourceSmart", () => {
         expect(mocks.abci.mock.calls.length).toBe(callsAfterFirst)
     })
 
-    it("falls back to the gnoweb scrape when the RPC path yields nothing", async () => {
+    it("does not substitute unverified gnoweb HTML when RPC source is unavailable", async () => {
         mockChain({ [PKG]: null })
-        const html = `<h3>memba_dao.gno</h3><pre><code>${DAO_GNO.replace(/</g, "&lt;")}</code></pre>`
         const fetchMock = vi.fn()
-            .mockResolvedValueOnce({ ok: true, text: async () => html })   // $source
-            .mockResolvedValueOnce({ ok: true, text: async () => "" })      // $help
         vi.stubGlobal("fetch", fetchMock)
         try {
             const src = await fetchRealmSourceSmart("https://gnoweb.example", REALM)
-            expect(src).not.toBeNull()
-            expect(src!.files[0].name).toBe("memba_dao.gno")
-            expect(String(fetchMock.mock.calls[0][0])).toBe(`https://gnoweb.example${REALM}$source`)
+            expect(src).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
         } finally {
             vi.unstubAllGlobals()
         }
+    })
+
+    it("reports a bounded source view when the listing exceeds 24 files", async () => {
+        const names = Array.from({ length: 25 }, (_, i) => `file_${i}.gno`)
+        mockChain(Object.fromEntries([[PKG, names.join("\n")], ...names.map(name => [`${PKG}/${name}`, DAO_GNO])]))
+        const source = await fetchRealmSourceViaRpc(REALM)
+        expect(source?.files).toHaveLength(24)
+        expect(source?.truncated).toBe(true)
+    })
+
+    it("reads at most four source bodies concurrently", async () => {
+        const names = Array.from({ length: 12 }, (_, i) => `file_${i}.gno`)
+        let active = 0
+        let peak = 0
+        mocks.abci.mockImplementation(async (_path, data) => {
+            if (data === PKG) return names.join("\n")
+            active++
+            peak = Math.max(peak, active)
+            await new Promise(resolve => setTimeout(resolve, 1))
+            active--
+            return DAO_GNO
+        })
+        const source = await fetchRealmSourceViaRpc(REALM)
+        expect(source?.files).toHaveLength(12)
+        expect(peak).toBe(4)
+    })
+
+    it("verifies every qfile attempt on its selected RPC endpoint", async () => {
+        mockChain({ [PKG]: "memba_dao.gno", [`${PKG}/memba_dao.gno`]: DAO_GNO })
+        await fetchRealmSourceViaRpc(REALM)
+        expect(mocks.verify).toHaveBeenCalledWith("https://rpc.example", expect.any(String))
+        expect(mocks.verify).toHaveBeenCalledTimes(2)
     })
 })

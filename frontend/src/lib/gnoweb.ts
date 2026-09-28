@@ -8,7 +8,7 @@
  */
 
 import { GNO_CHAIN_ID, NETWORKS } from "./config"
-import { assertActiveRpcChain } from "./dao/chainIdentity"
+import { assertRpcChain } from "./dao/chainIdentity"
 import { resilientAbciQueryDetailed } from "./rpcFallback"
 
 // ── Types ────────────────────────────────────────────────────
@@ -86,8 +86,9 @@ export function parseQpathsListing(text: string, gnowebBaseUrl: string, namespac
 /**
  * List what is deployed under `/{kind}/{namespace}/` on `chainId`, via the RPC.
  *
- * `status: "ready"` means the chain answered (an empty namespace is `ready`
- * with no items); `"unavailable"` means it could not be asked. Nothing is
+ * `status: "ready"` means the chain answered within the listing limit (an
+ * empty namespace is `ready` with no items); `"partial"` means the limit may
+ * have truncated the answer; `"unavailable"` means it could not be asked. Nothing is
  * cached here: the caller's query cache (useDirectoryDiscovery, 5 minutes)
  * already holds the result, and a transient failure must not read as empty.
  *
@@ -97,17 +98,21 @@ export function parseQpathsListing(text: string, gnowebBaseUrl: string, namespac
  *
  * `baseUrl` is the network's gnoweb URL; it only builds the item links.
  */
-export async function fetchNamespaceListing(baseUrl: string, namespace: string, kind: "r" | "p", chainId: string): Promise<{ items: NamespaceItem[]; status: "ready" | "unavailable" }> {
+export async function fetchNamespaceListing(baseUrl: string, namespace: string, kind: "r" | "p", chainId: string): Promise<{ items: NamespaceItem[]; status: "ready" | "partial" | "unavailable" }> {
     if (chainId !== GNO_CHAIN_ID || !NAMESPACE_RE.test(namespace)) return { items: [], status: "unavailable" }
     try {
-        await assertActiveRpcChain()
         const result = await resilientAbciQueryDetailed(
             `vm/qpaths?limit=${NAMESPACE_LISTING_LIMIT}`,
             `${CHAIN_DOMAIN}/${kind}/${namespace}/`,
+            rpcUrl => assertRpcChain(rpcUrl, chainId),
         )
         // A namespace with nothing deployed answers with empty Data.
         if (result.kind === "empty") return { items: [], status: "ready" }
         if (result.kind === "abci-error") return { items: [], status: "unavailable" }
-        return { items: parseQpathsListing(result.text, baseUrl, namespace, kind), status: "ready" }
+        const lines = result.text.split("\n").filter(line => line.trim() !== "")
+        return {
+            items: parseQpathsListing(result.text, baseUrl, namespace, kind),
+            status: lines.length >= NAMESPACE_LISTING_LIMIT ? "partial" : "ready",
+        }
     } catch { return { items: [], status: "unavailable" } }
 }

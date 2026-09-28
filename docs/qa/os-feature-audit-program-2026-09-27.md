@@ -18,7 +18,7 @@ Started 27 September 2026. Each feature gets its own production baseline, cross-
 | App Store | Queued |
 | Validators: consensus, candidates, network nodes, Hacker telemetry, profiles | Ten-perspective production and local QA in `fix/os-validators-production-qa`, stacked after Arcade PR #1354 |
 | Quests: Hub, detail, claims, leaderboard, XP, candidature and attestation | Ten-perspective production and local QA in `fix/os-quests-production-qa`, stacked after Validators PR #1356 |
-| Explorer | Queued |
+| Explorer and Directory: tabs, source viewer, search, recent submissions, drawers and URL state | Ten-perspective production and local QA in `fix/os-explorer-production-qa`, stacked after Quests PR #1358 |
 | Profile | Queued |
 | News | Queued |
 | Dev Report | Queued |

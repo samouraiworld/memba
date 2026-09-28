@@ -1,0 +1,32 @@
+# Memba OS Explorer and Directory production QA
+
+28 September 2026. This feature audit follows Quests PR #1358 in the ordered OS audit stack. Feed/Live, Tokens, NFT Marketplace, App Store, and Profile have separate active sessions; this PR changes only Explorer/Directory views and their shared read paths.
+
+## Scope and production baseline
+
+The audit covers OS Explorer and classic Directory, their seven public tabs (Packages, DAOs, Realms, Tokens, Users, GovDAO, Leaderboard), the gated eighth source Explorer tab, global and tab search, recent mainnet submissions, URL/deep-link state, realm/package/source drawers, network metrics, and legacy Explorer redirects. Guest journeys were checked on `https://memba.club/os/explorer` and `https://memba.club/mainnet/directory` at desktop and 390 px widths. No production wallet was connected or transaction sent. Local fixtures and browser tests cover error and keyboard states.
+
+Production guest testing found a 30 px DAO search field on phones, raw GovDAO Markdown, a `riscv` search reporting no packages while a recent matching submission was visible, and an opaque ranking basis. Local device review found package cards overflowing phones and squeezing text on desktop, plus Directory content showing through the OS source drawer. Code review found that RPC fallback could display wrong-chain source/functions/listings, that outages in Users and Tokens could appear as empty results, and that opening Explorer could fan out source reads before the source tab was selected.
+
+## Ten review perspectives
+
+| Perspective | Finding and response |
+|---|---|
+| Feature inventory | Mapped all seven public tabs, gated source Explorer, metrics, recent submissions, URL state, and both OS/classic routes. Kept active Feed/Live, Tokens, NFT Marketplace, App Store and Profile work outside this PR. |
+| Live guest journey | Reproduced the DAO phone control, raw GovDAO summary, and misleading recent-submission search. The search/action layout, metadata selection, and indexed recent-results matching are corrected. |
+| Security and abuse | Failover reads verified one endpoint and could then query another. Each actual qrender, qpaths, qfile and qfuncs attempt now verifies its endpoint's chain ID. The UI no longer treats unverified gnoweb HTML as chain source, and source cache keys separate verified RPC content. |
+| Accessibility | DAO Save keyboard events bubbled into card navigation, token dialogs lacked focus containment, search controls lacked names, and source-file selection was visual only. Keyboard save, modal focus/restore, names, and pressed state are fixed. |
+| Architecture and performance | Explorer eagerly loaded Render, source and functions; source could launch 24 simultaneous qfile reads. Reads now start with their selected tab, source files load four at a time, the 24-file cap is disclosed, and 1,000-path namespace answers are marked partial. |
+| Routes and state | Local card drawers lost shareable/Back state, and a selected package could stay over the Realms tab. Detail actions use URL realm state, tab changes clear the selection, classic network switches preserve Directory query state, and legacy Explorer paths are validated and encoded. |
+| Operational reliability | Metrics kept a “Live” badge after failed refresh and polls could overlap. The banner now exposes stale/unknown results, bounds requests, and refreshes on visibility return. GovDAO, Users, Tokens and Leaderboard distinguish failures from empty data and provide retry. |
+| Visual and responsive design | Package cards overflowed 390 px phones and collapsed content in 300 px desktop grid cards; the OS source drawer was translucent. Cards stack content/actions, and the OS drawer uses an opaque theme surface. DAO search/action controls stack on phones. |
+| Product and content | Search claimed all tabs while indexing only DAOs, realms, packages and recent submissions; editorial DAO results looked verified; contributor rows lost selection. Scope copy, path provenance, exact-path feedback and contributor links now describe and lead to what the product actually serves. |
+| Cross-browser and device | The full Directory/Explorer gating Playwright suite passed 48/48 in Chromium and Firefox. OS and classic views at 1280, 390 and 320 px showed no horizontal overflow; tabs, search, drawer controls, keyboard focus and Escape worked. The OS drawer computed an opaque surface at all widths. |
+
+## Verification and limits
+
+- Frontend production build and full ESLint pass. Focused Explorer/Directory Vitest run passes 163 tests across 21 files, with additional GovDAO/Users regression tests passing; DAO read migration passes 788 tests across 46 files (10 skipped). The full Directory/Explorer gating Playwright suite passes 48/48 across Chromium and Firefox. A separate read-only device sweep covered OS and classic desktop, 390 px and 320 px views in both engines.
+- Production testing was guest and read only. Chain failover and outage paths were exercised with local unit/fixture tests, not by repointing production RPC hosts.
+- `assertRpcChain` caches a verified endpoint for the current page session. If an RPC host is repointed mid-session, the next read can use its earlier chain proof until reload. This follows the existing shared RPC identity policy and should be revisited as a cross-feature change if host rotation becomes common.
+- Directory remains a curated and bounded view, not a complete chain index. A namespace listing that hits the node's 1,000-path limit is partial; recent submissions cover a fixed mainnet transaction window; Tokens lists Memba factory tokens and Users lists members of known DAOs. The source viewer caps qfile reads at 24 files and labels that truncation. GovDAO's Directory list uses a separate strictly verified Render reader so an earlier best-effort DAO cache or unsupported JSON probe cannot launder an unverified result into this tab.
+- A post-deployment guest smoke is required after the ordered PR stack lands. Merge order is Shell #1345, Live/entry #1347, Wallet #1349, Settings #1350, DAOs #1351, Multisig #1352, Arcade #1354, Validators #1356, Quests #1358, then this Explorer PR. Shell #1345 remains review-gated, so no downstream PR is merged yet.

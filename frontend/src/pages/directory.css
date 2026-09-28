@@ -125,6 +125,7 @@
 .dir-search-row .dir-search {
     flex: 1;
     max-width: none;
+    min-width: 0;
 }
 
 .dir-create-btn {
@@ -139,16 +140,13 @@
 }
 
 @media (max-width: 480px) {
-    .dir-create-btn__full {
-        display: none;
+    .dir-search-row {
+        flex-direction: column;
+        align-items: stretch;
     }
-    .dir-create-btn__compact {
-        display: inline;
-        font-size: 16px;
-        font-weight: 700;
-    }
-    .dir-create-btn {
-        padding: 6px 12px;
+    .dir-search-row .dir-search {
+        flex: none;
+        width: 100%;
     }
 }
 
@@ -156,7 +154,7 @@
 
 .dir-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
     gap: 12px;
 }
 
@@ -1027,6 +1025,18 @@ a.dir-card {
     text-align: left;
     color: inherit;
     width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.dir-card--clickable .dir-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+}
+
+.dir-card--clickable .dir-card-path {
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 /* ── Primary Preview Link ─────────────────────── */
@@ -1082,6 +1092,29 @@ a.dir-card {
 
 .drawer-panel.visible {
     transform: translateX(0);
+}
+
+/* OS cards are translucent; source and Render text need an opaque reading surface. */
+.memba-os .os-classic .drawer-panel {
+    background: var(--os-opaque);
+    backdrop-filter: none;
+}
+
+.drawer-source__partial {
+    margin: 0 0 12px;
+    color: var(--color-k-warning-text);
+    font-size: var(--pro-caption, 11px);
+}
+
+.dir-tab-hint {
+    display: none;
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--pro-caption, 11px);
+}
+
+@media (max-width: 480px) {
+    .dir-tab-hint { display: block; }
 }
 
 .drawer-header {

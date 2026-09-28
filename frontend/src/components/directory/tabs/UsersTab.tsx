@@ -17,6 +17,7 @@ import {
     type ContributionScore,
 } from "../../../lib/directory"
 import { queryRender } from "../../../lib/dao/shared"
+import { AbciQueryError } from "../../../lib/rpcFallback"
 import { resolveAvatarUrl } from "../../../lib/ipfs"
 import { SkeletonCard } from "../../ui/LoadingSkeleton"
 import type { TabProps } from "./types"
@@ -27,6 +28,7 @@ export function UsersTab({ navigate }: TabProps) {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
+    const [partial, setPartial] = useState(false)
     const [page, setPage] = useState(0)
     const [scores, setScores] = useState<Map<string, ContributionScore>>(new Map())
     const [avatarMap, setAvatarMap] = useState<Map<string, string>>(new Map())
@@ -34,7 +36,7 @@ export function UsersTab({ navigate }: TabProps) {
     const fetchedRef = useRef(false)
 
     const load = useCallback(async () => {
-        setLoading(true); setError(null)
+        setLoading(true); setError(null); setPartial(false)
         try {
             // test13's user registry (r/sys/users) renders stats only and can't be
             // enumerated, so source "users" from real on-chain DAO membership via
@@ -43,7 +45,7 @@ export function UsersTab({ navigate }: TabProps) {
             const memberMap = new Map<string, string[]>()
             const settled = await Promise.allSettled(
                 daoPaths.map(async path => {
-                    const raw = await queryRender(GNO_RPC_URL, path, "members")
+                    const raw = await queryRender(GNO_RPC_URL, path, "members", true)
                     if (raw) {
                         const addrs = parseDAOMemberAddresses(raw)
                         if (addrs.length > 0) memberMap.set(path, addrs)
@@ -51,9 +53,11 @@ export function UsersTab({ navigate }: TabProps) {
                 }),
             )
             // Distinguish a real outage from a genuinely empty network.
-            if (memberMap.size === 0 && settled.every(s => s.status === "rejected")) {
+            const transportFailure = settled.some(s => s.status === "rejected" && !(s.reason instanceof AbciQueryError))
+            if (memberMap.size === 0 && transportFailure) {
                 throw new Error("Couldn't reach the network to load members. Try again.")
             }
+            setPartial(transportFailure)
 
             const data = unionDaoMembers(memberMap)
             setUsers(data)
@@ -93,7 +97,10 @@ export function UsersTab({ navigate }: TabProps) {
                 onChange={e => { setSearch(e.target.value); setPage(0) }}
                 className="dir-search"
                 data-testid="user-search"
+                aria-label="Search users"
             />
+
+            {!loading && partial && <div className="dir-error" role="status"><p>Some DAO member lists could not be checked. Showing partial results.</p><button type="button" className="k-btn-secondary" onClick={load}>Retry all lists</button></div>}
 
             {loading ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

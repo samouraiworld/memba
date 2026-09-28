@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query"
 import { fetchRecentSubmissions, RECENT_SUBMISSIONS_ENDPOINT } from "../lib/recentSubmissions"
 
 /** Mainnet-only, fixed-endpoint read. No polling or browser GraphQL queries. */
-export function useRecentSubmissions(networkKey: string) {
+export function useRecentSubmissions(networkKey: string, active = true) {
     return useQuery({
         queryKey: ["directory", "recent-submissions", networkKey, RECENT_SUBMISSIONS_ENDPOINT],
         queryFn: ({ signal }) => fetchRecentSubmissions(signal),
-        enabled: networkKey === "mainnet",
+        enabled: networkKey === "mainnet" && active,
         staleTime: 60_000,
         retry: false,
         refetchInterval: false,

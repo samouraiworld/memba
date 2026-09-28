@@ -11,10 +11,17 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-vi.mock("../rpcFallback", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("../rpcFallback")>()),
-    resilientAbciQuery: vi.fn(),
-}))
+vi.mock("../rpcFallback", async (importOriginal) => {
+    const mock = vi.fn()
+    return {
+        ...(await importOriginal<typeof import("../rpcFallback")>()),
+        resilientAbciQuery: mock,
+        resilientAbciQueryDetailed: async (path: string, data: string) => {
+            const value = await mock(path, data, true)
+            return value == null ? { kind: "empty" } : { kind: "ok", text: value }
+        },
+    }
+})
 
 import { resilientAbciQuery } from "../rpcFallback"
 import { getDAOConfig } from "./config"

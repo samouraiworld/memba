@@ -9,9 +9,8 @@
  * no HTML parsing, no host coupling. Goes through resilientAbciQuery, so it
  * inherits RPC failover.
  *
- * FALLBACK path: the original gnoweb $source/$help HTML scrape — kept for
- * non-browser contexts (no CORS enforcement) and any chain whose RPC blocks
- * qfile.
+ * A legacy $source/$help HTML scrape remains available for non-browser tools,
+ * but the verified UI path never uses it: a gnoweb host has no chain proof.
  *
  * Defensive parsing: gracefully falls back if formats change.
  * SSRF guard: validates realm paths before constructing URLs/queries.
@@ -20,7 +19,8 @@
  */
 
 import { GNO_CHAIN_ID, networkScopedKey } from "./config"
-import { resilientAbciQuery } from "./rpcFallback"
+import { resilientAbciQueryDetailed } from "./rpcFallback"
+import { assertRpcChain } from "./dao/chainIdentity"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -42,6 +42,8 @@ export interface RealmSource {
     functions: FunctionSignature[]
     imports: string[]
     gnoModContent?: string
+    /** The qfile listing contained more viewable files than the bounded read. */
+    truncated?: boolean
 }
 
 // ── Validation ──────────────────────────────────────────────
@@ -94,6 +96,8 @@ function setCache<T>(key: string, data: T): void {
  * Fetch realm/package source from gnoweb $source page.
  * Parses HTML to extract .gno file contents.
  */
+/** Legacy gnoweb scrape. The HTML host has no independently verified chain
+ * identity; never present this result as authoritative on-chain source. */
 export async function fetchRealmSource(
     gnowebBaseUrl: string,
     realmPath: string,
@@ -132,6 +136,7 @@ const MAX_SOURCE_FILES = 24
 
 /** File names/extensions worth showing in the source viewer. */
 function isViewableFile(name: string): boolean {
+    if (!/^[A-Za-z0-9_.-]+$/.test(name) || name.startsWith(".")) return false
     return name.endsWith(".gno") || name.endsWith(".md")
         || name === "gno.mod" || name === "gnomod.toml"
         || name.endsWith(".toml")
@@ -151,7 +156,13 @@ export async function fetchRealmSourceViaRpc(realmPath: string): Promise<RealmSo
     const pkgPath = `gno.land${realmPath}`
 
     try {
-        const listing = await resilientAbciQuery("vm/qfile", pkgPath)
+        const readFile = async (data: string): Promise<string | null> => {
+            const result = await resilientAbciQueryDetailed(
+                "vm/qfile", data, rpcUrl => assertRpcChain(rpcUrl, GNO_CHAIN_ID),
+            )
+            return result.kind === "ok" ? result.text : null
+        }
+        const listing = await readFile(pkgPath)
         if (!listing) return null
 
         // qfile lists alphabetically (manifests before code); order for reading:
@@ -161,17 +172,25 @@ export async function fetchRealmSourceViaRpc(realmPath: string): Promise<RealmSo
             n.endsWith("_test.gno") || n.endsWith("_filetest.gno") ? 1
                 : n.endsWith(".gno") ? 0
                     : 2
-        const names = listing
+        const viewableNames = [...new Set(listing
             .split("\n")
             .map(s => s.trim())
-            .filter(n => n.length > 0 && isViewableFile(n))
-            .slice(0, MAX_SOURCE_FILES)
+            .filter(n => n.length > 0 && isViewableFile(n)))]
             .sort((a, b) => fileRank(a) - fileRank(b) || a.localeCompare(b))
+        const truncated = viewableNames.length > MAX_SOURCE_FILES
+        const names = viewableNames.slice(0, MAX_SOURCE_FILES)
         if (names.length === 0) return null
 
-        const bodies = await Promise.all(
-            names.map(n => resilientAbciQuery("vm/qfile", `${pkgPath}/${n}`).catch(() => null)),
-        )
+        // A package can have many files; bound the qfile fan-out even when the
+        // listing is at our 24-file display cap. Keep order for the UI below.
+        const bodies: Array<string | null> = Array(names.length).fill(null)
+        let nextFile = 0
+        await Promise.all(Array.from({ length: Math.min(4, names.length) }, async () => {
+            while (nextFile < names.length) {
+                const i = nextFile++
+                bodies[i] = await readFile(`${pkgPath}/${names[i]}`).catch(() => null)
+            }
+        }))
 
         const files: SourceFile[] = []
         const imports = new Set<string>()
@@ -192,15 +211,16 @@ export async function fetchRealmSourceViaRpc(realmPath: string): Promise<RealmSo
             }
         }
 
-        return { files, functions, imports: Array.from(imports).sort(), gnoModContent }
+        return { files, functions, imports: Array.from(imports).sort(), gnoModContent, ...(truncated ? { truncated: true } : {}) }
     } catch {
         return null
     }
 }
 
 /**
- * Fetch realm/package source: session cache → RPC (`vm/qfile`) → gnoweb HTML
- * scrape. This is the entry point UI components should use.
+ * Fetch verified realm/package source: session cache → chain-checked RPC.
+ * An HTML scrape cannot prove which chain its gnoweb host serves, so the UI
+ * does not fall back to it or reuse the older unverified source cache.
  */
 export async function fetchRealmSourceSmart(
     gnowebBaseUrl: string,
@@ -208,7 +228,7 @@ export async function fetchRealmSourceSmart(
 ): Promise<RealmSource | null> {
     if (!isValidRealmPath(realmPath)) return null
 
-    const cacheKey = networkScopedKey(`source_${realmPath}`)
+    const cacheKey = networkScopedKey(`verified_qfile_${realmPath}`)
     const cached = getCached<RealmSource>(cacheKey)
     if (cached) return cached
 
@@ -217,8 +237,8 @@ export async function fetchRealmSourceSmart(
         setCache(cacheKey, viaRpc)
         return viaRpc
     }
-    // fetchRealmSource caches under the same key on success.
-    return fetchRealmSource(gnowebBaseUrl, realmPath)
+    void gnowebBaseUrl // retained for existing callers; no unverified fallback
+    return null
 }
 
 // ── HTML Parsing: $source ───────────────────────────────────

@@ -63,6 +63,11 @@ describe("parseDAORender", () => {
         expect(result.description).toBe("The primary governance DAO for the gno.land network.")
     })
 
+    test("does not use a standalone navigation link as a DAO description", () => {
+        const raw = "# GovDAO\n\n[> Go to Memberstore <](/r/gov/dao/memberstore/v0)\n\nAuthor: [@aeddi](/u/aeddi)\n\nA governance DAO for the network."
+        expect(parseDAORender(PATH, raw).description).toBe("A governance DAO for the network.")
+    })
+
     test("truncates description to 200 chars", () => {
         const longDesc = "A".repeat(250)
         const raw = `# DAO\n\n${longDesc}`

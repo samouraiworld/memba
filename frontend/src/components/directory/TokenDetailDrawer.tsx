@@ -7,9 +7,10 @@
  * @module components/directory/TokenDetailDrawer
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useNetwork } from "../../hooks/useNetwork"
+import { useFocusTrap } from "../../hooks/useFocusTrap"
 import type { DirectoryToken } from "../../lib/directory"
 import { getExplorerBaseUrlFor } from "../../lib/config"
 
@@ -22,14 +23,19 @@ export function TokenDetailDrawer({ token, onClose }: TokenDetailDrawerProps) {
     const navigate = useNetworkNav()
     const { networkKey } = useNetwork()
     const [visible, setVisible] = useState(false)
+    const drawerRef = useRef<HTMLDivElement>(null)
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    useFocusTrap(drawerRef, true)
 
     const handleClose = useCallback(() => {
         setVisible(false)
-        setTimeout(onClose, 250)
+        if (closeTimer.current) clearTimeout(closeTimer.current)
+        closeTimer.current = setTimeout(onClose, 250)
     }, [onClose])
 
     useEffect(() => {
-        requestAnimationFrame(() => setVisible(true))
+        const frame = requestAnimationFrame(() => setVisible(true))
+        return () => { cancelAnimationFrame(frame); if (closeTimer.current) clearTimeout(closeTimer.current) }
     }, [])
 
     useEffect(() => {
@@ -50,6 +56,7 @@ export function TokenDetailDrawer({ token, onClose }: TokenDetailDrawerProps) {
             onClick={handleClose}
         >
             <div
+                ref={drawerRef}
                 className={`drawer-panel${visible ? " visible" : ""}`}
                 onClick={e => e.stopPropagation()}
                 role="dialog"

@@ -42,6 +42,9 @@ export function DAOCard({ name, path, isSaved, category, metadata, degraded, onC
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        // The nested Save button owns its own keyboard activation. Let its
+        // Enter/Space event reach the browser without opening the DAO card.
+        if (e.target !== e.currentTarget) return
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault()
             onClick()

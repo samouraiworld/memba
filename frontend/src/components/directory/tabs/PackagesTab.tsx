@@ -11,7 +11,7 @@ import { discoveryProvenanceLabel } from "../../../lib/directoryDiscovery"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
 import { RecentSubmissionsSection } from "../RecentSubmissionsSection"
 
-export function PackagesTab() {
+export function PackagesTab({ onOpenDetail }: { onOpenDetail?: (path: string) => void } = {}) {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const { discovery: { packages } } = useDirectoryDiscovery()
@@ -46,7 +46,7 @@ export function PackagesTab() {
 
             {filtered.length === 0 ? (
                 <div className="dir-empty">
-                    <p>{search ? `No packages matching "${search}"` : "No verified packages in this directory yet. Explore the Realms tab or enter an exact path above."}</p>
+                    <p>{search ? `No listed packages matching "${search}". Check recent submissions below.` : "No verified packages in this directory yet. Explore the Realms tab or enter an exact path above."}</p>
                 </div>
             ) : (
                 <div className="dir-grid">
@@ -73,7 +73,7 @@ export function PackagesTab() {
                                 </div>
                             </div>
                             <div className="dir-card-actions">
-                                <button type="button" className="dir-gnoweb-link" onClick={() => { setDrawerPath(p.path); setDrawerGnowebUrl(p.gnowebUrl) }} aria-label={`View ${p.name} source`}>View source</button>
+                                <button type="button" className="dir-gnoweb-link" onClick={() => { if (onOpenDetail) onOpenDetail(p.path); else { setDrawerPath(p.path); setDrawerGnowebUrl(p.gnowebUrl) } }} aria-label={`View ${p.name} source`}>View source</button>
                                 {p.gnowebUrl && (
                                     <a
                                         href={p.gnowebUrl}
@@ -93,7 +93,7 @@ export function PackagesTab() {
                 </div>
             )}
 
-            <RecentSubmissionsSection kind="package" />
+            <RecentSubmissionsSection kind="package" filter={search} />
 
             {/* Detail drawer */}
             {drawerPath && (

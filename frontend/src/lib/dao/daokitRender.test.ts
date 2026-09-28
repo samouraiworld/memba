@@ -27,10 +27,17 @@ import { bech32Encode } from "./realmAddress"
 import { queryRender, queryRenderPage, clearDaoDialects } from "./shared"
 import { resilientAbciQuery } from "../rpcFallback"
 
-vi.mock("../rpcFallback", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("../rpcFallback")>()),
-    resilientAbciQuery: vi.fn(),
-}))
+vi.mock("../rpcFallback", async (importOriginal) => {
+    const mock = vi.fn()
+    return {
+        ...(await importOriginal<typeof import("../rpcFallback")>()),
+        resilientAbciQuery: mock,
+        resilientAbciQueryDetailed: async (path: string, data: string) => {
+            const value = await mock(path, data, true)
+            return value == null ? { kind: "empty" } : { kind: "ok", text: value }
+        },
+    }
+})
 
 // These suites pin the legacy Render/JSON dialect readers. Which reader a realm
 // gets (version-2 JSON or legacy) is decided by kind resolution, tested in

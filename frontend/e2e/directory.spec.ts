@@ -56,7 +56,7 @@ test.describe('Directory Page', () => {
     })
 
     test('subtitle is visible', async ({ page }) => {
-        await expect(page.locator('.dir-header p')).toContainText('Discover DAOs, tokens, packages, realms, and users')
+        await expect(page.locator('.dir-header p')).toContainText('Browse listed DAOs, factory tokens, packages, realms, and DAO members')
     })
 
     test('all tabs are visible (W5.2 order: Packages first)', async ({ page }) => {
@@ -180,9 +180,34 @@ test.describe('Directory — Tab Switching', () => {
         const daosTab = page.locator('.dir-tab', { hasText: 'DAOs' })
         await expect(daosTab).toHaveAttribute('aria-selected', 'false')
     })
+
+    test('detail deep link and browser history preserve the right drawer', async ({ page }) => {
+        await fulfillSeedDaoRenders(page)
+        await page.goto('/mainnet/directory?tab=realms&realm=r/gov/dao')
+        await expect(page.getByRole('dialog')).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+        await expect(page).not.toHaveURL(/realm=/)
+        await page.goBack()
+        await expect(page.getByRole('dialog')).toBeVisible()
+    })
 })
 
 test.describe('Directory — Mobile', () => {
+    test('DAO search and Create DAO action stay usable at 390px', async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 })
+        await fulfillSeedDaoRenders(page)
+        await page.goto('/mainnet/directory?tab=daos')
+        const search = page.getByRole('textbox', { name: 'Search DAOs', exact: true })
+        const create = page.getByRole('button', { name: /Create DAO/ })
+        await expect(search).toBeVisible()
+        await expect(create).toBeVisible()
+        const searchBox = await search.boundingBox()
+        expect(searchBox?.width).toBeGreaterThan(200)
+        await search.fill('GovDAO')
+        await expect(search).toHaveValue('GovDAO')
+    })
+
     test('renders without horizontal overflow at 375px', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/directory')

@@ -10,9 +10,9 @@
 import type { MembaV2Config, MembaV2ProposalSummary } from "./membaV2"
 import type { AminoMsg } from "../grc20"
 import { GNO_CHAIN_ID, getUserRegistryPath, networkScopedKey } from "../config"
-import { resilientAbciQuery } from "../rpcFallback"
+import { resilientAbciQuery, resilientAbciQueryDetailed } from "../rpcFallback"
 import { isValidGnoAddressChecksum } from "./address"
-import { assertActiveRpcChain } from "./chainIdentity"
+import { assertActiveRpcChain, assertRpcChain } from "./chainIdentity"
 import { parseQevalGoJSON } from "../goQuote"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -267,10 +267,14 @@ export function sanitize(str: string): string {
  *  The rpcUrl parameter is kept for API compatibility but the resilient layer
  *  handles failover to backup endpoints automatically. */
 async function abciQuery(_rpcUrl: string, path: string, data: string, strict = false): Promise<string | null> {
-    // Strict reads are the ones whose answers the UI trusts; they first verify
-    // that the RPC endpoints serve the configured chain.
-    if (strict) await assertActiveRpcChain()
-    return resilientAbciQuery(path, data, strict)
+    if (!strict) return resilientAbciQuery(path, data, false)
+    // Verify the endpoint used by EACH failover attempt. A separate preflight
+    // can verify the primary, then fail over to an unchecked wrong-chain node.
+    const result = await resilientAbciQueryDetailed(
+        path, data, rpcUrl => assertRpcChain(rpcUrl, GNO_CHAIN_ID),
+    )
+    if (result.kind === "abci-error") throw result.error
+    return result.kind === "ok" ? result.text : null
 }
 
 // ── Username Resolution ───────────────────────────────────────

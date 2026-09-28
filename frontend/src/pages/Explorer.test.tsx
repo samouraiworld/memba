@@ -24,14 +24,14 @@ describe("Explorer legacy redirect", () => {
     it("forwards /explorer/<realm> → /directory?tab=explorer&realm=<realm>", () => {
         renderAt("/test13/explorer/r/samcrew/memba_feed_v1")
         expect(screen.getByTestId("loc").textContent).toBe(
-            "/test13/directory?tab=explorer&realm=r/samcrew/memba_feed_v1",
+            "/test13/directory?tab=explorer&realm=r%2Fsamcrew%2Fmemba_feed_v1",
         )
     })
 
     it("strips render/help/query suffixes from the deep link", () => {
         renderAt("/test13/explorer/r/x/y:render/sub")
         expect(screen.getByTestId("loc").textContent).toBe(
-            "/test13/directory?tab=explorer&realm=r/x/y",
+            "/test13/directory?tab=explorer&realm=r%2Fx%2Fy",
         )
     })
 

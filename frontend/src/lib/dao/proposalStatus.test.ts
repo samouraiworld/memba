@@ -4,10 +4,17 @@ import { resilientAbciQuery } from '../rpcFallback'
 import { getDAOProposals, getProposalDetail, invalidateProposalCache, parseProposalList } from './proposals'
 import { clearDaoDialects } from './shared'
 
-vi.mock('../rpcFallback', async importOriginal => ({
-    ...await importOriginal<typeof import('../rpcFallback')>(),
-    resilientAbciQuery: vi.fn(),
-}))
+vi.mock('../rpcFallback', async importOriginal => {
+    const mock = vi.fn()
+    return {
+        ...await importOriginal<typeof import('../rpcFallback')>(),
+        resilientAbciQuery: mock,
+        resilientAbciQueryDetailed: async (path: string, data: string) => {
+            const value = await mock(path, data, true)
+            return value == null ? { kind: 'empty' } : { kind: 'ok', text: value }
+        },
+    }
+})
 const fixture = readFileSync('src/lib/dao/testdata/gnoland-1/govdao-proposal-4.md', 'utf8')
 const query = vi.mocked(resilientAbciQuery)
 const detail = (realm = 'gno.land/r/gov/dao') => getProposalDetail('https://rpc.example', realm, 4)

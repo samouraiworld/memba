@@ -82,7 +82,8 @@ export function SourceCodeView({ files, activeFile: initialActive }: SourceCodeV
                     {files.map(f => (
                         <button
                             key={f.name}
-                            className={`source-tab${f.name === activeFile ? " active" : ""}`}
+                            className={`source-tab${f.name === currentFile?.name ? " active" : ""}`}
+                            aria-pressed={f.name === currentFile?.name}
                             onClick={() => setActiveFile(f.name)}
                         >
                             {f.name}
