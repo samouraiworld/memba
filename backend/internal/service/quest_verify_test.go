@@ -395,7 +395,8 @@ func TestSyncQuests_QueuesQuestAndRankBadges(t *testing.T) {
 	ctx := context.Background()
 	completions := []*membav1.QuestCompletion{
 		{QuestId: "connect-wallet"},
-		{QuestId: "submit-feedback"},
+		{QuestId: "use-cmdk"},
+		{QuestId: "visit-5-pages"},
 		{QuestId: "easter-egg-konami"},
 		{QuestId: "share-link"},
 	}
@@ -407,7 +408,7 @@ func TestSyncQuests_QueuesQuestAndRankBadges(t *testing.T) {
 		}
 	}
 	var count int
-	if err := h.db.QueryRow(`SELECT COUNT(*) FROM badge_mints WHERE address = 'g1alice' AND quest_id IN ('connect-wallet', 'submit-feedback', 'easter-egg-konami', 'share-link')`).Scan(&count); err != nil || count != 4 {
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM badge_mints WHERE address = 'g1alice' AND quest_id IN ('connect-wallet', 'use-cmdk', 'visit-5-pages', 'easter-egg-konami', 'share-link')`).Scan(&count); err != nil || count != 5 {
 		t.Fatalf("expected one badge per synced quest: count=%d err=%v", count, err)
 	}
 	if err := h.db.QueryRow(`SELECT COUNT(*) FROM badge_mints WHERE address = 'g1alice' AND quest_id = 'rank:1'`).Scan(&count); err != nil || count != 1 {

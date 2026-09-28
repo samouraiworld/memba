@@ -302,9 +302,8 @@ func TestCompleteQuest_MultipleQuests_XPAccumulation(t *testing.T) {
 		{"use-cmdk", 55},
 		{"switch-network", 70},
 		{"directory-tabs", 85},
-		{"submit-feedback", 105},
-		{"view-validator", 115},
-		{"share-link", 125},
+		{"view-validator", 95},
+		{"share-link", 105},
 	}
 
 	for _, q := range quests {

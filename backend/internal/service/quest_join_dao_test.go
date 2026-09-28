@@ -245,31 +245,35 @@ func TestQuestCatalogDoesNotPointToGnodaokit(t *testing.T) {
 // A retired quest id stays in validQuests for existing XP, but is never granted
 // again: not through CompleteQuest, SyncQuests or SubmitQuestClaim.
 func TestRetiredQuestIsNotGrantable(t *testing.T) {
-	h := setup(t)
-	h.stubChainVerify(true)
-	token := h.makeToken(t, "g1alice")
-	ctx := context.Background()
+	for _, questID := range []string{"gnodaokit-extension", "submit-feedback"} {
+		t.Run(questID, func(t *testing.T) {
+			h := setup(t)
+			h.stubChainVerify(true)
+			token := h.makeToken(t, "g1alice")
+			ctx := context.Background()
 
-	if _, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "gnodaokit-extension",
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("CompleteQuest: want InvalidArgument, got %v", err)
-	}
+			if _, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+				AuthToken: token, QuestId: questID,
+			})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("CompleteQuest: want InvalidArgument, got %v", err)
+			}
 
-	resp, err := h.svc.SyncQuests(ctx, connect.NewRequest(&membav1.SyncQuestsRequest{
-		AuthToken:   token,
-		Completions: []*membav1.QuestCompletion{{QuestId: "gnodaokit-extension"}},
-	}))
-	if err != nil {
-		t.Fatal("SyncQuests:", err)
-	}
-	if resp.Msg.State.TotalXp != 0 {
-		t.Fatalf("SyncQuests granted %d XP for a retired quest", resp.Msg.State.TotalXp)
-	}
+			resp, err := h.svc.SyncQuests(ctx, connect.NewRequest(&membav1.SyncQuestsRequest{
+				AuthToken:   token,
+				Completions: []*membav1.QuestCompletion{{QuestId: questID}},
+			}))
+			if err != nil {
+				t.Fatal("SyncQuests:", err)
+			}
+			if resp.Msg.State.TotalXp != 0 {
+				t.Fatalf("SyncQuests granted %d XP for a retired quest", resp.Msg.State.TotalXp)
+			}
 
-	if _, err := h.svc.SubmitQuestClaim(ctx, connect.NewRequest(&membav1.SubmitQuestClaimRequest{
-		AuthToken: token, QuestId: "gnodaokit-extension", ProofUrl: "https://example.com/proof",
-	})); err == nil {
-		t.Fatal("SubmitQuestClaim must reject a retired quest")
+			if _, err := h.svc.SubmitQuestClaim(ctx, connect.NewRequest(&membav1.SubmitQuestClaimRequest{
+				AuthToken: token, QuestId: questID, ProofUrl: "https://example.com/proof",
+			})); err == nil {
+				t.Fatal("SubmitQuestClaim must reject a retired quest")
+			}
+		})
 	}
 }

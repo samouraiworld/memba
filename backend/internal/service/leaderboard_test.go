@@ -29,8 +29,8 @@ func TestGetLeaderboard_OrdersByXPDesc(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()
 
-	// off_chain quests: connect-wallet=10, use-cmdk=10, switch-network=15, submit-feedback=20
-	h.complete(t, "g1alice", "connect-wallet", "submit-feedback")            // 30
+	// off_chain quests: connect-wallet=10, setup-profile=15, use-cmdk=10, switch-network=15
+	h.complete(t, "g1alice", "connect-wallet", "setup-profile")              // 25
 	h.complete(t, "g1bob", "connect-wallet")                                 // 10
 	h.complete(t, "g1carol", "connect-wallet", "use-cmdk", "switch-network") // 35
 
@@ -45,11 +45,11 @@ func TestGetLeaderboard_OrdersByXPDesc(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("expected 3 entries, got %d", len(got))
 	}
-	// Carol(35) > Alice(30) > Bob(10)
+	// Carol(35) > Alice(25) > Bob(10)
 	wantOrder := []struct {
 		addr string
 		xp   uint32
-	}{{"g1carol", 35}, {"g1alice", 30}, {"g1bob", 10}}
+	}{{"g1carol", 35}, {"g1alice", 25}, {"g1bob", 10}}
 	for i, w := range wantOrder {
 		if got[i].Address != w.addr || got[i].TotalXp != w.xp {
 			t.Errorf("rank %d: got (%s,%d), want (%s,%d)", i, got[i].Address, got[i].TotalXp, w.addr, w.xp)
@@ -136,7 +136,7 @@ func TestGetLeaderboard_RepairsExistingUserCacheWriteFailure(t *testing.T) {
 		BEGIN SELECT RAISE(ABORT, 'simulated rank cache failure'); END`); err != nil {
 		t.Fatal("create failure trigger:", err)
 	}
-	h.complete(t, "g1alice", "submit-feedback") // completion succeeds; cache write fails
+	h.complete(t, "g1alice", "setup-profile") // completion succeeds; cache write fails
 	var cachedQuestCount int
 	if err := h.db.QueryRowContext(ctx, `SELECT quests_completed FROM user_ranks WHERE address = 'g1alice'`).Scan(&cachedQuestCount); err != nil || cachedQuestCount != 1 {
 		t.Fatalf("fixture must hold stale existing row: quests=%d err=%v", cachedQuestCount, err)
@@ -156,7 +156,7 @@ func TestGetLeaderboard_RepairsExistingUserCacheWriteFailure(t *testing.T) {
 		).Scan(&cachedXP, &cachedQuests); err != nil {
 			t.Fatal("read repaired rank cache:", err)
 		}
-		if cachedXP == 30 && cachedQuests == 2 {
+		if cachedXP == 25 && cachedQuests == 2 {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -168,8 +168,8 @@ func TestGetLeaderboard_RepairsExistingUserCacheWriteFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal("GetLeaderboard after repair:", err)
 	}
-	if len(resp.Msg.Entries) != 1 || resp.Msg.Entries[0].TotalXp != 30 || resp.Msg.Entries[0].QuestsCompleted != 2 {
-		t.Fatalf("repaired leaderboard must show 30 XP and 2 quests: %+v", resp.Msg.Entries)
+	if len(resp.Msg.Entries) != 1 || resp.Msg.Entries[0].TotalXp != 25 || resp.Msg.Entries[0].QuestsCompleted != 2 {
+		t.Fatalf("repaired leaderboard must show 25 XP and 2 quests: %+v", resp.Msg.Entries)
 	}
 }
 

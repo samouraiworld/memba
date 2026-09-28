@@ -119,6 +119,7 @@ func (e *realmNotDeployedError) Error() string {
 // default below.
 var retiredQuests = map[string]bool{
 	"gnodaokit-extension": true,
+	"submit-feedback":     true,
 }
 
 // offChainClaimableQuests mirrors the off-chain actions that the app currently
@@ -129,7 +130,7 @@ var retiredQuests = map[string]bool{
 var offChainClaimableQuests = map[string]bool{
 	"connect-wallet": true, "setup-profile": true, "visit-5-pages": true,
 	"use-cmdk": true, "switch-network": true, "view-validator": true,
-	"share-link": true, "submit-feedback": true, "browse-proposals": true,
+	"share-link": true, "browse-proposals": true,
 	"create-team": true, "easter-egg-konami": true,
 	"view-profile": true, "directory-tabs": true,
 }
