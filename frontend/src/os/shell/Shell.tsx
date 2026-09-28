@@ -395,7 +395,7 @@ export function Shell() {
                 })} />
             )}
             <ConnectModal session={session} />
-            {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
+            {toast && !locked && <div className="os-toast os-glass" role="status">{toast}</div>}
             {locked && !session.stage && (
                 <LockScreen
                     resuming={session.status === "resuming"}
@@ -415,6 +415,7 @@ export function Shell() {
         return (
             <LiveActivityProvider networkKey={session.network.key} active={!locked && front?.app === "live"}>
             <SignerProvider key={signerOwner} session={session} toast={showToast}>
+                <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
                 <PhoneShell locked={modalBlocked} session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher}
                     home={(id) => {
@@ -426,6 +427,7 @@ export function Shell() {
                         win.minimiseAll()
                     }} />
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
+                </div>
                 {shared}
             </SignerProvider>
             </LiveActivityProvider>
@@ -434,6 +436,7 @@ export function Shell() {
     return (
         <LiveActivityProvider networkKey={session.network.key} active={!locked}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
@@ -466,6 +469,7 @@ export function Shell() {
                 </div>
             )}
             <Dock wins={win.wins} openApp={openApp} restore={win.focus} locked={modalBlocked} />
+            </div>
             {shared}
         </SignerProvider>
         </LiveActivityProvider>

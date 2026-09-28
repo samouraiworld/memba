@@ -14,6 +14,8 @@
 .memba-os .os-pad { padding: 6px 10px 8px; margin: 0; }
 .memba-os .os-card { border: 1px solid var(--os-line); border-radius: 12px; padding: 12px; background: var(--os-card); }
 .memba-os .os-desk { position: absolute; inset: 30px 0 0; }
+/* Keep restored windows mounted for Connect, but never paint them behind the welcome screen. */
+.memba-os .os-workspace[data-locked] { visibility: hidden; }
 
 /* atoms */
 .memba-os .os-tile {
