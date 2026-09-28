@@ -1,10 +1,12 @@
 package launchpadindex
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 )
@@ -33,10 +35,10 @@ type rpcBlockResponse struct {
 			BlockID *struct {
 				Hash string `json:"hash"`
 			} `json:"block_id"`
-			Header *rpcHeader `json:"header"`
+			Header json.RawMessage `json:"header"`
 		} `json:"block_meta"`
 		Block *struct {
-			Header *rpcHeader `json:"header"`
+			Header json.RawMessage `json:"header"`
 		} `json:"block"`
 	} `json:"result"`
 	Error *struct {
@@ -59,12 +61,18 @@ func ParseBlockHeader(body []byte, expectedChainID string, expectedHeight int64)
 		return BlockHeader{}, fmt.Errorf("launchpad block RPC error: %s", response.Error.Message)
 	}
 	if response.Result == nil || response.Result.BlockMeta == nil ||
-		response.Result.BlockMeta.BlockID == nil || response.Result.BlockMeta.Header == nil ||
-		response.Result.Block == nil || response.Result.Block.Header == nil {
+		response.Result.BlockMeta.BlockID == nil || len(response.Result.BlockMeta.Header) == 0 ||
+		response.Result.Block == nil || len(response.Result.Block.Header) == 0 {
 		return BlockHeader{}, ErrInvalidBlockHeader
 	}
-	meta := response.Result.BlockMeta.Header
-	block := response.Result.Block.Header
+	meta, metaFields, err := decodeRPCHeader(response.Result.BlockMeta.Header)
+	if err != nil {
+		return BlockHeader{}, ErrInvalidBlockHeader
+	}
+	block, blockFields, err := decodeRPCHeader(response.Result.Block.Header)
+	if err != nil || !reflect.DeepEqual(metaFields, blockFields) {
+		return BlockHeader{}, ErrInvalidBlockHeader
+	}
 	if meta.ChainID != expectedChainID || block.ChainID != expectedChainID ||
 		!matchesHeight(meta.Height, expectedHeight) || !matchesHeight(block.Height, expectedHeight) {
 		return BlockHeader{}, ErrInvalidBlockHeader
@@ -88,6 +96,25 @@ func ParseBlockHeader(body []byte, expectedChainID string, expectedHeight int64)
 		ChainID: expectedChainID, Height: expectedHeight,
 		Hash: hash, Time: metaTime.UTC(),
 	}, nil
+}
+
+// Keep unknown header fields in the equality check: a future chain upgrade
+// must not let a block ID from metadata be paired with a different full header.
+func decodeRPCHeader(raw json.RawMessage) (rpcHeader, any, error) {
+	var header rpcHeader
+	if err := json.Unmarshal(raw, &header); err != nil {
+		return rpcHeader{}, nil, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var fields any
+	if err := decoder.Decode(&fields); err != nil {
+		return rpcHeader{}, nil, err
+	}
+	if _, ok := fields.(map[string]any); !ok {
+		return rpcHeader{}, nil, ErrInvalidBlockHeader
+	}
+	return header, fields, nil
 }
 
 func matchesHeight(value string, expected int64) bool {

@@ -79,6 +79,7 @@ func TestParseBlockHeaderRejectsMismatchAndMissingEvidence(t *testing.T) {
 		{"metadata height mismatch", "test-13", 260001, func(b map[string]any) { metaHeader(b)["height"] = "260002" }},
 		{"noncanonical height", "test-13", 260001, func(b map[string]any) { fullHeader(b)["height"] = "0260001" }},
 		{"time disagreement", "test-13", 260001, func(b map[string]any) { fullHeader(b)["time"] = "2026-06-16T19:32:18Z" }},
+		{"app hash disagreement", "test-13", 260001, func(b map[string]any) { fullHeader(b)["app_hash"] = "different" }},
 		{"bad time", "test-13", 260001, func(b map[string]any) { metaHeader(b)["time"] = "not a time" }},
 		{"missing hash", "test-13", 260001, func(b map[string]any) {
 			blockResult(b)["block_meta"].(map[string]any)["block_id"].(map[string]any)["hash"] = ""
