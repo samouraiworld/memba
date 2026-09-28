@@ -3,6 +3,9 @@ import { render, screen } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TeamHub } from "./TeamHub"
+import { WindowActivityContext } from "../../../os/page/WindowActivity"
+
+const mockHealth = vi.hoisted(() => vi.fn(() => "up"))
 
 const TEAMS = [
     { slug: "core", name: "Core", color: "purple" as const, description: "Core team", members: ["alice", "bob"] },
@@ -14,7 +17,7 @@ vi.mock("../../../hooks/gnolove", () => ({
     useGnoloveTeamActiveRepos: () => ({ data: null, isLoading: false, isError: false, dataUpdatedAt: 0 }),
     useGnoloveTeamStats: () => ({ data: null, isLoading: false, isError: false, dataUpdatedAt: 0, refetch: vi.fn() }),
     useTeamProfileUrlState: () => ({ period: "monthly", repos: [], setPeriod: vi.fn() }),
-    useGnoloveBackendHealth: () => "up",
+    useGnoloveBackendHealth: mockHealth,
     useGnoloveAIReports: () => ({ data: null, isLoading: false }),
     useGnoloveYearReport: () => ({ data: null, isLoading: false }),
     useGnoloveTopics: () => ({ rules: [], labels: {} }),
@@ -29,15 +32,17 @@ vi.mock("../../../hooks/useNetworkNav", () => ({
     useNetworkKey: () => "gnoland1",
 }))
 
-function renderHub(teamName: string) {
+function renderHub(teamName: string, active = true) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
         <QueryClientProvider client={client}>
+            <WindowActivityContext.Provider value={active}>
             <MemoryRouter initialEntries={[`/gnoland1/gnolove/teams/${teamName}`]}>
                 <Routes>
                     <Route path="/gnoland1/gnolove/teams/:teamName" element={<TeamHub />} />
                 </Routes>
             </MemoryRouter>
+            </WindowActivityContext.Provider>
         </QueryClientProvider>,
     )
 }
@@ -45,8 +50,15 @@ function renderHub(teamName: string) {
 describe("TeamHub", () => {
     it("renders team-not-found for unknown team slug", () => {
         renderHub("nonexistent")
-        expect(screen.getByText(/Team not found.*nonexistent/)).toBeInTheDocument()
+        expect(screen.getByRole("heading", { level: 1, name: "Team not found" })).toBeInTheDocument()
+        expect(screen.getByText(/No team matching nonexistent/)).toBeInTheDocument()
         expect(screen.getByText(/See all teams/)).toBeInTheDocument()
+    })
+
+    it("keeps a malformed encoded team path in the not-found state", () => {
+        renderHub("%ZZ")
+        expect(screen.getByRole("heading", { level: 1, name: "Team not found" })).toBeInTheDocument()
+        expect(screen.getByText(/No team matching %ZZ/)).toBeInTheDocument()
     })
 
     it("renders the team name for a valid slug", () => {
@@ -68,5 +80,11 @@ describe("TeamHub", () => {
         const { container } = renderHub("core")
         expect(container.querySelector(".gl-thub-page")).toBeInTheDocument()
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Core")
+    })
+
+    it("pauses the health probe in a background OS window", () => {
+        mockHealth.mockClear()
+        renderHub("core", false)
+        expect(mockHealth).toHaveBeenCalledWith({ enabled: false })
     })
 })

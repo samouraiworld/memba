@@ -6,7 +6,7 @@ vi.mock("@tanstack/react-query-persist-client", async importOriginal => ({
     ...await importOriginal<typeof import("@tanstack/react-query-persist-client")>(),
     persistQueryClient: vi.fn(),
 }))
-import "./queryClient"
+import { evictOldestPersistedQuery } from "./queryClient"
 
 const options = vi.mocked(persistQueryClient).mock.calls[0][0]
 const clients: QueryClient[] = []
@@ -40,6 +40,37 @@ it("round-trips completed Dev Report reads without serializing pending promises 
         resolve(1)
         await pending
     }
+})
+
+it("keeps large PR report payloads out of storage while preserving smaller Gnolove reads", () => {
+    const source = client()
+    source.setQueryData(["gnolove", "report", "2026-01-01", "2026-12-31"], { merged: [{ title: "large" }] })
+    source.setQueryData(["gnolove", "yearReport"], { merged: [{ title: "large" }] })
+    source.setQueryData(["gnolove", "repoActivity"], [{ name: "gnolang/gno", prs: 3 }])
+    source.setQueryData(["gnolove", "teams"], [{ name: "Gno" }])
+    source.setQueryData(["gnolove", "milestone", "7"], { body: "x".repeat(150_000) })
+    source.setQueryData(["gnolove", "contributors", "monthly"], { body: "x".repeat(150_000) })
+    const stored = dehydrate(source, options.dehydrateOptions)
+    expect(stored.queries.map(query => query.queryKey)).toEqual([
+        ["gnolove", "repoActivity"],
+        ["gnolove", "teams"],
+    ])
+})
+
+it("evicts the oldest read for a quota retry while retaining the newest", () => {
+    const source = client()
+    source.setQueryData(["gnolove", "older"], { count: 1 }, { updatedAt: 1 })
+    source.setQueryData(["gnolove", "newer"], { count: 2 }, { updatedAt: 2 })
+    const stored = dehydrate(source, options.dehydrateOptions)
+    const retry = evictOldestPersistedQuery({
+        persistedClient: { timestamp: Date.now(), buster: options.buster ?? "", clientState: stored },
+        error: new Error("Quota exceeded"),
+        errorCount: 1,
+    })
+    expect(retry?.clientState.queries.map(query => query.queryKey)).toEqual([["gnolove", "newer"]])
+    expect(evictOldestPersistedQuery({
+        persistedClient: retry!, error: new Error("Quota exceeded"), errorCount: 2,
+    })?.clientState.queries).toEqual([])
 })
 
 it("discards the old persisted format before attempting to hydrate serialized promises", async () => {

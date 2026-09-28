@@ -143,6 +143,12 @@ describe("getContributor", () => {
         mockFetch.mockRejectedValue(new Error("fail"))
         await expect(api.getContributor("alice")).rejects.toThrow("fail")
     })
+
+    it("treats a missing contributor differently from a service outage", async () => {
+        mockFetch.mockResolvedValueOnce(errorResponse(404)).mockResolvedValueOnce(errorResponse(503))
+        await expect(api.getContributor("unknown")).resolves.toBeNull()
+        await expect(api.getContributor("alice")).rejects.toMatchObject({ status: 503 })
+    })
 })
 
 describe("getProposals", () => {

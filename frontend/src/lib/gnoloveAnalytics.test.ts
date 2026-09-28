@@ -197,6 +197,14 @@ describe("computeTeamData", () => {
         expect(result[0].score).toBe(80)
         expect(result[0].prs).toBe(15)
     })
+
+    it("matches GitHub logins case-insensitively across every team metric", () => {
+        const contributors = makeContributors([
+            makeUser({ login: "ALICE", score: 278, TotalPrs: 9, TotalCommits: 9, TotalIssues: 132, TotalReviewedPullRequests: 52 }),
+        ])
+        const result = computeTeamData(contributors, teams, colors)
+        expect(result[0]).toMatchObject({ score: 278, prs: 9, commits: 9, issues: 132, reviews: 52 })
+    })
 })
 
 describe("sortTeamsByScore", () => {

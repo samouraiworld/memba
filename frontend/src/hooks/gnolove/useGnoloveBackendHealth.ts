@@ -1,14 +1,14 @@
 /**
- * useGnoloveBackendHealth — GET /health probe with auto-degrade.
+ * useGnoloveBackendHealth — GET /teams probe with auto-degrade.
  *
  * Probe semantics:
  *   - First check on mount, then every PROBE_INTERVAL_MS.
- *   - Probes GET /health; only HTTP 200 counts as "up".
+ *   - Probes GET /teams; only HTTP 200 counts as "up".
  *   - Backend is DOWN after FAIL_THRESHOLD consecutive failures
  *     inside FAIL_WINDOW_MS (the plan's "2× in 30s" rule).
  *   - After recovery, one successful probe clears the down state.
  *   - Pauses when the tab is hidden (visibilitychange) to avoid
- *     wasting 240 HEAD requests/hour on backgrounded tabs.
+ *     wasting 240 GET requests/hour on backgrounded tabs.
  *
  * @module hooks/gnolove/useGnoloveBackendHealth
  */
@@ -68,6 +68,7 @@ export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {
         }
 
         function startPolling() {
+            if (intervalRef.current) return
             probe()
             intervalRef.current = setInterval(probe, PROBE_INTERVAL_MS)
         }
@@ -87,7 +88,7 @@ export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {
             }
         }
 
-        startPolling()
+        handleVisibility()
         document.addEventListener("visibilitychange", handleVisibility)
 
         return () => {

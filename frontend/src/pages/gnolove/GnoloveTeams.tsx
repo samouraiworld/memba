@@ -24,7 +24,7 @@ import { formatRelativeTime } from "../../lib/gnoloveTime"
 
 export default function GnoloveTeams() {
     const np = useNetworkPath()
-    const { teams, lastSyncedAt } = useGnoloveTeams()
+    const { teams, isFetched, isLoading, error, lastSyncedAt } = useGnoloveTeams()
     // Order teams by their "This month" aggregate score (the default window).
     // While contributors load or on error, `sortTeamsByScore` returns the
     // curated roster order unchanged — the index never blanks or reshuffles.
@@ -47,6 +47,16 @@ export default function GnoloveTeams() {
                     </span>
                 )}
             </div>
+
+            {!isFetched && (
+                <p className="gl-warning-banner" role={error ? "alert" : "status"}>
+                    {isLoading
+                        ? "Showing the built-in team roster while the live roster loads."
+                        : error
+                            ? "Showing the built-in team roster; the live update is unavailable."
+                            : "Showing the built-in team roster; the live roster returned no teams."}
+                </p>
+            )}
 
             <div className="gl-teams-list">
                 {orderedTeams.map(team => (

@@ -17,11 +17,11 @@ Started 27 September 2026; status updated 28 September. Each feature gets its ow
 | App Store | Native catalogue #1355 and its follow-ups remain open and need integration with current main |
 | Validators: consensus, candidates, network nodes, Hacker telemetry, profiles | Production QA #1356 merged |
 | Quests: Hub, detail, claims, leaderboard, XP, candidature and attestation | Production QA #1358 merged and deployed |
-| Explorer and Directory: tabs, source viewer, search, recent submissions, drawers and URL state | Production QA #1360 merged; verify production deployment before News release |
+| Explorer and Directory: tabs, source viewer, search, recent submissions, drawers and URL state | Production QA #1360 merged and deployed |
 | Profile | Native editor proposal #1380 is draft |
-| News: Blog, Changelogs, article publishing and optional on-chain reads | Production QA #1361 follows Explorer; current-head CI and crawler HTTP metadata remain release checks |
-| Dev Report | Production QA #1366 is stacked after News |
+| News: Blog, Changelogs, article publishing and optional on-chain reads | Production QA #1361 merged; verify production deployment before Dev Report release |
+| Dev Report: Overview, Teams, PR Report, Notable PRs, Analytics, AI Reports, Milestone and details | Production QA #1366 follows News; current-head CI and production smoke remain release checks |
 | About and feedback | Production QA #1368 is stacked after Dev Report; backend quest retirement must deploy before frontend rollout |
 | Learn | Production QA #1370 is stacked after About/Feedback |
 
-The current OS audit path is News #1361, Dev Report #1366, About/Feedback #1368 and Learn #1370. Independent Token, NFT, App Store and Profile work enters only when its own deployment, review and main-branch checks are satisfied; each report records the actual scope and result.
+The current OS audit path is Dev Report #1366, About/Feedback #1368 and Learn #1370. Independent Token, NFT, App Store and Profile work enters only when its own deployment, review and main-branch checks are satisfied; each report records the actual scope and result.

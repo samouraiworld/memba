@@ -7,7 +7,7 @@
  * @module pages/gnolove/GnoloveHome
  */
 
-import { useState, useMemo, useRef, useCallback, type CSSProperties } from "react"
+import { useState, useMemo, useRef, useCallback, useEffect, type CSSProperties } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { useClickOutside } from "../../hooks/useClickOutside"
@@ -32,6 +32,7 @@ import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
 import type { SortKey } from "../../lib/gnoloveFilters"
 import { formatRelativeTime, isStale } from "../../lib/gnoloveTime"
+import { useWindowActive } from "../../os/page/WindowActivity"
 import { RepoBadge } from "../../components/gnolove/RepoBadge"
 import { isCorerepo } from "../../lib/gnoloveRepo"
 
@@ -39,6 +40,7 @@ const PAGE_SIZE = 25
 
 export default function GnoloveHome() {
     const np = useNetworkPath()
+    const windowActive = useWindowActive()
     // URL-bound filter state; ephemeral UI bits stay local.
     const [urlState, setUrlState] = useHomeUrlState()
     const { time: timeFilter, excludedTeams: excludedTeamsList, sortBy, sortDir, repos: selectedRepos, page } = urlState
@@ -57,7 +59,30 @@ export default function GnoloveHome() {
 
     const [repoFilterOpen, setRepoFilterOpen] = useState(false)
     const [activityExpanded, setActivityExpanded] = useState(false)
-    const [nowMs] = useState(() => Date.now())
+    const [nowMs, setNowMs] = useState(() => Date.now())
+
+    // Keep the displayed sync age honest in long-lived tabs and OS windows.
+    // One minute is enough for the label's precision; hidden pages do no work.
+    useEffect(() => {
+        if (!windowActive) return
+        let timer: ReturnType<typeof setInterval> | null = null
+        const tick = () => setNowMs(Date.now())
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                if (timer) clearInterval(timer)
+                timer = null
+            } else {
+                tick()
+                if (!timer) timer = setInterval(tick, 60_000)
+            }
+        }
+        onVisibilityChange()
+        document.addEventListener("visibilitychange", onVisibilityChange)
+        return () => {
+            if (timer) clearInterval(timer)
+            document.removeEventListener("visibilitychange", onVisibilityChange)
+        }
+    }, [windowActive])
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
     const repoDropdownRef = useRef<HTMLDivElement>(null)

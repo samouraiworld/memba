@@ -14,7 +14,7 @@ import { AIReportCard } from "../../components/gnolove/AIReportCard"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 
 export default function GnoloveAIReports() {
-    const { data: reports, isLoading } = useGnoloveAIReports()
+    const { data: reports, isLoading, isError, refetch } = useGnoloveAIReports()
     const [baseVisibleCount, setBaseVisibleCount] = useState(5)
     const [searchParams] = useSearchParams()
     // Phase 5 namespacing: prefer ?aiReport=, accept ?id= as a back-compat
@@ -64,13 +64,35 @@ export default function GnoloveAIReports() {
         )
     }
 
+    if (isError && !sortedReports.length) {
+        return (
+            <div className="gl-page">
+                <PageMeta title="AI Reports | Gnolove · Memba" description="Weekly AI-generated ecosystem summaries for the Gno ecosystem." />
+                <div className="gl-header">
+                    <h1 className="gl-title">AI Reports</h1>
+                </div>
+                <div className="gl-error-banner" role="alert">
+                    <span>Couldn&apos;t load AI reports. The Gnolove API may be temporarily unavailable.</span>
+                    <button type="button" className="gl-error-retry" onClick={() => refetch()}>Retry</button>
+                </div>
+            </div>
+        )
+    }
+
     if (!sortedReports.length) {
         return (
-            <div className="gl-empty">
-                <p>No AI reports available yet.</p>
-                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
-                    Reports are generated weekly by the gnolove backend.
-                </p>
+            <div className="gl-page">
+                <PageMeta title="AI Reports | Gnolove · Memba" description="Weekly AI-generated ecosystem summaries for the Gno ecosystem." />
+                <div className="gl-header">
+                    <h1 className="gl-title">AI Reports</h1>
+                    <p className="gl-subtitle">Weekly AI-generated ecosystem summaries</p>
+                </div>
+                <div className="gl-empty">
+                    <p>No AI reports available yet.</p>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
+                        Reports are generated weekly by the gnolove backend.
+                    </p>
+                </div>
             </div>
         )
     }
@@ -84,6 +106,13 @@ export default function GnoloveAIReports() {
                     Weekly AI-generated ecosystem summaries ({sortedReports.length} reports)
                 </p>
             </div>
+
+            {isError && (
+                <div className="gl-error-banner" role="alert">
+                    <span>Couldn&apos;t refresh AI reports. Showing previously loaded reports.</span>
+                    <button type="button" className="gl-error-retry" onClick={() => refetch()}>Retry</button>
+                </div>
+            )}
 
             {visibleReports.map((report) => (
                 <AIReportCard

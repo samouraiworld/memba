@@ -259,10 +259,9 @@ export default function GnoloveNotablePRs() {
 
     // Selected board comes from ?board=; default to #66 ("notable").
     const boardId = searchParams.get("board") || DEFAULT_BOARD_ID
-    const activeBoard = useMemo(
-        () => boardList.find(b => b.id === boardId) ?? boardList.find(b => b.id === DEFAULT_BOARD_ID),
-        [boardList, boardId],
-    )
+    const requestedBoard = useMemo(() => boardList.find(b => b.id === boardId), [boardList, boardId])
+    const unknownBoard = Boolean(searchParams.get("board") && boards && !requestedBoard)
+    const activeBoard = requestedBoard ?? boardList.find(b => b.id === DEFAULT_BOARD_ID)
     const areaOrder = activeBoard?.areas?.length ? activeBoard.areas : DEFAULT_AREA_ORDER
     const statusOrder = activeBoard?.statuses?.length ? activeBoard.statuses : DEFAULT_STATUS_ORDER
     const boardLabel = activeBoard?.label ?? "Notable PRs"
@@ -329,17 +328,35 @@ export default function GnoloveNotablePRs() {
         return orderedGroups(m, groupBy, areaOrder, statusOrder).map(k => ({ key: k, prs: sortRows(m.get(k)!) }))
     }, [filtered, groupBy, areaOrder, statusOrder])
 
-    // Board (Kanban) columns; when "Hide done" is on, drop the terminal Done column.
-    const boardColumns = useMemo(
-        () => (hideDone ? statusOrder.filter(s => s !== "Done") : statusOrder),
-        [statusOrder, hideDone],
-    )
+    // Board metadata can lag the items (for example, an "On hold" status).
+    // Keep the configured order, then include every status in the filtered data.
+    const boardColumns = useMemo(() => {
+        const columns = new Set(hideDone ? statusOrder.filter(s => s !== "Done") : statusOrder)
+        for (const pr of filtered) columns.add(pr.status || UNASSIGNED)
+        return Array.from(columns)
+    }, [statusOrder, hideDone, filtered])
 
     const toggleGroup = (k: string) => setCollapsed(prev => {
         const next = new Set(prev)
         if (next.has(k)) next.delete(k); else next.add(k)
         return next
     })
+
+    if (unknownBoard) {
+        return (
+            <div className="gl-page">
+                <PageMeta title="Board unavailable | Gnolove · Memba" noindex />
+                <Link to={np("gnolove")} className="gl-profile-back">← Back to Contributors Overview</Link>
+                <div className="gl-empty">
+                    <h1>Board unavailable</h1>
+                    <p>The board in this link is not among the boards currently mirrored into Memba.</p>
+                    <button type="button" className="gl-filter-btn" onClick={() => selectBoard(DEFAULT_BOARD_ID)}>
+                        Show Notable PRs
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="gl-page">

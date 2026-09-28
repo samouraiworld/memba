@@ -61,9 +61,11 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, back
                         className="gl-thub-chip gl-thub-chip-sync"
                         title={lastSyncedAt
                             ? `Team config (teams.yaml) deployed ${new Date(lastSyncedAt).toISOString()}`
-                            : "no roster sync yet"}
+                            : "Showing the built-in team roster while live roster data is unavailable"}
                     >
-                        Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
+                        {lastSyncedAt
+                            ? `Roster updated: ${formatRelativeTime(lastSyncedAt, nowMs)}`
+                            : "Built-in roster"}
                     </span>
                     {isTestnetNetwork(networkKey) && (
                         <span className="gl-thub-chip gl-thub-chip-network" role="note">

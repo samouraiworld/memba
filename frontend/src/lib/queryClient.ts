@@ -64,11 +64,28 @@ export const queryClient = new QueryClient({
     },
 })
 
-// Persist gnolove queries to localStorage for offline resilience.
-// Only ["gnolove", …] keys are dehydrated — Memba's own queries stay in-memory.
+// Keep persisted Gnolove reads bounded. Large reports and multiple filters
+// stay in memory; if a browser's storage quota is unusually small, evict the
+// oldest persisted query and retry instead of leaving the whole cache stale.
+const MAX_PERSISTED_QUERY_BYTES = 128_000
+type PersistRetry = NonNullable<Parameters<typeof createSyncStoragePersister>[0]["retry"]>
+export const evictOldestPersistedQuery: PersistRetry = ({ persistedClient }) => {
+    const queries = persistedClient.clientState.queries
+    if (!queries.length) return undefined
+    const oldest = queries.reduce((first, query) =>
+        query.state.dataUpdatedAt < first.state.dataUpdatedAt ? query : first)
+    return {
+        ...persistedClient,
+        clientState: {
+            ...persistedClient.clientState,
+            queries: queries.filter(query => query !== oldest),
+        },
+    }
+}
 const persister = createSyncStoragePersister({
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
     key: CACHE_KEY,
+    retry: evictOldestPersistedQuery,
 })
 
 persistQueryClient({
@@ -79,8 +96,18 @@ persistQueryClient({
     // Discard that format before hydration; the read-only data will refetch.
     buster: "gnolove-success-only-v1",
     dehydrateOptions: {
-        shouldDehydrateQuery: (query) =>
-            defaultShouldDehydrateQuery(query) &&
-            Array.isArray(query.queryKey) && query.queryKey[0] === "gnolove",
+        shouldDehydrateQuery: (query) => {
+            if (!defaultShouldDehydrateQuery(query) ||
+                !Array.isArray(query.queryKey) ||
+                query.queryKey[0] !== "gnolove" ||
+                query.queryKey[1] === "report" ||
+                query.queryKey[1] === "yearReport") return false
+            try {
+                const serialized = JSON.stringify(query.state.data)
+                return typeof serialized === "string" && serialized.length <= MAX_PERSISTED_QUERY_BYTES
+            } catch {
+                return false
+            }
+        },
     },
 })

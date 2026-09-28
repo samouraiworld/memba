@@ -24,7 +24,7 @@ import { REPORT_TAB_LABELS, TEAMS } from "../../lib/gnoloveConstants"
 import type { ReportTab } from "../../lib/gnoloveConstants"
 import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
-import { exportToCSV, exportToMarkdown, exportToPDF } from "../../lib/gnoloveExport"
+import { exportToCSV, exportToMarkdown, exportToPDF, safeGitHubPrUrl } from "../../lib/gnoloveExport"
 import {
     rangeFromKey, defaultKey, nextAtForPeriodSwitch,
     weekKeyFromDate, monthKeyFromDate, yearKeyFromDate,
@@ -35,7 +35,7 @@ import {
 } from "../../lib/gnoloveReportUrl"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { useClickOutside } from "../../hooks/useClickOutside"
-import { filterPrs } from "../../lib/gnoloveReportFilters"
+import { filterPrs, filterPrsByCategory } from "../../lib/gnoloveReportFilters"
 import { NarrativeReportView } from "../../components/gnolove/report/NarrativeReportView"
 import { EmptyStateMessage } from "../../components/gnolove/report/EmptyStateMessage"
 import type { EmptyReason } from "../../components/gnolove/report/types"
@@ -56,8 +56,17 @@ const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
 const REPORT_PERIOD_KEYS = Object.keys(REPORT_PERIOD_LABELS) as ReportPeriod[]
 const REPORT_VIEW_KEYS = ["report", "table"] as const
 const STATUS_TAB_KEYS: readonly ReportTabOrAll[] = ["all", ...(Object.keys(REPORT_TAB_LABELS) as ReportTab[])]
+const statusTabName = (label: string, count: number | undefined) =>
+    count == null ? label : `${label}, ${count} ${count === 1 ? "PR" : "PRs"}`
 
 type PRStatus = "merged" | "in_progress" | "waiting_for_review" | "reviewed" | "blocked"
+
+function reportStatusLabel(status: PRStatus): string {
+    return status === "merged" ? "Merged" :
+        status === "blocked" ? "Blocked" :
+        status === "waiting_for_review" ? "Waiting" :
+        status === "reviewed" ? "Reviewed" : "In Progress"
+}
 
 interface ReportData {
     merged?: TPullRequest[] | null
@@ -130,14 +139,19 @@ export default function GnoloveReport() {
         () => filterPrs(prs, { teamName: selectedTeam, selectedRepos: selectedReposSet, period, start, end, activeTab, report }),
         [prs, selectedTeam, selectedReposSet, period, start, end, activeTab, report],
     )
+    const exportStatus = (pr: TPullRequest) => reportStatusLabel(statusFor(pr, report))
 
+    // Count the same team/repository/period scope that the report and table show.
+    // The API buckets can contain many PRs outside a selected team or week.
     const counts = useMemo(() => {
         if (!report) return {} as Record<ReportTab | "all", number>
-        const merged = report.merged?.length ?? 0
-        const inProgress = report.in_progress?.length ?? 0
-        const waitingForReview = report.waiting_for_review?.length ?? 0
-        const reviewed = report.reviewed?.length ?? 0
-        const blocked = report.blocked?.length ?? 0
+        const count = (items: TPullRequest[] | null | undefined) =>
+            filterPrsByCategory(items, selectedTeam, selectedReposSet, period, start, end).length
+        const merged = count(report.merged)
+        const inProgress = count(report.in_progress)
+        const waitingForReview = count(report.waiting_for_review)
+        const reviewed = count(report.reviewed)
+        const blocked = count(report.blocked)
         return {
             all: merged + inProgress + waitingForReview + reviewed + blocked,
             merged,
@@ -146,7 +160,7 @@ export default function GnoloveReport() {
             reviewed,
             blocked,
         }
-    }, [report])
+    }, [report, selectedTeam, selectedReposSet, period, start, end])
 
     // Empty-state reason for UX-2 messaging.
     const emptyReason = useMemo((): EmptyReason => {
@@ -157,11 +171,12 @@ export default function GnoloveReport() {
             (report.waiting_for_review?.length ?? 0) + (report.reviewed?.length ?? 0) +
             (report.blocked?.length ?? 0)
         if (totalReportPrs === 0) return "no_data"
+        if (activeTab !== "all" && counts.all > 0 && counts[activeTab] === 0) return "filter"
         if (selectedTeam !== "all" && selectedReposSet.size > 0) return "team_and_repo"
         if (selectedTeam !== "all") return "team"
         if (selectedReposSet.size > 0) return "repo"
         return "filter"
-    }, [report, filteredPrs, selectedTeam, selectedReposSet])
+    }, [report, filteredPrs, activeTab, counts, selectedTeam, selectedReposSet])
 
     const canGoForward = period !== "all_time" && period !== "custom" && !isFuture(
         period === "weekly" ? endOfWeek(start, { weekStartsOn: 1 }) :
@@ -305,21 +320,21 @@ export default function GnoloveReport() {
                     </button>
                     <button
                         className="gl-export-btn"
-                        onClick={() => exportToCSV(filteredPrs, activeTab, format(start, "yyyy-MM-dd"))}
+                        onClick={() => exportToCSV(filteredPrs, activeTab, format(start, "yyyy-MM-dd"), exportStatus)}
                         disabled={filteredPrs.length === 0}
                     >
                         Export CSV
                     </button>
                     <button
                         className="gl-export-btn"
-                        onClick={() => exportToMarkdown(filteredPrs, activeTab, dateLabel)}
+                        onClick={() => exportToMarkdown(filteredPrs, activeTab, dateLabel, REPORT_PERIOD_LABELS[period], exportStatus)}
                         disabled={filteredPrs.length === 0}
                     >
                         Export MD
                     </button>
                     <button
                         className="gl-export-btn"
-                        onClick={() => exportToPDF(filteredPrs, activeTab, dateLabel)}
+                        onClick={() => exportToPDF(filteredPrs, activeTab, dateLabel, exportStatus)}
                         disabled={filteredPrs.length === 0}
                     >
                         Export PDF
@@ -479,6 +494,7 @@ export default function GnoloveReport() {
             <div className="gl-tabs" role="tablist" aria-label="Status filter">
                 <button
                     {...statusTabProps("all")}
+                    aria-label={statusTabName("All", counts.all)}
                     className={`gl-tab ${activeTab === "all" ? "gl-tab--active" : ""}`}
                     onClick={() => setUrlState({ tab: "all" })}
                     aria-current={activeTab === "all" ? "true" : undefined}
@@ -490,6 +506,7 @@ export default function GnoloveReport() {
                     <button
                         key={key}
                         {...statusTabProps(key)}
+                        aria-label={statusTabName(label, counts[key])}
                         className={`gl-tab ${activeTab === key ? "gl-tab--active" : ""}`}
                         onClick={() => setUrlState({ tab: key })}
                         aria-current={activeTab === key ? "true" : undefined}
@@ -512,6 +529,7 @@ export default function GnoloveReport() {
             ) : view === "report" ? (
                 <NarrativeReportView
                     report={report}
+                    activeTab={activeTab}
                     period={period}
                     start={start}
                     end={end}
@@ -522,6 +540,7 @@ export default function GnoloveReport() {
                     emptyReason={emptyReason}
                     onClearTeam={clearTeam}
                     onClearRepos={clearRepos}
+                    onClearTab={clearTab}
                     onClearAll={clearAllFilters}
                 />
             ) : (
@@ -539,23 +558,7 @@ export default function GnoloveReport() {
                         />
                     ) : (
                         <div className="gl-pr-list">
-                            {filteredPrs.map(pr => (
-                                <a key={pr.id} href={pr.url} target="_blank" rel="noopener noreferrer" className="gl-pr-row">
-                                    {pr.authorAvatarUrl && (
-                                        <img src={pr.authorAvatarUrl} alt="" className="gl-pr-avatar" loading="lazy" />
-                                    )}
-                                    <div className="gl-pr-info">
-                                        <span className="gl-pr-title">{pr.title}</span>
-                                        <span className="gl-pr-meta">
-                                            #{pr.number}
-                                            {pr.authorLogin && ` by @${pr.authorLogin}`}
-                                            {pr.isDraft && " · Draft"}
-                                            {pr.reviewDecision && ` · ${pr.reviewDecision}`}
-                                        </span>
-                                    </div>
-                                    <PRStateBadge status={statusFor(pr, report)} />
-                                </a>
-                            ))}
+                            {filteredPrs.map(pr => <PRRow key={pr.id} pr={pr} report={report} />)}
                         </div>
                     )}
                 </div>
@@ -566,13 +569,28 @@ export default function GnoloveReport() {
 
 // ── Sub-components ──────────────────────────────────────────────
 
+function PRRow({ pr, report }: { pr: TPullRequest; report: ReportData | null | undefined }) {
+    const href = safeGitHubPrUrl(pr.url)
+    const content = <>
+        {pr.authorAvatarUrl && <img src={pr.authorAvatarUrl} alt="" className="gl-pr-avatar" loading="lazy" />}
+        <div className="gl-pr-info">
+            <span className="gl-pr-title">{pr.title}</span>
+            <span className="gl-pr-meta">
+                #{pr.number}
+                {pr.authorLogin && ` by @${pr.authorLogin}`}
+                {pr.isDraft && " · Draft"}
+                {pr.reviewDecision && ` · ${pr.reviewDecision}`}
+            </span>
+        </div>
+        <PRStateBadge status={statusFor(pr, report)} />
+    </>
+    return href
+        ? <a href={href} target="_blank" rel="noopener noreferrer" className="gl-pr-row">{content}</a>
+        : <div className="gl-pr-row">{content}</div>
+}
+
 function PRStateBadge({ status }: { status: PRStatus }) {
-    const label =
-        status === "merged" ? "Merged" :
-        status === "blocked" ? "Blocked" :
-        status === "waiting_for_review" ? "Waiting" :
-        status === "reviewed" ? "Reviewed" :
-        "Open"
+    const label = reportStatusLabel(status)
     const cls =
         status === "merged" ? "gl-pr-state--merged" :
         status === "blocked" ? "gl-pr-state--blocked" :

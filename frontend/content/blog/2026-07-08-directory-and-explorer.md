@@ -2,47 +2,47 @@
 title: The Directory — one place to discover and read gno.land
 date: 2026-07-08
 updated: 2026-09-28
-description: How Memba's Directory unifies DAOs, tokens, packages, realms, users, and a read-only realm Explorer into a single deep-linkable hub — and how it reads the chain directly.
+description: How Memba's Directory brings DAOs, tokens, packages, realms, and users together while labeling curated listings, verified reads, and source-viewer limits.
 tags: memba, directory, explorer, engineering
 ---
 
-Discovery on a smart-contract chain has a trust problem: most explorers show you
-a scraped, cached view of what a contract *claims* to be. Memba's **Directory**
-takes the opposite stance — everything it shows is read straight from gno.land,
-and you can open the source of any realm before you trust it.
+Discovery on a smart-contract chain has a trust problem: a listing can be
+mistaken for proof that its target was read and verified. Memba's **Directory**
+labels curated namespace listings separately from chain-verified reads, and
+lets you inspect source before you trust a package or realm.
 
 ## What you get (product)
 
 The Directory is a single tabbed hub:
 
-- **Packages, DAOs, Realms, Tokens, Users** — browse the on-chain namespace,
-  filtered and searchable across every tab at once.
+- **Packages, DAOs, Realms, Tokens, Users** — browse curated listings and
+  verified reads, with their limits and provenance shown in each tab.
 - **GovDAO & Leaderboard** — governance activity and the XP leaderboard in the
   same place.
-- **Explorer** — the deep-dive: paste any realm path and read its live
-  `Render()` output, its full **source**, and its exported **functions**.
+- **Source viewer** — open a package or realm card to read chain-backed source.
+  The deeper Explorer tab for `Render()`, source, and exported functions remains
+  feature gated in the public beta.
 
-Previously the Explorer was a separate feature with its own menu entry. As of
-this release it's a tab inside the Directory, so discovery is one coherent
-flow — *browse* (find a realm) → *deep-dive* (read it) — under one nav item at
-`/directory`. Old `/explorer/...` links still work; they redirect in and keep
-your realm path.
+Previously the Explorer was a separate feature with its own menu entry. Its
+deep-dive tab now lives inside the Directory when enabled; existing
+`/explorer/...` links redirect there and keep the realm path. In the public
+beta, the Directory's listing and source drawers remain available while that
+tab is off.
 
 ## Under the hood (engineering scope)
 
-The Explorer is **read-only by construction**. It issues exactly three ABCI
-queries — `vm/qrender`, `vm/qfile`, and `vm/qfuncs` — and never `vm/qeval`, so
-there is no execution surface to abuse (SEC-01). Source is fetched from the chain
-via `vm/qfile` first, with a gnoweb fallback only if the RPC can't be reached —
-so what you read is what the chain returns, not content scraped from a website.
+The gated Explorer tab is **read-only by construction**. It uses the ABCI
+query types `vm/qrender`, `vm/qfile`, and `vm/qfuncs`, never `vm/qeval`, so
+there is no execution surface to abuse (SEC-01). Source is fetched through
+chain-verified `vm/qfile` reads. If those reads fail, the source is unavailable;
+the viewer does not substitute an unverified gnoweb copy.
 
 The active realm rides the URL as shareable state
 (`/directory?tab=explorer&realm=r/x/y`), parsed and validated by a small pure
 schema (`directoryUrl.ts`) that caps input length and only emits the realm param
 on the Explorer tab. Rendered Markdown is sanitized with DOMPurify before it
-touches the DOM. The whole viewer is gated behind `VITE_ENABLE_EXPLORER`, so it
-ships dark until enabled — a deep-link to the tab simply falls back to the
-default when the flag is off.
+touches the DOM. The dedicated tab is gated behind `VITE_ENABLE_EXPLORER`; a
+deep-link to that tab falls back to the default when the flag is off.
 
 Cross-links across the app (a realm card, a DAO drawer, the App Store's "read
 the source" button) all route through one helper so the link target and the

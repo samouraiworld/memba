@@ -35,9 +35,9 @@ const BOARDS = [
     { id: "other", label: "Other board", number: 67, areas: [], statuses: [] },
 ]
 
-function renderPage() {
+function renderPage(path = "/test12/gnolove/notable") {
     return render(
-        <MemoryRouter initialEntries={["/test12/gnolove/notable"]}>
+        <MemoryRouter initialEntries={[path]}>
             <GnoloveNotablePRs />
         </MemoryRouter>,
     )
@@ -78,5 +78,56 @@ describe("GnoloveNotablePRs — tablist keyboard (APG)", () => {
         const other = within(boardList).getByRole("tab", { name: "Other board" })
         expect(other).toHaveAttribute("aria-selected", "true")
         expect(other).toHaveAttribute("tabindex", "0")
+    })
+})
+
+describe("GnoloveNotablePRs — board data integrity", () => {
+    it("explains an unknown board link and offers recovery instead of labelling it the default board", () => {
+        renderPage("/test12/gnolove/notable?board=retired")
+
+        expect(screen.getByRole("heading", { name: "Board unavailable" })).toBeInTheDocument()
+        expect(screen.queryByText(/Nothing to show on this board yet/)).not.toBeInTheDocument()
+        expect(screen.queryByRole("heading", { name: "Notable" })).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole("button", { name: "Show Notable PRs" }))
+        expect(screen.getByRole("heading", { name: "Notable" })).toBeInTheDocument()
+    })
+
+    it("shows an item in Board view when its status is missing from board metadata", () => {
+        vi.mocked(useBoards).mockReturnValue({
+            data: [{ ...BOARDS[0], statuses: ["Todo", "In progress", "Done"] }],
+            isLoading: false,
+            isError: false,
+        } as never)
+        vi.mocked(useNotablePRs).mockReturnValue({
+            data: [{
+                itemID: "on-hold-1",
+                itemType: "pr",
+                title: "Playground on hold",
+                url: "https://github.com/gnolang/gno/pull/5421",
+                repository: "gnolang/gno",
+                number: 5421,
+                authorLogin: "moul",
+                state: "OPEN",
+                status: "On hold",
+                isDraft: false,
+                reviewDecision: "CHANGES_REQUESTED",
+                mainArea: "UX",
+                additions: 1,
+                deletions: 0,
+                labels: [],
+                requestedReviewers: [],
+                reviews: [],
+                updatedAt: "2026-09-14T07:52:09Z",
+            }],
+            isLoading: false,
+            isError: false,
+        } as never)
+        renderPage()
+
+        fireEvent.click(within(screen.getByRole("tablist", { name: "View" })).getByRole("tab", { name: /board/i }))
+        expect(screen.getByText("On hold")).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /Playground on hold/ })).toBeInTheDocument()
+        expect(screen.getByText("1 item")).toBeInTheDocument()
     })
 })

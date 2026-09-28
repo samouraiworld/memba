@@ -96,7 +96,8 @@ export function computeTeamData(
 ): TeamDatum[] {
     if (!contributors?.users) return []
     return teams.map(team => {
-        const members = contributors.users.filter(u => team.members.includes(u.login))
+        const memberLogins = new Set(team.members.map(login => login.toLowerCase()))
+        const members = contributors.users.filter(u => memberLogins.has(u.login.toLowerCase()))
         return {
             slug: team.slug,
             name: team.name,
