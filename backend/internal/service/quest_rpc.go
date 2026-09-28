@@ -1116,6 +1116,12 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 	if status != "pending" {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
 	}
+	// A claim submitted before a quest was retired may still be rejected, but
+	// approval must not create a new completion, XP, or voucher for a quest that
+	// is no longer live. Already approved claims remain historical evidence.
+	if approved && !selfReportClaimableQuests[questID] {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errQuestNotLive)
+	}
 
 	// Update claim status
 	newStatus := "rejected"

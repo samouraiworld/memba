@@ -78,6 +78,8 @@ export default function QuestHub() {
     const questState = localProgress.address === adena.address ? localProgress.state : EMPTY_PROGRESS
     const [backendProgress, setBackendProgress] = useState<{ address: string; state: UserQuestState } | null>(null)
     const [backendLoading, setBackendLoading] = useState(false)
+    const [backendUnavailableFor, setBackendUnavailableFor] = useState<string | null>(null)
+    const [backendRetry, setBackendRetry] = useState(0)
 
     useEffect(() => {
         document.title = "GnoBuilders — Memba"
@@ -114,23 +116,30 @@ export default function QuestHub() {
         const load = () => {
             const currentRequest = ++requestId
             setBackendLoading(true)
+            setBackendUnavailableFor(null)
             // fetchUserQuests resolves (never throws) — null on unreachable backend.
             fetchUserQuests(addr).then(s => {
                 if (cancelled || currentRequest !== requestId) return
-                if (s) setBackendProgress({ address: addr, state: s })
+                setBackendProgress(s ? { address: addr, state: s } : null)
+                setBackendUnavailableFor(s ? null : addr)
+                setBackendLoading(false)
+            }).catch(() => {
+                if (cancelled || currentRequest !== requestId) return
+                setBackendProgress(null)
+                setBackendUnavailableFor(addr)
                 setBackendLoading(false)
             })
         }
         load()
         window.addEventListener("quest-completed", load)
         return () => { cancelled = true; requestId++; window.removeEventListener("quest-completed", load) }
-    }, [adena.address, windowActive])
+    }, [adena.address, windowActive, backendRetry])
 
     // Only trust the fetched backend state while a wallet is connected (it falls
     // back to localStorage when disconnected, without clearing state in-effect).
     const effectiveBackend = adena.address && backendProgress?.address === adena.address ? backendProgress.state : null
 
-    // Prefer backend XP (authoritative); fall back to localStorage when offline.
+    // Prefer backend XP (authoritative); label localStorage fallback when offline.
     const displayXP = effectiveBackend ? effectiveBackend.totalXP : questState.totalXP
     const rank = calculateRank(displayXP)
     const toNext = xpToNextRank(displayXP)
@@ -155,7 +164,7 @@ export default function QuestHub() {
 
     // First authoritative fetch in flight (wallet connected, no backend state yet):
     // signal "confirming" rather than letting the XP silently jump local→server (Q-11).
-    const confirmingXP = !!adena.address && backendLoading && effectiveBackend == null
+    const confirmingXP = !!adena.address && backendLoading
 
     // Curated, completable quests (Phase 0). Everything else is "coming soon".
     const liveQuests = useMemo(() => getLiveQuests(), [])
@@ -234,6 +243,12 @@ export default function QuestHub() {
                             <span className="k-questhub-xp-next">{toNext} XP to {calculateRank(displayXP + toNext).name}</span>
                         )}
                         {syncing && <span className="k-questhub-syncing" title="Saving your latest progress to the server">syncing…</span>}
+                        {adena.address && backendUnavailableFor === adena.address && !backendLoading && (
+                            <span className="k-questhub-xp-unavailable" role="status">
+                                Server XP unavailable; showing saved local progress.{' '}
+                                <button type="button" className="k-questhub-xp-retry" onClick={() => setBackendRetry(count => count + 1)}>Retry server XP</button>
+                            </span>
+                        )}
                     </div>
                     <div className="k-questhub-progress-bar">
                         <div

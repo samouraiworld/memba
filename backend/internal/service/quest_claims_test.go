@@ -82,6 +82,55 @@ func TestSubmitQuestClaim_RejectsComingSoonSelfReport(t *testing.T) {
 	}
 }
 
+func TestReviewQuestClaim_CannotApprovePendingRetiredQuest(t *testing.T) {
+	for _, questID := range []string{"deploy-full-dapp", "bug-hunter"} {
+		t.Run(questID, func(t *testing.T) {
+			t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+			h := newVoucherHarness(t)
+			admin := h.makeToken(t, "g1admin")
+			const address = "g1alice"
+			result, err := h.db.Exec(
+				`INSERT INTO quest_claims (address, quest_id, proof_url, proof_text, status)
+				 VALUES (?, ?, 'https://example.com/proof', '', 'pending')`,
+				address, questID,
+			)
+			if err != nil {
+				t.Fatal("insert historical pending claim:", err)
+			}
+			claimID, err := result.LastInsertId()
+			if err != nil {
+				t.Fatal("claim ID:", err)
+			}
+
+			_, err = h.svc.ReviewQuestClaim(context.Background(), connect.NewRequest(&membav1.ReviewQuestClaimRequest{
+				AuthToken: admin, ClaimId: claimID, Approved: true,
+			}))
+			if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+				t.Fatalf("approval of non-live quest must fail closed: %v", err)
+			}
+			if claim := h.getClaim(t, address, questID); claim.status != "pending" {
+				t.Fatalf("failed approval must leave claim pending, got %q", claim.status)
+			}
+			if n := storedVoucherCount(t, h, address, questID); n != 0 {
+				t.Fatalf("failed approval must not issue voucher, got %d", n)
+			}
+			state, err := h.svc.loadUserQuestState(context.Background(), address)
+			if err != nil {
+				t.Fatal("load quest state:", err)
+			}
+			if state.TotalXp != 0 || len(state.Completed) != 0 {
+				t.Fatalf("failed approval must grant no XP or completion, got %+v", state)
+			}
+
+			// Reviewers can clear historical pending rows without granting rewards.
+			h.reviewClaim(t, admin, claimID, false)
+			if claim := h.getClaim(t, address, questID); claim.status != "rejected" {
+				t.Fatalf("rejection must remain available, got %q", claim.status)
+			}
+		})
+	}
+}
+
 // A rejected claim must not be a dead end: resubmitting reopens it as a fresh
 // pending claim carrying the new proof, with the previous review cleared.
 // (Previously INSERT OR IGNORE + UNIQUE(address, quest_id) made a rejection

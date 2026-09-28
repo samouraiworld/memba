@@ -30,8 +30,8 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: Quests production QA (2026-09-28)
 
 - Keep Quest Hub filters through detail visits, contain verification state to the current wallet and quest, refresh claim status, and make the leaderboard and reviewer queue usable in narrow windows.
-- Restrict verified rewards to claims the server can substantiate, including deployment proof type and historical XP provenance; keep specialized deployments and faucet claims visible as coming soon.
-- Make candidature prompts use verified XP, guard attestation reads against RPC failure, and keep inactive OS windows from polling.
+- Restrict verified rewards to claims the server can substantiate, including deployment proof type and historical XP provenance; block approval of pending retired claims and keep specialized deployments and faucet claims visible as coming soon.
+- Make candidature prompts use verified XP with clear loading, unavailable, and retry states; label local XP after a failed server refresh, guard attestation reads against RPC failure, and keep inactive OS windows from polling.
 
 ### Memba OS: Validators production QA (2026-09-28)
 

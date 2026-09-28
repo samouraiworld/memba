@@ -81,6 +81,23 @@
     color: var(--color-k-dim);
 }
 
+.k-questhub-xp-unavailable {
+    max-width: 220px;
+    font-size: var(--pro-small, 0.75rem);
+    color: var(--color-k-dim);
+    text-align: right;
+}
+
+.k-questhub-xp-retry {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-k-accent-text);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .k-questhub-progress-bar {
     width: 200px;
     height: 6px;

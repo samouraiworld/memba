@@ -133,4 +133,24 @@ describe("QuestHub — URL and wallet state", () => {
         await waitFor(() => expect(fetchUserQuestsMock).toHaveBeenCalledWith(bob))
         expect(screen.getByText("0 XP")).toBeInTheDocument()
     })
+
+    it("labels local XP after a failed server refresh and retries authoritative XP", async () => {
+        const address = "g1alice"
+        localStorage.setItem(`memba_quests_${address}`, JSON.stringify({ completed: [], totalXP: 10 }))
+        mockWallet.address = address
+        setQuestWalletAddress(address)
+        fetchUserQuestsMock.mockResolvedValueOnce({ completed: [], totalXP: 100 })
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ completed: [], totalXP: 120 })
+
+        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        await screen.findByText("100 XP")
+
+        fireEvent(window, new Event("quest-completed"))
+        await screen.findByText("10 XP")
+        expect(screen.getByRole("status")).toHaveTextContent("Server XP unavailable; showing saved local progress.")
+        fireEvent.click(screen.getByRole("button", { name: "Retry server XP" }))
+        await screen.findByText("120 XP")
+        expect(screen.queryByText(/Server XP unavailable/)).toBeNull()
+    })
 })

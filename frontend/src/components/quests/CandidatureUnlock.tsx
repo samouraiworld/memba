@@ -37,18 +37,27 @@ function CandidatureUnlockSession({ address, networkKey, hasPendingCandidature }
     const [verifiedXP, setVerifiedXP] = useState<number | null>(null)
     const [eligible, setEligible] = useState(false)
     const onNetwork = isQuestAvailableOnNetwork("submit-candidature", networkKey)
+    const [status, setStatus] = useState<"loading" | "ready" | "unavailable">(address && onNetwork ? "loading" : "unavailable")
+    const [retryCount, setRetryCount] = useState(0)
     useEffect(() => {
         let cancelled = false
         let requestId = 0
         const refresh = () => {
             if (!address || !onNetwork || document.visibilityState === "hidden") return
             const request = ++requestId
+            setStatus("loading")
+            setEligible(false)
+            setVerifiedXP(null)
             resolveCandidatureEligibility(address).then(result => {
                 if (cancelled || request !== requestId) return
                 setVerifiedXP(result.verifiedXP)
-                setEligible(result.eligible)
+                setEligible(result.eligible && result.verifiedXP !== null)
+                setStatus(result.verifiedXP === null ? "unavailable" : "ready")
             }).catch(() => {
-                if (!cancelled && request === requestId) setEligible(false)
+                if (cancelled || request !== requestId) return
+                setVerifiedXP(null)
+                setEligible(false)
+                setStatus("unavailable")
             })
         }
         refresh()
@@ -59,7 +68,7 @@ function CandidatureUnlockSession({ address, networkKey, hasPendingCandidature }
             window.removeEventListener("quest-completed", refresh)
             window.removeEventListener("focus", refresh)
         }
-    }, [address, onNetwork])
+    }, [address, onNetwork, retryCount])
     const percent = Math.round(((verifiedXP ?? 0) / CANDIDATURE_XP_THRESHOLD) * 100)
 
     // State 3: Pending candidature
@@ -130,14 +139,20 @@ function CandidatureUnlockSession({ address, networkKey, hasPendingCandidature }
                             style={{ width: `${Math.min(percent, 100)}%` }}
                         />
                     </div>
-                    <span className="candidature-unlock__xp">
-                        {verifiedXP === null ? "Verified XP unavailable" : `${verifiedXP}/${CANDIDATURE_XP_THRESHOLD} verified XP (${Math.min(percent, 100)}%)`}
+                    <span className="candidature-unlock__xp" aria-live="polite">
+                        {!onNetwork ? "Candidature unavailable on this network" : !address ? "Connect a wallet to check verified XP" : status === "loading" ? "Checking verified XP…" : status === "unavailable" ? "Verified XP unavailable" : `${verifiedXP}/${CANDIDATURE_XP_THRESHOLD} verified XP (${Math.min(percent, 100)}%)`}
                     </span>
                 </div>
             </div>
-            <span className="candidature-unlock__btn candidature-unlock__btn--disabled">
-                Claim Candidature
-            </span>
+            {address && onNetwork && status === "unavailable" ? (
+                <button type="button" className="candidature-unlock__btn candidature-unlock__btn--secondary" onClick={() => setRetryCount(count => count + 1)}>
+                    Retry verified XP
+                </button>
+            ) : (
+                <span className="candidature-unlock__btn candidature-unlock__btn--disabled">
+                    Claim Candidature
+                </span>
+            )}
         </div>
     )
 }
