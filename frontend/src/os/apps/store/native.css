@@ -58,7 +58,7 @@
 .memba-os .os-store-main { display: grid; align-content: start; gap: 18px; }
 .memba-os .os-store-main section h2, .memba-os .os-store-trust h2 { margin: 0 0 8px; font-size: 14px; }
 .memba-os .os-store-main section p, .memba-os .os-store-trust p { margin: 0; line-height: 1.55; color: var(--os-mut); }
-.memba-os .os-store-trust { display: grid; align-content: start; gap: 10px; border: 1px solid var(--os-line); border-radius: 14px; padding: 15px; background: var(--os-card); min-width: 0; }
+.memba-os .os-store-trust { display: grid; align-self: start; align-content: start; gap: 10px; border: 1px solid var(--os-line); border-radius: 14px; padding: 15px; background: var(--os-card); min-width: 0; }
 .memba-os .os-store-trust b { color: var(--os-ink); }
 .memba-os .os-store-trust code { font: 11px var(--os-mono); overflow-wrap: anywhere; }
 .memba-os .os-store-shots { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 5px; }
@@ -78,6 +78,8 @@
 .memba-os .os-store-review-composer textarea { width: 100%; min-height: 90px; resize: vertical; padding: 10px 12px; border: 1px solid var(--os-line); border-radius: 10px; background: var(--os-card); color: var(--os-ink); font: inherit; }
 .memba-os .os-store-review-composer small { justify-self: end; color: var(--os-mut); font: 10px var(--os-mono); }
 .memba-os .os-store-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.memba-os .os-store-review-actions > :is(button, a) { min-height: 44px; }
+.memba-os .os-store-review-composer .star-rating__btn { min-width: 44px; min-height: 44px; }
 .memba-os .os-store-review-actions a.os-btn { text-decoration: none; }
 .memba-os .os-store-review-composer > .os-store-review-error { color: var(--os-err); }
 .memba-os .os-store-review-composer > .os-store-review-message { color: var(--os-acc-ink); }
