@@ -39,7 +39,7 @@
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
     "@phosphor-icons/react": "^2.1.10",
-    "@react-three/fiber": "9.7.0",
+    "@react-three/fiber": "9.8.1",
     "@remotion/player": "^4.0.526",
     "@sentry/react": "^10.75.0",
     "@tanstack/query-sync-storage-persister": "^5.103.1",
@@ -55,7 +55,7 @@
     "react-router-dom": "^7.18.2",
     "recharts": "^2.15.4",
     "remotion": "^4.0.526",
-    "three": "0.186.0",
+    "three": "0.186.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
