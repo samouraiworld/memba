@@ -36,7 +36,7 @@ const draft: StoreReviewDraft = {
 beforeEach(() => {
     mocks.available.mockReset().mockReturnValue(true)
     mocks.allowed.mockReset().mockReturnValue(true)
-    mocks.fetchApp.mockReset().mockResolvedValue({ status: "live" })
+    mocks.fetchApp.mockReset().mockResolvedValue({ status: "live", name: "Test App" })
     mocks.broadcast.mockReset().mockResolvedValue({ hash: "review-hash" })
 })
 
@@ -60,6 +60,13 @@ describe("native App Store review signing", () => {
         const request = storeReviewRequest(draft)
         mocks.fetchApp.mockResolvedValue({ status: "delisted" })
         await expect(request.recheck?.(undefined)).rejects.toThrow(/no longer a live listing/)
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+    })
+
+    it("requires a fresh review when the app identity changed", async () => {
+        const request = storeReviewRequest(draft)
+        mocks.fetchApp.mockResolvedValue({ status: "live", name: "Renamed App" })
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/listing changed/)
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
 

@@ -49,6 +49,7 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
             validated(draft)
             const listing = await fetchApp(draft.subject)
             if (!listing || listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
+            if (listing.name !== draft.appName) throw new Error("This app's listing changed. Refresh before reviewing.")
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], "Review app", { retry: false, beforeSign }),
         onSettled: (outcome) => draft.onSettled?.(outcome),
