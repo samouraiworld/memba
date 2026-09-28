@@ -26,6 +26,7 @@ Full changelogs are split by version range for easier navigation:
 - Check `/status` chain identity and synchronization state, and cross-check `/block` metadata against the full header before using its reported block, parent hashes and timestamp in future Launchpad indexing.
 - Add an inert, publication-scoped SQLite journal in the backed-up Memba database for block-header observations and validated token creation events. Scan the activation block from its verified parent, preserve empty blocks, detect conflicting replays, and roll back only to a verified ancestor at or above that parent.
 - Add an unwired, one-step Launchpad tailer that requires an independent publication verifier and checks a pinned RPC endpoint, confirmation depth and block consistency before journaling one block or rolling back a fork. It does not start background indexing or serve launch dates.
+- Bind an approved Launchpad source digest to native AddPackage and EnablePackage receipts, exact transaction bytes, block positions and successful deliveries before the unwired tailer can journal its publication block. Reject ambiguous same-block submissions and direct AddPackage activation on mainnet.
 
 ### Memba OS: native Settings
 

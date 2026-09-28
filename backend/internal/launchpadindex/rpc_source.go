@@ -2,6 +2,7 @@ package launchpadindex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -40,16 +41,20 @@ func NewPinnedRPCSource(rawURL string, client *http.Client) (*PinnedRPCSource, e
 }
 
 func (s *PinnedRPCSource) get(ctx context.Context, path string, height int64) ([]byte, error) {
+	query := url.Values{}
+	if height > 0 {
+		query.Set("height", strconv.FormatInt(height, 10))
+	}
+	return s.getQuery(ctx, path, query)
+}
+
+func (s *PinnedRPCSource) getQuery(ctx context.Context, path string, query url.Values) ([]byte, error) {
 	if s == nil || s.client == nil {
 		return nil, ErrInvalidRPCSource
 	}
 	requestURL := s.base
 	requestURL.Path = path
-	if height > 0 {
-		query := url.Values{}
-		query.Set("height", strconv.FormatInt(height, 10))
-		requestURL.RawQuery = query.Encode()
-	}
+	requestURL.RawQuery = query.Encode()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		return nil, err
@@ -88,4 +93,11 @@ func (s *PinnedRPCSource) results(ctx context.Context, height int64) ([]byte, er
 		return nil, ErrInvalidBlock
 	}
 	return s.get(ctx, "/block_results", height)
+}
+
+func (s *PinnedRPCSource) transaction(ctx context.Context, hash [32]byte) ([]byte, error) {
+	if hash == ([32]byte{}) {
+		return nil, ErrInvalidRPCSource
+	}
+	return s.getQuery(ctx, "/tx", url.Values{"hash": {"0x" + hex.EncodeToString(hash[:])}})
 }

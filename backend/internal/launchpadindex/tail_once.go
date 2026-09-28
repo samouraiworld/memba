@@ -23,7 +23,8 @@ const (
 
 // PublicationVerifier must check the successful submission and activation
 // receipts, source bytes, transaction positions and their own block hashes.
-// There is deliberately no production implementation or startup wiring yet.
+// The RPC implementation remains unwired until a trusted release approval,
+// coherent endpoint, single-writer deployment and release gates are in place.
 type PublicationVerifier interface {
 	VerifyPublication(context.Context, Scope, *PinnedRPCSource) error
 }
