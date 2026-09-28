@@ -90,7 +90,7 @@ func ParseTokenCreated(pkgPath, eventType string, attributes []Attribute) (Token
 	}
 	for i := 0; i < len(ticker); i++ {
 		c := ticker[i]
-		if !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') {
+		if (c < 'A' || c > 'Z') && (c < '0' || c > '9') {
 			return TokenCreated{}, ErrInvalidTokenCreated
 		}
 	}

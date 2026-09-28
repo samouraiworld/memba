@@ -52,16 +52,16 @@ func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, e
 		return nil, fmt.Errorf("decode Launchpad block results: %w", err)
 	}
 	if response.Error != nil {
-		return nil, fmt.Errorf("Launchpad block results RPC error: %s", response.Error.Message)
+		return nil, fmt.Errorf("launchpad block results RPC error: %s", response.Error.Message)
 	}
 	if response.Result == nil || response.Result.Results == nil ||
 		len(response.Result.Results.DeliverTx) == 0 {
-		return nil, fmt.Errorf("Launchpad block results are incomplete")
+		return nil, fmt.Errorf("launchpad block results are incomplete")
 	}
 	height, err := strconv.ParseInt(response.Result.Height, 10, 64)
 	if err != nil || height <= 0 || height != expectedHeight ||
 		response.Result.Height != strconv.FormatInt(height, 10) {
-		return nil, fmt.Errorf("Launchpad block results height mismatch")
+		return nil, fmt.Errorf("launchpad block results height mismatch")
 	}
 	var txs []deliveredTx
 	if err := json.Unmarshal(response.Result.Results.DeliverTx, &txs); err != nil {
@@ -70,13 +70,13 @@ func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, e
 	var out []ObservedCreation
 	for txIndex, tx := range txs {
 		if len(tx.ResponseBase.Error) == 0 {
-			return nil, fmt.Errorf("Launchpad tx %d has no success status", txIndex)
+			return nil, fmt.Errorf("launchpad tx %d has no success status", txIndex)
 		}
 		if !bytes.Equal(bytes.TrimSpace(tx.ResponseBase.Error), []byte("null")) {
 			continue // unsuccessful delivery cannot create a token
 		}
 		if len(tx.ResponseBase.Events) == 0 {
-			return nil, fmt.Errorf("Launchpad tx %d has no events field", txIndex)
+			return nil, fmt.Errorf("launchpad tx %d has no events field", txIndex)
 		}
 		var events []rawEvent
 		if err := json.Unmarshal(tx.ResponseBase.Events, &events); err != nil {
@@ -87,14 +87,14 @@ func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, e
 				continue
 			}
 			if event.Type == "" {
-				return nil, fmt.Errorf("Launchpad tx %d event %d has no type", txIndex, eventIndex)
+				return nil, fmt.Errorf("launchpad tx %d event %d has no type", txIndex, eventIndex)
 			}
 			if event.Type != TokenCreatedType {
 				continue
 			}
 			created, err := ParseTokenCreated(event.PkgPath, event.Type, event.Attrs)
 			if err != nil {
-				return nil, fmt.Errorf("Launchpad tx %d event %d: %w", txIndex, eventIndex, err)
+				return nil, fmt.Errorf("launchpad tx %d event %d: %w", txIndex, eventIndex, err)
 			}
 			out = append(out, ObservedCreation{
 				TokenCreated: created, BlockHeight: height,
