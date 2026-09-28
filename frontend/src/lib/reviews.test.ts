@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
 import {
     fetchSummaries,
+    fetchModerator,
     unwrapQeval,
     parseReviews,
     sortByTrust,
@@ -272,6 +273,12 @@ describe("fetchSummaries (batched per-card summaries, capped concurrency)", () =
         expect(qe).toHaveBeenCalledTimes(2) // dedup: app-a fetched once
     })
 
+    it("uses the exact onchain sum when the realm rounds its average", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue('("{\\"count\\":3,\\"average\\":4,\\"sum\\":13}" string)')
+        const out = await fetchSummaries(["gno.land/r/x/app-a"])
+        expect(out.get("gno.land/r/x/app-a")?.average).toBeCloseTo(13 / 3)
+    })
+
     it("never runs more than `concurrency` fetches at once", async () => {
         let inFlight = 0
         let peak = 0
@@ -296,5 +303,18 @@ describe("fetchSummaries (batched per-card summaries, capped concurrency)", () =
         const out = await fetchSummaries(["gno.land/r/x/good", "gno.land/r/x/bad"])
         expect(out.get("gno.land/r/x/good")).toEqual({ count: 3, average: 4, sum: 12 })
         expect(out.get("gno.land/r/x/bad")).toEqual({ count: 0, average: 0, sum: 0 })
+    })
+})
+
+describe("fetchModerator", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("reads the current realm authority and rejects malformed values", async () => {
+        const address = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
+        const query = vi.spyOn(shared, "queryEval").mockResolvedValue(`(${JSON.stringify(address)} string)`)
+        expect(await fetchModerator("gno.land/r/samcrew/memba_appstore_reviews_v1")).toBe(address)
+        expect(query).toHaveBeenCalledWith(expect.any(String), "gno.land/r/samcrew/memba_appstore_reviews_v1", "GetModerator()")
+        query.mockResolvedValue('( "bad" string)')
+        expect(await fetchModerator()).toBeNull()
     })
 })

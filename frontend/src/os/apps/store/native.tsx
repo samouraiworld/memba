@@ -1,7 +1,9 @@
 /** Native Memba OS discovery. The registry and editorial directory remain distinct sources. */
 import { useMemo, useState, type CSSProperties, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { API_BASE_URL, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
+import { API_BASE_URL, MEMBA_DAO, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
+import { ReviewsSection } from "../../../components/reviews/ReviewsSection"
+import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
 import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
 import { fetchAppStrict, fetchLiveCatalogue, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
@@ -116,7 +118,9 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                 <div className="os-store-main">
                     <section><h2>About this app</h2><p>{listing?.descr || entry.project?.description || entry.tagline || "The publisher has not supplied a description yet."}</p></section>
                     {!!listing?.screenshotCIDs?.filter(isValidCid).length && <section><h2>Screenshots</h2><div className="os-store-shots">{listing.screenshotCIDs.filter(isValidCid).map((cid, i) => <Screenshot key={cid} cid={cid} name={entry.name} index={i} />)}</div></section>}
-                    {entry.source === "registry" && <section><h2>Community reviews</h2><p>{isAppReviewsAvailable() ? "Onchain reviews are available on the classic App Store detail page." : "Onchain app reviews are not available here yet."}</p>{isAppReviewsAvailable() && <a href={`https://memba.samourai.app/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Read or write reviews in the classic Store ↗</a>}</section>}
+                    {entry.source === "registry" && (isAppReviewsAvailable()
+                        ? <div className="os-store-reviews"><ReviewsSection subject={entry.realmPath!} realmPath={MEMBA_DAO.appReviewsPath} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly /><a className="os-btn os-quiet" href={`https://memba.samourai.app/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Write or manage reviews ↗</a></div>
+                        : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>
                 <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Publisher <code>{listing.publisher}</code></p>}{entry.project?.evidence && <p>Link checked {entry.project.evidence.checkedAt}</p>}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
             </div>

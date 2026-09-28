@@ -490,6 +490,10 @@
   gap: 12px;
 }
 
+.reviews-section__load-more { align-self: flex-start; min-height: 36px; }
+.reviews-section__retry { display: grid; justify-items: start; gap: 8px; }
+.reviews-section__retry p { margin: 0; }
+
 /* ── Shared button helpers ───────────────────────────────────────────── */
 .reviews-section__submit-row {
   display: flex;

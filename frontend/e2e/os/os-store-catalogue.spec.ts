@@ -22,6 +22,33 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
     })
 }
 
+for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
+    test(`gated onchain reviews stay inside the native Store detail on ${device}`, async ({ page }) => {
+        test.skip(process.env.OS_STORE_REVIEWS !== 'true', 'run with OS_STORE_REVIEWS=true, VITE_ENABLE_APP_REVIEWS=true and a test-only allowlisted reviews path')
+        await fulfillOnchainReads(page, ({ method, path, arg }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path === 'vm/qeval' && arg.includes('ListLiveJSON')) return `(${JSON.stringify(JSON.stringify(live))} string)`
+            if (path === 'vm/qeval' && arg.includes('GetListingJSON')) return `(${JSON.stringify(JSON.stringify({ ...live[1], descr: 'A public forum on Gno.' }))} string)`
+            if (path === 'vm/qeval' && arg.includes('GetSubjectSummaryJSON')) return `(${JSON.stringify(JSON.stringify({ count: 1, sum: 5, average: 5 }))} string)`
+            if (path === 'vm/qeval' && arg.includes('GetReviewsJSON')) return `(${JSON.stringify(JSON.stringify([{ id: 7, subject: live[1].pkgPath, author: 'g1reviewer', rating: 5, body: 'A clear onchain forum', createdAt: 100, editedAt: 0, deleted: false, likes: 0, dislikes: 0, flags: 0, reputation: 0 }]))} string)`
+            return null
+        })
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+        await page.setViewportSize({ width, height: 800 })
+        await page.goto(`${OS_ON}/os/store`)
+        const store = page.getByRole('region', { name: 'App Store', exact: true })
+        await store.getByRole('button', { name: 'Details for Boards' }).click()
+        const detail = page.getByRole('region', { name: 'App details · App Store' })
+        await expect(detail.getByRole('heading', { name: 'Reviews' })).toBeVisible()
+        await expect(detail.getByText('A clear onchain forum')).toBeVisible()
+        await expect(detail.getByRole('link', { name: 'Write or manage reviews ↗' })).toHaveAttribute('href', 'https://memba.samourai.app/mainnet/apps/r/gnoland/boards2/v0')
+        await expect(detail.getByRole('radiogroup', { name: 'Your rating' })).toHaveCount(0)
+        await expect(detail.getByText(/1 review/)).toBeVisible()
+        await detail.getByText('A clear onchain forum').scrollIntoViewIfNeeded()
+        await expect(detail.getByText('A clear onchain forum')).toBeInViewport()
+    })
+}
+
 const live = [
     { id: 1, pkgPath: 'gno.land/r/gnoswap/router', name: 'GnoSwap', tagline: '', category: 'Exchange', iconCID: '', appURL: 'https://gnoswap.io/', publisher: '', status: 'live', flagCount: 0, createdAt: 0 },
     { id: 2, pkgPath: 'gno.land/r/gnoland/boards2/v0', name: 'Boards', tagline: '', category: 'Community', iconCID: '', appURL: 'https://gno.land/r/gnoland/boards2/v0', publisher: '', status: 'live', flagCount: 0, createdAt: 0 },
