@@ -24,6 +24,10 @@ Full changelogs are split by version range for easier navigation:
 
 - Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
 
+### Memba OS: classic bundle guard
+
+- Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+
 ### Memba OS: native Settings
 
 - Give Settings a native OS window with desktop appearance, wallpaper and icon size controls, honest notification availability, read-only network details, local gas defaults, account status and About access. Reset only disposable local UI data after confirmation, preserving unsent drafts, saved recipients and send locks.
