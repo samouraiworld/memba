@@ -54,6 +54,7 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: Terminal production QA follow-up (2026-09-27)
 
 - Keep drafts in sync across tabs and stop stale saves from erasing source; make Reset restore a matching realm path and package. Improve editor contrast and phone scrolling, keep the command prompt above the dock, and keep resized windows in view.
+- Reconcile a draft when the editor mounts so a change from another tab cannot be missed before its storage listener starts.
 - Verify the chain identity of each RPC endpoint before Terminal reads it, including fallbacks. Give missing paths and connection failures concise messages, offer a working example, command recall, and a direct deployment lesson from Build.
 
 ### App updates: reload when ready (2026-09-26)
