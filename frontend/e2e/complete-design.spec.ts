@@ -90,7 +90,11 @@ for (const theme of ['dark', 'light'] as const) {
             await expect(page.locator('.k-pro-app')).toBeVisible()
             await expect(page.locator('#main-content')).not.toHaveText('')
             await waitForRouteSettled(page, { quietMs: 500 })
-            if (path === 'multisig') await expect(page.getByRole('button', { name: 'Community operations', exact: true })).toBeVisible()
+            if (path === 'multisig') {
+                await expect(page.locator('#main-content').getByRole('status').filter({ hasText: 'Native multisig registration is on hold pending release approval.' })).toBeVisible()
+                await expect(page.getByRole('button', { name: 'View Community operations multisig history' })).toBeVisible()
+                await expect(page.getByTestId('multisig-create-btn')).toBeDisabled()
+            }
             if (path === 'tx/7') await expect(page.locator('#main-content')).toContainText('Community operations — design fixture')
             expect.soft(await page.locator('main').innerText(), path).not.toContain('Something went wrong')
             expect.soft(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), path).toBe(true)

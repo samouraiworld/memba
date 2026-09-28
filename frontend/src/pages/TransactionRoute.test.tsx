@@ -32,11 +32,14 @@ const context = {
 
 function tx(id: number) {
     return {
-        id, createdAt: "2026-07-03T10:00:00Z", finalHash: "", multisigAddress: "g1multisig000000000000000000000000000000", chainId: "test-13",
-        msgsJson: JSON.stringify([{ type: "/bank.MsgSend", value: { from_address: "g1multisig000000000000000000000000000000", to_address: "g1recipientfulladdress0000000000000000xy", amount: [{ denom: "ugnot", amount: String(id * 1000) }] } }]),
+        id, createdAt: "2026-07-03T10:00:00Z", finalHash: "", multisigAddress: "g14sngp6hjx9jchqk4pmkqrkesdklhwpd43q5vur", chainId: "test-13",
+        msgsJson: JSON.stringify([{ type: "/bank.MsgSend", value: { from_address: "g14sngp6hjx9jchqk4pmkqrkesdklhwpd43q5vur", to_address: "g1recipientfulladdress0000000000000000xy", amount: [{ denom: "ugnot", amount: String(id * 1000) }] } }]),
         feeJson: JSON.stringify({ gas_wanted: "200000", gas_fee: "10000ugnot" }),
         accountNumber: 12, sequence: 3, creatorAddress: "g1alice00000000000000000000000000000000", threshold: 2, membersCount: 3, memo: "",
-        signatures: [], multisigPubkeyJson: JSON.stringify({ type: "tendermint/PubKeyMultisigThreshold", value: { threshold: "2", pubkeys: [{ value: "PK_A" }, { value: "PK_B" }] } }),
+        signatures: [], multisigPubkeyJson: JSON.stringify({ "@type": "/tm.PubKeyMultisig", threshold: "2", pubkeys: [
+            { "@type": "/tm.PubKeySecp256k1", value: "Anm+Zn753LusVaBilc6HCwcCm/zbLc4o2VnygVsW+BeY" },
+            { "@type": "/tm.PubKeySecp256k1", value: "AsYEf5RB7X1tMEVAbpXAfNhcd45LjO88p6usCblccJ7l" },
+        ] }),
         type: "send", verified: false,
     }
 }
