@@ -119,7 +119,7 @@ A reviewable frontend branch now contains the native public Profile window, chai
 |---|---|
 | Focused Profile E2E in Chromium and Firefox | 14 passed, including address and username links, phone layout, editor preview, and light/dark accessibility scans. |
 | Frontend typecheck, full lint, production build, bundle gates, full unit suite | Passed on the final checkpoint: 694 unit files and 7,105 tests passed, with one file/test skipped. |
-| Broad OS E2E | 307 passed, 10 skipped, then the shared 5193/5194 test servers stopped and 47 later Firefox cases failed on refused connections. Profile cases in that run passed. The test config now accepts isolated ports; repeat the full suite on the final diff. |
+| Broad OS E2E | 358 passed, 10 skipped in Chromium and Firefox on isolated test ports. The previous run's 47 late connection failures did not recur. |
 | Standard E2E | 623 passed, 8 skipped, 7 failed. The same seven reproduced: two Firefox Feed navigations, one Firefox Create Token page load count, two classic visual snapshots, and the two mobile Barricade art checks. They are outside the Profile files, but the required full gate remains red; compare against base before deciding how to resolve them. |
 | Backend | No-CGO tests and build passed. The required `go test -race -count=1 ./...` cannot start until the local Xcode license is accepted. |
 
