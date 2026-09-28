@@ -1388,6 +1388,9 @@ function processInvaders(job) {
     finalTick,
     inputs
   });
+  if (r.state.phase !== "gameover") {
+    return fail("run has not reached gameover");
+  }
   const logHash = (0, import_node_crypto.createHash)("sha256").update(job.seed + "\n" + canonicalInvadersLog(finalTick, deltas)).digest("hex");
   const stats = JSON.stringify({ wave: r.state.wave, shots: r.state.shots, hits: r.state.hits });
   return ok({

@@ -291,6 +291,52 @@ func TestSubmit_DuplicateSameAddrIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestSubmit_DuplicateUsesPersistedVerdictAfterWorkerDrift(t *testing.T) {
+	v := &fakeVerifier{res: okResult()}
+	cfg := baseCfg(t, v)
+	h := arcade.HandleSubmit(cfg)
+	if first := submitReq(t, h, "tok", dailyBody(t, 27150, "e8532dc207e3cb24")); first.Code != http.StatusOK {
+		t.Fatalf("initial submit: %d: %s", first.Code, first.Body.String())
+	}
+	// Model a changed verifier build: the canonical log identity stayed the
+	// same, but the recomputed result drifted. The original database row is
+	// what the attester will use, so an idempotent response must echo it.
+	v.res.Score = 9000
+	v.res.Waves = 9
+	v.res.Won = true
+	v.res.OvertimeRound = 2
+	v.res.StateHash = "new-state-hash"
+	v.res.SimVersion = 3
+	v.res.Stats = `{"waves":9,"won":true,"overtimeRound":2}`
+	retry := submitReq(t, h, "tok", dailyBody(t, 9000, "new-state-hash"))
+	if retry.Code != http.StatusOK {
+		t.Fatalf("same-owner duplicate: %d: %s", retry.Code, retry.Body.String())
+	}
+	var got struct {
+		Stats  string `json:"stats"`
+		Result struct {
+			Score         int64  `json:"score"`
+			Waves         int64  `json:"waves"`
+			Won           bool   `json:"won"`
+			OvertimeRound int64  `json:"overtimeRound"`
+			StateHash     string `json:"stateHash"`
+			SimVersion    int64  `json:"simVersion"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(retry.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	stored, found, err := cfg.Store.GetRunByLogHash("canonicaldigestabc")
+	if err != nil || !found {
+		t.Fatalf("stored run: found=%v err=%v", found, err)
+	}
+	if got.Stats != stored.Stats || got.Result.Score != stored.Score || got.Result.Waves != stored.Waves ||
+		got.Result.Won != stored.Won || got.Result.OvertimeRound != stored.OvertimeRound ||
+		got.Result.StateHash != stored.StateHash || got.Result.SimVersion != stored.SimVersion {
+		t.Fatalf("duplicate response must match stored attestation: response=%+v stored=%+v", got, stored)
+	}
+}
+
 func TestSubmit_DuplicateDifferentAddrIsRejected(t *testing.T) {
 	// Alice submits a log; Mallory replays it under her address — and crucially,
 	// with a BYTE-MUTATED body (reordered fields / different whitespace). Because

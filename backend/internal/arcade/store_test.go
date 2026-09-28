@@ -57,6 +57,42 @@ func TestStore_GetMissingReturnsNotFound(t *testing.T) {
 	}
 }
 
+func TestBestVerifiedDaily_HoldsLowerRunWhileBestIsParked(t *testing.T) {
+	s := testDB(t)
+	best := sampleRun("best", "g1alice")
+	best.Score = 500
+	lower := sampleRun("lower", "g1alice")
+	lower.Score = 100
+	if err := s.InsertRun(best); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.InsertRun(lower); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkErrored(best.LogHash); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := s.BestVerifiedDaily("barricade", best.Day, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("parked best must hold lower runs, got %+v", rows)
+	}
+	higher := sampleRun("higher", "g1alice")
+	higher.Score = 700
+	if err := s.InsertRun(higher); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = s.BestVerifiedDaily("barricade", best.Day, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].LogHash != higher.LogHash {
+		t.Fatalf("new higher run should remain eligible, got %+v", rows)
+	}
+}
+
 func TestStore_DuplicateLogHashIsRejected(t *testing.T) {
 	// The input log hash is the realm's replay-theft key: the same log must bind
 	// once. A second insert of the same hash (even a different address) must

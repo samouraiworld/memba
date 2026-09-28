@@ -127,14 +127,16 @@ func TestVerifyWorker_InvadersThroughRealNode(t *testing.T) {
 	// 3389276757, pinned in TestInvadersEngineSeed_Vectors) and the 8-hex
 	// zero-padded stateHash format the client's claimedHash must match.
 	t.Run("reproduces the engine-anchored fixture", func(t *testing.T) {
-		res, err := r.Verify(context.Background(), invadersBoundaryJob(`[[5,10,0,0],[60,10,1,0],[240,-10,1,0],[420,0,1,0],[540,3,1,0]]`))
+		job := invadersBoundaryJob(`[[5,10,0,0],[60,10,1,0],[240,-10,1,0],[420,0,1,0],[540,3,1,0]]`)
+		job.FinalTick = 6275
+		res, err := r.Verify(context.Background(), job)
 		if err != nil {
 			t.Fatalf("verify: %v", err)
 		}
 		want := Result{
-			OK: true, Score: 300, Waves: 1, StateHash: "a7d393c2", SimVersion: 1,
-			Stats:   `{"wave":1,"shots":48,"hits":11}`,
-			LogHash: "c24b0301959240652d210721eb5357b9a033a875d43c153abb3c7a1f9c9af5f5",
+			OK: true, Score: 3879, Waves: 2, StateHash: "a2c31fd8", SimVersion: 1,
+			Stats:   `{"wave":2,"shots":509,"hits":91}`,
+			LogHash: "78cad2f8097674963fd76c7e965f50345a6a545a14f4ba6dd2ecfbcbdf99b012",
 		}
 		if res != want {
 			t.Fatalf("bundle+node diverged from the engine-anchored fixture\n got: %+v\nwant: %+v", res, want)

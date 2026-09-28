@@ -20,6 +20,7 @@ import type { LayoutContext } from "../../types/layout"
 import type { OsTarget } from "../shell/osPath"
 import { specForTarget, urlForWindow } from "../shell/windows"
 import { osTargetForClassic } from "./classicRoute"
+import { WindowActivityContext } from "./WindowActivity"
 
 function Loading() {
     return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading…</span></div>
@@ -108,11 +109,13 @@ export function ClassicPage({ network, page, query, layout, onGameExit, active =
 
     return (
         <div className="os-classic">
+            <WindowActivityContext.Provider value={active}>
             <UNSAFE_NavigationContext.Provider value={nav}>
                 <Routes location={{ pathname: `/${network}/${page}`, search: query ? `?${query}` : "" }}>
                     <Route path="/:network" element={<WindowOutlet layout={layout} />}>{networkRouteChildren()}</Route>
                 </Routes>
             </UNSAFE_NavigationContext.Provider>
+            </WindowActivityContext.Provider>
         </div>
     )
 }

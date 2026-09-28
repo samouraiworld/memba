@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { WindowActivityContext } from "../../os/page/WindowActivity";
 import SpaceInvaders from "./SpaceInvaders";
 
 const advanceSpy = vi.hoisted(() => vi.fn());
@@ -74,8 +75,8 @@ beforeEach(() => {
   } as unknown as CanvasRenderingContext2D;
   HTMLCanvasElement.prototype.getContext = vi.fn(() => ctx) as never;
   rafQueue = [];
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => rafQueue.push(cb));
-  vi.stubGlobal("cancelAnimationFrame", () => {});
+  vi.stubGlobal("requestAnimationFrame", vi.fn((cb: FrameRequestCallback) => rafQueue.push(cb)));
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
   localStorage.clear();
   advanceSpy.mockClear();
   audioSpies.create.mockClear();
@@ -84,6 +85,21 @@ beforeEach(() => {
 });
 
 describe("SpaceInvaders shell", () => {
+  it("does not schedule frames while its OS window is parked", () => {
+    const view = (active: boolean) => (
+      <WindowActivityContext.Provider value={active}><SpaceInvaders /></WindowActivityContext.Provider>
+    );
+    const { rerender } = render(view(false));
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+
+    rerender(view(true));
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+
+    rerender(view(false));
+    expect(cancelAnimationFrame).toHaveBeenCalled();
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a complete fire tap until the first fixed simulation step", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
@@ -225,7 +241,7 @@ describe("SpaceInvaders shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Pause" }));
     expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
-    expect(surface).toHaveFocus();
+    expect(screen.getByRole("button", { name: /resume defense/i })).toHaveFocus();
 
     const resume = screen.getByRole("button", { name: /resume defense/i });
     resume.focus();
@@ -234,7 +250,7 @@ describe("SpaceInvaders shell", () => {
     expect(surface).toHaveFocus();
   });
 
-  it("keeps focus and accepts move/fire after a keyboard-only pause and resume", () => {
+  it("moves focus to Resume after a keyboard pause, then restores play after resuming", () => {
     render(<SpaceInvaders initialState={{ phase: "playing" } as never} />);
     const surface = screen.getByRole("group", { name: /signal defense game surface/i });
     surface.focus();
@@ -242,10 +258,11 @@ describe("SpaceInvaders shell", () => {
     fireEvent.keyDown(surface, { key: "p" });
     flushFrame(0);
     expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
-    expect(surface).toHaveFocus();
+    const resume = screen.getByRole("button", { name: /resume defense/i });
+    expect(resume).toHaveFocus();
 
     fireEvent.keyUp(surface, { key: "p" });
-    fireEvent.keyDown(surface, { key: "p" });
+    fireEvent.click(resume);
     flushFrame(20);
     expect(screen.queryByRole("heading", { name: /relay paused/i })).not.toBeInTheDocument();
     expect(surface).toHaveFocus();
@@ -259,6 +276,15 @@ describe("SpaceInvaders shell", () => {
       expect.any(Number),
       { move: 1, fire: true, pause: false },
     );
+  });
+
+  it("focuses the Daily action when returning to the transmission menu", () => {
+    render(<SpaceInvaders />);
+    fireEvent.click(screen.getByRole("button", { name: /free play/i }));
+    const change = screen.getByRole("button", { name: /change transmission/i });
+    change.focus();
+    fireEvent.click(change);
+    expect(screen.getByRole("button", { name: /daily run/i })).toHaveFocus();
   });
 
   it("does not steal focus back when an interruption auto-pauses the game", () => {

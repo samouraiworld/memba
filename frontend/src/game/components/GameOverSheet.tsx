@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { rankFromPercentile } from "../lib/tiers";
-import { getLocalBest, setLocalBest, bumpLocalStreak } from "../lib/localStore";
+import { getLocalDailyBest, setLocalDailyBest, bumpLocalStreak } from "../lib/localStore";
 import { gameApi } from "../../lib/gameApi";
 import { ShareCard } from "./ShareCard";
 import { NextBoardCountdown } from "./NextBoardCountdown";
@@ -12,7 +12,7 @@ type WalletLike = { installed: boolean; connect: () => Promise<unknown> };
 type AuthLike = { isAuthenticated: boolean; token?: Token; address?: string; authenticate?: () => Promise<void> };
 
 export function GameOverSheet(props: {
-  date: string; score: number; par?: number; moveLog: string; board: number[]; modifier: string;
+  chainId: string; date: string; score: number; par?: number; moveLog: string; board: number[]; modifier: string;
   wallet: WalletLike; auth: AuthLike;
   /** Called once the server has verified the replay (e.g. to refresh the leaderboard). */
   onVerified?: () => void;
@@ -20,7 +20,7 @@ export function GameOverSheet(props: {
    *  now may not be who played it, so posting waits for an explicit click. */
   autoSubmit?: boolean;
 }) {
-  const { date, score, moveLog, wallet, auth, onVerified, autoSubmit = true } = props;
+  const { chainId, date, score, moveLog, wallet, auth, onVerified, autoSubmit = true } = props;
   const [result, setResult] = useState<{ percentile: number; streak: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<{ message: string; retryable: boolean } | null>(null);
@@ -33,16 +33,16 @@ export function GameOverSheet(props: {
   // Empty date = the challenge never loaded (error path); the sheet must be
   // inert then — no "bp:best:" key, no `lastDate: ""` streak corruption, no
   // blank-date submit the server would reject anyway.
-  useEffect(() => { if (date) setLocalBest(date, score); }, [date, score]);
+  useEffect(() => { if (date) setLocalDailyBest(chainId, date, score); }, [chainId, date, score]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync local streak once per date change, not derivable from render
-  useEffect(() => { if (date) setLocalStreakState(bumpLocalStreak(date).current); }, [date]);
+  useEffect(() => { if (date) setLocalStreakState(bumpLocalStreak(chainId, date).current); }, [chainId, date]);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
 
   const submitScore = useCallback(async (force = false) => {
     if (!date || !auth.isAuthenticated || !auth.token || submissionInFlightRef.current) return;
-    const submissionKey = `${date}:${moveLog}`;
+    const submissionKey = `${chainId}:${date}:${moveLog}`;
     if (!force && submittedRef.current === submissionKey) return;
     submittedRef.current = submissionKey;
     submissionInFlightRef.current = true;
@@ -67,7 +67,7 @@ export function GameOverSheet(props: {
       submissionInFlightRef.current = false;
       setSubmitting(false);
     }
-  }, [auth.isAuthenticated, auth.token, date, moveLog]);
+  }, [auth.isAuthenticated, auth.token, chainId, date, moveLog]);
 
   useEffect(() => { if (result) onVerified?.(); }, [result, onVerified]);
 
@@ -83,7 +83,7 @@ export function GameOverSheet(props: {
   const parDelta = hasTarget ? score - props.par! : null;
   const highestTile = Math.max(0, ...props.board);
   const modifierLabel = ({ standard: "Standard", doubles: "Doubles Day", rush: "Rush" } as Record<string, string>)[props.modifier] ?? props.modifier;
-  const localBest = getLocalBest(date);
+  const localBest = getLocalDailyBest(chainId, date);
 
   return (
     <div className="k-bp-over" role="dialog" aria-labelledby="k-bp-result-title" aria-describedby="k-bp-result-summary">

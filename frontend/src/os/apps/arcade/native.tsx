@@ -26,7 +26,7 @@ export default function ArcadeWindow({ section, open, fallback }: NativeViewProp
         {current === "games" && <div className="os-stack">
             <div>
                 <h2>Games</h2>
-                <p className="os-sub">Choose a game. Playing needs no wallet; score certification is currently unavailable.</p>
+                <p className="os-sub">Choose a game. Playing needs no wallet. Posting a Block Party Daily score requires sign-in; its leaderboard is server-verified when Daily is live. A combined Arcade board and on-chain attestation are unavailable.</p>
             </div>
             <CardGrid min={200}>
                 {games.map((game) => <Card key={game.section} onClick={() => go(game.section)}>
@@ -46,7 +46,7 @@ export default function ArcadeWindow({ section, open, fallback }: NativeViewProp
         </div>}
         {current === "daily-board" && <div className="os-stack">
             <h2>Daily board</h2>
-            <div className="os-note" role="status"><Pill tone="neutral">Not live</Pill>{" "}Certified scores and a combined daily leaderboard are unavailable while Arcade attestation is off. Open a game to see its available modes.</div>
+            <div className="os-note" role="status"><Pill tone="neutral">Not live</Pill>{" "}A combined daily leaderboard and on-chain Arcade attestation are unavailable while Arcade attestation is off. Block Party has its own server-verified Daily leaderboard when Daily is live; open the game to view it.</div>
             <CardGrid min={200}>{games.map((game) => <Card key={game.section} onClick={() => go(game.section)}>
                 <span className="os-grow"><b>{game.name}</b><span className="os-sub os-block">{game.enabled() ? "Open game" : "Game unavailable in this build"}</span></span>
             </Card>)}</CardGrid>

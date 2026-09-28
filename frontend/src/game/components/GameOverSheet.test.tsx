@@ -3,19 +3,34 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { GameOverSheet } from "./GameOverSheet";
+import { getLocalDailyBest, getLocalStreak } from "../lib/localStore";
 import { gameApi } from "../../lib/gameApi";
 import { SubmitScoreResponseSchema, TokenSchema } from "../../gen/memba/v1/memba_pb";
 
 vi.mock("../../lib/gameApi", () => ({ gameApi: { submitScore: vi.fn() } }));
 
 const baseProps = {
-  date: "2026-07-06", score: 1200, par: 1500, moveLog: "URDL", board: new Array(16).fill(0),
+  chainId: "portal-loop", date: "2026-07-06", score: 1200, par: 1500, moveLog: "URDL", board: new Array(16).fill(0),
   modifier: "standard",
 };
 
 describe("GameOverSheet", () => {
   beforeEach(() => {
     vi.mocked(gameApi.submitScore).mockReset();
+    localStorage.clear();
+  });
+
+  it("attributes a guest Daily best and streak to the active chain only", () => {
+    localStorage.setItem("bp:best:2026-07-06", "99999");
+    localStorage.setItem("bp:streak", JSON.stringify({ current: 20, lastDate: "2026-07-06" }));
+    render(<GameOverSheet {...baseProps}
+      wallet={{ installed: false, connect: vi.fn() }}
+      auth={{ isAuthenticated: false }} />);
+    expect(getLocalDailyBest(baseProps.chainId, baseProps.date)).toBe(1200);
+    expect(getLocalDailyBest("gnoland1", baseProps.date)).toBe(0);
+    expect(getLocalStreak(baseProps.chainId).current).toBe(1);
+    expect(getLocalStreak("gnoland1").current).toBe(0);
+    expect(screen.getByText(/saved on this device · best 1,200 · 1 day streak/i)).toBeTruthy();
   });
 
   it("guest without Adena sees a desktop note, still can share, never a broken Connect", () => {

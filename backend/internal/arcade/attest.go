@@ -1,14 +1,30 @@
 package arcade
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// OnChainEntryReader resolves the board entry after a non-improving panic.
+// The panic itself does not say whether this exact log was already delivered.
+type OnChainEntryReader interface {
+	LookupEntry(ctx context.Context, run Run) (entry OnChainEntry, found bool, err error)
+}
+
+type OnChainEntry struct {
+	LogHash string `json:"inputLogSha256"`
+	Score   int64  `json:"score"`
+}
 
 var (
 	// ErrAlreadyOnChain: the realm rejected the attestation because this
@@ -91,8 +107,9 @@ type attesterExecFn func(ctx context.Context, args []string, stdin string) (stri
 // mirroring cmd/activitybot's testnet broadcaster. The dedicated attester key
 // lives only in the gnokey keyring — this process never handles a raw secret.
 type gnokeyBroadcaster struct {
-	cfg  AttesterConfig
-	exec attesterExecFn
+	cfg        AttesterConfig
+	exec       attesterExecFn
+	httpClient *http.Client
 }
 
 // NewGnokeyBroadcaster builds the production broadcaster.
@@ -142,6 +159,109 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 		return "", fmt.Errorf("arcade attest: gnokey failed: %w (%s)", err, strings.TrimSpace(out))
 	}
 	return parseTxHash(out), nil
+}
+
+// LookupEntry reads the authoritative realm entry for this address and board.
+// Failure is retryable: the batcher must never invent a receipt from a panic.
+func (b *gnokeyBroadcaster) LookupEntry(ctx context.Context, run Run) (OnChainEntry, bool, error) {
+	expr := fmt.Sprintf("%s.GetEntryJSON(%q,%q,%q)", b.cfg.Realm, gameOrDefault(run.Game), run.Day, run.Addr)
+	payload, err := json.Marshal(struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      int    `json:"id"`
+		Method  string `json:"method"`
+		Params  struct {
+			Path string `json:"path"`
+			Data string `json:"data"`
+		} `json:"params"`
+	}{JSONRPC: "2.0", ID: 1, Method: "abci_query", Params: struct {
+		Path string `json:"path"`
+		Data string `json:"data"`
+	}{Path: "vm/qeval", Data: base64.StdEncoding.EncodeToString([]byte(expr))}})
+	if err != nil {
+		return OnChainEntry{}, false, err
+	}
+	queryCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(queryCtx, http.MethodPost, b.cfg.Remote, bytes.NewReader(payload))
+	if err != nil {
+		return OnChainEntry{}, false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := b.httpClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return OnChainEntry{}, false, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return OnChainEntry{}, false, fmt.Errorf("arcade entry lookup: HTTP %d", resp.StatusCode)
+	}
+	var result struct {
+		Result struct {
+			Response struct {
+				ResponseBase struct {
+					Data  string          `json:"Data"`
+					Error json.RawMessage `json:"Error"`
+				} `json:"ResponseBase"`
+			} `json:"response"`
+		} `json:"result"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&result); err != nil {
+		return OnChainEntry{}, false, err
+	}
+	rawError := strings.TrimSpace(string(result.Result.Response.ResponseBase.Error))
+	if result.Error != nil || rawError != "" && rawError != "null" && rawError != `""` {
+		return OnChainEntry{}, false, errors.New("arcade entry lookup: realm query failed")
+	}
+	data, err := base64.StdEncoding.DecodeString(result.Result.Response.ResponseBase.Data)
+	if err != nil {
+		return OnChainEntry{}, false, err
+	}
+	return parseOnChainEntry(data)
+}
+
+func parseOnChainEntry(data []byte) (OnChainEntry, bool, error) {
+	s := strings.TrimSpace(string(data))
+	// vm/qeval prints string return values as Go quoted literals followed by
+	// a type annotation. Decode that representation before parsing the JSON.
+	if !strings.HasPrefix(s, "{") && !strings.HasPrefix(s, "null") {
+		start := strings.IndexByte(s, '"')
+		if start < 0 {
+			return OnChainEntry{}, false, fmt.Errorf("arcade entry lookup: unexpected qeval output %q", s)
+		}
+		var unquoted string
+		decoded := false
+		for end := start + 1; end < len(s); end++ {
+			if s[end] != '"' {
+				continue
+			}
+			if value, err := strconv.Unquote(s[start : end+1]); err == nil {
+				unquoted, decoded = value, true
+				break
+			}
+		}
+		if !decoded {
+			return OnChainEntry{}, false, errors.New("arcade entry lookup: malformed quoted result")
+		}
+		s = unquoted
+	}
+	if s == "null" {
+		return OnChainEntry{}, false, nil
+	}
+	var entry OnChainEntry
+	if err := json.Unmarshal([]byte(s), &entry); err != nil {
+		return OnChainEntry{}, false, err
+	}
+	if entry.LogHash == "" {
+		return OnChainEntry{}, false, errors.New("arcade entry lookup: missing input log hash")
+	}
+	return entry, true, nil
 }
 
 // attestScoreArgv builds the maketx-call argv for the multi-game realm's

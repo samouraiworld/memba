@@ -24,7 +24,7 @@ export default function SpaceInvadersCertify({ run }: { run: InvadersCertifyRun 
   if (status === "certified") {
     return (
       <p className="si-hint si-certified" role="status">
-        Run verified and queued ✓ It will appear on-chain after day-close attestation.
+        Run verified and queued ✓ After day-close attestation, the best eligible run may appear on-chain.
       </p>
     );
   }

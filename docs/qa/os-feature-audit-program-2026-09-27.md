@@ -14,7 +14,7 @@ Started 27 September 2026. Each feature gets its own production baseline, cross-
 | Multisig: accounts, proposals, signing | Ten-perspective production QA and focused fixes in `fix/os-multisig-production-qa`, stacked after DAO PR #1351 |
 | Market | Queued |
 | NFT | Queued |
-| Arcade: lobby, games, runs, rewards | Queued |
+| Arcade: lobby, Block Party, Space Invaders, BARRICADE, runs, score verification and attestation | Ten-perspective production and local QA in `fix/os-arcade-production-qa`, stacked after Multisig PR #1352; on-chain certification remains release-gated |
 | App Store | Queued |
 | Validators | Queued |
 | Quests | Queued |

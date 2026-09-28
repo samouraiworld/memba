@@ -451,7 +451,7 @@ export function Shell() {
             <LiveActivityProvider networkKey={session.network.key} active={!locked && front?.app === "live"}>
             <SignerProvider key={signerOwner} session={session} toast={showToast}>
                 <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
-                <PhoneShell locked={modalBlocked} session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+                <PhoneShell locked={modalBlocked} session={session} front={front} wins={win.wins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
@@ -491,8 +491,8 @@ export function Shell() {
                         </div>
                     </div>
                 )}
-                {visible.map((w) => (
-                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                {win.wins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
+                    <WindowFrame key={w.id} win={w} active={!w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}

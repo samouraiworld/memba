@@ -110,19 +110,25 @@ func (s *Store) BestVerifiedDaily(game, day string, limit int) ([]Run, error) {
 	if limit <= 0 {
 		limit = 500
 	}
-	// The correlated subquery picks each address's max verified score for the
-	// (game, day); GROUP BY addr collapses ties (same addr, same score,
-	// different logs) to one.
+	// NOT EXISTS chooses exactly one row per address with a stable tie break.
+	// GROUP BY addr would select arbitrary columns from equal-score rows.
 	rows, err := s.db.Query(
 		`SELECT input_log_sha256, addr, game, day, mode, seed, sim_version, score, waves, won,
 			 overtime_round, state_hash, stats, events, status,
 			 COALESCE(attested_txhash, ''), created_at, COALESCE(attested_at, 0)
 		 FROM arcade_runs r
 		 WHERE game = ? AND day = ? AND mode = 'daily' AND status = 'verified'
-		   AND score = (SELECT MAX(score) FROM arcade_runs r2
-		                WHERE r2.addr = r.addr AND r2.game = r.game AND r2.day = r.day
-		                  AND r2.mode = 'daily' AND r2.status = 'verified')
-		 GROUP BY addr
+		   AND NOT EXISTS (SELECT 1 FROM arcade_runs parked
+		                   WHERE parked.addr = r.addr AND parked.game = r.game AND parked.day = r.day
+		                     AND parked.mode = 'daily' AND parked.status = 'errored'
+		                     AND parked.score >= r.score)
+		   AND NOT EXISTS (SELECT 1 FROM arcade_runs r2
+		                   WHERE r2.addr = r.addr AND r2.game = r.game AND r2.day = r.day
+		                     AND r2.mode = 'daily' AND r2.status = 'verified'
+		                     AND (r2.score > r.score
+		                          OR (r2.score = r.score AND r2.created_at < r.created_at)
+		                          OR (r2.score = r.score AND r2.created_at = r.created_at
+		                              AND r2.input_log_sha256 < r.input_log_sha256)))
 		 ORDER BY score DESC, created_at ASC, input_log_sha256 ASC
 		 LIMIT ?`, game, day, limit)
 	if err != nil {
@@ -169,12 +175,22 @@ func (s *Store) MarkErrored(logHash string) error {
 	return err
 }
 
+// IncrementAttestFailures durably records a failed broadcast. The increment
+// occurs before deciding to retry or park, so a restart cannot reset the cap.
+func (s *Store) IncrementAttestFailures(logHash string) (int64, error) {
+	var count int64
+	err := s.db.QueryRow(`UPDATE arcade_runs SET attest_failures = attest_failures + 1
+		WHERE input_log_sha256 = ? AND status = 'verified'
+		RETURNING attest_failures`, logHash).Scan(&count)
+	return count, err
+}
+
 // ResolveSupersededDaily marks an address's OTHER verified daily runs for one
 // (game, day) board as 'skipped' once its best has been attested — so the
 // below-best runs don't keep the board pending (and can't trigger the realm's
 // non-improving panic). Game-scoped: the wallet's runs in another game are a
-// different board and must survive. Called only after a successful attestation
-// of keepLogHash.
+// different board and must survive. An empty keepLogHash skips every verified
+// row when an equal-or-better on-chain entry already supersedes the board.
 func (s *Store) ResolveSupersededDaily(game, day, addr, keepLogHash string) error {
 	_, err := s.db.Exec(
 		`UPDATE arcade_runs SET status = 'skipped'

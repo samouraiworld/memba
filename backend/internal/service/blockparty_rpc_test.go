@@ -2,6 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,6 +35,65 @@ func TestGetDailyChallenge_ServesCached(t *testing.T) {
 	}
 }
 
+func TestGetDailyChallenge_UncachedDatesAreBoundedWithoutChainWork(t *testing.T) {
+	h := setup(t)
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	h.svc.SetBlockParty(true, srv.URL, "gnoland-1")
+	now := time.Now().UTC()
+	for _, date := range []string{
+		now.AddDate(0, 0, -maxUncachedChallengeAgeDays-1).Format("2006-01-02"),
+		now.AddDate(0, 0, 1).Format("2006-01-02"),
+	} {
+		_, err := h.svc.GetDailyChallenge(context.Background(),
+			connect.NewRequest(&membav1.GetDailyChallengeRequest{Date: date}))
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("uncached date %s: got %v, want InvalidArgument", date, err)
+		}
+		if _, found, err := blockparty.GetChallenge(h.db, date); err != nil || found {
+			t.Fatalf("uncached date %s materialized: found=%v err=%v", date, found, err)
+		}
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("out-of-window requests made %d chain calls", got)
+	}
+}
+
+func TestGetDailyChallenge_RejectsPreGenesisButDerivesToday(t *testing.T) {
+	h := setup(t)
+	now := time.Now().UTC()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/status":
+			_, _ = w.Write([]byte(`{"result":{"node_info":{"network":"gnoland-1"},"sync_info":{"latest_block_height":"1"}}}`))
+		case "/block":
+			_, _ = fmt.Fprintf(w, `{"result":{"block_meta":{"block_id":{"hash":"genesis-hash"},"header":{"chain_id":"gnoland-1","time":%q}},"block":{"header":{"chain_id":"gnoland-1","time":%q}}}}`, now.Format(time.RFC3339), now.Format(time.RFC3339))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	h.svc.SetBlockParty(true, srv.URL, "gnoland-1")
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+	_, err := h.svc.GetDailyChallenge(context.Background(),
+		connect.NewRequest(&membav1.GetDailyChallengeRequest{Date: yesterday}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("pre-genesis date: got %v, want InvalidArgument", err)
+	}
+	if _, found, err := blockparty.GetChallenge(h.db, yesterday); err != nil || found {
+		t.Fatalf("pre-genesis challenge cached: found=%v err=%v", found, err)
+	}
+	resp, err := h.svc.GetDailyChallenge(context.Background(),
+		connect.NewRequest(&membav1.GetDailyChallengeRequest{Date: now.Format("2006-01-02")}))
+	if err != nil || !resp.Msg.Ready || resp.Msg.BlockHeight != 1 {
+		t.Fatalf("today's genesis challenge: resp=%v err=%v", resp, err)
+	}
+}
+
 func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 	h := setup(t)
 	h.svc.SetBlockParty(true, "", "")
@@ -40,7 +103,7 @@ func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 		t.Fatal(err)
 	}
 	// build a legal move log by playing the engine ourselves
-	log := legalLog(t, 12345, "standard", 12)
+	log := legalLog(t, 12345, "standard", 30)
 	token := h.makeToken(t, "g1alice")
 	resp, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
 		AuthToken: token, Date: todayUTC(), MoveLog: log,
@@ -67,7 +130,7 @@ func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 	}
 
 	// A different replay still conflicts with the immutable first write.
-	different := legalLog(t, 12345, "standard", 11)
+	different := legalLogWithDirections(t, 12345, "standard", 30, []engine.Move{"L", "D", "R", "U"})
 	_, err = h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
 		AuthToken: token, Date: todayUTC(), MoveLog: different,
 	}))
@@ -85,6 +148,27 @@ func TestSubmitScore_RejectsWrongDate(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("expected wrong-date rejection")
+	}
+}
+
+func TestSubmitScore_RejectsUnfinishedRunWithoutWritingScore(t *testing.T) {
+	h := setup(t)
+	h.svc.SetBlockParty(true, "", "")
+	c := blockparty.Challenge{Date: todayUTC(), Height: 5, Hash: "hh", Seed: 12345, Modifier: "standard", Par: 1500}
+	if err := blockparty.PutChallenge(h.db, c); err != nil {
+		t.Fatal(err)
+	}
+	token := h.makeToken(t, "g1alice")
+	for _, log := range []string{"", legalLog(t, 12345, "standard", 1)} {
+		_, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
+			AuthToken: token, Date: todayUTC(), MoveLog: log,
+		}))
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("unfinished log %q: got %v, want InvalidArgument", log, err)
+		}
+	}
+	if _, found, err := blockparty.GetSubmittedScore(h.db, todayUTC(), "g1alice"); err != nil || found {
+		t.Fatalf("unfinished runs must not write a score: found=%v err=%v", found, err)
 	}
 }
 
@@ -234,7 +318,11 @@ func TestSubmitScore_RejectsOverBudget(t *testing.T) {
 // legalLog plays the engine to produce a move string of `n` real (non-no-op) moves.
 func legalLog(t *testing.T, seed uint32, mod string, n int) string {
 	t.Helper()
-	dirs := []engine.Move{"U", "R", "D", "L"}
+	return legalLogWithDirections(t, seed, mod, n, []engine.Move{"U", "R", "D", "L"})
+}
+
+func legalLogWithDirections(t *testing.T, seed uint32, mod string, n int, dirs []engine.Move) string {
+	t.Helper()
 	s := engine.InitGame(seed, mod)
 	var out []byte
 	for len(out) < n {

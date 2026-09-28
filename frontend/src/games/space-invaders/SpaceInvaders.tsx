@@ -31,6 +31,7 @@ import { prefersReducedMotion } from "./lib/motion";
 import { chainCues, createChainTracker, summarizeRun, trackChain, isNewBest, type ChainTracker } from "./lib/results";
 import { HOWTO_MIN_MS, WAVE_BANNER_MS, loadHowtoSeen, saveHowtoSeen } from "./lib/intro";
 import { shareUrlFromLocation } from "./lib/shareText";
+import { useWindowActive } from "../../os/page/WindowActivity";
 import "./space-invaders.css";
 
 // The on-chain certify control is a lazy chunk (it pulls in the wallet hooks),
@@ -73,6 +74,7 @@ export default function SpaceInvaders({
   // day instead (lib/daily.ts) and ignore this.
   seed?: number;
 }) {
+  const windowActive = useWindowActive();
   const reducedMotion = prefersReducedMotion();
   // Stable initial seed for this mount (a plain value, safe to read during
   // render). seedRef holds the *current* run's seed and is mutated only in
@@ -112,6 +114,7 @@ export default function SpaceInvaders({
   // until a real simulation step consumes it, so a zero-step frame on a
   // high-refresh display cannot swallow it.
   const launchPendingRef = useRef(false);
+  const menuFocusPendingRef = useRef(false);
   // Presentation-only overlays driven from step events; never read by the sim.
   const [waveBanner, setWaveBanner] = useState<{ wave: number; id: number } | null>(null);
   const [howtoOpen, setHowtoOpen] = useState(false);
@@ -146,12 +149,13 @@ export default function SpaceInvaders({
     return () => clearTimeout(timer);
   }, [waveBanner]);
 
+  const rootRef = useRef<HTMLElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const focusGameSurface = useCallback(() => {
-    areaRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (windowActive) areaRef.current?.focus({ preventScroll: true });
+  }, [windowActive]);
   const onConfirm = useCallback(() => confirmRef.current(), []);
-  const getKeyInput = useKeyboard(areaRef, { onConfirm });
+  const getKeyInput = useKeyboard(areaRef, { onConfirm, active: windowActive });
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
   const { read: getTouchInput, consumeFire: consumeTouchFire, reset: resetTouchInput } = useTouch(areaRef as RefObject<HTMLElement>);
@@ -177,6 +181,33 @@ export default function SpaceInvaders({
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (windowActive) return;
+    const cur = stateRef.current;
+    if (cur.phase !== "playing") return;
+    const next = { ...cur, phase: "paused" as const };
+    stateRef.current = next;
+    accRef.current = 0;
+    resetTouchInput();
+    setState(next);
+  }, [windowActive, resetTouchInput]);
+
+  useEffect(() => {
+    if (!windowActive || (state.phase !== "paused" && state.phase !== "gameover")) return;
+    const surface = areaRef.current;
+    if (!surface || !rootRef.current?.contains(document.activeElement)) return;
+    const target = state.phase === "paused"
+      ? surface.querySelector<HTMLElement>(".si-pause-sheet button")
+      : surface.querySelector<HTMLElement>(".si-gameover h2");
+    target?.focus({ preventScroll: true });
+  }, [windowActive, state.phase]);
+
+  useEffect(() => {
+    if (!windowActive || state.phase !== "ready" || runArmed || !menuFocusPendingRef.current) return;
+    menuFocusPendingRef.current = false;
+    areaRef.current?.querySelector<HTMLElement>(".si-menu button")?.focus({ preventScroll: true });
+  }, [windowActive, state.phase, runArmed]);
 
   // Quantize steering to tenths AT THE INPUT SEAM (combineInput): the live
   // engine, the recorder, and the server's replay (which reconstructs move as
@@ -224,6 +255,12 @@ export default function SpaceInvaders({
   // rAF loop (inline so tests can stub rAF). Active play draws from the mutable
   // state ref + fx layer — never from React state; static phases paint on change.
   useEffect(() => {
+    // OS game windows remain mounted while minimised. The inactive window has
+    // already paused above, so it needs no input polling or render frames.
+    // Drop the old clock before reactivation to avoid counting parked time.
+    if (!windowActive) return;
+    last.current = null;
+    accRef.current = 0;
     let raf = 0;
     let lastPaintedState: GameState | null = null;
     const tick = (time: number) => {
@@ -353,7 +390,7 @@ export default function SpaceInvaders({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [getInput, finishDailyRun, focusGameSurface, consumeTouchFire, resetTouchInput]);
+  }, [windowActive, getInput, finishDailyRun, focusGameSurface, consumeTouchFire, resetTouchInput]);
 
   // Reset into a fresh run. Daily seeds from the shared UTC day string (a
   // restart within the day REUSES the day's seed — the realm's re-attest only
@@ -403,6 +440,7 @@ export default function SpaceInvaders({
   const restart = () => beginRun(modeRef.current);
 
   const openMenu = () => {
+    menuFocusPendingRef.current = true;
     resetTouchInput();
     closeOverlays();
     const nextSeed = seed ?? newRunSeed();
@@ -475,7 +513,7 @@ export default function SpaceInvaders({
           : "Choose daily run or free play.";
 
   return (
-    <section className="si-root" aria-labelledby="si-title">
+    <section className="si-root" aria-labelledby="si-title" ref={rootRef}>
       <header className="si-heading">
         <div>
           <p className="si-eyebrow">Memba // Gno signal network</p>

@@ -149,6 +149,7 @@
 .memba-os .os-note.os-err { background: var(--os-err-bg); color: var(--os-err); }
 
 /* windows */
+.memba-os .os-parked { display: none !important; }
 .memba-os .os-win {
   position: absolute; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--os-radius-win);
   box-shadow: 0 30px 70px -22px var(--os-shadow), 0 0 0 .5px var(--os-line); animation: os-pop .22s cubic-bezier(.2, .9, .3, 1.2);
@@ -455,6 +456,8 @@
 .memba-os .os-ph-sheet {
   flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--os-opaque); animation: os-sheet .22s ease-out;
 }
+.memba-os .os-ph-game-slot { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.memba-os .os-ph-game-slot[hidden] { display: none !important; }
 @keyframes os-sheet { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .memba-os .os-ph-sheet-h { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; }
 .memba-os .os-ph-title { margin: 6px 16px 8px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }

@@ -3,8 +3,13 @@ package arcade
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,7 +66,15 @@ type fakeBroadcaster struct {
 	calls    []Run
 	failFor  map[string]bool  // logHash -> transient error
 	errorFor map[string]error // logHash -> specific (sentinel) error
+	entryFor map[string]OnChainEntry
 	txN      int
+}
+
+func (f *fakeBroadcaster) LookupEntry(_ context.Context, run Run) (OnChainEntry, bool, error) {
+	if entry, ok := f.entryFor[run.LogHash]; ok {
+		return entry, true, nil
+	}
+	return OnChainEntry{LogHash: run.LogHash, Score: run.Score}, true, nil
 }
 
 func (f *fakeBroadcaster) AttestScore(_ context.Context, run Run) (string, error) {
@@ -253,6 +266,82 @@ func TestRunBatchOnce_AlreadyOnChainConverges(t *testing.T) {
 	}
 }
 
+func TestRunBatchOnce_AlreadyOnChainSupersededIsSkipped(t *testing.T) {
+	s := batchStore(t)
+	mustInsert(t, s, "older", "2026-07-10", 500)
+	mustInsertAddr(t, s, "lesser", "g1older", "2026-07-10", 400)
+	b := &fakeBroadcaster{
+		errorFor: map[string]error{"older": ErrAlreadyOnChain},
+		entryFor: map[string]OnChainEntry{"older": {LogHash: "newer", Score: 700}},
+	}
+	n, err := RunBatchOnce(context.Background(), s, b, 10, atFixedDay)
+	if err != nil || n != 0 {
+		t.Fatalf("superseded run counted as attested: n=%d err=%v", n, err)
+	}
+	if r, _, _ := s.GetRunByLogHash("older"); r.Status != "skipped" || r.AttestedTxHash != "" {
+		t.Fatalf("superseded run has a false receipt: %+v", r)
+	}
+	if r, _, _ := s.GetRunByLogHash("lesser"); r.Status != "skipped" {
+		t.Fatalf("lesser run should be drained with superseded best: %+v", r)
+	}
+}
+
+func TestParseOnChainEntry(t *testing.T) {
+	for _, raw := range []string{
+		`{"inputLogSha256":"abc","score":42}`,
+		`("{\"inputLogSha256\":\"abc\",\"score\":42}" string)`,
+	} {
+		entry, found, err := parseOnChainEntry([]byte(raw))
+		if err != nil || !found || entry.LogHash != "abc" || entry.Score != 42 {
+			t.Fatalf("parse %q: entry=%+v found=%v err=%v", raw, entry, found, err)
+		}
+	}
+	if _, found, err := parseOnChainEntry([]byte(`"null" (string)`)); err != nil || found {
+		t.Fatalf("missing entry: found=%v err=%v", found, err)
+	}
+}
+
+type attestRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f attestRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestGnokeyBroadcaster_LookupEntryQueriesExactBoard(t *testing.T) {
+	b := &gnokeyBroadcaster{cfg: AttesterConfig{Realm: "gno.land/r/x/leaderboard", Remote: "https://rpc.example"}}
+	b.httpClient = &http.Client{Transport: attestRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var query struct {
+			Params struct {
+				Path string `json:"path"`
+				Data string `json:"data"`
+			} `json:"params"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&query); err != nil {
+			t.Fatal(err)
+		}
+		expr, err := base64.StdEncoding.DecodeString(query.Params.Data)
+		if err != nil || query.Params.Path != "vm/qeval" || string(expr) != `gno.land/r/x/leaderboard.GetEntryJSON("invaders","2026-07-10","g1alice")` {
+			t.Fatalf("bad query: path=%q expr=%q err=%v", query.Params.Path, expr, err)
+		}
+		body := `{"result":{"response":{"ResponseBase":{"Data":"` + base64.StdEncoding.EncodeToString([]byte(`"{\"inputLogSha256\":\"abc\",\"score\":42}" (string)`)) + `","Error":null}}}}`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	entry, found, err := b.LookupEntry(context.Background(), Run{Game: "invaders", Day: "2026-07-10", Addr: "g1alice"})
+	if err != nil || !found || entry.LogHash != "abc" || entry.Score != 42 {
+		t.Fatalf("lookup: entry=%+v found=%v err=%v", entry, found, err)
+	}
+}
+
+func TestStore_BestVerifiedDailyEqualScoreTieIsDeterministic(t *testing.T) {
+	s := batchStore(t)
+	mustInsertAddr(t, s, "z", "g1alice", "2026-07-10", 500)
+	mustInsertAddr(t, s, "a", "g1alice", "2026-07-10", 500)
+	for range 3 {
+		runs, err := s.BestVerifiedDaily("barricade", "2026-07-10", 10)
+		if err != nil || len(runs) != 1 || runs[0].LogHash != "a" {
+			t.Fatalf("equal score selection: runs=%+v err=%v", runs, err)
+		}
+	}
+}
+
 func TestRunBatchOnce_LogBoundElsewhereIsSkipped(t *testing.T) {
 	// The log is bound on-chain to another address — it can never be attested for
 	// us, so it's retired ('skipped'), not retried forever.
@@ -325,18 +414,17 @@ func TestRunBatchOnce_PermanentRejectIsSkipped(t *testing.T) {
 
 func TestBatcher_TransientFailureIsParkedAfterMaxRetries(t *testing.T) {
 	// A run that fails transiently every cycle must be parked ('errored') after
-	// maxAttestRetries so it can't retry (and drip gas) forever. Uses the internal
-	// runBatchOnce with a persistent failure counter (as the loop does).
+	// maxAttestRetries so it can't retry (and drip gas) forever. Separate
+	// RunBatchOnce calls simulate process restarts against the same database.
 	s := batchStore(t)
 	mustInsert(t, s, "flaky", "2026-07-10", 500)
 	b := &fakeBroadcaster{failFor: map[string]bool{"flaky": true}} // generic (retryable) error
-	failures := map[string]int{}
 
 	for i := range maxAttestRetries {
 		if r, _, _ := s.GetRunByLogHash("flaky"); r.Status != "verified" {
 			t.Fatalf("cycle %d: run must still be pending, got %q", i, r.Status)
 		}
-		if _, err := runBatchOnce(context.Background(), s, b, 10, atFixedDay, failures); err != nil {
+		if _, err := RunBatchOnce(context.Background(), s, b, 10, atFixedDay); err != nil {
 			t.Fatalf("cycle %d: %v", i, err)
 		}
 	}
@@ -347,15 +435,11 @@ func TestBatcher_TransientFailureIsParkedAfterMaxRetries(t *testing.T) {
 	s2 := batchStore(t)
 	mustInsert(t, s2, "recover", "2026-07-10", 500)
 	b2 := &fakeBroadcaster{failFor: map[string]bool{"recover": true}}
-	f2 := map[string]int{}
-	_, _ = runBatchOnce(context.Background(), s2, b2, 10, atFixedDay, f2) // fail once
+	_, _ = RunBatchOnce(context.Background(), s2, b2, 10, atFixedDay) // fail once
 	b2.failFor = nil
-	_, _ = runBatchOnce(context.Background(), s2, b2, 10, atFixedDay, f2) // then succeed
+	_, _ = RunBatchOnce(context.Background(), s2, b2, 10, atFixedDay) // then succeed
 	if r, _, _ := s2.GetRunByLogHash("recover"); r.Status != "attested" {
 		t.Fatalf("a recovered run must attest, got %q", r.Status)
-	}
-	if f2["recover"] != 0 {
-		t.Fatalf("the failure counter must reset on success, got %d", f2["recover"])
 	}
 }
 

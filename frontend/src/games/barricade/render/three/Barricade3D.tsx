@@ -18,7 +18,7 @@
  * per-archetype 3D art is a separate, owner-gated drop (like the 2.5D arm's bust).
  */
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { BackSide, type Group } from "three"
 import { LANES } from "../../sim/types"
 import { MACHINE_COLOR } from "../draw"
@@ -203,6 +203,13 @@ function Scene({ store, onGroundTap }: { store: SnapshotStore; onGroundTap: (lan
     )
 }
 
+/** Paint one final snapshot when the continuous loop pauses or resumes. */
+function RenderGate({ running }: { running: boolean }) {
+    const invalidate = useThree((state) => state.invalidate)
+    useEffect(() => { invalidate() }, [invalidate, running])
+    return null
+}
+
 /**
  * The mounted 3D renderer. Camera sits behind + above the barricade (near, Z>0)
  * looking down the field toward the far spawn (Z=-FIELD_DEPTH). `flat` disables ACES
@@ -211,13 +218,16 @@ function Scene({ store, onGroundTap }: { store: SnapshotStore; onGroundTap: (lan
 export default function Barricade3D({
     store,
     onGroundTap,
+    running,
 }: {
     store: SnapshotStore
     onGroundTap: (lane: number, dist: number) => void
+    running: boolean
 }) {
     return (
         <Canvas
             className="bar-canvas"
+            frameloop={running ? "always" : "demand"}
             flat
             shadows
             dpr={[1, 2]}
@@ -226,6 +236,7 @@ export default function Barricade3D({
             onCreated={({ camera }) => camera.lookAt(0, 0.4, -4)}
         >
             <color attach="background" args={[STOCK]} />
+            <RenderGate running={running} />
             <Scene store={store} onGroundTap={onGroundTap} />
         </Canvas>
     )

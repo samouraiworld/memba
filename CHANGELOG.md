@@ -27,6 +27,11 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: classic bundle guard
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
+### Memba OS: Arcade production QA (2026-09-28)
+
+- Keep Block Party input inside its active game window, preserve paused runs through OS minimising, and make all three games usable in narrow windows.
+- Require finished server-replayed runs before awarding Daily scores or streaks; make Arcade attestation retries durable and distinguish an exact on-chain result from a superseded run.
+- Clarify which game scores are local, server verified, or on-chain, and improve game focus, sharing feedback, and wallet sign-in recovery.
 
 ### Token Launchpad: creation event identity validation (2026-09-28)
 

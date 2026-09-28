@@ -58,7 +58,7 @@ export function GameOverScreen({
     <div className={`si-overlay si-gameover${newBest ? " si-gameover--best" : ""}`}>
       <div className="si-result-card">
         <p className="si-overlay-kicker">Signal lost</p>
-        <h2>Game Over</h2>
+        <h2 tabIndex={-1}>Game Over</h2>
         {newBest && (
           <p className="si-new-best">
             <span aria-hidden="true">★</span> New best <span aria-hidden="true">★</span>

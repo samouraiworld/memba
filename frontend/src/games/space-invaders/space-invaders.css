@@ -91,6 +91,7 @@
 .si-button:hover { transform: translateY(-1px); }
 .si-button:active { transform: translateY(0); }
 .si-button--primary { border-color: var(--si-mint); background: var(--si-mint); color: var(--si-text-on-mint); box-shadow: 0 8px 24px -15px var(--si-mint); }
+.memba-os .si-button--primary { color: var(--si-text-on-mint); }
 .si-button--primary:hover { background: #94ffe2; }
 .si-button--secondary { border-color: rgba(221, 255, 247, .36); background: rgba(221, 255, 247, .08); color: var(--si-text-overlay); }
 .si-button--secondary:hover { border-color: rgba(221, 255, 247, .64); background: rgba(221, 255, 247, .13); }
@@ -255,4 +256,27 @@
   .si-button:hover { transform: none; }
   .si-new-best { animation: none; }
   .si-wave-banner { animation: none; }
+}
+
+@container os-window (max-width: 760px) {
+  .si-root { width: min(100%, 620px); }
+  .si-cabinet { grid-template-columns: minmax(0, 1fr); }
+  .si-brief { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .si-brief-card--status { grid-column: 1 / -1; }
+}
+
+@container os-window (max-width: 480px) {
+  .si-root { padding: 10px 8px 18px; }
+  .si-heading { align-items: flex-start; margin-bottom: 12px; }
+  .si-heading h1 { font-size: clamp(1.65rem, 9cqw, 2.25rem); }
+  .si-deck { max-width: 25ch; }
+  .si-phase { max-width: 128px; min-height: 30px; padding: 6px 9px; font-size: .58rem; }
+  .si-console { padding: 6px; border-radius: 14px; }
+  .si-overlay { padding: 16px; }
+  .si-brief { grid-template-columns: minmax(0, 1fr); }
+  .si-brief-card--status { grid-column: auto; }
+}
+
+@media (forced-colors: active) {
+  .si-stage canvas { forced-color-adjust: none; }
 }

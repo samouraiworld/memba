@@ -25,6 +25,7 @@ export interface PhoneShellProps {
     locked: boolean
     session: OsSession
     front: OsWindow | null
+    wins?: readonly OsWindow[]
     items: readonly DeskItem[]
     open: (spec: WindowSpec) => void
     openApp: (app: OsAppId) => void
@@ -74,6 +75,10 @@ export function PhoneShell(p: PhoneShellProps) {
                 </div>
             </Sheet>
         )
+    } else if (front?.key.startsWith("game:")) {
+        // Arcade sheets have stable keyed mounts below. Home and app switching
+        // pause a run without discarding the in-memory simulation.
+        content = null
     } else if (front) {
         content = (
             <Sheet title={front.title} onHome={() => p.home(front.id)} guest={!member} onConnect={session.openConnect}>
@@ -122,6 +127,16 @@ export function PhoneShell(p: PhoneShellProps) {
                     onClick={() => { signer.markRead(); setSheet("notif") }}>🔔{signer.unread > 0 && <span className="os-ph-badge">{signer.unread}</span>}</button>
             </header>
             {content}
+            {(p.wins ?? (front ? [front] : [])).filter((w) => w.key.startsWith("game:")).map((w) => {
+                const active = !p.locked && sheet === null && front?.id === w.id
+                return <div key={w.id} className="os-ph-game-slot" hidden={!active} inert={!active} aria-hidden={!active}>
+                    <Sheet title={w.title} active={active} onHome={() => p.home(w.id)} guest={!member} onConnect={session.openConnect}>
+                        <div className="os-wbody os-ph-body">
+                            <WindowBody win={w} session={session} open={p.open} openApp={p.openApp} close={() => p.close(w.id)} toast={p.toast} active={active} />
+                        </div>
+                    </Sheet>
+                </div>
+            })}
             <nav className="os-ph-dock os-glass" aria-label="Dock">
                 {PHONE_DOCK.map((id) => (
                     <button key={id} type="button" aria-label={OS_APPS.find((a) => a.id === id)!.name} onClick={go(() => p.openApp(id))}><AppTile app={id} size={40} /></button>
@@ -132,14 +147,14 @@ export function PhoneShell(p: PhoneShellProps) {
     )
 }
 
-function Sheet({ title, onHome, guest, onConnect, children }: { title: string; onHome: () => void; guest?: boolean; onConnect?: () => void; children: ReactNode }) {
+function Sheet({ title, onHome, guest, onConnect, children, active = true }: { title: string; onHome: () => void; guest?: boolean; onConnect?: () => void; active?: boolean; children: ReactNode }) {
     // A new sheet takes focus at its title, so screen readers and keyboards start there.
     const heading = useRef<HTMLHeadingElement>(null)
     useEffect(() => {
         const cur = document.activeElement
-        if (cur?.closest('[aria-modal="true"]')) return
+        if (!active || cur?.closest('[aria-modal="true"]')) return
         heading.current?.focus({ preventScroll: true })
-    }, [title])
+    }, [title, active])
     return (
         <section className="os-ph-sheet" role="region" aria-label={title}>
             <div className="os-ph-sheet-h">

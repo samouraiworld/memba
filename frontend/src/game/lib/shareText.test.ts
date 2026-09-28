@@ -29,6 +29,18 @@ describe("buildShareText", () => {
       kind: "practice", date: "", board: Array(16).fill(0), streak: 0, modifier: "standard", url: "https://x/game",
     });
     expect(txt.split("\n")[0]).toBe("Block Party practice result · https://x/game");
+    expect(txt).not.toContain("🔥");
+  });
+
+  it("never puts Daily date or streak data in a Practice share", () => {
+    const txt = buildShareText({
+      kind: "practice", date: "2026-07-06", board: Array(16).fill(0), streak: 12,
+      modifier: "standard", url: "https://x/game?token=secret#round",
+    });
+    expect(txt).toContain("Block Party practice result · https://x/game");
+    expect(txt).not.toContain("result=");
+    expect(txt).not.toContain("🔥");
+    expect(txt).not.toContain("secret");
   });
 
   it("keeps an unsubmitted guest Daily result distinct from Practice", () => {

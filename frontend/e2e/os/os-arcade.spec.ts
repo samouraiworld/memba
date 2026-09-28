@@ -85,10 +85,71 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
     })
 }
 
+test('a Block Party run ignores other windows and survives minimise', async ({ page }) => {
+    test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the OS test-server game flags')
+    const lobby = await openLobby(page, 1440)
+    await lobby.getByRole('button', { name: /Block Party/ }).click()
+    const block = page.getByRole('region', { name: 'Block Party · Arcade' })
+    await block.getByRole('tab', { name: 'Practice' }).click()
+    const board = block.getByRole('grid', { name: /Block Party signal board/i })
+    const snapshot = () => board.getByRole('gridcell').evaluateAll(cells => cells.map(cell => cell.getAttribute('aria-label')).join('|'))
+    await board.focus()
+    const start = await snapshot()
+    for (const key of ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown']) {
+        await page.keyboard.press(key)
+        if (await snapshot() !== start) break
+    }
+    const played = await snapshot()
+    expect(played).not.toBe(start)
+
+    await block.locator('.os-tb-title').focus()
+    await page.keyboard.press('ArrowLeft')
+    expect(await snapshot()).toBe(played)
+
+    await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Arcade', exact: true }).click()
+    await expect(lobby).toBeVisible()
+    await page.keyboard.press('ArrowUp')
+    expect(await snapshot()).toBe(played)
+
+    await block.getByRole('button', { name: 'Minimise Block Party · Arcade' }).click()
+    await expect(block).toHaveCount(0)
+    const parked = page.locator('.os-parked[data-win="game:game"]')
+    await expect(parked).toBeHidden()
+    await page.getByRole('button', { name: 'Restore Block Party · Arcade' }).click()
+    await expect(block).toBeVisible()
+    expect(await snapshot()).toBe(played)
+})
+
+test('a phone Arcade run survives Home and Back in the same session', async ({ page }) => {
+    test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the OS test-server game flags')
+    const lobby = await openLobby(page, 375)
+    await lobby.getByRole('button', { name: /Block Party/ }).click()
+    const block = page.getByRole('region', { name: 'Block Party · Arcade' })
+    await block.getByRole('tab', { name: 'Practice' }).click()
+    const board = block.getByRole('grid', { name: /Block Party signal board/i })
+    const snapshot = () => board.getByRole('gridcell').evaluateAll(cells => cells.map(cell => cell.getAttribute('aria-label')).join('|'))
+    await board.focus()
+    const start = await snapshot()
+    for (const key of ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown']) {
+        await page.keyboard.press(key)
+        if (await snapshot() !== start) break
+    }
+    const played = await snapshot()
+    expect(played).not.toBe(start)
+    await block.getByRole('button', { name: '‹ Home' }).click()
+    await expect(block).toHaveCount(0)
+    await page.goBack()
+    await expect(block).toBeVisible()
+    expect(await snapshot()).toBe(played)
+})
+
 test.describe('Arcade touch play in a phone context', () => {
     test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true })
 
-    test('all three games accept touch input inside the OS', async ({ page }) => {
+    test('all three games accept touch input inside the OS', async ({ page, browserName }) => {
+        // Playwright's Firefox mobile-touch context stalls before navigation on
+        // setViewportSize in this harness; phone layout still runs above in Firefox.
+        test.skip(browserName === 'firefox', 'Firefox mobile-touch context cannot initialize in this harness')
         test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the three OS test-server game flags')
         const lobby = await openLobby(page, 375)
         await lobby.getByRole('button', { name: /Block Party/ }).tap()
