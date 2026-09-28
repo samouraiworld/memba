@@ -42,6 +42,7 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
         await expect(detail.getByRole('heading', { name: 'Reviews' })).toBeVisible()
         await expect(detail.getByText('A clear onchain forum')).toBeVisible()
         await expect(detail.getByRole('link', { name: 'Manage reviews and replies ↗' })).toHaveAttribute('href', 'https://memba.samourai.app/mainnet/apps/r/gnoland/boards2/v0')
+        await detail.getByRole('button', { name: 'Write a review' }).click()
         await expect(detail.getByRole('radiogroup', { name: 'Your rating' })).toBeVisible()
         await detail.getByRole('radio', { name: '5 stars' }).click()
         await expect(detail.getByRole('button', { name: 'Connect to review' })).toBeVisible()

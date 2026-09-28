@@ -29,6 +29,8 @@ beforeEach(() => {
 describe("native review composer", () => {
     it("opens the OS review sheet and retains a draft until the transaction is submitted", () => {
         show(session("member"))
+        expect(screen.queryByRole("radiogroup", { name: "Your rating" })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
         fireEvent.click(screen.getByRole("radio", { name: "4 stars" }))
         fireEvent.change(screen.getByRole("textbox", { name: /Your review/ }), { target: { value: "Useful app" } })
         fireEvent.click(screen.getByRole("button", { name: "Review in Memba OS" }))
@@ -38,12 +40,15 @@ describe("native review composer", () => {
         expect(screen.getByRole("textbox", { name: /Your review/ })).toHaveValue("Useful app")
         act(() => draft.onSettled?.("submitted"))
         expect(onSubmitted).toHaveBeenCalledTimes(1)
+        expect(screen.getByText(/submitted to the network/)).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
         expect(screen.getByRole("textbox", { name: /Your review/ })).toHaveValue("")
     })
 
     it("opens OS connection for a guest without preparing a wallet transaction", () => {
         const openConnect = vi.fn()
         show(session("guest", openConnect))
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
         fireEvent.click(screen.getByRole("radio", { name: "5 stars" }))
         fireEvent.click(screen.getByRole("button", { name: "Connect to review" }))
         expect(openConnect).toHaveBeenCalledTimes(1)
@@ -53,6 +58,7 @@ describe("native review composer", () => {
 
     it("locks an unknown outcome until the reviewer checks the transaction", () => {
         show(session("member"))
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
         fireEvent.click(screen.getByRole("radio", { name: "3 stars" }))
         fireEvent.click(screen.getByRole("button", { name: "Review in Memba OS" }))
         const draft = mocks.request.mock.calls[0][0] as StoreReviewDraft

@@ -70,7 +70,12 @@
 .memba-os .os-store-reviews .reviews-section__form, .memba-os .os-store-reviews .review-card { padding: 14px; }
 .memba-os .os-store-reviews .reviews-section__title { font-size: 16px; }
 .memba-os .os-store-reviews button:focus-visible, .memba-os .os-store-reviews textarea:focus-visible { outline: 2px solid var(--os-acc-ink); outline-offset: 2px; }
-.memba-os .os-store-review-composer { display: grid; gap: 10px; width: 100%; min-width: 0; padding: 16px; border: 1px solid var(--os-line); border-radius: 14px; background: var(--os-card); }
+.memba-os .os-store-review-widget { width: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--os-line); border-radius: 14px; background: var(--os-card); }
+.memba-os .os-store-review-prompt { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; }
+.memba-os .os-store-review-prompt span { color: var(--os-mut); line-height: 1.35; }
+.memba-os .os-store-review-prompt button { min-height: 44px; }
+.memba-os .os-store-review-widget > .os-store-review-message { margin: 0; padding: 0 16px 12px; color: var(--os-acc-ink); line-height: 1.45; }
+.memba-os .os-store-review-composer { display: grid; gap: 10px; width: 100%; min-width: 0; padding: 16px; border-top: 1px solid var(--os-line); }
 .memba-os .os-store-review-composer h2 { margin: 0; font-size: 16px; }
 .memba-os .os-store-review-composer > p { margin: 0; color: var(--os-mut); line-height: 1.45; }
 .memba-os .os-store-review-label { font-size: 11px; font-weight: 750; color: var(--os-ink); }

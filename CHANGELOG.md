@@ -52,7 +52,7 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: native App Store review signing (2026-09-28)
 
 - Compose an onchain app rating inside the OS and review the exact PostReview call in its signing sheet. Recheck the live listing before Adena opens, preserve drafts until submission, and hold uncertain outcomes for a transaction check. Existing review reads stay paginated; classic review management remains available.
-- Keep the Store trust panel content-sized on desktop and give native search, filters, detail actions, rating stars, and review controls larger touch targets.
+- Keep the Store trust panel content-sized on desktop, show existing reviews before the optional composer is expanded, and give native search, filters, detail actions, rating stars, and review controls larger touch targets.
 
 ### Memba OS: quieter Live and repeat welcome
 
