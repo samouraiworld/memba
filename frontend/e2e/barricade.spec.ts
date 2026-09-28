@@ -145,8 +145,12 @@ test('keeps every between-wave choice inside the immersive phone battlefield', a
 
   const deadline = Date.now() + 100000
   while (!(await page.locator('.bar-poster').isVisible()) && Date.now() < deadline) {
-    const continueButton = shop.getByRole('button', { name: /To the wall/ })
-    if (await continueButton.isVisible()) await continueButton.click()
+    // The shop can unmount between an isVisible check and Playwright's click
+    // action while the simulation advances. Find and click within one page task.
+    await page.evaluate(() => {
+      const button = document.querySelector<HTMLButtonElement>('.bar-shop .bar-choice--continue')
+      if (button && !button.disabled) button.click()
+    })
     await page.waitForTimeout(500)
   }
   const poster = page.locator('.bar-poster')
