@@ -19,6 +19,7 @@ var ErrInvalidBlockHeader = errors.New("invalid Launchpad block header")
 type BlockHeader struct {
 	ChainID    string
 	Height     int64
+	NumTxs     int64
 	Hash       [32]byte
 	ParentHash [32]byte
 	Time       time.Time
@@ -27,6 +28,7 @@ type BlockHeader struct {
 type rpcHeader struct {
 	ChainID     string `json:"chain_id"`
 	Height      string `json:"height"`
+	NumTxs      string `json:"num_txs"`
 	Time        string `json:"time"`
 	LastBlockID *struct {
 		Hash string `json:"hash"`
@@ -81,6 +83,11 @@ func ParseBlockHeader(body []byte, expectedChainID string, expectedHeight int64)
 		!matchesHeight(meta.Height, expectedHeight) || !matchesHeight(block.Height, expectedHeight) {
 		return BlockHeader{}, ErrInvalidBlockHeader
 	}
+	numTxs, err := strconv.ParseInt(meta.NumTxs, 10, 64)
+	if err != nil || numTxs < 0 || meta.NumTxs != strconv.FormatInt(numTxs, 10) ||
+		block.NumTxs != meta.NumTxs {
+		return BlockHeader{}, ErrInvalidBlockHeader
+	}
 	metaTime, err := time.Parse(time.RFC3339Nano, meta.Time)
 	if err != nil {
 		return BlockHeader{}, ErrInvalidBlockHeader
@@ -98,7 +105,7 @@ func ParseBlockHeader(body []byte, expectedChainID string, expectedHeight int64)
 		return BlockHeader{}, ErrInvalidBlockHeader
 	}
 	return BlockHeader{
-		ChainID: expectedChainID, Height: expectedHeight,
+		ChainID: expectedChainID, Height: expectedHeight, NumTxs: numTxs,
 		Hash: hash, ParentHash: parentHash, Time: metaTime.UTC(),
 	}, nil
 }

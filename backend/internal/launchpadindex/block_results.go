@@ -48,6 +48,16 @@ type rawEvent struct {
 // block so a future cursor cannot silently advance past missing identities.
 // The caller must independently verify RPC chain ID, block hash and finality.
 func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, error) {
+	return parseBlockResultsFromTx(body, expectedHeight, 0, false, -1)
+}
+
+// parseBlockResultsFromTx omits transactions before an independently verified
+// activation index. It is used only for the activation block; an old realm
+// generation's earlier events must not enter or block the new journal.
+func parseBlockResultsFromTx(body []byte, expectedHeight int64, minTx int, requireActivation bool, expectedTxCount int64) ([]ObservedCreation, error) {
+	if minTx < 0 {
+		return nil, fmt.Errorf("invalid Launchpad activation transaction index")
+	}
 	var response blockResultsResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("decode Launchpad block results: %w", err)
@@ -68,8 +78,20 @@ func ParseBlockResults(body []byte, expectedHeight int64) ([]ObservedCreation, e
 	if err := json.Unmarshal(response.Result.Results.DeliverTx, &txs); err != nil {
 		return nil, fmt.Errorf("decode Launchpad delivered transactions: %w", err)
 	}
+	if expectedTxCount >= 0 && int64(len(txs)) != expectedTxCount {
+		return nil, fmt.Errorf("launchpad delivered transaction count differs from block header")
+	}
+	if requireActivation && minTx >= len(txs) {
+		return nil, fmt.Errorf("launchpad activation transaction missing from block")
+	}
+	if requireActivation && !bytes.Equal(bytes.TrimSpace(txs[minTx].ResponseBase.Error), []byte("null")) {
+		return nil, fmt.Errorf("launchpad activation transaction did not succeed")
+	}
 	var out []ObservedCreation
 	for txIndex, tx := range txs {
+		if txIndex < minTx {
+			continue
+		}
 		if len(tx.ResponseBase.Error) == 0 {
 			return nil, fmt.Errorf("launchpad tx %d has no success status", txIndex)
 		}

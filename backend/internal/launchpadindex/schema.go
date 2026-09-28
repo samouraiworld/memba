@@ -13,6 +13,9 @@ import (
 //go:embed schema/001_store.sql
 var storeSchemaV1 string
 
+//go:embed schema/002_block_num_txs.sql
+var storeSchemaV2 string
+
 var ErrStoreSchema = errors.New("launchpad store schema mismatch")
 
 // MigrateStore creates only package-owned launchpad_* tables in the caller's
@@ -33,8 +36,7 @@ func MigrateStore(ctx context.Context, db *sql.DB) error {
 	)`); err != nil {
 		return fmt.Errorf("create launchpad schema tracker: %w", err)
 	}
-	wantHash := sha256.Sum256([]byte(storeSchemaV1))
-	wantChecksum := hex.EncodeToString(wantHash[:])
+	migrations := []string{storeSchemaV1, storeSchemaV2}
 	rows, err := tx.QueryContext(ctx, `SELECT version, checksum FROM launchpad_schema_versions ORDER BY version`)
 	if err != nil {
 		return fmt.Errorf("read launchpad schema version: %w", err)
@@ -48,7 +50,7 @@ func MigrateStore(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 		count++
-		if version != 1 || checksum != wantChecksum || count > 1 {
+		if count > len(migrations) || version != count || checksum != schemaChecksum(migrations[count-1]) {
 			_ = rows.Close()
 			return ErrStoreSchema
 		}
@@ -60,14 +62,29 @@ func MigrateStore(ctx context.Context, db *sql.DB) error {
 	if err := rows.Close(); err != nil {
 		return err
 	}
-	if count == 0 {
-		if _, err := tx.ExecContext(ctx, storeSchemaV1); err != nil {
-			return fmt.Errorf("apply launchpad schema: %w", err)
+	for version := count + 1; version <= len(migrations); version++ {
+		if version == 2 {
+			var existingBlocks int64
+			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM launchpad_blocks`).Scan(&existingBlocks); err != nil {
+				return fmt.Errorf("check launchpad v1 journal: %w", err)
+			}
+			if existingBlocks != 0 {
+				return fmt.Errorf("launchpad v1 blocks require verified replay before v2: %w", ErrStoreSchema)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, migrations[version-1]); err != nil {
+			return fmt.Errorf("apply launchpad schema version %d: %w", version, err)
 		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO launchpad_schema_versions(version, checksum) VALUES (1, ?)`, wantChecksum); err != nil {
-			return fmt.Errorf("record launchpad schema: %w", err)
+			`INSERT INTO launchpad_schema_versions(version, checksum) VALUES (?, ?)`,
+			version, schemaChecksum(migrations[version-1])); err != nil {
+			return fmt.Errorf("record launchpad schema version %d: %w", version, err)
 		}
 	}
 	return tx.Commit()
+}
+
+func schemaChecksum(source string) string {
+	hash := sha256.Sum256([]byte(source))
+	return hex.EncodeToString(hash[:])
 }

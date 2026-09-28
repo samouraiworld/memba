@@ -11,6 +11,25 @@ import (
 
 var ErrInvalidBlock = errors.New("invalid Launchpad block evidence")
 
+// HashAt returns the stored hash at height in this scope. The verified parent
+// anchor is available even though its block predates this journal.
+func (s *Store) HashAt(ctx context.Context, height int64) ([32]byte, error) {
+	if s == nil || s.db == nil || height < s.scope.PublicationHeight-1 {
+		return [32]byte{}, ErrStoreConflict
+	}
+	if height == s.scope.PublicationHeight-1 {
+		return s.scope.PublicationParentHash, nil
+	}
+	var raw []byte
+	if err := s.db.QueryRowContext(ctx, `SELECT hash FROM launchpad_blocks
+		WHERE scope_key = ? AND height = ?`, s.key, height).Scan(&raw); err != nil || len(raw) != 32 {
+		return [32]byte{}, ErrStoreConflict
+	}
+	var hash [32]byte
+	copy(hash[:], raw)
+	return hash, nil
+}
+
 // AppendBlock records one confirmed block and its creation events in one
 // transaction. Empty blocks are recorded as well, preserving the hash chain.
 // The caller must obtain header and events from the same trusted RPC endpoint
@@ -18,10 +37,13 @@ var ErrInvalidBlock = errors.New("invalid Launchpad block evidence")
 func (s *Store) AppendBlock(ctx context.Context, header BlockHeader, events []ObservedCreation) error {
 	if s == nil || s.db == nil || header.ChainID != s.scope.ChainID ||
 		header.Height < s.scope.PublicationHeight || header.Hash == ([32]byte{}) ||
-		header.ParentHash == ([32]byte{}) || header.Time.Unix() <= 0 {
+		header.ParentHash == ([32]byte{}) || header.Time.Unix() <= 0 || header.NumTxs < 0 {
 		return ErrInvalidBlock
 	}
 	if header.Height == s.scope.PublicationHeight {
+		if int64(s.scope.ActivationTxIndex) >= header.NumTxs {
+			return ErrInvalidBlock
+		}
 		if header.Hash != s.scope.PublicationHash || header.ParentHash != s.scope.PublicationParentHash {
 			return ErrStoreConflict
 		}
@@ -38,7 +60,7 @@ func (s *Store) AppendBlock(ctx context.Context, header BlockHeader, events []Ob
 	for i, event := range events {
 		parsed, err := ParseTokenCreated(TokenRealmPath, TokenCreatedType, event.RawAttributes)
 		if err != nil || parsed != event.TokenCreated || event.BlockHeight != header.Height ||
-			event.TxIndex < 0 || event.EventIndex < 0 {
+			event.TxIndex < 0 || int64(event.TxIndex) >= header.NumTxs || event.EventIndex < 0 {
 			return ErrInvalidBlock
 		}
 		encoded, err := json.Marshal(event.RawAttributes)
@@ -70,8 +92,8 @@ func (s *Store) AppendBlock(ctx context.Context, header BlockHeader, events []Ob
 		return ErrStoreConflict
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO launchpad_blocks
-		(scope_key, height, hash, parent_hash, header_time) VALUES (?, ?, ?, ?, ?)`,
-		s.key, header.Height, header.Hash[:], header.ParentHash[:], header.Time.UTC().Format(time.RFC3339Nano)); err != nil {
+		(scope_key, height, hash, parent_hash, header_time, num_txs) VALUES (?, ?, ?, ?, ?, ?)`,
+		s.key, header.Height, header.Hash[:], header.ParentHash[:], header.Time.UTC().Format(time.RFC3339Nano), header.NumTxs); err != nil {
 		return fmt.Errorf("record launchpad block: %w", err)
 	}
 	for i, event := range events {
@@ -109,15 +131,16 @@ func (s *Store) cursorTx(ctx context.Context, tx *sql.Tx) (Cursor, error) {
 func (s *Store) compareBlock(ctx context.Context, tx *sql.Tx, header BlockHeader, events []ObservedCreation, raw []string) error {
 	var hash, parent []byte
 	var headerTime string
-	if err := tx.QueryRowContext(ctx, `SELECT hash, parent_hash, header_time FROM launchpad_blocks
-		WHERE scope_key = ? AND height = ?`, s.key, header.Height).Scan(&hash, &parent, &headerTime); err != nil {
+	var numTxs int64
+	if err := tx.QueryRowContext(ctx, `SELECT hash, parent_hash, header_time, num_txs FROM launchpad_blocks
+		WHERE scope_key = ? AND height = ?`, s.key, header.Height).Scan(&hash, &parent, &headerTime, &numTxs); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrStoreConflict
 		}
 		return err
 	}
 	if string(hash) != string(header.Hash[:]) || string(parent) != string(header.ParentHash[:]) ||
-		headerTime != header.Time.UTC().Format(time.RFC3339Nano) {
+		headerTime != header.Time.UTC().Format(time.RFC3339Nano) || numTxs != header.NumTxs {
 		return ErrStoreConflict
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT tx_index, event_index, token_id, registry_key,

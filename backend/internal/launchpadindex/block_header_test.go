@@ -61,7 +61,7 @@ func TestParseBlockHeaderRealRPCFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ChainID != "test-13" || got.Height != 260001 ||
+	if got.ChainID != "test-13" || got.Height != 260001 || got.NumTxs != 0 ||
 		string(got.Hash[:]) != string(wantHash) || string(got.ParentHash[:]) != string(wantParent) ||
 		!got.Time.Equal(wantTime) || got.Time.Location() != time.UTC {
 		t.Fatalf("wrong block observation: %+v", got)
@@ -83,6 +83,14 @@ func TestParseBlockHeaderRejectsMismatchAndMissingEvidence(t *testing.T) {
 		{"block chain mismatch", "test-13", 260001, func(b map[string]any) { fullHeader(b)["chain_id"] = "gnoland-1" }},
 		{"metadata height mismatch", "test-13", 260001, func(b map[string]any) { metaHeader(b)["height"] = "260002" }},
 		{"noncanonical height", "test-13", 260001, func(b map[string]any) { fullHeader(b)["height"] = "0260001" }},
+		{"noncanonical transaction count", "test-13", 260001, func(b map[string]any) {
+			metaHeader(b)["num_txs"] = "01"
+			fullHeader(b)["num_txs"] = "01"
+		}},
+		{"negative transaction count", "test-13", 260001, func(b map[string]any) {
+			metaHeader(b)["num_txs"] = "-1"
+			fullHeader(b)["num_txs"] = "-1"
+		}},
 		{"time disagreement", "test-13", 260001, func(b map[string]any) { fullHeader(b)["time"] = "2026-06-16T19:32:18Z" }},
 		{"app hash disagreement", "test-13", 260001, func(b map[string]any) { fullHeader(b)["app_hash"] = "different" }},
 		{"bad time", "test-13", 260001, func(b map[string]any) { metaHeader(b)["time"] = "not a time" }},

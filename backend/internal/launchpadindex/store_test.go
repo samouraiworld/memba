@@ -35,7 +35,7 @@ func testScope(chain, publication string) Scope {
 
 func testHeader(height int64, hash, parent byte) BlockHeader {
 	return BlockHeader{
-		ChainID: "test-13", Height: height, Hash: [32]byte{hash},
+		ChainID: "test-13", Height: height, NumTxs: 3, Hash: [32]byte{hash},
 		ParentHash: [32]byte{parent}, Time: time.Date(2026, 9, 28, 1, 2, 3, 0, time.UTC),
 	}
 }
@@ -441,5 +441,89 @@ func TestStoreSameActivationTransactionOnDifferentForks(t *testing.T) {
 	newCursor, err := fork.Cursor(ctx)
 	if err != nil || newCursor.Height != 101 || newCursor.Hash != ([32]byte{9}) {
 		t.Fatalf("new fork cursor not isolated: %+v %v", newCursor, err)
+	}
+}
+
+func prepareV1Journal(t *testing.T) *sql.DB {
+	t.Helper()
+	database, err := db.Open(filepath.Join(t.TempDir(), "memba.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	if _, err := database.Exec(`CREATE TABLE launchpad_schema_versions (
+		version INTEGER PRIMARY KEY CHECK (version > 0), checksum TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(storeSchemaV1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO launchpad_schema_versions(version, checksum) VALUES (1, ?)`,
+		schemaChecksum(storeSchemaV1)); err != nil {
+		t.Fatal(err)
+	}
+	return database
+}
+
+func TestStoreVersionTwoMigratesEmptyV1AndRefusesUnverifiedRows(t *testing.T) {
+	ctx := context.Background()
+	empty := prepareV1Journal(t)
+	if err := MigrateStore(ctx, empty); err != nil {
+		t.Fatalf("empty v1 migration: %v", err)
+	}
+	var versions int
+	if err := empty.QueryRowContext(ctx, `SELECT COUNT(*) FROM launchpad_schema_versions`).Scan(&versions); err != nil || versions != 2 {
+		t.Fatalf("schema version history: %d %v", versions, err)
+	}
+	store, err := OpenStore(ctx, empty, testScope("test-13", "publication-a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AppendBlock(ctx, testHeader(101, 2, 1), nil); err != nil {
+		t.Fatalf("v2 num_txs column missing: %v", err)
+	}
+
+	occupied := prepareV1Journal(t)
+	oldStore, err := OpenStore(ctx, occupied, testScope("test-13", "publication-a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	header := testHeader(101, 2, 1)
+	if _, err := occupied.ExecContext(ctx, `INSERT INTO launchpad_blocks
+		(scope_key, height, hash, parent_hash, header_time) VALUES (?, ?, ?, ?, ?)`,
+		oldStore.key, 101, header.Hash[:], header.ParentHash[:], header.Time.Format(time.RFC3339Nano)); err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateStore(ctx, occupied); !errors.Is(err, ErrStoreSchema) {
+		t.Fatalf("v1 occupied journal silently assigned transaction count: %v", err)
+	}
+}
+
+func TestStoreRejectsReplayWithDifferentTransactionCount(t *testing.T) {
+	ctx := context.Background()
+	store, _ := testStore(t)
+	header := testHeader(101, 2, 1)
+	if err := store.AppendBlock(ctx, header, nil); err != nil {
+		t.Fatal(err)
+	}
+	changed := header
+	changed.NumTxs++
+	if err := store.AppendBlock(ctx, changed, nil); !errors.Is(err, ErrStoreConflict) {
+		t.Fatalf("different claimed transaction count accepted as replay: %v", err)
+	}
+}
+
+func TestStoreRejectsActivationOutsideBlockTransactions(t *testing.T) {
+	ctx := context.Background()
+	store, _ := testStore(t)
+	header := testHeader(101, 2, 1)
+	header.NumTxs = 0
+	if err := store.AppendBlock(ctx, header, nil); !errors.Is(err, ErrInvalidBlock) {
+		t.Fatalf("activation without a transaction accepted: %v", err)
+	}
+	header.NumTxs = 1
+	store.scope.ActivationTxIndex = 1
+	if err := store.AppendBlock(ctx, header, nil); !errors.Is(err, ErrInvalidBlock) {
+		t.Fatalf("activation past the last transaction accepted: %v", err)
 	}
 }
