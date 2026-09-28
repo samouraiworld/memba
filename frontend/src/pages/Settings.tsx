@@ -24,6 +24,7 @@ import {
     getGasConfig, MAX_DEFAULT_GAS_WANTED, MAX_DEFAULT_GAS_FEE_UGNOT,
     parseDefaultGasInput,
 } from "../lib/gasConfig"
+import { clearSettingsCache } from "./settingsCache"
 
 const SETTINGS_KEY = "memba_settings"
 
@@ -205,9 +206,8 @@ export function Settings() {
     }
 
     const handleClearCache = () => {
-        if (!window.confirm("Clear all Memba cached data? This will reset network preferences and cached usernames.")) return
-        const keys = ["memba_usernames", "memba_settings", "memba_network", "memba_network_pref", "memba_board_visits"]
-        keys.forEach(k => localStorage.removeItem(k))
+        if (!window.confirm("Clear Memba preferences and cached usernames on this device?")) return
+        clearSettingsCache(localStorage)
         setSaved(true)
         setTimeout(() => window.location.reload(), 300)
     }

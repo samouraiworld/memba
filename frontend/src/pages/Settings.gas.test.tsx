@@ -116,3 +116,26 @@ describe("Settings gas defaults", () => {
         expect(screen.queryByText("✓ Settings saved")).not.toBeInTheDocument()
     })
 })
+
+describe("Settings advanced controls", () => {
+    it("clears network-scoped username caches from the Clear Cache button", () => {
+        localStorage.setItem("memba_usernames::gnoland-1", "cached")
+        localStorage.setItem("memba_usernames::test13", "cached")
+        localStorage.setItem("memba_os_terminal_draft:gnoland-1:guest", "draft")
+        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true)
+        vi.useFakeTimers()
+        try {
+            render(<Settings />)
+            fireEvent.click(screen.getByRole("button", { name: /Advanced/ }))
+            fireEvent.click(screen.getByRole("button", { name: "Clear Cache" }))
+            expect(confirm).toHaveBeenCalledWith("Clear Memba preferences and cached usernames on this device?")
+            expect(localStorage.getItem("memba_usernames::gnoland-1")).toBeNull()
+            expect(localStorage.getItem("memba_usernames::test13")).toBeNull()
+            expect(localStorage.getItem("memba_os_terminal_draft:gnoland-1:guest")).toBe("draft")
+        } finally {
+            vi.clearAllTimers()
+            vi.useRealTimers()
+            confirm.mockRestore()
+        }
+    })
+})
