@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { act, render, screen, fireEvent } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { QuestProgress } from "./QuestProgress"
 
@@ -130,6 +130,16 @@ describe("QuestProgress — Expanded State", () => {
         renderWithRouter(<QuestProgress />)
         fireEvent.click(screen.getByTestId("quest-hub-toggle"))
         expect(screen.getByTestId("quest-card-submit-feedback")).toHaveClass("quest-card--done")
+    })
+
+    it("refreshes a mounted own-profile widget after rejected local XP is reconciled", () => {
+        vi.mocked(questsMock.loadQuestProgress)
+            .mockReturnValueOnce({ completed: [{ questId: "submit-feedback", completedAt: 1 }], totalXP: 20 })
+            .mockReturnValue({ completed: [], totalXP: 0 })
+        renderWithRouter(<QuestProgress />)
+        expect(screen.getByTestId("quest-hub-toggle").querySelector(".quest-hub__xp")).toHaveTextContent("20 XP")
+        act(() => window.dispatchEvent(new CustomEvent("quest-progress-updated")))
+        expect(screen.getByTestId("quest-hub-toggle").querySelector(".quest-hub__xp")).toHaveTextContent("0 XP")
     })
 
     it("marks completed quests with done class", () => {

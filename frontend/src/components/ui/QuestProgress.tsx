@@ -120,7 +120,11 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
         if (address) return
         const onQuestComplete = () => setState(loadQuestProgress())
         window.addEventListener("quest-completed", onQuestComplete)
-        return () => window.removeEventListener("quest-completed", onQuestComplete)
+        window.addEventListener("quest-progress-updated", onQuestComplete)
+        return () => {
+            window.removeEventListener("quest-completed", onQuestComplete)
+            window.removeEventListener("quest-progress-updated", onQuestComplete)
+        }
     }, [address])
 
     const completedIds = new Set(state.completed.map(c => c.questId))

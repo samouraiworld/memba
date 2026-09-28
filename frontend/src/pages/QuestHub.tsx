@@ -91,7 +91,11 @@ export default function QuestHub() {
         // Refresh the local (optimistic) state on any completion.
         const onQuestComplete = () => setLocalProgress({ address: adena.address, state: loadQuestProgress(adena.address || null) })
         window.addEventListener("quest-completed", onQuestComplete)
-        return () => window.removeEventListener("quest-completed", onQuestComplete)
+        window.addEventListener("quest-progress-updated", onQuestComplete)
+        return () => {
+            window.removeEventListener("quest-completed", onQuestComplete)
+            window.removeEventListener("quest-progress-updated", onQuestComplete)
+        }
     }, [adena.address])
 
     useEffect(() => {
@@ -133,7 +137,13 @@ export default function QuestHub() {
         }
         load()
         window.addEventListener("quest-completed", load)
-        return () => { cancelled = true; requestId++; window.removeEventListener("quest-completed", load) }
+        window.addEventListener("quest-progress-updated", load)
+        return () => {
+            cancelled = true
+            requestId++
+            window.removeEventListener("quest-completed", load)
+            window.removeEventListener("quest-progress-updated", load)
+        }
     }, [adena.address, windowActive, backendRetry])
 
     // Only trust the fetched backend state while a wallet is connected (it falls

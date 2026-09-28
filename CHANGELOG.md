@@ -39,7 +39,7 @@ Full changelogs are split by version range for easier navigation:
 
 - Show actual open feedback issues instead of pull requests, route submission through the existing GitHub templates, and disclose when GitHub sign-in is required.
 - Distinguish an empty on-chain feedback board from failed reads, offer retry, and improve Feedback keyboard, mobile, contrast and error states while deferring inactive window reads.
-- Retire unverified feedback quest claims without removing server-recorded historical XP; hide the retired quest from prospective catalogs and reconcile rejected local-only rewards after sync.
+- Retire unverified feedback quest claims without removing server-recorded historical XP; hide the retired quest from prospective catalogs and reconcile rejected local-only rewards across open quest views after sync.
 
 ### Memba OS: Dev Report production QA (2026-09-28)
 

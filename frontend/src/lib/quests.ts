@@ -378,6 +378,7 @@ export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestSt
             const totalXP = completed.reduce((sum, c) => sum + (_findQuest(c.questId)?.xp ?? 0), 0)
             const merged: UserQuestState = { completed, totalXP }
             saveQuestProgress(merged, walletAddr)
+            window.dispatchEvent(new CustomEvent("quest-progress-updated", { detail: { address: walletAddr } }))
             return merged
         }
     } catch (err) {

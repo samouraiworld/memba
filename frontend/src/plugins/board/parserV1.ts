@@ -79,7 +79,9 @@ export function parseBoardHome(raw: string): BoardInfo {
  */
 export function parseThreadList(raw: string, channel: string): BoardThread[] {
     const threads: BoardThread[] = []
-    const threadPattern = /### \[((?:\\.|[^\]])+)\]\(:([^/]+)\/(\d+)\)\s*\n([^\n]*)/g
+    // Use the final ](:channel/id) on the line as the link boundary. Realm
+    // renderers can include a raw ] in a user-supplied title.
+    const threadPattern = /### \[(.+)\]\(:([^/]+)\/(\d+)\)\s*\n([^\n]*)/g
     let match
     while ((match = threadPattern.exec(raw)) !== null) {
         const title = match[1].replaceAll("\\]", "]").replaceAll("\\[", "[").replaceAll("\\\\", "\\")
@@ -88,7 +90,7 @@ export function parseThreadList(raw: string, channel: string): BoardThread[] {
 
         // Parse meta line: "by g1abc... | 2 replies | block 12345"
         const authorMatch = meta.match(/by\s+(g1[a-z0-9]+\.{0,3})/)
-        const repliesMatch = meta.match(/(\d+)\s*replies?/)
+        const repliesMatch = meta.match(/(\d+)\s*repl(?:y|ies)/)
         const blockMatch = meta.match(/block\s+(\d+)/)
 
         threads.push({
