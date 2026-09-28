@@ -75,20 +75,30 @@ export function Builder({ chainId, address }: { chainId: string; address: string
         : declaration !== packageName ? `The source must declare package ${packageName || "<realm name>"}.` : null
 
     useEffect(() => {
-        const onStorage = (event: StorageEvent) => {
-            if (event.storageArea !== localStorage || event.key !== key) return
-            if (conflictRef.current) return
+        const syncCurrent = () => {
+            let raw: string | null
+            try { raw = localStorage.getItem(key) } catch { return }
+            if (conflictRef.current || raw === lastStoredRaw.current) return
             if (storageErrorRef.current) {
                 conflictRef.current = true
                 setConflict(true)
                 return
             }
-            lastStoredRaw.current = event.newValue
-            const incoming = parseDraft(event.newValue, address)
+            lastStoredRaw.current = raw
+            const incoming = parseDraft(raw, address)
             draftRef.current = incoming
             setDraft(incoming)
         }
+        const onStorage = (event: StorageEvent) => {
+            if (event.storageArea !== localStorage || event.key !== key) return
+            // Read the current value: an older queued event may arrive after a
+            // newer write was already observed during mount.
+            syncCurrent()
+        }
         window.addEventListener("storage", onStorage)
+        // A write can land after the render-time read but before this listener
+        // is installed. Reconcile after subscribing so it cannot be lost.
+        syncCurrent()
         return () => window.removeEventListener("storage", onStorage)
     }, [key, address])
 
