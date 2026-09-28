@@ -300,7 +300,7 @@ describe("Validators presentation preview — recoverable states", () => {
         await screen.findByTestId("validator-row-1")
         vi.mocked(getValidators).mockRejectedValueOnce(new Error("Refresh unavailable"))
         await act(async () => { await client.refetchQueries({ queryKey: ["validators", "roster"] }) })
-        expect(screen.getByRole("alert")).toHaveTextContent("Heights, health, and counts are not live")
+        expect(await screen.findByRole("alert")).toHaveTextContent("Heights, health, and counts are not live")
         expect(screen.queryByText("✅ Synced")).not.toBeInTheDocument()
         expect(screen.getByText("Last retrieved height")).toBeInTheDocument()
         expect(screen.getByTestId("validator-row-1")).toBeInTheDocument()
