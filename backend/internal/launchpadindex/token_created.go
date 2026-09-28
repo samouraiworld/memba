@@ -22,8 +22,8 @@ var ErrInvalidTokenCreated = errors.New("invalid LaunchpadTokenCreated event")
 // Attribute preserves the raw event's order and duplicate keys. A caller must
 // pass the original attributes, not a flattened map that has lost duplicates.
 type Attribute struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // TokenCreated contains only identities emitted by the tokens realm. A chain
