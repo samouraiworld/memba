@@ -62,7 +62,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
-    "@remotion/cli": "^4.0.526",
+    "@remotion/cli": "^4.0.529",
     "@sentry/vite-plugin": "^5.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
