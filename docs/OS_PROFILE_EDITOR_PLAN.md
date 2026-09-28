@@ -106,7 +106,7 @@ On mainnet, slices 1–3 can ship without a new realm because the verified live 
 
 1. **Owner confirmed:** title, company and additional links become public on-chain, with explicit import of existing backend values.
 2. **Owner confirmed:** public assets and credentials appear by default. Visibility controls change Memba presentation only; on-chain holdings remain public.
-3. **Implementation assumption pending owner reply:** use the verified live mainnet profile realm for the v1 document; reserve a shared realm for later contract-enforced limits and revisions.
+3. **Owner confirmed:** use the verified live mainnet profile realm for the v1 document; reserve a shared realm for later contract-enforced limits and revisions.
 4. **Release gate:** obtain wallet rehearsal, gas measurements, desktop/phone accessibility review and production read checks before enabling `VITE_ENABLE_OS_PROFILE_PUBLISH`. No production contract action is proposed in this document.
 
 **Recommendation:** deliver slices 0–3 as one dedicated Profile track on mainnet, then evaluate the optional hardened realm. Treat the WYSIWYG editor as delivered only when customizations are chain persisted, preview/public parity is proven, and the production re-audit passes.
