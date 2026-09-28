@@ -25,7 +25,7 @@ import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
 import { EcosystemDirectory } from "../components/appstore/EcosystemDirectory"
-import { buildCatalogue, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueFilters } from "../lib/appCatalogue"
+import { buildCatalogue, CATALOGUE_AVAILABILITY_OPTIONS, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueFilters } from "../lib/appCatalogue"
 import { ECOSYSTEM_PROJECTS } from "../lib/ecosystemDirectory"
 import "./appstore.css"
 
@@ -281,7 +281,7 @@ function AppGrid() {
                     {CATALOGUE_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
                 </select></label>
                 <label>Availability<select value={filters.availability} onChange={event => updateFilters({ availability: parseCatalogueFilters(new URLSearchParams({ availability: event.target.value })).availability })}>
-                    <option value="all">All availability</option><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option><option value="tools">Tools</option><option value="unknown">Not verified</option>
+                    {CATALOGUE_AVAILABILITY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select></label>
                 <button type="button" onClick={() => updateFilters({ q: "", category: "all", availability: "all" })}>Reset</button>
             </div>

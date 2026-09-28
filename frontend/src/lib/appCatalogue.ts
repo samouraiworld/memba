@@ -8,6 +8,13 @@ export const CATALOGUE_CATEGORIES: readonly CatalogueCategory[] = [
     "Developer tools", "Validators", "Creative worlds", "Other",
 ]
 export type CatalogueAvailability = "all" | "mainnet" | "testnet" | "tools" | "unknown"
+export const CATALOGUE_AVAILABILITY_OPTIONS: readonly { value: CatalogueAvailability; label: string }[] = [
+    { value: "all", label: "All availability" },
+    { value: "mainnet", label: "Mainnet" },
+    { value: "testnet", label: "Testnet" },
+    { value: "tools", label: "Tools" },
+    { value: "unknown", label: "Not verified" },
+]
 export interface CatalogueFilters {
     q: string
     category: CatalogueCategory | "all"
