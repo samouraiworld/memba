@@ -650,9 +650,14 @@ export default function Barricade() {
                         <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
                     </div>
                     <p className="bar-hint">
-                        At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane and you fire automatically;
-                        shove its nearest machine or aim a molotov farther up the street. Defeated machines fill Rally and drop scrap for the
-                        between-wave shop. Everyone gets the same daily seed. Daily results are saved on this device; Practice uses a separate run.
+                        <span className="bar-hint--wide">
+                            At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane and you fire automatically;
+                            shove its nearest machine or aim a molotov farther up the street. Defeated machines fill Rally and drop scrap for the
+                            between-wave shop. Everyone gets the same daily seed. Daily results are saved on this device; Practice uses a separate run.
+                        </span>
+                        <span className="bar-hint--compact">
+                            Defend a Paris barricade for {WAVE_TOTAL} waves. Tap a lane to fire and spend scrap between waves. Daily runs save here; Practice is separate.
+                        </span>
                     </p>
                 </div>
             )}

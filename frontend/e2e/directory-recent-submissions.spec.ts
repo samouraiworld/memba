@@ -110,7 +110,10 @@ for (const theme of ['light', 'dark'] as const) {
         const button = section.getByRole('button', { name: 'Refresh' })
         await expect(button).toBeEnabled()
         holding = true
-        await button.click()
+        await Promise.all([
+            page.waitForRequest(request => request.url().includes('/api/directory/recent-submissions')),
+            button.click(),
+        ])
         await expect(button).toBeDisabled()
 
         const measured = await button.evaluate(node => {

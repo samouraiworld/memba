@@ -97,6 +97,7 @@
     color: var(--color-k-dim, #9a94a6);
     margin: 0;
 }
+.bar-hint--compact { display: none; }
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 .bar-controls {
@@ -396,6 +397,8 @@
         color: var(--color-k-accent-text, #00d4aa);
     }
     .bar-stage { width: min(96vw, calc((100dvh - 185px) * 0.6)); }
+    .bar-hint--wide { display: none; }
+    .bar-hint--compact { display: inline; }
 }
 
 /* Landscape uses the width next to the cabinet for actions rather than making

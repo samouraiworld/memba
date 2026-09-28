@@ -8,7 +8,17 @@ import { readFileSync } from 'node:fs'
 import { resilientAbciQuery } from '../lib/rpcFallback'
 
 const fixture = readFileSync('src/lib/dao/testdata/gnoland-1/govdao-proposal-4.md', 'utf8')
-vi.mock('../lib/rpcFallback', async importOriginal => ({ ...await importOriginal<typeof import('../lib/rpcFallback')>(), resilientAbciQuery: vi.fn() }))
+vi.mock('../lib/rpcFallback', async importOriginal => {
+    const query = vi.fn()
+    return {
+        ...await importOriginal<typeof import('../lib/rpcFallback')>(),
+        resilientAbciQuery: query,
+        resilientAbciQueryDetailed: async (path: string, data: string) => {
+            const value = await query(path, data, true)
+            return value == null ? { kind: 'empty' } : { kind: 'ok', text: value }
+        },
+    }
+})
 
 const state = vi.hoisted(() => ({
     realm: 'gno.land/r/team/dao', authenticated: true, member: true, archived: false, status: 'open',

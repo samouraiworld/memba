@@ -305,6 +305,9 @@ test.describe('Validators Page — table accessibility (offline)', () => {
 
         // Each row's keyboard entry point is a link that keeps the network in the path.
         const link = page.locator('[data-testid="validator-row-1"]').getByRole('link').first()
-        await expect(link).toHaveAttribute('href', /^\/[a-z0-9-]+\/validators\/g1mockval0+1$/)
+        await expect(link).toHaveAttribute('href', /^\/[a-z0-9-]+\/validators\/g1mockval0+1\?from=/)
+        const href = await link.getAttribute('href')
+        expect(href).toMatch(/^\/[a-z0-9-]+\/validators\/g1mockval0+1\?from=/)
+        expect(new URL(href!, 'https://memba.test').searchParams.get('from')).toBe('sort=votingPower&direction=desc')
     })
 })

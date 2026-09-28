@@ -24,6 +24,7 @@ Full changelogs are split by version range for easier navigation:
 
 - Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.
 - Preview identity fields, images, links, templates and section order in a local draft with undo. Mainnet uses the live caller-owned profile realm for a versioned layout document; publishing stays off by default until wallet and gas rehearsal is complete.
+
 ### Memba OS: quieter Live and repeat welcome
 
 - Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
@@ -60,6 +61,7 @@ Full changelogs are split by version range for easier navigation:
 - Keep Block Party input inside its active game window, preserve paused runs through OS minimising, and make all three games usable in narrow windows.
 - Require finished server-replayed runs before awarding Daily scores or streaks; make Arcade attestation retries durable and distinguish an exact on-chain result from a superseded run.
 - Clarify which game scores are local, server verified, or on-chain, and improve game focus, sharing feedback, and wallet sign-in recovery.
+- Keep Barricade's playfield and start controls visible on short portrait phones with a concise game introduction.
 
 ### Token Launchpad: creation event identity validation (2026-09-28)
 
