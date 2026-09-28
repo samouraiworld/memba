@@ -8,6 +8,7 @@
 
 /** Set once the visitor has passed the lock screen (or skipped it via a link or a session). */
 export const OS_SEEN_KEY = "memba_os_seen"
+export const OS_LOCKED_KEY = "memba_os_locked"
 
 export type OsEntry =
     /** First visit, no session, plain /os: show the lock screen. */
@@ -19,7 +20,8 @@ export type OsEntry =
     /** Already seen, no session: the guest desktop. */
     | "guest"
 
-export function resolveEntry(opts: { seen: boolean; resuming: boolean; deepLink: boolean }): OsEntry {
+export function resolveEntry(opts: { seen: boolean; resuming: boolean; deepLink: boolean; locked?: boolean }): OsEntry {
+    if (opts.locked) return "lock"
     if (opts.resuming) return "resume"
     if (opts.deepLink) return "link"
     return opts.seen ? "guest" : "lock"
@@ -38,5 +40,18 @@ export function markSeen(): void {
         localStorage.setItem(OS_SEEN_KEY, "1")
     } catch {
         // Storage refused (private window): the lock screen shows again next visit.
+    }
+}
+
+export function readLocked(): boolean {
+    try { return localStorage.getItem(OS_LOCKED_KEY) === "1" } catch { return false }
+}
+
+export function markLocked(locked: boolean): void {
+    try {
+        if (locked) localStorage.setItem(OS_LOCKED_KEY, "1")
+        else localStorage.removeItem(OS_LOCKED_KEY)
+    } catch {
+        // A storage-denied tab still locks until this page is reloaded.
     }
 }

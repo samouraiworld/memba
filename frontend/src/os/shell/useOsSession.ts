@@ -41,7 +41,18 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const [resumeTimedOut, setResumeTimedOut] = useState(false)
     // Bumped by cancel/disconnect: a step still awaiting Adena then stands down.
     const epoch = useRef(0)
+    const connectOpener = useRef<HTMLElement | null>(null)
     const { onSignedIn } = opts
+
+    const restoreConnectFocus = useCallback(() => {
+        const opener = connectOpener.current
+        connectOpener.current = null
+        requestAnimationFrame(() => {
+            const fallback = document.querySelector<HTMLElement>('button[aria-label="Memba menu"], .os-ph-dock button')
+            if (opener?.isConnected) opener.focus({ preventScroll: true })
+            else fallback?.focus({ preventScroll: true })
+        })
+    }, [])
 
     const member = adena.connected && auth.isAuthenticated && !!adena.address && auth.address === adena.address
     const resuming = adena.reconnecting && !resumeTimedOut
@@ -93,6 +104,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
 
     const openConnect = useCallback(() => {
         if (member) return
+        connectOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
         setNote(null)
         go(adena.connected ? "login" : "pick")
     }, [member, adena.connected, go])
@@ -123,6 +135,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
             const token = await signInWithWallet(adena, auth, network.chainId)
             if (epoch.current !== my) return
             go(null)
+            restoreConnectFocus()
             setNote(null)
             completeQuest("connect-wallet", token)
             syncQuestsToBackend(token).catch(() => { /* offline-first */ })
@@ -133,7 +146,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
             if (msg.includes(ACTIVATION_REQUIRED_CODE)) go("activate")
             else go("login", msg)
         }
-    }, [adena, auth, network.chainId, go, onSignedIn])
+    }, [adena, auth, network.chainId, go, onSignedIn, restoreConnectFocus])
 
     const activate = useCallback(async () => {
         const my = ++epoch.current
@@ -163,8 +176,9 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const cancel = useCallback(() => {
         epoch.current++
         go(null)
+        restoreConnectFocus()
         setNote(null)
-    }, [go])
+    }, [go, restoreConnectFocus])
 
     /** Ask Adena to switch to Memba's network (adding it first if Adena doesn't know it). */
     const switchWallet = useCallback(

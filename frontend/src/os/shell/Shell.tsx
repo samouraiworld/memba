@@ -6,14 +6,14 @@
  *
  * @module os/shell/Shell
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
 import { itemTarget } from "./desk"
 import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
 import { Dock } from "./Dock"
-import { markSeen, readSeen, resolveEntry, type OsEntry } from "./entry"
+import { markLocked, markSeen, readLocked, readSeen, resolveEntry, type OsEntry } from "./entry"
 import { shortAddr } from "./format"
 import { LockScreen } from "./LockScreen"
 import { BootScreen } from "../boot/BootScreen"
@@ -21,11 +21,10 @@ import { bootLines, markBooted, readBooted, shouldBoot } from "../boot/boot"
 import { MenuBar } from "./MenuBar"
 import { takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
-import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken } from "./urlSync"
+import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken, windowsStorageKey } from "./urlSync"
 import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
 import { SignerProvider } from "../sign/SignerProvider"
-import { useIsMobile } from "../../hooks/useIsMobile"
 import { setWalletActionGuard } from "../../lib/grc20"
 import { PhoneShell } from "../phone/PhoneShell"
 import { LiveTicker } from "../apps/live/LiveTicker"
@@ -42,6 +41,17 @@ const MENU_BAR = 30
 /** The guest banner (`.os-banner`: 40 px from the top, about 36 px tall) seen from the desk, plus a gap:
  * windows placed while it shows start below it, so it never covers their title bar. */
 const BANNER_ROOM = 52
+const PHONE_LAYOUT_QUERY = "(max-width: 768px), (max-width: 1100px) and (max-height: 500px)"
+
+function subscribePhoneLayout(onChange: () => void): () => void {
+    const query = window.matchMedia(PHONE_LAYOUT_QUERY)
+    query.addEventListener("change", onChange)
+    return () => query.removeEventListener("change", onChange)
+}
+
+function phoneLayout(): boolean {
+    return window.matchMedia(PHONE_LAYOUT_QUERY).matches
+}
 
 /** First guess before the desk is measured (the ResizeObserver corrects it). */
 function initialDesk(): DeskSize {
@@ -55,18 +65,24 @@ function openTargets(s: WindowsState, front: OsTarget, others: OsTarget[], desk:
     return specs.reduce((acc, spec, i) => windowsReducer(acc, { type: "open", spec, desk, center: specs.length === 1 && i === 0 }), s)
 }
 
-function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: boolean, entry: OsEntry, desk: DeskSize): WindowsState {
-    const saved = entry === "lock" ? [] : loadSavedTargets()
+function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: boolean, entry: OsEntry, desk: DeskSize, storageOwner: string | null): WindowsState {
+    const saved = entry === "lock" || storageOwner === null ? [] : loadSavedTargets(storageOwner)
     if (fromLink) {
         // A link decides which windows open; where this browser had the same
         // window before (a reload), it keeps the position and size it had.
         const s = openTargets(EMPTY_WINDOWS, arrival.front, arrival.others, desk)
-        const geomByToken = new Map(saved.map(({ target, geom }) => [windowToken(target), geom]))
+        const savedByToken = new Map(saved.map((item) => [windowToken(item.target), item]))
         return {
             ...s,
             wins: s.wins.map((w) => {
-                const g = geomByToken.get(windowToken(w.target))
-                return g ? { ...w, x: g.x, y: g.y, width: g.width, height: g.height, max: g.max } : w
+                const item = savedByToken.get(windowToken(w.target))
+                if (!item) return w
+                const { geom, target } = item
+                // The front URL's query is authoritative. A background ?w=
+                // token has no query, so recover its saved page state.
+                const restoredTarget = w.target?.kind === "app" && w.target.query === undefined && target.kind === "app"
+                    ? target : w.target
+                return { ...w, target: restoredTarget, x: geom.x, y: geom.y, width: geom.width, height: geom.height, max: geom.max }
             }),
         }
     }
@@ -79,7 +95,7 @@ function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: bo
 }
 
 export function Shell() {
-    const phone = useIsMobile()
+    const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
     const location = useLocation()
     const navigate = useNavigate()
 
@@ -112,9 +128,14 @@ export function Shell() {
     // ── arrival: decided once ──
     const [arrival] = useState(() => targetsFromUrl(location.pathname, location.search))
     const fromLink = arrival.front.kind !== "desktop" || arrival.others.length > 0
+    const skipLockWrite = useRef(false)
 
     const session = useOsSession({
         onSignedIn: (address) => {
+            skipLockWrite.current = false
+            markLocked(false)
+            markSeen()
+            setLocked(false)
             win.closeKey("welcome")
             setLinkGuest(false)
             showToast(`Connected with Adena · ${shortAddr(address)}`)
@@ -126,7 +147,7 @@ export function Shell() {
         setWalletActionGuard(() => memberNow.current)
         return () => setWalletActionGuard(null)
     }, [])
-    const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: fromLink }))
+    const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: fromLink, locked: readLocked() }))
     const [locked, setLocked] = useState(entry === "lock")
     // The memba.club boot (A → C) plays over the lock screen on a first visit only.
     const [booting, setBooting] = useState(() => shouldBoot({
@@ -136,6 +157,8 @@ export function Shell() {
     useEffect(() => { if (booting) markBooted() }, [booting])
     const endBoot = useCallback(() => setBooting(false), [])
     const [linkGuest, setLinkGuest] = useState(entry === "link")
+    const storageOwner = session.status === "resuming" ? null : session.status === "member"
+        ? `member:${session.network.chainId}:${session.address}` : `guest:${session.network.chainId}`
 
     // Windows placed while the guest banner shows start below it (it sits above windows).
     const bannerUp = linkGuest && session.status !== "member"
@@ -145,8 +168,43 @@ export function Shell() {
     useEffect(() => { bannerNow.current = bannerUp }, [bannerUp])
     const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
 
-    const win = useWindows(() => arrivalWindows(arrival, fromLink, entry, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }))
+    const win = useWindows(() => arrivalWindows(arrival, fromLink, entry, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }, storageOwner))
     const { dispatch } = win
+    const previousStorageOwner = useRef(storageOwner)
+    const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
+    const skipNextOwnerWrite = useRef<string | null>(null)
+
+    useLayoutEffect(() => {
+        const previous = previousStorageOwner.current
+        if (previous === storageOwner) return
+        previousStorageOwner.current = storageOwner
+        if (storageOwner === null) return
+        if (!fromLink) {
+            // A slow silent reconnect can briefly enter guest mode. Recover the
+            // destination's saved desk once its identity is known, including an
+            // intentionally empty desk. A first-time member keeps the public
+            // windows they just opened as a guest.
+            if (previous?.startsWith("guest:") && storageOwner.startsWith("member:")) {
+                try {
+                    if (localStorage.getItem(windowsStorageKey(storageOwner)) === null) return
+                } catch { return }
+            }
+            skipSaveFor.current = win.wins
+            skipNextOwnerWrite.current = storageOwner
+            const restored = arrivalWindows(arrival, false, locked ? "lock" : "guest", placeDesk(), storageOwner)
+            dispatch({ type: "restore", wins: restored.wins })
+        } else if (previous?.startsWith("guest:") && storageOwner.startsWith("member:")) {
+            // A link remains visible after connection, but is not an edit to
+            // the member's previously saved desktop.
+            skipNextOwnerWrite.current = storageOwner
+        } else if (previous !== null) {
+            // On a linked page, a different account or network must not retain
+            // the previous owner's paths or overwrite the destination layout.
+            skipSaveFor.current = win.wins
+            skipNextOwnerWrite.current = storageOwner
+            dispatch({ type: "closeAll" })
+        }
+    }, [storageOwner, fromLink, arrival, locked, dispatch, win.wins, placeDesk])
 
     useEffect(() => {
         dispatch({ type: "fit", desk: frameDesk })
@@ -195,33 +253,60 @@ export function Shell() {
     // has already replaced the address, and writing the stale windows' URL over it
     // would leave the window blank.
     const wroteFor = useRef<readonly OsWindow[] | null>(null)
+    const wroteOwner = useRef<string | null>(null)
+    const initialSaveChecked = useRef(false)
     useEffect(() => {
-        if (wroteFor.current === win.wins) return
+        if (storageOwner === null || skipSaveFor.current === win.wins) return
+        const skipOwnerWrite = skipNextOwnerWrite.current === storageOwner
+        if (skipOwnerWrite) skipNextOwnerWrite.current = null
+        let skipStorageWrite = locked || skipLockWrite.current || skipOwnerWrite
+        if (!initialSaveChecked.current) {
+            initialSaveChecked.current = true
+            try {
+                // Opening or reloading another tab is not a layout edit. Keep
+                // the newer saved desktop until this tab changes its windows.
+                if (storageOwner && localStorage.getItem(windowsStorageKey(storageOwner)) !== null) {
+                    skipStorageWrite = true
+                }
+            } catch { /* saveWindows handles unavailable storage below */ }
+        }
+        if (wroteFor.current === win.wins && wroteOwner.current === storageOwner) return
+        skipSaveFor.current = null
         wroteFor.current = win.wins
-        saveWindows(win.wins)
+        wroteOwner.current = storageOwner
+        if (!skipStorageWrite) saveWindows(win.wins, storageOwner)
         const url = urlForWindows(win.wins)
         if (url === lastUrl.current) return
         lastUrl.current = url
         if (url !== window.location.pathname + window.location.search) navigate(url, { replace: true })
-    }, [win.wins, navigate])
+    }, [win.wins, navigate, storageOwner, locked])
 
     // ── actions ──
     const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: placeDesk(), center }), [dispatch, placeDesk])
     const openApp = useCallback((app: OsAppId) => open(appSpec(app)), [open])
     const move = useCallback((id: string, x: number, y: number) => dispatch({ type: "move", id, x, y, desk: deskNow.current }), [dispatch])
     const resize = useCallback((id: string, width: number, height: number) => dispatch({ type: "resize", id, width, height, desk: deskNow.current }), [dispatch])
-    const frame: FrameActions = { focus: win.focus, close: win.close, minimise: win.minimise, toggleMax: win.toggleMax, move, resize }
+    const frame: FrameActions = { focus: win.focus, close: win.close, minimise: win.minimise, toggleMax: win.toggleMax, move, resize,
+        retarget: (id, spec) => dispatch({ type: "retarget", id, spec }) }
     const tile = useCallback(() => dispatch({ type: "tile", desk: placeDesk() }), [dispatch, placeDesk])
 
     const member = session.status === "member"
+    const modalBlocked = locked || Boolean(session.stage)
+    const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
     const deskItems = useDesk(deskOwner)
 
-    const unlock = () => { setLocked(false); markSeen() }
+    const unlock = () => {
+        skipLockWrite.current = false
+        skipNextOwnerWrite.current = storageOwner
+        markLocked(false); setLocked(false); markSeen()
+    }
     const lock = () => {
+        skipLockWrite.current = true
         if (member) session.disconnect()
         win.closeAll()
         setLinkGuest(false)
+        markLocked(true)
         setLocked(true)
     }
 
@@ -229,10 +314,31 @@ export function Shell() {
     const front = win.front
     const { close: closeWin, next: nextWin } = win
     const [launcher, setLauncher] = useState(false)
+    const launcherOpener = useRef<HTMLElement | null>(null)
+    const openLauncher = useCallback(() => {
+        launcherOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        setLauncher(true)
+    }, [])
+    const closeLauncher = useCallback((restoreFocus: boolean) => {
+        setLauncher(false)
+        if (!restoreFocus) return
+        requestAnimationFrame(() => {
+            const opener = launcherOpener.current
+            const fallback = document.querySelector<HTMLElement>('button.os-mb[aria-label^="Search"], button.os-ph-search')
+            if (opener?.isConnected) opener.focus({ preventScroll: true })
+            else fallback?.focus({ preventScroll: true })
+            launcherOpener.current = null
+        })
+    }, [])
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             // ⌘K / Ctrl+K opens search, from anywhere (D13).
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !locked && !session.stage) { e.preventDefault(); setLauncher((v) => !v); return }
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !locked && !session.stage) {
+                e.preventDefault()
+                if (launcher) closeLauncher(true)
+                else openLauncher()
+                return
+            }
             if (locked || session.stage || !e.altKey) return
             const t = e.target as HTMLElement | null
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
@@ -247,7 +353,7 @@ export function Shell() {
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)
-    }, [locked, session.stage, front, closeWin, nextWin])
+    }, [locked, session.stage, front, closeWin, nextWin, launcher, openLauncher, closeLauncher])
 
     // ── right-click menus ──
     const [menu, setMenu] = useState<{ x: number; y: number; item: number | null } | null>(null)
@@ -288,10 +394,10 @@ export function Shell() {
             )}
             <ConnectModal session={session} />
             {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
-            {locked && (
+            {locked && !session.stage && (
                 <LockScreen
-                    onConnect={() => { unlock(); session.openConnect() }}
-                    onGuest={() => { unlock(); open(welcomeSpec(), true) }}
+                    onConnect={session.openConnect}
+                    onGuest={() => { unlock(); if (!win.wins.length) open(welcomeSpec(), true) }}
                 />
             )}
         </>
@@ -300,18 +406,18 @@ export function Shell() {
     if (phone) {
         return (
             <LiveActivityProvider networkKey={session.network.key} active={!locked && front?.app === "live"}>
-            <SignerProvider session={session} toast={showToast}>
-                <PhoneShell session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
-                    close={win.close} toast={showToast} openSearch={() => setLauncher(true)}
+            <SignerProvider key={signerOwner} session={session} toast={showToast}>
+                <PhoneShell locked={modalBlocked} session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+                    close={win.close} toast={showToast} openSearch={openLauncher}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
-                        // the minimise then rewrites this new entry to /os.
+                        // minimising all sheets then rewrites this new entry to /os.
                         // Only for a window with an address: Welcome or Not found share /os with Home.
                         const w = win.wins.find((x) => x.id === id)
                         if (w && windowToken(w.target) !== null) navigate(location.pathname + location.search)
-                        win.minimise(id)
+                        win.minimiseAll()
                     }} />
-                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
+                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
                 {shared}
             </SignerProvider>
             </LiveActivityProvider>
@@ -319,11 +425,11 @@ export function Shell() {
     }
     return (
         <LiveActivityProvider networkKey={session.network.key} active={!locked}>
-        <SignerProvider session={session} toast={showToast}>
-            <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
+        <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
-                isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={() => setLauncher(true)} />
-            <main ref={setDeskEl} className="os-desk" aria-label="Desktop"
+                isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
+            <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
                 {!locked && <LiveTicker onOpen={() => openApp("live")} />}
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
@@ -343,15 +449,15 @@ export function Shell() {
                     <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
-                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
+                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </main>
             {bannerUp && (
-                <div className="os-banner os-glass" role="status">
+                <div className="os-banner os-glass" role="status" inert={modalBlocked} aria-hidden={modalBlocked}>
                     Browsing as guest
                     <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
                 </div>
             )}
-            <Dock wins={win.wins} openApp={openApp} restore={win.focus} />
+            <Dock wins={win.wins} openApp={openApp} restore={win.focus} locked={modalBlocked} />
             {shared}
         </SignerProvider>
         </LiveActivityProvider>

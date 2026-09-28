@@ -12,7 +12,7 @@
  *
  * @module os/sign/signer
  */
-import { setTxConfirmationCallback, WalletActionBlockedError, type AminoMsg } from "../../lib/grc20"
+import { replaceTxConfirmationCallback, setTxConfirmationCallback, WalletActionBlockedError, type AminoMsg } from "../../lib/grc20"
 import {
     beginGovernanceRequest, clearGovernanceReceipt, governanceRequestActive, saveGovernanceReceipt, type GovernanceScope,
 } from "../../lib/dao/governanceRecovery"
@@ -44,7 +44,7 @@ export interface SignRequest<C extends string = string> {
     /** Fresh on-chain checks right before the wallet opens; throws to stop. */
     recheck?: (choice: C | undefined) => Promise<void>
     /** Sends exactly the prepared messages; must pass `beforeSign` to the broadcaster. */
-    send: (choice: C | undefined, beforeSign: () => Promise<void>) => Promise<{ hash: string; result?: unknown }>
+    send: (choice: C | undefined, beforeSign: () => Promise<void | (() => boolean)>) => Promise<{ hash: string; result?: unknown }>
     /** After sending: does the chain show the result? Gets the wallet's result too (e.g. a new proposal's id). */
     verify?: (choice: C | undefined, hash: string, result: unknown) => Promise<boolean>
     /** How many times to run `verify` (default 3). Use 1 when `verify` polls by itself. */
@@ -62,6 +62,7 @@ export type SignResult =
 export type SettledOutcome = "confirmed" | "submitted" | "failed" | "cancelled" | "unknown"
 
 const REJECTED_IN_WALLET = /user (rejected|denied)|rejected by (the )?user/i
+let signingActive = false
 
 /** Review → wallet → result. `onWallet` fires when the rechecks passed and Adena is about to open. */
 export async function executeSignature<C extends string>(
@@ -72,18 +73,25 @@ export async function executeSignature<C extends string>(
     /** Checked after asynchronous chain rechecks and immediately before Adena opens. */
     canOpenWallet: () => boolean = () => true,
 ): Promise<SignResult> {
-    const label = req.label(choice)
+    if (signingActive) return { outcome: "failed", error: "A signature is already waiting. Finish it before starting another." }
+    signingActive = true
+    let label: string
+    try { label = req.label(choice) } catch (err) {
+        signingActive = false
+        return { outcome: "failed", error: friendlyDaoError(err) }
+    }
     let walletStarted = false
     let hash = ""
     let mismatch = false
     let restored = false
     let finish = () => {}
-    const previous = setTxConfirmationCallback(async (msgs) => {
-        setTxConfirmationCallback(previous)
+    const confirm = async (msgs: AminoMsg[]) => {
+        replaceTxConfirmationCallback(confirm, previous)
         restored = true
         mismatch = !sameMsgs(msgs, reviewed)
         return !mismatch
-    })
+    }
+    const previous = setTxConfirmationCallback(confirm)
     try {
         if (req.receipt) {
             if (governanceRequestActive(req.receipt)) return { outcome: "failed", error: "This action is already waiting for Adena." }
@@ -94,8 +102,10 @@ export async function executeSignature<C extends string>(
         const res = await req.send(choice, async () => {
             await req.recheck?.(choice)
             if (!canOpenWallet()) throw new Error("Your Memba session ended. Connect again before signing.")
+            if (!restored) throw new Error("Signature review expired. Try again.")
             walletStarted = true
             onWallet()
+            return canOpenWallet
         })
         hash = res.hash
         if (req.receipt) {
@@ -116,8 +126,9 @@ export async function executeSignature<C extends string>(
         }
         return { outcome: "unknown", error: friendlyDaoError(err), hash }
     } finally {
-        if (!restored) setTxConfirmationCallback(previous)
+        if (!restored) replaceTxConfirmationCallback(confirm, previous)
         finish()
+        signingActive = false
     }
 }
 

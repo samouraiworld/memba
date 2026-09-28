@@ -75,7 +75,7 @@ test.describe('Memba OS windows', () => {
         const w = await settled(page, 'Feed')
         const before = (await w.boundingBox())!
         // Grab the title bar left of its centred title: the guest toast sits over the middle of the desk's top.
-        const title = w.getByRole('heading', { name: 'Feed', exact: true })
+        const title = w.locator('.os-tb-title')
         const t = (await title.boundingBox())!
         const gx = before.x + 120
         await page.mouse.move(gx, t.y + t.height / 2)

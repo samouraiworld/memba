@@ -13,7 +13,7 @@ function WindowTile({ w }: { w: OsWindow }) {
  * The dock (mockup v4 .dock): the default apps, a separator, Settings, then
  * one button per minimised window. A dot marks apps with an open window.
  */
-export function Dock({ wins, openApp, restore }: { wins: readonly OsWindow[]; openApp: (app: OsAppId) => void; restore: (id: string) => void }) {
+export function Dock({ wins, openApp, restore, locked }: { wins: readonly OsWindow[]; openApp: (app: OsAppId) => void; restore: (id: string) => void; locked: boolean }) {
     const running = new Set(wins.map((w) => w.app))
     const item = (id: OsAppId, name: string) => (
         <button key={id} type="button" className={`os-dk${running.has(id) ? " os-run" : ""}`} aria-label={name} onClick={() => openApp(id)}>
@@ -23,7 +23,7 @@ export function Dock({ wins, openApp, restore }: { wins: readonly OsWindow[]; op
     )
     const minimised = wins.filter((w) => w.min)
     return (
-        <nav className="os-dock" aria-label="Dock">
+        <nav className="os-dock" aria-label="Dock" inert={locked} aria-hidden={locked}>
             {DOCK_APPS.map((a) => item(a.id, a.name))}
             <span className="os-dsep" aria-hidden="true" />
             {item("settings", "Settings")}

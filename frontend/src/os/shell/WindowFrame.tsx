@@ -5,7 +5,7 @@
  *
  * @module os/shell/WindowFrame
  */
-import { createElement, lazy, Suspense, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { createElement, lazy, Suspense, useEffect, useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
@@ -32,6 +32,8 @@ interface Actions {
     open: (spec: WindowSpec) => void
     close: () => void
     toast: (msg: string) => void
+    active?: boolean
+    retarget?: (spec: WindowSpec) => void
 }
 
 function Welcome({ session, openApp }: Actions) {
@@ -142,7 +144,8 @@ function bodyFallback({ t, classicPage, winId, ...a }: Actions & { t: { app: OsA
     // Keyed by the page too: a window that follows a link to another page (tx 7 → tx 12)
     // must start that page fresh, never carry the previous page's typed state over.
     // Its query isn't in the key: a tab change is the same page, which re-renders in place.
-    return <ClassicPage key={`${winId}:${classicPage}`} network={a.session.network.key} page={classicPage} query={t.query} layout={a.session.layout} onGameExit={a.close} />
+    return <ClassicPage key={`${winId}:${classicPage}`} network={a.session.network.key} page={classicPage} query={t.query} layout={a.session.layout}
+        onGameExit={a.close} active={a.active ?? true} onBackgroundReplace={a.retarget} />
 }
 
 export interface FrameActions {
@@ -152,6 +155,7 @@ export interface FrameActions {
     toggleMax: (id: string) => void
     move: (id: string, x: number, y: number) => void
     resize: (id: string, width: number, height: number) => void
+    retarget: (id: string, spec: WindowSpec) => void
 }
 
 type Drag = { mode: "move" | "resize"; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; moved: boolean }
@@ -205,6 +209,15 @@ export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "c
         else frame.resize(win.id, d.ow + dx, d.oh + dy)
     }
     const handlers = { onPointerMove: onMove, onPointerUp: end, onPointerCancel: end }
+    const onTitleKey = (e: ReactKeyboardEvent<HTMLElement>) => {
+        if (win.max || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return
+        e.preventDefault()
+        const step = 20
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0
+        if (e.shiftKey) frame.resize(win.id, g.width + dx, g.height + dy)
+        else frame.move(win.id, g.x + dx, g.y + dy)
+    }
 
     // Keyboard users follow the front window: focus moves into it when it comes to the front,
     // unless focus is already inside it or in a modal (review sheet, connect, lock screen).
@@ -218,16 +231,17 @@ export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "c
 
     return (
         <section ref={ref} className={`os-win os-glass${active ? "" : " os-inactive"}${win.max ? " os-max" : ""}`} style={style}
-            aria-label={win.title} data-win={win.key} tabIndex={-1} onPointerDown={() => { if (!active) frame.focus(win.id) }}>
+            aria-label={win.title} data-win={win.key} tabIndex={-1} onPointerDown={() => { if (!active) frame.focus(win.id) }}
+            onFocusCapture={() => { if (!active) frame.focus(win.id) }}>
             <div className="os-tb" onPointerDown={(e) => begin("move", e)} {...handlers} onDoubleClick={(e) => { if (!(e.target as HTMLElement).closest("button")) frame.toggleMax(win.id) }}>
                 <span className="os-lights">
                     <button type="button" className="os-light-close" aria-label={`Close ${win.title}`} onClick={() => frame.close(win.id)}><span aria-hidden="true">×</span></button>
                     <button type="button" className="os-light-min" aria-label={`Minimise ${win.title}`} onClick={() => frame.minimise(win.id)}><span aria-hidden="true">–</span></button>
                     <button type="button" className="os-light-max" aria-label={`${win.max ? "Restore" : "Maximise"} ${win.title}`} aria-pressed={win.max} onClick={() => frame.toggleMax(win.id)}><span aria-hidden="true">+</span></button>
                 </span>
-                <h2 className="os-tb-title">{win.title}</h2>
+                <h2 className="os-tb-title" tabIndex={0} aria-label={`${win.title}. Arrow keys move window; Shift plus arrow keys resize window.`} onKeyDown={onTitleKey}>{win.title}</h2>
             </div>
-            <div className="os-wbody"><WindowBody win={win} {...a} close={() => frame.close(win.id)} /></div>
+            <div className="os-wbody"><WindowBody win={win} {...a} active={active} retarget={(spec) => frame.retarget(win.id, spec)} close={() => frame.close(win.id)} /></div>
             {!win.max && <span className="os-rz" aria-hidden="true" data-testid="resize" onPointerDown={(e) => begin("resize", e)} {...handlers} />}
         </section>
     )

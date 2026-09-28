@@ -22,6 +22,7 @@ import { formatUgnot } from "../wallet/send"
 const PHONE_DOCK: readonly OsAppId[] = ["daos", "wallet", "feed"]
 
 export interface PhoneShellProps {
+    locked: boolean
     session: OsSession
     front: OsWindow | null
     items: readonly DeskItem[]
@@ -111,7 +112,7 @@ export function PhoneShell(p: PhoneShellProps) {
     }
 
     return (
-        <div className="os-phone">
+        <div className="os-phone" inert={p.locked} aria-hidden={p.locked}>
             <header className="os-ph-status" aria-label="Status bar">
                 <span className="os-mono">{time}</span>
                 <span className="os-grow" />

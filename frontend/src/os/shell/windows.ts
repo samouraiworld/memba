@@ -124,6 +124,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
         case "multisig": return `/os/multisig/${t.address}`
         case "feedback": return "/os/feedback"
         case "about": return "/os/about"
+        case "unknown": return t.path.startsWith("/os/") ? t.path : "/os"
         default: return "/os"
     }
 }
@@ -140,6 +141,7 @@ export type WindowsAction =
     | { type: "close"; id: string }
     | { type: "closeKey"; key: string }
     | { type: "closeAll" }
+    | { type: "retarget"; id: string; spec: WindowSpec }
     | { type: "minimiseAll" }
     | { type: "tile"; desk: DeskSize }
     | { type: "fit"; desk: DeskSize }
@@ -177,21 +179,34 @@ function keepQuery(next: OsTarget | null, prev: OsTarget | null): OsTarget | nul
     return prev.app === next.app && prev.section === next.section && prev.query !== undefined ? { ...next, query: prev.query } : next
 }
 
+/** Keep windows below menus and modal scrims, even after many focus changes. */
+function compactZ(s: WindowsState): WindowsState {
+    const order = [...s.wins].sort((a, b) => a.z - b.z)
+    const rank = new Map(order.map((w, i) => [w.id, i + 1]))
+    return { ...s, top: order.length, wins: s.wins.map((w) => ({ ...w, z: rank.get(w.id)! })) }
+}
+
+function safeZ(s: WindowsState): WindowsState {
+    return s.top >= 500 ? compactZ(s) : s
+}
+
 function raise(s: WindowsState, id: string, patch: Partial<OsWindow> = {}): WindowsState {
-    const top = s.top + 1
-    return { ...s, top, wins: s.wins.map((w) => (w.id === id ? { ...w, ...patch, z: top } : w)) }
+    const base = safeZ(s)
+    const top = base.top + 1
+    return { ...base, top, wins: base.wins.map((w) => (w.id === id ? { ...w, ...patch, z: top } : w)) }
 }
 
 export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState {
     switch (a.type) {
         case "open": {
-            const existing = s.wins.find((w) => w.key === a.spec.key)
+            const base = safeZ(s)
+            const existing = base.wins.find((w) => w.key === a.spec.key)
             // Reopening keeps the window where it is, but follows the link's section.
-            if (existing) return raise(s, existing.id, { min: false, target: keepQuery(a.spec.target, existing.target) ?? existing.target })
-            const seq = s.seq + 1
-            const top = s.top + 1
-            const g = place(a.spec, s.wins.length, a.desk, !!a.center)
-            return { top, seq, wins: [...s.wins, { ...a.spec, ...g, id: `w${seq}`, z: top, min: false, max: false }] }
+            if (existing) return raise(base, existing.id, { min: false, target: keepQuery(a.spec.target, existing.target) ?? existing.target })
+            const seq = base.seq + 1
+            const top = base.top + 1
+            const g = place(a.spec, base.wins.length, a.desk, !!a.center)
+            return { top, seq, wins: [...base.wins, { ...a.spec, ...g, id: `w${seq}`, z: top, min: false, max: false }] }
         }
         case "focus": {
             const w = s.wins.find((x) => x.id === a.id)
@@ -218,6 +233,9 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
         case "close": return { ...s, wins: s.wins.filter((w) => w.id !== a.id) }
         case "closeKey": return { ...s, wins: s.wins.filter((w) => w.key !== a.key) }
         case "closeAll": return { ...s, wins: [] }
+        case "retarget": return { ...s, wins: s.wins.map((w) => w.id === a.id
+            ? { ...w, key: a.spec.key, title: a.spec.title, app: a.spec.app, target: a.spec.target }
+            : w) }
         case "minimiseAll": return { ...s, wins: s.wins.map((w) => ({ ...w, min: true })) }
         case "tile": {
             const two = visibleWindows(s.wins).sort((a, b) => b.z - a.z).slice(0, 2)
@@ -252,9 +270,8 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
         }
         case "navigate": return windowsForNavigation(s, a.specs, a.desk, a.exact)
         case "restore": {
-            const top = a.wins.reduce((m, w) => Math.max(m, w.z), 0)
             const seq = a.wins.reduce((m, w) => Math.max(m, Number(w.id.replace(/^w/, "")) || 0), 0)
-            return { top, seq, wins: a.wins }
+            return compactZ({ top: 0, seq, wins: a.wins })
         }
     }
 }

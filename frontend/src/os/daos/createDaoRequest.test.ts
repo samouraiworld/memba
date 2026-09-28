@@ -21,8 +21,13 @@ vi.mock("../../lib/dao/packageStatus", async (orig) => ({
 vi.mock("../../lib/grc20", async (orig) => ({
     ...(await orig<typeof import("../../lib/grc20")>()),
     // Stand-in for the broadcaster: beforeSign, then the wallet.
-    doContractBroadcast: vi.fn(async (_msgs: unknown, _memo: string, opts: { beforeSign?: () => Promise<void> }) => {
-        await opts.beforeSign?.()
+    doContractBroadcast: vi.fn(async (_msgs: unknown, _memo: string, opts: { beforeSign?: () => Promise<void | (() => boolean)> }) => {
+        const { setTxConfirmationCallback } = await import("../../lib/grc20")
+        const confirm = setTxConfirmationCallback(null)
+        setTxConfirmationCallback(confirm)
+        if (confirm && !(await confirm(_msgs as import("../../lib/grc20").AminoMsg[], _memo))) throw new Error("Transaction cancelled by user")
+        const guard = await opts.beforeSign?.()
+        if (guard && !guard()) throw new Error("Session changed")
         const { listPendingDAOs } = await import("../../lib/dao/packageStatus")
         chain.pendingAtWallet = listPendingDAOs("gnoland-1")[0] ?? null
         return chain.wallet()

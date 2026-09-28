@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { markSeen, OS_SEEN_KEY, readSeen, resolveEntry } from "./entry"
+import { markLocked, markSeen, OS_LOCKED_KEY, OS_SEEN_KEY, readLocked, readSeen, resolveEntry } from "./entry"
 
 afterEach(() => localStorage.clear())
 
@@ -19,6 +19,16 @@ describe("resolveEntry (D7)", () => {
 
     it("opens a shared link as a guest, without the lock screen", () => {
         expect(resolveEntry({ seen: false, resuming: false, deepLink: true })).toBe("link")
+    })
+
+    it("keeps an explicit lock across reload, including shared links and a reconnecting wallet", () => {
+        expect(resolveEntry({ seen: true, resuming: false, deepLink: true, locked: true })).toBe("lock")
+        expect(resolveEntry({ seen: true, resuming: true, deepLink: false, locked: true })).toBe("lock")
+        markLocked(true)
+        expect(localStorage.getItem(OS_LOCKED_KEY)).toBe("1")
+        expect(readLocked()).toBe(true)
+        markLocked(false)
+        expect(readLocked()).toBe(false)
     })
 })
 

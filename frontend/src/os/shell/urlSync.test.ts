@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { parseOsPath } from "./osPath"
-import { loadSavedTargets, OS_WINDOWS_KEY, saveWindows, targetsFromUrl, tokenToTarget, urlForWindows, windowToken } from "./urlSync"
+import { loadSavedTargets, OS_WINDOWS_KEY, saveWindows, targetsFromUrl, tokenToTarget, urlForWindows, windowToken, windowsStorageKey } from "./urlSync"
 import { appSpec, EMPTY_WINDOWS, specForTarget, welcomeSpec, windowsForNavigation, windowsReducer, type WindowsState } from "./windows"
 import { applyToJoinSpec } from "../daos/joinSpec"
 
@@ -27,6 +27,11 @@ describe("?w= tokens", () => {
         expect(windowToken(null)).toBeNull()
         expect(windowToken(parseOsPath("/os/nope"))).toBeNull()
     })
+
+    it("keeps an invalid deep link visible for typo correction", () => {
+        const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: specForTarget(parseOsPath("/os/unknown-audit-path"))!, desk })
+        expect(urlForWindows(s.wins)).toBe("/os/unknown-audit-path")
+    })
 })
 
 describe("URL ⇄ windows", () => {
@@ -38,7 +43,7 @@ describe("URL ⇄ windows", () => {
 
     it("drops bad ?w= tokens and caps their number", () => {
         const many = Array.from({ length: 40 }, () => "app.feed").join(",")
-        expect(targetsFromUrl("/os", `?w=app.nope,${many}`).others.length).toBeLessThanOrEqual(12)
+        expect(targetsFromUrl("/os", `?w=app.nope,${many}`).others.length).toBeLessThanOrEqual(32)
         expect(targetsFromUrl("/os", "?w=%3Cscript%3E").others).toEqual([])
     })
 
@@ -82,6 +87,15 @@ describe("URL ⇄ windows", () => {
 })
 
 describe("saved session", () => {
+    it("partitions window paths and page queries by chain and account", () => {
+        const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed", null, "compose=join"), desk })
+        saveWindows(s.wins, "member:gnoland-1:g1alpha")
+        expect(loadSavedTargets("member:gnoland-1:g1alpha")[0].target).toMatchObject({ app: "feed", query: "compose=join" })
+        expect(loadSavedTargets("member:gnoland-1:g1beta")).toEqual([])
+        expect(loadSavedTargets("guest:gnoland-1")).toEqual([])
+        expect(localStorage.getItem(windowsStorageKey("member:gnoland-1:g1alpha"))).not.toBeNull()
+        expect(localStorage.getItem(OS_WINDOWS_KEY)).toBeNull()
+    })
     it("restores the lobby and separate game windows without losing their sections", () => {
         let s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("arcade"), desk })
         s = windowsReducer(s, { type: "open", spec: appSpec("arcade", "barricade"), desk })
@@ -108,6 +122,17 @@ describe("saved session", () => {
         expect(back).toHaveLength(1)
         expect(back[0].target).toEqual({ kind: "app", app: "feed", section: null })
         expect(back[0].geom).toMatchObject({ x: 222, y: 111 })
+    })
+
+    it("keeps a busy desk with more than twelve distinct windows on reload", () => {
+        let s = EMPTY_WINDOWS
+        for (let n = 1; n <= 14; n++) {
+            s = windowsReducer(s, { type: "open", spec: specForTarget(parseOsPath(`/os/dao/memba_dao/proposals/${n}`))!, desk })
+        }
+        const url = new URL(urlForWindows(s.wins), "https://memba.club")
+        expect(targetsFromUrl(url.pathname, url.search).others).toHaveLength(13)
+        saveWindows(s.wins)
+        expect(loadSavedTargets()).toHaveLength(14)
     })
 
     it("ignores a corrupted or hostile store", () => {

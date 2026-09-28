@@ -41,7 +41,7 @@ test.describe('Memba OS pages in a narrow window', () => {
         await fulfillGovernance(page)
         await page.addInitScript(() => {
             localStorage.setItem('memba_os_seen', '1')
-            localStorage.setItem('memba_os_windows', JSON.stringify([{ token: 'app.arcade', x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
+            localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([{ token: 'app.arcade', x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
         })
         await page.setViewportSize({ width: 1280, height: 800 })
         await page.goto(`${OS_ON}/os`)
@@ -63,7 +63,7 @@ test.describe('Memba OS pages in a narrow window', () => {
             await fulfillGovernance(page)
             await page.addInitScript((app) => {
                 localStorage.setItem('memba_os_seen', '1')
-                localStorage.setItem('memba_os_windows', JSON.stringify([{ token: `app.${app}`, x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
+                localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([{ token: `app.${app}`, x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
             }, app)
             await page.setViewportSize({ width: 1280, height: 800 })
             await page.goto(`${app === 'feed' ? OS_FEED_ON : OS_ON}/os`)

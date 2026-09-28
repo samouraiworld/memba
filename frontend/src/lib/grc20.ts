@@ -208,6 +208,13 @@ export function setTxConfirmationCallback(cb: TxConfirmCallback | null): TxConfi
     return previous
 }
 
+/** Restore a temporary confirmation handler only if it still owns the slot. */
+export function replaceTxConfirmationCallback(expected: TxConfirmCallback, next: TxConfirmCallback | null): boolean {
+    if (_txConfirmCallback !== expected) return false
+    _txConfirmCallback = next
+    return true
+}
+
 /**
  * Sign + broadcast via Adena DoContract.
  * Returns { hash, error } — throws if Adena is unavailable.
@@ -278,7 +285,7 @@ export function feeForGasWanted(gasWanted: number, price: GasPrice): number {
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void>; osActivation?: true },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
 ): Promise<{ hash: string; result?: unknown }> {
     return withWalletActivity(() => broadcastContract(msgs, memo, opts))
 }
@@ -307,7 +314,7 @@ async function walletStillSafe(attempt: number, lastError: Error | null, allowOs
 async function broadcastContract(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void>; osActivation?: true },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
 ): Promise<{ hash: string; result?: unknown }> {
     if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
         throw new Error(`Invalid gas limit: must be a whole number between 1 and ${MAX_GAS_WANTED}`)
@@ -359,11 +366,15 @@ async function broadcastContract(
         // so a wallet on the wrong network is reported as nothing sent.
         await walletStillSafe(attempt, lastError, activation)
         // Await caller revalidation after confirmation, then recheck wallet safety.
-        await opts?.beforeSign?.()
+        const requestGuard = await opts?.beforeSign?.()
         // Asked again right before the wallet request: beforeSign can take a while.
         await walletStillSafe(attempt, lastError, activation)
         // No await between this OS session check and the Adena request.
         assertWalletActionAllowed(attempt > 0, activation)
+        if (requestGuard && !requestGuard()) {
+            if (attempt > 0) throw new Error("Memba session changed before retrying. An earlier attempt may have reached the chain. Check its outcome before trying again.")
+            throw new WalletActionBlockedError()
+        }
         try {
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),

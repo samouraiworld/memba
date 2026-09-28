@@ -5,7 +5,7 @@
  *
  * @module os/shell/MenuBar
  */
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { OS_APPS, type OsAppId } from "../apps"
 import { AppTile } from "./icons"
 import { useClock } from "./clock"
@@ -19,6 +19,7 @@ import { useSigner } from "../sign/signerContext"
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
 export interface MenuBarProps {
+    locked: boolean
     session: OsSession
     wins: readonly OsWindow[]
     front: OsWindow | null
@@ -62,6 +63,8 @@ export function MenuBar(p: MenuBarProps) {
     const [panel, setPanel] = useState<PanelId | null>(null)
     const [anchor, setAnchor] = useState(10)
     const barRef = useRef<HTMLElement>(null)
+    const panelRef = useRef<HTMLDivElement>(null)
+    const panelOpener = useRef<HTMLButtonElement | null>(null)
     const [time] = useClock()
     const guest = session.status !== "member"
     const net = session.network
@@ -76,21 +79,45 @@ export function MenuBar(p: MenuBarProps) {
         setPanel("start")
     }
 
+    const focusOpener = useCallback(() => requestAnimationFrame(() => {
+        const opener = panelOpener.current
+        if (opener?.isConnected && !opener.closest('[inert]')) opener.focus({ preventScroll: true })
+    }), [])
+
     // Close on Escape or on any click outside the bar and its panel.
     useEffect(() => {
         if (!panel) return
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPanel(null) }
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") { e.preventDefault(); setPanel(null); focusOpener(); return }
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return
+            const items = [...(panelRef.current?.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]:not(:disabled)') ?? [])]
+            if (!items.length) return
+            const current = items.indexOf(document.activeElement as HTMLButtonElement)
+            const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1
+                : e.key === "ArrowDown" ? (current + 1) % items.length
+                    : (current - 1 + items.length) % items.length
+            e.preventDefault()
+            items[next].focus()
+        }
         const onDown = (e: PointerEvent) => { if (!barRef.current?.contains(e.target as Node)) setPanel(null) }
         window.addEventListener("keydown", onKey)
         window.addEventListener("pointerdown", onDown)
-        return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onDown) }
-    }, [panel])
+        const raf = requestAnimationFrame(() => panelRef.current?.querySelector<HTMLButtonElement>('[role^="menuitem"]:not(:disabled)')?.focus())
+        return () => { cancelAnimationFrame(raf); window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onDown) }
+    }, [panel, focusOpener])
 
     const toggle = (id: PanelId) => (e: React.MouseEvent<HTMLButtonElement>) => {
         setAnchor(e.currentTarget.offsetLeft)
+        panelOpener.current = e.currentTarget
         setPanel((cur) => (cur === id ? null : id))
     }
-    const run = (fn: () => void) => () => { setPanel(null); fn() }
+    const run = (fn: () => void) => () => {
+        setPanel(null)
+        fn()
+        requestAnimationFrame(() => {
+            if (document.activeElement === document.body || !document.activeElement?.isConnected) focusOpener()
+        })
+    }
     const mb = (id: PanelId) => ({ "aria-expanded": panel === id, "aria-haspopup": "menu" as const, onClick: toggle(id) })
     const copy = (text: string, label: string) => run(() => { void copyText(text).then((ok) => p.toast(ok ? `Copied ${label}` : "Couldn't copy: your browser blocked the clipboard")) })
 
@@ -125,7 +152,7 @@ export function MenuBar(p: MenuBarProps) {
                     </div>
                     <div className="os-menu os-menu-top" role="menu" aria-label="Memba">
                         <Item onClick={run(p.openSearch)} hint="⌘K">Search and commands…</Item>
-                        <Item onClick={run(() => p.openApp("settings"))}>Personalise desktop…</Item>
+                        <Item onClick={run(() => p.openApp("settings"))}>Open Settings…</Item>
                         <Item onClick={run(() => p.openSpec(specForTarget({ kind: "feedback" })!))}>Send feedback…</Item>
                         <Item onClick={run(() => p.openSpec(specForTarget({ kind: "about" })!))}>About Memba OS</Item>
                         <div className="os-msep" role="separator" />
@@ -236,7 +263,7 @@ export function MenuBar(p: MenuBarProps) {
     }
 
     return (
-        <header className="os-menubar" aria-label="Menu bar" ref={barRef}>
+        <header className="os-menubar" aria-label="Menu bar" ref={barRef} inert={p.locked} aria-hidden={p.locked}>
             <button type="button" className="os-mb" aria-label="Memba menu" {...mb("start")}><span className="os-mark" aria-hidden="true" /></button>
             <button type="button" className="os-mb os-strong" {...mb("spaces")}>
                 <span className="os-av os-av-sm" data-guest={guest || undefined} aria-hidden="true">{guest ? "G" : session.address.slice(2, 3).toUpperCase()}</span>
@@ -266,7 +293,7 @@ export function MenuBar(p: MenuBarProps) {
                     : <button type="button" className="os-mb os-connect" onClick={session.openConnect}>Connect wallet</button>}
             <span className="os-mono os-clock">{time}</span>
             {content && (
-                <div className="os-panel os-glass" data-panel={panel} style={right ? { right: panel === "acct" ? 60 : 10 } : { left: anchor }}>
+                <div ref={panelRef} className="os-panel os-glass" data-panel={panel} style={right ? { right: panel === "acct" ? 60 : 10 } : { left: anchor }}>
                     {content}
                 </div>
             )}

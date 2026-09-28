@@ -32,8 +32,9 @@ describe("OsRoot", () => {
         mockSystemDark(false)
         renderOs()
         expect(screen.getByTestId("memba-os")).toHaveAttribute("data-os-theme", "light")
-        expect(screen.getByRole("banner", { name: "Menu bar" })).toBeInTheDocument()
-        expect(screen.getByRole("main", { name: "Desktop" })).toBeInTheDocument()
+        expect(screen.getByRole("dialog", { name: "Welcome to Memba" })).toBeInTheDocument()
+        expect(screen.getByRole("banner", { hidden: true })).toHaveAttribute("inert")
+        expect(screen.getByRole("main", { hidden: true })).toHaveAttribute("inert")
     })
 
     it("renders dark when the system is dark", () => {
