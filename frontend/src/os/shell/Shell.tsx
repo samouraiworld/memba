@@ -389,6 +389,8 @@ export function Shell() {
                 // ⌥F: the front window full screen and back (D32: every game has a full-screen mode).
                 e.preventDefault()
                 if (document.fullscreenElement) void document.exitFullscreen()
+                else if (front.target?.kind === "app" && front.target.app === "meet" && front.target.section)
+                    void document.querySelector<HTMLIFrameElement>(".meet-stage iframe")?.requestFullscreen?.()
                 else void document.querySelector<HTMLElement>(`[data-win="${CSS.escape(front.key)}"]`)?.requestFullscreen?.()
             }
         }

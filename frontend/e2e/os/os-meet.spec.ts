@@ -13,7 +13,10 @@ async function startMeeting(page: import('@playwright/test').Page) {
     await expect(iframe).toHaveAttribute('src', /^https:\/\/visio\.samourai\.app\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/)
     expect(page.url()).toBe(`${OS_ON}/os/meet`)
     const code = (await iframe.getAttribute('src'))!.split('/').at(-1)!
-    expect(await page.evaluate(() => localStorage.getItem('memba_os_windows'))).not.toContain(code)
+    const savedWindows = await page.evaluate(() => Object.keys(localStorage)
+        .filter((key) => key.startsWith('memba_os_windows'))
+        .map((key) => localStorage.getItem(key) ?? '').join('\n'))
+    expect(savedWindows).not.toContain(code)
     return iframe
 }
 
