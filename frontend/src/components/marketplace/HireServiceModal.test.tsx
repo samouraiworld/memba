@@ -299,7 +299,7 @@ describe("HireServiceModal — live", () => {
         // No plain retry: the sign button is gone, the check link and a gated create-anyway replace it.
         expect(screen.queryByRole("button", { name: /sign escrow tx/i })).not.toBeInTheDocument()
         const link = screen.getByRole("link", { name: /check your escrow contracts/i })
-        expect(link.getAttribute("href")).toContain("realm=r/samcrew/escrow_v4")
+        expect(new URL(link.getAttribute("href")!, "https://memba.test").searchParams.get("realm")).toBe("r/samcrew/escrow_v4")
         const anyway = screen.getByRole("button", { name: /create anyway/i })
         expect(anyway).toBeDisabled()
         fireEvent.click(anyway)

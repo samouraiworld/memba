@@ -31,7 +31,7 @@ import { toExplorerRelPath } from "../lib/explorerLink"
 import "./directory.css"
 import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import { useNetwork } from "../hooks/useNetwork"
-import { useRecentSubmissions } from "../hooks/useRecentSubmissions"
+import { supportsRecentSubmissions, useRecentSubmissions } from "../hooks/useRecentSubmissions"
 
 // W5.2: Packages leads — it is by far the most-filled tab on test13 today
 // (DAO count is still small). Revisit the order once DAOs catch up.
@@ -255,7 +255,7 @@ export function Directory() {
                 && !crossTabResults && (
                 <div className="dir-cross-results" role="status" aria-live="polite">
                     <div className="dir-empty">
-                        <p>No listed DAOs, realms, or packages match "{globalSearch.trim()}". {networkKey === "mainnet" && (recentSubmissions.isPending ? "Checking recent submissions…" : recentSubmissions.isError ? "Recent submissions are unavailable." : "No recent submissions match in the checked window.")} Try a tab below or enter a full <code>gno.land/</code> path.</p>
+                        <p>No listed DAOs, realms, or packages match "{globalSearch.trim()}". {supportsRecentSubmissions(networkKey) && (recentSubmissions.isPending ? "Checking recent submissions…" : recentSubmissions.isError ? "Recent submissions are unavailable." : "No recent submissions match in the checked window.")} Try a tab below or enter a full <code>gno.land/</code> path.</p>
                     </div>
                 </div>
             )}
