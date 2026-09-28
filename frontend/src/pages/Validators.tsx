@@ -279,9 +279,9 @@ export default function Validators() {
     const valoperMonikers = rosterQuery.data?.valoperMonikers ?? NO_MONIKERS
     const loading = rosterQuery.isPending
     const refreshing = rosterQuery.isFetching && !rosterQuery.isPending
-    // Silent-refresh semantics preserved: a background refetch that fails keeps
-    // showing data (react-query retains it); the error state only renders when
-    // there is nothing to show.
+    // A failed background refresh retains the last roster, but every route
+    // must identify its height and health as a historical snapshot.
+    const staleRoster = rosterQuery.isError && !!rosterQuery.data
     const error = rosterQuery.isError && !rosterQuery.data
         ? (rosterQuery.error instanceof Error ? rosterQuery.error.message : "Failed to load validator data")
         : null
@@ -499,9 +499,9 @@ export default function Validators() {
             </div>
 
             {proUi && <p className="pro-val-intro">Explore the consensus set, compare validator health, and inspect network activity.</p>}
-            {proUi && rosterQuery.isError && rosterQuery.data && (
-                <div className="pro-val-notice" role="status">
-                    Refresh failed. Showing the last retrieved data.
+            {staleRoster && (
+                <div className="pro-val-notice" role="alert">
+                    Refresh failed. Showing the last retrieved data from {new Date(rosterQuery.dataUpdatedAt).toLocaleTimeString()}. Heights, health, and counts are not live.
                     <button type="button" onClick={() => void rosterQuery.refetch()}>Retry</button>
                 </div>
             )}
@@ -543,7 +543,7 @@ export default function Validators() {
                             {stats.blockHeight.toLocaleString()}
                         </span>
                         <span className="val-stat-hint">
-                            {stats.catchingUp ? "⏳ Syncing…" : "✅ Synced"}
+                            {staleRoster ? "Last retrieved height" : stats.catchingUp ? "⏳ Syncing…" : "✅ Synced"}
                         </span>
                     </div>
 
@@ -582,7 +582,7 @@ export default function Validators() {
             {/* ── Network Health Banner (v2.17.0) ──────────────── */}
             {networkHealth && (
                 <div className="val-health-banner" data-testid="network-health-banner">
-                    <div className="val-health-banner__title">{proUi ? "Network health" : "🩺 Network Health"}</div>
+                    <div className="val-health-banner__title">{staleRoster ? "Network health · last retrieved" : proUi ? "Network health" : "🩺 Network Health"}</div>
                     <div className="val-health-banner__grid">
                         <div className="val-health-banner__stat">
                             <span className="val-health-dot val-health-dot--healthy" />
@@ -846,7 +846,7 @@ export default function Validators() {
                                 <td className="val-td val-td-center">
                                     <span
                                         className={`val-health-badge ${healthCssClass(v.healthStatus)}`}
-                                        title={v.healthMeta?.reason || ""}
+                                        title={staleRoster ? `Last retrieved health: ${v.healthMeta?.reason || healthLabel(v.healthStatus)}` : v.healthMeta?.reason || ""}
                                     >
                                         <span className="val-health-badge__icon">{healthIcon(v.healthStatus)}</span>
                                         <span className="val-health-badge__label">{healthLabel(v.healthStatus)}</span>

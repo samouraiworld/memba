@@ -43,6 +43,29 @@
     animation: val-pulse 1.2s ease infinite;
 }
 
+.val-page > .pro-val-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--color-warning, #c68b30);
+    border-radius: 8px;
+    color: var(--color-text);
+    background: var(--color-surface, rgba(198, 139, 48, 0.1));
+}
+
+.val-page > .pro-val-notice button {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+
 /* Hacker view link button in header */
 .val-hacker-btn {
     display: inline-flex;

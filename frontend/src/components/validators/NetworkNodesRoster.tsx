@@ -10,6 +10,7 @@
 
 import { useState, useMemo } from "react"
 import { buildNodeRoster, type NetInfo, type NodeRole } from "../../lib/validators"
+import { peerHostLabel } from "./nodeStateLinks"
 
 const ROLE_LABEL: Record<NodeRole, string> = {
     validator: "Possible validator",
@@ -78,7 +79,7 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
         if (!q) return roster
         return roster.filter(r =>
             r.moniker.toLowerCase().includes(q) ||
-            r.ip.includes(q) ||
+            peerHostLabel(r.ip).toLowerCase().includes(q) ||
             r.nodeId.toLowerCase().includes(q),
         )
     }, [roster, search])
@@ -108,7 +109,7 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
                         type="text"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        placeholder="Search nodes by name, IP, or node ID…"
+                        placeholder="Search nodes by name, public IP, or node ID…"
                         className="val-search val-roster__search"
                         data-testid="roster-search"
                     />
@@ -137,7 +138,7 @@ export function NetworkNodesRoster({ netInfo, validatorMonikers, loading }: Netw
                                         <td className="val-mono val-roster__dim">
                                             <NodeIdCell nodeId={row.nodeId} />
                                         </td>
-                                        <td className="val-mono val-roster__dim">{row.ip || "—"}</td>
+                                        <td className="val-mono val-roster__dim">{peerHostLabel(row.ip)}</td>
                                         <td className="val-roster__seen" title={`Seen by ${row.seenByCount} RPC node(s)`}>
                                             {row.seenByCount}×
                                         </td>

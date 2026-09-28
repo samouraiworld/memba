@@ -199,14 +199,19 @@ export async function getValidators(rpcUrl: string, snapshot?: ValidatorRpcSnaps
     }
 
     // A moving unpinned set or inconsistent RPC page must never become a
-    // plausible-looking roster with duplicate rows and incorrect power shares.
-    const byAddress = new Map<string, (typeof validators)[number]>()
+    // plausible-looking roster with duplicate or missing-address rows. This
+    // also matters when tm2 omits `total`: deduplicating first would hide a
+    // missing validator on a short final page.
+    const addresses = new Set<string>()
     for (const validator of validators) {
-        if (typeof validator?.address === "string" && validator.address) {
-            byAddress.set(validator.address.toLowerCase(), validator)
+        const address = validator?.address
+        if (typeof address !== "string" || !address.trim()) {
+            throw new Error("Incomplete validator roster: invalid or missing address")
         }
+        const key = address.toLowerCase()
+        if (addresses.has(key)) throw new Error("Incomplete validator roster: duplicate address")
+        addresses.add(key)
     }
-    validators = [...byAddress.values()]
     const expected = declaredTotal ?? validators.length
     if (validators.length !== expected) {
         throw new Error(`Incomplete validator roster: expected ${expected}, received ${validators.length} unique addresses`)
@@ -509,9 +514,9 @@ export function __resetBlockSigCacheForTests(): void {
  * know the roster must seed those entries themselves, or the totally-down
  * validator silently reads as "no data" rather than "missed everything".
  *
- * Only heights missing from the cache are fetched. A block that fails to load is
- * simply absent from the window rather than recorded as a miss — a transport
- * failure is not evidence about a validator.
+ * Only heights missing from the cache are fetched. If any block fails to load,
+ * the entire window is unavailable rather than recording an apparent healthy
+ * sample from fewer blocks. The missing height stays uncached for the next poll.
  */
 export async function fetchLastBlockSignatures(
     rpcUrl: string,
@@ -582,14 +587,14 @@ export async function fetchLastBlockSignatures(
             if (h < floor) cache.blocks.delete(h)
         }
 
-        const available = heights.filter(h => cache.blocks.has(h))
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError")
+        if (heights.some(h => !cache.blocks.has(h))) return result
         const allAddrs = new Set<string>()
-        for (const h of available) {
+        for (const h of heights) {
             for (const addr of cache.blocks.get(h)!.signers) allAddrs.add(addr)
         }
         for (const addr of allAddrs) {
-            result.set(addr, available.map(h => cache.blocks.get(h)!.signers.has(addr)))
+            result.set(addr, heights.map(h => cache.blocks.get(h)!.signers.has(addr)))
         }
     } catch (error) {
         if (signal?.aborted) throw error

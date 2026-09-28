@@ -153,6 +153,28 @@ describe("fetchLastBlockSignatures", () => {
         await expect(fetchLastBlockSignatures("rpc", 20)).resolves.toEqual(new Map())
     })
 
+    it("keeps the whole sample unavailable when the newest block fails, then retries it", async () => {
+        let failNewest = true
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => {
+            if (method === "/status") return Promise.resolve({ node_info: { network: GNO_CHAIN_ID }, sync_info: { latest_block_height: "100", latest_block_hash: "hash-100" } })
+            if (method === "/block") {
+                const height = Number(params?.height)
+                if (height === 100 && failNewest) return Promise.reject(new Error("block unavailable"))
+                return Promise.resolve(block(height, [VAL_A, VAL_B]))
+            }
+            return Promise.resolve(null)
+        })
+
+        expect(await fetchLastBlockSignatures("rpc", 5)).toEqual(new Map())
+        expect(requestedHeights()).toHaveLength(5)
+
+        failNewest = false
+        directRpcCall.mockClear()
+        const recovered = await fetchLastBlockSignatures("rpc", 5)
+        expect(requestedHeights()).toEqual([100])
+        expect(recovered.get(VAL_A)).toEqual([true, true, true, true, true])
+    })
+
     it("does not reuse signer rows from a different endpoint at the same height", async () => {
         mockChain(100, () => [VAL_A])
         await fetchLastBlockSignatures("rpc", 5)

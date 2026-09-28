@@ -59,4 +59,16 @@ describe("NetworkNodesRoster accessibility", () => {
         expect(screen.getByText("Possible validator")).toBeInTheDocument()
         expect(screen.queryByText(/1 validator/)).not.toBeInTheDocument()
     })
+
+    it("masks private peer addresses in the roster and does not search their raw value", () => {
+        render(<NetworkNodesRoster
+            netInfo={{ ...netInfo, peers: [{ ...netInfo.peers[0], ip: "10.12.34.56" }] }}
+            validatorMonikers={new Set()}
+            loading={false}
+        />)
+        expect(screen.getByText("Private address")).toBeInTheDocument()
+        expect(screen.queryByText("10.12.34.56")).not.toBeInTheDocument()
+        fireEvent.change(screen.getByRole("textbox", { name: "Search network nodes" }), { target: { value: "10.12.34.56" } })
+        expect(screen.getByText(/No nodes match/)).toBeInTheDocument()
+    })
 })

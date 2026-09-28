@@ -10,24 +10,11 @@
 
 import type { NetInfo } from "../../lib/validators"
 import { useState } from "react"
-import { publicRpcLink } from "./nodeStateLinks"
+import { isPrivatePeerHost, peerHostLabel, publicRpcLink } from "./nodeStateLinks"
 
 interface PeerTableProps {
     netInfo: NetInfo | null
     loading: boolean
-}
-
-function isPrivateHost(host: string): boolean {
-    const normalized = host.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "")
-    const octets = normalized.split(".").map(Number)
-    const privateIPv4 = octets.length === 4 && octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255) && (
-        octets[0] === 0 || octets[0] === 10 || octets[0] === 127 ||
-        (octets[0] === 169 && octets[1] === 254) ||
-        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-        (octets[0] === 192 && octets[1] === 168)
-    )
-    return privateIPv4 || normalized === "localhost" || normalized.endsWith(".local") || normalized === "::1" ||
-        (normalized.includes(":") && (normalized.startsWith("fe80:") || normalized.startsWith("fc") || normalized.startsWith("fd")))
 }
 
 export function PeerTable({ netInfo, loading }: PeerTableProps) {
@@ -88,14 +75,14 @@ export function PeerTable({ netInfo, loading }: PeerTableProps) {
                                             <td className="hk-peers__moniker">
                                                 {peer.moniker || <span className="hk-dimmed">unknown</span>}
                                             </td>
-                                            <td className="hk-mono hk-dimmed">{peer.ip ? isPrivateHost(peer.ip) ? "Private address" : peer.ip : "—"}</td>
+                                            <td className="hk-mono hk-dimmed">{peerHostLabel(peer.ip)}</td>
                                             <td>
                                                 <span className={`hk-badge ${peer.isOutbound ? "hk-badge--out" : "hk-badge--in"}`}>
                                                     {peer.isOutbound ? "OUT" : "IN"}
                                                 </span>
                                             </td>
                                             <td className="hk-dimmed">{peer.network || "—"}</td>
-                                            <td className="hk-mono hk-dimmed" title={isPrivateHost(peer.ip) ? undefined : peer.nodeId}>
+                                            <td className="hk-mono hk-dimmed" title={isPrivatePeerHost(peer.ip) ? undefined : peer.nodeId}>
                                                 {peer.nodeId ? `${peer.nodeId.slice(0, 10)}…` : "—"}
                                             </td>
                                             <td>

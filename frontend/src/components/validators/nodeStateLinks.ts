@@ -1,5 +1,23 @@
 /** A node often advertises a local listen address in /status. Only link to a
  * clearly public HTTP endpoint; keep local and private values as plain text. */
+export function isPrivatePeerHost(raw: string): boolean {
+    const host = raw.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "")
+    if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".lan")) return true
+    if (host.includes(":")) return !/^[23][0-9a-f]{3}:/i.test(host)
+    const octets = host.split(".").map(Number)
+    return octets.length === 4 && octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255) && (
+        octets[0] === 0 || octets[0] === 10 || octets[0] === 127 || octets[0] >= 224 ||
+        (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168)
+    )
+}
+
+export function peerHostLabel(host: string): string {
+    return host ? isPrivatePeerHost(host) ? "Private address" : host : "—"
+}
+
 export function publicRpcLink(raw: string): string | undefined {
     if (!raw.trim()) return undefined
     try {

@@ -67,6 +67,21 @@ describe("verified validator roster", () => {
         await expect(getValidators("https://primary")).rejects.toThrow(/Incomplete validator roster/)
     })
 
+    test("rejects a short duplicate final page when the RPC omits total", async () => {
+        directRpcCall.mockImplementation((_url: string, method: string, params?: Record<string, string>) => method === "/status"
+            ? Promise.resolve(status(GNO_CHAIN_ID))
+            : Promise.resolve({ validators: params?.page === "1" ? Array.from({ length: 100 }, (_, i) => row(i)) : [row(0)] }))
+        await expect(getValidators("https://primary")).rejects.toThrow(/duplicate address/)
+        expect(directRpcCall.mock.calls.filter(([, method]) => method === "/validators")).toHaveLength(2)
+    })
+
+    test("rejects rows without an address when the RPC omits total", async () => {
+        directRpcCall.mockImplementation((_url: string, method: string) => method === "/status"
+            ? Promise.resolve(status(GNO_CHAIN_ID))
+            : Promise.resolve({ validators: [row(0), { voting_power: "10" }] }))
+        await expect(getValidators("https://primary")).rejects.toThrow(/invalid or missing address/)
+    })
+
     test("does not fan out pagination after the caller aborts the first page", async () => {
         const controller = new AbortController()
         directRpcCall.mockImplementation((_url: string, method: string) => {
