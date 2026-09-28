@@ -95,6 +95,7 @@ const ALLOWLIST: Pin[] = [
     { file: "components/appstore/EcosystemDirectory.tsx", allow: ["mainnet"], why: "Availability filter option only; does not switch Memba's selected network." },
     { file: "os/apps/nft/native.tsx", allow: ["mainnet"], why: "Display-only wording distinguishes the absent mainnet NFT registry from other unavailable networks; no route, default network or write eligibility changes." },
     { file: "os/apps/tokens/native.tsx", allow: ["mainnet"], why: "Display-only wording names the absent mainnet token factory; no route, default network or write eligibility changes." },
+    { file: "os/profile/profilePublish.ts", allow: ["mainnet"], why: "The deployed mainnet demo/profile setter accepts the custom document key; the vendored realms on other networks reject unknown fields. This explicit capability gate prevents a write to an unsupported realm." },
     { file: "pages/CreateToken.tsx", allow: ["mainnet"], why: "Display-only unavailable-state copy names the absent mainnet token factory; the existing realm gate still controls writes." },
     { file: "pages/TokenDashboard.tsx", allow: ["mainnet"], why: "Display-only unavailable-state copy names the absent mainnet token factory; no route, default network or write eligibility changes." },
     { file: "pages/TokenView.tsx", allow: ["mainnet"], why: "Display-only unavailable-state copy names the absent mainnet token factory; no route, default network or write eligibility changes." },

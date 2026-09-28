@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: native public Profile and visual editor
+
+- Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.
+- Preview identity fields, images, links, templates and section order in a local draft with undo. Mainnet uses the live caller-owned profile realm for a versioned layout document; publishing stays off by default until wallet and gas rehearsal is complete.
+
 ### Memba OS: native Settings
 
 - Give Settings a native OS window with desktop appearance, wallpaper and icon size controls, honest notification availability, read-only network details, local gas defaults, account status and About access. Reset only disposable local UI data after confirmation, preserving unsent drafts, saved recipients and send locks.

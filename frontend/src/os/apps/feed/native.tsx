@@ -98,7 +98,7 @@ function Posts({ session, open, query }: NativeViewProps) {
     }, [latestId, timeline])
     const refresh = useCallback(() => { void timeline.refetch() }, [timeline])
     const openThread = useCallback((id: bigint) => open(specForTarget({ kind: "app", app: "feed", section: `post/${id}` })!), [open])
-    const openProfile = useCallback((author: string) => open(specForTarget({ kind: "app", app: "feed", section: `user/${author}` })!), [open])
+    const openProfile = useCallback((author: string) => open(specForTarget({ kind: "app", app: "profile", section: author })!), [open])
 
     return <div className="os-feed__stack" data-testid="os-feed-posts">
         <div>
