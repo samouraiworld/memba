@@ -52,6 +52,7 @@ describe("one App Store catalogue", () => {
         expect(filterCatalogue(entries, { q: "adena", category: "Wallet", availability: "tools" }).map((entry) => entry.id)).toEqual(["editorial:adena"])
         const testnet = buildCatalogue([live[0]], ECOSYSTEM_PROJECTS, "testnet")
         expect(filterCatalogue(testnet, { q: "swap", category: "all", availability: "testnet" }).map((entry) => entry.id)).toEqual(["registry:gno.land/r/gnoswap/router"])
+        expect(filterCatalogue(testnet, { q: "swap", category: "all", availability: "mainnet" })).toEqual([])
     })
 
     it("bounds and round-trips catalogue URL filters", () => {

@@ -117,9 +117,10 @@ export function updateCatalogueFilters(params: URLSearchParams, patch: Partial<C
 export function filterCatalogue(entries: readonly CatalogueEntry[], filters: CatalogueFilters): CatalogueEntry[] {
     const q = filters.q.trim().toLocaleLowerCase()
     return entries.filter((entry) => {
+        const editorialNetworks = entry.source === "editorial" ? entry.project?.networks : undefined
         if (filters.category !== "all" && entry.category !== filters.category) return false
-        if (filters.availability === "mainnet" && entry.availability !== "mainnet" && entry.project?.networks.includes("mainnet") !== true) return false
-        if (filters.availability === "testnet" && entry.availability !== "testnet" && entry.project?.networks.includes("staging") !== true) return false
+        if (filters.availability === "mainnet" && entry.availability !== "mainnet" && editorialNetworks?.includes("mainnet") !== true) return false
+        if (filters.availability === "testnet" && entry.availability !== "testnet" && editorialNetworks?.includes("staging") !== true) return false
         if (filters.availability === "tools" && entry.project?.kind !== "tool") return false
         if (filters.availability === "unknown" && entry.availability !== "unknown") return false
         if (!q) return true
