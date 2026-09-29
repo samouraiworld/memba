@@ -566,6 +566,8 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                                 subject={pkgPath}
                                 realmPath={MEMBA_DAO.appReviewsPath}
                                 minRatedCount={MIN_RATED_COUNT}
+                                paginate
+                                useOnchainSummary
                             />
                         </div>
                     )}

@@ -196,10 +196,24 @@ export async function fetchSummary(subject: string, realmPath: string = REVIEWS_
     const json = await evalJSON(`GetSubjectSummaryJSON(${JSON.stringify(subject)})`, realmPath)
     try {
         const v = JSON.parse(json)
-        return { count: v.count ?? 0, average: v.average ?? 0, sum: v.sum ?? 0 }
+        const count = Number(v.count)
+        const sum = Number(v.sum)
+        if (!Number.isSafeInteger(count) || count < 0 || !Number.isSafeInteger(sum) || sum < 0 || sum > count * 5) {
+            return { count: 0, average: 0, sum: 0 }
+        }
+        // The realm's `average` is rounded to an integer. Derive the display value from
+        // its exact sum and count so a 4.3 score is not presented as 4.0.
+        return { count, average: count ? sum / count : 0, sum }
     } catch {
         return { count: 0, average: 0, sum: 0 }
     }
+}
+
+/** Current onchain moderation authority; an absent or malformed answer grants no UI controls. */
+export async function fetchModerator(realmPath: string = REVIEWS_PKG_PATH): Promise<string | null> {
+    const raw = await queryEval(GNO_RPC_URL, realmPath, "GetModerator()")
+    const address = raw ? unwrapQeval(raw) : ""
+    return /^g1[0-9a-z]{10,80}$/.test(address) ? address : null
 }
 
 /**

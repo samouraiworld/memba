@@ -13,6 +13,8 @@ function review(over: Partial<OnChainReview>): OnChainReview {
 }
 
 const fetchReviews = vi.fn()
+const fetchSummary = vi.fn()
+const fetchModerator = vi.fn()
 const submitMsg = vi.fn()
 
 // Keep the real pure helpers (merge/summary/optimistic); stub only the network calls.
@@ -20,7 +22,9 @@ vi.mock("../../lib/reviews", async (importActual) => {
   const actual = await importActual<typeof import("../../lib/reviews")>()
   return {
     ...actual,
-    fetchReviews: (s: string) => fetchReviews(s),
+    fetchReviews: (...args: unknown[]) => fetchReviews(...args),
+    fetchSummary: (...args: unknown[]) => fetchSummary(...args),
+    fetchModerator: (...args: unknown[]) => fetchModerator(...args),
     fetchComments: vi.fn().mockResolvedValue([]),
     attachUsernames: vi.fn().mockImplementation((x: unknown[]) => Promise.resolve(x)),
     buildPostReviewMsg: vi.fn().mockReturnValue({}),
@@ -43,6 +47,8 @@ describe("ReviewsSection", () => {
       review({ id: 1, subject: "g1s", author: "g1a", body: "great validator", rating: 5, reputation: 3, username: "@alice" }),
     ])
     submitMsg.mockReset().mockResolvedValue("hash")
+    fetchSummary.mockReset().mockResolvedValue({ count: 0, sum: 0, average: 0 })
+    fetchModerator.mockReset().mockResolvedValue(null)
     connect.mockReset().mockResolvedValue(false)
     adena = { address: "", connected: false, connect }
   })
@@ -95,6 +101,47 @@ describe("ReviewsSection", () => {
     expect(await screen.findByText(/from signing/)).toBeInTheDocument()
     // 2 distinct authors → "2 reviews"
     expect(screen.getByText(/2 reviews/)).toBeInTheDocument()
+  })
+
+  it("uses the all-review summary and loads the next visible page for App Store reviews", async () => {
+    const firstPage = Array.from({ length: 20 }, (_, index) => review({ id: index + 1, author: `g1author${index}`, body: `page-one-${index}` }))
+    fetchReviews.mockImplementation((_subject: string, offset: number) => Promise.resolve(offset === 0 ? firstPage : [review({ id: 21, author: "g1later", body: "page-two-review" })]))
+    fetchSummary.mockResolvedValue({ count: 25, sum: 100, average: 4 })
+    renderWithProviders(<ReviewsSection subject="gno.land/r/samcrew/app" realmPath="gno.land/r/samcrew/memba_appstore_reviews_v1" minRatedCount={3} paginate useOnchainSummary />)
+
+    expect(await screen.findByText("page-one-0")).toBeInTheDocument()
+    expect(screen.getByText(/25 reviews/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
+    expect(await screen.findByText("page-two-review")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Load more reviews" })).not.toBeInTheDocument()
+    expect(fetchReviews).toHaveBeenCalledWith("gno.land/r/samcrew/app", 20, 20, "gno.land/r/samcrew/memba_appstore_reviews_v1")
+  })
+
+  it("lets a reader retry a failed review page", async () => {
+    fetchReviews.mockRejectedValueOnce(new Error("rpc down")).mockResolvedValueOnce([review({ body: "back online" })])
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    expect(await screen.findByRole("button", { name: "Retry reviews" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Retry reviews" }))
+    expect(await screen.findByText("back online")).toBeInTheDocument()
+  })
+
+  it("keeps native read-only reviews free of direct wallet actions", async () => {
+    renderWithProviders(<ReviewsSection subject="g1s" readOnly />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    expect(screen.queryByRole("radiogroup", { name: /your rating/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /like|dislike|flag|edit|delete/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "View replies" })).toBeInTheDocument()
+    expect(fetchModerator).not.toHaveBeenCalled()
+  })
+
+  it("shows moderation only to the current realm moderator", async () => {
+    const moderator = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
+    adena = { address: moderator, connected: true, connect }
+    fetchModerator.mockResolvedValue(moderator)
+    renderWithProviders(<ReviewsSection subject="g1s" realmPath="gno.land/r/samcrew/memba_appstore_reviews_v1" />)
+    expect(await screen.findByRole("button", { name: "Hide" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Unhide" })).not.toBeInTheDocument()
+    expect(fetchModerator).toHaveBeenCalledWith("gno.land/r/samcrew/memba_appstore_reviews_v1")
   })
 
   it("optimistically shows a just-posted review before the chain reflects it", async () => {

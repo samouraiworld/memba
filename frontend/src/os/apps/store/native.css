@@ -64,6 +64,12 @@
 .memba-os .os-store-shots { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 5px; }
 .memba-os .os-store-shots img { width: 230px; height: 140px; flex: none; object-fit: cover; border: 1px solid var(--os-line); border-radius: 10px; }
 .memba-os .os-store-shot-unavailable { width: 230px; height: 140px; flex: none; display: grid; place-items: center; padding: 12px; border: 1px dashed var(--os-line); border-radius: 10px; color: var(--os-mut); font-size: 12px; text-align: center; }
+.memba-os .os-store-reviews { display: grid; justify-items: start; gap: 12px; min-width: 0; --color-k-text: var(--os-ink); --color-k-dim: var(--os-mut); --color-k-muted: var(--os-mut); --color-k-panel: var(--os-card); --color-k-elevated: var(--os-card); --color-k-edge: var(--os-line); --color-k-edge-hover: var(--os-acc-ink); --color-k-hover-surface: var(--os-hover); --color-k-accent: var(--os-acc-ink); --color-k-accent-hover: var(--os-ink); --color-k-accent-border: var(--os-acc-ink); --color-k-accent-text: var(--os-acc-ink); --color-k-on-accent: var(--os-card); --font-sans: var(--os-font); }
+.memba-os .os-store-reviews .reviews-section { width: 100%; }
+.memba-os .os-store-reviews > a.os-btn { text-decoration: none; }
+.memba-os .os-store-reviews .reviews-section__form, .memba-os .os-store-reviews .review-card { padding: 14px; }
+.memba-os .os-store-reviews .reviews-section__title { font-size: 16px; }
+.memba-os .os-store-reviews button:focus-visible, .memba-os .os-store-reviews textarea:focus-visible { outline: 2px solid var(--os-acc-ink); outline-offset: 2px; }
 @container os-window (max-width: 560px) {
   .memba-os .os-store-hero { min-height: 0; padding: 16px; }
   .memba-os .os-store-hero h1 { font-size: 26px; }

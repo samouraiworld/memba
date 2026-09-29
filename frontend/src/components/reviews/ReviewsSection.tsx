@@ -24,6 +24,8 @@ import { useAdena } from "../../hooks/useAdena"
 import {
   type OnChainReview,
   fetchReviews,
+  fetchSummary,
+  fetchModerator,
   attachUsernames,
   buildPostReviewMsg,
   submitMsg,
@@ -31,6 +33,7 @@ import {
   summaryFromReviews,
   makeOptimisticReview,
   upsertReviewByAuthor,
+  type SubjectSummary,
 } from "../../lib/reviews"
 import { StarRating } from "./StarRating"
 import { ReviewCard } from "./ReviewCard"
@@ -47,16 +50,29 @@ interface ReviewsSectionProps {
    * Store passes MIN_RATED_COUNT so the section matches its hero AppReviewStars.
    */
   minRatedCount?: number
+  /** The dedicated App Store realm pages visible items after moderation. */
+  paginate?: boolean
+  /** Use the realm's all-review summary instead of the loaded page's subtotal. */
+  useOnchainSummary?: boolean
+  /** Native OS read path until review writes use its transaction review sheet. */
+  readOnly?: boolean
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const REVIEW_PAGE_SIZE = 20
 
-export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCount = 0 }: ReviewsSectionProps) {
+export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCount = 0, paginate = false, useOnchainSummary = false, readOnly = false }: ReviewsSectionProps) {
   const { address, connected, connect } = useAdena()
 
   const [reviews, setReviews] = useState<OnChainReview[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [chainSummary, setChainSummary] = useState<SubjectSummary | null>(null)
+  const [moderatorAddress, setModeratorAddress] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const loadedPagesRef = useRef(1)
 
   const [rating, setRating] = useState(0)
   const [body, setBody] = useState("")
@@ -80,6 +96,13 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
     }
   }, [])
 
+  useEffect(() => {
+    if (readOnly) return
+    let active = true
+    void fetchModerator(realmPath).then((value) => { if (active) setModeratorAddress(value) }).catch(() => { if (active) setModeratorAddress(null) })
+    return () => { active = false }
+  }, [readOnly, realmPath])
+
   // Stable key so the effect/callbacks don't churn on array identity. The canonical subject
   // is first; aliases follow (deduped, self-excluded).
   const subjectsKey = useMemo(() => {
@@ -89,18 +112,28 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
 
   const fetchMerged = useCallback(async () => {
     const subs = subjectsKey.split(",").filter(Boolean)
-    const lists = await Promise.all(subs.map((s) => fetchReviews(s, 0, 20, realmPath)))
-    return mergeReviewsByAuthor(lists, subject)
-  }, [subjectsKey, subject, realmPath])
+    if (paginate && subs.length === 1) {
+      const pages = await Promise.all(Array.from({ length: loadedPagesRef.current }, (_, index) =>
+        fetchReviews(subject, index * REVIEW_PAGE_SIZE, REVIEW_PAGE_SIZE, realmPath)))
+      return { items: mergeReviewsByAuthor(pages, subject), more: pages.at(-1)?.length === REVIEW_PAGE_SIZE }
+    }
+    const lists = await Promise.all(subs.map((s) => fetchReviews(s, 0, REVIEW_PAGE_SIZE, realmPath)))
+    return { items: mergeReviewsByAuthor(lists, subject), more: false }
+  }, [subjectsKey, subject, realmPath, paginate])
 
   const load = useCallback(async () => {
     const reqId = ++reqIdRef.current
     setLoading(true)
     setLoadError(null)
     try {
-      const merged = await fetchMerged()
-      const withNames = await attachUsernames(merged)
+      const { items, more } = await fetchMerged()
+      const [withNames, total] = await Promise.all([
+        attachUsernames(items),
+        useOnchainSummary ? fetchSummary(subject, realmPath).catch(() => null) : Promise.resolve(null),
+      ])
       if (reqId !== reqIdRef.current) return // superseded by a newer load
+      setHasMore(more)
+      setChainSummary(total)
       // If a just-posted review is still pending, keep showing it until the chain confirms.
       const opt = optimisticRef.current
       if (opt) {
@@ -113,13 +146,13 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
       } else {
         setReviews(withNames)
       }
-    } catch (err) {
+    } catch {
       if (reqId !== reqIdRef.current) return
-      setLoadError(err instanceof Error ? err.message : "Failed to load reviews.")
+      setLoadError("Reviews could not be loaded. Check your connection and try again.")
     } finally {
       if (reqId === reqIdRef.current) setLoading(false)
     }
-  }, [fetchMerged])
+  }, [fetchMerged, realmPath, subject, useOnchainSummary])
 
   useEffect(() => {
     // Clear the previous subject's reviews immediately so they don't flash under the new
@@ -129,9 +162,33 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
     // express without redesigning the reconcile semantics — waived, not ported.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate clear-before-load in the optimistic pipeline
     setReviews([])
+    setChainSummary(null)
+    setHasMore(false)
+    setLoadingMore(false)
+    setLoadMoreError(null)
+    loadedPagesRef.current = 1
     optimisticRef.current = null
     load()
   }, [load])
+
+  const loadMore = useCallback(async () => {
+    if (!paginate || !hasMore || loadingMore) return
+    const reqId = reqIdRef.current
+    setLoadingMore(true)
+    setLoadMoreError(null)
+    try {
+      const page = await fetchReviews(subject, loadedPagesRef.current * REVIEW_PAGE_SIZE, REVIEW_PAGE_SIZE, realmPath)
+      const withNames = await attachUsernames(page)
+      if (reqId !== reqIdRef.current) return
+      loadedPagesRef.current++
+      setReviews((previous) => mergeReviewsByAuthor([previous, withNames], subject))
+      setHasMore(page.length === REVIEW_PAGE_SIZE)
+    } catch {
+      if (reqId === reqIdRef.current) setLoadMoreError("Could not load more reviews. Please try again.")
+    } finally {
+      if (reqId === reqIdRef.current) setLoadingMore(false)
+    }
+  }, [paginate, hasMore, loadingMore, subject, realmPath])
 
   // Poll a few times after a post so the optimistic entry is swapped for the real one once
   // the chain reflects the write (bounded; load() clears optimisticRef when confirmed).
@@ -203,7 +260,8 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
   }, [pendingPost, connected, address, postReview])
 
   const visible = reviews.filter((r) => !r.deleted)
-  const summary = summaryFromReviews(visible)
+  const summary = useOnchainSummary && chainSummary ? chainSummary : summaryFromReviews(visible)
+  const completeSummary = !useOnchainSummary || chainSummary !== null
   // Enough of a sample to show a star average? Below minRatedCount we show the count only.
   const rated = summary.count >= minRatedCount
 
@@ -214,7 +272,9 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
         <h2 className="reviews-section__title">Reviews</h2>
         {summary.count > 0 && (
           <div className="reviews-section__summary">
-            {rated ? (
+            {!completeSummary ? (
+              <span className="reviews-section__count">{visible.length} shown</span>
+            ) : rated ? (
               <>
                 <StarRating value={Math.round(summary.average)} size="sm" />
                 <span className="reviews-section__average">{summary.average.toFixed(1)}</span>
@@ -235,7 +295,7 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
       </div>
 
       {/* Write form — always usable; the wallet is only triggered on "Post review". */}
-      <form className="reviews-section__form" onSubmit={handleSubmit} noValidate>
+      {!readOnly && <form className="reviews-section__form" onSubmit={handleSubmit} noValidate>
         <div>
           <span className="reviews-section__form-label" id="review-rating-label">Your rating</span>
           <StarRating value={rating} onChange={setRating} ariaLabelledBy="review-rating-label" />
@@ -253,7 +313,8 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
           />
         </div>
         <p className="reviews-section__permanence">
-          Reviews are permanent on-chain; moderators can hide but not erase.
+          Reviews are public chain transactions. You can remove a review from public view, but its chain history remains.
+          {useOnchainSummary && " A wallet signature proves authorship, not that someone used the app."}
         </p>
         {submitError && (
           <p className="reviews-section__error" role="alert">{submitError}</p>
@@ -272,20 +333,18 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
             </span>
           )}
         </div>
-      </form>
+      </form>}
 
       {/* List — show stale content while revalidating (so a post's optimistic entry and
           the background reconcile loads don't flash skeletons over the list). */}
-      <div className="reviews-section__list" aria-live="polite" aria-busy={loading}>
+      <div className="reviews-section__list" aria-live="polite" aria-busy={loading || loadingMore}>
         {loading && visible.length === 0 && !loadError && (
           <div className="reviews-section__skeletons" data-testid="reviews-skeletons" aria-hidden="true">
             {[0, 1, 2].map((i) => <div key={i} className="review-card review-card--skeleton" />)}
           </div>
         )}
 
-        {!loading && loadError && (
-          <p className="reviews-section__error" role="alert">{loadError}</p>
-        )}
+        {!loading && loadError && <div className="reviews-section__retry"><p className="reviews-section__error" role="alert">{loadError}</p><button type="button" className="reviews-btn-secondary" onClick={() => void load()}>Retry reviews</button></div>}
 
         {!loading && !loadError && visible.length === 0 && (
           <p className="reviews-section__empty">No reviews yet. Be the first!</p>
@@ -293,8 +352,10 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
 
         {visible.length > 0 &&
           visible.map((r) => (
-            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} realmPath={realmPath} />
+            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} realmPath={realmPath} readOnly={readOnly} moderatorAddress={moderatorAddress} />
           ))}
+        {loadMoreError && <p className="reviews-section__error" role="alert">{loadMoreError}</p>}
+        {paginate && hasMore && !loading && <button type="button" className="reviews-btn-secondary reviews-section__load-more" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more reviews"}</button>}
       </div>
     </section>
   )

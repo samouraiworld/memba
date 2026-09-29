@@ -27,13 +27,9 @@ import {
   buildFlagMsg,
   buildHideReviewMsg,
   buildHideCommentMsg,
-  buildUnhideMsg,
   submitMsg,
 } from "../../lib/reviews"
 import { StarRating } from "./StarRating"
-
-// Moderator multisig address — Hide/Unhide controls gated to this address only.
-const MODERATOR = "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"
 
 function truncateAddr(addr: string): string {
   if (addr.length <= 16) return addr
@@ -69,9 +65,11 @@ interface CommentRowProps {
   address: string
   onRefetch: () => void
   realmPath?: string
+  readOnly?: boolean
+  moderatorAddress?: string | null
 }
 
-function CommentRow({ comment, address, onRefetch, realmPath }: CommentRowProps) {
+function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false, moderatorAddress }: CommentRowProps) {
   const [editMode, setEditMode] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [error, setError] = useState<string | null>(null)
@@ -81,9 +79,9 @@ function CommentRow({ comment, address, onRefetch, realmPath }: CommentRowProps)
     return <p className="review-comment--deleted">[deleted]</p>
   }
 
-  const authorLabel = comment.username || truncateAddr(comment.author)
+  const authorLabel = truncateAddr(comment.author)
   const isAuthor = address === comment.author
-  const isModerator = address === MODERATOR
+  const isModerator = !!moderatorAddress && address === moderatorAddress
 
   async function handleAction(msg: ReturnType<typeof buildEditCommentMsg>, memo: string) {
     setBusy(true)
@@ -111,7 +109,7 @@ function CommentRow({ comment, address, onRefetch, realmPath }: CommentRowProps)
         )}
       </div>
 
-      {editMode ? (
+      {editMode && !readOnly ? (
         <div className="review-card__edit-form">
           <textarea
             value={editBody}
@@ -141,7 +139,7 @@ function CommentRow({ comment, address, onRefetch, realmPath }: CommentRowProps)
         />
       )}
 
-      {!editMode && (
+      {!editMode && !readOnly && (
         <div className="review-comment__actions">
           {isAuthor && (
             <>
@@ -187,9 +185,11 @@ interface ReviewCardProps {
   review: OnChainReview
   onRefetch: () => void
   realmPath?: string
+  readOnly?: boolean
+  moderatorAddress?: string | null
 }
 
-export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
+export function ReviewCard({ review, onRefetch, realmPath, readOnly = false, moderatorAddress }: ReviewCardProps) {
   const { address, connected } = useAdena()
 
   const [showComments, setShowComments] = useState(false)
@@ -204,8 +204,8 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
   const [busy, setBusy] = useState(false)
 
   const isAuthor = connected && address === review.author
-  const isModerator = connected && address === MODERATOR
-  const authorLabel = review.username || truncateAddr(review.author)
+  const isModerator = connected && !!moderatorAddress && address === moderatorAddress
+  const authorLabel = truncateAddr(review.author)
   // Optimistic, not-yet-confirmed review (temp id < 0): show a "Posting…" chip and hide the
   // on-chain actions (they'd target an invalid id until the chain reflects the write).
   const pending = review.id < 0
@@ -274,7 +274,7 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
           <div className="review-card__author-row">
             <span className="review-card__author">{authorLabel}</span>
             {review.username && (
-              <span className="review-card__username-badge">✓ verified</span>
+              <span className="review-card__username-badge">{review.username}</span>
             )}
             <span
               className={`review-card__rep-chip${review.reputation > 0 ? " review-card__rep-chip--positive" : review.reputation < 0 ? " review-card__rep-chip--negative" : ""}`}
@@ -299,7 +299,7 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
       </div>
 
       {/* Body */}
-      {editMode ? (
+      {editMode && !readOnly ? (
         <div className="review-card__edit-form">
           <div>
             <span className="reviews-section__form-label">Rating</span>
@@ -333,7 +333,7 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
       )}
 
       {/* Actions — hidden while the optimistic review is still pending confirmation. */}
-      {!editMode && !pending && (
+      {!editMode && !pending && !readOnly && (
         <div className="review-card__actions">
           {/* Like */}
           <button
@@ -411,19 +411,12 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
               >
                 Hide
               </button>
-              <button
-                className="review-card__action-btn review-card__action-btn--hide"
-                disabled={busy}
-                onClick={() =>
-                  handleAction(buildUnhideMsg(address, review.id, realmPath), "unhide review")
-                }
-              >
-                Unhide
-              </button>
             </>
           )}
         </div>
       )}
+
+      {!pending && readOnly && <button type="button" className="review-card__action-btn" onClick={toggleComments} aria-expanded={showComments}>{showComments ? "Hide replies" : "View replies"}</button>}
 
       {error && !editMode && <p className="review-card__error">{error}</p>}
 
@@ -440,11 +433,14 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
               address={address}
               onRefetch={loadComments}
               realmPath={realmPath}
+              readOnly={readOnly}
+              moderatorAddress={moderatorAddress}
             />
           ))}
+          {!commentsLoading && comments.length === 0 && <p className="reviews-section__empty">No replies yet.</p>}
 
           {/* Reply form */}
-          {connected ? (
+          {readOnly ? null : connected ? (
             replyOpen ? (
               <div className="review-card__reply-form">
                 <textarea
