@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-28
 **Updated:** 2026-09-29
-**Status:** The public Profile and visual editor foundation merged in [PR #1380](https://github.com/samouraiworld/memba/pull/1380) (`cb0134d5`). On-chain publishing remains off by default behind `VITE_ENABLE_OS_PROFILE_PUBLISH`; the full WYSIWYG release gates below remain open.
+**Status:** The public Profile and visual editor foundation merged in [PR #1380](https://github.com/samouraiworld/memba/pull/1380) (`cb0134d5`), and the address-owned Home and activity tabs merged in [PR #1427](https://github.com/samouraiworld/memba/pull/1427) (`07a0c08a`). The read-only Profile expansion is complete. On-chain publishing remains off by default behind `VITE_ENABLE_OS_PROFILE_PUBLISH`; the full WYSIWYG release gates below remain open.
 
 ## 1. Product outcome
 
@@ -132,6 +132,8 @@ On mainnet, slices 1–3 can ship without a new realm because the verified live 
 3. Validate keyboard flow and 200% zoom with people; complete the production owner/guest walkthrough and six-perspective re-audit.
 
 ## 10. Address-owned Home and activity view (2026-09-29)
+
+[PR #1427](https://github.com/samouraiworld/memba/pull/1427) merged into `main` as `07a0c08a`. Its frontend build and lint, 7,466 unit tests passed (1 skipped), backend race suite and build, 634 standard browser tests passed (14 skipped), and 16 focused Profile browser tests passed locally before merge. This completes the Overview/Home/DAOs/Contributions/Feed read-only expansion, not the on-chain WYSIWYG publishing release.
 
 The shared Profile realm and an address-owned /home realm are separate public sources. Profile now starts on Overview, discovers a Home at the viewed address, displays a bounded plain-text excerpt, and links to the complete original realm. Home content is labelled owner-authored; its claims do not become verified roles or credentials.
 

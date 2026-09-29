@@ -18,10 +18,10 @@ Started 27 September 2026; Profile status updated 29 September. Each feature get
 | Validators: consensus, candidates, network nodes, Hacker telemetry, profiles | Production QA #1356 merged |
 | Quests: Hub, detail, claims, leaderboard, XP, candidature and attestation | Production QA #1358 merged and deployed |
 | Explorer and Directory: tabs, source viewer, search, recent submissions, drawers and URL state | Production QA #1360 merged and deployed |
-| Profile | Native Profile and editor foundation merged in #1380; publishing is off by default. Wallet rehearsal, direct canvas work, accessibility and production re-audit remain release gates; see [Profile plan](../OS_PROFILE_EDITOR_PLAN.md) |
+| Profile | Native Profile and editor foundation #1380 and read-only Home/activity tabs #1427 merged; publishing is off by default. Wallet rehearsal, direct canvas work, accessibility and production re-audit remain release gates; see [Profile plan](../OS_PROFILE_EDITOR_PLAN.md) |
 | News: Blog, Changelogs, article publishing and optional on-chain reads | Production QA #1361 merged; verify production deployment before Dev Report release |
 | Dev Report: Overview, Teams, PR Report, Notable PRs, Analytics, AI Reports, Milestone and details | Production QA #1366 follows News; current-head CI and production smoke remain release checks |
 | About and feedback | Production QA #1368 is stacked after Dev Report; backend quest retirement must deploy before frontend rollout |
 | Learn | Production QA #1370 is stacked after About/Feedback |
 
-The 28 September OS audit path was Dev Report #1366, About/Feedback #1368 and Learn #1370. Independent Token, NFT and App Store work retains its own deployment, review and main-branch checks. Profile foundation #1380 is merged; its remaining release checks are tracked in the Profile plan. Each report records its actual scope and result.
+The 28 September OS audit path was Dev Report #1366, About/Feedback #1368 and Learn #1370. Independent Token, NFT and App Store work retains its own deployment, review and main-branch checks. Profile foundation #1380 and read-only Home/activity tabs #1427 are merged; the remaining WYSIWYG release checks are tracked in the Profile plan. Each report records its actual scope and result.
