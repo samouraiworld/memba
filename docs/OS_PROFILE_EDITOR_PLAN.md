@@ -1,7 +1,8 @@
 # Memba OS Profile and WYSIWYG Editor — implementation proposal
 
 **Date:** 2026-09-28
-**Status:** Implementation in progress on `feat/os-profile-editor`. The publish action is off by default behind `VITE_ENABLE_OS_PROFILE_PUBLISH`; no chain publication or production activation has occurred.
+**Updated:** 2026-09-29
+**Status:** The public Profile and visual editor foundation merged in [PR #1380](https://github.com/samouraiworld/memba/pull/1380) (`cb0134d5`). On-chain publishing remains off by default behind `VITE_ENABLE_OS_PROFILE_PUBLISH`; the full WYSIWYG release gates below remain open.
 
 ## 1. Product outcome
 
@@ -17,13 +18,13 @@ This proposal covers the **person profile**. Validator operator details, DAO pro
 |---|---|
 | Owner backlog N14 asks for an on-chain profile, templates, and smooth WYSIWYG; it proposes `r/demo/profile` fields and a `memba.theme` string. (Memba OS backlog N14, workspace note) | Keep the product intent, but verify storage capabilities before promising saved themes. |
 | The OS design plan puts native Profile **view** in wave 1 and **edit/username signing** in wave 3 S4, after the OS review sheet. (Memba OS design plan, workspace note) | Build reading and composition first; use the shared signing path for publishing. |
-| Memba `origin/main`, refreshed on 2026-09-28 at `c8495980` (v7.7.0), still routes Profile through the classic page in an OS window. The classic page writes SQLite via `updateBackendProfile`; `fetchUserProfile` merges username, Gnolove, and backend data. [Profile page](../frontend/src/pages/ProfilePage.tsx), [data layer](../frontend/src/lib/profile.ts), [OS routes](../frontend/src/os/apps.ts) | Replace the classic view with a native Profile surface and make the canonical source of each field explicit. Preserve existing public deep links. |
+| Before PR #1380, Memba at `c8495980` (v7.7.0) routed Profile through the classic page in an OS window. The classic page wrote SQLite via `updateBackendProfile`; `fetchUserProfile` merged username, Gnolove, and backend data. [Profile page](../frontend/src/pages/ProfilePage.tsx), [data layer](../frontend/src/lib/profile.ts), [OS routes](../frontend/src/os/apps.ts) | Replace the classic view with a native Profile surface and make the canonical source of each field explicit. Preserve existing public deep links. |
 | The backend profile has bio, company, title, avatar, Twitter, GitHub, and website. GitHub is verified only through OAuth; arbitrary profile saves cannot set it. [RPC](../backend/internal/service/profile_rpc.go), [schema](../backend/internal/db/migrations/002_profiles.sql) | Migrate only owner controlled fields. Never turn a typed link into a verified identity claim. |
 | The live mainnet `gno.land/r/demo/profile` source was read through `vm/qfile` on 2026-09-28 (SHA-256 `ff71a8f9b53049bcfbbe19b46244b0561c64dfcccdb80ab486208c473597cedb`). Its `SetStringField` accepts an arbitrary field string and keys it to the immediate caller; a `GetStringField` query returned an existing Unicode Bio. Memba's **vendored non-mainnet copy** checks an allowlist and rejects unknown keys. [Config](../frontend/src/lib/config.ts); vendored source: `samcrew-deployer/deps/demo/profile/profile.gno` in the sibling deployment repository. | **Revised storage decision:** one bounded client-side `memba.profile.v1` JSON field can store title, company, links and layout in the live mainnet realm. Gate that key off on other networks until their deployed source proves support. The live realm does not enforce document byte limits, URL rules, or revisions; readers must reject unsafe data. A shared realm remains a later hardening option, not a dependency for mainnet v1. |
 | The older mockup says edits are stored by Memba and nothing is broadcast. (Memba OS mockup v4, workspace note) | Rewrite this copy. Publishing a profile is a public on-chain transaction; IPFS media is also public. |
 | The 2026-09-07 decentralization note proposes a new `memba_profiles` realm, while N14 prefers reusing `r/demo/profile`. [Decentralization note](PROGRESSIVE_DECENTRALIZATION.md) | Reuse live mainnet storage for v1. Revisit a shared realm if enforceable limits, optimistic concurrency and indexed events become necessary. |
 
-**Audit basis:** local notes, mockup, current code, and the local `origin/main` ref. The web reader could not access `memba.club/os` during this audit, so this is a source and design audit, not a claimed production walkthrough. The first implementation task includes the backlog's guest/member, desktop/phone, narrow-window, light/dark production walkthrough.
+**Audit basis:** local notes, mockup, and the pre-merge code at `c8495980`. The web reader could not access `memba.club/os` during this audit, so this is a source and design audit, not a claimed production walkthrough. The production guest/member, desktop/phone, narrow-window, and light/dark walkthrough remains a release gate.
 
 ## 3. Six-perspective expert audit
 
@@ -111,9 +112,9 @@ On mainnet, slices 1–3 can ship without a new realm because the verified live 
 
 **Recommendation:** deliver slices 0–3 as one dedicated Profile track on mainnet, then evaluate the optional hardened realm. Treat the WYSIWYG editor as delivered only when customizations are chain persisted, preview/public parity is proven, and the production re-audit passes.
 
-## 9. Implementation checkpoint (2026-09-28)
+## 9. Merged foundation (2026-09-29)
 
-A reviewable frontend branch now contains the native public Profile window, chain-first read model, guest sample editor, local owner drafts, three layout templates, accent and section controls, a shared public/preview canvas, username links and registration review, explicit legacy import, and a guarded profile publish request. Public assets and credentials appear by default. The custom title, company, links, and layout document are prepared as one versioned public field for the verified mainnet realm. `VITE_ENABLE_OS_PROFILE_PUBLISH` remains **off** by default, so this branch does not activate profile transactions in production.
+[PR #1380](https://github.com/samouraiworld/memba/pull/1380) merged as `cb0134d5`. It delivered the native public Profile window, chain-first read model, guest sample editor, local owner drafts, three layout templates, accent and section controls, a shared public/preview canvas, username links and registration review, explicit legacy import, and a guarded profile publish request. Public assets and credentials appear by default. The custom title, company, links, and layout document are prepared as one versioned public field for the verified mainnet realm. `VITE_ENABLE_OS_PROFILE_PUBLISH` remains **off** by default; the merge did not enable profile transactions.
 
 | Evidence | Result |
 |---|---|
@@ -122,5 +123,10 @@ A reviewable frontend branch now contains the native public Profile window, chai
 | Broad OS E2E | 400 passed, 10 skipped in Chromium and Firefox on isolated test ports before integrating #1378. Focused Profile and Terminal tests passed after #1378; the focused Profile suite passed after integrating `c8495980`. |
 | Standard E2E | 634 passed, 14 skipped across Chromium, Firefox, iPhone, and Pixel after integrating main through `c8495980`, under the repository's two-worker CI settings. The validator link assertion now waits for its sort URL, the directory refresh test waits for the intercepted refetch, and Barricade's introduction fits short portrait phones. |
 | Backend | `go test -race -count=1 ./...` and `go build ./...` passed after integrating main through `c8495980`. The race suite needed localhost access for its test servers. |
+| GitHub merge gate | All 28 checks on head `a1ceb2fe` completed without failure (26 successful, 2 neutral); PR #1380 merged into `main` as `cb0134d5`. |
 
-**Work still required before calling the WYSIWYG feature complete:** enable publishing only after a real wallet rehearsal establishes fee, batch behavior, readback, cancel and uncertain outcomes; complete direct canvas editing and cover/avatar positioning; verify 200% zoom and keyboard flow with people; and carry out the production owner/guest walkthrough and six-perspective re-audit. The branch is ready for review, with live publication intentionally gated.
+**Next delivery gates before calling the WYSIWYG feature complete:**
+
+1. Rehearse a real wallet publish on the verified mainnet realm, recording fee, batched calls, readback, cancellation, and uncertain outcomes before enabling the flag.
+2. Finish direct canvas editing and cover/avatar positioning, then verify preview and published content match.
+3. Validate keyboard flow and 200% zoom with people; complete the production owner/guest walkthrough and six-perspective re-audit.
