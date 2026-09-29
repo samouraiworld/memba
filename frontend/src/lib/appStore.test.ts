@@ -7,6 +7,7 @@ import {
     fetchLiveApps,
     fetchLiveAppsPage,
     fetchLiveCatalogue,
+    fetchAppStrict,
     fetchByStatus,
     fetchByPublisher,
     fetchAppStoreStats,
@@ -157,6 +158,27 @@ describe("strict catalogue windows", () => {
             { id: 2, pkgPath: "gno.land/r/samcrew/b", name: "B", status: "live" },
         ])
         await expect(fetchLiveCatalogue(2, 2)).resolves.toMatchObject({ complete: false })
+    })
+})
+
+describe("strict native app detail", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("distinguishes RPC failure, an absent listing, and invalid payloads", async () => {
+        const path = "gno.land/r/samcrew/block_party"
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue(null)
+        await expect(fetchAppStrict(path)).rejects.toThrow("unavailable")
+
+        qe.mockResolvedValue('("null" string)')
+        await expect(fetchAppStrict(path)).resolves.toBeNull()
+
+        qe.mockResolvedValue("[payload]")
+        const parsed = vi.spyOn(shared, "parseQevalJSON").mockReturnValue({ pkgPath: "gno.land/r/other/app", name: "Wrong app" })
+        await expect(fetchAppStrict(path)).rejects.toThrow("invalid listing")
+        parsed.mockReturnValue({ pkgPath: path, name: "Block Party", status: "live" })
+        await expect(fetchAppStrict(path)).resolves.toMatchObject({ pkgPath: path, name: "Block Party" })
+        parsed.mockReturnValue(null)
+        await expect(fetchAppStrict(path)).rejects.toThrow("invalid listing")
     })
 })
 

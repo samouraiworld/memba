@@ -190,6 +190,17 @@ export async function fetchApp(pkgPath: string): Promise<AppListing | null> {
     return coerce(parseQevalJSON(raw))
 }
 
+/** Native detail read: only the realm's explicit null means absent. RPC failures stay errors. */
+export async function fetchAppStrict(pkgPath: string): Promise<AppListing | null> {
+    if (!isSafeRealmPath(pkgPath)) throw new Error("Invalid app path")
+    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, `GetListingJSON(${JSON.stringify(pkgPath)})`)
+    if (!raw) throw new Error("App Store registry is unavailable")
+    if (raw.trim() === '("null" string)') return null
+    const listing = coerce(parseQevalJSON(raw))
+    if (!listing || listing.pkgPath !== pkgPath) throw new Error("App Store registry returned an invalid listing")
+    return listing
+}
+
 /** Realm-level catalog stats. v3's GetStatsJSON is a superset (adds per-status
  * counts); only the fields both generations expose are kept. */
 export interface AppStoreStats {

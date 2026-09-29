@@ -3,7 +3,7 @@ import { useMemo, useState, type CSSProperties, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { API_BASE_URL, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
 import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
-import { fetchApp, fetchLiveCatalogue, isSafeRealmPath } from "../../../lib/appStore"
+import { fetchAppStrict, fetchLiveCatalogue, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { isValidCid } from "../../../lib/ipfs"
 import { AppShell, ErrorState, Loading, Pill } from "../../kit"
@@ -89,7 +89,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
     const canReadListing = !!path && isSafeRealmPath(path) && registryEnabled
     const detail = useQuery({
         queryKey: ["appStore", "native-detail", session.network.chainId, path],
-        queryFn: () => fetchApp(path!), enabled: canReadListing,
+        queryFn: () => fetchAppStrict(path!), enabled: canReadListing,
         staleTime: 60_000, retry: 1,
     })
     const listing = detail.data

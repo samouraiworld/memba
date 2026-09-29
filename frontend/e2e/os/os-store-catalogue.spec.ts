@@ -40,6 +40,22 @@ test('registry failure does not present an onchain search as a complete empty re
     await expect(store.getByText('No projects match these filters. Try another search or clear them.')).toHaveCount(0)
 })
 
+test('detail RPC failure is not presented as an absent listing', async ({ page }) => {
+    test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')
+    await fulfillOnchainReads(page, ({ method, path, arg }) => {
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
+        if (path === 'vm/qeval' && arg.includes('ListLiveJSON')) return `(${JSON.stringify(JSON.stringify(live))} string)`
+        return null
+    })
+    await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+    await page.goto(`${OS_ON}/os/store`)
+    const store = page.getByRole('region', { name: 'App Store', exact: true })
+    await store.getByRole('button', { name: 'Details for Boards' }).click()
+    const detail = page.getByRole('region', { name: 'App details · App Store' })
+    await expect(detail.getByText('App details could not be read from the registry.')).toBeVisible()
+    await expect(detail.getByText('This app was not found in the current catalogue.')).toHaveCount(0)
+})
+
 for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`flag-on Store shows one catalogue in the OS on ${device}`, async ({ page }) => {
         test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')
