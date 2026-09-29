@@ -28,6 +28,9 @@ Full changelogs are split by version range for easier navigation:
 ### Quests: retire unverified feedback claims
 
 - Reject new `submit-feedback` quest claims on the server while preserving XP from historically accepted completions.
+### App Store: shared classic discovery (2026-09-28)
+
+- Search and filter onchain listings and independent projects with the same catalogue controls on the classic Store. Read bounded registry pages beyond the old 30-item ceiling and disclose partial results.
 
 ### Memba OS: quieter Live and repeat welcome
 
@@ -91,6 +94,7 @@ Full changelogs are split by version range for easier navigation:
 ### Token Launchpad: creation event identity validation (2026-09-28)
 
 - Validate raw Launchpad token creation events before future indexing, including the emitting realm, canonical token and registry identities, creator checksum and duplicate attributes. Parse successful `/block_results` deliveries with exact event positions, while withholding any public record or inferred launch time.
+- Check `/status` chain identity and synchronization state, and cross-check `/block` metadata against the full header before using its reported block, parent hashes and timestamp in future Launchpad indexing.
 
 ### Memba OS: native Settings
 
