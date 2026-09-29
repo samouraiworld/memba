@@ -27,6 +27,19 @@ const live = [
     { id: 2, pkgPath: 'gno.land/r/gnoland/boards2/v0', name: 'Boards', tagline: '', category: 'Community', iconCID: '', appURL: 'https://gno.land/r/gnoland/boards2/v0', publisher: '', status: 'live', flagCount: 0, createdAt: 0 },
 ]
 
+test('registry failure does not present an onchain search as a complete empty result', async ({ page }) => {
+    test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')
+    await fulfillOnchainReads(page, ({ method }) => method === 'status' ? mockAppChainStatus('gnoland-1') : null)
+    await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+    await page.goto(`${OS_ON}/os/store`)
+    const store = page.getByRole('region', { name: 'App Store', exact: true })
+    await store.getByRole('searchbox', { name: 'Search apps and tools' }).fill('Block Party')
+    await store.getByRole('button', { name: 'Search', exact: true }).click()
+    await expect(store.getByText('Onchain listings could not be read. Independent projects remain available below.')).toBeVisible()
+    await expect(store.getByText('No independent projects match these filters. Onchain results are unavailable; retry the registry above.')).toBeVisible()
+    await expect(store.getByText('No projects match these filters. Try another search or clear them.')).toHaveCount(0)
+})
+
 for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`flag-on Store shows one catalogue in the OS on ${device}`, async ({ page }) => {
         test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')

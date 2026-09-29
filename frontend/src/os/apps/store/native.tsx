@@ -161,8 +161,12 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
         {registryEnabled && live.isError && <ErrorState message="Onchain listings could not be read. Independent projects remain available below." onRetry={() => void live.refetch()} />}
         {registryEnabled && live.data && !live.data.complete && <p className="os-store-notice" role="status">Showing the first {live.data.apps.length} onchain listings. Search may not cover later pages.</p>}
         {!registryEnabled && <p className="os-store-inline-status" role="status">Onchain registry unavailable · showing independent projects</p>}
-        <div className="os-store-list-head"><h2>{filters.q ? "Search results" : section === "ecosystem" ? "Independent projects" : "Explore apps"}</h2><span role="status">{visible.length} {visible.length === 1 ? "result" : "results"}</span></div>
-        {visible.length === 0 ? <p className="os-store-empty">No projects match these filters. Try another search or clear them.</p> : <div className="os-store-grid">{visible.map((entry) => <StoreCard key={entry.id} entry={entry} onOpen={() => openEntry(entry)} />)}</div>}
+        <div className="os-store-list-head"><h2>{filters.q ? "Search results" : section === "ecosystem" ? "Independent projects" : "Explore apps"}</h2>{!(registryEnabled && live.isPending) && <span role="status">{visible.length} {visible.length === 1 ? "result" : "results"}</span>}</div>
+        {visible.length === 0
+            ? registryEnabled && live.isPending
+                ? null
+                : <p className="os-store-empty">{registryEnabled && live.isError ? "No independent projects match these filters. Onchain results are unavailable; retry the registry above." : "No projects match these filters. Try another search or clear them."}</p>
+            : <div className="os-store-grid">{visible.map((entry) => <StoreCard key={entry.id} entry={entry} onOpen={() => openEntry(entry)} />)}</div>}
         <p className="os-store-footnote">A curator approved listing is a catalogue decision, not a code audit. External projects choose their own wallet and network requirements.</p>
     </div>
 }
