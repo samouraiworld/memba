@@ -17,7 +17,7 @@ import {
     loadQuestProgress,
     fetchUserQuests,
 } from "../../lib/quests"
-import { ALL_QUESTS } from "../../lib/gnobuilders"
+import { ALL_QUESTS, RETIRED_QUEST_IDS } from "../../lib/gnobuilders"
 import type { UserQuestState } from "../../lib/quests"
 import "./questprogress.css"
 
@@ -120,12 +120,17 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
         if (address) return
         const onQuestComplete = () => setState(loadQuestProgress())
         window.addEventListener("quest-completed", onQuestComplete)
-        return () => window.removeEventListener("quest-completed", onQuestComplete)
+        window.addEventListener("quest-progress-updated", onQuestComplete)
+        return () => {
+            window.removeEventListener("quest-completed", onQuestComplete)
+            window.removeEventListener("quest-progress-updated", onQuestComplete)
+        }
     }, [address])
 
     const completedIds = new Set(state.completed.map(c => c.questId))
+    const catalogQuests = ALL_QUESTS.filter(q => !RETIRED_QUEST_IDS.has(q.id) || completedIds.has(q.id))
     const completedCount = state.completed.length
-    const totalQuests = ALL_QUESTS.length > 0 ? ALL_QUESTS.length : QUESTS.length // v2 authoritative, v1 fallback
+    const totalQuests = catalogQuests.length > 0 ? catalogQuests.length : QUESTS.length // v2 authoritative, v1 fallback
     const percent = Math.min(100, Math.round((completedCount / totalQuests) * 100))
     // BE-4: for backend-fetched profiles the gate reads VERIFIED XP only —
     // off_chain XP never counts toward candidature.
@@ -207,7 +212,7 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
 
                 {/* Quest card grid */}
                 <div className="quest-hub__grid">
-                    {ALL_QUESTS.map(q => {
+                    {catalogQuests.map(q => {
                         const done = completedIds.has(q.id)
                         return (
                             <div

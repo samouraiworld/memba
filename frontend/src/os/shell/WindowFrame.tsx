@@ -102,7 +102,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "app" && t.app === "wallet" && t.section === "send") return <SendWindow session={a.session} close={a.close} />
     if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
     if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />
-    if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} />
+    if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} active={a.active} />
     if (t.kind === "about") return <AboutWindow chainId={a.session.network.chainId} openApp={a.openApp} open={a.open} />
     const classicPage = classicForSection(t.app, t.section)
     const fallback = bodyFallback({ ...a, t, classicPage, winId: win.id })

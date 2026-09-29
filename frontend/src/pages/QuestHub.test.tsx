@@ -153,4 +153,31 @@ describe("QuestHub — URL and wallet state", () => {
         await screen.findByText("120 XP")
         expect(screen.queryByText(/Server XP unavailable/)).toBeNull()
     })
+
+    it("does not keep a retired local feedback completion syncing forever", async () => {
+        const address = "g1alice"
+        localStorage.setItem(`memba_quests_${address}`, JSON.stringify({
+            completed: [{ questId: "submit-feedback", completedAt: 1 }], totalXP: 20,
+        }))
+        mockWallet.address = address
+        setQuestWalletAddress(address)
+        fetchUserQuestsMock.mockResolvedValue({ completed: [], totalXP: 0 })
+        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        await waitFor(() => expect(fetchUserQuestsMock).toHaveBeenCalledWith(address))
+        expect(screen.getByText("0 XP")).toBeInTheDocument()
+        expect(screen.queryByText("syncing…")).toBeNull()
+    })
+
+    it("still marks a new local quest as pending while the backend has not recorded it", async () => {
+        const address = "g1alice"
+        localStorage.setItem(`memba_quests_${address}`, JSON.stringify({
+            completed: [{ questId: "connect-wallet", completedAt: 1 }], totalXP: 10,
+        }))
+        mockWallet.address = address
+        setQuestWalletAddress(address)
+        fetchUserQuestsMock.mockResolvedValue({ completed: [], totalXP: 0 })
+        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        await waitFor(() => expect(fetchUserQuestsMock).toHaveBeenCalledWith(address))
+        expect(await screen.findByText("syncing…")).toBeInTheDocument()
+    })
 })

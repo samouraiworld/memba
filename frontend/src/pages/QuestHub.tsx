@@ -24,6 +24,7 @@ import {
     isQuestAvailable,
     calculateRank,
     xpToNextRank,
+    RETIRED_QUEST_IDS,
     type QuestCategory,
     type QuestDifficulty,
 } from "../lib/gnobuilders"
@@ -90,7 +91,11 @@ export default function QuestHub() {
         // Refresh the local (optimistic) state on any completion.
         const onQuestComplete = () => setLocalProgress({ address: adena.address, state: loadQuestProgress(adena.address || null) })
         window.addEventListener("quest-completed", onQuestComplete)
-        return () => window.removeEventListener("quest-completed", onQuestComplete)
+        window.addEventListener("quest-progress-updated", onQuestComplete)
+        return () => {
+            window.removeEventListener("quest-completed", onQuestComplete)
+            window.removeEventListener("quest-progress-updated", onQuestComplete)
+        }
     }, [adena.address])
 
     useEffect(() => {
@@ -132,7 +137,13 @@ export default function QuestHub() {
         }
         load()
         window.addEventListener("quest-completed", load)
-        return () => { cancelled = true; requestId++; window.removeEventListener("quest-completed", load) }
+        window.addEventListener("quest-progress-updated", load)
+        return () => {
+            cancelled = true
+            requestId++
+            window.removeEventListener("quest-completed", load)
+            window.removeEventListener("quest-progress-updated", load)
+        }
     }, [adena.address, windowActive, backendRetry])
 
     // Only trust the fetched backend state while a wallet is connected (it falls
@@ -147,7 +158,10 @@ export default function QuestHub() {
     // Completed set = union of backend + local, so a just-completed quest shows
     // done immediately (optimistic) even before its backend sync lands.
     const completedIds = useMemo(() => {
-        const ids = new Set(questState.completed.map(c => c.questId))
+        const serverIds = new Set(effectiveBackend?.completed.map(c => c.questId) ?? [])
+        const ids = new Set(questState.completed
+            .filter(c => !effectiveBackend || !RETIRED_QUEST_IDS.has(c.questId) || serverIds.has(c.questId))
+            .map(c => c.questId))
         if (effectiveBackend) for (const c of effectiveBackend.completed) ids.add(c.questId)
         return ids
     }, [questState, effectiveBackend])
@@ -159,7 +173,7 @@ export default function QuestHub() {
     const syncing = useMemo(() => {
         if (!effectiveBackend) return false
         const backendIds = new Set(effectiveBackend.completed.map(c => c.questId))
-        return questState.completed.some(c => !backendIds.has(c.questId))
+        return questState.completed.some(c => !RETIRED_QUEST_IDS.has(c.questId) && !backendIds.has(c.questId))
     }, [effectiveBackend, questState])
 
     // First authoritative fetch in flight (wallet connected, no backend state yet):

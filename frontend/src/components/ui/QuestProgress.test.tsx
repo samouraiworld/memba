@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { act, render, screen, fireEvent } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { QuestProgress } from "./QuestProgress"
 
@@ -34,10 +34,12 @@ vi.mock("../../lib/quests", () => ({
 
 // Mock gnobuilders module (ALL_QUESTS used for total count)
 vi.mock("../../lib/gnobuilders", () => ({
+    RETIRED_QUEST_IDS: new Set(["submit-feedback"]),
     ALL_QUESTS: [
         { id: "q1", title: "Quest Alpha", xp: 10 },
         { id: "q2", title: "Quest Beta", xp: 15 },
         { id: "q3", title: "Quest Gamma", xp: 20 },
+        { id: "submit-feedback", title: "Voice Heard", xp: 20 },
     ],
 }))
 
@@ -118,6 +120,26 @@ describe("QuestProgress — Expanded State", () => {
         expect(screen.getByTestId("quest-card-q1")).toBeInTheDocument()
         expect(screen.getByTestId("quest-card-q2")).toBeInTheDocument()
         expect(screen.getByTestId("quest-card-q3")).toBeInTheDocument()
+        expect(screen.queryByTestId("quest-card-submit-feedback")).toBeNull()
+    })
+
+    it("shows a retired card only for recorded historical completions", () => {
+        vi.mocked(questsMock.loadQuestProgress).mockReturnValue({
+            completed: [{ questId: "submit-feedback", completedAt: Date.now() }], totalXP: 20,
+        })
+        renderWithRouter(<QuestProgress />)
+        fireEvent.click(screen.getByTestId("quest-hub-toggle"))
+        expect(screen.getByTestId("quest-card-submit-feedback")).toHaveClass("quest-card--done")
+    })
+
+    it("refreshes a mounted own-profile widget after rejected local XP is reconciled", () => {
+        vi.mocked(questsMock.loadQuestProgress)
+            .mockReturnValueOnce({ completed: [{ questId: "submit-feedback", completedAt: 1 }], totalXP: 20 })
+            .mockReturnValue({ completed: [], totalXP: 0 })
+        renderWithRouter(<QuestProgress />)
+        expect(screen.getByTestId("quest-hub-toggle").querySelector(".quest-hub__xp")).toHaveTextContent("20 XP")
+        act(() => window.dispatchEvent(new CustomEvent("quest-progress-updated")))
+        expect(screen.getByTestId("quest-hub-toggle").querySelector(".quest-hub__xp")).toHaveTextContent("0 XP")
     })
 
     it("marks completed quests with done class", () => {

@@ -1,0 +1,102 @@
+/* Keep Feedback readable in both the classic page and its OS window. */
+#feedback-page .feedback-submit-action:focus-visible,
+#feedback-page .feedback-issues-header a:focus-visible,
+#feedback-page .feedback-issue:focus-visible,
+#feedback-page .feedback-issues-error a:focus-visible {
+    outline: 2px solid var(--color-primary, #5f80ff);
+    outline-offset: 3px;
+}
+
+#feedback-page .feedback-issues-header a,
+#feedback-page .feedback-issues-error a {
+    color: var(--color-text-secondary) !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+    font-size: 12px !important;
+    font-weight: 600;
+}
+
+#feedback-page .feedback-retry {
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+#feedback-page .feedback-retry:focus-visible {
+    outline: 2px solid var(--color-primary, #5f80ff);
+    outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+    #feedback-page {
+        min-width: 0;
+    }
+
+    #feedback-page .feedback-submit-card {
+        align-items: stretch !important;
+        flex-direction: column !important;
+        gap: 12px;
+        padding: 16px !important;
+    }
+
+    #feedback-page .feedback-submit-copy {
+        min-width: 0;
+    }
+
+    #feedback-page .feedback-submit-action {
+        align-self: flex-start;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 10px 16px !important;
+        text-align: center;
+        white-space: normal !important;
+    }
+
+    #feedback-page .feedback-issues-header {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+    }
+
+    #feedback-page .feedback-issues-header a {
+        color: var(--color-text-secondary) !important;
+        font-size: 12px !important;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    #feedback-page .feedback-issue {
+        min-width: 0;
+        gap: 10px !important;
+        padding: 12px !important;
+    }
+
+    #feedback-page .feedback-issue-number {
+        flex: 0 0 34px;
+        min-width: 0 !important;
+    }
+
+    #feedback-page .feedback-issue-body {
+        min-width: 0;
+    }
+
+    #feedback-page .feedback-issue-title {
+        overflow-wrap: anywhere;
+    }
+
+    #feedback-page .feedback-issue-meta {
+        min-width: 0;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    #feedback-page .feedback-issue-meta > span {
+        font-size: 11px !important;
+    }
+}

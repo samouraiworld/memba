@@ -222,6 +222,7 @@ export const TOTAL_POSSIBLE_XP_V2 = ALL_QUESTS.reduce((sum, q) => sum + q.xp, 0)
 /** Visible quests (exclude hidden until discovered) */
 export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
     return ALL_QUESTS.filter(q => {
+        if (RETIRED_QUEST_IDS.has(q.id)) return completedIds.has(q.id)
         // Hidden quests only visible if completed or prerequisite is met
         if (q.hidden) {
             if (completedIds.has(q.id)) return true
@@ -248,7 +249,7 @@ export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
 export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     // Onboarding / off-chain (auto-tracked by UI actions or backend checks)
     "connect-wallet", "setup-profile", "use-cmdk", "switch-network",
-    "view-validator", "share-link", "submit-feedback", "browse-proposals",
+    "view-validator", "share-link", "browse-proposals",
     "visit-5-pages",
     // On-chain (path-keyed server verifiers in quest_verify.go — non-spoofable)
     "register-username", "first-transaction", "submit-candidature",
@@ -267,6 +268,9 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     // create-token checks the token factory's per-token **Admin** field.
     "join-dao", "create-token",
 ])
+
+/** Kept in metadata for historical completions; never advertise as earnable. */
+export const RETIRED_QUEST_IDS: ReadonlySet<string> = new Set(["gnodaokit-extension", "submit-feedback"])
 
 /**
  * BACKEND_VERIFIED_QUESTS are on_chain quests the server verifies from the
@@ -300,7 +304,7 @@ export function getLiveQuests(): GnoQuest[] {
  * Hidden quests stay hidden (discovered via play), so they're excluded here.
  */
 export function getComingSoonQuests(): GnoQuest[] {
-    return ALL_QUESTS.filter(q => !LIVE_QUEST_IDS.has(q.id) && !q.hidden)
+    return ALL_QUESTS.filter(q => !LIVE_QUEST_IDS.has(q.id) && !RETIRED_QUEST_IDS.has(q.id) && !q.hidden)
 }
 
 /** Get quests by category */

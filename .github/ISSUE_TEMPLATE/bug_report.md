@@ -23,9 +23,9 @@ assignees: ''
 ## Environment
 - **Browser**: 
 - **OS**: 
-- **Wallet**: Adena v
-- **Network**: test11 / staging / portal-loop
-- **Memba version**: 
+- **Wallet (if applicable)**:
+- **Network**: gno.land mainnet / other (specify)
+- **Memba version**:
 
 ## Additional Context
 <!-- Any other context about the problem. -->
