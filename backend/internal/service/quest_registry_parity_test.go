@@ -158,12 +158,6 @@ func TestClaimableQuestCatalogParity(t *testing.T) {
 		claimable[id] = true
 	}
 	for id := range live {
-		// The backend retires this unverified reward before the frontend rollout
-		// in #1368. Remove this one-ID staging exception when that PR removes it
-		// from LIVE_QUEST_IDS; all other live quests still need a grant path.
-		if id == "submit-feedback" && retiredQuests[id] {
-			continue
-		}
 		if !claimable[id] {
 			t.Errorf("frontend live quest %q has no server grant path", id)
 		}
