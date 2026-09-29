@@ -17,6 +17,7 @@ test('guest Store catalogue remains readable', async ({ page }) => {
     await page.route(/memba\.v1\.|\.gno\.land|gnolove|clerk[.-]/, route => route.abort())
     await page.goto(`${OS_ON}/os/store`)
     const win = page.getByRole('region', { name: 'App Store', exact: true })
-    await expect(win.locator('.os-classic')).toBeVisible()
+    await expect(win.getByRole('navigation', { name: 'App Store' })).toBeVisible()
+    await expect(win.getByRole('button', { name: 'Details for Adena' })).toBeVisible()
     await expect(win.getByRole('button', { name: 'Connect' })).toHaveCount(0)
 })

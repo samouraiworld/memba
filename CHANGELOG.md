@@ -32,6 +32,10 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: quieter Live and repeat welcome
 
 - Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
+### Memba OS: native App Store discovery (2026-09-28)
+
+- Browse onchain listings and independent Gno projects in one native OS catalogue, with searchable categories, network status, provenance and app detail windows. The Store remains useful to guests when the registry is unavailable.
+- Read registry pages beyond the first window and show an explicit error or incomplete-results notice when discovery cannot cover the full catalogue. Match editorial projects by verified realm path so a copied website URL cannot hide an independent project.
 
 ### Memba OS: classic bundle guard
 

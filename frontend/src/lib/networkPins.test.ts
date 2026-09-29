@@ -92,6 +92,8 @@ const ALLOWLIST: Pin[] = [
     { file: "components/directory/RecentSubmissionsSection.tsx", allow: ["mainnet"], why: "Submission rows are omitted on Pearl and other networks; editorial Directory content remains separate." },
     { file: "lib/directorySeeds.ts", allow: ["mainnet"], why: "Date-checked editorial source paths for mainnet, separate from runtime eligibility; historical references remain labeled." },
     { file: "lib/ecosystemDirectory.ts", allow: ["mainnet", "staging"], why: "Editorial evidence and fixed external realm destinations; not runtime defaults, capability eligibility or backend network pins." },
+    { file: "lib/appCatalogue.ts", allow: ["mainnet", "staging"], why: "Display-only catalogue availability and filters for registry or editorial entries, derived from the selected network and editorial evidence; no runtime network default or write gate." },
+    { file: "os/apps/store/native.tsx", allow: ["mainnet"], why: "Display-only availability for a directly opened registry listing; registry reads still use the selected OS network and its allowlisted realm." },
     { file: "components/appstore/EcosystemDirectory.tsx", allow: ["mainnet"], why: "Availability filter option only; does not switch Memba's selected network." },
     { file: "os/apps/nft/native.tsx", allow: ["mainnet"], why: "Display-only wording distinguishes the absent mainnet NFT registry from other unavailable networks; no route, default network or write eligibility changes." },
     { file: "os/apps/tokens/native.tsx", allow: ["mainnet"], why: "Display-only wording names the absent mainnet token factory; no route, default network or write eligibility changes." },

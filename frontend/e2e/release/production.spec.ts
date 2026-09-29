@@ -89,10 +89,11 @@ for (const [name, device] of [['desktop', devices['Desktop Chrome']], ['phone', 
             isMobile: device.isMobile, hasTouch: device.hasTouch, userAgent: device.userAgent })
         test('keeps a Store window open until reload is chosen', async ({ page, request }) => {
             await page.goto('/os/store')
-            await expect(page.getByRole('heading', { name: 'App Store', exact: true }).first()).toBeVisible()
+            const storeHeading = page.getByRole('heading', { name: /^(App Store|Find your next thing\.)$/ }).first()
+            await expect(storeHeading).toBeVisible()
             await page.evaluate(async () => { await navigator.serviceWorker.ready })
             if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) await page.reload()
-            await expect(page.getByRole('heading', { name: 'App Store', exact: true }).first()).toBeVisible()
+            await expect(storeHeading).toBeVisible()
             const oldEntry = await page.locator('script[type=module]').getAttribute('src')
             await request.post('/__release?build=b')
             const newEntry = '/' + (await (await request.get('/build-info.json')).json()).entry
@@ -102,7 +103,7 @@ for (const [name, device] of [['desktop', devices['Desktop Chrome']], ['phone', 
             await page.getByRole('button', { name: 'Reload to update' }).click()
             await expect(page.locator('script[type=module]')).toHaveAttribute('src', newEntry)
             await expect(page).toHaveURL(/\/os\/store$/)
-            await expect(page.getByRole('heading', { name: 'App Store', exact: true }).first()).toBeVisible()
+            await expect(storeHeading).toBeVisible()
         })
     })
 }

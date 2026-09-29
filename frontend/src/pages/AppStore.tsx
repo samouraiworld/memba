@@ -451,7 +451,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
         retry: 1,
     })
     // Compact at-a-glance rating for the hero. The review subject is the app's own realm path.
-    // Only fetched when community reviews are enabled (the app-reviews realm is deployed but
+    // Only fetched when community reviews are enabled (the app-reviews realm is not on mainnet yet;
     // gated behind VITE_ENABLE_APP_REVIEWS until wired live).
     const { data: reviewSummary } = useQuery({
         queryKey: ["appReviews", "summary", pkgPath],

@@ -20,11 +20,8 @@ for (const theme of ['light', 'dark'] as const) {
             localStorage.setItem('memba_os_skip_intro', '1')
             localStorage.setItem('memba_os_booted', '1')
         })
-        // /os/extensions (a plausible-looking probe path) isn't a valid OS deep
-        // link — osPath.ts requires the first segment to be an app slug ("store"),
-        // so it opened the "Not found" window instead of a classic page. The App
-        // Store app's "extensions" route is reached at /os/store/extensions.
-        await page.goto(`${OS_ON}/os/store/extensions`)
+        // News remains bridged while the Store now has a native window.
+        await page.goto(`${OS_ON}/os/news`)
         const probe = await page.locator('.os-classic').first().evaluate((host) => {
             const os = getComputedStyle(host.closest('.memba-os')!)
             const cls = getComputedStyle(host)
@@ -50,7 +47,7 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 // Feed and Tokens now have native windows; this sweep covers classic pages.
-const APPS = ['store', 'quests', 'validators', 'profile', 'news', 'explorer', 'feedback', 'dev-report']
+const APPS = ['quests', 'validators', 'profile', 'news', 'explorer', 'feedback', 'dev-report']
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
     await guest(page)
