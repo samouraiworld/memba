@@ -20,6 +20,7 @@ export interface ShownProfile {
     legacyLinks: { label: string; url: string; source: FieldSource }[]
     governanceVotes: UserProfile["governanceVotes"]
     deployedPackages: UserProfile["deployedPackages"]
+    githubActivity: { login: string; commits: number; pullRequests: number; issues: number; reviews: number } | null
     chainProblem: boolean
     documentProblem: boolean
 }
@@ -62,6 +63,10 @@ export function shownProfile(address: string, chain: ProfileChainRead | null, le
         company: shown(chain?.documentPresent ? document?.company : null, legacy?.company || "", "Memba legacy"),
         document: document ?? defaultProfileDocument(), documentPresent: chain?.documentPresent ?? false,
         legacyLinks, governanceVotes: legacy?.governanceVotes ?? [], deployedPackages: legacy?.deployedPackages ?? [],
+        githubActivity: legacy?.githubLogin ? {
+            login: legacy.githubLogin, commits: legacy.totalCommits, pullRequests: legacy.totalPRs,
+            issues: legacy.totalIssues, reviews: legacy.totalReviews,
+        } : null,
         chainProblem: chain === null || chain.missingCore.length > 0,
         documentProblem: chain?.documentProblem ?? false,
     }

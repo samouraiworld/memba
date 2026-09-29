@@ -24,6 +24,7 @@ Full changelogs are split by version range for easier navigation:
 
 - Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.
 - Preview identity fields, images, links, templates and section order in a local draft with undo. Mainnet uses the live caller-owned profile realm for a versioned layout document; publishing stays off by default until wallet and gas rehearsal is complete.
+- Lead with an Overview that discovers an address-owned Home realm and links to its original page. Separate checked DAO roles, published packages and linked GitHub activity, and indexed Feed posts and replies into source-labelled tabs with explicit coverage limits.
 ### Quests: retire unverified feedback claims
 
 - Reject new `submit-feedback` quest claims on the server while preserving XP from historically accepted completions.

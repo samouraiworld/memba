@@ -23,6 +23,9 @@ async function guest(page: Page) {
             const value: Record<string, string> = { DisplayName: 'Alice on Gno', Bio: 'Building public goods', Homepage: 'https://example.org', Location: 'Paris', Avatar: '', 'memba.profile.v1': document }
             return `(${JSON.stringify(value[field ?? ''] ?? '')} string)`
         }
+        if (method === 'abci_query' && path === 'vm/qrender' && arg === 'gno.land/r/' + ADDRESS + '/home:') {
+            return '# Alice Home\nBuilding public goods from this personal Gno realm.'
+        }
         if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"2500000ugnot"'
         return null
     })
@@ -35,14 +38,34 @@ test.describe('Memba OS native profile', () => {
         await page.goto(`${OS_ON}/os/profile/${ADDRESS}`)
         const profile = page.getByTestId('os-profile-window')
         await expect(profile.getByRole('heading', { name: 'Alice on Gno' })).toBeVisible()
-        await expect(profile.getByText('Building public goods')).toBeVisible()
+        await expect(profile.getByText('Building public goods', { exact: true })).toBeVisible()
         await expect(profile.getByText('Designer · Cooperative')).toBeVisible()
         await expect(profile.getByRole('link', { name: 'Work ↗' })).toHaveAttribute('href', 'https://example.org/')
         await expect(profile.getByRole('region', { name: 'Public assets' })).toBeVisible()
         await expect(profile.getByRole('region', { name: 'Credentials' })).toBeVisible()
         await expect(profile.getByText('2.5 GNOT')).toBeVisible()
+        await expect(profile.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
+        await expect(profile.getByText('On-chain Home found')).toBeVisible()
         await profile.getByRole('button', { name: 'Copy share link' }).click()
         await expect(profile).toBeVisible()
+    })
+
+    test('Home appears as a distinct owner-authored realm with a source link', async ({ page }) => {
+        await page.goto(OS_ON + '/os/profile/' + ADDRESS)
+        const profile = page.getByTestId('os-profile-canvas')
+        await profile.getByRole('tab', { name: 'Home' }).click()
+        await expect(profile.getByRole('heading', { name: 'Alice Home' })).toBeVisible()
+        await expect(profile.getByText('Building public goods from this personal Gno realm.')).toBeVisible()
+        await expect(profile.getByText(/Claims here are owner-authored/)).toBeVisible()
+        await expect(profile.getByRole('link', { name: 'View complete Home ↗' })).toHaveAttribute('href', 'https://gno.land/r/' + ADDRESS + '/home')
+        await profile.getByRole('tab', { name: 'DAOs' }).click()
+        await expect(profile.getByText(/not a complete list of DAOs on Gno/)).toBeVisible()
+        await profile.getByRole('tab', { name: 'Contributions' }).click()
+        await expect(profile.getByRole('heading', { name: 'Published packages' })).toBeVisible()
+        await profile.getByRole('tab', { name: 'Feed' }).click()
+        await expect(profile.getByRole('button', { name: 'Posts' })).toHaveAttribute('aria-pressed', 'true')
+        await profile.getByRole('button', { name: 'Replies' }).click()
+        await expect(profile.getByRole('button', { name: 'Replies' })).toHaveAttribute('aria-pressed', 'true')
     })
 
     test('a registered @username opens the same address profile', async ({ page }) => {

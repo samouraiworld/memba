@@ -130,3 +130,9 @@ On mainnet, slices 1–3 can ship without a new realm because the verified live 
 1. Rehearse a real wallet publish on the verified mainnet realm, recording fee, batched calls, readback, cancellation, and uncertain outcomes before enabling the flag.
 2. Finish direct canvas editing and cover/avatar positioning, then verify preview and published content match.
 3. Validate keyboard flow and 200% zoom with people; complete the production owner/guest walkthrough and six-perspective re-audit.
+
+## 10. Address-owned Home and activity view (2026-09-29)
+
+The shared Profile realm and an address-owned /home realm are separate public sources. Profile now starts on Overview, discovers a Home at the viewed address, displays a bounded plain-text excerpt, and links to the complete original realm. Home content is labelled owner-authored; its claims do not become verified roles or credentials.
+
+The Home, DAOs, Contributions, and Feed tabs organize read-only signals around the same address. DAO membership, roles, tiers and voting power come only from rosters in Memba's bounded known directory, with checked and unavailable counts and no claim of chain-wide coverage. Published packages and linked GitHub activity are attributed to Gnolove; ranks remain withheld until a source supplies an account, metric and period. Feed posts and replies are separated, with links back to their threads and a recent-sample notice. Existing editor layout and section visibility controls continue to apply, and this change does not enable profile publishing.
