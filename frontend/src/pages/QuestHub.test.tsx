@@ -164,7 +164,7 @@ describe("QuestHub — URL and wallet state", () => {
         fetchUserQuestsMock.mockResolvedValue({ completed: [], totalXP: 0 })
         renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
         await waitFor(() => expect(fetchUserQuestsMock).toHaveBeenCalledWith(address))
-        expect(screen.getByText("0 XP")).toBeInTheDocument()
+        expect(await screen.findByText("0 XP")).toBeInTheDocument()
         expect(screen.queryByText("syncing…")).toBeNull()
     })
 
