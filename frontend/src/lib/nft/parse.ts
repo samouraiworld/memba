@@ -79,3 +79,21 @@ export function oneOf<T extends string>(value: unknown, what: string, allowed: r
     if (!allowed.includes(value as T)) throw new Error(`Invalid ${what}`)
     return value as T
 }
+
+/** `C<n>` as the ledger accepts it: no leading zero, at most 21 characters. */
+export function collectionId(value: unknown): string {
+    if (typeof value !== "string" || !/^C[1-9]\d{0,19}$/.test(value)) throw new Error("Invalid collection ID")
+    return value
+}
+
+/** A SHA-256 as the realms write it: 64 lowercase hex digits. */
+export function hash(value: unknown, what: string): string {
+    if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`Invalid ${what}`)
+    return value
+}
+
+/** An IPFS CID as the curation realm accepts it: CIDv1 `bafy…` in base32 (59 to 90 characters) or CIDv0 `Qm…` in base58 (46). */
+export function cid(value: unknown, what: string): string {
+    if (typeof value !== "string" || !/^(bafy[a-z2-7]{55,86}|Qm[1-9A-HJ-NP-Za-km-z]{44})$/.test(value)) throw new Error(`Invalid ${what}`)
+    return value
+}
