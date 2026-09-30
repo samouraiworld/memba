@@ -39,7 +39,13 @@ test.describe('Memba OS pages in windows', () => {
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft')
         await expect(page.getByRole('region', { name: 'Market', exact: true })).toHaveCount(0)
         await nft.getByRole('button', { name: 'Open Market' }).click()
-        await expect(win(page, 'Market').getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
+        // Market opens on its native home; this build enables no lane, so it lists none.
+        const market = win(page, 'Market')
+        await expect(market.getByRole('heading', { name: 'Market lanes', exact: true })).toBeVisible()
+        await expect(market.getByRole('note')).toContainText('No Market lane is available here. A lane appears only when it is enabled in this build and its realm is available on')
+        await expect(market.locator('.os-scard')).toHaveCount(0)
+        await expect(market.locator('.os-classic')).toHaveCount(0)
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/market')
         await expect(win(page, 'NFT')).toBeVisible()
     })
 

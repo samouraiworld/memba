@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Market home (2026-09-30)
+- The Market window in Memba OS opens on its own home listing the Market lanes available on the current network. On gno.land that is Services, one click further than before, with a "Market lanes" control to return from a lane.
+
 ### Profile publishing and username registration: measured gas, deposit and fee (2026-09-30)
 - Username registration from Memba ran out of gas on gno.land mainnet. It now sends a gas limit sized from measurements and is never retried.
 - Profile publishing and username registration show the expected storage deposit, its cap and the exact network fee before the wallet opens, say that the deposit is not returned, cap the deposit per call, and pay the network gas price instead of a flat 1 GNOT. A review opens only on a gas price the chain reported at that click.
