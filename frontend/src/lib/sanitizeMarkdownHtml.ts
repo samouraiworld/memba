@@ -26,13 +26,21 @@ const EXTERNAL = /^(?:https?:|[/\\]{2})/i
 /** How a browser reads an href: tabs and line breaks removed, outer spaces trimmed. */
 const normaliseHref = (href: string) => href.replace(/[\t\n\r]/g, "").trim()
 
+/**
+ * Everything markdownLite's renderers write, and nothing more: DOMPurify's default profile
+ * also lets through style, id, form controls and SVG, none of which they produce.
+ * `target` and `rel` are not listed: the hook below sets them itself.
+ */
+const ALLOWED_TAGS = ["a", "code", "em", "strong", "img", "pre", "hr", "h1", "h2", "h3", "h4", "p", "ul", "ol", "li", "table", "thead", "tbody", "tr", "th", "td"]
+const ALLOWED_ATTR = ["href", "class", "src", "alt", "loading", "data-lang"]
+
 let instance: ReturnType<typeof DOMPurify> | null = null
 
 function purifier(): ReturnType<typeof DOMPurify> {
     if (instance) return instance
     const own = DOMPurify(window)
     own.addHook("afterSanitizeAttributes", (node) => {
-        if (node.nodeName !== "A" && node.nodeName !== "AREA") return
+        if (node.nodeName !== "A") return
         const el = node as Element
         el.removeAttribute("target")
         if (EXTERNAL.test(normaliseHref(el.getAttribute("href") ?? ""))) {
@@ -46,5 +54,5 @@ function purifier(): ReturnType<typeof DOMPurify> {
 
 /** Sanitise renderMarkdown()/renderPostBody() output before `dangerouslySetInnerHTML`. */
 export function sanitizeMarkdownHtml(html: string): string {
-    return purifier().sanitize(html)
+    return purifier().sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR, ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false })
 }

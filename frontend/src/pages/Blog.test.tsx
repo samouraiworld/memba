@@ -7,15 +7,13 @@ import { BlogList, BlogArticlePage } from "./Blog"
 import { BLOG_ARTICLES } from "../lib/blog"
 import * as blogSource from "../lib/blogSource"
 import { Changelogs } from "./Changelogs"
-import { WindowActivityContext } from "../os/page/WindowActivity"
 
-function renderAt(path: string, active = true) {
+function renderAt(path: string) {
     // useBlogArticles goes through TanStack Query (flag-gated on-chain source;
     // static passthrough when off) — the page needs a provider either way.
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
         <QueryClientProvider client={qc}>
-        <WindowActivityContext.Provider value={active}>
             <MemoryRouter initialEntries={[path]}>
                 <Routes>
                     <Route path="/:network/blog" element={<BlogList />} />
@@ -23,7 +21,6 @@ function renderAt(path: string, active = true) {
                     <Route path="/:network/changelogs" element={<Changelogs />} />
                 </Routes>
             </MemoryRouter>
-        </WindowActivityContext.Provider>
         </QueryClientProvider>,
     )
 }
@@ -43,17 +40,6 @@ describe("BlogList", () => {
         fireEvent.click(screen.getByRole("link", { name: "Changelogs" }))
         await waitFor(() => expect(screen.getByRole("heading", { name: "Changelogs" })).toHaveFocus())
         expect(screen.getByRole("link", { name: "Blog" }).getAttribute("href")).toBe("/mainnet/blog")
-    })
-
-    it("does not overwrite the document title or focus from an inactive OS window", () => {
-        document.title = "Active app — Memba"
-        const anchor = document.createElement("button")
-        document.body.append(anchor)
-        anchor.focus()
-        renderAt("/mainnet/blog", false)
-        expect(document.title).toBe("Active app — Memba")
-        expect(anchor).toHaveFocus()
-        anchor.remove()
     })
 })
 

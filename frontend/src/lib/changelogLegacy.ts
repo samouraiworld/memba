@@ -118,16 +118,6 @@ export const LEGACY_ENTRIES: LegacyChangelogEntry[] = [
         ],
     },
     {
-        date: "2026-03-14",
-        title: "Betanet (gnoland1) Stable",
-        tags: ["network"],
-        items: [
-            "First persistent Gno chain",
-            "Production-grade — deploy with care",
-            "Samourai Coop validators live: rpc.gnoland1.samourai.live",
-        ],
-    },
-    {
         date: "2026-03-15",
         version: "v2.13.0",
         title: "Validators & Hacker Mode",
@@ -137,6 +127,16 @@ export const LEGACY_ENTRIES: LegacyChangelogEntry[] = [
             "Hacker Mode with dual-RPC strategy",
             "Validator detail pages with uptime and participation metrics",
             "Sentry RPC integration for Samourai Coop nodes",
+        ],
+    },
+    {
+        date: "2026-03-14",
+        title: "Betanet (gnoland1) Stable",
+        tags: ["network"],
+        items: [
+            "First persistent Gno chain",
+            "Production-grade — deploy with care",
+            "Samourai Coop validators live: rpc.gnoland1.samourai.live",
         ],
     },
     {

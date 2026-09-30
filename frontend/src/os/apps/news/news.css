@@ -1,0 +1,75 @@
+/*
+ * News window: Blog list, article, Changelogs. OS tokens only, so both themes
+ * follow; narrow windows and phone sheets are handled by the fluid grid and a
+ * container query. Nothing here animates.
+ */
+.memba-os .os-news { display: grid; gap: 16px; min-width: 0; max-width: 1080px; }
+/* Headings take focus when a view opens (native.tsx); the margin keeps the
+   control above them on screen when the browser scrolls them into view. */
+.memba-os .os-news-head h1, .memba-os .os-news-article > h1 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; letter-spacing: -.02em; overflow-wrap: anywhere; scroll-margin-top: 64px; }
+.memba-os .os-news-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 14px; }
+.memba-os .os-news-head > div { min-width: 0; }
+.memba-os .os-news-head p { margin: 4px 0 0; }
+.memba-os .os-news-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* Blog list: the first (newest) article spans the grid */
+.memba-os .os-news-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.memba-os .os-news-grid > li { display: grid; min-width: 0; }
+.memba-os .os-news-grid > li:first-child { grid-column: 1 / -1; }
+.memba-os .os-news-grid .os-scard { position: relative; padding: 14px 16px; }
+.memba-os .os-news-grid .os-scard:hover { border-color: var(--os-acc); }
+.memba-os .os-news-card { flex: 1; min-width: 0; display: grid; gap: 6px; align-content: start; }
+.memba-os .os-news-card > * { margin: 0; }
+.memba-os .os-news-card h2 { font-size: 14.5px; font-weight: 700; line-height: 1.3; }
+.memba-os .os-news-grid > li:first-child h2 { font-size: 19px; font-weight: 800; letter-spacing: -.015em; }
+.memba-os .os-news-desc { color: var(--os-mut); line-height: 1.5; overflow-wrap: anywhere; }
+/* The title is the card's one control; its hit area and focus ring are the whole card. */
+.memba-os .os-news-open { border: 0; background: none; padding: 0; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.memba-os .os-news-open::after { content: ""; position: absolute; inset: 0; border-radius: 14px; }
+.memba-os .os-news-open:focus-visible { outline: none; }
+.memba-os .os-news-open:focus-visible::after { outline: 2px solid var(--os-acc); outline-offset: 2px; }
+
+/* Article */
+.memba-os .os-news-article { display: grid; gap: 12px; justify-items: start; min-width: 0; max-width: 720px; }
+.memba-os .os-news-article > * { min-width: 0; max-width: 100%; }
+.memba-os .os-news-article > h1 { font-size: 26px; }
+.memba-os .os-news-meta { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--os-mut); font-size: 12px; }
+.memba-os .os-news-body { justify-self: stretch; padding-top: 14px; border-top: 1px solid var(--os-line); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.memba-os .os-news-body > :first-child { margin-top: 0; }
+/* The renderer's elements carry md-* classes that a classic stylesheet styles without a scope once it is loaded
+   (pages/directory.css): every property it sets is set here too. */
+.memba-os .os-news-body :is(p, ul, ol, h1, h2, h3, h4, code, table, th, td) { color: var(--os-ink); }
+.memba-os .os-news-body :is(p, ul, ol, table) { font: inherit; }
+.memba-os .os-news-body :is(h1, h2, h3, h4, th) { font-weight: 700; }
+.memba-os .os-news-body :is(h1, h2, h3, h4) { margin: 26px 0 8px; line-height: 1.3; letter-spacing: -.01em; }
+.memba-os .os-news-body h1 { font-size: 20px; }
+.memba-os .os-news-body h2 { font-size: 17.5px; }
+.memba-os .os-news-body h3 { font-size: 15px; }
+.memba-os .os-news-body h4 { font-size: 14px; }
+.memba-os .os-news-body :is(p, ul, ol, pre, table, img) { margin: 0 0 14px; }
+.memba-os .os-news-body :is(ul, ol) { padding-left: 22px; }
+.memba-os .os-news-body li { margin-bottom: 4px; }
+.memba-os .os-news-body a { color: var(--os-acc-ink); text-decoration: underline; text-underline-offset: 2px; }
+.memba-os .os-news-body code { font: 500 12.5px var(--os-mono); padding: 1px 5px; border-radius: 4px; background: var(--os-hover); }
+.memba-os .os-news-body pre { padding: 12px 14px; border: 1px solid var(--os-line); border-radius: 10px; background: var(--os-card); overflow-x: auto; }
+.memba-os .os-news-body pre code { padding: 0; background: none; }
+.memba-os .os-news-body hr { margin: 22px 0; border: 0; border-top: 1px solid var(--os-line); }
+.memba-os .os-news-body img { display: block; max-width: 100%; height: auto; border: 1px solid var(--os-line); border-radius: 8px; }
+.memba-os .os-news-body table { display: block; width: auto; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.memba-os .os-news-body :is(th, td) { padding: 6px 12px 6px 0; border: 0; border-bottom: 1px solid var(--os-line); background: none; text-align: left; }
+
+/* Changelogs */
+.memba-os .os-news-log { display: grid; gap: 18px; min-width: 0; max-width: 760px; }
+.memba-os .os-news-group { display: grid; gap: 8px; min-width: 0; }
+.memba-os .os-news-group > h2 { margin: 0; }
+.memba-os .os-news-entry { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.memba-os .os-news-entry > * { margin: 0; }
+.memba-os .os-news-entry h3 { font-size: 13.5px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.memba-os .os-news-items { padding-left: 18px; display: grid; gap: 3px; color: var(--os-mut); line-height: 1.55; overflow-wrap: anywhere; }
+
+@container os-window (max-width: 560px) {
+  .memba-os .os-news-head h1 { font-size: 20px; }
+  .memba-os .os-news-article > h1 { font-size: 22px; }
+  .memba-os .os-news-grid > li:first-child h2 { font-size: 16.5px; }
+  .memba-os .os-news-grid .os-scard { padding: 12px; }
+}

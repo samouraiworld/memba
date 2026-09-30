@@ -22,9 +22,9 @@ test.describe('Memba OS pages in windows', () => {
     test.beforeEach(async ({ page }) => { await guest(page) })
 
     test('an app without a native window shows its Memba page inside the window', async ({ page }) => {
-        await page.goto(`${OS_ON}/os/news`)
-        const news = win(page, 'News')
-        await expect(news.locator('.os-classic')).toBeVisible()
+        await page.goto(`${OS_ON}/os/quests`)
+        const quests = win(page, 'Quests')
+        await expect(quests.locator('.os-classic')).toBeVisible()
         await expect(page.getByRole('link', { name: /in Memba$/ })).toHaveCount(0)
         // Memba's own navigation chrome stays out: the window holds the page only.
         await expect(page.locator('.os-classic nav[aria-label="Main navigation"], .os-classic .k-sidebar')).toHaveCount(0)

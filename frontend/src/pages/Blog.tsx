@@ -8,40 +8,25 @@
  */
 import { useEffect, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
-import { sanitizeMarkdownHtml } from "../lib/sanitizeMarkdownHtml"
 import { Rss, ArrowLeft } from "@phosphor-icons/react"
 import { useBlogArticles } from "../lib/blogSource"
-import { renderMarkdown } from "../lib/markdownLite"
+import { articleBodyHtml, readingTime } from "../lib/blogView"
+import { formatNewsDate as formatDate } from "../lib/newsDate"
 import { applyArticleHeadMeta, clearArticleHeadMeta } from "../lib/blogMeta"
 import { useNetworkKey } from "../hooks/useNetworkNav"
-import { useWindowActive } from "../os/page/WindowActivity"
 import "./blog.css"
-
-function formatDate(date: string): string {
-    return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
-        month: "long", day: "numeric", year: "numeric",
-    })
-}
-
-/** Rough reading time from the raw markdown body (~200 wpm). */
-function readingTime(body: string): string {
-    const words = body.trim().split(/\s+/).filter(Boolean).length
-    return `${Math.max(1, Math.round(words / 200))} min read`
-}
 
 export function BlogList() {
     const nk = useNetworkKey()
-    const windowActive = useWindowActive()
     const headingRef = useRef<HTMLHeadingElement>(null)
     useEffect(() => {
-        if (!windowActive) return
         const previousTitle = document.title
         document.title = "Blog — Memba"
         headingRef.current?.focus()
         return () => {
             if (document.title === "Blog — Memba") document.title = previousTitle
         }
-    }, [windowActive])
+    }, [])
 
     const { articles } = useBlogArticles()
     const [featured, ...rest] = articles
@@ -117,32 +102,30 @@ export function BlogList() {
 export function BlogArticlePage() {
     const { slug } = useParams<{ slug: string }>()
     const nk = useNetworkKey()
-    const windowActive = useWindowActive()
     const { articles, loading } = useBlogArticles()
     const article = slug ? articles.find(a => a.slug === slug) : undefined
     const headingRef = useRef<HTMLHeadingElement>(null)
 
     useEffect(() => {
-        if (windowActive) headingRef.current?.focus()
-    }, [article?.slug, loading, slug, windowActive])
+        headingRef.current?.focus()
+    }, [article?.slug, loading, slug])
 
     useEffect(() => {
-        if (!windowActive) return
         if (!article) return
         // Per-article OG/description + BlogPosting JSON-LD (wins over the
         // generic /blog payload — see lib/blogMeta.ts for the ordering contract).
         applyArticleHeadMeta(article, window.location.href)
         return clearArticleHeadMeta
-    }, [article, windowActive])
+    }, [article])
 
     useEffect(() => {
-        if (!windowActive || article) return
+        if (article) return
         const previousTitle = document.title
         document.title = "Blog — Memba"
         return () => {
             if (document.title === "Blog — Memba") document.title = previousTitle
         }
-    }, [article, windowActive])
+    }, [article])
 
     if (!article) {
         return (
@@ -181,7 +164,7 @@ export function BlogArticlePage() {
             <div
                 className="blog-body"
                 data-testid="blog-body"
-                dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(article.body, { images: article.source !== "onchain" })) }}
+                dangerouslySetInnerHTML={{ __html: articleBodyHtml(article) }}
             />
         </article>
     )

@@ -107,7 +107,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
  * inside the window instead. */
-const CLASSIC_APPS = ['quests', 'validators', 'news', 'dev-report', 'explorer', 'feedback']
+const CLASSIC_APPS = ['quests', 'validators', 'dev-report', 'explorer', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {

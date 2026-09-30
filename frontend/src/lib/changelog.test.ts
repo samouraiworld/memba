@@ -56,7 +56,7 @@ describe("parseChangelogMarkdown — historical variants (tolerance)", () => {
     it("'Unreleased — vX (title)' headings are SHIPPED interim titles, not in-progress", () => {
         // Review finding: these historical headings describe merged work —
         // they carry a version, so unreleased must be FALSE (never grouped
-        // under "In progress" on the page).
+        // under "Unreleased" on the page).
         const md = `## Unreleased — v6.2.2 (Gnolove audit fixes)\n### A\n`
         const [e] = parseChangelogMarkdown(md)
         expect(e.version).toBe("v6.2.2")

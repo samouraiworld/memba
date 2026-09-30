@@ -1,5 +1,5 @@
-/* Shared classic and OS News changelog controls. Text colors use the existing
-   theme-aware AA tokens rather than the brighter decorative accent swatches. */
+/* Classic changelog controls. Text colors use the existing theme-aware AA
+   tokens rather than the brighter decorative accent swatches. */
 .news-changelog-page {
     width: 100%;
     max-width: 680px;

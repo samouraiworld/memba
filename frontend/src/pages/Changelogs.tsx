@@ -8,74 +8,32 @@
  * @module pages/Changelogs
  */
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { ClockCounterClockwise } from "@phosphor-icons/react"
-import changelogEntries from "virtual:memba-changelog"
-import type { ChangelogTag as Tag } from "../lib/changelog"
-import { LEGACY_ENTRIES } from "../lib/changelogLegacy"
+import {
+    CHANGELOG_ENTRIES, CHANGELOG_FILTERS, CHANGELOG_LABELS, FULL_CHANGELOG_URL,
+    filterChangelog, groupChangelog, type ChangelogFilter,
+} from "../lib/changelogView"
 import { useNetworkKey } from "../hooks/useNetworkNav"
-import { useWindowActive } from "../os/page/WindowActivity"
 import "./blog.css"
 import "./changelogs.css"
 
-interface ChangelogEntry {
-    date: string
-    version?: string
-    unreleased?: boolean
-    title: string
-    tags: Tag[]
-    items: string[]
-}
-
-// ── Tag styling ──────────────────────────────────────────────
-
-const TAG_LABELS: Record<Tag, string> = {
-    memba: "Memba",
-    network: "Network",
-    "gno-core": "Gno Core",
-}
-
-// ── Component ────────────────────────────────────────────────
-
 export function Changelogs() {
-    const [filter, setFilter] = useState<Tag | "all">("all")
+    const [filter, setFilter] = useState<ChangelogFilter>("all")
     const nk = useNetworkKey()
-    const windowActive = useWindowActive()
     const headingRef = useRef<HTMLHeadingElement>(null)
 
     useEffect(() => {
-        if (!windowActive) return
         const previousTitle = document.title
         document.title = "Changelogs — Memba"
         headingRef.current?.focus()
         return () => {
             if (document.title === "Changelogs — Memba") document.title = previousTitle
         }
-    }, [windowActive])
+    }, [])
 
-    // The build plugin ships only the parsed digest, not the full changelog.
-    const entries: ChangelogEntry[] = useMemo(
-        () => [...changelogEntries, ...LEGACY_ENTRIES],
-        [],
-    )
-
-    const filtered = filter === "all"
-        ? entries
-        : entries.filter(e => e.tags.includes(filter))
-
-    // Group by date. Undated entries: the truly-unreleased block groups under
-    // "In progress"; shipped-but-undated historical blocks group under their
-    // own version label — never "In progress" (review finding).
-    const groupKey = (e: ChangelogEntry) =>
-        e.date || (e.unreleased ? "" : e.version || e.title)
-    const grouped = new Map<string, ChangelogEntry[]>()
-    for (const entry of filtered) {
-        const key = groupKey(entry)
-        const existing = grouped.get(key) || []
-        existing.push(entry)
-        grouped.set(key, existing)
-    }
+    const filtered = filterChangelog(CHANGELOG_ENTRIES, filter)
 
     return (
         <div id="changelogs-page" className="news-changelog-page">
@@ -93,13 +51,13 @@ export function Changelogs() {
                 Memba releases and gno.land ecosystem updates.
             </p>
 
-            <a className="news-changelog-full" href="https://github.com/samouraiworld/memba/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">
+            <a className="news-changelog-full" href={FULL_CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
                 Full changelog <span aria-hidden="true">↗</span>
             </a>
 
             {/* Filter tabs */}
             <div className="news-changelog-filters" role="group" aria-label="Filter changelogs">
-                {(["all", "memba", "network", "gno-core"] as const).map(tag => (
+                {CHANGELOG_FILTERS.map(tag => (
                     <button
                         key={tag}
                         type="button"
@@ -107,14 +65,14 @@ export function Changelogs() {
                         aria-pressed={filter === tag}
                         onClick={() => setFilter(tag)}
                     >
-                        {tag === "all" ? "All" : TAG_LABELS[tag as Tag]}
+                        {CHANGELOG_LABELS[tag]}
                     </button>
                 ))}
             </div>
 
             {/* Entries */}
-            {Array.from(grouped).map(([date, entries]) => (
-                <div key={date} style={{ marginBottom: 28 }}>
+            {groupChangelog(filtered).map(({ key, label, entries }) => (
+                <div key={key} style={{ marginBottom: 28 }}>
                     {/* Date separator */}
                     <div style={{
                         fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontWeight: 600, letterSpacing: 1,
@@ -122,9 +80,7 @@ export function Changelogs() {
                         paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.04)",
                         marginBottom: 12, textTransform: "uppercase",
                     }}>
-                        {/^\d{4}-\d{2}-\d{2}$/.test(date)
-                            ? new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-                            : date === "" ? "In progress" : date}
+                        {label}
                     </div>
 
                     {entries.map((entry, i) => (
@@ -151,7 +107,7 @@ export function Changelogs() {
                                 </span>
                                 {entry.tags.map(tag => (
                                     <span key={tag} className={`news-changelog-tag news-changelog-tag--${tag}`}>
-                                        {TAG_LABELS[tag]}
+                                        {CHANGELOG_LABELS[tag]}
                                     </span>
                                 ))}
                             </div>

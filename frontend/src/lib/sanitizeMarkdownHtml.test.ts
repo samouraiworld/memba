@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import DOMPurify from "dompurify"
-import { renderMarkdown } from "./markdownLite"
+import { renderMarkdown, renderPostBody } from "./markdownLite"
 import { sanitizeMarkdownHtml } from "./sanitizeMarkdownHtml"
 
 const dom = (html: string) => {
@@ -58,6 +58,46 @@ describe("sanitizeMarkdownHtml", () => {
             expect(link.getAttribute("target"), link.textContent ?? "").toBe("_blank")
             expect(link.getAttribute("rel")).toBe("noopener noreferrer")
         }
+    })
+
+    it("keeps every element and attribute the renderers write", () => {
+        const md = [
+            "# One", "## Two", "### Three", "#### Four", "",
+            "Plain **bold** *italic* ***both*** `code` [out](https://example.org/a?b=1&c=2) [in](/mainnet/dao) g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "",
+            "![diagram](https://example.org/diagram.png)", "",
+            "```go", "func main() {}", "```", "",
+            "---", "",
+            "| A | B |", "|---|---|", "| 1 | **2** |", "",
+            "- first", "- second", "",
+            "1. one", "2. two",
+        ].join("\n")
+        // Links are compared without target and rel: the sanitizer decides those itself.
+        const shape = (html: string) => Array.from(dom(html).querySelectorAll("*")).map((el) =>
+            `${el.tagName}[${el.getAttributeNames().filter((name) => name !== "target" && name !== "rel").sort().map((name) => `${name}=${el.getAttribute(name)}`).join(" ")}]`)
+        for (const html of [renderMarkdown(md, { images: true }), renderPostBody("**bold** *italic* `code` [out](https://example.org)")]) {
+            const clean = sanitizeMarkdownHtml(html)
+            expect(shape(clean)).toEqual(shape(html))
+            expect(dom(clean).textContent).toBe(dom(html).textContent)
+        }
+        const tags = new Set(Array.from(dom(sanitizeMarkdownHtml(renderMarkdown(md, { images: true }))).querySelectorAll("*")).map((el) => el.tagName.toLowerCase()))
+        for (const tag of ["h1", "h2", "h3", "h4", "p", "strong", "em", "code", "a", "img", "pre", "hr", "table", "thead", "tbody", "tr", "th", "td", "ul", "ol", "li"]) expect(tags, tag).toContain(tag)
+    })
+
+    it("drops every element and attribute the renderers never write", () => {
+        const html = sanitizeMarkdownHtml([
+            '<p id="x" style="position:fixed" aria-hidden="true" data-track="1" title="t" class="md-p">kept text</p>',
+            '<form action="https://evil.example"><input name="seed"><button>Send</button></form>',
+            '<svg><a href="https://evil.example"><text>svg</text></a></svg>',
+            "<style>p{display:none}</style><div>div text</div><span>span text</span><h5>five</h5><details><summary>s</summary></details>",
+            '<pre data-lang="go" data-other="1"><code>x</code></pre>',
+        ].join(""))
+        const root = dom(html)
+        expect(Array.from(root.querySelectorAll("*")).map((el) => el.tagName.toLowerCase()).sort()).toEqual(["code", "p", "pre"])
+        expect(root.querySelector("p")!.getAttributeNames()).toEqual(["class"])
+        expect(root.querySelector("pre")!.getAttributeNames()).toEqual(["data-lang"])
+        expect(html).not.toMatch(/style|form|input|svg|evil\.example/)
+        // Text of an unwrapped container stays readable.
+        expect(root.textContent).toContain("div text")
     })
 
     it("does not change the shared DOMPurify instance used elsewhere", () => {

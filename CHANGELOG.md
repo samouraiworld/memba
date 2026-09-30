@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: News is a native window (2026-09-30)
+- News opens in a native Memba OS window: the Blog, each article and the Changelogs, with the browser's Back stepping through them.
+
 ### Memba OS: warning labels readable in the light theme (2026-09-30)
 - Warning labels in the light theme (testnet badge, "Target" tags, warning pills) now meet the WCAG AA contrast minimum.
 

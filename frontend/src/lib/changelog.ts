@@ -32,6 +32,9 @@ export interface ParsedChangelogEntry {
     items: string[]
 }
 
+/** Heads the canonical [Unreleased] block: work already merged, not yet in a tagged release. */
+export const UNRELEASED_LABEL = "Unreleased"
+
 const KNOWN_TAGS: ReadonlySet<string> = new Set(["memba", "network", "gno-core"])
 const MAX_ITEMS_PER_ENTRY = 16
 
@@ -76,7 +79,7 @@ export function parseChangelogMarkdown(md: string): ParsedChangelogEntry[] {
         // TRULY unreleased = the canonical [Unreleased] block only. Historical
         // "## Unreleased — v6.2.x (…)" headings describe SHIPPED work merged
         // under an interim title — they carry a version and must never render
-        // under "In progress" (review finding on this PR).
+        // under the Unreleased heading.
         const unreleased = /unreleased/i.test(heading) && !version
         if (!version && !unreleased) continue // not a release block (e.g. prose)
 
@@ -100,7 +103,7 @@ export function parseChangelogMarkdown(md: string): ParsedChangelogEntry[] {
         }
 
         const title = extractTitle(heading, version, date)
-            || (unreleased ? "In progress" : `Release ${version}`)
+            || (unreleased ? UNRELEASED_LABEL : `Release ${version}`)
 
         entries.push({ date, version, unreleased, title, tags, items })
     }
