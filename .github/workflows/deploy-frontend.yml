@@ -38,7 +38,8 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Type check
-        run: npx tsc --noEmit
+        # `tsc --noEmit` checks nothing here: the root tsconfig only references the two projects.
+        run: npx tsc -b
 
       - name: Lint
         run: npm run lint

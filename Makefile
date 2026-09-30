@@ -53,5 +53,5 @@ test: backend-test frontend-test ## Run all tests
 docker-build: ## Build backend Docker image
 	docker build -t memba-backend ./backend
 
-clean: ## Clean build artifacts
-	rm -rf backend/memba backend/gen frontend/dist frontend/src/gen
+clean: ## Clean build artifacts (generated proto code is tracked: `make proto-gen` rewrites it)
+	rm -rf backend/memba frontend/dist

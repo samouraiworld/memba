@@ -69,7 +69,7 @@ Vendored dependencies (_deps)
 
 ```bash
 cd ~/Desktop/Code/Gno/Memba/frontend
-npx tsc --noEmit           # 0 TS errors
+npx tsc -b                 # 0 TS errors
 npx eslint .               # 0 lint errors
 npx vitest run             # full frontend suite passes (3,000+ tests repo-wide; CI is the source of truth)
 npx playwright test        # 16 E2E specs pass
