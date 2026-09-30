@@ -3,12 +3,11 @@
  *
  * Shared by RetiredNetworkRedirect (which builds the successor URL) and
  * RetiredNetworkNotice (which explains the move once). Which networks are
- * retired, and to where, is `NETWORKS[key].retiredTo` — see
- * `retiredNetworkSuccessor` in config.ts.
+ * retired, to where, and what they are called is RETIRED_NETWORKS in config.ts.
  *
  * @module lib/retiredNetwork
  */
-import { NETWORKS, retiredNetworkSuccessor } from "./config"
+import { NETWORKS, RETIRED_NETWORKS, retiredNetworkSuccessor } from "./config"
 
 /** Router state carried from the redirect to the successor network's page. */
 export interface RetiredNetworkState {
@@ -38,9 +37,7 @@ export function retiredNoticeStorageKey(retiredKey: string): string {
 export function retiredNetworkMessage(retiredKey: string): string | null {
     const to = retiredNetworkSuccessor(retiredKey)
     if (!to) return null
-    const from = NETWORKS[retiredKey]
     const successor = NETWORKS[to]
-    const fromName = `${from.label} ${from.isTestnet ? "testnet" : "network"}`
     const toName = successor.isTestnet ? successor.label : `${successor.label} mainnet`
-    return `The ${fromName} has been retired — you're now on ${toName}.`
+    return `The ${RETIRED_NETWORKS[retiredKey].name} has been retired — you're now on ${toName}.`
 }

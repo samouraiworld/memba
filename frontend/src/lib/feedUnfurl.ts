@@ -10,7 +10,7 @@
  * @module lib/feedUnfurl
  */
 
-import { NETWORKS } from "./config"
+import { isNetworkKey } from "./config"
 
 export type UnfurlRef =
     | { kind: "realm"; path: string; href: string }
@@ -31,7 +31,7 @@ const realm = (path: string): UnfurlRef => ({ kind: "realm", path, href: "https:
  */
 function tokenSymbolFromPath(pathname: string): string | null {
     const seg = pathname.split("/").filter(Boolean)
-    if (seg.length === 3 && seg[1] === "tokens" && NETWORKS[seg[0]] && /^[A-Z0-9]+$/.test(seg[2])) {
+    if (seg.length === 3 && seg[1] === "tokens" && isNetworkKey(seg[0]) && /^[A-Z0-9]+$/.test(seg[2])) {
         return seg[2]
     }
     return null
@@ -45,7 +45,7 @@ function tokenSymbolFromPath(pathname: string): string | null {
  */
 function validatorAddrFromPath(pathname: string): string | null {
     const seg = pathname.split("/").filter(Boolean)
-    if (seg.length === 3 && seg[1] === "validators" && NETWORKS[seg[0]] && /^g1[a-z0-9]{6,}$/.test(seg[2])) {
+    if (seg.length === 3 && seg[1] === "validators" && isNetworkKey(seg[0]) && /^g1[a-z0-9]{6,}$/.test(seg[2])) {
         return seg[2]
     }
     return null
@@ -60,7 +60,7 @@ function validatorAddrFromPath(pathname: string): string | null {
 function proposalFromPath(pathname: string): { realmPath: string; id: string } | null {
     const seg = pathname.split("/").filter(Boolean)
     const n = seg.length
-    if (n >= 5 && NETWORKS[seg[0]] && seg[1] === "dao" && seg[n - 2] === "proposal" && /^\d+$/.test(seg[n - 1])) {
+    if (n >= 5 && isNetworkKey(seg[0]) && seg[1] === "dao" && seg[n - 2] === "proposal" && /^\d+$/.test(seg[n - 1])) {
         const realmPath = seg.slice(2, n - 2).join("/")
         if (realmPath) return { realmPath, id: seg[n - 1] }
     }

@@ -1,5 +1,8 @@
 import { describe, it, expect, afterAll, afterEach, beforeAll, vi } from "vitest"
-import { resolveNetworkKey, retiredNetworkSuccessor, currentNetworkKey, DEFAULT_NETWORK, NETWORKS } from "./config"
+import {
+    resolveNetworkKey, resolveDefaultNetwork, retiredNetworkSuccessor, currentNetworkKey, isNetworkKey, isRealmValidOn,
+    networkHasAllowlistedRealms, DEFAULT_NETWORK, NETWORKS, RETIRED_NETWORKS,
+} from "./config"
 
 /**
  * Which network the app initialises on, and where `/` or a legacy path sends you.
@@ -25,7 +28,7 @@ import { resolveNetworkKey, retiredNetworkSuccessor, currentNetworkKey, DEFAULT_
 // pure-resolver block needs TWO visible networks to tell "the choice wins"
 // apart from "the default answered", so it un-hides pearl for its duration
 // (resolveNetworkKey reads `hidden` at call time). Pearl is also RETIRED
-// (`retiredTo: "mainnet"`), which only affects the URL step — so VISIBLE_A is
+// (RETIRED_NETWORKS), which only affects the URL step — so VISIBLE_A is
 // used as a stored choice, never as a URL, in that block.
 const VISIBLE_A = "pearl"
 const VISIBLE_B = "mainnet"
@@ -146,11 +149,51 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
 
 describe("retiredNetworkSuccessor — which networks redirect, and where", () => {
     it("pearl is retired to mainnet (owner ruling 2026-09-23)", () => {
-        expect(NETWORKS.pearl.retiredTo).toBe("mainnet")
+        expect(RETIRED_NETWORKS.pearl).toEqual({ to: "mainnet", name: "Pearl testnet" })
         expect(retiredNetworkSuccessor("pearl")).toBe("mainnet")
-        // Retired is not removed: the entry stays, hidden.
-        expect(NETWORKS.pearl).toBeDefined()
-        expect(NETWORKS.pearl.hidden).toBe(true)
+    })
+
+    it("a retired network needs no registry entry: its URL resolves to the successor, even one that is not the default", () => {
+        // Pointed at onyx here: with the default as successor, a resolver that skipped
+        // the retired step would reach the same answer by falling through to the default.
+        const pearl = NETWORKS.pearl
+        const entry = RETIRED_NETWORKS.pearl
+        const successor = entry.to
+        delete NETWORKS.pearl
+        entry.to = "onyx"
+        try {
+            expect(DEFAULT_NETWORK).not.toBe("onyx")
+            expect(retiredNetworkSuccessor("pearl")).toBe("onyx")
+            expect(resolveNetworkKey({ pathname: "/pearl/dao/create" })).toBe("onyx")
+        } finally {
+            entry.to = successor
+            NETWORKS.pearl = pearl
+        }
+    })
+
+    it("a successor that is missing, not the registry's own key, or itself retired gives no redirect", () => {
+        const entry = RETIRED_NETWORKS.pearl
+        const successor = entry.to
+        try {
+            for (const bad of ["no-such-network", "constructor", "pearl", ""]) {
+                entry.to = bad
+                expect(retiredNetworkSuccessor("pearl"), bad).toBeNull()
+            }
+        } finally {
+            entry.to = successor
+        }
+    })
+
+    it("a name every object has is not a network: only the registry's own keys count", () => {
+        for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+            expect(isNetworkKey(key), key).toBe(false)
+            expect(retiredNetworkSuccessor(key), key).toBeNull()
+            expect(resolveNetworkKey({ pathname: `/${key}/dao` }), key).toBe(DEFAULT_NETWORK)
+            expect(resolveNetworkKey({ pref: key }), key).toBe(DEFAULT_NETWORK)
+            expect(resolveDefaultNetwork(key), key).toBe("mainnet")
+            expect(isRealmValidOn(key, "gno.land/r/gov/dao"), key).toBe(false)
+            expect(networkHasAllowlistedRealms(key), key).toBe(false)
+        }
     })
 
     it("non-retired networks, unknown keys and empty input have no successor", () => {
@@ -160,10 +203,10 @@ describe("retiredNetworkSuccessor — which networks redirect, and where", () =>
     })
 
     it("every declared successor is a real, non-retired network (no redirect chains or dead ends)", () => {
-        for (const [key, net] of Object.entries(NETWORKS)) {
-            if (!net.retiredTo) continue
-            expect(NETWORKS[net.retiredTo], `${key} → ${net.retiredTo}`).toBeDefined()
-            expect(NETWORKS[net.retiredTo].retiredTo, `${key} → ${net.retiredTo} must not be retired`).toBeUndefined()
+        for (const [key, { to, name }] of Object.entries(RETIRED_NETWORKS)) {
+            expect(isNetworkKey(to), `${key} → ${to}`).toBe(true)
+            expect(Object.hasOwn(RETIRED_NETWORKS, to), `${key} → ${to} must not be retired`).toBe(false)
+            expect(name, key).not.toBe("")
         }
     })
 

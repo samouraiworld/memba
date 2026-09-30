@@ -118,12 +118,6 @@ interface NetworkConfig {
     explorerUrl: string
     /** When true, the network is reachable by URL/env but hidden from the selector. */
     hidden?: boolean
-    /** Set on a RETIRED network: the network key that replaces it. A URL naming
-     *  a retired network is redirected to the same route on this network (with a
-     *  one-time notice) instead of loading a chain that no longer serves the app.
-     *  The entry itself stays in NETWORKS so the redirect has something to read
-     *  and a future network can reuse its config. Must name a non-retired key. */
-    retiredTo?: string
     /** True for experimental test chains. Drives disclosures that only make sense
      *  off a production chain — e.g. Team Hub's "Data: mainnet" note, which says
      *  the gnolove roster comes from a mainnet-backed source rather than the chain
@@ -328,7 +322,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         //
         // Visible 2026-08-27 → 2026-09-23, and the DEFAULT network 2026-08-27 →
         // 2026-09-17 (mainnet took over — see the `mainnet` entry).
-        // RETIRED 2026-09-23. Hidden, and `retiredTo: "mainnet"` (owner
+        // RETIRED 2026-09-23. Hidden, and listed in RETIRED_NETWORKS (owner
         // ruling): an old /pearl/… link redirects to the same route under
         // /mainnet/ with a one-time notice, and a stored pearl choice resolves
         // to the default. The entry, realmsDeployed and its REALM_ALLOWLIST
@@ -345,7 +339,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         userDaos: { create: true, channelsCompanion: true },
         // Retired 2026-09-23 — see the header above.
         hidden: true,
-        retiredTo: "mainnet",
         // Flipped by the §6 completion PR: the combined Pearl ceremony (core
         // set + commerce set) records per-artifact vm/qfile evidence in
         // realm-versions.json's `pearl` section — same rule as sapphire's
@@ -557,6 +550,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     },
 }
 
+/** Whether `key` names a network in the registry. Only the registry's own keys
+ *  count: a key read from a URL, storage or a post (`constructor`, `toString`)
+ *  must not find the ones every object inherits. */
+export function isNetworkKey(key: string | null | undefined): key is string {
+    return !!key && Object.hasOwn(NETWORKS, key)
+}
+
 /** Networks shown in the selector (all non-hidden ones). NETWORKS stays the
  *  full map for resolution by URL/env/localStorage. */
 export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntries(
@@ -613,7 +613,7 @@ export function resolveDefaultNetwork(envKey: string | undefined): string {
     // (sapphire: 09-09), and every testnet this app has defaulted to so far
     // has eventually been one. `gnoland-1` is the production chain: it is the
     // one entry here with no announced end of life.
-    return envKey && NETWORKS[envKey] ? envKey : "mainnet"
+    return isNetworkKey(envKey) ? envKey : "mainnet"
 }
 
 /** Default network key (always a valid NETWORKS entry — see resolveDefaultNetwork). */
@@ -632,12 +632,23 @@ export const NETWORK_PREF_STORAGE_KEY = "memba_network_pref"
  *  `useNetworkKey` and `directory` all ignore it). */
 export const NETWORK_ECHO_STORAGE_KEY = "memba_network"
 
-/** The successor of a RETIRED network (its `retiredTo`), or null when `key` is
- *  not retired. Validated: a successor that is missing from NETWORKS, or is
- *  itself retired, yields null rather than a redirect into a dead end. */
+/**
+ * Networks Memba no longer serves, by the key their old links carry. A URL under
+ * one of these prefixes goes to the same route on `to` (with a one-time notice
+ * naming the retired network) instead of loading a chain that no longer serves
+ * the app. Kept apart from NETWORKS on purpose: a retired chain needs no
+ * registry entry for its old links to keep working.
+ */
+export const RETIRED_NETWORKS: Readonly<Record<string, { to: string; name: string }>> = Object.freeze({
+    pearl: { to: "mainnet", name: "Pearl testnet" },
+})
+
+/** The successor of a RETIRED network, or null when `key` is not retired.
+ *  Validated: a successor that is missing from NETWORKS, or is itself retired,
+ *  yields null rather than a redirect into a dead end. */
 export function retiredNetworkSuccessor(key: string | null | undefined): string | null {
-    const to = key ? NETWORKS[key]?.retiredTo : undefined
-    if (!to || !NETWORKS[to] || NETWORKS[to].retiredTo) return null
+    const to = key && Object.hasOwn(RETIRED_NETWORKS, key) ? RETIRED_NETWORKS[key].to : undefined
+    if (!isNetworkKey(to) || Object.hasOwn(RETIRED_NETWORKS, to)) return null
     return to
 }
 
@@ -673,8 +684,11 @@ export function resolveNetworkKey({ pathname, pref }: {
     pref?: string | null
 }): string {
     const urlKey = pathname?.split("/")[1]
-    if (urlKey && NETWORKS[urlKey]) return retiredNetworkSuccessor(urlKey) ?? urlKey
-    if (pref && NETWORKS[pref] && !NETWORKS[pref].hidden) return pref
+    // Retired first: a retired key resolves to its successor whether or not the registry still lists it.
+    const successor = retiredNetworkSuccessor(urlKey)
+    if (successor) return successor
+    if (isNetworkKey(urlKey)) return urlKey
+    if (isNetworkKey(pref) && !NETWORKS[pref].hidden) return pref
     return DEFAULT_NETWORK
 }
 
@@ -998,12 +1012,17 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     ],
 }
 
+/** A network's allowlist. Own keys only, as for `isNetworkKey`. */
+function realmAllowlist(networkKey: string): readonly string[] | undefined {
+    return Object.hasOwn(REALM_ALLOWLIST, networkKey) ? REALM_ALLOWLIST[networkKey] : undefined
+}
+
 /**
  * Is a realm callable on the given network? Networks without an allowlist entry
  * gate everything — this fails CLOSED (see the body for why).
  */
 export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
-    const allow = REALM_ALLOWLIST[networkKey]
+    const allow = realmAllowlist(networkKey)
     // FAIL CLOSED. This read `!allow || allow.includes(...)`, so a network with
     // no allowlist entry declared EVERY realm valid — and since these
     // predicates gate the commerce lanes (escrow, OTC, NFT market, token
@@ -1020,7 +1039,7 @@ export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
  *  mainnet wave 1 keeps `realmsDeployed: false` while its REALM_ALLOWLIST is
  *  non-empty. An explicit empty list (gnoland1) or an absent key is false. */
 export function networkHasAllowlistedRealms(networkKey: string): boolean {
-    return (REALM_ALLOWLIST[networkKey]?.length ?? 0) > 0
+    return (realmAllowlist(networkKey)?.length ?? 0) > 0
 }
 
 /**

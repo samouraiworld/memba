@@ -1,6 +1,6 @@
 /**
  * RetiredNetworkRedirect — sends `/<retired>/…` to the same route on the
- * network that replaced it (`NETWORKS[key].retiredTo`), e.g. `/pearl/dao/x` →
+ * network that replaced it (RETIRED_NETWORKS in config.ts), e.g. `/pearl/dao/x` →
  * `/mainnet/dao/x`, preserving search and hash.
  *
  * The retired key travels in router state so the destination can show the

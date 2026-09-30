@@ -57,6 +57,16 @@ describe("parseUnfurls", () => {
         expect(u).toEqual([{ kind: "link", url: "https://app.memba.world/en/tokens/NEWS", host: "app.memba.world" }])
     })
 
+    it("does not take a first segment every object has (constructor, toString) for a network", () => {
+        for (const url of [
+            "https://app.memba.world/constructor/tokens/ABC",
+            "https://app.memba.world/toString/validators/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+            "https://app.memba.world/constructor/dao/gno.land/r/gov/dao/proposal/5",
+        ]) {
+            expect(parseUnfurls(url), url).toEqual([{ kind: "link", url, host: "app.memba.world" }])
+        }
+    })
+
     it("detects a Memba app validator link as a validator ref", () => {
         const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
         const u = parseUnfurls(`gm to ${`https://app.memba.world/test13/validators/${addr}`}`)

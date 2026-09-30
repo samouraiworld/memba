@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Links: a word such as `constructor` is not a network (2026-09-30)
+- A link whose first part is a word like `constructor` no longer opens a broken page, and a feed post linking `/constructor/…` no longer shows as a Memba card.
+
 ### Signing: one wallet request per action, the reviewed fee, and what was observed (2026-09-30)
 - Memba asks the wallet once per action and no longer reopens Adena by itself after a failure. When the network refuses a transaction, the Memba OS signing sheet says so with the network's reason, and that nothing changed and no fee was charged.
 - Creating a DAO, in the classic page and in Memba OS, hands the wallet the fee shown in the review, keeps Deploy disabled until that fee has been read from the network, says when the figure is only an estimate because the network price could not be read, and stops before the wallet if the price rose or cannot be confirmed. The signing sheet now says that Adena shows the fee it signs, which can differ from Memba's figure.

@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent, act } from "@testing-library/react"
 import { MemoryRouter, Routes, Route, Link } from "react-router-dom"
 import { NetworkGate } from "./NetworkGate"
 import { retiredNoticeStorageKey } from "../../lib/retiredNetwork"
+import { NETWORKS } from "../../lib/config"
 
 /**
  * Pearl was retired on 2026-09-23 (owner ruling): every `/pearl/…` link must land
@@ -57,6 +58,22 @@ describe("NetworkGate — retired networks redirect to their successor", () => {
 
     it("sends /pearl/<route> to /mainnet/<route>, keeping search and hash", () => {
         expect(renderAt("/pearl/dao/gno.land~r~gov~dao?tab=votes#top")).toBe("/mainnet/dao/gno.land~r~gov~dao?tab=votes#top")
+    })
+
+    it("redirects a retired network that has no registry entry, with its notice", () => {
+        const pearl = NETWORKS.pearl
+        delete NETWORKS.pearl
+        try {
+            expect(renderAt("/pearl/dao/x?tab=votes#top")).toBe("/mainnet/dao/x?tab=votes#top")
+            expect(notice()?.textContent).toContain(NOTICE)
+        } finally {
+            NETWORKS.pearl = pearl
+        }
+    })
+
+    it("treats a first segment that is a name every object has as a legacy URL, not as a network", () => {
+        expect(renderAt("/constructor/dao")).toBe("/mainnet/constructor/dao")
+        expect(renderAt("/toString")).toBe("/mainnet/toString")
     })
 
     it("sends the bare /pearl and /pearl/ to the mainnet home", () => {
