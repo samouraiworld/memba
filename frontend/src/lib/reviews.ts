@@ -23,6 +23,9 @@ import { resolveOnChainUsername } from "./profile"
 
 export const REVIEWS_PKG_PATH = MEMBA_DAO.reviewsPath
 
+/** A review body's limit in UTF-8 bytes — MUST stay equal to the reviews realms' MaxBodyLen. */
+export const REVIEW_BODY_MAX_BYTES = 2000
+
 // The reviews engine is subject-agnostic and there is more than one deployed reviews realm
 // (the validator/profile web-of-trust and the reputation-isolated App Store reviews realm). All
 // reads + write builders default to REVIEWS_PKG_PATH but accept an explicit `realmPath` so a caller

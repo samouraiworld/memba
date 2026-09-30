@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
-import { storeReviewRequest, type StoreReviewDraft } from "./reviewRequest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
     available: vi.fn(() => true),
     allowed: vi.fn(() => true),
     fetchAppStrict: vi.fn(),
-    broadcast: vi.fn(),
+    wallet: vi.fn(),
+    readTx: vi.fn(),
 }))
 
 vi.mock("../../../lib/config", async (importActual) => ({
@@ -19,26 +19,46 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
 }))
 vi.mock("../../../lib/grc20", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/grc20")>(),
-    doContractBroadcast: mocks.broadcast,
+    // Stand-in for the broadcaster's order: confirmation → beforeSign → wallet.
+    doContractBroadcast: vi.fn(async (msgs: unknown, memo: string, opts: { beforeSign?: () => Promise<unknown> }) => {
+        const { setTxConfirmationCallback } = await import("../../../lib/grc20")
+        const confirm = setTxConfirmationCallback(null) ?? (async () => true)
+        setTxConfirmationCallback(confirm)
+        if (!(await confirm(msgs as never, memo))) throw new Error("Transaction cancelled by user")
+        await opts.beforeSign?.()
+        return mocks.wallet()
+    }),
+}))
+vi.mock("../../../lib/rpcFallback", async (importActual) => ({
+    ...await importActual<typeof import("../../../lib/rpcFallback")>(),
+    resilientRpcCall: mocks.readTx,
 }))
 
+import { doContractBroadcast, setTxConfirmationCallback } from "../../../lib/grc20"
+import { executeSignature } from "../../sign/signer"
+import { storeReviewRequest, type StoreReviewDraft } from "./reviewRequest"
+
+const HASH = "a".repeat(64)
 const draft: StoreReviewDraft = {
     subject: "gno.land/r/samcrew/app",
     appName: "Test App",
-    caller: `g1${"q".repeat(38)}`,
+    caller: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
     rating: 4,
     body: "Useful app",
     realmPath: "gno.land/r/samcrew/memba_appstore_reviews_v1",
     networkKey: "mainnet",
     chainId: "gnoland-1",
 }
+const run = (request: ReturnType<typeof storeReviewRequest>) => executeSignature(request, undefined, request.prepare(undefined).msgs, () => {})
 
 beforeEach(() => {
     mocks.available.mockReset().mockReturnValue(true)
     mocks.allowed.mockReset().mockReturnValue(true)
     mocks.fetchAppStrict.mockReset().mockResolvedValue({ status: "live", name: "Test App" })
-    mocks.broadcast.mockReset().mockResolvedValue({ hash: "review-hash" })
+    mocks.wallet.mockReset().mockResolvedValue({ hash: HASH })
+    mocks.readTx.mockReset().mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: null } } })
 })
+afterEach(() => { setTxConfirmationCallback(null); vi.mocked(doContractBroadcast).mockClear() })
 
 describe("native App Store review signing", () => {
     it("reviews the exact PostReview call and rechecks the live listing before Adena", async () => {
@@ -46,37 +66,42 @@ describe("native App Store review signing", () => {
         const msg = request.prepare(undefined).msgs[0]
         expect(msg).toEqual({
             type: "vm/MsgCall",
-            value: { caller: draft.caller, send: "", pkg_path: draft.realmPath, func: "PostReview", args: [draft.subject, "4", "Useful app"] },
+            value: { caller: draft.caller, send: "", pkg_path: draft.realmPath, func: "PostReview", args: [draft.subject, "4", "Useful app"], max_deposit: "2400000ugnot" },
         })
-        expect(request.lines(undefined)).toContainEqual(["Network", "gnoland-1"])
-        await request.recheck?.(undefined)
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([
+            ["Account", draft.caller], ["Network", "gnoland-1"], ["Storage deposit", "up to 2.4 GNOT"],
+        ]))
+        await expect(run(request)).resolves.toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(mocks.fetchAppStrict).toHaveBeenCalledWith(draft.subject)
-        const beforeSign = vi.fn()
-        await request.send(undefined, beforeSign)
-        expect(mocks.broadcast).toHaveBeenCalledWith([msg], "Review app", { retry: false, beforeSign })
+        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { retry: false, beforeSign: expect.any(Function) })
+        expect(mocks.wallet).toHaveBeenCalledTimes(1)
     })
 
-    it("rejects an unpublished or delisted app before signing", async () => {
+    it("stops before Adena when the app is unpublished or delisted", async () => {
         const request = storeReviewRequest(draft)
         mocks.fetchAppStrict.mockResolvedValue({ status: "delisted" })
         await expect(request.recheck?.(undefined)).rejects.toThrow(/no longer a live listing/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
         mocks.fetchAppStrict.mockResolvedValue(null)
         await expect(request.recheck?.(undefined)).rejects.toThrow(/no longer a live listing/)
-        expect(mocks.broadcast).not.toHaveBeenCalled()
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
     })
 
     it("reports a registry outage as an outage, not as a delisted app", async () => {
         const request = storeReviewRequest(draft)
         mocks.fetchAppStrict.mockRejectedValue(new Error("App Store registry is unavailable"))
         await expect(request.recheck?.(undefined)).rejects.toThrow("App Store registry is unavailable")
-        expect(mocks.broadcast).not.toHaveBeenCalled()
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
     })
 
     it("requires a fresh review when the app identity changed", async () => {
         const request = storeReviewRequest(draft)
         mocks.fetchAppStrict.mockResolvedValue({ status: "live", name: "Renamed App" })
         await expect(request.recheck?.(undefined)).rejects.toThrow(/listing changed/)
-        expect(mocks.broadcast).not.toHaveBeenCalled()
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
     })
 
     it("fails closed when the reviews realm is disabled or unavailable on this network", async () => {
@@ -87,8 +112,48 @@ describe("native App Store review signing", () => {
         expect(() => storeReviewRequest(draft)).toThrow(/not available/)
     })
 
-    it("enforces the realm's UTF-8 body limit and rating range", () => {
-        expect(() => storeReviewRequest({ ...draft, rating: 0 })).toThrow(/Select a rating/)
-        expect(() => storeReviewRequest({ ...draft, body: "é".repeat(1001) })).toThrow(/2,000 bytes/)
+    it("validates again at the recheck, before reading the listing", async () => {
+        const request = storeReviewRequest(draft)
+        mocks.allowed.mockReturnValue(false)
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/not available/)
+        expect(mocks.fetchAppStrict).not.toHaveBeenCalled()
+    })
+
+    it("rejects a caller that is not a valid address and a subject that is not a safe realm path", () => {
+        expect(() => storeReviewRequest({ ...draft, caller: "" })).toThrow(/Connect your wallet/)
+        // Address-shaped, wrong checksum.
+        expect(() => storeReviewRequest({ ...draft, caller: `g1${"q".repeat(38)}` })).toThrow(/Connect your wallet/)
+        expect(() => storeReviewRequest({ ...draft, subject: "gno.land/r/samcrew/../app" })).toThrow(/realm path is invalid/)
+        expect(() => storeReviewRequest({ ...draft, subject: "samcrew/app" })).toThrow(/realm path is invalid/)
+    })
+
+    it("enforces the realm's rating range and its UTF-8 body limit on the trimmed text", () => {
+        for (const rating of [0, 6, 2.5]) expect(() => storeReviewRequest({ ...draft, rating })).toThrow(/Select a rating/)
+        const atLimit = "é".repeat(1000)
+        expect(storeReviewRequest({ ...draft, body: ` ${atLimit}\n` }).prepare(undefined).msgs[0].value.args).toEqual([draft.subject, "4", atLimit])
+        expect(() => storeReviewRequest({ ...draft, body: `${atLimit}a` })).toThrow(/2,000 bytes/)
+    })
+
+    it("shows and signs the review as it was when the sheet opened", () => {
+        const mutable = { ...draft }
+        const request = storeReviewRequest(mutable)
+        Object.assign(mutable, { rating: 1, body: "Changed", caller: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", appName: "Other" })
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Account", draft.caller], ["Rating", "4 of 5 stars"], ["Review", "Useful app"]]))
+        expect(request.label(undefined)).toBe("Review Test App")
+        expect(request.prepare(undefined).msgs[0].value).toMatchObject({ caller: draft.caller, args: [draft.subject, "4", "Useful app"] })
+    })
+
+    it("confirms only a transaction the chain delivered without an error", async () => {
+        const request = storeReviewRequest(draft)
+        await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe(true)
+        expect(mocks.readTx).toHaveBeenCalledWith("tx", { hash: `0x${HASH}` })
+        mocks.readTx.mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: "out of gas" } } })
+        await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe(false)
+    })
+
+    it("passes the settled outcome to the composer", () => {
+        const onSettled = vi.fn()
+        storeReviewRequest({ ...draft, onSettled }).onSettled?.("confirmed", undefined)
+        expect(onSettled).toHaveBeenCalledWith("confirmed", undefined)
     })
 })
