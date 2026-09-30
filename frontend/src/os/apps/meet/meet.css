@@ -28,7 +28,15 @@
 .memba-os .meet-invalid p { line-height: 1.5; color: var(--os-mut); }
 .memba-os .meet-stage { position: fixed; overflow: hidden; border-radius: 12px; z-index: 850; background: #0e2031; }
 .memba-os .meet-stage iframe { display: block; width: 100%; height: 100%; border: 0; background: #0e2031; }
-.memba-os .meet-stage-pip { --meet-light-ink: #17496c; left: auto; top: auto; right: 24px; bottom: 100px; width: min(320px, calc(100vw - 32px)); height: 220px; box-shadow: 0 20px 50px #0008; border: 1px solid #ffffff44; }
+/* Above windows, the dock and dialogs (950), below the lock screen (1000): locking closes every window, so no call reaches it. */
+.memba-os .meet-stage-pip { --meet-light-ink: #17496c; left: auto; top: auto; right: 24px; bottom: 100px; width: min(320px, calc(100vw - 32px)); height: 220px; box-shadow: 0 20px 50px #0008; border: 1px solid #ffffff44; z-index: 970; }
+/* Under a dialog the player would cover its buttons: only the label and Leave remain, at the top edge,
+   clear of the dialog (shell.css keeps the shell's dialogs below it), and Leave is in their Tab cycle.
+   Settings' reset dialog is a native modal one, above everything: the call stays connected under it.
+   An iframe that is itself the full-screen element is left as it is. */
+.memba-os:has(.os-scrim, dialog[open]) .meet-stage-pip { top: calc(8px + env(safe-area-inset-top, 0px)); right: auto; bottom: auto; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 16px); height: 34px; }
+.memba-os:has(.os-scrim, dialog[open]) .meet-stage-pip iframe:not(:fullscreen) { visibility: hidden; height: 0; }
+.memba-os:has(.os-scrim, dialog[open]) .meet-pip-bar .meet-pip-window { display: none; }
 .memba-os .meet-stage-pip iframe { height: calc(100% - 34px); }
 .memba-os .meet-pip-bar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 9px; color: white; font-size: 11px; font-weight: 700; }
 .memba-os .meet-pip-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

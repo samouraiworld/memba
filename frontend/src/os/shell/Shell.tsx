@@ -103,6 +103,8 @@ export function Shell() {
     const location = useLocation()
     const navigate = useNavigate()
     const [meetSlot, setMeetSlot] = useState<HTMLDivElement | null>(null)
+    // Bumped by the meeting player's Restore: on the phone, Notifications or All apps would keep the room hidden.
+    const [sheetReset, setSheetReset] = useState(0)
 
     // ── desk size (windows and items are placed in it) ──
     // A state ref: the desk mounts again after a phone → desktop switch, and must be observed again.
@@ -370,6 +372,14 @@ export function Shell() {
             launcherOpener.current = null
         })
     }, [])
+    // ⌥F and Window › Full screen: the front window full screen and back (D32: every game has a full-screen mode).
+    // A meeting room goes full screen as its own iframe: the live call is what fills the screen.
+    const toggleFullscreen = useCallback(() => {
+        if (document.fullscreenElement) void document.exitFullscreen()
+        else if (front?.target?.kind === "app" && front.target.app === "meet" && front.target.section)
+            void document.querySelector<HTMLIFrameElement>(".meet-stage iframe")?.requestFullscreen?.()
+        else if (front) void document.querySelector<HTMLElement>(`[data-win="${CSS.escape(front.key)}"]`)?.requestFullscreen?.()
+    }, [front])
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (document.querySelector('[aria-modal="true"]')) return
@@ -385,18 +395,11 @@ export function Shell() {
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
             if (e.code === "KeyW" && front) { e.preventDefault(); closeWin(front.id) }
             else if (e.code === "Backquote") { e.preventDefault(); nextWin() }
-            else if (e.code === "KeyF" && front) {
-                // ⌥F: the front window full screen and back (D32: every game has a full-screen mode).
-                e.preventDefault()
-                if (document.fullscreenElement) void document.exitFullscreen()
-                else if (front.target?.kind === "app" && front.target.app === "meet" && front.target.section)
-                    void document.querySelector<HTMLIFrameElement>(".meet-stage iframe")?.requestFullscreen?.()
-                else void document.querySelector<HTMLElement>(`[data-win="${CSS.escape(front.key)}"]`)?.requestFullscreen?.()
-            }
+            else if (e.code === "KeyF" && front) { e.preventDefault(); toggleFullscreen() }
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)
-    }, [locked, session.stage, front, closeWin, nextWin, launcher, openLauncher, closeLauncher])
+    }, [locked, session.stage, front, closeWin, nextWin, launcher, openLauncher, closeLauncher, toggleFullscreen])
 
     // ── right-click menus ──
     const [menu, setMenu] = useState<{ x: number; y: number; item: number | null } | null>(null)
@@ -430,7 +433,13 @@ export function Shell() {
     const meetWindow = win.wins.find((w) => w.target?.kind === "app" && w.target.app === "meet" && !!w.target.section)
     const meetRoom = meetWindow?.target?.kind === "app" && meetWindow.target.section ? normaliseRoomId(meetWindow.target.section) : null
     const meetStage = meetWindow && meetRoom ? <MeetStage key="meet-stage" roomId={meetRoom} slot={meetSlot} minimized={meetWindow.min}
-        foreground={front?.id === meetWindow.id && !modalBlocked} restore={() => win.focus(meetWindow.id)} /> : null
+        placed={`${meetWindow.x} ${meetWindow.y} ${meetWindow.width} ${meetWindow.height} ${meetWindow.max}`}
+        foreground={front?.id === meetWindow.id && !modalBlocked} restore={() => {
+            setSheetReset((n) => n + 1)
+            win.focus(meetWindow.id)
+            // A room pushed off the desk comes back whole: in front but clipped, focusing it would show nothing more.
+            if (!meetWindow.max) move(meetWindow.id, Math.max(0, Math.min(meetWindow.x, deskNow.current.w - meetWindow.width)), Math.max(0, Math.min(meetWindow.y, deskNow.current.h - meetWindow.height)))
+        }} leave={() => win.close(meetWindow.id)} toast={showToast} /> : null
     const shared = (
         <>
             {booting && (
@@ -463,7 +472,7 @@ export function Shell() {
             <MeetStageContext.Provider value={setMeetSlot}>
             {phone ? <>
                 <PhoneShell locked={modalBlocked} session={session} front={front} wins={win.wins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
-                    close={win.close} toast={showToast} openSearch={openLauncher}
+                    close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
                         // minimising all sheets then rewrites this new entry to /os.
@@ -475,7 +484,7 @@ export function Shell() {
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </> : <>
             <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
-                closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
+                closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>

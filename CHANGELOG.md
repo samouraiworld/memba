@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: a live meeting always stays in sight (2026-10-01)
+- Fixed: a meeting in Memba OS stays connected when its window is covered, minimised, dragged off the desk or replaced by another sheet, and Memba always shows it then: a small player with the room code, Restore and Leave, so a live camera and microphone are never out of sight. Under a dialog, even with its window in front, the player shrinks to a label and Leave at the top of the screen, and Leave gives focus back to the dialog. Another window can no longer go full screen over a live meeting; Memba says why when it takes the screen back. Closing the Meet window, or locking Memba, leaves the meeting, and the window says so.
+
 ### Memba OS: the NFT window's own home (2026-10-01)
 - The Memba OS NFT window has its own home. Where the Launchpad NFT ledger is deployed it lists the newest collections, newest first, reads each row strictly, and tells a failed read (with Retry) from data that breaks the ledger's rules; where the ledger is not on the network it says so instead of showing an empty list.
 

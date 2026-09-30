@@ -1,6 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
 import { shortAddr } from "./format"
 import { ThingTile } from "./icons"
+import { useDialogKeys } from "./useDialogKeys"
 import type { OsSession } from "./useOsSession"
 
 const ADENA_TINT = ["#7E6CF2", "#4B3FD0"] as const
@@ -33,8 +34,9 @@ export function ConnectModal({ session }: { session: OsSession }) {
         const first = dialog.current.querySelector<HTMLElement>('button:not(:disabled), a[href]')
         ;(first ?? dialog.current).focus({ preventScroll: true })
     }, [stage])
+    const closeable = !!stage && !(stage === "activate" && session.activationForced) && stage !== "activatewait"
+    useDialogKeys(dialog, !!stage, "button:not(:disabled), a[href]", closeable ? session.cancel : undefined)
     if (!stage) return null
-    const closeable = !(stage === "activate" && session.activationForced) && stage !== "activatewait"
     let body: ReactNode
     switch (stage) {
         case "pick":
@@ -119,19 +121,6 @@ export function ConnectModal({ session }: { session: OsSession }) {
         if (e.key === "Escape" && closeable) {
             e.preventDefault()
             session.cancel()
-            return
-        }
-        if (e.key !== "Tab") return
-        const stops = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]') ?? [])
-        if (stops.length === 0) {
-            e.preventDefault()
-            dialog.current?.focus()
-        } else if (e.shiftKey && document.activeElement === stops[0]) {
-            e.preventDefault()
-            stops[stops.length - 1].focus()
-        } else if (!e.shiftKey && document.activeElement === stops[stops.length - 1]) {
-            e.preventDefault()
-            stops[0].focus()
         }
     }
     return (

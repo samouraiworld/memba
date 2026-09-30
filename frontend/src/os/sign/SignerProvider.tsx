@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { clearGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { beginWalletActivity } from "../../lib/walletActivity"
+import { useDialogKeys } from "../shell/useDialogKeys"
 import type { OsSession } from "../shell/useOsSession"
 import { accountMark, accountMarkAfterBlocks } from "./accountMark"
 import { adenaChecklist, type SignRow } from "./decode"
@@ -232,30 +233,8 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
         el.focus({ preventScroll: true })
     }, [stage])
 
-    // Tab stays in the sheet and in what Memba keeps reachable above a dialog: controls marked
-    // data-os-over-dialog. Nothing carries the mark until the meeting player's Leave does (the Meet unit).
-    useLayoutEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            const el = dialog.current
-            if (e.key !== "Tab" || !el) return
-            const active = document.activeElement
-            const over = [...document.querySelectorAll<HTMLElement>(".memba-os [data-os-over-dialog]")].filter((x) => !x.closest("[inert]"))
-            const at = over.findIndex((x) => x === active)
-            if (at < 0 && active !== el && !el.contains(active)) return
-            const stops = [...el.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), summary, [tabindex="0"]')]
-            const first = stops[0] ?? el
-            const last = stops[stops.length - 1] ?? el
-            let next: HTMLElement | null = null
-            if (at >= 0) next = e.shiftKey ? over[at - 1] ?? last : over[at + 1] ?? first
-            else if (e.shiftKey && (active === first || active === el)) next = over[over.length - 1] ?? last
-            else if (!e.shiftKey && (active === last || !stops.length)) next = over[0] ?? first
-            if (!next) return
-            e.preventDefault()
-            next.focus()
-        }
-        document.addEventListener("keydown", onKey)
-        return () => document.removeEventListener("keydown", onKey)
-    }, [])
+    // The radios that are not the chosen one are reached with the arrow keys, not Tab.
+    useDialogKeys(dialog, true, 'button:not(:disabled):not([tabindex="-1"]), input:not(:disabled), summary, [tabindex="0"]', onCancel)
 
     return (
         <div className="os-scrim os-scrim-center">

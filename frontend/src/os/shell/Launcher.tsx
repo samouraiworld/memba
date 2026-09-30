@@ -9,11 +9,13 @@ import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { DAO_REALM_PATH } from "../../lib/config"
 import { AppTile, ThingTile } from "./icons"
 import { launcherResults, type LaunchItem } from "./launchResults"
+import { useDialogKeys } from "./useDialogKeys"
 import type { WindowSpec } from "./windows"
 
 export function Launcher({ network, open, onClose }: { network: string; open: (spec: WindowSpec) => void; onClose: (restoreFocus: boolean) => void }) {
-    const inputRef = useRef<HTMLInputElement>(null)
-    const resultsRef = useRef<HTMLUListElement>(null)
+    const dialogRef = useRef<HTMLDivElement>(null)
+    // Two stops: the field and the result list, which can scroll.
+    useDialogKeys(dialogRef, true, 'input, [tabindex="0"]', () => onClose(true))
     const [q, setQ] = useState("")
     const [sel, setSel] = useState(0)
     const daos = useMemo(() => {
@@ -33,23 +35,13 @@ export function Launcher({ network, open, onClose }: { network: string; open: (s
         if (e.key === "Escape") {
             e.preventDefault()
             onClose(true)
-        } else if (e.key === "Tab") {
-            // The result list can scroll, so it is a second keyboard stop. Keep
-            // both stops inside the modal instead of tabbing into the dock.
-            if (e.shiftKey && document.activeElement === inputRef.current) {
-                e.preventDefault()
-                resultsRef.current?.focus()
-            } else if (!e.shiftKey && document.activeElement === resultsRef.current) {
-                e.preventDefault()
-                inputRef.current?.focus()
-            }
         }
     }
 
     return (
         <div className="os-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(true) }}>
-            <div className="os-launch os-glass" role="dialog" aria-modal="true" aria-label="Search and commands" onKeyDown={onDialogKeyDown}>
-                <input ref={inputRef} className="os-launch-in" autoFocus value={q} placeholder="Search apps, DAOs, pages, addresses, commands…" aria-label="Search"
+            <div ref={dialogRef} className="os-launch os-glass" role="dialog" aria-modal="true" aria-label="Search and commands" onKeyDown={onDialogKeyDown}>
+                <input className="os-launch-in" autoFocus value={q} placeholder="Search apps, DAOs, pages, addresses, commands…" aria-label="Search"
                     role="combobox" aria-expanded="true" aria-controls="os-launch-results" aria-activedescendant={results[current] ? `os-lr-${current}` : undefined}
                     onChange={(e) => { setQ(e.target.value); setSel(0) }}
                     onKeyDown={(e) => {
@@ -57,7 +49,7 @@ export function Launcher({ network, open, onClose }: { network: string; open: (s
                         else if (e.key === "ArrowUp") { e.preventDefault(); setSel((current - 1 + results.length) % Math.max(1, results.length)) }
                         else if (e.key === "Enter") { e.preventDefault(); go(results[current]) }
                     }} />
-                <ul ref={resultsRef} className="os-launch-res" id="os-launch-results" role="listbox" aria-label="Results" tabIndex={0}>
+                <ul className="os-launch-res" id="os-launch-results" role="listbox" aria-label="Results" tabIndex={0}>
                     {results.length === 0 && <li className="os-sub os-launch-empty">No match. Try an app, a DAO name, a g1… address or a realm path.</li>}
                     {results.map((r, i) => (
                         <li key={r.id} id={`os-lr-${i}`} role="option" aria-selected={i === current} className="os-launch-r"

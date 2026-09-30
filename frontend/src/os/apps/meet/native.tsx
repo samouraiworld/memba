@@ -42,7 +42,7 @@ export default function MeetWindow({ section, open, toast }: NativeViewProps) {
                     <a className="os-btn" href={roomUrl(room)} target="_blank" rel="noopener noreferrer">Open in Visio ↗</a>
                 </div>
             </div>
-            <p className="meet-help">If the meeting stays blank or your browser blocks the camera, use Open in Visio. Your invite link works without a Memba account.</p>
+            <p className="meet-help">The meeting stays connected in a small player while this window is minimised or behind another one. Closing this window, or locking Memba, leaves the meeting. If the meeting stays blank or your browser blocks the camera, use Open in Visio. Your invite link works without a Memba account.</p>
             <div className="meet-viewport" ref={setStage} aria-label={`Visio meeting ${room}`} />
         </div>
     )

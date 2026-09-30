@@ -216,7 +216,7 @@ describe("OS signing session boundary", () => {
         expect(container.querySelector(".os-desk")).not.toHaveAttribute("inert")
     })
 
-    it("keeps a control shown above the dialog (a live meeting's Leave) in the Tab order", () => {
+    it("keeps a control shown above the dialog (a live meeting's Leave) in the Tab order, and Escape there cancels the review", async () => {
         render(<SignerProvider session={session("member")} toast={vi.fn()}>
             <div className="memba-os"><main className="os-desk"><OpenReview /></main><button type="button" data-os-over-dialog="">Leave</button></div>
         </SignerProvider>)
@@ -233,6 +233,9 @@ describe("OS signing session boundary", () => {
         expect(leave).toHaveFocus()
         fireEvent.keyDown(leave, { key: "Tab", shiftKey: true })
         expect(stops.at(-1)).toHaveFocus()
+        leave.focus()
+        fireEvent.keyDown(leave, { key: "Escape" })
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
     it("never replaces a review that is on screen: a later request is refused, said so, and the first keeps its focus return", async () => {

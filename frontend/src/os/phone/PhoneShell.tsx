@@ -35,6 +35,8 @@ export interface PhoneShellProps {
     home: (id: string) => void
     toast: (msg: string) => void
     openSearch: () => void
+    /** Bumped to close Notifications or All apps from outside (the meeting player's Restore). */
+    sheetReset?: number
 }
 
 type SystemSheet = "apps" | "notif" | null
@@ -44,6 +46,12 @@ export function PhoneShell(p: PhoneShellProps) {
     const signer = useSigner()
     const [time] = useClock()
     const [sheet, setSheet] = useState<SystemSheet>(null)
+    // State adjusted while rendering when the request changes, as the menu bar does for its start menu.
+    const [seenReset, setSeenReset] = useState(p.sheetReset)
+    if (seenReset !== p.sheetReset) {
+        setSeenReset(p.sheetReset)
+        setSheet(null)
+    }
     const member = session.status === "member"
     const net = session.network
 
