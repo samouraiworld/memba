@@ -1,6 +1,6 @@
 # Native Gno multisig release boundary
 
-Native multisig support is prepared for isolated rehearsals, not production activation. A merge does not authorize enabling it, creating a real multisig/DAO, moving funds or deploying realms. Mainnet realm deployment remains on hold until token transfers are unlocked and deployment is separately approved.
+Native multisig (creating a multisig, proposing, signing and broadcasting) runs on memba.club when both switches below are on. The owner released it on 2026-10-01; the switches are set in the deployments by the owner, never by a code change.
 
 ## Identity and compatibility
 
@@ -10,15 +10,15 @@ Native multisig support is prepared for isolated rehearsals, not production acti
 - Existing legacy wallet records, joins, names and history remain supported without migration. New legacy registrations are refused. Do not relabel an existing legacy identity as native.
 - Only native bank sends and VM calls are supported. Proposals are canonicalized before storage; signed/stored proposals are not rewritten. Native signatures are always verified, independently of the legacy advisory-verification flag.
 
-## Disabled defaults
+## Switches
 
 | Setting | Default / requirement |
 |---|---|
-| `VITE_ENABLE_NATIVE_GNO_MULTISIG` | Absent or `false`. The existing production/CI build safety gate rejects `true`; activation requires a reviewed code change. Development and preview builds retain the existing safety-gate exceptions. |
+| `VITE_ENABLE_NATIVE_GNO_MULTISIG` | Absent or `false` by default. `true` shows native creation, proposals, signing and broadcasting. Set by the owner for memba.club. |
 | `MEMBA_ENABLE_NATIVE_GNO_MULTISIG` | Absent or `false`. Only `true` or `1` enables native backend writes, and only for the backend's configured chain. |
 | `MEMBA_NATIVE_GNO_RPC_URL` | Unset. Receipt verification requires an explicitly configured RPC and matching chain; it never uses unrelated fallback endpoints. |
 
-The environment templates document disabled values only. Do not change deployed environment variables as part of this patch. Any approved local rehearsal must use a separate database, disposable keys, a loopback-only node and a matching chain configuration throughout.
+The environment templates keep both switches off. Before the first live use on a chain, rehearse once there with a throwaway multisig and a small amount: create, propose, sign to quorum, broadcast, and check the recorded result.
 
 ## Review, execution and recovery
 
@@ -28,10 +28,8 @@ The backend assembles an export only after verifying a quorum over one consisten
 
 After a successful broadcast returns a validated hash, the browser saves that hash before asking the backend to record completion. Receipt-only retry must not send the transaction again. A response lost after backend completion is reconciled by reading the stored verified result first. The local hash is only a hint, never proof of execution.
 
-If the broadcast result itself is uncertain, stop and reconcile on-chain before any retry; this flow does not provide an exactly-once or cross-tab guarantee. Do not clear recovery storage to force another send. If storage fails after broadcast, copy the displayed hash before leaving the tab; persistence across reload is not guaranteed in that case.
+If the broadcast result is uncertain (the node's reply is lost, times out or reports a duplicate), Memba shows the expected hash and keeps it on the page. The next press asks the backend whether that transaction is on chain and sends only when the chain answers that it is not; when the check cannot be answered, nothing is sent. This is not an exactly-once or cross-tab guarantee. Do not clear recovery storage to force another send. If storage fails after broadcast, copy the displayed hash before leaving the tab; persistence across reload is not guaranteed in that case.
 
 ## Validation limits
 
-Automated tests cover native identity vectors, sparse signature aggregation, mixed-rendering rejection, chain/account guards, legacy preservation, local-chain execution and receipt-recovery paths. Real Adena extension acceptance was explicitly skipped by the owner; existing personal use of Adena is not counted as validation of this new path. No real wallet profile or mainnet signing ceremony is part of these tests.
-
-Production activation and any mainnet deployment require a separate decision and review. Keep this restriction visible in the PR and release notes.
+Automated tests cover native identity vectors, sparse signature aggregation, mixed-rendering rejection, chain/account guards, legacy preservation, local-chain execution and receipt-recovery paths. The end-to-end spec (`frontend/e2e/os/os-multisig.spec.ts`, "native broadcast") drives the broadcast, the lost reply, the unanswered chain check and receipt recovery against a stubbed chain and backend. A real Adena signature on mainnet is exercised only by the owner's live rehearsal, not by these tests.

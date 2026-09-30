@@ -20,8 +20,9 @@ export const SAFETY_GATED_FLAGS = [
     // live-money test (§6), so de-gating here changes no deployed behavior.
     "VITE_ENABLE_TREASURY_SPEND",
     "VITE_ENABLE_AGENT_CREDITS",
-    // Native signing is rehearsal-only pending a separately reviewed release.
-    "VITE_ENABLE_NATIVE_GNO_MULTISIG",
+    // VITE_ENABLE_NATIVE_GNO_MULTISIG de-gated 2026-10-01 (owner): native multisig is released
+    // on memba.club after a live rehearsal. The backend keeps its own switch,
+    // MEMBA_ENABLE_NATIVE_GNO_MULTISIG, so the frontend flag alone writes nothing.
     // VITE_ENABLE_APPSTORE de-gated 2026-07-07 after memba_appstore_v2 deployed on
     // test13 with a self-managed 2-of-2 admin and a live-verified fee path. The flag
     // now legitimately turns the App Store lane on in prod.
