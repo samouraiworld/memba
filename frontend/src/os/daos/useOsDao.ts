@@ -13,8 +13,8 @@ import { findV2VoterChoice, hasVotedOnV2, v2Context } from "../../lib/dao/membaV
 import { canVoteNow, V2_STATUS_LABELS } from "../../lib/dao/v2Lifecycle"
 import { useDaoKind } from "../../hooks/useDaoKind"
 
-export function useDaoConfig(realmPath: string) {
-    return useQuery({ queryKey: ["dao", "config", realmPath, "full"], queryFn: () => getDAOConfig(GNO_RPC_URL, realmPath, true), staleTime: 30_000 })
+export function useDaoConfig(realmPath: string, enabled = true) {
+    return useQuery({ queryKey: ["dao", "config", realmPath, "full"], queryFn: () => getDAOConfig(GNO_RPC_URL, realmPath, true), enabled, staleTime: 30_000 })
 }
 
 export function useDaoMembers(realmPath: string, memberstorePath: string | undefined, enabled = true) {
@@ -85,7 +85,7 @@ export function useProposal(realmPath: string, id: number) {
     const q = useQuery({
         // Its own key: this caches the window's view model, not the raw proposal the classic page caches.
         queryKey: ["dao", "os-proposal", GNO_CHAIN_ID, realmPath, id, v2 ? "v2" : "legacy"],
-        enabled: !kind.loading && !kind.error,
+        enabled: !kind.loading && !kind.error && kind.kind !== "weighted",
         queryFn: async ({ signal }) => {
             if (v2) return fromV2(await readV2Proposal(v2Context(GNO_RPC_URL, realmPath), id, signal), Math.floor(Date.now() / 1000))
             const p = await getProposalDetail(GNO_RPC_URL, realmPath, id)

@@ -299,6 +299,9 @@
 .memba-os .os-folder { display: grid; gap: 14px; min-width: 0; }
 .memba-os .os-folder-body, .memba-os .os-folder .os-list { min-width: 0; }
 .memba-os .os-folder .os-list .os-mono { overflow-wrap: anywhere; }
+/* The DAOs list: its column is as wide as the window and long realm paths wrap, so nothing is pushed out sideways. */
+.memba-os .os-daos { grid-template-columns: minmax(0, 1fr); }
+.memba-os .os-daos .os-list .os-mono { overflow-wrap: anywhere; }
 .memba-os .os-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--os-hover); min-width: 0; width: 100%; box-sizing: border-box; flex-wrap: wrap; }
 .memba-os .os-tab { border: 0; background: none; cursor: pointer; font: 700 12px var(--os-font); color: var(--os-mut); padding: 5px 12px; border-radius: 8px; }
 .memba-os .os-tab[aria-selected="true"] { background: var(--os-card); color: var(--os-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }

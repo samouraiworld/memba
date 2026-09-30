@@ -98,9 +98,11 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
     const submit = async (action: WeightedAction) => {
         if (operation.current || !canAct || !kinds.has(action.type)) return
         operation.current = true; setBusy(true); setError(""); setNotice("")
-        const location = window.location.pathname
+        // Leaving the page, or changing network, realm, wallet or session, remounts this workspace (see
+        // its key), so `active` is what says any of them moved. The browser address is no such sign:
+        // inside a Memba OS window it follows whichever window is in front.
         const assertCurrent = () => {
-            if (!active.current || window.location.pathname !== location || !wallet.connected || !authenticated) throw new Error("Wallet or page changed; prepare the action again")
+            if (!active.current) throw new Error("Wallet or page changed; prepare the action again")
             assertWeightedWrites(chainId, GNO_CHAIN_ID, wallet.chainId, data?.config.schema ?? "", realmPath, action.type)
             if (rpcUrl !== GNO_RPC_URL) throw new Error("Selected RPC changed")
         }

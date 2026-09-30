@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: weighted DAOs open inside their window (2026-09-30)
+- A weighted DAO such as the Memba DAO opens inside its Memba OS window, with its proposals, members and actions, instead of a notice linking out to the classic site. The DAOs list keeps its Create button inside a narrow window.
+- A signature that finishes while another window is in front keeps its result. The DAO's contract is identified before any window reads it: a failed check says so and can be retried without disturbing other DAO windows, and the proposal pages of a weighted DAO point to its own window.
+
 ### Memba OS: Market home (2026-09-30)
 - The Market window in Memba OS opens on its own home listing the Market lanes available on the current network. On gno.land that is Services, one click further than before, with a "Market lanes" control to return from a lane.
 

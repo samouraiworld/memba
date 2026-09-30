@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom"
+import { MemoryRouter, Outlet, Route, Routes, useNavigate } from "react-router-dom"
+import { useEffect } from "react"
 import { beforeEach, expect, it, vi } from "vitest"
 import { WeightedDAO } from "./WeightedDAO"
 import { readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, readWeightedSnapshot, type WeightedProposal } from "../lib/dao/weighted"
@@ -19,9 +20,16 @@ vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
 vi.mock("../lib/dao/weightedAcceptance", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weightedAcceptance")>(), readAcceptanceStates: vi.fn(), readTargetAuthority: vi.fn() }))
 let fixture = weightedFixture()
 function snapshot() { return { config: fixture.config, members: fixture.members, page: fixture.page } as Awaited<ReturnType<typeof readWeightedSnapshot>> }
+/** The router's navigate of the App last rendered, for tests that move the page itself. */
+let go: (to: string) => void
+function Navigator() {
+    const navigate = useNavigate()
+    useEffect(() => { go = navigate }, [navigate])
+    return null
+}
 function App({ address = fixture.members[5].address, network = "pearl", connected = true, realm = weightedRealm }: { address?: string; network?: string; connected?: boolean; realm?: string }) {
     const context = { adena: { connected, address, chainId: network === "mainnet" ? "gnoland-1" : "pearl" }, auth: { isAuthenticated: true, address } }
-    return <MemoryRouter initialEntries={[`/${network}/weighted-dao/${realm}`]}><Routes><Route element={<Outlet context={context} />}><Route path="/:network/weighted-dao/*" element={<WeightedDAO />} /></Route></Routes></MemoryRouter>
+    return <MemoryRouter initialEntries={[`/${network}/weighted-dao/${realm}`]}><Navigator /><Routes><Route element={<Outlet context={context} />}><Route path="/:network/weighted-dao/*" element={<WeightedDAO />} /></Route></Routes></MemoryRouter>
 }
 beforeEach(() => {
     vi.clearAllMocks(); fixture = weightedFixture()
@@ -67,6 +75,22 @@ it("allows a developer without admin labels to propose governed role changes", a
     expect(vi.mocked(doContractBroadcast).mock.calls[0][2]?.retry).toBe(false)
     expect(readWeightedSnapshot).toHaveBeenCalledTimes(4)
 })
+it("reports the transaction when the browser address changed during signing but the page's own route did not", async () => {
+    // Inside a Memba OS window the address bar follows the front window; the page stays on its route.
+    const before = window.location.pathname
+    vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => {
+        window.history.pushState({}, "", "/os/daos")
+        await opts?.beforeSign?.()
+        return { hash: "c".repeat(64) }
+    })
+    try {
+        render(<App />)
+        await screen.findByText(fixture.members[0].personId)
+        fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
+        expect(await screen.findByText(new RegExp(`^Transaction submitted: ${"c".repeat(64)}\\.`))).toBeTruthy()
+        expect(screen.queryByRole("alert")).toBeNull()
+    } finally { window.history.pushState({}, "", before) }
+})
 it("refuses a stale proposal before broadcasting and retains unavailable historical tallies", async () => {
     render(<App />)
     await screen.findByText(fixture.members[0].personId)
@@ -100,6 +124,24 @@ it("rejects a prepared action if the wallet changes while confirmation is open",
     await act(async () => finish?.())
     expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
 })
+for (const [what, to] of [["another DAO", `/pearl/weighted-dao/${weightedRealm}_v2`], ["another network", `/mainnet/weighted-dao/${weightedRealm}`]] as const) {
+    it(`rejects a prepared action if the page moves to ${what} while confirmation is open`, async () => {
+        let beforeSign: (() => void | Promise<void>) | undefined
+        let finish: (() => void | Promise<void>) | undefined
+        vi.mocked(doContractBroadcast).mockImplementation((_msgs, _memo, opts) => new Promise((resolve, reject) => {
+            beforeSign = opts?.beforeSign
+            finish = async () => { try { await beforeSign?.(); resolve({ hash: "a".repeat(64) }) } catch (err) { reject(err) } }
+        }))
+        render(<App />)
+        await screen.findByText(fixture.members[0].personId)
+        fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
+        await waitFor(() => expect(beforeSign).toBeTypeOf("function"))
+        act(() => go(to))
+        await expect(beforeSign?.()).rejects.toThrow("Wallet or page changed")
+        await act(async () => finish?.())
+        expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
+    })
+}
 it("does not display prior-wallet read results after a switch", async () => {
     let resolve: ((value: Awaited<ReturnType<typeof readWeightedSnapshot>>) => void) | undefined
     vi.mocked(readWeightedSnapshot).mockImplementationOnce(() => new Promise(r => { resolve = r }))

@@ -39,3 +39,9 @@
 .weighted-dao__handoff { margin: 12px 0; }
 .weighted-dao__handoff ol { margin: 8px 0; padding-left: 20px; display: grid; gap: 4px; }
 .weighted-dao__consequence { color: var(--color-text-secondary); }
+/* In a Memba OS window (this container exists nowhere else) the window frame is the page chrome. */
+@container os-window (min-width: 0) {
+  .weighted-dao { padding: 0 0 24px; gap: 16px; }
+  .weighted-dao h1 { font-size: 1.4rem; }
+}
+@container os-window (max-width: 480px) { .weighted-dao__facts div { grid-template-columns: minmax(0, 1fr); gap: 0; } }

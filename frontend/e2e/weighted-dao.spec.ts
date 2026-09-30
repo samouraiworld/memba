@@ -3,9 +3,8 @@ import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { stubNetwork } from './helpers/stubNetwork'
 import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
+import { MAINNET, MEMBER, TEST13, memberWallet, routeV12, v12 } from './helpers/weightedV12Fixture'
 import { qevalWire, weightedFixture, weightedRealm } from '../src/lib/dao/testdata/weighted'
-import { readFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 
 for (const version of [1, 2] as const) for (const width of [1280, 390]) {
     test(`weighted DAO v${version} reads remain clear at ${width}px`, async ({ page }, info) => {
@@ -49,52 +48,6 @@ test('malformed weighted contract never falls back to legacy role controls', asy
     await expect(page.locator('.weighted-dao').getByRole('button', { name: 'Review role proposal' })).toHaveCount(0)
 })
 
-// Host v12 (the mainnet governing DAO): verbatim native reads, no hand-built JSON.
-const v12 = JSON.parse(readFileSync(new URL('../src/lib/dao/testdata/weighted-v12/native.json', import.meta.url), 'utf8')).records as Record<string, unknown>
-// A DAO's own package address, and each adapter target's authority getters (see weightedAcceptance.ts).
-const daoAddress = (realmPath: string) => bech32Encode('g', new Uint8Array(createHash('sha256').update(`pkgPath:${realmPath}`).digest().subarray(0, 20)))
-const PUBLISHER = (v12.config as { marketPolicy: { successor: string } }).marketPolicy.successor
-const AUTHORITY: Record<string, [string, string, 'address' | 'string']> = {
-    'gno.land/r/samcrew/memba_market_config': ['GetAdmin', 'GetPendingAdmin', 'address'],
-    'gno.land/r/samcrew/memba_reviews_v2': ['GetModerator', 'GetPendingModerator', 'string'],
-    'gno.land/r/samcrew/memba_quest_attestation_v1': ['GetOwner', 'GetPendingOwner', 'string'],
-    'gno.land/r/samcrew/memba_arcade_leaderboard_v1': ['GetOwner', 'GetPendingOwner', 'address'],
-    'gno.land/r/samcrew/memba_appstore_v3': ['GetOwner', 'GetPendingOwner', 'address'],
-    'gno.land/r/samcrew/escrow_v4': ['GetAdmin', 'GetPendingAdmin', 'string'],
-    'gno.land/r/samcrew/gnobuilders_badges_v2': ['GetOwner', 'GetPendingOwner', 'address'],
-    'gno.land/r/samcrew/memba_feed_v1': ['GetOwner', 'GetPendingOwner', 'address'],
-    'gno.land/r/samcrew/memba_dao_channels_v2': ['GetOwner', 'GetPendingOwner', 'address'],
-    'gno.land/r/samcrew/memba_feedback_v2': ['GetOwner', 'GetPendingOwner', 'address'],
-}
-/** Target authority on the fake chain: the market-config admin is nominated to the DAO at `realmPath`; that DAO already controls the rest. */
-function targetRead(expression: string, realmPath: string): string | undefined {
-    const DAO = daoAddress(realmPath)
-    const realm = Object.keys(AUTHORITY).find(path => expression.startsWith(`${path}.`))
-    if (!realm) return undefined
-    const [current, pending, type] = AUTHORITY[realm]
-    const nominated = realm.endsWith('/memba_market_config')
-    const value = expression === `${realm}.${current}()` ? (nominated ? PUBLISHER : DAO) : expression === `${realm}.${pending}()` ? (nominated ? DAO : '') : undefined
-    if (value === undefined) return undefined
-    return type === 'string' ? `(${JSON.stringify(value)} string)` : value ? `(${JSON.stringify(value)} .uverse.address)` : '( .uverse.address)'
-}
-async function routeV12(page: Page, network = 'gnoland-1', realmPath = weightedRealm) {
-    await page.route('**/status', route => route.fulfill({ json: { result: { node_info: { network } } } }))
-    await page.route('**/abci_query?**', route => {
-        const params = new URL(route.request().url()).searchParams
-        const expression = params.get('path') === '"vm/qeval"' ? Buffer.from(params.get('data')!.slice(2), 'hex').toString('utf8') : ''
-        const target = targetRead(expression, realmPath)
-        if (target) return route.fulfill({ json: { result: { response: { ResponseBase: { Data: Buffer.from(target).toString('base64'), Error: null } } } } })
-        if (!expression.startsWith(`${realmPath}.`)) return route.fulfill({ json: { result: { response: { ResponseBase: { Data: '', Error: { '@type': '/vm.UnauthorizedUserError' }, Log: `unexpected ${expression}` } } } } })
-        const call = expression.slice(realmPath.length + 1)
-        const ballot = call.match(/^GetBallotJSON\("(\d+)", "(g1[0-9a-z]{38})"\)$/)
-        const value = call === 'GetConfigJSON()' ? { ...(v12.config as object), realmPath } : call === 'GetMembersJSON()' ? v12.members
-            : call === 'GetProposalsJSON(0, 20)' ? v12.proposals_page_1 : call === 'GetProposalsJSON(7, 20)' ? v12.proposals_page_2
-            : ballot ? { schema: 'memba-weighted-host/v12', proposalId: ballot[1], voter: ballot[2], eligible: true, choice: null, votedAtHeight: null }
-            : v12[`proposal_${call.match(/^GetProposalJSON\((\d+)\)$/)?.[1]}`]
-        if (value === undefined) return route.fulfill({ json: { result: { response: { ResponseBase: { Data: '', Error: { '@type': '/vm.UnauthorizedUserError' }, Log: `unexpected ${call}` } } } } })
-        return route.fulfill({ json: { result: { response: { ResponseBase: { Data: Buffer.from(qevalWire(value)).toString('base64'), Error: null } } } } })
-    })
-}
 for (const width of [1280, 390]) {
     test(`weighted DAO v12 adapters, categories and frozen state stay read-only without a member wallet at ${width}px`, async ({ page }, info) => {
         await stubNetwork(page)
@@ -163,28 +116,6 @@ test('one mis-encoded weighted proposal is listed as unreadable without hiding t
     await expect(workspace.getByRole('heading', { name: 'Market config · set-fee' })).toBeVisible()
 })
 
-// A member's wallet on a non-mainnet network (test13: hidden but resolvable).
-// The wallet records what it is asked to sign and never reaches a chain.
-const MEMBER = (v12.members as { members: { address: string }[] }).members[1].address
-const TEST13 = { network: 'test13', chainId: 'test-13', rpcUrl: 'https://rpc.test13.testnets.gno.land:443' }
-async function memberWallet(page: Page, where = TEST13) {
-    await page.addInitScript(({ address, network, chainId, rpcUrl }) => {
-        localStorage.setItem('memba_network', network)
-        localStorage.setItem('memba_adena_connected', 'true')
-        localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId, serverSignature: 'invalid-test-only' }))
-        localStorage.setItem(`memba_wizard_seen_${address}`, '1')
-        const w = window as unknown as { __signRequests: unknown[] }
-        w.__signRequests = []
-        const reject = async () => { throw new Error('e2e wallet: not available') }
-        Object.defineProperty(window, 'adena', { value: {
-            GetAccount: async () => ({ status: 'success', data: { address, coins: '100000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '0', chainId } }),
-            GetNetwork: async () => ({ data: { chainId, rpcUrl } }),
-            On: () => () => {},
-            DoContract: async (request: unknown) => { w.__signRequests.push(request); return { status: 'success', data: { hash: 'ab'.repeat(32) } } },
-            Sign: reject, SignTx: reject, AddEstablish: reject,
-        } })
-    }, { address: MEMBER, ...where })
-}
 test('weighted DAO v12 on a test network proposes an adapter acceptance with its exact deposit cap', async ({ page }, info) => {
     await stubNetwork(page)
     await routeV12(page, 'test-13')
@@ -239,7 +170,6 @@ test('weighted DAO v12 on a test network warns before an execution invalidates o
     await expect(confirm).toHaveCount(0)
     expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
 })
-const MAINNET = { network: 'mainnet', chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land:443' }
 /** Every write control is disabled (the same set as on the released DAO) and nothing reached the wallet. */
 async function expectEveryControlDisabled(page: Page, workspace: ReturnType<Page['locator']>) {
     const controls = workspace.getByRole('button', { name: /^(Propose acceptance|Vote .*|Execute proposal|Review role proposal)$/ })

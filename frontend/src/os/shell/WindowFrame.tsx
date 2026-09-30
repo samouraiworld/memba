@@ -14,7 +14,7 @@ const DaoFolder = lazy(() => import("../daos/DaoWindows").then((m) => ({ default
 const DaosApp = lazy(() => import("../daos/DaoWindows").then((m) => ({ default: m.DaosApp })))
 const ProposalWindow = lazy(() => import("../daos/DaoWindows").then((m) => ({ default: m.ProposalWindow })))
 const CreateDaoWizard = lazy(() => import("../daos/CreateDaoWizard").then((m) => ({ default: m.CreateDaoWizard })))
-const ProposeWizard = lazy(() => import("../daos/ProposeWizard").then((m) => ({ default: m.ProposeWizard })))
+const NewProposalWindow = lazy(() => import("../daos/DaoWindows").then((m) => ({ default: m.NewProposalWindow })))
 const ClassicPage = lazy(() => import("../page/ClassicPage").then((m) => ({ default: m.ClassicPage })))
 const AboutWindow = lazy(() => import("../about/AboutWindow").then((m) => ({ default: m.AboutWindow })))
 const MultisigApp = lazy(() => import("../multisig/MultisigWindows").then((m) => ({ default: m.MultisigApp })))
@@ -94,9 +94,9 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     }
     if (t.kind === "app" && t.app === "daos" && t.section === "new") return <CreateDaoWizard session={a.session} open={a.open} close={a.close} />
     if (t.kind === "app" && t.app === "daos" && t.section === null) return <DaosApp open={a.open} />
-    if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} />
-    if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} />
-    if (t.kind === "new-proposal") return <ProposeWizard dao={t.dao} session={a.session} open={a.open} close={a.close} />
+    if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} session={a.session} active={a.active} />
+    if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} open={a.open} />
+    if (t.kind === "new-proposal") return <NewProposalWindow dao={t.dao} session={a.session} open={a.open} close={a.close} />
     if (t.kind === "desktop") return null
     if (t.kind === "app" && t.app === "wallet" && t.section === null) return <WalletWindow session={a.session} open={a.open} toast={a.toast} />
     if (t.kind === "app" && t.app === "wallet" && t.section === "send") return <SendWindow session={a.session} close={a.close} />

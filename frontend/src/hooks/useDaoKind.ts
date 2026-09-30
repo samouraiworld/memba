@@ -11,6 +11,11 @@ export interface DaoKindState {
     error: string | null
 }
 
+/** The cache key of one realm's contract-kind probe on the active chain. */
+export function daoKindKey(realmPath: string): readonly string[] {
+    return ["dao", "kind", GNO_CHAIN_ID, realmPath]
+}
+
 /**
  * Resolve which DAO contract family `realmPath` is on the active chain, and
  * the actions the shell may offer for it. Until the kind is known (or if the
@@ -20,7 +25,7 @@ export function useDaoKind(realmPath: string | undefined): DaoKindState {
     // An unresolvable network key falls back to the most restrictive entry.
     const network = NETWORKS[ACTIVE_NETWORK_KEY] ?? NETWORKS.mainnet
     const query = useQuery({
-        queryKey: ["dao", "kind", GNO_CHAIN_ID, realmPath ?? ""],
+        queryKey: daoKindKey(realmPath ?? ""),
         enabled: !!realmPath,
         staleTime: Infinity,
         queryFn: ({ signal }) => resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath: realmPath! }, signal),
@@ -30,6 +35,7 @@ export function useDaoKind(realmPath: string | undefined): DaoKindState {
         kind,
         capabilities: capabilitiesFor(kind ?? "unknown", network),
         loading: !!realmPath && query.isPending,
-        error: query.isError ? (query.error instanceof Error ? query.error.message : "Could not identify this DAO contract") : null,
+        // A kind already resolved stays usable when a later re-read fails: only a probe that never answered is an error.
+        error: query.isError && query.data === undefined ? (query.error instanceof Error ? query.error.message : "Could not identify this DAO contract") : null,
     }
 }

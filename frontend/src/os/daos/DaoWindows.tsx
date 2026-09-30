@@ -5,8 +5,8 @@
  *
  * @module os/daos/DaoWindows
  */
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { lazy, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react"
+import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { clearGovernanceReceipt, readGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { invalidateProposalCache } from "../../lib/dao/proposals"
@@ -19,11 +19,14 @@ import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
-import { useDaoKind } from "../../hooks/useDaoKind"
+import { daoKindKey, useDaoKind } from "../../hooks/useDaoKind"
 import { nameForRealm, realmForName } from "./daoNames"
 import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
 import { voteRequest, voteScope } from "./voteRequest"
 import { JoinMembaDao } from "./JoinMembaDao"
+import { WeightedDaoFolder } from "./WeightedDaoFolder"
+
+const ProposeWizard = lazy(() => import("./ProposeWizard").then((m) => ({ default: m.ProposeWizard })))
 
 const DAO_TINT = ["#5B7CFA", "#3D5BE0"] as const
 
@@ -38,6 +41,42 @@ function Failed({ what, retry }: { what: string; retry?: () => void }) {
             {retry && <button type="button" className="os-btn os-quiet os-inline" onClick={retry}>Try again</button>}
         </div>
     )
+}
+
+/**
+ * The contract probe never answered. The retry re-runs that probe alone, so no
+ * other DAO window is disturbed; while it runs the window shows its loading row.
+ */
+function ContractUnknown({ realmPath }: { realmPath: string }) {
+    const queryClient = useQueryClient()
+    return <Failed what="this DAO's contract" retry={() => void queryClient.invalidateQueries({ queryKey: daoKindKey(realmPath), exact: true })} />
+}
+
+/** Read a DAO's state again. Which contract a realm is never changes, so the kind probes are left alone: a failed re-probe must not take a window down. */
+function refreshDaoState(queryClient: QueryClient) {
+    return queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "dao" && query.queryKey[1] !== "kind" })
+}
+
+/**
+ * The proposal windows of the equal-headcount DAO kinds. Their loaders read
+ * nothing until the contract is known to be one of theirs; a weighted DAO
+ * keeps its proposals in its own DAO window.
+ */
+function StandardDaoOnly({ dao, realmPath, what, open, children }: { dao: string; realmPath: string; what: string; open: (spec: WindowSpec) => void; children: ReactNode }) {
+    const kind = useDaoKind(realmPath)
+    if (kind.loading) return <Loading what={what} />
+    if (kind.error) return <ContractUnknown realmPath={realmPath} />
+    if (kind.kind === "weighted") {
+        return (
+            <div className="os-holding">
+                <ThingTile icon="folder" tint={DAO_TINT} size={44} />
+                <div className="os-holding-title">This DAO votes by points</div>
+                <p className="os-sub">Its proposals, and proposing, voting and executing, are in its DAO window.</p>
+                <button type="button" className="os-btn" onClick={() => open(daoSpec(dao))}>Open {dao}</button>
+            </div>
+        )
+    }
+    return children
 }
 
 function NotADao({ name }: { name: string }) {
@@ -81,7 +120,7 @@ export function DaosApp({ open }: { open: (spec: WindowSpec) => void }) {
         </li>
     )
     return (
-        <div className="os-stack">
+        <div className="os-stack os-daos">
             <div className="os-row os-end">
                 <button type="button" className="os-btn" onClick={() => open(newDaoSpec())}>Create a DAO</button>
             </div>
@@ -113,17 +152,21 @@ const TABS: { id: DaoSection; label: string }[] = [
     { id: "overview", label: "Overview" }, { id: "proposals", label: "Proposals" }, { id: "members", label: "Members" }, { id: "treasury", label: "Treasury" },
 ]
 
-export function DaoFolder({ name, section, open }: { name: string; section: DaoSection; open: (spec: WindowSpec) => void }) {
-    const realmPath = realmForName(name)
-    if (!realmPath) return <NotADao name={name} />
-    return <DaoFolderBody name={name} realmPath={realmPath} section={section} open={open} />
+interface DaoFolderProps { name: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession; active?: boolean }
+
+export function DaoFolder(props: DaoFolderProps) {
+    const realmPath = realmForName(props.name)
+    if (!realmPath) return <NotADao name={props.name} />
+    return <DaoFolderBody {...props} realmPath={realmPath} />
 }
 
-function DaoFolderBody({ name, realmPath, section, open }: { name: string; realmPath: string; section: DaoSection; open: (spec: WindowSpec) => void }) {
+function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoFolderProps & { realmPath: string }) {
     const kind = useDaoKind(realmPath)
-    const config = useDaoConfig(realmPath)
-    const proposals = useDaoProposals(realmPath, section === "proposals" || section === "overview")
-    const members = useDaoMembers(realmPath, config.data?.memberstorePath, section === "members" && !config.isPending)
+    // The equal-headcount loaders below read nothing until the contract is known to be one of theirs.
+    const standard = !kind.loading && !kind.error && kind.kind !== "weighted"
+    const config = useDaoConfig(realmPath, standard)
+    const proposals = useDaoProposals(realmPath, standard && (section === "proposals" || section === "overview"))
+    const members = useDaoMembers(realmPath, config.data?.memberstorePath, standard && section === "members" && !config.isPending)
     const tabs = useRef<Partial<Record<DaoSection, HTMLButtonElement | null>>>({})
     const tabId = (id: DaoSection) => `os-dao-${name}-${id}`
     const panelId = `os-dao-${name}-panel`
@@ -138,10 +181,28 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
         open(daoSpec(name, target))
         requestAnimationFrame(() => tabs.current[target]?.focus())
     }
+    // Which contract this is decides everything below, so nothing else shows until it is known.
+    if (kind.loading) return <Loading what="the DAO contract" />
+    const join = name === "memba_dao" && <JoinMembaDao open={open} />
+    if (kind.error) {
+        return (
+            <div className="os-stack">
+                <ContractUnknown realmPath={realmPath} />
+                {join}
+            </div>
+        )
+    }
+    // A weighted DAO is one workspace (points, members, adapters, proposals), not the four sections below.
+    if (kind.kind === "weighted") {
+        return (
+            <>
+                <WeightedDaoFolder realmPath={realmPath} session={session} active={active} />
+                {join}
+            </>
+        )
+    }
     let body: ReactNode
-    if (kind.loading) body = <Loading what="the DAO contract" />
-    else if (kind.kind === "weighted") body = <div className="os-note os-warn">This DAO uses weighted voting. <a href={`/${ACTIVE_NETWORK_KEY}/weighted-dao/${realmPath}`}>Open its weighted DAO workspace</a> to see its points and proposals.</div>
-    else if (config.isPending) body = <Loading what="the DAO" />
+    if (config.isPending) body = <Loading what="the DAO" />
     else if (config.isError) body = <Failed what="this DAO" retry={() => void config.refetch()} />
     else if (!config.data) body = <p className="os-note os-warn">No DAO answers at {realmPath} on this network.</p>
     else if (section === "overview") {
@@ -172,8 +233,7 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
             </div>
         )
     } else if (section === "proposals") {
-        const newProposal = kind.loading ? <Loading what="DAO capabilities" /> : kind.error ? <Failed what="DAO capabilities" />
-            : kind.kind === "memba-v2" ? (
+        const newProposal = kind.kind === "memba-v2" ? (
             <div className="os-row os-end">
                 <button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "new-proposal", dao: name })!)}>New proposal</button>
             </div>
@@ -217,9 +277,7 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
                 ))}
             </div>
             <div id={panelId} className="os-folder-body" role="tabpanel" aria-labelledby={tabId(section)} tabIndex={0}>
-                {name === "memba_dao" && section === "overview"
-                    ? <div className="os-stack">{body}<JoinMembaDao open={open} /></div>
-                    : body}
+                {join && section === "overview" ? <div className="os-stack">{body}{join}</div> : body}
             </div>
         </div>
     )
@@ -227,10 +285,17 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
 
 // ── Proposal window ─────────────────────────────────────────────────────────
 
-export function ProposalWindow({ dao, n, session }: { dao: string; n: number; session: OsSession }) {
+export function ProposalWindow({ dao, n, session, open }: { dao: string; n: number; session: OsSession; open: (spec: WindowSpec) => void }) {
     const realmPath = realmForName(dao)
     if (!realmPath) return <NotADao name={dao} />
-    return <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} />
+    return <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open}><ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} /></StandardDaoOnly>
+}
+
+/** The New proposal wizard, behind the same contract check as the proposal window. */
+export function NewProposalWindow({ dao, session, open, close }: { dao: string; session: OsSession; open: (spec: WindowSpec) => void; close: () => void }) {
+    const realmPath = realmForName(dao)
+    if (!realmPath) return <NotADao name={dao} />
+    return <StandardDaoOnly dao={dao} realmPath={realmPath} what="the DAO contract" open={open}><ProposeWizard dao={dao} session={session} open={open} close={close} /></StandardDaoOnly>
 }
 
 /** Chain-style seconds, refreshed every 30 s (relative "ends in" times). */
@@ -270,11 +335,11 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     useEffect(() => {
         if (signer.version === 0) return
         invalidateProposalCache(realmPath)
-        void queryClient.invalidateQueries({ queryKey: ["dao"] })
+        void refreshDaoState(queryClient)
     }, [signer.version, queryClient, realmPath])
 
-    if (kind.loading || q.isPending) return <Loading what={`proposal #${n}`} />
-    if (kind.error || q.isError) return <Failed what={`proposal #${n}`} retry={() => void q.refetch()} />
+    if (q.isPending) return <Loading what={`proposal #${n}`} />
+    if (q.isError) return <Failed what={`proposal #${n}`} retry={() => void q.refetch()} />
     const p = q.data!
     const openNow = p.v2 ? canVoteNow(p.v2, now) : p.open
     const scope = member ? voteScope(realmPath, session.address, n) : null
@@ -294,7 +359,7 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
                 {receipt.hash && <code className="os-mono os-break">Transaction {receipt.hash}</code>}
                 <label className="os-ack"><input type="checkbox" checked={checkedScope === scopeKey} onChange={(e) => setCheckedScope(e.target.checked ? scopeKey : null)} /> I checked the transaction and want to review this vote again.</label>
                 <button type="button" className="os-btn os-quiet" disabled={checkedScope !== scopeKey} onClick={() => {
-                    try { clearGovernanceReceipt(scope!); setCheckedScope(null); rerender((x) => x + 1); void queryClient.invalidateQueries({ queryKey: ["dao"] }) } catch { /* a request is still in flight */ }
+                    try { clearGovernanceReceipt(scope!); setCheckedScope(null); rerender((x) => x + 1); void refreshDaoState(queryClient) } catch { /* a request is still in flight */ }
                 }}>Review the vote again</button>
             </div>
         )

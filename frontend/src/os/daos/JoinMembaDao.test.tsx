@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "../../test/test-utils"
+import type { OsSession } from "../shell/useOsSession"
 import { appSpec, EMPTY_WINDOWS, windowsReducer } from "../shell/windows"
 import { applyToJoinSpec } from "./joinSpec"
 
@@ -28,6 +29,7 @@ vi.mock("./useOsDao", async original => ({
 }))
 vi.mock("../../hooks/useDaoKind", () => ({ useDaoKind: vi.fn() }))
 const { JoinMembaDao } = await import("./JoinMembaDao")
+const session = { status: "guest", address: "", network: { key: "mainnet" }, layout: {}, openConnect: vi.fn() } as unknown as OsSession
 const { DaoFolder } = await import("./DaoWindows")
 const { isFeedEnabled } = await import("../../lib/config")
 const { fetchJoinCandidates } = await import("../../lib/feedJoin")
@@ -85,14 +87,14 @@ describe("Memba DAO #join posts", () => {
     })
 
     it("keeps #join posts accessible when the Memba DAO realm is absent", () => {
-        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={vi.fn()} />)
+        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={vi.fn()} session={session} />)
         expect(screen.getByText(/No DAO answers at/)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: "Write a #join post" })).toBeInTheDocument()
     })
 
     it("keeps #join posts accessible when the DAO query fails", () => {
         vi.mocked(useDaoConfig).mockReturnValue({ data: undefined, isPending: false, isError: true, refetch: vi.fn() } as unknown as ReturnType<typeof useDaoConfig>)
-        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={vi.fn()} />)
+        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={vi.fn()} session={session} />)
         expect(screen.getByText(/Couldn't load this DAO/)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: "Write a #join post" })).toBeInTheDocument()
     })
