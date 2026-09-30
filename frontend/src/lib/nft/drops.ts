@@ -2,9 +2,10 @@
  * Strict reads of the NFT drops realm: the mint stages of a collection, what
  * creating a collection and minting cost, and what a wallet or a gate token
  * has already used. Every answer is checked against the realm's JSON contract
- * and its own rules before it reaches a screen; an unreadable, malformed or
- * self-contradicting answer throws. The realm is not published on any network
- * yet; NFT_DROPS_PATH stays out of the realm allowlist until it is.
+ * and its own rules before it reaches a screen; an unreadable, refused,
+ * malformed or self-contradicting answer throws (see lib/nft/read). The realm
+ * is not published on any network yet; NFT_DROPS_PATH stays out of the realm
+ * allowlist until it is.
  *
  * @module lib/nft/drops
  */
@@ -20,7 +21,7 @@ const MAX_FEE_BPS = 500n
 
 export type NftStageKind = (typeof STAGE_KINDS)[number]
 
-/** One mint window of a collection, open during [start, end). Times are Unix seconds. */
+/** One mint window of a collection, open during [start, end). Times are Unix seconds. A stage ended at its start has an empty window. */
 export interface NftStage {
     index: number
     kind: NftStageKind
@@ -72,9 +73,9 @@ function parseStage(value: unknown, position: number): NftStage {
     const kind = oneOf(row.kind, "stage kind", STAGE_KINDS)
     const start = decimal(row.start, "stage start")
     const end = decimal(row.end, "stage end")
-    if (end <= start) throw new Error("Inconsistent stage window")
-
     const open = bool(row.open, "stage open")
+    // Ending a stage sets its end to that moment, which can be its start: an empty window, never open.
+    if (end < start || (end === start && open)) throw new Error("Inconsistent stage window")
     const price = decimal(row.price, "stage price")
     const floor = decimal(row.floor, "stage floor")
     const currentPrice = decimal(row.currentPrice, "current price")
@@ -104,8 +105,8 @@ function parseStage(value: unknown, position: number): NftStage {
 }
 
 /** A collection's mint stages in index order; none yet is an empty list. */
-export async function listStages(rpcUrl: string, collection: string): Promise<NftStage[]> {
-    const rows = list(await readJSON(rpcUrl, NFT_DROPS_PATH, `StagesJSON("${collectionId(collection)}")`, "stages"), "stage list")
+export async function listStages(collection: string): Promise<NftStage[]> {
+    const rows = list(await readJSON(NFT_DROPS_PATH, `StagesJSON("${collectionId(collection)}")`, "stages"), "stage list")
     if (rows.length > MAX_STAGES) throw new Error("Invalid stage list")
     const stages = rows.map(parseStage)
     // No two windows overlap, so at most one stage is open at a time.
@@ -114,8 +115,8 @@ export async function listStages(rpcUrl: string, collection: string): Promise<Nf
 }
 
 /** What creating a collection and scheduling a stage cost now in a currency. */
-export async function getDropTerms(rpcUrl: string, currency: string): Promise<NftDropTerms> {
-    const row = record(await readJSON(rpcUrl, NFT_DROPS_PATH, `TermsJSON("${currencyKey(currency)}")`, "drop terms"), "drop terms", TERMS_KEYS)
+export async function getDropTerms(currency: string): Promise<NftDropTerms> {
+    const row = record(await readJSON(NFT_DROPS_PATH, `TermsJSON("${currencyKey(currency)}")`, "drop terms"), "drop terms", TERMS_KEYS)
     if (row.currency !== currency) throw new Error("Drop terms do not match the request")
     const primaryFeeBPS = decimalOrUnset(row.primaryFeeBPS, "primary fee bps")
     const maxPrimaryFeeBPS = decimal(row.maxPrimaryFeeBPS, "maximum primary fee bps")
@@ -131,12 +132,16 @@ export async function getDropTerms(rpcUrl: string, currency: string): Promise<Nf
 
 const stageArgs = (collection: string, index: number) => `"${collectionId(collection)}", ${natural(index, "stage index")}`
 
-/** How many tokens an account has minted in a stage. */
-export async function mintedBy(rpcUrl: string, collection: string, index: number, who: string): Promise<bigint> {
-    return readInt(rpcUrl, NFT_DROPS_PATH, `MintedBy(${stageArgs(collection, index)}, "${address(who, "minter")}")`, "minted count")
+/**
+ * How many tokens an account has minted in a stage. The realm answers 0 for a
+ * stage that does not exist, so a caller reads the stage (listStages) first
+ * and asks only about one it found.
+ */
+export async function mintedBy(collection: string, index: number, who: string): Promise<bigint> {
+    return readInt(NFT_DROPS_PATH, `MintedBy(${stageArgs(collection, index)}, "${address(who, "minter")}")`, "minted count")
 }
 
 /** Whether a gate token has already paid for a mint in a holder stage. */
-export async function gateUsed(rpcUrl: string, collection: string, index: number, gateNumber: bigint): Promise<boolean> {
-    return readBool(rpcUrl, NFT_DROPS_PATH, `GateUsed(${stageArgs(collection, index)}, ${natural(gateNumber, "gate token number")})`, "gate token use")
+export async function gateUsed(collection: string, index: number, gateNumber: bigint): Promise<boolean> {
+    return readBool(NFT_DROPS_PATH, `GateUsed(${stageArgs(collection, index)}, ${natural(gateNumber, "gate token number")})`, "gate token use")
 }

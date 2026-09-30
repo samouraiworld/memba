@@ -1,17 +1,17 @@
 /**
  * Strict reads of the NFT ledger realm. Every answer is checked against the
  * realm's JSON contract and the rules the realm itself enforces before it
- * reaches a screen: an unreadable answer throws a LedgerReadError (worth
- * retrying), and a malformed or self-contradicting one throws a plain Error
- * (the network's data cannot be used), so neither can be mistaken for an empty
- * ledger. The realm is not published on any network yet; NFT_LEDGER_PATH stays
- * out of the realm allowlist until it is.
+ * reaches a screen: an unreadable answer throws a ReadError (worth retrying),
+ * a query the realm refuses (a collection or a token that does not exist)
+ * throws a RealmRefusedError, and a malformed or self-contradicting answer
+ * throws a plain Error (the network's data cannot be used), so none can be
+ * mistaken for an empty ledger. The realm is not published on any network
+ * yet; NFT_LEDGER_PATH stays out of the realm allowlist until it is.
  *
  * @module lib/nft/ledger
  */
-import { parseQevalJSON, queryEval } from "../dao/shared"
 import { HASH, address, bool, collectionId, decimal, list, oneOf, optionalAddress, record, text, tokenNumber } from "./parse"
-import { natural } from "./read"
+import { ReadError, natural, readInt, readJSON, readPage, readSlice } from "./read"
 
 export const NFT_LEDGER_PATH = "gno.land/r/samcrew/launchpad/nft/v1"
 
@@ -136,9 +136,6 @@ export interface NftCapabilities {
     royaltyEnforcement: NftRoyaltyEnforcement
 }
 
-/** The read did not reach an answer: unlike a malformed answer, it may succeed if tried again. */
-export class LedgerReadError extends Error {}
-
 const SUMMARY_KEYS = ["id", "creator", "name", "symbol", "image", "mode", "maxSupply", "sealed", "minted"] as const
 const COLLECTION_KEYS = [
     "id", "grc721Id", "issuer", "creator", "originator", "pendingCreator", "name", "symbol", "description", "image", "banner", "website",
@@ -217,6 +214,13 @@ function parseSummary(value: unknown): NftCollectionSummary {
     }
 }
 
+/** Only a royalty-protected collection names the markets allowed to move its tokens: one to five of them. */
+function parseMarkets(value: unknown, mode: NftMode): string[] {
+    const markets = list(value, "markets").map((market) => address(market, "market"))
+    if (mode === "royalty_protected" ? markets.length < 1 || markets.length > 5 : markets.length > 0) throw new Error("Inconsistent collection markets")
+    return markets
+}
+
 function parseCollection(value: unknown): NftCollection {
     const row = record(value, "collection", COLLECTION_KEYS)
     const mode = oneOf(row.mode, "collection mode", MODES)
@@ -263,9 +267,7 @@ function parseCollection(value: unknown): NftCollection {
         throw new Error("Inconsistent royalty terms")
     }
 
-    // Only a royalty-protected collection names the markets allowed to move its tokens.
-    const markets = list(row.markets, "markets").map((market) => address(market, "market"))
-    if (mode === "royalty_protected" ? markets.length < 1 || markets.length > 5 : markets.length > 0) throw new Error("Inconsistent collection markets")
+    const markets = parseMarkets(row.markets, mode)
 
     return {
         id: collectionId(row.id),
@@ -315,31 +317,7 @@ function precedes(a: NftHolding, b: NftHolding): boolean {
     return first < second || (first === second && a.number < b.number)
 }
 
-async function query(rpcUrl: string, expr: string, what: string): Promise<string> {
-    let raw: string | null
-    try {
-        raw = await queryEval(rpcUrl, NFT_LEDGER_PATH, expr, true)
-    } catch (cause) {
-        throw new LedgerReadError(`Could not read ${what}`, { cause })
-    }
-    if (raw === null) throw new LedgerReadError(`Could not read ${what}`)
-    return raw
-}
-
-const read = async (rpcUrl: string, expr: string, what: string): Promise<unknown> => parseQevalJSON(await query(rpcUrl, expr, what))
-
-/** One page of a list the ledger serves, never holding more rows than were asked for. */
-async function page(rpcUrl: string, view: string, args: readonly string[], index: bigint, size: number, what: string): Promise<unknown[]> {
-    const rows = list(await read(rpcUrl, `${view}(${[...args, index, size].join(", ")})`, `${what}s`), `${what} list`)
-    if (rows.length > size) throw new Error(`Invalid ${what} list`)
-    return rows
-}
-
-/** A caller's page: zero-based and 1 to 50 entries, checked before it goes into an expression. */
-function pageIndex(index: number, size: number, what: string): bigint {
-    if (!Number.isSafeInteger(index) || index < 0 || !Number.isSafeInteger(size) || size < 1 || size > 50) throw new Error(`Invalid ${what} page`)
-    return BigInt(index)
-}
+const read = (expr: string, what: string) => readJSON(NFT_LEDGER_PATH, expr, what)
 
 /**
  * The `size` newest collections, newest first. The ledger lists in creation
@@ -347,53 +325,52 @@ function pageIndex(index: number, size: number, what: string): bigint {
  * the newest ones are the tail of the last one or two pages, and every row is
  * checked to sit where its ID says.
  */
-export async function listNewestCollections(rpcUrl: string, size = 20): Promise<NftNewestCollections> {
+export async function listNewestCollections(size = 20): Promise<NftNewestCollections> {
     if (!Number.isSafeInteger(size) || size < 1 || size > 50) throw new Error("Invalid collection page")
-    const count = /^\((\d+) int64\)$/.exec((await query(rpcUrl, "Count()", "collection count")).trim())
-    if (!count) throw new Error("Invalid collection count")
-    const total = decimal(count[1], "collection count")
+    const total = await readInt(NFT_LEDGER_PATH, "Count()", "collection count")
     if (total === 0n) return { total, collections: [] }
     const width = BigInt(size)
     const first = total > width ? total - width : 0n
     const pages = [first / width, (total - 1n) / width].filter((index, at, all) => at === 0 || index !== all[0])
-    const rows = (await Promise.all(pages.map((index) => page(rpcUrl, "ListCollectionsJSON", [], index, size, "collection")))).flat().map(parseSummary)
+    // A page index can pass 2^53, so it goes into the query as text rather than through readPage.
+    const rows = (await Promise.all(pages.map((index) => readSlice(NFT_LEDGER_PATH, "ListCollectionsJSON", [String(index)], size, "collection")))).flat().map(parseSummary)
     // Collections are never removed, so the pages hold at least `total` rows; one created meanwhile is left out.
     const newest = rows.slice(Number(first - pages[0] * width), Number(total - pages[0] * width))
     // Fewer rows than counted: a node that has not caught up with the count's.
     // Worth reading again, and never shown as the whole list.
-    if (newest.length < Number(total - first)) throw new LedgerReadError("Could not read every collection counted")
+    if (newest.length < Number(total - first)) throw new ReadError("Could not read every collection counted")
     if (newest.some((row, at) => row.id !== `C${first + BigInt(at) + 1n}`)) {
         throw new Error("Inconsistent collection list")
     }
     return { total, collections: newest.reverse() }
 }
 
-export async function getCollection(rpcUrl: string, id: string): Promise<NftCollection> {
-    const collection = parseCollection(await read(rpcUrl, `CollectionJSON("${collectionId(id)}")`, "collection"))
+export async function getCollection(id: string): Promise<NftCollection> {
+    const collection = parseCollection(await read(`CollectionJSON("${collectionId(id)}")`, "collection"))
     if (collection.id !== id) throw new Error("Collection does not match the request")
     return collection
 }
 
-export async function getToken(rpcUrl: string, collection: string, number: bigint): Promise<NftToken> {
-    const token = parseToken(await read(rpcUrl, `TokenJSON("${collectionId(collection)}", ${natural(number, "token number")})`, "token"))
+export async function getToken(collection: string, number: bigint): Promise<NftToken> {
+    const token = parseToken(await read(`TokenJSON("${collectionId(collection)}", ${natural(number, "token number")})`, "token"))
     if (token.collection !== collection || token.number !== number) throw new Error("Token does not match the request")
     return token
 }
 
 /** A collection's tokens in number order, burned and revoked ones included. */
-export async function listTokens(rpcUrl: string, collection: string, index = 0, size = 20): Promise<NftToken[]> {
-    const rows = await page(rpcUrl, "TokensJSON", [`"${collectionId(collection)}"`], pageIndex(index, size, "token"), size, "token")
+export async function listTokens(collection: string, page = 0, size = 20): Promise<NftToken[]> {
+    const rows = await readPage(NFT_LEDGER_PATH, "TokensJSON", [`"${collectionId(collection)}"`], page, size, "token")
     return rows.map((row, at) => {
         const token = parseToken(row)
         // Numbers are never reused, so a page is one unbroken run of them.
-        if (token.collection !== collection || token.number !== BigInt(index) * BigInt(size) + BigInt(at) + 1n) throw new Error("Token does not match the request")
+        if (token.collection !== collection || token.number !== BigInt(page) * BigInt(size) + BigInt(at) + 1n) throw new Error("Token does not match the request")
         return token
     })
 }
 
 /** The tokens an account holds across every collection: the wallet view. */
-export async function listHoldings(rpcUrl: string, owner: string, index = 0, size = 20): Promise<NftHolding[]> {
-    const rows = await page(rpcUrl, "HoldingsJSON", [`"${address(owner, "owner")}"`], pageIndex(index, size, "holding"), size, "holding")
+export async function listHoldings(owner: string, page = 0, size = 20): Promise<NftHolding[]> {
+    const rows = await readPage(NFT_LEDGER_PATH, "HoldingsJSON", [`"${address(owner, "owner")}"`], page, size, "holding")
     const holdings = rows.map((value) => {
         const row = record(value, "holding", HOLDING_KEYS)
         return { collection: collectionId(row.collection), number: tokenNumber(row.number), uri: text(row.uri, "token URI") }
@@ -403,9 +380,9 @@ export async function listHoldings(rpcUrl: string, owner: string, index = 0, siz
     return holdings
 }
 
-export async function getApproval(rpcUrl: string, collection: string, number: bigint, operator: string): Promise<NftApproval> {
+export async function getApproval(collection: string, number: bigint, operator: string): Promise<NftApproval> {
     const expr = `ApprovalJSON("${collectionId(collection)}", ${natural(number, "token number")}, "${address(operator, "operator")}")`
-    const row = record(await read(rpcUrl, expr, "approval"), "approval", APPROVAL_KEYS)
+    const row = record(await read(expr, "approval"), "approval", APPROVAL_KEYS)
     if (row.collection !== collection || tokenNumber(row.number) !== number || row.operator !== operator) throw new Error("Approval does not match the request")
     return {
         owner: address(row.owner, "token owner"),
@@ -414,8 +391,8 @@ export async function getApproval(rpcUrl: string, collection: string, number: bi
     }
 }
 
-export async function getCapabilities(rpcUrl: string, id: string): Promise<NftCapabilities> {
-    const row = record(await read(rpcUrl, `CapabilitiesJSON("${collectionId(id)}")`, "capabilities"), "capabilities", CAPABILITIES_KEYS)
+export async function getCapabilities(id: string): Promise<NftCapabilities> {
+    const row = record(await read(`CapabilitiesJSON("${collectionId(id)}")`, "capabilities"), "capabilities", CAPABILITIES_KEYS)
     // Fail closed: a schema this reader was not written for is not interpreted.
     if (row.schema !== CAPABILITIES_SCHEMA) throw new Error("Unsupported capabilities schema")
     if (row.standard !== "grc721") throw new Error("Unsupported token standard")
@@ -439,7 +416,7 @@ export async function getCapabilities(rpcUrl: string, id: string): Promise<NftCa
         mode,
         holderTransfer,
         marketSale,
-        markets: list(row.markets, "markets").map((market) => address(market, "market")),
+        markets: parseMarkets(row.markets, mode),
         holderBurn: bool(row.holderBurn, "holder burn"),
         creatorRevoke: bool(row.creatorRevoke, "creator revoke"),
         maxSupply: decimal(row.maxSupply, "max supply"),

@@ -32,7 +32,7 @@ export function bool(value: unknown, what: string): boolean {
     return value
 }
 
-const INT64_MAX = 2n ** 63n - 1n
+export const INT64_MAX = 2n ** 63n - 1n
 
 /** An int64 arrives as a decimal string, so it never loses precision in JSON; none is negative here. */
 export function decimal(value: unknown, what: string): bigint {

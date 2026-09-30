@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { GNO_RPC_URL } from "../config"
 import { bech32Encode } from "../dao/realmAddress"
+import { AbciQueryError } from "../rpcFallback"
 import { NFT_DROPS_PATH, gateUsed, getDropTerms, listStages, mintedBy } from "./drops"
+import { ReadError, RealmRefusedError } from "./read"
 
 const queryEval = vi.hoisted(() => vi.fn())
 vi.mock("../dao/shared", async (original) => ({ ...(await original<typeof import("../dao/shared")>()), queryEval }))
@@ -25,7 +28,7 @@ const terms = { currency: "ugnot", collectionFee: "5000000", primaryFeeBPS: "250
 beforeEach(() => queryEval.mockReset())
 
 describe("stages", () => {
-    const stages = (rows: unknown) => { answer(rows); return listStages("rpc", "C1") }
+    const stages = (rows: unknown) => { answer(rows); return listStages("C1") }
     const stage = (row: unknown) => stages([row])
 
     it("reads the stages of a collection with every field typed", async () => {
@@ -34,7 +37,7 @@ describe("stages", () => {
             { ...fixed, start: 1000n, end: 2000n, price: 500n, floor: 0n, currentPrice: 500n, feeBPS: 250n, supplyCap: 0n, perWallet: 2n, minted: 0n },
             { ...later, start: 2000n, end: 3000n, price: 500n, floor: 100n, currentPrice: 300n, feeBPS: 250n, supplyCap: 0n, perWallet: 2n, minted: 0n },
         ])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_DROPS_PATH, 'StagesJSON("C1")', true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_DROPS_PATH, 'StagesJSON("C1")', true)
     })
 
     it("reads a collection without stages as an empty list", async () => {
@@ -52,6 +55,9 @@ describe("stages", () => {
         ["a dutch stage at its starting price", { ...dutch, currentPrice: "500" }],
         ["a dutch stage at its floor", { ...dutch, currentPrice: "100" }],
         ["a dutch stage falling to zero", { ...dutch, floor: "0", currentPrice: "1" }],
+        // EndStage at the stage's first second sets its end to its start.
+        ["a stage ended when it started", { ...fixed, end: "1000" }],
+        ["a dutch stage ended when it started", { ...dutch, end: "1000", open: false, currentPrice: "500" }],
     ])("accepts %s", async (_name, row) => {
         await expect(stage(row)).resolves.toMatchObject([{ kind: row.kind }])
     })
@@ -74,7 +80,7 @@ describe("stages", () => {
         ["an open flag that is not a boolean", { ...fixed, open: "false" }, "Invalid stage open"],
         ["a root that is not text", { ...fixed, root: null }, "Invalid allowlist root"],
         ["a currency that is not a key", { ...fixed, currency: "" }, "Invalid currency"],
-        ["a window that ends when it starts", { ...fixed, end: "1000" }, "Inconsistent stage window"],
+        ["an open window that ends when it starts", { ...fixed, end: "1000", open: true }, "Inconsistent stage window"],
         ["a window that ends before it starts", { ...fixed, end: "999" }, "Inconsistent stage window"],
         ["a fee above the cap", { ...fixed, feeBPS: "501" }, "Inconsistent stage fee"],
         ["more minted than the stage cap", { ...fixed, supplyCap: "3", minted: "4" }, "Inconsistent stage supply"],
@@ -117,18 +123,25 @@ describe("stages", () => {
 
     it("reports an unreadable or undecodable answer as an error, never as a collection without stages", async () => {
         queryEval.mockResolvedValueOnce(null)
-        await expect(listStages("rpc", "C1")).rejects.toThrow("Could not read stages")
+        await expect(listStages("C1")).rejects.toThrow("Could not read stages")
         queryEval.mockResolvedValueOnce("not a qeval answer")
-        await expect(listStages("rpc", "C1")).rejects.toThrow(/^Invalid stages$/)
+        await expect(listStages("C1")).rejects.toThrow(/^Invalid stages$/)
+    })
+
+    it("reports a collection the realm refuses as refused, not as a read to retry", async () => {
+        queryEval.mockRejectedValueOnce(new AbciQueryError(`vm/qeval`, "unknown collection"))
+        const refused = listStages("C9")
+        await expect(refused).rejects.toBeInstanceOf(RealmRefusedError)
+        await expect(refused).rejects.not.toBeInstanceOf(ReadError)
     })
 })
 
 describe("drop terms", () => {
-    const read = (row: unknown) => { answer(row); return getDropTerms("rpc", "ugnot") }
+    const read = (row: unknown) => { answer(row); return getDropTerms("ugnot") }
 
     it("reads what a collection and a stage cost now", async () => {
         await expect(read(terms)).resolves.toEqual({ ...terms, collectionFee: 5000000n, primaryFeeBPS: 250n, maxPrimaryFeeBPS: 500n })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_DROPS_PATH, 'TermsJSON("ugnot")', true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_DROPS_PATH, 'TermsJSON("ugnot")', true)
         await expect(read({ ...terms, collectionFee: "0", primaryFeeBPS: "0" })).resolves.toMatchObject({ collectionFee: 0n, primaryFeeBPS: 0n })
         await expect(read({ ...terms, primaryFeeBPS: "500", treasury: "" })).resolves.toMatchObject({ primaryFeeBPS: 500n, treasury: "" })
     })
@@ -143,8 +156,8 @@ describe("drop terms", () => {
     it("reads the terms of a GRC20 currency by its registry key", async () => {
         const key = "gno.land/r/demo/tokens/v1.SAMPLE-1"
         answer({ ...terms, currency: key })
-        await expect(getDropTerms("rpc", key)).resolves.toMatchObject({ currency: key })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_DROPS_PATH, `TermsJSON("${key}")`, true)
+        await expect(getDropTerms(key)).resolves.toMatchObject({ currency: key })
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_DROPS_PATH, `TermsJSON("${key}")`, true)
     })
 
     it.each([
@@ -165,11 +178,11 @@ describe("drop terms", () => {
 
     it("reports unreadable terms as an error", async () => {
         queryEval.mockResolvedValueOnce(null)
-        await expect(getDropTerms("rpc", "ugnot")).rejects.toThrow("Could not read drop terms")
+        await expect(getDropTerms("ugnot")).rejects.toThrow("Could not read drop terms")
     })
 
     it.each(["", "u gnot", 'ugnot") + ("', "a".repeat(101)])("never sends the malformed currency %j to the chain", async (currency) => {
-        await expect(getDropTerms("rpc", currency)).rejects.toThrow("Invalid currency")
+        await expect(getDropTerms(currency)).rejects.toThrow("Invalid currency")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
@@ -177,48 +190,48 @@ describe("drop terms", () => {
 describe("stage counters", () => {
     it("reads how many tokens an account minted in a stage", async () => {
         queryEval.mockResolvedValueOnce("(3 int64)")
-        await expect(mintedBy("rpc", "C1", 2, addr(4))).resolves.toBe(3n)
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_DROPS_PATH, `MintedBy("C1", 2, "${addr(4)}")`, true)
+        await expect(mintedBy("C1", 2, addr(4))).resolves.toBe(3n)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_DROPS_PATH, `MintedBy("C1", 2, "${addr(4)}")`, true)
         queryEval.mockResolvedValueOnce("(0 int64)\n")
-        await expect(mintedBy("rpc", "C1", 0, addr(4))).resolves.toBe(0n)
+        await expect(mintedBy("C1", 0, addr(4))).resolves.toBe(0n)
         queryEval.mockResolvedValueOnce("(9223372036854775807 int64)")
-        await expect(mintedBy("rpc", "C1", 0, addr(4))).resolves.toBe(9223372036854775807n)
+        await expect(mintedBy("C1", 0, addr(4))).resolves.toBe(9223372036854775807n)
     })
 
     it("reads whether a gate token has been used", async () => {
         queryEval.mockResolvedValueOnce("(true bool)")
-        await expect(gateUsed("rpc", "C1", 0, 12n)).resolves.toBe(true)
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_DROPS_PATH, 'GateUsed("C1", 0, 12)', true)
+        await expect(gateUsed("C1", 0, 12n)).resolves.toBe(true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_DROPS_PATH, 'GateUsed("C1", 0, 12)', true)
         queryEval.mockResolvedValueOnce("(false bool)\n")
-        await expect(gateUsed("rpc", "C1", 0, 12n)).resolves.toBe(false)
+        await expect(gateUsed("C1", 0, 12n)).resolves.toBe(false)
     })
 
-    it.each(["(-1 int64)", "(03 int64)", "(3 int)", '("3" string)', "(true bool)", "3", ""])("rejects the count %j", async (raw) => {
+    it.each(["(-1 int64)", "(03 int64)", "(9223372036854775808 int64)", "(3 int)", '("3" string)', "(true bool)", "3", ""])("rejects the count %j", async (raw) => {
         queryEval.mockResolvedValueOnce(raw)
-        await expect(mintedBy("rpc", "C1", 0, addr(4))).rejects.toThrow(/^Invalid minted count$/)
+        await expect(mintedBy("C1", 0, addr(4))).rejects.toThrow(/^Invalid minted count$/)
     })
 
     it.each(["(1 bool)", "(TRUE bool)", '("true" string)', "(0 int64)", "true", ""])("rejects the flag %j", async (raw) => {
         queryEval.mockResolvedValueOnce(raw)
-        await expect(gateUsed("rpc", "C1", 0, 12n)).rejects.toThrow(/^Invalid gate token use$/)
+        await expect(gateUsed("C1", 0, 12n)).rejects.toThrow(/^Invalid gate token use$/)
     })
 
     it("reports an unreadable counter as an error, never as zero or unused", async () => {
         queryEval.mockResolvedValue(null)
-        await expect(mintedBy("rpc", "C1", 0, addr(4))).rejects.toThrow("Could not read minted count")
-        await expect(gateUsed("rpc", "C1", 0, 12n)).rejects.toThrow("Could not read gate token use")
+        await expect(mintedBy("C1", 0, addr(4))).rejects.toThrow("Could not read minted count")
+        await expect(gateUsed("C1", 0, 12n)).rejects.toThrow("Could not read gate token use")
     })
 
     it("never sends a malformed argument to the chain", async () => {
-        await expect(mintedBy("rpc", 'C1", 0, "x") + ("', 0, addr(4))).rejects.toThrow("Invalid collection ID")
-        await expect(mintedBy("rpc", "C1", -1, addr(4))).rejects.toThrow("Invalid stage index")
-        await expect(mintedBy("rpc", "C1", 0.5, addr(4))).rejects.toThrow("Invalid stage index")
-        await expect(mintedBy("rpc", "C1", '0, "x") + (' as unknown as number, addr(4))).rejects.toThrow("Invalid stage index")
-        await expect(mintedBy("rpc", "C1", 0, `${addr(4)}") + ("`)).rejects.toThrow("Invalid minter")
-        await expect(gateUsed("rpc", "C01", 0, 12n)).rejects.toThrow("Invalid collection ID")
-        await expect(gateUsed("rpc", "C1", 10.5, 12n)).rejects.toThrow("Invalid stage index")
-        await expect(gateUsed("rpc", "C1", 0, -1n)).rejects.toThrow("Invalid gate token number")
-        await expect(gateUsed("rpc", "C1", 0, "12) + (" as unknown as bigint)).rejects.toThrow("Invalid gate token number")
+        await expect(mintedBy('C1", 0, "x") + ("', 0, addr(4))).rejects.toThrow("Invalid collection ID")
+        await expect(mintedBy("C1", -1, addr(4))).rejects.toThrow("Invalid stage index")
+        await expect(mintedBy("C1", 0.5, addr(4))).rejects.toThrow("Invalid stage index")
+        await expect(mintedBy("C1", '0, "x") + (' as unknown as number, addr(4))).rejects.toThrow("Invalid stage index")
+        await expect(mintedBy("C1", 0, `${addr(4)}") + ("`)).rejects.toThrow("Invalid minter")
+        await expect(gateUsed("C01", 0, 12n)).rejects.toThrow("Invalid collection ID")
+        await expect(gateUsed("C1", 10.5, 12n)).rejects.toThrow("Invalid stage index")
+        await expect(gateUsed("C1", 0, -1n)).rejects.toThrow("Invalid gate token number")
+        await expect(gateUsed("C1", 0, "12) + (" as unknown as bigint)).rejects.toThrow("Invalid gate token number")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })

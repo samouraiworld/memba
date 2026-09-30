@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { GNO_RPC_URL, NETWORKS } from "../../../lib/config"
-import { LedgerReadError, NFT_LEDGER_PATH } from "../../../lib/nft/ledger"
+import { NETWORKS } from "../../../lib/config"
+import { NFT_LEDGER_PATH } from "../../../lib/nft/ledger"
+import { ReadError } from "../../../lib/nft/read"
+import { AbciQueryError } from "../../../lib/rpcFallback"
 import NftWindow from "./native"
 
 // `legacy` answers for every realm other than the ledger: it must never open the home.
@@ -80,7 +82,7 @@ describe("NFT window", () => {
         const rail = screen.getByRole("region", { name: "Collections" })
         expect(rail).toHaveTextContent("Reading collections…")
         expect(screen.queryByText("No collections have been created yet.")).toBeNull()
-        expect(listNewestCollections).toHaveBeenCalledWith(GNO_RPC_URL, 20)
+        expect(listNewestCollections).toHaveBeenCalledWith(20)
 
         resolve({ total: 5n, collections: [
             founders, item("C2", "Badges", "BDG", "soulbound", 5n, 0n), item("C3", "Gallery\u200b", "GAL", "royalty_protected", 0n, 100n),
@@ -118,7 +120,7 @@ describe("NFT window", () => {
     it("shows a read failure as an error with a retry, never as an empty ledger", async () => {
         availability.enabled = true
         availability.ledger = true
-        listNewestCollections.mockRejectedValueOnce(new LedgerReadError("Could not read collections")).mockResolvedValueOnce({ total: 1n, collections: [founders] })
+        listNewestCollections.mockRejectedValueOnce(new ReadError("Could not read collections")).mockResolvedValueOnce({ total: 1n, collections: [founders] })
         show()
         expect(await screen.findByRole("alert")).toHaveTextContent("Collections could not be read from this network.")
         expect(screen.queryByText("No collections have been created yet.")).toBeNull()
@@ -136,6 +138,16 @@ describe("NFT window", () => {
         expect(await screen.findByRole("alert")).toHaveTextContent("This network's collection data does not follow the ledger's rules, so it is not shown.")
         expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
         expect(screen.queryByText("No collections have been created yet.")).toBeNull()
+    })
+
+    it("shows a list the ledger refused through the real reader as refused, with no retry", async () => {
+        availability.enabled = true
+        availability.ledger = true
+        real.reader = true
+        queryEval.mockRejectedValue(new AbciQueryError("vm/qeval", "panic"))
+        show()
+        expect(await screen.findByRole("alert")).toHaveTextContent("This network's NFT ledger refused to list its collections.")
+        expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
     })
 
     it("reads the chain through the real reader: the newest collections of the realm's own answer", async () => {

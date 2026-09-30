@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { GNO_RPC_URL } from "../config"
 import { bech32Encode } from "../dao/realmAddress"
-import { LedgerReadError, NFT_LEDGER_PATH, getApproval, getCapabilities, getCollection, getToken, listHoldings, listNewestCollections, listTokens } from "./ledger"
+import { AbciQueryError } from "../rpcFallback"
+import { NFT_LEDGER_PATH, getApproval, getCapabilities, getCollection, getToken, listHoldings, listNewestCollections, listTokens } from "./ledger"
+import { ReadError, RealmRefusedError } from "./read"
 
 const queryEval = vi.hoisted(() => vi.fn())
 vi.mock("../dao/shared", async (original) => ({ ...(await original<typeof import("../dao/shared")>()), queryEval }))
@@ -37,20 +40,20 @@ const ids = (collections: { id: string }[]) => collections.map((collection) => c
 describe("newest collections", () => {
     it("reads the realm's own answer", async () => {
         queryEval.mockImplementation(async (_rpc: string, _path: string, expr: string) => expr === "Count()" ? "(2 int64)" : quoted(REALM_LIST))
-        await expect(listNewestCollections("rpc")).resolves.toEqual({
+        await expect(listNewestCollections()).resolves.toEqual({
             total: 2n,
             collections: [
                 { id: "C2", creator: CREATOR, name: "Sample", symbol: "SAMPLE", image: "ipfs://image", mode: "soulbound", maxSupply: 3n, sealed: false, minted: 0n },
                 { id: "C1", creator: CREATOR, name: "Sample", symbol: "SAMPLE", image: "ipfs://image", mode: "open", maxSupply: 0n, sealed: false, minted: 0n },
             ],
         })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, "Count()", true)
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, "ListCollectionsJSON(0, 20)", true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, "Count()", true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, "ListCollectionsJSON(0, 20)", true)
     })
 
     it("reads an empty ledger as empty, without listing", async () => {
         ledger(0)
-        await expect(listNewestCollections("rpc")).resolves.toEqual({ total: 0n, collections: [] })
+        await expect(listNewestCollections()).resolves.toEqual({ total: 0n, collections: [] })
         expect(queryEval).toHaveBeenCalledTimes(1)
     })
 
@@ -62,7 +65,7 @@ describe("newest collections", () => {
         [7, 5, [0, 1], ["C7", "C6", "C5", "C4", "C3"]],
     ])("of %d collections shows the %d newest, newest first", async (total, size, pages, expected) => {
         ledger(total)
-        const newest = await listNewestCollections("rpc", size)
+        const newest = await listNewestCollections(size)
         expect(newest.total).toBe(BigInt(total))
         expect(ids(newest.collections)).toEqual(expected)
         const lists = queryEval.mock.calls.map((call) => call[2]).filter((expr: string) => expr !== "Count()")
@@ -71,7 +74,7 @@ describe("newest collections", () => {
 
     it("leaves out a collection created between the count and the list", async () => {
         ledger(3, (index) => index === 0 ? [row(1), row(2), row(3), row(4)] : [])
-        expect(ids((await listNewestCollections("rpc", 5)).collections)).toEqual(["C3", "C2", "C1"])
+        expect(ids((await listNewestCollections(5)).collections)).toEqual(["C3", "C2", "C1"])
     })
 
     it.each([
@@ -79,34 +82,34 @@ describe("newest collections", () => {
         ["rows out of order", (index: number) => index === 0 ? [row(2), row(1), row(3)] : []],
     ])("refuses %s", async (_name, rows) => {
         ledger(3, rows)
-        await expect(listNewestCollections("rpc", 5)).rejects.toThrow(/^Inconsistent collection list$/)
+        await expect(listNewestCollections(5)).rejects.toThrow(/^Inconsistent collection list$/)
     })
 
     it("reads fewer rows than counted as a read to try again, never as the whole list", async () => {
         ledger(3, (index) => index === 0 ? [row(1), row(2)] : [])
-        const short = listNewestCollections("rpc", 5)
-        await expect(short).rejects.toBeInstanceOf(LedgerReadError)
+        const short = listNewestCollections(5)
+        await expect(short).rejects.toBeInstanceOf(ReadError)
         await expect(short).rejects.toThrow("Could not read every collection counted")
         // The largest count an int64 holds is a count; the pages behind it are short here.
         ledger(0, () => [])
         queryEval.mockResolvedValueOnce("(9223372036854775807 int64)")
-        await expect(listNewestCollections("rpc")).rejects.toBeInstanceOf(LedgerReadError)
+        await expect(listNewestCollections()).rejects.toBeInstanceOf(ReadError)
     })
 
     it("reports a read that reached no answer as retryable, never as an empty list", async () => {
         queryEval.mockResolvedValueOnce(null)
-        const failed = listNewestCollections("rpc")
-        await expect(failed).rejects.toBeInstanceOf(LedgerReadError)
+        const failed = listNewestCollections()
+        await expect(failed).rejects.toBeInstanceOf(ReadError)
         await expect(failed).rejects.toThrow("Could not read collection count")
         queryEval.mockRejectedValueOnce(new Error("abci error"))
-        await expect(listNewestCollections("rpc")).rejects.toBeInstanceOf(LedgerReadError)
+        await expect(listNewestCollections()).rejects.toBeInstanceOf(ReadError)
     })
 
     it.each(["12", "(-1 int64)", "(01 int64)", "(9223372036854775808 int64)", "(9223372036854775808999 int64)", "(3 uint64)"])("refuses the count %s", async (count) => {
         queryEval.mockResolvedValueOnce(count)
-        const failed = listNewestCollections("rpc")
+        const failed = listNewestCollections()
         await expect(failed).rejects.toThrow("Invalid collection count")
-        await expect(failed).rejects.not.toBeInstanceOf(LedgerReadError)
+        await expect(failed).rejects.not.toBeInstanceOf(ReadError)
     })
 
     it.each([
@@ -136,18 +139,18 @@ describe("newest collections", () => {
         ["an image over 200 bytes", [row(1, { image: `ipfs://${"a".repeat(194)}` })], "Invalid image"],
     ])("refuses %s", async (_name, rows, message) => {
         ledger(1, () => rows as unknown[])
-        const failed = listNewestCollections("rpc")
+        const failed = listNewestCollections()
         await expect(failed).rejects.toThrow(new RegExp(`^${message}$`))
-        await expect(failed).rejects.not.toBeInstanceOf(LedgerReadError)
+        await expect(failed).rejects.not.toBeInstanceOf(ReadError)
     })
 
     it("accepts what the realm accepts at its limits", async () => {
         ledger(1, () => [row(1, { name: "é".repeat(16), symbol: "ABCDEFGHIJ", image: `ipfs://${"a".repeat(193)}` })])
-        await expect(listNewestCollections("rpc")).resolves.toMatchObject({ total: 1n })
+        await expect(listNewestCollections()).resolves.toMatchObject({ total: 1n })
     })
 
     it.each([0, 51, 1.5, -1])("never asks the chain for %d collections", async (size) => {
-        await expect(listNewestCollections("rpc", size)).rejects.toThrow("Invalid collection page")
+        await expect(listNewestCollections(size)).rejects.toThrow("Invalid collection page")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
@@ -199,7 +202,7 @@ const capabilities = {
 }
 
 
-const collection = (row: unknown) => { answer(row); return getCollection("rpc", "C1") }
+const collection = (row: unknown) => { answer(row); return getCollection("C1") }
 
 beforeEach(() => { queryEval.mockReset() })
 
@@ -215,15 +218,15 @@ describe("collection", () => {
             baseURICommitment: "", committer: "", provenanceHash: "", traitsRoot: "", royaltyBPS: 0n, royalties: [], markets: [],
         }
         queryEval.mockResolvedValueOnce(quoted(REALM_STATIC))
-        await expect(getCollection("rpc", "C1")).resolves.toEqual(record)
+        await expect(getCollection("C1")).resolves.toEqual(record)
         queryEval.mockResolvedValueOnce(quoted(REALM_REVEAL))
-        await expect(getCollection("rpc", "C2")).resolves.toEqual({
+        await expect(getCollection("C2")).resolves.toEqual({
             ...record, id: "C2", grc721Id: "gno.land/r/samcrew/launchpad/nft/v1.SAMPLE.0000002", description: "", image: "", website: "",
             metadataMode: "reveal", metadataFrozen: false, baseURI: "", placeholderURI: "ipfs://bafyplaceholder/hidden.json",
             baseURICommitment: "7bd2a19fca194f9cd3b8ee9e4261e34abbcd893a41c8d0e4c069cb6d89b80f19", committer: creator, provenanceHash: "ab".repeat(32),
         })
         queryEval.mockResolvedValueOnce(quoted(REALM_PROTECTED))
-        await expect(getCollection("rpc", "C3")).resolves.toEqual({
+        await expect(getCollection("C3")).resolves.toEqual({
             ...record, id: "C3", grc721Id: "gno.land/r/samcrew/launchpad/nft/v1.SAMPLE.0000003", mode: "royalty_protected", maxSupply: 10n,
             minted: 0n, totalSupply: 0n, royaltyBPS: 500n, royalties: [{ account: "g1den8gttpwf6xjum5ta047h6lta047h6lhnz2nk", bps: 500n }], markets: [MARKET],
         })
@@ -234,7 +237,7 @@ describe("collection", () => {
             ...open, maxSupply: 0n, minted: 2n, totalSupply: 1n, metadataRevision: 0n, royaltyBPS: 251n,
             royalties: [{ account: addr(1), bps: 250n }, { account: addr(2), bps: 1n }],
         })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, 'CollectionJSON("C1")', true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, 'CollectionJSON("C1")', true)
     })
 
     it.each([
@@ -360,46 +363,57 @@ describe("collection", () => {
 
     it("reports an unreadable answer as retryable and an undecodable one as unusable", async () => {
         queryEval.mockResolvedValueOnce(null)
-        const unread = getCollection("rpc", "C1")
+        const unread = getCollection("C1")
         await expect(unread).rejects.toThrow("Could not read collection")
-        await expect(unread).rejects.toBeInstanceOf(LedgerReadError)
+        await expect(unread).rejects.toBeInstanceOf(ReadError)
         queryEval.mockRejectedValueOnce(new Error("abci error"))
-        await expect(getCollection("rpc", "C1")).rejects.toBeInstanceOf(LedgerReadError)
+        await expect(getCollection("C1")).rejects.toBeInstanceOf(ReadError)
         queryEval.mockResolvedValueOnce("not a qeval answer")
-        const undecodable = getCollection("rpc", "C1")
+        const undecodable = getCollection("C1")
         await expect(undecodable).rejects.toThrow(/^Invalid collection$/)
-        await expect(undecodable).rejects.not.toBeInstanceOf(LedgerReadError)
+        await expect(undecodable).rejects.not.toBeInstanceOf(ReadError)
+    })
+
+    it("reports what the realm refuses to read as refused, never as a read to retry", async () => {
+        // The ledger panics on an unknown collection, on token 0 and on the approval of a retired token.
+        const refuse = () => queryEval.mockRejectedValueOnce(new AbciQueryError("vm/qeval", "unknown collection"))
+        for (const read of [() => getCollection("C9"), () => getToken("C1", 0n), () => getApproval("C1", 2n, addr(5)), () => getCapabilities("C9")]) {
+            refuse()
+            const refused = read()
+            await expect(refused).rejects.toBeInstanceOf(RealmRefusedError)
+            await expect(refused).rejects.not.toBeInstanceOf(ReadError)
+        }
     })
 
     it("rejects an answer for another collection", async () => {
         answer(open)
-        await expect(getCollection("rpc", "C2")).rejects.toThrow("Collection does not match the request")
+        await expect(getCollection("C2")).rejects.toThrow("Collection does not match the request")
     })
 
     it.each(["", "C0", "C01", "c1", "1", 'C1")+("'])("never sends the malformed ID %j to the chain", async (id) => {
-        await expect(getCollection("rpc", id)).rejects.toThrow("Invalid collection ID")
-        await expect(getToken("rpc", id, 1n)).rejects.toThrow("Invalid collection ID")
-        await expect(listTokens("rpc", id)).rejects.toThrow("Invalid collection ID")
-        await expect(getApproval("rpc", id, 1n, addr(5))).rejects.toThrow("Invalid collection ID")
-        await expect(getCapabilities("rpc", id)).rejects.toThrow("Invalid collection ID")
+        await expect(getCollection(id)).rejects.toThrow("Invalid collection ID")
+        await expect(getToken(id, 1n)).rejects.toThrow("Invalid collection ID")
+        await expect(listTokens(id)).rejects.toThrow("Invalid collection ID")
+        await expect(getApproval(id, 1n, addr(5))).rejects.toThrow("Invalid collection ID")
+        await expect(getCapabilities(id)).rejects.toThrow("Invalid collection ID")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
 
 
 describe("token", () => {
-    const read = (row: unknown) => { answer(row); return getToken("rpc", "C1", 1n) }
+    const read = (row: unknown) => { answer(row); return getToken("C1", 1n) }
 
     it("reads the realm's own answer for a minted token, its placeholder included before a reveal", async () => {
         queryEval.mockResolvedValueOnce(quoted(REALM_TOKEN))
-        await expect(getToken("rpc", "C1", 1n)).resolves.toEqual({ collection: "C1", number: 1n, owner: HOLDER, status: "active", uri: "ipfs://sample/1.json" })
+        await expect(getToken("C1", 1n)).resolves.toEqual({ collection: "C1", number: 1n, owner: HOLDER, status: "active", uri: "ipfs://sample/1.json" })
         queryEval.mockResolvedValueOnce(quoted(REALM_REVEAL_TOKEN))
-        await expect(getToken("rpc", "C2", 1n)).resolves.toMatchObject({ collection: "C2", owner: HOLDER, uri: "ipfs://bafyplaceholder/hidden.json" })
+        await expect(getToken("C2", 1n)).resolves.toMatchObject({ collection: "C2", owner: HOLDER, uri: "ipfs://bafyplaceholder/hidden.json" })
     })
 
     it("reads an active token and one that no longer has an owner", async () => {
         await expect(read(token)).resolves.toEqual({ ...token, number: 1n })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, 'TokenJSON("C1", 1)', true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, 'TokenJSON("C1", 1)', true)
         await expect(read({ ...token, status: "burned", owner: "" })).resolves.toMatchObject({ status: "burned", owner: "" })
         await expect(read({ ...token, status: "revoked", owner: "" })).resolves.toMatchObject({ status: "revoked", owner: "" })
     })
@@ -421,17 +435,19 @@ describe("token", () => {
 
     it("reports an unreadable token as an error and never asks for a negative number", async () => {
         queryEval.mockResolvedValueOnce(null)
-        const unread = getToken("rpc", "C1", 1n)
+        const unread = getToken("C1", 1n)
         await expect(unread).rejects.toThrow("Could not read token")
-        await expect(unread).rejects.toBeInstanceOf(LedgerReadError)
+        await expect(unread).rejects.toBeInstanceOf(ReadError)
         queryEval.mockClear()
-        await expect(getToken("rpc", "C1", -1n)).rejects.toThrow("Invalid token number")
+        await expect(getToken("C1", -1n)).rejects.toThrow("Invalid token number")
         expect(queryEval).not.toHaveBeenCalled()
     })
 
     it("never trusts the type of a number on its way into the expression", async () => {
-        await expect(getToken("rpc", "C1", '1) + ("' as unknown as bigint)).rejects.toThrow("Invalid token number")
-        await expect(getToken("rpc", "C1", 1.5 as unknown as bigint)).rejects.toThrow("Invalid token number")
+        await expect(getToken("C1", '1) + ("' as unknown as bigint)).rejects.toThrow("Invalid token number")
+        await expect(getToken("C1", 1.5 as unknown as bigint)).rejects.toThrow("Invalid token number")
+        // The realm takes an int64: a larger number is never sent.
+        await expect(getToken("C1", 2n ** 63n)).rejects.toThrow("Invalid token number")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
@@ -441,13 +457,13 @@ describe("token list", () => {
 
     it("reads a page of tokens in number order, retired ones included", async () => {
         answer([token, burned])
-        await expect(listTokens("rpc", "C1")).resolves.toEqual([{ ...token, number: 1n }, { ...burned, number: 2n }])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, 'TokensJSON("C1", 0, 20)', true)
+        await expect(listTokens("C1")).resolves.toEqual([{ ...token, number: 1n }, { ...burned, number: 2n }])
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, 'TokensJSON("C1", 0, 20)', true)
         answer([{ ...token, number: "5" }, { ...token, number: "6" }])
-        await expect(listTokens("rpc", "C1", 2, 2)).resolves.toMatchObject([{ number: 5n }, { number: 6n }])
-        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_LEDGER_PATH, 'TokensJSON("C1", 2, 2)', true)
+        await expect(listTokens("C1", 2, 2)).resolves.toMatchObject([{ number: 5n }, { number: 6n }])
+        expect(queryEval).toHaveBeenLastCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, 'TokensJSON("C1", 2, 2)', true)
         answer([])
-        await expect(listTokens("rpc", "C1", 9, 50)).resolves.toEqual([])
+        await expect(listTokens("C1", 9, 50)).resolves.toEqual([])
     })
 
     it.each([
@@ -463,32 +479,32 @@ describe("token list", () => {
         ["an unknown status", [{ ...token, status: "frozen" }], "Invalid token status"],
     ])("rejects %s", async (_name, rows, message) => {
         answer(rows)
-        await expect(listTokens("rpc", "C1", 0, 2)).rejects.toThrow(new RegExp(`^${message}$`))
+        await expect(listTokens("C1", 0, 2)).rejects.toThrow(new RegExp(`^${message}$`))
     })
 
     it("reports an unreadable or undecodable list as an error, never as an empty collection", async () => {
         queryEval.mockResolvedValueOnce(null)
-        await expect(listTokens("rpc", "C1")).rejects.toThrow("Could not read tokens")
+        await expect(listTokens("C1")).rejects.toThrow("Could not read tokens")
         queryEval.mockResolvedValueOnce("not a qeval answer")
-        await expect(listTokens("rpc", "C1")).rejects.toThrow(/^Invalid token list$/)
+        await expect(listTokens("C1")).rejects.toThrow(/^Invalid tokens$/)
     })
 
     it.each([[-1, 20], [0.5, 20], [0, 0], [0, 51]])("never asks the chain for page %d of size %d", async (page, size) => {
-        await expect(listTokens("rpc", "C1", page, size)).rejects.toThrow("Invalid token page")
+        await expect(listTokens("C1", page, size)).rejects.toThrow("Invalid token page")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
 
 describe("holdings", () => {
     const holding = { collection: "C2", number: "3", uri: "ipfs://sample/3.json" }
-    const read = (rows: unknown) => { answer(rows); return listHoldings("rpc", addr(4), 0, 3) }
+    const read = (rows: unknown) => { answer(rows); return listHoldings(addr(4), 0, 3) }
 
     it("reads what an account holds, in collection then number order", async () => {
         // C10 comes after C2: collections are ordered by their number, not as text.
         await expect(read([holding, { ...holding, number: "10" }, { ...holding, collection: "C10", number: "1" }])).resolves.toEqual([
             { ...holding, number: 3n }, { ...holding, number: 10n }, { ...holding, collection: "C10", number: 1n },
         ])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, `HoldingsJSON("${addr(4)}", 0, 3)`, true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, `HoldingsJSON("${addr(4)}", 0, 3)`, true)
         await expect(read([])).resolves.toEqual([])
     })
 
@@ -510,23 +526,23 @@ describe("holdings", () => {
 
     it("reports unreadable holdings as an error, never as an empty wallet", async () => {
         queryEval.mockResolvedValueOnce(null)
-        await expect(listHoldings("rpc", addr(4))).rejects.toThrow("Could not read holdings")
+        await expect(listHoldings(addr(4))).rejects.toThrow("Could not read holdings")
     })
 
     it.each(["", "g1owner", `${addr(4)}", 0, 1) + ("`])("never sends the malformed owner %j to the chain", async (owner) => {
-        await expect(listHoldings("rpc", owner)).rejects.toThrow("Invalid owner")
-        await expect(listHoldings("rpc", addr(4), 0, 51)).rejects.toThrow("Invalid holding page")
+        await expect(listHoldings(owner)).rejects.toThrow("Invalid owner")
+        await expect(listHoldings(addr(4), 0, 51)).rejects.toThrow("Invalid holding page")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
 
 describe("approval", () => {
     const approval = { collection: "C1", number: "1", owner: addr(4), operator: addr(5), tokenApproved: false, collectionApproved: true }
-    const read = (row: unknown) => { answer(row); return getApproval("rpc", "C1", 1n, addr(5)) }
+    const read = (row: unknown) => { answer(row); return getApproval("C1", 1n, addr(5)) }
 
     it("reads whether an operator may move a token", async () => {
         await expect(read(approval)).resolves.toEqual({ owner: addr(4), tokenApproved: false, collectionApproved: true })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, `ApprovalJSON("C1", 1, "${addr(5)}")`, true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, `ApprovalJSON("C1", 1, "${addr(5)}")`, true)
     })
 
     it.each([
@@ -545,21 +561,21 @@ describe("approval", () => {
 
     it("reports an unreadable approval as an error and never sends a malformed argument", async () => {
         queryEval.mockResolvedValueOnce(null)
-        await expect(getApproval("rpc", "C1", 1n, addr(5))).rejects.toThrow("Could not read approval")
+        await expect(getApproval("C1", 1n, addr(5))).rejects.toThrow("Could not read approval")
         queryEval.mockClear()
-        await expect(getApproval("rpc", "C1", -1n, addr(5))).rejects.toThrow("Invalid token number")
-        await expect(getApproval("rpc", "C1", 1n, `${addr(5)}") + ("`)).rejects.toThrow("Invalid operator")
+        await expect(getApproval("C1", -1n, addr(5))).rejects.toThrow("Invalid token number")
+        await expect(getApproval("C1", 1n, `${addr(5)}") + ("`)).rejects.toThrow("Invalid operator")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
 
 describe("capabilities", () => {
-    const read = (row: unknown) => { answer(row); return getCapabilities("rpc", "C1") }
+    const read = (row: unknown) => { answer(row); return getCapabilities("C1") }
     const guarded = { ...capabilities, mode: "royalty_protected", holderTransfer: false, markets: [addr(3)], royaltyBPS: "500", royaltyEnforcement: "listed_markets" }
     const bound = { ...capabilities, mode: "soulbound", holderTransfer: false, marketSale: false }
 
     it("reads the realm's own answer for an open, a royalty-protected and a soulbound collection", async () => {
-        const answered = (json: string, id: string) => { queryEval.mockResolvedValueOnce(quoted(json)); return getCapabilities("rpc", id) }
+        const answered = (json: string, id: string) => { queryEval.mockResolvedValueOnce(quoted(json)); return getCapabilities(id) }
         await expect(answered(REALM_CAPABILITIES_STATIC, "C1")).resolves.toEqual({ ...capabilities, maxSupply: 0n, royaltyBPS: 0n })
         await expect(answered(REALM_CAPABILITIES_PROTECTED, "C3")).resolves.toEqual({
             ...guarded, collection: "C3", markets: [MARKET], maxSupply: 10n, royaltyBPS: 500n,
@@ -569,7 +585,7 @@ describe("capabilities", () => {
 
     it("reads the capabilities of a collection", async () => {
         await expect(read(capabilities)).resolves.toEqual({ ...capabilities, maxSupply: 7n, royaltyBPS: 0n })
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_LEDGER_PATH, 'CapabilitiesJSON("C1")', true)
+        expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_LEDGER_PATH, 'CapabilitiesJSON("C1")', true)
         await expect(read(guarded)).resolves.toMatchObject({ markets: [addr(3)], royaltyBPS: 500n, royaltyEnforcement: "listed_markets" })
         await expect(read({ ...capabilities, royaltyBPS: "250", royaltyEnforcement: "market_sales" })).resolves.toMatchObject({ royaltyEnforcement: "market_sales" })
         await expect(read({ ...bound, creatorRevoke: true })).resolves.toMatchObject({ creatorRevoke: true, royaltyEnforcement: "none" })
@@ -600,6 +616,10 @@ describe("capabilities", () => {
         ["royalties that nothing enforces", { ...capabilities, royaltyBPS: "250" }, "Inconsistent royalty enforcement"],
         ["a capability that is not a boolean", { ...capabilities, holderTransfer: "true" }, "Invalid holder transfer"],
         ["a malformed market address", { ...capabilities, markets: ["market"] }, "Invalid market"],
+        ["an open collection naming a market", { ...capabilities, markets: [addr(3)] }, "Inconsistent collection markets"],
+        ["a soulbound collection naming a market", { ...bound, markets: [addr(3)] }, "Inconsistent collection markets"],
+        ["a royalty-protected collection without a market", { ...guarded, markets: [] }, "Inconsistent collection markets"],
+        ["a royalty-protected collection with six markets", { ...guarded, markets: [3, 4, 5, 6, 7, 8].map(addr) }, "Inconsistent collection markets"],
         ["a supply that is not a decimal string", { ...capabilities, maxSupply: 7 }, "Invalid max supply"],
     ])("rejects %s", async (_name, row, message) => {
         await expect(read(row)).rejects.toThrow(new RegExp(`^${message}$`))
@@ -607,8 +627,8 @@ describe("capabilities", () => {
 
     it("reports unreadable capabilities as retryable", async () => {
         queryEval.mockResolvedValueOnce(null)
-        const unread = getCapabilities("rpc", "C1")
+        const unread = getCapabilities("C1")
         await expect(unread).rejects.toThrow("Could not read capabilities")
-        await expect(unread).rejects.toBeInstanceOf(LedgerReadError)
+        await expect(unread).rejects.toBeInstanceOf(ReadError)
     })
 })
