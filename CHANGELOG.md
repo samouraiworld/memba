@@ -26,7 +26,7 @@ Full changelogs are split by version range for easier navigation:
 - Give every `brace-expansion` release line its own floor at that line's patched version (1.1.21, 2.1.7, 3.0.9, 5.0.12), closing two stack-exhaustion denial-of-service advisories (GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p) and the related quadratic-time one (GHSA-q2hr-2g5m-vwhr). It is used only by lint and build tooling, and no consumer changes major. The lockfile is re-resolved so CI installs the patched versions.
 
 ### Dependency refresh (2026-09-30)
-- Remove the unused Remotion video packages and the MSW mock server from the frontend; nothing imported them, and a clean install now pulls in 207 fewer packages, webpack included.
+- Remove the unused Remotion video packages and the MSW mock server from the frontend; nothing imported them, and a clean install now pulls in about 200 fewer packages, webpack included.
 - Update Clerk themes, three.js, React Three Fiber and typescript-eslint to newer patch and minor releases (bundles Dependabot #1409–#1411).
 
 ### Memba OS: native public Profile and visual editor
