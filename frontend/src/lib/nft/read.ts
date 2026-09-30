@@ -24,12 +24,25 @@ export async function readJSON(rpcUrl: string, realm: string, expr: string, what
     return value
 }
 
-/** One page of a list: zero-based, 1 to 50 entries, and never more rows than were asked for. */
-export async function readPage(rpcUrl: string, realm: string, view: string, args: readonly string[], page: number, size: number, what: string): Promise<unknown[]> {
-    if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(size) || size < 1 || size > 50) throw new Error(`Invalid ${what} page`)
-    const rows = list(await readJSON(rpcUrl, realm, `${view}(${[...args, page, size].join(", ")})`, `${what}s`), `${what} list`)
+/** A list of 1 to 50 entries holds that many rows at most. */
+const sized = (size: number) => Number.isSafeInteger(size) && size >= 1 && size <= 50
+
+/**
+ * One slice of a list: up to `size` rows, never more than were asked for.
+ * Where it starts is the last of `args`: a page, or a cursor whose caller
+ * checks that the rows lie past it.
+ */
+export async function readSlice(rpcUrl: string, realm: string, view: string, args: readonly string[], size: number, what: string): Promise<unknown[]> {
+    if (!sized(size)) throw new Error(`Invalid ${what} list size`)
+    const rows = list(await readJSON(rpcUrl, realm, `${view}(${[...args, size].join(", ")})`, `${what}s`), `${what} list`)
     if (rows.length > size) throw new Error(`Invalid ${what} list`)
     return rows
+}
+
+/** One page of a list: zero-based, 1 to 50 entries, and never more rows than were asked for. */
+export async function readPage(rpcUrl: string, realm: string, view: string, args: readonly string[], page: number, size: number, what: string): Promise<unknown[]> {
+    if (!Number.isSafeInteger(page) || page < 0 || !sized(size)) throw new Error(`Invalid ${what} page`)
+    return readSlice(rpcUrl, realm, view, [...args, String(page)], size, what)
 }
 
 /** A count or an amount, which qeval prints as `(3 int64)`. None of the realms answers a negative one. */

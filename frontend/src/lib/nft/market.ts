@@ -3,6 +3,8 @@
  * and how a price splits between the seller, the treasury and the royalty
  * receivers. The realm keeps open orders only: a closed listing or offer is
  * deleted and its history is in events, so an order that is read is open.
+ * Orders come and go between two reads, so lists are read by cursor, not by
+ * page: each read starts after the last order already read.
  * Every answer is checked against the realm's JSON contract and its own rules
  * before it reaches a screen; an unreadable, malformed or self-contradicting
  * answer throws, so a failed read is never an empty market. The realm is not
@@ -12,7 +14,7 @@
  * @module lib/nft/market
  */
 import { address, bool, collectionId, currencyKey, decimal, decimalOrUnset, list, oneOf, optionalAddress, record, text, tokenNumber } from "./parse"
-import { natural, readInt, readJSON, readPage } from "./read"
+import { natural, readInt, readJSON, readSlice } from "./read"
 
 export const NFT_MARKET_PATH = "gno.land/r/samcrew/launchpad/market/v1"
 
@@ -134,20 +136,33 @@ function parseOffer(value: unknown): NftOffer {
 const read = (rpcUrl: string, expr: string, what: string) => readJSON(rpcUrl, NFT_MARKET_PATH, expr, what)
 
 /** Order IDs are issued in sequence, so creation order is ID order. */
-const serial = (order: NftOrder) => BigInt(order.id.slice(1))
-const newestFirst = (order: NftOrder) => -serial(order)
+const oldestFirst = (order: { id: string }) => BigInt(order.id.slice(1))
+const newestFirst = (order: { id: string }) => -oldestFirst(order)
+
+/** Where a list is read from: `arg` goes into the query, and every order read ranks strictly past `rank`. */
+interface Cursor {
+    arg: string
+    rank: bigint | null
+}
+
+/** The ID of the last order already read, or "" to read from the beginning. `rank` is the order of the list it points into. */
+function cursor(id: string, prefix: "L" | "O", rank: (order: { id: string }) => bigint): Cursor {
+    return id === "" ? { arg: '""', rank: null } : { arg: `"${orderId(id, prefix)}"`, rank: rank({ id }) }
+}
 
 /**
- * One page of listings or offers. `rank` is what the realm sorts the list by
- * and must rise strictly, so no order appears twice. `belongs` is what a
- * filtered list was filtered on, so no order is shown where it does not belong.
+ * One slice of listings or offers. `rank` is what the realm sorts the list by
+ * and must rise strictly, so no order appears twice. Every order lies past the
+ * cursor, so nothing already read comes back, and `belongs` is what a filtered
+ * list was filtered on, so no order is shown where it does not belong.
  */
 async function readOrders<T extends NftOrder>(
-    rpcUrl: string, view: string, args: readonly string[], page: number, size: number, what: string,
+    rpcUrl: string, view: string, filter: readonly string[], from: Cursor, size: number, what: string,
     parse: (value: unknown) => T, rank: (order: T) => bigint, belongs: (order: T) => boolean = () => true,
 ): Promise<T[]> {
-    const orders = (await readPage(rpcUrl, NFT_MARKET_PATH, view, args, page, size, what)).map(parse)
-    if (!orders.every(belongs)) throw new Error(`Mismatched ${what} list`)
+    const orders = (await readSlice(rpcUrl, NFT_MARKET_PATH, view, [...filter, from.arg], size, what)).map(parse)
+    const past = from.rank
+    if (!orders.every((order) => belongs(order) && (past === null || rank(order) > past))) throw new Error(`Mismatched ${what} list`)
     if (orders.some((order, index) => index > 0 && rank(order) <= rank(orders[index - 1]))) throw new Error(`Unordered ${what} list`)
     return orders
 }
@@ -170,21 +185,23 @@ export async function getTokenListing(rpcUrl: string, collection: string, number
     return listing
 }
 
-/** Every open listing, newest first. */
-export async function listListings(rpcUrl: string, page = 0, size = 20): Promise<NftListing[]> {
-    return readOrders(rpcUrl, "ListingsJSON", [], page, size, "listing", parseListing, newestFirst)
+/** Every open listing, newest first, below the listing `before` ("" reads from the newest). */
+export async function listListings(rpcUrl: string, before = "", size = 20): Promise<NftListing[]> {
+    return readOrders(rpcUrl, "ListingsJSON", [], cursor(before, "L", newestFirst), size, "listing", parseListing, newestFirst)
 }
 
-/** A collection's open listings, in token number order. */
-export async function listCollectionListings(rpcUrl: string, collection: string, page = 0, size = 20): Promise<NftListing[]> {
-    return readOrders(rpcUrl, "CollectionListingsJSON", [`"${collectionId(collection)}"`], page, size, "listing", parseListing,
+/** A collection's open listings in token number order, after the token `afterNumber` (0 reads from the first). */
+export async function listCollectionListings(rpcUrl: string, collection: string, afterNumber = 0n, size = 20): Promise<NftListing[]> {
+    const filter = [`"${collectionId(collection)}"`]
+    const from = { arg: `${natural(afterNumber, "token number")}`, rank: afterNumber }
+    return readOrders(rpcUrl, "CollectionListingsJSON", filter, from, size, "listing", parseListing,
         (listing) => listing.number, (listing) => listing.collection === collection)
 }
 
-/** An account's open listings, oldest first. */
-export async function listSellerListings(rpcUrl: string, seller: string, page = 0, size = 20): Promise<NftListing[]> {
-    return readOrders(rpcUrl, "SellerListingsJSON", [`"${address(seller, "seller")}"`], page, size, "listing", parseListing,
-        serial, (listing) => listing.seller === seller)
+/** An account's open listings, oldest first, after the listing `afterId` ("" reads from the oldest). */
+export async function listSellerListings(rpcUrl: string, seller: string, afterId = "", size = 20): Promise<NftListing[]> {
+    return readOrders(rpcUrl, "SellerListingsJSON", [`"${address(seller, "seller")}"`], cursor(afterId, "L", oldestFirst), size, "listing", parseListing,
+        oldestFirst, (listing) => listing.seller === seller)
 }
 
 /** An open offer, or null when it is closed or never existed. */
@@ -196,21 +213,21 @@ export async function getOffer(rpcUrl: string, id: string): Promise<NftOffer | n
     return offer
 }
 
-/** Every open offer, newest first. */
-export async function listOffers(rpcUrl: string, page = 0, size = 20): Promise<NftOffer[]> {
-    return readOrders(rpcUrl, "OffersJSON", [], page, size, "offer", parseOffer, newestFirst)
+/** Every open offer, newest first, below the offer `before` ("" reads from the newest). */
+export async function listOffers(rpcUrl: string, before = "", size = 20): Promise<NftOffer[]> {
+    return readOrders(rpcUrl, "OffersJSON", [], cursor(before, "O", newestFirst), size, "offer", parseOffer, newestFirst)
 }
 
-/** A collection's open offers of every kind, oldest first. */
-export async function listCollectionOffers(rpcUrl: string, collection: string, page = 0, size = 20): Promise<NftOffer[]> {
-    return readOrders(rpcUrl, "CollectionOffersJSON", [`"${collectionId(collection)}"`], page, size, "offer", parseOffer,
-        serial, (offer) => offer.collection === collection)
+/** A collection's open offers of every kind, oldest first, after the offer `afterId` ("" reads from the oldest). */
+export async function listCollectionOffers(rpcUrl: string, collection: string, afterId = "", size = 20): Promise<NftOffer[]> {
+    return readOrders(rpcUrl, "CollectionOffersJSON", [`"${collectionId(collection)}"`], cursor(afterId, "O", oldestFirst), size, "offer", parseOffer,
+        oldestFirst, (offer) => offer.collection === collection)
 }
 
-/** An account's open offers, oldest first. */
-export async function listBuyerOffers(rpcUrl: string, buyer: string, page = 0, size = 20): Promise<NftOffer[]> {
-    return readOrders(rpcUrl, "BuyerOffersJSON", [`"${address(buyer, "buyer")}"`], page, size, "offer", parseOffer,
-        serial, (offer) => offer.buyer === buyer)
+/** An account's open offers, oldest first, after the offer `afterId` ("" reads from the oldest). */
+export async function listBuyerOffers(rpcUrl: string, buyer: string, afterId = "", size = 20): Promise<NftOffer[]> {
+    return readOrders(rpcUrl, "BuyerOffersJSON", [`"${address(buyer, "buyer")}"`], cursor(afterId, "O", oldestFirst), size, "offer", parseOffer,
+        oldestFirst, (offer) => offer.buyer === buyer)
 }
 
 /** What a sale costs now, and how a price would split for a collection. */

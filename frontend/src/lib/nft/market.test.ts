@@ -152,39 +152,52 @@ describe("token listing", () => {
 describe("listing lists", () => {
     const low = { ...listing, id: "L5", number: "2" }
     const older = { ...listing, id: "L2", number: "9", buyable: false }
+    const otherCollection = { ...low, collection: "C2" }
 
     it("reads every open listing, newest first", async () => {
         answer([listing, older])
         await expect(listListings("rpc")).resolves.toMatchObject([{ id: "L3", buyable: true }, { id: "L2", buyable: false }])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, "ListingsJSON(0, 20)", true)
-        answer([])
-        await expect(listListings("rpc", 4, 50)).resolves.toEqual([])
-        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, "ListingsJSON(4, 50)", true)
+        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, 'ListingsJSON("", 20)', true)
     })
 
-    it("reads the open listings of a collection in token number order", async () => {
+    it("reads on below the last listing already read, down to an empty slice", async () => {
+        answer([listing, older])
+        await expect(listListings("rpc", "L4", 2)).resolves.toMatchObject([{ id: "L3" }, { id: "L2" }])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, 'ListingsJSON("L4", 2)', true)
+        answer([])
+        await expect(listListings("rpc", "L1", 50)).resolves.toEqual([])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, 'ListingsJSON("L1", 50)', true)
+    })
+
+    it("reads the open listings of a collection in token number order, from the start or after a token", async () => {
         answer([low, listing])
         await expect(listCollectionListings("rpc", "C1")).resolves.toMatchObject([{ id: "L5", number: 2n }, { id: "L3", number: 7n }])
         expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, 'CollectionListingsJSON("C1", 0, 20)', true)
+        answer([listing])
+        await expect(listCollectionListings("rpc", "C1", 2n, 1)).resolves.toMatchObject([{ number: 7n }])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, 'CollectionListingsJSON("C1", 2, 1)', true)
     })
 
-    it("reads the open listings of a seller, oldest first", async () => {
-        answer([listing, { ...low, collection: "C2" }])
-        await expect(listSellerListings("rpc", addr(4), 1, 2)).resolves.toMatchObject([{ id: "L3" }, { id: "L5", collection: "C2" }])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, `SellerListingsJSON("${addr(4)}", 1, 2)`, true)
+    it("reads the open listings of a seller, oldest first, from the start or after a listing", async () => {
+        answer([listing, otherCollection])
+        await expect(listSellerListings("rpc", addr(4))).resolves.toMatchObject([{ id: "L3" }, { id: "L5", collection: "C2" }])
+        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, `SellerListingsJSON("${addr(4)}", "", 20)`, true)
+        answer([otherCollection])
+        await expect(listSellerListings("rpc", addr(4), "L3", 2)).resolves.toMatchObject([{ id: "L5" }])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, `SellerListingsJSON("${addr(4)}", "L3", 2)`, true)
     })
 
     it.each([
         ["an answer that is not a list", { listings: [] }, "Invalid listing list"],
         ["a null answer", null, "Invalid listing list"],
-        ["more rows than the page size", [{ ...listing, id: "L9" }, { ...listing, id: "L8" }, listing], "Invalid listing list"],
+        ["more rows than were asked for", [{ ...listing, id: "L9" }, { ...listing, id: "L8" }, listing], "Invalid listing list"],
         ["listings oldest first", [older, listing], "Unordered listing list"],
         ["the same listing twice", [listing, listing], "Unordered listing list"],
         ["a listing that still carries a status", [listing, { ...older, status: "filled" }], "Invalid listing fields"],
         ["a malformed listing", [listing, { ...older, price: "0" }], "Inconsistent order terms"],
     ])("rejects %s in the list of every open listing", async (_name, rows, message) => {
         answer(rows)
-        await expect(listListings("rpc", 0, 2)).rejects.toThrow(new RegExp(`^${message}$`))
+        await expect(listListings("rpc", "", 2)).rejects.toThrow(new RegExp(`^${message}$`))
     })
 
     it.each([
@@ -204,6 +217,21 @@ describe("listing lists", () => {
         await expect(listSellerListings("rpc", addr(4))).rejects.toThrow(new RegExp(`^${message}$`))
     })
 
+    it("rejects a listing that is not past the cursor", async () => {
+        for (const before of ["L3", "L2", "L1"]) {
+            answer([listing, older])
+            await expect(listListings("rpc", before), before).rejects.toThrow(/^Mismatched listing list$/)
+        }
+        for (const afterNumber of [2n, 7n, 9n]) {
+            answer([low, listing])
+            await expect(listCollectionListings("rpc", "C1", afterNumber), String(afterNumber)).rejects.toThrow(/^Mismatched listing list$/)
+        }
+        for (const afterId of ["L3", "L4", "L5"]) {
+            answer([listing, low])
+            await expect(listSellerListings("rpc", addr(4), afterId), afterId).rejects.toThrow(/^Mismatched listing list$/)
+        }
+    })
+
     it("reports an unreadable list as an error, never as an empty market", async () => {
         queryEval.mockResolvedValue(null)
         await expect(listListings("rpc")).rejects.toThrow("Could not read listings")
@@ -212,12 +240,19 @@ describe("listing lists", () => {
     })
 
     it("never sends a malformed argument to the chain", async () => {
-        await expect(listListings("rpc", -1)).rejects.toThrow("Invalid listing page")
-        await expect(listListings("rpc", 0, 51)).rejects.toThrow("Invalid listing page")
+        for (const cursor of ["L0", "L03", "3", "O3", "L12345678901", 'L3", 1) + ("']) {
+            await expect(listListings("rpc", cursor), cursor).rejects.toThrow("Invalid listing ID")
+            await expect(listSellerListings("rpc", addr(4), cursor), cursor).rejects.toThrow("Invalid listing ID")
+        }
+        for (const size of [0, 51, 1.5, -1]) {
+            await expect(listListings("rpc", "", size)).rejects.toThrow("Invalid listing list size")
+            await expect(listCollectionListings("rpc", "C1", 0n, size)).rejects.toThrow("Invalid listing list size")
+            await expect(listSellerListings("rpc", addr(4), "", size)).rejects.toThrow("Invalid listing list size")
+        }
         await expect(listCollectionListings("rpc", 'C1", 0, 1) + ("')).rejects.toThrow("Invalid collection ID")
-        await expect(listCollectionListings("rpc", "C1", 0.5)).rejects.toThrow("Invalid listing page")
-        await expect(listSellerListings("rpc", `${addr(4)}", 0, 1) + ("`)).rejects.toThrow("Invalid seller")
-        await expect(listSellerListings("rpc", addr(4), 0, 0)).rejects.toThrow("Invalid listing page")
+        await expect(listCollectionListings("rpc", "C1", -1n)).rejects.toThrow("Invalid token number")
+        await expect(listCollectionListings("rpc", "C1", "0, 1) + (" as unknown as bigint)).rejects.toThrow("Invalid token number")
+        await expect(listSellerListings("rpc", `${addr(4)}", "", 1) + ("`)).rejects.toThrow("Invalid seller")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
@@ -299,33 +334,45 @@ describe("offer lists", () => {
     it("reads every open offer, newest first", async () => {
         answer([newer, offer, older])
         await expect(listOffers("rpc")).resolves.toMatchObject([{ id: "O5", kind: "collection" }, { id: "O3", kind: "token" }, { id: "O2", kind: "trait" }])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, "OffersJSON(0, 20)", true)
+        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, 'OffersJSON("", 20)', true)
+    })
+
+    it("reads on below the last offer already read, down to an empty slice", async () => {
+        answer([offer, older])
+        await expect(listOffers("rpc", "O5", 10)).resolves.toMatchObject([{ id: "O3" }, { id: "O2" }])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, 'OffersJSON("O5", 10)', true)
         answer([])
-        await expect(listOffers("rpc", 2, 10)).resolves.toEqual([])
+        await expect(listOffers("rpc", "O1", 50)).resolves.toEqual([])
     })
 
-    it("reads the open offers of a collection, oldest first", async () => {
+    it("reads the open offers of a collection, oldest first, from the start or after an offer", async () => {
         answer([offer, newer])
-        await expect(listCollectionOffers("rpc", "C1", 0, 2)).resolves.toMatchObject([{ id: "O3" }, { id: "O5" }])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, 'CollectionOffersJSON("C1", 0, 2)', true)
+        await expect(listCollectionOffers("rpc", "C1")).resolves.toMatchObject([{ id: "O3" }, { id: "O5" }])
+        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, 'CollectionOffersJSON("C1", "", 20)', true)
+        answer([newer])
+        await expect(listCollectionOffers("rpc", "C1", "O3", 2)).resolves.toMatchObject([{ id: "O5" }])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, 'CollectionOffersJSON("C1", "O3", 2)', true)
     })
 
-    it("reads the open offers of a buyer, oldest first", async () => {
+    it("reads the open offers of a buyer, oldest first, from the start or after an offer", async () => {
         answer([offer, { ...newer, collection: "C2" }])
         await expect(listBuyerOffers("rpc", addr(5))).resolves.toMatchObject([{ id: "O3" }, { id: "O5", collection: "C2" }])
-        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, `BuyerOffersJSON("${addr(5)}", 0, 20)`, true)
+        expect(queryEval).toHaveBeenCalledWith("rpc", NFT_MARKET_PATH, `BuyerOffersJSON("${addr(5)}", "", 20)`, true)
+        answer([newer])
+        await expect(listBuyerOffers("rpc", addr(5), "O4", 1)).resolves.toMatchObject([{ id: "O5" }])
+        expect(queryEval).toHaveBeenLastCalledWith("rpc", NFT_MARKET_PATH, `BuyerOffersJSON("${addr(5)}", "O4", 1)`, true)
     })
 
     it.each([
         ["an answer that is not a list", { offers: [] }, "Invalid offer list"],
-        ["more rows than the page size", [newer, { ...offer, id: "O4" }, offer], "Invalid offer list"],
+        ["more rows than were asked for", [newer, { ...offer, id: "O4" }, offer], "Invalid offer list"],
         ["offers oldest first", [offer, newer], "Unordered offer list"],
         ["the same offer twice", [offer, offer], "Unordered offer list"],
         ["an offer that still carries a status", [newer, { ...offer, status: "accepted" }], "Invalid offer fields"],
         ["a malformed offer", [newer, { ...offer, trait: "Background=Blue" }], "Inconsistent offer target"],
     ])("rejects %s in the list of every open offer", async (_name, rows, message) => {
         answer(rows)
-        await expect(listOffers("rpc", 0, 2)).rejects.toThrow(new RegExp(`^${message}$`))
+        await expect(listOffers("rpc", "", 2)).rejects.toThrow(new RegExp(`^${message}$`))
     })
 
     it.each([
@@ -344,6 +391,19 @@ describe("offer lists", () => {
         await expect(listBuyerOffers("rpc", addr(5))).rejects.toThrow(new RegExp(`^${message}$`))
     })
 
+    it("rejects an offer that is not past the cursor", async () => {
+        for (const before of ["O5", "O3", "O1"]) {
+            answer([newer, offer])
+            await expect(listOffers("rpc", before), before).rejects.toThrow(/^Mismatched offer list$/)
+        }
+        for (const afterId of ["O3", "O4", "O5"]) {
+            answer([offer, newer])
+            await expect(listCollectionOffers("rpc", "C1", afterId), afterId).rejects.toThrow(/^Mismatched offer list$/)
+            answer([offer, newer])
+            await expect(listBuyerOffers("rpc", addr(5), afterId), afterId).rejects.toThrow(/^Mismatched offer list$/)
+        }
+    })
+
     it("reports an unreadable list as an error, never as an absence of offers", async () => {
         queryEval.mockResolvedValue(null)
         await expect(listOffers("rpc")).rejects.toThrow("Could not read offers")
@@ -352,11 +412,18 @@ describe("offer lists", () => {
     })
 
     it("never sends a malformed argument to the chain", async () => {
-        await expect(listOffers("rpc", 0, 51)).rejects.toThrow("Invalid offer page")
+        for (const cursor of ["O0", "O03", "3", "L3", "O12345678901", 'O3", 1) + ("']) {
+            await expect(listOffers("rpc", cursor), cursor).rejects.toThrow("Invalid offer ID")
+            await expect(listCollectionOffers("rpc", "C1", cursor), cursor).rejects.toThrow("Invalid offer ID")
+            await expect(listBuyerOffers("rpc", addr(5), cursor), cursor).rejects.toThrow("Invalid offer ID")
+        }
+        for (const size of [0, 51, 1.5, -1]) {
+            await expect(listOffers("rpc", "", size)).rejects.toThrow("Invalid offer list size")
+            await expect(listCollectionOffers("rpc", "C1", "", size)).rejects.toThrow("Invalid offer list size")
+            await expect(listBuyerOffers("rpc", addr(5), "", size)).rejects.toThrow("Invalid offer list size")
+        }
         await expect(listCollectionOffers("rpc", "C0")).rejects.toThrow("Invalid collection ID")
-        await expect(listCollectionOffers("rpc", "C1", -1)).rejects.toThrow("Invalid offer page")
-        await expect(listBuyerOffers("rpc", `${addr(5)}", 0, 1) + ("`)).rejects.toThrow("Invalid buyer")
-        await expect(listBuyerOffers("rpc", addr(5), 0, 1.5)).rejects.toThrow("Invalid offer page")
+        await expect(listBuyerOffers("rpc", `${addr(5)}", "", 1) + ("`)).rejects.toThrow("Invalid buyer")
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
