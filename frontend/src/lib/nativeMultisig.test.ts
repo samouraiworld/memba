@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createNativeMultisig, isNativeMultisig, memberAddress, nativeAddress, nativePreimage, parseNativeMultisig } from "./nativeMultisig"
+import { createNativeMultisig, isNativeMultisig, memberAddress, nativeAddress, nativeFeeCovers, nativePreimage, nativeProposalFee, parseNativeMultisig } from "./nativeMultisig"
 import { pubkeyToAddress } from "./dao/realmAddress"
 
 const hexKeys = ["0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"]
@@ -35,5 +35,24 @@ describe("native Gno identity (pinned node vectors)", () => {
     it("does not treat an unrelated typed public key as a native Gno multisig", () => {
         expect(isNativeMultisig(raw)).toBe(true)
         expect(isNativeMultisig('{"@type":"/cosmos.crypto.multisig.LegacyAminoPubKey"}')).toBe(false)
+    })
+})
+
+describe("native proposal fee", () => {
+    const price = { gas: 1000, ugnot: 1 }
+    it("defaults to twice the network price for the gas limit, rounded up", () => {
+        expect(nativeProposalFee(10_000_000, price)).toBe(20_000)
+        expect(nativeProposalFee(1, price)).toBe(1)
+    })
+    it("covers a price only while the signed fee pays gas_wanted at that price", () => {
+        const fee = JSON.stringify({ gas_wanted: "10000000", gas_fee: "20000ugnot" })
+        expect(nativeFeeCovers(fee, price)).toBe(true)
+        expect(nativeFeeCovers(fee, { gas: 1000, ugnot: 2 })).toBe(true)
+        expect(nativeFeeCovers(fee, { gas: 1000, ugnot: 3 })).toBe(false)
+    })
+    it("does not call an unreadable fee covered", () => {
+        for (const fee of ["", "{}", '{"gas_wanted":"0","gas_fee":"1ugnot"}', '{"gas_wanted":"10","gas_fee":"1gnot"}', '{"gas_wanted":10,"gas_fee":"1ugnot"}']) {
+            expect(nativeFeeCovers(fee, price), fee).toBe(false)
+        }
     })
 })

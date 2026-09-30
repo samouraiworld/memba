@@ -22,7 +22,7 @@ import { abciErrorPresent, directRpcCall } from "../rpcFallback"
  */
 export type ChainContext = { rpcUrl: string; chainId: string; rpcUrls?: string[] }
 
-class ChainAnswerError extends Error {}
+export class ChainAnswerError extends Error {}
 
 const address = z.string().regex(/^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/)
 

@@ -30,7 +30,7 @@ function parseSharedImport(searchParams: URLSearchParams): { pubkeyJson: string;
 export function ImportMultisig() {
     const navigate = useNetworkNav()
     const queryClient = useQueryClient()
-    const { auth } = useOutletContext<LayoutContext>()
+    const { auth, adena } = useOutletContext<LayoutContext>()
     const [searchParams] = useSearchParams()
 
     // ── Auto-fill from a shareable link, as lazy INITIAL state ──
@@ -227,6 +227,7 @@ export function ImportMultisig() {
                     <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 13px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Connect your wallet to import a multisig
                     </p>
+                    <button type="button" className="k-btn-primary" onClick={() => void adena.connect()}>Connect wallet</button>
                 </div>
             )}
 

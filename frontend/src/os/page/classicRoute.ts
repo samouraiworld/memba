@@ -108,8 +108,9 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
     return { kind: "app", app: app.id, section: sectionForClassic(app.id, rest), ...(search ? { query: params.toString() } : {}) }
 }
 
-/** Pages that send a guest away in the classic app (they need a signed-in wallet): the window asks to connect instead. */
+/** Pages that send a guest away in the classic app (they need a signed-in wallet): the window asks to connect instead.
+ *  Creating, importing and proposing a multisig are not here: those pages show a guest their form with its own connect prompt. */
 export function pageNeedsWallet(page: string): boolean {
-    return page === "profile" || page === "multisig" || page === "create" || page === "import" || page.startsWith("multisig/")
+    return page === "profile" || page === "multisig"
         || page === "apps/submit" || page === "apps/review" || page === "apps/my-submissions"
 }

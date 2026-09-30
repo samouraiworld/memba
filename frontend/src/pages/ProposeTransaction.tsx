@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
@@ -6,7 +6,7 @@ import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, UGNOT_PER_GNOT } from "../lib/config"
 import { fetchAccountInfo } from "../lib/account"
-import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, calculateFee, MAX_INT64, type AminoMsg } from "../lib/grc20"
+import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, calculateFee, FALLBACK_GAS_PRICE, MAX_GAS_WANTED, MAX_INT64, networkGasPriceFresh, type AminoMsg, type GasPrice } from "../lib/grc20"
 import { buildCanonicalProposePayload } from "../lib/multisigTx"
 import type { LayoutContext } from "../types/layout"
 import "./proposetransaction.css"
@@ -39,7 +39,7 @@ function parseGrc20Units(input: string): bigint {
 export function ProposeTransaction() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNetworkNav()
-    const { auth } = useOutletContext<LayoutContext>()
+    const { auth, adena } = useOutletContext<LayoutContext>()
     const queryClient = useQueryClient()
     const [txType, setTxType] = useState<TxType>("send")
 
@@ -61,7 +61,18 @@ export function ProposeTransaction() {
     // Common fields
     const [memo, setMemo] = useState("")
     const [nativeGas, setNativeGas] = useState("10000000")
-    const [nativeFee, setNativeFee] = useState("1000000")
+    // The fee follows the gas limit at twice a fresh network price until the member types their own;
+    // clearing it returns to the priced one. A price that cannot be read falls back to the default one.
+    const [typedFee, setTypedFee] = useState<string | null>(null)
+    const [gasPrice, setGasPrice] = useState<GasPrice | null>(null)
+    useEffect(() => {
+        let active = true
+        networkGasPriceFresh().then((price) => { if (active) setGasPrice(price) }, () => { if (active) setGasPrice(FALLBACK_GAS_PRICE) })
+        return () => { active = false }
+    }, [])
+    const gasOk = /^[1-9][0-9]*$/.test(nativeGas) && Number(nativeGas) <= MAX_GAS_WANTED
+    const pricedFee = gasPrice && gasOk ? String(nativeProposalFee(Number(nativeGas), gasPrice)) : ""
+    const nativeFee = typedFee ?? pricedFee
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -245,6 +256,7 @@ export function ProposeTransaction() {
                     <p>
                         Connect your wallet to propose a transaction
                     </p>
+                    <button type="button" className="k-btn-primary" onClick={() => void adena.connect()}>Connect wallet</button>
                 </div>
             )}
             {!ENABLE_NATIVE_GNO_MULTISIG && <p role="status">Native multisig proposals are on hold pending release approval. Legacy accounts remain read-only history.</p>}
@@ -389,9 +401,15 @@ export function ProposeTransaction() {
 
             {/* Memo */}
             {ENABLE_NATIVE_GNO_MULTISIG && <div className="k-card ptx-form-card">
-                <p>Native wallet rehearsal budget. Not an estimate: review the gas limit and fee before collecting signatures. Legacy wallets keep their existing defaults.</p>
+                <p>{typedFee !== null
+                    ? "You set this fee. Clear it to return to the network price."
+                    : gasPrice === FALLBACK_GAS_PRICE
+                        ? "The network gas price couldn't be read, so this fee uses a default price. Check it."
+                        : "The fee is twice the network gas price for this gas limit, so it still pays if the price rises while signatures are collected."}
+                {" "}Every member signs this exact fee: it can be changed only before you press Propose.</p>
                 <label>Native gas limit <input value={nativeGas} onChange={e => setNativeGas(e.target.value)} disabled={loading} /></label>
-                <label>Native fee (ugnot) <input value={nativeFee} onChange={e => setNativeFee(e.target.value)} disabled={loading} /></label>
+                <label>Native fee (ugnot) <input value={nativeFee} placeholder={gasPrice ? undefined : "Reading the network price…"} onChange={e => setTypedFee(e.target.value === "" ? null : e.target.value)} disabled={loading} /></label>
+                {typedFee === null && gasPrice && !gasOk && <p role="status">Enter a whole gas limit up to {MAX_GAS_WANTED.toLocaleString("en-US")} to price the fee.</p>}
             </div>}
             <div className="k-card ptx-form-card">
                 <label className="k-label">Memo (optional)</label>
@@ -412,8 +430,8 @@ export function ProposeTransaction() {
                 <button
                     className="k-btn-primary"
                     onClick={handlePropose}
-                    disabled={loading || !auth.isAuthenticated || !ENABLE_NATIVE_GNO_MULTISIG}
-                    style={{ opacity: !loading && auth.isAuthenticated && ENABLE_NATIVE_GNO_MULTISIG ? 1 : 0.5 }}
+                    disabled={loading || !auth.isAuthenticated || !ENABLE_NATIVE_GNO_MULTISIG || !nativeFee}
+                    style={{ opacity: !loading && auth.isAuthenticated && ENABLE_NATIVE_GNO_MULTISIG && nativeFee ? 1 : 0.5 }}
                 >
                     {loading ? "Proposing..." : txType === "send" ? "Propose Send" : txType.startsWith("grc20-") ? `Propose ${txType.replace("grc20-", "").replace(/^./, c => c.toUpperCase())}` : "Propose Call"}
                 </button>
@@ -429,4 +447,4 @@ export function ProposeTransaction() {
 
 
 import { ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
-import { isNativeMultisig, nativeFeeJSON } from "../lib/nativeMultisig"
+import { isNativeMultisig, nativeFeeJSON, nativeProposalFee } from "../lib/nativeMultisig"

@@ -18,7 +18,8 @@ import { API_BASE_URL, ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID } from "../lib/c
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
-import { isNativeMultisig } from "../lib/nativeMultisig"
+import { isNativeMultisig, nativeFeeCovers } from "../lib/nativeMultisig"
+import { networkGasPriceFresh } from "../lib/grc20"
 import { assertNativeAction, broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash } from "../lib/nativeMultisigBroadcast"
 import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readBroadcastAttempts, readNativeReceipt, saveBroadcastAttempt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "../lib/nativeReceipt"
 
@@ -272,6 +273,14 @@ export function TransactionView() {
                     if (answer === "recorded") setActionNotice("This transaction was already executed on chain. Nothing was sent; Memba recorded the result.")
                     // "completed": another member recorded it meanwhile. Nothing to send; the refresh below shows it.
                     if (answer === "absent") {
+                        // The fee was fixed when the proposal was made, maybe days ago: the chain refuses one the price has outgrown.
+                        const price = await networkGasPriceFresh().catch(() => null)
+                        if (!price || !nativeFeeCovers(fresh.transaction.feeJson, price)) {
+                            setBroadcastAlert(price
+                                ? "The network price rose above the fee this proposal was signed with; the chain would refuse it. Nothing was sent. Create a new proposal with a higher fee."
+                                : "Couldn't read the network price to check this proposal's fee. Nothing was sent; try again in a moment.")
+                            return
+                        }
                         assertReceiptStorage(receiptKey)
                         saveBroadcastAttempt(receiptKey, expected)
                         setBroadcastStep("sending")

@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
-import { expect, test, type Page } from '@playwright/test'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { expect, test, type Browser, type Page } from '@playwright/test'
+import { createNativeMultisig, memberAddress, nativeAddress } from '../../src/lib/nativeMultisig'
 import { OS_NATIVE_MSIG, OS_ON } from '../../playwright.os.config'
 import { fulfillOnchainReads, isOnchainRead, mockAppChainStatus } from '../helpers/onchain'
 
@@ -28,6 +30,7 @@ async function setup(page: Page) {
     await fulfillOnchainReads(page, ({ method, path }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"42000000ugnot"'
+        if (method === 'abci_query' && path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
         return null
     })
     await page.addInitScript(({ address }) => {
@@ -73,11 +76,72 @@ test.describe('Memba OS multisig', () => {
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/wallet/tx/3')
     })
 
-    test('a guest is asked to connect', async ({ page }) => {
+    test('a guest sees the Multisig app and an account’s address and balance, named by the chain, and is asked to connect only where their own data would be', async ({ page }) => {
+        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+        const onChain = (address: string, type: string) => JSON.stringify({ BaseAccount: { address, pub_key: { '@type': type }, account_number: '5', sequence: '1' } })
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"42000000ugnot"'
+            if (method === 'abci_query' && path === `auth/accounts/${MSIG}`) return onChain(MSIG, '/tm.PubKeyMultisig')
+            if (method === 'abci_query' && path === `auth/accounts/${ALICE}`) return onChain(ALICE, '/tm.PubKeySecp256k1')
+            return null
+        })
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+        await page.goto(`${OS_ON}/os/multisig`)
+        const app = win(page, 'Multisig')
+        await expect(app.getByRole('button', { name: 'Import' })).toBeEnabled()
+        await expect(app.getByText('Connect a wallet to see the multisigs you sign for.')).toBeVisible()
+
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        const account = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`)
+        await expect(account.getByText('Multisig account', { exact: true })).toBeVisible()
+        await expect(account.getByText(MSIG)).toBeVisible()
+        await expect(account.getByText('42 GNOT')).toBeVisible()
+        await expect(account.getByRole('button', { name: 'Copy gnoland-1 deposit address' })).toBeVisible()
+        await expect(account.getByText("A multisig's members see its members, threshold and transactions here. Connect a wallet to see them.")).toBeVisible()
+
+        // A link can carry any address: a single key is not dressed as a treasury, nor is one the chain has no key for.
+        for (const [address, says] of [[ALICE, 'This address is a single-key account, not a multisig.'], [BOB, 'Not yet confirmed as a multisig on chain: nothing has been signed from this address.']]) {
+            await page.goto(`${OS_ON}/os/multisig/${address}`)
+            const other = win(page, `Multisig ${address.slice(0, 8)}…${address.slice(-4)}`)
+            await expect(other.getByText(says)).toBeVisible()
+            await expect(other.getByText('Account', { exact: true })).toBeVisible()
+            await expect(other.getByText('42 GNOT')).toBeVisible()
+            await expect(other.getByRole('button', { name: /deposit address/ })).toHaveCount(0)
+        }
+
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        await win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`).getByRole('button', { name: 'Connect' }).click()
+        await expect(page.getByRole('dialog', { name: 'Connect a wallet' })).toBeVisible()
+    })
+
+    test('a connected member of other multisigs sees this account’s public face and is told they are not a member', async ({ page }) => {
+        await setup(page)
+        await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'permission_denied', message: 'not a member' }) }))
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        const account = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`)
+        await expect(account.getByText('You are not a member of this multisig.')).toBeVisible()
+        await expect(account.getByText(MSIG)).toBeVisible()
+        await expect(account.getByText('42 GNOT')).toBeVisible()
+        await expect(account.getByText("Couldn't load this multisig.")).toHaveCount(0)
+    })
+
+    test('a guest opens the import and creation forms, each with its own connect prompt and a disabled submit', async ({ page }) => {
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
-        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
-        await expect(page.getByText('Only members of a multisig can see and sign its transactions.')).toBeVisible()
+        await page.goto(`${OS_ON}/os/multisig/import`)
+        await expect(page.getByText('Connect your wallet to import a multisig')).toBeVisible()
+        await page.getByLabel('Multisig Address').fill(MSIG)
+        await expect(page.getByRole('button', { name: 'Import account', exact: true })).toBeDisabled()
+        await page.locator('.os-classic').getByRole('button', { name: 'Connect wallet' }).click()
+        await expect(page.getByRole('dialog', { name: 'Connect a wallet' })).toBeVisible()
+        await page.goto(`${OS_NATIVE_MSIG}/os/multisig/create`)
+        await expect(page.getByText('Connect your wallet to create a multisig')).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Create Multisig' })).toBeDisabled()
+        await expect(page.locator('.os-classic').getByRole('button', { name: 'Connect wallet' })).toBeVisible()
+        await page.goto(`${OS_NATIVE_MSIG}/os/multisig/${MSIG}/propose`)
+        await expect(page.getByText('Connect your wallet to propose a transaction')).toBeVisible()
+        await expect(page.locator('.os-classic').getByRole('button', { name: 'Connect wallet' })).toBeVisible()
     })
 
     test('keeps completed history visible when pending transactions fail, then retries', async ({ page }) => {
@@ -266,5 +330,149 @@ test.describe('Memba OS multisig · native broadcast', () => {
         await expect(page.getByText(HASH)).toBeVisible()
         expect(state.broadcasts).toBe(1)
         expect(state.completeCalls).toEqual([HASH, HASH, HASH])
+    })
+})
+
+// The demo path, end to end on the native server: a 2-of-3 is created from its members' published keys,
+// a send is proposed at the network fee, two members sign in their own browsers, and the second broadcasts.
+// The backend is a small in-memory stand-in that answers in Connect JSON; the chain is the stubbed RPC.
+test.describe('Memba OS multisig · native lifecycle', () => {
+    const key = (n: number) => {
+        const pub = Buffer.from(secp256k1.getPublicKey(Uint8Array.from({ length: 32 }, (_, i) => (i === 31 ? n : 7)), true)).toString('base64')
+        return { pub, address: memberAddress(pub) }
+    }
+    const [A, B, C] = [key(1), key(2), key(3)]
+    const MSIG_NATIVE = nativeAddress(createNativeMultisig([A, B, C].map((m) => ({ address: m.address, pubkeyValue: m.pub })), 2))
+    const PAYEE = CAROL
+    const BYTES = Buffer.from('native aggregate from the earliest two signatures')
+    const HASH = createHash('sha256').update(BYTES).digest('hex').toUpperCase()
+
+    type Fake = { multisig: Record<string, unknown> | null; tx: Record<string, unknown> & { signatures: { userAddress: string; value: string; verified: boolean }[]; finalHash: string } | null; onChain: boolean; broadcasts: number; lose: number; signDocs: unknown[] }
+
+    async function memberSession(browser: Browser, me: { pub: string; address: string }, fake: Fake): Promise<Page> {
+        const page = await (await browser.newContext({ viewport: { width: 1280, height: 860 } })).newPage()
+        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+        const ok = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        const req = (route: { request(): { postData(): string | null } }) => JSON.parse(route.request().postData() ?? '{}')
+        await page.route('**/memba.v1.MultisigService/CreateOrJoinMultisig', (route) => {
+            const r = req(route)
+            fake.multisig = { address: r.expectedMultisigAddress, chainId: r.chainId, name: r.name, joined: true, threshold: 2, membersCount: 3, usersAddresses: [A, B, C].map((m) => m.address), pubkeyJson: r.multisigPubkeyJson }
+            return route.fulfill(ok({ multisigAddress: r.expectedMultisigAddress }))
+        })
+        await page.route('**/memba.v1.MultisigService/Multisigs', (route) => route.fulfill(ok({ multisigs: fake.multisig ? [fake.multisig] : [] })))
+        await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill(ok({ multisig: fake.multisig })))
+        await page.route('**/memba.v1.MultisigService/CreateTransaction', (route) => {
+            const r = req(route)
+            fake.tx = { id: 1, multisigAddress: r.multisigAddress, chainId: r.chainId, msgsJson: r.msgsJson, feeJson: r.feeJson, accountNumber: r.accountNumber, sequence: r.sequence ?? 0, memo: r.memo, threshold: 2, membersCount: 3, multisigPubkeyJson: fake.multisig!.pubkeyJson, signatures: [], finalHash: '' }
+            return route.fulfill(ok({ transactionId: 1 }))
+        })
+        await page.route('**/memba.v1.MultisigService/Transactions', (route) => route.fulfill(ok({ transactions: fake.tx && /EXECUTED/.test(route.request().postData() ?? '') === !!fake.tx.finalHash ? [fake.tx] : [] })))
+        await page.route('**/memba.v1.MultisigService/GetTransaction', (route) => route.fulfill(ok({
+            transaction: fake.tx, ...(fake.tx && fake.tx.signatures.length >= 2 ? { nativeTxBytes: BYTES.toString('base64') } : {}),
+        })))
+        await page.route('**/memba.v1.MultisigService/SignTransaction', (route) => {
+            fake.tx!.signatures.push({ userAddress: me.address, value: req(route).signature, verified: true })
+            return route.fulfill(ok({}))
+        })
+        await page.route('**/memba.v1.MultisigService/CompleteTransaction', (route) => {
+            if (!fake.onChain || req(route).finalHash !== HASH) return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'failed_precondition', message: 'not on chain' }) })
+            fake.tx!.finalHash = HASH
+            return route.fulfill(ok({}))
+        })
+        const account = (address: string, pub?: string) => JSON.stringify({ BaseAccount: { address, ...(pub ? { pub_key: { '@type': '/tm.PubKeySecp256k1', value: pub } } : {}), account_number: address === MSIG_NATIVE ? '77' : '1', sequence: '0' } })
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (method !== 'abci_query') return null
+            if (path.startsWith('bank/balances/')) return '"5000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            const member = [A, B, C].find((m) => path === `auth/accounts/${m.address}`)
+            if (member) return account(member.address, member.pub)
+            if (path === `auth/accounts/${MSIG_NATIVE}`) return account(MSIG_NATIVE)
+            return null
+        })
+        await page.route('**/*', (route) => {
+            let body: { id?: unknown; method?: string } = {}
+            try { body = JSON.parse(route.request().postData() ?? '{}') } catch { /* not JSON-RPC */ }
+            if (!isOnchainRead(route.request().url()) || body.method !== 'broadcast_tx_commit') return route.fallback()
+            fake.broadcasts++
+            fake.onChain = true
+            if (fake.lose-- > 0) return route.abort('connectionreset')
+            const done = { ResponseBase: { Error: null, Data: null, Log: '', Info: '', Events: null } }
+            return route.fulfill(ok({ jsonrpc: '2.0', id: body.id, result: { check_tx: done, deliver_tx: done, hash: Buffer.from(HASH, 'hex').toString('base64'), height: '1234' } }))
+        })
+        await page.exposeFunction('__signed', (doc: unknown) => { fake.signDocs.push(doc) })
+        await page.addInitScript(({ address, pub }) => {
+            localStorage.setItem('memba_os_skip_intro', '1')
+            localStorage.setItem('memba_adena_connected', 'true')
+            localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
+            Object.defineProperty(window, 'adena', { value: {
+                GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: pub }, accountNumber: '1', sequence: '0', chainId: 'gnoland-1' } }),
+                GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
+                On: () => true,
+                SignMultisigTransaction: async (doc: unknown) => {
+                    await (window as unknown as { __signed(doc: unknown): Promise<void> }).__signed(doc)
+                    return { status: 'success', data: { signature: { signature: btoa(`signature of ${address}`) } } }
+                },
+            } })
+        }, me)
+        return page
+    }
+
+    async function signAs(page: Page) {
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/1`)
+        await page.getByRole('button', { name: 'Sign Transaction' }).click()
+        await page.getByRole('alertdialog', { name: 'Review transaction' }).getByRole('button', { name: 'Confirm & Sign' }).click()
+        await expect(page.getByRole('button', { name: 'Already Signed' })).toBeVisible()
+    }
+
+    test('a 2-of-3 is created from published keys, a send is proposed at the network fee, two members sign, and the transaction is broadcast once even when its reply is lost', async ({ browser }) => {
+        const fake: Fake = { multisig: null, tx: null, onChain: false, broadcasts: 0, lose: 1, signDocs: [] }
+        const alice = await memberSession(browser, A, fake)
+
+        // Create: three members by address, their keys read from the chain, 2 of 3.
+        await alice.goto(`${OS_NATIVE_MSIG}/os/multisig/create`)
+        await alice.getByLabel('Wallet Name').fill('Demo treasury')
+        for (const [i, m] of [A, B, C].entries()) {
+            await alice.getByLabel(`Member ${i + 1} address`).fill(m.address)
+            await alice.getByRole('button', { name: `Fetch member ${i + 1} public key` }).click()
+        }
+        await expect(alice.getByText(MSIG_NATIVE)).toBeVisible()
+        await alice.getByRole('button', { name: 'Create Multisig' }).click()
+        await expect(alice.getByText('Configuration registered; nothing was broadcast.')).toBeVisible()
+        expect(fake.multisig?.address).toBe(MSIG_NATIVE)
+
+        // Propose 1 GNOT at twice the network price for the gas limit: 10,000,000 gas at 1 ugnot per 1,000, times 2.
+        await alice.goto(`${OS_NATIVE_MSIG}/os/multisig/${MSIG_NATIVE}/propose`)
+        await alice.getByPlaceholder('g1recipient...').fill(PAYEE)
+        await alice.getByPlaceholder('1.0').fill('1')
+        await expect(alice.getByLabel('Native fee (ugnot)')).toHaveValue('20000')
+        await alice.getByRole('button', { name: 'Propose Send' }).click()
+        await expect.poll(() => fake.tx?.id).toBe(1)
+        expect(JSON.parse(String(fake.tx!.feeJson))).toEqual({ gas_wanted: '10000000', gas_fee: '20000ugnot' })
+        expect(String(fake.tx!.msgsJson)).toContain('1000000ugnot')
+        expect(fake.tx!.accountNumber).toBe(77)
+
+        // Two members sign, each in their own browser, the same document.
+        await signAs(alice)
+        const bob = await memberSession(browser, B, fake)
+        await signAs(bob)
+        expect(fake.tx!.signatures.map((s) => s.userAddress)).toEqual([A.address, B.address])
+        expect(fake.signDocs).toHaveLength(2)
+        expect(fake.signDocs[1]).toEqual(fake.signDocs[0])
+        // What each member's wallet signed is the fee shown and stored.
+        expect(fake.signDocs[0]).toMatchObject({ tx: { fee: { gas_wanted: '10000000', gas_fee: '20000ugnot' } } })
+
+        // Bob broadcasts. The node's reply is lost; the next press finds it on chain and sends nothing.
+        await bob.getByRole('button', { name: 'Broadcast to Chain' }).click()
+        await bob.getByRole('alertdialog', { name: 'Review transaction' }).getByRole('button', { name: 'Confirm & Broadcast' }).click()
+        await expect(bob.getByRole('alert').filter({ hasText: 'Native broadcast outcome unknown' })).toContainText(HASH)
+        await bob.getByRole('button', { name: 'Broadcast to Chain' }).click()
+        await bob.getByRole('alertdialog', { name: 'Review transaction' }).getByRole('button', { name: 'Confirm & Broadcast' }).click()
+        await expect(bob.getByText('This transaction was already executed on chain. Nothing was sent; Memba recorded the result.')).toBeVisible()
+        await expect(bob.getByText(HASH).first()).toBeVisible()
+        expect(fake.broadcasts).toBe(1)
+        expect(fake.tx!.finalHash).toBe(HASH)
+        await alice.context().close()
+        await bob.context().close()
     })
 })

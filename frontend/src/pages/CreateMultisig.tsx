@@ -23,7 +23,7 @@ interface MemberEntry {
 export function CreateMultisig() {
     const navigate = useNetworkNav()
     const queryClient = useQueryClient()
-    const { auth } = useOutletContext<LayoutContext>()
+    const { auth, adena } = useOutletContext<LayoutContext>()
     const [name, setName] = useState("")
     const [threshold, setThreshold] = useState(2)
     const [members, setMembers] = useState<MemberEntry[]>([
@@ -172,6 +172,7 @@ export function CreateMultisig() {
                     <p>
                         Connect your wallet to create a multisig
                     </p>
+                    <button type="button" className="k-btn-primary" onClick={() => void adena.connect()}>Connect wallet</button>
                 </div>
             )}
 

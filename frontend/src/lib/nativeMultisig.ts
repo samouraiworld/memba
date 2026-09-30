@@ -2,12 +2,29 @@ import { secp256k1 } from "@noble/curves/secp256k1.js"
 import { sha256 } from "@noble/hashes/sha2.js"
 import { ripemd160 } from "@noble/hashes/legacy.js"
 import { bech32Encode } from "./dao/realmAddress"
+import type { GasPrice } from "./grc20"
 
 export const NATIVE_MULTISIG_TYPE = "/tm.PubKeyMultisig"
 export function nativeFeeJSON(gas: string, feeUgnot: string): string {
     if (!/^[1-9][0-9]*$/.test(gas) || !/^[1-9][0-9]*$/.test(feeUgnot) || BigInt(gas) > (1n << 60n) - 1n || BigInt(feeUgnot) > (1n << 63n) - 1n) throw new Error("Review a valid native gas limit and fee in ugnot")
     return JSON.stringify({ gas_wanted: gas, gas_fee: `${feeUgnot}ugnot` })
 }
+/** A proposal's default fee: twice the network price for its gas limit. Its signatures can take days to
+ *  gather, and the chain refuses a fee the price has outgrown by then. */
+export function nativeProposalFee(gasWanted: number, price: GasPrice): number {
+    return Math.ceil((gasWanted * 2 * price.ugnot) / price.gas)
+}
+
+/** Whether a signed native fee (`{gas_wanted, gas_fee}`) still pays the network price for its gas limit. */
+export function nativeFeeCovers(feeJson: string, price: GasPrice): boolean {
+    let fee: { gas_wanted?: unknown; gas_fee?: unknown }
+    try { fee = JSON.parse(feeJson) } catch { return false }
+    const gas = typeof fee.gas_wanted === "string" && /^[1-9][0-9]*$/.test(fee.gas_wanted) ? BigInt(fee.gas_wanted) : null
+    const paid = typeof fee.gas_fee === "string" ? /^([0-9]+)ugnot$/.exec(fee.gas_fee) : null
+    if (gas === null || !paid) return false
+    return BigInt(paid[1]) * BigInt(price.gas) >= gas * BigInt(price.ugnot)
+}
+
 export interface NativeKey { "@type": "/tm.PubKeySecp256k1"; value: string }
 export interface NativeMultisig { "@type": typeof NATIVE_MULTISIG_TYPE; threshold: string; pubkeys: NativeKey[] }
 

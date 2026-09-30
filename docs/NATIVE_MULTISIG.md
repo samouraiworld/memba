@@ -22,7 +22,7 @@ The environment templates keep both switches off. Before the first live use on a
 
 ## Review, execution and recovery
 
-The review card shows full recipients and exact monetary amounts. Native gas limits and fees are explicit rehearsal budgets, not estimates; the fee is paid on execution. The current transaction API supports account numbers and sequences only through `uint32`; larger or malformed counters are refused.
+The review card shows full recipients and exact monetary amounts. A proposal's fee defaults to twice a fresh network gas price for its gas limit (a default price, labelled as such, when the price cannot be read), because signatures can take days to gather. It can be changed only before the proposal is made; every member signs that exact fee, which is paid on execution. Before broadcasting, Memba checks the signed fee against a fresh price and sends nothing when the price has outgrown it. The current transaction API supports account numbers and sequences only through `uint32`; larger or malformed counters are refused.
 
 The backend assembles an export only after verifying a quorum over one consistent payload rendering. The native broadcaster sends node-encoded bytes to the root JSON-RPC endpoint and checks chain identity, sync state, successful CheckTx/DeliverTx, committed height and transaction hash. Completion separately verifies the chain receipt, executed bytes and signatures against the stored proposal.
 

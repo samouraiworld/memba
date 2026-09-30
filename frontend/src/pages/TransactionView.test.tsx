@@ -58,6 +58,8 @@ vi.mock("../lib/quests", () => ({
 // W2.1 guard — a no-op here; its own tests live in grc20.test.ts.
 vi.mock("../lib/grc20", () => ({
     assertWalletBroadcastSafe: vi.fn(),
+    // 1 ugnot per 1,000 gas: the fixtures' signed fees cover it.
+    networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })),
 }))
 
 vi.mock("../lib/config", () => ({
@@ -82,6 +84,7 @@ import { Code, ConnectError } from "@connectrpc/connect"
 import { TransactionView } from "./TransactionView"
 import { api } from "../lib/api"
 import { broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash } from "../lib/nativeMultisigBroadcast"
+import { networkGasPriceFresh } from "../lib/grc20"
 import { clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt } from "../lib/nativeReceipt"
 
 const FULL_RECIPIENT = "g1recipientfulladdress0000000000000000xy"
@@ -387,6 +390,24 @@ describe("native confirmation and receipt recovery", () => {
         await screen.findByText(/Couldn't check whether this transaction is already on chain/)
         expect(screen.queryByText(/Native broadcast outcome unknown/)).toBeNull()
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+        ["the network price rose above the signed fee", () => vi.mocked(networkGasPriceFresh).mockResolvedValueOnce({ gas: 1000, ugnot: 1000 }),
+            "The network price rose above the fee this proposal was signed with; the chain would refuse it. Nothing was sent. Create a new proposal with a higher fee."],
+        ["the network price cannot be read", () => vi.mocked(networkGasPriceFresh).mockRejectedValueOnce(new Error("no node")),
+            "Couldn't read the network price to check this proposal's fee. Nothing was sent; try again in a moment."],
+    ])("sends nothing when %s, and says so on the page", async (_case, price, message) => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain())
+        price()
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        expect(await screen.findByText(message)).toHaveAttribute("role", "alert")
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).toHaveBeenCalledTimes(1)
     })
 
     it("stops, and says so on the page, when the recovery record became unreadable while it was checking", async () => {

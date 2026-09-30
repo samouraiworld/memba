@@ -98,7 +98,7 @@ test.describe('Memba OS pages in windows', () => {
         await expect(win(page, 'Settings')).toBeVisible()
     })
 
-    test('⌘K opens pages in the window that owns them; a wallet-only page asks a guest to connect', async ({ page }) => {
+    test('⌘K opens pages in the window that owns them; a guest sees the page, asked to connect where it needs a wallet', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         await expect(page.getByRole('button', { name: 'Search (⌘K)' })).toBeVisible()
         await page.keyboard.press('ControlOrMeta+k')
@@ -109,8 +109,11 @@ test.describe('Memba OS pages in windows', () => {
         await expect(search).toHaveCount(0)
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/multisig/import')
         const multisig = win(page, 'Multisig')
-        await expect(multisig.getByText('Connect a wallet to use Multisig.')).toBeVisible()
-        await expect(multisig.getByRole('button', { name: 'Connect' })).toBeVisible()
+        // The import form itself, with its own prompt and a submit that needs a wallet.
+        await expect(multisig.getByText('Connect your wallet to import a multisig')).toBeVisible()
+        await expect(multisig.getByRole('button', { name: 'Import account', exact: true })).toBeDisabled()
+        await multisig.locator('.os-classic').getByRole('button', { name: 'Connect wallet', exact: true }).click()
+        await expect(page.getByRole('dialog', { name: 'Connect a wallet' })).toBeVisible()
     })
 
     test('⌘K turns a realm path into its DAO window, and Escape closes it', async ({ page }) => {

@@ -115,7 +115,11 @@ describe("osTargetForClassic", () => {
 
 describe("pageNeedsWallet", () => {
     it("covers the pages that send guests away in the classic app", () => {
-        expect(["profile", "multisig", "create", "import", `multisig/${ADDR}`, `multisig/${ADDR}/propose`, "apps/submit", "apps/review", "apps/my-submissions"].every(pageNeedsWallet)).toBe(true)
+        expect(["profile", "multisig", "apps/submit", "apps/review", "apps/my-submissions"].every(pageNeedsWallet)).toBe(true)
         expect(["feed", "validators", "profile/g1x", "apps", "apps/gno.land/r/alice/example"].some(pageNeedsWallet)).toBe(false)
+    })
+
+    it("lets a guest open the multisig forms, which carry their own connect prompt and a disabled submit", () => {
+        expect(["create", "import", `multisig/${ADDR}`, `multisig/${ADDR}/propose`].some(pageNeedsWallet)).toBe(false)
     })
 })

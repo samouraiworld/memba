@@ -27,6 +27,8 @@ Full changelogs are split by version range for easier navigation:
 - Added: native Gno multisig on memba.club. Create a multisig from members' public keys, propose, collect signatures to the threshold and broadcast, with a chain check before any re-send.
 - Native multisig: a transaction's bytes and hash stay fixed once it has its quorum; a proposal the chain refused while running is shown as failed with the chain's reason and closed; a refusal before execution keeps the signed transaction valid to broadcast again; and a node that could not answer is never read as the transaction being absent.
 - Fixed: if the network's reply to a multisig broadcast is lost or times out, Memba keeps the warning, the transaction's hash and what to do next on the page, and the next press checks the chain before sending anything.
+- Changed: Memba OS Multisig opens to guests. The app and any account's address and balance are visible, the chain says whether an address is a multisig, and a connect prompt appears only where your own multisigs, members and transactions would show.
+- Changed: a multisig proposal's fee defaults to twice the network gas price for its gas limit instead of a fixed 1 GNOT, so it still pays if the price rises while signatures are collected; it can be changed until the proposal is made, and Memba sends nothing when a fresh price has outgrown the signed fee.
 
 ### Memba OS: an open News article survives a reload (2026-09-30)
 - A News article open in Memba OS stays open after a reload or Back when another window is in front.
