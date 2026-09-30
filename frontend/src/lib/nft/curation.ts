@@ -10,7 +10,7 @@
  * @module lib/nft/curation
  */
 import { isValidGnoAddressChecksum } from "../dao/address"
-import { address, bool, cid, collectionId, decimal, hash, list, oneOf, optionalAddress, record } from "./parse"
+import { address, bool, cid, collectionId, decimal, hash, list, oneOf, optionalAddress, record, text } from "./parse"
 import { readJSON, readPage } from "./read"
 
 export const NFT_CURATION_PATH = "gno.land/r/samcrew/launchpad/curation/v1"
@@ -27,6 +27,7 @@ export interface CurationState {
     admin: string
     /** Empty unless an admin handoff is waiting to be accepted. */
     pendingAdmin: string
+    /** The two seat counts are plain JSON numbers in the answer, not decimal strings. */
     activeManagers: number
     maxSeats: number
 }
@@ -55,8 +56,18 @@ export interface CurationApplication {
     updatedAt: bigint
 }
 
-/** What an account is to a collection right now. Public data, not a permission. */
+/**
+ * What an account is to a collection, and where and when the realm said so: one
+ * read proves which chain answered and how fresh the answer is. Public data,
+ * not a permission.
+ */
 export interface CurationAccess {
+    /** The chain that evaluated the answer: the one the caller asked for, or the read throws. */
+    chainId: string
+    /** The block the answer was evaluated at. */
+    height: bigint
+    /** That block's time in Unix seconds. How old is too old is the caller's decision. */
+    time: bigint
     collection: string
     account: string
     founder: boolean
@@ -131,7 +142,7 @@ const MANAGER_KEYS = ["account", "lead", "until"] as const
 const APPLICATION_KEYS = [
     "collection", "founder", "statementHash", "statementCID", "revision", "status", "reviewer", "reasonHash", "reasonCID", "updatedAt",
 ] as const
-const ACCESS_KEYS = ["collection", "account", "founder", "manager", "conflicted"] as const
+const ACCESS_KEYS = ["chainId", "height", "time", "collection", "account", "founder", "manager", "conflicted"] as const
 const RECORD_KEYS = ["collection", "verified", "featured", "hidden", "verification", "feature", "hold", "appeals"] as const
 const VERIFICATION_KEYS = ["verified", "reasonHash", "reasonCID", "updatedAt"] as const
 const FEATURE_KEYS = ["proposer", "approver", "reasonHash", "reasonCID", "until"] as const
@@ -145,6 +156,12 @@ const SLOT_KEYS = ["collection", "featured", "until"] as const
 function count(value: unknown, what: string): number {
     if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(`Invalid ${what}`)
     return value
+}
+
+function positive(value: unknown, what: string): bigint {
+    const number = decimal(value, what)
+    if (number === 0n) throw new Error(`Invalid ${what}`)
+    return number
 }
 
 /**
@@ -312,12 +329,26 @@ export async function listApplications(page = 0, size = 20): Promise<CurationApp
     return applications
 }
 
-export async function getCurationAccess(collection: string, who: string): Promise<CurationAccess> {
+/** `chainId` is the chain the caller believes it reads. It is required: an answer from any other chain throws. */
+export async function getCurationAccess(collection: string, who: string, chainId: string): Promise<CurationAccess> {
+    if (typeof chainId !== "string" || chainId === "") throw new Error("Invalid expected chain ID")
     // The realm refuses an address whose checksum is wrong, so none is sent.
     if (!isValidGnoAddressChecksum(who)) throw new Error("Invalid account")
     const row = record(await read(`AccessJSON("${collectionId(collection)}", "${who}")`, "curation access"), "curation access", ACCESS_KEYS)
+    // An endpoint can serve a chain other than the one asked for: the answer itself says which chain evaluated it.
+    if (text(row.chainId, "chain ID") === "") throw new Error("Invalid chain ID")
+    if (row.chainId !== chainId) throw new Error("Curation access answered by another chain")
     if (row.collection !== collection || row.account !== who) throw new Error("Curation access does not match the request")
-    const access = { collection, account: who, founder: bool(row.founder, "founder"), manager: bool(row.manager, "manager"), conflicted: bool(row.conflicted, "conflicted") }
+    const access = {
+        chainId,
+        height: positive(row.height, "block height"),
+        time: positive(row.time, "block time"),
+        collection,
+        account: who,
+        founder: bool(row.founder, "founder"),
+        manager: bool(row.manager, "manager"),
+        conflicted: bool(row.conflicted, "conflicted"),
+    }
     // The creator of a collection is always in conflict on it.
     if (access.founder && !access.conflicted) throw new Error("Inconsistent curation access")
     return access

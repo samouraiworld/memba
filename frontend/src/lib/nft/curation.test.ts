@@ -32,7 +32,8 @@ const submitted = {
 }
 const reviewed = { ...submitted, revision: "2", status: "recommended", reviewer: addr(1), reasonHash: "b".repeat(64), reasonCID: CID_V0 }
 
-const access = { collection: "C1", account: WHO, founder: false, manager: true, conflicted: false }
+const CHAIN = "tendermint_test"
+const access = { chainId: CHAIN, height: "31", time: "1790778102", collection: "C1", account: WHO, founder: false, manager: true, conflicted: false }
 
 const verification = { verified: true, reasonHash: HASH, reasonCID: CID_V1, updatedAt: "1780000000" }
 const feature = { proposer: addr(1), approver: addr(2), reasonHash: HASH, reasonCID: CID_V0, until: "1790000000" }
@@ -195,17 +196,41 @@ describe("application list", () => {
 })
 
 describe("access", () => {
-    const read = (row: unknown) => { answer(row); return getCurationAccess("C1", WHO) }
+    const read = (row: unknown) => { answer(row); return getCurationAccess("C1", WHO, CHAIN) }
 
-    it("reads what an account is to a collection", async () => {
-        await expect(read(access)).resolves.toEqual(access)
+    it("reads what an account is to a collection, and the chain, block and time that said so", async () => {
+        await expect(read(access)).resolves.toEqual({ ...access, height: 31n, time: 1790778102n })
         expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_CURATION_PATH, `AccessJSON("C1", "${WHO}")`, true)
         await expect(read({ ...access, founder: true, manager: false, conflicted: true })).resolves.toMatchObject({ founder: true, conflicted: true })
         await expect(read({ ...access, conflicted: true })).resolves.toMatchObject({ manager: true, conflicted: true })
+        await expect(read({ ...access, height: "9223372036854775807" })).resolves.toMatchObject({ height: 9223372036854775807n })
+    })
+
+    it("reads an answer exactly as a node gives it", async () => {
+        const account = "g1mxl8rd36lgkxv855kcjdxn2s9jvtymjvplve5r"
+        queryEval.mockResolvedValueOnce(String.raw`("{\"chainId\":\"tendermint_test\",\"height\":\"31\",\"time\":\"1790778102\",\"collection\":\"C1\",\"account\":\"g1mxl8rd36lgkxv855kcjdxn2s9jvtymjvplve5r\",\"founder\":true,\"manager\":false,\"conflicted\":true}" string)`)
+        await expect(getCurationAccess("C1", account, CHAIN)).resolves.toEqual({
+            chainId: CHAIN, height: 31n, time: 1790778102n, collection: "C1", account, founder: true, manager: false, conflicted: true,
+        })
     })
 
     it.each([
         ["an unknown field", { ...access, admin: false }, "Invalid curation access fields"],
+        ["the five fields of the earlier contract", without(without(without(access, "chainId"), "height"), "time"), "Invalid curation access fields"],
+        ["no chain ID", without(access, "chainId"), "Invalid curation access fields"],
+        ["no block height", without(access, "height"), "Invalid curation access fields"],
+        ["no block time", without(access, "time"), "Invalid curation access fields"],
+        ["an empty chain ID", { ...access, chainId: "" }, "Invalid chain ID"],
+        ["a chain ID that is not text", { ...access, chainId: 1 }, "Invalid chain ID"],
+        ["an answer from another chain", { ...access, chainId: "another-chain" }, "Curation access answered by another chain"],
+        ["a chain ID that differs only by case", { ...access, chainId: CHAIN.toUpperCase() }, "Curation access answered by another chain"],
+        ["another chain's answer about another collection", { ...access, chainId: "another-chain", collection: "C2" }, "Curation access answered by another chain"],
+        ["a block height of zero", { ...access, height: "0" }, "Invalid block height"],
+        ["a block height that is not a decimal string", { ...access, height: 31 }, "Invalid block height"],
+        ["a negative block height", { ...access, height: "-1" }, "Invalid block height"],
+        ["a block time of zero", { ...access, time: "0" }, "Invalid block time"],
+        ["a block time that is not a decimal string", { ...access, time: 1790778102 }, "Invalid block time"],
+        ["a fractional block time", { ...access, time: "1790778102.5" }, "Invalid block time"],
         ["a role that is not a boolean", { ...access, manager: 1 }, "Invalid manager"],
         ["the access of another collection", { ...access, collection: "C2" }, "Curation access does not match the request"],
         ["the access of another account", { ...access, account: addr(1) }, "Curation access does not match the request"],
@@ -215,7 +240,13 @@ describe("access", () => {
     })
 
     it.each(["", "g1manager", `g1${"q".repeat(38)}`, WHO.toUpperCase(), `${WHO}")+("`, `${WHO.slice(0, -1)}"`])("never sends the account %j to the chain", async (who) => {
-        await expect(getCurationAccess("C1", who)).rejects.toThrow(/^Invalid account$/)
+        await expect(getCurationAccess("C1", who, CHAIN)).rejects.toThrow(/^Invalid account$/)
+        expect(queryEval).not.toHaveBeenCalled()
+    })
+
+    it("never reads without a chain to check the answer against", async () => {
+        await expect(getCurationAccess("C1", WHO, "")).rejects.toThrow(/^Invalid expected chain ID$/)
+        await expect(getCurationAccess("C1", WHO, undefined as unknown as string)).rejects.toThrow(/^Invalid expected chain ID$/)
         expect(queryEval).not.toHaveBeenCalled()
     })
 })
@@ -377,7 +408,7 @@ describe("feature slots", () => {
 describe("arguments", () => {
     it.each(["", "C0", "C01", "c1", "1", `C${"1".repeat(21)}`, 'C1")+("'])("never sends the malformed collection ID %j to the chain", async (id) => {
         await expect(getApplication(id)).rejects.toThrow(/^Invalid collection ID$/)
-        await expect(getCurationAccess(id, WHO)).rejects.toThrow(/^Invalid collection ID$/)
+        await expect(getCurationAccess(id, WHO, CHAIN)).rejects.toThrow(/^Invalid collection ID$/)
         await expect(getCurationRecord(id)).rejects.toThrow(/^Invalid collection ID$/)
         expect(queryEval).not.toHaveBeenCalled()
     })
