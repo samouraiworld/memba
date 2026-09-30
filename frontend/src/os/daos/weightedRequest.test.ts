@@ -37,7 +37,7 @@ beforeEach(() => {
 describe("a weighted vote as a signing request", () => {
     it("offers the given choices and signs exactly the vote call, with the measured budget", () => {
         const req = weightedVoteRequest(ctx(), ["No", "Abstain"])
-        expect(req.summary).toBe("Vote on #17 “Market config · set-fee”")
+        expect(req.summary).toBe("Vote on #17 “Market config · Set a fee”")
         expect(req.choice).toEqual({ label: "Your vote", options: ["No", "Abstain"], initial: "No" })
         const budget = v12CallBudget("Vote")
         expect(req.prepare("Abstain").msgs).toEqual([{ type: "vm/MsgCall", value: { caller: MIKAEL, send: "", pkg_path: MEMBA_DAO, func: "Vote", args: ["17", "abstain"], max_deposit: `${budget.maxDepositUgnot}ugnot` } }])
@@ -139,7 +139,7 @@ describe("the vote options offered to a voter", () => {
 describe("a weighted execution as a signing request", () => {
     it("names what it invalidates, asks for one acknowledgement and signs exactly the execute call", () => {
         const req = weightedExecuteRequest(ctx(), ["26", "25"], false)
-        expect(req.summary).toBe("Execute #17 “Market config · set-fee”")
+        expect(req.summary).toBe("Execute #17 “Market config · Set a fee”")
         expect(req.warns).toEqual(["Executing #17 invalidates 2 open proposals #26, #25 and any other open proposal. They cannot be revived; their proposers would need to propose again."])
         expect(req.acks).toEqual(["I understand that executing #17 invalidates every other open proposal of this DAO."])
         const budget = v12ExecuteBudget(proposal("17").action)

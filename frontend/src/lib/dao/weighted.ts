@@ -3,7 +3,7 @@ import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 import type { AminoMsg } from "./shared"
 import { address, id, personID, realm, role, time, uint64 } from "./weightedPrimitives"
-import { ACCEPT_FUNCS, APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, type ApplicationPolicyKey } from "./weightedApplications"
+import { ACCEPT_FUNCS, APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, type ApplicationPolicyKey, OPERATION_WORDS, type WeightedApplicationAction } from "./weightedApplications"
 import { v12BudgetWithinCeiling, v12CallBudget, v12ExecuteBudget } from "./weightedBudget"
 
 export const WEIGHTED_SCHEMA = "memba-weighted-host/v1"
@@ -309,13 +309,18 @@ export async function readWeightedPendingVotes(ctx: WeightedContext, voter: stri
     return { voter, items, next: envelope.next }
 }
 
+/** What an application action does, in words: "Market config · Set a fee". */
+export function applicationActionTitle(a: { type: WeightedApplicationAction["type"]; operation: string }): string {
+    return `${APPLICATION_LABELS[a.type]} · ${OPERATION_WORDS[a.operation]?.title ?? a.operation}`
+}
+
 /** Short, display-only description of a proposal's action. */
 export function weightedProposalTitle(p: WeightedPageEntry): string {
     if (isUnreadableProposal(p)) return `Unreadable proposal #${p.id}`
     const a = p.action
     if (a.type === "set-role") return `${a.grant ? "Grant" : "Remove"} ${a.role}`
     if (a.type === "recover-member") return "Recover member key"
-    return `${APPLICATION_LABELS[a.type]} · ${a.operation}`
+    return applicationActionTitle(a)
 }
 
 /** Which calls Memba builds for a contract version on a chain. */

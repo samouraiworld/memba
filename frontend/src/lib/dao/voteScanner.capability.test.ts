@@ -77,7 +77,7 @@ describe("Quick Vote offers only DAOs whose contract accepts votes from Memba", 
         expect(pending.calls.map(c => c[2])).toEqual(["0", "92"])
         const listed = details.filter(d => d.realmPath === "gno.land/r/samcrew/memba_dao")
         expect(listed.map(d => [d.proposalId, d.readOnly, d.href, d.proposalTitle])).toEqual([
-            [items[0].id, true, `/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-${items[0].id}`, "Market config · set-fee"],
+            [items[0].id, true, `/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-${items[0].id}`, "Market config · Set a fee"],
             [items[1].id, true, `/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-${items[1].id}`, "Unreadable proposal #" + items[1].id],
         ])
     })

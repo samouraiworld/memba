@@ -50,7 +50,7 @@ test.describe('Memba OS weighted DAO', () => {
         const folder = win(page, 'memba_dao')
         await expect(folder.getByText('7 seats · 8 voting points · gnoland-1')).toBeVisible()
         await expect(folder.getByText('6 points and at least 4 people, then 24 hours')).toBeVisible()
-        await expect(folder.getByRole('button', { name: /#26 Feedback · create-text-channel/ })).toBeVisible()
+        await expect(folder.getByRole('button', { name: /#26 Feedback · Create a channel/ })).toBeVisible()
         await expect(folder.getByRole('listitem', { name: 'Market config' }).getByText('Ready to accept')).toBeVisible()
         await expect(folder.getByRole('listitem', { name: 'Escrow' }).getByText('DAO controls', { exact: true })).toBeVisible()
         await expect(folder.getByText('The DAO controls 9 of 10 today.')).toBeVisible()
@@ -80,9 +80,9 @@ test.describe('Memba OS weighted DAO', () => {
         await expect(folder.getByText('26 proposals recorded')).toBeVisible()
         // A guest reads everything; the connect prompt is at the acting step.
         await expect(folder.getByRole('button', { name: 'Connect to propose, vote or execute' })).toBeVisible()
-        await folder.getByRole('button', { name: /#17 Market config · set-fee/ }).click()
+        await folder.getByRole('button', { name: /#17 Market config · Set a fee/ }).click()
         const proposal = win(page, 'memba_dao · Proposal #17')
-        await expect(proposal.getByRole('heading', { name: '#17 Market config · set-fee' })).toBeVisible()
+        await expect(proposal.getByRole('heading', { name: '#17 Market config · Set a fee' })).toBeVisible()
         await expect(proposal.getByText('Points voting yes')).toBeVisible()
         await expect(proposal.getByRole('button', { name: 'Connect' })).toBeVisible()
         expect((await new AxeBuilder({ page }).include('[data-win="prop:memba_dao:17"]').analyze()).violations).toEqual([])
@@ -113,7 +113,7 @@ test.describe('Memba OS weighted DAO', () => {
     test('a proposal address of the governing DAO opens that proposal in its own window', async ({ page }) => {
         await page.goto(`${OS_ON}/os/dao/memba_dao/proposals/26`)
         const proposal = win(page, 'memba_dao · Proposal #26')
-        await expect(proposal.getByRole('heading', { name: '#26 Feedback · create-text-channel' })).toBeVisible()
+        await expect(proposal.getByRole('heading', { name: '#26 Feedback · Create a channel' })).toBeVisible()
         await expect(proposal.getByText('It passed. It can execute from the earliest time below.')).toBeVisible()
     })
 
@@ -155,7 +155,7 @@ test.describe('Memba OS weighted DAO', () => {
         await expect(proposal.getByText('You have not voted.')).toBeVisible()
         await proposal.getByRole('button', { name: 'Vote…' }).click()
         const review = page.getByRole('dialog', { name: 'Review · Vote' })
-        await expect(review.getByRole('heading', { name: 'Vote on #17 “Market config · set-fee”' })).toBeVisible()
+        await expect(review.getByRole('heading', { name: 'Vote on #17 “Market config · Set a fee”' })).toBeVisible()
         // The fee was read from the chain, so it is shown as the fee, not as an estimate.
         await expect(review.getByText('Network fee', { exact: true })).toBeVisible()
         await review.getByRole('radio', { name: 'No' }).click()

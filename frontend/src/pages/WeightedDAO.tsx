@@ -1,13 +1,13 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOutletContext, useParams } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
-import { isUnreadableProposal, readWeightedBallot, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedWritesHeld, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
+import { isUnreadableProposal, readWeightedBallot, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedWritesHeld, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind, applicationActionTitle } from "../lib/dao/weighted"
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
-import { ACCEPT_FUNCS, APPLICATION_LABELS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
+import { ACCEPT_FUNCS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
 import { broadcastWeightedPlan, checkWeightedAction, weightedLocks, weightedMemo } from "../lib/dao/weightedActions"
 import { v12CallBudget } from "../lib/dao/weightedBudget"
-import { CATEGORY_TEXT, EXECUTION_INVALIDATES, POLICY_LABELS, STATUS_TEXT, UNREADABLE_PROPOSAL, executionWarning, applicationRules, ballotText, decisionRules, invalidationRule, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, roleText, seatText, seatsRule, statusNote, tallyText, votingRule, weightedReadError, type BallotView } from "../lib/dao/weightedView"
+import { CATEGORY_TEXT, EXECUTION_INVALIDATES, POLICY_LABELS, STATUS_TEXT, UNREADABLE_PROPOSAL, executionWarning, applicationRules, ballotText, decisionRules, invalidationRule, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, roleText, seatText, seatsRule, statusNote, tallyText, votingRule, weightedReadError, type BallotView, ROLES_ADD_NOTHING, seatsSummary, writesHeldText } from "../lib/dao/weightedView"
 import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { formatUgnotExact } from "../lib/dao/v2Budget"
@@ -153,13 +153,13 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
         <header><p className="weighted-dao__eyebrow">Founding governance</p><h1>Memba weighted DAO</h1><p className="weighted-dao__path">{reveal(realmPath)}</p><p>{chainId} · {applications ? "Role and application governance" : "Role governance"}</p></header>
         <section className="k-card" aria-labelledby="weighted-policy"><h2 id="weighted-policy">How decisions pass</h2>
             {data && <>
-                <p>{data.config.rosterSize} people · {data.config.totalPoints} voting points. {seatsRule(data.config)}</p>
+                <p>{seatsSummary(data.config)}. {seatsRule(data.config)}</p>
                 {decisionRules(data.config).map(rule => <p key={rule.category}>{CATEGORY_TEXT[rule.category]} decisions ({rule.covers}) pass with {rule.routes.map((route, i) => <Fragment key={route}>{i > 0 && ", or "}<strong>{route}</strong></Fragment>)}{rule.delayed ? "." : " and can execute as soon as they pass."}</p>)}
             </>}
             {data && <p>{votingRule(data.config)} {invalidationRule(data.config)}</p>}
-            <p>Admin and finance labels do not add voting power or exclusive execution rights.</p>
+            <p>{ROLES_ADD_NOTHING}</p>
         </section>
-        {data && held && <p role="status">Mainnet governance is read-only for this DAO in Memba.</p>}
+        {data && held && <p role="status">{writesHeldText(chainId)}</p>}
         <p>{applications ? "Fixed application actions are available for the adapters below. Migration and treasury spending are not." : "Migration, treasury spending and application actions are not available in this DAO version."}</p>
         <button disabled={loading || busy} onClick={() => void refresh("0")}>Refresh chain state</button>
         {loading && <p role="status">Reading governance state…</p>}
@@ -218,7 +218,7 @@ function ApplicationPolicies({ config, acceptance, canAccept, eligible, held, op
             <p>{votingRule(config)}</p>
             <p className="weighted-dao__warning" role="note">One open acceptance at a time: executing any application action invalidates every other open proposal. Propose the next acceptance only after the previous one has executed, in the numbered order below.</p>
         </div>
-        {held && <p>Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.</p>}
+        {held && <p>Memba builds no acceptance proposal for this DAO here while it is read-only.</p>}
         <ol className="weighted-dao__adapters">{ACCEPTANCE_ORDER.map((key, index) => {
             const policy = policies.get(key)
             if (!policy) return null
@@ -271,7 +271,7 @@ function ProposalAction({ action }: { action: WeightedProposal["action"] }) {
 function ApplicationAction({ action }: { action: WeightedApplicationAction }) {
     const details = applicationDetails(action)
     return <>
-        <h3>{APPLICATION_LABELS[action.type]} · {action.operation}</h3>
+        <h3>{applicationActionTitle(action)}</h3>
         <p className="weighted-dao__path">Target realm: {reveal(action.target)}</p>
         {details.length > 0 && <dl className="weighted-dao__facts">{details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
         <details className="weighted-dao__before"><summary>State frozen at proposal time</summary>

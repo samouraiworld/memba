@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { weightedPageSchema, weightedConfigSchema, type WeightedBallot } from "./weighted"
+import { applicationActionTitle, weightedPageSchema, weightedConfigSchema, type WeightedBallot } from "./weighted"
 import { weightedFixture } from "./testdata/weighted"
 import v12Native from "./testdata/weighted-v12/native.json"
-import { APPLICATION_POLICY_KEYS } from "./weightedApplications"
+import { APPLICATION_POLICY_KEYS, applicationActions, type WeightedApplicationAction } from "./weightedApplications"
 import { STATUS_TEXT, applicationRules, executionWarning, openProposalsOf, ballotText, chainTimeText, decisionRules, durationText, isOpenProposal, isVoteOpen, proposalTimes, roleText, seatText, statusNote, tallyText, weightedReadError } from "./weightedView"
 
 const ballot = (over: Partial<WeightedBallot>): WeightedBallot => ({ schema: "memba-weighted-host/v12", proposalId: "1", voter: "g1voter", eligible: true, choice: null, votedAtHeight: null, ...over })
@@ -96,13 +96,13 @@ describe("weighted DAO display text", () => {
         ])
         // The App Store policy publishes no fee or treasury category; the host still makes them financial.
         expect(applicationRules("appstorePolicy", config.appstorePolicy).slice(0, 5)).toEqual([
-            "Critical votes cover who curates and sealing imported listings.",
+            "Critical votes cover who curates and permanently closing listing imports.",
             "Financial votes cover fees and the treasury.",
             "Routine votes cover approving, rejecting, delisting and restoring listings, and clearing their flags.",
             "While the DAO controls it, any member can pause it at once; unpausing takes a financial vote.",
             "A fee vote can set at most 100 GNOT.",
         ])
-        expect(applicationRules("reviewsPolicy", config.reviewsPolicy)[0]).toBe("Routine votes cover hiding reviews and comments and unhiding them.")
+        expect(applicationRules("reviewsPolicy", config.reviewsPolicy)[0]).toBe("Routine votes cover hiding reviews and comments and showing them again.")
         for (const key of ["channelsPolicy", "feedbackPolicy"] as const) expect(applicationRules(key, config[key])[0]).toBe("Critical votes cover its members, members' roles and creating channels.")
         expect(applicationRules("questPolicy", config.questPolicy)).toHaveLength(2)
         // Every operation has plain words: no contract operation name reaches the reader.
@@ -134,5 +134,24 @@ describe("weighted DAO display text", () => {
         expect(invalid.success).toBe(false)
         expect(weightedReadError(invalid.error)).toMatch(/^Could not validate weighted governance data\./)
         expect(weightedReadError("boom")).toMatch(/^Could not validate weighted governance data\./)
+    })
+})
+
+describe("a proposal's title", () => {
+    it("names every operation the DAO can vote on in words, never by its contract name", () => {
+        const actions = applicationActions as unknown as readonly { shape: { type: { value: WeightedApplicationAction["type"] }; operation: { options: readonly string[] } } }[]
+        for (const { shape } of actions) {
+            for (const operation of shape.operation.options) {
+                const title = applicationActionTitle({ type: shape.type.value, operation })
+                expect(title, `${shape.type.value} ${operation}`).not.toContain(operation)
+                expect(title).toMatch(/^[A-Z][^·]* · [A-Z]/)
+            }
+        }
+        // A swapped entry fails here.
+        for (const [type, operation, title] of [
+            ["channels", "accept-owner", "DAO channels · Accept the handover"], ["market-config", "set-fee", "Market config · Set a fee"],
+            ["reviews", "hide-review", "Reviews · Hide a review"], ["escrow", "refund-client", "Escrow · Refund the client"],
+            ["escrow", "set-fee-recipient", "Escrow · Nominate the fallback fee recipient"], ["appstore", "seal-import", "App Store · Permanently close listing imports"],
+        ] as const) expect(applicationActionTitle({ type, operation })).toBe(title)
     })
 })

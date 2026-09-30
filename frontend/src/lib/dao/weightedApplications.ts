@@ -253,6 +253,38 @@ const POLICY_FOR: Record<WeightedApplicationAction["type"], ApplicationPolicyKey
     escrow: "escrowPolicy", badges: "badgesPolicy", feed: "feedPolicy", channels: "channelsPolicy", feedback: "feedbackPolicy",
 }
 
+const LISTINGS = "approving, rejecting, delisting and restoring listings, and clearing their flags"
+const DISPUTES = "settling disputes (refunding the client or paying the freelancer)"
+const HANDOVER = null
+/**
+ * Every application operation in words, in one place: `title` names a
+ * proposal for it ("Set a fee"); `rule` is how the DAO's rules list it
+ * ("fees"), shared by the operations that make one decision, and null where
+ * the rules say it in their own sentence (handovers, unpausing).
+ */
+export const OPERATION_WORDS: Readonly<Record<string, { title: string; rule: string | null }>> = {
+    "accept-admin": { title: "Accept the handover", rule: HANDOVER }, "accept-owner": { title: "Accept the handover", rule: HANDOVER }, "accept-moderator": { title: "Accept the handover", rule: HANDOVER },
+    "return-admin": { title: "Hand it back", rule: HANDOVER }, "return-owner": { title: "Hand it back", rule: HANDOVER }, "return-moderator": { title: "Hand it back", rule: HANDOVER },
+    "abort-return": { title: "Cancel the hand-back", rule: HANDOVER }, unpause: { title: "Unpause", rule: null },
+    "set-fee": { title: "Set a fee", rule: "fees" }, "set-treasury": { title: "Set the treasury", rule: "the treasury" },
+    // Staged only: the nominated address accepts in its own transaction.
+    "set-fee-recipient": { title: "Nominate the fallback fee recipient", rule: "nominating the fallback fee recipient" },
+    "hide-review": { title: "Hide a review", rule: "hiding reviews and comments" }, "hide-comment": { title: "Hide a comment", rule: "hiding reviews and comments" },
+    unhide: { title: "Show a hidden review or comment", rule: "showing them again" },
+    "set-signer": { title: "Set the voucher signer", rule: "the voucher signer" },
+    "add-attester": { title: "Add a score attester", rule: "who attests scores" }, "remove-attester": { title: "Remove a score attester", rule: "who attests scores" },
+    "add-curator": { title: "Add a curator", rule: "who curates" }, "remove-curator": { title: "Remove a curator", rule: "who curates" },
+    // A one-way latch: imports cannot be reopened.
+    "seal-import": { title: "Permanently close listing imports", rule: "permanently closing listing imports" },
+    approve: { title: "Approve a listing", rule: LISTINGS }, reject: { title: "Reject a listing", rule: LISTINGS }, delist: { title: "Delist a listing", rule: LISTINGS },
+    restore: { title: "Restore a listing", rule: LISTINGS }, "clear-flags": { title: "Clear a listing's flags", rule: LISTINGS },
+    "refund-client": { title: "Refund the client", rule: DISPUTES }, "pay-freelancer": { title: "Pay the freelancer", rule: DISPUTES },
+    "add-admin": { title: "Add an admin", rule: "its admins" }, "remove-admin": { title: "Remove an admin", rule: "its admins" },
+    "add-moderator": { title: "Add a moderator", rule: "its moderators" }, "remove-moderator": { title: "Remove a moderator", rule: "its moderators" },
+    "add-member": { title: "Add a member", rule: "its members" }, "remove-member": { title: "Remove a member", rule: "its members" },
+    "set-roles": { title: "Set a member's roles", rule: "members' roles" }, "create-text-channel": { title: "Create a channel", rule: "creating channels" },
+}
+
 /** Every operation the DAO can vote on for one application, with the category the host assigns it. */
 export function policyOperations(key: ApplicationPolicyKey): { operation: string; category: WeightedCategory }[] {
     const type = (Object.keys(POLICY_FOR) as WeightedApplicationAction["type"][]).find((t) => POLICY_FOR[t] === key)!

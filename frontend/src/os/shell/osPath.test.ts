@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { isDeepLink, parseOsPath } from "./osPath"
+import { tokenToTarget, windowToken } from "./urlSync"
+import { specForTarget, urlForWindow } from "./windows"
 
 const MSIG = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
 
@@ -7,6 +9,35 @@ describe("parseOsPath", () => {
     it("reads the bare desktop, with or without a trailing slash", () => {
         expect(parseOsPath("/os")).toEqual({ kind: "desktop" })
         expect(parseOsPath("/os/")).toEqual({ kind: "desktop" })
+    })
+
+    it("opens a weighted DAO's window from its old workspace address typed under the DAOs app, on exactly the /os/dao/<name> terms", () => {
+        const at = (tail: string) => parseOsPath(`/os/daos/weighted-dao/gno.land/r/samcrew/memba_dao${tail}`)
+        expect(at("")).toEqual({ kind: "dao", name: "memba_dao", section: "overview" })
+        expect(at("/members")).toEqual({ kind: "dao", name: "memba_dao", section: "members" })
+        expect(at("/proposals")).toEqual({ kind: "dao", name: "memba_dao", section: "proposals" })
+        expect(at("/proposals/3")).toEqual({ kind: "proposal", dao: "memba_dao", n: 3 })
+        // Anything that route would not read is unknown, never a nearby window.
+        for (const tail of ["/proposals/3/x", "/members/x/y", "/proposals/abc", "/proposals/new", "/proposal/3", "/propose", "/settings", "/channels", "/plugin"]) {
+            expect(at(tail).kind, tail).toBe("unknown")
+        }
+        for (const path of ["/os/daos/weighted-dao", "/os/daos/weighted-dao/not-a-realm", "/os/daos/weighted-dao/gno.land/r/SamCrew/Memba_DAO", "/os/daos/weighted-dao/gno.land/r/samcrew/../memba_dao", `/os/daos/weighted-dao/gno.land/r/samcrew/${"x".repeat(80)}`]) {
+            expect(parseOsPath(path).kind, path).toBe("unknown")
+        }
+        // Other DAOs app sections are unchanged.
+        expect(parseOsPath("/os/daos/new")).toEqual({ kind: "app", app: "daos", section: "new" })
+    })
+
+    it("gives the window opened from the old workspace address the DAO window's own address and saved token", () => {
+        for (const tail of ["", "/members", "/proposals/3"]) {
+            const target = parseOsPath(`/os/daos/weighted-dao/gno.land/r/samcrew/memba_dao${tail}`)
+            // The same window as its own address opens, saved and restored the same way (a DAO window's token keeps no section).
+            const own = parseOsPath(`/os/dao/memba_dao${tail}`)
+            expect(target).toEqual(own)
+            expect(parseOsPath(urlForWindow(specForTarget(target)!))).toEqual(own)
+            expect(tokenToTarget(windowToken(target)!)).toEqual(tokenToTarget(windowToken(own)!))
+            expect(tokenToTarget(windowToken(target)!)).not.toBeNull()
+        }
     })
 
     it("reads About as a system window, never as an app section", () => {

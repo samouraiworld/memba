@@ -6,7 +6,7 @@
 import { DAO_REALM_PATH } from "../config"
 import { revealInvisibleFormatting as reveal } from "./v2Text"
 import { WEIGHTED_APPLICATIONS_SCHEMA, type WeightedBallot, type WeightedConfig, type WeightedInvalidation, type WeightedMember, type WeightedProposal } from "./weighted"
-import { APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, policyOperations, type ApplicationPolicyKey, type WeightedCategory } from "./weightedApplications"
+import { APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, OPERATION_WORDS, policyOperations, type ApplicationPolicyKey, type WeightedCategory } from "./weightedApplications"
 import { formatUgnotExact } from "./v2Budget"
 
 /** What a weighted DAO is called in its windows: the governing DAO by its name, any other by its folder name. */
@@ -74,6 +74,19 @@ export interface DecisionRule {
 }
 
 const hours = (seconds: number) => count(seconds / 3600, "hour", "hours")
+
+/** The DAO's size: "7 seats · 8 voting points". */
+export function seatsSummary(config: WeightedConfig): string {
+    return `${config.rosterSize} seats · ${config.totalPoints} voting points`
+}
+
+/** What a role does not give. */
+export const ROLES_ADD_NOTHING = "Admin and finance roles add no voting power and no exclusive right to execute."
+
+/** The governance write hold: no call is built for a weighted DAO that is not released on this network. */
+export function writesHeldText(chainId: string): string {
+    return `This DAO is read-only in Memba on ${chainId}: Memba builds no governance transaction for it here.`
+}
 
 /** How the seats weigh, in one sentence. */
 export function seatsRule(config: WeightedConfig): string {
@@ -188,20 +201,6 @@ export function proposalTimes(p: Pick<WeightedProposal, "status" | "votingDeadli
     ]
 }
 
-/** Operations in plain words; an operation pair or group that is one decision shares its words. Handovers are said separately. */
-const OPERATION_TEXT: Record<string, string> = {
-    "set-fee": "fees", "set-treasury": "the treasury", "set-signer": "the voucher signer", "set-fee-recipient": "the fallback fee recipient",
-    "hide-review": "hiding reviews and comments", "hide-comment": "hiding reviews and comments", unhide: "unhiding them",
-    "add-attester": "who attests scores", "remove-attester": "who attests scores",
-    "add-curator": "who curates", "remove-curator": "who curates", "seal-import": "sealing imported listings",
-    approve: "approving, rejecting, delisting and restoring listings, and clearing their flags", reject: "approving, rejecting, delisting and restoring listings, and clearing their flags",
-    delist: "approving, rejecting, delisting and restoring listings, and clearing their flags", restore: "approving, rejecting, delisting and restoring listings, and clearing their flags",
-    "clear-flags": "approving, rejecting, delisting and restoring listings, and clearing their flags",
-    "refund-client": "settling disputes (refunding the client or paying the freelancer)", "pay-freelancer": "settling disputes (refunding the client or paying the freelancer)",
-    "add-admin": "its admins", "remove-admin": "its admins", "add-moderator": "its moderators", "remove-moderator": "its moderators",
-    "add-member": "its members", "remove-member": "its members", "set-roles": "members' roles", "create-text-channel": "creating channels",
-}
-const HANDOVER = /^(accept-|return-|abort-return$)/
 const list = (items: string[]) => items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`
 
 /**
@@ -214,8 +213,8 @@ export function applicationRules(key: ApplicationPolicyKey, policy: { successor:
     const operations = policyOperations(key)
     const decides = new Map<WeightedCategory, string[]>()
     for (const { operation, category } of operations) {
-        if (HANDOVER.test(operation) || operation === "unpause") continue
-        const words = OPERATION_TEXT[operation] ?? operation
+        const words = operation in OPERATION_WORDS ? OPERATION_WORDS[operation].rule : operation
+        if (words === null) continue
         const known = decides.get(category) ?? []
         if (!known.includes(words)) decides.set(category, [...known, words])
     }

@@ -44,7 +44,7 @@ beforeEach(() => {
 describe("a weighted DAO proposal window", () => {
     it("shows what the proposal does, where its vote stands and what executing it costs the others", async () => {
         show("17")
-        expect(await screen.findByRole("heading", { name: "#17 Market config · set-fee" })).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { name: "#17 Market config · Set a fee" })).toBeInTheDocument()
         expect(screen.getByText("Ready to execute")).toBeInTheDocument()
         expect(screen.getByText("Financial decision")).toBeInTheDocument()
         expect(screen.getByText(/^Proposed by mikael on /)).toBeInTheDocument()
@@ -132,7 +132,7 @@ describe("a weighted DAO proposal window", () => {
         const req = sign.mock.calls[0][0]
         expect(req.lines("No")).toContainEqual(["Network fee", expect.stringMatching(/GNOT$/)])
         expect(req.title).toBe("Vote")
-        expect(req.summary).toBe("Vote on #17 “Market config · set-fee”")
+        expect(req.summary).toBe("Vote on #17 “Market config · Set a fee”")
         expect(req.sub).toBe("Memba DAO")
         expect(req.choice).toEqual({ label: "Your vote", options: ["No", "Abstain"], initial: "No" })
         expect(req.receipt).toEqual(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17"))
@@ -242,7 +242,7 @@ describe("a weighted DAO proposal window", () => {
 
     it("asks nothing of a session that is still resuming", async () => {
         show("17", { ...guest, status: "resuming" } as unknown as OsSession)
-        expect(await screen.findByRole("heading", { name: "#17 Market config · set-fee" })).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { name: "#17 Market config · Set a fee" })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Connect" })).toBeNull()
         expect(readWeightedBallot).not.toHaveBeenCalled()
     })
@@ -262,7 +262,7 @@ describe("a weighted DAO proposal window", () => {
 
     it("reads the newest proposal from the newest page only", async () => {
         show("26")
-        expect(await screen.findByRole("heading", { name: "#26 Feedback · create-text-channel" })).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { name: "#26 Feedback · Create a channel" })).toBeInTheDocument()
         expect(screen.getByText("It passed. It can execute from the earliest time below.")).toBeInTheDocument()
         expect(screen.getByText("Executable from (points vote)")).toBeInTheDocument()
         expect(screen.getByText("Executable from (developers' vote)")).toBeInTheDocument()
@@ -301,6 +301,6 @@ describe("a weighted DAO proposal window", () => {
         show("17")
         expect(await screen.findByRole("alert")).toHaveTextContent("RPC network does not match the selected chain")
         fireEvent.click(screen.getByRole("button", { name: "Retry" }))
-        expect(await screen.findByRole("heading", { name: "#17 Market config · set-fee" })).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { name: "#17 Market config · Set a fee" })).toBeInTheDocument()
     })
 })

@@ -11,7 +11,7 @@ import { weightedLocks } from "../../lib/dao/weightedActions"
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWriteKinds, weightedWritesHeld, type WeightedMember, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { applicationDetails, flattenBefore } from "../../lib/dao/weightedApplications"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
-import { CATEGORY_TEXT, EXECUTION_INVALIDATES, STATUS_TEXT, UNREADABLE_PROPOSAL, ballotText, chainTimeText, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, statusNote, tallyText, weightedDaoTitle, weightedReadError, type BallotView } from "../../lib/dao/weightedView"
+import { CATEGORY_TEXT, EXECUTION_INVALIDATES, STATUS_TEXT, UNREADABLE_PROPOSAL, ballotText, chainTimeText, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, statusNote, tallyText, weightedDaoTitle, weightedReadError, type BallotView, writesHeldText } from "../../lib/dao/weightedView"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
 import type { OsSession } from "../shell/useOsSession"
@@ -29,7 +29,7 @@ export function StatusPill({ status }: { status: WeightedProposal["status"] }) {
 
 /** The governance write hold: no call is built for a weighted DAO that is not released on this network. */
 export function WeightedHold() {
-    return <p className="os-note">This DAO is read-only in Memba on {GNO_CHAIN_ID}: Memba builds no governance transaction for it here.</p>
+    return <p className="os-note">{writesHeldText(GNO_CHAIN_ID)}</p>
 }
 
 /** A seat holder by name, anyone else by short address. */

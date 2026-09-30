@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba DAO: proposals in plain words (2026-10-01)
+- Memba DAO proposals are titled in plain words (for example "DAO channels · Accept the handover"), the classic page and Memba OS word the same facts the same way, and an old Memba DAO workspace address opens its window in Memba OS.
+
 ### Memba OS: a live meeting always stays in sight (2026-10-01)
 - Fixed: a meeting in Memba OS stays connected when its window is covered, minimised, dragged off the desk or replaced by another sheet, and Memba always shows it then: a small player with the room code, Restore and Leave, so a live camera and microphone are never out of sight. Under a dialog, even with its window in front, the player shrinks to a label and Leave at the top of the screen, and Leave gives focus back to the dialog. Another window can no longer go full screen over a live meeting; Memba says why when it takes the screen back. Closing the Meet window, or locking Memba, leaves the meeting, and the window says so.
 

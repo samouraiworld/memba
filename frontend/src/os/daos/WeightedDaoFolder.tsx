@@ -17,7 +17,7 @@ import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWritesHeld, type WeightedProposal, type WeightedSnapshot, type WeightedV12Config } from "../../lib/dao/weighted"
 import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, weightedDaoAddress, type AcceptanceState } from "../../lib/dao/weightedAcceptance"
 import { teamWallet } from "../../lib/dao/weightedTreasury"
-import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, roleText, seatText, seatsRule, tallyText, votingRule, weightedDaoTitle, weightedReadError } from "../../lib/dao/weightedView"
+import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, roleText, seatText, seatsRule, tallyText, votingRule, weightedDaoTitle, weightedReadError, ROLES_ADD_NOTHING, seatsSummary } from "../../lib/dao/weightedView"
 import { isWalletRequestPending, subscribeWalletActivity } from "../../lib/walletActivity"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
@@ -120,7 +120,7 @@ function Overview({ name, realmPath, data, open, session }: FolderProps & { data
             <div>
                 <div className="os-holding-title">{weightedDaoTitle(realmPath, name)}</div>
                 <p className="os-sub os-mono os-break os-flush">{realmPath}</p>
-                <p className="os-sub os-flush">{config.rosterSize} seats · {config.totalPoints} voting points · {GNO_CHAIN_ID}</p>
+                <p className="os-sub os-flush">{seatsSummary(config)} · {GNO_CHAIN_ID}</p>
             </div>
             {weightedWritesHeld(GNO_CHAIN_ID, config.schema, realmPath) && <WeightedHold />}
             <Seat data={data} session={session} />
@@ -256,7 +256,7 @@ function Members({ data, session }: { data: WeightedSnapshot; session: OsSession
             <p className="os-sub">
                 The DAO has exactly {config.rosterSize} seats and {config.totalPoints} voting points. It cannot admit or remove a member
                 {config.capabilities.memberReplacement ? "; a critical vote can only move a seat to a new address of the same person" : ""}.
-                Admin and finance roles add no voting power and no exclusive right to execute.
+                {ROLES_ADD_NOTHING}
             </p>
         </div>
     )

@@ -5,6 +5,7 @@
  *   /os/dao/<name>[/proposals|treasury|members]  a DAO folder
  *   /os/dao/<name>/proposals/<n>          a proposal
  *   /os/dao/<name>/proposals/new          the New proposal wizard
+ *   /os/daos/weighted-dao/<realm>[/…]     a weighted DAO's old workspace address: that DAO's folder or proposal window
  *   /os/multisig/<address>                a multisig
  *   /os/about                             the About Memba OS window
  * Anything else is "unknown" and opens the not-found window.
@@ -12,6 +13,8 @@
  * @module os/shell/osPath
  */
 import { classicForSection } from "../page/classicRoute"
+import { nameForRealm } from "../daos/daoNames"
+import { parseDaoSplat } from "../../lib/daoSlug"
 import { OS_APPS, type OsAppId } from "../apps"
 
 export type DaoSection = "overview" | "proposals" | "treasury" | "members"
@@ -73,6 +76,15 @@ export function parseOsPath(pathname: string): OsTarget {
 
     if (first === "feedback") return second === undefined ? { kind: "feedback" } : { kind: "unknown", path: pathname }
     if (first === "about") return second === undefined ? { kind: "about" } : { kind: "unknown", path: pathname }
+
+    // The old weighted-DAO workspace address, typed under the DAOs app, is read as that DAO's own address
+    // (/os/dao/<name>[/members|treasury|proposals[/<n>]]), so it is held to exactly the same rules.
+    if (first === "daos" && second === "weighted-dao") {
+        const { realmPath, subRoute } = parseDaoSplat([third, fourth, ...rest].filter(Boolean).join("/"))
+        const name = realmPath ? nameForRealm(realmPath) : null
+        const sub = subRoute === "" || ["members", "treasury", "proposals"].includes(subRoute) || /^proposals\/\d{1,9}$/.test(subRoute)
+        return name && sub ? parseOsPath(`/os/dao/${encodeURIComponent(name)}${subRoute ? `/${subRoute}` : ""}`) : { kind: "unknown", path: pathname }
+    }
 
     const app = OS_APPS.find((a) => a.slug === first)
     if (!app) return { kind: "unknown", path: pathname }

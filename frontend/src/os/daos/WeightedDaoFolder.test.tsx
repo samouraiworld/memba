@@ -99,11 +99,11 @@ describe("a weighted DAO's overview", () => {
 
     it("says how many proposals are open, lists the newest three and opens one in its window", async () => {
         show("overview")
-        const first = await screen.findByRole("button", { name: /#26 Feedback · create-text-channel/ })
+        const first = await screen.findByRole("button", { name: /#26 Feedback · Create a channel/ })
         expect(screen.getByText("12 open among the latest 20 proposals. The newest three:")).toBeInTheDocument()
         expect(within(first).getByText("Waiting for its delay")).toBeInTheDocument()
         expect(within(first).getByText("Critical · 7 points · 6 people · 5 developers voting yes")).toBeInTheDocument()
-        expect(screen.getByRole("button", { name: /#24 Feed · add-moderator/ })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /#24 Feed · Add a moderator/ })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /#23 / })).toBeNull()
         fireEvent.click(first)
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: { kind: "proposal", dao: "memba_dao", n: 26 } }))
@@ -146,9 +146,9 @@ describe("a weighted DAO's overview", () => {
         await screen.findByRole("listitem", { name: "App Store" })
         const config = v12().config
         expect(rules("Market config")).toHaveTextContent(`Financial votes cover fees and the treasury.Handing it back takes a critical vote and goes only to ${config.marketPolicy.successor}, who must accept.`)
-        expect(rules("App Store")).toHaveTextContent("Critical votes cover who curates and sealing imported listings.Financial votes cover fees and the treasury.Routine votes cover approving, rejecting, delisting and restoring listings, and clearing their flags.While the DAO controls it, any member can pause it at once; unpausing takes a financial vote.A fee vote can set at most 100 GNOT.")
-        expect(rules("Reviews")).toHaveTextContent("Routine votes cover hiding reviews and comments and unhiding them.")
-        expect(rules("Escrow")).toHaveTextContent("Financial votes cover settling disputes (refunding the client or paying the freelancer) and the fallback fee recipient.")
+        expect(rules("App Store")).toHaveTextContent("Critical votes cover who curates and permanently closing listing imports.Financial votes cover fees and the treasury.Routine votes cover approving, rejecting, delisting and restoring listings, and clearing their flags.While the DAO controls it, any member can pause it at once; unpausing takes a financial vote.A fee vote can set at most 100 GNOT.")
+        expect(rules("Reviews")).toHaveTextContent("Routine votes cover hiding reviews and comments and showing them again.")
+        expect(rules("Escrow")).toHaveTextContent("Financial votes cover settling disputes (refunding the client or paying the freelancer) and nominating the fallback fee recipient.")
         expect(rules("DAO channels")).toHaveTextContent("Critical votes cover its members, members' roles and creating channels.")
     })
 
@@ -265,10 +265,10 @@ describe("a weighted DAO's proposals", () => {
         show("proposals")
         expect(await screen.findByText("26 proposals recorded")).toBeInTheDocument()
         expect(screen.getAllByRole("button", { name: /^#\d+ / })).toHaveLength(20)
-        const ready = screen.getByRole("button", { name: /#17 Market config · set-fee/ })
+        const ready = screen.getByRole("button", { name: /#17 Market config · Set a fee/ })
         expect(within(ready).getByText("Ready to execute")).toBeInTheDocument()
         expect(within(ready).getByText("Financial · 5 points · 4 people · 3 developers voting yes")).toBeInTheDocument()
-        expect(within(screen.getByRole("button", { name: /#13 Feedback · accept-owner/ })).getByText("Executed")).toBeInTheDocument()
+        expect(within(screen.getByRole("button", { name: /#13 Feedback · Accept the handover/ })).getByText("Executed")).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Older proposals" }))
         expect(await screen.findByRole("button", { name: /#1 / })).toBeInTheDocument()
         expect(vi.mocked(readWeightedSnapshot).mock.calls.map((call) => call[1])).toEqual(["0", "7"])
@@ -573,7 +573,7 @@ describe("the proposal windows of a DAO", () => {
     it("show a weighted DAO's proposal from its own contract, reading nothing through the other kinds' loaders", async () => {
         kindState({ kind: "weighted" })
         showProposal("memba_dao", 17)
-        expect(await screen.findByRole("heading", { name: "#17 Market config · set-fee" })).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { name: "#17 Market config · Set a fee" })).toBeInTheDocument()
         expect(useDaoConfig).not.toHaveBeenCalled()
         expect(useDaoMembers).not.toHaveBeenCalled()
     })

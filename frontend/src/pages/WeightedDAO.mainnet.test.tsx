@@ -43,8 +43,8 @@ beforeEach(() => {
 async function expectEverythingHeld() {
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Propose acceptance" })).toHaveLength(10))
     await within(screen.getByRole("article", { name: "Proposal 17" })).findByText("You have not voted.")
-    expect(screen.getByText(/Mainnet governance is read-only/)).toBeTruthy()
-    expect(screen.getByText("Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.")).toBeTruthy()
+    expect(screen.getByText(/read-only in Memba on gnoland-1: Memba builds no governance transaction/)).toBeTruthy()
+    expect(screen.getByText("Memba builds no acceptance proposal for this DAO here while it is read-only.")).toBeTruthy()
     const controls = screen.getAllByRole("button", { name: /^(Propose acceptance|Vote .*|Execute proposal)$/ })
     expect(controls.length).toBeGreaterThan(30)
     for (const button of controls) {
@@ -60,7 +60,7 @@ it("lets a member vote on the released mainnet DAO with gnoland-1 active, with t
     render(<App />)
     const card = await screen.findByRole("article", { name: "Proposal 17" })
     await within(card).findByText("You have not voted.")
-    expect(screen.queryByText(/Mainnet governance is read-only/)).toBeNull()
+    expect(screen.queryByText(/Memba builds no governance transaction/)).toBeNull()
     expect(screen.queryByText(/until the governance write hold is lifted/)).toBeNull()
     expect(weighted.weightedWriteKinds).toHaveBeenCalledWith("memba-weighted-host/v12", "gnoland-1", weightedRealm)
     const yes = within(card).getByRole("button", { name: "Vote yes" })

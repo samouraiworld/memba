@@ -11,7 +11,7 @@ beforeEach(() => navigate.mockReset())
 it("offers no vote buttons for read-only weighted proposals and links to their workspace", () => {
     const onVote = vi.fn()
     render(<QuickVoteWidget votingId={null} votedIds={new Set()} onVote={onVote} proposals={[
-        { ...base, proposalId: "85", proposalTitle: "Market config · set-fee", readOnly: true, href: "/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-85" },
+        { ...base, proposalId: "85", proposalTitle: "Market config · Set a fee", readOnly: true, href: "/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-85" },
         { ...base, realmPath: "gno.land/r/alice/team", daoSlug: "gno.land~r~alice~team", proposalId: 3, proposalTitle: "Text" },
     ]} />)
     expect(screen.queryByRole("button", { name: "Vote YES on proposal 85" })).toBeNull()

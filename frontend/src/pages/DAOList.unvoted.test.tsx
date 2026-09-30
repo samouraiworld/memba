@@ -12,7 +12,7 @@ vi.mock("../hooks/useNetworkNav", async (orig) => ({ ...(await orig<typeof impor
 vi.mock("../hooks/useUnvotedProposals", () => ({
     useUnvotedProposals: () => ({
         proposals: [
-            { daoName: "Memba DAO", daoSlug: "gno.land~r~samcrew~memba_dao", realmPath: "gno.land/r/samcrew/memba_dao", proposalId: "18446744073709551615", proposalTitle: "Market config · set-fee", proposalStatus: "voting", readOnly: true, href: "/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-18446744073709551615" },
+            { daoName: "Memba DAO", daoSlug: "gno.land~r~samcrew~memba_dao", realmPath: "gno.land/r/samcrew/memba_dao", proposalId: "18446744073709551615", proposalTitle: "Market config · Set a fee", proposalStatus: "voting", readOnly: true, href: "/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-18446744073709551615" },
             { daoName: "Team", daoSlug: "gno.land~r~alice~team", realmPath: "gno.land/r/alice/team", proposalId: 3, proposalTitle: "Text", proposalStatus: "open" },
         ],
     }),
@@ -33,7 +33,7 @@ import { DAOList } from "./DAOList"
 it("opens weighted pending rows at their workspace href, keeping the exact uint64 ID", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/pearl/dao"]}><Routes><Route path="/:network/dao" element={<DAOList />} /></Routes></MemoryRouter></QueryClientProvider>)
-    fireEvent.click(await screen.findByText(/#18446744073709551615: Market config · set-fee/))
+    fireEvent.click(await screen.findByText(/#18446744073709551615: Market config · Set a fee/))
     expect(navigate).toHaveBeenLastCalledWith("/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-18446744073709551615")
     fireEvent.click(screen.getByText(/#3: Text/))
     expect(navigate).toHaveBeenLastCalledWith("/dao/gno.land~r~alice~team/proposal/3")
