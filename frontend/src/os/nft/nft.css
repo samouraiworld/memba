@@ -1,0 +1,8 @@
+/*
+ * What the NFT and Market windows share. Tokens only.
+ */
+/* The ratio is the box's own, not the file's: the image is cropped to it, and
+   the space is held from the first paint. */
+.memba-os .os-nft-media { display: block; width: 100%; height: auto; object-fit: cover; border-radius: var(--os-radius-ctl); background: var(--os-hover); }
+.memba-os .os-nft-square { aspect-ratio: 1 / 1; }
+.memba-os .os-nft-banner { aspect-ratio: 3 / 1; }
