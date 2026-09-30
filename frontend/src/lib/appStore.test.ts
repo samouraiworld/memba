@@ -198,6 +198,16 @@ describe("isSafeRealmPath (qeval-expression injection guard)", () => {
         expect(isSafeRealmPath("")).toBe(false)
         expect(isSafeRealmPath("gno.land/r/" + "a".repeat(300))).toBe(false) // over length cap
     })
+
+    it("rejects dot and empty segments, which a link would resolve to another page", () => {
+        expect(isSafeRealmPath("gno.land/r/a/../../../settings")).toBe(false)
+        expect(isSafeRealmPath("gno.land/r/a/./b")).toBe(false)
+        expect(isSafeRealmPath("gno.land/r/a/..")).toBe(false)
+        expect(isSafeRealmPath("gno.land/r/a//b")).toBe(false)
+        expect(isSafeRealmPath("gno.land/r/a/")).toBe(false)
+        expect(isSafeRealmPath("gno.land/r/")).toBe(false)
+        expect(isSafeRealmPath("gno.land/r/a/v1.2")).toBe(true) // a dot inside a segment is a name
+    })
 })
 
 describe("fetchAppStoreStats (masthead counts via GetStatsJSON)", () => {

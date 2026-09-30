@@ -55,8 +55,12 @@ export interface AppListing {
     paidResubmitCredit?: boolean
 }
 
-/** A safe gno.land realm/package path — the only shape we'll put in a qeval expr. */
-const REALM_PATH_RE = /^gno\.land\/[rp]\/[a-zA-Z0-9_./-]+$/
+/**
+ * A safe gno.land realm/package path — the only shape we'll put in a qeval expr. The path also
+ * becomes a same-origin link, so no segment may be empty, "." or "..": a browser would resolve
+ * those to another page.
+ */
+const REALM_PATH_RE = /^gno\.land\/[rp](?:\/(?!\.{1,2}(?:\/|$))[a-zA-Z0-9_.-]+)+$/
 
 export function isSafeRealmPath(p: string): boolean {
     return REALM_PATH_RE.test(p) && p.length <= 200
