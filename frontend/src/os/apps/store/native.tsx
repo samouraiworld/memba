@@ -97,7 +97,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
         staleTime: 60_000, retry: 1,
     })
     const listing = detail.data
-    const entry = project ? buildCatalogue([], [project], session.network.key)[0] : listing ? buildCatalogue([listing], ECOSYSTEM_PROJECTS, session.network.key)[0] ?? {
+    const entry = project ? buildCatalogue([], [project], session.network.key)[0] : listing ? buildCatalogue([listing], ECOSYSTEM_PROJECTS, session.network.key).find((candidate) => candidate.listing === listing) ?? {
         id: `registry:${listing.pkgPath}`, source: "registry" as const, name: listing.name,
         tagline: listing.tagline, category: catalogueCategory(listing.category), url: listing.appURL,
         realmPath: listing.pkgPath, availability: session.network.key === "mainnet" ? "mainnet" as const : "testnet" as const, listing,
@@ -124,7 +124,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                         ? <div className="os-store-reviews">
                             {listing?.status === "live" && <NativeReviewComposer key={entry.realmPath} session={session} subject={entry.realmPath!} appName={entry.name} onSubmitted={() => setReviewRefresh(value => value + 1)} />}
                             <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} realmPath={MEMBA_DAO.appReviewsPath} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly />
-                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => setReviewRefresh(value => value + 1)}>Refresh reviews</button><a className="os-btn os-quiet" href={`/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
+                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => { setReviewRefresh(value => value + 1); void detail.refetch() }}>Refresh reviews</button><a className="os-btn os-quiet" href={`/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>
