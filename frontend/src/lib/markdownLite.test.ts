@@ -132,9 +132,48 @@ describe("markdownLite", () => {
         expect(renderMarkdown(null as unknown as string)).toBe("")
     })
 
-    it("allows gno.land/ relative links", () => {
-        const html = renderMarkdown("[dao](gno.land/r/gov/dao)")
-        expect(html).toContain('href="gno.land/r/gov/dao"')
+    it("sends a gno.land path written without its scheme to the current network's gno.land site, not under the current page", () => {
+        try {
+            window.history.replaceState({}, "", "/mainnet/news")
+            expect(renderMarkdown("[dao](gno.land/r/gov/dao)")).toContain('href="https://gno.land/r/gov/dao"')
+            // On a testnet, mainnet's same path may be someone else's realm.
+            window.history.replaceState({}, "", "/onyx/news")
+            expect(renderMarkdown("[dao](gno.land/r/gov/dao)")).toContain('href="https://onyx.testnets.gno.land/r/gov/dao"')
+        } finally {
+            window.history.replaceState({}, "", "/")
+        }
+    })
+
+    it("renders a linked image, such as a badge, as one link to where it points", () => {
+        const md = "[![badge](https://img.shields.io/x.svg)](https://github.com/x)"
+        const link = '<a href="https://github.com/x" target="_blank" rel="noopener noreferrer">Image: badge</a>'
+        expect(renderMarkdown(md)).toBe(`<p class="md-p">${link}</p>`)
+        // Feed posts use the same inline rules, unsanitized afterwards.
+        expect(renderPostBody(md)).toBe(link)
+    })
+
+    it("links an address in text only: never inside a link's href or text, nor in code", () => {
+        const ADDR = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        const html = renderMarkdown(`[${ADDR}](https://gno.land/u/${ADDR}) and \`${ADDR}\` then ${ADDR}`)
+        const doc = new DOMParser().parseFromString(html, "text/html")
+        const links = [...doc.querySelectorAll("a")]
+        // The written link, whole, and one address link for the address in text: no link inside a link.
+        expect(links.map((a) => a.getAttribute("href"))).toEqual([`https://gno.land/u/${ADDR}`, expect.stringMatching(new RegExp(`/profile/${ADDR}$`))])
+        expect(links[0].textContent).toBe(ADDR)
+        // On the raw HTML: a parser would repair a link nested in a link before any query saw it.
+        expect(html.match(/<a\b/g)).toHaveLength(2)
+        expect(doc.querySelector("code")!.textContent).toBe(ADDR)
+        expect(doc.querySelector("code a")).toBeNull()
+    })
+
+    it("shows an image it does not load as a link to it, without a stray \"!\"", () => {
+        const html = renderMarkdown("![diagram](https://example.org/d.png)\n\nsee ![](https://example.org/e.png) here")
+        const doc = new DOMParser().parseFromString(html, "text/html")
+        expect(doc.querySelector("img")).toBeNull()
+        expect(doc.body.textContent).not.toContain("!")
+        expect([...doc.querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
+            ["Image: diagram", "https://example.org/d.png"], ["Image", "https://example.org/e.png"],
+        ])
     })
 })
 

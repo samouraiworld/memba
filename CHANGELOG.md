@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Rendered text: links and images read as written (2026-10-01)
+- Fixed: an address inside a link or in code is no longer turned into a second link; a gno.land link written without https opens on the current network's gno.land site instead of a broken Memba address; a linked badge renders as one link; and an image that is not loaded shows as a link to it instead of a stray "!".
+
 ### Memba OS: Memba DAO in its own window (2026-09-30)
 - Memba DAO opens natively in its Memba OS window: Overview (how decisions pass, open proposals, each governed application with its rules and who controls it), Proposals with a window per proposal, Members, and a Treasury that says the DAO holds and spends nothing and where application fees go today. Guests read all of it; the window re-reads the chain each minute and says when it shows a previous read.
 - Members of Memba DAO vote on and execute its proposals from the proposal's window in Memba OS, through the Memba review: only choices the DAO would record, the exact network fee re-checked before the wallet, a warning naming the proposals an execution invalidates, and the result checked on chain.

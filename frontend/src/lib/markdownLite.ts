@@ -2,15 +2,15 @@
  * markdownLite — Lightweight markdown-to-HTML renderer for Gno Render() output.
  *
  * Supports: headings, bold, italic, links, lists, code blocks, inline code,
- * tables, horizontal rules, bech32 address auto-linking.
+ * tables, horizontal rules, bech32 address auto-linking (in text only).
  *
  * XSS-safe: all user content is escaped before HTML insertion.
- * Protocol whitelist: only https?, gno.land/, and relative paths.
+ * Protocol whitelist: only https?, gno.land/ (sent to the current network's gno.land site), and relative paths.
  *
  * @module lib/markdownLite
  */
 
-import { currentNetworkKey } from "./config"
+import { currentNetworkKey, getExplorerBaseUrlFor } from "./config"
 
 // ── HTML Escaping ───────────────────────────────────────────
 
@@ -34,9 +34,14 @@ function sanitizeUrl(href: string): string {
     // "/\t/evil.com" and "/\evil.com" both resolve to another host.
     const trimmed = href.replace(/[\t\n\r]/g, "").trim()
     if (/^[/\\]{2}/.test(trimmed) || trimmed.includes("\\")) return "#"
-    // Allow relative paths, anchor links, gno.land paths
-    if (trimmed.startsWith("/") || trimmed.startsWith("#") || trimmed.startsWith("gno.land/")) {
+    // Allow relative paths and anchor links
+    if (trimmed.startsWith("/") || trimmed.startsWith("#")) {
         return escapeHtml(trimmed)
+    }
+    // A gno.land path written without its scheme is on the current network's gno.land site, never a
+    // path under the current page: on a testnet, mainnet's same path may be someone else's realm.
+    if (trimmed.startsWith("gno.land/")) {
+        return escapeHtml(`${getExplorerBaseUrlFor(currentNetworkKey())}/${trimmed.slice("gno.land/".length)}`)
     }
     // Allow http/https
     if (/^https?:\/\//i.test(trimmed)) {
@@ -50,13 +55,17 @@ function sanitizeUrl(href: string): string {
 
 const BECH32_PATTERN = /\bg1[a-z0-9]{38}\b/g
 
-function autoLinkAddresses(text: string): string {
+/** Markup an address must not be linked inside: a link (its href and its text), inline code, any other tag. */
+const NOT_TEXT = /(<a\b[^>]*>[\s\S]*?<\/a>|<code\b[^>]*>[\s\S]*?<\/code>|<[^>]+>)/
+
+function autoLinkAddresses(html: string): string {
     // Every app route lives under /:network; a bare /profile/… would bounce
     // through LegacyRedirect onto the stored/default network.
     const network = currentNetworkKey()
-    return text.replace(BECH32_PATTERN, addr =>
+    // Only text between tags: an address in a link's href or text, or in code, stays as written.
+    return html.split(NOT_TEXT).map((part, index) => index % 2 === 1 ? part : part.replace(BECH32_PATTERN, addr =>
         `<a href="/${network}/profile/${addr}" class="md-address">${addr}</a>`,
-    )
+    )).join("")
 }
 
 // ── Inline Processing ───────────────────────────────────────
@@ -74,11 +83,18 @@ function processInline(text: string, opts?: { autolink?: boolean }): string {
     // Italic
     out = out.replace(/\*(.+?)\*/g, "<em>$1</em>")
 
+    const link = (href: string, text: string) =>
+        `<a href="${sanitizeUrl(href.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"))}" target="_blank" rel="noopener noreferrer">${text}</a>`
+    const imageText = (alt: string) => alt ? `Image: ${alt}` : "Image"
+
+    // A linked image, such as a badge, is one link to where it points: never a link inside a link.
+    out = out.replace(/\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)/g, (_m, alt: string, _src: string, href: string) => link(href, imageText(alt)))
+
+    // An image left to text (images are off for this content): a link to it, without the "!".
+    out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt: string, href: string) => link(href, imageText(alt)))
+
     // Links [text](url)
-    out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {
-        const safeHref = sanitizeUrl(href.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"))
-        return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${text}</a>`
-    })
+    out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text: string, href: string) => link(href, text))
 
     // Auto-link bech32 addresses (skippable — the /profile/ route is
     // network-scoped in the app, so feed posts opt out until mention-linking
@@ -115,7 +131,7 @@ export interface RenderMarkdownOpts {
      * output (directory drawer, explorer), and the feed's media wave is gated
      * on a serving-blocklist — only first-party, repo-reviewed content (the
      * blog) may enable this. URLs go through the same protocol whitelist as
-     * links; a rejected URL renders as escaped text, never an <img>.
+     * links; a rejected URL renders as the link "Image: alt" to "#", never an <img>.
      */
     images?: boolean
 }
@@ -140,7 +156,7 @@ export function renderMarkdown(md: string, opts?: RenderMarkdownOpts): string {
                     i++
                     continue
                 }
-                // Rejected protocol → fall through to paragraph (escaped text).
+                // Rejected protocol → fall through to paragraph: the link "Image: alt" to "#".
             }
         }
 
