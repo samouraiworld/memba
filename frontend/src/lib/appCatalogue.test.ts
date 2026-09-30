@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { ECOSYSTEM_PROJECTS } from "./ecosystemDirectory"
-import { buildCatalogue, filterCatalogue, normalizeAppUrl, notOnChain, parseCatalogueFilters, updateCatalogueFilters } from "./appCatalogue"
+import { buildCatalogue, checkedLinkDate, filterCatalogue, normalizeAppUrl, notOnChain, parseCatalogueFilters, updateCatalogueFilters } from "./appCatalogue"
 import type { AppListing } from "./appStore"
 
 describe("one App Store catalogue", () => {
@@ -26,6 +26,23 @@ describe("one App Store catalogue", () => {
     it("also hides a newly registered project by its verified realm, even when its web address differs", () => {
         const live = [{ pkgPath: "gno.land/r/g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6/kourt", appURL: "https://new.kourt.xyz/" }]
         expect(notOnChain(ECOSYSTEM_PROJECTS, live).some((project) => project.id === "kourt")).toBe(false)
+    })
+
+    it("dates a link check only for the link the editorial record dates", () => {
+        const listing = (pkgPath: string, name: string, appURL: string) => ({ pkgPath, appURL, status: "live", name, tagline: "", category: "Community" }) as AppListing
+        // Boards: the record's evidence is the very page the listing opens.
+        const [boards] = buildCatalogue([listing("gno.land/r/gnoland/boards2/v0", "Boards", "https://gno.land/r/gnoland/boards2/v0/")], ECOSYSTEM_PROJECTS)
+        expect(boards.project?.id).toBe("boards")
+        expect(checkedLinkDate(boards)).toBe("2026-09-22")
+        // GnoSwap: the record dates its router realm (09-26), not the site the listing opens.
+        const [gnoswap] = buildCatalogue([listing("gno.land/r/gnoswap/router", "GnoSwap", "https://gnoswap.io/")], ECOSYSTEM_PROJECTS)
+        expect(gnoswap.project?.id).toBe("gnoswap")
+        expect(checkedLinkDate(gnoswap)).toBeNull()
+        // Same realm path, so the editorial project is attached, but the publisher supplied another launch URL.
+        const [other] = buildCatalogue([listing("gno.land/r/gnoland/boards2/v0", "Boards", "https://not-the-checked-site.example/")], ECOSYSTEM_PROJECTS)
+        expect(other.project?.id).toBe("boards")
+        expect(checkedLinkDate(other)).toBeNull()
+        expect(checkedLinkDate({ url: "/game", project: undefined })).toBeNull()
     })
 
     it("always keeps off-chain tools in the static directory", () => {

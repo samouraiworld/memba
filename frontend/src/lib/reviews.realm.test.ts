@@ -21,9 +21,6 @@ import {
     buildEditCommentMsg,
     buildDeleteCommentMsg,
     buildFlagMsg,
-    buildHideReviewMsg,
-    buildHideCommentMsg,
-    buildUnhideMsg,
 } from "./reviews"
 
 // B2a: the reviews engine is subject-agnostic and there is more than one deployed reviews realm
@@ -52,7 +49,7 @@ describe("reviews realm-path threading — write builders", () => {
         expect(m.value.send).toBe("")
     })
 
-    it("threads the realmPath through every write builder (all 11)", () => {
+    it("threads the realmPath through every write builder (all 8)", () => {
         expect(buildPostReviewMsg("g1c", "s", 5, "b", APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
         expect(buildEditReviewMsg("g1c", 1, 4, "b", APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
         expect(buildDeleteReviewMsg("g1c", 1, APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
@@ -61,9 +58,6 @@ describe("reviews realm-path threading — write builders", () => {
         expect(buildEditCommentMsg("g1c", 1, "nice", APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
         expect(buildDeleteCommentMsg("g1c", 1, APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
         expect(buildFlagMsg("g1c", 1, APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
-        expect(buildHideReviewMsg("g1c", 1, APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
-        expect(buildHideCommentMsg("g1c", 1, APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
-        expect(buildUnhideMsg("g1c", 1, APP_REVIEWS).value.pkg_path).toBe(APP_REVIEWS)
     })
 })
 

@@ -212,7 +212,20 @@ export async function fetchSummary(subject: string, realmPath: string = REVIEWS_
     }
 }
 
-/** Current onchain moderation authority; an absent or malformed answer grants no UI controls. */
+/** The Samourai team's 2-of-3 multisig on gno.land mainnet. What it moderates or lists is read from chain, never assumed from this address. */
+export const TEAM_MULTISIG_ADDRESS = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
+
+/**
+ * What a listing adds after its publisher's address: whose address it is, and that it
+ * moderates reviews only when `moderator` (read from the app reviews realm now) is that address.
+ */
+export function publisherNote(publisher: string, moderator: string | null | undefined): string {
+    const moderates = !!moderator && moderator === publisher
+    if (publisher === TEAM_MULTISIG_ADDRESS) return moderates ? " (the Samourai team multisig, which also moderates reviews)" : " (the Samourai team multisig)"
+    return moderates ? " (this address also moderates reviews)" : ""
+}
+
+/** Current onchain moderation authority, for display; null when absent or malformed. */
 export async function fetchModerator(realmPath: string = REVIEWS_PKG_PATH): Promise<string | null> {
     const raw = await queryEval(GNO_RPC_URL, realmPath, "GetModerator()")
     const address = raw ? unwrapQeval(raw) : ""
@@ -348,30 +361,6 @@ export function buildDeleteCommentMsg(caller: string, commentID: number, realmPa
  */
 export function buildFlagMsg(caller: string, targetID: number, realmPath: string = REVIEWS_PKG_PATH): AminoMsg {
     return buildReviewMsgCall("Flag", [String(targetID)], caller, realmPath)
-}
-
-/**
- * HideReview(reviewID uint64)
- * Moderator-only: hide a review from public view without erasing it.
- */
-export function buildHideReviewMsg(caller: string, reviewID: number, realmPath: string = REVIEWS_PKG_PATH): AminoMsg {
-    return buildReviewMsgCall("HideReview", [String(reviewID)], caller, realmPath)
-}
-
-/**
- * HideComment(commentID uint64)
- * Moderator-only: hide a comment from public view without erasing it.
- */
-export function buildHideCommentMsg(caller: string, commentID: number, realmPath: string = REVIEWS_PKG_PATH): AminoMsg {
-    return buildReviewMsgCall("HideComment", [String(commentID)], caller, realmPath)
-}
-
-/**
- * Unhide(targetID uint64)
- * Moderator-only: restore a hidden review or comment to public view.
- */
-export function buildUnhideMsg(caller: string, targetID: number, realmPath: string = REVIEWS_PKG_PATH): AminoMsg {
-    return buildReviewMsgCall("Unhide", [String(targetID)], caller, realmPath)
 }
 
 // ── Broadcast helper ─────────────────────────────────────────

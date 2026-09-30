@@ -22,6 +22,13 @@ describe("ecosystem discovery controls", () => {
         expect(screen.getByRole("searchbox")).toHaveValue("boards")
         expect(screen.getByRole("status")).toHaveTextContent("1 project found")
     })
+    it("dates the availability evidence, not every link on the card", () => {
+        renderWithProviders(<Harness />, { route: "/pearl/apps?q=gnoswap" })
+        // GnoSwap's record dates its router realm (the availability line), not its website.
+        expect(screen.getByText("Mainnet · router realm checked")).toBeInTheDocument()
+        expect(screen.getByText("Availability checked 2026-09-26")).toBeInTheDocument()
+        expect(screen.queryByText(/Links checked/)).not.toBeInTheDocument()
+    })
     it("keeps mainnet realm destinations explicit when browsing from Pearl", () => {
         vi.stubEnv("VITE_ENABLE_EXPLORER", "true")
         renderWithProviders(<Harness />, { route: "/pearl/apps?q=boards" })

@@ -3,11 +3,13 @@ import { useMemo, useState, type CSSProperties, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { API_BASE_URL, MEMBA_DAO, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
 import { ReviewsSection } from "../../../components/reviews/ReviewsSection"
+import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
-import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
+import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDate, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
 import { fetchAppStrict, fetchLiveCatalogue, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { isValidCid } from "../../../lib/ipfs"
+import { publisherNote } from "../../../lib/reviews"
 import { AppShell, ErrorState, Loading, Pill } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { osTargetForClassic } from "../../page/classicRoute"
@@ -95,6 +97,7 @@ function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "sessio
 
 function Detail({ section, session, open, close }: NativeViewProps) {
     const [reviewRefresh, setReviewRefresh] = useState(0)
+    const moderator = useReviewsModerator(MEMBA_DAO.appReviewsPath, isAppReviewsAvailable())
     const path = section?.startsWith("apps/") ? `gno.land/${section.slice(5)}` : null
     const projectId = section?.startsWith("project/") ? section.slice(8) : null
     const project = ECOSYSTEM_PROJECTS.find((candidate) => candidate.id === projectId)
@@ -137,7 +140,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>
-                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Publisher <code>{listing.publisher}</code></p>}{entry.project?.evidence && <p>Link checked {entry.project.evidence.checkedAt}</p>}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
+                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
             </div>
         </>}
     </div>

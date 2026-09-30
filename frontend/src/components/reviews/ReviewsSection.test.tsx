@@ -1,5 +1,6 @@
 import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { useState } from "react"
 import { ReviewsSection } from "./ReviewsSection"
 import { renderWithProviders } from "../../test/test-utils"
 import type { OnChainReview } from "../../lib/reviews"
@@ -131,17 +132,61 @@ describe("ReviewsSection", () => {
     expect(screen.queryByRole("radiogroup", { name: /your rating/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /like|dislike|flag|edit|delete/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "View replies" })).toBeInTheDocument()
-    expect(fetchModerator).not.toHaveBeenCalled()
   })
 
-  it("shows moderation only to the current realm moderator", async () => {
+  it("names the realm's moderator in the policy and offers no hide control, even to that moderator", async () => {
     const moderator = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
     adena = { address: moderator, connected: true, connect }
     fetchModerator.mockResolvedValue(moderator)
-    renderWithProviders(<ReviewsSection subject="g1s" realmPath="gno.land/r/samcrew/memba_appstore_reviews_v1" />)
-    expect(await screen.findByRole("button", { name: "Hide" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Unhide" })).not.toBeInTheDocument()
-    expect(fetchModerator).toHaveBeenCalledWith("gno.land/r/samcrew/memba_appstore_reviews_v1")
+    renderWithProviders(<ReviewsSection subject="g1s" realmPath="gno.land/r/samcrew/memba_reviews_v2" />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    expect(fetchModerator).toHaveBeenCalledWith("gno.land/r/samcrew/memba_reviews_v2")
+    expect(await screen.findByText(moderator)).toBeInTheDocument()
+    expect(screen.getByText("How reviews are moderated")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^(Hide|Unhide)$/ })).not.toBeInTheDocument()
+  })
+
+  it("shows the policy on the read-only OS view too", async () => {
+    fetchModerator.mockResolvedValue("g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt")
+    renderWithProviders(<ReviewsSection subject="g1s" readOnly />)
+    expect(await screen.findByText("g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt")).toBeInTheDocument()
+  })
+
+  it("states no policy while the moderator is being read, nor for a realm that returns none", async () => {
+    // A realm without GetModerator (memba_appstore_reviews_v1) or an unreadable one: the
+    // policy describes the reviews realm's behaviour, so it is not stated for it.
+    const unread = "How these reviews are moderated cannot be shown: the reviews realm did not return its moderator."
+    let answer!: (value: string | null) => void
+    fetchModerator.mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    const pending = renderWithProviders(<ReviewsSection subject="g1s" />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    expect(screen.queryByText("How reviews are moderated")).not.toBeInTheDocument()
+    expect(screen.queryByText(unread)).not.toBeInTheDocument()
+    answer(null)
+    expect(await screen.findByText(unread)).toBeInTheDocument()
+    expect(screen.queryByText("How reviews are moderated")).not.toBeInTheDocument()
+    expect(screen.queryByText(/g1[0-9a-z]{38}/)).not.toBeInTheDocument()
+    pending.unmount()
+
+    fetchModerator.mockReset().mockRejectedValue(new Error("rpc down"))
+    renderWithProviders(<ReviewsSection subject="g1s" realmPath="gno.land/r/samcrew/other_reviews" />)
+    expect(await screen.findByText(unread)).toBeInTheDocument()
+    expect(screen.queryByText("How reviews are moderated")).not.toBeInTheDocument()
+    expect(screen.queryByText(/g1[0-9a-z]{38}/)).not.toBeInTheDocument()
+  })
+
+  it("drops the previous realm's moderator as soon as the realm changes", async () => {
+    const first = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
+    fetchModerator.mockImplementation((path: string) => path.endsWith("/a") ? Promise.resolve(first) : new Promise(() => {}))
+    function Switcher() {
+      const [realm, setRealm] = useState("gno.land/r/x/a")
+      return <><button type="button" onClick={() => setRealm("gno.land/r/x/b")}>Other realm</button><ReviewsSection subject="g1s" realmPath={realm} /></>
+    }
+    renderWithProviders(<Switcher />)
+    expect(await screen.findByText(first)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Other realm" }))
+    await waitFor(() => expect(screen.queryByText(first)).not.toBeInTheDocument())
+    expect(screen.queryByText("How reviews are moderated")).not.toBeInTheDocument()
   })
 
   it("optimistically shows a just-posted review before the chain reflects it", async () => {

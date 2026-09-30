@@ -88,6 +88,16 @@ Blocklist and erasure decisions are made by the operators against this policy.
 (Security vulnerabilities go to **security@samourai.coop** instead — see
 [`SECURITY.md`](../SECURITY.md).)
 
+## Reviews
+
+_Added 2026-09-30._ These rules cover reviews and replies in the reviews realm the app reads on each network (`gno.land/r/samcrew/memba_reviews_v2` on gno.land mainnet). The product shows them under a review list ("How reviews are moderated") whenever that realm returns its moderator, and states nothing about moderation for a realm that does not.
+
+- **Grounds.** The Samourai team multisig, when it is the moderator, hides a review or a reply only for illegal content, personal data, scams, spam or harassment. Criticism or a low rating is never a reason. This is that moderator's policy: the realm takes no reason with a hide and cannot enforce one, and the product states no grounds for any other moderator.
+- **Flags.** Anyone can flag. The realm records the flag for the moderator and never hides anything automatically.
+- **What a hide does.** A hidden review leaves the public list and the subject's count and average; a hidden reply leaves its thread. The text stays on chain, and the realm emits a public `Hidden` event; `Unhide` reverses it and emits `Unhidden`.
+- **Who moderates.** The realm's moderator, which the app reads from chain (`GetModerator()`) and shows with the policy; `GetPendingModerator()` names a successor that has not accepted yet. The app names the Samourai team multisig when the moderator is that address, and an App Store listing says that its lister also moderates reviews when the two addresses are the same. There is no hide control in the app: a hide is a transaction of the moderator's own.
+- **Appeals.** While the team multisig moderates: open an issue at <https://github.com/samouraiworld/memba/issues>, and the same team answers it. The product shows no appeal channel for another moderator.
+
 ## Old tombstones
 
 Removed and blocklisted posts leave a tombstone so threads keep their shape. The

@@ -21,7 +21,7 @@ import { WalletNetworkError } from "./walletNetworkGuard"
 import { broadcastDaoTx, planDaoTx } from "./dao/daoTx"
 import { broadcastEscrowTx, escrowFailureMayHaveLanded, planCancelContract } from "./marketplace/escrowTx"
 import { submitFeedMsg } from "./feed"
-import { buildHideCommentMsg, submitMsg as submitReviewMsg } from "./reviews"
+import { buildFlagMsg, submitMsg as submitReviewMsg } from "./reviews"
 import { clearGovernanceMemory, readGovernanceReceipt, type GovernanceScope } from "./dao/governanceRecovery"
 import { executeSignature } from "../os/sign/signer"
 import { liveWallet } from "../test/walletStub"
@@ -37,7 +37,7 @@ const PATHS: Array<[string, () => Promise<unknown>]> = [
     ["DAO v2 vote (daoTx)", () => broadcastDaoTx(planDaoTx("memba-v2", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER), { type: "vote", id: 1, vote: "YES" }, "vote")],
     ["escrow (broadcastEscrowTx)", () => broadcastEscrowTx(planCancelContract(CALLER, "gno.land/r/samcrew/escrow_v4", "7"), "cancel")],
     ["feed post (submitFeedMsg)", () => submitFeedMsg(call("Post"), "post")],
-    ["review moderation (reviews.submitMsg)", () => submitReviewMsg(buildHideCommentMsg(CALLER, 1), "hide")],
+    ["review flag (reviews.submitMsg)", () => submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")],
 ]
 
 let DoContract: ReturnType<typeof vi.fn>
@@ -154,10 +154,10 @@ describe("the connected account", () => {
     it("refuses when Adena's account is not the one the session connected", async () => {
         setWalletRpcContext("https://rpc.gno.land:443", true, GNO_CHAIN_ID, CALLER)
         vi.stubGlobal("adena", { ...liveWallet({ address: PAYEE }), DoContract })
-        await expect(submitReviewMsg(buildHideCommentMsg(CALLER, 1), "hide")).rejects.toThrow(/account is not the one connected/)
+        await expect(submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")).rejects.toThrow(/account is not the one connected/)
         expect(DoContract).not.toHaveBeenCalled()
         vi.stubGlobal("adena", { ...liveWallet({ address: CALLER }), DoContract })
-        await submitReviewMsg(buildHideCommentMsg(CALLER, 1), "hide")
+        await submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")
         expect(DoContract).toHaveBeenCalledTimes(1)
     })
 })

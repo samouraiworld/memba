@@ -18,10 +18,11 @@ import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
 import { fetchLiveCatalogue, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
-import { fetchSummary, fetchSummaries, type SubjectSummary } from "../lib/reviews"
+import { fetchSummary, fetchSummaries, publisherNote, type SubjectSummary } from "../lib/reviews"
 import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
 import { MEMBA_DAO, API_BASE_URL, isAppReviewsAvailable, isAppStoreSubmitEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
+import { useReviewsModerator } from "../components/reviews/useReviewsModerator"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
 import { EcosystemDirectory } from "../components/appstore/EcosystemDirectory"
@@ -243,7 +244,7 @@ function AppGrid() {
                     On-chain app listings
                 </h2>
                 <p className="appstore__lede">
-                    Listings from Memba’s registry. Inspect each app’s public realm and reviews before opening it.
+                    Listings from Memba’s registry. Inspect each app’s public realm{appReviews ? " and reviews" : ""} before opening it.
                 </p>
                 {!isPending && !isError && allApps.length > 0 && (
                     <div className="appstore__stats">
@@ -465,6 +466,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
     const { networkKey } = useNetwork()
     const rel = relPath(pkgPath)
     const appReviews = isAppReviewsAvailable()
+    const moderator = useReviewsModerator(MEMBA_DAO.appReviewsPath, appReviews)
     const { data: app, isPending, isError } = useQuery({
         queryKey: ["appStore", "detail", networkKey, pkgPath],
         queryFn: () => fetchApp(pkgPath),
@@ -550,7 +552,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             This is an on-chain realm. Its full source is public — read it in the
                             Explorer before you connect a wallet.
                             {app.publisher && (
-                                <> Published by <code className="apptrust__addr">{shortAddr(app.publisher)}</code>.</>
+                                <> Listed by <code className="apptrust__addr">{shortAddr(app.publisher)}</code>{publisherNote(app.publisher, moderator)}.</>
                             )}
                         </p>
                         {/* Community safety valve (B1b): flaggable states only — the realm

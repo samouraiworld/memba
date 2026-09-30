@@ -21,6 +21,7 @@ const fetchLiveApps = vi.fn()
 let catalogueComplete = true
 const fetchAppStoreStats = vi.fn()
 const fetchSummaries = vi.fn()
+const fetchModerator = vi.fn()
 
 vi.mock("../lib/appStore", async (importActual) => {
     const actual = await importActual<typeof import("../lib/appStore")>()
@@ -35,7 +36,13 @@ vi.mock("../lib/appStore", async (importActual) => {
 })
 vi.mock("../lib/reviews", async (importActual) => {
     const actual = await importActual<typeof import("../lib/reviews")>()
-    return { ...actual, fetchSummaries: (...a: unknown[]) => fetchSummaries(...a) }
+    return {
+        ...actual,
+        fetchSummaries: (...a: unknown[]) => fetchSummaries(...a),
+        fetchModerator: (...a: unknown[]) => fetchModerator(...a),
+        fetchSummary: async () => ({ count: 0, average: 0, sum: 0 }),
+        fetchReviews: async () => [],
+    }
 })
 vi.mock("../lib/config", async (importActual) => {
     const actual = await importActual<typeof import("../lib/config")>()
@@ -54,6 +61,7 @@ beforeEach(() => {
     fetchLiveApps.mockReset().mockResolvedValue([])
     fetchAppStoreStats.mockReset().mockResolvedValue(null)
     fetchSummaries.mockReset().mockResolvedValue(new Map())
+    fetchModerator.mockReset().mockResolvedValue(null)
 })
 
 function listing(over: Partial<AppListing>): AppListing {
@@ -143,6 +151,57 @@ describe("AppDetail — pending-review banner follows the user to the detail pag
         renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/samcrew/verified" })
         expect(await screen.findByText(/Verified App/)).toBeInTheDocument()
         expect(screen.queryByText(/Pending review\./)).not.toBeInTheDocument()
+    })
+})
+
+describe("AppStore — says who listed an app and promises reviews only when they are on", () => {
+    const TEAM = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
+
+const DAO = "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8"
+    const trustOf = async () => (await screen.findByText("Read before you run")).closest("aside")!
+    const teamListing = () => fetchApp.mockResolvedValue(listing({ pkgPath: "gno.land/r/gnoswap/router", name: "GnoSwap", status: "live", publisher: TEAM }))
+
+    it("names the lister, not a realm publisher, and claims no moderation while app reviews are off", async () => {
+        teamListing()
+        renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/gnoswap/router" })
+        const trust = await trustOf()
+        expect(trust).toHaveTextContent("Listed by g136j0m0…5cpf (the Samourai team multisig).")
+        expect(trust).not.toHaveTextContent("Published by")
+        expect(fetchModerator).not.toHaveBeenCalled()
+    })
+
+    it("says the lister also moderates reviews only when the reviews realm names it as moderator", async () => {
+        reviewsEnabled = true
+        teamListing()
+        fetchModerator.mockResolvedValue(TEAM)
+        const first = renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/gnoswap/router" })
+        const trust = await trustOf()
+        await waitFor(() => expect(trust).toHaveTextContent("Listed by g136j0m0…5cpf (the Samourai team multisig, which also moderates reviews)."))
+        expect(fetchModerator).toHaveBeenCalledWith(MEMBA_DAO.appReviewsPath)
+        first.unmount()
+
+        // Moderation handed to another address: the listing stops claiming it.
+        fetchModerator.mockResolvedValue(DAO)
+        renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/gnoswap/router" })
+        await waitFor(() => expect(screen.getByText(DAO)).toBeInTheDocument())
+        expect(await trustOf()).toHaveTextContent("Listed by g136j0m0…5cpf (the Samourai team multisig).")
+    })
+
+    it("makes no team claim for another lister", async () => {
+        fetchApp.mockResolvedValue(listing({ pkgPath: "gno.land/r/x/app", name: "Other", status: "live", publisher: "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt" }))
+        renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/x/app" })
+        const trust = (await screen.findByText("Read before you run")).closest("aside")!
+        expect(trust).toHaveTextContent("Listed by")
+        expect(trust).not.toHaveTextContent("Samourai team")
+    })
+
+    it("mentions reviews in the lede only while app reviews are available", async () => {
+        const { unmount } = renderWithProviders(appStoreRoutes, { route: "/test13/apps" })
+        expect(await screen.findByText(/Inspect each app’s public realm before opening it\./)).toBeInTheDocument()
+        unmount()
+        reviewsEnabled = true
+        renderWithProviders(appStoreRoutes, { route: "/test13/apps" })
+        expect(await screen.findByText(/Inspect each app’s public realm and reviews before opening it\./)).toBeInTheDocument()
     })
 })
 

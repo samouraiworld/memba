@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from "vitest"
 import {
     fetchSummaries,
     fetchModerator,
+    publisherNote,
+    TEAM_MULTISIG_ADDRESS,
     unwrapQeval,
     parseReviews,
     sortByTrust,
@@ -14,7 +16,6 @@ import {
     buildEditCommentMsg,
     buildDeleteCommentMsg,
     buildFlagMsg,
-    buildHideReviewMsg,
     REVIEWS_PKG_PATH,
     mergeReviewsByAuthor,
     summaryFromReviews,
@@ -244,17 +245,6 @@ describe("buildFlagMsg", () => {
     })
 })
 
-describe("buildHideReviewMsg", () => {
-    it("builds a HideReview MsgCall with correct func name and args", () => {
-        const m = buildHideReviewMsg("g1mod", 99)
-        expect(m.type).toBe("vm/MsgCall")
-        expect(m.value.func).toBe("HideReview")
-        expect(m.value.args).toEqual(["99"])
-        expect(m.value.caller).toBe("g1mod")
-        expect(m.value.pkg_path).toBe(REVIEWS_PKG_PATH)
-    })
-})
-
 describe("fetchSummaries (batched per-card summaries, capped concurrency)", () => {
     afterEach(() => vi.restoreAllMocks())
 
@@ -316,5 +306,17 @@ describe("fetchModerator", () => {
         expect(query).toHaveBeenCalledWith(expect.any(String), "gno.land/r/samcrew/memba_appstore_reviews_v1", "GetModerator()")
         query.mockResolvedValue('( "bad" string)')
         expect(await fetchModerator()).toBeNull()
+    })
+})
+
+describe("publisherNote", () => {
+    const OTHER = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
+
+    it("says a lister moderates reviews only when the moderator read from chain is that address", () => {
+        expect(publisherNote(TEAM_MULTISIG_ADDRESS, TEAM_MULTISIG_ADDRESS)).toBe(" (the Samourai team multisig, which also moderates reviews)")
+        expect(publisherNote(OTHER, OTHER)).toBe(" (this address also moderates reviews)")
+        // Another moderator, none returned, or not read (reviews off, read pending): no moderation claim.
+        for (const moderator of [OTHER, null, undefined]) expect(publisherNote(TEAM_MULTISIG_ADDRESS, moderator)).toBe(" (the Samourai team multisig)")
+        for (const moderator of [TEAM_MULTISIG_ADDRESS, null, undefined]) expect(publisherNote(OTHER, moderator)).toBe("")
     })
 })

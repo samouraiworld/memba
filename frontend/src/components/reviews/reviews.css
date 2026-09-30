@@ -194,13 +194,33 @@
   background: var(--color-k-danger-tint);
 }
 
-.review-card__action-btn--hide {
-  color: var(--color-k-warning-text);
-  border-color: var(--color-k-amber-border);
+.reviews-policy {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
-.review-card__action-btn--hide:hover {
-  background: var(--color-k-amber-subtle);
+.reviews-policy summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reviews-policy summary h3 {
+  display: inline;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+}
+
+.reviews-policy ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.reviews-policy code {
+  overflow-wrap: anywhere;
 }
 
 .review-card__action-btn--spacer {

@@ -6,7 +6,9 @@
  * - Reply (flat, one level — shows existing comments + reply form)
  * - Flag (all users, authenticated)
  * - Edit / Delete (author only)
- * - Hide / Unhide (MODERATOR only)
+ *
+ * Hiding is not done here: the moderator acts by a transaction of its own.
+ * ModerationPolicy states what the product knows of its rules.
  */
 
 import { useState, useCallback } from "react"
@@ -25,8 +27,6 @@ import {
   buildEditCommentMsg,
   buildDeleteCommentMsg,
   buildFlagMsg,
-  buildHideReviewMsg,
-  buildHideCommentMsg,
   submitMsg,
 } from "../../lib/reviews"
 import { StarRating } from "./StarRating"
@@ -66,10 +66,9 @@ interface CommentRowProps {
   onRefetch: () => void
   realmPath?: string
   readOnly?: boolean
-  moderatorAddress?: string | null
 }
 
-function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false, moderatorAddress }: CommentRowProps) {
+function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false }: CommentRowProps) {
   const [editMode, setEditMode] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [error, setError] = useState<string | null>(null)
@@ -81,7 +80,6 @@ function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false, 
 
   const authorLabel = truncateAddr(comment.author)
   const isAuthor = address === comment.author
-  const isModerator = !!moderatorAddress && address === moderatorAddress
 
   async function handleAction(msg: ReturnType<typeof buildEditCommentMsg>, memo: string) {
     setBusy(true)
@@ -161,17 +159,6 @@ function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false, 
               </button>
             </>
           )}
-          {isModerator && (
-            <button
-              className="review-card__action-btn review-card__action-btn--hide"
-              disabled={busy}
-              onClick={() =>
-                handleAction(buildHideCommentMsg(address, comment.id, realmPath), "hide comment")
-              }
-            >
-              Hide
-            </button>
-          )}
           {error && <p className="review-card__error">{error}</p>}
         </div>
       )}
@@ -186,10 +173,9 @@ interface ReviewCardProps {
   onRefetch: () => void
   realmPath?: string
   readOnly?: boolean
-  moderatorAddress?: string | null
 }
 
-export function ReviewCard({ review, onRefetch, realmPath, readOnly = false, moderatorAddress }: ReviewCardProps) {
+export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: ReviewCardProps) {
   const { address, connected } = useAdena()
 
   const [showComments, setShowComments] = useState(false)
@@ -204,7 +190,6 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false, mod
   const [busy, setBusy] = useState(false)
 
   const isAuthor = connected && address === review.author
-  const isModerator = connected && !!moderatorAddress && address === moderatorAddress
   const authorLabel = truncateAddr(review.author)
   // Optimistic, not-yet-confirmed review (temp id < 0): show a "Posting…" chip and hide the
   // on-chain actions (they'd target an invalid id until the chain reflects the write).
@@ -398,21 +383,6 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false, mod
               </button>
             </>
           )}
-
-          {/* Moderator controls */}
-          {isModerator && (
-            <>
-              <button
-                className="review-card__action-btn review-card__action-btn--hide"
-                disabled={busy}
-                onClick={() =>
-                  handleAction(buildHideReviewMsg(address, review.id, realmPath), "hide review")
-                }
-              >
-                Hide
-              </button>
-            </>
-          )}
         </div>
       )}
 
@@ -434,7 +404,6 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false, mod
               onRefetch={loadComments}
               realmPath={realmPath}
               readOnly={readOnly}
-              moderatorAddress={moderatorAddress}
             />
           ))}
           {!commentsLoading && comments.length === 0 && <p className="reviews-section__empty">No replies yet.</p>}

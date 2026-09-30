@@ -49,7 +49,7 @@ export function EcosystemDirectory({ standalone = false, onChain, filteredProjec
                             {project.realm && <ExplorerLink realmPath={project.realm.path} networkKey={project.realm.network} label="Mainnet Explorer" />}
                         </div>
                         <div className="ecosystem-app__footer"><span>{project.status}</span><span>{new URL(project.url).hostname}</span></div>
-                        <p className="ecosystem-app__checked">Links checked {project.evidence.checkedAt}</p>
+                        <p className="ecosystem-app__checked">Availability checked {project.evidence.checkedAt}</p>
                     </article></li>
                 })}
             </ul>

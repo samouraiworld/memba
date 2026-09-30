@@ -63,6 +63,13 @@ function normalizeRealmPath(value: string): string {
     return value.trim().replace(/\/+$/, "")
 }
 
+/** The date Memba checked the link an entry opens: only when that link is the one the editorial record dates (its evidence URL). */
+export function checkedLinkDate(entry: Pick<CatalogueEntry, "url" | "project">): string | null {
+    const project = entry.project
+    const url = normalizeAppUrl(entry.url)
+    return project && url !== null && url === normalizeAppUrl(project.evidence.url) ? project.evidence.checkedAt : null
+}
+
 /** An editorial realm is evidence of the identity; a matching web URL alone is not. */
 function matchingProject(listing: Pick<AppListing, "pkgPath">, projects: readonly EcosystemProject[]): EcosystemProject | undefined {
     return projects.find((project) => project.kind !== "tool" && project.realm?.path === normalizeRealmPath(listing.pkgPath))

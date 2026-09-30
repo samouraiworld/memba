@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Reviews: moderation policy shown with every review list (2026-09-30)
+- Review lists state how reviews are moderated when the reviews realm names its moderator: flags are recorded and never hide anything by themselves, every hide is a public chain event, and who the moderator is. When the moderator is the Samourai team multisig, the list also gives its grounds for a hide and how to appeal.
+- The in-app Hide button is removed: the moderator acts by its own transaction.
+- An App Store listing says its lister also moderates reviews only when the chain says so, and dates a link check only for the link that was checked.
+
 ### Memba OS: weighted DAOs open inside their window (2026-09-30)
 - A weighted DAO such as the Memba DAO opens inside its Memba OS window, with its proposals, members and actions, instead of a notice linking out to the classic site. The DAOs list keeps its Create button inside a narrow window.
 - A signature that finishes while another window is in front keeps its result. The DAO's contract is identified before any window reads it: a failed check says so and can be retried without disturbing other DAO windows, and the proposal pages of a weighted DAO point to its own window.

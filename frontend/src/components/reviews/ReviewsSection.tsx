@@ -25,7 +25,6 @@ import {
   type OnChainReview,
   fetchReviews,
   fetchSummary,
-  fetchModerator,
   attachUsernames,
   buildPostReviewMsg,
   submitMsg,
@@ -37,6 +36,7 @@ import {
 } from "../../lib/reviews"
 import { StarRating } from "./StarRating"
 import { ReviewCard } from "./ReviewCard"
+import { ReviewsModeration } from "./ModerationPolicy"
 import "./reviews.css"
 
 interface ReviewsSectionProps {
@@ -68,7 +68,6 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [chainSummary, setChainSummary] = useState<SubjectSummary | null>(null)
-  const [moderatorAddress, setModeratorAddress] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
@@ -95,13 +94,6 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
       aliveRef.current = false
     }
   }, [])
-
-  useEffect(() => {
-    if (readOnly) return
-    let active = true
-    void fetchModerator(realmPath).then((value) => { if (active) setModeratorAddress(value) }).catch(() => { if (active) setModeratorAddress(null) })
-    return () => { active = false }
-  }, [readOnly, realmPath])
 
   // Stable key so the effect/callbacks don't churn on array identity. The canonical subject
   // is first; aliases follow (deduped, self-excluded).
@@ -352,11 +344,12 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
 
         {visible.length > 0 &&
           visible.map((r) => (
-            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} realmPath={realmPath} readOnly={readOnly} moderatorAddress={moderatorAddress} />
+            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} realmPath={realmPath} readOnly={readOnly} />
           ))}
         {loadMoreError && <p className="reviews-section__error" role="alert">{loadMoreError}</p>}
         {paginate && hasMore && !loading && <button type="button" className="reviews-btn-secondary reviews-section__load-more" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more reviews"}</button>}
       </div>
+      <ReviewsModeration realmPath={realmPath} />
     </section>
   )
 }
