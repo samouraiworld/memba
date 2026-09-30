@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependency refresh (2026-09-30)
+- Remove the unused Remotion video packages and the MSW mock server from the frontend; nothing imported them, and a clean install now pulls in 207 fewer packages, webpack included.
+- Update Clerk themes, three.js, React Three Fiber and typescript-eslint to newer patch and minor releases (bundles Dependabot #1409–#1411).
+
 ### Memba OS: native public Profile and visual editor
 
 - Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.

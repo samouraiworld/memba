@@ -12,10 +12,6 @@ updates:
       - "dependencies"
       - "frontend"
     groups:
-      remotion:
-        patterns:
-          - "remotion"
-          - "@remotion/*"
       tanstack:
         patterns:
           - "@tanstack/*"
@@ -32,16 +28,13 @@ updates:
         patterns:
           - "@bufbuild/*"
       # BARRICADE 3D renderer stack (lazy barricade-route chunk only; see
-      # VITE_ENABLE_BARRICADE_3D). Grouped so the three/R3F/postprocessing bumps
-      # land as one reviewable PR and are pinned together.
+      # VITE_ENABLE_BARRICADE_3D). Grouped so the three/R3F bumps land as one
+      # reviewable PR and are pinned together.
       three:
         patterns:
           - "three"
           - "@types/three"
           - "@react-three/*"
-          - "postprocessing"
-          - "n8ao"
-          - "maath"
       eslint:
         patterns:
           - "eslint"
@@ -53,8 +46,6 @@ updates:
       prod-deps:
         dependency-type: "production"
         exclude-patterns:
-          - "remotion"
-          - "@remotion/*"
           - "@tanstack/*"
           - "@sentry/*"
           - "@clerk/*"
@@ -67,9 +58,6 @@ updates:
           - "three"
           - "@types/three"
           - "@react-three/*"
-          - "postprocessing"
-          - "n8ao"
-          - "maath"
     ignore:
       - dependency-name: "*"
         update-types:
