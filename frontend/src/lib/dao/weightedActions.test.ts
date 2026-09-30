@@ -6,7 +6,7 @@ vi.mock("./weighted", async (original) => ({ ...(await original<typeof import(".
 vi.mock("./weightedAcceptance", async (original) => ({ ...(await original<typeof import("./weightedAcceptance")>()), readTargetAuthority: vi.fn() }))
 const { readOpenWeightedProposals, readWeightedProposal, readWeightedSnapshot } = await import("./weighted")
 const { readTargetAuthority, weightedDaoAddress } = await import("./weightedAcceptance")
-const { checkWeightedAction } = await import("./weightedActions")
+const { checkWeightedAction, weightedLockSettled, weightedVoteLabel } = await import("./weightedActions")
 
 const r = v12Native.records
 const snapshot = () => ({ config: weightedConfigSchema.parse(r.config), members: weightedMembersSchema.parse(r.members).members, page: weightedPageSchema.parse(r.proposals_page_1) }) as WeightedSnapshot
@@ -69,5 +69,27 @@ describe("the checks a weighted action passes against fresh chain state", () => 
         vi.mocked(readTargetAuthority).mockResolvedValueOnce({ current: DAO, pending: "", failed: [] })
         await expect(check({ action: accept, executes: undefined })).rejects.toThrow("is not ready for the DAO to accept (dao controls); refresh before acting")
         await expect(check({ action: accept, executes: undefined })).resolves.toMatchObject({ snapshot: expect.anything() })
+    })
+})
+
+describe("a lock the chain has made moot", () => {
+    const receipt = (label: string) => ({ phase: "submitted" as const, hash: "ab".repeat(32), label })
+    const ballot = (choice: "yes" | "no" | "abstain" | null) => ({ schema: "memba-weighted-host/v12", proposalId: "17", voter: caller, eligible: true, choice, votedAtHeight: choice ? "9" : null })
+    const open = { status: "READY" as const, votingClosed: false }
+    it("never clears an execution's: only the member's check does", () => {
+        const lock = { operation: "execute" as const, receipt: receipt("Execute #17") }
+        expect(weightedLockSettled(lock, open, undefined)).toBe(false)
+        for (const status of ["EXECUTED", "INVALIDATED", "EXPIRED"] as const) expect(weightedLockSettled(lock, { status, votingClosed: true }, undefined)).toBe(false)
+    })
+    it("clears a vote's once voting is over, or once the ballot shows the choice that was tried", () => {
+        const lock = { operation: "vote" as const, receipt: receipt(weightedVoteLabel("No", "17")) }
+        expect(weightedLockSettled(lock, open, ballot(null))).toBe(false)
+        expect(weightedLockSettled(lock, open, ballot("yes"))).toBe(false)
+        expect(weightedLockSettled(lock, open, undefined)).toBe(false)
+        expect(weightedLockSettled(lock, open, "error")).toBe(false)
+        expect(weightedLockSettled(lock, open, ballot("no"))).toBe(true)
+        expect(weightedLockSettled(lock, { status: "TIMELOCKED", votingClosed: true }, ballot(null))).toBe(true)
+        // A label it did not write says nothing about the choice.
+        expect(weightedLockSettled({ operation: "vote", receipt: receipt("something else") }, open, ballot("no"))).toBe(false)
     })
 })

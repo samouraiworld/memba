@@ -10,6 +10,7 @@
  * @module os/daos/weightedRequest
  */
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
+import { governanceRequestActive, type GovernanceScope } from "../../lib/dao/governanceRecovery"
 import { formatUgnot, formatUgnotExact } from "../../lib/dao/v2Budget"
 import { assertFeeStillCovers, FALLBACK_GAS_PRICE, feeForGasWanted, freshFeeForGasWanted, networkGasPriceFresh, type GasPrice } from "../../lib/grc20"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
@@ -17,7 +18,7 @@ import {
     assertWeightedPlanSignable, planWeightedTx, readWeightedBallot, readWeightedProposal, weightedAuthority, weightedProposalTitle, weightedVoteChoices,
     WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedContext, type WeightedProposal, type WeightedSnapshot, type WeightedTxPlan,
 } from "../../lib/dao/weighted"
-import { broadcastWeightedPlan, checkWeightedAction, weightedMemo, weightedScope } from "../../lib/dao/weightedActions"
+import { broadcastWeightedPlan, checkWeightedAction, weightedLocks, weightedMemo, weightedScope, weightedVoteLabel } from "../../lib/dao/weightedActions"
 import { executionWarning, isVoteOpen, openProposalsOf, type BallotView } from "../../lib/dao/weightedView"
 import { assertLiveWalletChain } from "../../lib/dao/weightedWallet"
 import type { SignRequest } from "../sign/signer"
@@ -68,7 +69,16 @@ function requestParts<C extends string>(ctx: WeightedRequestContext, action: (ch
     const { realmPath, snapshot, proposal, caller, gasPrice } = ctx
     const { schema } = snapshot.config
     if (schema !== WEIGHTED_APPLICATIONS_SCHEMA) throw new Error("This DAO version is acted on in its workspace")
-    const executes = action(undefined).type === "execute" ? proposal.action : undefined
+    const operation = action(undefined).type === "execute" ? "execute" : "vote"
+    const executes = operation === "execute" ? proposal.action : undefined
+    // An earlier attempt on this proposal with an unknown outcome stops a new one, whether or not the window showed the lock.
+    const locked = (which: (lock: { operation: "vote" | "execute"; scope: GovernanceScope }) => boolean) => {
+        if (weightedLocks(GNO_CHAIN_ID, realmPath, caller, proposal.id).some(which)) throw new Error("An earlier attempt on this proposal has an unknown outcome. Check it in the proposal's window before acting again.")
+    }
+    // Any receipt on this proposal locks it, except this attempt's own while its request runs in this tab (the review
+    // re-prepares its messages then, for the wallet checklist).
+    const unlessSigning = (lock: { operation: "vote" | "execute"; scope: GovernanceScope }) => lock.operation !== operation || !governanceRequestActive(lock.scope)
+    locked(unlessSigning)
     const plan = (choice: C | undefined) => {
         const planned = planWeightedTx(caller, realmPath, action(choice), schema, GNO_CHAIN_ID, executes)
         assertWeightedPlanSignable(planned)
@@ -78,7 +88,8 @@ function requestParts<C extends string>(ctx: WeightedRequestContext, action: (ch
     const gasWanted = plan(undefined).gasWanted
     const gasFee = feeForGasWanted(gasWanted, gasPrice)
     return {
-        prepare: (choice: C | undefined) => ({ msgs: [plan(choice).msg] }),
+        // Called when the member signs, before this attempt's receipt is saved: any lock on the proposal, from any tab, stops it here.
+        prepare: (choice: C | undefined) => { locked(unlessSigning); return { msgs: [plan(choice).msg] } },
         lines: (choice: C | undefined): [string, string][] => [
             ["Storage deposit", `up to ${formatUgnot(plan(choice).maxDepositUgnot)}`],
             [gasPrice === FALLBACK_GAS_PRICE ? "Network fee (estimate: the price could not be read)" : "Network fee", formatUgnotExact(gasFee)],
@@ -87,6 +98,8 @@ function requestParts<C extends string>(ctx: WeightedRequestContext, action: (ch
         ],
         /** The workspace's checks against the reviewed DAO, then the wallet's chain; returns the fresh read. */
         check: async (choice: C | undefined) => {
+            // This attempt's own receipt exists by now (saved before the wallet opens): only the other action's can still lock it.
+            locked((lock) => lock.operation !== operation)
             // The network, the RPC and the planner's write rules are fixed for the page; the session is checked by the signer.
             const checked = await checkWeightedAction({ ctx: contextOf(realmPath), caller, action: action(choice), phase: "sign", reviewed: weightedAuthority(snapshot), executes, assertCurrent: () => {} })
             await assertLiveWalletChain({ chainId: GNO_CHAIN_ID, address: caller, schema, realmPath })
@@ -119,7 +132,7 @@ export function weightedVoteRequest(ctx: WeightedRequestContext, choices: readon
             ...parts.lines(choice),
         ],
         note: "You can change your vote until voting closes, unless the proposal is executed or invalidated first.",
-        label: (choice) => `Vote ${choice ?? choices[0]} on #${proposal.id}`,
+        label: (choice) => weightedVoteLabel(choice ?? choices[0], proposal.id),
         receipt: weightedScope(GNO_CHAIN_ID, realmPath, caller, "vote", proposal.id),
         prepare: parts.prepare,
         recheck: async (choice) => { await parts.check(choice); await parts.assertFee() },

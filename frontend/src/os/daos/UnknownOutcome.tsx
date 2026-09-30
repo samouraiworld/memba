@@ -10,9 +10,10 @@ import { clearGovernanceReceipt, type GovernanceReceipt, type GovernanceScope } 
 
 const WORDS = { vote: { noun: "vote", again: "voting again" }, execution: { noun: "execution", again: "executing again" } } as const
 
-export function UnknownOutcome({ scope, receipt, attempt, onCleared }: { scope: GovernanceScope; receipt: GovernanceReceipt; attempt: keyof typeof WORDS; onCleared: () => void }) {
+/** `again` names what the lock blocks when it is more than the same action. */
+export function UnknownOutcome({ scope, receipt, attempt, again = WORDS[attempt].again, onCleared }: { scope: GovernanceScope; receipt: GovernanceReceipt; attempt: keyof typeof WORDS; again?: string; onCleared: () => void }) {
     const [checked, setChecked] = useState(false)
-    const { noun, again } = WORDS[attempt]
+    const { noun } = WORDS[attempt]
     return (
         <div className="os-note os-warn os-stack os-tight" role="status">
             <b>Outcome unknown.</b>

@@ -4,6 +4,8 @@ import { weightedFixture } from "../../lib/dao/testdata/weighted"
 import v12Native from "../../lib/dao/testdata/weighted-v12/native.json"
 import { v12CallBudget, v12ExecuteBudget } from "../../lib/dao/weightedBudget"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
+import { beginGovernanceRequest, clearGovernanceMemory, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
+import { weightedScope } from "../../lib/dao/weightedActions"
 
 vi.mock("../../lib/dao/weighted", async (original) => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn() }))
 vi.mock("../../lib/dao/weightedWallet", () => ({ assertLiveWalletChain: vi.fn() }))
@@ -26,6 +28,8 @@ const HASH = "a".repeat(64)
 
 beforeEach(() => {
     vi.clearAllMocks()
+    clearGovernanceMemory()
+    localStorage.clear()
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => snapshot())
     vi.mocked(readWeightedProposal).mockImplementation(async (_ctx, id) => proposal(id) as Awaited<ReturnType<typeof readWeightedProposal>>)
     vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter }))
@@ -117,6 +121,45 @@ describe("a weighted vote as a signing request", () => {
             .toThrow("This DAO version is acted on in its workspace")
         expect(() => weightedExecuteRequest({ realmPath: v2.config.realmPath, daoName: "Team", snapshot: snap, proposal: { ...p, status: "READY", ready: true }, caller: snap.members[1].address, gasPrice: PRICE }, [], true))
             .toThrow("This DAO version is acted on in its workspace")
+    })
+})
+
+describe("an earlier attempt with an unknown outcome", () => {
+    const save = (operation: "vote" | "execute") => saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, operation, "17"), { phase: "submitted", hash: "ab".repeat(32), label: "earlier" })
+    const LOCKED = "An earlier attempt on this proposal has an unknown outcome. Check it in the proposal's window before acting again."
+    it("stops a new request on the same proposal, whichever action it was", () => {
+        save("execute")
+        expect(() => weightedVoteRequest(ctx(), ["Yes"])).toThrow(LOCKED)
+        expect(() => weightedExecuteRequest(ctx(), [], true)).toThrow(LOCKED)
+    })
+    it("stops signing when a receipt for the same action appears after the review, from another tab", () => {
+        const vote = weightedVoteRequest(ctx(), ["Yes", "No", "Abstain"])
+        expect(vote.prepare("No").msgs).toHaveLength(1)
+        save("vote")
+        // The signer prepares the messages when the member signs, before it saves this attempt's receipt.
+        expect(() => vote.prepare("No")).toThrow(LOCKED)
+    })
+
+    it("still prepares this attempt's messages while its own request runs, for the wallet checklist", () => {
+        const vote = weightedVoteRequest(ctx(), ["Yes", "No", "Abstain"])
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17")
+        // What the signer does when the member signs: begin the request, then save its receipt.
+        const finish = beginGovernanceRequest(scope)
+        try {
+            save("vote")
+            expect(vote.prepare("No").msgs).toHaveLength(1)
+        } finally { finish() }
+        // The same receipt with no request running here is another tab's attempt: it stops this one.
+        expect(() => vote.prepare("No")).toThrow(LOCKED)
+    })
+
+    it("stops signing when the other action's receipt appears after the review, but not for this attempt's own", async () => {
+        const vote = weightedVoteRequest(ctx(), ["Yes", "No", "Abstain"])
+        // The signer saves this attempt's receipt before the wallet opens.
+        save("vote")
+        await expect(vote.recheck!("No")).resolves.toBeUndefined()
+        save("execute")
+        await expect(vote.recheck!("No")).rejects.toThrow(LOCKED)
     })
 })
 

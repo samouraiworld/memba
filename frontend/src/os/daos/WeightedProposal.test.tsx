@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, type WeightedBallot, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { weightedFixture } from "../../lib/dao/testdata/weighted"
 import v12Native from "../../lib/dao/testdata/weighted-v12/native.json"
 import { renderWithProviders } from "../../test/test-utils"
-import { clearGovernanceMemory, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
+import { beginGovernanceRequest, clearGovernanceMemory, readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import type { OsSession } from "../shell/useOsSession"
 import type { SignRequest } from "../sign/signer"
 import { weightedScope } from "../../lib/dao/weightedActions"
@@ -171,8 +171,63 @@ describe("a weighted DAO proposal window", () => {
     it("locks executing as well while a vote's outcome is unknown", async () => {
         saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17"), { phase: "submitted", hash: "cd".repeat(32), label: "Vote No on #17" })
         show("17", as(MIKAEL))
-        expect(await screen.findByText("A previous vote attempt is saved. Check its outcome before voting again.")).toBeInTheDocument()
+        expect(await screen.findByText("A previous vote attempt is saved. Check its outcome before voting or executing again.")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /^(Vote|Execute)…$/ })).toBeNull()
+    })
+
+    it("clears a vote lock once the chain shows the ballot that was tried, and keeps it while it does not", async () => {
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17")
+        saveGovernanceReceipt(scope, { phase: "submitted", hash: "cd".repeat(32), label: "Vote No on #17" })
+        vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, choice: "yes", votedAtHeight: "283" }))
+        const kept = show("17", as(MIKAEL))
+        // Once the ballot is read: it shows another choice, so the lock stays.
+        expect(await screen.findByText("You voted yes (block 283).")).toBeInTheDocument()
+        expect(screen.getByText("Outcome unknown.")).toBeInTheDocument()
+        expect(readGovernanceReceipt(scope)).not.toBeNull()
+        kept.unmount()
+        vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, choice: "no", votedAtHeight: "284" }))
+        show("17", as(MIKAEL))
+        expect(await screen.findByText("You voted no (block 284).")).toBeInTheDocument()
+        expect(screen.queryByText("Outcome unknown.")).toBeNull()
+        expect(screen.getByRole("button", { name: "Vote…" })).toBeInTheDocument()
+        await waitFor(() => expect(readGovernanceReceipt(scope)).toBeNull())
+    })
+
+    it("keeps a moot vote lock while its request is still in flight, since it cannot be cleared yet, and says the wallet is waiting", async () => {
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17")
+        saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: "Vote No on #17" })
+        const finish = beginGovernanceRequest(scope)
+        try {
+            vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, choice: "no", votedAtHeight: "284" }))
+            show("17", as(MIKAEL))
+            expect(await screen.findByText("You voted no (block 284).")).toBeInTheDocument()
+            // This tab's own request is waiting for the wallet, not of unknown outcome yet.
+            expect(screen.getByText("Waiting for the wallet…")).toBeInTheDocument()
+            expect(screen.queryByText("Outcome unknown.")).toBeNull()
+            expect(readGovernanceReceipt(scope)).not.toBeNull()
+        } finally { finish() }
+    })
+
+    it("shows a lock another tab wrote, as soon as it is written, and when a click meets it", async () => {
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "execute", "17")
+        const tab = show("17", as(MIKAEL))
+        // Everything read first, so nothing else re-renders the window afterwards.
+        expect(await screen.findByText("You have not voted.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Execute…" })).toBeInTheDocument()
+        saveGovernanceReceipt(scope, { phase: "submitted", hash: "ef".repeat(32), label: "Execute #17" })
+        act(() => { window.dispatchEvent(new StorageEvent("storage")) })
+        expect(await screen.findByText("Outcome unknown.")).toBeInTheDocument()
+        expect(screen.getByText("A previous execution attempt is saved. Check its outcome before voting or executing again.")).toBeInTheDocument()
+        tab.unmount()
+        // Written after this render and with no event: the click is refused, says why, and the lock appears.
+        clearGovernanceMemory(); localStorage.clear()
+        show("17", as(MIKAEL))
+        expect(await screen.findByText("You have not voted.")).toBeInTheDocument()
+        const execute = screen.getByRole("button", { name: "Execute…" })
+        saveGovernanceReceipt(scope, { phase: "submitted", hash: "ef".repeat(32), label: "Execute #17" })
+        fireEvent.click(execute)
+        expect(await screen.findByText("Outcome unknown.")).toBeInTheDocument()
+        expect(sign).not.toHaveBeenCalled()
     })
 
     it("reads the DAO again when a signature settles", async () => {

@@ -7,7 +7,8 @@
  */
 import { useEffect, useState, type ReactNode } from "react"
 import { GNO_CHAIN_ID } from "../../lib/config"
-import { weightedLocks } from "../../lib/dao/weightedActions"
+import { clearGovernanceReceipt, governanceRequestActive, type GovernanceScope } from "../../lib/dao/governanceRecovery"
+import { weightedLocks, weightedLockSettled } from "../../lib/dao/weightedActions"
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWriteKinds, weightedWritesHeld, type WeightedMember, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { applicationDetails, flattenBefore } from "../../lib/dao/weightedApplications"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
@@ -120,9 +121,34 @@ function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingPro
     const signer = useSigner()
     const newest = useWeightedSnapshot(realmPath)
     const [, rerender] = useState(0)
+    const [failed, setFailed] = useState<string | null>(null)
     const caller = session.address
-    const [lock] = weightedLocks(GNO_CHAIN_ID, realmPath, caller, p.id)
-    if (lock) return <UnknownOutcome key={JSON.stringify(lock.scope)} scope={lock.scope} receipt={lock.receipt!} attempt={lock.operation === "vote" ? "vote" : "execution"} onCleared={() => rerender((x) => x + 1)} />
+    // Receipts live in browser storage: another tab's lock shows here as soon as it is written.
+    useEffect(() => {
+        const reread = () => rerender((x) => x + 1)
+        window.addEventListener("storage", reread)
+        return () => window.removeEventListener("storage", reread)
+    }, [])
+    const locks = weightedLocks(GNO_CHAIN_ID, realmPath, caller, p.id)
+    // A lock the chain has since made moot is cleared, and shown until the clear succeeds (it cannot while its request is in
+    // flight). The receipt is in the key, so the clear is tried again once the signer has saved its own. Within this tab, the
+    // window re-renders when a signature settles; other tabs' receipts arrive through the storage event above.
+    const mootKey = JSON.stringify(locks.filter((l) => weightedLockSettled(l, p, ballot)).map(({ scope, receipt }) => ({ scope, receipt })))
+    useEffect(() => {
+        let cleared = false
+        for (const { scope } of JSON.parse(mootKey) as { scope: GovernanceScope }[]) {
+            try { clearGovernanceReceipt(scope); cleared = true } catch { /* its request is still in flight: the signer settles it */ }
+        }
+        // The receipts live in browser storage, outside React: read them again once cleared.
+        if (cleared) queueMicrotask(() => rerender((x) => x + 1))
+    }, [mootKey])
+    const [lock] = locks
+    // This tab's own request, still waiting for the wallet, is not an unknown outcome yet.
+    if (lock && governanceRequestActive(lock.scope)) return <p className="os-sub" role="status">Waiting for the wallet…</p>
+    if (lock) {
+        return <UnknownOutcome key={JSON.stringify(lock.scope)} scope={lock.scope} receipt={lock.receipt!} attempt={lock.operation === "vote" ? "vote" : "execution"}
+            again="voting or executing again" onCleared={() => rerender((x) => x + 1)} />
+    }
     const { schema } = snapshot.config
     const kinds = weightedWriteKinds(schema, GNO_CHAIN_ID, realmPath)
     // Only the application version is signed here (measured budgets, verifiable results); older versions act in the workspace.
@@ -134,8 +160,11 @@ function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingPro
     const others = newest.data ? openProposalsOf(newest.data.page) : { open: [], complete: false }
     const otherOpen = others.open.filter((o) => o.id !== p.id).map((o) => o.id)
     // The fee is quoted when the member asks to act, and shown exactly in the review.
+    // A request refused as it is built (a lock another tab wrote since this render) is said here; the re-render shows that lock.
     const review = async (request: (ctx: WeightedRequestContext) => SignRequest<string>) => {
-        signer.sign(request({ realmPath, daoName: weightedDaoTitle(realmPath, dao), snapshot, proposal: p, caller, gasPrice: await quoteWeightedGasPrice() }))
+        setFailed(null)
+        try { signer.sign(request({ realmPath, daoName: weightedDaoTitle(realmPath, dao), snapshot, proposal: p, caller, gasPrice: await quoteWeightedGasPrice() })) }
+        catch (err) { setFailed(err instanceof Error ? err.message : String(err)) }
     }
     if (votes?.length === 0 && !executes && !inWorkspace.length) {
         return isVoteOpen(p) ? null : <p className="os-sub">Voting is over. Any seat holder can execute it from the earliest time above.</p>
@@ -146,6 +175,7 @@ function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingPro
                 : votes.length > 0 && <button type="button" className="os-btn" onClick={() => void review((ctx) => weightedVoteRequest(ctx, votes) as SignRequest<string>)}>Vote…</button>}
             {executes && <button type="button" className="os-btn" onClick={() => void review((ctx) => weightedExecuteRequest(ctx, otherOpen, others.complete))}>Execute…</button>}
             {inWorkspace.length > 0 && <span className="os-sub">{inWorkspace.join(" or ").replace(/^e/, "E")} from the workspace in this DAO's Proposals section.</span>}
+            {failed && <p className="os-note os-warn" role="alert">{failed}</p>}
         </div>
     )
 }

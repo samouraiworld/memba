@@ -111,6 +111,20 @@ it("refuses a vote while an attempt from the Memba OS proposal window has an unk
         expect(doContractBroadcast).not.toHaveBeenCalled()
     } finally { clearGovernanceMemory(); localStorage.clear() }
 })
+it("refuses at the wallet a vote locked while its checks ran", async () => {
+    // Another window records an unknown outcome while this click's chain reads are still running.
+    vi.mocked(doContractBroadcast).mockImplementationOnce(async (_msgs, _memo, opts) => {
+        saveGovernanceReceipt(weightedScope("pearl", weightedRealm, fixture.members[5].address, "vote", fixture.proposal.id), { phase: "submitted", hash: "ab".repeat(32), label: "Vote Yes" })
+        await opts?.beforeSign?.()
+        return { hash: "a".repeat(64) }
+    })
+    try {
+        render(<App />)
+        await screen.findByText(fixture.members[0].personId)
+        fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent(`An earlier attempt on proposal #${fixture.proposal.id} has an unknown outcome`)
+    } finally { clearGovernanceMemory(); localStorage.clear() }
+})
 it("blocks writes on mainnet even for authenticated members", async () => {
     render(<App network="mainnet" />)
     await screen.findByText(fixture.members[0].personId)

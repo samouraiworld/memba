@@ -119,6 +119,10 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             assertWeightedPlanSignable(plan)
             const beforeSign = async () => {
                 assertCurrent()
+                // Seconds of chain reads have passed since the click: a lock written meanwhile, in any tab, still stops it.
+                if ((action.type === "vote" || action.type === "execute") && weightedLocks(chainId, realmPath, wallet.address, action.id).length) {
+                    throw new Error(`An earlier attempt on proposal #${action.id} has an unknown outcome; check it in the proposal's Memba OS window before trying again`)
+                }
                 assertWeightedPlanSignable(plan)
                 await checkWeightedAction({ ...check, phase: "sign", reviewed: weightedAuthority(fresh), executes })
                 // doContractBroadcast runs the shared wallet-network guard before and

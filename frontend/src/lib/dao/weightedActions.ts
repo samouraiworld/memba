@@ -6,7 +6,7 @@
  * a later on-chain race: the realm stays the final judge.
  */
 import { doContractBroadcast } from "../grc20"
-import { readGovernanceReceipt, type GovernanceScope } from "./governanceRecovery"
+import { readGovernanceReceipt, type GovernanceReceipt, type GovernanceScope } from "./governanceRecovery"
 import { revealInvisibleFormatting as reveal } from "./v2Text"
 import {
     readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedAuthority,
@@ -14,7 +14,7 @@ import {
 } from "./weighted"
 import { ACCEPTANCE_LABELS, AUTHORITY_GETTERS, acceptanceState, readTargetAuthority, weightedDaoAddress } from "./weightedAcceptance"
 import { acceptAdapterFor, type ApplicationPolicyKey } from "./weightedApplications"
-import { isVoteOpen } from "./weightedView"
+import { isVoteOpen, type BallotView } from "./weightedView"
 
 export interface WeightedActionCheck {
     ctx: WeightedContext
@@ -79,6 +79,26 @@ export function weightedLocks(chainId: string, realmPath: string, caller: string
     return (["vote", "execute"] as const).map((operation) => ({ operation, scope: weightedScope(chainId, realmPath, caller, operation, id) }))
         .map((lock) => ({ ...lock, receipt: readGovernanceReceipt(lock.scope) }))
         .filter((lock) => lock.receipt !== null)
+}
+
+/** A vote's label in the review, the tray and its receipt; the receipt's label is how a later read knows which choice was tried. */
+export function weightedVoteLabel(choice: "Yes" | "No" | "Abstain", id: string): string {
+    return `Vote ${choice} on #${id}`
+}
+const TRIED_VOTE = /^Vote (Yes|No|Abstain) on #\d+$/
+
+/**
+ * A vote lock the chain has made moot, so a later read in the proposal
+ * window clears it: voting is over, or the ballot shows the choice that was
+ * tried. An execution lock stays until the member says they checked the
+ * transaction (while the proposal is open, nothing read says whether the
+ * attempt ran).
+ */
+export function weightedLockSettled(lock: { operation: "vote" | "execute"; receipt: GovernanceReceipt | null }, p: Pick<WeightedProposal, "status" | "votingClosed">, ballot: BallotView): boolean {
+    if (lock.operation === "execute") return false
+    if (!isVoteOpen(p)) return true
+    const tried = lock.receipt ? TRIED_VOTE.exec(lock.receipt.label)?.[1] : undefined
+    return !!tried && !!ballot && ballot !== "error" && ballot.choice === tried.toLowerCase()
 }
 
 export async function checkWeightedAction(check: WeightedActionCheck): Promise<WeightedActionChecked> {

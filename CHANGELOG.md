@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba DAO: a proposal stays locked after an unknown outcome (2026-10-01)
+- In Memba OS, a Memba DAO proposal stays locked after a vote or execution whose outcome is unknown, even across browser tabs, until you check it; a vote's lock lifts by itself once the chain shows the ballot or voting has closed.
+
 ### Memba DAO: proposals in plain words (2026-10-01)
 - Memba DAO proposals are titled in plain words (for example "DAO channels · Accept the handover"), the classic page and Memba OS word the same facts the same way, and an old Memba DAO workspace address opens its window in Memba OS.
 
