@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
-import { OS_ON } from '../../playwright.os.config'
-import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
+import { OS_NATIVE_MSIG, OS_ON } from '../../playwright.os.config'
+import { fulfillOnchainReads, isOnchainRead, mockAppChainStatus } from '../helpers/onchain'
 
 // Day 5c: the Multisig app and a multisig window on stubbed backend answers
 // (Connect JSON), with signature dots; signing opens Memba's transaction page.
@@ -157,5 +158,113 @@ test.describe('Memba OS multisig', () => {
         await expect(page.getByRole('button', { name: 'Sign Transaction' })).toHaveCount(0)
         await expect(page.getByRole('button', { name: 'Broadcast to Chain' })).toHaveCount(0)
         await expect(page.getByRole('button', { name: 'Paste gnokey Sig' })).toHaveCount(0)
+    })
+})
+
+// Native signing is off in production (VITE_ENABLE_NATIVE_GNO_MULTISIG): these run on the OS server built with it on.
+// The chain answers through the stubbed RPC and the backend through Connect JSON, so every send is counted.
+test.describe('Memba OS multisig · native broadcast', () => {
+    const BYTES = Buffer.from([1, 2, 3])
+    const HASH = createHash('sha256').update(BYTES).digest('hex').toUpperCase()
+    const nativeTx = { ...ready, multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}', feeJson: '{"gas_wanted":"200000","gas_fee":"10000ugnot"}' }
+    const connectError = (code: string, status: number) => ({ status, contentType: 'application/json', body: JSON.stringify({ code, message: code }) })
+
+    /** `complete` answers each Complete call in turn; `broadcast` each send (default: it lands). */
+    async function chainAndBackend(page: Page, opts: { complete: ('absent' | 'recorded' | 'unavailable')[]; broadcast: ('lands' | 'lost')[] }) {
+        const state = { recorded: '', completeCalls: [] as string[], broadcasts: 0 }
+        await page.route('**/memba.v1.MultisigService/GetTransaction', (route) => route.fulfill({
+            status: 200, contentType: 'application/json',
+            body: JSON.stringify({ transaction: { ...nativeTx, finalHash: state.recorded }, nativeTxBytes: BYTES.toString('base64') }),
+        }))
+        await page.route('**/memba.v1.MultisigService/CompleteTransaction', (route) => {
+            const hash = String(JSON.parse(route.request().postData() ?? '{}').finalHash ?? '')
+            state.completeCalls.push(hash)
+            const answer = opts.complete.shift() ?? 'unavailable'
+            if (answer === 'absent') return route.fulfill(connectError('failed_precondition', 400))
+            if (answer === 'unavailable') return route.fulfill(connectError('unavailable', 503))
+            state.recorded = hash
+            return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+        })
+        // Whichever RPC the build is configured with: the same hosts the shared on-chain stub serves.
+        await page.route('**/*', (route) => {
+            let body: { id?: unknown; method?: string; params?: { tx?: string } } = {}
+            try { body = JSON.parse(route.request().postData() ?? '{}') } catch { /* not JSON-RPC */ }
+            if (!isOnchainRead(route.request().url()) || body.method !== 'broadcast_tx_commit') return route.fallback()
+            state.broadcasts++
+            expect(body.params?.tx).toBe(BYTES.toString('base64'))
+            if (opts.broadcast.shift() === 'lost') return route.abort('connectionreset')
+            const ok = { ResponseBase: { Error: null, Data: null, Log: '', Info: '', Events: null } }
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { check_tx: ok, deliver_tx: ok, hash: Buffer.from(HASH, 'hex').toString('base64'), height: '1234' } }) })
+        })
+        return state
+    }
+
+    async function broadcast(page: Page) {
+        await page.getByRole('button', { name: 'Broadcast to Chain' }).click()
+        await page.getByRole('alertdialog', { name: 'Review transaction' }).getByRole('button', { name: 'Confirm & Broadcast' }).click()
+    }
+
+    test('a proposal at its threshold is checked against the chain, sent once, and recorded', async ({ page }) => {
+        await setup(page)
+        const state = await chainAndBackend(page, { complete: ['absent', 'recorded'], broadcast: [] })
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
+        await broadcast(page)
+        await expect(page.getByText(HASH)).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Broadcast to Chain' })).toHaveCount(0)
+        expect(state.broadcasts).toBe(1)
+        expect(state.completeCalls).toEqual([HASH, HASH])
+    })
+
+    test('a lost reply is reported as unknown with the hash, and the next press finds it on chain and sends nothing', async ({ page }) => {
+        await setup(page)
+        const state = await chainAndBackend(page, { complete: ['absent', 'recorded'], broadcast: ['lost'] })
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
+        await broadcast(page)
+        await expect(page.getByRole('alert').filter({ hasText: 'Native broadcast outcome unknown' })).toHaveText(`Native broadcast outcome unknown. Expected transaction hash ${HASH}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`)
+        expect(state.broadcasts).toBe(1)
+        await broadcast(page)
+        await expect(page.getByText('This transaction was already executed on chain. Nothing was sent; Memba recorded the result.')).toBeVisible()
+        await expect(page.getByText(HASH).first()).toBeVisible()
+        expect(state.broadcasts).toBe(1)
+        expect(state.completeCalls).toEqual([HASH, HASH])
+    })
+
+    test('a lost reply whose transaction never reached the chain is sent exactly once more, and the warning clears', async ({ page }) => {
+        await setup(page)
+        const state = await chainAndBackend(page, { complete: ['absent', 'absent', 'recorded'], broadcast: ['lost', 'lands'] })
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
+        await broadcast(page)
+        const warning = page.getByRole('alert').filter({ hasText: 'Native broadcast outcome unknown' })
+        await expect(warning).toBeVisible()
+        await broadcast(page)
+        await expect(page.getByText(HASH)).toBeVisible()
+        await expect(warning).toHaveCount(0)
+        expect(state.broadcasts).toBe(2)
+        expect(state.completeCalls).toEqual([HASH, HASH, HASH])
+    })
+
+    test('when the chain check cannot be answered, nothing is sent', async ({ page }) => {
+        await setup(page)
+        const state = await chainAndBackend(page, { complete: ['unavailable'], broadcast: [] })
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
+        await broadcast(page)
+        await expect(page.getByText("Couldn't check whether this transaction is already on chain. Nothing was sent; try again in a moment.")).toBeVisible()
+        expect(state.broadcasts).toBe(0)
+        await expect(page.getByRole('button', { name: 'Broadcast to Chain' })).toBeEnabled()
+    })
+
+    test('a sent transaction whose recording failed keeps its hash, and the retry only records it', async ({ page }) => {
+        await setup(page)
+        const state = await chainAndBackend(page, { complete: ['absent', 'unavailable', 'recorded'], broadcast: [] })
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
+        await broadcast(page)
+        const recovery = page.getByRole('status').filter({ hasText: 'Broadcast receipt recovery' })
+        await expect(recovery).toContainText(HASH)
+        await expect(page.getByRole('button', { name: 'Broadcast to Chain' })).toHaveCount(0)
+        await recovery.getByRole('button', { name: 'Retry receipt verification' }).click()
+        await expect(recovery).toHaveCount(0)
+        await expect(page.getByText(HASH)).toBeVisible()
+        expect(state.broadcasts).toBe(1)
+        expect(state.completeCalls).toEqual([HASH, HASH, HASH])
     })
 })

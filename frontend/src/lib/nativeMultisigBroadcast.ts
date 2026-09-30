@@ -16,6 +16,14 @@ export function assertNativeAction(chain: string): void {
     if (chain !== GNO_CHAIN_ID) throw new Error("Stored transaction chain does not match the selected network")
 }
 
+/** The node's reply was lost or unreadable: the transaction may be on chain or not. */
+export class NativeOutcomeUnknownError extends Error {
+    constructor(readonly expectedHash: string) {
+        super(`Native broadcast outcome unknown. Expected transaction hash ${expectedHash}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`)
+        this.name = "NativeOutcomeUnknownError"
+    }
+}
+
 /** The hash the chain gives these exact bytes: known before they are sent. */
 export function nativeTxHash(bytes: Uint8Array): string {
     return Array.from(sha256(bytes), b => b.toString(16).padStart(2, "0")).join("").toUpperCase()
@@ -31,7 +39,7 @@ export async function broadcastNativeTransaction(chain: string, bytes: Uint8Arra
     const status = record(record(await statusRes.json()).result)
     if (record(status.node_info).network !== chain || record(status.sync_info).catching_up !== false) throw new Error("RPC is on a different chain or catching up")
     const expected = nativeTxHash(bytes)
-    const uncertain = () => new Error(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`)
+    const uncertain = () => new NativeOutcomeUnknownError(expected)
     // JSON-RPC bodies go to the root; /broadcast_tx_commit is the form/query API.
     let response: Response
     try {
@@ -43,7 +51,9 @@ export async function broadcastNativeTransaction(chain: string, bytes: Uint8Arra
     if (!response.ok) throw uncertain()
     let body: Record<string, unknown>
     try { body = record(await response.json()) } catch { throw uncertain() }
-    if (body.error) throw new Error("Native RPC rejected the transaction")
+    // A JSON-RPC error is not a refusal: tm2 answers "request timeout" after the transaction entered the mempool,
+    // and "tx already exists in cache" to a re-send. A refusal comes back as a failed CheckTx, below.
+    if (body.error) throw uncertain()
     let result: Record<string, unknown>
     try { result = record(body.result) } catch { throw uncertain() }
     let checkOk: boolean, deliverOk: boolean

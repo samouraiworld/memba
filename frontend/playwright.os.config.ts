@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Memba OS e2e. The standard OS servers prove the on/off gate; a separate
-// Feed-enabled server exercises Feed flows without changing other OS tests.
+// Memba OS e2e. The standard OS servers prove the on/off gate; separate
+// servers exercise Feed flows and native multisig broadcast (both off by default)
+// without changing other OS tests.
 const ON_PORT = Number(process.env.MEMBA_OS_ON_TEST_PORT) || 5193
 const OFF_PORT = Number(process.env.MEMBA_OS_OFF_TEST_PORT) || 5194
 export const OS_ON = `http://127.0.0.1:${ON_PORT}`
@@ -10,6 +11,8 @@ export const OS_OFF = `http://127.0.0.1:${OFF_PORT}`
 // default fixture. The exported URL and server command must move together.
 const FEED_PORT = Number(process.env.MEMBA_OS_FEED_TEST_PORT) || 5196
 export const OS_FEED_ON = `http://127.0.0.1:${FEED_PORT}`
+const NATIVE_MSIG_PORT = Number(process.env.MEMBA_OS_NATIVE_MSIG_TEST_PORT) || 5197
+export const OS_NATIVE_MSIG = `http://127.0.0.1:${NATIVE_MSIG_PORT}`
 
 export default defineConfig({
     testDir: './e2e/os',
@@ -35,6 +38,11 @@ export default defineConfig({
             command: `npm run dev -- --host 127.0.0.1 --port ${FEED_PORT} --strictPort`,
             env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_FEED: 'true' },
             url: OS_FEED_ON, reuseExistingServer: false, timeout: 120_000,
+        },
+        {
+            command: `npm run dev -- --host 127.0.0.1 --port ${NATIVE_MSIG_PORT} --strictPort`,
+            env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_NATIVE_GNO_MULTISIG: 'true' },
+            url: OS_NATIVE_MSIG, reuseExistingServer: false, timeout: 120_000,
         },
     ],
 })

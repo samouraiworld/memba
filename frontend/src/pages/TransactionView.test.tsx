@@ -81,7 +81,7 @@ vi.mock("../lib/dao/realmAddress", () => ({
 import { Code, ConnectError } from "@connectrpc/connect"
 import { TransactionView } from "./TransactionView"
 import { api } from "../lib/api"
-import { broadcastNativeTransaction, nativeTxHash } from "../lib/nativeMultisigBroadcast"
+import { broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash } from "../lib/nativeMultisigBroadcast"
 import { clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt } from "../lib/nativeReceipt"
 
 const FULL_RECIPIENT = "g1recipientfulladdress0000000000000000xy"
@@ -372,17 +372,51 @@ describe("native confirmation and receipt recovery", () => {
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
     })
 
+    it("clears the lost-reply warning when Broadcast is pressed again, whatever that press then finds", async () => {
+        const expected = nativeTxHash(new Uint8Array([1, 2, 3]))
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain()).mockRejectedValueOnce(new ConnectError("rpc", Code.Unavailable))
+        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new NativeOutcomeUnknownError(expected))
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/Native broadcast outcome unknown/)
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/Couldn't check whether this transaction is already on chain/)
+        expect(screen.queryByText(/Native broadcast outcome unknown/)).toBeNull()
+        expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    it("stops, and says so on the page, when the recovery record became unreadable while it was checking", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        // Another tab rewrites the record between the click and the read.
+        vi.mocked(api.getTransaction).mockImplementationOnce(async () => {
+            localStorage.setItem(receiptKey(), "not a hash")
+            return nativeResponse() as never
+        })
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        expect(await screen.findByText("Recovery record is unavailable or invalid. Inspect it before any further broadcast.")).toHaveAttribute("role", "alert")
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).not.toHaveBeenCalled()
+    })
+
     it("after a broadcast whose reply was lost, the next attempt records the executed transaction instead of sending it again", async () => {
         const expected = nativeTxHash(new Uint8Array([1, 2, 3]))
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
         // First attempt: not on chain yet, the bytes go out, the node's reply is lost.
         vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain())
-        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new Error(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`))
+        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new NativeOutcomeUnknownError(expected))
         render(<TransactionView />)
         await screen.findByText("TX #7")
         fireEvent.click(screen.getByText("Broadcast to Chain"))
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
-        await screen.findByText(/outcome unknown/)
+        // In full, on the page, not in a passing toast: the member needs the hash and the next step.
+        expect(await screen.findByText(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`)).toHaveAttribute("role", "alert")
         expect(readNativeReceipt(receiptKey())).toBe("")
         expect(screen.getByText("Broadcast to Chain")).toBeEnabled()
 
@@ -424,7 +458,7 @@ describe("native confirmation and receipt recovery", () => {
         const bytesNow = new Uint8Array([1, 2, 3, 4])
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
         vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain())
-        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new Error("Native broadcast outcome unknown."))
+        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new NativeOutcomeUnknownError(sentThen))
         render(<TransactionView />)
         await screen.findByText("TX #7")
         fireEvent.click(screen.getByText("Broadcast to Chain"))

@@ -38,6 +38,9 @@ describe("native binary broadcast boundary", () => {
         { name: "lost response", reply: () => Promise.reject(new Error("connection reset")) },
         { name: "server error", reply: () => Promise.resolve(new Response("", { status: 502 })) },
         { name: "unreadable reply", reply: () => Promise.resolve(new Response("not JSON", { status: 200 })) },
+        // tm2 answers these after the transaction may already be in the mempool: not a refusal.
+        { name: "request timeout", reply: () => Promise.resolve(respond({ jsonrpc: "2.0", id: 1, error: { code: -32603, message: "Internal error", data: "request timeout" } })) },
+        { name: "copy already in the mempool", reply: () => Promise.resolve(respond({ jsonrpc: "2.0", id: 1, error: { code: -32603, message: "Internal error", data: "tx already exists in cache" } })) },
     ])("reports the deterministic hash when broadcast has an uncertain $name", async ({ reply }) => {
         fetchMock.mockResolvedValueOnce(respond(status())).mockImplementationOnce(reply)
         await expect(broadcastNativeTransaction("native-local", bytes)).rejects.toThrow(`outcome unknown. Expected transaction hash ${hash}`)

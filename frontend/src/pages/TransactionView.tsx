@@ -19,7 +19,7 @@ import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
 import { isNativeMultisig } from "../lib/nativeMultisig"
-import { assertNativeAction, broadcastNativeTransaction, nativeTxHash } from "../lib/nativeMultisigBroadcast"
+import { assertNativeAction, broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash } from "../lib/nativeMultisigBroadcast"
 import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readBroadcastAttempts, readNativeReceipt, saveBroadcastAttempt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "../lib/nativeReceipt"
 
 const LEGACY_READ_ONLY_MESSAGE = "Legacy multisig records are read-only history: this proposal cannot be signed or broadcast from Memba."
@@ -108,6 +108,9 @@ export function TransactionView() {
     // local; the fetch error comes from the query, with a dismissal flag so
     // the toast doesn't resurrect itself on the next render.
     const [actionError, setActionError] = useState<string | null>(null)
+    // Not a passing error: what the member must read before pressing Broadcast again (an unknown outcome and its hash,
+    // an unreadable recovery record) stays on the page in full until they act.
+    const [broadcastAlert, setBroadcastAlert] = useState("")
     const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
     const fetchError = txQuery.isError && !fetchErrorDismissed
         ? (txQuery.error instanceof Error ? txQuery.error.message : "Failed to load transaction")
@@ -225,6 +228,7 @@ export function TransactionView() {
         broadcastBusy.current = true
         setActionLoading(true)
         setActionError(null)
+        setBroadcastAlert("")
         setActionNotice("")
         setBroadcastStep("sending")
         try {
@@ -243,7 +247,10 @@ export function TransactionView() {
                     return
                 }
                 let hash = readNativeReceipt(receiptKey)
-                if (hash && !validReceiptHash(hash)) throw new Error("Recovery record is unavailable or invalid. Inspect it before any further broadcast")
+                if (hash && !validReceiptHash(hash)) {
+                    setBroadcastAlert("Recovery record is unavailable or invalid. Inspect it before any further broadcast.")
+                    return
+                }
                 if (!hash) {
                     if (reviewError) throw new Error(reviewError)
                     if (!fresh.nativeTxBytes.length) throw new Error(fresh.nativeExportError || "Native aggregate is not ready")
@@ -286,7 +293,8 @@ export function TransactionView() {
             // cannot execute on Gno and the backend refuses to complete them.
             throw new Error(LEGACY_READ_ONLY_MESSAGE)
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : "Broadcast failed")
+            if (err instanceof NativeOutcomeUnknownError) setBroadcastAlert(err.message)
+            else setActionError(err instanceof Error ? err.message : "Broadcast failed")
         } finally {
             broadcastBusy.current = false
             setActionLoading(false)
@@ -444,6 +452,7 @@ export function TransactionView() {
             {/* ── Actions ─────────────────────────────────────── */}
             {reviewError && <p role="alert">{reviewError}</p>}
             {actionNotice && <p role="status">{actionNotice}</p>}
+            {broadcastAlert && !tx.finalHash && <p role="alert" style={{ overflowWrap: "anywhere" }}>{broadcastAlert}</p>}
             {native && !ENABLE_NATIVE_GNO_MULTISIG && !tx.finalHash && <p role="status">Native signing and broadcasting are on hold pending release approval.</p>}
             {native && receipt && !tx.finalHash && <div className="k-card" role="status">
                 <p>Broadcast receipt recovery — this saved hash is not proof of completion. The backend must verify it on-chain.</p>
