@@ -30,7 +30,7 @@
   --os-solid-ink: #FFFFFF;
   --os-ok: #0B684E;
   --os-ok-bg: #E1F5EC;
-  --os-warn: #B45309;
+  --os-warn: #A34A07; /* 5.3:1 on --os-warn-bg (WCAG AA) */
   --os-warn-bg: #FEF0DC;
   --os-err: #B72B2B;
   --os-err-bg: rgba(217, 58, 58, .1);

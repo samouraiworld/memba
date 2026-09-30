@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: warning labels readable in the light theme (2026-09-30)
+- Warning labels in the light theme (testnet badge, "Target" tags, warning pills) now meet the WCAG AA contrast minimum.
+
 ### Profile: the earlier bio survives wallet activation, and unusable stored data can be replaced (2026-09-30)
 - Profile no longer loses the earlier Memba or GitHub bio after wallet activation: an empty on-chain Bio counts as unset.
 - An owner whose stored profile data Memba cannot show (too long, or a layout this version does not read) can replace it by entering a new value; the review sheet marks each replacement, and what is left empty is not touched. Clearing a Bio is not published while an earlier bio would show in its place.
