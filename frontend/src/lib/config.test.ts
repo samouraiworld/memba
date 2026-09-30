@@ -7,6 +7,7 @@ import {
     VISIBLE_NETWORKS,
     DEFAULT_NETWORK,
     resolveDefaultNetwork,
+    resolveNetworkKey,
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
@@ -210,6 +211,8 @@ describe('config constants', () => {
 
     it('activates new wallets through a profile realm that is live on each network', () => {
         expect(activationRealmFor('mainnet')).toBe('gno.land/r/demo/profile')
+        // onyx-1 has gno core's realm and not the samcrew vendor copy (vm/qfuncs, 2026-09-30).
+        expect(activationRealmFor('onyx')).toBe('gno.land/r/demo/profile')
         expect(activationRealmFor('pearl')).toBe('gno.land/r/samcrew/deps/demo/profile')
     })
 
@@ -584,15 +587,35 @@ describe('getTelemetryRpcUrls', () => {
     })
 })
 
-describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + mainnet only', () => {
-    it('exposes only test13, topaz, gnoland1, sapphire, pearl, and mainnet', () => {
+describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + mainnet + onyx only', () => {
+    it('exposes only test13, topaz, gnoland1, sapphire, pearl, mainnet and onyx', () => {
         const keys = Object.keys(NETWORKS).sort()
         // mainnet (`gnoland-1`) is the default and only visible network since
-        // 2026-09-23. pearl (retired that day, `retiredTo: "mainnet"`),
+        // 2026-09-23. onyx (`onyx-1`) is the testnet, hidden until Memba
+        // publishes there. pearl (retired that day, `retiredTo: "mainnet"`),
         // sapphire, topaz, test13 and gnoland1 (BETANET) stay as hidden
         // entries so old links and stored keys resolve. See the live/dark
         // contract blocks below.
-        expect(keys).toEqual(['gnoland1', 'mainnet', 'pearl', 'sapphire', 'test13', 'topaz'])
+        expect(keys).toEqual(['gnoland1', 'mainnet', 'onyx', 'pearl', 'sapphire', 'test13', 'topaz'])
+    })
+
+    it('onyx is a hidden, realm-free testnet that gates every realm and every user DAO', () => {
+        const onyx = NETWORKS.onyx
+        expect(onyx).toMatchObject({ chainId: 'onyx-1', hidden: true, isTestnet: true, realmsDeployed: false })
+        expect(onyx.retiredTo).toBeUndefined()
+        expect(onyx.userDaos).toEqual({ create: false, channelsCompanion: false })
+        expect(VISIBLE_NETWORKS.onyx).toBeUndefined()
+        expect(networkHasRealms('onyx')).toBe(false)
+        expect(networkHasAllowlistedRealms('onyx')).toBe(false)
+        for (const path of [MEMBA_DAO.realmPath, MEMBA_DAO.feedPath, MEMBA_DAO.escrowPath, reviewsPathFor('onyx')]) {
+            expect(isRealmValidOn('onyx', path), path).toBe(false)
+        }
+        // Reachable by URL and as a build default, like every hidden network.
+        expect(resolveNetworkKey({ pathname: '/onyx/dao' })).toBe('onyx')
+        expect(resolveDefaultNetwork('onyx')).toBe('onyx')
+        // Never restored from a stored choice while hidden.
+        expect(resolveNetworkKey({ pref: 'onyx' })).toBe(DEFAULT_NETWORK)
+        expect(isTrustedRpcDomain(onyx.rpcUrl)).toBe(true)
     })
 
     it('mainnet is visible, keeps realmsDeployed false, and is NOT a testnet', () => {

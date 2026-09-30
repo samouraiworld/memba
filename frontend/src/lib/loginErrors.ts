@@ -34,9 +34,10 @@ export const CHAIN_MISMATCH_CODE = "AUTH-CHAINID-MISMATCH-01"
  *  appends it to MEMBA_ACCEPTED_CHAIN_IDS) the old "your wallet is on a
  *  different network" wording was false and circular: the wallet WAS on the
  *  page's network, and switching it changed nothing. Name the real cause and
- *  the working exit instead. */
+ *  the exit. No network is named as working: the page cannot know which chains
+ *  the server accepts. */
 export const CHAIN_MISMATCH_LOGIN_MSG =
-    "Sign-in isn't enabled on this network yet — use the network selector to switch networks (Sapphire works) and try again."
+    "Sign-in isn't enabled on this network yet. Use the network selector to switch networks and try again."
 
 /**
  * Backend rejection code for an address-only login on a chain where signed

@@ -61,6 +61,7 @@ const NETWORK_NAMES = [
     "topaz", "topaz-1", "topaz-dev",
     "sapphire", "sapphire-1",
     "pearl", "pearl-1",
+    "onyx", "onyx-1",
     // ⚠️ `gnoland1` (betanet) and `gnoland-1` (MAINNET) are DIFFERENT chains,
     // one hyphen apart. Both are listed so a literal of either is visible to
     // this guard; the LITERAL regex matches a whole quoted string, so neither

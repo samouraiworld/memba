@@ -45,8 +45,9 @@ describe("humanizeLoginError", () => {
         expect(humanizeLoginError(`[permission_denied] ${CHAIN_MISMATCH_CODE}`)).toBe(CHAIN_MISMATCH_LOGIN_MSG)
         // Tells the user what to DO, and leaks no server configuration.
         expect(CHAIN_MISMATCH_LOGIN_MSG).toMatch(/switch networks/i)
-        // Naming the working exit (Sapphire, live until 09-09) is deliberate
-        // since the pearl-default flip; internals still must not leak.
+        // No network is named as working (the page cannot know which chains the
+        // server accepts), and internals must not leak.
+        expect(CHAIN_MISMATCH_LOGIN_MSG).not.toMatch(/sapphire|pearl|onyx|gno\.land/i)
         expect(CHAIN_MISMATCH_LOGIN_MSG).not.toMatch(/MEMBA_|GNO_CHAIN_ID|ACCEPTED_CHAIN/i)
         // The old copy blamed the wallet ("your wallet is on a different
         // network") — false on a server-unaccepted chain, where the wallet IS

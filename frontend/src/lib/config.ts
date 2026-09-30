@@ -522,6 +522,39 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // verify against one of our allowlisted realms, not the root.
         explorerUrl: import.meta.env.VITE_MAINNET_EXPLORER_URL || "https://gno.land",
     },
+    // Onyx (`onyx-1`): gno core's testnet on mainnet's code line, and the one
+    // testnet Memba targets (rehearsals and soaks before a mainnet ceremony).
+    // Identity-verified 2026-09-30: /status reports node_info.network "onyx-1"
+    // (v1.0.0-rc.0), the indexer's height matches the RPC, and gnoweb serves
+    // `gnoconnect:chainid` "onyx-1".
+    //
+    // Hidden and realm-free for now: the samcrew namespace holds only genesis
+    // packages there, so nothing Memba needs is published (no DAO factory
+    // dependencies either, hence `userDaos.create: false`), and the backend
+    // refuses an `onyx-1` sign-in until the owner adds it to
+    // MEMBA_ACCEPTED_CHAIN_IDS. It is reachable by URL (`/onyx/…`) and as a
+    // preview default (`VITE_GNO_CHAIN_ID=onyx`). List a realm in
+    // REALM_ALLOWLIST.onyx when it is published there; un-hide once the
+    // network is worth offering in the selector.
+    onyx: {
+        chainId: "onyx-1",
+        userDaos: { create: false, channelsCompanion: false },
+        hidden: true,
+        realmsDeployed: false,
+        isTestnet: true,
+        rpcUrl: "https://rpc.onyx.testnets.gno.land:443",
+        // No second node verified: onbloc and Samourai serve none yet.
+        fallbackRpcUrls: [],
+        telemetryRpcUrls: [],
+        indexerUrl: "https://indexer.onyx.testnets.gno.land/graphql/query",
+        label: "Onyx",
+        userRegistryPath: "gno.land/r/sys/users",
+        // r/sys/users.Controllers() = the address of r/sys/namereg/v0, as on mainnet.
+        usernameRegistrarPath: "gno.land/r/sys/namereg/v0",
+        // The hub's script bundle lists "Onyx Faucet" (read 2026-09-30); the per-chain host is API-only (GET → 405).
+        faucetUrl: "https://faucet.gno.land",
+        explorerUrl: "https://onyx.testnets.gno.land",
+    },
 }
 
 /** Networks shown in the selector (all non-hidden ones). NETWORKS stays the
@@ -793,6 +826,8 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // same key, bound to gnoland-1 (docs/QUEST_ATTESTATION_RUNBOOK.md). Every
     // entry needs a realm-versions.json `mainnet` record (keyed by NETWORK
     // KEY, not chain id).
+    // Onyx: nothing of Memba's is published there yet. Explicit, like Betanet.
+    onyx: [],
     mainnet: [
         "gno.land/r/samcrew/memba_appstore_v3",
         "gno.land/r/samcrew/memba_reviews_v2",
@@ -1119,11 +1154,12 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
  * key ("unknown string profile field" panic, caught live in Adena's gas sim).
  */
 export function activationRealmFor(networkKey: string): string {
-    // Mainnet has no samcrew deps/demo/profile vendor copy; gno core's own
-    // gno.land/r/demo/profile is live there with the same SetStringField and a
-    // schema that includes "Bio" (read back from the deployed source 2026-09-23).
+    // Mainnet and Onyx have no samcrew deps/demo/profile vendor copy; gno core's
+    // own gno.land/r/demo/profile is live on both with the same SetStringField
+    // and a schema that includes "Bio" (read back from the deployed source:
+    // gnoland-1 2026-09-23, onyx-1 2026-09-30).
     return import.meta.env.VITE_ACTIVATION_REALM_PATH
-        || (networkKey === "mainnet" ? "gno.land/r/demo/profile" : "gno.land/r/samcrew/deps/demo/profile")
+        || (networkKey === "mainnet" || networkKey === "onyx" ? "gno.land/r/demo/profile" : "gno.land/r/samcrew/deps/demo/profile")
 }
 export const ACTIVATION_PROFILE_REALM = activationRealmFor(ACTIVE_NETWORK_KEY)
 

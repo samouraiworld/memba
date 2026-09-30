@@ -19,15 +19,17 @@ const query = vi.mocked(resilientAbciQuery)
 const REGISTRAR = "gno.land/r/sys/namereg/v0"
 const CALLER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
-describe("mainnet registrar config", () => {
-    it("registers through r/sys/namereg/v0, not r/sys/users", () => {
+describe("registrar config", () => {
+    it("registers through r/sys/namereg/v0, not r/sys/users, on mainnet and on Onyx", () => {
         // r/sys/users has no public Register on gnoland-1; r/gnoland/users/v1 does not exist there.
+        // onyx-1 runs the same code line: its r/sys/users controller is namereg/v0 too.
         expect(NETWORKS.mainnet.usernameRegistrarPath).toBe(REGISTRAR)
+        expect(NETWORKS.onyx.usernameRegistrarPath).toBe(REGISTRAR)
     })
 
     it("has no registrar on networks where none was verified", () => {
         for (const [key, net] of Object.entries(NETWORKS)) {
-            if (key !== "mainnet") expect(net.usernameRegistrarPath).toBeUndefined()
+            if (key !== "mainnet" && key !== "onyx") expect(net.usernameRegistrarPath).toBeUndefined()
         }
     })
 })

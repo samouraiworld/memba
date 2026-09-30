@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Onyx registered as Memba's testnet network (2026-09-30)
+- Register Onyx (`onyx-1`), gno core's testnet on mainnet's code line, as Memba's testnet network. It stays hidden from the network selector and gates every Memba realm until realms are published there; it is reachable at `/onyx/…` and as a preview default.
+- The sign-in refusal on a network the server does not accept no longer tells people to switch to Sapphire, a retired network.
+
 ### Raise build-tool security floors to patched versions (2026-09-30)
 <!-- categories: memba -->
 - Raise the frontend `undici` floor to 7.29.1, closing the WebSocket subprotocol denial of service (GHSA-rfgv-xxqx-mfg5) and the BalancedPool TLS certificate validation bypass (GHSA-w293-vg96-wgc3). It reaches the tree only through jsdom in the test environment.

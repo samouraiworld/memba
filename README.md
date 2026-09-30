@@ -11,7 +11,7 @@ Each site's public `build-info.json` identifies its deployed frontend version an
 
 ## Network and availability
 
-The offered network is gno.land mainnet, chain ID `gnoland-1`. The Pearl testnet is retired; old `/pearl/…` routes redirect to mainnet. Betanet's `gnoland1` is a different chain. The network selector still contains hidden historical entries for route resolution. See [the capability registry](frontend/src/lib/config.ts) and [wave-one deployment records](realm-versions.json) when checking a shared community realm. The founding DAO's later mainnet release is recorded separately in [weighted DAO documentation](docs/WEIGHTED_DAO.md); the deployment JSON and general realm allowlist have not been updated for that exception.
+The offered network is gno.land mainnet, chain ID `gnoland-1`. The testnet is Onyx, chain ID `onyx-1`: reachable at `/onyx/…` and as a build default, hidden from the selector until Memba publishes realms there. The Pearl testnet is retired; old `/pearl/…` routes redirect to mainnet. Betanet's `gnoland1` is a different chain. The network selector still contains hidden historical entries for route resolution. See [the capability registry](frontend/src/lib/config.ts) and [wave-one deployment records](realm-versions.json) when checking a shared community realm. The founding DAO's later mainnet release is recorded separately in [weighted DAO documentation](docs/WEIGHTED_DAO.md); the deployment JSON and general realm allowlist have not been updated for that exception.
 
 | Area | Repository and mainnet status |
 | --- | --- |
