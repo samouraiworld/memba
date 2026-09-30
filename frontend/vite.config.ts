@@ -206,6 +206,9 @@ export default defineConfig(({ mode }) => ({
           if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
           if (/[\\/]node_modules[\\/](@connectrpc|@bufbuild)[\\/]/.test(id)) return 'vendor-rpc'
         },
+        // `index-*.js` is the entry: the CI bundle budget measures it by that name. A lazy
+        // chunk Rollup names after an `index.ts` barrel (hooks/gnolove) must not share it.
+        chunkFileNames: (chunk) => `assets/${chunk.name === 'index' ? 'chunk' : '[name]'}-[hash].js`,
       },
     },
   },
