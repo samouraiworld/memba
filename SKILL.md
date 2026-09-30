@@ -181,7 +181,7 @@ frontend/           React + Vite SPA
   src/lib/          Core libraries (DAO, tokens, validators, config)
   src/pages/        Page components
   src/hooks/        React hooks
-  src/plugins/      Board/leaderboard plugins
+  src/plugins/board/ DAO channels: board view and thread parser
 backend/            Go + ConnectRPC server
   cmd/memba/        Server entry point
   internal/         Auth, service, DB

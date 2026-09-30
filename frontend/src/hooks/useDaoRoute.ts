@@ -12,11 +12,10 @@ export function useDaoRoute() {
     const { realmPath, subRoute } = parseDaoSplat(splat)
     const encodedSlug = encodeSlug(realmPath)
 
-    // Extract sub-route params (e.g., proposal ID, channel name, plugin ID)
+    // Extract sub-route params (proposal ID, channel name)
     const subParts = subRoute.split("/").filter(Boolean)
     const proposalId = subParts[0] === "proposal" ? subParts[1] : undefined
     const channelName = subParts[0] === "channels" ? subParts[1] : undefined
-    const pluginId = subParts[0] === "plugin" ? subParts[1] : undefined
 
-    return { realmPath, encodedSlug, proposalId, channelName, pluginId }
+    return { realmPath, encodedSlug, proposalId, channelName }
 }

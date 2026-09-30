@@ -8,7 +8,6 @@
  */
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, NETWORKS } from "../../lib/config"
 import { DAO_DESCRIPTION_MAX, DAO_PRESETS, daoStepError, membersWhoCanPassAlone, type DAOCreationConfig, type DAOPreset } from "../../lib/daoTemplate"
-import type { DepositInput } from "../../lib/templates/dao/v2/deposit"
 import { parsePower } from "./proposal"
 
 export const DAO_STEPS = ["Basics", "Members", "Rules", "Extras", "Review"] as const
@@ -106,10 +105,6 @@ export function daoConfig(d: DaoDraft, wallet: string): DAOCreationConfig {
         members: draftMembers(d),
         votingPeriodSeconds: p.votingPeriodSeconds, executionDelaySeconds: p.executionDelaySeconds, executionWindowSeconds: p.executionWindowSeconds,
     }
-}
-
-export function depositInputFor(d: DaoDraft): DepositInput {
-    return { name: d.name, description: d.description, roles: presetById(d.preset).roles, proposalCategories: d.categories, members: draftMembers(d) }
 }
 
 export function soloMembers(d: DaoDraft): string[] {

@@ -102,7 +102,6 @@ export const UserBaseSchema = z.object({
     name: z.string(),
 })
 export const UserSchema = z.preprocess(preprocessUser, UserBaseSchema)
-export type TUser = z.infer<typeof UserSchema>
 
 // ── Issue ────────────────────────────────────────────────────
 

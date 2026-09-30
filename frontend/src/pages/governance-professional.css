@@ -109,10 +109,6 @@
 .k-pro-governance .gov-power-details[open] summary { margin-bottom: 12px; }
 .k-pro-governance :is(.dao-path-text, .dao-path-source-link, .k-realm-address) { color: var(--gov-secondary); }
 .k-pro-governance .gov-member-note { font-size: 14px; color: var(--gov-secondary); }
-.k-pro-governance .dao-treasury-card { padding: 24px; }
-.k-pro-governance :is(.dao-treasury-desc, .dao-plugin-desc) { font: 400 14px/1.6 var(--font-sans); color: var(--gov-secondary); }
-.k-pro-governance .dao-plugin-name { font: 500 15px/1.4 var(--font-sans); }
-.k-pro-governance .dao-plugin-card { padding: 20px; }
 .k-pro-governance .dao-members-grid { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 .k-pro-governance .gov-member-link { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 20px; border: 1px solid var(--gov-edge); border-radius: 10px; color: var(--gov-text); text-decoration: none; min-width: 0; }
 .k-pro-governance .gov-member-link > span:first-child { min-width: 0; }
@@ -125,4 +121,3 @@
 .k-pro-governance :is(.proposal-source-link, .proposal-awaiting-hint, .proposal-live-badge, .proposal-tier-badge, .proposal-category-badge, .proposal-executor-label) { font-size: 12px; color: var(--gov-secondary); }
 .k-pro-governance .proposal-source-link { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 8px; }
 .k-pro-governance .proposal-action-body { background: var(--gov-hover); color: var(--gov-text); border: 1px solid var(--gov-edge); }
-.k-pro-governance .dao-treasury-open-btn { min-height: 44px; padding: 8px 12px; font: 500 14px var(--font-sans); }

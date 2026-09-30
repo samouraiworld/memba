@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import type { PluginProps } from "../types"
+import type { LayoutContext } from "../../types/layout"
 import { getBoardInfo } from "./parser"
 import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemplate"
 import { buildChannelCreateThreadMsg, buildChannelReplyMsg, buildEditThreadMsg, buildDeleteThreadMsg } from "../../lib/channelTemplate"
@@ -44,7 +44,13 @@ interface ViewState {
 
 // M3 fix: channelTypeIcon removed — use channelIcon from channelHelpers (shared)
 
-interface BoardViewProps extends PluginProps {
+interface BoardViewProps {
+    /** Fully-qualified realm path of the DAO, e.g. "gno.land/r/user/mydao". */
+    readonly realmPath: string
+    /** URL-safe slug for the DAO. */
+    readonly slug: string
+    readonly auth: LayoutContext["auth"]
+    readonly adena: LayoutContext["adena"]
     /** Detected board/channel realm path — passed from index.tsx */
     boardPath: string
     /** v2.5a: Pre-select a channel (skip home view). Used by ChannelsPage. */

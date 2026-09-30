@@ -10,13 +10,8 @@ plugins:
     out: backend/gen
     opt:
       - paths=source_relative
-  # TypeScript protobuf messages
+  # TypeScript protobuf messages and service descriptors (the client is built from these)
   - remote: buf.build/bufbuild/es
-    out: frontend/src/gen
-    opt:
-      - target=ts
-  # TypeScript ConnectRPC service client
-  - remote: buf.build/connectrpc/es
     out: frontend/src/gen
     opt:
       - target=ts

@@ -252,7 +252,6 @@ const POLICY_FOR: Record<WeightedApplicationAction["type"], ApplicationPolicyKey
     "market-config": "marketPolicy", reviews: "reviewsPolicy", quest: "questPolicy", arcade: "arcadePolicy", appstore: "appstorePolicy",
     escrow: "escrowPolicy", badges: "badgesPolicy", feed: "feedPolicy", channels: "channelsPolicy", feedback: "feedbackPolicy",
 }
-export function policyKeyFor(action: WeightedApplicationAction): ApplicationPolicyKey { return POLICY_FOR[action.type] }
 
 /** Configured destinations bind every staged return and treasury change. */
 export function applicationActionMatchesPolicy(action: WeightedApplicationAction, policies: { [K in ApplicationPolicyKey]: z.infer<(typeof applicationPolicySchemas)[K]> } & { realmPath: string }): boolean {

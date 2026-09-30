@@ -14,7 +14,6 @@ import './fonts.css'
 import './tokens.css'
 import './index.css'
 import './mobile-tokens.css'
-import './components/mobile/mobile-primitives.css'
 import './components/UpdateNotice.css'
 import App from './App.tsx'
 

@@ -17,11 +17,6 @@
     /* Touch ergonomics */
     --mb-touch-min: 44px; /* min hit target (Apple HIG / WCAG 2.5.5) */
 
-    /* Mobile chrome */
-    --mb-page-header-height: 52px; /* PageHeader bar height */
-    --mb-action-bar-pad-y: 12px;   /* StickyActionBar vertical padding */
-    --mb-sheet-radius: 20px;       /* bottom-sheet top-corner radius */
-
     /* Safe-area convenience (resolves to 0px where unsupported) */
     --mb-safe-bottom: env(safe-area-inset-bottom, 0px);
     --mb-safe-top: env(safe-area-inset-top, 0px);
