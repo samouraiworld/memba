@@ -182,6 +182,15 @@ function ReviewsUnavailable() {
     )
 }
 
+/**
+ * An RPC read that outlived its timeout: the request helper aborts it, which surfaces as an
+ * AbortError. The valoper scan wraps it ("Valoper registry scan incomplete", with the cause).
+ */
+const isTimeout = (e: unknown): boolean => {
+    const err = e as { name?: unknown; cause?: unknown } | null
+    return err?.name === "AbortError" || (err?.cause !== undefined && isTimeout(err.cause))
+}
+
 export default function ValidatorProfile() {
     const { address } = useParams<{ address: string }>()
     return <ValidatorProfileForAddress key={address ?? ""} address={address} />
@@ -204,6 +213,7 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
     const [genesisMoniker, setGenesisMoniker] = useState<string>("")
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
+    const [retrying, setRetrying] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<TabKey>("Overview")
 
@@ -272,7 +282,8 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
         const ctrl = new AbortController()
         abortRef.current = ctrl
         setError(null)
-        try {
+        setRetrying(false)
+        const read = async () => {
             const snapshot = await getValidatorRpcSnapshot(ctrl.signal)
             if (ctrl.signal.aborted) return
             const vals = await getValidators(GNO_RPC_URL, snapshot, ctrl.signal)
@@ -309,9 +320,20 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
                     .then((p) => { if (!ctrl.signal.aborted) setProfile(p) })
                     .catch(() => { /* keep null; header falls back to valoper/validator data */ })
             }
+        }
+        try {
+            // The reads of a cold page load can be starved past the RPC timeout while the app's
+            // code is still arriving: one more try before reporting, and the loader says so.
+            // Each read gives every RPC endpoint of the network 8 s (mainnet has two), so a
+            // full outage now shows the message after about 32 s instead of 16 s.
+            await read().catch((e) => {
+                if (ctrl.signal.aborted || !isTimeout(e)) throw e
+                setRetrying(true)
+                return read()
+            })
         } catch (e) {
             if (!ctrl.signal.aborted) {
-                setError(e instanceof Error ? e.message : "Failed to load validator")
+                setError(isTimeout(e) ? "The network took too long to answer." : e instanceof Error ? e.message : "Failed to load validator")
                 setLoading(false)
             }
         }
@@ -352,7 +374,7 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
         return (
             <div className="vd-page">
                 <div className="vd-nav"><Link to={backToValidators} className="vd-back">← Validators</Link></div>
-                <ConnectingLoader message="Loading validator…" minHeight="50vh" />
+                <ConnectingLoader message={retrying ? "The network is slow. Trying once more…" : "Loading validator…"} minHeight="50vh" />
             </div>
         )
     }

@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validators: a slow read is tried again, and a timeout is said in plain words (2026-09-30)
+- A validator's page no longer fails with "The user aborted a request." when the network answers slowly: Memba tries once more and says so, and if that also times out it says "The network took too long to answer." with a Retry button.
+
 ### Reviews: moderation policy shown with every review list (2026-09-30)
 - Review lists state how reviews are moderated when the reviews realm names its moderator: flags are recorded and never hide anything by themselves, every hide is a public chain event, and who the moderator is. When the moderator is the Samourai team multisig, the list also gives its grounds for a hide and how to appeal.
 - The in-app Hide button is removed: the moderator acts by its own transaction.

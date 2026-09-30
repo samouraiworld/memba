@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { fulfillProValidatorRoster } from './helpers/proValidatorsFixture'
+import { isOnchainRead } from './helpers/onchain'
 import { findHorizontalClipping } from './helpers/overflow'
 import { stubNetwork } from './helpers/stubNetwork'
 import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
@@ -24,19 +25,54 @@ for (const width of [769, 1024, 1280, 1440, 1920, 768, 390, 320]) {
     test(`readable black overview fits at ${width}px`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 1000 })
         await page.emulateMedia({ colorScheme: 'dark' })
+        // At 1440 px the page is audited in both of its states, on purpose: the validator set is
+        // held back so the loading state is on screen for the first audit, then released. The app
+        // gives that read 8 s, so everything done while it is held has to fit in that time: only
+        // the header check, the fixture label and one audit run there.
+        let release = () => {}
+        if (width === 1440) {
+            const held = new Promise<void>(resolve => { release = resolve })
+            await page.route('**/*', async route => {
+                const req = route.request()
+                let method = new URL(req.url()).pathname.replace(/^\/+|\/+$/g, '')
+                try { method = JSON.parse(req.postData() || '{}').method ?? method } catch { /* GET-style read */ }
+                if (isOnchainRead(req.url()) && method === 'validators') await held
+                return route.fallback()
+            })
+        }
         await page.goto('/mainnet/validators')
         await expect(page.locator('.k-pro-ui')).toBeVisible()
         await expect(page.getByTestId('validators-page')).toBeVisible()
         await expect(page.locator('.val-header h1')).toHaveCSS('font-size', width < 769 ? '26px' : '30px')
-        await page.evaluate(() => {
+        const addFixtureLabel = () => page.evaluate(() => {
+            const header = document.querySelector('.val-header')!
+            if (header.querySelector('[data-fixture-label]')) return
             const label = document.createElement('span')
             label.textContent = 'Test fixture'
+            label.dataset.fixtureLabel = ''
             label.style.cssText = 'font-size:12px;color:var(--pro-secondary)'
-            document.querySelector('.val-header')!.appendChild(label)
+            header.appendChild(label)
         })
+        await addFixtureLabel()
         if (width === 1440) {
-            const axe = await new AxeBuilder({ page }).include('#main-content').analyze()
-            expect(axe.violations).toEqual([])
+            // A state is audited at rest: the loader fades in, and half-faded text is not the page's colour.
+            const audit = async () => {
+                await addFixtureLabel()
+                await page.evaluate(() => Promise.allSettled(document.getAnimations()
+                    .filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished)).then(() => undefined))
+                const axe = await new AxeBuilder({ page }).include('#main-content').analyze()
+                expect(axe.violations).toEqual([])
+            }
+            // Released whatever happens, so a failed audit cannot leave the read held.
+            try {
+                await expect(page.getByText('Loading validator data...')).toBeVisible()
+                await audit()
+            } finally {
+                release()
+            }
+            await expect(page.getByTestId('validator-row-1')).toBeVisible()
+            await expect(page.getByText('Loading validator data...')).toHaveCount(0)
+            await audit()
         }
         for (const selector of ['.k-pro-ui', '.k-main', '.k-sidebar', '.k-topbar']) {
             // Main inherits a transparent background; its painted canvas is the shell.
