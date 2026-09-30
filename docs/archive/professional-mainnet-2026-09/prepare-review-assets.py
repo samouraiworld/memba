@@ -1,17 +1,13 @@
-"""Strip nonvisual PNG metadata from this slice's publishable review assets.
+"""Strip nonvisual PNG metadata from the brand images in frontend/public/brand/folded-m.
 
-Pixel and color chunks are preserved byte-for-byte. Run after copying browser
-screenshots or generated PNG renditions, before the repository attribution check.
+Pixel and color chunks are preserved byte-for-byte. Run after generating PNG
+renditions, before the repository attribution check.
 """
 from pathlib import Path
 import struct
 ROOT = Path(__file__).resolve().parents[3]
 FORBIDDEN = {b'eXIf', b'iTXt', b'tEXt', b'zTXt', b'dSIG', b'caBX'}
 files = list((ROOT / 'frontend/public/brand/folded-m').glob('*.png'))
-files += list((Path(__file__).parent / 'assets').glob('shell-*.png'))
-files += list((Path(__file__).parent / 'assets').glob('folded-m-*.png'))
-files += list((Path(__file__).parent / 'assets').glob('governance-*.png'))
-files += list((Path(__file__).parent / 'assets').glob('proposal-*.png'))
 for path in files:
     data = path.read_bytes()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
