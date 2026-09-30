@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     fetchAppStrict: vi.fn(),
     wallet: vi.fn(),
     readTx: vi.fn(),
+    freshPrice: vi.fn(),
 }))
 
 vi.mock("../../../lib/config", async (importActual) => ({
@@ -19,6 +20,7 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
 }))
 vi.mock("../../../lib/grc20", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/grc20")>(),
+    networkGasPriceFresh: mocks.freshPrice,
     // Stand-in for the broadcaster's order: confirmation → beforeSign → wallet.
     doContractBroadcast: vi.fn(async (msgs: unknown, memo: string, opts: { beforeSign?: () => Promise<unknown> }) => {
         const { setTxConfirmationCallback } = await import("../../../lib/grc20")
@@ -48,6 +50,7 @@ const draft: StoreReviewDraft = {
     realmPath: "gno.land/r/samcrew/memba_appstore_reviews_v1",
     networkKey: "mainnet",
     chainId: "gnoland-1",
+    price: { gas: 1000, ugnot: 1 },
 }
 const run = (request: ReturnType<typeof storeReviewRequest>) => executeSignature(request, undefined, request.prepare(undefined).msgs, () => {})
 
@@ -57,6 +60,7 @@ beforeEach(() => {
     mocks.fetchAppStrict.mockReset().mockResolvedValue({ status: "live", name: "Test App" })
     mocks.wallet.mockReset().mockResolvedValue({ hash: HASH })
     mocks.readTx.mockReset().mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: null } } })
+    mocks.freshPrice.mockReset().mockResolvedValue({ gas: 1000, ugnot: 1 })
 })
 afterEach(() => { setTxConfirmationCallback(null); vi.mocked(doContractBroadcast).mockClear() })
 
@@ -66,14 +70,18 @@ describe("native App Store review signing", () => {
         const msg = request.prepare(undefined).msgs[0]
         expect(msg).toEqual({
             type: "vm/MsgCall",
-            value: { caller: draft.caller, send: "", pkg_path: draft.realmPath, func: "PostReview", args: [draft.subject, "4", "Useful app"], max_deposit: "2400000ugnot" },
+            value: { caller: draft.caller, send: "", pkg_path: draft.realmPath, func: "PostReview", args: [draft.subject, "4", "Useful app"], max_deposit: "3200000ugnot" },
         })
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
-            ["Account", draft.caller], ["Network", "gnoland-1"], ["Storage deposit", "up to 2.4 GNOT"],
+            ["Account", draft.caller], ["Network", "gnoland-1"],
+            // 12,165 measured bytes plus the 10-byte body, at 100 ugnot per byte.
+            ["Storage deposit", "≈ 1.22 GNOT for a new review, less when replacing one (cap 3.2 GNOT)"],
+            // 15M gas at 1 ugnot per 1,000 gas, with the broadcaster's 20 % headroom.
+            ["Network fee", "up to 0.018 GNOT"],
         ]))
         await expect(run(request)).resolves.toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(mocks.fetchAppStrict).toHaveBeenCalledWith(draft.subject)
-        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { retry: false, beforeSign: expect.any(Function) })
+        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { gasWanted: 15_000_000, gasFee: 18_000, retry: false, beforeSign: expect.any(Function) })
         expect(mocks.wallet).toHaveBeenCalledTimes(1)
     })
 
@@ -100,6 +108,25 @@ describe("native App Store review signing", () => {
         const request = storeReviewRequest(draft)
         mocks.fetchAppStrict.mockResolvedValue({ status: "live", name: "Renamed App" })
         await expect(request.recheck?.(undefined)).rejects.toThrow(/listing changed/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+    })
+
+    it("quotes the deposit for the text being posted and the fee at the reviewed gas price", () => {
+        const lines = storeReviewRequest({ ...draft, body: "é".repeat(1000), price: { gas: 1000, ugnot: 2 } }).lines(undefined)
+        expect(lines).toEqual(expect.arrayContaining([
+            ["Storage deposit", "≈ 1.42 GNOT for a new review, less when replacing one (cap 3.2 GNOT)"],
+            ["Network fee", "up to 0.036 GNOT"],
+        ]))
+    })
+
+    it("stops before Adena when the network fee rose or cannot be read", async () => {
+        const request = storeReviewRequest(draft)
+        mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/network fee increased/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        mocks.freshPrice.mockRejectedValue(new Error("offline"))
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/Couldn't confirm the current network fee/)
         await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
         expect(mocks.wallet).not.toHaveBeenCalled()
     })

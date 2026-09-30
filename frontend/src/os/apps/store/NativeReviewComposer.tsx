@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
 import { StarRating } from "../../../components/reviews/StarRating"
 import { MEMBA_DAO } from "../../../lib/config"
+import { FALLBACK_GAS_PRICE, networkGasPrice, type GasPrice } from "../../../lib/grc20"
 import { REVIEW_BODY_MAX_BYTES } from "../../../lib/reviews"
 import type { OsSession } from "../../shell/useOsSession"
 import { useSigner } from "../../sign/signerContext"
@@ -43,11 +44,18 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
     const [expanded, setExpanded] = useState(draft.rating > 0 || draft.body !== "")
     const [notice, setNotice] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [price, setPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
     const toggle = useRef<HTMLButtonElement>(null)
     const refocus = useRef(false)
     const bodyBytes = new TextEncoder().encode(draft.body.trim()).length
     const tooLong = bodyBytes > REVIEW_BODY_MAX_BYTES
     const edit = (next: ReviewDraft) => { setDraft(next); saveDraft(key, next) }
+
+    useEffect(() => {
+        let active = true
+        networkGasPrice().then((p) => { if (active) setPrice(p) }, () => {})
+        return () => { active = false }
+    }, [])
 
     // A posted review collapses the form that held focus; hand it to the toggle, not <body>.
     useEffect(() => {
@@ -65,7 +73,7 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
             signer.sign(storeReviewRequest({
                 subject, appName, caller: session.address, rating: draft.rating, body: draft.body,
                 realmPath: MEMBA_DAO.appReviewsPath,
-                networkKey: session.network.key, chainId: session.network.chainId,
+                networkKey: session.network.key, chainId: session.network.chainId, price,
                 onSettled: (outcome) => {
                     if (outcome === "submitted" || outcome === "confirmed") {
                         edit(EMPTY)

@@ -7,9 +7,13 @@ import type { StoreReviewDraft } from "./reviewRequest"
 
 const mocks = vi.hoisted(() => ({ request: vi.fn() }))
 vi.mock("./reviewRequest", () => ({ storeReviewRequest: mocks.request }))
+vi.mock("../../../lib/grc20", async (importActual) => ({
+    ...await importActual<typeof import("../../../lib/grc20")>(),
+    networkGasPrice: async () => ({ gas: 1000, ugnot: 2 }),
+}))
 
-function session(status: "guest" | "member", openConnect = vi.fn()): OsSession {
-    return { status, address: status === "member" ? `g1${"q".repeat(38)}` : "", network: { key: "mainnet", chainId: "gnoland-1" }, openConnect } as unknown as OsSession
+function session(status: "guest" | "member", openConnect = vi.fn(), chainId = "gnoland-1"): OsSession {
+    return { status, address: status === "member" ? `g1${"q".repeat(38)}` : "", network: { key: "mainnet", chainId }, openConnect } as unknown as OsSession
 }
 
 const sign = vi.fn()
@@ -38,11 +42,12 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe("native review composer", () => {
-    it("opens the OS review sheet and retains a draft until the transaction is submitted", () => {
+    it("opens the OS review sheet and retains a draft until the transaction is submitted", async () => {
         show(session("member"))
         expect(screen.queryByRole("radiogroup", { name: "Your rating" })).not.toBeInTheDocument()
+        await act(async () => {}) // the gas price read settles
         const draft = review("4 stars", "Useful app")
-        expect(draft).toMatchObject({ subject: "gno.land/r/samcrew/app", rating: 4, body: "Useful app", networkKey: "mainnet" })
+        expect(draft).toMatchObject({ subject: "gno.land/r/samcrew/app", rating: 4, body: "Useful app", networkKey: "mainnet", price: { gas: 1000, ugnot: 2 } })
         expect(sign).toHaveBeenCalledTimes(1)
         expect(screen.getByRole("textbox", { name: /Your review/ })).toHaveValue("Useful app")
         act(() => draft.onSettled?.("submitted"))
@@ -88,6 +93,23 @@ describe("native review composer", () => {
         fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
         expect(screen.getByRole("textbox", { name: /Your review/ })).toHaveValue("")
         expect(screen.getByRole("radio", { name: "4 stars" })).not.toBeChecked()
+    })
+
+    it("keeps a draft to its own network and ignores a stored rating outside 0 to 5", () => {
+        const first = show(session("guest"))
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
+        fireEvent.click(screen.getByRole("radio", { name: "4 stars" }))
+        first.unmount()
+        const elsewhere = show(session("guest", vi.fn(), "another-chain"))
+        expect(screen.queryByRole("radiogroup", { name: "Your rating" })).not.toBeInTheDocument()
+        elsewhere.unmount()
+
+        for (const rating of [9, -1, 2.5]) {
+            sessionStorage.setItem("memba_os_review_draft:gnoland-1:gno.land/r/samcrew/app", JSON.stringify({ rating, body: "Useful app" }))
+            const restored = show(session("guest"))
+            expect(screen.queryByRole("textbox", { name: /Your review/ })).not.toBeInTheDocument()
+            restored.unmount()
+        }
     })
 
     it("keeps working when the browser blocks session storage", () => {
