@@ -20,6 +20,15 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Raise build-tool security floors to patched versions (2026-09-30)
+<!-- categories: memba -->
+- Raise the frontend `undici` floor to 7.29.1, closing the WebSocket subprotocol denial of service (GHSA-rfgv-xxqx-mfg5) and the BalancedPool TLS certificate validation bypass (GHSA-w293-vg96-wgc3). It reaches the tree only through jsdom in the test environment.
+- Give every `brace-expansion` release line its own floor at that line's patched version (1.1.21, 2.1.7, 3.0.9, 5.0.12), closing two stack-exhaustion denial-of-service advisories (GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p) and the related quadratic-time one (GHSA-q2hr-2g5m-vwhr). It is used only by lint and build tooling, and no consumer changes major. The lockfile is re-resolved so CI installs the patched versions.
+
+### Dependency refresh (2026-09-30)
+- Remove the unused Remotion video packages and the MSW mock server from the frontend; nothing imported them, and a clean install now pulls in about 200 fewer packages, webpack included.
+- Update Clerk themes, three.js, React Three Fiber and typescript-eslint to newer patch and minor releases (bundles Dependabot #1409–#1411).
+
 ### Memba OS: native public Profile and visual editor
 
 - Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.
