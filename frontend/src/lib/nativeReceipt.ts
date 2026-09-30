@@ -80,10 +80,10 @@ const MAX_ATTEMPTS = 2
 
 /**
  * The hashes this browser has handed to the network for a proposal, newest
- * last. One more signature changes the transaction's bytes, so after a
- * broadcast whose reply was lost the executed transaction may no longer be the
- * one the backend assembles today: these are the hashes to ask about. Hints,
- * never proof. They are removed when this browser reconciles the proposal, and
+ * last. The backend now keeps a proposal's bytes fixed from quorum on (it
+ * assembles from the earliest signatures), but a broadcast made before it did
+ * may be of other bytes: these are the hashes to ask about. Hints, never
+ * proof. They are removed when this browser reconciles the proposal, and
  * stay (two hashes at most) when another member does.
  */
 export function readBroadcastAttempts(key: string): string[] {

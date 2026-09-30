@@ -5,14 +5,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	gnorpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/gnomultisig"
 )
@@ -61,19 +65,99 @@ func (s *MultisigService) confirmNative(ctx context.Context, req *connect.Reques
 	if err != nil || status == nil || status.NodeInfo.Network != t.ChainId || status.SyncInfo.CatchingUp {
 		return connect.NewError(connect.CodeUnavailable, nil)
 	}
+	// FailedPrecondition means the node answered and holds no such
+	// transaction, so the caller may broadcast; any other failure to look it
+	// up is Unavailable, which must never read as "not on chain".
 	receipt, err := client.Tx(ctx, hash)
-	if err != nil || receipt == nil || receipt.Height <= 0 || receipt.TxResult.Error != nil || !bytes.Equal(receipt.Hash, hash) {
-		return connect.NewError(connect.CodeFailedPrecondition, nil)
-	}
-	receiptHash := sha256.Sum256(receipt.Tx)
-	if !bytes.Equal(receiptHash[:], hash) || gnomultisig.ValidateSigned(pk, nativeFields(t), receipt.Tx) != nil {
-		return connect.NewError(connect.CodeFailedPrecondition, nil)
-	}
-	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = TRUE WHERE id = ? AND final_hash IS NULL", h, t.Id)
 	if err != nil {
-		return internalError("CompleteTransaction: native receipt", err)
+		if txAbsent(err, hash) {
+			return connect.NewError(connect.CodeFailedPrecondition, nil)
+		}
+		return connect.NewError(connect.CodeUnavailable, nil)
+	}
+	// An answer that is not a committed receipt for the hash asked about is
+	// no answer. A receipt of another transaction says this proposal is not
+	// at that hash.
+	receiptHash := sha256.Sum256(receipt.Tx)
+	if receipt.Height <= 0 || !bytes.Equal(receipt.Hash, hash) || !bytes.Equal(receiptHash[:], hash) {
+		return connect.NewError(connect.CodeUnavailable, nil)
+	}
+	if gnomultisig.ValidateSigned(pk, nativeFields(t), receipt.Tx) != nil {
+		return connect.NewError(connect.CodeFailedPrecondition, nil)
+	}
+	if receipt.TxResult.Error == nil {
+		_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = TRUE, onchain_error = NULL WHERE id = ? AND final_hash IS NULL", h, t.Id)
+		if err != nil {
+			return internalError("CompleteTransaction: native receipt", err)
+		}
+		return nil
+	}
+	// The chain refused it. A failure while running the messages uses the
+	// account's sequence: the proposal can never run and is closed as failed.
+	// A refusal before execution (the fee check at block time) leaves the
+	// sequence as it was and the signed bytes valid: the reason is kept and
+	// the proposal stays open to be broadcast again.
+	reason := onchainReason(receipt.TxResult)
+	used, err := sequenceUsed(ctx, client, t.MultisigAddress, uint64(t.Sequence))
+	if err != nil {
+		return connect.NewError(connect.CodeUnavailable, nil)
+	}
+	if !used {
+		if _, err := s.db.ExecContext(ctx, "UPDATE transactions SET onchain_error = ? WHERE id = ? AND final_hash IS NULL", reason, t.Id); err != nil {
+			return internalError("CompleteTransaction: native refusal", err)
+		}
+		return connect.NewError(connect.CodeFailedPrecondition, errRefusedBeforeExecution)
+	}
+	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = FALSE, onchain_error = ? WHERE id = ? AND final_hash IS NULL", h, reason, t.Id)
+	if err != nil {
+		return internalError("CompleteTransaction: native failure", err)
 	}
 	return nil
+}
+
+var errRefusedBeforeExecution = errors.New("the network refused this transaction before executing it; the signed transaction is still valid")
+
+// maxOnchainError bounds the stored reason: a node's error text has no limit.
+const maxOnchainError = 500
+
+// onchainReason is the chain's error label and its log, bounded. A byte cut
+// can split a character, which a protobuf string refuses.
+func onchainReason(r abci.ResponseDeliverTx) string {
+	reason := r.Error.Error()
+	if r.Log != "" {
+		reason += ": " + r.Log
+	}
+	return strings.ToValidUTF8(truncate(reason, maxOnchainError), "")
+}
+
+// sequenceUsed reads the account on the node that returned the receipt and
+// reports whether its sequence has moved past the proposal's.
+func sequenceUsed(ctx context.Context, client *gnorpc.RPCClient, addr string, sequence uint64) (bool, error) {
+	res, err := client.ABCIQuery(ctx, "auth/accounts/"+addr, nil)
+	if err != nil || res.Response.Error != nil {
+		return false, errors.New("account unreadable")
+	}
+	var account struct {
+		BaseAccount struct {
+			Address  string `json:"address"`
+			Sequence string `json:"sequence"`
+		} `json:"BaseAccount"`
+	}
+	if json.Unmarshal(res.Response.Data, &account) != nil || account.BaseAccount.Address != addr {
+		return false, errors.New("account unreadable")
+	}
+	current, err := strconv.ParseUint(account.BaseAccount.Sequence, 10, 64)
+	if err != nil {
+		return false, errors.New("account unreadable")
+	}
+	return current > sequence, nil
+}
+
+// txAbsent reports whether the node itself answered that it has no result for
+// the hash, as opposed to failing to answer.
+func txAbsent(err error, hash []byte) bool {
+	var rpcErr *rpctypes.RPCError
+	return errors.As(err, &rpcErr) && rpcErr.Data == "Could not find tx result for hash #"+fmtHash(hash)
 }
 
 func fmtHash(hash []byte) string {
@@ -109,6 +193,7 @@ func (s *MultisigService) storeNativeSignature(ctx context.Context, id uint32, p
 	if err != nil || n != 1 {
 		return connect.NewError(connect.CodeFailedPrecondition, nil)
 	}
+	others := 0
 	rows, err := dbtx.QueryContext(ctx, "SELECT user_address, signature FROM signatures WHERE transaction_id = ? AND user_address != ?", id, p.Address)
 	if err != nil {
 		return internalError("SignTransaction: native signatures", err)
@@ -119,6 +204,7 @@ func (s *MultisigService) storeNativeSignature(ctx context.Context, id uint32, p
 			_ = rows.Close()
 			return sigVerifyDenied()
 		}
+		others++
 		r, _, e := gnomultisig.VerifyPartial(pk, f, unsigned, other)
 		if e != nil || r != rendering {
 			_ = rows.Close()
@@ -129,6 +215,15 @@ func (s *MultisigService) storeNativeSignature(ctx context.Context, id uint32, p
 	_ = rows.Close()
 	if err != nil {
 		return internalError("SignTransaction: native iteration", err)
+	}
+	// From quorum on, the transaction is assembled from the earliest
+	// signatures: none of them may change, or its bytes and hash would.
+	var own int
+	if err := dbtx.QueryRowContext(ctx, "SELECT COUNT(*) FROM signatures WHERE transaction_id = ? AND user_address = ?", id, p.Address).Scan(&own); err != nil {
+		return internalError("SignTransaction: native own signature", err)
+	}
+	if own > 0 && uint(others+own) >= pk.K {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("this transaction has its quorum; a signature can no longer be changed"))
 	}
 	_, err = dbtx.ExecContext(ctx, `INSERT INTO signatures (transaction_id, user_address, signature, body_bytes, verified) VALUES (?, ?, ?, ?, TRUE)
 	 ON CONFLICT(transaction_id, user_address) DO UPDATE SET signature = excluded.signature, body_bytes = excluded.body_bytes, verified = TRUE`, id, p.Address, p.Value, body)
@@ -150,8 +245,14 @@ func nativeArtifact(t *membav1.Transaction) ([]byte, string, error) {
 	if err != nil || pk.Address().String() != t.MultisigAddress || uint64(pk.K) != uint64(t.Threshold) || uint64(len(pk.PubKeys)) != uint64(t.MembersCount) {
 		return nil, "", gnomultisig.ErrInvalid
 	}
-	partials := make([]gnomultisig.Partial, 0, len(t.Signatures))
+	// The earliest K signatures, so the transaction's bytes and hash never
+	// change once quorum is reached: a later signature adds nothing to it.
+	// ValidateSigned accepts any quorum at confirmation.
+	partials := make([]gnomultisig.Partial, 0, pk.K)
 	for _, sig := range t.Signatures {
+		if uint(len(partials)) == pk.K {
+			break
+		}
 		partials = append(partials, gnomultisig.Partial{Address: sig.UserAddress, Value: sig.Value})
 	}
 	tx, b, err := gnomultisig.Assemble(pk, nativeFields(t), partials)

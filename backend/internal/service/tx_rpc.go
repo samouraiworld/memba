@@ -132,7 +132,7 @@ func (s *MultisigService) GetTransaction(
 	err = s.db.QueryRowContext(ctx, `
 		SELECT t.id, t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
 		       t.account_number, t.sequence, t.memo, t.creator_address,
-		       COALESCE(t.final_hash, ''), t.verified, t.type, t.created_at,
+		       COALESCE(t.final_hash, ''), t.verified, COALESCE(t.onchain_error, ''), t.type, t.created_at,
 		       m.threshold, m.members_count, m.pubkey_json
 		FROM transactions t
 		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
@@ -141,7 +141,7 @@ func (s *MultisigService) GetTransaction(
 	`, userAddress, txID).Scan(
 		&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
 		&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
-		&tx.FinalHash, &tx.Verified, &tx.Type, &tx.CreatedAt,
+		&tx.FinalHash, &tx.Verified, &tx.OnchainError, &tx.Type, &tx.CreatedAt,
 		&tx.Threshold, &tx.MembersCount, &tx.MultisigPubkeyJson,
 	)
 	if err == sql.ErrNoRows {
@@ -151,9 +151,10 @@ func (s *MultisigService) GetTransaction(
 		return nil, internalError("GetTransaction: query", err)
 	}
 
-	// Load signatures for this transaction.
+	// Load signatures for this transaction, first stored first: a native
+	// aggregate is assembled from the earliest ones (nativeArtifact).
 	sigRows, err := s.db.QueryContext(ctx,
-		"SELECT transaction_id, user_address, signature, body_bytes, created_at, verified FROM signatures WHERE transaction_id = ?",
+		"SELECT transaction_id, user_address, signature, body_bytes, created_at, verified FROM signatures WHERE transaction_id = ? ORDER BY rowid",
 		txID,
 	)
 	if err != nil {
@@ -213,7 +214,7 @@ func (s *MultisigService) Transactions(
 	query := `
 		SELECT t.id, t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
 		       t.account_number, t.sequence, t.memo, t.creator_address,
-		       COALESCE(t.final_hash, ''), t.verified, t.type, t.created_at,
+		       COALESCE(t.final_hash, ''), t.verified, COALESCE(t.onchain_error, ''), t.type, t.created_at,
 		       m.threshold, m.members_count, m.pubkey_json
 		FROM transactions t
 		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
@@ -267,7 +268,7 @@ func (s *MultisigService) Transactions(
 		if err := rows.Scan(
 			&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
 			&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
-			&tx.FinalHash, &tx.Verified, &tx.Type, &tx.CreatedAt,
+			&tx.FinalHash, &tx.Verified, &tx.OnchainError, &tx.Type, &tx.CreatedAt,
 			&tx.Threshold, &tx.MembersCount, &tx.MultisigPubkeyJson,
 		); err != nil {
 			continue

@@ -1184,7 +1184,11 @@ type Transaction struct {
 	Type               string                 `protobuf:"bytes,16,opt,name=type,proto3" json:"type,omitempty"`
 	// verified: the backend confirmed final_hash exists on-chain at completion
 	// time (best-effort). false = client-claimed, unconfirmed (W2.3 / BE-3).
-	Verified      bool `protobuf:"varint,17,opt,name=verified,proto3" json:"verified,omitempty"`
+	Verified bool `protobuf:"varint,17,opt,name=verified,proto3" json:"verified,omitempty"`
+	// Native only: why the chain refused this proposal's transaction. With
+	// final_hash: refused while running, its sequence is used, the proposal is
+	// closed. Without: refused before execution, the signed bytes stay valid.
+	OnchainError  string `protobuf:"bytes,18,opt,name=onchain_error,json=onchainError,proto3" json:"onchain_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1336,6 +1340,13 @@ func (x *Transaction) GetVerified() bool {
 		return x.Verified
 	}
 	return false
+}
+
+func (x *Transaction) GetOnchainError() string {
+	if x != nil {
+		return x.OnchainError
+	}
+	return ""
 }
 
 type CreateTransactionRequest struct {
@@ -8412,7 +8423,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"body_bytes\x18\x03 \x01(\fR\tbodyBytes\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1a\n" +
-	"\bverified\x18\x05 \x01(\bR\bverified\"\xb3\x04\n" +
+	"\bverified\x18\x05 \x01(\bR\bverified\"\xd8\x04\n" +
 	"\vTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1d\n" +
 	"\n" +
@@ -8435,7 +8446,8 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"signatures\x120\n" +
 	"\x14multisig_pubkey_json\x18\x0f \x01(\tR\x12multisigPubkeyJson\x12\x12\n" +
 	"\x04type\x18\x10 \x01(\tR\x04type\x12\x1a\n" +
-	"\bverified\x18\x11 \x01(\bR\bverified\"\xb3\x02\n" +
+	"\bverified\x18\x11 \x01(\bR\bverified\x12#\n" +
+	"\ronchain_error\x18\x12 \x01(\tR\fonchainError\"\xb3\x02\n" +
 	"\x18CreateTransactionRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12)\n" +

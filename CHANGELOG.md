@@ -25,6 +25,7 @@ Full changelogs are split by version range for easier navigation:
 - Members of Memba DAO vote on and execute its proposals from the proposal's window in Memba OS, through the Memba review: only choices the DAO would record, the exact network fee re-checked before the wallet, a warning naming the proposals an execution invalidates, and the result checked on chain.
 ### Native Gno multisig on memba.club (2026-10-01)
 - Added: native Gno multisig on memba.club. Create a multisig from members' public keys, propose, collect signatures to the threshold and broadcast, with a chain check before any re-send.
+- Native multisig: a transaction's bytes and hash stay fixed once it has its quorum; a proposal the chain refused while running is shown as failed with the chain's reason and closed; a refusal before execution keeps the signed transaction valid to broadcast again; and a node that could not answer is never read as the transaction being absent.
 
 ### Memba OS: an open News article survives a reload (2026-09-30)
 - A News article open in Memba OS stays open after a reload or Back when another window is in front.

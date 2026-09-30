@@ -253,6 +253,10 @@ message Transaction {
   // verified: the backend confirmed final_hash exists on-chain at completion
   // time (best-effort). false = client-claimed, unconfirmed (W2.3 / BE-3).
   bool verified = 17;
+  // Native only: why the chain refused this proposal's transaction. With
+  // final_hash: refused while running, its sequence is used, the proposal is
+  // closed. Without: refused before execution, the signed bytes stay valid.
+  string onchain_error = 18;
 }
 
 message CreateTransactionRequest {

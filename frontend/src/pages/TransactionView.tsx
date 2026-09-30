@@ -49,7 +49,9 @@ export function TransactionRoute() {
 
 /**
  * Asks the backend to record `hash` for a proposal. It answers "recorded" only
- * after finding that transaction on chain; "absent" when it is not there;
+ * after finding that transaction on chain (executed, or executed and refused:
+ * the refreshed proposal then carries the chain's reason); "absent" when the
+ * node answered that it is not there;
  * "completed" when the proposal already has its hash (another member was
  * faster); "unanswered" for anything else (rate limit, chain node unreachable):
  * that is not a "no".
@@ -248,11 +250,10 @@ export function TransactionView() {
                     // An earlier broadcast whose reply was lost may already be on chain, and no
                     // receipt was kept for it. The backend records a hash only after finding that
                     // transaction on chain and checking it against this proposal, so it is asked
-                    // first and the bytes are sent only if it answers "not on chain". What was sent
-                    // earlier may differ from today's bytes (one more signature changes them), so
-                    // the hashes this browser sent are asked about too. A member on another browser
-                    // does not have them: after such a lost reply their broadcast is refused by the
-                    // node and the proposal stays ready until the first browser presses Broadcast.
+                    // first and the bytes are sent only if it answers "not on chain". The backend
+                    // assembles from the earliest signatures, so today's bytes are the bytes any
+                    // member sent since quorum; the hashes this browser sent are asked about too,
+                    // for a broadcast made before the backend kept them fixed.
                     const expected = nativeTxHash(fresh.nativeTxBytes)
                     setBroadcastStep("asking")
                     let answer: Awaited<ReturnType<typeof askWhetherOnChain>> = "absent"
@@ -261,7 +262,7 @@ export function TransactionView() {
                         if (answer !== "absent") break
                     }
                     if (answer === "unanswered") throw new Error("Couldn't check whether this transaction is already on chain. Nothing was sent; try again in a moment.")
-                    if (answer === "recorded") setActionNotice("This transaction was already on chain. Nothing was sent; Memba recorded it.")
+                    if (answer === "recorded") setActionNotice("This transaction was already executed on chain. Nothing was sent; Memba recorded the result.")
                     // "completed": another member recorded it meanwhile. Nothing to send; the refresh below shows it.
                     if (answer === "absent") {
                         assertReceiptStorage(receiptKey)
@@ -455,6 +456,10 @@ export function TransactionView() {
             </div>}
             {native && txQuery.data?.nativeExportError && <p role="status">{txQuery.data.nativeExportError}</p>}
             {!native && !tx.finalHash && <p role="status">{LEGACY_READ_ONLY_MESSAGE}</p>}
+            {native && !tx.finalHash && tx.onchainError && <p role="status">
+                The network refused this transaction before executing it: <code style={{ overflowWrap: "anywhere" }}>{tx.onchainError}</code>.
+                The signed transaction is still valid and can be broadcast again.
+            </p>}
             {!tx.finalHash && auth.isAuthenticated && native && ENABLE_NATIVE_GNO_MULTISIG && (
                 <div className="k-txview__actions">
                     <button
@@ -624,7 +629,13 @@ export function TransactionView() {
                             receipt to this proposal. Legacy rows may carry
                             verified=true from an older lookup that only found
                             the hash somewhere, so they never claim more. */}
-                        {tx.verified && !native ? (
+                        {native && tx.onchainError ? (
+                            <span style={{
+                                fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
+                                background: "rgba(239,68,68,0.1)", color: "var(--color-danger, #ef4444)",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
+                            }}>✗ FAILED ON-CHAIN</span>
+                        ) : tx.verified && !native ? (
                             <span style={{
                                 fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "var(--color-k-amber-subtle, rgba(255,193,7,0.12))", color: "var(--color-text-secondary)",
@@ -647,6 +658,10 @@ export function TransactionView() {
                     <p className="k-txview__hash-value">
                         {tx.finalHash}
                     </p>
+                    {native && tx.onchainError && <p role="status">
+                        The network refused this transaction: <code style={{ overflowWrap: "anywhere" }}>{tx.onchainError}</code>.
+                        The multisig's sequence number has moved past this proposal's, so it can never run and this proposal is closed. To try again, create a new proposal.
+                    </p>}
                 </div>
             )}
 

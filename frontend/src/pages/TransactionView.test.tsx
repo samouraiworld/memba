@@ -264,7 +264,7 @@ describe("native confirmation and receipt recovery", () => {
         fireEvent.click(screen.getByText("Broadcast to Chain"))
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
         await screen.findByText(/VERIFIED ON-CHAIN/)
-        expect(screen.getByText("This transaction was already on chain. Nothing was sent; Memba recorded it.")).toBeInTheDocument()
+        expect(screen.getByText("This transaction was already executed on chain. Nothing was sent; Memba recorded the result.")).toBeInTheDocument()
         expect(broadcastNativeTransaction).not.toHaveBeenCalled()
     })
 
@@ -394,12 +394,32 @@ describe("native confirmation and receipt recovery", () => {
         fireEvent.click(screen.getByText("Broadcast to Chain"))
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
         await screen.findByText(/VERIFIED ON-CHAIN/)
-        expect(screen.getByRole("status")).toHaveTextContent("This transaction was already on chain. Nothing was sent; Memba recorded it.")
+        expect(screen.getByRole("status")).toHaveTextContent("This transaction was already executed on chain. Nothing was sent; Memba recorded the result.")
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
         expect(vi.mocked(api.completeTransaction).mock.calls.map(([req]) => req.finalHash)).toEqual([expected, expected])
     })
 
-    it("recognises its earlier broadcast after one more signature changed the transaction's bytes", async () => {
+    it("shows a proposal the chain executed and refused as failed and closed, never as ready", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: false, onchainError: "insufficient coins" } } as never)
+        render(<TransactionView />)
+        await screen.findByText(/FAILED ON-CHAIN/)
+        expect(screen.getByText(/The network refused this transaction:/)).toHaveTextContent("insufficient coins")
+        expect(screen.getByText(/create a new proposal/)).toBeInTheDocument()
+        expect(screen.queryByText("Broadcast to Chain")).toBeNull()
+        expect(screen.queryByText(/VERIFIED ON-CHAIN|UNCONFIRMED/)).toBeNull()
+    })
+
+    it("keeps a proposal refused before execution open, with the reason and Broadcast", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue({ ...nativeResponse(), transaction: { ...makeNativeTx(), onchainError: "insufficient fee: gas price rose" } } as never)
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        expect(screen.getByText(/refused this transaction before executing it/)).toHaveTextContent("insufficient fee: gas price rose")
+        expect(screen.getByText(/still valid and can be broadcast again/)).toBeInTheDocument()
+        expect(screen.getByText("Broadcast to Chain")).toBeEnabled()
+        expect(screen.queryByText(/FAILED ON-CHAIN/)).toBeNull()
+    })
+
+    it("recognises an earlier broadcast of other bytes than today's", async () => {
         const sentThen = nativeTxHash(new Uint8Array([1, 2, 3]))
         const bytesNow = new Uint8Array([1, 2, 3, 4])
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)

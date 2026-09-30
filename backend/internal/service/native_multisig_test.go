@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/cosmos/cosmos-sdk/codec/legacy"
@@ -19,6 +23,7 @@ import (
 	cosmossecp "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
+	dsecp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -283,6 +288,20 @@ func TestNativeProposalSignExport(t *testing.T) {
 	status := ctypes.ResultStatus{}
 	status.NodeInfo.Network = h.svc.chainID
 	receipt := ctypes.ResultTx{Hash: hash[:], Height: 1, Tx: ready.NativeTxBytes}
+	// How the node answers a Tx lookup: with the receipt, with its own
+	// "no such transaction" error, with another error, or with no answer. And
+	// the multisig account it holds, which says whether a sequence was used.
+	txAnswer := "receipt"
+	accountSequence := "0"
+	account := func() []byte {
+		if accountSequence == "unreadable" {
+			return []byte("null")
+		}
+		if accountSequence == "another account" {
+			return []byte(fmt.Sprintf(`{"BaseAccount":{"address":%q,"sequence":"9"}}`, keys[0].PubKey().Address()))
+		}
+		return []byte(fmt.Sprintf(`{"BaseAccount":{"address":%q,"coins":"","public_key":null,"account_number":"7","sequence":%q}}`, addr, accountSequence))
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
 			Method string          `json:"method"`
@@ -292,53 +311,235 @@ func TestNativeProposalSignExport(t *testing.T) {
 			w.WriteHeader(400)
 			return
 		}
-		var result any = receipt
-		if request.Method == "status" {
-			result = status
-		}
-		encoded, err := amino.MarshalJSON(result)
-		if err != nil {
-			w.WriteHeader(500)
-			return
-		}
-		if err := json.NewEncoder(w).Encode(struct {
+		reply := struct {
 			JSONRPC string          `json:"jsonrpc"`
 			ID      json.RawMessage `json:"id"`
-			Result  json.RawMessage `json:"result"`
-		}{"2.0", request.ID, encoded}); err != nil {
+			Result  json.RawMessage `json:"result,omitempty"`
+			Error   any             `json:"error,omitempty"`
+		}{JSONRPC: "2.0", ID: request.ID}
+		var result any = receipt
+		switch {
+		case request.Method == "status":
+			result = status
+		case request.Method == "abci_query":
+			result = ctypes.ResultABCIQuery{Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: account()}}}
+		case txAnswer == "absent":
+			reply.Error = map[string]any{"code": -32603, "message": "Internal error", "data": "Could not find tx result for hash #" + fmtHash(hash[:])}
+		case txAnswer == "absent for another hash":
+			reply.Error = map[string]any{"code": -32603, "message": "Internal error", "data": "Could not find tx result for hash #" + strings.Repeat("A", 64)}
+		case txAnswer == "node error":
+			reply.Error = map[string]any{"code": -32603, "message": "Internal error", "data": "block not found for height 12"}
+		case txAnswer == "no answer":
+			w.WriteHeader(502)
+			return
+		}
+		if reply.Error == nil {
+			encoded, err := amino.MarshalJSON(result)
+			if err != nil {
+				w.WriteHeader(500)
+				return
+			}
+			reply.Result = encoded
+		}
+		if err := json.NewEncoder(w).Encode(reply); err != nil {
 			t.Error(err)
 		}
 	}))
 	defer server.Close()
 	t.Setenv("MEMBA_NATIVE_GNO_RPC_URL", server.URL)
-	// A third member may submit while the already-exported 2-of-3 transaction
-	// is being broadcast. Reconciliation must recognize that valid receipt.
+	// At exactly the quorum, an earliest signer cannot replace its signature.
+	quorumBytes, err := unsigned.GetSignBytes(f.ChainID, f.AccountNumber, f.Sequence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.svc.SignTransaction(ctx, connect.NewRequest(&membav1.SignTransactionRequest{AuthToken: nativeTestToken(t, h, keys[0].PubKey().Address().String()), TransactionId: id, Signature: base64.StdEncoding.EncodeToString(randomNonceSign(t, keys[0], quorumBytes))})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("a signature replaced at quorum: %v", err)
+	}
+	// A third member may submit while the 2-of-3 transaction is being
+	// broadcast: the aggregate keeps the two earliest signatures, so its bytes
+	// and hash do not change once quorum is reached.
 	if err := submit(1, false, false); err != nil {
 		t.Fatal(err)
+	}
+	if after := get(); !bytes.Equal(after.NativeTxBytes, ready.NativeTxBytes) || len(after.Transaction.Signatures) != 3 {
+		t.Fatal("a signature after quorum changed the transaction")
+	}
+	// Nor can one of the earliest signers replace its signature, even with
+	// another valid one (a wallet that does not sign deterministically).
+	signBytes, err := unsigned.GetSignBytes(f.ChainID, f.AccountNumber, f.Sequence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sig := range [][]byte{randomNonceSign(t, keys[0], signBytes), mustSign(t, keys[0], signBytes)} {
+		_, err := h.svc.SignTransaction(ctx, connect.NewRequest(&membav1.SignTransactionRequest{AuthToken: nativeTestToken(t, h, keys[0].PubKey().Address().String()), TransactionId: id, Signature: base64.StdEncoding.EncodeToString(sig)}))
+		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("a signature replaced after quorum: %v", err)
+		}
+	}
+	if !bytes.Equal(get().NativeTxBytes, ready.NativeTxBytes) {
+		t.Fatal("a refused replacement changed the transaction")
 	}
 	complete := func() error {
 		_, err := h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{AuthToken: token, TransactionId: id, FinalHash: fmtHash(hash[:])}))
 		return err
 	}
 	status.NodeInfo.Network = "wrong-chain"
-	if err := complete(); err == nil {
-		t.Fatal("wrong RPC chain accepted")
+	if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("wrong RPC chain: %v", err)
 	}
 	status.NodeInfo.Network = h.svc.chainID
-	receipt.TxResult.Error = abci.StringError("test rejection")
-	if err := complete(); err == nil {
-		t.Fatal("failed DeliverTx accepted")
+	// Only the node's own "no such transaction" lets a client broadcast.
+	for answer, want := range map[string]connect.Code{"absent": connect.CodeFailedPrecondition, "absent for another hash": connect.CodeUnavailable, "node error": connect.CodeUnavailable, "no answer": connect.CodeUnavailable} {
+		txAnswer = answer
+		if err := complete(); connect.CodeOf(err) != want {
+			t.Fatalf("node answer %q: %v, want %v", answer, err, want)
+		}
 	}
-	receipt.TxResult.Error = nil
+	txAnswer = "receipt"
+	// A node whose receipt is not for the hash asked about has not answered.
 	receipt.Tx = []byte("different bytes")
-	if err := complete(); err == nil {
-		t.Fatal("unrelated receipt accepted")
+	if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("receipt for another hash: %v", err)
 	}
 	receipt.Tx = ready.NativeTxBytes
+	receipt.Height = 0
+	if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("uncommitted receipt: %v", err)
+	}
+	receipt.Height = 1
+	// A committed receipt of another transaction: this proposal is not there.
+	other := []byte("another transaction")
+	otherHash := sha256.Sum256(other)
+	receipt = ctypes.ResultTx{Hash: otherHash[:], Height: 1, Tx: other}
+	if _, err := h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{AuthToken: token, TransactionId: id, FinalHash: fmtHash(otherHash[:])})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("receipt of another transaction: %v", err)
+	}
+	receipt = ctypes.ResultTx{Hash: hash[:], Height: 1, Tx: ready.NativeTxBytes}
+	if get().Transaction.FinalHash != "" {
+		t.Fatal("a refused completion mutated history")
+	}
+	// A refusal before execution first, then the same bytes executed: the
+	// kept reason goes when the transaction runs.
+	receipt.TxResult.Error = abci.StringError("insufficient fee")
+	accountSequence = "3"
+	if err := complete(); connect.CodeOf(err) != connect.CodeFailedPrecondition || get().Transaction.OnchainError == "" {
+		t.Fatalf("a refusal before execution: %v", err)
+	}
+	receipt.TxResult.Error = nil
 	if err := complete(); err != nil {
 		t.Fatalf("valid native receipt rejected: %v", err)
 	}
-	if final := get().Transaction; final.FinalHash != fmtHash(hash[:]) || !final.Verified {
+	if final := get().Transaction; final.FinalHash != fmtHash(hash[:]) || !final.Verified || final.OnchainError != "" {
 		t.Fatal("native receipt not recorded")
+	}
+
+	// A proposal whose transaction the chain executed and refused is closed as
+	// failed, with the chain's reason: its sequence is used, so it can never
+	// run again and must not stay ready to broadcast.
+	request.MsgsJson = fmt.Sprintf(`[{"@type":"/bank.MsgSend","from_address":"%s","to_address":"%s","amount":"1ugnot"}]`, addr, keys[0].PubKey().Address())
+	request.Sequence = 4
+	second, err := h.svc.CreateTransaction(ctx, connect.NewRequest(request))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id = second.Msg.TransactionId
+	f = nativeFields(get().Transaction)
+	if unsigned, err = gnomultisig.Transaction(f, addr); err != nil {
+		t.Fatal(err)
+	}
+	for _, i := range []int{0, 2} {
+		if err := submit(i, false, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	failed := get()
+	hash = sha256.Sum256(failed.NativeTxBytes)
+	receipt = ctypes.ResultTx{Hash: hash[:], Height: 2, Tx: failed.NativeTxBytes}
+	receipt.TxResult.Error = abci.StringError("insufficient fee")
+	receipt.TxResult.Log = "gas price rose"
+	// Refused before execution: the account's sequence is still the
+	// proposal's, so the signed bytes stay valid. The reason is kept and the
+	// proposal stays open; the answer lets the client broadcast again.
+	accountSequence = "4"
+	if err := complete(); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("a refusal before execution: %v", err)
+	}
+	open := get()
+	if open.Transaction.FinalHash != "" || open.Transaction.OnchainError != "insufficient fee: gas price rose" || !bytes.Equal(open.NativeTxBytes, failed.NativeTxBytes) {
+		t.Fatalf("a refusal before execution closed the proposal or lost its reason: %+v", open.Transaction)
+	}
+	for _, unreadable := range []string{"unreadable", "another account"} {
+		accountSequence = unreadable
+		if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
+			t.Fatalf("account %s: %v", unreadable, err)
+		}
+	}
+	// Refused while running its messages: the sequence is used, so the
+	// proposal can never run and is closed as failed, with the chain's reason.
+	accountSequence = "5"
+	// Long, and cut through a two-byte character at the bound.
+	receipt.TxResult.Error = abci.StringError("insufficient coins")
+	receipt.TxResult.Log = strings.Repeat("x", maxOnchainError-20) + strings.Repeat("é", 300)
+	if err := complete(); err != nil {
+		t.Fatalf("executed and refused transaction not recorded: %v", err)
+	}
+	closed := get().Transaction
+	if closed.FinalHash != fmtHash(hash[:]) || closed.Verified || !strings.HasPrefix(closed.OnchainError, "insufficient coins: xxx") ||
+		len(closed.OnchainError) > maxOnchainError+len("...") || !utf8.ValidString(closed.OnchainError) {
+		t.Fatalf("failure not recorded: %+v", closed)
+	}
+	if len(get().NativeTxBytes) != 0 {
+		t.Fatal("a failed proposal is still offered for broadcast")
+	}
+	if err := submit(1, false, false); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("a failed proposal took a signature: %v", err)
+	}
+	if err := complete(); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("a failed proposal was completed again: %v", err)
+	}
+}
+
+func mustSign(t *testing.T, key secp256k1.PrivKeySecp256k1, msg []byte) []byte {
+	t.Helper()
+	sig, err := key.Sign(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sig
+}
+
+// randomNonceSign is a valid low-S secp256k1 signature with a random nonce,
+// as a wallet that does not follow RFC 6979 would produce.
+func randomNonceSign(t *testing.T, key secp256k1.PrivKeySecp256k1, msg []byte) []byte {
+	t.Helper()
+	n := dsecp.Params().N
+	digest := sha256.Sum256(msg)
+	z := new(big.Int).SetBytes(digest[:])
+	d := new(big.Int).SetBytes(key[:])
+	for {
+		k, err := rand.Int(rand.Reader, n)
+		if err != nil || k.Sign() == 0 {
+			continue
+		}
+		var ks dsecp.ModNScalar
+		ks.SetByteSlice(k.FillBytes(make([]byte, 32)))
+		var point dsecp.JacobianPoint
+		dsecp.ScalarBaseMultNonConst(&ks, &point)
+		point.ToAffine()
+		r := new(big.Int).Mod(new(big.Int).SetBytes(point.X.Bytes()[:]), n)
+		if r.Sign() == 0 {
+			continue
+		}
+		s := new(big.Int).Mul(r, d)
+		s.Add(s, z)
+		s.Mul(s, new(big.Int).ModInverse(k, n))
+		s.Mod(s, n)
+		if s.Sign() == 0 {
+			continue
+		}
+		if s.Cmp(new(big.Int).Rsh(n, 1)) > 0 {
+			s.Sub(n, s)
+		}
+		return append(r.FillBytes(make([]byte, 32)), s.FillBytes(make([]byte, 32))...)
 	}
 }
