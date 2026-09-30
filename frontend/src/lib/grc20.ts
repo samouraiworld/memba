@@ -138,7 +138,7 @@ export function assertWalletBroadcastSafe(): void {
 }
 
 function assertWalletBroadcastSafeInternal(allowOsActivation: boolean): void {
-    assertWalletActionAllowed(false, allowOsActivation)
+    assertWalletActionAllowed(allowOsActivation)
     // SECURITY: Block transactions through untrusted or unverifiable RPC
     if (!_walletRpcTrusted) {
         const detail = _walletRpcUrl
@@ -186,15 +186,49 @@ export class WalletActionBlockedError extends Error {
     constructor() { super("Your Memba session ended. Connect again before signing.") }
 }
 
+/**
+ * The node refused the transaction and the wallet forwarded its log. Memba
+ * never asks the wallet to wait for the block (no `commit`), so this is a
+ * refusal at the node's door (CheckTx): the transaction was not included,
+ * nothing changed and no fee was charged. A failure to explain, not an
+ * outcome to go and check.
+ *
+ * `reason` is the node's own sentence (the first "Msg Traces" line). The
+ * message is one bounded line (error, data line, reason); the full log and
+ * the hash stay on the error for support.
+ */
+export class ChainRejectedError extends Error {
+    override readonly name = "ChainRejectedError"
+    readonly reason: string
+    readonly log: string
+    readonly hash: string
+    constructor(nodeError: unknown, log: string, hash: unknown) {
+        const lines = nodeLines(nodeError, log)
+        super(lines.filter(Boolean).join(" · ").slice(0, 300) || "The network refused the transaction")
+        this.reason = (lines[2] || lines[1] || lines[0] || "no reason given").slice(0, 200)
+        this.log = log
+        this.hash = typeof hash === "string" ? hash : ""
+    }
+}
+
+/** [the wallet's error name, the log's Data line, the first Msg Traces line without its source position]. */
+function nodeLines(nodeError: unknown, log: string): [string, string, string] {
+    const lines = log.split("\n").map((line) => line.trim())
+    const traces = lines.findIndex((line) => line.startsWith("Msg Traces:"))
+    const first = traces >= 0 ? (lines[traces + 1] ?? "") : ""
+    return [
+        typeof nodeError === "string" ? nodeError : "",
+        lines.find((line) => line.startsWith("Data:")) ?? "",
+        first.replace(/^\d+\s+/, "").replace(/^\S+\.go:\d+ - /, ""),
+    ]
+}
+
 export function setWalletActionGuard(guard: (() => boolean) | null): void {
     _walletActionGuard = guard
 }
 
-function assertWalletActionAllowed(earlierAttemptMayHaveLanded = false, allowOsActivation = false): void {
-    if (_walletActionGuard && !_walletActionGuard() && !allowOsActivation) {
-        if (earlierAttemptMayHaveLanded) throw new Error("Memba session ended before retrying. An earlier attempt may have reached the chain. Check its outcome before trying again.")
-        throw new WalletActionBlockedError()
-    }
+function assertWalletActionAllowed(allowOsActivation = false): void {
+    if (_walletActionGuard && !_walletActionGuard() && !allowOsActivation) throw new WalletActionBlockedError()
 }
 
 /**
@@ -229,8 +263,10 @@ export function replaceTxConfirmationCallback(expected: TxConfirmCallback, next:
  * The modal shows a summary of the transaction effects (action, recipients,
  * amounts, message count). If cancelled, throws with a user-friendly message.
  *
- * RESILIENCE: Retries transient network failures (timeout, fetch) up to 2 times
- * with exponential backoff. User-initiated cancellations are never retried.
+ * ONE WALLET REQUEST PER CALL: a failed or unclear reply is never re-sent.
+ * Re-sending reopens the wallet for a transaction the member may just have
+ * refused, or that may already be on chain; the caller reports the error and
+ * the member decides.
  */
 /** Hard ceiling for an explicit gasWanted (the chains' block limit is 3B). */
 export const MAX_GAS_WANTED = 500_000_000
@@ -238,7 +274,11 @@ export const MAX_GAS_WANTED = 500_000_000
 /** Network gas price: `ugnot` per `gas` units. */
 export interface GasPrice { gas: number; ugnot: number }
 
-/** Used when `auth/gasprice` cannot be read: the value gnoland-1 and pearl-1 reported on 2026-09-17. */
+/**
+ * Used when `auth/gasprice` cannot be read: the value gnoland-1 and pearl-1 reported on 2026-09-17.
+ * `networkGasPrice` returns this very object in that case, so a caller can tell a figure that was
+ * not read (`price === FALLBACK_GAS_PRICE`) from one that was, and label it as an estimate.
+ */
 export const FALLBACK_GAS_PRICE: GasPrice = { gas: 1000, ugnot: 1 }
 
 const gasPriceCache = new Map<string, { price: GasPrice; at: number }>()
@@ -295,48 +335,47 @@ export async function freshFeeForGasWanted(gasWanted: number): Promise<number> {
     return feeForGasWanted(gasWanted, await networkGasPriceFresh())
 }
 
-/** Stops a signature whose reviewed fee no longer covers a fresh quote, or whose quote cannot be read. */
-export async function assertFeeStillCovers(reviewedFeeUgnot: number | bigint, freshFeeUgnot: () => Promise<number | bigint>): Promise<void> {
+/**
+ * Stops a signature whose reviewed fee no longer covers a fresh quote, or whose quote cannot be read.
+ * `next` says what to do where the fee is shown: the OS sheet keeps its figures, so it has to be closed.
+ */
+export async function assertFeeStillCovers(
+    reviewedFeeUgnot: number | bigint, freshFeeUgnot: () => Promise<number | bigint>,
+    next = "Close this review and check the new fee before signing.",
+): Promise<void> {
     let fresh: number | bigint
     try { fresh = await freshFeeUgnot() }
     catch { throw new Error("Couldn't confirm the current network fee. Nothing was sent; try again when the network is available.") }
-    if (fresh > reviewedFeeUgnot) throw new Error("The network fee increased since review. Close this review and check the new fee before signing.")
+    if (fresh > reviewedFeeUgnot) throw new Error(`The network fee increased since review. ${next}`)
 }
 
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; gasFee?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
+    opts?: BroadcastOptions,
 ): Promise<{ hash: string; result?: unknown }> {
     return withWalletActivity(() => broadcastContract(msgs, memo, opts))
 }
 
-/**
- * The wallet checks run before each wallet request. On the first attempt a
- * refusal means nothing was sent. On a retry an earlier request already
- * reached the wallet and may have landed, so a refusal must not read as
- * "nothing sent": it becomes a plain error saying the outcome is unknown.
- */
-async function walletStillSafe(attempt: number, lastError: Error | null, allowOsActivation = false): Promise<void> {
-    try {
-        assertWalletBroadcastSafeInternal(allowOsActivation)
-        await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress })
-    } catch (err) {
-        if (attempt === 0) throw err
-        const reason = err instanceof Error ? err.message : String(err)
-        throw new Error(
-            `Stopped before retrying: ${reason} An earlier attempt${lastError ? ` (${lastError.message})` : ""} may have reached the chain, ` +
-            `so the outcome is unknown. Check the transaction before trying again.`,
-            { cause: err },
-        )
-    }
+const NOT_A_FAULT = /rejected by (the )?user|user (rejected|denied)|cancelled|insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i
+
+interface BroadcastOptions {
+    gas?: "call" | "deploy"
+    gasWanted?: number
+    gasFee?: number
+    /** Ignored: nothing is re-sent any more. Accepted until the callers that still pass it are updated, then removed. */
+    retry?: false
+    beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>
+    osActivation?: true
 }
 
-async function broadcastContract(
-    msgs: AminoMsg[],
-    memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; gasFee?: number; retry?: false; beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>; osActivation?: true },
-): Promise<{ hash: string; result?: unknown }> {
+/** The wallet checks, run before the wallet request: a refusal here means nothing was sent. */
+async function walletStillSafe(allowOsActivation: boolean): Promise<void> {
+    assertWalletBroadcastSafeInternal(allowOsActivation)
+    await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress })
+}
+
+async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: BroadcastOptions): Promise<{ hash: string; result?: unknown }> {
     if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
         throw new Error(`Invalid gas limit: must be a whole number between 1 and ${MAX_GAS_WANTED}`)
     }
@@ -353,7 +392,7 @@ async function broadcastContract(
         && msgs[0].value.send === "" && msgs[0].value.pkg_path === ACTIVATION_PROFILE_REALM
         && msgs[0].value.func === "SetStringField" && Array.isArray(msgs[0].value.args)
         && msgs[0].value.args.length === 2 && msgs[0].value.args[0] === "Bio" && msgs[0].value.args[1] === ""
-    assertWalletActionAllowed(false, activation)
+    assertWalletActionAllowed(activation)
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {
         const confirmed = await _txConfirmCallback(msgs, memo)
@@ -372,81 +411,50 @@ async function broadcastContract(
     }
 
     const gas = getGasConfig()
-    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget — and must
-    // NEVER auto-retry: a lost response after a landed deploy would re-prompt
-    // the wallet sign UI just to fail with "package already exists".
-    const isDeploy = opts?.gas === "deploy"
-    const gasWanted = opts?.gasWanted ?? (isDeploy ? gas.deployWanted : gas.wanted)
+    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget.
+    const gasWanted = opts?.gasWanted ?? (opts?.gas === "deploy" ? gas.deployWanted : gas.wanted)
     const gasFee = opts?.gasFee ?? (opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee)
-    const maxRetries = isDeploy || opts?.retry === false ? 0 : 2
-    let lastError: Error | null = null
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        // SECURITY: the cached chain id checked by assertWalletBroadcastSafe
-        // can be stale or empty (a wallet that switched network without firing
-        // its event, or reports none). Ask the wallet itself and refuse unless
-        // it names this page's chain (and account). Asked first before the
-        // caller's beforeSign, which callers treat as "the wallet is opening",
-        // so a wallet on the wrong network is reported as nothing sent.
-        await walletStillSafe(attempt, lastError, activation)
-        // Await caller revalidation after confirmation, then recheck wallet safety.
-        const requestGuard = await opts?.beforeSign?.()
-        // Asked again right before the wallet request: beforeSign can take a while.
-        await walletStillSafe(attempt, lastError, activation)
-        // No await between this OS session check and the Adena request.
-        assertWalletActionAllowed(attempt > 0, activation)
-        if (requestGuard && !requestGuard()) {
-            if (attempt > 0) throw new Error("Memba session changed before retrying. An earlier attempt may have reached the chain. Check its outcome before trying again.")
-            throw new WalletActionBlockedError()
-        }
-        try {
-            const res = await adena.DoContract({
-                messages: toAdenaMessages(msgs),
-                gasFee,
-                gasWanted,
-                memo,
-            })
+    // SECURITY: the cached chain id checked by assertWalletBroadcastSafe
+    // can be stale or empty (a wallet that switched network without firing
+    // its event, or reports none). Ask the wallet itself and refuse unless
+    // it names this page's chain (and account). Asked first before the
+    // caller's beforeSign, which callers treat as "the wallet is opening",
+    // so a wallet on the wrong network is reported as nothing sent.
+    await walletStillSafe(activation)
+    // Await caller revalidation after confirmation, then recheck wallet safety.
+    const requestGuard = await opts?.beforeSign?.()
+    // Asked again right before the wallet request: beforeSign can take a while.
+    await walletStillSafe(activation)
+    // No await between this OS session check and the Adena request.
+    assertWalletActionAllowed(activation)
+    if (requestGuard && !requestGuard()) throw new WalletActionBlockedError()
 
-            if (res.status === "failure") {
-                const errMsg = res.message || res.data?.message || "Transaction failed"
-                // Don't retry user cancellations or wallet rejections
-                if (/user (rejected|denied)|cancelled/i.test(errMsg)) {
-                    throw new Error(errMsg)
-                }
-                // Don't retry deterministic chain errors
-                if (/insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i.test(errMsg)) {
-                    throw new Error(errMsg)
-                }
-                lastError = new Error(errMsg)
-            } else if (res.status === "success") {
-                // `result` is the wallet's broadcast result (e.g. the call's return data).
-                return { hash: res.data?.hash || "", result: res.data }
-            } else {
-                throw new Error("Adena returned an indeterminate transaction status")
-            }
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err)
-            // Don't retry user cancellations
-            if (/user (rejected|denied)|cancelled/i.test(msg)) throw err
-            // Don't retry deterministic errors
-            if (/insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i.test(msg)) throw err
-            lastError = err instanceof Error ? err : new Error(msg)
-        }
-
-        // Exponential backoff: 1s, 2s
-        if (attempt < maxRetries) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
-        }
+    let res: { status?: string; type?: string; message?: string; data?: { hash?: string; message?: string; error?: unknown; log?: unknown } } | undefined
+    try {
+        res = await adena.DoContract({ messages: toAdenaMessages(msgs), gasFee, gasWanted, memo })
+    } catch (err) {
+        // W6.5 money-path visibility: the wallet request itself broke. Addresses/JWTs
+        // are scrubbed by the global beforeSend; no-op when Sentry.init didn't run.
+        if (!NOT_A_FAULT.test(err instanceof Error ? err.message : String(err))) Sentry.captureException(err, { tags: { memba_path: "tx-broadcast" } })
+        throw err
     }
-
-    // W6.5 money-path visibility: reaching here means every retry was
-    // exhausted on an INFRASTRUCTURE failure (user rejections and domain
-    // errors — insufficient funds, not a member, … — threw earlier and are
-    // deliberately not reported). Addresses/JWTs are scrubbed by the global
-    // beforeSend; no-op when Sentry.init didn't run.
-    const terminal = lastError || new Error("Transaction failed after retries")
-    Sentry.captureException(terminal, { tags: { memba_path: "tx-broadcast" } })
-    throw terminal
+    // `result` is the wallet's broadcast result (e.g. the call's return data).
+    if (res?.status === "success") return { hash: res.data?.hash || "", result: res.data }
+    if (res?.status !== "failure") {
+        // Not a reply Adena is documented to give: worth knowing about.
+        const odd = new Error("Adena returned an indeterminate transaction status. Check the transaction before trying again.")
+        Sentry.captureException(odd, { tags: { memba_path: "tx-broadcast" } })
+        throw odd
+    }
+    // Adena forwards the node's log only when the node itself answered with an error: without `commit` that is CheckTx.
+    const { error: nodeError, log: nodeLog, hash } = res.data ?? {}
+    const failure = typeof nodeLog === "string" && nodeLog
+        ? new ChainRejectedError(nodeError, nodeLog, hash)
+        : new Error(res.message || res.data?.message || "Transaction failed")
+    // A refusal in the wallet and a domain error (insufficient funds, not a member…) are not faults to report.
+    if (res.type !== "TRANSACTION_REJECTED" && !NOT_A_FAULT.test(failure.message)) Sentry.captureException(failure, { tags: { memba_path: "tx-broadcast" } })
+    throw failure
 }
 
 // ── ABCI Queries ──────────────────────────────────────────────

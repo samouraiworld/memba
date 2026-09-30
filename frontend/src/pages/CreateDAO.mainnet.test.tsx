@@ -43,6 +43,8 @@ vi.mock("../lib/dao/packageStatus", async (original) => {
 })
 
 import { CreateDAO } from "./CreateDAO"
+import { __resetGasPriceCache, feeForGasWanted } from "../lib/grc20"
+import { formatGnot } from "../lib/templates/dao/v2/deposit"
 import { clearPolicyCache, listPendingDAOs, savePendingDAO, waitForPackage } from "../lib/dao/packageStatus"
 
 // Real gnoland-1 answers captured read-only.
@@ -56,6 +58,8 @@ const meta = {
 
 let statuses: string[] = []
 let policyReply = ""
+/** The node's `auth/gasprice` answer. */
+let gasPrice = ""
 
 const encode = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s)))
 const decodeHex = (h: string) => new TextDecoder().decode(Uint8Array.from(h.slice(2).match(/../g) ?? [], (x) => parseInt(x, 16)))
@@ -71,6 +75,8 @@ beforeEach(() => {
     mocks.broadcast.mockReset().mockResolvedValue({ hash: "DEPLOYHASH" })
     statuses = []
     policyReply = fixture("policy-inert")
+    gasPrice = '{"gas":1000,"price":"1ugnot"}'
+    __resetGasPriceCache()
     mocks.rpc.mockImplementation(async (_url: string, method: string, params: Record<string, string>) => {
         if (method === "status") return { node_info: { network: "gnoland-1" } }
         const path = JSON.parse(params.path) as string
@@ -78,6 +84,7 @@ beforeEach(() => {
         let reply: string
         if (path === "vm/qeval") reply = data === `gno.land/r/sys/names.IsAuthorizedAddressForNamespace(address("${SIGNER}"), "${SIGNER}")` ? fixture("names-true") : fixture("names-false")
         else if (path === "params/vm:p:code_submission_policy") reply = policyReply
+        else if (path === "auth/gasprice") reply = gasPrice
         else if (path === "vm/qpkgmeta_json" && data === PATH) reply = (statuses.length > 1 ? statuses.shift()! : statuses[0] ?? meta.absent())
         else return { response: { ResponseBase: { Data: null, Error: { msg: "unexpected query" } } } }
         return { response: { ResponseBase: { Data: encode(reply), Error: null } } }
@@ -97,6 +104,11 @@ function resumeReview() {
 }
 
 const deployButton = () => screen.getByRole("button", { name: /Deploy DAO/ })
+/** Deploy is enabled once the page has read the network price and the deploy policy. */
+const deploy = async () => {
+    await waitFor(() => expect(deployButton()).toBeEnabled())
+    fireEvent.click(deployButton())
+}
 const confirm = () => fireEvent.click(screen.getByRole("checkbox", { name: /permanent contract on gno\.land/ }))
 
 describe("Create DAO on gnoland-1", () => {
@@ -108,7 +120,7 @@ describe("Create DAO on gnoland-1", () => {
             return await new Promise(resolve => { finish = resolve })
         })
         const view = resumeReview()
-        confirm(); fireEvent.click(deployButton())
+        confirm(); await deploy()
         await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1))
         mocks.address = "g1anotherwallet"
         view.rerender(<CreateDAO />)
@@ -123,6 +135,66 @@ describe("Create DAO on gnoland-1", () => {
         expect(localStorage.getItem(`memba_dao_draft:v2:gnoland-1:${SIGNER}`)).not.toBeNull()
     })
 
+    it("stops before the wallet when the network fee rose since the review, then asks the wallet for the fee now shown", async () => {
+        resumeReview()
+        await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith(expect.any(String), "abci_query", expect.objectContaining({ path: '"auth/gasprice"' }), undefined))
+        gasPrice = '{"gas":1000,"price":"8ugnot"}'
+        confirm(); await deploy()
+        expect(await screen.findByText(/network fee increased since review/i)).toBeInTheDocument()
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
+        // The review now shows the fee at the new price.
+        const risen = feeForGasWanted(48_000_000, { gas: 1000, ugnot: 8 })
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(`Network fee: ${formatGnot(risen)}. Gas limit 48,000,000.`))
+
+        await deploy()
+        await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1))
+        expect(mocks.broadcast.mock.calls[0][2]).toMatchObject({ gasWanted: 48_000_000, gasFee: risen })
+    })
+
+    it("hands the wallet the reviewed fee when the price fell, and stops when the fee cannot be confirmed", async () => {
+        gasPrice = '{"gas":1000,"price":"4ugnot"}'
+        resumeReview()
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Network fee: 0\.230 GNOT\./))
+        gasPrice = "not json"
+        confirm(); await deploy()
+        expect(await screen.findByText(/Couldn't confirm the current network fee/)).toBeInTheDocument()
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+
+        gasPrice = '{"gas":1000,"price":"1ugnot"}'
+        await deploy()
+        await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1))
+        // The price fell to a quarter; the wallet is still asked for the fee that was on screen.
+        expect(mocks.broadcast.mock.calls[0][2]).toMatchObject({ gasWanted: 48_000_000, gasFee: 230_400 })
+    })
+
+    it("labels a fee computed without a price read as an estimate, and reads the price again on Deploy", async () => {
+        gasPrice = "not json"
+        resumeReview()
+        const disclosure = screen.getByTestId("dao-deploy-disclosure")
+        await waitFor(() => expect(disclosure).toHaveTextContent("Network fee: about 0.058 GNOT, an estimate: the network price could not be read. It is read again when you press Deploy. Gas limit 48,000,000."))
+        confirm(); await deploy()
+        expect(await screen.findByText(/Couldn't confirm the current network fee/)).toBeInTheDocument()
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+
+        // The network answers again: the press reads the price, and the estimate covers it.
+        gasPrice = '{"gas":1000,"price":"1ugnot"}'
+        await deploy()
+        await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1))
+        expect(mocks.broadcast.mock.calls[0][2]).toMatchObject({ gasWanted: 48_000_000, gasFee: 57_600 })
+    })
+
+    it("stops for a new look when the deploy now needs more gas than the review was sized for", async () => {
+        resumeReview()
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Gas limit 48,000,000\./))
+        clearPolicyCache()
+        policyReply = fixture("policy-permissionless")
+        confirm(); await deploy()
+        expect(await screen.findByText(/needs a higher gas limit than the review showed/)).toBeInTheDocument()
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Gas limit 57,000,000\./))
+    })
+
     it("cancels obsolete preflight before opening the wallet", async () => {
         const normalRpc = mocks.rpc.getMockImplementation()!
         let release!: () => void
@@ -131,7 +203,7 @@ describe("Create DAO on gnoland-1", () => {
             return normalRpc(...args)
         })
         const view = resumeReview()
-        confirm(); fireEvent.click(deployButton())
+        confirm(); await deploy()
         await waitFor(() => expect(release).toBeTypeOf("function"))
         mocks.address = "g1anotherwallet"
         view.rerender(<CreateDAO />)
@@ -143,14 +215,14 @@ describe("Create DAO on gnoland-1", () => {
 
     it.each(["network response lost", "request cancelled"])("retains uncertain wallet outcome %s", async (message) => {
         mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => { opts.beforeSign(); throw new Error(message) })
-        resumeReview(); confirm(); fireEvent.click(deployButton())
+        resumeReview(); confirm(); await deploy()
         expect(await screen.findByText("Submission status unknown")).toBeInTheDocument()
         expect(listPendingDAOs("gnoland-1")).toMatchObject([{ txHash: "", phase: "intent" }])
     })
 
     it("retains an uncertain wallet outcome and never advertises approval as known", async () => {
         mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => { opts.beforeSign(); throw new Error("network response lost") })
-        resumeReview(); confirm(); fireEvent.click(deployButton())
+        resumeReview(); confirm(); await deploy()
         expect(await screen.findByText("Submission status unknown")).toBeInTheDocument()
         expect(screen.queryByText("Submitted, not enabled yet")).not.toBeInTheDocument()
         expect(listPendingDAOs("gnoland-1")).toMatchObject([{ txHash: "", phase: "intent" }])
@@ -171,7 +243,7 @@ describe("Create DAO on gnoland-1", () => {
 
     it("offers an explicit revalidated retry for an absent abandoned intent", async () => {
         mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => { opts.beforeSign(); throw new Error("insufficient funds") })
-        resumeReview(); confirm(); fireEvent.click(deployButton())
+        resumeReview(); confirm(); await deploy()
         await screen.findByText("Submission status unknown")
         fireEvent.click(screen.getByRole("button", { name: "Check status" }))
         await screen.findByText("Package not found")
@@ -188,7 +260,7 @@ describe("Create DAO on gnoland-1", () => {
 
     it("offers owned inert repair only after acknowledgement and a new ownership check", async () => {
         statuses = [meta.absent(), meta.inert().replace(/"creator":"[^"]+"/, `"creator":"${SIGNER}"`)]
-        resumeReview(); confirm(); fireEvent.click(deployButton())
+        resumeReview(); confirm(); await deploy()
         await screen.findByText("Submitted, not enabled yet", {}, { timeout: 5000 })
         fireEvent.click(screen.getByRole("checkbox", { name: /I checked the transaction/ }))
         fireEvent.click(screen.getByRole("button", { name: "Review another attempt" }))
@@ -209,7 +281,7 @@ describe("Create DAO on gnoland-1", () => {
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
         expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.2 GNOT, capped at 13 GNOT/)
         // gnoland-1 is inert: the submit model (48M gas) at 1 ugnot per 1000 gas, plus 20 %
-        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: up to 0\.058 GNOT \(your wallet may lower it\)\. Gas limit 48,000,000\./))
+        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\. Your wallet shows the fee it signs\./))
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
         expect(disclosure).toHaveTextContent("Roles grant no special powers. Voting power decides.")
         expect(disclosure).not.toHaveTextContent("No member has special powers")
@@ -225,15 +297,44 @@ describe("Create DAO on gnoland-1", () => {
         expect(deployButton()).toBeEnabled()
     })
 
+    it.each([
+        ["the network price", '"auth/gasprice"', '"params/vm:p:code_submission_policy"'],
+        ["the deploy policy", '"params/vm:p:code_submission_policy"', '"auth/gasprice"'],
+    ])("keeps Deploy disabled and shows no fee until %s has been read", async (_what, heldPath, otherPath) => {
+        let answer!: () => void
+        const held = new Promise<void>((resolve) => { answer = resolve })
+        const rpc = mocks.rpc.getMockImplementation()!
+        mocks.rpc.mockImplementation(async (url: string, method: string, params: Record<string, string>) => {
+            if (method === "abci_query" && params.path === heldPath) await held
+            return rpc(url, method, params)
+        })
+        resumeReview()
+        confirm()
+        const disclosure = screen.getByTestId("dao-deploy-disclosure")
+        // The other read has answered by now; this one has not.
+        await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith(expect.any(String), "abci_query", expect.objectContaining({ path: otherPath }), undefined))
+        await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith(expect.any(String), "abci_query", expect.objectContaining({ path: heldPath }), undefined))
+        expect(disclosure).toHaveTextContent("Network fee: reading from the network…")
+        expect(deployButton()).toBeDisabled()
+        fireEvent.click(deployButton())
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+        answer()
+        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\./))
+        expect(deployButton()).toBeEnabled()
+    })
+
     it("a package enabled on the second poll is a created DAO; channels are not deployed on mainnet", async () => {
         statuses = [meta.absent(), meta.inert(), meta.live()]
         resumeReview()
+        // The wallet is asked for what the review shows, so deploy once it shows the network's sizing.
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\./))
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         const [[msgs, memo, opts]] = mocks.broadcast.mock.calls
-        expect(opts).toEqual({ gas: "deploy", gasWanted: 48_000_000, beforeSign: expect.any(Function) })
+        // Exactly the review's gas limit and fee: 48,000,000 × 1.2 × 1 / 1000.
+        expect(opts).toEqual({ gas: "deploy", gasWanted: 48_000_000, gasFee: 57_600, beforeSign: expect.any(Function) })
         expect(msgs[0].value.max_deposit).toBe("13000000ugnot")
         expect(msgs[0].value).not.toHaveProperty("deposit")
         expect(memo).toBe(`Deploy realm ${PATH} (storage deposit up to 13 GNOT)`)
@@ -252,7 +353,7 @@ describe("Create DAO on gnoland-1", () => {
         })
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         const pending = await screen.findByTestId("dao-approval-pending")
         expect(savedBeforePolling).toMatchObject([{ path: PATH, txHash: "DEPLOYHASH" }])
         expect(pending).toHaveTextContent("It becomes usable only once the network enables it")
@@ -276,7 +377,7 @@ describe("Create DAO on gnoland-1", () => {
         })
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(urls).toContain("https://rpc.fallback.invalid")
     })
@@ -286,7 +387,7 @@ describe("Create DAO on gnoland-1", () => {
         statuses = [ownParked, meta.live()]
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(screen.getByTestId("dao-replaces-parked")).toHaveTextContent("Replaces your earlier submission that gno.land has not enabled")
         expect(mocks.broadcast.mock.calls[0][1]).toContain("replaces your earlier submission that gno.land has not enabled")
@@ -302,7 +403,7 @@ describe("Create DAO on gnoland-1", () => {
         })
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByTestId("dao-approval-pending")).toHaveTextContent("DEPLOYHASH")
         expect(screen.queryByText("DAO deployed successfully!")).not.toBeInTheDocument()
         expect(mocks.save).not.toHaveBeenCalled()
@@ -314,16 +415,16 @@ describe("Create DAO on gnoland-1", () => {
         statuses = [meta.absent(), meta.live()]
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
-        expect(mocks.broadcast.mock.calls[0][2]).toEqual({ gas: "deploy", gasWanted: 57_000_000, beforeSign: expect.any(Function) })
+        expect(mocks.broadcast.mock.calls[0][2]).toEqual({ gas: "deploy", gasWanted: 57_000_000, gasFee: 68_400, beforeSign: expect.any(Function) })
     })
 
     it("refuses a path that is already used, before any signature", async () => {
         statuses = [meta.inert()]
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByTestId("deploy-error")).toHaveTextContent("This path is already used")
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
@@ -338,7 +439,7 @@ describe("Create DAO on gnoland-1", () => {
         render(<CreateDAO />)
         fireEvent.click(screen.getByRole("button", { name: "Resume" }))
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         expect(await screen.findByTestId("deploy-error")).toHaveTextContent("You can deploy only under your own address or a name you registered")
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
@@ -356,7 +457,7 @@ describe("Create DAO on gnoland-1", () => {
         })
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         const pending = await screen.findByTestId("dao-approval-pending", {}, { timeout: 5000 })
         expect(pending).toHaveTextContent("DEPLOYHASH")
         expect(pending).toHaveTextContent(PATH)
@@ -368,7 +469,7 @@ describe("Create DAO on gnoland-1", () => {
         vi.mocked(waitForPackage).mockResolvedValueOnce({ outcome: "failed", meta: JSON.parse(meta.absent()), error: "Failed to fetch" })
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         await waitFor(() => expect(screen.getByTestId("dao-approval-pending")).toHaveTextContent("DEPLOYHASH"))
     })
 
@@ -376,7 +477,7 @@ describe("Create DAO on gnoland-1", () => {
         statuses = [meta.absent()]
         resumeReview()
         confirm()
-        fireEvent.click(deployButton())
+        await deploy()
         await waitFor(() => expect(screen.getByTestId("dao-approval-pending")).toHaveTextContent("DEPLOYHASH"))
         expect(mocks.save).not.toHaveBeenCalled()
         expect(listPendingDAOs("gnoland-1")).toMatchObject([{ txHash: "DEPLOYHASH" }])

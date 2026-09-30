@@ -200,7 +200,7 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
     const amountLabel = c.ugnot === null ? "0 GNOT" : formatUgnot(c.ugnot)
     return (
         <WizardFrame steps={["Send"]} step={0} onNext={submit} nextLabel="Review…"
-            note={`Network fee up to ${formatUgnot(fee)}.`}
+            note={`Network fee ${formatUgnot(fee)}.`}
             preview={(
                 <div className="os-stack os-tight">
                     <h3 className="os-h os-flush">Summary</h3>

@@ -62,7 +62,8 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     const [step, setStep] = useState(() => (listPendingDAOs(GNO_CHAIN_ID).some((p) => p.path === realmPathFor(wallet, draft.name)) ? DAO_STEPS.length - 1 : 0))
     const [error, setError] = useState<string | null>(null)
     const [ack, setAck] = useState(false)
-    const [price, setPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
+    // Null until read: the review's fee is handed to the wallet as shown, so Deploy waits for it.
+    const [price, setPrice] = useState<GasPrice | null>(null)
     const [checked, setChecked] = useState<Checked | null>(null)
     const [checkRev, setCheckRev] = useState(0)
     const [outcome, setOutcome] = useState<Outcome | null>(null)
@@ -86,7 +87,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
 
     useEffect(() => {
         let active = true
-        networkGasPrice().then((p) => { if (active) setPrice(p) }, () => {})
+        networkGasPrice().then((p) => { if (active) setPrice(p) }, () => { if (active) setPrice(FALLBACK_GAS_PRICE) })
         return () => { active = false }
     }, [])
 
@@ -174,7 +175,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
             onReleased={() => { setOutcome(null); setAck(false); setCheckRev((r) => r + 1) }} />
     }
 
-    const costs = current && "checks" in current ? deployCosts(config, current.checks.policy, price) : deployCosts(config, "unknown", price)
+    const costs = deployCosts(config, current && "checks" in current ? current.checks.policy : "unknown", price ?? FALLBACK_GAS_PRICE)
     const solo = soloMembers(draft)
     const total = totalPower(draft)
     const reviewLines: [string, string][] = [
@@ -182,7 +183,10 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
         ["Rules", `${draft.threshold} % yes${draft.quorum ? `, ${draft.quorum} % quorum` : ""} · votes last ${formatSeconds(preset.votingPeriodSeconds)}`],
         ["Members", config.members.map((m) => `${shortAddr(m.address)} (${m.power}, ${m.roles.join(", ")})`).join(" · ")],
         ["Storage deposit", `≈ ${formatGnot(costs.estimateUgnot)} (cap ${formatGnot(costs.capUgnot)})`],
-        ["Network fee", `up to ${formatGnot(costs.feeUgnot)}`],
+        ["Network fee", !price ? "reading the network price…"
+            // Not a read: say so while it is on screen. The price is read again before the wallet opens.
+            : price === FALLBACK_GAS_PRICE ? `about ${formatGnot(costs.feeUgnot)} (estimate: the network price could not be read; it is read again before signing)`
+                : formatGnot(costs.feeUgnot)],
         ["Network", GNO_CHAIN_ID],
     ]
     const reviewWarns = [
@@ -204,11 +208,12 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
         const bad = firstInvalidStep(draft, wallet)
         if (bad !== null) { setStep(bad); setError(daoDraftError(draft, wallet, bad)); return }
         if (!ack) { setError("Confirm that you understand this deploys a permanent contract."); return }
-        if (!current || !("checks" in current)) return
+        if (!current || !("checks" in current) || !price) return
         let req
         try {
             req = createDaoRequest({
                 wallet, config, checks: current.checks, price, lines: reviewLines, warns: reviewWarns,
+                onRisenPrice: setPrice,
                 onSubmitted: (hash) => setOutcome({ kind: "submitted", hash }),
                 onResult: (result, hash) => {
                     if (result.kind === "live") clearCompletedDraft()
@@ -337,7 +342,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     return (
         <WizardFrame steps={DAO_STEPS} step={step} onBack={() => { setError(null); setStep(step - 1) }} onNext={next}
             nextLabel={onReview ? "Deploy with Adena…" : "Continue"}
-            nextDisabled={onReview && (!current || !("checks" in current) || inFlight)}
+            nextDisabled={onReview && (!current || !("checks" in current) || inFlight || !price)}
             note={<>{error && <span className="os-fe" role="alert">{error}</span>}<span>{draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{draftSaved && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
             preview={(
                 <div className="os-stack os-tight">

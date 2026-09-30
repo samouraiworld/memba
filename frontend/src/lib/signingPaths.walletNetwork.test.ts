@@ -162,35 +162,11 @@ describe("the connected account", () => {
     })
 })
 
-describe("a refusal on a retry", () => {
-    it("is not reported as nothing sent: a v1 DAO vote retried after a lost reply says the outcome is unknown", async () => {
-        vi.useFakeTimers()
-        try {
-            const wallet = liveWallet()
-            vi.stubGlobal("adena", { ...wallet, DoContract })
-            // First request reaches the wallet and its reply is lost; then the wallet switches network.
-            DoContract.mockImplementationOnce(async () => {
-                wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } })
-                wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } })
-                return { status: "failure", message: "network timeout" }
-            })
-            const plan = planDaoTx("memba-v1", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER)
-            const settled = broadcastDaoTx(plan, { type: "vote", id: 1, vote: "YES" }, "vote").catch((e: unknown) => e)
-            await vi.runAllTimersAsync()
-            const err = await settled
-            expect(err).toBeInstanceOf(Error)
-            expect(err).not.toBeInstanceOf(WalletNetworkError)
-            expect((err as Error).message).toMatch(/outcome is unknown/)
-            expect((err as Error).message).toMatch(/network timeout/)
-            expect(DoContract).toHaveBeenCalledTimes(1)
-        } finally {
-            vi.useRealTimers()
-        }
-    })
-
-    it("on the first attempt stays a WalletNetworkError", async () => {
+describe("a wallet on another network", () => {
+    it("is refused with a WalletNetworkError before the wallet is asked, for a v1 DAO vote too", async () => {
         vi.stubGlobal("adena", { ...liveWallet({ chainId: OTHER }), DoContract })
         const plan = planDaoTx("memba-v1", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER)
         await expect(broadcastDaoTx(plan, { type: "vote", id: 1, vote: "YES" }, "vote")).rejects.toBeInstanceOf(WalletNetworkError)
+        expect(DoContract).not.toHaveBeenCalled()
     })
 })

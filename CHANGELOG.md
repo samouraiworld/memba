@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Signing: one wallet request per action, the reviewed fee, and what was observed (2026-09-30)
+- Memba asks the wallet once per action and no longer reopens Adena by itself after a failure. When the network refuses a transaction, the Memba OS signing sheet says so with the network's reason, and that nothing changed and no fee was charged.
+- Creating a DAO, in the classic page and in Memba OS, hands the wallet the fee shown in the review, keeps Deploy disabled until that fee has been read from the network, says when the figure is only an estimate because the network price could not be read, and stops before the wallet if the price rose or cannot be confirmed. The signing sheet now says that Adena shows the fee it signs, which can differ from Memba's figure.
+- If Adena reports a cancellation after its window opened, Memba waits three blocks and compares your account: if nothing changed it says so ("Cancelled in Adena. Your account shows no change three blocks later."); if it cannot check, it says the outcome is unknown, explains why in the notifications, and keeps the action locked. A signature review on screen is never replaced by another request.
+
 ### Native multisig: a lost broadcast reply is recovered instead of sent twice (2026-09-30)
 - If the network's reply to a broadcast is lost, pressing Broadcast again first checks whether the transaction is already on chain and records it, instead of broadcasting a second time and leaving the transaction marked as ready. The button says when it is checking the chain and when it is broadcasting.
 - Known limit: a member on another browser does not have the earlier transaction hash; after such a lost reply their broadcast is refused by the network and the proposal stays ready until the member who broadcast first presses Broadcast again.

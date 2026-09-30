@@ -25,7 +25,10 @@ interface Props {
     depositEstimateUgnot: number
     depositCapUgnot: number
     deployGas: number
-    networkFeeUgnot: number
+    /** Null while the network price or the chain's deploy policy is being read: Deploy waits for both. */
+    networkFeeUgnot: number | null
+    /** The network price could not be read: the figure is computed at the usual price and says so. */
+    feeEstimated: boolean
     /** Fee of the channels companion deploy (profile budget), shown when it is planned. */
     channelsFeeUgnot: number
     channelsPlanned: boolean
@@ -46,7 +49,7 @@ export function WizardStepReview({
     name, description, realmPath, selectedPreset,
     threshold, quorum, availableRoles, proposalCategories,
     validMembers, totalPower, generatedCode, deploying, walletAddress,
-    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, deployGas, networkFeeUgnot, channelsFeeUgnot, channelsPlanned,
+    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, deployGas, networkFeeUgnot, feeEstimated, channelsFeeUgnot, channelsPlanned,
     confirmed, onConfirmChange, onGoToStep, onDeploy,
 }: Props) {
     const signatures = channelsPlanned ? 2 : 1
@@ -130,9 +133,13 @@ export function WizardStepReview({
             {/* What you are about to do */}
             <div style={noticeStyle} data-testid="dao-deploy-disclosure">
                 <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed. Storage deposits for removed members are refunded to whoever executes the removal.</div>
-                <div><strong>Network fee:</strong> up to {formatGnot(networkFeeUgnot)} (your wallet may lower it). Gas limit {deployGas.toLocaleString("en-US")}.</div>
+                <div><strong>Network fee:</strong> {networkFeeUgnot === null
+                    ? "reading from the network…"
+                    : feeEstimated
+                        ? `about ${formatGnot(networkFeeUgnot)}, an estimate: the network price could not be read. It is read again when you press Deploy. Gas limit ${deployGas.toLocaleString("en-US")}.`
+                        : `${formatGnot(networkFeeUgnot)}. Gas limit ${deployGas.toLocaleString("en-US")}. Your wallet shows the fee it signs.`}</div>
                 {channelsPlanned && (
-                    <div><strong>Channels companion (second signature):</strong> storage deposit cap {formatGnot(depositCapUgnot)}, network fee up to {formatGnot(channelsFeeUgnot)}.</div>
+                    <div><strong>Channels companion (second signature):</strong> storage deposit cap {formatGnot(depositCapUgnot)}, network fee {formatGnot(channelsFeeUgnot)}.</div>
                 )}
                 <div><strong>Roles grant no special powers. Voting power decides.</strong> Every change is a proposal that passes by vote.</div>
                 <div><strong>This DAO cannot hold funds.</strong> Do not send tokens to its address.</div>
@@ -162,10 +169,10 @@ export function WizardStepReview({
                     <button
                         className="k-btn-primary"
                         onClick={onDeploy}
-                        disabled={deploying || !confirmed}
+                        disabled={deploying || !confirmed || networkFeeUgnot === null}
                         style={{
                             fontSize: "var(--pro-small, 13px)", padding: "12px 28px",
-                            opacity: deploying || !confirmed ? 0.6 : 1,
+                            opacity: deploying || !confirmed || networkFeeUgnot === null ? 0.6 : 1,
                         }}
                     >
                         {deploying ? "Deploying..." : "Deploy DAO"}

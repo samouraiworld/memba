@@ -216,7 +216,7 @@ Phase 1 close-of-phase deliverable: a signoff report in the private planning rep
 | Cmd+K Command Palette (14 commands, fuzzy search, keyboard nav) | ✅ | — |
 | Error message translation layer (20+ patterns) | ✅ | +26 |
 | Shared gas config (getGasConfig(), user-configurable) | ✅ | +5 |
-| Tx retry (2× exponential backoff, smart skip) | ✅ | — |
+| Tx retry (2× exponential backoff, smart skip); removed 2026-09: the wallet is asked once per action | ✅ | — |
 | Executable proposals (buildExecuteMsg, handleExecute, UI) | ✅ | — |
 | Extensions Hub page (4 cards, status badges) | ✅ | — |
 | Faucet card redesign (dismissible, TESTNET ONLY badge) | ✅ | — |

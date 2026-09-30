@@ -71,12 +71,16 @@ describe("sendRequest", () => {
         await expect(run(ctx())).resolves.toMatchObject({ outcome: "unknown" })
         expect(readSendLock("gnoland-1", A)).not.toBeNull()
         localStorage.clear()
-        wallet.impl.mockImplementation(async () => { throw new Error("User rejected the transaction") })
-        await expect(run(ctx())).resolves.toMatchObject({ outcome: "cancelled" })
+        // A rejection frees the lock only when the account is unchanged two blocks later.
+        wallet.impl.mockImplementation(async () => { throw new Error("The transaction has been rejected by the user.") })
+        const mark = "4 9000000ugnot"
+        const r = sendRequest(ctx())
+        await expect(executeSignature(r, undefined, r.prepare(undefined).msgs, () => {}, () => true, { before: async () => mark, after: async () => mark })).resolves.toMatchObject({ outcome: "cancelled" })
         expect(readSendLock("gnoland-1", A)).toBeNull()
-        wallet.impl.mockImplementation(async () => { throw new Error("Transaction cancelled by user") })
-        await expect(run(ctx())).resolves.toMatchObject({ outcome: "cancelled" })
-        expect(readSendLock("gnoland-1", A)).toBeNull()
+        // Adena gives the same reply when its window is closed after Confirm: the transfer went out, the lock stays.
+        const again = sendRequest(ctx())
+        await expect(executeSignature(again, undefined, again.prepare(undefined).msgs, () => {}, () => true, { before: async () => mark, after: async () => "5 3990000ugnot" })).resolves.toMatchObject({ outcome: "unknown" })
+        expect(readSendLock("gnoland-1", A)).not.toBeNull()
     })
 
     it("keeps the lock for an empty or malformed wallet hash", async () => {

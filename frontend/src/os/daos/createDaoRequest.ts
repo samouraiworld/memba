@@ -14,7 +14,7 @@ import { assertPathAvailable, codeSubmissionPolicy, removePendingDAO, savePendin
 import { beginSubmission, isSubmissionActive, submissionKey } from "../../lib/dao/submissionActivity"
 import { saveDAOForRecovery } from "../../lib/daoSlug"
 import { buildDeployDAOMsg, generateDAOCode, type DAOCreationConfig } from "../../lib/daoTemplate"
-import { doContractBroadcast, feeForGasWanted, type AminoMsg, type GasPrice } from "../../lib/grc20"
+import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, networkGasPriceFresh, type AminoMsg, type GasPrice } from "../../lib/grc20"
 import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
 import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../../lib/templates/dao/v2/deposit"
 import type { SignRequest } from "../sign/signer"
@@ -57,7 +57,10 @@ export interface CreateDaoContext {
     wallet: string
     config: DAOCreationConfig
     checks: DeployChecks
+    /** The price the review's fee line was computed with. */
     price: GasPrice
+    /** The price read right before the wallet opens, when it makes the fee higher than reviewed: the review shows it. */
+    onRisenPrice?: (price: GasPrice) => void
     /** Review lines the wizard already shows (rules, members…). */
     lines: [string, string][]
     warns: string[]
@@ -72,7 +75,7 @@ export function createDaoRequest(ctx: CreateDaoContext): SignRequest<string> {
     const { wallet, config, checks } = ctx
     const path = config.realmPath
     const code = generateDAOCode(config)
-    const { capUgnot, gasWanted } = deployCosts(config, checks.policy, ctx.price)
+    const { capUgnot, gasWanted, feeUgnot } = deployCosts(config, checks.policy, ctx.price)
     const msg = buildDeployDAOMsg(wallet, path, code, `${capUgnot}ugnot`)
     const msgs: AminoMsg[] = [{ type: "/vm.m_addpkg", value: msg.value }]
     const memo = `Deploy realm ${path} (storage deposit up to ${formatGnot(capUgnot)})${checks.replacesParked ? "; replaces your earlier submission that gno.land has not enabled" : ""}`
@@ -96,6 +99,14 @@ export function createDaoRequest(ctx: CreateDaoContext): SignRequest<string> {
             if (fresh.policy !== checks.policy || fresh.replacesParked !== checks.replacesParked) {
                 throw new Error("The network's rules for this address changed. Review the deploy again.")
             }
+            // The wallet is asked for the reviewed fee: a higher price since then needs a new review.
+            await assertFeeStillCovers(feeUgnot, async () => {
+                const price = await networkGasPriceFresh()
+                const fee = feeForGasWanted(gasWanted, price)
+                // Only a rise is shown: a lower price still signs the fee that was reviewed.
+                if (fee > feeUgnot) ctx.onRisenPrice?.(price)
+                return fee
+            })
         },
         send: async (_c, beforeSign) => {
             if (isSubmissionActive(activity)) throw new Error("This deploy is already waiting for Adena.")
@@ -105,7 +116,7 @@ export function createDaoRequest(ctx: CreateDaoContext): SignRequest<string> {
                 // must leave enough to reconcile without resubmitting.
                 savePendingDAO(intent)
                 intentSaved = true
-                const res = await doContractBroadcast(msgs, memo, { gas: "deploy", gasWanted, beforeSign })
+                const res = await doContractBroadcast(msgs, memo, { gas: "deploy", gasWanted, gasFee: feeUgnot, beforeSign })
                 try { savePendingDAO({ ...intent, phase: "submitted", txHash: res.hash, reason: "Wallet returned; checking package status" }) } catch { /* the wizard still shows the path and transaction */ }
                 ctx.onSubmitted(res.hash)
                 return res

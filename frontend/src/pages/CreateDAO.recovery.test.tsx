@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/re
 const mocks = vi.hoisted(() => ({ address: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", broadcast: vi.fn(), navigate: vi.fn(), save: vi.fn(), policy: vi.fn(), wait: vi.fn() }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => mocks.navigate }))
 vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: { address: mocks.address } }) }))
-vi.mock("../lib/grc20", async (original) => ({ ...await original<typeof import("../lib/grc20")>(), doContractBroadcast: mocks.broadcast }))
+vi.mock("../lib/grc20", async (original) => ({ ...await original<typeof import("../lib/grc20")>(), doContractBroadcast: mocks.broadcast, networkGasPrice: async () => ({ gas: 1000, ugnot: 1 }), networkGasPriceFresh: async () => ({ gas: 1000, ugnot: 1 }) }))
 vi.mock("../lib/daoSlug", () => ({ saveDAOForRecovery: (_org: unknown, path: string, name: string) => mocks.save(path, name), encodeSlug: () => "saved-dao" }))
 vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
 // Pearl: user DAO creation and the channels companion are available; chain
@@ -29,9 +29,10 @@ function resume(overrides: Record<string, unknown> = {}) {
     fireEvent.click(screen.getByRole("button", { name: "Resume" }))
 }
 beforeEach(() => { mocks.address = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"; cleanup(); localStorage.clear(); clearDraftMemory(); vi.clearAllMocks(); mocks.broadcast.mockReset(); mocks.policy.mockResolvedValue("permissionless"); mocks.wait.mockResolvedValue({ outcome: "live", meta: { path: "gno.land/r/test/recovery", status: "live" } }) })
-// v2: deploying requires confirming the permanent-contract notice first.
-function deploy() {
+// v2: deploying requires confirming the permanent-contract notice first, and Deploy waits for the network price and policy.
+async function deploy() {
     fireEvent.click(screen.getByRole("checkbox", { name: /permanent contract/ }))
+    await waitFor(() => expect(screen.getByRole("button", { name: /Deploy DAO/ })).toBeEnabled())
     fireEvent.click(screen.getByRole("button", { name: /Deploy DAO/ }))
 }
 
@@ -92,7 +93,7 @@ describe("DAO creation recovery", () => {
     })
     it("lists the channels companion's own deposit cap and network fee on the review step", () => {
         resume()
-        expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Channels companion \(second signature\): storage deposit cap 13 GNOT, network fee up to 1 GNOT\./)
+        expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Channels companion \(second signature\): storage deposit cap 13 GNOT, network fee 1 GNOT\./)
         cleanup(); localStorage.clear()
         resume({ enableChannels: false })
         expect(screen.getByTestId("dao-deploy-disclosure")).not.toHaveTextContent("Channels companion")
@@ -108,7 +109,7 @@ describe("DAO creation recovery", () => {
     it("reports companion failure while retaining DAO success and its transaction", async () => {
         mocks.broadcast.mockResolvedValueOnce({ hash: "confirmed-dao-hash" }).mockRejectedValueOnce(new Error("Wallet request rejected"))
         resume()
-        deploy()
+        await deploy()
         await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(2))
         expect(await screen.findByText(/Channels deployment was not confirmed/)).toBeInTheDocument()
         expect(screen.getByText("DAO deployed successfully!")).toBeInTheDocument()
@@ -121,14 +122,14 @@ describe("DAO creation recovery", () => {
     })
     it("rejects an invalid companion before publishing the DAO", async () => {
         resume({ channelNames: ["INVALID CHANNEL"] })
-        deploy()
+        await deploy()
         await waitFor(() => expect(screen.getByTestId("deploy-error")).toBeInTheDocument())
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
     it("keeps the draft and never deploys Channels when the DAO transaction fails", async () => {
         mocks.broadcast.mockRejectedValueOnce(new Error("Wallet request rejected"))
         resume()
-        deploy()
+        await deploy()
         expect(await screen.findByTestId("deploy-error")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         expect(mocks.save).not.toHaveBeenCalled()
@@ -140,7 +141,7 @@ describe("DAO creation recovery", () => {
             throw new WalletNetworkError("Adena is locked — unlock it, then try again.")
         })
         resume()
-        deploy()
+        await deploy()
         expect(await screen.findByTestId("deploy-error")).toHaveTextContent("Adena is locked")
         expect(screen.queryByText(/wallet outcome could not be confirmed/)).not.toBeInTheDocument()
         expect(removePendingDAO).toHaveBeenCalledWith("pearl-1", "gno.land/r/test/recovery")
@@ -150,7 +151,7 @@ describe("DAO creation recovery", () => {
         mocks.broadcast.mockResolvedValueOnce({ hash: "confirmed-dao-hash" })
         mocks.save.mockImplementationOnce(() => { throw new Error("Storage unavailable") })
         resume({ enableChannels: false })
-        deploy()
+        await deploy()
         expect(await screen.findByText(/could not be saved in this browser/)).toBeInTheDocument()
         expect(screen.getByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)

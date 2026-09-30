@@ -213,6 +213,8 @@ test('DAO approval receipt survives reload without another wallet request mobile
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (path === 'vm/qeval' && arg.includes('IsAuthorizedAddressForNamespace')) return '(true bool)'
         if (path === 'params/vm:p:code_submission_policy') return '"inert"'
+        // A deploy reads the network price for its fee, and again right before the wallet.
+        if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
         if (path === 'vm/qpkgmeta_json' && arg === realmPath) return JSON.stringify(submitted
             ? { path: realmPath, status: 'inert', creator: address, height: 123, max_deposit: '12000000ugnot', reason: 'waiting for a package approver to enable it', pending: true }
             : { path: realmPath, status: 'absent' })

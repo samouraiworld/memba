@@ -69,7 +69,7 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
             ["To", who],
             ["Amount", amount],
             ["Network", GNO_CHAIN_ID],
-            ["Network fee", `up to ${formatUgnot(ctx.feeUgnot)}`],
+            ["Network fee", formatUgnot(ctx.feeUgnot)],
             ...(ctx.memo ? [["Memo", ctx.memo] as [string, string]] : []),
         ],
         warns: ctx.tiers.includes("new address") ? ["You have never sent to this address. Transfers can't be reversed."] : [],

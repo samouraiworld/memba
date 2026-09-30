@@ -83,6 +83,8 @@ test.describe('Memba OS wizards', () => {
             }
             if (path === 'vm/qeval' && arg.includes('IsAuthorizedAddressForNamespace')) return arg.includes(ALICE) ? '(true bool)' : '(false bool)'
             if (path === 'params/vm:p:code_submission_policy') return '"permissionless"'
+            // A deploy reads the network price for its fee, and again right before the wallet.
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
             if (path === 'vm/qpkgmeta_json' && arg === NEW_DAO_PATH) {
                 return JSON.stringify(signed ? { path: NEW_DAO_PATH, status: 'live', creator: ALICE, height: 10 } : { path: NEW_DAO_PATH, status: 'absent' })
             }

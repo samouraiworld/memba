@@ -16,7 +16,7 @@ import { generateChannelCode, defaultChannelConfig, isValidChannelName } from ".
 import { buildDeployMsg } from "../lib/templates/prologue"
 import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../lib/templates/dao/v2/deposit"
 import { saveDAOForRecovery, encodeSlug } from "../lib/daoSlug"
-import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
+import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, networkGasPrice, networkGasPriceFresh, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
 import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { getGasConfig } from "../lib/gasConfig"
 import { getRpcUrlsInOrder } from "../lib/rpcFallback"
@@ -123,7 +123,8 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
     const [showDraftBanner, setShowDraftBanner] = useState(!!draftCandidate && !recovery)
     const [confirmReset, setConfirmReset] = useState(false)
     const [draftWarning, setDraftWarning] = useState<string | null>(null)
-    const [gasPrice, setGasPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
+    // Null until read: the fee and the gas limit are handed to the wallet as shown, so Deploy waits for both.
+    const [gasPrice, setGasPrice] = useState<GasPrice | null>(null)
 
     useEffect(() => {
         let active = true
@@ -281,20 +282,21 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
 
     // The submission policy sizes the deploy: under "inert" AddPackage only
     // stores the package. An unknown policy uses the larger full-deploy model.
-    const [submissionPolicy, setSubmissionPolicy] = useState("unknown")
+    const [submissionPolicy, setSubmissionPolicy] = useState<string | null>(null)
     useEffect(() => {
         let active = true
-        codeSubmissionPolicy(chain).then((p) => { if (active) setSubmissionPolicy(p) }, () => {})
+        codeSubmissionPolicy(chain).then((p) => { if (active) setSubmissionPolicy(p) }, () => { if (active) setSubmissionPolicy("unknown") })
         return () => { active = false }
     }, [chain])
 
     // The deploy runs with a gas budget sized to the DAO so a large roster
     // cannot run out of gas after the user signed.
-    const deployGas = deployGasForPolicy(depositInput, submissionPolicy)
-    const networkFeeUgnot = feeForGasWanted(deployGas, gasPrice)
+    const feeReady = gasPrice !== null && submissionPolicy !== null
+    const deployGas = deployGasForPolicy(depositInput, submissionPolicy ?? "unknown")
+    const networkFeeUgnot = feeForGasWanted(deployGas, gasPrice ?? FALLBACK_GAS_PRICE)
 
     const deployDAO = async () => {
-        if (deploying || deployResult || approval || isSubmissionActive(activityKey)) return
+        if (!feeReady || deploying || deployResult || approval || isSubmissionActive(activityKey)) return
         const existing = listPendingDAOs(GNO_CHAIN_ID).find(p => p.path === realmPath)
         if (existing) {
             setApproval({ phase: "pending", status: "unknown", txHash: existing.txHash, reason: "A submission attempt is already recorded. Check its status before trying again." })
@@ -347,6 +349,20 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
             setReplacesParked(replacing)
             // The policy only sizes the transaction; success is read from the chain.
             const policy = await codeSubmissionPolicy(chain).catch(() => "unknown")
+            // The wallet is asked for exactly the gas limit and fee the review showed: a deploy
+            // that now needs more gas (the policy changed, or could not be read this time), or a
+            // higher price, needs a new look first.
+            if (deployGasForPolicy(config, policy) > deployGas) {
+                setSubmissionPolicy(policy)
+                throw new Error("This deploy needs a higher gas limit than the review showed. Check the new fee, then deploy again.")
+            }
+            await assertFeeStillCovers(networkFeeUgnot, async () => {
+                const price = await networkGasPriceFresh()
+                const fee = feeForGasWanted(deployGas, price)
+                // The page shows the new fee only when it rose: a lower price still signs the fee that was reviewed.
+                if (fee > networkFeeUgnot) setGasPrice(price)
+                return fee
+            }, "Check the new fee, then deploy again.")
 
             assertCurrent()
             // Durable intent precedes any wallet prompt: a lost response/reload
@@ -357,7 +373,7 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
             const res = await doContractBroadcast(
                 [{ type: "/vm.m_addpkg", value: msg.value }],
                 `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})${replacing ? "; replaces your earlier submission that gno.land has not enabled" : ""}`,
-                { gas: "deploy", gasWanted: deployGasForPolicy(config, policy), beforeSign: () => { assertCurrent(); walletStarted = true } },
+                { gas: "deploy", gasWanted: deployGas, gasFee: networkFeeUgnot, beforeSign: () => { assertCurrent(); walletStarted = true } },
             )
             confirmedTx = res.hash
             setDeployStep("broadcasting")
@@ -593,7 +609,7 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
                     walletAddress={adena.address}
                     networkLabel={caps.label} chainId={GNO_CHAIN_ID} windows={windows}
                     depositEstimateUgnot={depositEstimateUgnot} depositCapUgnot={depositCapUgnot}
-                    deployGas={deployGas} networkFeeUgnot={networkFeeUgnot} channelsFeeUgnot={getGasConfig().fee}
+                    deployGas={deployGas} networkFeeUgnot={feeReady ? networkFeeUgnot : null} feeEstimated={gasPrice === FALLBACK_GAS_PRICE} channelsFeeUgnot={getGasConfig().fee}
                     channelsPlanned={channelsPlanned}
                     confirmed={confirmed} onConfirmChange={setConfirmed}
                     onGoToStep={goToStep} onDeploy={deployDAO}

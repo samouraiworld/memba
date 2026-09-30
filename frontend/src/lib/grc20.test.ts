@@ -28,6 +28,7 @@ import {
     GRC20_FACTORY_PATH,
     doContractBroadcast,
     assertFeeStillCovers,
+    ChainRejectedError,
     feeForGasWanted,
     networkGasPrice,
     __resetGasPriceCache,
@@ -42,6 +43,9 @@ import {
 } from './grc20'
 import { ACTIVATION_PROFILE_REALM, GNO_CHAIN_ID } from './config'
 import { liveWallet } from '../test/walletStub'
+import * as Sentry from '@sentry/react'
+
+vi.mock('@sentry/react', async (original) => ({ ...await original<typeof import('@sentry/react')>(), captureException: vi.fn() }))
 
 // getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which is a
 // module-private fetch() call (not imported from ./dao/shared) — mock fetch
@@ -69,6 +73,7 @@ const WRONG_CHAIN = `${GNO_CHAIN_ID}-other`
 // per-test resets run only when every assertion passes, so a single failure
 // would leak its context into every test after it.
 beforeEach(() => {
+    vi.mocked(Sentry.captureException).mockClear()
     setWalletRpcContext(null, false, null)
     setTxConfirmationCallback(null)
     setWalletActionGuard(null)
@@ -545,21 +550,6 @@ describe('doContractBroadcast — OS member boundary', () => {
         expect(doContract).not.toHaveBeenCalled()
     })
 
-    it('keeps an earlier wallet attempt unknown when the request owner changes before retry', async () => {
-        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
-        let owner = 'A'
-        const doContract = vi.fn(async () => {
-            owner = 'B'
-            return { status: 'failure', message: 'network timeout' }
-        })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
-        setWalletActionGuard(() => true)
-        await expect(doContractBroadcast([], 'memo', { beforeSign: async () => () => owner === 'A' }))
-            .rejects.toThrow(/earlier attempt may have reached the chain/i)
-        expect(doContract).toHaveBeenCalledOnce()
-    })
-
     it('permits only the exact pre-login activation transaction', async () => {
         const address = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
         setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID, address)
@@ -601,26 +591,95 @@ describe('assertWalletBroadcastSafe — shared guard for non-DoContract transpor
     })
 })
 
-describe('doContractBroadcast — deploys never auto-retry (review finding #1)', () => {
-    it('surfaces the first deploy failure immediately: one DoContract call, no re-sign loop', async () => {
+describe('doContractBroadcast — one wallet request per call', () => {
+    const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
+    function wallet(reply: unknown) {
         setTxConfirmationCallback(() => Promise.resolve(true))
         setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
-        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
+        const doContract = typeof reply === 'function' ? vi.fn(reply as () => Promise<unknown>) : vi.fn().mockResolvedValue(reply)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
-        const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
-        await expect(doContractBroadcast([addPkgMsg], 'm', { gas: 'deploy' })).rejects.toThrow(/network timeout/)
+        return doContract
+    }
+    /** Lets any backoff timer a retry loop would have armed run out. */
+    async function settle(promise: Promise<unknown>) {
+        vi.useFakeTimers()
+        try {
+            const outcome = promise.catch((e: unknown) => e)
+            await vi.advanceTimersByTimeAsync(10_000)
+            return await outcome
+        } finally {
+            vi.useRealTimers()
+        }
+    }
+
+    it('does not reopen the wallet after the member refuses (Adena\'s own reply), and does not report it', async () => {
+        const doContract = wallet({ status: 'failure', type: 'TRANSACTION_REJECTED', code: 4000, message: 'The transaction has been rejected by the user.', data: {} })
+        const err = await settle(doContractBroadcast([call], 'm'))
+        expect(err).toMatchObject({ message: 'The transaction has been rejected by the user.' })
         expect(doContract).toHaveBeenCalledTimes(1)
+        expect(Sentry.captureException).not.toHaveBeenCalled()
     })
 
-    it('never retries "package already exists" even on the call budget', async () => {
-        setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
-        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'package already exists: gno.land/r/x/y' })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
-        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
-        await expect(doContractBroadcast([call], 'm')).rejects.toThrow(/package already exists/)
+    it('does not re-send after a generic wallet failure, for a call or a deploy, and reports it', async () => {
+        const reply = { status: 'failure', type: 'TRANSACTION_FAILED', code: 4001, message: 'Adena could not execute the transaction.', data: { hash: '', error: null } }
+        const doContract = wallet(reply)
+        expect(await settle(doContractBroadcast([call], 'm'))).toMatchObject({ message: 'Adena could not execute the transaction.' })
+        expect(await settle(doContractBroadcast([{ type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }], 'm', { gas: 'deploy' }))).toBeInstanceOf(Error)
+        expect(doContract).toHaveBeenCalledTimes(2)
+        expect(Sentry.captureException).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not re-send when the wallet request itself throws, and reports it unless it is a refusal', async () => {
+        const doContract = wallet(async () => { throw new Error('network timeout') })
+        expect(await settle(doContractBroadcast([call], 'm'))).toMatchObject({ message: 'network timeout' })
+        expect(doContract).toHaveBeenCalledTimes(1)
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1)
+        wallet(async () => { throw new Error('User rejected the request') })
+        expect(await settle(doContractBroadcast([call], 'm'))).toMatchObject({ message: 'User rejected the request' })
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1)
+    })
+
+    it('never asks the wallet to wait for the block, and hands it the given fee unchanged', async () => {
+        const doContract = wallet({ status: 'success', data: { hash: 'h' } })
+        await doContractBroadcast([call], 'memo', { gasWanted: 48_000_000, gasFee: 57_600 })
+        expect(doContract).toHaveBeenCalledTimes(1)
+        expect(doContract.mock.calls[0]).toHaveLength(1)
+        expect(Object.keys(doContract.mock.calls[0][0]).sort()).toEqual(['gasFee', 'gasWanted', 'memo', 'messages'])
+        expect(doContract.mock.calls[0][0]).toMatchObject({ gasWanted: 48_000_000, gasFee: 57_600, memo: 'memo' })
+    })
+
+    it('treats a status that is neither success nor failure as final, and reports it', async () => {
+        const doContract = wallet({ status: 'pending' })
+        expect(await settle(doContractBroadcast([call], 'm'))).toMatchObject({ message: expect.stringMatching(/indeterminate transaction status/) })
+        expect(doContract).toHaveBeenCalledTimes(1)
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1)
+        wallet(undefined)
+        expect(await settle(doContractBroadcast([call], 'm'))).toMatchObject({ message: expect.stringMatching(/indeterminate transaction status/) })
+    })
+
+    it('raises a chain refusal with the node\'s reason when the wallet forwards its log', async () => {
+        const log = '--= Error =--\nData: std.OutOfGasError{abciError:std.abciError{}}\nMsg Traces:\n    0  out of gas in location: WritePerByte'
+        const doContract = wallet({ status: 'failure', type: 'TRANSACTION_FAILED', message: 'Adena could not execute the transaction.', data: { hash: 'H', error: 'Error: out of gas error', log } })
+        const err = await settle(doContractBroadcast([call], 'm'))
+        expect(err).toBeInstanceOf(ChainRejectedError)
+        // The node's error, its data line and its first trace line: never the whole log.
+        expect(err).toMatchObject({ name: 'ChainRejectedError', hash: 'H', log, reason: 'out of gas in location: WritePerByte', message: 'Error: out of gas error · Data: std.OutOfGasError{abciError:std.abciError{}} · out of gas in location: WritePerByte' })
+        // A trace line's source position is not part of the reason.
+        expect(new ChainRejectedError('Error: unauthorized error', 'Data: std.UnauthorizedError{}\nMsg Traces:\n    0  /gno/tm2/pkg/sdk/auth/ante.go:301 - signature verification failed; verify correct account, sequence, and chain-id', '').reason)
+            .toBe('signature verification failed; verify correct account, sequence, and chain-id')
+        expect(doContract).toHaveBeenCalledTimes(1)
+        const long = await settle((wallet({ status: 'failure', data: { error: 'Error: unknown', log: `Data: ${'x'.repeat(900)}\nMsg Traces:\n    0  upstream answered 503 after a timeout` } }), doContractBroadcast([call], 'm')))
+        expect((long as Error).message).toHaveLength(300)
+        expect((long as Error).message).not.toMatch(/503|timeout/)
+        // Without a node log the failure is not known to be final.
+        wallet({ status: 'failure', type: 'TRANSACTION_FAILED', message: 'Adena could not execute the transaction.', data: { hash: '', error: 'Error: Connection Error' } })
+        expect(await settle(doContractBroadcast([call], 'm'))).not.toBeInstanceOf(ChainRejectedError)
+    })
+
+    it('still accepts the retired retry option without changing anything', async () => {
+        const doContract = wallet({ status: 'failure', message: 'network timeout' })
+        expect(await settle(doContractBroadcast([call], 'm', { retry: false }))).toMatchObject({ message: 'network timeout' })
         expect(doContract).toHaveBeenCalledTimes(1)
     })
 })
@@ -634,17 +693,6 @@ describe('doContractBroadcast — broadcast result', () => {
         ;(window as any).adena = { ...liveWallet(), DoContract: vi.fn().mockResolvedValue({ status: 'success', data }) }
         const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
         expect(await doContractBroadcast([call], 'm')).toEqual({ hash: 'h', result: data })
-    })
-
-    it('does not re-send a call marked retry: false after a transient failure', async () => {
-        setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
-        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
-        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'ProposeText', args: [] } }
-        await expect(doContractBroadcast([call], 'm', { retry: false })).rejects.toThrow(/network timeout/)
-        expect(doContract).toHaveBeenCalledTimes(1)
     })
 })
 
@@ -720,6 +768,8 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         await expect(assertFeeStillCovers(16_800n, async () => 9_000n)).resolves.toBeUndefined()
         await expect(assertFeeStillCovers(16_800, async () => 16_801)).rejects.toThrow('fee increased')
         await expect(assertFeeStillCovers(16_800, async () => { throw new Error('offline') })).rejects.toThrow('Nothing was sent')
+        // Where the fee is shown in place, the surface says what to do next.
+        await expect(assertFeeStillCovers(16_800, async () => 16_801, 'Check the new fee, then deploy again.')).rejects.toThrow('The network fee increased since review. Check the new fee, then deploy again.')
     })
 
     it('ignores a reported price above ten times the default and uses the default', async () => {

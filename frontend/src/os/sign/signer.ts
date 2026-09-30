@@ -5,14 +5,19 @@
  * only messages identical to the reviewed ones, and puts the classic callback
  * back the moment it runs.
  *
- * Outcomes: sent (then verified), failed / cancelled (nothing reached the
- * wallet), or unknown (the wallet opened and we can't tell). DAO actions keep
- * the same governance receipts as the classic pages, so an unknown outcome
- * locks the action in both until the member checks it.
+ * Outcomes: sent (then verified); failed / cancelled; refused (the wallet
+ * sent it and the node refused it, with its reason); or unknown (the wallet
+ * opened and we can't tell). Before the wallet opens, "nothing was sent" is a
+ * fact. After it opened, a "rejected" reply is not proof: Adena gives it
+ * whenever its window closes, also after Confirm. It counts as cancelled only
+ * when the account is unchanged three blocks later (see SentCheck), and is
+ * then reported as that observation, not as a proof. DAO actions keep the
+ * same governance receipts as the classic pages, so an unknown outcome locks
+ * the action in both until the member checks it.
  *
  * @module os/sign/signer
  */
-import { replaceTxConfirmationCallback, setTxConfirmationCallback, WalletActionBlockedError, type AminoMsg } from "../../lib/grc20"
+import { ChainRejectedError, replaceTxConfirmationCallback, setTxConfirmationCallback, WalletActionBlockedError, type AminoMsg } from "../../lib/grc20"
 import {
     beginGovernanceRequest, clearGovernanceReceipt, governanceRequestActive, saveGovernanceReceipt, type GovernanceScope,
 } from "../../lib/dao/governanceRecovery"
@@ -51,7 +56,7 @@ export interface SignRequest<C extends string = string> {
     verify?: (choice: C | undefined, hash: string, result: unknown) => Promise<boolean>
     /** How many times to run `verify` (default 3). Use 1 when `verify` polls by itself. */
     verifyAttempts?: number
-    /** Nothing reached the chain (refused before the wallet, or rejected in it): drop what `send` saved. */
+    /** Nothing took effect (stopped before the wallet, rejected in it, or refused by the node): drop what `send` saved. */
     onNothingSent?: () => void
     onSettled?: (outcome: SettledOutcome, choice: C | undefined) => void
 }
@@ -59,9 +64,36 @@ export interface SignRequest<C extends string = string> {
 export type SignResult =
     | { outcome: "sent"; hash: string; result?: unknown }
     | { outcome: "failed" | "cancelled"; error: string }
+    /** Signed, sent, and refused by the node: final. `error` carries the node's reason. */
+    | { outcome: "refused"; error: string }
     | { outcome: "unknown"; error: string; hash: string }
 
 export type SettledOutcome = "confirmed" | "submitted" | "failed" | "cancelled" | "unknown"
+
+/**
+ * The node's refusal in its own words, and what it means: the wallet is never
+ * asked to wait for the block, so a refusal is one at the node's door (see
+ * ChainRejectedError). The same request would be refused again.
+ */
+function refusalText(err: ChainRejectedError): string {
+    return `The network refused this transaction: ${err.reason.replace(/[.\s]+$/, "")}. It was not included in a block, so nothing changed and no network fee was charged. Review the request before trying again.`
+}
+
+/**
+ * How a "rejected" reply is checked. Both reads return what any transaction
+ * from the account changes, as one comparable value (see accountMark).
+ */
+export interface SentCheck {
+    /** The account now; read before the wallet opens. */
+    before: () => Promise<string>
+    /** The account three blocks after the call; rejects when the chain does not get there in time. */
+    after: () => Promise<string>
+    /** The wallet answered "rejected" and the account is being checked. */
+    onSettling?: () => void
+}
+
+/** A slow node must not hold the wallet back: past this the first read counts as missing. */
+const FIRST_READ_MS = 3000
 
 const REJECTED_IN_WALLET = /user (rejected|denied|cancelled|canceled)|rejected by (the )?user|^(transaction )?cancelled by (the )?user$/i
 let signingActive = false
@@ -74,6 +106,8 @@ export async function executeSignature<C extends string>(
     onWallet: () => void,
     /** Checked after asynchronous chain rechecks and immediately before Adena opens. */
     canOpenWallet: () => boolean = () => true,
+    /** Without it, a "rejected" reply after the wallet opened is an unknown outcome. */
+    sent?: SentCheck,
 ): Promise<SignResult> {
     if (signingActive) return { outcome: "failed", error: "A signature is already waiting. Finish it before starting another." }
     signingActive = true
@@ -83,6 +117,7 @@ export async function executeSignature<C extends string>(
         return { outcome: "failed", error: friendlyDaoError(err) }
     }
     let walletStarted = false
+    let markBefore: string | null = null
     let hash = ""
     let mismatch = false
     let restored = false
@@ -102,6 +137,15 @@ export async function executeSignature<C extends string>(
             saveGovernanceReceipt(req.receipt, { phase: "intent", hash: "", label })
         }
         const res = await req.send(choice, async () => {
+            // Without this read a later "rejected" reply cannot be confirmed, and is reported as unknown.
+            if (sent) {
+                let timer: ReturnType<typeof setTimeout> | undefined
+                markBefore = await Promise.race([
+                    sent.before().catch(() => null),
+                    new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), FIRST_READ_MS) }),
+                ])
+                clearTimeout(timer)
+            }
             await req.recheck?.(choice)
             if (!canOpenWallet()) throw new Error("Your Memba session ended. Connect again before signing.")
             if (!restored) throw new Error("Signature review expired. Try again.")
@@ -116,14 +160,26 @@ export async function executeSignature<C extends string>(
         return { outcome: "sent", hash, result: res.result }
     } catch (err) {
         const raw = err instanceof Error ? err.message : String(err)
+        const rejected = REJECTED_IN_WALLET.test(raw)
         // A wallet-network refusal is thrown before the wallet is asked to sign.
-        const nothingSent = (!walletStarted && !hash) || REJECTED_IN_WALLET.test(raw) || err instanceof WalletNetworkError || err instanceof WalletActionBlockedError
-        if (nothingSent) {
+        let nothingSent = (!walletStarted && !hash) || err instanceof WalletNetworkError || err instanceof WalletActionBlockedError
+        if (!nothingSent && rejected) {
+            sent?.onSettling?.()
+            const before = markBefore
+            nothingSent = !!sent && before !== null && await sent.after().then((after) => after === before, () => false)
+            if (!nothingSent) return { outcome: "unknown", error: "Adena reported a cancellation, but Memba could not confirm it on chain. Check your account before trying again.", hash }
+        }
+        // Refused by the node: nothing took effect, so the lock is released as for nothing sent.
+        const refused = err instanceof ChainRejectedError
+        if (nothingSent || refused) {
             finish()
             if (req.receipt) { try { clearGovernanceReceipt(req.receipt) } catch { /* keep the conservative lock */ } }
             try { req.onNothingSent?.() } catch { /* keep whatever lock the request saved */ }
+            if (refused) return { outcome: "refused", error: refusalText(err) }
             if (mismatch) return { outcome: "failed", error: "The transaction changed after your review. Nothing was sent. Review it again." }
-            if (/cancelled/i.test(raw) || REJECTED_IN_WALLET.test(raw)) return { outcome: "cancelled", error: "Cancelled. Nothing was sent." }
+            // After the wallet opened, only what was observed is said: an accepted transaction has no deadline to be included.
+            if (walletStarted && rejected) return { outcome: "cancelled", error: "Cancelled in Adena. Your account shows no change three blocks later." }
+            if (/cancelled/i.test(raw) || rejected) return { outcome: "cancelled", error: "Cancelled. Nothing was sent." }
             return { outcome: "failed", error: friendlyDaoError(err) }
         }
         return { outcome: "unknown", error: friendlyDaoError(err), hash }
