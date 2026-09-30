@@ -4,13 +4,13 @@
 
 The authorized Validators pilot is ready for visual review. The desktop workspace now uses the available width, the primary comparison table is readable, and mobile places the roster ahead of an expandable network summary. Health and unavailable-data states remain explicit. The implementation is isolated and off by default in production.
 
-**Subsequent stage:** the [shell and Folded M review](https://github.com/samouraiworld/memba/blob/feat/professional-shell-brand/docs/design/professional-mainnet-2026-09/SHELL-BRAND-REVIEW.md) is now available in [draft PR #1196](https://github.com/samouraiworld/memba/pull/1196), with its own default-off flag. The evidence below records the preceding Validators-only pilot.
+**Subsequent stage:** the [shell and Folded M review](SHELL-BRAND-REVIEW.md) is now available in [draft PR #1196](https://github.com/samouraiworld/memba/pull/1196), with its own default-off flag. The evidence below records the preceding Validators-only pilot.
 
 ## Review in this order
 
 1. Compare **Black and Light** below. Assess hierarchy, density and the balance of comparison versus technical detail.
 2. Look at the **mobile** and **mixed-health** screens. Search, health and sort controls remain reachable; long names and health explanations wrap.
-3. Open the [local live preview](http://127.0.0.1:5188/mainnet/validators) while its server is running. It reads real configured network data. Use All columns, health filtering, theme selection and the existing section tabs. The [handoff](https://github.com/samouraiworld/memba/blob/feat/validators-professional-pilot/docs/design/professional-mainnet-2026-09/PILOT-HANDOFF.md) contains reproducible startup commands.
+3. Open the [local live preview](http://127.0.0.1:5188/mainnet/validators) while its server is running. It reads real configured network data. Use All columns, health filtering, theme selection and the existing section tabs. The [handoff](PILOT-HANDOFF.md) contains reproducible startup commands.
 
 **All screenshots below are rendered application screens with synthetic test fixtures**, not mainnet telemetry. Each frame is labelled. The live preview may show raw addresses and unavailable monitoring metrics when no custom monitoring environment is configured; this is expected and is not replaced by fixture values.
 

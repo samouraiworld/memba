@@ -2,7 +2,7 @@
 from pathlib import Path
 import re, json, html, struct
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / 'docs/design/professional-mainnet-2026-09/complete-review'
+OUT = ROOT / 'docs/archive/professional-mainnet-2026-09/complete-review'
 OUT.mkdir(parents=True, exist_ok=True)
 existing = json.loads((OUT/'manifest.json').read_text()) if (OUT/'manifest.json').exists() else []
 # Selection is deliberately small; the full route matrix remains a CI artifact.

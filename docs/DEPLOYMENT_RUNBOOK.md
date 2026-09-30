@@ -454,8 +454,6 @@ Frontend feature flags are configured as **Netlify environment variables** (NOT 
 **Where to set:** Netlify Dashboard → Site → Build & Deploy → Environment Variables.
 **NOT in:** `netlify.toml`, `.env`, or any committed file.
 
-See `docs/features/` for detailed activation plans per feature.
-
 ---
 
 *Expanded from placeholder during v2.27 docs session. Updated v2.29 with rollback and feature flags. Source of truth for all samcrew on-chain deployments.*

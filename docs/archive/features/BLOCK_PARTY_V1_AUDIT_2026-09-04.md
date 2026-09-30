@@ -6,7 +6,7 @@
 
 **Base:** local `main` at `ae16e8e2386f52939fd067c557c5a36897223399`
 
-**Isolated worktree:** `/Users/zxxma/Desktop/Code/Gno/Memba-worktrees/block-party-v1`
+**Isolated worktree:** `Memba-worktrees/block-party-v1`
 
 ## Executive verdict
 
@@ -111,7 +111,7 @@ All work is confined to this worktree. Other Memba sessions are active; no worke
 
 | Lane | Responsibilities | Exclusive ownership |
 | --- | --- | --- |
-| Integration lead (`/root`) | Product contract, public reproduction, audit/plan, architecture, security/privacy/IP synthesis, `BlockPartyGame.tsx` and `blockparty.css` integration, cross-lane tests, screenshots, Git/release gate, final PR decision | `docs/features/BLOCK_PARTY_V1_AUDIT_2026-09-04.md`, `frontend/src/pages/BlockPartyGame.tsx`, `frontend/src/pages/blockparty.css`, shared-file coordination |
+| Integration lead (`/root`) | Product contract, public reproduction, audit/plan, architecture, security/privacy/IP synthesis, `BlockPartyGame.tsx` and `blockparty.css` integration, cross-lane tests, screenshots, Git/release gate, final PR decision | `docs/archive/features/BLOCK_PARTY_V1_AUDIT_2026-09-04.md`, `frontend/src/pages/BlockPartyGame.tsx`, `frontend/src/pages/blockparty.css`, shared-file coordination |
 | Gameplay/fairness | Mathematical bounds, simulations, target/par calibration, TypeScript/Go parity and vectors | `frontend/src/game/engine/**`, `backend/internal/blockparty/engine/**`, `backend/internal/blockparty/budget*`, fairness doc/tooling |
 | Experience | Original board/components, motion-safe visuals, screen-reader semantics, component-level mobile/accessibility | `frontend/src/game/components/**`, optional new `frontend/src/game/experience/**` |
 | Reliability | Daily/cache/persistence/retry/date stability, seed/service correctness, operational diagnostics, Block Party E2E | `frontend/src/game/hooks/**`, `frontend/src/game/lib/**`, Block Party backend service/store/seed files, Block Party E2E, operations doc |

@@ -1,6 +1,6 @@
 # Quest attestation vouchers: mainnet runbook
 
-This is the owner-gated procedure that turns on quest attestation on gno.land mainnet (`gnoland-1`). Nothing in it is automated. The design background is in [`ADR_QUEST_ATTESTATION_2026-06-26.md`](ADR_QUEST_ATTESTATION_2026-06-26.md).
+This is the owner-gated procedure that turns on quest attestation on gno.land mainnet (`gnoland-1`). Nothing in it is automated. The design background is in [`adr/ADR-002-on-chain-quest-attestation.md`](adr/ADR-002-on-chain-quest-attestation.md).
 
 **How it works.** When a user completes a quest the server has verified, the backend signs an ed25519 voucher over `addr|questId|xp|nonce`. The user broadcasts it to `gno.land/r/samcrew/memba_quest_attestation_v1` with `RecordCompletion`. The realm checks the signature against the public key its owner installed with `SetSigner`. The backend never broadcasts.
 

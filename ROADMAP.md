@@ -25,7 +25,7 @@ The v7.6.0 frontend candidate adds structured founding-DAO reads and governed ad
 
 The verified production baseline is frontend v7.7.0 at `843ca35086c6356cdca8238943d0d78f2dcfbb26`, with mainnet (`gnoland-1`) as the default network. This is a frontend deployment observation, not a claim that all shared realms or wallet journeys are ready on mainnet.
 
-The immediate A+B work covers release continuity, honest network capabilities, recoverable DAO creation, and the first text-proposal/vote journey. Candidate code, exact review revisions, automated fixture evidence, release gates and unverified wallet rehearsals are tracked in [the release evidence record](docs/MAINNET_AB_RELEASE_EVIDENCE_2026-09-21.md). Marketplace and shared-community activation remain separate deployment work.
+The immediate A+B work covers release continuity, honest network capabilities, recoverable DAO creation, and the first text-proposal/vote journey. Candidate code, exact review revisions, automated fixture evidence, release gates and unverified wallet rehearsals are tracked in [the release evidence record](docs/archive/release-evidence-2026-09/MAINNET_AB_RELEASE_EVIDENCE_2026-09-21.md). Marketplace and shared-community activation remain separate deployment work.
 
 ## Historical status snapshot (2026-09-07)
 
@@ -110,7 +110,7 @@ Review findings feed into the **next version's RFC** as action items.
 | **AUTH-SESSION-REJECT-01** | `backend/internal/auth/crypto.go` — defensive rejection of Adena 1.20+ session subaccounts; unit test | Hold (Q-A) |
 | **Custody section in `docs/MAINNET_APP_HARDENING.md`** (renamed 2026-09-01, was `MAINNET_PREPARATION.md`) | Signers, M-of-N, hardware class, geographic distribution, recovery, rotation, dry-run; signed by ≥ 2 Samourai Coop principals. Hard prerequisite for Phase 2. | Draft (1 signer confirmed, slots TBD for the rest) |
 | **SECRETS_ROTATION.md** expansion + **SECURITY.md** update | PGP fingerprint, GHSA enablement, Resolved Advisories table seeded with `MEMBA-2026-001` | Open |
-| `chainHealth` fallback + gnoland1 transfer-lock probe | Corrected probe path `params/bank:p:restricted_denoms` (gno #5629). Updates `GNO_CORE_BREAKING_CHANGES.md`. | Hold (Q-A) |
+| `chainHealth` fallback + gnoland1 transfer-lock probe | Corrected probe path `params/bank:p:restricted_denoms` (gno #5629). | Hold (Q-A) |
 | **Stale-doc refresh** (this PR) | `DEPLOYMENT_RUNBOOK.md`, `MAINNET_APP_HARDENING.md` (then named `MAINNET_PREPARATION.md`), `ROADMAP.md`, `realm-versions.json`, `PROGRESSIVE_DECENTRALIZATION.md` | In review |
 | Doc inventory + KT log (private planning repo) | Doc inventory + knowledge-transfer doc | Pending |
 | CODEOWNERS audit + branch-protection screenshot | Confirm Q-A reviewer mapping + immutable evidence of branch rules | Pending |

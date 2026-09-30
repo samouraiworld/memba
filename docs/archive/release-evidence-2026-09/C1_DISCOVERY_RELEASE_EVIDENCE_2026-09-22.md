@@ -63,13 +63,13 @@ Namespace fixtures test both mainnet and Pearl, missing/mismatched chain identit
 - 125 focused unit/component tests passed, covering catalog/gate, directory provenance, network pin inventory, namespace identity and exact search navigation.
 - 12 combined catalog/Directory mainnet/Pearl journeys passed across Chromium, Firefox and iPhone WebKit; six additional Explorer-enabled Directory journeys passed.
 - Lint, TypeScript/production build and bundle isolation/precache checks passed with Node 22. Previous complete Directory suite: 5,658 passed, one existing skip. Fresh hosted checks remain authoritative for the refreshed revision.
-- Local logs: `/private/tmp/memba-c1-directory-refreshed-{unit,navigation-unit,browser,explorer,build}.log`. Browser fixtures remain read-only and do not validate wallet transactions.
+- Local logs for the unit, navigation-unit, browser, explorer and build runs were written to a temporary directory on the machine that ran them; they are not part of the repository. Browser fixtures remain read-only and do not validate wallet transactions.
 
 ## Hosted contrast regression and correction
 
 The refreshed `e5b0ee30` design matrix failed its dark 390px and 1600px group-4 cases (75 other cases passed). Package “View source” buttons reused the link styles without an explicit background, allowing Chromium's default grey button face (`#6b6b6b`) beneath teal text (`#00d4aa`): measured contrast 2.79:1. Both Directory and the legacy Explorer redirect exposed the same issue. The complete-features matrix does not include these routes, so its success did not cover this defect.
 
-The correction assigns the existing themed card background to `.dir-gnoweb-link` and a pointer cursor. Contrast rules, assertions and workflow requirements remain unchanged. The existing route group passed all four cases in both dark and light themes at 390px and 1600px, covering eight routes per case (32 route/theme/width checks). Local log: `/private/tmp/memba-c1-source-contrast-browser.log`. All hosted checks, including both complete-design matrices, passed on corrected head `c6e2683eac16527515d81c6af3b48c43d78eb0d6` before merge.
+The correction assigns the existing themed card background to `.dir-gnoweb-link` and a pointer cursor. Contrast rules, assertions and workflow requirements remain unchanged. The existing route group passed all four cases in both dark and light themes at 390px and 1600px, covering eight routes per case (32 route/theme/width checks). The local browser log was written to a temporary directory on the machine that ran it; it is not part of the repository. All hosted checks, including both complete-design matrices, passed on corrected head `c6e2683eac16527515d81c6af3b48c43d78eb0d6` before merge.
 
 ## Bounded reliability evidence
 
@@ -89,7 +89,7 @@ A temporary uncommitted integration checkout combined all three C1 slices. Both 
 
 On main `a65800118e50c83db1fed18578d57bfd658a2177`, 23 focused unit/component tests passed. The combined browser pass completed 23 cases (catalog, drawer keyboard, responsive audits and the former contrast-failing group), plus six Explorer-disabled mainnet/Pearl navigation cases and 12 Explorer-enabled navigation/audit cases: 41 total. Lint, TypeScript/production build and bundle isolation/precache checks passed with Node 22. The previous complete reliability suite passed 5,666 tests with one existing skip; the rebased runtime is unchanged except for the inherited released contrast fix.
 
-Logs: `/private/tmp/memba-c1-reliability-refreshed-{unit,browser,navigation,explorer,build}.log`. Subsequent hosted and production results are recorded below.
+Logs for the unit, browser, navigation, explorer and build runs were written to a temporary directory on the machine that ran them; they are not part of the repository. Subsequent hosted and production results are recorded below.
 
 ## Final reliability release
 

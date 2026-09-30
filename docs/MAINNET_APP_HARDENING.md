@@ -87,7 +87,7 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 ## ✅ Upstream Compatibility Shield (v2.21.0)
 
 > **Shipped:** v2.21.0. Board parser strategy pattern (V1/V2), GovDAO vote function
-> configurable constants, 63 integration tests. See [GNO_CORE_COMPAT.md](GNO_CORE_COMPAT.md).
+> configurable constants, 63 integration tests. See [GNO_CORE_COMPAT.md](archive/gno-core/GNO_CORE_COMPAT.md).
 
 ## 🔮 GnoSwap Slippage Tolerance (DEFERRED)
 
