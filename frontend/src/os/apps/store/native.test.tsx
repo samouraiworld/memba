@@ -14,6 +14,10 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
     fetchAppStrict: mocks.fetchAppStrict,
 }))
+vi.mock("../../../lib/grc20", async (importActual) => ({
+    ...await importActual<typeof import("../../../lib/grc20")>(),
+    networkGasPrice: async () => ({ gas: 1000, ugnot: 1 }),
+}))
 vi.mock("../../../components/reviews/ReviewsSection", () => ({ ReviewsSection: () => <p>reviews</p> }))
 
 const signer: SignerApi = { sign: vi.fn(), pending: [], notices: [], unread: 0, version: 0, markRead: vi.fn() }
@@ -37,16 +41,27 @@ describe("Store detail", () => {
         mocks.fetchAppStrict.mockResolvedValueOnce(listing({})).mockResolvedValueOnce(listing({ name: "Renamed App" }))
         show()
         expect(await screen.findByRole("heading", { name: "Test App" })).toBeInTheDocument()
+        expect(screen.getByText("Curator approved listing")).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "Open external site ↗" })).toHaveAttribute("href", "https://example.com/")
         fireEvent.click(screen.getByRole("button", { name: "Refresh reviews" }))
         expect(await screen.findByRole("heading", { name: "Renamed App" })).toBeInTheDocument()
     })
 
-    it("shows a listing that is not live under its own name, without a review form", async () => {
-        mocks.fetchAppStrict.mockResolvedValue(listing({ name: "Pending App", status: "pending", descr: "Waiting for a curator." }))
+    it.each([
+        ["pending", "Pending review, not yet vetted by a curator"],
+        ["rejected", "Rejected by a curator"],
+        ["delisted", "Delisted"],
+        ["unheard-of", "Unapproved listing"],
+    ])("shows a %s listing under its own name, never as curator approved, with nothing to open or review", async (status, label) => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ name: "Own Name", status, descr: "Its own description." }))
         show()
-        expect(await screen.findByRole("heading", { name: "Pending App" })).toBeInTheDocument()
-        expect(screen.getByText("Waiting for a curator.")).toBeInTheDocument()
-        expect(screen.getByText("This listing is pending. It is not in the approved catalogue.")).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { name: "Own Name" })).toBeInTheDocument()
+        expect(screen.getByText("Its own description.")).toBeInTheDocument()
+        expect(screen.getByText(`This listing is ${status}. It is not in the approved catalogue.`)).toBeInTheDocument()
+        expect(screen.getByText(label)).toBeInTheDocument()
+        expect(screen.queryByText(/Curator approved/)).not.toBeInTheDocument()
+        expect(screen.queryByRole("link", { name: /^Open/ })).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /^Open/ })).not.toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Write a review" })).not.toBeInTheDocument()
     })
 })

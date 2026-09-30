@@ -38,8 +38,16 @@ function Artwork({ entry, large = false }: { entry: CatalogueEntry; large?: bool
     </span>
 }
 
+// Registering a listing is open to anyone: only a live one has been approved.
+const LISTING_PROVENANCE: Record<string, string> = {
+    live: "Curator approved listing",
+    pending: "Pending review, not yet vetted by a curator",
+    rejected: "Rejected by a curator",
+    delisted: "Delisted",
+}
+
 function provenance(entry: CatalogueEntry): string {
-    if (entry.source === "registry") return "Curator approved listing"
+    if (entry.source === "registry") return LISTING_PROVENANCE[entry.listing?.status ?? ""] ?? "Unapproved listing"
     if (entry.project?.kind === "tool") return "Independent tool"
     if (entry.realmPath) return "Mainnet realm linked"
     return "External project"
