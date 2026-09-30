@@ -83,7 +83,7 @@ export function PhoneShell(p: PhoneShellProps) {
         content = (
             <Sheet title={front.title} onHome={() => p.home(front.id)} guest={!member} onConnect={session.openConnect}>
                 <div className="os-wbody os-ph-body">
-                    <WindowBody win={front} session={session} open={p.open} openApp={p.openApp} close={() => p.close(front.id)} toast={p.toast} />
+                    <WindowBody win={front} session={session} open={p.open} openApp={p.openApp} close={() => p.close(front.id)} toast={p.toast} active={!p.locked} />
                 </div>
             </Sheet>
         )

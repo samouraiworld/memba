@@ -6,6 +6,7 @@
  * @module os/shell/WindowFrame
  */
 import { createElement, lazy, Suspense, useEffect, useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { useNavigate } from "react-router-dom"
 import { getApp, type OsAppId } from "../apps"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
@@ -23,8 +24,10 @@ const SendWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ d
 const WalletWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.WalletWindow })))
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { nativeView } from "../native/registry"
+import type { OsTarget } from "./osPath"
+import { pageQuery } from "./urlSync"
 import { WindowError } from "./WindowError"
-import { maxGeometry, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
+import { maxGeometry, urlForWindow, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
 interface Actions {
     session: OsSession
@@ -68,6 +71,19 @@ function Holding({ tile, title, text, children }: { tile: ReactNode; title: stri
     )
 }
 
+/** A page query as the address bar would hold it, whatever the encoding or the order it was written in. */
+function canonicalQuery(query = ""): string {
+    const params = new URLSearchParams(pageQuery(query))
+    params.sort()
+    return params.toString()
+}
+
+/** The same view: for an app, its section and query; for anything else, the address says it all. */
+function sameView(a: OsTarget | null, b: OsTarget | null): boolean {
+    if (a?.kind === "app" && b?.kind === "app") return a.app === b.app && a.section === b.section && canonicalQuery(a.query) === canonicalQuery(b.query)
+    return urlForWindow({ target: a }) === urlForWindow({ target: b })
+}
+
 /** What a window shows: the native window for its target, or the Memba page. Also drawn as a phone sheet. */
 export function WindowBody(props: Actions & { win: OsWindow }) {
     // A window that fails (its code or its page) fails alone; lazy windows made that likelier.
@@ -81,6 +97,7 @@ export function WindowBody(props: Actions & { win: OsWindow }) {
 }
 
 function Body({ win, ...a }: Actions & { win: OsWindow }) {
+    const navigate = useNavigate()
     const net = a.session.network.key
     if (win.key === "welcome") return <Welcome {...a} />
     const t = win.target
@@ -112,7 +129,20 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
         // during render"); nativeView() returns a component cached per app, so its identity
         // is stable across renders and the window never remounts. The native view gets
         // `fallback`, never the bare classic page, so the wallet gate below still holds.
-        return createElement(native, { section: t.section, query: t.query, session: a.session, open: a.open, openApp: a.openApp, close: a.close, toast: a.toast, fallback })
+        // Through the router, as a link in a classic page goes (ClassicPage): the shell's URL reader
+        // then opens or retargets the window. The view already shown is not a new entry.
+        const push = (spec: WindowSpec) => {
+            if (sameView(spec.target, t)) return
+            const url = urlForWindow(spec)
+            // A meeting room is not in its address: a new entry would lead back to the same address,
+            // so the room is shown without one.
+            if (url === urlForWindow(win)) a.open(spec)
+            else navigate(url)
+        }
+        return createElement(native, {
+            section: t.section, query: t.query, session: a.session, active: a.active ?? true,
+            open: a.open, push, openApp: a.openApp, close: a.close, toast: a.toast, fallback,
+        })
     }
     return fallback
 }

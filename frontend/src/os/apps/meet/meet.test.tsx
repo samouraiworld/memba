@@ -42,7 +42,7 @@ describe("embedding policy", () => {
 })
 
 const props = (overrides: Partial<NativeViewProps> = {}): NativeViewProps => ({
-    section: null, session: {} as NativeViewProps["session"], open: vi.fn(), openApp: vi.fn(),
+    section: null, session: {} as NativeViewProps["session"], active: true, open: vi.fn(), push: vi.fn(), openApp: vi.fn(),
     close: vi.fn(), toast: vi.fn(), fallback: null, ...overrides,
 })
 
