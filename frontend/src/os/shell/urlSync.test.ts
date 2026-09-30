@@ -11,7 +11,7 @@ afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
     it("round-trip every linkable window", () => {
-        for (const url of ["/os/feed", "/os/feed/post/12", "/os/meet", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
+        for (const url of ["/os/feed", "/os/feed/post/12", "/os/news", "/os/news/why-memba", "/os/meet", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)
             expect(tokenToTarget(windowToken(t)!), url).toEqual(t)
         }
@@ -19,6 +19,16 @@ describe("?w= tokens", () => {
 
     it("refuse anything a typed link would refuse", () => {
         for (const bad of ["app.nope", "meet.bad-room", "meet.abc-defg-hij", "meet.abc-defg-hij/extra", "arcade.invalid", "arcade.game/other", "dao.<b>", "prop.memba_dao.x", "prop.12", "msig.g1short", "feed", ".feed", "x.y"]) {
+            expect(tokenToTarget(bad), bad).toBeNull()
+        }
+    })
+
+    it("keep a News article open behind another window, and leave the list and Changelogs as the app", () => {
+        expect(windowToken(parseOsPath("/os/news/why-memba"))).toBe("news.why-memba")
+        expect(windowToken(parseOsPath("/os/news"))).toBe("app.news")
+        expect(windowToken(parseOsPath("/os/news/changelogs"))).toBe("app.news")
+        expect(windowToken(parseOsPath("/os/news/Why_Memba"))).toBe("app.news")
+        for (const bad of ["news.", "news.Why-Memba", "news.why_memba", "news.why--memba", "news.why-memba/extra", "news.changelogs", "news.blog", "news.%2e%2e"]) {
             expect(tokenToTarget(bad), bad).toBeNull()
         }
     })
@@ -121,6 +131,12 @@ describe("saved session", () => {
             { kind: "app", app: "arcade", section: "barricade" },
             { kind: "app", app: "arcade", section: "space-invaders" },
         ])
+    })
+
+    it("restores a News window on the article it showed", () => {
+        const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: specForTarget(parseOsPath("/os/news/why-memba"))!, desk })
+        saveWindows(s.wins)
+        expect(loadSavedTargets()[0].target).toEqual({ kind: "app", app: "news", section: "why-memba" })
     })
 
     it("saves linkable windows with their geometry and restores them", () => {

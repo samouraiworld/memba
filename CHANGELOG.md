@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: an open News article survives a reload (2026-09-30)
+- A News article open in Memba OS stays open after a reload or Back when another window is in front.
+
 ### Memba OS: News is a native window (2026-09-30)
 - News opens in a native Memba OS window: the Blog, each article and the Changelogs, with the browser's Back stepping through them.
 

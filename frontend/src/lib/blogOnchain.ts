@@ -16,15 +16,13 @@
 import { queryEval, parseQevalJSON } from "./dao/shared"
 import { GNO_RPC_URL } from "./config"
 import type { BlogArticle } from "./blogParser"
+import { BLOG_SLUG } from "./blogSlug"
 
 // The active blog realm. Env-overridable (same pattern as the App Store realm)
 // so a future realm version needs no code change.
 export const BLOG_REALM_PATH =
     import.meta.env.VITE_BLOG_REALM_PATH || "gno.land/r/samcrew/memba_blog_v1"
 
-/** The realm's exact slug shape (lowercase kebab-case) — the only thing we'll
- * interpolate into a qeval expression. */
-const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const PAGE_SIZE = 50
 const MAX_POSTS = 200
 const BODY_CONCURRENCY = 4
@@ -48,7 +46,7 @@ interface OnchainPostMeta {
 function isMeta(v: unknown): v is OnchainPostMeta {
     if (typeof v !== "object" || v === null) return false
     const m = v as Record<string, unknown>
-    return typeof m.slug === "string" && SLUG_RE.test(m.slug) &&
+    return typeof m.slug === "string" && BLOG_SLUG.test(m.slug) &&
         typeof m.title === "string" && m.title.trim().length > 0 &&
         isIsoDay(m.date) && typeof m.tags === "string"
 }
@@ -86,7 +84,7 @@ function toArticle(meta: OnchainPostMeta, body: string): BlogArticle {
  * invalid/unknown/unpublished or the realm is unreachable.
  */
 export async function fetchOnchainArticle(slug: string): Promise<BlogArticle | null> {
-    if (!SLUG_RE.test(slug)) return null
+    if (!BLOG_SLUG.test(slug)) return null
     try {
         const raw = await queryEval(GNO_RPC_URL, BLOG_REALM_PATH, `GetPostJSON("${slug}")`, true)
         if (!raw) return null

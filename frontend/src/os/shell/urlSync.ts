@@ -1,6 +1,6 @@
 /**
  * Windows ⇄ URL. The path is the front window (plan rev 4 URL scheme); the
- * other open windows ride in `?w=`, one token each: app.feed, dao.memba_dao,
+ * other open windows ride in `?w=`, one token each: app.feed, news.<slug>, dao.memba_dao,
  * prop.memba_dao.12, msig.g1…. A token is read back through parseOsPath, so
  * it gets exactly the same validation as a typed link.
  *
@@ -9,9 +9,16 @@
  *
  * @module os/shell/urlSync
  */
+import { BLOG_SLUG } from "../../lib/blogSlug"
 import { getApp, OS_APPS } from "../apps"
+import { classicForSection } from "../page/classicRoute"
 import { parseOsPath, type OsTarget } from "./osPath"
 import { frontWindow, isJoinFeedTarget, JOIN_FEED_QUERY, urlForWindow, visibleWindows, type OsWindow } from "./windows"
+
+/** The article a News window section opens (null: the list, Changelogs, or not an article slug). */
+function newsArticle(section: string | null): string | null {
+    return section && BLOG_SLUG.test(section) && classicForSection("news", section) === `blog/${section}` ? section : null
+}
 
 /** The ?w= token for a window, or null for windows that aren't linkable (Welcome, not found). */
 export function windowToken(t: OsTarget | null): string | null {
@@ -20,6 +27,7 @@ export function windowToken(t: OsTarget | null): string | null {
         case "app":
             if (isJoinFeedTarget(t)) return "feed.join"
             if (t.app === "feed" && t.section && /^post\/[1-9]\d{0,19}$/.test(t.section)) return `feed.post.${t.section.slice(5)}`
+            if (t.app === "news" && newsArticle(t.section)) return `news.${t.section}`
             // Meet room codes grant access: never put them in URLs or saved windows.
             if (t.app === "meet") return "app.meet"
             if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
@@ -47,6 +55,7 @@ export function tokenToTarget(token: string): OsTarget | null {
     let path: string | null = null
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
     else if (kind === "feed" && /^post\.[1-9]\d{0,19}$/.test(rest)) path = `/os/feed/post/${rest.slice(5)}`
+    else if (kind === "news" && newsArticle(rest)) path = `/os/news/${rest}`
     else if (kind === "arcade" && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`
