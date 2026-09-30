@@ -200,7 +200,7 @@ describe("escrowFailureMayHaveLanded", () => {
 })
 
 describe("broadcastEscrowTx", () => {
-    it("signs the planned message itself with its gas limit and no automatic retry", async () => {
+    it("signs the planned message itself with its gas limit", async () => {
         const plan = planCreateContract(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "short", milestones: MS })
         await broadcastEscrowTx(plan, "Create escrow: Audit")
         expect(doContractBroadcast).toHaveBeenCalledTimes(1)
@@ -208,7 +208,7 @@ describe("broadcastEscrowTx", () => {
         expect(msgs).toEqual([plan.msg])
         expect(msgs[0]).toBe(plan.msg)
         expect(memo).toBe("Create escrow: Audit")
-        expect(opts).toMatchObject({ gasWanted: plan.gasWanted, retry: false })
+        expect(opts).toMatchObject({ gasWanted: plan.gasWanted })
     })
 
     it("never reaches the wallet while the services lane is gated, whoever calls it", async () => {

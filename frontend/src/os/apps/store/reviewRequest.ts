@@ -89,7 +89,7 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
             catch { throw new Error("Couldn't confirm the current network fee. Nothing was sent; try again when the network is available.") }
             if (freshFee > fee) throw new Error("The network fee increased since review. Close this review and check the new fee before signing.")
         },
-        send: (_choice, beforeSign) => doContractBroadcast([msg], "Review app", { gasWanted: REVIEW_GAS_WANTED, gasFee: fee, retry: false, beforeSign }),
+        send: (_choice, beforeSign) => doContractBroadcast([msg], "Review app", { gasWanted: REVIEW_GAS_WANTED, gasFee: fee, beforeSign }),
         verify: (_choice, hash) => verifySendTx(hash),
         onSettled: review.onSettled,
     }

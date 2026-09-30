@@ -147,7 +147,7 @@ describe("HireServiceModal — live", () => {
             func: "CreateContract",
             args: [FREELANCER, "Smart Contract Audit", "audit", "Deposit:250000000,Final:250000000"],
         })
-        expect(opts).toMatchObject({ gasWanted: plan.gasWanted, retry: false })
+        expect(opts).toMatchObject({ gasWanted: plan.gasWanted })
     })
 
     it("reads the new contract's id back after it lands and hands it over", async () => {

@@ -198,7 +198,7 @@ export function profilePublishRequest(address: string, base: ProfileChainRead, d
         },
         send: async (_choice, beforeSign) => {
             localStorage.setItem(key, JSON.stringify({ at: Date.now(), changes, draft: JSON.stringify(draft) }))
-            return doContractBroadcast(msgs, "Memba profile", { gasWanted: costs.gasWanted, gasFee: costs.feeUgnot, retry: false, beforeSign })
+            return doContractBroadcast(msgs, "Memba profile", { gasWanted: costs.gasWanted, gasFee: costs.feeUgnot, beforeSign })
         },
         // A read that missed a field confirms nothing about it: the outcome stays unknown and the publish locked.
         verify: async () => {

@@ -131,7 +131,7 @@ describe("version-2 proposal reader", () => {
         expect(state.broadcast).toHaveBeenCalledWith(
             [{ type: "vm/MsgCall", value: { caller: ALICE, send: "", pkg_path: REALM, func: "Vote", args: ["2", "YES"], max_deposit: "400000ugnot" } }],
             "Vote YES on proposal #2",
-            { gasWanted: 15_000_000, retry: false, beforeSign: expect.any(Function) },
+            { gasWanted: 15_000_000, beforeSign: expect.any(Function) },
         )
         // The hash links to the explorer only on chains it indexes; elsewhere it is plain text.
         if (txExplorerUrl(HASH, GNO_CHAIN_ID)) expect(screen.getByRole("link", { name: HASH })).toBeInTheDocument()
@@ -204,7 +204,7 @@ describe("version-2 proposal reader", () => {
         await waitFor(() => expect(screen.getByText("Proposal #2 executed.")).toBeInTheDocument())
         const [msgs, , opts] = state.broadcast.mock.calls[0]
         expect(msgs[0].value).toMatchObject({ func: "Execute", args: ["2"], max_deposit: expect.stringMatching(/ugnot$/) })
-        expect(opts).toEqual({ gasWanted: 25_000_000, retry: false, beforeSign: expect.any(Function) })
+        expect(opts).toEqual({ gasWanted: 25_000_000, beforeSign: expect.any(Function) })
     })
 
     it("tells the executor of a removal where the freed deposit goes", async () => {

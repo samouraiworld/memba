@@ -207,7 +207,7 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
         try {
             finish = beginGovernanceRequest(scope)
             saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: submittedTitle })
-            const res = await broadcastDaoTx(plan, action, `Propose: ${submittedTitle}`, async () => {
+            const res = await broadcastDaoTx(plan, `Propose: ${submittedTitle}`, async () => {
                 assertCurrent()
                 const [freshConfig, freshMembers] = await Promise.all([getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true)])
                 assertCurrent()

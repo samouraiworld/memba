@@ -71,7 +71,7 @@ export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
             if (!fresh?.v2 || fresh.v2.archived || !members.some((m) => m.address === caller)) throw new Error("DAO membership or availability changed. Review your proposal again.")
             if (fresh.v2.electorate_version !== config.electorate_version) throw new Error("DAO membership changed. Review the proposal again.")
         },
-        send: (_c, beforeSign) => broadcastDaoTx(plan, action, `Propose: ${title}`, beforeSign, { approvedDepositUgnot: overCeiling ? cap : undefined }),
+        send: (_c, beforeSign) => broadcastDaoTx(plan, `Propose: ${title}`, beforeSign, { approvedDepositUgnot: overCeiling ? cap : undefined }),
         verifyAttempts: 1,
         verify: async (_c, hash, result) => {
             // A matching author/title in a later list is not proof that this

@@ -28,9 +28,9 @@ const REGISTER_STORAGE_BYTES = 3_300
 export const REGISTER_DEPOSIT_UGNOT = REGISTER_STORAGE_BYTES * STORAGE_PRICE_UGNOT
 export const REGISTER_MAX_DEPOSIT_UGNOT = depositCapUgnot(REGISTER_STORAGE_BYTES)
 
-/** Gas limit and fee to broadcast a registration with, at the quoted network price. It is never retried: a lost reply after a landed call would reopen the wallet for a name already taken. */
+/** Gas limit and fee to broadcast a registration with, at the quoted network price. */
 export function registerBroadcastOptions(price: GasPrice) {
-    return { gasWanted: REGISTER_GAS_WANTED, gasFee: feeForGasWanted(REGISTER_GAS_WANTED, price), retry: false as const }
+    return { gasWanted: REGISTER_GAS_WANTED, gasFee: feeForGasWanted(REGISTER_GAS_WANTED, price) }
 }
 
 /** The registrar's name format (namereg `reNymFormat`). */

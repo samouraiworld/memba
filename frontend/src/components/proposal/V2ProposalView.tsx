@@ -190,7 +190,6 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
         // Sign the plan the dialog showed, so what was reviewed is what is signed.
         const p = next.plan
         if (!p || receipts[next.kind] || busy || (next.needsDepositOverride && !next.depositApproved)) return
-        const action = next.kind === "vote" ? { type: "vote" as const, id: proposal.id, vote: next.choice } : { type: "execute" as const, id: proposal.id }
         const scope = scopes[next.kind]
         if (governanceRequestActive(scope)) return
         let finish = () => {}
@@ -201,7 +200,7 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
             finish = beginGovernanceRequest(scope)
             const memo = next.kind === "vote" ? `Vote ${next.choice} on proposal #${proposal.id}` : `Execute proposal #${proposal.id}`
             saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: memo })
-            const res = await broadcastDaoTx(p, action, memo, async () => {
+            const res = await broadcastDaoTx(p, memo, async () => {
                 assertCurrent()
                 const [freshConfig, freshMembers, freshProposal, freshVoted] = await Promise.all([
                     getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true),

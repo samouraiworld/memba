@@ -72,7 +72,6 @@ it("allows a developer without admin labels to propose governed role changes", a
     fireEvent.click(screen.getByRole("button", { name: "Review role proposal" }))
     await screen.findByText(/Transaction submitted:/)
     expect(vi.mocked(doContractBroadcast).mock.calls[0][0][0].value).toMatchObject({ func: "ProposeRole", args: [fixture.members[1].address, "admin", "true"], send: "" })
-    expect(vi.mocked(doContractBroadcast).mock.calls[0][2]?.retry).toBe(false)
     expect(readWeightedSnapshot).toHaveBeenCalledTimes(4)
 })
 it("reports the transaction when the browser address changed during signing but the page's own route did not", async () => {
@@ -287,7 +286,7 @@ it("shows each target's handoff state and offers acceptance only when the DAO is
     const [msgs, memo, opts] = vi.mocked(doContractBroadcast).mock.calls[0]
     expect(msgs).toEqual([{ type: "vm/MsgCall", value: { caller: v12Snapshot().members[1].address, send: "", pkg_path: weightedRealm, func: "ProposeMarketAccept", args: [], max_deposit: "2130000ugnot" } }])
     expect(memo).toBe("Propose that the DAO accepts authority over gno.land/r/samcrew/memba_market_config")
-    expect(opts).toMatchObject({ retry: false, gasWanted: 24_000_000 })
+    expect(opts).toMatchObject({ gasWanted: 24_000_000 })
     // Checked once when preparing and again right before signing.
     expect(vi.mocked(readTargetAuthority).mock.calls.filter(c => c[1] === "marketPolicy")).toHaveLength(2)
 })
@@ -345,7 +344,7 @@ it("offers a changed ballot but never the same one, and nothing to an ineligible
     await screen.findByText(/Transaction submitted:/)
     const [msgs, , opts] = vi.mocked(doContractBroadcast).mock.calls[0]
     expect(msgs[0].value).toMatchObject({ func: "Vote", args: ["17", "no"], max_deposit: "40000ugnot" })
-    expect(opts).toMatchObject({ gasWanted: 24_800_000, retry: false })
+    expect(opts).toMatchObject({ gasWanted: 24_800_000 })
 })
 it("refuses a repeated ballot found on chain before signing", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())

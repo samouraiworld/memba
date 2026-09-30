@@ -33,8 +33,8 @@ const call = (func: string, pkg = "gno.land/r/samcrew/memba_feed_v1"): AminoMsg 
     ({ type: "vm/MsgCall", value: { caller: CALLER, send: "", pkg_path: pkg, func, args: [] } })
 
 const PATHS: Array<[string, () => Promise<unknown>]> = [
-    ["GNOT send (Memba OS wallet)", () => doContractBroadcast([{ type: "/bank.MsgSend", value: { from_address: CALLER, to_address: PAYEE, amount: "1000000ugnot" } }], "send", { retry: false })],
-    ["DAO v2 vote (daoTx)", () => broadcastDaoTx(planDaoTx("memba-v2", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER), { type: "vote", id: 1, vote: "YES" }, "vote")],
+    ["GNOT send (Memba OS wallet)", () => doContractBroadcast([{ type: "/bank.MsgSend", value: { from_address: CALLER, to_address: PAYEE, amount: "1000000ugnot" } }], "send")],
+    ["DAO v2 vote (daoTx)", () => broadcastDaoTx(planDaoTx("memba-v2", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER), "vote")],
     ["escrow (broadcastEscrowTx)", () => broadcastEscrowTx(planCancelContract(CALLER, "gno.land/r/samcrew/escrow_v4", "7"), "cancel")],
     ["feed post (submitFeedMsg)", () => submitFeedMsg(call("Post"), "post")],
     ["review flag (reviews.submitMsg)", () => submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")],
@@ -95,7 +95,7 @@ describe("a refusal is reported as nothing sent", () => {
     it("is asked before the caller's beforeSign, which callers treat as the wallet opening", async () => {
         vi.stubGlobal("adena", { ...liveWallet({ chainId: "", networkChainId: "" }), DoContract })
         const beforeSign = vi.fn()
-        await expect(doContractBroadcast([call("Post")], "post", { retry: false, beforeSign })).rejects.toThrow(/did not report its network/)
+        await expect(doContractBroadcast([call("Post")], "post", { beforeSign })).rejects.toThrow(/did not report its network/)
         expect(beforeSign).not.toHaveBeenCalled()
         expect(DoContract).not.toHaveBeenCalled()
     })
@@ -105,7 +105,7 @@ describe("a refusal is reported as nothing sent", () => {
         vi.stubGlobal("adena", { ...wallet, DoContract })
         // The wallet switches network while the caller's last checks run.
         const beforeSign = vi.fn(async () => { wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } }); wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } }) })
-        await expect(doContractBroadcast([call("Post")], "post", { retry: false, beforeSign })).rejects.toThrow(/Your wallet is on/)
+        await expect(doContractBroadcast([call("Post")], "post", { beforeSign })).rejects.toThrow(/Your wallet is on/)
         expect(beforeSign).toHaveBeenCalledTimes(1)
         expect(DoContract).not.toHaveBeenCalled()
     })
@@ -127,7 +127,7 @@ describe("a refusal is reported as nothing sent", () => {
             title: "Vote", summary: "Vote on #1", lines: () => [], label: () => "Vote on #1",
             prepare: () => ({ msgs: [msg] }),
             recheck: async () => { order.push("recheck") },
-            send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { retry: false, beforeSign }),
+            send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { beforeSign }),
         }, undefined, [msg], () => {})
         expect(res.outcome).toBe("sent")
         expect(order).toEqual(["guard", "recheck", "guard", "wallet"])
@@ -141,7 +141,7 @@ describe("a refusal is reported as nothing sent", () => {
             const res = await executeSignature({
                 title: "Vote", summary: "Vote on #1", lines: () => [], label: () => "Vote on #1", receipt: scope,
                 prepare: () => ({ msgs: [msg] }),
-                send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { retry: false, beforeSign }),
+                send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { beforeSign }),
             }, undefined, [msg], () => {})
             expect(res.outcome).toBe("failed")
             expect(readGovernanceReceipt(scope)).toBeNull()
@@ -166,7 +166,7 @@ describe("a wallet on another network", () => {
     it("is refused with a WalletNetworkError before the wallet is asked, for a v1 DAO vote too", async () => {
         vi.stubGlobal("adena", { ...liveWallet({ chainId: OTHER }), DoContract })
         const plan = planDaoTx("memba-v1", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER)
-        await expect(broadcastDaoTx(plan, { type: "vote", id: 1, vote: "YES" }, "vote")).rejects.toBeInstanceOf(WalletNetworkError)
+        await expect(broadcastDaoTx(plan, "vote")).rejects.toBeInstanceOf(WalletNetworkError)
         expect(DoContract).not.toHaveBeenCalled()
     })
 })

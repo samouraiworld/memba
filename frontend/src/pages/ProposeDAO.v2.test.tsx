@@ -118,7 +118,7 @@ describe("version-2 propose form", () => {
         const [msgs, memo, opts] = state.broadcast.mock.calls[0]
         expect(msgs).toEqual([preview])
         expect(memo).toBe("Propose: Ship the website")
-        expect(opts).toMatchObject({ retry: false, gasWanted: expect.any(Number) })
+        expect(opts).toMatchObject({ gasWanted: expect.any(Number) })
         expect(screen.getByLabelText("Title")).toBeDisabled()
         expect(screen.getByRole("button", { name: "Submitted" })).toBeDisabled()
         expect(state.proposals).not.toHaveBeenCalled()

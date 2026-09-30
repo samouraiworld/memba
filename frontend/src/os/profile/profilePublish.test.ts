@@ -84,7 +84,7 @@ describe("profile publication", () => {
         vi.mocked(doContractBroadcast).mockResolvedValueOnce({ hash: "hash" })
         const beforeSign = vi.fn()
         await request.send(undefined, beforeSign)
-        expect(doContractBroadcast).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Memba profile", { gasWanted: 16_000_000, gasFee: 19_200, retry: false, beforeSign })
+        expect(doContractBroadcast).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Memba profile", { gasWanted: 16_000_000, gasFee: 19_200, beforeSign })
     })
 
     it("stops before the wallet when the reviewed fee no longer covers the network price", async () => {

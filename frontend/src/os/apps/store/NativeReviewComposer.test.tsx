@@ -258,6 +258,6 @@ describe("native review composer", () => {
         await expect(second.recheck?.(undefined)).resolves.toBeUndefined()
         const beforeSign = vi.fn()
         await second.send(undefined, beforeSign)
-        expect(mocks.broadcast).toHaveBeenCalledWith(second.prepare(undefined).msgs, "Review app", { gasWanted: 15_000_000, gasFee: 36_000, retry: false, beforeSign })
+        expect(mocks.broadcast).toHaveBeenCalledWith(second.prepare(undefined).msgs, "Review app", { gasWanted: 15_000_000, gasFee: 36_000, beforeSign })
     })
 })

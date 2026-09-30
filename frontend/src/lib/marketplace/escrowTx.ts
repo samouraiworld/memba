@@ -119,7 +119,7 @@ export async function broadcastEscrowTx(p: EscrowTxPlan, memo: string, beforeSig
     // The services lane gate, enforced here too so no future caller can skip it.
     if (!isServicesEnabled() || !isEscrowValid()) throw new EscrowPlanError("Service escrow is not available on this network yet.")
     assertEscrowPlanSignable(p)
-    return doContractBroadcast([p.msg], memo, { gasWanted: p.gasWanted, retry: false, ...(beforeSign ? { beforeSign } : {}) })
+    return doContractBroadcast([p.msg], memo, { gasWanted: p.gasWanted, ...(beforeSign ? { beforeSign } : {}) })
 }
 
 /**

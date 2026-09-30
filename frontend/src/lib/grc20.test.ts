@@ -676,12 +676,6 @@ describe('doContractBroadcast — one wallet request per call', () => {
         wallet({ status: 'failure', type: 'TRANSACTION_FAILED', message: 'Adena could not execute the transaction.', data: { hash: '', error: 'Error: Connection Error' } })
         expect(await settle(doContractBroadcast([call], 'm'))).not.toBeInstanceOf(ChainRejectedError)
     })
-
-    it('still accepts the retired retry option without changing anything', async () => {
-        const doContract = wallet({ status: 'failure', message: 'network timeout' })
-        expect(await settle(doContractBroadcast([call], 'm', { retry: false }))).toMatchObject({ message: 'network timeout' })
-        expect(doContract).toHaveBeenCalledTimes(1)
-    })
 })
 
 describe('doContractBroadcast — broadcast result', () => {

@@ -123,7 +123,7 @@ describe("EscrowContractPanel — archive", () => {
         await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/archived/))
         const [msgs, , opts] = doContractBroadcast.mock.calls[0] as unknown as [{ value: Record<string, unknown> }[], string, Record<string, unknown>]
         expect(msgs[0].value).toMatchObject({ caller: CLIENT, pkg_path: ESCROW, func: "ArchiveContract", args: ["7"], send: "", max_deposit: "200000ugnot" })
-        expect(opts).toMatchObject({ gasWanted: 39_000_000, retry: false })
+        expect(opts).toMatchObject({ gasWanted: 39_000_000 })
         expect(await screen.findByTestId("escrow-contract-missing")).toHaveTextContent("Contract 7 does not exist or has been archived.")
         expect(readEscrowContract).toHaveBeenCalledTimes(2)
     })

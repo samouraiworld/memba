@@ -71,7 +71,7 @@ describe("AttestationPanel", () => {
                 max_deposit: "1600000ugnot",
             },
         }])
-        expect(opts).toEqual({ gasWanted: 50_000_000, retry: false })
+        expect(opts).toEqual({ gasWanted: 50_000_000 })
         expect(fetchSigner).toHaveBeenCalledWith(REALM)
     })
 

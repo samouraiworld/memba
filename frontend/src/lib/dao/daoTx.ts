@@ -70,20 +70,9 @@ export interface DaoSignOptions {
     approvedDepositUgnot?: number
 }
 
-const isProposal = (action: DaoAction) => action.type.startsWith("propose-")
-
-/** A plan with a deposit cap was sized for a version-2 realm. */
-const isV2Plan = (plan: DaoTxPlan) => plan.maxDepositUgnot !== undefined
-
-/**
- * Sign and broadcast a plan. Proposals are never re-sent automatically: a
- * response lost after the transaction landed would otherwise create the same
- * proposal twice. Version-2 votes and executions are not re-sent either: the
- * realm rejects a repeat deterministically, so a retry would only re-prompt
- * the wallet and pay another fee.
- */
-export async function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string, beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>, sign: DaoSignOptions = {}) {
-    const options = daoBroadcastOptions(plan, action, sign)
+/** Sign and broadcast a plan. */
+export async function broadcastDaoTx(plan: DaoTxPlan, memo: string, beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>, sign: DaoSignOptions = {}) {
+    const options = daoBroadcastOptions(plan, sign)
     return doContractBroadcast([plan.msg], memo, { ...options, ...(beforeSign ? { beforeSign } : {}) })
 }
 
@@ -92,12 +81,9 @@ export async function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: s
  * themselves). Throws when the plan's deposit cap is above the ceiling and was
  * not explicitly approved.
  */
-export function daoBroadcastOptions(plan: DaoTxPlan, action: DaoAction, sign: DaoSignOptions = {}): { gasWanted?: number; retry?: false } {
+export function daoBroadcastOptions(plan: DaoTxPlan, sign: DaoSignOptions = {}): { gasWanted?: number } {
     assertDepositAllowed(plan, sign.approvedDepositUgnot)
-    return {
-        ...(plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}),
-        ...(isProposal(action) || isV2Plan(plan) ? { retry: false as const } : {}),
-    }
+    return plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}
 }
 
 const record = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : null)

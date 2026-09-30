@@ -81,7 +81,7 @@ describe("native App Store review signing", () => {
         ]))
         await expect(run(request)).resolves.toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(mocks.fetchAppStrict).toHaveBeenCalledWith(draft.subject)
-        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { gasWanted: 15_000_000, gasFee: 18_000, retry: false, beforeSign: expect.any(Function) })
+        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { gasWanted: 15_000_000, gasFee: 18_000, beforeSign: expect.any(Function) })
         expect(mocks.wallet).toHaveBeenCalledTimes(1)
     })
 
@@ -121,7 +121,7 @@ describe("native App Store review signing", () => {
         ]))
         // The chain's price is below the reviewed one by now: the reviewed fee still covers it.
         await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
-        expect(doContractBroadcast).toHaveBeenCalledWith(expect.anything(), "Review app", { gasWanted: 15_000_000, gasFee: 36_000, retry: false, beforeSign: expect.any(Function) })
+        expect(doContractBroadcast).toHaveBeenCalledWith(expect.anything(), "Review app", { gasWanted: 15_000_000, gasFee: 36_000, beforeSign: expect.any(Function) })
     })
 
     it("stops before Adena when the network fee rose or cannot be read", async () => {

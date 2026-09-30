@@ -95,7 +95,7 @@ describe("buildRegisterUsernameMsg", () => {
     })
 
     it("broadcasts once, with the measured limit and the fee for the quoted price", () => {
-        expect(registerBroadcastOptions({ gas: 1000, ugnot: 1 })).toEqual({ gasWanted: 90_000_000, gasFee: 108_000, retry: false })
+        expect(registerBroadcastOptions({ gas: 1000, ugnot: 1 })).toEqual({ gasWanted: 90_000_000, gasFee: 108_000 })
         expect(registerBroadcastOptions({ gas: 1000, ugnot: 2 }).gasFee).toBe(216_000)
     })
 

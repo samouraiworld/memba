@@ -186,7 +186,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                 : action.type === "propose" ? `Propose ${action.grant ? "grant" : "removal"} of ${action.role}: ${action.target}`
                 : action.type === "accept" ? `Propose that the DAO accepts authority over ${acceptTarget}`
                 : `${action.type} weighted proposal ${action.id}`
-            const result = await doContractBroadcast([plan.msg], memo, { retry: false, beforeSign, ...(plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}) })
+            const result = await doContractBroadcast([plan.msg], memo, { beforeSign, ...(plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}) })
             assertCurrent()
             if (!/^[a-f0-9]{64}$/i.test(result.hash)) throw new Error("Wallet returned no valid transaction hash; check chain state before trying again")
             const created = action.type === "accept" ? proposalIdFromTxResult(result.result) : null

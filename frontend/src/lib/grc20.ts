@@ -368,8 +368,6 @@ interface BroadcastOptions {
     gas?: "call" | "deploy"
     gasWanted?: number
     gasFee?: number
-    /** Ignored: nothing is re-sent any more. Accepted until the callers that still pass it are updated, then removed. */
-    retry?: false
     beforeSign?: () => void | (() => boolean) | Promise<void | (() => boolean)>
     osActivation?: true
 }

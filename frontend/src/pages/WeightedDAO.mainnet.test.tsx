@@ -67,9 +67,8 @@ it("lets a member vote on the released mainnet DAO with gnoland-1 active, with t
     expect(yes.hasAttribute("disabled")).toBe(false)
     fireEvent.click(yes)
     await screen.findByText(/Transaction submitted:/)
-    const [msgs, , opts] = vi.mocked(doContractBroadcast).mock.calls[0]
+    const [msgs] = vi.mocked(doContractBroadcast).mock.calls[0]
     expect(msgs[0].value).toMatchObject({ caller: member, pkg_path: weightedRealm, func: "Vote", args: ["17", "yes"], send: "" })
-    expect(opts?.retry).toBe(false)
     expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "gnoland-1", address: member, schema: "memba-weighted-host/v12", realmPath: weightedRealm })
 })
 

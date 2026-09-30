@@ -94,7 +94,7 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
             if (!navigator.locks?.request) throw new Error("This browser cannot safely coordinate sends across tabs.")
             return navigator.locks.request(`memba_os_send:${GNO_CHAIN_ID}:${ctx.from}`, { mode: "exclusive" }, async () => {
                 claimSendLock(GNO_CHAIN_ID, ctx.from, { id: attemptId, label, hash: "", at: Date.now(), to: ctx.to, save: !!ctx.saveRecipient })
-                const res = await doContractBroadcast(msgs, ctx.memo, { gasWanted: SEND_GAS_WANTED, gasFee: Number(ctx.feeUgnot), retry: false, beforeSign })
+                const res = await doContractBroadcast(msgs, ctx.memo, { gasWanted: SEND_GAS_WANTED, gasFee: Number(ctx.feeUgnot), beforeSign })
                 if (!normalizeTxHashHex(res.hash)) throw new Error("Adena did not return a valid transaction hash. Check the outcome before sending again.")
                 updateSendLockHash(GNO_CHAIN_ID, ctx.from, attemptId, res.hash)
                 return res

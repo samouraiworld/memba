@@ -86,7 +86,7 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
                 const fresh = await getProposalDetail(GNO_RPC_URL, realmPath, proposal.id)
                 if (!fresh || fresh.status !== "open") throw new Error("This proposal is no longer open for votes. Refresh it.")
             },
-        send: (choice, beforeSign) => broadcastDaoTx(plan(choice), action(choice ?? "Yes"), memo(choice), beforeSign,
+        send: (choice, beforeSign) => broadcastDaoTx(plan(choice), memo(choice), beforeSign,
             { approvedDepositUgnot: overCeiling ? cap : undefined }),
         verify: v2
             ? async (choice) => {

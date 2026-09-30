@@ -73,7 +73,7 @@ describe("RegisterUsernameForm", () => {
             value: { caller: CALLER, send: "", pkg_path: "gno.land/r/sys/namereg/v0", func: "Register", args: ["nym-builder042"], max_deposit: "660000ugnot" },
         }])
         // The registrar needs more gas than the 10M default limit; the fee is the chain's price for it.
-        expect(vi.mocked(doContractBroadcast).mock.calls[0][2]).toEqual({ gasWanted: 90_000_000, gasFee: 108_000, retry: false })
+        expect(vi.mocked(doContractBroadcast).mock.calls[0][2]).toEqual({ gasWanted: 90_000_000, gasFee: 108_000 })
     })
 
     it("says before the wallet opens that the storage deposit is not returned", () => {

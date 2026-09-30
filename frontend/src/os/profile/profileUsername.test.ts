@@ -46,6 +46,6 @@ describe("OS username registration review", () => {
         vi.mocked(doContractBroadcast).mockResolvedValueOnce({ hash: "hash" })
         const beforeSign = vi.fn()
         await request.send(undefined, beforeSign)
-        expect(doContractBroadcast).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Register @nym-builder042", { gasWanted: 90_000_000, gasFee: 108_000, retry: false, beforeSign })
+        expect(doContractBroadcast).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Register @nym-builder042", { gasWanted: 90_000_000, gasFee: 108_000, beforeSign })
     })
 })

@@ -51,7 +51,7 @@ describe("sendRequest", () => {
         expect(r.acks).toHaveLength(1)
         expect(r.warns?.[0]).toMatch(/never sent/)
         await run(ctx())
-        expect(vi.mocked(doContractBroadcast).mock.calls[0][2]).toMatchObject({ retry: false, gasWanted: expect.any(Number) })
+        expect(vi.mocked(doContractBroadcast).mock.calls[0][2]).toMatchObject({ gasWanted: expect.any(Number) })
     })
 
     it("saves the lock before the wallet opens and clears it only after chain confirmation", async () => {

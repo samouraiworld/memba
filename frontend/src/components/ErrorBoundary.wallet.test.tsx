@@ -33,7 +33,7 @@ it('cancels an unmounted confirmation instead of leaving recovery permanently di
     vi.stubGlobal('adena', { ...liveWallet(), DoContract })
     const view = render(tree(false))
     let result!: Promise<unknown>
-    await act(async () => { result = doContractBroadcast([], 'test', { retry: false }).catch(e => e) })
+    await act(async () => { result = doContractBroadcast([], 'test').catch(e => e) })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     view.rerender(tree(true))
     await act(async () => { expect(await result).toMatchObject({ message: 'Transaction cancelled by user' }) })
@@ -47,7 +47,7 @@ it('does not reload or repeat a deferred Adena request when the root fails', asy
     vi.stubGlobal('adena', { ...liveWallet(), DoContract })
     const view = render(tree(false))
     let result!: ReturnType<typeof doContractBroadcast>
-    await act(async () => { result = doContractBroadcast([], 'test', { retry: false }) })
+    await act(async () => { result = doContractBroadcast([], 'test') })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm & Broadcast' }))
     await waitFor(() => expect(DoContract).toHaveBeenCalledTimes(1))
     view.rerender(tree(true))
