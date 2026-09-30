@@ -794,8 +794,10 @@ export function areRealmsDeployed(): boolean {
  *   - memba_nft_v2, memba_collections, memba_nft_market_v2,
  *     memba_nft_market_v3_1, memba_nft_market_v3_2 — the NFT stack CUSTODIES
  *     FUNDS and moves as ONE unit (partial listing gives inconsistent
- *     surfaces). VITE_ENABLE_NFT is back in SAFETY_GATED_FLAGS (this release),
- *     so the allowlist is no longer its only structural gate.
+ *     surfaces). VITE_ENABLE_NFT is NOT in SAFETY_GATED_FLAGS (safeFlags.test.ts
+ *     asserts its absence): the flag is off by default and this allowlist is
+ *     the structural gate. Mainnet lists none of this stack, so enabling the
+ *     flag alone opens no NFT realm there.
  *   - memba_market_config — does NOT custody funds (its three files carry no
  *     banker/coin references; the only writes are the admin.gno setters), but
  *     it SETS the fee/treasury the trading engines read, so it ships with the
