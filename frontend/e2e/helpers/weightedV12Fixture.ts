@@ -8,7 +8,10 @@ import { qevalWire, weightedRealm } from '../../src/lib/dao/testdata/weighted'
 export const v12 = JSON.parse(readFileSync(new URL('../../src/lib/dao/testdata/weighted-v12/native.json', import.meta.url), 'utf8')).records as Record<string, unknown>
 // A DAO's own package address, and each adapter target's authority getters (see weightedAcceptance.ts).
 const daoAddress = (realmPath: string) => bech32Encode('g', new Uint8Array(createHash('sha256').update(`pkgPath:${realmPath}`).digest().subarray(0, 20)))
-const PUBLISHER = (v12.config as { marketPolicy: { successor: string } }).marketPolicy.successor
+export const PUBLISHER = (v12.config as { marketPolicy: { successor: string } }).marketPolicy.successor
+/** The treasury the DAO's policies name; on the fake chain, as on mainnet today, the fee-collecting targets still pay the publisher. */
+export const RESERVE = (v12.config as { marketPolicy: { treasury: string } }).marketPolicy.treasury
+const FEE_TARGETS = ['gno.land/r/samcrew/memba_market_config', 'gno.land/r/samcrew/memba_appstore_v3']
 const AUTHORITY: Record<string, [string, string, 'address' | 'string']> = {
     'gno.land/r/samcrew/memba_market_config': ['GetAdmin', 'GetPendingAdmin', 'address'],
     'gno.land/r/samcrew/memba_reviews_v2': ['GetModerator', 'GetPendingModerator', 'string'],
@@ -26,6 +29,7 @@ function targetRead(expression: string, realmPath: string): string | undefined {
     const DAO = daoAddress(realmPath)
     const realm = Object.keys(AUTHORITY).find(path => expression.startsWith(`${path}.`))
     if (!realm) return undefined
+    if (expression === `${realm}.GetTreasury()` && FEE_TARGETS.includes(realm)) return `(${JSON.stringify(PUBLISHER)} .uverse.address)`
     const [current, pending, type] = AUTHORITY[realm]
     const nominated = realm.endsWith('/memba_market_config')
     const value = expression === `${realm}.${current}()` ? (nominated ? PUBLISHER : DAO) : expression === `${realm}.${pending}()` ? (nominated ? DAO : '') : undefined

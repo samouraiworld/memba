@@ -71,6 +71,11 @@ describe("osTargetForClassic", () => {
         expect(osTargetForClassic("/mainnet/dao/gno.land/r/alice/team/proposal/7", "mainnet")).toEqual({ kind: "proposal", dao: "alice.team", n: 7 })
         expect(osTargetForClassic("/mainnet/dao/gno.land/r/alice/team/propose", "mainnet")).toEqual({ kind: "new-proposal", dao: "alice.team" })
         expect(osTargetForClassic("/mainnet/dao/create", "mainnet")).toEqual({ kind: "app", app: "daos", section: "new" })
+        // A weighted DAO's classic workspace is its DAO folder, not a page in the DAOs window.
+        expect(osTargetForClassic("/mainnet/weighted-dao/gno.land/r/samcrew/memba_dao", "mainnet")).toEqual({ kind: "dao", name: "memba_dao", section: "overview" })
+        // Typed by hand under the DAOs app, it is not the weighted workspace there (the DAO pages find no DAO at that address):
+        // the workspace mounts only inside the DAO folder.
+        expect(classicForSection("daos", "weighted-dao/gno.land/r/samcrew/memba_dao")).not.toMatch(/^weighted-dao\//)
     })
 
     it("maps a multisig page to the multisig window, and its other pages to the app", () => {

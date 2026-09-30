@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { ugnotInCoinsJson } from "../lib/bankBalance";
 import { resilientFetch } from "../lib/rpcFallback";
 
 interface BalanceState {
@@ -93,15 +94,7 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
                 throw new Error("Balance response was missing");
             }
 
-            const decoded = atob(rawValue);
-            // The bank endpoint returns Amino JSON of the coin string. An
-            // explicit empty coin string means zero; missing/malformed data
-            // means the balance is unknown.
-            const coins: unknown = JSON.parse(decoded);
-            if (typeof coins !== "string") throw new Error("Unexpected balance response");
-            if (coins && !/^[0-9]+[a-zA-Z][a-zA-Z0-9/._-]*(?:,[0-9]+[a-zA-Z][a-zA-Z0-9/._-]*)*$/.test(coins)) throw new Error("Unexpected balance response");
-            const match = /(?:^|,)([0-9]+)ugnot(?:,|$)/.exec(coins);
-            const ugnot = match ? BigInt(match[1]) : 0n;
+            const ugnot = ugnotInCoinsJson(atob(rawValue));
 
             if (request === requestSeq.current) setState({
                 address,

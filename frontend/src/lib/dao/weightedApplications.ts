@@ -253,6 +253,13 @@ const POLICY_FOR: Record<WeightedApplicationAction["type"], ApplicationPolicyKey
     escrow: "escrowPolicy", badges: "badgesPolicy", feed: "feedPolicy", channels: "channelsPolicy", feedback: "feedbackPolicy",
 }
 
+/** Every operation the DAO can vote on for one application, with the category the host assigns it. */
+export function policyOperations(key: ApplicationPolicyKey): { operation: string; category: WeightedCategory }[] {
+    const type = (Object.keys(POLICY_FOR) as WeightedApplicationAction["type"][]).find((t) => POLICY_FOR[t] === key)!
+    const schema = (applicationActions as readonly { shape: { type: { value: string }; operation: { options: readonly string[] } } }[]).find((a) => a.shape.type.value === type)!
+    return schema.shape.operation.options.map((operation) => ({ operation, category: expectedCategory({ type, operation }) }))
+}
+
 /** Configured destinations bind every staged return and treasury change. */
 export function applicationActionMatchesPolicy(action: WeightedApplicationAction, policies: { [K in ApplicationPolicyKey]: z.infer<(typeof applicationPolicySchemas)[K]> } & { realmPath: string }): boolean {
     const policy = policies[POLICY_FOR[action.type]]

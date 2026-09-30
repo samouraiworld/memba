@@ -32,7 +32,7 @@ export interface OsApp {
 
 export const OS_APPS: readonly OsApp[] = [
     { id: "daos", name: "DAOs", slug: "daos", summary: "Browse, create and govern DAOs", tier: "mvp", tint: ["#5B7CFA", "#3D5BE0"], dock: true,
-      routes: ["dao", "dao/create", "dao/*", "weighted-dao/*", "organizations", "candidature"] },
+      routes: ["dao", "dao/create", "dao/*", "organizations", "candidature"] },
     { id: "wallet", name: "Wallet", slug: "wallet", summary: "Balances, send, receive, history", tier: "mvp", tint: ["#2FC08E", "#12A07A"], dock: true,
       routes: ["tx/:id"] },
     { id: "multisig", name: "Multisig", slug: "multisig", summary: "Shared accounts that need several signatures", tier: "mvp", tint: ["#9C7CF5", "#7654E8"], dock: true,
@@ -82,6 +82,7 @@ export const OS_SYSTEM_ROUTES: readonly { route: string; handling: string }[] = 
     { route: "dashboard", handling: "The desktop (dashboard cards become widgets)" },
     { route: "github/callback", handling: "Sign-in callback, no window" },
     { route: "feedback", handling: "The Send feedback window (/os/feedback), from the start menu" },
+    { route: "weighted-dao/*", handling: "The weighted DAO's folder window (/os/dao/<name>), never a page in the DAOs app" },
     { route: "marketplace-v2-preview", handling: "Dropped: preview route, not carried over" },
     { route: "*", handling: "A not-found window that offers search" },
 ]

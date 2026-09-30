@@ -66,7 +66,7 @@ for (const width of [1280, 390]) {
         await expect(market.getByText('Ready to accept')).toBeVisible()
         await expect(market.getByText('Proposing requires a connected, authenticated member on the selected network.')).toBeVisible()
         await expect(market.getByRole('button', { name: 'Propose acceptance' })).toBeDisabled()
-        await expect(workspace.getByRole('listitem', { name: 'escrowPolicy adapter' }).getByText('DAO controls')).toBeVisible()
+        await expect(workspace.getByRole('listitem', { name: 'escrowPolicy adapter' }).getByText('DAO controls', { exact: true })).toBeVisible()
         const fee = workspace.getByRole('article', { name: 'Proposal 17' })
         await expect(fee.getByRole('heading', { name: 'Market config · set-fee' })).toBeVisible()
         await expect(fee.getByText('Financial', { exact: true })).toBeVisible()
@@ -82,7 +82,7 @@ for (const width of [1280, 390]) {
         await workspace.getByRole('button', { name: 'Older proposals' }).click()
         const invalidated = workspace.getByRole('article', { name: 'Proposal 2' })
         await expect(invalidated.getByText(/^Invalidated at block \d+: proposal #4 executed \(gno\.land\/r\/samcrew\/memba_market_config\)\.$/)).toBeVisible()
-        await expect(workspace.getByRole('article', { name: 'Proposal 1' }).getByText('EXECUTED')).toBeVisible()
+        await expect(workspace.getByRole('article', { name: 'Proposal 1' }).getByText('Executed', { exact: true })).toBeVisible()
     })
 }
 test('unknown weighted host versions are refused, not rendered as an older contract', async ({ page }) => {
@@ -132,8 +132,8 @@ test('weighted DAO v12 on a test network proposes an adapter acceptance with its
     await expect(workspace.getByText('Next recommended')).toHaveCount(1)
     await expect(market.getByText('Next recommended')).toBeVisible()
     await expect(workspace.getByRole('listitem', { name: /adapter$/ }).last()).toHaveAttribute('aria-label', 'escrowPolicy adapter')
-    await expect(workspace.getByText('At least 4 people with 6 points vote yes, then 24 hours pass. Or 5 core developers vote yes, then 72 hours pass.')).toBeVisible()
-    await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByText('DAO controls')).toBeVisible()
+    await expect(workspace.getByText('It passes with 6 points and at least 4 people, then 24 hours, or 5 developers, then 72 hours.')).toBeVisible()
+    await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByText('DAO controls', { exact: true })).toBeVisible()
     await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByRole('button')).toHaveCount(0)
     // Role and recovery proposals stay unavailable for this contract version.
     await expect(workspace.getByRole('button', { name: 'Review role proposal' })).toBeDisabled()

@@ -95,6 +95,8 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
     if (rest === "dao") return { kind: "app", app: "daos", section: null }
     if (rest === "dao/create") return { kind: "app", app: "daos", section: "new" }
     if (rest.startsWith("dao/")) return daoTarget(rest.slice(4))
+    // A weighted DAO's classic workspace is its DAO folder here.
+    if (rest.startsWith("weighted-dao/")) return daoTarget(rest.slice("weighted-dao/".length))
     const ms = /^multisig\/([^/]+)$/.exec(rest)
     if (ms && ADDRESS.test(ms[1])) return { kind: "multisig", address: ms[1] }
     const app = OS_APPS.find((a) => owns(a, rest))

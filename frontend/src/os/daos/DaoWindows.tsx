@@ -25,6 +25,7 @@ import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } 
 import { voteRequest, voteScope } from "./voteRequest"
 import { JoinMembaDao } from "./JoinMembaDao"
 import { WeightedDaoFolder } from "./WeightedDaoFolder"
+import { WeightedProposalWindow } from "./WeightedProposal"
 
 const ProposeWizard = lazy(() => import("./ProposeWizard").then((m) => ({ default: m.ProposeWizard })))
 
@@ -59,20 +60,21 @@ function refreshDaoState(queryClient: QueryClient) {
 
 /**
  * The proposal windows of the equal-headcount DAO kinds. Their loaders read
- * nothing until the contract is known to be one of theirs; a weighted DAO
- * keeps its proposals in its own DAO window.
+ * nothing until the contract is known to be one of theirs. A weighted DAO
+ * shows `weighted` instead, or a pointer to its DAO window when it has no
+ * window of this kind.
  */
-function StandardDaoOnly({ dao, realmPath, what, open, children }: { dao: string; realmPath: string; what: string; open: (spec: WindowSpec) => void; children: ReactNode }) {
+function StandardDaoOnly({ dao, realmPath, what, open, weighted, children }: { dao: string; realmPath: string; what: string; open: (spec: WindowSpec) => void; weighted?: ReactNode; children: ReactNode }) {
     const kind = useDaoKind(realmPath)
     if (kind.loading) return <Loading what={what} />
     if (kind.error) return <ContractUnknown realmPath={realmPath} />
     if (kind.kind === "weighted") {
-        return (
+        return weighted ?? (
             <div className="os-holding">
                 <ThingTile icon="folder" tint={DAO_TINT} size={44} />
                 <div className="os-holding-title">This DAO votes by points</div>
-                <p className="os-sub">Its proposals, and proposing, voting and executing, are in its DAO window.</p>
-                <button type="button" className="os-btn" onClick={() => open(daoSpec(dao))}>Open {dao}</button>
+                <p className="os-sub">Its proposals are in its DAO window, under Proposals.</p>
+                <button type="button" className="os-btn" onClick={() => open(daoSpec(dao, "proposals"))}>Open {dao}</button>
             </div>
         )
     }
@@ -192,17 +194,9 @@ function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoF
             </div>
         )
     }
-    // A weighted DAO is one workspace (points, members, adapters, proposals), not the four sections below.
-    if (kind.kind === "weighted") {
-        return (
-            <>
-                <WeightedDaoFolder realmPath={realmPath} session={session} active={active} />
-                {join}
-            </>
-        )
-    }
     let body: ReactNode
-    if (config.isPending) body = <Loading what="the DAO" />
+    if (kind.kind === "weighted") body = <WeightedDaoFolder name={name} realmPath={realmPath} section={section} open={open} session={session} active={active} />
+    else if (config.isPending) body = <Loading what="the DAO" />
     else if (config.isError) body = <Failed what="this DAO" retry={() => void config.refetch()} />
     else if (!config.data) body = <p className="os-note os-warn">No DAO answers at {realmPath} on this network.</p>
     else if (section === "overview") {
@@ -277,7 +271,8 @@ function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoF
                 ))}
             </div>
             <div id={panelId} className="os-folder-body" role="tabpanel" aria-labelledby={tabId(section)} tabIndex={0}>
-                {join && section === "overview" ? <div className="os-stack">{body}{join}</div> : body}
+                {/* One element around the body on every section: switching sections must not remount it (a weighted DAO's open workspace lives in it). */}
+                {join ? <div className="os-stack">{body}{section === "overview" && join}</div> : body}
             </div>
         </div>
     )
@@ -288,7 +283,11 @@ function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoF
 export function ProposalWindow({ dao, n, session, open }: { dao: string; n: number; session: OsSession; open: (spec: WindowSpec) => void }) {
     const realmPath = realmForName(dao)
     if (!realmPath) return <NotADao name={dao} />
-    return <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open}><ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} /></StandardDaoOnly>
+    return (
+        <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} id={String(n)} session={session} />}>
+            <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} />
+        </StandardDaoOnly>
+    )
 }
 
 /** The New proposal wizard, behind the same contract check as the proposal window. */

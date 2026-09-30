@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Memba DAO in its own window (2026-09-30)
+- Memba DAO opens natively in its Memba OS window: Overview (how decisions pass, open proposals, each governed application with its rules and who controls it), Proposals with a window per proposal, Members, and a Treasury that says the DAO holds and spends nothing and where application fees go today. Guests read all of it; the window re-reads the chain each minute and says when it shows a previous read.
+
 ### Memba OS: an open News article survives a reload (2026-09-30)
 - A News article open in Memba OS stays open after a reload or Back when another window is in front.
 
