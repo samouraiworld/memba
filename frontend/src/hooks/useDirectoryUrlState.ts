@@ -12,6 +12,7 @@
 import { useCallback, useMemo } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
+    DEFAULT_DIRECTORY_TAB,
     parseDirectoryUrl,
     serializeDirectoryUrl,
     type DirectoryUrlState,
@@ -37,7 +38,15 @@ export function useDirectoryUrlState(): [
         (patch: Partial<DirectoryUrlState>) => {
             const replace = isReplaceUpdate(patch)
             setSearchParams(
-                prev => serializeDirectoryUrl({ ...parseDirectoryUrl(prev), ...patch }),
+                prev => {
+                    const next = serializeDirectoryUrl({ ...parseDirectoryUrl(prev), ...patch })
+                    // Once the address names a tab, it keeps naming one, the default tab included:
+                    // inside a Memba OS window the bare address is the Explorer's native home, so from a
+                    // named tab, picking the default tab, clearing a search or closing a drawer must not
+                    // fall back to it. An address that names no tab is written as before.
+                    if (prev.has("tab") && !next.has("tab")) next.set("tab", DEFAULT_DIRECTORY_TAB)
+                    return next
+                },
                 { replace },
             )
         },

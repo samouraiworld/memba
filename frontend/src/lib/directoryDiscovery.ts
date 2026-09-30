@@ -7,11 +7,13 @@ export interface DirectoryDiscovery {
     packages: DirectoryPackage[]
     realms: DirectoryRealm[]
     status: "ready" | "partial" | "unavailable"
+    /** The realm listing's own read: "partial" is a listing cut at its limit, "unavailable" one that was not read. */
+    realmStatus: "ready" | "partial" | "unavailable"
     checkedAt?: string
 }
 export function directorySeedData(networkKey: string, daos: DirectoryDAO[]): DirectoryDiscovery {
     const { packages, realms } = directorySeeds(networkKey)
-    if (!NETWORKS[networkKey]) return { packages, realms, status: "unavailable" }
+    if (!NETWORKS[networkKey]) return { packages, realms, status: "unavailable", realmStatus: "unavailable" }
     const paths = new Set(realms.map(item => item.path))
     for (const dao of daos) {
         if (dao.isSaved && !paths.has(dao.path)) {
@@ -19,7 +21,7 @@ export function directorySeedData(networkKey: string, daos: DirectoryDAO[]): Dir
             paths.add(dao.path)
         }
     }
-    return { packages, realms, status: "partial" }
+    return { packages, realms, status: "partial", realmStatus: "unavailable" }
 }
 /** Two bounded namespace reads. The old Gnolove feed has no chain identity;
  * omit it instead of presenting historical heights as selected-network facts.
@@ -28,7 +30,7 @@ export function directorySeedData(networkKey: string, daos: DirectoryDAO[]): Dir
 export async function fetchDirectoryDiscovery(networkKey: string, daos: DirectoryDAO[]): Promise<DirectoryDiscovery> {
     const result = directorySeedData(networkKey, daos)
     const network = NETWORKS[networkKey]
-    if (!network?.explorerUrl) return { ...result, status: "unavailable" }
+    if (!network?.explorerUrl) return { ...result, status: "unavailable", realmStatus: "unavailable" }
     const [packages, realms] = await Promise.all([
         fetchNamespaceListing(network.explorerUrl, "samcrew", "p", network.chainId),
         fetchNamespaceListing(network.explorerUrl, "samcrew", "r", network.chainId),
@@ -46,7 +48,7 @@ export async function fetchDirectoryDiscovery(networkKey: string, daos: Director
             else result.realms.push({ name: item.name, path, description: "Listed in this network’s samcrew namespace", category: "unknown", ...metadata })
         }
     }
-    return { ...result, checkedAt, status: packages.status === "ready" && realms.status === "ready" ? "ready" : "partial" }
+    return { ...result, checkedAt, status: packages.status === "ready" && realms.status === "ready" ? "ready" : "partial", realmStatus: realms.status }
 }
 export function discoveryProvenanceLabel(item: DiscoveryProvenance): string {
     if (item.provenance === "namespace") return "Namespace listing · read status not checked"

@@ -16,7 +16,7 @@ describe("network-scoped discovery", () => {
         const testnet = directorySeeds("pearl")
         expect(testnet.packages).toHaveLength(SEED_PACKAGES.length)
         expect([...testnet.realms, ...testnet.packages].every(r => r.networkKey === "pearl" && r.provenance === "reference" && !r.checkedAt)).toBe(true)
-        expect(directorySeedData("unknown", [])).toEqual({ packages: [], realms: [], status: "unavailable" })
+        expect(directorySeedData("unknown", [])).toEqual({ packages: [], realms: [], status: "unavailable", realmStatus: "unavailable" })
     })
     it("does not relabel the loaded chain's saved paths for another network", () => {
         localStorage.setItem("memba_saved_daos", JSON.stringify([{ realmPath: "gno.land/r/custom/saved", name: "Saved", addedAt: Date.now(), network: ACTIVE_NETWORK_KEY, chainId: NETWORKS[ACTIVE_NETWORK_KEY].chainId }]))
@@ -28,6 +28,8 @@ describe("network-scoped discovery", () => {
         vi.mocked(fetchNamespaceListing).mockResolvedValueOnce({ status: "unavailable", items: [] }).mockResolvedValueOnce({ status: "ready", items: [{ name: "listed", path: "/r/samcrew/listed", gnowebUrl: "https://gno.land/r/samcrew/listed" }] })
         const result = await fetchDirectoryDiscovery("mainnet", [])
         expect(result.status).toBe("partial")
+        // The packages listing failed; the realm listing was read in full, and says so on its own.
+        expect(result.realmStatus).toBe("ready")
         expect(result.realms).toHaveLength(4)
         expect(result.realms[3]).toMatchObject({ networkKey: "mainnet", provenance: "namespace" })
         expect(JSON.stringify(result)).not.toContain("Deployed at block")
@@ -40,6 +42,7 @@ describe("network-scoped discovery", () => {
             .mockResolvedValueOnce({ status: "ready", items: [] })
         const result = await fetchDirectoryDiscovery("mainnet", [])
         expect(result.status).toBe("partial")
+        expect(result.realmStatus).toBe("ready")
         expect(result.packages).toEqual([expect.objectContaining({ path: "gno.land/p/samcrew/capped", provenance: "namespace" })])
     })
     it("distinguishes successful empty discovery from failure without mutating seeds", async () => {
@@ -49,6 +52,6 @@ describe("network-scoped discovery", () => {
         result.packages[0].description = "mutated"
         expect(directorySeeds("pearl").packages[0].description).not.toBe("mutated")
         vi.mocked(fetchNamespaceListing).mockResolvedValue({ status: "unavailable", items: [] })
-        expect((await fetchDirectoryDiscovery("pearl", [])).status).toBe("partial")
+        expect(await fetchDirectoryDiscovery("pearl", [])).toMatchObject({ status: "partial", realmStatus: "unavailable" })
     })
 })

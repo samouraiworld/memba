@@ -107,8 +107,9 @@ for (const scheme of ['light', 'dark'] as const) {
 }
 
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
- * inside the window instead. */
-const CLASSIC_APPS = ['quests', 'dev-report', 'explorer', 'feedback']
+ * inside the window instead. The Explorer's home is native (scanned below); its classic
+ * directory is still what a tab address shows. */
+const CLASSIC_APPS = ['quests', 'dev-report', 'explorer?tab=packages', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
@@ -132,6 +133,16 @@ for (const scheme of ['light', 'dark'] as const) {
                 expect(await classicViolations(page)).toEqual([])
             })
         }
+
+        test('Explorer native home window', async ({ page }) => {
+            await page.goto(`${OS_ON}/os/explorer`)
+            const explorer = page.getByRole('region', { name: 'Explorer', exact: true })
+            await expect(explorer.getByRole('heading', { level: 1, name: 'Realm directory' })).toBeVisible()
+            // Chain reads are refused here: the curated rows show under the unreachable notices.
+            await expect(explorer.getByRole('button', { name: 'Open GovDAO, gno.land/r/gov/dao' })).toBeVisible({ timeout: 30_000 })
+            await expect(explorer.locator('.os-classic')).toHaveCount(0)
+            expect(await violations(page)).toEqual([])
+        })
 
         test('Feed native unavailable window', async ({ page }) => {
             await page.goto(`${OS_ON}/os/feed`)

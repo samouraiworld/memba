@@ -1,0 +1,26 @@
+/*
+ * Explorer native home. Every rule sits under .os-explorer; sizes follow the
+ * window (the os-window container), never the viewport.
+ */
+.memba-os .os-explorer { min-width: 0; }
+/* Grid items default to their content's minimum width; these may shrink with the window. */
+.memba-os .os-explorer > *, .memba-os .os-explorer > .os-stack > * { min-width: 0; }
+.memba-os .os-explorer h1 { margin: 0 0 4px; font-size: 20px; line-height: 1.2; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.memba-os .os-explorer-lede { margin: 0; max-width: 64ch; line-height: 1.5; }
+.memba-os .os-explorer .os-stat-v { overflow-wrap: anywhere; }
+.memba-os .os-explorer-search { display: grid; gap: 6px; }
+.memba-os .os-explorer-search label { font-size: 11px; font-weight: 700; color: var(--os-mut); }
+.memba-os .os-explorer-search > div { display: flex; gap: 8px; }
+.memba-os .os-explorer-open { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+/* Long realm paths wrap inside their cell instead of widening the window. */
+.memba-os .os-explorer .os-t td { vertical-align: top; overflow-wrap: anywhere; }
+.memba-os .os-explorer-name { display: block; font-weight: 700; }
+.memba-os .os-explorer-path { display: block; font: 500 11px var(--os-mono); color: var(--os-mut); }
+.memba-os .os-explorer-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.memba-os .os-explorer-pager .os-sub { margin-right: auto; font-variant-numeric: tabular-nums; }
+.memba-os .os-explorer-tab { overflow-wrap: anywhere; }
+@container os-window (max-width: 420px) {
+  /* Two figures per row in a phone-width window, in a size two cards have room for. */
+  .memba-os .os-explorer .os-grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .memba-os .os-explorer .os-stat-v { font-size: 17px; }
+}

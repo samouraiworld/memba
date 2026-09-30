@@ -16,7 +16,7 @@ async function spill(page: Page): Promise<string[]> {
         const scrolls = (el: Element) => /auto|scroll/.test(getComputedStyle(el).overflowX)
         const out: string[] = []
         if (body.scrollWidth > body.clientWidth + 1) out.push(`window body scrolls sideways by ${body.scrollWidth - body.clientWidth}px`)
-        body.querySelectorAll<HTMLElement>('.os-classic *, .os-store-home *, .os-store-detail *, .os-validators *').forEach((el) => {
+        body.querySelectorAll<HTMLElement>('.os-classic *, .os-store-home *, .os-store-detail *, .os-validators *, .os-explorer *').forEach((el) => {
             if (el instanceof SVGElement) return
             for (let p = el.parentElement; p && p !== body; p = p.parentElement) if (scrolls(p)) return
             const r = el.getBoundingClientRect()
@@ -34,6 +34,7 @@ const PAGES = [
     ['validators', 'Validators', '.os-validators-head', 'flex'],
     ['quests', 'Quests', '.k-questhub-hero', 'flex'],
     ['dev-report', 'Dev Report', '.gl-subnav', 'flex'],
+    ['explorer', 'Explorer', '.os-explorer-search', 'grid'],
 ] as const
 
 test.describe('Memba OS pages in a narrow window', () => {

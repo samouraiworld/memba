@@ -48,8 +48,9 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 // Feed, Tokens and News now have native windows; this sweep covers classic pages, and
-// the Validators window, whose home is native, on that view's own root.
-const APPS = ['quests', 'validators', 'profile', 'explorer', 'feedback', 'dev-report']
+// the Validators window, whose home is native, on that view's own root. The Explorer's
+// home is native too: its classic directory is swept at a tab address.
+const APPS = ['quests', 'validators', 'profile', 'explorer?tab=packages', 'feedback', 'dev-report']
 const NATIVE_ROOT: Record<string, string> = { validators: '.os-validators' }
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {

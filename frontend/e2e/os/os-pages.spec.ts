@@ -49,6 +49,37 @@ test.describe('Memba OS pages in windows', () => {
         await expect(win(page, 'NFT')).toBeVisible()
     })
 
+    test('the Explorer opens on its native realm directory; a tab or a realm opens the classic view in the same window', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/explorer`)
+        const explorer = win(page, 'Explorer')
+        const home = explorer.getByRole('heading', { level: 1, name: 'Realm directory' })
+        await expect(home).toBeVisible()
+        await expect(explorer.locator('.os-classic')).toHaveCount(0)
+        // Chain reads are refused: the home says so instead of showing figures, over the curated realms.
+        await expect(explorer.getByText('The chain figures could not be read from the network.')).toBeVisible({ timeout: 30_000 })
+        await explorer.getByRole('button', { name: /^Packages/ }).click()
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=packages')
+        const tab = (name: string) => explorer.locator('.dir-tab', { hasText: name })
+        await expect(tab('Packages')).toHaveAttribute('aria-selected', 'true')
+        // The classic page keeps naming its tab: its default tab must not land on the native home.
+        await tab('DAOs').click()
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=daos')
+        await tab('Packages').click()
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=packages')
+        await expect(explorer.locator('.os-classic')).toBeVisible()
+        await explorer.getByRole('button', { name: 'Realm directory' }).click()
+        await expect(home).toBeFocused()
+        await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/os/explorer')
+        await explorer.getByRole('button', { name: 'Open GovDAO, gno.land/r/gov/dao' }).click()
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=explorer&realm=r%2Fgov%2Fdao')
+        await expect(explorer.locator('.os-classic')).toBeVisible()
+        await expect(page.getByRole('region', { name: 'Explorer', exact: true })).toHaveCount(1)
+        // Opening a realm is a history entry: Back returns to the home.
+        await page.goBack()
+        await expect(home).toBeVisible()
+        await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/os/explorer')
+    })
+
     test("a window's own query (the Validators list) sits beside the other windows' key, and survives reload and a shared link", async ({ page }) => {
         // A served roster (registered after the chain-read abort, so it wins): the lists render with data.
         await fulfillProValidatorRoster(page)
