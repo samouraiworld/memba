@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: the NFT window's own home (2026-10-01)
+- The Memba OS NFT window has its own home. Where the Launchpad NFT ledger is deployed it lists the newest collections, newest first, reads each row strictly, and tells a failed read (with Retry) from data that breaks the ledger's rules; where the ledger is not on the network it says so instead of showing an empty list.
+
 ### Memba OS: a refused transaction is reported as refused (2026-10-01)
 - Fixed: Memba OS says when the network ran a transaction and refused it (it did not take effect, and its network fee was still charged) instead of "not visible on chain yet", reads that outcome only from a node of the current network, and a refused send no longer holds the Send window.
 

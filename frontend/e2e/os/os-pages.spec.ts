@@ -35,7 +35,7 @@ test.describe('Memba OS pages in windows', () => {
         const nft = win(page, 'NFT')
         // The default network is mainnet: the home names the missing registry
         // and the build flag instead of implying NFT actions are available.
-        await expect(nft.getByRole('note')).toContainText('collection registry is not deployed')
+        await expect(nft.getByRole('note')).toContainText('NFT ledger is not deployed')
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft')
         await expect(page.getByRole('region', { name: 'Market', exact: true })).toHaveCount(0)
         await nft.getByRole('button', { name: 'Open Market' }).click()
@@ -191,7 +191,7 @@ for (const view of [
         await page.setViewportSize({ width: view.width, height: view.height })
         await page.goto(`${OS_ON}/os/nft`)
         const nft = win(page, 'NFT')
-        await expect(nft.getByRole('note')).toContainText('collection registry is not deployed')
+        await expect(nft.getByRole('note')).toContainText('NFT ledger is not deployed')
         if ('windowWidth' in view) {
             await nft.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
         }

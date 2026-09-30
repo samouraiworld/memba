@@ -24,11 +24,11 @@ export function Empty({ title, action }: { title: string; action?: ReactNode }) 
     )
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
     return (
         <div className="os-note os-err os-row" role="alert">
             <span>{message}</span>
-            <button type="button" className="os-btn os-quiet" onClick={onRetry}>Retry</button>
+            {onRetry && <button type="button" className="os-btn os-quiet" onClick={onRetry}>Retry</button>}
         </div>
     )
 }
