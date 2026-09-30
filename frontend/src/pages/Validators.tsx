@@ -28,21 +28,15 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls, isReviewsAvailable } from "../lib/config"
 import {
-    getValidators,
-    getValidatorRpcSnapshot,
-    getNetworkStats,
     getAggregatedNetPeers,
     formatVotingPower,
     formatBlockTime,
     formatPercent,
     truncateValidatorAddr,
-    mergeWithMonitoringData,
-    fetchValoperMonikers,
-    mergeValoperMonikers,
-    fetchLastBlockSignatures,
     formatRelativeTime,
     type ValidatorInfo,
 } from "../lib/validators"
+import { fetchValidatorRoster, ROSTER_REFRESH_MS, ROSTER_SIGNATURE_WINDOW } from "../lib/validatorRoster"
 import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
 import { ValoperPanel } from "../components/validators/ValoperPanel"
 import { ValidatorHoverCard } from "../components/validators/ValidatorHoverCard"
@@ -52,15 +46,13 @@ import { computeValoperStatus, fetchValopers, type ValoperWithStatus } from "../
 import { getDAOConfig } from "../lib/dao/config"
 import { buildGovernanceReadiness, GOVDAO_REALM_PATH } from "../lib/governanceReadiness"
 import { GovernanceReadinessPanel } from "../components/validators/GovernanceReadinessPanel"
-import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
+import type { MonitoringIncident } from "../lib/gnomonitoring"
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip,
     ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts"
 import {
     ValidatorHealthStatus,
-    computeHealthStatus,
-    computeNetworkHealth,
     healthCssClass,
     healthLabel,
     healthIcon,
@@ -69,7 +61,6 @@ import { isProValidatorsRoute } from "../lib/proUi"
 import "./validators.css"
 import "../components/layout/professional-pilot.css"
 
-const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 const SORT_KEYS: readonly SortKey[] = ["rank", "votingPower", "powerPercent", "participationRate", "uptimePercent", "missedBlocks", "txContrib"]
 const HEALTH_FILTERS: readonly string[] = ["all", "healthy", "degraded", "down", "unknown"]
 
@@ -77,12 +68,6 @@ function positivePageParam(raw: string | null, fallback: number): number {
     const value = Number(raw)
     return raw && Number.isSafeInteger(value) && value > 0 ? value : fallback
 }
-
-// Blocks of signing history shown per roster row. The roster strip is a
-// sparkline and the health engine only reads the leading run, so 100 bought
-// nothing here and cost 100 /block calls on every poll — the profile keeps the
-// full 100 where the detail is actually read.
-const ROSTER_SIGNATURE_WINDOW = 20
 
 // Stable empty fallbacks so derived memos don't churn between renders.
 const NO_VALIDATORS: ValidatorInfo[] = []
@@ -217,61 +202,21 @@ export default function Validators() {
         if (t === "validators") next.delete("tab"); else next.set("tab", t)
         return next
     })
-    // Classic pages embedded in OS windows receive a synthetic route location;
-    // router state does not survive that handoff. Carry the roster return view
-    // in the profile URL as well as the Link state.
+    // Router state does not survive a reload or a copied link. Carry the roster
+    // return view in the profile URL as well as the Link state.
     const returnQueryString = searchParams.toString()
     const profilePath = (addr: string) => `/${nk}/validators/${addr}${returnQueryString ? `?from=${encodeURIComponent(returnQueryString)}` : ""}`
 
     // ── Server state, in React Query ──────────────────────────
-    // The roster poll: core fetch fan-out, sequential stats (H-11: stats needs
-    // the prefetched validators), then the three-stage merge. Polls every
-    // REFRESH_INTERVAL_MS; the shared client's refetchIntervalInBackground:false
-    // is the old Page-Visibility gate (C2/M8), and the queryFn's AbortSignal
-    // replaces the manual AbortController.
+    // The roster poll (lib/validatorRoster). Polls every ROSTER_REFRESH_MS; the
+    // shared client's refetchIntervalInBackground:false is the old
+    // Page-Visibility gate (C2/M8), and the queryFn's AbortSignal replaces the
+    // manual AbortController.
     const rosterQuery = useQuery({
         queryKey: ["validators", "roster", nk],
         enabled: windowActive,
-        refetchInterval: windowActive ? REFRESH_INTERVAL_MS : false,
-        queryFn: async ({ signal }) => {
-            const snapshot = await getValidatorRpcSnapshot(signal)
-            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
-                getValidators(GNO_RPC_URL, snapshot, signal),
-                fetchAllMonitoringData(signal),
-                fetchValoperMonikers(GNO_RPC_URL, snapshot, signal),
-                fetchLastBlockSignatures(GNO_RPC_URL, ROSTER_SIGNATURE_WINDOW, 10, snapshot, signal),
-            ])
-            const netStats = await getNetworkStats(GNO_RPC_URL, vals, signal, snapshot)
-            // v2.13: valoper monikers first (primary on-chain source), then
-            // gnomonitoring enrichment, then signatures + health.
-            const withMonikers = mergeValoperMonikers(vals, valoperMap)
-            const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
-            // A validator that signed NOTHING in the window is absent from sigMap:
-            // gno nil-pads precommits, so a missed block carries no address and a
-            // fully-down validator is undiscoverable from block data alone. Seed it
-            // from the roster instead, or the one validator most worth flagging is
-            // the one that reads as "no data".
-            // Guarded on a non-empty map: if the fetch failed outright we know
-            // nothing, and must not manufacture a window of misses.
-            const sigWindow = Math.max(0, ...[...sigMap.values()].map(a => a.length))
-            const withHealth = enriched.map(v => {
-                const own = sigMap.get(v.gnoAddr.toLowerCase())
-                const withSigs = {
-                    ...v,
-                    lastBlockSignatures: own ?? (sigWindow > 0 ? new Array<boolean>(sigWindow).fill(false) : []),
-                }
-                const healthMeta = computeHealthStatus(withSigs)
-                return { ...withSigs, healthStatus: healthMeta.status, healthMeta }
-            })
-            return {
-                validators: withHealth,
-                stats: netStats,
-                networkHealth: computeNetworkHealth(withHealth),
-                valoperMonikers: new Set([...valoperMap.values()].map(m => m.toLowerCase())),
-                activeSigning: new Set(withHealth.map(v => v.gnoAddr)),
-                snapshot,
-            }
-        },
+        refetchInterval: windowActive ? ROSTER_REFRESH_MS : false,
+        queryFn: ({ signal }) => fetchValidatorRoster(signal),
     })
     const validators = rosterQuery.data?.validators ?? NO_VALIDATORS
     const stats = rosterQuery.data?.stats ?? null
@@ -291,7 +236,7 @@ export default function Validators() {
     const netInfoQuery = useQuery({
         queryKey: ["validators", "netpeers", nk],
         enabled: windowActive && tab === "network",
-        refetchInterval: windowActive && tab === "network" ? REFRESH_INTERVAL_MS : false,
+        refetchInterval: windowActive && tab === "network" ? ROSTER_REFRESH_MS : false,
         queryFn: async ({ signal }) => {
             try {
                 return await getAggregatedNetPeers(telemetryRpcUrls, signal)

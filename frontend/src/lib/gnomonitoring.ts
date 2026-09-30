@@ -81,7 +81,8 @@ export interface MonitoringTxContrib {
 export interface MonitoringValidatorData {
     addr: string
     moniker: string
-    participationRate: number
+    /** Null when the participation source did not answer for this validator: never a made-up zero. */
+    participationRate: number | null
     uptime: number | null
     firstSeen: string | null
     /** Total missed blocks this period (from /missing_block) */
@@ -531,7 +532,7 @@ export async function fetchAllMonitoringData(
             entry = {
                 addr,
                 moniker: isRealMoniker(moniker, addr) ? moniker : "",
-                participationRate: 0,
+                participationRate: null,
                 uptime: null,
                 firstSeen: null,
                 missedBlocks: null,

@@ -16,7 +16,7 @@ async function spill(page: Page): Promise<string[]> {
         const scrolls = (el: Element) => /auto|scroll/.test(getComputedStyle(el).overflowX)
         const out: string[] = []
         if (body.scrollWidth > body.clientWidth + 1) out.push(`window body scrolls sideways by ${body.scrollWidth - body.clientWidth}px`)
-        body.querySelectorAll<HTMLElement>('.os-classic *, .os-store-home *, .os-store-detail *').forEach((el) => {
+        body.querySelectorAll<HTMLElement>('.os-classic *, .os-store-home *, .os-store-detail *, .os-validators *').forEach((el) => {
             if (el instanceof SVGElement) return
             for (let p = el.parentElement; p && p !== body; p = p.parentElement) if (scrolls(p)) return
             const r = el.getBoundingClientRect()
@@ -31,7 +31,7 @@ async function spill(page: Page): Promise<string[]> {
 const PAGES = [
     ['feed', 'Feed', '.os-feed__stack', 'flex'],
     ['store', 'App Store', '.os-store-grid', 'grid'],
-    ['validators', 'Validators', '.val-stats-grid', 'grid'],
+    ['validators', 'Validators', '.os-validators-head', 'flex'],
     ['quests', 'Quests', '.k-questhub-hero', 'flex'],
     ['dev-report', 'Dev Report', '.gl-subnav', 'flex'],
 ] as const

@@ -4,6 +4,7 @@ import { settle, settleAnimations } from './settle'
 import { OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { abortOnchainReads } from '../helpers/onchain'
+import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
 
 // No serious or critical WCAG 2.1 AA violations (contrast included) on the main
 // Memba OS surfaces, in the light and dark themes, desktop and phone. The scan
@@ -107,7 +108,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
  * inside the window instead. */
-const CLASSIC_APPS = ['quests', 'validators', 'dev-report', 'explorer', 'feedback']
+const CLASSIC_APPS = ['quests', 'dev-report', 'explorer', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
@@ -161,6 +162,27 @@ for (const scheme of ['light', 'dark'] as const) {
             const tokens = page.getByRole('region', { name: 'Tokens', exact: true })
             await expect(tokens.getByRole('note')).toContainText('factory is not deployed')
             await expect(tokens.locator('.os-classic')).toHaveCount(0)
+            expect(await violations(page)).toEqual([])
+        })
+
+        test('Validators native window', async ({ page }) => {
+            // Served after the chain-read abort, so it wins. The mixed roster has all four health
+            // states (every pill tone, each with its reason) and a validator nobody monitors.
+            await fulfillProValidatorRoster(page, 'mixed')
+            await page.goto(`${OS_ON}/os/validators`)
+            const validators = page.getByRole('region', { name: 'Validators', exact: true })
+            await expect(validators.getByRole('button', { name: 'Open validator Northstar' })).toBeVisible()
+            for (const health of ['Healthy', 'Degraded', 'Down', 'Unknown']) {
+                await expect(validators.getByRole('table').getByText(health, { exact: true })).toBeVisible()
+            }
+            await expect(validators.locator('.os-classic')).toHaveCount(0)
+            expect(await violations(page)).toEqual([])
+        })
+
+        test('Validators native window when the chain cannot be read', async ({ page }) => {
+            await page.goto(`${OS_ON}/os/validators`)
+            const validators = page.getByRole('region', { name: 'Validators', exact: true })
+            await expect(validators.getByRole('alert')).toContainText('The validator set could not be read')
             expect(await violations(page)).toEqual([])
         })
 

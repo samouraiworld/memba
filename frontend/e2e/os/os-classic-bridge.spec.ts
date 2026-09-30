@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { settle } from './settle'
 import { OS_ON } from '../../playwright.os.config'
 import { abortOnchainReads } from '../helpers/onchain'
+import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
 
 // Classic pages inside Memba OS windows wear the Aqua tokens instead of the Beta
 // teal palette. Chain reads and third-party hosts are refused so the probes are
@@ -46,8 +47,10 @@ for (const theme of ['light', 'dark'] as const) {
     })
 }
 
-// Feed, Tokens and News now have native windows; this sweep covers classic pages.
+// Feed, Tokens and News now have native windows; this sweep covers classic pages, and
+// the Validators window, whose home is native, on that view's own root.
 const APPS = ['quests', 'validators', 'profile', 'explorer', 'feedback', 'dev-report']
+const NATIVE_ROOT: Record<string, string> = { validators: '.os-validators' }
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
     await guest(page)
@@ -74,11 +77,12 @@ const TEAL_RGB = '(?:0, ?212, ?170|0, ?168, ?138|0, ?230, ?187|0, ?148, ?120|15,
 
 async function sweepTealFor(page: Page, app: string, hits: string[]) {
     await page.goto(`${OS_ON}/os/${app}`)
-    const classic = page.locator('.os-classic').first()
+    const root = NATIVE_ROOT[app] ?? '.os-classic'
+    const classic = page.locator(root).first()
     try {
         await classic.waitFor({ timeout: 20_000 })
     } catch {
-        if (!WALLET_GATED.includes(app)) throw new Error(`${app}: no .os-classic`)
+        if (!WALLET_GATED.includes(app)) throw new Error(`${app}: no ${root}`)
         test.info().annotations.push({ type: 'skipped', description: `${app}: wallet-gated for a guest, no .os-classic to sweep` })
         return
     }
@@ -121,6 +125,8 @@ test('no Beta teal inside the app windows', async ({ page }) => {
 test('no Beta teal inside the app windows (dark: validators, dev-report)', async ({ page }) => {
     test.setTimeout(2 * 40_000 + 30_000)
     await guest(page)
+    // Served after the chain-read abort, so it wins: the Validators table, with every health state.
+    await fulfillProValidatorRoster(page, 'mixed')
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.addInitScript(() => {
         localStorage.setItem('memba_os_skip_intro', '1')

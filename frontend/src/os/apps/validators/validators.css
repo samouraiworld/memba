@@ -1,0 +1,38 @@
+/* Native Validators window. Tokens only; every rule is scoped to an .os-validators class. */
+/* One column that may shrink: a wide table scrolls in its own box instead of widening the window. */
+.memba-os .os-validators { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.memba-os .os-validators-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.memba-os .os-validators-head h1 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+.memba-os .os-validators-head p { margin: 4px 0 0; }
+.memba-os .os-validators-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+/* The field itself is the shell's .os-in; only its share of the row is set here. */
+.memba-os .os-validators-search { flex: 1 1 200px; max-width: 320px; }
+.memba-os .os-validators-search::placeholder { color: var(--os-mut); opacity: 1; }
+/* The open button stacks the name over the address. */
+.memba-os .os-validators .os-t-open { display: grid; gap: 1px; }
+.memba-os .os-validators-name { font-weight: 700; overflow-wrap: anywhere; }
+.memba-os .os-validators-address { overflow-wrap: anywhere; }
+.memba-os .os-validators-reason { display: block; max-width: 30ch; margin-top: 3px; }
+.memba-os .os-validators-foot { margin: 0; max-width: 80ch; line-height: 1.5; }
+.memba-os .os-validators-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* The table's scroll box holds those hidden labels, so none can widen the window. */
+.memba-os .os-validators .os-tw { position: relative; }
+
+/* A narrow window keeps rank, name, share and health. Columns leave by position
+   (native.tsx COLUMNS): voting power (3) and participation (5) first, since share
+   ranks the same way, then uptime (6) and the address under a name; a candidate's
+   address (3) goes with them. The validator's or operator's own page has every
+   figure dropped here, and the search still finds a validator by its address. */
+@container os-window (max-width: 720px) {
+  .memba-os .os-validators-set .os-t :is(th, td):is(:nth-child(3), :nth-child(5)) { display: none; }
+  .memba-os .os-validators-search { max-width: none; }
+}
+@container os-window (max-width: 440px) {
+  .memba-os .os-validators-set .os-t :is(th, td):nth-child(6) { display: none; }
+  .memba-os .os-validators-sub { display: none; }
+  .memba-os .os-validators-candidates .os-t :is(th, td):nth-child(3) { display: none; }
+  /* Two figures a row, down to a 320px phone. */
+  .memba-os .os-validators .os-grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 16px stops iOS zooming the sheet when the field takes focus. */
+  .memba-os .os-validators-search { font-size: 16px; }
+}

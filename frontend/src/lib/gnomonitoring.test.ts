@@ -164,7 +164,8 @@ describe("gnomonitoring", () => {
         const c = result.get("g1ccc")
         expect(c).toBeDefined()
         expect(c!.firstSeen).toBe("2026-02-01")
-        expect(c!.participationRate).toBe(0)
+        // Seen by uptime only: no participation figure, not a zero.
+        expect(c!.participationRate).toBeNull()
     })
 
     it("cache serves data within TTL window", async () => {
@@ -305,6 +306,8 @@ describe("moniker resilience", () => {
         const result = await mod.fetchAllMonitoringData()
         expect(result.get("g1aaa")?.moniker).toBe("validator-a")
         expect(result.get("g1aaa")?.uptime).toBe(99.9)
+        // The participation source did not answer: its figure is missing, never a zero.
+        expect(result.get("g1aaa")?.participationRate).toBeNull()
     })
 
     it("address-shaped monikers from the backend never reach the UI", async () => {

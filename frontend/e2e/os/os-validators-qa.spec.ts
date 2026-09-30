@@ -17,26 +17,37 @@ async function fixture(page: Page, width: number) {
     await page.setViewportSize({ width, height: 800 })
 }
 
-test('Validators tabs stay fully visible in a 360 px desktop window', async ({ page }) => {
+/** The window body's sideways spill, and whether the table and every control end inside it. */
+async function fit(page: Page) {
+    return page.locator('.os-wbody').first().evaluate(body => {
+        const edge = body.getBoundingClientRect().right
+        const inside = (selector: string) => [...body.querySelectorAll(selector)].every(el => el.getBoundingClientRect().right <= edge + 1)
+        return {
+            spill: body.scrollWidth - body.clientWidth,
+            // The table fits by itself: it does not lean on its wrapper's own sideways scroll.
+            table: inside('.os-t'),
+            controls: inside('.os-segm button, .os-chipset button, .os-validators-search, .os-validators-head button'),
+        }
+    })
+}
+
+test('The Validators window fits a 360 px desktop window: both lists, the filters and a readable table', async ({ page }) => {
     await fixture(page, 1280)
     await page.goto(`${OS_ON}/os/validators`)
     const win = page.getByRole('region', { name: 'Validators', exact: true })
-    const tabs = win.getByRole('tablist', { name: 'Validators sections' })
-    await expect(tabs).toBeVisible()
-    await expect(win.locator('.val-segtabs')).toHaveCSS('display', 'grid')
-    const bounds = await tabs.evaluate(el => {
-        const strip = el.getBoundingClientRect()
-        const buttons = [...el.querySelectorAll('button')].map(button => button.getBoundingClientRect())
-        return {
-            spill: el.scrollWidth - el.clientWidth,
-            allInside: buttons.every(rect => rect.left >= strip.left - 1 && rect.right <= strip.right + 1),
-        }
-    })
-    expect(bounds.spill).toBeLessThanOrEqual(1)
-    expect(bounds.allInside).toBe(true)
-    await win.getByTestId('seg-network').click()
-    await expect(win.getByTestId('seg-network')).toHaveAttribute('aria-selected', 'true')
-    await expect(win.locator('.val-roster__table-wrap')).toBeVisible()
+    // The view's own stylesheet has applied, and the roster has loaded.
+    await expect(win.locator('.os-validators-tools')).toHaveCSS('display', 'flex')
+    await expect(win.getByRole('button', { name: 'Open validator Northstar' })).toBeVisible()
+    // A narrow window keeps rank, name, share and health; the other columns are on the validator's page.
+    await expect(win.getByRole('columnheader')).toHaveText(['Rank', 'Validator', 'Share', 'Health'])
+    const active = await fit(page)
+    expect(active.spill).toBeLessThanOrEqual(1)
+    expect(active).toMatchObject({ table: true, controls: true })
+    await win.getByRole('group', { name: 'Validator lists' }).getByRole('button', { name: 'Candidates' }).click()
+    await expect(win.getByText('No registered operator is outside the consensus set.')).toBeVisible()
+    const candidates = await fit(page)
+    expect(candidates.spill).toBeLessThanOrEqual(1)
+    expect(candidates.controls).toBe(true)
 })
 
 test('Validator profile fits a 360 px desktop window with a readable address', async ({ page }) => {
@@ -60,42 +71,57 @@ test('Validator profile fits a 360 px desktop window with a readable address', a
     expect(layout.addressInside).toBe(true)
 })
 
-test('Validators tabs fit a 320 px phone viewport', async ({ page }) => {
+test('The Validators sheet fits a 320 px phone viewport', async ({ page }) => {
     await fixture(page, 320)
     await page.goto(`${OS_ON}/os/validators`)
-    const tabs = page.getByRole('tablist', { name: 'Validators sections' })
-    await expect(tabs).toBeVisible()
-    expect(await tabs.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1)
-    await expect(page.getByTestId('seg-network')).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Validator lists' }).getByRole('button', { name: 'Candidates' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open validator Northstar' })).toBeVisible()
+    await expect(page.getByRole('columnheader')).toHaveText(['Rank', 'Validator', 'Share', 'Health'])
+    const sheet = await fit(page)
+    expect(sheet.spill).toBeLessThanOrEqual(1)
+    expect(sheet).toMatchObject({ table: true, controls: true })
 })
 
 test('Roster search explains zero matches and restores context after a profile visit', async ({ page }) => {
     await fixture(page, 1280)
     await page.goto(`${OS_ON}/os/validators`)
     const win = page.getByRole('region', { name: 'Validators', exact: true })
-    const search = win.getByRole('textbox', { name: 'Search validators' })
+    const search = win.getByRole('searchbox', { name: 'Search validators' })
+    const northstar = win.getByRole('button', { name: 'Open validator Northstar' })
     await expect(search).toBeVisible()
     await search.fill('__no_validator_matches__')
-    await expect(win.getByRole('heading', { name: 'No matching validators' })).toBeVisible()
+    await expect(win.getByText('No validator matches this search and filter.')).toBeVisible()
     await win.getByRole('button', { name: 'Clear filters' }).click()
     await expect(search).toHaveValue('')
     await search.fill('Northstar')
     await expect(page).toHaveURL(/q=Northstar/)
-    await win.getByRole('link', { name: 'Northstar', exact: true }).click()
+    await northstar.click()
+    await expect(win.getByTestId('validator-profile-page')).toBeVisible()
+    // Opening a validator is a history entry: Back returns to the list as it was searched.
+    await page.goBack()
+    await expect(search).toHaveValue('Northstar')
+    await expect(northstar).toBeVisible()
+    await page.goForward()
     await expect(win.getByTestId('validator-profile-page')).toBeVisible()
     const back = win.getByRole('link', { name: '← Validators' })
-    await expect(back).toHaveAttribute('href', /q=Northstar/)
+    await expect(back).toHaveAttribute('href', '/os/validators?q=Northstar')
     await back.click()
     await expect(search).toHaveValue('Northstar')
-    await expect(win.getByRole('link', { name: 'Northstar', exact: true })).toBeVisible()
+    await expect(northstar).toBeVisible()
+    // The classic page's link is a history entry with its query: Back returns to the
+    // validator, Forward to the list as it was searched.
+    await page.goBack()
+    await expect(win.getByTestId('validator-profile-page')).toBeVisible()
+    await page.goForward()
+    await expect(search).toHaveValue('Northstar')
 })
 
-test('Profile return link restores the Candidates segment in OS', async ({ page }) => {
+test('Profile return link restores the Candidates list in OS', async ({ page }) => {
     await fixture(page, 1280)
     await page.goto(`${OS_ON}/os/validators/g1mockval0000000000000000000000000000001?from=tab%3Dcandidates`)
     const win = page.getByRole('region', { name: 'Validators', exact: true })
     const back = win.getByRole('link', { name: '← Validators' })
     await expect(back).toHaveAttribute('href', '/os/validators?tab=candidates')
     await back.click()
-    await expect(win.getByTestId('seg-candidates')).toHaveAttribute('aria-selected', 'true')
+    await expect(win.getByRole('group', { name: 'Validator lists' }).getByRole('button', { name: 'Candidates' })).toHaveAttribute('aria-pressed', 'true')
 })

@@ -49,28 +49,37 @@ test.describe('Memba OS pages in windows', () => {
         await expect(win(page, 'NFT')).toBeVisible()
     })
 
-    test("a page's own query (a Validators tab) works in its window, follows the address bar and survives Back and reload", async ({ page }) => {
-        // A served roster (registered after the chain-read abort, so it wins): the tabs render with data.
+    test("a window's own query (the Validators list) sits beside the other windows' key, and survives reload and a shared link", async ({ page }) => {
+        // A served roster (registered after the chain-read abort, so it wins): the lists render with data.
         await fulfillProValidatorRoster(page)
         await page.goto(`${OS_ON}/os/validators?w=app.feed`)
-        const val = win(page, 'Validators')
-        const selected = (id: string) => val.getByTestId(id)
-        await expect(selected('seg-validators')).toHaveAttribute('aria-selected', 'true')
-        await selected('seg-network').click()
-        await expect(selected('seg-network')).toHaveAttribute('aria-selected', 'true')
-        // The page's query sits beside the reserved w key; the Feed window stays open.
-        await expect.poll(() => new URL(page.url()).search).toBe('?tab=network&w=app.feed')
+        const list = (name: string) => win(page, 'Validators').getByRole('group', { name: 'Validator lists' }).getByRole('button', { name })
+        await expect(list('Active set')).toHaveAttribute('aria-pressed', 'true')
+        await list('Candidates').click()
+        await expect(list('Candidates')).toHaveAttribute('aria-pressed', 'true')
+        // The view's query sits beside the reserved w key; the Feed window stays open.
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=candidates&w=app.feed')
         await expect(win(page, 'Feed')).toBeVisible()
-        await page.goBack()
-        await expect(selected('seg-validators')).toHaveAttribute('aria-selected', 'true')
+        await list('Active set').click()
         await expect.poll(() => new URL(page.url()).search).toBe('?w=app.feed')
-        await page.goForward()
-        await expect(selected('seg-network')).toHaveAttribute('aria-selected', 'true')
+        await list('Candidates').click()
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=candidates&w=app.feed')
         await page.reload()
-        await expect(win(page, 'Validators').getByTestId('seg-network')).toHaveAttribute('aria-selected', 'true')
-        // A shared link opens straight on that tab.
+        await expect(list('Candidates')).toHaveAttribute('aria-pressed', 'true')
+        // A shared link opens straight on that list.
         await page.goto(`${OS_ON}/os/validators?tab=candidates`)
-        await expect(win(page, 'Validators').getByTestId('seg-candidates')).toHaveAttribute('aria-selected', 'true')
+        await expect(list('Candidates')).toHaveAttribute('aria-pressed', 'true')
+        // Network is still the classic page's view, in this window: a history entry, so Back returns to the list.
+        const classicTab = (id: string) => win(page, 'Validators').getByTestId(id)
+        await win(page, 'Validators').getByRole('button', { name: 'Network' }).click()
+        await expect(classicTab('seg-network')).toHaveAttribute('aria-selected', 'true')
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=network')
+        await page.goBack()
+        await expect(list('Candidates')).toHaveAttribute('aria-pressed', 'true')
+        await page.goForward()
+        // The classic page's own tabs lead back to the lists.
+        await classicTab('seg-validators').click()
+        await expect(list('Active set')).toHaveAttribute('aria-pressed', 'true')
     })
 
     test('a link inside the page stays in its window, and the address bar follows', async ({ page }) => {
