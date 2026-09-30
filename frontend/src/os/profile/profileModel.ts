@@ -1,6 +1,6 @@
 import type { UserProfile } from "../../lib/profile"
 import { resolveAvatarUrl } from "../../lib/ipfs"
-import { defaultProfileDocument, safeProfileUrl, type ProfileChainRead, type ProfileDocument } from "./profileData"
+import { defaultProfileDocument, layoutLocked, safeProfileUrl, type ProfileChainRead, type ProfileDocument } from "./profileData"
 
 export type FieldSource = "Gno profile" | "Gno username" | "Address" | "Memba legacy" | "Gnolove" | "None"
 export interface ShownField { value: string; source: FieldSource }
@@ -56,7 +56,8 @@ export function shownProfile(address: string, chain: ProfileChainRead | null, le
     const document = chain?.document
     return {
         address, username, displayName, displayNameSource, avatar: imageUrl(avatarRaw),
-        bio: shown(chain?.core.bio, legacy?.bio || legacy?.githubBio || "", legacy?.bio ? "Memba legacy" : "Gnolove"),
+        // Wallet activation writes an empty Bio, which cannot be told from a deliberate clear: an empty Bio shows the earlier Memba or GitHub bio when there is one.
+        bio: shown(chain?.core.bio || null, legacy?.bio || legacy?.githubBio || "", legacy?.bio ? "Memba legacy" : "Gnolove"),
         location: shown(chain?.core.location, legacy?.githubLocation || "", "Gnolove"),
         homepage: shown(chain?.core.homepage, legacy?.socialLinks.website || "", "Memba legacy"),
         title: shown(chain?.documentPresent ? document?.title : null, legacy?.title || "", "Memba legacy"),
@@ -67,7 +68,7 @@ export function shownProfile(address: string, chain: ProfileChainRead | null, le
             login: legacy.githubLogin, commits: legacy.totalCommits, pullRequests: legacy.totalPRs,
             issues: legacy.totalIssues, reviews: legacy.totalReviews,
         } : null,
-        chainProblem: chain === null || chain.missingCore.length > 0,
-        documentProblem: chain?.documentProblem ?? false,
+        chainProblem: chain === null || chain.missingCore.length > 0 || chain.invalidCore.length > 0,
+        documentProblem: !!chain && (chain.documentUnreadable || chain.documentInvalid || layoutLocked(chain)),
     }
 }

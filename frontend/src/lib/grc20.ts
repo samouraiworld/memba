@@ -311,7 +311,12 @@ export async function networkGasPriceFresh(chainId: string = GNO_CHAIN_ID, rpcUr
     return price
 }
 
-/** The gas price for display: cached per chain for 30 s, and {@link FALLBACK_GAS_PRICE} when it cannot be read. */
+/**
+ * The gas price where a recent one will do: cached per chain for 30 s, and
+ * {@link FALLBACK_GAS_PRICE} when it cannot be read. The broadcaster prices a
+ * gas limit with it when the caller passes no fee; a reviewed fee is quoted with
+ * {@link networkGasPriceFresh} instead.
+ */
 export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: string[] = getRpcUrlsInOrder()): Promise<GasPrice> {
     const cached = gasPriceCache.get(chainId)
     if (cached && Date.now() - cached.at < GAS_PRICE_CACHE_MS) return cached.price

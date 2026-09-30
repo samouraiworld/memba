@@ -59,6 +59,8 @@ export interface UserProfile {
     company: string
     title: string
     avatarUrl: string
+    /** Both sources of an earlier bio (the Memba backend and Gnolove) answered: an empty `bio` and `githubBio` then mean there is none. */
+    bioSourcesRead: boolean
 }
 
 // ── Fetchers ──────────────────────────────────────────────────
@@ -89,6 +91,7 @@ export async function fetchUserProfile(
         company: "",
         title: "",
         avatarUrl: "",
+        bioSourcesRead: false,
     }
 
     // Parallel fetch from all sources — graceful degradation on failure
@@ -97,8 +100,9 @@ export async function fetchUserProfile(
         fetchGnoloveUser(gnoloveApiUrl, address),
         fetchGnolovePackages(gnoloveApiUrl, address),
         fetchGnoloveVotes(gnoloveApiUrl, address),
-        fetchBackendProfile(address),
+        readBackendProfile(address),
     ])
+    profile.bioSourcesRead = gnoloveResult.status === "fulfilled" && backendResult.status === "fulfilled"
 
     // On-chain username
     if (usernameResult.status === "fulfilled" && usernameResult.value) {
@@ -172,21 +176,19 @@ export async function resolveOnChainUsername(address: string): Promise<string> {
     return resolveRegisteredUsername(address)
 }
 
-/** Fetch user from gnolove API by wallet address. */
+/** Gnolove's record for an address, null when it has none. Throws when the API did not answer. */
 async function fetchGnoloveUser(
     apiUrl: string,
     address: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<Record<string, any> | null> {
-    try {
-        const res = await fetch(`${apiUrl}/users/${address}`, {
-            signal: AbortSignal.timeout(5000),
-        })
-        if (!res.ok) return null
-        return await res.json()
-    } catch {
-        return null
-    }
+    const res = await fetch(`${apiUrl}/users/${address}`, {
+        signal: AbortSignal.timeout(5000),
+    })
+    if (res.ok) return await res.json()
+    // Gnolove answers an address it does not know with this text (and status 500): that is an answer. Anything else is not.
+    if ((await res.text()).trim() === "record not found") return null
+    throw new Error(`Gnolove did not answer for this address (${res.status}).`)
 }
 
 /** Fetch deployed packages from gnolove API. */
@@ -237,21 +239,22 @@ interface BackendProfile {
 
 /** Fetch editable profile fields from Memba backend. */
 export async function fetchBackendProfile(address: string): Promise<BackendProfile | null> {
-    try {
-        const res = await api.getProfile({ address })
-        const p = res.profile
-        if (!p) return null
-        return {
-            bio: p.bio,
-            company: p.company,
-            title: p.title,
-            avatarUrl: p.avatarUrl,
-            twitter: p.twitter,
-            github: p.github,
-            website: p.website,
-        }
-    } catch {
-        return null
+    try { return await readBackendProfile(address) } catch { return null }
+}
+
+/** The backend profile, null when it has none. Throws when the backend did not answer. */
+async function readBackendProfile(address: string): Promise<BackendProfile | null> {
+    const res = await api.getProfile({ address })
+    const p = res.profile
+    if (!p) return null
+    return {
+        bio: p.bio,
+        company: p.company,
+        title: p.title,
+        avatarUrl: p.avatarUrl,
+        twitter: p.twitter,
+        github: p.github,
+        website: p.website,
     }
 }
 

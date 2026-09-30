@@ -20,7 +20,7 @@ export const CORE_FIELDS = {
 export const CORE_LIMITS = { displayName: 80, bio: 500, avatar: 256, homepage: 256, location: 100 } as const
 
 export type CoreField = keyof typeof CORE_FIELDS
-/** null means the key has never been set; "" is an explicit cleared value. */
+/** null means the key has never been set; "" was written, by a clear or, for Bio, by wallet activation. */
 export type ProfileCore = Record<CoreField, string | null>
 export type ProfileTemplate = "simple" | "builder" | "community"
 export type ProfileAccent = "indigo" | "teal" | "rose" | "amber"
@@ -73,6 +73,14 @@ export function safeProfileUrl(value: unknown): string | null {
     } catch { return null }
 }
 
+/** The version of a stored layout that parses as one, whatever else it holds; null otherwise. */
+function storedLayoutVersion(raw: string): number | null {
+    try {
+        const value: unknown = JSON.parse(raw)
+        return isRecord(value) && typeof value.version === "number" ? value.version : null
+    } catch { return null }
+}
+
 /** Unknown, malformed or oversized values are never applied as visual settings. */
 export function parseProfileDocument(raw: string): ProfileDocument | null {
     if (new TextEncoder().encode(raw).length > MAX_DOCUMENT_BYTES) return null
@@ -107,9 +115,13 @@ export function parseProfileString(raw: string | null): string | null {
     try { return decodeGoQuoted(match[1]) } catch { return null }
 }
 
-async function readField(address: string, field: string): Promise<string | null> {
+/** The chain answered with a string too long to decode: a stored value exists and Memba cannot use it. */
+const OVERSIZE = Symbol("oversize")
+
+async function readField(address: string, field: string): Promise<string | null | typeof OVERSIZE> {
     const expression = `${PROFILE_REALM}.GetStringField(address(${JSON.stringify(address)}), ${JSON.stringify(field)}, ${JSON.stringify(ABSENT)})`
     const raw = await resilientAbciQuery("vm/qeval", expression, true)
+    if (raw !== null && raw.length > MAX_QEVAL_CHARS && /^\(\s*"/.test(raw) && /"\s+string\s*\)\s*$/.test(raw)) return OVERSIZE
     const value = parseProfileString(raw)
     if (value === null) throw new Error(`Couldn't read ${field} from the profile realm.`)
     return value === ABSENT ? null : value
@@ -119,9 +131,18 @@ export interface ProfileChainRead {
     core: ProfileCore
     document: ProfileDocument
     documentPresent: boolean
-    /** A missing document is normal; an unreadable one is reported without applying its values. */
-    documentProblem: boolean
+    /** The chain did not answer for the layout. A missing layout is normal and sets neither flag. */
+    documentUnreadable: boolean
+    /** A layout is stored but is not one this version reads (malformed, over the size cap, or not a valid v1 document): its values are not applied, and its owner can replace it. */
+    documentInvalid: boolean
+    /** A layout is stored under a later version number: its values are not applied, and this version never writes over it. */
+    documentNewer: boolean
+    /** A layout is stored whose answer is too long to decode, so its version cannot be checked: treated like a newer one. */
+    documentOversize: boolean
+    /** Fields the chain did not answer for. */
     missingCore: CoreField[]
+    /** Fields stored over Memba's limit: never shown, and replaceable by their owner. */
+    invalidCore: CoreField[]
 }
 
 export async function readProfileOnChain(address: string): Promise<ProfileChainRead> {
@@ -131,15 +152,28 @@ export async function readProfileOnChain(address: string): Promise<ProfileChainR
     const results = await Promise.allSettled([...keys.map((key) => readField(address, CORE_FIELDS[key])), readField(address, PROFILE_DOCUMENT_FIELD)])
     const core = {} as ProfileCore
     const missingCore: CoreField[] = []
+    const invalidCore: CoreField[] = []
     keys.forEach((key, index) => {
         const result = results[index]
         const value = result.status === "fulfilled" ? result.value : null
-        core[key] = value !== null && [...value].length <= CORE_LIMITS[key] ? value : null
-        if (result.status === "rejected" || (value !== null && core[key] === null)) missingCore.push(key)
+        core[key] = typeof value === "string" && [...value].length <= CORE_LIMITS[key] ? value : null
+        if (result.status === "rejected") missingCore.push(key)
+        else if (value !== null && core[key] === null) invalidCore.push(key)
     })
     if (missingCore.length === keys.length) throw new Error("The profile realm could not be read. Try again.")
     const layout = results[keys.length]
     const documentRaw = layout.status === "fulfilled" ? layout.value : null
-    const parsed = documentRaw ? parseProfileDocument(documentRaw) : null
-    return { core, document: parsed ?? defaultProfileDocument(), documentPresent: !!parsed, documentProblem: layout.status === "rejected" || (!!documentRaw && !parsed), missingCore }
+    const parsed = typeof documentRaw === "string" && documentRaw ? parseProfileDocument(documentRaw) : null
+    const documentNewer = typeof documentRaw === "string" && !parsed && (storedLayoutVersion(documentRaw) ?? 0) > 1
+    const documentOversize = documentRaw === OVERSIZE
+    return {
+        core, document: parsed ?? defaultProfileDocument(), documentPresent: !!parsed,
+        documentUnreadable: layout.status === "rejected", documentInvalid: !!documentRaw && !parsed && !documentNewer && !documentOversize, documentNewer, documentOversize,
+        missingCore, invalidCore,
+    }
+}
+
+/** A stored layout this version must never write over: saved under a later version, or too long to read. */
+export function layoutLocked(chain: ProfileChainRead): boolean {
+    return chain.documentNewer || chain.documentOversize
 }

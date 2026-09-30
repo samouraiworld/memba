@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Profile: the earlier bio survives wallet activation, and unusable stored data can be replaced (2026-09-30)
+- Profile no longer loses the earlier Memba or GitHub bio after wallet activation: an empty on-chain Bio counts as unset.
+- An owner whose stored profile data Memba cannot show (too long, or a layout this version does not read) can replace it by entering a new value; the review sheet marks each replacement, and what is left empty is not touched. Clearing a Bio is not published while an earlier bio would show in its place.
+- A draft is kept with the read it was made on, so fields its owner did not touch follow the chain in the draft, in Undo and in the saved copy. A layout saved by a newer version, or too large to read, is locked instead of overwritten.
+
 ### Links: a word such as `constructor` is not a network (2026-09-30)
 - A link whose first part is a word like `constructor` no longer opens a broken page, and a feed post linking `/constructor/…` no longer shows as a Memba card.
 
