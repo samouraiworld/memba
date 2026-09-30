@@ -75,6 +75,8 @@
 .memba-os .os-store-review-prompt button { min-height: 44px; }
 .memba-os .os-store-review-widget > .os-store-review-message { margin: 0; padding: 0 16px 12px; color: var(--os-acc-ink); line-height: 1.45; }
 .memba-os .os-store-review-composer { display: grid; gap: 10px; width: 100%; min-width: 0; padding: 16px; border-top: 1px solid var(--os-line); }
+.memba-os .os-store-review-fields { display: contents; }
+.memba-os .os-store-review-actions .os-btn[aria-disabled="true"] { opacity: .6; cursor: progress; }
 .memba-os .os-store-review-composer h2 { margin: 0; font-size: 16px; }
 .memba-os .os-store-review-composer > p { margin: 0; color: var(--os-mut); line-height: 1.45; }
 .memba-os .os-store-review-label { font-size: 11px; font-weight: 750; color: var(--os-ink); }

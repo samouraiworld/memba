@@ -17,14 +17,16 @@ export interface StoreReviewDraft {
     realmPath: string
     networkKey: string
     chainId: string
-    /** The network gas price the fee is quoted at; a rise is caught again before the wallet opens. */
+    /** The network gas price the fee is quoted at, read from the chain when the sheet is asked for; a rise is caught again before the wallet opens. */
     price: GasPrice
     onSettled?: (outcome: SettledOutcome) => void
 }
 
 /**
  * Gas limit and storage deposit for PostReview, from simulations against
- * gno.land/r/samcrew/memba_reviews_v2 on gnoland-1 (2026-09-30):
+ * gno.land/r/samcrew/memba_reviews_v2 on gnoland-1 (2026-09-30). That is the realm App Store
+ * reviews move to; the realm this build is configured for is not deployed, so the composer fails
+ * closed until then.
  *
  *   new review, rating only                  12,165 B
  *   new review, 2,000-byte body              14,173 B
@@ -70,7 +72,7 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
             ["Reviews realm", review.realmPath],
             ["Network", review.chainId],
             ["Storage deposit", `≈ ${formatUgnot(deposit)} for a new review, less when replacing one (cap ${formatUgnot(REVIEW_MAX_DEPOSIT_UGNOT)})`],
-            ["Network fee", `up to ${formatUgnotExact(fee)}`],
+            ["Network fee", formatUgnotExact(fee)],
         ],
         acks: ["I understand this review is public and its chain history cannot be erased."],
         note: "Posting again for this app replaces your rating and text. A wallet signature proves authorship, not app use.",

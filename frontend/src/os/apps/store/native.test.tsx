@@ -16,7 +16,7 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
 }))
 vi.mock("../../../lib/grc20", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/grc20")>(),
-    networkGasPrice: async () => ({ gas: 1000, ugnot: 1 }),
+    networkGasPriceFresh: async () => ({ gas: 1000, ugnot: 1 }),
 }))
 vi.mock("../../../components/reviews/ReviewsSection", () => ({ ReviewsSection: () => <p>reviews</p> }))
 
@@ -43,6 +43,8 @@ describe("Store detail", () => {
         expect(await screen.findByRole("heading", { name: "Test App" })).toBeInTheDocument()
         expect(screen.getByText("Curator approved listing")).toBeInTheDocument()
         expect(screen.getByRole("link", { name: "Open external site ↗" })).toHaveAttribute("href", "https://example.com/")
+        // The control for the cases below: a live listing can be reviewed.
+        expect(screen.getByRole("button", { name: "Write a review" })).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Refresh reviews" }))
         expect(await screen.findByRole("heading", { name: "Renamed App" })).toBeInTheDocument()
     })
@@ -52,6 +54,8 @@ describe("Store detail", () => {
         ["rejected", "Rejected by a curator"],
         ["delisted", "Delisted"],
         ["unheard-of", "Unapproved listing"],
+        // A status named like an Object.prototype key must not read that key.
+        ["constructor", "Unapproved listing"],
     ])("shows a %s listing under its own name, never as curator approved, with nothing to open or review", async (status, label) => {
         mocks.fetchAppStrict.mockResolvedValue(listing({ name: "Own Name", status, descr: "Its own description." }))
         show()
@@ -63,5 +67,13 @@ describe("Store detail", () => {
         expect(screen.queryByRole("link", { name: /^Open/ })).not.toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /^Open/ })).not.toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Write a review" })).not.toBeInTheDocument()
+    })
+
+    it("says a listing has no status instead of printing an empty one", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ name: "Own Name", status: "" }))
+        show()
+        expect(await screen.findByRole("heading", { name: "Own Name" })).toBeInTheDocument()
+        expect(screen.getByRole("status")).toHaveTextContent("This listing has no status. It is not in the approved catalogue.")
+        expect(screen.getByText("Unapproved listing")).toBeInTheDocument()
     })
 })

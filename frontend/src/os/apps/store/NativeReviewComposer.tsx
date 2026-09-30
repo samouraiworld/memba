@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
 import { StarRating } from "../../../components/reviews/StarRating"
 import { MEMBA_DAO } from "../../../lib/config"
-import { FALLBACK_GAS_PRICE, networkGasPrice, type GasPrice } from "../../../lib/grc20"
+import { networkGasPriceFresh } from "../../../lib/grc20"
 import { REVIEW_BODY_MAX_BYTES } from "../../../lib/reviews"
 import type { OsSession } from "../../shell/useOsSession"
 import { useSigner } from "../../sign/signerContext"
@@ -44,7 +44,8 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
     const [expanded, setExpanded] = useState(draft.rating > 0 || draft.body !== "")
     const [notice, setNotice] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
-    const [price, setPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
+    const [quoting, setQuoting] = useState(false)
+    const alive = useRef(true)
     const toggle = useRef<HTMLButtonElement>(null)
     const refocus = useRef(false)
     const bodyBytes = new TextEncoder().encode(draft.body.trim()).length
@@ -52,9 +53,8 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
     const edit = (next: ReviewDraft) => { setDraft(next); saveDraft(key, next) }
 
     useEffect(() => {
-        let active = true
-        networkGasPrice().then((p) => { if (active) setPrice(p) }, () => {})
-        return () => { active = false }
+        alive.current = true
+        return () => { alive.current = false }
     }, [])
 
     // A posted review collapses the form that held focus; hand it to the toggle, not <body>.
@@ -63,13 +63,19 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
         refocus.current = false
     }, [expanded])
 
-    const submit = (event: FormEvent<HTMLFormElement>) => {
+    const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        if (draft.rating < 1 || tooLong) return
+        if (quoting || draft.rating < 1 || tooLong) return
         if (session.status !== "member") { session.openConnect(); return }
         setNotice(null)
         setError(null)
+        setQuoting(true)
         try {
+            // Read from the chain at this click. A cached or fallback price would be refused at
+            // the recheck, again on every retry.
+            const price = await networkGasPriceFresh().catch(() => { throw new Error("The network fee could not be read. Try again in a moment.") })
+            // The window may have closed while the price was read: no sheet for a form that is gone.
+            if (!alive.current) return
             signer.sign(storeReviewRequest({
                 subject, appName, caller: session.address, rating: draft.rating, body: draft.body,
                 realmPath: MEMBA_DAO.appReviewsPath,
@@ -87,25 +93,31 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
                 },
             }))
         } catch (cause) {
-            setError(cause instanceof Error ? cause.message : "Could not prepare this review.")
+            if (alive.current) setError(cause instanceof Error ? cause.message : "Could not prepare this review.")
+        } finally {
+            if (alive.current) setQuoting(false)
         }
     }
 
     return <div className="os-store-review-widget">
         <div className="os-store-review-prompt"><span>Have something to share about this app?</span><button ref={toggle} type="button" className="os-btn" aria-expanded={expanded} aria-controls={expanded ? formId : undefined} onClick={() => { setNotice(null); setError(null); setExpanded(value => !value) }}>{expanded ? "Close editor" : "Write a review"}</button></div>
         {notice && <p className="os-store-review-message" role="status">{notice}</p>}
-        {expanded && <form id={formId} className="os-store-review-composer" onSubmit={submit} noValidate>
+        {expanded && <form id={formId} className="os-store-review-composer" onSubmit={(event) => { void submit(event) }} noValidate>
         <h2>Write a review</h2>
         <p>Share a rating for this onchain app. Posting again replaces your rating and text.</p>
+        {/* Inert while the fee is read, so the sheet shows the review as it is on screen. The
+            submit button stays outside and focusable: it is where the sheet returns focus. */}
+        <div className="os-store-review-fields" inert={quoting}>
         <span id={ratingId} className="os-store-review-label">Your rating</span>
         <StarRating value={draft.rating} onChange={rating => edit({ ...draft, rating })} ariaLabelledBy={ratingId} />
         <label className="os-store-review-label" htmlFor={bodyId}>Your review <span>(optional)</span></label>
         <textarea id={bodyId} value={draft.body} onChange={event => edit({ ...draft, body: event.target.value })} maxLength={REVIEW_BODY_MAX_BYTES} rows={3} placeholder="What should others know?" />
         <small>{bodyBytes} / {BODY_LIMIT} bytes</small>
+        </div>
         {tooLong && <p className="os-store-review-error" role="alert">Review text is too long in UTF-8 bytes.</p>}
         {error && <p className="os-store-review-error" role="alert">{error}</p>}
         <div className="os-store-review-actions">
-            <button type="submit" className="os-btn" disabled={draft.rating === 0 || tooLong || session.status === "resuming"}>{session.status === "member" ? "Review in Memba OS" : "Connect to review"}</button>
+            <button type="submit" className="os-btn" aria-disabled={quoting} disabled={draft.rating === 0 || tooLong || session.status === "resuming"}>{quoting ? "Checking fee…" : session.status === "member" ? "Review in Memba OS" : "Connect to review"}</button>
             {draft.rating === 0 && <span className="os-sub">Select a rating to post.</span>}
         </div>
         <p className="os-store-review-disclosure">Reviews are public chain transactions. Removing a review from public view does not erase its chain history. A signature proves wallet authorship, not app use.</p>

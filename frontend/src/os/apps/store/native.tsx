@@ -47,7 +47,8 @@ const LISTING_PROVENANCE: Record<string, string> = {
 }
 
 function provenance(entry: CatalogueEntry): string {
-    if (entry.source === "registry") return LISTING_PROVENANCE[entry.listing?.status ?? ""] ?? "Unapproved listing"
+    const status = entry.listing?.status ?? ""
+    if (entry.source === "registry") return Object.hasOwn(LISTING_PROVENANCE, status) ? LISTING_PROVENANCE[status] : "Unapproved listing"
     if (entry.project?.kind === "tool") return "Independent tool"
     if (entry.realmPath) return "Mainnet realm linked"
     return "External project"
@@ -122,7 +123,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                 <Artwork key={entry.id} entry={entry} large />
                 <div><p className="os-store-kicker">{entry.category} <span aria-hidden="true">·</span> {availability(entry)}</p><h1>{entry.name}</h1><p>{entry.tagline}</p></div>
             </header>
-            {listing?.status !== undefined && listing.status !== "live" && <p className="os-store-notice" role="status">This listing is {listing.status}. It is not in the approved catalogue.</p>}
+            {listing?.status !== undefined && listing.status !== "live" && <p className="os-store-notice" role="status">{listing.status ? `This listing is ${listing.status}.` : "This listing has no status."} It is not in the approved catalogue.</p>}
             <div className="os-store-actions">{(!listing || listing.status === "live") && <OpenDestination entry={entry} session={session} open={open} />}{entry.realmPath && <a className="os-btn os-quiet" href={`https://gno.land/${entry.realmPath.replace(/^gno\.land\//, "")}$source`} target="_blank" rel="noopener noreferrer">Read realm source ↗</a>}</div>
             <div className="os-store-detail-columns">
                 <div className="os-store-main">

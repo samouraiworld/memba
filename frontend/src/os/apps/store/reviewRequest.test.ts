@@ -76,8 +76,8 @@ describe("native App Store review signing", () => {
             ["Account", draft.caller], ["Network", "gnoland-1"],
             // 12,165 measured bytes plus the 10-byte body, at 100 ugnot per byte.
             ["Storage deposit", "≈ 1.22 GNOT for a new review, less when replacing one (cap 3.2 GNOT)"],
-            // 15M gas at 1 ugnot per 1,000 gas, with the broadcaster's 20 % headroom.
-            ["Network fee", "up to 0.018 GNOT"],
+            // 15M gas at 1 ugnot per 1,000 gas; feeForGasWanted adds 20 % headroom and the broadcaster sends exactly this.
+            ["Network fee", "0.018 GNOT"],
         ]))
         await expect(run(request)).resolves.toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(mocks.fetchAppStrict).toHaveBeenCalledWith(draft.subject)
@@ -112,12 +112,16 @@ describe("native App Store review signing", () => {
         expect(mocks.wallet).not.toHaveBeenCalled()
     })
 
-    it("quotes the deposit for the text being posted and the fee at the reviewed gas price", () => {
-        const lines = storeReviewRequest({ ...draft, body: "é".repeat(1000), price: { gas: 1000, ugnot: 2 } }).lines(undefined)
-        expect(lines).toEqual(expect.arrayContaining([
+    it("quotes the deposit for the trimmed text being posted, and quotes and sends the fee at the reviewed gas price", async () => {
+        // Leading spaces are not stored: counting them would show 1.43 GNOT.
+        const request = storeReviewRequest({ ...draft, body: `${" ".repeat(100)}${"é".repeat(1000)}`, price: { gas: 1000, ugnot: 2 } })
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Storage deposit", "≈ 1.42 GNOT for a new review, less when replacing one (cap 3.2 GNOT)"],
-            ["Network fee", "up to 0.036 GNOT"],
+            ["Network fee", "0.036 GNOT"],
         ]))
+        // The chain's price is below the reviewed one by now: the reviewed fee still covers it.
+        await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
+        expect(doContractBroadcast).toHaveBeenCalledWith(expect.anything(), "Review app", { gasWanted: 15_000_000, gasFee: 36_000, retry: false, beforeSign: expect.any(Function) })
     })
 
     it("stops before Adena when the network fee rose or cannot be read", async () => {
