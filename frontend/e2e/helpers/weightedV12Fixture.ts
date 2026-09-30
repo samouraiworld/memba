@@ -36,6 +36,8 @@ function targetRead(expression: string, realmPath: string): string | undefined {
     if (value === undefined) return undefined
     return type === 'string' ? `(${JSON.stringify(value)} string)` : value ? `(${JSON.stringify(value)} .uverse.address)` : '( .uverse.address)'
 }
+/** Ballots the fake chain has recorded, by `<proposal>:<voter>`; a spec sets one when its wallet signs a vote, and clears them before each test. */
+export const castBallots = new Map<string, 'yes' | 'no' | 'abstain'>()
 /** The fake chain's `vm/qeval` answer for `expression` (the DAO at `realmPath` and its adapter targets), or undefined when it has none. */
 export function v12Read(expression: string, realmPath = weightedRealm): string | undefined {
     const target = targetRead(expression, realmPath)
@@ -45,7 +47,7 @@ export function v12Read(expression: string, realmPath = weightedRealm): string |
     const ballot = call.match(/^GetBallotJSON\("(\d+)", "(g1[0-9a-z]{38})"\)$/)
     const value = call === 'GetConfigJSON()' ? { ...(v12.config as object), realmPath } : call === 'GetMembersJSON()' ? v12.members
         : call === 'GetProposalsJSON(0, 20)' ? v12.proposals_page_1 : call === 'GetProposalsJSON(7, 20)' ? v12.proposals_page_2
-        : ballot ? { schema: 'memba-weighted-host/v12', proposalId: ballot[1], voter: ballot[2], eligible: true, choice: null, votedAtHeight: null }
+        : ballot ? { schema: 'memba-weighted-host/v12', proposalId: ballot[1], voter: ballot[2], eligible: true, choice: castBallots.get(`${ballot[1]}:${ballot[2]}`) ?? null, votedAtHeight: castBallots.has(`${ballot[1]}:${ballot[2]}`) ? '450001' : null }
         : v12[`proposal_${call.match(/^GetProposalJSON\((\d+)\)$/)?.[1]}`]
     return value === undefined ? undefined : qevalWire(value)
 }

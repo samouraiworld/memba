@@ -27,9 +27,9 @@ const key = (realmPath: string, ...rest: string[]) => ["dao", "weighted", GNO_CH
 const REREAD_MS = 60_000
 
 /**
- * Read this DAO again from the chain. Nothing else does it: an action signed in
- * the weighted workspace does not go through the Memba OS signer, so these
- * reads are refreshed by whoever knows the DAO may have changed.
+ * Read this DAO again from the chain, now: after a signature in the proposal
+ * window, and when the workspace's wallet request ends or it closes (it does
+ * not sign through the Memba OS signer).
  */
 export function useRefreshWeightedDao(realmPath: string) {
     const queryClient = useQueryClient()

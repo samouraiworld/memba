@@ -3,10 +3,16 @@
  * (pages/WeightedDAO) and the Memba OS DAO windows (os/daos/WeightedDao*).
  * Realm-controlled text is passed through revealInvisibleFormatting.
  */
+import { DAO_REALM_PATH } from "../config"
 import { revealInvisibleFormatting as reveal } from "./v2Text"
 import { WEIGHTED_APPLICATIONS_SCHEMA, type WeightedBallot, type WeightedConfig, type WeightedInvalidation, type WeightedMember, type WeightedProposal } from "./weighted"
 import { APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, policyOperations, type ApplicationPolicyKey, type WeightedCategory } from "./weightedApplications"
 import { formatUgnotExact } from "./v2Budget"
+
+/** What a weighted DAO is called in its windows: the governing DAO by its name, any other by its folder name. */
+export function weightedDaoTitle(realmPath: string, name: string): string {
+    return realmPath === DAO_REALM_PATH ? "Memba DAO" : name
+}
 
 export const CATEGORY_TEXT = { routine: "Routine", financial: "Financial", critical: "Critical" } as const
 
@@ -124,6 +130,25 @@ export const UNREADABLE_PROPOSAL = "Memba could not validate this proposal again
 
 /** Shown on every open proposal: one execution voids all the others. */
 export const EXECUTION_INVALIDATES = "Executing this proposal invalidates every other outstanding proposal."
+
+/**
+ * The open proposals on a page, and whether they are all of them: only when
+ * the page is the whole history and every entry on it could be read.
+ */
+export function openProposalsOf(page: { proposals: readonly (WeightedProposal | { id: string; unreadable: true })[]; nextBefore: string | null }): { open: WeightedProposal[]; complete: boolean } {
+    const readable = page.proposals.filter((p): p is WeightedProposal => !("unreadable" in p))
+    return { open: readable.filter(isOpenProposal), complete: page.nextBefore === null && readable.length === page.proposals.length }
+}
+
+/**
+ * What executing proposal `id` costs the others: the open ones known, by
+ * number; `complete` is false when only part of the history was read, so
+ * others may exist.
+ */
+export function executionWarning(id: string, otherOpen: readonly string[], complete: boolean): string {
+    if (!otherOpen.length) return `Executing #${id} invalidates every other open proposal.`
+    return `Executing #${id} invalidates ${otherOpen.length === 1 ? "open proposal" : `${otherOpen.length} open proposals`} ${otherOpen.map(o => `#${o}`).join(", ")}${complete ? "" : " and any other open proposal"}. They cannot be revived; their proposers would need to propose again.`
+}
 
 /** Why a proposal stands where it does, when its status alone does not say. */
 export function statusNote(p: Pick<WeightedProposal, "status" | "category" | "invalidation">): string | null {

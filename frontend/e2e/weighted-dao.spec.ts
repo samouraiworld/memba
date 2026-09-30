@@ -164,7 +164,8 @@ test('weighted DAO v12 on a test network warns before an execution invalidates o
     await expect(fee.getByRole('button', { name: 'Vote yes' })).toBeEnabled()
     await fee.getByRole('button', { name: 'Execute proposal' }).click()
     const confirm = fee.getByRole('group', { name: 'Confirm execution of proposal 17' })
-    await expect(confirm.getByText(/^Executing #17 invalidates \d+ open proposals #\d+(, #\d+)*\./)).toBeVisible()
+    // The fixture has older proposals than the page read, so the list is not claimed complete.
+    await expect(confirm.getByText(/^Executing #17 invalidates \d+ open proposals #\d+(, #\d+)* and any other open proposal\./)).toBeVisible()
     await fee.screenshot({ path: info.outputPath('weighted-dao-v12-execute-warning.png'), animations: 'disabled' })
     await confirm.getByRole('button', { name: 'Keep proposals open' }).click()
     await expect(confirm).toHaveCount(0)

@@ -1,13 +1,22 @@
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, type WeightedBallot, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { weightedFixture } from "../../lib/dao/testdata/weighted"
 import v12Native from "../../lib/dao/testdata/weighted-v12/native.json"
 import { renderWithProviders } from "../../test/test-utils"
+import { clearGovernanceMemory, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import type { OsSession } from "../shell/useOsSession"
+import type { SignRequest } from "../sign/signer"
+import { weightedScope } from "../../lib/dao/weightedActions"
 
 vi.mock("../../lib/dao/weighted", async original => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedBallot: vi.fn() }))
+// The price read when the member asks to act.
+vi.mock("../../lib/grc20", async original => ({ ...(await original<typeof import("../../lib/grc20")>()), networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })) }))
+// The signing sheet is the Memba OS signer's: here it records what it was asked to review.
+const sign = vi.fn<(req: SignRequest) => boolean>(() => true)
+const signer = { version: 0 }
+vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign, version: signer.version }) }))
 const { WeightedProposalWindow } = await import("./WeightedProposal")
 const { readWeightedBallot, readWeightedSnapshot } = await import("../../lib/dao/weighted")
 
@@ -19,12 +28,15 @@ const openConnect = vi.fn()
 const guest = { status: "guest", address: "", network: { key: "mainnet" }, openConnect } as unknown as OsSession
 const as = (address: string) => ({ ...guest, status: "member", address }) as unknown as OsSession
 const MIKAEL = "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z"
-const show = (id: string, session = guest) => renderWithProviders(<WeightedProposalWindow realmPath={MEMBA_DAO} id={id} session={session} />)
+const show = (id: string, session = guest) => renderWithProviders(<WeightedProposalWindow dao="memba_dao" realmPath={MEMBA_DAO} id={id} session={session} />)
 const pagesRead = () => vi.mocked(readWeightedSnapshot).mock.calls.map((call) => call[1])
 const ballot = (over: Partial<WeightedBallot>): WeightedBallot => ({ schema: "memba-weighted-host/v12", proposalId: "17", voter: MIKAEL, eligible: true, choice: null, votedAtHeight: null, ...over })
 
 beforeEach(() => {
     vi.clearAllMocks()
+    signer.version = 0
+    clearGovernanceMemory()
+    localStorage.clear()
     vi.mocked(readWeightedSnapshot).mockImplementation(async (_ctx, before = "0") => v12(before === "0" ? "proposals_page_1" : "proposals_page_2"))
     vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter }))
 })
@@ -65,7 +77,9 @@ describe("a weighted DAO proposal window", () => {
         vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, choice: "yes", votedAtHeight: "283" }))
         show("17", as(MIKAEL))
         expect(await screen.findByText("You voted yes (block 283).")).toBeInTheDocument()
-        expect(screen.getByText("From the workspace in this DAO's Proposals section, you can vote on it or execute it.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Vote…" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Execute…" })).toBeInTheDocument()
+        expect(screen.queryByText(/workspace/)).toBeNull()
         expect(readWeightedBallot).toHaveBeenCalledWith(expect.objectContaining({ realmPath: MEMBA_DAO }), "17", MIKAEL, expect.anything())
         expect(screen.queryByRole("button", { name: "Connect" })).toBeNull()
     })
@@ -82,7 +96,8 @@ describe("a weighted DAO proposal window", () => {
         vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, eligible: false }))
         show("17", as(MIKAEL))
         expect(await screen.findByText("Your address is not eligible to vote on this proposal.")).toBeInTheDocument()
-        expect(screen.getByText("From the workspace in this DAO's Proposals section, you can execute it.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Execute…" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Vote…" })).toBeNull()
     })
 
     it("offers no vote once voting is over, only what is left to do", async () => {
@@ -91,7 +106,8 @@ describe("a weighted DAO proposal window", () => {
         data.page.proposals[at] = { ...data.page.proposals[at], votingClosed: true } as typeof data.page.proposals[number]
         vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
         show("26", as(MIKAEL))
-        expect(await screen.findByText("From the workspace in this DAO's Proposals section, you can execute it once it can.")).toBeInTheDocument()
+        expect(await screen.findByText("Voting is over. Any seat holder can execute it from the earliest time above.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /^(Vote|Execute)…$/ })).toBeNull()
         expect(screen.getByText("Voting closed")).toBeInTheDocument()
         expect(screen.queryByText(/vote on it/)).toBeNull()
     })
@@ -105,6 +121,69 @@ describe("a weighted DAO proposal window", () => {
         expect(await screen.findByText("Over (the proposal is executed)")).toBeInTheDocument()
         expect(screen.queryByText(/^Voting clos/)).toBeNull()
         expect(screen.queryByText(/workspace/)).toBeNull()
+        expect(screen.queryByRole("button")).toBeNull()
+    })
+
+    it("opens the signing review for a vote with only the choices the contract would record", async () => {
+        vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, choice: "yes", votedAtHeight: "283" }))
+        show("17", as(MIKAEL))
+        fireEvent.click(await screen.findByRole("button", { name: "Vote…" }))
+        await waitFor(() => expect(sign).toHaveBeenCalledTimes(1))
+        const req = sign.mock.calls[0][0]
+        expect(req.lines("No")).toContainEqual(["Network fee", expect.stringMatching(/GNOT$/)])
+        expect(req.title).toBe("Vote")
+        expect(req.summary).toBe("Vote on #17 “Market config · set-fee”")
+        expect(req.sub).toBe("Memba DAO")
+        expect(req.choice).toEqual({ label: "Your vote", options: ["No", "Abstain"], initial: "No" })
+        expect(req.receipt).toEqual(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17"))
+    })
+
+    it("opens the signing review for an execution, naming the open proposals it invalidates as far as they were read", async () => {
+        show("17", as(MIKAEL))
+        fireEvent.click(await screen.findByRole("button", { name: "Execute…" }))
+        await waitFor(() => expect(sign).toHaveBeenCalledTimes(1))
+        const req = sign.mock.calls[0][0]
+        expect(req.title).toBe("Execute")
+        // The newest page holds 12 open proposals and older pages exist.
+        expect(req.warns).toEqual(["Executing #17 invalidates 11 open proposals #26, #25, #24, #23, #22, #21, #20, #19, #18, #16, #15 and any other open proposal. They cannot be revived; their proposers would need to propose again."])
+    })
+
+    it("waits for the seat's ballot before offering a vote", async () => {
+        vi.mocked(readWeightedBallot).mockImplementation(() => new Promise(() => {}))
+        show("25", as(MIKAEL))
+        expect(await screen.findByText("Reading your ballot…")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Vote…" })).toBeNull()
+    })
+
+    it("locks an action whose last attempt has an unknown outcome until the member says they checked it", async () => {
+        saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "execute", "17"), { phase: "submitted", hash: "ab".repeat(32), label: "Execute #17" })
+        show("17", as(MIKAEL))
+        expect(await screen.findByText("Outcome unknown.")).toBeInTheDocument()
+        expect(screen.getByText(`Transaction ${"ab".repeat(32)}`)).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /^(Vote|Execute)…$/ })).toBeNull()
+        const again = screen.getByRole("button", { name: "Review the execution again" })
+        expect(again).toBeDisabled()
+        fireEvent.click(screen.getByLabelText("I checked the transaction and want to review this execution again."))
+        fireEvent.click(again)
+        expect(await screen.findByRole("button", { name: "Execute…" })).toBeInTheDocument()
+    })
+
+    it("locks executing as well while a vote's outcome is unknown", async () => {
+        saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17"), { phase: "submitted", hash: "cd".repeat(32), label: "Vote No on #17" })
+        show("17", as(MIKAEL))
+        expect(await screen.findByText("A previous vote attempt is saved. Check its outcome before voting again.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /^(Vote|Execute)…$/ })).toBeNull()
+    })
+
+    it("reads the DAO again when a signature settles", async () => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const ui = () => <QueryClientProvider client={client}><WeightedProposalWindow dao="memba_dao" realmPath={MEMBA_DAO} id="17" session={as(MIKAEL)} /></QueryClientProvider>
+        const view = render(ui())
+        expect(await screen.findByRole("button", { name: "Vote…" })).toBeInTheDocument()
+        const reads = vi.mocked(readWeightedSnapshot).mock.calls.length
+        signer.version = 1
+        view.rerender(ui())
+        await waitFor(() => expect(vi.mocked(readWeightedSnapshot).mock.calls.length).toBeGreaterThan(reads))
     })
 
     it("reads no ballot from a contract version that publishes none", async () => {
@@ -152,11 +231,11 @@ describe("a weighted DAO proposal window", () => {
         const other = "gno.land/r/samcrew/memba_dao_v2"
         vi.mocked(readWeightedSnapshot).mockImplementation(async () => ({ ...v12(), config: { ...v12().config, realmPath: other } }))
         const held = "This DAO is read-only in Memba on gnoland-1: Memba builds no governance transaction for it here."
-        const seat = renderWithProviders(<WeightedProposalWindow realmPath={other} id="17" session={as(MIKAEL)} />)
+        const seat = renderWithProviders(<WeightedProposalWindow dao="memba_dao" realmPath={other} id="17" session={as(MIKAEL)} />)
         expect(await screen.findByText(held)).toBeInTheDocument()
         expect(screen.queryByText(/workspace/)).toBeNull()
         seat.unmount()
-        renderWithProviders(<WeightedProposalWindow realmPath={other} id="17" session={guest} />)
+        renderWithProviders(<WeightedProposalWindow dao="memba_dao" realmPath={other} id="17" session={guest} />)
         expect(await screen.findByText(held)).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Connect" })).toBeNull()
     })
@@ -172,7 +251,7 @@ describe("a weighted DAO proposal window", () => {
         const GHOST = "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"
         vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter, ...(voter === MIKAEL ? { choice: "yes" as const, votedAtHeight: "283" } : {}) }))
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        const ui = (address: string) => <QueryClientProvider client={client}><WeightedProposalWindow realmPath={MEMBA_DAO} id="17" session={as(address)} /></QueryClientProvider>
+        const ui = (address: string) => <QueryClientProvider client={client}><WeightedProposalWindow dao="memba_dao" realmPath={MEMBA_DAO} id="17" session={as(address)} /></QueryClientProvider>
         const view = render(ui(MIKAEL))
         expect(await screen.findByText("You voted yes (block 283).")).toBeInTheDocument()
         view.rerender(ui(GHOST))

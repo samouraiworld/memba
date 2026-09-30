@@ -7,6 +7,8 @@ import { readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, re
 import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { doContractBroadcast } from "../lib/grc20"
 import { WalletNetworkError } from "../lib/walletNetworkGuard"
+import { clearGovernanceMemory, saveGovernanceReceipt } from "../lib/dao/governanceRecovery"
+import { weightedScope } from "../lib/dao/weightedActions"
 import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
 import v12Native from "../lib/dao/testdata/weighted-v12/native.json"
@@ -97,6 +99,17 @@ it("refuses a stale proposal before broadcasting and retains unavailable histori
     fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
     await screen.findByRole("alert")
     expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("refuses a vote while an attempt from the Memba OS proposal window has an unknown outcome", async () => {
+    saveGovernanceReceipt(weightedScope("pearl", weightedRealm, fixture.members[5].address, "execute", fixture.proposal.id), { phase: "submitted", hash: "ab".repeat(32), label: "Execute" })
+    try {
+        render(<App />)
+        await screen.findByText(fixture.members[0].personId)
+        fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent(`An earlier attempt on proposal #${fixture.proposal.id} has an unknown outcome`)
+        expect(readWeightedSnapshot).toHaveBeenCalledTimes(1)
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    } finally { clearGovernanceMemory(); localStorage.clear() }
 })
 it("blocks writes on mainnet even for authenticated members", async () => {
     render(<App network="mainnet" />)
@@ -375,7 +388,8 @@ it("warns which open proposals an execution invalidates before building it", asy
     const confirm = within(fee).getByRole("group", { name: "Confirm execution of proposal 17" })
     const open = data.page.proposals.filter(p => !("unreadable" in p) && ["VOTING", "TIMELOCKED", "READY"].includes(p.status) && p.id !== "17").map(p => `#${p.id}`)
     expect(open.length).toBeGreaterThan(1)
-    expect(within(confirm).getByText(`Executing #17 invalidates ${open.length} open proposals ${open.join(", ")}. They cannot be revived; their proposers would need to propose again.`)).toBeTruthy()
+    // Older proposals exist and were not read, so the list is not claimed to be complete.
+    expect(within(confirm).getByText(`Executing #17 invalidates ${open.length} open proposals ${open.join(", ")} and any other open proposal. They cannot be revived; their proposers would need to propose again.`)).toBeTruthy()
     expect(doContractBroadcast).not.toHaveBeenCalled()
     fireEvent.click(within(confirm).getByRole("button", { name: "Keep proposals open" }))
     expect(within(fee).queryByRole("group", { name: "Confirm execution of proposal 17" })).toBeNull()

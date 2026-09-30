@@ -5,18 +5,19 @@
  * (lib/dao/weighted), never through the equal-headcount loaders the other DAO
  * kinds use.
  *
- * Proposing, voting and executing still run in the weighted workspace, shown
- * inside the Proposals section on request, until they are native here.
+ * A seat holder votes and executes in each proposal's window. Proposing (and
+ * acting on older contract versions) still runs in the weighted workspace,
+ * shown inside the Proposals section on request.
  *
  * @module os/daos/WeightedDaoFolder
  */
 import { lazy, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react"
-import { DAO_REALM_PATH, GNO_CHAIN_ID } from "../../lib/config"
+import { GNO_CHAIN_ID } from "../../lib/config"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWritesHeld, type WeightedProposal, type WeightedSnapshot, type WeightedV12Config } from "../../lib/dao/weighted"
 import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, weightedDaoAddress, type AcceptanceState } from "../../lib/dao/weightedAcceptance"
 import { teamWallet } from "../../lib/dao/weightedTreasury"
-import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, roleText, seatText, seatsRule, tallyText, votingRule, weightedReadError } from "../../lib/dao/weightedView"
+import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, roleText, seatText, seatsRule, tallyText, votingRule, weightedDaoTitle, weightedReadError } from "../../lib/dao/weightedView"
 import { isWalletRequestPending, subscribeWalletActivity } from "../../lib/walletActivity"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
@@ -117,7 +118,7 @@ function Overview({ name, realmPath, data, open, session }: FolderProps & { data
     return (
         <div className="os-stack">
             <div>
-                <div className="os-holding-title">{realmPath === DAO_REALM_PATH ? "Memba DAO" : name}</div>
+                <div className="os-holding-title">{weightedDaoTitle(realmPath, name)}</div>
                 <p className="os-sub os-mono os-break os-flush">{realmPath}</p>
                 <p className="os-sub os-flush">{config.rosterSize} seats · {config.totalPoints} voting points · {GNO_CHAIN_ID}</p>
             </div>

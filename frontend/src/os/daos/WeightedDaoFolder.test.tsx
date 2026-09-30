@@ -25,6 +25,7 @@ vi.mock("./useOsDao", async original => ({
     useDaoProposals: vi.fn(() => ({ data: [], isPending: false, isError: false })),
     useDaoMembers: vi.fn(() => ({ data: [], isPending: false, isError: false })),
 }))
+vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn(() => true), version: 0 }) }))
 vi.mock("../../hooks/useDaoKind", async original => ({ ...(await original<typeof import("../../hooks/useDaoKind")>()), useDaoKind: vi.fn() }))
 vi.mock("./ProposeWizard", () => ({ ProposeWizard: ({ dao }: { dao: string }) => <div>wizard for {dao}</div> }))
 vi.mock("../../lib/dao/weighted", async original => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedBallot: vi.fn() }))

@@ -1,19 +1,25 @@
 /**
  * One proposal of a weighted DAO in its own window: what it does, where its
  * vote stands, when it can execute, and the state its target was frozen at.
+ * A seat holder votes and executes here, through the Memba OS signing sheet.
  *
  * @module os/daos/WeightedProposal
  */
-import type { ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { GNO_CHAIN_ID } from "../../lib/config"
-import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWritesHeld, type WeightedMember, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
+import { weightedLocks } from "../../lib/dao/weightedActions"
+import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWriteKinds, weightedWritesHeld, type WeightedMember, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { applicationDetails, flattenBefore } from "../../lib/dao/weightedApplications"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
-import { CATEGORY_TEXT, EXECUTION_INVALIDATES, STATUS_TEXT, UNREADABLE_PROPOSAL, ballotText, chainTimeText, isOpenProposal, isVoteOpen, proposalTimes, statusNote, tallyText, weightedReadError, type BallotView } from "../../lib/dao/weightedView"
+import { CATEGORY_TEXT, EXECUTION_INVALIDATES, STATUS_TEXT, UNREADABLE_PROPOSAL, ballotText, chainTimeText, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, statusNote, tallyText, weightedDaoTitle, weightedReadError, type BallotView } from "../../lib/dao/weightedView"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
 import type { OsSession } from "../shell/useOsSession"
-import { useWeightedBallot, useWeightedProposalEntry } from "./useWeightedDao"
+import { useSigner } from "../sign/signerContext"
+import { UnknownOutcome } from "./UnknownOutcome"
+import { useRefreshWeightedDao, useWeightedBallot, useWeightedProposalEntry, useWeightedSnapshot } from "./useWeightedDao"
+import type { SignRequest } from "../sign/signer"
+import { quoteWeightedGasPrice, weightedExecuteRequest, weightedVoteOptions, weightedVoteRequest, type WeightedRequestContext } from "./weightedRequest"
 
 const STATUS_TONE: Partial<Record<WeightedProposal["status"], PillTone>> = { READY: "ok", TIMELOCKED: "warn", EXPIRED: "neutral", INVALIDATED: "neutral", EXECUTED: "neutral" }
 
@@ -52,8 +58,12 @@ function actionFacts(p: WeightedProposal, members: readonly WeightedMember[]): [
     return [["Target realm", <span className="os-mono">{reveal(a.target)}</span>], ...applicationDetails(a)]
 }
 
-export function WeightedProposalWindow({ realmPath, id, session }: { realmPath: string; id: string; session: OsSession }) {
+export function WeightedProposalWindow({ realmPath, dao, id, session }: { realmPath: string; dao: string; id: string; session: OsSession }) {
     const q = useWeightedProposalEntry(realmPath, id)
+    const signer = useSigner()
+    const refresh = useRefreshWeightedDao(realmPath)
+    // After a signature settles, read the DAO again: the status, the tally and the ballot may have changed.
+    useEffect(() => { if (signer.version) void refresh() }, [signer.version, refresh])
     const entry = q.data?.entry
     // A seat's ballot exists only on the application version, and only for a proposal Memba could read.
     const readsBallot = session.status === "member" && q.data?.snapshot.config.schema === WEIGHTED_APPLICATIONS_SCHEMA && !!entry && !isUnreadableProposal(entry)
@@ -74,36 +84,73 @@ export function WeightedProposalWindow({ realmPath, id, session }: { realmPath: 
     return (
         <div className="os-stack">
             {stale}
-            <Detail p={q.data.entry} snapshot={q.data.snapshot} realmPath={realmPath} ballot={readsBallot ? (ballot.isError ? "error" : ballot.data) : undefined} session={session} />
+            <Detail p={q.data.entry} snapshot={q.data.snapshot} realmPath={realmPath} dao={dao} ballot={readsBallot ? (ballot.isError ? "error" : ballot.data) : undefined} session={session} />
         </div>
     )
 }
 
-/**
- * What is left to do on an open proposal: a vote while voting is open (not
- * for an address the proposal's frozen electorate excludes), an execution
- * once it can execute.
- */
-function leftToDo(p: WeightedProposal, ballot: BallotView = undefined): string {
-    const votes = isVoteOpen(p) && !(ballot && ballot !== "error" && !ballot.eligible)
-    if (votes) return p.ready ? "vote on it or execute it" : "vote on it, and execute it once it can"
+/** What seat holders can still do on an open proposal: vote while voting is open, execute once it can. */
+function leftToDo(p: WeightedProposal): string {
+    if (isVoteOpen(p)) return p.ready ? "vote on it or execute it" : "vote on it, and execute it once it can"
     return p.ready ? "execute it" : "execute it once it can"
 }
 
+interface ActingProps { p: WeightedProposal; snapshot: WeightedSnapshot; realmPath: string; dao: string; ballot: BallotView; session: OsSession }
+
 /** What the viewer can do about an open proposal, and why not when they cannot. A proposal that is over offers nothing. */
-function Acting({ p, held, seat, ballot, session }: { p: WeightedProposal; held: boolean; seat: boolean; ballot: BallotView; session: OsSession }) {
+function Acting(props: ActingProps) {
+    const { p, snapshot, realmPath, session } = props
     if (!isOpenProposal(p)) return null
-    if (held) return <WeightedHold />
+    if (weightedWritesHeld(GNO_CHAIN_ID, snapshot.config.schema, realmPath)) return <WeightedHold />
     // A session still resuming is neither a guest nor a member yet: it is asked nothing.
     if (session.status === "resuming") return null
     if (session.status === "guest") {
         return <><span className="os-sub">Seat holders {leftToDo(p)}. Connect a wallet to act.</span><button type="button" className="os-btn" onClick={session.openConnect}>Connect</button></>
     }
-    if (!seat) return <p className="os-sub">Your address holds none of this DAO's seats, so you can read this proposal but not act on it.</p>
-    return <p className="os-sub">From the workspace in this DAO's Proposals section, you can {leftToDo(p, ballot)}.</p>
+    if (!snapshot.members.some((m) => m.address === session.address)) return <p className="os-sub">Your address holds none of this DAO's seats, so you can read this proposal but not act on it.</p>
+    return <SeatActions {...props} />
 }
 
-function Detail({ p, snapshot, realmPath, ballot, session }: { p: WeightedProposal; snapshot: WeightedSnapshot; realmPath: string; ballot: BallotView; session: OsSession }) {
+/**
+ * A seat holder's vote and execution, each through the Memba OS signing sheet.
+ * While an earlier vote or execution on this proposal has an unknown outcome,
+ * neither is offered until the member says they checked it.
+ */
+function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingProps) {
+    const signer = useSigner()
+    const newest = useWeightedSnapshot(realmPath)
+    const [, rerender] = useState(0)
+    const caller = session.address
+    const [lock] = weightedLocks(GNO_CHAIN_ID, realmPath, caller, p.id)
+    if (lock) return <UnknownOutcome key={JSON.stringify(lock.scope)} scope={lock.scope} receipt={lock.receipt!} attempt={lock.operation === "vote" ? "vote" : "execution"} onCleared={() => rerender((x) => x + 1)} />
+    const { schema } = snapshot.config
+    const kinds = weightedWriteKinds(schema, GNO_CHAIN_ID, realmPath)
+    // Only the application version is signed here (measured budgets, verifiable results); older versions act in the workspace.
+    const native = schema === WEIGHTED_APPLICATIONS_SCHEMA
+    const votes = native && kinds.has("vote") ? weightedVoteOptions(p, schema, ballot) : []
+    const executes = native && kinds.has("execute") && p.ready
+    const inWorkspace = native ? [] : [kinds.has("vote") && isVoteOpen(p) && "Vote on it", kinds.has("execute") && p.ready && "execute it"].filter((s): s is string => !!s)
+    // What executing it would invalidate, as far as the newest proposals were read.
+    const others = newest.data ? openProposalsOf(newest.data.page) : { open: [], complete: false }
+    const otherOpen = others.open.filter((o) => o.id !== p.id).map((o) => o.id)
+    // The fee is quoted when the member asks to act, and shown exactly in the review.
+    const review = async (request: (ctx: WeightedRequestContext) => SignRequest<string>) => {
+        signer.sign(request({ realmPath, daoName: weightedDaoTitle(realmPath, dao), snapshot, proposal: p, caller, gasPrice: await quoteWeightedGasPrice() }))
+    }
+    if (votes?.length === 0 && !executes && !inWorkspace.length) {
+        return isVoteOpen(p) ? null : <p className="os-sub">Voting is over. Any seat holder can execute it from the earliest time above.</p>
+    }
+    return (
+        <div className="os-row">
+            {votes === null ? <span className="os-sub" role="status">Reading your ballot…</span>
+                : votes.length > 0 && <button type="button" className="os-btn" onClick={() => void review((ctx) => weightedVoteRequest(ctx, votes) as SignRequest<string>)}>Vote…</button>}
+            {executes && <button type="button" className="os-btn" onClick={() => void review((ctx) => weightedExecuteRequest(ctx, otherOpen, others.complete))}>Execute…</button>}
+            {inWorkspace.length > 0 && <span className="os-sub">{inWorkspace.join(" or ").replace(/^e/, "E")} from the workspace in this DAO's Proposals section.</span>}
+        </div>
+    )
+}
+
+function Detail({ p, snapshot, realmPath, dao, ballot, session }: ActingProps) {
     const { config, members } = snapshot
     const mine = ballotText(ballot, isVoteOpen(p))
     const note = statusNote(p)
@@ -129,7 +176,7 @@ function Detail({ p, snapshot, realmPath, ballot, session }: { p: WeightedPropos
             <Facts rows={proposalTimes(p).map((t): [string, ReactNode] => [t.label, <time dateTime={t.iso}>{t.text}</time>])} />
             <div className="os-vote">
                 {mine && <p className="os-note">{mine}</p>}
-                <Acting p={p} held={weightedWritesHeld(GNO_CHAIN_ID, config.schema, realmPath)} seat={members.some((m) => m.address === session.address)} ballot={ballot} session={session} />
+                <Acting p={p} snapshot={snapshot} realmPath={realmPath} dao={dao} ballot={ballot} session={session} />
             </div>
             {"before" in p.action && (
                 <details className="os-card">

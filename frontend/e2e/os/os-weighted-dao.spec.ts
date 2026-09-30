@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
-import { MAINNET, MEMBER, RESERVE, memberWallet, v12Read } from '../helpers/weightedV12Fixture'
+import { MAINNET, MEMBER, RESERVE, castBallots, memberWallet, v12Read } from '../helpers/weightedV12Fixture'
 
 // The governing DAO (weighted host v12) in Memba OS, on the fake chain the
 // classic weighted spec uses. Nothing here reaches a chain.
@@ -25,6 +25,7 @@ const fits = async (window: ReturnType<typeof win>) => {
 
 test.describe('Memba OS weighted DAO', () => {
     test.beforeEach(async ({ page }) => {
+        castBallots.clear()
         // Only other hosts are refused: the dev server's own modules must load.
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
             const url = new URL(route.request().url())
@@ -33,6 +34,8 @@ test.describe('Memba OS weighted DAO', () => {
         await fulfillOnchainReads(page, ({ method, path, arg }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (path === 'vm/qeval') return v12Read(arg)
+            // 1 ugnot per 1,000 gas, as gnoland-1 reports it.
+            if (path === 'auth/gasprice') return JSON.stringify({ gas: 1000, price: '1ugnot' })
             // The Reserve holds 1.337 GNOT; every other address holds nothing.
             if (path.startsWith('bank/balances/')) return JSON.stringify(path.endsWith(RESERVE) ? '1337000ugnot' : '')
             return null
@@ -133,6 +136,39 @@ test.describe('Memba OS weighted DAO', () => {
         expect(new URL(page.url()).pathname).toBe('/os/dao/memba_dao/proposals')
         await folder.getByRole('button', { name: 'Back to the proposal list' }).click()
         await expect(folder.getByText('26 proposals recorded')).toBeVisible()
+    })
+
+    test('a member votes in the proposal window through the Memba review, and the chain then shows the ballot', async ({ page }) => {
+        await memberWallet(page, MAINNET)
+        // The fake chain records the ballot once the wallet has signed the vote.
+        await page.exposeFunction('__e2eSigned', (request: { messages: { value: { func: string; caller: string; args: string[] } }[] }) => {
+            const { func, caller, args } = request.messages[0].value
+            if (func === 'Vote') castBallots.set(`${args[0]}:${caller}`, args[1] as 'yes' | 'no' | 'abstain')
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: { DoContract: (request: unknown) => Promise<unknown> }; __e2eSigned: (request: unknown) => Promise<void> }
+            const sign = w.adena.DoContract
+            w.adena.DoContract = async (request) => { const result = await sign(request); await w.__e2eSigned(request); return result }
+        })
+        await page.goto(`${OS_ON}/os/dao/memba_dao/proposals/17`)
+        const proposal = win(page, 'memba_dao · Proposal #17')
+        await expect(proposal.getByText('You have not voted.')).toBeVisible()
+        await proposal.getByRole('button', { name: 'Vote…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Vote' })
+        await expect(review.getByRole('heading', { name: 'Vote on #17 “Market config · set-fee”' })).toBeVisible()
+        // The fee was read from the chain, so it is shown as the fee, not as an estimate.
+        await expect(review.getByText('Network fee', { exact: true })).toBeVisible()
+        await review.getByRole('radio', { name: 'No' }).click()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review).toHaveCount(0)
+        // The Memba review replaced the classic confirmation.
+        await expect(page.getByRole('dialog', { name: 'Confirm transaction' })).toHaveCount(0)
+        const requests = await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)
+        expect(requests).toHaveLength(1)
+        expect(requests[0]).toMatchObject({ messages: [{ type: '/vm.m_call', value: { caller: MEMBER, send: '', pkg_path: 'gno.land/r/samcrew/memba_dao', func: 'Vote', args: ['17', 'no'] } }] })
+        await expect(proposal.getByText('You voted no (block 450001).')).toBeVisible()
+        await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
+        await expect(page.getByText('Confirmed · Vote No on #17')).toBeVisible()
     })
 
     test('a signature that finishes while another window is in front still reports its transaction', async ({ page }) => {

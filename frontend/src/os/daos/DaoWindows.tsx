@@ -8,7 +8,7 @@
 import { lazy, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react"
 import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
-import { clearGovernanceReceipt, readGovernanceReceipt } from "../../lib/dao/governanceRecovery"
+import { readGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { invalidateProposalCache } from "../../lib/dao/proposals"
 import { hasInvisibleFormatting, revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { canVoteNow, executionState, formatChainTime, relativeTime, V2_STATUS_EXPLANATIONS } from "../../lib/dao/v2Lifecycle"
@@ -24,6 +24,7 @@ import { nameForRealm, realmForName } from "./daoNames"
 import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
 import { voteRequest, voteScope } from "./voteRequest"
 import { JoinMembaDao } from "./JoinMembaDao"
+import { UnknownOutcome } from "./UnknownOutcome"
 import { WeightedDaoFolder } from "./WeightedDaoFolder"
 import { WeightedProposalWindow } from "./WeightedProposal"
 
@@ -284,7 +285,7 @@ export function ProposalWindow({ dao, n, session, open }: { dao: string; n: numb
     const realmPath = realmForName(dao)
     if (!realmPath) return <NotADao name={dao} />
     return (
-        <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} id={String(n)} session={session} />}>
+        <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} dao={dao} id={String(n)} session={session} />}>
             <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} />
         </StandardDaoOnly>
     )
@@ -326,7 +327,6 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     const v2 = kind.kind === "memba-v2"
     const members = useDaoMembers(realmPath, config.data?.memberstorePath, member && !config.isPending)
     const myVote = useMyVote(realmPath, n, session.address, v2)
-    const [checkedScope, setCheckedScope] = useState<string | null>(null)
     const [, rerender] = useState(0)
     const now = useNowSeconds()
 
@@ -342,7 +342,6 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     const p = q.data!
     const openNow = p.v2 ? canVoteNow(p.v2, now) : p.open
     const scope = member ? voteScope(realmPath, session.address, n) : null
-    const scopeKey = scope ? JSON.stringify(scope) : null
     const receipt = scope ? readGovernanceReceipt(scope) : null
     const me = members.data?.find((m) => m.address === session.address)
     const invisible = hasInvisibleFormatting(p.title) || hasInvisibleFormatting(p.description)
@@ -350,19 +349,8 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     let action: ReactNode
     if (!kind.capabilities.vote) action = <p className="os-sub">Memba can't vote on this kind of DAO.</p>
     else if (!member) action = <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
-    else if (receipt) {
-        action = (
-            <div className="os-note os-warn os-stack os-tight" role="status">
-                <b>Outcome unknown.</b>
-                <span>A previous vote attempt is saved. Check its outcome before voting again.</span>
-                {receipt.hash && <code className="os-mono os-break">Transaction {receipt.hash}</code>}
-                <label className="os-ack"><input type="checkbox" checked={checkedScope === scopeKey} onChange={(e) => setCheckedScope(e.target.checked ? scopeKey : null)} /> I checked the transaction and want to review this vote again.</label>
-                <button type="button" className="os-btn os-quiet" disabled={checkedScope !== scopeKey} onClick={() => {
-                    try { clearGovernanceReceipt(scope!); setCheckedScope(null); rerender((x) => x + 1); void refreshDaoState(queryClient) } catch { /* a request is still in flight */ }
-                }}>Review the vote again</button>
-            </div>
-        )
-    } else if (myVote.data?.voted) action = <p className="os-note">{myVote.data.choice === null ? "Your vote is recorded; the choice could not be read right now." : <>You voted <b>{myVote.data.choice === "YES" ? "Yes" : myVote.data.choice === "NO" ? "No" : "Abstain"}</b>. Votes are final.</>}</p>
+    else if (receipt) action = <UnknownOutcome key={JSON.stringify(scope)} scope={scope!} receipt={receipt} attempt="vote" onCleared={() => { rerender((x) => x + 1); void refreshDaoState(queryClient) }} />
+    else if (myVote.data?.voted) action = <p className="os-note">{myVote.data.choice === null ? "Your vote is recorded; the choice could not be read right now." : <>You voted <b>{myVote.data.choice === "YES" ? "Yes" : myVote.data.choice === "NO" ? "No" : "Abstain"}</b>. Votes are final.</>}</p>
     else if (!openNow) action = <p className="os-sub">Voting is closed.</p>
     else if (members.isSuccess && !me) action = <p className="os-sub">Only members of this DAO can vote.</p>
     else {
