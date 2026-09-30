@@ -63,7 +63,42 @@ export function saveNativeReceipt(key: string, hash: string): boolean {
 export function clearNativeReceipt(key: string): void {
     try {
         localStorage.removeItem(key)
+        localStorage.removeItem(`${key}:sent`)
         volatileReceipts.delete(key)
     } catch { /* keep recovery information rather than risk another broadcast */ }
     window.dispatchEvent(new Event(eventName))
+}
+
+/**
+ * Two earlier broadcasts are remembered. Each one is a question to the backend
+ * on the next attempt, and those questions share a limit of ten calls a minute
+ * with signing: two stored hashes, today's and the completion keep one press
+ * at four calls. More than two lost replies with a new signature between each
+ * is not a sequence that happens.
+ */
+const MAX_ATTEMPTS = 2
+
+/**
+ * The hashes this browser has handed to the network for a proposal, newest
+ * last. One more signature changes the transaction's bytes, so after a
+ * broadcast whose reply was lost the executed transaction may no longer be the
+ * one the backend assembles today: these are the hashes to ask about. Hints,
+ * never proof. They are removed when this browser reconciles the proposal, and
+ * stay (two hashes at most) when another member does.
+ */
+export function readBroadcastAttempts(key: string): string[] {
+    try {
+        const saved: unknown = JSON.parse(localStorage.getItem(`${key}:sent`) ?? "[]")
+        return Array.isArray(saved) ? saved.filter((h): h is string => typeof h === "string" && validReceiptHash(h)).slice(-MAX_ATTEMPTS) : []
+    } catch {
+        return []
+    }
+}
+
+export function saveBroadcastAttempt(key: string, hash: string): void {
+    if (!validReceiptHash(hash)) throw new Error("Invalid native transaction hash")
+    const attempts = [...readBroadcastAttempts(key).filter((h) => h !== hash), hash].slice(-MAX_ATTEMPTS)
+    // Best effort: if this write fails and the reply is then lost, nothing reports it, and the
+    // transaction is recognised next time only while its bytes are unchanged.
+    try { localStorage.setItem(`${key}:sent`, JSON.stringify(attempts)) } catch { /* see above */ }
 }

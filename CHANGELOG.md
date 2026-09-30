@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Native multisig: a lost broadcast reply is recovered instead of sent twice (2026-09-30)
+- If the network's reply to a broadcast is lost, pressing Broadcast again first checks whether the transaction is already on chain and records it, instead of broadcasting a second time and leaving the transaction marked as ready. The button says when it is checking the chain and when it is broadcasting.
+- Known limit: a member on another browser does not have the earlier transaction hash; after such a lost reply their broadcast is refused by the network and the proposal stays ready until the member who broadcast first presses Broadcast again.
+
 ### Validators: a slow read is tried again, and a timeout is said in plain words (2026-09-30)
 - A validator's page no longer fails with "The user aborted a request." when the network answers slowly: Memba tries once more and says so, and if that also times out it says "The network took too long to answer." with a Retry button.
 

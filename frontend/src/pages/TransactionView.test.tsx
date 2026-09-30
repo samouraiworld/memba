@@ -78,9 +78,10 @@ vi.mock("../lib/dao/realmAddress", () => ({
         Promise.resolve(pk === "PK_A" ? "g1alice00000000000000000000000000000000" : "g1bob0000000000000000000000000000000000")),
 }))
 
+import { Code, ConnectError } from "@connectrpc/connect"
 import { TransactionView } from "./TransactionView"
 import { api } from "../lib/api"
-import { broadcastNativeTransaction } from "../lib/nativeMultisigBroadcast"
+import { broadcastNativeTransaction, nativeTxHash } from "../lib/nativeMultisigBroadcast"
 import { clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt } from "../lib/nativeReceipt"
 
 const FULL_RECIPIENT = "g1recipientfulladdress0000000000000000xy"
@@ -145,6 +146,8 @@ function makeNativeTx() {
 }
 const receiptKey = () => nativeReceiptKey(makeNativeTx() as never, mockAdena.address, "https://memba-api.test")
 const HASH = "A".repeat(64)
+/** The backend's answer when the hash it is asked to record is not on chain. */
+const notOnChain = () => new ConnectError("receipt not found", Code.FailedPrecondition)
 const nativeResponse = () => ({ transaction: makeNativeTx(), nativeTxBytes: new Uint8Array([1, 2, 3]) })
 
 describe("native confirmation and receipt recovery", () => {
@@ -180,7 +183,8 @@ describe("native confirmation and receipt recovery", () => {
         const invalidated = vi.spyOn(QueryClient.prototype, "invalidateQueries")
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
         vi.mocked(broadcastNativeTransaction).mockResolvedValue(HASH)
-        vi.mocked(api.completeTransaction).mockRejectedValueOnce(new Error("receipt unavailable")).mockImplementationOnce(async () => {
+        // The question asked before broadcasting (not on chain), the completion that fails, then the retry.
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain()).mockRejectedValueOnce(new Error("receipt unavailable")).mockImplementationOnce(async () => {
             vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
             return {} as never
         })
@@ -201,8 +205,8 @@ describe("native confirmation and receipt recovery", () => {
         await screen.findByText(/VERIFIED ON-CHAIN/)
         await waitFor(() => expect(invalidated).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["multisig"] })))
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
-        expect(api.completeTransaction).toHaveBeenCalledTimes(2)
-        expect(vi.mocked(api.completeTransaction).mock.calls[1][0]).toMatchObject({ transactionId: 7, finalHash: HASH })
+        expect(api.completeTransaction).toHaveBeenCalledTimes(3)
+        expect(vi.mocked(api.completeTransaction).mock.calls[2][0]).toMatchObject({ transactionId: 7, finalHash: HASH })
         expect(readNativeReceipt(receiptKey())).toBe("")
     })
 
@@ -234,8 +238,9 @@ describe("native confirmation and receipt recovery", () => {
         expect(readNativeReceipt(receiptKey())).toBe("")
     })
 
-    it("fails before broadcasting if browser storage cannot persist recovery", async () => {
+    it("fails before broadcasting if browser storage cannot persist recovery, after asking whether it is on chain", async () => {
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValue(notOnChain())
         vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
         render(<TransactionView />)
         await screen.findByText("TX #7")
@@ -243,7 +248,76 @@ describe("native confirmation and receipt recovery", () => {
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
         await screen.findByText(/Enable browser storage/)
         expect(broadcastNativeTransaction).not.toHaveBeenCalled()
-        expect(api.completeTransaction).not.toHaveBeenCalled()
+        // The question needs no storage: a blocked browser can still learn the transaction is on chain.
+        expect(api.completeTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    it("records an executed transaction even when browser storage is blocked", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockImplementationOnce(async () => {
+            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: nativeTxHash(new Uint8Array([1, 2, 3])), verified: true } } as never)
+            return {} as never
+        })
+        vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(screen.getByText("This transaction was already on chain. Nothing was sent; Memba recorded it.")).toBeInTheDocument()
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ["the rate limit", () => new ConnectError("slow down", Code.ResourceExhausted)],
+        ["a chain node the backend cannot reach", () => new ConnectError("rpc", Code.Unavailable)],
+        ["a request that never arrived", () => new Error("Failed to fetch")],
+    ])("does not take %s for 'not on chain': nothing is sent", async (_why, failure) => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValue(failure())
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText("Couldn't check whether this transaction is already on chain. Nothing was sent; try again in a moment.")
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).toHaveBeenCalledTimes(1)
+        expect(screen.getByText("Broadcast to Chain")).toBeEnabled()
+    })
+
+    it("says what it is doing: checking the chain first, then broadcasting", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        let answer!: () => void
+        let reply!: () => void
+        vi.mocked(api.completeTransaction).mockImplementationOnce(() => new Promise((_resolve, reject) => { answer = () => reject(notOnChain()) }))
+            .mockRejectedValue(new Error("receipt unavailable"))
+        vi.mocked(broadcastNativeTransaction).mockImplementationOnce(() => new Promise((resolve) => { reply = () => resolve(HASH) }))
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        expect(await screen.findByText("Checking the chain...")).toBeDisabled()
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        answer()
+        expect(await screen.findByText("Broadcasting...")).toBeDisabled()
+        reply()
+        await screen.findByText("Retry receipt verification")
+    })
+
+    it("sends nothing when another member recorded the transaction between the read and the question", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockImplementationOnce(async () => {
+            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
+            throw new ConnectError("already completed", Code.NotFound)
+        })
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole("alert")).toBeNull()
     })
 
     it("does not treat a corrupted receipt hint as completion or allow rebroadcast", async () => {
@@ -283,7 +357,7 @@ describe("native confirmation and receipt recovery", () => {
             vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
             return HASH
         })
-        vi.mocked(api.completeTransaction).mockRejectedValue(new Error("receipt unavailable"))
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain()).mockRejectedValue(new Error("receipt unavailable"))
         render(<TransactionView />)
         await screen.findByText("TX #7")
         fireEvent.click(screen.getByText("Broadcast to Chain"))
@@ -291,9 +365,85 @@ describe("native confirmation and receipt recovery", () => {
         await screen.findByText(/Browser storage failed after broadcast/)
         await screen.findByText("Retry receipt verification")
         expect(screen.getByText(HASH)).toBeInTheDocument()
+        // So far: the question asked before broadcasting, then the completion that failed.
+        expect(api.completeTransaction).toHaveBeenCalledTimes(2)
         fireEvent.click(screen.getByText("Retry receipt verification"))
-        await waitFor(() => expect(api.completeTransaction).toHaveBeenCalledTimes(2))
+        await waitFor(() => expect(api.completeTransaction).toHaveBeenCalledTimes(3))
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    it("after a broadcast whose reply was lost, the next attempt records the executed transaction instead of sending it again", async () => {
+        const expected = nativeTxHash(new Uint8Array([1, 2, 3]))
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        // First attempt: not on chain yet, the bytes go out, the node's reply is lost.
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain())
+        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new Error(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`))
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/outcome unknown/)
+        expect(readNativeReceipt(receiptKey())).toBe("")
+        expect(screen.getByText("Broadcast to Chain")).toBeEnabled()
+
+        // Second attempt: the backend finds exactly these bytes on chain and records them.
+        vi.mocked(api.completeTransaction).mockImplementationOnce(async () => {
+            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: expected, verified: true } } as never)
+            return {} as never
+        })
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(screen.getByRole("status")).toHaveTextContent("This transaction was already on chain. Nothing was sent; Memba recorded it.")
+        expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+        expect(vi.mocked(api.completeTransaction).mock.calls.map(([req]) => req.finalHash)).toEqual([expected, expected])
+    })
+
+    it("recognises its earlier broadcast after one more signature changed the transaction's bytes", async () => {
+        const sentThen = nativeTxHash(new Uint8Array([1, 2, 3]))
+        const bytesNow = new Uint8Array([1, 2, 3, 4])
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain())
+        vi.mocked(broadcastNativeTransaction).mockRejectedValueOnce(new Error("Native broadcast outcome unknown."))
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/outcome unknown/)
+
+        // A third member signs: the backend now assembles other bytes. The executed ones are those sent before.
+        vi.mocked(api.getTransaction).mockResolvedValue({ transaction: makeNativeTx(), nativeTxBytes: bytesNow } as never)
+        vi.mocked(api.completeTransaction).mockImplementation(async (req) => {
+            if ((req as { finalHash: string }).finalHash !== sentThen) throw notOnChain()
+            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: sentThen, verified: true } } as never)
+            return {} as never
+        })
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+        expect(localStorage.getItem(`${receiptKey()}:sent`)).toBeNull()
+    })
+
+    it("asks the backend before the first broadcast too, and broadcasts when the transaction is not on chain", async () => {
+        const expected = nativeTxHash(new Uint8Array([1, 2, 3]))
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(broadcastNativeTransaction).mockResolvedValue(expected)
+        const order: string[] = []
+        vi.mocked(api.completeTransaction).mockImplementationOnce(async () => { order.push("ask"); throw notOnChain() })
+            .mockImplementationOnce(async () => {
+                order.push("complete")
+                vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: expected, verified: true } } as never)
+                return {} as never
+            })
+        vi.mocked(broadcastNativeTransaction).mockImplementation(async () => { order.push("broadcast"); return expected })
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(order).toEqual(["ask", "broadcast", "complete"])
+        expect(broadcastNativeTransaction).toHaveBeenCalledWith("test-13", new Uint8Array([1, 2, 3]))
     })
 })
 
@@ -425,7 +575,8 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
         clearNativeReceipt(receiptKey())
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
         vi.mocked(broadcastNativeTransaction).mockResolvedValue(HASH)
-        vi.mocked(api.completeTransaction).mockResolvedValue({} as never)
+        // Not on chain yet when asked before broadcasting; recorded after it.
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(notOnChain()).mockResolvedValue({} as never)
         render(<TransactionView />)
         await screen.findByText("TX #7")
 
@@ -435,8 +586,9 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
         expect(api.completeTransaction).not.toHaveBeenCalled()
 
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
-        await waitFor(() => expect(api.completeTransaction).toHaveBeenCalled())
-        expect(vi.mocked(api.completeTransaction).mock.calls[0][0]).toMatchObject({
+        await waitFor(() => expect(api.completeTransaction).toHaveBeenCalledTimes(2))
+        expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+        expect(vi.mocked(api.completeTransaction).mock.calls[1][0]).toMatchObject({
             transactionId: 7,
             finalHash: HASH,
         })

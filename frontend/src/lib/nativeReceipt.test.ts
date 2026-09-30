@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "./nativeReceipt"
+import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readBroadcastAttempts, readNativeReceipt, saveBroadcastAttempt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "./nativeReceipt"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 
 const tx = { id: 7, chainId: "local", multisigAddress: "g1wallet", accountNumber: 1, sequence: 2, msgsJson: "[]", feeJson: "{}", memo: "" } as Transaction
@@ -41,6 +41,30 @@ describe("native receipt hints", () => {
         unsubscribe()
         clearNativeReceipt(key)
         expect(notify).toHaveBeenCalledTimes(2)
+    })
+    it("keeps the hashes this browser broadcast, newest last, until the proposal is reconciled", () => {
+        const other = "C".repeat(64)
+        expect(readBroadcastAttempts(key)).toEqual([])
+        saveBroadcastAttempt(key, hash)
+        saveBroadcastAttempt(key, other)
+        saveBroadcastAttempt(key, hash)
+        expect(readBroadcastAttempts(key)).toEqual([other, hash])
+        // A hint, never a receipt: it does not hide the broadcast action.
+        expect(readNativeReceipt(key)).toBe("")
+        expect(() => saveBroadcastAttempt(key, "bogus")).toThrow("Invalid native transaction hash")
+        // Two are kept, and they are the two newest.
+        for (let i = 0; i < 12; i++) saveBroadcastAttempt(key, i.toString(16).repeat(64))
+        expect(readBroadcastAttempts(key)).toEqual(["a".repeat(64), "b".repeat(64)])
+        clearNativeReceipt(key)
+        expect(readBroadcastAttempts(key)).toEqual([])
+    })
+    it("reads damaged or unavailable attempt storage as no attempts", () => {
+        localStorage.setItem(`${key}:sent`, JSON.stringify([hash, "bogus", 7]))
+        expect(readBroadcastAttempts(key)).toEqual([hash])
+        localStorage.setItem(`${key}:sent`, "not json")
+        expect(readBroadcastAttempts(key)).toEqual([])
+        vi.spyOn(localStorage, "getItem").mockImplementation(() => { throw new Error("blocked") })
+        expect(readBroadcastAttempts(key)).toEqual([])
     })
     it("retains a volatile fallback when post-broadcast storage stops working", () => {
         vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })

@@ -16,6 +16,11 @@ export function assertNativeAction(chain: string): void {
     if (chain !== GNO_CHAIN_ID) throw new Error("Stored transaction chain does not match the selected network")
 }
 
+/** The hash the chain gives these exact bytes: known before they are sent. */
+export function nativeTxHash(bytes: Uint8Array): string {
+    return Array.from(sha256(bytes), b => b.toString(16).padStart(2, "0")).join("").toUpperCase()
+}
+
 // One transport for native bytes; never fall back to a wallet rewriting the
 // payload, another network, or hex-encoded JSON masquerading as a transaction.
 export async function broadcastNativeTransaction(chain: string, bytes: Uint8Array): Promise<string> {
@@ -25,8 +30,8 @@ export async function broadcastNativeTransaction(chain: string, bytes: Uint8Arra
     if (!statusRes.ok) throw new Error("Unable to verify RPC chain")
     const status = record(record(await statusRes.json()).result)
     if (record(status.node_info).network !== chain || record(status.sync_info).catching_up !== false) throw new Error("RPC is on a different chain or catching up")
-    const expected = Array.from(sha256(bytes), b => b.toString(16).padStart(2, "0")).join("").toUpperCase()
-    const uncertain = () => new Error(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Check it on-chain before retrying.`)
+    const expected = nativeTxHash(bytes)
+    const uncertain = () => new Error(`Native broadcast outcome unknown. Expected transaction hash ${expected}. Press Broadcast again: Memba checks the chain first and sends only if the transaction is not there.`)
     // JSON-RPC bodies go to the root; /broadcast_tx_commit is the form/query API.
     let response: Response
     try {
