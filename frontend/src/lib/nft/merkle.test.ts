@@ -45,9 +45,15 @@ for (const line of VECTORS.trim().split("\n")) {
 }
 const five = trees[4]
 
-/** Valid addresses, checksum included. */
-const ALICE = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-const BOB = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+/** The allowlist behind the five leaves: stage 2 of collection C7, each address allowed its position plus one. */
+const ALLOWLIST = [
+    "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+    "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+    "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+    "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2",
+    "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0",
+]
+const [ALICE, , BOB] = ALLOWLIST
 const MAX_INT64 = 9223372036854775807n
 
 describe("on-chain vectors", () => {
@@ -68,10 +74,8 @@ describe("on-chain vectors", () => {
         }
     })
 
-    // The vectors do not name their inputs: these are the preimages of leaves 0 and 2 and of the trait leaf.
-    it("reproduces the allowlist leaves and the trait leaf", async () => {
-        await expect(allowlistLeaf("C7", 2, ALICE, 1n)).resolves.toBe(five.leaves[0])
-        await expect(allowlistLeaf("C7", 2, BOB, 3n)).resolves.toBe(five.leaves[2])
+    it("reproduces the five allowlist leaves and the trait leaf", async () => {
+        await expect(Promise.all(ALLOWLIST.map((who, position) => allowlistLeaf("C7", 2, who, BigInt(position + 1))))).resolves.toEqual(five.leaves)
         await expect(traitLeaf("C7", 12n, "Background=Blue")).resolves.toBe(trait)
     })
 

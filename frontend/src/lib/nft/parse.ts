@@ -63,7 +63,7 @@ export function optionalAddress(value: unknown, what: string): string {
     return value === "" ? "" : address(value, what)
 }
 
-/** A ledger sequence number: at most the 20 digits of a uint64. */
+/** `C<n>` as the ledger accepts it: no leading zero, at most 21 characters. */
 export function collectionId(value: unknown): string {
     if (typeof value !== "string" || !/^C[1-9]\d{0,19}$/.test(value)) throw new Error("Invalid collection ID")
     return value
@@ -80,15 +80,8 @@ export function oneOf<T extends string>(value: unknown, what: string, allowed: r
     return value as T
 }
 
-/** `C<n>` as the ledger accepts it: no leading zero, at most 21 characters. */
-export function collectionId(value: unknown): string {
-    if (typeof value !== "string" || !/^C[1-9]\d{0,19}$/.test(value)) throw new Error("Invalid collection ID")
-    return value
-}
-
-/** A SHA-256 as the realms write it: 64 lowercase hex digits. */
 export function hash(value: unknown, what: string): string {
-    if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`Invalid ${what}`)
+    if (typeof value !== "string" || !HASH.test(value)) throw new Error(`Invalid ${what}`)
     return value
 }
 

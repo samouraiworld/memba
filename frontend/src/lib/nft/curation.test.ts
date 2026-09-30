@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { GNO_RPC_URL } from "../config"
 import { bech32Encode } from "../dao/realmAddress"
+import { AbciQueryError } from "../rpcFallback"
 import {
     NFT_CURATION_PATH, getApplication, getCurationAccess, getCurationManagers, getCurationRecord, getCurationState,
     listApplications, listFeatureSlots, listOpenAppeals,
 } from "./curation"
+import { ReadError, RealmRefusedError } from "./read"
 
 const queryEval = vi.hoisted(() => vi.fn())
 vi.mock("../dao/shared", async (original) => ({ ...(await original<typeof import("../dao/shared")>()), queryEval }))
@@ -297,9 +299,15 @@ describe("curation record", () => {
         await expect(read(row)).rejects.toThrow(new RegExp(`^${message}$`))
     })
 
-    it("reports an unreadable record as an error", async () => {
+    it("reports an unreadable record as retryable, and one the realm refuses as refused", async () => {
         queryEval.mockResolvedValueOnce(null)
-        await expect(getCurationRecord("C1")).rejects.toThrow("Could not read curation record")
+        const unread = getCurationRecord("C1")
+        await expect(unread).rejects.toThrow("Could not read curation record")
+        await expect(unread).rejects.toBeInstanceOf(ReadError)
+        queryEval.mockRejectedValueOnce(new AbciQueryError("vm/qeval", "unknown collection"))
+        const refused = getCurationRecord("C9")
+        await expect(refused).rejects.toBeInstanceOf(RealmRefusedError)
+        await expect(refused).rejects.not.toBeInstanceOf(ReadError)
     })
 })
 

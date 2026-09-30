@@ -9,10 +9,9 @@
  *
  * @module lib/nft/curation
  */
-import { GNO_RPC_URL } from "../config"
 import { isValidGnoAddressChecksum } from "../dao/address"
-import { parseQevalJSON, queryEval } from "../dao/shared"
-import { address, bool, cid, collectionId, decimal, hash, list, oneOf, record } from "./parse"
+import { address, bool, cid, collectionId, decimal, hash, list, oneOf, optionalAddress, record } from "./parse"
+import { readJSON, readPage } from "./read"
 
 export const NFT_CURATION_PATH = "gno.land/r/samcrew/launchpad/curation/v1"
 
@@ -148,11 +147,6 @@ function count(value: unknown, what: string): number {
     return value
 }
 
-/** A role the realm leaves empty until someone takes it. */
-function optionalAddress(value: unknown, what: string): string {
-    return value === "" ? "" : address(value, what)
-}
-
 /**
  * A pointer to public text: the SHA-256 of its exact bytes and the CID it is
  * fetched from. Where the realm has recorded none yet, both halves are empty.
@@ -275,25 +269,7 @@ function parseRecord(value: unknown, collection: string): CurationRecord {
     }
 }
 
-/** A missing answer is an error ("could not read"), never an empty result. */
-async function query(expr: string, what: string): Promise<string> {
-    // The query picks a node of the session network and fails over by itself; the URL does not choose one.
-    const raw = await queryEval(GNO_RPC_URL, NFT_CURATION_PATH, expr, true)
-    if (raw === null) throw new Error(`Could not read ${what}`)
-    return raw
-}
-
-async function read(expr: string, what: string): Promise<unknown> {
-    return parseQevalJSON(await query(expr, what))
-}
-
-/** One zero-based page of 1 to 50 rows. The page is checked before anything is sent. */
-async function readPage<T>(view: string, page: number, size: number, what: string, parse: (row: unknown) => T): Promise<T[]> {
-    if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(size) || size < 1 || size > 50) throw new Error(`Invalid ${what} page`)
-    const rows = list(await read(`${view}(${page}, ${size})`, `${what}s`), `${what} list`)
-    if (rows.length > size) throw new Error(`Invalid ${what} list`)
-    return rows.map(parse)
-}
+const read = (expr: string, what: string) => readJSON(NFT_CURATION_PATH, expr, what)
 
 export async function getCurationState(): Promise<CurationState> {
     const row = record(await read("StateJSON()", "curation state"), "curation state", STATE_KEYS)
@@ -322,17 +298,16 @@ export async function getCurationManagers(): Promise<CurationManager[]> {
 
 /** Null when nobody applied for the collection. */
 export async function getApplication(collection: string): Promise<CurationApplication | null> {
-    const raw = await query(`ApplicationJSON("${collectionId(collection)}")`, "application")
-    // Only the realm's literal null means "no application": an answer that cannot be decoded parses to null as well.
-    if (/^\(\s*"null"\s+string\s*\)\s*$/.test(raw)) return null
-    const application = parseApplication(parseQevalJSON(raw))
+    const value = await read(`ApplicationJSON("${collectionId(collection)}")`, "application")
+    if (value === null) return null
+    const application = parseApplication(value)
     if (application.collection !== collection) throw new Error("Application does not match the request")
     return application
 }
 
 /** Applications in order of first filing. */
 export async function listApplications(page = 0, size = 20): Promise<CurationApplication[]> {
-    const applications = await readPage("ApplicationsJSON", page, size, "application", parseApplication)
+    const applications = (await readPage(NFT_CURATION_PATH, "ApplicationsJSON", [], page, size, "application")).map(parseApplication)
     if (new Set(applications.map((application) => application.collection)).size !== applications.length) throw new Error("Duplicate application")
     return applications
 }
@@ -354,7 +329,7 @@ export async function getCurationRecord(collection: string): Promise<CurationRec
 
 /** Open appeals in filing order. */
 export async function listOpenAppeals(page = 0, size = 20): Promise<CurationAppeal[]> {
-    const appeals = await readPage("AppealsJSON", page, size, "appeal", parseAppeal)
+    const appeals = (await readPage(NFT_CURATION_PATH, "AppealsJSON", [], page, size, "appeal")).map(parseAppeal)
     if (appeals.some((appeal) => !appeal.open)) throw new Error("Resolved appeal in the open list")
     // A collection has at most one open appeal per subject.
     if (new Set(appeals.map((appeal) => `${appeal.collection}/${appeal.subject}`)).size !== appeals.length) throw new Error("Duplicate appeal")
@@ -363,7 +338,7 @@ export async function listOpenAppeals(page = 0, size = 20): Promise<CurationAppe
 
 /** Every collection with a feature slot on record, in ID text order (`C10` before `C2`). */
 export async function listFeatureSlots(page = 0, size = 20): Promise<CurationFeatureSlot[]> {
-    const slots = await readPage("FeaturesJSON", page, size, "feature slot", (value) => {
+    const slots = (await readPage(NFT_CURATION_PATH, "FeaturesJSON", [], page, size, "feature slot")).map((value) => {
         const row = record(value, "feature slot", SLOT_KEYS)
         return { collection: collectionId(row.collection), featured: bool(row.featured, "featured"), until: decimal(row.until, "feature term") }
     })
