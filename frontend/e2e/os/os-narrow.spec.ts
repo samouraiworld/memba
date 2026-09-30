@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { OS_FEED_ON, OS_ON } from '../../playwright.os.config'
+import { OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 
 // Memba pages in a narrow window on a desktop screen. Their phone layouts are
@@ -66,7 +66,7 @@ test.describe('Memba OS pages in a narrow window', () => {
                 localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([{ token: `app.${app}`, x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
             }, app)
             await page.setViewportSize({ width: 1280, height: 800 })
-            await page.goto(`${app === 'feed' ? OS_FEED_ON : OS_ON}/os`)
+            await page.goto(`${app === 'feed' ? OS_FLAGS_ON : OS_ON}/os`)
             const win = page.getByRole('region', { name, exact: true })
             await expect(win).toBeVisible()
             await win.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))

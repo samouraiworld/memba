@@ -18,10 +18,6 @@ vi.mock("../../../lib/reviews", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/reviews")>(),
     fetchModerator: mocks.fetchModerator,
 }))
-vi.mock("../../../lib/grc20", async (importActual) => ({
-    ...await importActual<typeof import("../../../lib/grc20")>(),
-    networkGasPriceFresh: async () => ({ gas: 1000, ugnot: 1 }),
-}))
 vi.mock("../../../components/reviews/ReviewsSection", () => ({ ReviewsSection: () => <p>reviews</p> }))
 
 const signer: SignerApi = { sign: vi.fn(), pending: [], notices: [], unread: 0, version: 0, markRead: vi.fn() }

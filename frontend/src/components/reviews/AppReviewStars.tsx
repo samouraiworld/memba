@@ -2,7 +2,7 @@
  * AppReviewStars — compact, at-a-glance rating summary for an App Store listing.
  *
  * Pure/presentational: fed a { count, average } summary (the caller fetches it via
- * fetchSummary(subject, realmPath)). Kept dumb so it's trivial to test and reuse in a
+ * fetchSummary(subject)). Kept dumb so it's trivial to test and reuse in a
  * card or a detail hero.
  *
  * Product-integrity rule: below MIN_RATED_COUNT reviews we do NOT show a headline star

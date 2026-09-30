@@ -30,8 +30,8 @@ export function ModerationPolicy({ moderator }: { moderator: string }) {
  * What every review list ends with: the policy when the reviews realm returned its
  * moderator, one sentence when it returned none, nothing while the read is pending.
  */
-export function ReviewsModeration({ realmPath, enabled = true }: { realmPath?: string; enabled?: boolean }) {
-  const moderator = useReviewsModerator(realmPath, enabled)
+export function ReviewsModeration() {
+  const moderator = useReviewsModerator()
   if (moderator === undefined) return null
   return moderator
     ? <ModerationPolicy moderator={moderator} />

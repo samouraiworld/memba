@@ -284,8 +284,8 @@ jobs:
         run: npm run test:e2e:release
       - name: E2E tests (chromium)
         run: npx playwright test --project=chromium --reporter=list
-      # Memba OS: two dev servers (flag on / flag off) — proves /os renders only
-      # behind VITE_MEMBA_OS and stays unreachable without it.
+      # Memba OS: three dev servers. Flag on and flag off prove /os renders only behind
+      # VITE_MEMBA_OS; the third turns on flag-gated features (Feed, the App Store, app reviews).
       - name: E2E Memba OS (chromium)
         run: npm run test:e2e:os -- --project=chromium
       - name: Upload E2E artifacts on failure

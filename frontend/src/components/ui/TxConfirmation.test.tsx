@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { act, render, screen } from "@testing-library/react"
 
-const captured = vi.hoisted(() => ({ cb: null as null | ((msgs: unknown[], memo: string) => Promise<boolean>) }))
+const captured = vi.hoisted(() => ({ cb: null as null | ((msgs: unknown[], memo: string, details?: { feeUgnot?: number }) => Promise<boolean>) }))
 vi.mock("../../lib/grc20", () => ({ setTxConfirmationCallback: (cb: typeof captured.cb) => { captured.cb = cb } }))
 
 import { TxConfirmationProvider } from "./TxConfirmation"
@@ -15,6 +15,17 @@ describe("TxConfirmation", () => {
         expect(screen.getByText("Storage deposit cap")).toBeInTheDocument()
         expect(screen.getByText("13 GNOT")).toBeInTheDocument()
         expect(screen.queryByText("unknown")).not.toBeInTheDocument()
+    })
+
+    it("states the exact network fee when the caller set one, and no fee line otherwise", async () => {
+        const view = render(<TxConfirmationProvider><div /></TxConfirmationProvider>)
+        const call = { type: "vm/MsgCall", value: { caller: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", send: "", pkg_path: "gno.land/r/x/reviews", func: "PostReview", args: ["g1s", "5", ""] } }
+        await act(async () => { void captured.cb!([call], "post review", { feeUgnot: 20_401 }) })
+        expect(screen.getByText("Network fee").nextSibling).toHaveTextContent("0.020401 GNOT")
+        view.unmount()
+        render(<TxConfirmationProvider><div /></TxConfirmationProvider>)
+        await act(async () => { void captured.cb!([call], "post review", {}) })
+        expect(screen.queryByText("Network fee")).not.toBeInTheDocument()
     })
 
     it("still shows the function of a contract call", async () => {

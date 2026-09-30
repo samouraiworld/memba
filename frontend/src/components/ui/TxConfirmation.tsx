@@ -18,6 +18,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { AminoMsg } from "../../lib/grc20"
 import { setTxConfirmationCallback } from "../../lib/grc20"
+import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { callDepositCap, deployEffect } from "../../lib/parseMsgs"
 import { SignedAddress, SignedArgs, SignedText } from "./SigningValue"
 import "./tx-confirmation.css"
@@ -29,6 +30,8 @@ export interface TxSummary {
     memo: string
     /** Amino messages being broadcast */
     messages: AminoMsg[]
+    /** The exact network fee, when the caller set one (the wallet is asked for this amount). */
+    feeUgnot?: number
 }
 
 interface ConfirmationRequest {
@@ -52,8 +55,8 @@ export function TxConfirmationProvider({ children }: { children: React.ReactNode
 
     // A6: Register the confirmation callback so doContractBroadcast can invoke it
     useEffect(() => {
-        setTxConfirmationCallback(async (msgs: AminoMsg[], memo: string) => {
-            return requestConfirmation({ memo, messages: msgs })
+        setTxConfirmationCallback(async (msgs: AminoMsg[], memo: string, details?: { feeUgnot?: number }) => {
+            return requestConfirmation({ memo, messages: msgs, feeUgnot: details?.feeUgnot })
         })
         return () => {
             setTxConfirmationCallback(null)
@@ -99,7 +102,7 @@ function TxConfirmationModal({
     onConfirm: () => void
     onCancel: () => void
 }) {
-    const { messages, memo } = summary
+    const { messages, memo, feeUgnot } = summary
 
     // Parse transaction effects from messages
     const effects = messages.map((msg, i) => {
@@ -167,6 +170,13 @@ function TxConfirmationModal({
                         <span className="tx-confirm-label">Messages</span>
                         <span className="tx-confirm-value">{messages.length}</span>
                     </div>
+
+                    {feeUgnot !== undefined && (
+                        <div className="tx-confirm-detail-row">
+                            <span className="tx-confirm-label">Network fee</span>
+                            <span className="tx-confirm-value">{formatUgnotExact(feeUgnot)}</span>
+                        </div>
+                    )}
 
                     {effects.map((e) => (
                         <div key={e.index} className="tx-confirm-msg">

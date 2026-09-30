@@ -4,7 +4,6 @@ import { Routes, Route } from "react-router-dom"
 import { AppStore } from "./AppStore"
 import { renderWithProviders } from "../test/test-utils"
 import type { AppListing } from "../lib/appStore"
-import { MEMBA_DAO } from "../lib/config"
 import { getIpfsGatewayUrl } from "../lib/ipfs"
 
 // Detail routes need the splat param populated, which requires a matching <Route>.
@@ -177,7 +176,7 @@ const DAO = "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8"
         const first = renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/gnoswap/router" })
         const trust = await trustOf()
         await waitFor(() => expect(trust).toHaveTextContent("Listed by g136j0m0…5cpf (the Samourai team multisig, which also moderates reviews)."))
-        expect(fetchModerator).toHaveBeenCalledWith(MEMBA_DAO.appReviewsPath)
+        expect(fetchModerator).toHaveBeenCalled()
         first.unmount()
 
         // Moderation handed to another address: the listing stops claiming it.
@@ -295,9 +294,8 @@ describe("AppGrid — review stars on cards (W0.6)", () => {
         expect(screen.getByText(/4 reviews/)).toBeInTheDocument()
         // The zero-review card must stay quiet — no "No reviews yet" noise in a grid.
         expect(screen.queryByText(/No reviews yet/)).not.toBeInTheDocument()
-        // One batched fetch for all visible cards, against the app-reviews realm.
+        // One batched fetch for all visible cards.
         expect(fetchSummaries).toHaveBeenCalledTimes(1)
-        expect(fetchSummaries.mock.calls[0][1]).toBe(MEMBA_DAO.appReviewsPath)
         expect(fetchSummaries.mock.calls[0][0]).toEqual([
             "gno.land/r/samcrew/rated",
             "gno.land/r/samcrew/fresh",

@@ -29,6 +29,10 @@ Full changelogs are split by version range for easier navigation:
 - Fixed: if the network's reply to a multisig broadcast is lost or times out, Memba keeps the warning, the transaction's hash and what to do next on the page, and the next press checks the chain before sending anything.
 - Changed: Memba OS Multisig opens to guests. The app and any account's address and balance are visible, the chain says whether an address is a multisig, and a connect prompt appears only where your own multisigs, members and transactions would show.
 - Changed: a multisig proposal's fee defaults to twice the network gas price for its gas limit instead of a fixed 1 GNOT, so it still pays if the price rises while signatures are collected; it can be changed until the proposal is made, and Memba sends nothing when a fresh price has outgrown the signed fee.
+### Memba OS: App Store reviews in the network's reviews realm (2026-09-30)
+- Changed: App Store reviews live in the network's reviews realm (memba_reviews_v2 on mainnet), beside validator and profile reviews, with one shared author reputation.
+- Fixed: reviews are read only from a node checked to serve this network, and a list that cannot be read shows an error, never "No reviews yet". One unusual character in a review no longer hides its whole page. A page of hidden reviews is stepped over, and "No reviews yet" appears only when the realm's count is zero.
+- Fixed: posting a review states the network fee exactly before the wallet opens, and stops if the fee rose meanwhile. It also states the storage deposit (up to about 1.2 to 1.4 GNOT for the first review on a subject, less for a later one; a replacement locks only what its text adds; deleting returns a small part). It refuses text over 2,000 bytes before anything is sent, and sends at a measured gas limit with a deposit cap.
 
 ### Memba OS: an open News article survives a reload (2026-09-30)
 - A News article open in Memba OS stays open after a reload or Back when another window is in front.
@@ -175,7 +179,7 @@ Full changelogs are split by version range for easier navigation:
 - Check `/status` chain identity and synchronization state, and cross-check `/block` metadata against the full header before using its reported block, parent hashes and timestamp in future Launchpad indexing.
 ### Memba OS: gated onchain App Store reviews (2026-09-28)
 
-- Read App Store reviews inside the native detail window when the dedicated realm is verified and enabled. Keep wallet authorship distinct from proof of app use.
+- Read App Store reviews inside the native detail window when app reviews are enabled and the network's reviews realm is live. Keep wallet authorship distinct from proof of app use.
 - Page through visible reviews after moderation, show the full onchain review count, and calculate decimal ratings from the exact sum. Offer retry when a review read fails.
 
 ### Memba OS: native Settings

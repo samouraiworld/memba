@@ -7,11 +7,16 @@ import type { StoreReviewDraft } from "./reviewRequest"
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), freshPrice: vi.fn(), broadcast: vi.fn(), fetchAppStrict: vi.fn() }))
 vi.mock("./reviewRequest", () => ({ storeReviewRequest: mocks.request }))
-vi.mock("../../../lib/grc20", async (importActual) => ({
-    ...await importActual<typeof import("../../../lib/grc20")>(),
-    networkGasPriceFresh: mocks.freshPrice,
-    doContractBroadcast: mocks.broadcast,
-}))
+vi.mock("../../../lib/grc20", async (importActual) => {
+    const actual = await importActual<typeof import("../../../lib/grc20")>()
+    return {
+        ...actual,
+        networkGasPriceFresh: mocks.freshPrice,
+        // The module's own fresh quote calls networkGasPriceFresh internally, out of a mock's reach.
+        freshFeeForGasWanted: async (gasWanted: number) => actual.feeForGasWanted(gasWanted, await mocks.freshPrice()),
+        doContractBroadcast: mocks.broadcast,
+    }
+})
 vi.mock("../../../lib/config", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/config")>(),
     isAppReviewsAvailable: () => true, isRealmValidOn: () => true,
@@ -21,7 +26,7 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
     fetchAppStrict: mocks.fetchAppStrict,
 }))
 
-function session(status: "guest" | "member", openConnect = vi.fn(), chainId = "gnoland-1"): OsSession {
+function session(status: "guest" | "member" | "resuming", openConnect = vi.fn(), chainId = "gnoland-1"): OsSession {
     return { status, address: status === "member" ? "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" : "", network: { key: "mainnet", chainId }, openConnect } as unknown as OsSession
 }
 
@@ -216,6 +221,7 @@ describe("native review composer", () => {
         const waiting = screen.getByRole("button", { name: "Checking fee…" })
         expect(waiting).toHaveAttribute("aria-disabled", "true")
         expect(waiting).toBeEnabled() // focusable: the sheet hands focus back to it
+        expect(screen.getByRole("status")).toHaveTextContent("Reading the network fee from the chain…")
         expect(screen.getByRole("textbox", { name: /Your review/ }).closest("[inert]")).not.toBeNull()
         fireEvent.click(waiting)
         fireEvent.click(waiting)
@@ -224,6 +230,37 @@ describe("native review composer", () => {
         expect(sign).toHaveBeenCalledTimes(1)
         expect(screen.getByRole("button", { name: "Review in Memba OS" })).not.toHaveAttribute("aria-disabled", "true")
         expect(screen.getByRole("textbox", { name: /Your review/ }).closest("[inert]")).toBeNull()
+    })
+
+    it("opens no sheet for a form that was closed while the fee was read", async () => {
+        let answer: (price: { gas: number; ugnot: number }) => void = () => {}
+        mocks.freshPrice.mockReturnValue(new Promise((resolve) => { answer = resolve }))
+        show(session("member"))
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
+        fireEvent.click(screen.getByRole("radio", { name: "4 stars" }))
+        fireEvent.click(screen.getByRole("button", { name: "Review in Memba OS" }))
+        fireEvent.click(screen.getByRole("button", { name: "Close editor" }))
+        await act(async () => { answer({ gas: 1000, ugnot: 2 }) })
+        expect(mocks.request).not.toHaveBeenCalled()
+        expect(sign).not.toHaveBeenCalled()
+        // The draft is still there, and the next submit reads the fee again.
+        fireEvent.click(screen.getByRole("button", { name: "Write a review" }))
+        expect(screen.getByRole("radio", { name: "4 stars" })).toBeChecked()
+        expect(screen.getByRole("button", { name: "Review in Memba OS" })).not.toHaveAttribute("aria-disabled", "true")
+    })
+
+    it("keeps the button focusable and inactive while the session is resuming", () => {
+        sessionStorage.setItem("memba_os_review_draft:gnoland-1:gno.land/r/samcrew/app", JSON.stringify({ rating: 4, body: "" }))
+        const openConnect = vi.fn()
+        show(session("resuming", openConnect))
+        // It says what it waits for: a click here does nothing yet.
+        const button = screen.getByRole("button", { name: "Restoring your session…" })
+        expect(button).toBeEnabled()
+        expect(button).toHaveAttribute("aria-disabled", "true")
+        fireEvent.click(button)
+        expect(openConnect).not.toHaveBeenCalled()
+        expect(mocks.freshPrice).not.toHaveBeenCalled()
+        expect(sign).not.toHaveBeenCalled()
     })
 
     it("opens no sheet for a window that closed while the fee was read", async () => {
@@ -246,7 +283,7 @@ describe("native review composer", () => {
         show(session("member"))
         await review("4 stars", "Useful app")
         const first = sign.mock.calls[0][0] as ReturnType<typeof storeReviewRequest>
-        expect(first.lines(undefined)).toContainEqual(["Network fee", "0.018 GNOT"])
+        expect(first.lines(undefined)).toContainEqual(["Network fee", "0.0204 GNOT"])
         // The price doubles before the wallet opens: the first sheet is refused.
         mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 })
         await expect(first.recheck?.(undefined)).rejects.toThrow(/network fee increased/)
@@ -254,10 +291,10 @@ describe("native review composer", () => {
         await submit()
         await waitFor(() => expect(sign).toHaveBeenCalledTimes(2))
         const second = sign.mock.calls[1][0] as ReturnType<typeof storeReviewRequest>
-        expect(second.lines(undefined)).toContainEqual(["Network fee", "0.036 GNOT"])
+        expect(second.lines(undefined)).toContainEqual(["Network fee", "0.0408 GNOT"])
         await expect(second.recheck?.(undefined)).resolves.toBeUndefined()
         const beforeSign = vi.fn()
         await second.send(undefined, beforeSign)
-        expect(mocks.broadcast).toHaveBeenCalledWith(second.prepare(undefined).msgs, "Review app", { gasWanted: 15_000_000, gasFee: 36_000, beforeSign })
+        expect(mocks.broadcast).toHaveBeenCalledWith(second.prepare(undefined).msgs, "Review app", { gasWanted: 17_000_000, gasFee: 40_800, beforeSign })
     })
 })

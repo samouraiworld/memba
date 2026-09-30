@@ -6,10 +6,10 @@ import { fetchModerator, REVIEWS_PKG_PATH } from "../../lib/reviews"
  * The reviews realm's moderator, read from chain: `undefined` while the read is
  * pending or switched off, `null` when the realm returned none.
  */
-export function useReviewsModerator(realmPath: string = REVIEWS_PKG_PATH, enabled = true): string | null | undefined {
+export function useReviewsModerator(enabled = true): string | null | undefined {
     const { data, isError } = useQuery({
-        queryKey: ["reviews", "moderator", GNO_CHAIN_ID, realmPath],
-        queryFn: () => fetchModerator(realmPath),
+        queryKey: ["reviews", "moderator", GNO_CHAIN_ID, REVIEWS_PKG_PATH],
+        queryFn: fetchModerator,
         enabled,
         staleTime: 60_000,
         retry: false,

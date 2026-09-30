@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
 import {
     fetchSummaries,
+    fetchSummary,
     fetchModerator,
     publisherNote,
     TEAM_MULTISIG_ADDRESS,
-    unwrapQeval,
+    fetchComments,
+    fetchReviews,
     parseReviews,
     sortByTrust,
-    parseReputationScalar,
     buildPostReviewMsg,
     buildEditReviewMsg,
     buildDeleteReviewMsg,
@@ -17,13 +18,32 @@ import {
     buildDeleteCommentMsg,
     buildFlagMsg,
     REVIEWS_PKG_PATH,
+    REVIEW_GAS_WANTED,
+    reviewStorageBytes,
+    submitReview,
     mergeReviewsByAuthor,
     summaryFromReviews,
     makeOptimisticReview,
     upsertReviewByAuthor,
     type OnChainReview,
 } from "./reviews"
+import * as config from "./config"
 import * as shared from "./dao/shared"
+import * as grc20 from "./grc20"
+
+/** A qeval string answer as the node prints it: Go's strconv.Quote, which is not always a JSON literal. */
+function goQuoted(text: string): string {
+    let out = '"'
+    for (const ch of text) {
+        const c = ch.codePointAt(0)!
+        if (ch === '"') out += '\\"'
+        else if (ch === "\\") out += "\\\\"
+        else if (c === 0x7f) out += "\\x7f"
+        else if (c === 0xf0000) out += "\\U000f0000"
+        else out += ch
+    }
+    return `(${out}" string)`
+}
 
 function review(over: Partial<OnChainReview>): OnChainReview {
     return {
@@ -87,44 +107,19 @@ describe("optimistic helpers", () => {
     })
 })
 
-describe("unwrapQeval", () => {
-    it('strips the gno ("..." string) wrapper and unquotes', () => {
-        // qeval returns a string-typed value wrapped like: ("[...]" string)
-        expect(unwrapQeval('("[{\\"id\\":1}]" string)')).toBe('[{"id":1}]')
-    })
-    it("passes through a bare JSON string", () => {
-        expect(unwrapQeval('[{"id":1}]')).toBe('[{"id":1}]')
-    })
-    it("unescapes backslashes inside the wrapper", () => {
-        // `("foo\\bar" string)` → the inner gno string literal `foo\\bar` unescapes to `foo\bar`
-        expect(unwrapQeval('("foo\\\\bar" string)')).toBe("foo\\bar")
-    })
-    it("handles nested quotes in the wrapped payload", () => {
-        expect(unwrapQeval('("hello \\"world\\"" string)')).toBe('hello "world"')
-    })
-})
-
 describe("parseReviews", () => {
-    it("parses the realm JSON array", () => {
-        const out = parseReviews(
-            '[{"id":1,"subject":"g1x","author":"g1a","rating":5,"body":"hi","createdAt":10,"editedAt":0,"deleted":false,"likes":2,"dislikes":0,"flags":0,"reputation":3}]',
-        )
+    it("takes the realm's JSON array", () => {
+        const out = parseReviews([review({ rating: 5, reputation: 3 })])
         expect(out).toHaveLength(1)
-        expect(out[0].rating).toBe(5)
         expect(out[0].reputation).toBe(3)
+        expect(parseReviews([])).toEqual([])
     })
-    it("returns [] on empty array", () => {
-        expect(parseReviews("[]")).toEqual([])
-    })
-    it("returns [] on garbage input", () => {
-        expect(parseReviews("not json")).toEqual([])
-    })
-    it("returns [] on non-array JSON", () => {
-        expect(parseReviews('{"id":1}')).toEqual([])
+    it("throws on anything else, so an unread page never reads as no reviews", () => {
+        for (const bad of [null, "[]", { id: 1 }, [review({ rating: 0 })], [review({ rating: 6 })], [{ ...review({}), author: 7 }], [{ ...review({}), id: -1 }]]) {
+            expect(() => parseReviews(bad), JSON.stringify(bad)).toThrow("could not be read")
+        }
     })
 })
-
-type TrustItem = { id: number; reputation: number; createdAt: number }
 
 describe("sortByTrust", () => {
     it("orders by reputation desc then recency", () => {
@@ -144,24 +139,6 @@ describe("sortByTrust", () => {
     })
 })
 
-describe("parseReputationScalar", () => {
-    it("parses positive int64 scalar", () => {
-        expect(parseReputationScalar("(3 int64)")).toBe(3)
-    })
-    it("parses negative int64 scalar", () => {
-        expect(parseReputationScalar("(-2 int64)")).toBe(-2)
-    })
-    it("parses zero", () => {
-        expect(parseReputationScalar("(0 int64)")).toBe(0)
-    })
-    it("returns 0 on unrecognized format", () => {
-        expect(parseReputationScalar("not a scalar")).toBe(0)
-        expect(parseReputationScalar("")).toBe(0)
-    })
-})
-
-// ── Write builder tests ──────────────────────────────────────
-
 describe("buildPostReviewMsg", () => {
     it("builds a PostReview MsgCall", () => {
         const m = buildPostReviewMsg("g1caller", "g1subject", 5, "great")
@@ -178,6 +155,80 @@ describe("buildPostReviewMsg", () => {
     })
     it("sets send to empty string", () => {
         expect(buildPostReviewMsg("g1c", "g1s", 4, "nice").value.send).toBe("")
+    })
+    it("caps the storage deposit at twice the estimate for this subject and text", () => {
+        // 11,720 + 10 x 40 + 2,000 = 14,120 bytes; twice that at 100 ugnot per byte, rounded up to 0.01 GNOT.
+        const subject = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        expect(buildPostReviewMsg("g1c", subject, 4, "x".repeat(2000)).value.max_deposit).toBe("2830000ugnot")
+        expect(buildPostReviewMsg("g1c", subject, 4, "").value.max_deposit).toBe("2430000ugnot")
+    })
+})
+
+describe("reviewStorageBytes", () => {
+    // Bytes the chain charged in simulations on gnoland-1 (2026-09-30): [subject length, body bytes, charged].
+    const MEASURED = [[22, 0, 11_884], [38, 0, 12_030], [52, 0, 12_156], [100, 0, 12_601], [200, 0, 13_522], [40, 2000, 14_057], [200, 2000, 15_530]]
+
+    it("is never under what the chain charged, and within 250 bytes of it", () => {
+        for (const [subject, body, charged] of MEASURED) {
+            const estimate = reviewStorageBytes("s".repeat(subject), "b".repeat(body))
+            expect(estimate, `${subject}/${body}`).toBeGreaterThanOrEqual(charged)
+            expect(estimate - charged, `${subject}/${body}`).toBeLessThanOrEqual(250)
+        }
+    })
+
+    it("counts UTF-8 bytes, not characters", () => {
+        expect(reviewStorageBytes("s", "é".repeat(1000)) - reviewStorageBytes("s", "")).toBe(2000)
+    })
+
+    it("keeps the gas limit at twice the most a review used", () => {
+        // 7.55M for a new review, 0.58M more for a replacement.
+        expect(REVIEW_GAS_WANTED).toBeGreaterThanOrEqual(2 * (7_550_000 + 580_000))
+    })
+})
+
+describe("submitReview", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("sends one PostReview at the measured gas limit and the fee read now, without a retry", async () => {
+        const fee = vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(20_400)
+        const send = vi.spyOn(grc20, "doContractBroadcast").mockResolvedValue({ hash: "h" })
+        expect(await submitReview("g1c", "gno.land/r/x/app", 4, "ok")).toBe("h")
+        expect(fee).toHaveBeenCalledWith(REVIEW_GAS_WANTED)
+        expect(send).toHaveBeenCalledTimes(1)
+        expect(send).toHaveBeenCalledWith([buildPostReviewMsg("g1c", "gno.land/r/x/app", 4, "ok")], "post review",
+            { gasWanted: REVIEW_GAS_WANTED, gasFee: 20_400, beforeSign: expect.any(Function) })
+    })
+
+    it("stops before the wallet when the fee rose while the confirmation was open", async () => {
+        const fee = vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValueOnce(20_400)
+        let beforeSign: (() => unknown) | undefined
+        vi.spyOn(grc20, "doContractBroadcast").mockImplementation(async (_msgs, _memo, opts) => { beforeSign = opts?.beforeSign; return { hash: "h" } })
+        await submitReview("g1c", "gno.land/r/x/app", 4, "ok")
+        fee.mockResolvedValueOnce(20_400)
+        await expect(beforeSign!()).resolves.toBeUndefined()
+        fee.mockResolvedValueOnce(20_401)
+        await expect(beforeSign!()).rejects.toThrow("The network fee increased since review. Post the review again to see the new fee.")
+    })
+
+    it("sends nothing the realm would refuse after charging the fee", async () => {
+        const fee = vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(20_400)
+        const send = vi.spyOn(grc20, "doContractBroadcast").mockResolvedValue({ hash: "h" })
+        // 2,000 bytes is the realm's limit: "é" is two bytes.
+        await expect(submitReview("g1c", "gno.land/r/x/app", 4, "é".repeat(1001))).rejects.toThrow("Review text must be 2,000 bytes or fewer.")
+        await expect(submitReview("g1c", "gno.land/r/x/app", 0, "ok")).rejects.toThrow("Select a rating from 1 to 5.")
+        vi.spyOn(config, "isReviewsValid").mockReturnValue(false)
+        await expect(submitReview("g1c", "gno.land/r/x/app", 4, "ok")).rejects.toThrow("Reviews are not available on this network.")
+        expect(fee).not.toHaveBeenCalled()
+        expect(send).not.toHaveBeenCalled()
+        vi.mocked(config.isReviewsValid).mockReturnValue(true)
+        expect(await submitReview("g1c", "gno.land/r/x/app", 4, "é".repeat(1000))).toBe("h")
+    })
+
+    it("opens no wallet when the fee cannot be read", async () => {
+        vi.spyOn(grc20, "freshFeeForGasWanted").mockRejectedValue(new Error("offline"))
+        const send = vi.spyOn(grc20, "doContractBroadcast")
+        await expect(submitReview("g1c", "gno.land/r/x/app", 4, "ok")).rejects.toThrow("The network fee could not be read. Nothing was sent; try again in a moment.")
+        expect(send).not.toHaveBeenCalled()
     })
 })
 
@@ -280,20 +331,36 @@ describe("fetchSummaries (batched per-card summaries, capped concurrency)", () =
             return summaryJSON(1, 5)
         })
         const subjects = Array.from({ length: 9 }, (_, i) => `gno.land/r/x/app-${i}`)
-        const out = await fetchSummaries(subjects, undefined, 3)
+        const out = await fetchSummaries(subjects, 3)
         expect(out.size).toBe(9)
         expect(peak).toBeLessThanOrEqual(3)
     })
 
-    it("a failing subject yields the zero summary without failing the batch", async () => {
+    it("leaves out a subject whose summary cannot be read, without failing the batch", async () => {
         vi.spyOn(shared, "queryEval").mockImplementation(async (_rpc, _realm, expr) => {
             if (String(expr).includes("bad")) throw new Error("rpc down")
             return summaryJSON(3, 4)
         })
         const out = await fetchSummaries(["gno.land/r/x/good", "gno.land/r/x/bad"])
         expect(out.get("gno.land/r/x/good")).toEqual({ count: 3, average: 4, sum: 12 })
-        expect(out.get("gno.land/r/x/bad")).toEqual({ count: 0, average: 0, sum: 0 })
+        expect(out.has("gno.land/r/x/bad")).toBe(false)
     })
+
+    it("tells an unreadable summary from a well-formed zero", async () => {
+        const read = vi.spyOn(shared, "queryEval")
+        read.mockResolvedValue(summaryJSON(0, 0))
+        await expect(fetchSummary("g1subject")).resolves.toEqual({ count: 0, average: 0, sum: 0 })
+        const replies = [null, "", '("not json" string)', "true", '{"count":2,"sum":11}', '{"count":-1,"sum":0}', '{"count":null,"sum":null}',
+            '{"count":true,"sum":true}', '{"count":"0x10","sum":"0x10"}', '{"count":[],"sum":[]}', '{"count":4,"sum":0}', '{"count":2,"sum":2.5}']
+        for (const reply of replies) {
+            read.mockResolvedValue(reply === null || reply === "" || reply.startsWith("(") ? reply as string : goQuoted(reply))
+            await expect(fetchSummary("g1subject"), String(reply)).rejects.toThrow("could not be read")
+        }
+        // One-star reviews only: the sum equals the count.
+        read.mockResolvedValue(goQuoted('{"count":4,"sum":4}'))
+        await expect(fetchSummary("g1subject")).resolves.toEqual({ count: 4, average: 1, sum: 4 })
+    })
+
 })
 
 describe("fetchModerator", () => {
@@ -302,8 +369,8 @@ describe("fetchModerator", () => {
     it("reads the current realm authority and rejects malformed values", async () => {
         const address = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
         const query = vi.spyOn(shared, "queryEval").mockResolvedValue(`(${JSON.stringify(address)} string)`)
-        expect(await fetchModerator("gno.land/r/samcrew/memba_appstore_reviews_v1")).toBe(address)
-        expect(query).toHaveBeenCalledWith(expect.any(String), "gno.land/r/samcrew/memba_appstore_reviews_v1", "GetModerator()")
+        expect(await fetchModerator()).toBe(address)
+        expect(query).toHaveBeenCalledWith(expect.any(String), REVIEWS_PKG_PATH, "GetModerator()", true)
         query.mockResolvedValue('( "bad" string)')
         expect(await fetchModerator()).toBeNull()
     })
@@ -318,5 +385,35 @@ describe("publisherNote", () => {
         // Another moderator, none returned, or not read (reviews off, read pending): no moderation claim.
         for (const moderator of [OTHER, null, undefined]) expect(publisherNote(TEAM_MULTISIG_ADDRESS, moderator)).toBe(" (the Samourai team multisig)")
         for (const moderator of [TEAM_MULTISIG_ADDRESS, null, undefined]) expect(publisherNote(OTHER, moderator)).toBe("")
+    })
+})
+
+describe("review reads", () => {
+    afterEach(() => vi.restoreAllMocks())
+    const page = (...bodies: string[]) => JSON.stringify(bodies.map((body, i) => review({ id: i + 1, author: `g1a${i}`, body })))
+
+    it("read only from a node checked to serve this network", async () => {
+        const read = vi.spyOn(shared, "queryEval").mockResolvedValue(goQuoted(page("fine")))
+        await fetchReviews("gno.land/r/x/app")
+        await fetchComments(1).catch(() => {})
+        await fetchSummary("gno.land/r/x/app").catch(() => {})
+        for (const call of read.mock.calls) expect(call[3], String(call[2])).toBe(true)
+    })
+
+    it("decode a body with runes Go quotes as \\x or \\U escapes, instead of reading the page as empty", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue(goQuoted(page("great", "fine\u007f", "x\u{f0000}")))
+        const reviews = await fetchReviews("gno.land/r/x/app")
+        expect(reviews.map((r) => r.body).sort()).toEqual(["fine\u007f", "great", "x\u{f0000}"])
+    })
+
+    it("throw when no node answers or the answer cannot be read: never an empty list", async () => {
+        const read = vi.spyOn(shared, "queryEval")
+        for (const reply of [null, '("[{\\"id\\":1}" string)', goQuoted('{"id":1}')]) {
+            read.mockResolvedValue(reply as string)
+            await expect(fetchReviews("gno.land/r/x/app"), String(reply)).rejects.toThrow("could not be read")
+            await expect(fetchComments(1), String(reply)).rejects.toThrow("could not be read")
+        }
+        read.mockRejectedValue(new Error("RPC network does not match the selected chain"))
+        await expect(fetchReviews("gno.land/r/x/app")).rejects.toThrow("does not match")
     })
 })

@@ -205,7 +205,7 @@ describe('config constants', () => {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must stay gated on mainnet`).toBe(false)
         }
         // Not deployed on mainnet: the v1/v2 predecessors must never validate there.
-        for (const base of ['memba_reviews_v1', 'memba_appstore_v2', 'memba_appstore_reviews_v1']) {
+        for (const base of ['memba_reviews_v1', 'memba_appstore_v2']) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`)).toBe(false)
         }
     })
@@ -227,6 +227,18 @@ describe('config constants', () => {
         vi.stubEnv('VITE_ENABLE_REVIEWS', 'true')
         expect(isReviewsAvailable()).toBe(isRealmValid(reviewsPathFor(ACTIVE_NETWORK_KEY)))
         vi.unstubAllEnvs()
+    })
+
+    it('shows app reviews only where the network\'s reviews realm is live, whatever the flag says', async () => {
+        vi.stubEnv('VITE_ENABLE_APP_REVIEWS', 'true')
+        vi.resetModules()
+        expect((await import('./config')).isAppReviewsAvailable()).toBe(true)
+        // A reviews realm this network has not verified: the flag alone must not show app reviews.
+        vi.stubEnv('VITE_REVIEWS_REALM_PATH', 'gno.land/r/samcrew/not_deployed_reviews')
+        vi.resetModules()
+        expect((await import('./config')).isAppReviewsAvailable()).toBe(false)
+        vi.unstubAllEnvs()
+        vi.resetModules()
     })
 
     it('mainnet is both a valid default key AND the hard fallback', () => {

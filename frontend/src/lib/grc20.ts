@@ -176,7 +176,8 @@ function assertWalletBroadcastSafeInternal(allowOsActivation: boolean): void {
  *
  * @see components/ui/TxConfirmation.tsx
  */
-export type TxConfirmCallback = (msgs: AminoMsg[], memo: string) => Promise<boolean>
+/** `feeUgnot`: the exact network fee the wallet will be asked to pay, when the caller set one. */
+export type TxConfirmCallback = (msgs: AminoMsg[], memo: string, details?: { feeUgnot?: number }) => Promise<boolean>
 let _txConfirmCallback: TxConfirmCallback | null = null
 
 /** The OS registers its session boundary while mounted. Classic pages have no extra gate. */
@@ -398,7 +399,7 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
     assertWalletActionAllowed(activation)
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {
-        const confirmed = await _txConfirmCallback(msgs, memo)
+        const confirmed = await _txConfirmCallback(msgs, memo, { feeUgnot: opts?.gasFee })
         if (!confirmed) {
             throw new Error("Transaction cancelled by user")
         }

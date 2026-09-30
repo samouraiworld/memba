@@ -1,7 +1,7 @@
 /** Native Memba OS discovery. The registry and editorial directory remain distinct sources. */
 import { useMemo, useState, type CSSProperties, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { API_BASE_URL, MEMBA_DAO, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
+import { API_BASE_URL, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
 import { ReviewsSection } from "../../../components/reviews/ReviewsSection"
 import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
@@ -97,7 +97,7 @@ function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "sessio
 
 function Detail({ section, session, open, close }: NativeViewProps) {
     const [reviewRefresh, setReviewRefresh] = useState(0)
-    const moderator = useReviewsModerator(MEMBA_DAO.appReviewsPath, isAppReviewsAvailable())
+    const moderator = useReviewsModerator(isAppReviewsAvailable())
     const path = section?.startsWith("apps/") ? `gno.land/${section.slice(5)}` : null
     const projectId = section?.startsWith("project/") ? section.slice(8) : null
     const project = ECOSYSTEM_PROJECTS.find((candidate) => candidate.id === projectId)
@@ -135,7 +135,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                     {entry.source === "registry" && (isAppReviewsAvailable()
                         ? <div className="os-store-reviews">
                             {listing?.status === "live" && <NativeReviewComposer key={entry.realmPath} session={session} subject={entry.realmPath!} appName={entry.name} onSubmitted={() => setReviewRefresh(value => value + 1)} />}
-                            <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} realmPath={MEMBA_DAO.appReviewsPath} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly />
+                            <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly />
                             <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => { setReviewRefresh(value => value + 1); void detail.refetch() }}>Refresh reviews</button><a className="os-btn os-quiet" href={`/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}

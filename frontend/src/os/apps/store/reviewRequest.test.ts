@@ -18,19 +18,24 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
     fetchAppStrict: mocks.fetchAppStrict,
 }))
-vi.mock("../../../lib/grc20", async (importActual) => ({
-    ...await importActual<typeof import("../../../lib/grc20")>(),
-    networkGasPriceFresh: mocks.freshPrice,
-    // Stand-in for the broadcaster's order: confirmation → beforeSign → wallet.
-    doContractBroadcast: vi.fn(async (msgs: unknown, memo: string, opts: { beforeSign?: () => Promise<unknown> }) => {
-        const { setTxConfirmationCallback } = await import("../../../lib/grc20")
-        const confirm = setTxConfirmationCallback(null) ?? (async () => true)
-        setTxConfirmationCallback(confirm)
-        if (!(await confirm(msgs as never, memo))) throw new Error("Transaction cancelled by user")
-        await opts.beforeSign?.()
-        return mocks.wallet()
-    }),
-}))
+vi.mock("../../../lib/grc20", async (importActual) => {
+    const actual = await importActual<typeof import("../../../lib/grc20")>()
+    return {
+        ...actual,
+        networkGasPriceFresh: mocks.freshPrice,
+        // The module's own fresh quote calls networkGasPriceFresh internally, out of a mock's reach.
+        freshFeeForGasWanted: async (gasWanted: number) => actual.feeForGasWanted(gasWanted, await mocks.freshPrice()),
+        // Stand-in for the broadcaster's order: confirmation → beforeSign → wallet.
+        doContractBroadcast: vi.fn(async (msgs: unknown, memo: string, opts: { beforeSign?: () => Promise<unknown> }) => {
+            const { setTxConfirmationCallback } = await import("../../../lib/grc20")
+            const confirm = setTxConfirmationCallback(null) ?? (async () => true)
+            setTxConfirmationCallback(confirm)
+            if (!(await confirm(msgs as never, memo))) throw new Error("Transaction cancelled by user")
+            await opts.beforeSign?.()
+            return mocks.wallet()
+        }),
+    }
+})
 vi.mock("../../../lib/rpcFallback", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/rpcFallback")>(),
     resilientRpcCall: mocks.readTx,
@@ -38,6 +43,7 @@ vi.mock("../../../lib/rpcFallback", async (importActual) => ({
 
 import { doContractBroadcast, setTxConfirmationCallback } from "../../../lib/grc20"
 import { executeSignature } from "../../sign/signer"
+import { REVIEWS_PKG_PATH } from "../../../lib/reviews"
 import { storeReviewRequest, type StoreReviewDraft } from "./reviewRequest"
 
 const HASH = "a".repeat(64)
@@ -47,7 +53,6 @@ const draft: StoreReviewDraft = {
     caller: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
     rating: 4,
     body: "Useful app",
-    realmPath: "gno.land/r/samcrew/memba_appstore_reviews_v1",
     networkKey: "mainnet",
     chainId: "gnoland-1",
     price: { gas: 1000, ugnot: 1 },
@@ -70,18 +75,18 @@ describe("native App Store review signing", () => {
         const msg = request.prepare(undefined).msgs[0]
         expect(msg).toEqual({
             type: "vm/MsgCall",
-            value: { caller: draft.caller, send: "", pkg_path: draft.realmPath, func: "PostReview", args: [draft.subject, "4", "Useful app"], max_deposit: "3200000ugnot" },
+            value: { caller: draft.caller, send: "", pkg_path: REVIEWS_PKG_PATH, func: "PostReview", args: [draft.subject, "4", "Useful app"], max_deposit: "2390000ugnot" },
         })
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Account", draft.caller], ["Network", "gnoland-1"],
-            // 12,165 measured bytes plus the 10-byte body, at 100 ugnot per byte.
-            ["Storage deposit", "≈ 1.22 GNOT for a new review, less when replacing one (cap 3.2 GNOT)"],
-            // 15M gas at 1 ugnot per 1,000 gas; feeForGasWanted adds 20 % headroom and the broadcaster sends exactly this.
-            ["Network fee", "0.018 GNOT"],
+            // 11,720 bytes, ten per character of the 22-character subject and the 10-byte body, at 100 ugnot per byte; the cap is twice that.
+            ["Storage deposit", "Up to 1.2 GNOT for the first review of this app, less for a later one or a replacement (cap 2.39 GNOT)"],
+            // 17M gas at 1 ugnot per 1,000 gas; feeForGasWanted adds 20 % headroom and the broadcaster sends exactly this.
+            ["Network fee", "0.0204 GNOT"],
         ]))
         await expect(run(request)).resolves.toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(mocks.fetchAppStrict).toHaveBeenCalledWith(draft.subject)
-        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { gasWanted: 15_000_000, gasFee: 18_000, beforeSign: expect.any(Function) })
+        expect(doContractBroadcast).toHaveBeenCalledWith([msg], "Review app", { gasWanted: 17_000_000, gasFee: 20_400, beforeSign: expect.any(Function) })
         expect(mocks.wallet).toHaveBeenCalledTimes(1)
     })
 
@@ -113,15 +118,15 @@ describe("native App Store review signing", () => {
     })
 
     it("quotes the deposit for the trimmed text being posted, and quotes and sends the fee at the reviewed gas price", async () => {
-        // Leading spaces are not stored: counting them would show 1.43 GNOT.
-        const request = storeReviewRequest({ ...draft, body: `${" ".repeat(100)}${"é".repeat(1000)}`, price: { gas: 1000, ugnot: 2 } })
+        // Surrounding whitespace is not stored: counting either side would show 1.4 GNOT.
+        const request = storeReviewRequest({ ...draft, body: `${" ".repeat(100)}${"é".repeat(1000)}${"\n".repeat(100)}`, price: { gas: 1000, ugnot: 2 } })
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
-            ["Storage deposit", "≈ 1.42 GNOT for a new review, less when replacing one (cap 3.2 GNOT)"],
-            ["Network fee", "0.036 GNOT"],
+            ["Storage deposit", "Up to 1.39 GNOT for the first review of this app, less for a later one or a replacement (cap 2.79 GNOT)"],
+            ["Network fee", "0.0408 GNOT"],
         ]))
         // The chain's price is below the reviewed one by now: the reviewed fee still covers it.
         await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
-        expect(doContractBroadcast).toHaveBeenCalledWith(expect.anything(), "Review app", { gasWanted: 15_000_000, gasFee: 36_000, beforeSign: expect.any(Function) })
+        expect(doContractBroadcast).toHaveBeenCalledWith(expect.anything(), "Review app", { gasWanted: 17_000_000, gasFee: 40_800, beforeSign: expect.any(Function) })
     })
 
     it("stops before Adena when the network fee rose or cannot be read", async () => {
@@ -141,6 +146,8 @@ describe("native App Store review signing", () => {
         mocks.available.mockReturnValue(true)
         mocks.allowed.mockReturnValue(false)
         expect(() => storeReviewRequest(draft)).toThrow(/not available/)
+        // The check is on the reviews realm of the draft's own network, not on the app being reviewed.
+        expect(mocks.allowed).toHaveBeenLastCalledWith("mainnet", REVIEWS_PKG_PATH)
     })
 
     it("validates again at the recheck, before reading the listing", async () => {

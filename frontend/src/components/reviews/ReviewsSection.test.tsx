@@ -1,6 +1,5 @@
 import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { useState } from "react"
 import { ReviewsSection } from "./ReviewsSection"
 import { renderWithProviders } from "../../test/test-utils"
 import type { OnChainReview } from "../../lib/reviews"
@@ -17,6 +16,7 @@ const fetchReviews = vi.fn()
 const fetchSummary = vi.fn()
 const fetchModerator = vi.fn()
 const submitMsg = vi.fn()
+const submitReview = vi.fn()
 
 // Keep the real pure helpers (merge/summary/optimistic); stub only the network calls.
 vi.mock("../../lib/reviews", async (importActual) => {
@@ -28,8 +28,8 @@ vi.mock("../../lib/reviews", async (importActual) => {
     fetchModerator: (...args: unknown[]) => fetchModerator(...args),
     fetchComments: vi.fn().mockResolvedValue([]),
     attachUsernames: vi.fn().mockImplementation((x: unknown[]) => Promise.resolve(x)),
-    buildPostReviewMsg: vi.fn().mockReturnValue({}),
     submitMsg: (...a: unknown[]) => submitMsg(...a),
+    submitReview: (...a: unknown[]) => submitReview(...a),
   }
 })
 
@@ -48,6 +48,7 @@ describe("ReviewsSection", () => {
       review({ id: 1, subject: "g1s", author: "g1a", body: "great validator", rating: 5, reputation: 3, username: "@alice" }),
     ])
     submitMsg.mockReset().mockResolvedValue("hash")
+    submitReview.mockReset().mockResolvedValue("hash")
     fetchSummary.mockReset().mockResolvedValue({ count: 0, sum: 0, average: 0 })
     fetchModerator.mockReset().mockResolvedValue(null)
     connect.mockReset().mockResolvedValue(false)
@@ -108,14 +109,123 @@ describe("ReviewsSection", () => {
     const firstPage = Array.from({ length: 20 }, (_, index) => review({ id: index + 1, author: `g1author${index}`, body: `page-one-${index}` }))
     fetchReviews.mockImplementation((_subject: string, offset: number) => Promise.resolve(offset === 0 ? firstPage : [review({ id: 21, author: "g1later", body: "page-two-review" })]))
     fetchSummary.mockResolvedValue({ count: 25, sum: 100, average: 4 })
-    renderWithProviders(<ReviewsSection subject="gno.land/r/samcrew/app" realmPath="gno.land/r/samcrew/memba_appstore_reviews_v1" minRatedCount={3} paginate useOnchainSummary />)
+    renderWithProviders(<ReviewsSection subject="gno.land/r/samcrew/app" minRatedCount={3} paginate useOnchainSummary />)
 
     expect(await screen.findByText("page-one-0")).toBeInTheDocument()
     expect(screen.getByText(/25 reviews/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
     expect(await screen.findByText("page-two-review")).toBeInTheDocument()
+    // 21 of the 25 counted reviews are loaded: the realm's count, not the short page, decides.
+    expect(screen.getByRole("button", { name: "Load more reviews" })).toBeInTheDocument()
+    expect(fetchReviews).toHaveBeenCalledWith("gno.land/r/samcrew/app", 20, 20)
+  })
+
+  // The realm windows raw ids and then drops hidden reviews, so a page can be short, or empty, mid-list.
+  const pages = (byOffset: Record<number, number>) => {
+    fetchReviews.mockImplementation((_subject: string, offset: number) => Promise.resolve(
+      Array.from({ length: byOffset[offset] ?? 0 }, (_, index) => review({ id: offset + index + 1, author: `g1author${offset + index}`, body: `review-${offset + index}` }))))
+  }
+  const appReviews = () => renderWithProviders(<ReviewsSection subject="gno.land/r/samcrew/app" paginate useOnchainSummary />)
+
+  it("keeps paging past a page shortened by a hidden review, until the realm's count is loaded", async () => {
+    pages({ 0: 19, 20: 6 })
+    fetchSummary.mockResolvedValue({ count: 25, sum: 100, average: 4 })
+    appReviews()
+    expect(await screen.findByText("review-0")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
+    expect(await screen.findByText("review-25")).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Load more reviews|Loading/ })).not.toBeInTheDocument())
+  })
+
+  it("steps over a page that holds only hidden reviews", async () => {
+    pages({ 0: 20, 20: 0, 40: 3 })
+    fetchSummary.mockResolvedValue({ count: 23, sum: 92, average: 4 })
+    appReviews()
+    expect(await screen.findByText("review-0")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
+    expect(await screen.findByText("review-42")).toBeInTheDocument()
+    expect(fetchReviews).toHaveBeenCalledWith("gno.land/r/samcrew/app", 40, 20)
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Load more reviews|Loading/ })).not.toBeInTheDocument())
+  })
+
+  it("stops offering more after a run of empty pages, even if the count says otherwise", async () => {
+    pages({ 0: 20 })
+    fetchSummary.mockResolvedValue({ count: 30, sum: 120, average: 4 })
+    appReviews()
+    expect(await screen.findByText("review-0")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
+    await waitFor(() => expect(fetchReviews).toHaveBeenCalledTimes(6))
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Load more reviews|Loading/ })).not.toBeInTheDocument())
+  })
+
+  it("shows how many are loaded, not a rating, when the realm's summary cannot be read, and ends on a short page", async () => {
+    pages({ 0: 20, 20: 3 })
+    fetchSummary.mockRejectedValue(new Error("The reviews summary could not be read."))
+    appReviews()
+    expect(await screen.findByText("20 shown")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
+    expect(await screen.findByText("23 shown")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Load more reviews" })).not.toBeInTheDocument()
-    expect(fetchReviews).toHaveBeenCalledWith("gno.land/r/samcrew/app", 20, 20, "gno.land/r/samcrew/memba_appstore_reviews_v1")
+    expect(fetchReviews).toHaveBeenCalledTimes(2)
+  })
+
+  it("steps over a first page of hidden reviews too, and says none only when the realm's count is zero", async () => {
+    pages({ 40: 2 })
+    fetchSummary.mockResolvedValue({ count: 2, sum: 8, average: 4 })
+    appReviews()
+    expect(await screen.findByText("review-40")).toBeInTheDocument()
+    expect(fetchReviews).toHaveBeenCalledWith("gno.land/r/samcrew/app", 40, 20)
+    expect(screen.queryByText("No reviews yet. Be the first!")).not.toBeInTheDocument()
+  })
+
+  it("does not call a counted subject empty when every page read is hidden", async () => {
+    pages({})
+    fetchSummary.mockResolvedValue({ count: 3, sum: 12, average: 4 })
+    appReviews()
+    expect(await screen.findByText("The reviews read so far are hidden or removed.")).toBeInTheDocument()
+    expect(screen.queryByText("No reviews yet. Be the first!")).not.toBeInTheDocument()
+    // The first page and five more, then it stops.
+    expect(fetchReviews).toHaveBeenCalledTimes(6)
+  })
+
+  it("without the realm's count, reads one page per request: an empty page is the end", async () => {
+    pages({ 0: 20 })
+    fetchSummary.mockRejectedValue(new Error("The reviews summary could not be read."))
+    appReviews()
+    expect(await screen.findByText("review-0")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Load more reviews" }))
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Load more reviews|Loading/ })).not.toBeInTheDocument())
+    expect(fetchReviews).toHaveBeenCalledTimes(2)
+  })
+
+  it("offers no more pages while a just-posted review waits for the chain", async () => {
+    adena = { address: "g1me", connected: true, connect }
+    pages({ 0: 20 })
+    fetchSummary.mockResolvedValue({ count: 25, sum: 100, average: 4 })
+    appReviews()
+    expect(await screen.findByRole("button", { name: "Load more reviews" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("radio", { name: /5 stars/i }))
+    fireEvent.click(screen.getByRole("button", { name: /post review/i }))
+    expect(await screen.findByTestId("review-pending")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Load more reviews" })).not.toBeInTheDocument()
+  })
+
+  it("refuses a review text longer than the realm takes, in bytes, before any wallet opens", async () => {
+    adena = { address: "g1me", connected: true, connect }
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    await screen.findByText(/great validator/)
+    fireEvent.click(screen.getByRole("radio", { name: /5 stars/i }))
+    const box = screen.getByLabelText(/review \(optional\)/i)
+    fireEvent.change(box, { target: { value: "é".repeat(1000) } })
+    expect(screen.getByText("2,000 of 2,000 bytes")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /post review/i })).toBeEnabled()
+    fireEvent.change(box, { target: { value: "é".repeat(1001) } })
+    expect(screen.getByText("Review text must be 2,000 bytes or fewer: this is 2,002.")).toBeInTheDocument()
+    expect(box).toHaveAttribute("aria-invalid", "true")
+    const post = screen.getByRole("button", { name: /post review/i })
+    expect(post).toBeDisabled()
+    fireEvent.submit(post.closest("form")!)
+    expect(submitReview).not.toHaveBeenCalled()
   })
 
   it("lets a reader retry a failed review page", async () => {
@@ -138,9 +248,8 @@ describe("ReviewsSection", () => {
     const moderator = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
     adena = { address: moderator, connected: true, connect }
     fetchModerator.mockResolvedValue(moderator)
-    renderWithProviders(<ReviewsSection subject="g1s" realmPath="gno.land/r/samcrew/memba_reviews_v2" />)
+    renderWithProviders(<ReviewsSection subject="g1s" />)
     expect(await screen.findByText("great validator")).toBeInTheDocument()
-    expect(fetchModerator).toHaveBeenCalledWith("gno.land/r/samcrew/memba_reviews_v2")
     expect(await screen.findByText(moderator)).toBeInTheDocument()
     expect(screen.getByText("How reviews are moderated")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /^(Hide|Unhide)$/ })).not.toBeInTheDocument()
@@ -153,8 +262,8 @@ describe("ReviewsSection", () => {
   })
 
   it("states no policy while the moderator is being read, nor for a realm that returns none", async () => {
-    // A realm without GetModerator (memba_appstore_reviews_v1) or an unreadable one: the
-    // policy describes the reviews realm's behaviour, so it is not stated for it.
+    // A reviews realm that returns no moderator, or an unreadable one: the policy describes
+    // the realm's behaviour, so it is not stated for it.
     const unread = "How these reviews are moderated cannot be shown: the reviews realm did not return its moderator."
     let answer!: (value: string | null) => void
     fetchModerator.mockReturnValue(new Promise((resolve) => { answer = resolve }))
@@ -169,24 +278,10 @@ describe("ReviewsSection", () => {
     pending.unmount()
 
     fetchModerator.mockReset().mockRejectedValue(new Error("rpc down"))
-    renderWithProviders(<ReviewsSection subject="g1s" realmPath="gno.land/r/samcrew/other_reviews" />)
+    renderWithProviders(<ReviewsSection subject="g1s" />)
     expect(await screen.findByText(unread)).toBeInTheDocument()
     expect(screen.queryByText("How reviews are moderated")).not.toBeInTheDocument()
     expect(screen.queryByText(/g1[0-9a-z]{38}/)).not.toBeInTheDocument()
-  })
-
-  it("drops the previous realm's moderator as soon as the realm changes", async () => {
-    const first = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt"
-    fetchModerator.mockImplementation((path: string) => path.endsWith("/a") ? Promise.resolve(first) : new Promise(() => {}))
-    function Switcher() {
-      const [realm, setRealm] = useState("gno.land/r/x/a")
-      return <><button type="button" onClick={() => setRealm("gno.land/r/x/b")}>Other realm</button><ReviewsSection subject="g1s" realmPath={realm} /></>
-    }
-    renderWithProviders(<Switcher />)
-    expect(await screen.findByText(first)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Other realm" }))
-    await waitFor(() => expect(screen.queryByText(first)).not.toBeInTheDocument())
-    expect(screen.queryByText("How reviews are moderated")).not.toBeInTheDocument()
   })
 
   it("optimistically shows a just-posted review before the chain reflects it", async () => {
@@ -205,7 +300,21 @@ describe("ReviewsSection", () => {
     // loaded CI runner the retry queues can interleave — never assert async UI synchronously.
     expect(await screen.findByText(/my fresh take/)).toBeInTheDocument()
     expect(await screen.findByTestId("review-pending")).toBeInTheDocument()
-    expect(submitMsg).toHaveBeenCalled()
+    expect(submitReview).toHaveBeenCalledWith("g1me", "g1s", 5, "my fresh take")
+  })
+
+  it("states the deposit a new review locks, for the text as typed, before any wallet opens", async () => {
+    renderWithProviders(<ReviewsSection subject="g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" />)
+    await screen.findByText(/great validator/)
+    const cost = () => screen.getByText(/locks a storage deposit/)
+    // 12,120 bytes for a 40-character subject, at 100 ugnot per byte.
+    expect(cost().textContent).toBe("Posting pays the network fee, shown before your wallet opens, and locks a storage deposit: up to 1.21 GNOT for the first review here, less for a later one. "
+      + "Replacing your own review locks only what its text adds. Deleting a review returns a small part of its deposit; the rest stays locked. "
+      + "If a moderator hid your review, posting again creates a new review with its own deposit.")
+    // Surrounding whitespace is not stored: counted, the 300 spaces would read 1.44 GNOT.
+    fireEvent.change(screen.getByLabelText(/review \(optional\)/i), { target: { value: `${" ".repeat(150)}${"x".repeat(2000)}${" ".repeat(150)}` } })
+    expect(cost()).toHaveTextContent("up to 1.41 GNOT")
+    expect(submitReview).not.toHaveBeenCalled()
   })
 
   it("stops the post-review reconcile polling after unmount (no leaked fetches)", async () => {

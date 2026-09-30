@@ -12,6 +12,14 @@ it("rechecks prepared governance context after confirmation before asking Adena 
     await expect(doContractBroadcast([], "role", { beforeSign: () => { if (!current) throw new Error("context changed") } })).rejects.toThrow("context changed")
     expect(DoContract).not.toHaveBeenCalled()
 })
+it("hands the confirmation the exact fee the wallet will be asked for", async () => {
+    vi.stubGlobal("adena", { ...liveWallet(), DoContract: vi.fn().mockResolvedValue({ status: "success", data: { hash: "h" } }) })
+    setWalletRpcContext("https://selected.invalid", true, GNO_CHAIN_ID)
+    const confirm = vi.fn(async () => true)
+    setTxConfirmationCallback(confirm)
+    await doContractBroadcast([], "post review", { gasWanted: 17_000_000, gasFee: 20_400 })
+    expect(confirm).toHaveBeenCalledWith([], "post review", { feeUgnot: 20_400 })
+})
 it("never retries an uncertain governance submission", async () => {
     const DoContract = vi.fn().mockRejectedValue(new Error("fetch failed"))
     vi.stubGlobal("adena", { ...liveWallet(), DoContract })

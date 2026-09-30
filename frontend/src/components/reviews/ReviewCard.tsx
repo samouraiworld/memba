@@ -64,11 +64,10 @@ interface CommentRowProps {
   comment: OnChainComment
   address: string
   onRefetch: () => void
-  realmPath?: string
   readOnly?: boolean
 }
 
-function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false }: CommentRowProps) {
+function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRowProps) {
   const [editMode, setEditMode] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [error, setError] = useState<string | null>(null)
@@ -119,7 +118,7 @@ function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false }
               className="reviews-btn-primary"
               disabled={busy || !editBody.trim()}
               onClick={() =>
-                handleAction(buildEditCommentMsg(address, comment.id, editBody.trim(), realmPath), "edit comment")
+                handleAction(buildEditCommentMsg(address, comment.id, editBody.trim()), "edit comment")
               }
             >
               {busy ? "Saving…" : "Save"}
@@ -152,7 +151,7 @@ function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false }
                 className="review-card__action-btn review-card__action-btn--danger"
                 disabled={busy}
                 onClick={() =>
-                  handleAction(buildDeleteCommentMsg(address, comment.id, realmPath), "delete comment")
+                  handleAction(buildDeleteCommentMsg(address, comment.id), "delete comment")
                 }
               >
                 Delete
@@ -171,11 +170,10 @@ function CommentRow({ comment, address, onRefetch, realmPath, readOnly = false }
 interface ReviewCardProps {
   review: OnChainReview
   onRefetch: () => void
-  realmPath?: string
   readOnly?: boolean
 }
 
-export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: ReviewCardProps) {
+export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardProps) {
   const { address, connected } = useAdena()
 
   const [showComments, setShowComments] = useState(false)
@@ -198,14 +196,14 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
   const loadComments = useCallback(async () => {
     setCommentsLoading(true)
     try {
-      const items = await fetchComments(review.id, 0, 50, realmPath)
+      const items = await fetchComments(review.id, 0, 50)
       setComments(items)
     } catch {
       // non-critical — show empty if comments fail to load
     } finally {
       setCommentsLoading(false)
     }
-  }, [review.id, realmPath])
+  }, [review.id])
 
   async function toggleComments() {
     const next = !showComments
@@ -237,7 +235,7 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
   async function handleReply() {
     if (!replyBody.trim()) return
     await handleAction(
-      buildCommentMsg(address, review.id, replyBody.trim(), realmPath),
+      buildCommentMsg(address, review.id, replyBody.trim()),
       "post comment",
       () => { setReplyBody(""); setReplyOpen(false); loadComments() },
     )
@@ -245,7 +243,7 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
 
   async function handleEdit() {
     await handleAction(
-      buildEditReviewMsg(address, review.id, editRating, editBody.trim(), realmPath),
+      buildEditReviewMsg(address, review.id, editRating, editBody.trim()),
       "edit review",
       () => setEditMode(false),
     )
@@ -324,7 +322,7 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
           <button
             className="review-card__action-btn review-card__action-btn--like"
             disabled={busy || !connected || isAuthor}
-            onClick={() => handleAction(buildReactMsg(address, review.id, "like", realmPath), "like review")}
+            onClick={() => handleAction(buildReactMsg(address, review.id, "like"), "like review")}
             aria-label={`Like — ${review.likes}`}
           >
             <span aria-hidden="true">👍</span> {review.likes}
@@ -334,7 +332,7 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
           <button
             className="review-card__action-btn review-card__action-btn--dislike"
             disabled={busy || !connected || isAuthor}
-            onClick={() => handleAction(buildReactMsg(address, review.id, "dislike", realmPath), "dislike review")}
+            onClick={() => handleAction(buildReactMsg(address, review.id, "dislike"), "dislike review")}
             aria-label={`Dislike — ${review.dislikes}`}
           >
             <span aria-hidden="true">👎</span> {review.dislikes}
@@ -355,7 +353,7 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
             <button
               className="review-card__action-btn review-card__action-btn--flag"
               disabled={busy}
-              onClick={() => handleAction(buildFlagMsg(address, review.id, realmPath), "flag review")}
+              onClick={() => handleAction(buildFlagMsg(address, review.id), "flag review")}
               aria-label="Flag for moderation"
             >
               <span aria-hidden="true">🚩</span> Flag
@@ -376,7 +374,7 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
                 className="review-card__action-btn review-card__action-btn--danger"
                 disabled={busy}
                 onClick={() =>
-                  handleAction(buildDeleteReviewMsg(address, review.id, realmPath), "delete review")
+                  handleAction(buildDeleteReviewMsg(address, review.id), "delete review")
                 }
               >
                 Delete
@@ -402,7 +400,6 @@ export function ReviewCard({ review, onRefetch, realmPath, readOnly = false }: R
               comment={c}
               address={address}
               onRefetch={loadComments}
-              realmPath={realmPath}
               readOnly={readOnly}
             />
           ))}

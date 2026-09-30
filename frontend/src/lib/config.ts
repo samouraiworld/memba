@@ -1461,9 +1461,6 @@ export const MEMBA_DAO = {
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
     reviewsPath: reviewsPathFor(ACTIVE_NETWORK_KEY),
     appStorePath: appStorePathFor(ACTIVE_NETWORK_KEY),
-    // Reputation-isolated App Store reviews realm (shares the reviews engine but keeps its
-    // reputation graph separate from the validator/profile web-of-trust). Deployed to test13.
-    appReviewsPath: import.meta.env.VITE_APPSTORE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_appstore_reviews_v1",
     feedPath: import.meta.env.VITE_FEED_REALM_PATH || "gno.land/r/samcrew/memba_feed_v1",
     tokenOtcPath: "gno.land/r/samcrew/memba_token_otc_v2",
     deployFee: 10_000_000, // 10 GNOT in ugnot
@@ -1604,12 +1601,12 @@ export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIE
 export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
 /** Reviews surfaces render only when the flag is on AND the reviews realm is live on the active network. */
 export const isReviewsAvailable = (): boolean => isReviewsEnabled() && isReviewsValid()
-/** Community reviews on App Store listings (B2b). Ordinary flag — the App Store reviews
- * realm moves no funds (reputation graph only). Literal reader (prod-bundle safe). Gates the
- * ReviewsSection mount + AppReviewStars on the App Store detail page. */
+/** Community reviews on App Store listings. Ordinary flag: a review custodies no funds (its
+ * author pays a storage deposit). Literal reader (prod-bundle safe). Gates the reviews and the
+ * star summaries on App Store listings. */
 export const isAppReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_APP_REVIEWS === "true"
-/** App Store reviews render only when the flag is on AND the app-reviews realm is live on the active network. */
-export const isAppReviewsAvailable = (): boolean => isAppReviewsEnabled() && isRealmValid(MEMBA_DAO.appReviewsPath)
+/** App reviews live in the network's reviews realm, beside validator and profile reviews: they render when the flag is on and that realm is live on the active network. */
+export const isAppReviewsAvailable = (): boolean => isAppReviewsEnabled() && isReviewsValid()
 /** Social feed (W7.2). Ordinary flag — no funds. Literal reader (dynamic
  * import.meta.env[key] is undefined in prod bundles). */
 export const isFeedEnabled = (): boolean => import.meta.env.VITE_ENABLE_FEED === "true"
@@ -1656,12 +1653,10 @@ export const isBarricade25DEnabled = (): boolean =>
 /** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
  * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
 export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"
-/** App Store (W9). SAFETY-GATED — the realm's RegisterApp fee path is not yet
- * verified on-chain (see SAFETY_GATED_FLAGS). Literal reader (prod-bundle safe). */
+/** App Store registry. Ordinary, owner-controlled flag (de-gated in lib/safeFlags.ts). Literal reader (prod-bundle safe). */
 export const isAppStoreEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPSTORE === "true"
-/** App Store self-service submission (B3). SAFETY-GATED — RegisterApp attaches real coins
- * and the memba_appstore_v3 fee path is not yet deployed/verified (see SAFETY_GATED_FLAGS).
- * Literal reader (prod-bundle safe). */
+/** App Store self-service submission: RegisterApp attaches the listing fee. Ordinary, owner-controlled
+ * flag (de-gated in lib/safeFlags.ts). Literal reader (prod-bundle safe). */
 export const isAppStoreSubmitEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPSTORE_SUBMIT === "true"
 
 /** Token allocation percentages (total = 100%). */

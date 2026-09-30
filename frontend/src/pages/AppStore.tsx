@@ -15,12 +15,12 @@
 
 import { Suspense, useState, type CSSProperties } from "react"
 import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
 import { fetchLiveCatalogue, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
 import { fetchSummary, fetchSummaries, publisherNote, type SubjectSummary } from "../lib/reviews"
 import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
-import { MEMBA_DAO, API_BASE_URL, isAppReviewsAvailable, isAppStoreSubmitEnabled } from "../lib/config"
+import { API_BASE_URL, isAppReviewsAvailable, isAppStoreSubmitEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { useReviewsModerator } from "../components/reviews/useReviewsModerator"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
@@ -224,7 +224,7 @@ function AppGrid() {
     const subjects = apps.map((a) => a.pkgPath)
     const { data: summaries } = useQuery({
         queryKey: ["appStore", "summaries", networkKey, subjects],
-        queryFn: () => fetchSummaries(subjects, MEMBA_DAO.appReviewsPath),
+        queryFn: () => fetchSummaries(subjects),
         enabled: appReviews && subjects.length > 0,
         staleTime: 60_000,
         gcTime: 300_000,
@@ -262,7 +262,7 @@ function AppGrid() {
                     </div>
                 )}
                 {/* Self-service listing (B3) — the submit route only exists meaningfully on the
-                    v3 realm, and the flag is SAFETY-GATED until its fee path is verified. */}
+                    v3 realm, and an owner-controlled flag opens it. */}
                 {isAppStoreSubmitEnabled() && isAppStoreV3() && (
                     <>
                         <Link className="appbtn appbtn--ghost appstore__submit-cta" to={`/${networkKey}/apps/submit`}>
@@ -466,7 +466,8 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
     const { networkKey } = useNetwork()
     const rel = relPath(pkgPath)
     const appReviews = isAppReviewsAvailable()
-    const moderator = useReviewsModerator(MEMBA_DAO.appReviewsPath, appReviews)
+    const moderator = useReviewsModerator(appReviews)
+    const queryClient = useQueryClient()
     const { data: app, isPending, isError } = useQuery({
         queryKey: ["appStore", "detail", networkKey, pkgPath],
         queryFn: () => fetchApp(pkgPath),
@@ -475,11 +476,10 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
         retry: 1,
     })
     // Compact at-a-glance rating for the hero. The review subject is the app's own realm path.
-    // Only fetched when community reviews are enabled (the app-reviews realm is not on mainnet yet;
-    // gated behind VITE_ENABLE_APP_REVIEWS until wired live).
+    // Only fetched when app reviews are available: the flag on and the network's reviews realm live.
     const { data: reviewSummary } = useQuery({
         queryKey: ["appReviews", "summary", networkKey, pkgPath],
-        queryFn: () => fetchSummary(pkgPath, MEMBA_DAO.appReviewsPath),
+        queryFn: () => fetchSummary(pkgPath),
         enabled: appReviews,
         staleTime: 60_000,
         gcTime: 300_000,
@@ -566,10 +566,14 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                         <div className="appdetail__reviews">
                             <ReviewsSection
                                 subject={pkgPath}
-                                realmPath={MEMBA_DAO.appReviewsPath}
                                 minRatedCount={MIN_RATED_COUNT}
                                 paginate
                                 useOnchainSummary
+                                // The hero and the grid show this app's summary too: read them again.
+                                onPosted={() => {
+                                    void queryClient.invalidateQueries({ queryKey: ["appReviews", "summary", networkKey, pkgPath] })
+                                    void queryClient.invalidateQueries({ queryKey: ["appStore", "summaries", networkKey] })
+                                }}
                             />
                         </div>
                     )}

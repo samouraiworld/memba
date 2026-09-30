@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { OS_ON } from '../../playwright.os.config'
+import { OS_FLAGS_ON as OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 
@@ -24,7 +24,6 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
 
 for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`gated onchain reviews stay inside the native Store detail on ${device}`, async ({ page }) => {
-        test.skip(process.env.OS_STORE_REVIEWS !== 'true', 'run with OS_STORE_REVIEWS=true, VITE_ENABLE_APP_REVIEWS=true and a test-only allowlisted reviews path')
         await fulfillOnchainReads(page, ({ method, path, arg }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (path === 'vm/qeval' && arg.includes('ListLiveJSON')) return `(${JSON.stringify(JSON.stringify(live))} string)`
@@ -35,7 +34,7 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
         })
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width, height: 800 })
-        await page.goto(`${OS_ON}/os/store`)
+        await page.goto(`${OS_FLAGS_ON}/os/store`)
         const store = page.getByRole('region', { name: 'App Store', exact: true })
         await store.getByRole('button', { name: 'Details for Boards' }).click()
         const detail = page.getByRole('region', { name: 'App details · App Store' })
@@ -65,10 +64,9 @@ const live = [
 ]
 
 test('registry failure does not present an onchain search as a complete empty result', async ({ page }) => {
-    test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')
     await fulfillOnchainReads(page, ({ method }) => method === 'status' ? mockAppChainStatus('gnoland-1') : null)
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
-    await page.goto(`${OS_ON}/os/store`)
+    await page.goto(`${OS_FLAGS_ON}/os/store`)
     const store = page.getByRole('region', { name: 'App Store', exact: true })
     await store.getByRole('searchbox', { name: 'Search apps and tools' }).fill('Block Party')
     await store.getByRole('button', { name: 'Search', exact: true }).click()
@@ -78,14 +76,13 @@ test('registry failure does not present an onchain search as a complete empty re
 })
 
 test('detail RPC failure is not presented as an absent listing', async ({ page }) => {
-    test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')
     await fulfillOnchainReads(page, ({ method, path, arg }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (path === 'vm/qeval' && arg.includes('ListLiveJSON')) return `(${JSON.stringify(JSON.stringify(live))} string)`
         return null
     })
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
-    await page.goto(`${OS_ON}/os/store`)
+    await page.goto(`${OS_FLAGS_ON}/os/store`)
     const store = page.getByRole('region', { name: 'App Store', exact: true })
     await store.getByRole('button', { name: 'Details for Boards' }).click()
     const detail = page.getByRole('region', { name: 'App details · App Store' })
@@ -95,7 +92,6 @@ test('detail RPC failure is not presented as an absent listing', async ({ page }
 
 for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`flag-on Store shows one catalogue in the OS on ${device}`, async ({ page }) => {
-        test.skip(process.env.OS_STORE_CHAIN !== 'true', 'run with OS_STORE_CHAIN=true and VITE_ENABLE_APPSTORE=true')
         await fulfillOnchainReads(page, ({ method, path, arg }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (path === 'vm/qeval' && arg.includes('ListLiveJSON')) return `(${JSON.stringify(JSON.stringify(live))} string)`
@@ -105,7 +101,7 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
         })
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width, height: 800 })
-        await page.goto(`${OS_ON}/os/store`)
+        await page.goto(`${OS_FLAGS_ON}/os/store`)
         const store = page.getByRole('region', { name: 'App Store', exact: true })
         await expect(store.getByRole('button', { name: 'Details for GnoSwap' })).toHaveCount(1)
         await expect(store.getByRole('button', { name: 'Details for Boards' })).toHaveCount(1)
