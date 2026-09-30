@@ -14,22 +14,25 @@
 import { useState, useCallback } from "react"
 import { sanitizeMarkdownHtml } from "../../lib/sanitizeMarkdownHtml"
 import { renderMarkdown } from "../../lib/markdownLite"
-import { useAdena } from "../../hooks/useAdena"
 import { useBlockTime } from "../../hooks/useBlockTime"
 import {
   type OnChainReview,
   type OnChainComment,
+  type ReviewAction,
   fetchComments,
-  buildReactMsg,
-  buildCommentMsg,
-  buildEditReviewMsg,
-  buildDeleteReviewMsg,
-  buildEditCommentMsg,
-  buildDeleteCommentMsg,
-  buildFlagMsg,
-  submitMsg,
+  REPLY_BODY_MAX_BYTES,
+  REVIEW_BODY_MAX_BYTES,
 } from "../../lib/reviews"
 import { StarRating } from "./StarRating"
+
+/**
+ * Carries out an action for the viewer: the classic page signs it in the wallet, Memba OS
+ * reviews it in its signing sheet first. Resolves false when nothing was sent (a review
+ * that was cancelled), and throws with the message to show.
+ */
+export type ReviewAct = (action: ReviewAction) => Promise<boolean>
+
+const bytes = (text: string) => new TextEncoder().encode(text).length
 
 function truncateAddr(addr: string): string {
   if (addr.length <= 16) return addr
@@ -62,12 +65,12 @@ function ReviewDate({ height, className }: { height: number; className?: string 
 
 interface CommentRowProps {
   comment: OnChainComment
-  address: string
+  viewer: string | null
+  act: ReviewAct
   onRefetch: () => void
-  readOnly?: boolean
 }
 
-function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRowProps) {
+function CommentRow({ comment, viewer, act, onRefetch }: CommentRowProps) {
   const [editMode, setEditMode] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [error, setError] = useState<string | null>(null)
@@ -78,13 +81,17 @@ function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRo
   }
 
   const authorLabel = truncateAddr(comment.author)
-  const isAuthor = address === comment.author
+  const isAuthor = viewer === comment.author
+  const editTooLong = bytes(editBody.trim()) > REPLY_BODY_MAX_BYTES
 
-  async function handleAction(msg: ReturnType<typeof buildEditCommentMsg>, memo: string) {
+  // Busy controls stay focusable (aria-disabled): a disabled one drops the focus a signing sheet hands back.
+  async function handleAction(action: ReviewAction) {
+    if (busy) return
     setBusy(true)
     setError(null)
     try {
-      await submitMsg(msg, memo)
+      if (!await act(action)) return
+      setEditMode(false)
       onRefetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed. Please try again.")
@@ -106,7 +113,7 @@ function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRo
         )}
       </div>
 
-      {editMode && !readOnly ? (
+      {editMode ? (
         <div className="review-card__edit-form">
           <textarea
             value={editBody}
@@ -116,10 +123,9 @@ function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRo
           <div className="review-card__edit-btns">
             <button
               className="reviews-btn-primary"
-              disabled={busy || !editBody.trim()}
-              onClick={() =>
-                handleAction(buildEditCommentMsg(address, comment.id, editBody.trim()), "edit comment")
-              }
+              aria-disabled={busy}
+              disabled={!editBody.trim() || editTooLong}
+              onClick={() => handleAction({ kind: "editReply", reply: comment.id, body: editBody.trim(), was: comment.body })}
             >
               {busy ? "Saving…" : "Save"}
             </button>
@@ -127,7 +133,8 @@ function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRo
               Cancel
             </button>
           </div>
-          {error && <p className="review-card__error">{error}</p>}
+          {editTooLong && <p className="review-card__error" role="alert">A reply is limited to {REPLY_BODY_MAX_BYTES.toLocaleString("en-US")} bytes.</p>}
+          {error && <p className="review-card__error" role="alert">{error}</p>}
         </div>
       ) : (
         <div
@@ -136,29 +143,27 @@ function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRo
         />
       )}
 
-      {!editMode && !readOnly && (
+      {!editMode && (
         <div className="review-comment__actions">
           {isAuthor && (
             <>
               <button
                 className="review-card__action-btn"
-                disabled={busy}
-                onClick={() => { setEditBody(comment.body); setEditMode(true) }}
+                aria-disabled={busy}
+                onClick={() => { if (!busy) { setEditBody(comment.body); setEditMode(true) } }}
               >
                 Edit
               </button>
               <button
                 className="review-card__action-btn review-card__action-btn--danger"
-                disabled={busy}
-                onClick={() =>
-                  handleAction(buildDeleteCommentMsg(address, comment.id), "delete comment")
-                }
+                aria-disabled={busy}
+                onClick={() => handleAction({ kind: "deleteReply", reply: comment.id })}
               >
                 Delete
               </button>
             </>
           )}
-          {error && <p className="review-card__error">{error}</p>}
+          {error && <p className="review-card__error" role="alert">{error}</p>}
         </div>
       )}
     </div>
@@ -170,12 +175,14 @@ function CommentRow({ comment, address, onRefetch, readOnly = false }: CommentRo
 interface ReviewCardProps {
   review: OnChainReview
   onRefetch: () => void
-  readOnly?: boolean
+  /** The connected wallet's address, or null for a visitor. */
+  viewer: string | null
+  act: ReviewAct
+  /** Word labels instead of emoji on the actions (Memba OS). */
+  plain?: boolean
 }
 
-export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardProps) {
-  const { address, connected } = useAdena()
-
+export function ReviewCard({ review, onRefetch, viewer, act, plain = false }: ReviewCardProps) {
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<OnChainComment[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
@@ -187,7 +194,9 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const isAuthor = connected && address === review.author
+  const isAuthor = viewer === review.author
+  const replyTooLong = bytes(replyBody.trim()) > REPLY_BODY_MAX_BYTES
+  const editTooLong = bytes(editBody.trim()) > REVIEW_BODY_MAX_BYTES
   const authorLabel = truncateAddr(review.author)
   // Optimistic, not-yet-confirmed review (temp id < 0): show a "Posting…" chip and hide the
   // on-chain actions (they'd target an invalid id until the chain reflects the write).
@@ -213,16 +222,12 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
     }
   }
 
-  async function handleAction(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    msg: any,
-    memo: string,
-    afterSuccess?: () => void,
-  ) {
+  async function handleAction(action: ReviewAction, afterSuccess?: () => void) {
+    if (busy) return
     setBusy(true)
     setError(null)
     try {
-      await submitMsg(msg, memo)
+      if (!await act(action)) return
       afterSuccess?.()
       onRefetch()
     } catch (err) {
@@ -233,18 +238,16 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
   }
 
   async function handleReply() {
-    if (!replyBody.trim()) return
+    if (!replyBody.trim() || replyTooLong) return
     await handleAction(
-      buildCommentMsg(address, review.id, replyBody.trim()),
-      "post comment",
+      { kind: "reply", review: review.id, body: replyBody.trim() },
       () => { setReplyBody(""); setReplyOpen(false); loadComments() },
     )
   }
 
   async function handleEdit() {
     await handleAction(
-      buildEditReviewMsg(address, review.id, editRating, editBody.trim()),
-      "edit review",
+      { kind: "editReview", review: review.id, rating: editRating, body: editBody.trim(), was: review.body },
       () => setEditMode(false),
     )
   }
@@ -282,7 +285,7 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
       </div>
 
       {/* Body */}
-      {editMode && !readOnly ? (
+      {editMode ? (
         <div className="review-card__edit-form">
           <div>
             <span className="reviews-section__form-label">Rating</span>
@@ -297,7 +300,8 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
           <div className="review-card__edit-btns">
             <button
               className="reviews-btn-primary"
-              disabled={busy || editRating === 0}
+              aria-disabled={busy}
+              disabled={editRating === 0 || editTooLong}
               onClick={handleEdit}
             >
               {busy ? "Saving…" : "Save"}
@@ -306,7 +310,8 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
               Cancel
             </button>
           </div>
-          {error && <p className="review-card__error">{error}</p>}
+          {editTooLong && <p className="review-card__error" role="alert">A review is limited to {REVIEW_BODY_MAX_BYTES.toLocaleString("en-US")} bytes.</p>}
+          {error && <p className="review-card__error" role="alert">{error}</p>}
         </div>
       ) : (
         <div
@@ -316,26 +321,28 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
       )}
 
       {/* Actions — hidden while the optimistic review is still pending confirmation. */}
-      {!editMode && !pending && !readOnly && (
+      {!editMode && !pending && (
         <div className="review-card__actions">
           {/* Like */}
           <button
             className="review-card__action-btn review-card__action-btn--like"
-            disabled={busy || !connected || isAuthor}
-            onClick={() => handleAction(buildReactMsg(address, review.id, "like"), "like review")}
+            aria-disabled={busy}
+            disabled={isAuthor}
+            onClick={() => handleAction({ kind: "react", target: review.id, on: "review", reaction: "like" })}
             aria-label={`Like — ${review.likes}`}
           >
-            <span aria-hidden="true">👍</span> {review.likes}
+            {plain ? "Like" : <span aria-hidden="true">👍</span>} {review.likes}
           </button>
 
           {/* Dislike */}
           <button
             className="review-card__action-btn review-card__action-btn--dislike"
-            disabled={busy || !connected || isAuthor}
-            onClick={() => handleAction(buildReactMsg(address, review.id, "dislike"), "dislike review")}
+            aria-disabled={busy}
+            disabled={isAuthor}
+            onClick={() => handleAction({ kind: "react", target: review.id, on: "review", reaction: "dislike" })}
             aria-label={`Dislike — ${review.dislikes}`}
           >
-            <span aria-hidden="true">👎</span> {review.dislikes}
+            {plain ? "Dislike" : <span aria-hidden="true">👎</span>} {review.dislikes}
           </button>
 
           {/* Reply toggle */}
@@ -345,18 +352,18 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
             aria-expanded={showComments}
             aria-label="Reply"
           >
-            <span aria-hidden="true">💬</span> Reply
+            {!plain && <span aria-hidden="true">💬</span>} Reply
           </button>
 
-          {/* Flag */}
-          {connected && !isAuthor && (
+          {/* Flag — a visitor sees it too: pressing it asks for the wallet. */}
+          {!isAuthor && (
             <button
               className="review-card__action-btn review-card__action-btn--flag"
-              disabled={busy}
-              onClick={() => handleAction(buildFlagMsg(address, review.id), "flag review")}
+              aria-disabled={busy}
+              onClick={() => handleAction({ kind: "flag", target: review.id, on: "review" })}
               aria-label="Flag for moderation"
             >
-              <span aria-hidden="true">🚩</span> Flag
+              {!plain && <span aria-hidden="true">🚩</span>} Flag
             </button>
           )}
 
@@ -365,17 +372,15 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
             <>
               <button
                 className="review-card__action-btn review-card__action-btn--spacer"
-                disabled={busy}
-                onClick={() => { setEditRating(review.rating); setEditBody(review.body); setEditMode(true) }}
+                aria-disabled={busy}
+                onClick={() => { if (!busy) { setEditRating(review.rating); setEditBody(review.body); setEditMode(true) } }}
               >
                 Edit
               </button>
               <button
                 className="review-card__action-btn review-card__action-btn--danger"
-                disabled={busy}
-                onClick={() =>
-                  handleAction(buildDeleteReviewMsg(address, review.id), "delete review")
-                }
+                aria-disabled={busy}
+                onClick={() => handleAction({ kind: "deleteReview", review: review.id })}
               >
                 Delete
               </button>
@@ -384,9 +389,7 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
         </div>
       )}
 
-      {!pending && readOnly && <button type="button" className="review-card__action-btn" onClick={toggleComments} aria-expanded={showComments}>{showComments ? "Hide replies" : "View replies"}</button>}
-
-      {error && !editMode && <p className="review-card__error">{error}</p>}
+      {error && !editMode && <p className="review-card__error" role="alert">{error}</p>}
 
       {/* Comments section */}
       {showComments && (
@@ -398,51 +401,47 @@ export function ReviewCard({ review, onRefetch, readOnly = false }: ReviewCardPr
             <CommentRow
               key={c.id}
               comment={c}
-              address={address}
+              viewer={viewer}
+              act={act}
               onRefetch={loadComments}
-              readOnly={readOnly}
             />
           ))}
           {!commentsLoading && comments.length === 0 && <p className="reviews-section__empty">No replies yet.</p>}
 
-          {/* Reply form */}
-          {readOnly ? null : connected ? (
-            replyOpen ? (
-              <div className="review-card__reply-form">
-                <textarea
-                  value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
-                  placeholder="Write a reply…"
-                  rows={3}
-                />
-                <div className="review-card__reply-btns">
-                  <button
-                    className="reviews-btn-primary"
-                    disabled={busy || !replyBody.trim()}
-                    onClick={handleReply}
-                  >
-                    {busy ? "Posting…" : "Post reply"}
-                  </button>
-                  <button
-                    className="reviews-btn-secondary"
-                    onClick={() => { setReplyOpen(false); setReplyBody("") }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+          {/* Reply form — open to a visitor too: posting asks for the wallet. */}
+          {replyOpen ? (
+            <div className="review-card__reply-form">
+              <textarea
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+                placeholder="Write a reply…"
+                rows={3}
+              />
+              {replyTooLong && <p className="review-card__error" role="alert">A reply is limited to {REPLY_BODY_MAX_BYTES.toLocaleString("en-US")} bytes.</p>}
+              <div className="review-card__reply-btns">
+                <button
+                  className="reviews-btn-primary"
+                  aria-disabled={busy}
+                  disabled={!replyBody.trim() || replyTooLong}
+                  onClick={handleReply}
+                >
+                  {busy ? "Posting…" : "Post reply"}
+                </button>
+                <button
+                  className="reviews-btn-secondary"
+                  onClick={() => { setReplyOpen(false); setReplyBody("") }}
+                >
+                  Cancel
+                </button>
               </div>
-            ) : (
-              <button
-                className="reviews-btn-secondary"
-                onClick={() => setReplyOpen(true)}
-              >
-                + Add reply
-              </button>
-            )
+            </div>
           ) : (
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--color-k-muted)" }}>
-              Connect wallet to reply.
-            </p>
+            <button
+              className="reviews-btn-secondary"
+              onClick={() => setReplyOpen(true)}
+            >
+              + Add reply
+            </button>
           )}
         </div>
       )}

@@ -15,7 +15,7 @@ function review(over: Partial<OnChainReview>): OnChainReview {
 const fetchReviews = vi.fn()
 const fetchSummary = vi.fn()
 const fetchModerator = vi.fn()
-const submitMsg = vi.fn()
+const submitReviewAction = vi.fn()
 const submitReview = vi.fn()
 
 // Keep the real pure helpers (merge/summary/optimistic); stub only the network calls.
@@ -28,7 +28,7 @@ vi.mock("../../lib/reviews", async (importActual) => {
     fetchModerator: (...args: unknown[]) => fetchModerator(...args),
     fetchComments: vi.fn().mockResolvedValue([]),
     attachUsernames: vi.fn().mockImplementation((x: unknown[]) => Promise.resolve(x)),
-    submitMsg: (...a: unknown[]) => submitMsg(...a),
+    submitReviewAction: (...a: unknown[]) => submitReviewAction(...a),
     submitReview: (...a: unknown[]) => submitReview(...a),
   }
 })
@@ -47,7 +47,7 @@ describe("ReviewsSection", () => {
     fetchReviews.mockReset().mockResolvedValue([
       review({ id: 1, subject: "g1s", author: "g1a", body: "great validator", rating: 5, reputation: 3, username: "@alice" }),
     ])
-    submitMsg.mockReset().mockResolvedValue("hash")
+    submitReviewAction.mockReset().mockResolvedValue("hash")
     submitReview.mockReset().mockResolvedValue("hash")
     fetchSummary.mockReset().mockResolvedValue({ count: 0, sum: 0, average: 0 })
     fetchModerator.mockReset().mockResolvedValue(null)
@@ -236,12 +236,58 @@ describe("ReviewsSection", () => {
     expect(await screen.findByText("back online")).toBeInTheDocument()
   })
 
-  it("keeps native read-only reviews free of direct wallet actions", async () => {
-    renderWithProviders(<ReviewsSection subject="g1s" readOnly />)
+  it("signs a classic action in the wallet for the connected address, and reloads the list", async () => {
+    adena = { address: "g1me", connected: true, connect }
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    const reads = fetchReviews.mock.calls.length
+    fireEvent.click(screen.getByRole("button", { name: "Like — 0" }))
+    await waitFor(() => expect(submitReviewAction).toHaveBeenCalledWith("g1me", { kind: "react", target: 1, on: "review", reaction: "like" }))
+    await waitFor(() => expect(fetchReviews.mock.calls.length).toBeGreaterThan(reads))
+  })
+
+  it("hands a Memba OS surface the actions for its viewer, leaves the post form out, and never opens the wallet itself", async () => {
+    // A classic wallet that happens to be connected is not the OS session: only `viewer` counts.
+    adena = { address: "g1classic", connected: true, connect }
+    const act = vi.fn().mockResolvedValue(false)
+    const guest = renderWithProviders(<ReviewsSection subject="g1s" os={{ viewer: null, act }} />)
     expect(await screen.findByText("great validator")).toBeInTheDocument()
     expect(screen.queryByRole("radiogroup", { name: /your rating/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /like|dislike|flag|edit|delete/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "View replies" })).toBeInTheDocument()
+    // Word labels, no emoji; a guest presses an action and the surface asks for its session.
+    const like = screen.getByRole("button", { name: "Like — 0" })
+    expect(like).toHaveTextContent("Like 0")
+    fireEvent.click(screen.getByRole("button", { name: "Flag for moderation" }))
+    await waitFor(() => expect(act).toHaveBeenCalledWith({ kind: "flag", target: 1, on: "review" }))
+    expect(connect).not.toHaveBeenCalled()
+    act.mockClear()
+    guest.unmount()
+
+    renderWithProviders(<ReviewsSection subject="g1s" os={{ viewer: "g1member", act }} />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    const reads = fetchReviews.mock.calls.length
+    fireEvent.click(screen.getByRole("button", { name: "Flag for moderation" }))
+    await waitFor(() => expect(act).toHaveBeenCalledWith({ kind: "flag", target: 1, on: "review" }))
+    expect(submitReviewAction).not.toHaveBeenCalled()
+    // Handed over, nothing sent yet: the surface reloads the list itself when the chain has it.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetchReviews.mock.calls.length).toBe(reads)
+  })
+
+  it("states what liking, flagging and replying lock, from the measured storage", async () => {
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    expect(screen.getByText(/Liking, flagging and replying are chain transactions too/)).toHaveTextContent("each paying the network fee. A first like or dislike on a review locks a storage deposit of up to 0.22 GNOT, a flag up to 0.22 GNOT, and a reply up to 0.37 GNOT plus its text. "
+      + "Undoing a reaction returns about half of its deposit, and deleting a reply returns what its text took; the rest stays locked. "
+      + "A flag cannot be withdrawn, and Flag stays available after you flag: flagging the same review again fails on chain and still costs the fee.")
+  })
+
+  it("asks a visitor on the classic page for the wallet when they press an action, and sends nothing", async () => {
+    adena = { address: "", connected: false, connect }
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    expect(await screen.findByText("great validator")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Flag for moderation" }))
+    await waitFor(() => expect(connect).toHaveBeenCalledTimes(1))
+    expect(submitReviewAction).not.toHaveBeenCalled()
   })
 
   it("names the realm's moderator in the policy and offers no hide control, even to that moderator", async () => {
@@ -255,9 +301,9 @@ describe("ReviewsSection", () => {
     expect(screen.queryByRole("button", { name: /^(Hide|Unhide)$/ })).not.toBeInTheDocument()
   })
 
-  it("shows the policy on the read-only OS view too", async () => {
+  it("shows the policy on the OS view too", async () => {
     fetchModerator.mockResolvedValue("g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt")
-    renderWithProviders(<ReviewsSection subject="g1s" readOnly />)
+    renderWithProviders(<ReviewsSection subject="g1s" os={{ viewer: null, act: vi.fn() }} />)
     expect(await screen.findByText("g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt")).toBeInTheDocument()
   })
 
@@ -306,7 +352,7 @@ describe("ReviewsSection", () => {
   it("states the deposit a new review locks, for the text as typed, before any wallet opens", async () => {
     renderWithProviders(<ReviewsSection subject="g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" />)
     await screen.findByText(/great validator/)
-    const cost = () => screen.getByText(/locks a storage deposit/)
+    const cost = () => screen.getByText(/^Posting pays the network fee/)
     // 12,120 bytes for a 40-character subject, at 100 ugnot per byte.
     expect(cost().textContent).toBe("Posting pays the network fee, shown before your wallet opens, and locks a storage deposit: up to 1.21 GNOT for the first review here, less for a later one. "
       + "Replacing your own review locks only what its text adds. Deleting a review returns a small part of its deposit; the rest stays locked. "

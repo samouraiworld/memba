@@ -8,10 +8,9 @@
  * - fetchReviews / fetchComments / fetchSummary / fetchModerator — strict reads: a node that
  *   serves another network, an outage or an unreadable answer throws, never reads as "none"
  * - attachUsernames — joins @username to each distinct author
- * - buildPostReviewMsg / buildEditReviewMsg / buildDeleteReviewMsg /
- *   buildReactMsg / buildCommentMsg / buildFlagMsg — Adena MsgCall builders
- * - submitMsg — broadcast a single reviews MsgCall via Adena
- * - submitReview — broadcast a PostReview at its measured gas, fee and deposit cap
+ * - buildPostReviewMsg, and ReviewAction with reviewActionMsg — the realm's calls, each with its deposit cap
+ * - assertReviewActionApplies — the action checked, and its target read again, before it is signed
+ * - submitReview / submitReviewAction — broadcast from the classic page at the measured gas and a fresh fee
  */
 
 import { GNO_RPC_URL, isReviewsValid, MEMBA_DAO } from "./config"
@@ -320,91 +319,160 @@ export function buildPostReviewMsg(caller: string, subject: string, rating: numb
     return { ...msg, value: { ...msg.value, max_deposit: `${depositCapUgnot(reviewStorageBytes(subject, body))}ugnot` } }
 }
 
+// ── Actions on a review or a reply ───────────────────────────
+
+/** What a wallet can do to a review or a reply, besides posting a review. `was` is the text an edit replaces. */
+export type ReviewAction =
+    | { kind: "react"; target: number; on: "review" | "reply"; reaction: "like" | "dislike" }
+    | { kind: "flag"; target: number; on: "review" | "reply" }
+    | { kind: "reply"; review: number; body: string }
+    | { kind: "editReview"; review: number; rating: number; body: string; was: string }
+    | { kind: "deleteReview"; review: number }
+    | { kind: "editReply"; reply: number; body: string; was: string }
+    | { kind: "deleteReply"; reply: number }
+
+/** A reply's limit in UTF-8 bytes — MUST stay equal to the reviews realm's MaxCommentLen. */
+export const REPLY_BODY_MAX_BYTES = 1000
+
 /**
- * EditReview(reviewID uint64, rating int, body string)
- * Allows the original author to update their review.
+ * Upper bound on the bytes an action stores, from simulations against
+ * gno.land/r/samcrew/memba_reviews_v2 on gnoland-1 (2026-09-30, heights 452,915 to 452,935):
+ *
+ *   first like or dislike on a target     2,145 B  (changing it +3 B; undoing it frees 1,069 B)
+ *   flag                                  2,077 B
+ *   reply                                 3,659 to 3,666 B plus its text
+ *   edit of a review or a reply           the growth of its text, plus 10 to 24 B
+ *   delete                                a reply +20 B; a review frees 1,055 to 2,102 B
+ *
+ * Each used 4.86M to 7.58M gas in a transaction of its own, under half of REVIEW_GAS_WANTED.
+ * The realm does not say whether this wallet already reacted, so a reaction is sized as a first one.
  */
-export function buildEditReviewMsg(caller: string, reviewID: number, rating: number, body: string): AminoMsg {
-    return buildReviewMsgCall("EditReview", [String(reviewID), String(rating), body], caller)
+export function reviewActionStorageBytes(action: ReviewAction): number {
+    switch (action.kind) {
+        case "react": return 2_200
+        case "flag": return 2_150
+        case "reply": return 3_700 + utf8Bytes(action.body)
+        case "editReview":
+        case "editReply": return Math.max(0, utf8Bytes(action.body) - utf8Bytes(action.was)) + 64
+        case "deleteReview":
+        case "deleteReply": return 64
+    }
+}
+
+/** The call for an action, with a storage-deposit cap of twice its estimate (the chain would otherwise accept up to 100 GNOT). */
+export function reviewActionMsg(caller: string, action: ReviewAction): AminoMsg {
+    const call = (func: string, ...args: (string | number)[]) => buildReviewMsgCall(func, args.map(String), caller)
+    const msg = action.kind === "react" ? call("React", action.target, action.reaction)
+        : action.kind === "flag" ? call("Flag", action.target)
+        // The realm's function is PostComment: `Comment` is its struct.
+        : action.kind === "reply" ? call("PostComment", action.review, action.body)
+        : action.kind === "editReview" ? call("EditReview", action.review, action.rating, action.body)
+        : action.kind === "deleteReview" ? call("DeleteReview", action.review)
+        : action.kind === "editReply" ? call("EditComment", action.reply, action.body)
+        : call("DeleteComment", action.reply)
+    return { ...msg, value: { ...msg.value, max_deposit: `${depositCapUgnot(reviewActionStorageBytes(action))}ugnot` } }
+}
+
+/** Whether an action acts on a review or on a reply. */
+export function reviewActionOn(action: ReviewAction): "review" | "reply" {
+    return "on" in action ? action.on : action.kind === "editReply" || action.kind === "deleteReply" ? "reply" : "review"
+}
+
+/** The id of the review or reply an action acts on. */
+export function reviewActionTarget(action: ReviewAction): number {
+    return "target" in action ? action.target : "reply" in action ? action.reply : action.review
+}
+
+/** A review or a reply as the realm holds it now, hidden and deleted ones included. */
+export interface ReviewTargetState {
+    exists: boolean
+    isReview: boolean
+    author: string
+    /** SHA-256 of the body, hex. */
+    bodyHash: string
+    hidden: boolean
+    deleted: boolean
+}
+
+/** Parses GetModerationState's struct as vm/qeval prints it; throws on any other shape. */
+export function parseTargetState(raw: string): ReviewTargetState {
+    const body = raw.match(/^\(struct\{([\s\S]*)\} \S+\.ModerationState\)$/)?.[1]
+    // Each field prints as `(value type)`; a string is Go-quoted, and an empty one prints as nothing.
+    const fields = body ? [...body.matchAll(/\((?:"((?:[^"\\]|\\.)*)"|([^\s()"]*)) [.\w]+\)/g)].map((m) => m[1] ?? m[2]) : []
+    if (fields.length !== 12) throw new Error("The reviews realm did not describe this review.")
+    const [id, isReview, , , author, , bodyHash, , , hidden, deleted] = fields
+    return { exists: id !== "0", isReview: isReview === "true", author, bodyHash, hidden: hidden === "true", deleted: deleted === "true" }
+}
+
+export async function fetchTargetState(id: number): Promise<ReviewTargetState> {
+    const raw = await queryEval(GNO_RPC_URL, REVIEWS_PKG_PATH, `GetModerationState(${id})`, true)
+    if (!raw) throw new Error("The reviews realm could not be read.")
+    return parseTargetState(raw.trim())
+}
+
+async function sha256Hex(text: string): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("")
 }
 
 /**
- * DeleteReview(reviewID uint64)
- * Soft-deletes a review (author or multisig only on-chain).
+ * Reads the target again and throws when the action would fail on chain (a failed
+ * transaction still costs its fee) or would no longer act on the text that was shown.
+ * The realm cannot say whether this wallet already flagged it: a second flag fails there.
  */
-export function buildDeleteReviewMsg(caller: string, reviewID: number): AminoMsg {
-    return buildReviewMsgCall("DeleteReview", [String(reviewID)], caller)
+export async function assertReviewActionApplies(caller: string, action: ReviewAction): Promise<void> {
+    // What the realm refuses by itself, after the fee is charged.
+    if (action.kind === "editReview" && (!Number.isInteger(action.rating) || action.rating < 1 || action.rating > 5)) throw new Error("Select a rating from 1 to 5.")
+    if (action.kind === "editReview" && reviewBodyBytes(action.body) > REVIEW_BODY_MAX_BYTES) throw new Error(`Review text must be ${REVIEW_BODY_MAX_BYTES.toLocaleString("en-US")} bytes or fewer.`)
+    if ((action.kind === "reply" || action.kind === "editReply") && (action.body.trim() === "" || utf8Bytes(action.body) > REPLY_BODY_MAX_BYTES)) throw new Error(`A reply must be 1 to ${REPLY_BODY_MAX_BYTES.toLocaleString("en-US")} bytes.`)
+    const state = await fetchTargetState(reviewActionTarget(action))
+    const what = action.kind === "reply" ? "review" : reviewActionOn(action)
+    if (!state.exists || state.hidden || state.deleted || state.isReview !== (what === "review")) throw new Error(`This ${what} is no longer available. Refresh the reviews.`)
+    const own = state.author === caller
+    if (action.kind === "react" && own) throw new Error(`You cannot react to your own ${what}.`)
+    const changes = action.kind === "editReview" || action.kind === "deleteReview" || action.kind === "editReply" || action.kind === "deleteReply"
+    if (changes && !own) throw new Error(`Only its author can change this ${what}.`)
+    if ((action.kind === "editReview" || action.kind === "editReply") && state.bodyHash !== await sha256Hex(action.was)) throw new Error(`Your ${what} changed since it was shown. Refresh the reviews and edit it again.`)
 }
 
-/**
- * React(targetID uint64, kind string)
- * Like or dislike a review or comment. kind = "like" | "dislike".
- */
-export function buildReactMsg(caller: string, targetID: number, kind: "like" | "dislike"): AminoMsg {
-    return buildReviewMsgCall("React", [String(targetID), kind], caller)
-}
+// ── Broadcast from the classic page ──────────────────────────
 
 /**
- * PostComment(reviewID uint64, body string)
- * Post a comment on an existing review.
- * NOTE: func name is "PostComment" (not "Comment") to avoid the on-chain Comment struct clash.
+ * Sign + broadcast one reviews call via Adena at the measured gas limit and the network fee
+ * read from the chain now, once: a retry could act twice. Throws before the wallet opens when
+ * the fee cannot be read, Adena is unavailable or the RPC is untrusted.
  */
-export function buildCommentMsg(caller: string, reviewID: number, body: string): AminoMsg {
-    return buildReviewMsgCall("PostComment", [String(reviewID), body], caller)
-}
-
-/**
- * EditComment(commentID uint64, body string)
- * Allows the original commenter to update their comment.
- */
-export function buildEditCommentMsg(caller: string, commentID: number, body: string): AminoMsg {
-    return buildReviewMsgCall("EditComment", [String(commentID), body], caller)
-}
-
-/**
- * DeleteComment(commentID uint64)
- * Soft-deletes a comment (author or multisig only on-chain).
- */
-export function buildDeleteCommentMsg(caller: string, commentID: number): AminoMsg {
-    return buildReviewMsgCall("DeleteComment", [String(commentID)], caller)
-}
-
-/**
- * Flag(targetID uint64)
- * Flag a review or comment for moderation.
- */
-export function buildFlagMsg(caller: string, targetID: number): AminoMsg {
-    return buildReviewMsgCall("Flag", [String(targetID)], caller)
-}
-
-// ── Broadcast helper ─────────────────────────────────────────
-
-/**
- * Sign + broadcast a single reviews MsgCall via Adena.
- * Returns the transaction hash on success.
- * Throws if Adena is unavailable, the RPC is untrusted, or the user cancels.
- */
-export async function submitMsg(msg: AminoMsg, memo: string): Promise<string> {
-    const { hash } = await doContractBroadcast([msg], memo)
+async function submitReviewsCall(msg: AminoMsg, memo: string, recheck?: () => Promise<void>): Promise<string> {
+    let gasFee: number
+    try { gasFee = await freshFeeForGasWanted(REVIEW_GAS_WANTED) }
+    catch { throw new Error("The network fee could not be read. Nothing was sent; try again in a moment.") }
+    // The confirmation shows this exact fee. When it closes, what may have changed while it was open is
+    // checked again before the wallet: the target of an action, then the fee.
+    const { hash } = await doContractBroadcast([msg], memo, {
+        gasWanted: REVIEW_GAS_WANTED, gasFee,
+        beforeSign: async () => {
+            await recheck?.()
+            await assertFeeStillCovers(gasFee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED), "Try again to see the new fee.")
+        },
+    })
     return hash
 }
 
-/**
- * Sign + broadcast a PostReview at its measured gas limit and the network fee read from the
- * chain now, once: a retry could post twice. The confirmation shows that exact fee; a fee that
- * rose while it was open stops the post before the wallet. Throws before anything is sent when
- * the review is one the realm would refuse after charging the fee, or when the fee cannot be read.
- */
+/** Throws before anything is sent when the review is one the realm would refuse after charging the fee. */
 export async function submitReview(caller: string, subject: string, rating: number, body: string): Promise<string> {
     if (!isReviewsValid()) throw new Error("Reviews are not available on this network.")
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error("Select a rating from 1 to 5.")
     if (reviewBodyBytes(body) > REVIEW_BODY_MAX_BYTES) throw new Error(`Review text must be ${REVIEW_BODY_MAX_BYTES.toLocaleString("en-US")} bytes or fewer.`)
-    let gasFee: number
-    try { gasFee = await freshFeeForGasWanted(REVIEW_GAS_WANTED) }
-    catch { throw new Error("The network fee could not be read. Nothing was sent; try again in a moment.") }
-    const { hash } = await doContractBroadcast([buildPostReviewMsg(caller, subject, rating, body)], "post review", {
-        gasWanted: REVIEW_GAS_WANTED, gasFee,
-        beforeSign: () => assertFeeStillCovers(gasFee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED), "Post the review again to see the new fee."),
-    })
-    return hash
+    return submitReviewsCall(buildPostReviewMsg(caller, subject, rating, body), "post review")
+}
+
+/**
+ * The target is read before the confirmation opens and again after it closes, so a call that
+ * would fail (a review hidden meanwhile, say) never reaches the wallet.
+ */
+export async function submitReviewAction(caller: string, action: ReviewAction): Promise<string> {
+    if (!isReviewsValid()) throw new Error("Reviews are not available on this network.")
+    await assertReviewActionApplies(caller, action)
+    return submitReviewsCall(reviewActionMsg(caller, action), `${action.kind} on a ${reviewActionOn(action)}`,
+        () => assertReviewActionApplies(caller, action))
 }

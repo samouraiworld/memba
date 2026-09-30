@@ -17,11 +17,12 @@ vi.mock("./config", async (importOriginal) => ({
 
 import { GNO_CHAIN_ID } from "./config"
 import { doContractBroadcast, setTxConfirmationCallback, setWalletRpcContext, type AminoMsg } from "./grc20"
+import * as grc20 from "./grc20"
 import { WalletNetworkError } from "./walletNetworkGuard"
 import { broadcastDaoTx, planDaoTx } from "./dao/daoTx"
 import { broadcastEscrowTx, escrowFailureMayHaveLanded, planCancelContract } from "./marketplace/escrowTx"
 import { submitFeedMsg } from "./feed"
-import { buildFlagMsg, submitMsg as submitReviewMsg } from "./reviews"
+import { submitReview } from "./reviews"
 import { clearGovernanceMemory, readGovernanceReceipt, type GovernanceScope } from "./dao/governanceRecovery"
 import { executeSignature } from "../os/sign/signer"
 import { liveWallet } from "../test/walletStub"
@@ -37,10 +38,11 @@ const PATHS: Array<[string, () => Promise<unknown>]> = [
     ["DAO v2 vote (daoTx)", () => broadcastDaoTx(planDaoTx("memba-v2", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER), "vote")],
     ["escrow (broadcastEscrowTx)", () => broadcastEscrowTx(planCancelContract(CALLER, "gno.land/r/samcrew/escrow_v4", "7"), "cancel")],
     ["feed post (submitFeedMsg)", () => submitFeedMsg(call("Post"), "post")],
-    ["review flag (reviews.submitMsg)", () => submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")],
+    ["review (reviews.submitReview)", () => submitReview(CALLER, PAYEE, 5, "")],
 ]
 
 let DoContract: ReturnType<typeof vi.fn>
+let freshFee: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
     // The cached context useAdena keeps is valid; only the live answer varies.
@@ -49,9 +51,12 @@ beforeEach(() => {
     DoContract = vi.fn(async () => ({ status: "success", data: { hash: "H" } }))
     // Gas-price reads fall back to the default instead of reaching a node.
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")))
+    // A review is sent at a fee read from the chain, with no fallback: that read answers here.
+    freshFee = vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(20_400)
 })
 
 afterEach(() => {
+    freshFee.mockRestore()
     setWalletRpcContext(null, false, null)
     clearGovernanceMemory()
     localStorage.clear()
@@ -154,10 +159,10 @@ describe("the connected account", () => {
     it("refuses when Adena's account is not the one the session connected", async () => {
         setWalletRpcContext("https://rpc.gno.land:443", true, GNO_CHAIN_ID, CALLER)
         vi.stubGlobal("adena", { ...liveWallet({ address: PAYEE }), DoContract })
-        await expect(submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")).rejects.toThrow(/account is not the one connected/)
+        await expect(submitReview(CALLER, PAYEE, 5, "")).rejects.toThrow(/account is not the one connected/)
         expect(DoContract).not.toHaveBeenCalled()
         vi.stubGlobal("adena", { ...liveWallet({ address: CALLER }), DoContract })
-        await submitReviewMsg(buildFlagMsg(CALLER, 1), "flag")
+        await submitReview(CALLER, PAYEE, 5, "")
         expect(DoContract).toHaveBeenCalledTimes(1)
     })
 })

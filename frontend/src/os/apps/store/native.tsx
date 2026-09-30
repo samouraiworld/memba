@@ -1,7 +1,8 @@
 /** Native Memba OS discovery. The registry and editorial directory remain distinct sources. */
-import { useMemo, useState, type CSSProperties, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { API_BASE_URL, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
+import type { ReviewAct } from "../../../components/reviews/ReviewCard"
 import { ReviewsSection } from "../../../components/reviews/ReviewsSection"
 import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
@@ -9,13 +10,16 @@ import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDat
 import { fetchAppStrict, fetchLiveCatalogue, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { isValidCid } from "../../../lib/ipfs"
+import { networkGasPriceFresh } from "../../../lib/grc20"
 import { publisherNote } from "../../../lib/reviews"
 import { AppShell, ErrorState, Loading, Pill } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { osTargetForClassic } from "../../page/classicRoute"
 import { Icon } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
+import { useSigner } from "../../sign/signerContext"
 import { NativeReviewComposer } from "./NativeReviewComposer"
+import { reviewActionRequest } from "./reviewActionRequest"
 import "./native.css"
 
 const sections = [
@@ -96,7 +100,13 @@ function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "sessio
 }
 
 function Detail({ section, session, open, close }: NativeViewProps) {
+    const signer = useSigner()
     const [reviewRefresh, setReviewRefresh] = useState(0)
+    // False once this window is gone, and the list a fee quote was asked from: a quote that returns late opens no sheet.
+    const alive = useRef(true)
+    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const listShown = useRef(reviewRefresh)
+    useEffect(() => { listShown.current = reviewRefresh }, [reviewRefresh])
     const moderator = useReviewsModerator(isAppReviewsAvailable())
     const path = section?.startsWith("apps/") ? `gno.land/${section.slice(5)}` : null
     const projectId = section?.startsWith("project/") ? section.slice(8) : null
@@ -115,6 +125,19 @@ function Detail({ section, session, open, close }: NativeViewProps) {
         realmPath: listing.pkgPath, availability: session.network.key === "mainnet" ? "mainnet" as const : "testnet" as const, listing,
     } : null
     const back = () => { open(specForTarget({ kind: "app", app: "store", section: null })!); close() }
+    // An action on a review opens the signing sheet and hands over: the list reloads when the chain has it.
+    const act: ReviewAct = async (action) => {
+        if (session.status !== "member") { session.openConnect(); return false }
+        const from = listShown.current
+        // Read from the chain at this click: a cached or fallback price would be refused at the recheck.
+        const price = await networkGasPriceFresh().catch(() => { throw new Error("The network fee could not be read. Try again in a moment.") })
+        if (!alive.current || listShown.current !== from || !entry) return false
+        signer.sign(reviewActionRequest({
+            action, appName: entry.name, caller: session.address, networkKey: session.network.key, chainId: session.network.chainId, price,
+            onSettled: (outcome) => { if (outcome === "confirmed" || outcome === "submitted") setReviewRefresh((value) => value + 1) },
+        }))
+        return false
+    }
     return <div className="os-store-detail">
         <button type="button" className="os-store-back" onClick={back}>← Discover</button>
         {path && !registryEnabled && <div className="os-note" role="status">Onchain listings are unavailable in this build.</div>}
@@ -135,8 +158,8 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                     {entry.source === "registry" && (isAppReviewsAvailable()
                         ? <div className="os-store-reviews">
                             {listing?.status === "live" && <NativeReviewComposer key={entry.realmPath} session={session} subject={entry.realmPath!} appName={entry.name} onSubmitted={() => setReviewRefresh(value => value + 1)} />}
-                            <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly />
-                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => { setReviewRefresh(value => value + 1); void detail.refetch() }}>Refresh reviews</button><a className="os-btn os-quiet" href={`/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
+                            <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary os={{ viewer: session.status === "member" ? session.address : null, act }} />
+                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => { setReviewRefresh(value => value + 1); void detail.refetch() }}>Refresh reviews</button></div>
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>

@@ -19,12 +19,15 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useAdena } from "../../hooks/useAdena"
 import {
   type OnChainReview,
+  type ReviewAction,
   fetchReviews,
   fetchSummary,
   attachUsernames,
   submitReview,
+  submitReviewAction,
   reviewBodyBytes,
   reviewStorageBytes,
+  reviewActionStorageBytes,
   REVIEW_BODY_MAX_BYTES,
   mergeReviewsByAuthor,
   summaryFromReviews,
@@ -34,7 +37,7 @@ import {
 } from "../../lib/reviews"
 import { formatUgnot, STORAGE_PRICE_UGNOT } from "../../lib/dao/v2Budget"
 import { StarRating } from "./StarRating"
-import { ReviewCard } from "./ReviewCard"
+import { ReviewCard, type ReviewAct } from "./ReviewCard"
 import { ReviewsModeration } from "./ModerationPolicy"
 import "./reviews.css"
 
@@ -52,18 +55,29 @@ interface ReviewsSectionProps {
   paginate?: boolean
   /** Use the realm's all-review summary instead of the loaded page's subtotal. */
   useOnchainSummary?: boolean
-  /** Hide classic wallet controls when a native surface handles its own writes. */
-  readOnly?: boolean
+  /**
+   * A Memba OS surface: its own composer posts reviews, so the form here is left out, and the
+   * actions on a review go through `act` (the OS signing sheet) for `viewer`, the session's address.
+   */
+  os?: { viewer: string | null; act: ReviewAct }
   /** Called once the chain shows a review posted here, so summaries elsewhere on the page can be read again. */
   onPosted?: () => void
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const actionDeposit = (action: ReviewAction) => formatUgnot(reviewActionStorageBytes(action) * STORAGE_PRICE_UGNOT)
 const REVIEW_PAGE_SIZE = 20
 const MAX_EMPTY_PAGES = 5
 
-export function ReviewsSection({ subject, aliasSubjects, minRatedCount = 0, paginate = false, useOnchainSummary = false, readOnly = false, onPosted }: ReviewsSectionProps) {
+export function ReviewsSection({ subject, aliasSubjects, minRatedCount = 0, paginate = false, useOnchainSummary = false, os, onPosted }: ReviewsSectionProps) {
   const { address, connected, connect } = useAdena()
+  const viewer = os ? os.viewer : connected && address ? address : null
+  // A visitor can press any action: it asks for the wallet then, not before.
+  const act: ReviewAct = os ? os.act : async (action) => {
+    if (!connected || !address) { await connect(); return false }
+    await submitReviewAction(address, action)
+    return true
+  }
 
   const [reviews, setReviews] = useState<OnChainReview[]>([])
   const [loading, setLoading] = useState(true)
@@ -319,7 +333,7 @@ export function ReviewsSection({ subject, aliasSubjects, minRatedCount = 0, pagi
       </div>
 
       {/* Write form — always usable; the wallet is only triggered on "Post review". */}
-      {!readOnly && <form className="reviews-section__form" onSubmit={handleSubmit} noValidate>
+      {!os && <form className="reviews-section__form" onSubmit={handleSubmit} noValidate>
         <div>
           <span className="reviews-section__form-label" id="review-rating-label">Your rating</span>
           <StarRating value={rating} onChange={setRating} ariaLabelledBy="review-rating-label" />
@@ -373,6 +387,10 @@ export function ReviewsSection({ subject, aliasSubjects, minRatedCount = 0, pagi
 
       {/* List — show stale content while revalidating (so a post's optimistic entry and
           the background reconcile loads don't flash skeletons over the list). */}
+      {visible.length > 0 && <p className="reviews-section__permanence">
+        Liking, flagging and replying are chain transactions too, each paying the network fee. A first like or dislike on a review locks a storage deposit of up to {actionDeposit({ kind: "react", target: 0, on: "review", reaction: "like" })}, a flag up to {actionDeposit({ kind: "flag", target: 0, on: "review" })}, and a reply up to {actionDeposit({ kind: "reply", review: 0, body: "" })} plus its text.
+        Undoing a reaction returns about half of its deposit, and deleting a reply returns what its text took; the rest stays locked. A flag cannot be withdrawn, and Flag stays available after you flag: flagging the same review again fails on chain and still costs the fee.
+      </p>}
       <div className="reviews-section__list" aria-live="polite" aria-busy={loading || loadingMore}>
         {loading && visible.length === 0 && !loadError && (
           <div className="reviews-section__skeletons" data-testid="reviews-skeletons" aria-hidden="true">
@@ -391,7 +409,7 @@ export function ReviewsSection({ subject, aliasSubjects, minRatedCount = 0, pagi
 
         {visible.length > 0 &&
           visible.map((r) => (
-            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} readOnly={readOnly} />
+            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} viewer={viewer} act={act} plain={!!os} />
           ))}
         {loadMoreError && <p className="reviews-section__error" role="alert">{loadMoreError}</p>}
         {paginate && hasMore && !loading && <button type="button" className="reviews-btn-secondary reviews-section__load-more" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more reviews"}</button>}

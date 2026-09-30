@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { OS_FLAGS_ON as OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
+import { OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 
@@ -40,8 +40,11 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
         const detail = page.getByRole('region', { name: 'App details · App Store' })
         await expect(detail.getByRole('heading', { name: 'Reviews' })).toBeVisible()
         await expect(detail.getByText('A clear onchain forum')).toBeVisible()
-        await expect(detail.getByRole('link', { name: 'Manage reviews and replies ↗' })).toHaveAttribute('href', '/mainnet/apps/r/gnoland/boards2/v0')
-        await expect(detail.getByRole('link', { name: 'Manage reviews and replies ↗' })).toHaveCSS('text-decoration-line', 'none')
+        // A guest reads the list and what its actions cost; pressing an action asks for a wallet there, and none leaves the OS.
+        await expect(detail.getByRole('button', { name: 'Like — 0', exact: true })).toBeEnabled()
+        await expect(detail.getByRole('button', { name: 'Flag for moderation' })).toBeVisible()
+        await expect(detail.getByText(/A first like or dislike on a review locks a storage deposit of up to 0\.22 GNOT/)).toBeVisible()
+        await expect(detail.getByRole('link', { name: /Manage reviews/ })).toHaveCount(0)
         await detail.getByRole('button', { name: 'Write a review' }).click()
         await expect(detail.getByRole('radiogroup', { name: 'Your rating' })).toBeVisible()
         await expect(detail.getByText('Select a rating to post.')).toBeVisible()

@@ -29,6 +29,10 @@ Full changelogs are split by version range for easier navigation:
 - Fixed: if the network's reply to a multisig broadcast is lost or times out, Memba keeps the warning, the transaction's hash and what to do next on the page, and the next press checks the chain before sending anything.
 - Changed: Memba OS Multisig opens to guests. The app and any account's address and balance are visible, the chain says whether an address is a multisig, and a connect prompt appears only where your own multisigs, members and transactions would show.
 - Changed: a multisig proposal's fee defaults to twice the network gas price for its gas limit instead of a fixed 1 GNOT, so it still pays if the price rises while signatures are collected; it can be changed until the proposal is made, and Memba sends nothing when a fresh price has outgrown the signed fee.
+### Memba OS: review likes, flags, replies, edits and deletes at measured costs (2026-09-30)
+- Fixed: likes, dislikes, flags, replies, and the edits and deletes of reviews and replies were sent with a flat 1 GNOT fee and no deposit cap. They now go out at a measured gas limit, with a fee read at the click and shown exactly before signing, a storage-deposit cap, and a fresh check, as the confirmation closes, that the review or reply still exists and is yours to change.
+- Memba OS sends them through the signing sheet, which states the deposit each action locks and what a later undo or delete returns. Visitors can press every action; it asks for the wallet at that point.
+
 ### Memba OS: App Store reviews in the network's reviews realm (2026-09-30)
 - Changed: App Store reviews live in the network's reviews realm (memba_reviews_v2 on mainnet), beside validator and profile reviews, with one shared author reputation.
 - Fixed: reviews are read only from a node checked to serve this network, and a list that cannot be read shows an error, never "No reviews yet". One unusual character in a review no longer hides its whole page. A page of hidden reviews is stepped over, and "No reviews yet" appears only when the realm's count is zero.

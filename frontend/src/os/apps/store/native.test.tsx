@@ -2,10 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { AppListing } from "../../../lib/appStore"
+import type { ReviewAct } from "../../../components/reviews/ReviewCard"
+import type { SignRequest } from "../../sign/signer"
 import { SignerContext, type SignerApi } from "../../sign/signerContext"
 import StoreWindow from "./native"
 
-const mocks = vi.hoisted(() => ({ fetchAppStrict: vi.fn(), fetchModerator: vi.fn() }))
+const mocks = vi.hoisted(() => ({ fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), price: vi.fn(), applies: vi.fn(), mounts: 0 }))
 vi.mock("../../../lib/config", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/config")>(),
     isAppStoreEnabled: () => true, isAppReviewsAvailable: () => true, isRealmValidOn: () => true,
@@ -17,24 +19,50 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
 vi.mock("../../../lib/reviews", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/reviews")>(),
     fetchModerator: mocks.fetchModerator,
+    assertReviewActionApplies: mocks.applies,
 }))
-vi.mock("../../../components/reviews/ReviewsSection", () => ({ ReviewsSection: () => <p>reviews</p> }))
+vi.mock("../../../lib/grc20", async (importActual) => ({
+    ...await importActual<typeof import("../../../lib/grc20")>(),
+    networkGasPriceFresh: () => mocks.price(),
+}))
+// Stands in for the list: shows who it acts for, asks for one action, and says what came back.
+vi.mock("../../../components/reviews/ReviewsSection", async () => {
+    const { useEffect, useState } = await import("react")
+    return {
+        ReviewsSection: ({ os }: { os?: { viewer: string | null; act: ReviewAct } }) => {
+            const [result, setResult] = useState("")
+            useEffect(() => { mocks.mounts += 1 }, [])
+            return <div>
+                <p>reviews for {os?.viewer ?? "a visitor"}</p>
+                <button type="button" onClick={() => { os!.act({ kind: "flag", target: 7, on: "review" }).then((sent) => setResult(`sent: ${sent}`), (error: Error) => setResult(error.message)) }}>Flag review 7</button>
+                <span>{result}</span>
+            </div>
+        },
+    }
+})
 
 const signer: SignerApi = { sign: vi.fn(), pending: [], notices: [], unread: 0, version: 0, markRead: vi.fn() }
-const session = { status: "guest", address: "", network: { key: "mainnet", chainId: "gnoland-1" }, openConnect: vi.fn() } as never
+const openConnect = vi.fn()
+const guest = { status: "guest", address: "", network: { key: "mainnet", chainId: "gnoland-1" }, openConnect } as never
+const MEMBER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+const member = { status: "member", address: MEMBER, network: { key: "mainnet", chainId: "gnoland-1" }, openConnect } as never
 const listing = (over: Partial<AppListing>): AppListing => ({
     id: 1, pkgPath: "gno.land/r/samcrew/app", name: "Test App", tagline: "", category: "Community", iconCID: "", appURL: "https://example.com/",
     publisher: "", status: "live", flagCount: 0, createdAt: 0, ...over,
 })
 
-function show(section = "apps/r/samcrew/app") {
+function show(section = "apps/r/samcrew/app", session = guest) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(<QueryClientProvider client={client}><SignerContext.Provider value={signer}>
         <StoreWindow section={section} session={session} open={vi.fn()} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
     </SignerContext.Provider></QueryClientProvider>)
 }
 
-beforeEach(() => { mocks.fetchAppStrict.mockReset(); mocks.fetchModerator.mockReset().mockResolvedValue(null) })
+beforeEach(() => {
+    mocks.fetchAppStrict.mockReset(); mocks.fetchModerator.mockReset().mockResolvedValue(null)
+    mocks.price.mockReset(); mocks.applies.mockReset().mockResolvedValue(undefined); mocks.mounts = 0
+    vi.mocked(signer.sign).mockReset(); openConnect.mockReset()
+})
 
 describe("Store detail", () => {
     it("reads the listing again on Refresh reviews, so a renamed listing can be reviewed", async () => {
@@ -124,3 +152,75 @@ describe("Store detail", () => {
         expect(screen.queryByText(/Link checked/)).not.toBeInTheDocument()
     })
 })
+
+describe("Store detail: an action on a review", () => {
+    const flag = () => fireEvent.click(screen.getByRole("button", { name: "Flag review 7" }))
+    const signed = () => vi.mocked(signer.sign).mock.calls[0][0] as SignRequest
+
+    it("asks a visitor to connect, without reading a fee or opening a sheet", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({}))
+        show()
+        expect(await screen.findByText("reviews for a visitor")).toBeInTheDocument()
+        flag()
+        expect(await screen.findByText("sent: false")).toBeInTheDocument()
+        expect(openConnect).toHaveBeenCalledTimes(1)
+        expect(mocks.price).not.toHaveBeenCalled()
+        expect(signer.sign).not.toHaveBeenCalled()
+    })
+
+    it("opens the signing sheet for the member at the fee read at that click, and reloads the list when the chain has it", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({}))
+        mocks.price.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        show(undefined, member)
+        expect(await screen.findByText(`reviews for ${MEMBER}`)).toBeInTheDocument()
+        flag()
+        // Handed over: nothing is sent until the sheet is signed.
+        expect(await screen.findByText("sent: false")).toBeInTheDocument()
+        expect(signer.sign).toHaveBeenCalledTimes(1)
+        const request = signed()
+        expect([request.title, request.summary]).toEqual(["Flag a review", "Flag a review of Test App"])
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Account", MEMBER], ["Review", "#7"], ["Network", "gnoland-1"], ["Network fee", "0.0408 GNOT"]]))
+        expect(request.prepare(undefined).msgs[0].value).toMatchObject({ caller: MEMBER, func: "Flag", args: ["7"] })
+
+        const before = mocks.mounts
+        // A cancelled sheet leaves the list as it is; a landed action reads it again.
+        request.onSettled?.("cancelled", undefined)
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        expect(mocks.mounts).toBe(before)
+        request.onSettled?.("confirmed", undefined)
+        await waitFor(() => expect(mocks.mounts).toBe(before + 1))
+    })
+
+    it("opens no sheet when the fee cannot be read, and says so", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({}))
+        mocks.price.mockRejectedValue(new Error("offline"))
+        show(undefined, member)
+        await screen.findByText(`reviews for ${MEMBER}`)
+        flag()
+        expect(await screen.findByText("The network fee could not be read. Try again in a moment.")).toBeInTheDocument()
+        expect(signer.sign).not.toHaveBeenCalled()
+    })
+
+    it("opens no sheet for a window that closed, or a list that reloaded, while the fee was read", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({}))
+        let answer: (price: { gas: number; ugnot: number }) => void = () => {}
+        mocks.price.mockReturnValueOnce(new Promise((resolve) => { answer = resolve }))
+        const closed = show(undefined, member)
+        await screen.findByText(`reviews for ${MEMBER}`)
+        flag()
+        closed.unmount()
+        answer({ gas: 1000, ugnot: 1 })
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        expect(signer.sign).not.toHaveBeenCalled()
+
+        mocks.price.mockReturnValueOnce(new Promise((resolve) => { answer = resolve }))
+        show(undefined, member)
+        await screen.findByText(`reviews for ${MEMBER}`)
+        flag()
+        fireEvent.click(screen.getByRole("button", { name: "Refresh reviews" }))
+        answer({ gas: 1000, ugnot: 1 })
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        expect(signer.sign).not.toHaveBeenCalled()
+    })
+})
+

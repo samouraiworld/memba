@@ -5,7 +5,7 @@
  * (CreatePost / EditPost / DeletePost / FlagPost). Reads go through feedApi.ts
  * (the indexed backend projection); this module is write-only.
  *
- * Mirrors the reviews realm's builder pattern (buildReviewMsgCall + submitMsg)
+ * Mirrors the reviews realm's builder pattern (buildReviewMsgCall + one broadcast per call)
  * — a single vm/MsgCall broadcast via the ordinary Adena flow. It does NOT
  * touch any multisig signing path.
  *

@@ -592,3 +592,9 @@
 @media (prefers-reduced-motion: reduce) {
   .review-card--skeleton { animation: none; }
 }
+
+/* Busy, still focusable: a signing sheet hands focus back to the control it was opened from. */
+.review-card [aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}

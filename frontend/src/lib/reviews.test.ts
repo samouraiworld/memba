@@ -10,17 +10,18 @@ import {
     parseReviews,
     sortByTrust,
     buildPostReviewMsg,
-    buildEditReviewMsg,
-    buildDeleteReviewMsg,
-    buildReactMsg,
-    buildCommentMsg,
-    buildEditCommentMsg,
-    buildDeleteCommentMsg,
-    buildFlagMsg,
     REVIEWS_PKG_PATH,
     REVIEW_GAS_WANTED,
     reviewStorageBytes,
     submitReview,
+    submitReviewAction,
+    reviewActionMsg,
+    reviewActionStorageBytes,
+    reviewActionTarget,
+    reviewActionOn,
+    parseTargetState,
+    assertReviewActionApplies,
+    type ReviewAction,
     mergeReviewsByAuthor,
     summaryFromReviews,
     makeOptimisticReview,
@@ -207,7 +208,7 @@ describe("submitReview", () => {
         fee.mockResolvedValueOnce(20_400)
         await expect(beforeSign!()).resolves.toBeUndefined()
         fee.mockResolvedValueOnce(20_401)
-        await expect(beforeSign!()).rejects.toThrow("The network fee increased since review. Post the review again to see the new fee.")
+        await expect(beforeSign!()).rejects.toThrow("The network fee increased since review. Try again to see the new fee.")
     })
 
     it("sends nothing the realm would refuse after charging the fee", async () => {
@@ -232,67 +233,153 @@ describe("submitReview", () => {
     })
 })
 
-describe("buildEditReviewMsg", () => {
-    it("builds an EditReview MsgCall", () => {
-        const m = buildEditReviewMsg("g1c", 99, 4, "updated")
-        expect(m.value.func).toBe("EditReview")
-        expect(m.value.args).toEqual(["99", "4", "updated"])
-        expect(m.value.caller).toBe("g1c")
+describe("review actions", () => {
+    const CALLER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+    const call = (action: ReviewAction) => { const { func, args, max_deposit, caller, pkg_path, send } = reviewActionMsg(CALLER, action).value; return { func, args, max_deposit, caller, pkg_path, send } }
+    const base = { caller: CALLER, pkg_path: REVIEWS_PKG_PATH, send: "" }
+
+    it("builds the realm's call for each action, with a deposit cap of twice its storage bound", () => {
+        expect(call({ kind: "react", target: 12, on: "review", reaction: "like" })).toEqual({ ...base, func: "React", args: ["12", "like"], max_deposit: "440000ugnot" })
+        expect(call({ kind: "react", target: 13, on: "reply", reaction: "dislike" })).toEqual({ ...base, func: "React", args: ["13", "dislike"], max_deposit: "440000ugnot" })
+        expect(call({ kind: "flag", target: 12, on: "review" })).toEqual({ ...base, func: "Flag", args: ["12"], max_deposit: "430000ugnot" })
+        // The realm's function is PostComment, not Comment. 3,700 + 5 bytes, doubled, rounded up to 0.01 GNOT.
+        expect(call({ kind: "reply", review: 12, body: "agree" })).toEqual({ ...base, func: "PostComment", args: ["12", "agree"], max_deposit: "750000ugnot" })
+        expect(call({ kind: "editReview", review: 12, rating: 4, body: "updated", was: "old" })).toEqual({ ...base, func: "EditReview", args: ["12", "4", "updated"], max_deposit: "20000ugnot" })
+        expect(call({ kind: "deleteReview", review: 12 })).toEqual({ ...base, func: "DeleteReview", args: ["12"], max_deposit: "20000ugnot" })
+        expect(call({ kind: "editReply", reply: 13, body: "y".repeat(1000), was: "x" })).toEqual({ ...base, func: "EditComment", args: ["13", "y".repeat(1000)], max_deposit: "220000ugnot" })
+        expect(call({ kind: "deleteReply", reply: 13 })).toEqual({ ...base, func: "DeleteComment", args: ["13"], max_deposit: "20000ugnot" })
+    })
+
+    it("bounds each action's storage at or above what the chain charged, closely", () => {
+        // Simulated on gnoland-1 (2026-09-30): [action, bytes charged].
+        const measured: [ReviewAction, number][] = [
+            [{ kind: "react", target: 1, on: "review", reaction: "like" }, 2_145],
+            [{ kind: "flag", target: 1, on: "review" }, 2_077],
+            [{ kind: "reply", review: 1, body: "x" }, 3_666],
+            [{ kind: "reply", review: 1, body: "y".repeat(1000) }, 4_669],
+            [{ kind: "editReview", review: 1, rating: 5, body: "z".repeat(2000), was: "" }, 2_024],
+            [{ kind: "editReview", review: 1, rating: 5, body: "", was: "" }, 16],
+            [{ kind: "editReply", reply: 2, body: "w".repeat(1000), was: "x" }, 1_015],
+            [{ kind: "deleteReply", reply: 2 }, 20],
+            // Deleting a review frees bytes.
+            [{ kind: "deleteReview", review: 1 }, 0],
+        ]
+        for (const [action, charged] of measured) {
+            const bound = reviewActionStorageBytes(action)
+            expect(bound, action.kind).toBeGreaterThanOrEqual(charged)
+            expect(bound - charged, action.kind).toBeLessThanOrEqual(100)
+        }
+        // An edit that shortens the text is bounded by the slack alone, and UTF-8 bytes are what is counted.
+        expect(reviewActionStorageBytes({ kind: "editReply", reply: 2, body: "a", was: "a longer text" })).toBe(64)
+        expect(reviewActionStorageBytes({ kind: "reply", review: 1, body: "é" }) - reviewActionStorageBytes({ kind: "reply", review: 1, body: "" })).toBe(2)
+        // The dearest measured call (DeleteReview, 7.58M) fits twice in the gas limit.
+        expect(REVIEW_GAS_WANTED).toBeGreaterThanOrEqual(2 * 7_584_711)
+    })
+
+    it("names the target and what it is for every action", () => {
+        expect([reviewActionTarget({ kind: "flag", target: 7, on: "reply" }), reviewActionOn({ kind: "flag", target: 7, on: "reply" })]).toEqual([7, "reply"])
+        expect([reviewActionTarget({ kind: "reply", review: 8, body: "x" }), reviewActionOn({ kind: "reply", review: 8, body: "x" })]).toEqual([8, "review"])
+        expect([reviewActionTarget({ kind: "deleteReply", reply: 9 }), reviewActionOn({ kind: "deleteReply", reply: 9 })]).toEqual([9, "reply"])
+        expect([reviewActionTarget({ kind: "deleteReview", review: 10 }), reviewActionOn({ kind: "deleteReview", review: 10 })]).toEqual([10, "review"])
     })
 })
 
-describe("buildDeleteReviewMsg", () => {
-    it("builds a DeleteReview MsgCall", () => {
-        const m = buildDeleteReviewMsg("g1c", 7)
-        expect(m.value.func).toBe("DeleteReview")
-        expect(m.value.args).toEqual(["7"])
-    })
-})
+describe("the target of an action, read again before it is signed", () => {
+    afterEach(() => vi.restoreAllMocks())
+    const AUTHOR = "g1m68u69m43n6x3t7v5auemxuk9vulescrjy0vxx"
+    const OTHER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+    // GetModerationState(1) and (999) as gnoland-1 answered them on 2026-09-30; the review's body is "gm".
+    const REVIEW = '(struct{(1 uint64),(true bool),(0 uint64),("g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm" string),("g1m68u69m43n6x3t7v5auemxuk9vulescrjy0vxx" .uverse.address),(5 int),("a474219e5e9503c84d59500bb1bda3d9ade81e52d9fa1c234278770892a6dd74" string),(291360 int64),(0 int64),(false bool),(false bool),(false bool)} gno.land/r/samcrew/memba_reviews_v2.ModerationState)'
+    const ABSENT = "(struct{(0 uint64),(false bool),(0 uint64),( string),( .uverse.address),(0 int),( string),(0 int64),(0 int64),(false bool),(false bool),(false bool)} gno.land/r/samcrew/memba_reviews_v2.ModerationState)"
+    const with_ = (edit: (raw: string) => string) => edit(REVIEW)
+    const answers = (raw: string | null) => vi.spyOn(shared, "queryEval").mockResolvedValue(raw)
 
-describe("buildReactMsg", () => {
-    it("builds a like React MsgCall", () => {
-        expect(buildReactMsg("g1c", 42, "like").value.args).toEqual(["42", "like"])
+    it("parses the realm's answer for a review, a reply, an absent id, and refuses any other shape", () => {
+        expect(parseTargetState(REVIEW)).toEqual({ exists: true, isReview: true, author: AUTHOR, bodyHash: "a474219e5e9503c84d59500bb1bda3d9ade81e52d9fa1c234278770892a6dd74", hidden: false, deleted: false })
+        expect(parseTargetState(ABSENT)).toMatchObject({ exists: false, author: "", bodyHash: "" })
+        expect(parseTargetState(with_((raw) => raw.replace("(true bool),(0 uint64)", "(false bool),(1 uint64)")))).toMatchObject({ exists: true, isReview: false })
+        // Hidden is the tenth field, deleted the eleventh; a subject may hold quotes and parentheses.
+        expect(parseTargetState(with_((raw) => raw.replace(/\(false bool\),\(false bool\),\(false bool\)\}/, "(true bool),(false bool),(false bool)}")))).toMatchObject({ hidden: true, deleted: false })
+        expect(parseTargetState(with_((raw) => raw.replace(/\(false bool\),\(false bool\),\(false bool\)\}/, "(false bool),(true bool),(false bool)}")))).toMatchObject({ hidden: false, deleted: true })
+        expect(parseTargetState(with_((raw) => raw.replace('"g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm"', '"odd (subject) \\" quoted"'))).author).toBe(AUTHOR)
+        for (const bad of ["", '("x" string)', REVIEW.replace("(5 int),", ""), REVIEW.replace("ModerationState", "Review")]) expect(() => parseTargetState(bad)).toThrow("did not describe this review")
     })
-    it("builds a dislike React MsgCall", () => {
-        const m = buildReactMsg("g1c", 10, "dislike")
-        expect(m.value.func).toBe("React")
-        expect(m.value.args).toEqual(["10", "dislike"])
-    })
-})
 
-describe("buildCommentMsg", () => {
-    it("targets PostComment (not Comment)", () => {
-        const m = buildCommentMsg("g1c", 7, "nice")
-        expect(m.value.func).toBe("PostComment")
-        expect(m.value.args).toEqual(["7", "nice"])
+    it("refuses, before reading the chain, a text or a rating the realm would refuse after the fee", async () => {
+        const query = answers(REVIEW)
+        await expect(assertReviewActionApplies(OTHER, { kind: "reply", review: 1, body: "é".repeat(501) })).rejects.toThrow("A reply must be 1 to 1,000 bytes.")
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "editReply", reply: 2, body: "x".repeat(1001), was: "" })).rejects.toThrow("A reply must be 1 to 1,000 bytes.")
+        // The realm refuses an empty reply too, after the fee.
+        await expect(assertReviewActionApplies(OTHER, { kind: "reply", review: 1, body: "  " })).rejects.toThrow("A reply must be 1 to 1,000 bytes.")
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "editReview", review: 1, rating: 6, body: "gm", was: "gm" })).rejects.toThrow("Select a rating from 1 to 5.")
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "editReview", review: 1, rating: 4, body: "x".repeat(2001), was: "gm" })).rejects.toThrow("2,000 bytes or fewer")
+        expect(query).not.toHaveBeenCalled()
+        await expect(assertReviewActionApplies(OTHER, { kind: "reply", review: 1, body: "é".repeat(500) })).resolves.toBeUndefined()
     })
-    it("sets pkg_path to REVIEWS_PKG_PATH", () => {
-        expect(buildCommentMsg("g1c", 1, "x").value.pkg_path).toBe(REVIEWS_PKG_PATH)
-    })
-})
 
-describe("buildEditCommentMsg", () => {
-    it("builds an EditComment MsgCall", () => {
-        const m = buildEditCommentMsg("g1c", 3, "edited")
-        expect(m.value.func).toBe("EditComment")
-        expect(m.value.args).toEqual(["3", "edited"])
+    it("sends no classic action where the reviews realm is not live", async () => {
+        const query = answers(REVIEW)
+        vi.spyOn(config, "isReviewsValid").mockReturnValue(false)
+        await expect(submitReviewAction(OTHER, { kind: "flag", target: 1, on: "review" })).rejects.toThrow("Reviews are not available on this network.")
+        expect(query).not.toHaveBeenCalled()
     })
-})
 
-describe("buildDeleteCommentMsg", () => {
-    it("builds a DeleteComment MsgCall", () => {
-        const m = buildDeleteCommentMsg("g1c", 5)
-        expect(m.value.func).toBe("DeleteComment")
-        expect(m.value.args).toEqual(["5"])
+    it("lets an action through only on a visible target of the right kind, by the right wallet, on the text that was shown", async () => {
+        const query = answers(REVIEW)
+        await expect(assertReviewActionApplies(OTHER, { kind: "react", target: 1, on: "review", reaction: "like" })).resolves.toBeUndefined()
+        expect(query).toHaveBeenCalledWith(expect.any(String), REVIEWS_PKG_PATH, "GetModerationState(1)", true)
+        await expect(assertReviewActionApplies(OTHER, { kind: "flag", target: 1, on: "review" })).resolves.toBeUndefined()
+        await expect(assertReviewActionApplies(OTHER, { kind: "reply", review: 1, body: "x" })).resolves.toBeUndefined()
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "editReview", review: 1, rating: 4, body: "gm all", was: "gm" })).resolves.toBeUndefined()
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "deleteReview", review: 1 })).resolves.toBeUndefined()
+
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "react", target: 1, on: "review", reaction: "like" })).rejects.toThrow("You cannot react to your own review.")
+        await expect(assertReviewActionApplies(OTHER, { kind: "editReview", review: 1, rating: 4, body: "x", was: "gm" })).rejects.toThrow("Only its author can change this review.")
+        await expect(assertReviewActionApplies(OTHER, { kind: "deleteReview", review: 1 })).rejects.toThrow("Only its author can change this review.")
+        // Edited elsewhere since it was shown: the stored text is no longer the one being replaced.
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "editReview", review: 1, rating: 4, body: "x", was: "an older text" })).rejects.toThrow("Your review changed since it was shown.")
+        // A review is not a reply.
+        await expect(assertReviewActionApplies(OTHER, { kind: "flag", target: 1, on: "reply" })).rejects.toThrow("This reply is no longer available.")
+        await expect(assertReviewActionApplies(AUTHOR, { kind: "deleteReply", reply: 1 })).rejects.toThrow("This reply is no longer available.")
     })
-})
 
-describe("buildFlagMsg", () => {
-    it("builds a Flag MsgCall", () => {
-        const m = buildFlagMsg("g1c", 12)
-        expect(m.value.func).toBe("Flag")
-        expect(m.value.args).toEqual(["12"])
-        expect(m.value.caller).toBe("g1c")
+    it("stops on a hidden, deleted or absent target, and on a realm that did not answer", async () => {
+        const like: ReviewAction = { kind: "react", target: 1, on: "review", reaction: "like" }
+        for (const raw of [ABSENT, REVIEW.replace(/\(false bool\),\(false bool\),\(false bool\)\}/, "(true bool),(false bool),(false bool)}"), REVIEW.replace(/\(false bool\),\(false bool\),\(false bool\)\}/, "(false bool),(true bool),(false bool)}")]) {
+            answers(raw)
+            await expect(assertReviewActionApplies(OTHER, like)).rejects.toThrow("This review is no longer available. Refresh the reviews.")
+        }
+        answers(null)
+        await expect(assertReviewActionApplies(OTHER, like)).rejects.toThrow("The reviews realm could not be read.")
+        vi.spyOn(shared, "queryEval").mockRejectedValue(new Error("rpc down"))
+        await expect(assertReviewActionApplies(OTHER, like)).rejects.toThrow("rpc down")
+    })
+
+    it("sends a classic action only after that check, at the measured gas limit and a fresh fee, once", async () => {
+        const fee = vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(20_400)
+        const send = vi.spyOn(grc20, "doContractBroadcast").mockResolvedValue({ hash: "h" })
+        const flag: ReviewAction = { kind: "flag", target: 1, on: "review" }
+        answers(ABSENT)
+        await expect(submitReviewAction(OTHER, flag)).rejects.toThrow("no longer available")
+        expect(send).not.toHaveBeenCalled()
+        answers(REVIEW)
+        expect(await submitReviewAction(OTHER, flag)).toBe("h")
+        expect(fee).toHaveBeenCalledWith(REVIEW_GAS_WANTED)
+        expect(send).toHaveBeenCalledTimes(1)
+        expect(send).toHaveBeenCalledWith([reviewActionMsg(OTHER, flag)], "flag on a review", { gasWanted: REVIEW_GAS_WANTED, gasFee: 20_400, beforeSign: expect.any(Function) })
+    })
+
+    it("reads the target again when the confirmation closes: a review hidden meanwhile never reaches the wallet", async () => {
+        vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(20_400)
+        let beforeSign: (() => unknown) | undefined
+        vi.spyOn(grc20, "doContractBroadcast").mockImplementation(async (_msgs, _memo, opts) => { beforeSign = opts?.beforeSign; return { hash: "h" } })
+        const query = answers(REVIEW)
+        await submitReviewAction(OTHER, { kind: "react", target: 1, on: "review", reaction: "like" })
+        expect(query).toHaveBeenCalledTimes(1)
+        await expect(beforeSign!()).resolves.toBeUndefined()
+        expect(query).toHaveBeenCalledTimes(2)
+        query.mockResolvedValue(with_((raw) => raw.replace(/\(false bool\),\(false bool\),\(false bool\)\}/, "(true bool),(false bool),(false bool)}")))
+        await expect(beforeSign!()).rejects.toThrow("This review is no longer available.")
     })
 })
 
