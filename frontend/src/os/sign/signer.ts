@@ -52,8 +52,9 @@ export interface SignRequest<C extends string = string> {
     recheck?: (choice: C | undefined) => Promise<void>
     /** Sends exactly the prepared messages; must pass `beforeSign` to the broadcaster. */
     send: (choice: C | undefined, beforeSign: () => Promise<void | (() => boolean)>) => Promise<{ hash: string; result?: unknown }>
-    /** After sending: does the chain show the result? Gets the wallet's result too (e.g. a new proposal's id). */
-    verify?: (choice: C | undefined, hash: string, result: unknown) => Promise<boolean>
+    /** After sending: what the chain shows. `true`: the result is there; `false`: not yet; `"failed"`: the chain ran
+     *  the transaction and refused it (final: not asked again). Gets the wallet's result too (e.g. a new proposal's id). */
+    verify?: (choice: C | undefined, hash: string, result: unknown) => Promise<boolean | "failed">
     /** How many times to run `verify` (default 3). Use 1 when `verify` polls by itself. */
     verifyAttempts?: number
     /** Nothing took effect (stopped before the wallet, rejected in it, or refused by the node): drop what `send` saved. */
@@ -191,9 +192,12 @@ export async function executeSignature<C extends string>(
 }
 
 /** Retry verification a few times: the indexer and RPC trail the block by a few seconds. */
-export async function verifyWithRetries(check: () => Promise<boolean>, attempts = 3, delayMs = 2500): Promise<boolean> {
+export async function verifyWithRetries(check: () => Promise<boolean | "failed">, attempts = 3, delayMs = 2500): Promise<boolean | "failed"> {
     for (let i = 0; i < attempts; i++) {
-        try { if (await check()) return true } catch { /* try again */ }
+        try {
+            const seen = await check()
+            if (seen !== false) return seen
+        } catch { /* try again */ }
         if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs))
     }
     return false

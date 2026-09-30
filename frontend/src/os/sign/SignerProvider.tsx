@@ -166,11 +166,14 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         const where = `${session.network.chainId} · ${hash.slice(0, 10)}…`
         notify(ok === true
             ? { kind: "ok", title: `Confirmed · ${label}`, sub: where }
-            : ok === null
-                ? { kind: "ok", title: `Submitted · ${label}`, sub: where }
-                : { kind: "warn", title: `Submitted · ${label}`, sub: "The chain hasn't shown it yet. Don't send it again." })
+            : ok === "failed"
+                ? { kind: "fail", title: `Refused by the network · ${label}`, sub: `${where}: the chain ran it and refused it. It did not take effect; the network fee was still charged.` }
+                : ok === null
+                    ? { kind: "ok", title: `Submitted · ${label}`, sub: where }
+                    : { kind: "warn", title: `Submitted · ${label}`, sub: "The chain hasn't shown it yet. Don't send it again." })
         if (ok === false) toast(`Submitted: ${label}. Not visible on chain yet.`)
-        settle(req, choice, ok === true ? "confirmed" : "submitted")
+        if (ok === "failed") toast(`Refused by the network: ${label}. It did not take effect; the network fee was still charged.`)
+        settle(req, choice, ok === true ? "confirmed" : ok === "failed" ? "failed" : "submitted")
     }, [review, notify, toast, settle, session.network.chainId, session.walletChainId, session.status, session.address, owner, closeReview])
 
     const cancel = useCallback(() => {

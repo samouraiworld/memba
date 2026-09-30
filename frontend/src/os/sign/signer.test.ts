@@ -258,4 +258,10 @@ describe("verifyWithRetries", () => {
     it("gives up after the attempts", async () => {
         await expect(verifyWithRetries(async () => false, 2, 0)).resolves.toBe(false)
     })
+
+    it("stops at once when the chain refused it: that answer is final", async () => {
+        const check = vi.fn().mockResolvedValueOnce("failed").mockResolvedValue(true)
+        await expect(verifyWithRetries(check, 3, 0)).resolves.toBe("failed")
+        expect(check).toHaveBeenCalledOnce()
+    })
 })

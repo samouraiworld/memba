@@ -30,8 +30,10 @@ vi.mock("../../../lib/grc20", async (importActual) => {
 })
 vi.mock("../../../lib/rpcFallback", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/rpcFallback")>(),
-    resilientRpcCall: mocks.readTx,
+    getRpcUrlsInOrder: () => ["https://rpc.test"],
+    directRpcCall: (_url: string, method: string, params: Record<string, string>) => mocks.readTx(method, params),
 }))
+vi.mock("../../../lib/dao/chainIdentity", () => ({ assertRpcChain: async () => {} }))
 
 import { doContractBroadcast, setTxConfirmationCallback } from "../../../lib/grc20"
 import { reviewActionMsg, REVIEWS_PKG_PATH, type ReviewAction } from "../../../lib/reviews"
@@ -144,7 +146,7 @@ describe("a review action through the OS signing sheet", () => {
         expect(() => reviewActionRequest(input({ kind: "editReview", review: 12, rating: 4, body: "é".repeat(1001), was: "" }))).toThrow("2,000 bytes or fewer")
     })
 
-    it("signs the action as it was when the sheet opened, and confirms only a delivered transaction", async () => {
+    it("signs the action as it was when the sheet opened, confirms a delivered transaction and reports a refused one as refused", async () => {
         const action = { kind: "reply", review: 12, body: "First" } as ReviewAction & { kind: "reply" }
         const request = reviewActionRequest(input(action))
         action.body = "Changed after the sheet opened"
@@ -152,7 +154,7 @@ describe("a review action through the OS signing sheet", () => {
         expect(request.prepare(undefined).msgs[0].value.args).toEqual(["12", "First"])
         await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe(true)
         mocks.readTx.mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: "out of gas" } } })
-        await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe(false)
+        await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe("failed")
         const onSettled = vi.fn()
         reviewActionRequest(input(action, { onSettled })).onSettled?.("confirmed", undefined)
         expect(onSettled).toHaveBeenCalledWith("confirmed", undefined)

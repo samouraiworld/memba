@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { OS_ON } from '../../playwright.os.config'
-import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
+import { fulfillOnchainReads, isOnchainRead, mockAppChainStatus } from '../helpers/onchain'
 
 // Day 5b: the Wallet window and a GNOT send through the Memba review (D37),
 // with a stub Adena that records what it was asked to sign. Nothing reaches a chain.
@@ -214,6 +214,38 @@ test.describe('Memba OS wallet', () => {
         await expect(send.getByLabel('To', { exact: true })).toBeVisible()
         const records = await page.evaluate((address) => JSON.parse(localStorage.getItem(`memba_os_recipients:gnoland-1:${address}`) ?? 'null'), ALICE)
         expect(records).toEqual({ recent: [BOB], saved: [BOB] })
+    })
+
+    test('a recovered send the chain ran and refused is reported as refused, frees Send, saves no recipient, and its note never follows a new send', async ({ page }) => {
+        await member(page, 'timeout')
+        await page.route('**/*', (route) => {
+            let method = new URL(route.request().url()).pathname.replace(/^\/+/, '')
+            try { method = JSON.parse(route.request().postData() ?? '{}').method ?? method } catch { /* a GET read */ }
+            if (!isOnchainRead(route.request().url()) || method !== 'tx') return route.fallback()
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jsonrpc: '2.0', id: 1, result: { hash: HASH, height: '435604', tx_result: { ResponseBase: { Error: { msg: 'insufficient funds' } } } } }) })
+        })
+        await page.addInitScript(({ address, to, hash }) => {
+            localStorage.setItem(`memba_os_send_lock:gnoland-1:${address}`, JSON.stringify({
+                id: 'refused-attempt', label: 'Send 1 GNOT', hash, at: Date.now(), to, save: true,
+            }))
+        }, { address: ALICE, to: BOB, hash: HASH })
+        await page.goto(`${OS_ON}/os/wallet/send`)
+        const send = win(page, 'Send')
+        await send.getByRole('button', { name: 'Check status' }).click()
+        const refused = 'The network ran this transaction and refused it: the amount did not move, the network fee was still charged. You can prepare the send again.'
+        await expect(send.getByText(refused)).toBeVisible()
+        await expect(send.getByLabel('To', { exact: true })).toBeVisible()
+        expect(await page.evaluate((address) => localStorage.getItem(`memba_os_recipients:gnoland-1:${address}`), ALICE)).toBeNull()
+
+        // A new send whose outcome is unknown holds Send again: the earlier answer is not shown for it.
+        await send.getByLabel('To', { exact: true }).fill(BOB)
+        await send.getByLabel('Amount', { exact: true }).fill('1')
+        await send.getByRole('button', { name: 'Review…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Send' })
+        await review.getByLabel(/I checked the full address/).check()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(send.getByText('Outcome unknown')).toBeVisible()
+        await expect(send.getByText(refused)).toHaveCount(0)
     })
 
     test('a second tab cannot overwrite or clear an unresolved send from the same wallet', async ({ page, context }) => {

@@ -89,6 +89,24 @@ describe("OS signing session boundary", () => {
         expect(refused.send).toHaveBeenCalledTimes(1)
     })
 
+    it("reports a transaction the chain ran and refused as refused, not as not shown yet, and settles as failed", async () => {
+        const onSettled = vi.fn()
+        const refusedOnChain = { ...request, send: vi.fn(async () => ({ hash: "REFUSED_HASH" })), verify: vi.fn(async () => "failed" as const), onSettled }
+        function RefusedOnChain() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(refusedOnChain)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.title} | {n.sub}</li>)}</ul></>
+        }
+        const toast = vi.fn()
+        render(<SignerProvider session={session("member")} toast={toast}><RefusedOnChain /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("failed", undefined))
+        expect(refusedOnChain.verify).toHaveBeenCalledOnce()
+        expect(screen.getByText(/^fail \| Refused by the network · Vote \| gnoland-1 · REFUSED_HA…: the chain ran it and refused it\. It did not take effect; the network fee was still charged\.$/)).toBeInTheDocument()
+        expect(screen.queryByText(/hasn't shown it yet/)).toBeNull()
+        expect(toast).toHaveBeenCalledWith("Refused by the network: Vote. It did not take effect; the network fee was still charged.")
+    })
+
     describe("a 'rejected' reply from Adena after its window opened", () => {
         const onSettled = vi.fn()
         const rejected = {

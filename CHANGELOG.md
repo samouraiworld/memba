@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: a refused transaction is reported as refused (2026-10-01)
+- Fixed: Memba OS says when the network ran a transaction and refused it (it did not take effect, and its network fee was still charged) instead of "not visible on chain yet", reads that outcome only from a node of the current network, and a refused send no longer holds the Send window.
+
 ### Rendered text: links and images read as written (2026-10-01)
 - Fixed: an address inside a link or in code is no longer turned into a second link; a gno.land link written without https opens on the current network's gno.land site instead of a broken Memba address; a linked badge renders as one link; and an image that is not loaded shows as a link to it instead of a stray "!".
 

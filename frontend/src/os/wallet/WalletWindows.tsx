@@ -94,7 +94,8 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
     const [price, setPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
     const [checked, setChecked] = useState(false)
     const [checkingStatus, setCheckingStatus] = useState(false)
-    const [statusNote, setStatusNote] = useState("")
+    // What "Check status" found, for the lock it checked: a later send never shows an earlier answer.
+    const [statusNote, setStatusNote] = useState<{ lock: string; text: string } | null>(null)
     const [, rerender] = useState(0)
 
     // Another tab may start or resolve a send while this form is open.
@@ -141,20 +142,24 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
 
     const lock = readSendLock(GNO_CHAIN_ID, from)
     if (lock) {
+        const lockKey = `${lock.id}:${lock.hash}`
+        const note = (text: string) => setStatusNote({ lock: lockKey, text })
         const txUrl = mainnetSubmissionTxUrl(lock.hash, GNO_CHAIN_ID)
         const checkStatus = async () => {
             setCheckingStatus(true)
             try {
-                if (await verifySendTx(lock.hash)) {
-                    const current = readSendLock(GNO_CHAIN_ID, from)
-                    if (current?.id !== lock.id || current?.hash !== lock.hash) return
-                    if (current.to) rememberRecipient(GNO_CHAIN_ID, from, current.to, !!current.save)
-                    clearSendLock(GNO_CHAIN_ID, from, lock.id)
-                    setStatusNote("Confirmed on chain. You can prepare another send.")
-                    rerender((x) => x + 1)
-                } else setStatusNote("The network has not confirmed this transaction yet. Check again later.")
+                const seen = await verifySendTx(lock.hash)
+                if (seen === false) { note("The network has not confirmed this transaction yet. Check again later."); return }
+                const current = readSendLock(GNO_CHAIN_ID, from)
+                if (current?.id !== lock.id || current?.hash !== lock.hash) return
+                if (seen === true && current.to) rememberRecipient(GNO_CHAIN_ID, from, current.to, !!current.save)
+                clearSendLock(GNO_CHAIN_ID, from, lock.id)
+                note(seen === true
+                    ? "Confirmed on chain. You can prepare another send."
+                    : "The network ran this transaction and refused it: the amount did not move, the network fee was still charged. You can prepare the send again.")
+                rerender((x) => x + 1)
             } catch {
-                setStatusNote("The network could not check this transaction. Keep the send on hold.")
+                note("The network could not check this transaction. Keep the send on hold.")
             } finally { setCheckingStatus(false) }
         }
         return (
@@ -165,7 +170,7 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
                 <button type="button" className="os-btn os-quiet" onClick={() => { void session.refreshBalance() }}>Refresh balance</button>
                 {lock.hash && <><code className="os-mono os-break">{lock.hash}</code>{txUrl && <a href={txUrl} target="_blank" rel="noreferrer">Check transaction on the network</a>}</>}
                 {lock.hash && <button type="button" className="os-btn os-quiet" disabled={checkingStatus} onClick={() => { void checkStatus() }}>{checkingStatus ? "Checking…" : "Check status"}</button>}
-                {statusNote && <p className="os-note" role="status">{statusNote}</p>}
+                {statusNote?.lock === lockKey && <p className="os-note" role="status">{statusNote.text}</p>}
                 <label className="os-ack"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> I checked the previous transaction.</label>
                 <button type="button" className="os-btn os-quiet" disabled={!checked} onClick={() => { clearSendLock(GNO_CHAIN_ID, from, lock.id); setChecked(false); rerender((x) => x + 1) }}>Send again</button>
             </div>
@@ -173,6 +178,7 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
     }
 
     const submit = () => {
+        setStatusNote(null)
         if (readSendLock(GNO_CHAIN_ID, from)) { rerender((x) => x + 1); return }
         if (Object.keys(c.problems).length || to === null || c.ugnot === null) { setShowErrors(true); return }
         signer.sign({
@@ -219,6 +225,8 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
                 </div>
             )}>
             <div className="os-stack">
+                {/* What "Check status" found for the last send stays in view after its hold is lifted. */}
+                {statusNote && <p className="os-note" role="status">{statusNote.text}</p>}
                 <Field label="Asset">
                     <div className="os-opt" aria-label="Asset">
                         <div className="os-asset os-asset-selected"><b>GNOT</b><span className="os-sub">{balance === null ? "Balance unavailable" : formatUgnot(balance)} · native</span></div>

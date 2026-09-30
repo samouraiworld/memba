@@ -9,7 +9,8 @@
 import { GNO_CHAIN_ID } from "../../lib/config"
 import { resolveRecipient } from "../../lib/nameResolve"
 import { assertFeeStillCovers, doContractBroadcast } from "../../lib/grc20"
-import { abciErrorPresent, resilientRpcCall } from "../../lib/rpcFallback"
+import { assertRpcChain } from "../../lib/dao/chainIdentity"
+import { abciErrorPresent, directRpcCall, getRpcUrlsInOrder } from "../../lib/rpcFallback"
 import { normalizeTxHashHex } from "../../lib/txExplorerUrl"
 import type { SignRequest } from "../sign/signer"
 import { buildSendMsg, claimSendLock, clearSendLock, formatUgnot, SEND_GAS_WANTED, updateSendLockHash } from "./send"
@@ -41,18 +42,32 @@ async function resolveNameNow(name: string): Promise<string | null> {
     return r.kind === "unregistered" ? "" : null
 }
 
-/** A wallet success is only submission; the chain's matching delivered tx is confirmation. */
-export async function verifySendTx(hash: string, readTx: typeof resilientRpcCall = resilientRpcCall): Promise<boolean> {
+/** A read from the first node shown to serve this chain: another chain's node could invent a delivery or a refusal. */
+async function readOnChain(method: string, params: Record<string, string>): Promise<unknown> {
+    let last: unknown = new Error("No node of this network answered")
+    for (const url of getRpcUrlsInOrder()) {
+        try {
+            await assertRpcChain(url, GNO_CHAIN_ID)
+            return await directRpcCall(url, method, params)
+        } catch (err) { last = err }
+    }
+    throw last
+}
+
+/** A wallet success is only submission. The chain's matching delivered tx is confirmation (`true`), or a refusal
+ *  when it ran and failed (`"failed"`); `false` when the chain does not show it (yet) or answers malformed. */
+export async function verifySendTx(hash: string, readTx: (method: string, params: Record<string, string>) => Promise<unknown> = readOnChain): Promise<boolean | "failed"> {
     const hex = normalizeTxHashHex(hash)
     if (!hex) return false
     const raw = await readTx("tx", { hash: `0x${hex}` })
     if (!raw || typeof raw !== "object") return false
     const tx = raw as { hash?: unknown; height?: unknown; tx_result?: { ResponseBase?: { Error?: unknown } } }
     const height = typeof tx.height === "string" ? Number(tx.height) : tx.height
-    return typeof tx.hash === "string" && normalizeTxHashHex(tx.hash) === hex &&
+    const delivered = typeof tx.hash === "string" && normalizeTxHashHex(tx.hash) === hex &&
         typeof height === "number" && Number.isSafeInteger(height) && height > 0 &&
-        !!tx.tx_result?.ResponseBase && Object.hasOwn(tx.tx_result.ResponseBase, "Error") &&
-        !abciErrorPresent(tx.tx_result.ResponseBase.Error)
+        !!tx.tx_result?.ResponseBase && Object.hasOwn(tx.tx_result.ResponseBase, "Error")
+    if (!delivered) return false
+    return abciErrorPresent(tx.tx_result!.ResponseBase!.Error) ? "failed" : true
 }
 
 export function sendRequest(ctx: SendContext): SignRequest<string> {
@@ -101,12 +116,11 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
             })
         },
         verify: async (_choice, hash) => {
-            const confirmed = await verifySendTx(hash)
-            if (confirmed) {
-                clearSendLock(GNO_CHAIN_ID, ctx.from, attemptId)
-                ctx.onSent(hash)
-            }
-            return confirmed
+            const seen = await verifySendTx(hash)
+            if (seen === true) ctx.onSent(hash)
+            // Delivered or refused, the outcome is known: nothing is left to hold a new send for.
+            if (seen !== false) clearSendLock(GNO_CHAIN_ID, ctx.from, attemptId)
+            return seen
         },
         onNothingSent: () => clearSendLock(GNO_CHAIN_ID, ctx.from, attemptId),
     }

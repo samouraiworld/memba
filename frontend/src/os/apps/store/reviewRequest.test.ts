@@ -38,8 +38,10 @@ vi.mock("../../../lib/grc20", async (importActual) => {
 })
 vi.mock("../../../lib/rpcFallback", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/rpcFallback")>(),
-    resilientRpcCall: mocks.readTx,
+    getRpcUrlsInOrder: () => ["https://rpc.test"],
+    directRpcCall: (_url: string, method: string, params: Record<string, string>) => mocks.readTx(method, params),
 }))
+vi.mock("../../../lib/dao/chainIdentity", () => ({ assertRpcChain: async () => {} }))
 
 import { doContractBroadcast, setTxConfirmationCallback } from "../../../lib/grc20"
 import { executeSignature } from "../../sign/signer"
@@ -181,12 +183,12 @@ describe("native App Store review signing", () => {
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ caller: draft.caller, args: [draft.subject, "4", "Useful app"] })
     })
 
-    it("confirms only a transaction the chain delivered without an error", async () => {
+    it("confirms a transaction the chain delivered, and reports one it ran and refused as refused", async () => {
         const request = storeReviewRequest(draft)
         await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe(true)
         expect(mocks.readTx).toHaveBeenCalledWith("tx", { hash: `0x${HASH}` })
         mocks.readTx.mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: "out of gas" } } })
-        await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe(false)
+        await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe("failed")
     })
 
     it("passes the settled outcome to the composer", () => {

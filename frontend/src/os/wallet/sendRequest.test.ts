@@ -20,13 +20,18 @@ vi.mock("../../lib/grc20", async (orig) => ({
         return wallet.impl()
     }),
 }))
+// The tx is read only from a node shown to serve this chain: two nodes, both verified unless a test says otherwise.
 vi.mock("../../lib/rpcFallback", async (orig) => ({
     ...(await orig<typeof import("../../lib/rpcFallback")>()),
-    resilientRpcCall: vi.fn(async () => ({ hash: "a".repeat(64), height: "12", tx_result: { ResponseBase: { Error: null } } })),
+    getRpcUrlsInOrder: () => ["https://one.test", "https://two.test"],
+    directRpcCall: vi.fn(async () => ({ hash: "a".repeat(64), height: "12", tx_result: { ResponseBase: { Error: null } } })),
 }))
+vi.mock("../../lib/dao/chainIdentity", () => ({ assertRpcChain: vi.fn(async () => {}) }))
 
 import { doContractBroadcast, setTxConfirmationCallback } from "../../lib/grc20"
 import { executeSignature } from "../sign/signer"
+import { directRpcCall } from "../../lib/rpcFallback"
+import { assertRpcChain } from "../../lib/dao/chainIdentity"
 import { readSendLock } from "./send"
 import { sendRequest, verifySendTx, type SendContext } from "./sendRequest"
 
@@ -66,6 +71,44 @@ describe("sendRequest", () => {
         expect(c.onSent).toHaveBeenCalledWith(HASH)
     })
 
+    it("drops the lock without reporting a send when the chain refused the transaction", async () => {
+        vi.mocked(directRpcCall).mockResolvedValueOnce({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: { msg: "insufficient funds" } } } })
+        const c = ctx()
+        const r = sendRequest(c)
+        await executeSignature(r, undefined, r.prepare(undefined).msgs, () => {})
+        expect(readSendLock("gnoland-1", A)?.hash).toBe(HASH)
+        await expect(r.verify!(undefined, HASH, undefined)).resolves.toBe("failed")
+        expect(readSendLock("gnoland-1", A)).toBeNull()
+        expect(c.onSent).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        // The first verified node answers: nothing there yet.
+        ["the chain does not show it yet", () => vi.mocked(directRpcCall).mockResolvedValueOnce(null)],
+        ["no node can be read", () => vi.mocked(directRpcCall).mockRejectedValueOnce(new Error("down")).mockRejectedValueOnce(new Error("down"))],
+    ])("keeps the lock, so no second send can start, when %s", async (_case, read) => {
+        const c = ctx()
+        const r = sendRequest(c)
+        await executeSignature(r, undefined, r.prepare(undefined).msgs, () => {})
+        read()
+        const seen = r.verify!(undefined, HASH, undefined)
+        if (_case === "no node can be read") await expect(seen).rejects.toThrow()
+        else await expect(seen).resolves.toBe(false)
+        expect(readSendLock("gnoland-1", A)?.hash).toBe(HASH)
+        expect(c.onSent).not.toHaveBeenCalled()
+    })
+
+    it("reads the transaction only from a node that serves this chain", async () => {
+        vi.mocked(assertRpcChain).mockRejectedValueOnce(new Error("serves another chain"))
+        vi.mocked(directRpcCall).mockResolvedValueOnce({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: { msg: "refused" } } } })
+        await expect(verifySendTx(HASH)).resolves.toBe("failed")
+        expect(directRpcCall).toHaveBeenLastCalledWith("https://two.test", "tx", { hash: `0x${HASH}` })
+        expect(vi.mocked(directRpcCall).mock.calls.map(([url]) => url)).not.toContain("https://one.test")
+        // No node shown to serve this chain: no answer at all, never an invented refusal.
+        vi.mocked(assertRpcChain).mockRejectedValueOnce(new Error("other chain")).mockRejectedValueOnce(new Error("other chain"))
+        await expect(verifySendTx(HASH)).rejects.toThrow()
+    })
+
     it("keeps the lock when the outcome is unknown, and drops it when Adena rejected", async () => {
         wallet.impl.mockImplementation(async () => { throw new Error("network timeout") })
         await expect(run(ctx())).resolves.toMatchObject({ outcome: "unknown" })
@@ -97,14 +140,19 @@ describe("sendRequest", () => {
         expect(readSendLock("gnoland-1", A)).toEqual(first)
     })
 
-    it("requires a matching delivered transaction before confirmation", async () => {
+    it("says delivered, refused on chain, or not shown: three different answers", async () => {
         const good = { hash: HASH, height: "12", tx_result: { ResponseBase: { Error: null } } }
         await expect(verifySendTx(HASH, async () => good)).resolves.toBe(true)
         await expect(verifySendTx(HASH, async () => ({ ...good, tx_result: { ResponseBase: { Error: "" } } }))).resolves.toBe(true)
         await expect(verifySendTx(HASH, async () => ({ ...good, tx_result: { ResponseBase: {} } }))).resolves.toBe(false)
         await expect(verifySendTx(HASH, async () => ({ ...good, hash: "b".repeat(64) }))).resolves.toBe(false)
         await expect(verifySendTx(HASH, async () => ({ ...good, height: "0" }))).resolves.toBe(false)
-        await expect(verifySendTx(HASH, async () => ({ ...good, tx_result: { ResponseBase: { Error: "out of gas" } } }))).resolves.toBe(false)
+        // The chain ran it and refused it: final, and not "not yet".
+        await expect(verifySendTx(HASH, async () => ({ ...good, tx_result: { ResponseBase: { Error: "out of gas" } } }))).resolves.toBe("failed")
+        // An error only counts once the hash and the height are right.
+        const refused = { tx_result: { ResponseBase: { Error: "out of gas" } } }
+        await expect(verifySendTx(HASH, async () => ({ ...good, ...refused, hash: "b".repeat(64) }))).resolves.toBe(false)
+        await expect(verifySendTx(HASH, async () => ({ ...good, ...refused, height: "0" }))).resolves.toBe(false)
         await expect(verifySendTx("bad", async () => good)).resolves.toBe(false)
     })
 
