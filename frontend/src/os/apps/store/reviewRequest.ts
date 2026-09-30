@@ -1,5 +1,5 @@
 /** A native OS review post goes through the same reviewed signing path as other OS writes. */
-import { fetchApp, isSafeRealmPath } from "../../../lib/appStore"
+import { fetchAppStrict, isSafeRealmPath } from "../../../lib/appStore"
 import { isAppReviewsAvailable, isRealmValidOn } from "../../../lib/config"
 import { doContractBroadcast } from "../../../lib/grc20"
 import { buildPostReviewMsg } from "../../../lib/reviews"
@@ -47,7 +47,8 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(draft)
-            const listing = await fetchApp(draft.subject)
+            // Strict: a registry outage must surface as one, not as a delisted app.
+            const listing = await fetchAppStrict(draft.subject)
             if (!listing || listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
             if (listing.name !== draft.appName) throw new Error("This app's listing changed. Refresh before reviewing.")
         },

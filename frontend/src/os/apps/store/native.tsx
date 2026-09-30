@@ -124,7 +124,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                         ? <div className="os-store-reviews">
                             {listing?.status === "live" && <NativeReviewComposer key={entry.realmPath} session={session} subject={entry.realmPath!} appName={entry.name} onSubmitted={() => setReviewRefresh(value => value + 1)} />}
                             <ReviewsSection key={`${entry.realmPath}:${reviewRefresh}`} subject={entry.realmPath!} realmPath={MEMBA_DAO.appReviewsPath} minRatedCount={MIN_RATED_COUNT} paginate useOnchainSummary readOnly />
-                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => setReviewRefresh(value => value + 1)}>Refresh reviews</button><a className="os-btn os-quiet" href={`https://memba.samourai.app/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
+                            <div className="os-store-review-actions"><button type="button" className="os-btn os-quiet" onClick={() => setReviewRefresh(value => value + 1)}>Refresh reviews</button><a className="os-btn os-quiet" href={`/${session.network.key}/apps/${entry.realmPath!.replace(/^gno\.land\//, "")}`} target="_blank" rel="noopener noreferrer">Manage reviews and replies ↗</a></div>
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>

@@ -4,7 +4,7 @@ import { storeReviewRequest, type StoreReviewDraft } from "./reviewRequest"
 const mocks = vi.hoisted(() => ({
     available: vi.fn(() => true),
     allowed: vi.fn(() => true),
-    fetchApp: vi.fn(),
+    fetchAppStrict: vi.fn(),
     broadcast: vi.fn(),
 }))
 
@@ -15,7 +15,7 @@ vi.mock("../../../lib/config", async (importActual) => ({
 }))
 vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
-    fetchApp: mocks.fetchApp,
+    fetchAppStrict: mocks.fetchAppStrict,
 }))
 vi.mock("../../../lib/grc20", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/grc20")>(),
@@ -36,7 +36,7 @@ const draft: StoreReviewDraft = {
 beforeEach(() => {
     mocks.available.mockReset().mockReturnValue(true)
     mocks.allowed.mockReset().mockReturnValue(true)
-    mocks.fetchApp.mockReset().mockResolvedValue({ status: "live", name: "Test App" })
+    mocks.fetchAppStrict.mockReset().mockResolvedValue({ status: "live", name: "Test App" })
     mocks.broadcast.mockReset().mockResolvedValue({ hash: "review-hash" })
 })
 
@@ -50,7 +50,7 @@ describe("native App Store review signing", () => {
         })
         expect(request.lines(undefined)).toContainEqual(["Network", "gnoland-1"])
         await request.recheck?.(undefined)
-        expect(mocks.fetchApp).toHaveBeenCalledWith(draft.subject)
+        expect(mocks.fetchAppStrict).toHaveBeenCalledWith(draft.subject)
         const beforeSign = vi.fn()
         await request.send(undefined, beforeSign)
         expect(mocks.broadcast).toHaveBeenCalledWith([msg], "Review app", { retry: false, beforeSign })
@@ -58,14 +58,23 @@ describe("native App Store review signing", () => {
 
     it("rejects an unpublished or delisted app before signing", async () => {
         const request = storeReviewRequest(draft)
-        mocks.fetchApp.mockResolvedValue({ status: "delisted" })
+        mocks.fetchAppStrict.mockResolvedValue({ status: "delisted" })
         await expect(request.recheck?.(undefined)).rejects.toThrow(/no longer a live listing/)
+        mocks.fetchAppStrict.mockResolvedValue(null)
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/no longer a live listing/)
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+    })
+
+    it("reports a registry outage as an outage, not as a delisted app", async () => {
+        const request = storeReviewRequest(draft)
+        mocks.fetchAppStrict.mockRejectedValue(new Error("App Store registry is unavailable"))
+        await expect(request.recheck?.(undefined)).rejects.toThrow("App Store registry is unavailable")
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
 
     it("requires a fresh review when the app identity changed", async () => {
         const request = storeReviewRequest(draft)
-        mocks.fetchApp.mockResolvedValue({ status: "live", name: "Renamed App" })
+        mocks.fetchAppStrict.mockResolvedValue({ status: "live", name: "Renamed App" })
         await expect(request.recheck?.(undefined)).rejects.toThrow(/listing changed/)
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
