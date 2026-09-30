@@ -303,7 +303,7 @@ function FeedList({
             <div className="emptystate" data-testid="feed-empty">
                 <i className="ti ti-message-circle emptystate__icon" aria-hidden="true" />
                 <p className="emptystate__title">Start the conversation</p>
-                <p className="emptystate__body">No posts yet. Say hello, share what you're building, or apply to join the Memba DAO community with a #join post.</p>
+                <p className="emptystate__body">No posts yet. Say hello, share what you're building, or introduce yourself to the Memba DAO community with a #join post.</p>
                 <div className="feed-empty__actions">
                     <button type="button" className="emptystate__cta" onClick={onCompose}>Write the first post</button>
                     <button type="button" className="feed-btn" onClick={onShowEcosystem}>See ecosystem activity</button>

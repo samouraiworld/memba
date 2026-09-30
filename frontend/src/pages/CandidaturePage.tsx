@@ -32,6 +32,7 @@ import {
     MAX_SKILLS_LENGTH,
 } from "../lib/candidatureTemplate"
 import { MEMBA_DAO, GNO_RPC_URL, isCandidatureValid, isFeedEnabled } from "../lib/config"
+import { COMMUNITY_MEMBERSHIP_COPY, useCommunityMembership } from "../lib/communityMembership"
 import { doContractBroadcast } from "../lib/grc20"
 import { queryRender, queryEval } from "../lib/dao/shared"
 import type { LayoutContext } from "../types/layout"
@@ -53,6 +54,7 @@ export default function CandidaturePage() {
     // No candidature realm on this network (e.g. gno.land mainnet): skip every
     // read and say so, instead of rendering an empty applications list.
     const realmValid = isCandidatureValid()
+    const membership = useCommunityMembership(!realmValid && isFeedEnabled())
 
     useEffect(() => {
         document.title = "Candidature — Memba"
@@ -179,13 +181,13 @@ export default function CandidaturePage() {
                             <h3 className="candidature-gate__title">Legacy candidature is unavailable here</h3>
                             <p className="candidature-gate__desc">
                                 The old candidature realm isn&apos;t deployed on this network. {isFeedEnabled()
-                                    ? "Apply with a #join post in the Feed to request Memba DAO community membership. This does not grant a voting seat."
-                                    : "Community applications will open through the Feed when it is available here."}
+                                    ? COMMUNITY_MEMBERSHIP_COPY[membership]
+                                    : "#join posts are Feed posts, and the Feed is not available here."}
                             </p>
                         </div>
                     </div>
                     {isFeedEnabled() && <button className="k-btn-secondary" onClick={() => navigate("/feed?compose=join")}>
-                        Write your #join post →
+                        Write a #join post
                     </button>}
                 </div>
             </div>

@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Truthful reviews and community membership statements (2026-09-30)
+- Validator pages no longer promise reviews "once the reviews realm goes live". Where reviews cannot be shown the page states why: the reviews realm is not available on the network, or it is deployed and the site has reviews switched off.
+- About, the Memba DAO folder and the Candidature page read on chain who owns the DAO's community channels and say whether the DAO can admit community members: only when it owns the channels and no ownership return is staged.
+- The join button reads "Write a #join post" everywhere, and "applications" are called #join posts.
+
 ### Onyx registered as Memba's testnet network (2026-09-30)
 - Register Onyx (`onyx-1`), gno core's testnet on mainnet's code line, as Memba's testnet network. It stays hidden from the network selector and gates every Memba realm until realms are published there; it is reachable at `/onyx/…` and as a preview default.
 - The sign-in refusal on a network the server does not accept no longer tells people to switch to Sapphire, a retired network.

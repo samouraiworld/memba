@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest"
 // Pin the module-load ACTIVE network to pearl — the chain Memba's realms are
 // actually deployed on. `config.ts` resolves it from the URL/localStorage
 // BEFORE any import runs, so this must be hoisted above the imports; a jsdom
@@ -42,6 +42,13 @@ vi.mock("../lib/validators", async (orig) => ({
     getValidators: vi.fn(),
 }))
 vi.mock("../lib/profile", () => ({ fetchUserProfile: vi.fn(), updateBackendProfile: vi.fn() }))
+// The reviews notice depends on a build flag and the network allowlist: both are
+// pinned here (flag off, realm usable) so no test depends on the environment or on order.
+vi.mock("../lib/config", async (orig) => ({
+    ...(await orig<typeof import("../lib/config")>()),
+    isReviewsAvailable: vi.fn(() => false),
+    isReviewsValid: vi.fn(() => true),
+}))
 vi.mock("../hooks/useAddressActivity", () => ({ useAddressActivity: vi.fn() }))
 vi.mock("../lib/quests", async (orig) => ({
     ...(await orig<typeof import("../lib/quests")>()),
@@ -63,6 +70,7 @@ vi.mock("../hooks/gnolove/useGnoloveTeams", () => ({ useGnoloveTeam: vi.fn(() =>
 import ValidatorProfile from "./ValidatorProfile"
 import { findValoperForProfile } from "../lib/valopers"
 import { getValidators } from "../lib/validators"
+import { isReviewsValid } from "../lib/config"
 import { fetchUserProfile, updateBackendProfile } from "../lib/profile"
 import { useAddressActivity } from "../hooks/useAddressActivity"
 import { loadQuestProgress, fetchUserQuests } from "../lib/quests"
@@ -143,6 +151,8 @@ function renderWithContext(addr: string, ctx: Partial<LayoutContext>) {
         </QueryClientProvider>,
     )
 }
+
+afterEach(() => { vi.mocked(isReviewsValid).mockReset() })
 
 describe("ValidatorProfile — resolution & routing", () => {
     beforeEach(() => { vi.clearAllMocks(); vi.mocked(fetchUserProfile).mockResolvedValue(null); setActivity() })
@@ -479,10 +489,22 @@ describe("ValidatorProfile — Contributions / Activity / Quests / Reviews", () 
         expect(within(panel).queryByTestId("vp-quest-row")).not.toBeInTheDocument()
     })
 
-    it("persistent community-reviews section is always present (not a tab)", async () => {
+    it("with the reviews flag off, says the realm is deployed here and the site has reviews switched off", async () => {
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
-        expect(within(screen.getByTestId("vp-reviews")).getByText(/community reviews/i)).toBeInTheDocument()
+        const section = screen.getByTestId("vp-reviews")
+        expect(section).toHaveTextContent("The reviews realm is deployed on Testnet 13, but reviews are switched off on this site.")
+        expect(within(section).getByRole("link", { name: "reviews realm" })).toHaveAttribute("href", "https://test13.testnets.gno.land/r/samcrew/memba_reviews_v1")
+        expect(section).not.toHaveTextContent(/soon|goes live/i)
+    })
+
+    it("where the reviews realm is not usable, says reviews are not available on this network", async () => {
+        vi.mocked(isReviewsValid).mockReturnValue(false)
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        const section = screen.getByTestId("vp-reviews")
+        expect(section).toHaveTextContent("Validator reviews are not available on Testnet 13.")
+        expect(within(section).queryByRole("link")).toBeNull()
     })
 
     it("Contributions: a validator mapped to a gnolove CONTRIBUTOR shows its stats + link", async () => {

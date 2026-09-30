@@ -21,7 +21,7 @@ import {
     Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple,
     Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise,
 } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl, isReviewsAvailable } from "../lib/config"
+import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, MEMBA_DAO, NETWORKS, getExplorerBaseUrl, isReviewsAvailable, isReviewsValid } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import {
     findValoperForProfile,
@@ -164,23 +164,19 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
     )
 }
 
-/** Persistent community-reviews section (below the tabs, every profile). The on-chain
- *  reviews realm is a later phase, so this is the honest "launching soon" hero. */
-function ReviewsLaunchingSoon() {
+/** Shown in place of the reviews when they cannot render here, naming the actual cause:
+ *  the realm is not usable on this network, or it is and this build has the flag off. */
+function ReviewsUnavailable() {
+    const network = NETWORKS[ACTIVE_NETWORK_KEY].label
     return (
         <section className="vp-reviews" aria-label="Community reviews" data-testid="vp-reviews">
             <div className="vp-review-hero">
-                <div className="vp-review-hero__score">
-                    <span className="vp-review-hero__stars" aria-hidden="true">★★★★★</span>
-                    <span className="vp-review-hero__soon">soon</span>
-                </div>
-                <div className="vp-review-hero__copy">
-                    <h2 className="vp-review-hero__title">Community reviews — launching soon</h2>
-                    <p className="vp-review-hero__sub">
-                        On-chain ratings and written reviews for this validator will appear here once the
-                        reviews realm goes live.
-                    </p>
-                </div>
+                <h2 className="vp-review-hero__title">Community reviews</h2>
+                <p className="vp-review-hero__sub">
+                    {isReviewsValid()
+                        ? <>The <a href={`${getExplorerBaseUrl()}${MEMBA_DAO.reviewsPath.replace(/^gno\.land/, "")}`} target="_blank" rel="noopener noreferrer">reviews realm</a> is deployed on {network}, but reviews are switched off on this site.</>
+                        : `Validator reviews are not available on ${network}.`}
+                </p>
             </div>
         </section>
     )
@@ -726,20 +722,16 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
             )}
 
             {/* ── Persistent community reviews (below the tabs) ── */}
-            {isReviewsAvailable() && (valoper?.operatorAddress || address) ? (
-                (() => {
-                    // Post to the operator address (stable identity). Merge reads from the
-                    // signing address + the raw URL address too, so reviews posted before the
-                    // valoper registered (keyed to the signing address) still show.
-                    const reviewSubject = (valoper?.operatorAddress ?? address)!
-                    const aliasSubjects = [valoper?.signingAddress, address].filter(
-                        (a): a is string => !!a && a !== reviewSubject,
-                    )
-                    return <ReviewsSection subject={reviewSubject} aliasSubjects={aliasSubjects} />
-                })()
-            ) : (
-                <ReviewsLaunchingSoon />
-            )}
+            {!isReviewsAvailable() ? <ReviewsUnavailable /> : (valoper?.operatorAddress || address) && (() => {
+                // Post to the operator address (stable identity). Merge reads from the
+                // signing address + the raw URL address too, so reviews posted before the
+                // valoper registered (keyed to the signing address) still show.
+                const reviewSubject = (valoper?.operatorAddress ?? address)!
+                const aliasSubjects = [valoper?.signingAddress, address].filter(
+                    (a): a is string => !!a && a !== reviewSubject,
+                )
+                return <ReviewsSection subject={reviewSubject} aliasSubjects={aliasSubjects} />
+            })()}
         </div>
     )
 }

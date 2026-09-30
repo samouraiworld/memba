@@ -44,6 +44,12 @@ vi.mock("../lib/quests", () => ({
     trackPageVisit: vi.fn(),
 }))
 
+// No chain read in a unit test: the membership state stays unanswered.
+vi.mock("../lib/communityMembership", async original => ({
+    ...(await original<typeof import("../lib/communityMembership")>()),
+    useCommunityMembership: vi.fn(() => "unknown"),
+}))
+
 vi.mock("../lib/candidatureTemplate", () => ({
     validateCandidature: vi.fn(() => null),
     parseSkills: vi.fn((s: string) =>
@@ -146,7 +152,7 @@ describe("CandidaturePage — realm validity gate", () => {
     it("says candidatures are not available where the realm is not deployed", () => {
         vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
         render(<CandidaturePage />)
-        expect(screen.getByTestId("candidature-unavailable")).toHaveTextContent("Apply with a #join post in the Feed")
+        expect(screen.getByTestId("candidature-unavailable")).toHaveTextContent("A #join post in the Feed introduces you to the Memba DAO community.")
         // No form, no XP gate, no (empty) applications list.
         expect(screen.queryByLabelText("Bio")).toBeNull()
         expect(screen.queryByText(/No candidatures/i)).toBeNull()
@@ -161,10 +167,22 @@ describe("CandidaturePage — realm validity gate", () => {
         expect(questsMock.resolveCandidatureEligibility).not.toHaveBeenCalled()
     })
 
+    it("offers no #join route where the Feed is off", () => {
+        vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
+        vi.mocked(configMock.isFeedEnabled).mockReturnValue(false)
+        try {
+            render(<CandidaturePage />)
+            expect(screen.getByTestId("candidature-unavailable")).toHaveTextContent("#join posts are Feed posts, and the Feed is not available here.")
+            expect(screen.queryByRole("button", { name: "Write a #join post" })).toBeNull()
+        } finally {
+            vi.mocked(configMock.isFeedEnabled).mockReturnValue(true)
+        }
+    })
+
     it("points to the community #join post", () => {
         vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
         render(<CandidaturePage />)
-        fireEvent.click(screen.getByRole("button", { name: /Write your #join post/ }))
+        fireEvent.click(screen.getByRole("button", { name: "Write a #join post" }))
         expect(mockNavigate).toHaveBeenCalledWith("/feed?compose=join")
     })
 })

@@ -313,39 +313,12 @@ a.vp-id__username:hover { text-decoration: underline; }
 /* ── Panels ──────────────────────────────────────────────────── */
 .vp-panel { display: flex; flex-direction: column; gap: 1rem; }
 
-/* Rating / review hero placeholder. */
+/* Reviews-unavailable notice. */
 .vp-review-hero {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
     background: var(--color-primary-bg);
     border: 1px solid var(--color-primary-border);
     border-radius: var(--radius-lg, 12px);
     padding: 1.25rem 1.5rem;
-}
-.vp-review-hero__score {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-    flex-shrink: 0;
-}
-.vp-review-hero__stars {
-    font-size: 1.4rem;
-    color: var(--color-k-accent-text);
-    opacity: 0.6;
-    letter-spacing: 1px;
-}
-.vp-review-hero__soon {
-    font-size: var(--pro-caption, 0.6rem);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    color: var(--color-k-accent-text);
-    background: var(--color-surface);
-    border: 1px solid var(--color-primary-border);
-    border-radius: var(--radius-sm, 4px);
-    padding: 1px 6px;
 }
 .vp-review-hero__title { margin: 0 0 0.25rem; font-size: 1rem; color: var(--color-text); }
 .vp-review-hero__sub { margin: 0; font-size: var(--pro-small, 0.8rem); line-height: 1.5; color: var(--color-text-secondary); }
@@ -614,7 +587,6 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
     .vp-id { flex-direction: column; }
     .vp-id__actions { align-self: stretch; }
     .vp-edit-btn { width: 100%; justify-content: center; }
-    .vp-review-hero { flex-direction: column; align-items: flex-start; }
 }
 
 /* ── Contributions: curated gnolove identity (team/contributor) ────── */
@@ -628,5 +600,4 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
     .vp-id__main { width: 100%; }
     .vp-id__actions { align-self: stretch; }
     .vp-edit-btn { width: 100%; justify-content: center; }
-    .vp-review-hero { flex-direction: column; align-items: flex-start; }
 }

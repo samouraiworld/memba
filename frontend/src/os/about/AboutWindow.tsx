@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { APP_VERSION, isFeedEnabled } from "../../lib/config"
+import { COMMUNITY_MEMBERSHIP_COPY, useCommunityMembership } from "../../lib/communityMembership"
 import type { OsAppId } from "../apps"
 import type { WindowSpec } from "../shell/windows"
 import { specForTarget } from "../shell/windows"
@@ -27,6 +28,7 @@ export function AboutWindow({ chainId, openApp, open }: {
     open: (spec: WindowSpec) => void
 }) {
     const commit = useBuildCommit()
+    const membership = useCommunityMembership(isFeedEnabled())
     const [markAvailable, setMarkAvailable] = useState(true)
     return (
         <div className="os-about">
@@ -43,8 +45,9 @@ export function AboutWindow({ chainId, openApp, open }: {
             <div className="os-about-actions">
                 <button type="button" className="os-btn" onClick={() => openApp("news")}>Read the blog</button>
                 <button type="button" className="os-btn os-quiet" onClick={() => open(specForTarget({ kind: "feedback" })!)}>Send feedback</button>
-                {isFeedEnabled() && <button type="button" className="os-btn os-quiet" onClick={() => open(applyToJoinSpec())}>Apply to join the community</button>}
+                {isFeedEnabled() && <button type="button" className="os-btn os-quiet" onClick={() => open(applyToJoinSpec())}>Write a #join post</button>}
             </div>
+            {isFeedEnabled() && <p className="os-sub os-flush">{COMMUNITY_MEMBERSHIP_COPY[membership]}</p>}
             <nav className="os-about-links" aria-label="Memba links">
                 {ABOUT_LINKS.map(({ label, href }) => <a key={href} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}
             </nav>

@@ -34,7 +34,7 @@ test('Apply opens a separate Feed window and keeps an unsent draft through OS na
         window.history.pushState({}, '', '/os/about?w=app.feed')
         window.dispatchEvent(new PopStateEvent('popstate'))
     })
-    await page.getByRole('button', { name: 'Apply to join the community' }).click()
+    await page.getByRole('button', { name: 'Write a #join post' }).click()
 
     const join = page.getByRole('region', { name: 'Join community · Feed' }).getByTestId('feed-composer-input')
     await expect(join).toHaveValue(/^#join /)

@@ -1,8 +1,18 @@
 import { fireEvent, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { APP_VERSION } from "../../lib/config"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { APP_VERSION, isFeedEnabled } from "../../lib/config"
+import { COMMUNITY_MEMBERSHIP_COPY, useCommunityMembership } from "../../lib/communityMembership"
 import { AboutWindow } from "./AboutWindow"
 import { ABOUT_LINKS, LICENSE_URL, bootEntryPath, buildCommit } from "./aboutInfo"
+
+vi.mock("../../lib/config", async original => ({ ...(await original<typeof import("../../lib/config")>()), isFeedEnabled: vi.fn() }))
+vi.mock("../../lib/communityMembership", async original => ({ ...(await original<typeof import("../../lib/communityMembership")>()), useCommunityMembership: vi.fn() }))
+
+beforeEach(() => {
+    vi.mocked(isFeedEnabled).mockReturnValue(true)
+    vi.mocked(useCommunityMembership).mockReturnValue("closed")
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => null })))
+})
 
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -62,5 +72,32 @@ describe("AboutWindow", () => {
         expect(openApp).toHaveBeenCalledWith("news")
         expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "feedback" }))
         expect(screen.getByRole("link", { name: "MIT licence" })).toHaveAttribute("href", LICENSE_URL)
+    })
+
+    it("opens the #join composer and says membership is not open while the DAO cannot admit anyone", () => {
+        const { open } = draw()
+        expect(screen.getByText(COMMUNITY_MEMBERSHIP_COPY.closed)).toBeInTheDocument()
+        expect(screen.queryByText(/apply/i)).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Write a #join post" }))
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "flow:feed-join" }))
+    })
+
+    it("states open membership only when the chain says so, and nothing about it unread", () => {
+        vi.mocked(useCommunityMembership).mockReturnValue("open")
+        const { unmount } = render(<AboutWindow chainId="gnoland-1" openApp={vi.fn()} open={vi.fn()} />)
+        expect(screen.getByText(COMMUNITY_MEMBERSHIP_COPY.open)).toBeInTheDocument()
+        unmount()
+        vi.mocked(useCommunityMembership).mockReturnValue("unknown")
+        render(<AboutWindow chainId="gnoland-1" openApp={vi.fn()} open={vi.fn()} />)
+        expect(screen.getByText(COMMUNITY_MEMBERSHIP_COPY.unknown)).toBeInTheDocument()
+        expect(screen.queryByText(/admits members|does not own/)).not.toBeInTheDocument()
+    })
+
+    it("offers no join route and reads nothing while the Feed is off", () => {
+        vi.mocked(isFeedEnabled).mockReturnValue(false)
+        draw()
+        expect(screen.queryByRole("button", { name: "Write a #join post" })).not.toBeInTheDocument()
+        expect(screen.queryByText(/#join/)).not.toBeInTheDocument()
+        expect(useCommunityMembership).toHaveBeenCalledWith(false)
     })
 })

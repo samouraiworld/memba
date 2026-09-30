@@ -1,4 +1,4 @@
-/** A bounded view of public Feed posts tagged as community applications. */
+/** A bounded view of public Feed posts tagged #join. */
 import { fetchFeedTimeline, type FeedPost } from "./feedApi"
 
 export const JOIN_TAG = "#join"
