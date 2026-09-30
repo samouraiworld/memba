@@ -2,7 +2,9 @@
  * One token: what the ledger says about it (owner, status, URI) and what its
  * metadata file shows. The ledger answer is required; the metadata file is
  * the creator's, fetched from the IPFS gateway only, and when it cannot be
- * shown the page says why instead of leaving a blank.
+ * shown the page says why instead of leaving a blank. While curators hide the
+ * collection (or its record is unknown), the file is not read and the page
+ * shows the ledger's facts only, until the viewer asks (see useCurationHide).
  *
  * @module os/apps/nft/item
  */
@@ -12,8 +14,9 @@ import { getToken, type NftToken } from "../../../lib/nft/ledger"
 import { TokenMetadataError, type NftTokenMetadata } from "../../../lib/nft/metadata"
 import { TokenMedia } from "../../nft/TokenMedia"
 import { ErrorState, Loading, Pill } from "../../kit"
+import { Curation } from "./curation"
 import { Back, ReadFailure } from "./parts"
-import { RETIRED, metadataQuery, type NftScreen } from "./screen"
+import { RETIRED, metadataQuery, useCurationHide, type NftScreen } from "./screen"
 
 const NOT_SHOWN: Record<Exclude<TokenMetadataError["reason"], "unavailable">, string> = {
     too_large: "The token's metadata file is larger than this app reads, so it is not shown.",
@@ -32,20 +35,23 @@ function MetadataState({ uri, metadata }: { uri: string; metadata: UseQueryResul
 }
 
 function Token({ screen, token }: { screen: NftScreen; token: NftToken }) {
-    const metadata = useQuery(metadataQuery(screen.chainId, token.uri))
+    const hide = useCurationHide(screen, token.collection)
+    const metadata = useQuery({ ...metadataQuery(screen.chainId, token.uri), enabled: hide.shown && token.uri !== "" })
+    const data = hide.shown ? metadata.data : undefined
     const label = `${token.collection} #${token.number}`
-    const name = metadata.data?.name ? revealInvisibleFormatting(metadata.data.name) : label
+    const name = data?.name ? revealInvisibleFormatting(data.name) : label
     return (
         <div className="os-nft-item">
-            <TokenMedia uri={metadata.data?.image ?? null} seed={`${token.collection}/${token.number}`} alt={name} />
+            <TokenMedia uri={data?.image ?? null} seed={`${token.collection}/${token.number}`} alt={name} />
             <div className="os-stack os-tight">
                 <h2 className="os-nft-title">{name}</h2>
-                {metadata.data?.name && <span className="os-sub">{label}</span>}
-                <MetadataState uri={token.uri} metadata={metadata} />
-                {metadata.data?.description && <p className="os-break">{revealInvisibleFormatting(metadata.data.description)}</p>}
-                {metadata.data && metadata.data.attributes.length > 0 && (
+                {data?.name && <span className="os-sub">{label}</span>}
+                {hide.curated && <Curation hide={hide} collapsed="The token's art and text" />}
+                {hide.shown && <MetadataState uri={token.uri} metadata={metadata} />}
+                {data?.description && <p className="os-break">{revealInvisibleFormatting(data.description)}</p>}
+                {data && data.attributes.length > 0 && (
                     <dl className="os-kv" aria-label="Attributes">
-                        {metadata.data.attributes.map((trait, index) => (
+                        {data.attributes.map((trait, index) => (
                             <div key={index} className="os-kv-row">
                                 <dt className="os-break">{revealInvisibleFormatting(trait.trait_type)}</dt>
                                 <dd className="os-break">{typeof trait.value === "string" ? revealInvisibleFormatting(trait.value) : trait.value}</dd>

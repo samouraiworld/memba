@@ -1,26 +1,20 @@
 /**
  * A collection's profile: its presentation and people, the Collection
- * Passport, curation marks, mint stages and tokens. Curation blocks nothing:
- * a collection curators hide keeps every section, and only what its creator
- * chose to show (image, banner, description, token art) stays collapsed until
- * the viewer asks for it. While the curation record is unknown (being read,
- * or unreadable) it stays collapsed too; where the curation realm is not
- * available there is no record to wait for.
+ * Passport, curation marks, mint stages and tokens. A collection curators
+ * hide keeps every section; its image, banner, description and token art
+ * stay collapsed until the viewer asks (see useCurationHide).
  *
  * @module os/apps/nft/profile
  */
-import { useQuery, type UseQueryResult } from "@tanstack/react-query"
-import { useState } from "react"
-import { isRealmValidOn } from "../../../lib/config"
+import { useQuery } from "@tanstack/react-query"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
-import { NFT_CURATION_PATH, getCurationRecord, type CurationRecord } from "../../../lib/nft/curation"
 import { getCollection, type NftCollection } from "../../../lib/nft/ledger"
 import { mediaUrl } from "../../../lib/nft/metadata"
-import { ReadError } from "../../../lib/nft/read"
 import { TokenMedia } from "../../nft/TokenMedia"
-import { ErrorState, Loading, Pill } from "../../kit"
+import { Loading } from "../../kit"
+import { Curation } from "./curation"
 import { Back, ReadFailure } from "./parts"
-import type { NftScreen } from "./screen"
+import { useCurationHide, type NftScreen } from "./screen"
 import { Passport } from "./passport"
 import { Stages } from "./stages"
 import { TokenGrid } from "./tokens"
@@ -36,42 +30,9 @@ function People({ collection }: { collection: NftCollection }) {
     )
 }
 
-function Curation({ record, revealed, reveal }: { record: UseQueryResult<CurationRecord>; revealed: boolean; reveal: () => void }) {
-    const showAnyway = !revealed && <button type="button" className="os-btn os-quiet" onClick={reveal}>Show anyway</button>
-    if (record.isPending) return <Loading label="Reading curation…" />
-    if (record.isError) {
-        return <>
-            <ErrorState message="Curation could not be read. The collection's image, banner, description and token art stay collapsed until it is." onRetry={record.error instanceof ReadError ? () => void record.refetch() : undefined} />
-            {showAnyway}
-        </>
-    }
-    const { verified, featured, hidden } = record.data
-    return <>
-        <div className="os-row">
-            {verified && <Pill tone="ok">Verified</Pill>}
-            {featured && <Pill tone="ok">Featured</Pill>}
-            {hidden && <Pill tone="warn">Hidden by curators</Pill>}
-            {!verified && !featured && !hidden && <span className="os-sub">No curation mark.</span>}
-        </div>
-        {hidden && (
-            <div className="os-note os-warn os-row" role="note">
-                <span className="os-grow">Curators have hidden this collection for now. {revealed ? "You chose to show it." : "Its image, banner, description and token art are collapsed."}</span>
-                {showAnyway}
-            </div>
-        )}
-    </>
-}
-
 function Profile({ screen, collection }: { screen: NftScreen; collection: NftCollection }) {
-    const curated = isRealmValidOn(screen.network, NFT_CURATION_PATH)
-    const [revealed, setRevealed] = useState(false)
-    const record = useQuery({
-        queryKey: ["nft", "curation", "record", screen.chainId, collection.id],
-        queryFn: () => getCurationRecord(collection.id),
-        enabled: curated,
-        staleTime: 60_000, retry: false,
-    })
-    const shown = !curated || revealed || record.data?.hidden === false
+    const hide = useCurationHide(screen, collection.id)
+    const { shown } = hide
     const name = revealInvisibleFormatting(collection.name)
     const website = collection.website.startsWith("https://") ? mediaUrl(collection.website) : null
     return (
@@ -92,7 +53,7 @@ function Profile({ screen, collection }: { screen: NftScreen; collection: NftCol
             <People collection={collection} />
             <section aria-label="Curation">
                 <h3 className="os-h">Curation</h3>
-                {curated ? <Curation record={record} revealed={revealed} reveal={() => setRevealed(true)} /> : <p className="os-sub">Curation is not available on this network.</p>}
+                {hide.curated ? <Curation hide={hide} collapsed="Its image, banner, description and token art" /> : <p className="os-sub">Curation is not available on this network.</p>}
             </section>
             <Passport screen={screen} collection={collection} />
             <Stages screen={screen} collection={collection.id} />

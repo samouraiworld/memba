@@ -5,14 +5,17 @@ import { TokenMetadataError } from "../../../lib/nft/metadata"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import NftWindow from "./native"
 
-const reads = vi.hoisted(() => ({ getToken: vi.fn(), fetchTokenMetadata: vi.fn() }))
+const reads = vi.hoisted(() => ({ getToken: vi.fn(), fetchTokenMetadata: vi.fn(), getCurationRecord: vi.fn() }))
 vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), getToken: reads.getToken }))
+vi.mock("../../../lib/nft/curation", async (original) => ({ ...(await original<object>()), getCurationRecord: reads.getCurationRecord }))
 vi.mock("../../../lib/nft/metadata", async (original) => ({ ...(await original<object>()), fetchTokenMetadata: reads.fetchTokenMetadata }))
 vi.mock("../../../lib/config", async (original) => ({ ...(await original<typeof import("../../../lib/config")>()), isNftEnabled: () => true, isRealmValidOn: () => true }))
 
 const OWNER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const URI = `ipfs://bafy${"m".repeat(55)}/7.json`
 const token = { collection: "C1", number: 7n, owner: OWNER, status: "active", uri: URI }
+const curation = (hidden: boolean) => ({ collection: "C1", verified: false, featured: false, hidden })
+const drawing = { name: "Relevé #7", description: "A drawing", image: "https://example.org/7.png", attributes: [] }
 
 function show() {
     const push = vi.fn()
@@ -30,6 +33,7 @@ describe("NFT item page", () => {
     beforeEach(() => {
         reads.getToken.mockReset().mockResolvedValue(token)
         reads.fetchTokenMetadata.mockReset()
+        reads.getCurationRecord.mockReset().mockResolvedValue(curation(false))
     })
 
     it("shows the token's metadata and what the ledger says about it", async () => {
@@ -103,5 +107,33 @@ describe("NFT item page", () => {
         show()
         expect(await screen.findByRole("alert")).toHaveTextContent("What this network sent for the token does not follow the realm's rules, so it is not shown.")
         expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+    })
+
+    it("collapses a hidden collection's token art and text until the viewer asks, and keeps the ledger's facts", async () => {
+        reads.getCurationRecord.mockResolvedValue(curation(true))
+        reads.fetchTokenMetadata.mockResolvedValue(drawing)
+        show()
+        expect(await screen.findByRole("note")).toHaveTextContent("Curators have hidden this collection for now. The token's art and text are collapsed.")
+        expect(screen.getByRole("heading", { name: "C1 #7" })).toBeInTheDocument()
+        expect(screen.getByRole("img", { name: "C1 #7" }).getAttribute("src")).toMatch(/^data:image\/svg/)
+        expect(screen.getByText("Owner").nextSibling).toHaveTextContent(OWNER)
+        expect(screen.getByRole("button", { name: "Trade on Market" })).toBeInTheDocument()
+        expect(reads.fetchTokenMetadata).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", { name: "Show anyway" }))
+        expect(await screen.findByRole("heading", { name: "Relevé #7" })).toBeInTheDocument()
+        expect(screen.getByText("A drawing")).toBeInTheDocument()
+        expect(screen.getByRole("note")).toHaveTextContent("You chose to show it.")
+    })
+
+    it("keeps the token's art and text collapsed while curation cannot be read", async () => {
+        reads.getCurationRecord.mockRejectedValueOnce(new ReadError("Could not read curation record")).mockResolvedValueOnce(curation(false))
+        reads.fetchTokenMetadata.mockResolvedValue(drawing)
+        show()
+        expect(await screen.findByRole("alert")).toHaveTextContent("Curation could not be read. The token's art and text stay collapsed until it is.")
+        expect(screen.getByRole("button", { name: "Show anyway" })).toBeInTheDocument()
+        expect(reads.fetchTokenMetadata).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        expect(await screen.findByRole("heading", { name: "Relevé #7" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Show anyway" })).toBeNull()
     })
 })

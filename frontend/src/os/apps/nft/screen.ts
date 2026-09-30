@@ -1,11 +1,14 @@
 /**
  * What the NFT window's screens share: the network they read, how they move
- * between sections, the query for a token's metadata file, and how a time
- * and a retired token are written.
+ * between sections, the query for a token's metadata file, a curation hide,
+ * and how a time and a retired token are written.
  *
  * @module os/apps/nft/screen
  */
-import { queryOptions } from "@tanstack/react-query"
+import { queryOptions, useQuery } from "@tanstack/react-query"
+import { useState } from "react"
+import { isRealmValidOn } from "../../../lib/config"
+import { NFT_CURATION_PATH, getCurationRecord } from "../../../lib/nft/curation"
 import type { NftTokenStatus } from "../../../lib/nft/ledger"
 import { fetchTokenMetadata } from "../../../lib/nft/metadata"
 import type { MarketNftRoute, NftRoute } from "../../nft/routes"
@@ -37,3 +40,24 @@ export function when(seconds: bigint): string {
 }
 
 export const RETIRED: Record<Exclude<NftTokenStatus, "active">, string> = { burned: "Burned", revoked: "Revoked" }
+
+/**
+ * Whether a collection's creator-supplied art and text may be shown. Curation
+ * blocks nothing: a collection curators hide stays browsable, and only what
+ * its creator chose to show stays collapsed until the viewer asks for it. While
+ * the record is unknown (being read, or unreadable) it stays collapsed too;
+ * where the curation realm is not available there is no record to wait for.
+ */
+export function useCurationHide(screen: NftScreen, collection: string) {
+    const curated = isRealmValidOn(screen.network, NFT_CURATION_PATH)
+    const [revealed, setRevealed] = useState(false)
+    const record = useQuery({
+        queryKey: ["nft", "curation", "record", screen.chainId, collection],
+        queryFn: () => getCurationRecord(collection),
+        enabled: curated,
+        staleTime: 60_000, retry: false,
+    })
+    return { curated, record, revealed, reveal: () => setRevealed(true), shown: !curated || revealed || record.data?.hidden === false }
+}
+
+export type CurationHide = ReturnType<typeof useCurationHide>
