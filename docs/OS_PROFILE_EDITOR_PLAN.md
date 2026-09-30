@@ -1,8 +1,8 @@
 # Memba OS Profile and WYSIWYG Editor — implementation proposal
 
 **Date:** 2026-09-28
-**Updated:** 2026-09-29
-**Status:** The public Profile and visual editor foundation merged in [PR #1380](https://github.com/samouraiworld/memba/pull/1380) (`cb0134d5`), and the address-owned Home and activity tabs merged in [PR #1427](https://github.com/samouraiworld/memba/pull/1427) (`07a0c08a`). The read-only Profile expansion is complete. On-chain publishing remains off by default behind `VITE_ENABLE_OS_PROFILE_PUBLISH`; the full WYSIWYG release gates below remain open.
+**Updated:** 2026-09-30
+**Status:** The public Profile and visual editor foundation merged in [PR #1380](https://github.com/samouraiworld/memba/pull/1380) (`cb0134d5`), and the address-owned Home and activity tabs merged in [PR #1427](https://github.com/samouraiworld/memba/pull/1427) (`07a0c08a`). The read-only Overview, Home, DAOs, Contributions and Feed tabs are merged; the production guest and owner walkthrough remains open. On-chain publishing remains off by default behind `VITE_ENABLE_OS_PROFILE_PUBLISH`; the full WYSIWYG release gates below remain open.
 
 ## 1. Product outcome
 
@@ -133,8 +133,8 @@ On mainnet, slices 1–3 can ship without a new realm because the verified live 
 
 ## 10. Address-owned Home and activity view (2026-09-29)
 
-[PR #1427](https://github.com/samouraiworld/memba/pull/1427) merged into `main` as `07a0c08a`. Its frontend build and lint, 7,466 unit tests passed (1 skipped), backend race suite and build, 634 standard browser tests passed (14 skipped), and 16 focused Profile browser tests passed locally before merge. This completes the Overview/Home/DAOs/Contributions/Feed read-only expansion, not the on-chain WYSIWYG publishing release.
+[PR #1427](https://github.com/samouraiworld/memba/pull/1427) merged into `main` as `07a0c08a`. Its frontend build and lint, 7,466 unit tests (1 skipped), backend race suite and build, 634 standard browser tests (14 skipped) and 16 focused Profile browser tests passed locally on `54def36d`, before the branch integrated `main`; every CI check then passed on the merged head `296d7a3b`. This completes the Overview/Home/DAOs/Contributions/Feed read-only expansion, not the on-chain WYSIWYG publishing release.
 
 The shared Profile realm and an address-owned /home realm are separate public sources. Profile now starts on Overview, discovers a Home at the viewed address, displays a bounded plain-text excerpt, and links to the complete original realm. Home content is labelled owner-authored; its claims do not become verified roles or credentials.
 
-The Home, DAOs, Contributions, and Feed tabs organize read-only signals around the same address. DAO membership, roles, tiers and voting power come only from rosters in Memba's bounded known directory, with checked and unavailable counts and no claim of chain-wide coverage. Published packages and linked GitHub activity are attributed to Gnolove; ranks remain withheld until a source supplies an account, metric and period. Feed posts and replies are separated, with links back to their threads and a recent-sample notice. Existing editor layout and section visibility controls continue to apply, and this change does not enable profile publishing.
+The Home, DAOs, Contributions, and Feed tabs organize read-only signals around the same address. DAO membership, roles, tiers and voting power come only from the first twelve rosters in Memba's directory for the active network (its seeded DAOs plus any the viewer has saved in this browser), with checked, unavailable and omitted counts and no claim of chain-wide coverage. Two viewers can therefore see different results for the same address. Published packages and linked GitHub activity are attributed to Gnolove; ranks remain withheld until a source supplies an account, metric and period. Feed posts and replies are separated, with links back to their threads and a recent-sample notice. Section visibility still applies: hiding DAOs and votes removes the DAOs tab, hiding Feed removes the Feed tab, and hidden sections stay out of Overview. Home and Contributions are always shown. Section order applies within each tab, and the Builder and Community templates currently render alike. This change does not enable profile publishing.
