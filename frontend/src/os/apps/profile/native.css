@@ -18,6 +18,8 @@
 .os-profile-editor { display: grid; grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); align-items: start; gap: 20px; }
 .os-profile-pane-switch { display: none; }
 .os-profile-controls { min-width: 0; display: grid; gap: 12px; padding: 18px; border-radius: 15px; background: var(--color-surface-raised, rgba(130,140,160,.08)); }
+.os-profile-fields { display: contents; }
+.os-profile .os-btn[aria-disabled="true"] { opacity: .6; cursor: progress; }
 .os-profile-controls h2, .os-profile-controls h3 { margin: 0; }
 .os-profile-controls h3 { margin-top: 12px; font-size: 15px; }
 .os-profile-controls p { margin: 0; }

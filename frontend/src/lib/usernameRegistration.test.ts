@@ -9,6 +9,10 @@ import { resilientAbciQuery } from "./rpcFallback"
 import { NETWORKS } from "./config"
 import {
     buildRegisterUsernameMsg,
+    REGISTER_DEPOSIT_UGNOT,
+    REGISTER_GAS_WANTED,
+    REGISTER_MAX_DEPOSIT_UGNOT,
+    registerBroadcastOptions,
     fetchRegisterPrice,
     nymNameProblem,
     parseInt64Result,
@@ -76,11 +80,27 @@ describe("register price", () => {
 })
 
 describe("buildRegisterUsernameMsg", () => {
-    it("sends nothing when registration is free", () => {
+    it("sends nothing when registration is free, and caps the storage deposit", () => {
         expect(buildRegisterUsernameMsg(CALLER, REGISTRAR, "nym-builder042", 0n)).toEqual({
             type: "vm/MsgCall",
-            value: { caller: CALLER, send: "", pkg_path: REGISTRAR, func: "Register", args: ["nym-builder042"] },
+            value: { caller: CALLER, send: "", pkg_path: REGISTRAR, func: "Register", args: ["nym-builder042"], max_deposit: "660000ugnot" },
         })
+    })
+
+    // `.app/simulate` on gnoland-1, 2026-09-30: the highest of about 100 sampled names used 42,535,264 gas and 3,253 bytes.
+    it("budgets at least twice the measured gas, and a deposit cap of twice the storage estimate", () => {
+        expect(REGISTER_GAS_WANTED).toBeGreaterThanOrEqual(2 * 42_535_264)
+        expect(REGISTER_DEPOSIT_UGNOT).toBeGreaterThanOrEqual(3_253 * 100)
+        expect(REGISTER_MAX_DEPOSIT_UGNOT).toBe(2 * REGISTER_DEPOSIT_UGNOT)
+    })
+
+    it("broadcasts once, with the measured limit and the fee for the quoted price", () => {
+        expect(registerBroadcastOptions({ gas: 1000, ugnot: 1 })).toEqual({ gasWanted: 90_000_000, gasFee: 108_000, retry: false })
+        expect(registerBroadcastOptions({ gas: 1000, ugnot: 2 }).gasFee).toBe(216_000)
+    })
+
+    it("names the deposit when the wallet cannot cover the registration", () => {
+        expect(registrationErrorMessage("insufficient coins error")).toBe("Not enough GNOT to pay the network fee and the storage deposit.")
     })
 
     it("sends exactly the current price otherwise", () => {

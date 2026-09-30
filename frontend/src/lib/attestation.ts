@@ -21,7 +21,7 @@ import {
     type AttestationVoucher,
 } from "../gen/memba/v1/memba_pb"
 import { queryEval, sanitize } from "./dao/shared"
-import { STORAGE_PRICE_UGNOT } from "./dao/v2Budget"
+import { depositCapUgnot } from "./dao/v2Budget"
 import { GNO_RPC_URL, isRealmValid } from "./config"
 
 export interface AttestationState {
@@ -119,11 +119,7 @@ export function isAttestationClaimable(state: AttestationState, onChainSignerHex
  * `max_deposit` the chain would accept up to its 100 GNOT default.
  */
 export const RECORD_COMPLETION_GAS_WANTED = 50_000_000
-export const RECORD_COMPLETION_MAX_DEPOSIT_UGNOT = roundUp(8_000 * 2 * STORAGE_PRICE_UGNOT, 10_000)
-
-function roundUp(value: number, step: number): number {
-    return Math.ceil(value / step) * step
-}
+export const RECORD_COMPLETION_MAX_DEPOSIT_UGNOT = depositCapUgnot(8_000)
 
 /**
  * Build the vm/MsgCall that records a voucher on-chain. The realm signature is

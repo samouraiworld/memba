@@ -8,7 +8,7 @@
  */
 import { GNO_CHAIN_ID } from "../../lib/config"
 import { resolveRecipient } from "../../lib/nameResolve"
-import { doContractBroadcast } from "../../lib/grc20"
+import { assertFeeStillCovers, doContractBroadcast } from "../../lib/grc20"
 import { abciErrorPresent, resilientRpcCall } from "../../lib/rpcFallback"
 import { normalizeTxHashHex } from "../../lib/txExplorerUrl"
 import type { SignRequest } from "../sign/signer"
@@ -79,12 +79,7 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
         prepare: () => ({ msgs }),
         recheck: async () => {
             if ((await ctx.currentWallet()) !== ctx.from) throw new Error("Your wallet changed since the review. Review the send again.")
-            if (ctx.currentFee) {
-                let freshFee: bigint
-                try { freshFee = await ctx.currentFee() }
-                catch { throw new Error("Couldn't confirm the current network fee. Nothing was sent; try again when the network is available.") }
-                if (freshFee > ctx.feeUgnot) throw new Error("The network fee increased since review. Close this review and check the new fee before signing.")
-            }
+            if (ctx.currentFee) await assertFeeStillCovers(ctx.feeUgnot, ctx.currentFee)
             // A name can change owner: the address reviewed is the one paid, but only while the name still points there.
             if (ctx.toName) {
                 const now = await (ctx.resolveName ?? resolveNameNow)(ctx.toName)

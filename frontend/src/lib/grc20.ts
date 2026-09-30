@@ -249,10 +249,7 @@ export function __resetGasPriceCache() {
     gasPriceCache.clear()
 }
 
-/**
- * The chain's current gas price from `auth/gasprice`, cached per chain. Falls
- * back to {@link FALLBACK_GAS_PRICE} when no endpoint of that chain answers.
- */
+/** The chain's current gas price from `auth/gasprice`. Throws when no endpoint of that chain answers or the value is out of range. */
 async function readNetworkGasPrice(chainId: string, rpcUrls: string[]): Promise<GasPrice> {
         const raw = JSON.parse(await abciQueryText({ rpcUrl: rpcUrls[0] ?? "", rpcUrls, chainId }, "auth/gasprice", "")) as { gas?: unknown; price?: unknown }
         const gas = Number(raw.gas)
@@ -274,6 +271,7 @@ export async function networkGasPriceFresh(chainId: string = GNO_CHAIN_ID, rpcUr
     return price
 }
 
+/** The gas price for display: cached per chain for 30 s, and {@link FALLBACK_GAS_PRICE} when it cannot be read. */
 export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: string[] = getRpcUrlsInOrder()): Promise<GasPrice> {
     const cached = gasPriceCache.get(chainId)
     if (cached && Date.now() - cached.at < GAS_PRICE_CACHE_MS) return cached.price
@@ -286,11 +284,23 @@ export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: s
 
 /**
  * Fee for an explicit, measured gas limit: the network price with 20 %
- * headroom. The profile's flat fee does not apply. Wallets that simulate may
- * lower it.
+ * headroom. The profile's flat fee does not apply.
  */
 export function feeForGasWanted(gasWanted: number, price: GasPrice): number {
     return Math.ceil((gasWanted * 1.2 * price.ugnot) / price.gas)
+}
+
+/** A fresh fee for a gas limit, from the chain. Throws when no endpoint of the chain answers. */
+export async function freshFeeForGasWanted(gasWanted: number): Promise<number> {
+    return feeForGasWanted(gasWanted, await networkGasPriceFresh())
+}
+
+/** Stops a signature whose reviewed fee no longer covers a fresh quote, or whose quote cannot be read. */
+export async function assertFeeStillCovers(reviewedFeeUgnot: number | bigint, freshFeeUgnot: () => Promise<number | bigint>): Promise<void> {
+    let fresh: number | bigint
+    try { fresh = await freshFeeUgnot() }
+    catch { throw new Error("Couldn't confirm the current network fee. Nothing was sent; try again when the network is available.") }
+    if (fresh > reviewedFeeUgnot) throw new Error("The network fee increased since review. Close this review and check the new fee before signing.")
 }
 
 export async function doContractBroadcast(

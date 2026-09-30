@@ -8,13 +8,16 @@
  * Extracted in v1.5.0 from ProfilePage.tsx.
  */
 import { useState } from "react"
-import { doContractBroadcast } from "../../lib/grc20"
+import { doContractBroadcast, networkGasPriceFresh, type GasPrice } from "../../lib/grc20"
 import { getUsernameRegistrarPath } from "../../lib/config"
 import { forgetRegisteredUsername } from "../../lib/dao/shared"
+import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import {
     buildRegisterUsernameMsg,
     fetchRegisterPrice,
     nymNameProblem,
+    REGISTER_DEPOSIT_UGNOT,
+    registerBroadcastOptions,
     registrationErrorMessage,
 } from "../../lib/usernameRegistration"
 
@@ -40,7 +43,12 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                 setRegError("Couldn't read the registration price. Try again in a moment.")
                 return
             }
-            await doContractBroadcast([buildRegisterUsernameMsg(address, registrar, regInput, price)], `Register @${regInput}`)
+            let gasPrice: GasPrice
+            try { gasPrice = await networkGasPriceFresh() } catch {
+                setRegError("Couldn't read the network fee. Try again in a moment.")
+                return
+            }
+            await doContractBroadcast([buildRegisterUsernameMsg(address, registrar, regInput, price)], `Register @${regInput}`, registerBroadcastOptions(gasPrice))
             setRegSuccess(true)
             // The profile would otherwise keep serving the cached "no username".
             forgetRegisteredUsername(address)
@@ -111,6 +119,9 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             {problem}
                         </span>
                     )}
+                    <span style={{ flexBasis: "100%", fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
+                        Registering locks a storage deposit of about {formatUgnotExact(REGISTER_DEPOSIT_UGNOT)} that is not returned, plus the network fee.
+                    </span>
                 </>
             )}
         </div>

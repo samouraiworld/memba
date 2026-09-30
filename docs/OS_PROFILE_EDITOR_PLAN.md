@@ -138,3 +138,34 @@ On mainnet, slices 1–3 can ship without a new realm because the verified live 
 The shared Profile realm and an address-owned /home realm are separate public sources. Profile now starts on Overview, discovers a Home at the viewed address, displays a bounded plain-text excerpt, and links to the complete original realm. Home content is labelled owner-authored; its claims do not become verified roles or credentials.
 
 The Home, DAOs, Contributions, and Feed tabs organize read-only signals around the same address. DAO membership, roles, tiers and voting power come only from the first twelve rosters in Memba's directory for the active network (its seeded DAOs plus any the viewer has saved in this browser), with checked, unavailable and omitted counts and no claim of chain-wide coverage. Two viewers can therefore see different results for the same address. Published packages and linked GitHub activity are attributed to Gnolove; ranks remain withheld until a source supplies an account, metric and period. Feed posts and replies are separated, with links back to their threads and a recent-sample notice. Section visibility still applies: hiding DAOs and votes removes the DAOs tab, hiding Feed removes the Feed tab, and hidden sections stay out of Overview. Home and Contributions are always shown. Section order applies within each tab, and the Builder and Community templates currently render alike. This change does not enable profile publishing.
+
+## 11. Measured signing costs (2026-09-30)
+
+Read-only `.app/simulate` runs on gnoland-1 (heights 447,631 to 449,315) replaced the default 10M gas limit and flat 1 GNOT fee. Nothing was signed or broadcast; the two-wallet rehearsal (section 6, slice 2, and the release gate in section 8) still decides when the flag is enabled.
+
+| Transaction | Gas used | Gas limit sent | Network fee at 1 ugnot per 1,000 gas, with the 20 % margin (charged in full) | Storage the chain charges |
+|---|---|---|---|---|
+| One profile field | 6.1M to 6.2M | 14M | 0.0168 GNOT | about 2,100 bytes plus the value for a first write (0.21 GNOT and up); only the growth for a rewrite |
+| Six profile fields, first publish, typical values | 9.9M | 24M | 0.0288 GNOT | 13,127 bytes (1.31 GNOT) |
+| Six profile fields, first publish, largest values | 10.1M | 24M | 0.0288 GNOT | 19,511 bytes (1.95 GNOT) |
+| Username registration (about 100 sampled names) | 30.8M to 42.5M | 90M | 0.108 GNOT | 3,161 to 3,253 bytes (0.32 to 0.33 GNOT) |
+
+Every call now carries a `max_deposit` of twice its storage estimate, and the review sheet states the expected deposit, its cap and the network fee before the wallet opens. The fee is quoted from the chain's gas price at the click that opens a review (never from a cached or fallback price) and checked again just before signing. The chain charges the declared fee in full, so the sheet states it as the fee, not as a ceiling. Username registration needs more than the old 10M default limit, so the classic form and the OS now send the measured limit. The models and their measured points are in `frontend/src/os/profile/profileBudget.ts` and `frontend/src/lib/usernameRegistration.ts`; their tests fail if a limit drops below twice a measured point.
+
+Deposits are not a refundable hold. `r/demo/profile` has no delete, so clearing a field returns only its value bytes and about 0.21 GNOT per field written stays locked. A registered username cannot be removed by its owner, so its deposit of about 0.33 GNOT is locked for good. Both sheets say so.
+
+The storage price (100 ugnot per byte, `vm:p:storage_price`) is a constant in `frontend/src/lib/dao/v2Budget.ts`, unlike the gas price. If governance changes it, the caps must be re-derived.
+
+Both realms keep one tree for all members, so gas rises slowly as they fill, and registration gas depends on where the name falls in the registry's trees rather than on its length. Re-measure when an observed value nears half its limit. To re-measure, simulate the call with any funded key (no broadcast), for example:
+
+```bash
+gnokey maketx call -pkgpath gno.land/r/demo/profile -func SetStringField -args Bio -args "hello" -gas-wanted 14000000 -gas-fee 16800ugnot -broadcast -simulate only -remote https://rpc.gno.land:443 -chainid gnoland-1 <key>
+```
+
+```bash
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v0 -func Register -args nym-example042 -max-deposit 660000ugnot -gas-wanted 90000000 -gas-fee 108000ugnot -broadcast -simulate only -remote https://rpc.gno.land:443 -chainid gnoland-1 <key>
+```
+
+For registration, sample several names from an address that has no username: the gas differs by name.
+
+It prints the gas used and a `StorageDepositEvent` with the bytes charged. The figures above were taken with the same simulate query and an unsigned transaction (the chain does not check signatures when simulating a call), which also allowed six calls in one transaction.

@@ -11,6 +11,7 @@ vi.mock("../../lib/config", async (orig) => ({
 vi.mock("../../lib/grc20", async (orig) => ({
     ...(await orig<typeof import("../../lib/grc20")>()),
     doContractBroadcast: vi.fn(async () => undefined),
+    networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })),
 }))
 vi.mock("../../lib/rpcFallback", async (orig) => ({
     ...(await orig<typeof import("../../lib/rpcFallback")>()),
@@ -21,7 +22,7 @@ vi.mock("../../lib/dao/shared", async (orig) => ({
     forgetRegisteredUsername: vi.fn(),
 }))
 
-import { doContractBroadcast } from "../../lib/grc20"
+import { doContractBroadcast, networkGasPriceFresh } from "../../lib/grc20"
 import { resilientAbciQuery } from "../../lib/rpcFallback"
 import { forgetRegisteredUsername } from "../../lib/dao/shared"
 import { RegisterUsernameForm } from "./RegisterUsernameForm"
@@ -69,8 +70,24 @@ describe("RegisterUsernameForm", () => {
         await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
         expect(vi.mocked(doContractBroadcast).mock.calls[0][0]).toEqual([{
             type: "vm/MsgCall",
-            value: { caller: CALLER, send: "", pkg_path: "gno.land/r/sys/namereg/v0", func: "Register", args: ["nym-builder042"] },
+            value: { caller: CALLER, send: "", pkg_path: "gno.land/r/sys/namereg/v0", func: "Register", args: ["nym-builder042"], max_deposit: "660000ugnot" },
         }])
+        // The registrar needs more gas than the 10M default limit; the fee is the chain's price for it.
+        expect(vi.mocked(doContractBroadcast).mock.calls[0][2]).toEqual({ gasWanted: 90_000_000, gasFee: 108_000, retry: false })
+    })
+
+    it("says before the wallet opens that the storage deposit is not returned", () => {
+        render(<RegisterUsernameForm address={CALLER} onRegistered={() => {}} />)
+        expect(screen.getByText(/locks a storage deposit of about 0\.33 GNOT that is not returned, plus the network fee/)).toBeInTheDocument()
+    })
+
+    it("does not open the wallet when the network fee cannot be read", async () => {
+        vi.mocked(networkGasPriceFresh).mockRejectedValueOnce(new Error("offline"))
+        render(<RegisterUsernameForm address={CALLER} onRegistered={() => {}} />)
+        fireEvent.change(screen.getByLabelText("Username to register"), { target: { value: "nym-builder042" } })
+        fireEvent.click(screen.getByRole("button", { name: "Register" }))
+        expect(await screen.findByText(/Couldn't read the network fee/)).toBeInTheDocument()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
     })
 
     it("keeps Register disabled for a name the registrar would refuse", () => {

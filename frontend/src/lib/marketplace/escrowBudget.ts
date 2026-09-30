@@ -42,7 +42,7 @@
  * cost and a higher clamp for it (ESCROW_FORMAT_LOOKUP_GAS,
  * ESCROW_MAX_LOOKUP_CALL_GAS).
  */
-import { STORAGE_PRICE_UGNOT } from "../dao/v2Budget"
+import { depositCapUgnot, STORAGE_PRICE_UGNOT } from "../dao/v2Budget"
 
 /** The escrow_v4 entrypoints Memba signs for a user. */
 export type EscrowFunc =
@@ -171,7 +171,7 @@ export function estimateCreateContract(sizes: CreateContractSizes): { gas: numbe
 
 const budget = (gas: number, storageBytes: number, maxGas = ESCROW_MAX_CALL_GAS): EscrowCallBudget => ({
     gasWanted: Math.min(maxGas, roundUp(gas * 1.25, 1_000_000)),
-    maxDepositUgnot: roundUp(storageBytes * 2 * STORAGE_PRICE_UGNOT, 10_000),
+    maxDepositUgnot: depositCapUgnot(storageBytes),
 })
 
 /** Gas limit and deposit cap for a CreateContract with these argument sizes. */

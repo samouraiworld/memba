@@ -9,10 +9,29 @@
  *   default, but governance can change it), so the price is read from the
  *   realm before every call instead of being hardcoded.
  *
+ * Cost, from `.app/simulate` on gnoland-1 (heights 447,689 to 449,315,
+ * 2026-09-30, about 100 sampled names): 30.8M to 42.5M gas, far above the 10M
+ * default limit, and 3,161 to 3,253 bytes across the registrar and r/sys/users.
+ * Gas follows where the name falls in the registry's trees, not its length, so
+ * it grows with the registry. The gas limit is at least twice the highest
+ * measurement; the deposit estimate is 3,300 bytes and its cap twice that. A
+ * member cannot remove a registered name, so the deposit is locked for good.
+ *
  * @module lib/usernameRegistration
  */
-import type { AminoMsg } from "./grc20"
+import { depositCapUgnot, STORAGE_PRICE_UGNOT } from "./dao/v2Budget"
+import { feeForGasWanted, type AminoMsg, type GasPrice } from "./grc20"
 import { resilientAbciQuery } from "./rpcFallback"
+
+export const REGISTER_GAS_WANTED = 90_000_000
+const REGISTER_STORAGE_BYTES = 3_300
+export const REGISTER_DEPOSIT_UGNOT = REGISTER_STORAGE_BYTES * STORAGE_PRICE_UGNOT
+export const REGISTER_MAX_DEPOSIT_UGNOT = depositCapUgnot(REGISTER_STORAGE_BYTES)
+
+/** Gas limit and fee to broadcast a registration with, at the quoted network price. It is never retried: a lost reply after a landed call would reopen the wallet for a name already taken. */
+export function registerBroadcastOptions(price: GasPrice) {
+    return { gasWanted: REGISTER_GAS_WANTED, gasFee: feeForGasWanted(REGISTER_GAS_WANTED, price), retry: false as const }
+}
 
 /** The registrar's name format (namereg `reNymFormat`). */
 export const NYM_NAME_RE = /^nym-[a-z]{5,13}\d{3}$/
@@ -48,7 +67,7 @@ export async function fetchRegisterPrice(registrarPath: string): Promise<bigint 
     }
 }
 
-/** The `Register(username)` call, carrying exactly `priceUgnot`. */
+/** The `Register(username)` call, carrying exactly `priceUgnot`. Broadcast it with {@link registerBroadcastOptions}. */
 export function buildRegisterUsernameMsg(caller: string, registrarPath: string, name: string, priceUgnot: bigint): AminoMsg {
     return {
         type: "vm/MsgCall",
@@ -58,6 +77,7 @@ export function buildRegisterUsernameMsg(caller: string, registrarPath: string, 
             pkg_path: registrarPath,
             func: "Register",
             args: [name],
+            max_deposit: `${REGISTER_MAX_DEPOSIT_UGNOT}ugnot`,
         },
     }
 }
@@ -73,6 +93,6 @@ export function registrationErrorMessage(raw: string): string {
     if (msg.includes("invalid payment")) return "The registration price changed. Try again."
     if (msg.includes("paused")) return "Username registration is paused right now."
     if (msg.includes("non-user call")) return "Register directly from your wallet, not through a script or another realm."
-    if (msg.includes("insufficient")) return "Not enough GNOT to pay the transaction fee."
+    if (msg.includes("insufficient")) return "Not enough GNOT to pay the network fee and the storage deposit."
     return raw
 }

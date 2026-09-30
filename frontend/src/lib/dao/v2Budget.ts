@@ -83,8 +83,13 @@ export function v2CallBudget(action: DaoAction, executes?: V2ExecuteTarget): V2C
     const { gas, storageBytes } = estimateV2Call(action, executes)
     return {
         gasWanted: Math.min(V2_MAX_CALL_GAS, roundUp(gas * 1.25, 1_000_000)),
-        maxDepositUgnot: roundUp(storageBytes * 2 * STORAGE_PRICE_UGNOT, 10_000),
+        maxDepositUgnot: depositCapUgnot(storageBytes),
     }
+}
+
+/** The storage-deposit cap for a byte estimate: twice the estimate, rounded up to 0.01 GNOT. */
+export function depositCapUgnot(storageBytes: number): number {
+    return roundUp(storageBytes * 2 * STORAGE_PRICE_UGNOT, 10_000)
 }
 
 /** "4.16 GNOT" style amount for a ugnot value. */

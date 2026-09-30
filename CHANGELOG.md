@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Profile publishing and username registration: measured gas, deposit and fee (2026-09-30)
+- Username registration from Memba ran out of gas on gno.land mainnet. It now sends a gas limit sized from measurements and is never retried.
+- Profile publishing and username registration show the expected storage deposit, its cap and the exact network fee before the wallet opens, say that the deposit is not returned, cap the deposit per call, and pay the network gas price instead of a flat 1 GNOT. A review opens only on a gas price the chain reported at that click.
+
 ### Truthful reviews and community membership statements (2026-09-30)
 - Validator pages no longer promise reviews "once the reviews realm goes live". Where reviews cannot be shown the page states why: the reviews realm is not available on the network, or it is deployed and the site has reviews switched off.
 - About, the Memba DAO folder and the Candidature page read on chain who owns the DAO's community channels and say whether the DAO can admit community members: only when it owns the channels and no ownership return is staged.

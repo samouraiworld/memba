@@ -27,6 +27,7 @@ import {
     FEE_RECIPIENT,
     GRC20_FACTORY_PATH,
     doContractBroadcast,
+    assertFeeStillCovers,
     feeForGasWanted,
     networkGasPrice,
     __resetGasPriceCache,
@@ -712,6 +713,13 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         expect(small).toBeLessThanOrEqual(100_000)
         expect(feeForGasWanted(334_000_000, price)).toBe(400_800)
         expect(feeForGasWanted(48_000_000, { gas: 1000, ugnot: 10 })).toBe(576_000)
+    })
+
+    it('stops a signature when the reviewed fee no longer covers a fresh quote, or the quote cannot be read', async () => {
+        await expect(assertFeeStillCovers(16_800, async () => 16_800)).resolves.toBeUndefined()
+        await expect(assertFeeStillCovers(16_800n, async () => 9_000n)).resolves.toBeUndefined()
+        await expect(assertFeeStillCovers(16_800, async () => 16_801)).rejects.toThrow('fee increased')
+        await expect(assertFeeStillCovers(16_800, async () => { throw new Error('offline') })).rejects.toThrow('Nothing was sent')
     })
 
     it('ignores a reported price above ten times the default and uses the default', async () => {

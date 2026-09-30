@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { GNOLOVE_API_URL, GNO_CHAIN_ID, getUsernameRegistrarPath } from "../../../lib/config"
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
+import { networkGasPriceFresh } from "../../../lib/grc20"
 import { resolveUsernameToAddress } from "../../../lib/dao/shared"
 import { fetchUserProfile } from "../../../lib/profile"
 import { AvatarUploader } from "../../../components/profile/AvatarUploader"
@@ -22,6 +23,21 @@ const SECTION_NAMES: Record<ProfileSection, string> = { about: "About", links: "
 const sampleChain: ProfileChainRead = {
     core: { displayName: "Your name", bio: "A short introduction to your work and community.", avatar: "", homepage: "", location: "" },
     document: { ...defaultProfileDocument(), title: "Your role" }, documentPresent: true, documentProblem: false, missingCore: [],
+}
+
+/** The price a review is built on is read from the chain at that click: never a cached or fallback value, which the recheck would refuse before the wallet on every retry. */
+async function quoteGasPrice() {
+    try { return await networkGasPriceFresh() } catch { throw new Error("The network fee could not be read. Try again in a moment.") }
+}
+
+/** False once the component is gone: a quote that returns late must not open a sheet for it. */
+function useAlive() {
+    const alive = useRef(true)
+    useEffect(() => {
+        alive.current = true
+        return () => { alive.current = false }
+    }, [])
+    return alive
 }
 
 function draftKey(address: string) { return `memba_profile_draft:${GNO_CHAIN_ID}:${address}` }
@@ -102,6 +118,7 @@ export default function ProfileWindow({ section, session, open, toast }: NativeV
 
 function UsernameRegistration({ address, onRegistered }: { address: string; onRegistered: () => void }) {
     const signer = useSigner()
+    const alive = useAlive()
     const [name, setName] = useState("")
     const [error, setError] = useState("")
     const [busy, setBusy] = useState(false)
@@ -109,13 +126,14 @@ function UsernameRegistration({ address, onRegistered }: { address: string; onRe
     const [canUnlock, setCanUnlock] = useState(false)
     if (!getUsernameRegistrarPath()) return null
     const register = async () => {
+        if (busy) return
         setBusy(true); setError("")
         try {
-            const request = await usernameRegistrationRequest(address, name, (outcome) => {
+            const request = await usernameRegistrationRequest(address, name, await quoteGasPrice(), (outcome) => {
                 if (outcome === "confirmed") { setLocked(false); onRegistered() }
                 else if (outcome === "unknown" || outcome === "submitted") { setLocked(true); setError("Registration may be pending. Check the registry before another attempt.") }
             })
-            signer.sign(request)
+            if (alive.current) signer.sign(request)
         } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
         finally { setBusy(false) }
     }
@@ -136,7 +154,7 @@ function UsernameRegistration({ address, onRegistered }: { address: string; onRe
     return <section className="os-profile-register" aria-label="Register username">
         <h2>Claim a registered @username</h2>
         <p className="os-profile-muted">Your display name is editable; a registered username is a separate on-chain claim.</p>
-        {locked ? <><button type="button" className="os-btn" disabled={busy} onClick={() => void check()}>{busy ? "Checking…" : "Check pending registration"}</button>{canUnlock && <button type="button" className="os-btn os-quiet" onClick={() => { localStorage.removeItem(usernameLockKey(address)); setLocked(false); setCanUnlock(false); setError("Check your wallet activity before reviewing another registration.") }}>I checked my wallet; review again</button>}</> : <div><label htmlFor="os-profile-nym">Username</label><input id="os-profile-nym" value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder="nym-builder042" maxLength={20} /><button type="button" className="os-btn" disabled={busy || !name} onClick={() => void register()}>{busy ? "Checking price…" : "Review registration"}</button></div>}
+        {locked ? <><button type="button" className="os-btn" disabled={busy} onClick={() => void check()}>{busy ? "Checking…" : "Check pending registration"}</button>{canUnlock && <button type="button" className="os-btn os-quiet" onClick={() => { localStorage.removeItem(usernameLockKey(address)); setLocked(false); setCanUnlock(false); setError("Check your wallet activity before reviewing another registration.") }}>I checked my wallet; review again</button>}</> : <div><label htmlFor="os-profile-nym">Username</label><input id="os-profile-nym" value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder="nym-builder042" maxLength={20} disabled={busy} /><button type="button" className="os-btn" aria-disabled={busy} disabled={!name} onClick={() => void register()}>{busy ? "Checking price…" : "Review registration"}</button></div>}
         {error && <p role="alert" className="os-profile-error">{error}</p>}
     </section>
 }
@@ -145,6 +163,8 @@ function ProfileEditor({ address, base, legacy, demo = false, onPublished, onCon
     address: string; base: ProfileChainRead; legacy: Awaited<ReturnType<typeof fetchUserProfile>> | null; demo?: boolean; onPublished: () => void; onConnect: () => void
 }) {
     const signer = useSigner()
+    const alive = useAlive()
+    const [quoting, setQuoting] = useState(false)
     const [draft, setDraft] = useState<ProfileDraft>(() => demo ? draftFromChain(base) : loadDraft(address, base))
     const [history, setHistory] = useState<ProfileDraft[]>([])
     const [viewport, setViewport] = useState<"desktop" | "phone">("desktop")
@@ -167,18 +187,25 @@ function ProfileEditor({ address, base, legacy, demo = false, onPublished, onCon
     let changes: ReturnType<typeof profileChanges> = []
     let error = ""
     try { changes = profileChanges(base, draft) } catch (e) { error = e instanceof Error ? e.message : String(e) }
-    const publish = () => {
+    // The fields are inert while the fee is quoted, so the review shows the draft as it is, once.
+    const publish = async () => {
         if (demo) { onConnect(); return }
+        if (quoting) return
         if (!profilePublishEnabled) { setNotice("On-chain publishing is awaiting the wallet and gas rehearsal."); return }
         const submittedDraft = JSON.stringify(draft)
+        setQuoting(true); setNotice("")
         try {
-            signer.sign(profilePublishRequest(address, base, draft, (outcome) => {
+            const price = await quoteGasPrice()
+            // The editor may have closed while the price was read: no sheet for a draft that is off screen.
+            if (!alive.current) return
+            signer.sign(profilePublishRequest(address, base, draft, price, (outcome) => {
                 if (outcome === "confirmed") {
                     try { if (localStorage.getItem(draftKey(address)) === submittedDraft) localStorage.removeItem(draftKey(address)) } catch { /* browser storage unavailable */ }
                     setLock(false); onPublished()
                 } else if (outcome === "unknown" || outcome === "submitted") { setLock(true); setNotice("Publication may be pending. Check the chain before another attempt.") }
             }))
-        } catch (e) { setNotice(e instanceof Error ? e.message : String(e)) }
+        } catch (e) { if (alive.current) setNotice(e instanceof Error ? e.message : String(e)) }
+        finally { if (alive.current) setQuoting(false) }
     }
     const checkLock = async () => {
         setChecking(true)
@@ -237,6 +264,8 @@ function ProfileEditor({ address, base, legacy, demo = false, onPublished, onCon
     return <div className="os-profile-editor" data-pane={pane} data-testid="os-profile-editor">
         <div className="os-profile-pane-switch" role="group" aria-label="Editor pane"><button type="button" aria-pressed={pane === "edit"} onClick={() => setPane("edit")}>Edit</button><button type="button" aria-pressed={pane === "preview"} onClick={() => setPane("preview")}>Preview</button></div>
         <div className="os-profile-controls">
+            {/* The publish button stays outside the inert fields and focusable: the sheet returns focus to it. */}
+            <div className="os-profile-fields" inert={quoting}>
             <h2>{demo ? "Try the editor" : "Edit your profile"}</h2>
             <p className="os-profile-muted">Changes appear in the preview and save locally. Publishing writes public data to Gno.</p>
             {demo && <p className="os-profile-notice">Sample only. Connect to edit your own address; this sample is never published.</p>}
@@ -261,10 +290,11 @@ function ProfileEditor({ address, base, legacy, demo = false, onPublished, onCon
             <ul className="os-profile-order">{draft.document.sections.map((section, index) => <li key={section}><span>{SECTION_NAMES[section]}</span><div><button type="button" aria-label={`Move ${SECTION_NAMES[section]} up`} disabled={index === 0 || (!canPublishProfileDocument && !demo)} onClick={() => move(section, -1)}>↑</button><button type="button" aria-label={`Move ${SECTION_NAMES[section]} down`} disabled={index === ALL_SECTIONS.length - 1 || (!canPublishProfileDocument && !demo)} onClick={() => move(section, 1)}>↓</button><label><input type="checkbox" checked={!draft.document.hidden.includes(section)} disabled={!canPublishProfileDocument && !demo} onChange={(e) => document({ ...draft.document, hidden: e.target.checked ? draft.document.hidden.filter((s) => s !== section) : [...draft.document.hidden, section] })} /> Show</label></div></li>)}</ul>
             {!canPublishProfileDocument && !demo && <p className="os-profile-notice">This network supports standard profile fields only. Layout and extra fields are available on mainnet.</p>}
             <div className="os-profile-save"><button type="button" className="os-btn os-quiet" disabled={!history.length} onClick={() => { const last = history.at(-1); if (last) { setDraft(last); saveDraft(last); setHistory(history.slice(0, -1)) } }}>Undo</button><button type="button" className="os-btn os-quiet" onClick={() => update(draftFromChain(base))}>Reset to published</button></div>
+            </div>
             {error && <p className="os-profile-error" role="alert">{error}</p>}
             {notice && <p className="os-profile-notice" role="status">{notice}</p>}
             {!demo && !profilePublishEnabled && <p className="os-profile-notice" role="status">Publishing is awaiting a wallet and gas rehearsal. You can edit and keep a local draft now.</p>}
-            {lock ? <div className="os-profile-notice"><p>A previous publish is pending or uncertain. Review chain state before another attempt.</p><button type="button" className="os-btn" disabled={checking} onClick={() => void checkLock()}>{checking ? "Checking…" : "Check published state"}</button>{canUnlock && <button type="button" className="os-btn os-quiet" onClick={() => { localStorage.removeItem(profileLockKey(address)); setLock(false); setCanUnlock(false); setNotice("Review the latest profile and your wallet activity before publishing again.") }}>I checked my wallet; review again</button>}</div> : <button type="button" className="os-btn" disabled={!demo && (!profilePublishEnabled || !!error || changes.length === 0)} onClick={publish}>{demo ? "Connect to create yours" : `Review & publish ${changes.length} change${changes.length === 1 ? "" : "s"}`}</button>}
+            {lock ? <div className="os-profile-notice"><p>A previous publish is pending or uncertain. Review chain state before another attempt.</p><button type="button" className="os-btn" disabled={checking} onClick={() => void checkLock()}>{checking ? "Checking…" : "Check published state"}</button>{canUnlock && <button type="button" className="os-btn os-quiet" onClick={() => { localStorage.removeItem(profileLockKey(address)); setLock(false); setCanUnlock(false); setNotice("Review the latest profile and your wallet activity before publishing again.") }}>I checked my wallet; review again</button>}</div> : <button type="button" className="os-btn" aria-disabled={quoting} disabled={!demo && (!profilePublishEnabled || !!error || changes.length === 0)} onClick={() => void publish()}>{demo ? "Connect to create yours" : quoting ? "Checking fee…" : `Review & publish ${changes.length} change${changes.length === 1 ? "" : "s"}`}</button>}
             {!demo && <p className="os-profile-muted">Local draft · {GNO_CHAIN_ID} · {address}</p>}
         </div>
         <div className="os-profile-preview"><div className="os-profile-preview-bar"><strong>Live preview</strong><div role="group" aria-label="Preview width"><button type="button" aria-pressed={viewport === "desktop"} onClick={() => setViewport("desktop")}>Desktop</button><button type="button" aria-pressed={viewport === "phone"} onClick={() => setViewport("phone")}>Phone</button></div></div><div className={viewport === "phone" ? "os-profile-phone" : ""}><ProfileCanvas profile={preview} preview={demo} /></div></div>
