@@ -18,6 +18,7 @@ import { osTargetForClassic } from "../../page/classicRoute"
 import { Icon } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
 import { useSigner } from "../../sign/signerContext"
+import { useAlive } from "../../shell/useAlive"
 import { NativeReviewComposer } from "./NativeReviewComposer"
 import { reviewActionRequest } from "./reviewActionRequest"
 import { CuratorQueue } from "./CuratorQueue"
@@ -108,8 +109,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
     const signer = useSigner()
     const [reviewRefresh, setReviewRefresh] = useState(0)
     // False once this window is gone, and the list a fee quote was asked from: a quote that returns late opens no sheet.
-    const alive = useRef(true)
-    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const alive = useAlive()
     const listShown = useRef(reviewRefresh)
     useEffect(() => { listShown.current = reviewRefresh }, [reviewRefresh])
     const moderator = useReviewsModerator(isAppReviewsAvailable())

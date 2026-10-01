@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchMyListings, type AppListing } from "../../../lib/appStore"
 import { assertDelistApplies, MAX_RESUBMITS } from "../../../lib/appStoreSubmit"
@@ -7,6 +7,7 @@ import { ErrorState, Loading, Pill } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
 import { useSigner } from "../../sign/signerContext"
+import { useAlive } from "../../shell/useAlive"
 import { listingRequest } from "./listingRequest"
 
 /** The connected wallet's own listings, in every status, with edit and delist through the signing sheet. */
@@ -14,8 +15,7 @@ export function YourListings({ session, push }: Pick<NativeViewProps, "session" 
     const signer = useSigner()
     const [error, setError] = useState<string | null>(null)
     const [busy, setBusy] = useState<string | null>(null)
-    const alive = useRef(true)
-    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const alive = useAlive()
     const member = session.status === "member"
     const mine = useQuery({
         queryKey: ["appStore", "native-mine", session.network.chainId, member ? session.address : null],

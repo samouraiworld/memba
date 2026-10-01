@@ -15,6 +15,7 @@ import { CORE_LIMITS, defaultProfileDocument, layoutLocked, readProfileOnChain, 
 import { shownProfile } from "../../profile/profileModel"
 import { bioClearHeld, canPublishProfileDocument, draftFromChain, importLegacyProfile, profileChanges, profileLockKey, profilePublishEnabled, profilePublishRequest, profileReadIncomplete, rebaseDraft, unpublishedChanges, validateProfileDraft, type ProfileDraft } from "../../profile/profilePublish"
 import { usernameLockKey, usernameRegistrationRequest } from "../../profile/profileUsername"
+import { useAlive } from "../../shell/useAlive"
 import "./native.css"
 
 const SAMPLE_ADDRESS = "sample profile · local preview"
@@ -34,15 +35,6 @@ async function quoteGasPrice() {
     try { return await networkGasPriceFresh() } catch { throw new Error("The network fee could not be read. Try again in a moment.") }
 }
 
-/** False once the component is gone: a quote that returns late must not open a sheet for it. */
-function useAlive() {
-    const alive = useRef(true)
-    useEffect(() => {
-        alive.current = true
-        return () => { alive.current = false }
-    }, [])
-    return alive
-}
 
 function draftKey(address: string) { return `memba_profile_draft:${GNO_CHAIN_ID}:${address}` }
 function hasLocalLock(key: string) { try { return !!localStorage.getItem(key) } catch { return false } }

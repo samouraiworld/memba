@@ -4,6 +4,7 @@ import { networkGasPriceFresh } from "../../../lib/grc20"
 import { REVIEW_BODY_MAX_BYTES } from "../../../lib/reviews"
 import type { OsSession } from "../../shell/useOsSession"
 import { useSigner } from "../../sign/signerContext"
+import { useAlive } from "../../shell/useAlive"
 import { storeReviewRequest } from "./reviewRequest"
 
 interface ReviewDraft { rating: number; body: string }
@@ -44,17 +45,13 @@ export function NativeReviewComposer({ session, subject, appName, onSubmitted }:
     const [notice, setNotice] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [quoting, setQuoting] = useState(false)
-    const alive = useRef(true)
+    const alive = useAlive()
     const toggle = useRef<HTMLButtonElement>(null)
     const refocus = useRef(false)
     const bodyBytes = new TextEncoder().encode(draft.body.trim()).length
     const tooLong = bodyBytes > REVIEW_BODY_MAX_BYTES
     const edit = (next: ReviewDraft) => { setDraft(next); saveDraft(key, next) }
 
-    useEffect(() => {
-        alive.current = true
-        return () => { alive.current = false }
-    }, [])
 
     // The form a fee quote was asked from: closing it, or an earlier review settling, collapses it mid-read.
     const formOpen = useRef(expanded)

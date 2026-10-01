@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { assertAppReportApplies, FLAG_HIDE_THRESHOLD, type AppListing } from "../../../lib/appStore"
 import { networkGasPriceFresh } from "../../../lib/grc20"
 import type { OsSession } from "../../shell/useOsSession"
 import { useSigner } from "../../sign/signerContext"
+import { useAlive } from "../../shell/useAlive"
 import { reportRequest } from "./reportRequest"
 
 /** Report a live or pending listing to the curators; guests are asked to connect when they press it. */
@@ -17,8 +18,7 @@ export function ReportListing({ session, listing, appName, onReported }: {
     const [reported, setReported] = useState(false)
     const [error, setError] = useState<string | null>(null)
     // False once this window is gone: a check that returns late opens no sheet.
-    const alive = useRef(true)
-    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const alive = useAlive()
 
     const report = async () => {
         if (session.status !== "member") { session.openConnect(); return }

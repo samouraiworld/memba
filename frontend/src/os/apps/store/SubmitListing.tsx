@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ListingFields } from "../../../components/appstore/ListingFields"
 import { useAuth } from "../../../hooks/useAuth"
@@ -12,6 +12,7 @@ import { ErrorState, Loading } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
 import { useSigner } from "../../sign/signerContext"
+import { useAlive } from "../../shell/useAlive"
 import { listingRequest, type ListingAction } from "./listingRequest"
 import "../../../pages/appstore.css"
 
@@ -48,8 +49,7 @@ function ListingForm({ session, push, listing }: Omit<Props, "query"> & { listin
     // "confirmed": the chain shows it; "submitted": sent, not seen on chain yet.
     const [sent, setSent] = useState<"confirmed" | "submitted" | null>(null)
     const queryClient = useQueryClient()
-    const alive = useRef(true)
-    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const alive = useAlive()
     const registry = useQuery({
         queryKey: ["appStore", "native-registry", session.network.chainId],
         queryFn: fetchRegistryState, enabled: !editPath, staleTime: 30_000, retry: 1,
