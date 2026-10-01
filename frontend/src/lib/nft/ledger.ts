@@ -345,6 +345,23 @@ export async function listNewestCollections(size = 20): Promise<NftNewestCollect
     return { total, collections: newest.reverse() }
 }
 
+/** How many collections the ledger holds; C1 to C<count> exist. */
+export async function countCollections(): Promise<bigint> {
+    return readInt(NFT_LEDGER_PATH, "Count()", "collection count")
+}
+
+/**
+ * One page of the ledger's collections in creation order: page `page` of
+ * `size` holds C(page*size+1) onward, each row checked to sit where its ID says.
+ * A page past the end is empty.
+ */
+export async function listCollectionsPage(page: bigint, size = 50): Promise<NftCollectionSummary[]> {
+    natural(page, "collection page")
+    const rows = (await readSlice(NFT_LEDGER_PATH, "ListCollectionsJSON", [page.toString()], size, "collection")).map(parseSummary)
+    if (rows.some((row, at) => row.id !== `C${page * BigInt(size) + BigInt(at) + 1n}`)) throw new Error("Inconsistent collection list")
+    return rows
+}
+
 export async function getCollection(id: string): Promise<NftCollection> {
     const collection = parseCollection(await read(`CollectionJSON("${collectionId(id)}")`, "collection"))
     if (collection.id !== id) throw new Error("Collection does not match the request")

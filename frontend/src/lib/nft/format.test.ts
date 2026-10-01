@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatAmount, formatBPS } from "./format"
+import { formatAmount, formatBPS, formatTime } from "./format"
 
 describe("amount", () => {
     it.each([
@@ -52,5 +52,16 @@ describe("rate", () => {
         [10_000n, "100%"],
     ])("writes %d basis points as %s", (bps, text) => {
         expect(formatBPS(bps)).toBe(text)
+    })
+})
+
+describe("time", () => {
+    it.each([
+        ["a time", 1_790_000_000n, "2026-09-21 14:13 UTC"],
+        ["the last minute of the year 9999", 253_402_300_799n, "9999-12-31 23:59 UTC"],
+        ["the year 10000", 253_402_300_800n, "after the year 9999"],
+        ["the largest int64", 9_223_372_036_854_775_807n, "after the year 9999"],
+    ])("writes %s in one fixed form", (_name, seconds, text) => {
+        expect(formatTime(seconds)).toBe(text)
     })
 })
