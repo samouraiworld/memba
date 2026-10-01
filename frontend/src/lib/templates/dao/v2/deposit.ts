@@ -21,9 +21,11 @@
  *   100 members, 16x30-char roles each, 16 categories,
  *     maximal name and description (largest possible) ...... 547,796
  * A text proposal added 6,647 bytes (paid by the proposer, not at deploy).
+ * LIVE on gnoland-1 (2026-10-01, `vm/qstorage`): friends_surf_club, 6 members,
+ * one role each, a 229-byte description, stored 81,208 bytes, 0.5 % above the
+ * model's first base; the base was raised by 1,000 bytes to stay above it.
  *
- * The estimate below is a linear model that is at or above every measurement
- * (by 3 % to 24 %). The cap sent as max_deposit is twice the estimate, rounded
+ * The estimate below is a linear model that is at or above every measurement. The cap sent as max_deposit is twice the estimate, rounded
  * up to a whole GNOT, at least 2 GNOT and at most DAO_V2_MAX_DEPOSIT (twice the
  * largest measured deploy, rounded up to a whole GNOT).
  */
@@ -48,7 +50,7 @@ const utf8Bytes = (s: string) => new TextEncoder().encode(s).length
 
 /** Conservative estimate of the storage bytes a deploy adds. */
 export function estimateDAOStorageBytes(c: DepositInput): number {
-    const base = 62_000
+    const base = 63_000
     const perExtraMember = 3_500
     const roleRefs = c.members.reduce((sum, m) => sum + m.roles.reduce((s, r) => s + 100 + 2 * utf8Bytes(r), 0), 0)
     const labels = [...c.roles, ...c.proposalCategories].reduce((sum, l) => sum + 3 * utf8Bytes(l), 0)

@@ -26,7 +26,20 @@ const MEASURED: [string, DepositInput, number, number, number][] = [
     ["maximal", { name: "€".repeat(64), description: "€".repeat(1000), roles: roles16, proposalCategories: cats16, members: many(100, roles16) }, 547_796, 228_906_885, 126_029_423],
 ]
 
+// Live on gnoland-1 (vm/qstorage, 2026-10-01): the friends_surf_club deploy.
+const SURF: DepositInput = {
+    name: "Friends Surf Club",
+    description: "Let's surf & ride with friends.\n#SurfTrip #Waves\n\nThis DAO is the made for testing purpose of Memba OS implementation, in order to experiment cross-features interactions, UX architecture, and UI implementations in a fun context.\n",
+    roles: ["admin", "member"], proposalCategories: ["governance", "membership", "operations"],
+    members: [{ roles: ["admin"] }, ...many(5, ["member"])],
+}
+
 describe("DAO v2 storage deposit", () => {
+    it("the estimate is not below a deploy measured live on gnoland-1, and the cap is the one it was sent with", () => {
+        expect(estimateDAOStorageBytes(SURF)).toBeGreaterThanOrEqual(81_208)
+        expect(daoDepositCapUgnot(SURF)).toBe(17_000_000)
+    })
+
     it.each(MEASURED)("the estimate is never below the measured storage: %s", (_label, input, measured) => {
         const estimate = estimateDAOStorageBytes(input)
         expect(estimate).toBeGreaterThanOrEqual(measured)

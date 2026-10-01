@@ -57,6 +57,8 @@ export interface SignRequest<C extends string = string> {
     verify?: (choice: C | undefined, hash: string, result: unknown) => Promise<boolean | "failed">
     /** How many times to run `verify` (default 3). Use 1 when `verify` polls by itself. */
     verifyAttempts?: number
+    /** What the tray says when `verify` answers "not yet" (`false`), when the request knows more than that. */
+    pendingNote?: () => string | undefined
     /** Nothing took effect (stopped before the wallet, rejected in it, or refused by the node): drop what `send` saved. */
     onNothingSent?: () => void
     onSettled?: (outcome: SettledOutcome, choice: C | undefined) => void

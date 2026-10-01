@@ -24,6 +24,12 @@ describe("the realm path", () => {
         expect(slugForName("42 club")).toBe("dao_42_club")
         expect(daoDraftError(named({ name: "42 club" }), ME, 0)).toBeNull()
     })
+
+    it.each([[" Gno Builders", "gno_builders"], ["¡Hola amigos", "hola_amigos"], ["Évora team", "vora_team"], ["日本の会", "mydao"], ["_x_ 42", "x_42"], [" 42 club", "dao_42_club"], ["For", "dao_for"]])(
+        "starts with a letter whatever the name starts with: %s", (name, slug) => {
+            expect(slugForName(name)).toBe(slug)
+            expect(daoDraftError(named({ name }), ME, 0)).toBeNull()
+        })
 })
 
 describe("step validation (the classic daoStepError)", () => {

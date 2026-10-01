@@ -7,7 +7,7 @@
  * @module os/daos/createDao
  */
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, NETWORKS } from "../../lib/config"
-import { DAO_DESCRIPTION_MAX, DAO_PRESETS, daoStepError, membersWhoCanPassAlone, type DAOCreationConfig, type DAOPreset } from "../../lib/daoTemplate"
+import { DAO_DESCRIPTION_MAX, DAO_PRESETS, daoStepError, membersWhoCanPassAlone, RESERVED_PACKAGE_NAMES, type DAOCreationConfig, type DAOPreset } from "../../lib/daoTemplate"
 import { parsePower } from "./proposal"
 
 export const DAO_STEPS = ["Basics", "Members", "Rules", "Extras", "Review"] as const
@@ -59,12 +59,13 @@ export function categoryChoices(d: DaoDraft): string[] {
 
 /**
  * The realm name the classic page fills in from the DAO name (CreateDAO.tsx
- * autoFillPath), made a valid package identifier when the name starts with a
- * digit.
+ * autoFillPath), made a valid package name: it keeps Latin letters a–z and
+ * digits, starts with a letter (leading separators dropped, "dao_" before a
+ * leading digit or a Gno keyword), and has no field of its own to correct.
  */
 export function slugForName(name: string): string {
-    const base = name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 20) || "mydao"
-    return /^[0-9]/.test(base) ? `dao_${base}`.slice(0, 20) : base
+    const base = name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_/, "").slice(0, 20) || "mydao"
+    return /^[0-9]/.test(base) || RESERVED_PACKAGE_NAMES.has(base) ? `dao_${base}`.slice(0, 20) : base
 }
 
 export function realmPathFor(wallet: string, name: string): string {

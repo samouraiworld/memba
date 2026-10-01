@@ -29,7 +29,7 @@ import {
     applyPreset, categoryChoices, clearDaoDraft, DAO_STEPS, daoConfig, daoDraftError, emptyDaoDraft, firstInvalidStep,
     formatSeconds, presetById, readDaoDraft, realmPathFor, saveDaoDraft, soloMembers, totalPower, userDaoCapabilities, type DaoDraft,
 } from "./createDao"
-import { createDaoRequest, deployChain, deployCosts, runDeployChecks, type DeployChecks, type DeployResult } from "./createDaoRequest"
+import { balanceShortfall, createDaoRequest, deployChain, deployCosts, depositLeaves, MISSING_NOTE, PARKED_NOTE, runDeployChecks, type DeployChecks, type DeployResult } from "./createDaoRequest"
 import { nameForRealm } from "./daoNames"
 
 const DAO_TINT = ["#2FC08E", "#12A07A"] as const
@@ -135,29 +135,34 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
         if (name) open(daoSpec(name))
     }
 
+    const policy = current && "checks" in current ? current.checks.policy : "unknown"
+    const costs = deployCosts(config, policy, price ?? FALLBACK_GAS_PRICE)
+    const short = current && "checks" in current && price ? balanceShortfall(current.checks.balanceUgnot, costs, policy) : null
+
     // ── After the wallet returned: the deploy's status, as the classic pipeline ──
     if (outcome && outcome.kind !== "unknown") {
         const hash = outcome.hash
         const res = outcome.kind === "result" ? outcome.result : null
-        const inert = current && "checks" in current && current.checks.policy === "inert"
-        const title = !res ? (inert ? "Submitted · waiting for network approval" : "Deploying…")
+        // Waiting for approval only once the chain shows the package parked.
+        const parked = res?.kind === "pending" && !res.unconfirmed
+        const title = !res ? "Submitted · checking the network"
             : res.kind === "live" ? "Your DAO is live"
                 : res.kind === "pending" ? (res.unconfirmed ? "Submitted · status unknown" : "Submitted · waiting for network approval")
-                    : "Package not found"
+                    : res.kind === "refused" ? "Refused by the network" : "Submitted · not on chain yet"
         return (
             <div className="os-stack" role="status" aria-live="polite">
                 <div className="os-row">{!res && <span className="os-spin" aria-hidden="true" />}<h3 className="os-rv-title">{title}</h3></div>
                 <ol className="os-pipe">
                     <li className="os-done">Checked the address</li>
                     <li className="os-done">Signed in Adena</li>
-                    <li className={res?.kind === "live" ? "os-done" : "os-cur"}>{res?.kind === "live" ? "Package live" : inert || res?.kind === "pending" ? "Waiting for network approval" : "Checking the network"}</li>
+                    <li className={res?.kind === "live" ? "os-done" : "os-cur"}>{res?.kind === "live" ? "Package live" : res?.kind === "refused" ? "Refused by the network" : parked ? "Waiting for network approval" : "Checking the network"}</li>
                 </ol>
                 {res?.kind === "live" && <p className="os-note os-ok">Members can make proposals right away.</p>}
                 {draftClearWarning && <p className="os-note os-warn">Your DAO is live, but browser storage kept its old draft. <button type="button" className="os-btn os-quiet os-inline" onClick={clearCompletedDraft}>Remove saved draft</button></p>}
-                {(res?.kind === "pending" && !res.unconfirmed) || (!res && inert)
-                    ? <p className="os-note os-warn">gno.land reviews new packages before they go live. Your DAO becomes usable once the network enables it. Nothing else to do.</p> : null}
+                {parked && <p className="os-note os-warn">{PARKED_NOTE} The storage deposit (about {formatGnot(costs.estimateUgnot)}) leaves your balance {depositLeaves("inert")}: keep it in this wallet until then.</p>}
                 {res?.kind === "pending" && res.unconfirmed && <p className="os-note os-warn">The package status couldn't be read yet. This doesn't mean it failed. Check again before deploying anything else to this address.</p>}
-                {res?.kind === "failed" && <p className="os-note os-err">{res.error}. Check the transaction before trying again.</p>}
+                {res?.kind === "refused" && <p className="os-note os-err">The network ran this deploy and refused it. Nothing was deployed; the network fee was still charged. Check the transaction before trying again.</p>}
+                {res?.kind === "missing" && <p className="os-note os-warn">{MISSING_NOTE}</p>}
                 <code className="os-mono os-break os-sub">{path}{hash ? ` · Transaction ${hash}` : ""}</code>
                 <div className="os-row os-end">
                     {res?.kind === "live" ? <button type="button" className="os-btn" onClick={openDao}>Open DAO</button>
@@ -175,18 +180,18 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
             onReleased={() => { setOutcome(null); setAck(false); setCheckRev((r) => r + 1) }} />
     }
 
-    const costs = deployCosts(config, current && "checks" in current ? current.checks.policy : "unknown", price ?? FALLBACK_GAS_PRICE)
     const solo = soloMembers(draft)
     const total = totalPower(draft)
     const reviewLines: [string, string][] = [
         ["Address", path],
         ["Rules", `${draft.threshold} % yes${draft.quorum ? `, ${draft.quorum} % quorum` : ""} · votes last ${formatSeconds(preset.votingPeriodSeconds)}`],
         ["Members", config.members.map((m) => `${shortAddr(m.address)} (${m.power}, ${m.roles.join(", ")})`).join(" · ")],
-        ["Storage deposit", `≈ ${formatGnot(costs.estimateUgnot)} (cap ${formatGnot(costs.capUgnot)})`],
+        ["Storage deposit", `≈ ${formatGnot(costs.estimateUgnot)} (cap ${formatGnot(costs.capUgnot)}), taken from your balance ${depositLeaves(policy)}`],
         ["Network fee", !price ? "reading the network price…"
             // Not a read: say so while it is on screen. The price is read again before the wallet opens.
             : price === FALLBACK_GAS_PRICE ? `about ${formatGnot(costs.feeUgnot)} (estimate: the network price could not be read; it is read again before signing)`
                 : formatGnot(costs.feeUgnot)],
+        ...(current && "checks" in current ? [["Your balance", formatGnot(Number(current.checks.balanceUgnot))] as [string, string]] : []),
         ["Network", GNO_CHAIN_ID],
     ]
     const reviewWarns = [
@@ -209,6 +214,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
         if (bad !== null) { setStep(bad); setError(daoDraftError(draft, wallet, bad)); return }
         if (!ack) { setError("Confirm that you understand this deploys a permanent contract."); return }
         if (!current || !("checks" in current) || !price) return
+        if (short) { setError(short); return }
         let req
         try {
             req = createDaoRequest({
@@ -231,7 +237,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     if (step === 0) {
         body = (
             <div className="os-stack">
-                <Field label="Name" htmlFor="os-dao-name" hint="3–64 characters." count={`${[...draft.name].length} / ${DAO_NAME_MAX}`}>
+                <Field label="Name" htmlFor="os-dao-name" hint="3–64 characters. The address below uses its Latin letters a–z and digits." count={`${draft.name.length} / ${DAO_NAME_MAX}`}>
                     <input id="os-dao-name" className="os-in" value={draft.name} maxLength={DAO_NAME_MAX} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Gno Builders" autoComplete="off" />
                 </Field>
                 <Field label="Description" htmlFor="os-dao-desc" hint="Optional. Up to 1,000 characters." count={`${draft.description.length} / ${DAO_DESCRIPTION_MAX}`}>
@@ -329,6 +335,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                 {reviewWarns.map((w) => <p key={w} className="os-note os-warn">{w}</p>)}
                 {!current && <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Checking the address on {GNO_CHAIN_ID}…</span></div>}
                 {current && "checks" in current && <p className="os-note os-ok" data-testid="os-dao-checks">✓ You can publish under this address · ✓ The address is {current.checks.replacesParked ? "yours to replace" : "free"}</p>}
+                {short && <p className="os-note os-err" role="alert">{short} <button type="button" className="os-btn os-quiet os-inline" onClick={() => setCheckRev((r) => r + 1)}>Check again</button></p>}
                 {current && "error" in current && (
                     <p className="os-note os-err" role="alert">{current.error} <button type="button" className="os-btn os-quiet os-inline" onClick={() => setCheckRev((r) => r + 1)}>Check again</button></p>
                 )}
@@ -342,7 +349,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     return (
         <WizardFrame steps={DAO_STEPS} step={step} onBack={() => { setError(null); setStep(step - 1) }} onNext={next}
             nextLabel={onReview ? "Deploy with Adena…" : "Continue"}
-            nextDisabled={onReview && (!current || !("checks" in current) || inFlight || !price)}
+            nextDisabled={onReview && (!current || !("checks" in current) || inFlight || !price || short !== null)}
             note={<>{error && <span className="os-fe" role="alert">{error}</span>}<span>{draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{draftSaved && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
             preview={(
                 <div className="os-stack os-tight">
@@ -421,13 +428,13 @@ function SavedSubmission({ wallet, path, name, txHash, orgId, inFlight, unknown,
             setBusy(false)
         }
     }
-    const title = status.kind === "inert" ? "Submitted, not enabled yet" : status.kind === "absent" ? "Package not found" : "Outcome unknown"
+    const title = status.kind === "inert" ? "Submitted · waiting for network approval" : status.kind === "absent" ? "Not on chain yet" : "Outcome unknown"
     return (
         <Gate>
             <b>{title}</b>
             <span className="os-sub">
-                {status.kind === "inert" ? "The package is stored but not enabled. It becomes usable once the network enables it."
-                    : status.kind === "absent" ? "The network has no package at this address. Check the transaction before trying again."
+                {status.kind === "inert" ? PARKED_NOTE
+                    : status.kind === "absent" ? MISSING_NOTE
                         : "The last attempt may have gone through. Check the address before deploying again."}
             </span>
             <span className="os-sub">Network status: {status.reason}</span>
@@ -436,7 +443,7 @@ function SavedSubmission({ wallet, path, name, txHash, orgId, inFlight, unknown,
             <button type="button" className="os-btn os-quiet" disabled={busy || inFlight} onClick={() => { void check() }}>Check status</button>
             {(status.kind === "absent" || status.canRepair) && (
                 <>
-                    <span className="os-sub">{status.canRepair ? "This wallet owns the parked package. You can review a replacement; it needs a new signature and deposit." : "Only continue after checking the transaction in your wallet or an explorer."}</span>
+                    <span className="os-sub">{status.canRepair ? "This wallet owns the parked package. You can review a replacement: it needs a new signature and network fee." : "Only continue after checking the transaction in your wallet or an explorer."}</span>
                     <label className="os-ack"><input type="checkbox" checked={ack} disabled={inFlight} onChange={(e) => setAck(e.target.checked)} /> I checked the previous transaction and want to review a new deploy.</label>
                     <button type="button" className="os-btn" disabled={busy || inFlight || !ack} onClick={() => { void release() }}>Review another attempt</button>
                 </>

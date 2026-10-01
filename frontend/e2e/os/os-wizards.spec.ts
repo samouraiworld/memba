@@ -85,6 +85,8 @@ test.describe('Memba OS wizards', () => {
             if (path === 'params/vm:p:code_submission_policy') return '"permissionless"'
             // A deploy reads the network price for its fee, and again right before the wallet.
             if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            // A deploy needs the fee and the storage deposit in the balance.
+            if (path === `bank/balances/${ALICE}`) return '"50000000ugnot"'
             if (path === 'vm/qpkgmeta_json' && arg === NEW_DAO_PATH) {
                 return JSON.stringify(signed ? { path: NEW_DAO_PATH, status: 'live', creator: ALICE, height: 10 } : { path: NEW_DAO_PATH, status: 'absent' })
             }
@@ -283,6 +285,8 @@ test.describe('Memba OS wizards', () => {
 
         // Review: the chain checks run up front.
         await expect(wiz.getByTestId('os-dao-checks')).toContainText('The address is free')
+        await expect(wiz.getByText('Your balance', { exact: true })).toBeVisible()
+        await expect(wiz.getByText(/, taken from your balance when the package is deployed$/)).toBeVisible()
         await expect(wiz.getByText('Treasury is a target design', { exact: false })).toBeVisible()
         await wiz.getByRole('button', { name: 'Deploy with Adena…' }).click()
         await expect(wiz.getByRole('alert')).toContainText('permanent contract')

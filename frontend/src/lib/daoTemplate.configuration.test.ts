@@ -39,7 +39,7 @@ describe("DAO founding configuration must match the reviewed roster", () => {
     ])("rejects invalid role/category configuration: %j", change => {
         expect(() => generateDAOCode(config(change))).toThrow(/role|categor/i)
     })
-    it.each(["123dao", "for", "return"])("rejects an invalid Gno package name: %s", name => {
+    it.each(["123dao", "_gno_builders", "_ab", "for", "return"])("rejects an invalid Gno package name: %s", name => {
         const d = config({ realmPath: `gno.land/r/test/${name}` })
         expect(daoStepError(1, d)).toMatch(/package|identifier|reserved/i)
         expect(() => generateDAOCode(d)).toThrow(/package|identifier|reserved/i)

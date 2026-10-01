@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba OS: DAO creation tells the truth (2026-10-01)
 - Fixed: a DAO deploy the network ran and refused now shows as refused in the signing tray, instead of staying unconfirmed.
+- Fixed: creating a DAO in Memba OS checks your balance for the network fee and the most the storage deposit can take, says when the deposit leaves your balance, always gives the DAO a valid address, and reports a deploy waiting for network approval the same way in the wizard and the signing tray.
 
 ### Memba OS: DAO sheets show and send the exact fee (2026-10-01)
 - Fixed: Memba OS's DAO vote and proposal reviews now show the exact network fee, check it again just before the wallet opens, and send exactly that fee; a fee set in Settings is checked against what the network charges.

@@ -40,12 +40,12 @@ export interface DAOStepData {
     quorum: number
 }
 
-// Gno package declarations use identifier tokens, not arbitrary path segments.
-const RESERVED_PACKAGE_NAMES = new Set("break default func interface select case defer go map struct chan else goto package switch const fallthrough if range type continue for import return var".split(" "))
+// A Gno package name is a lowercase identifier that starts with a letter; the chain refuses any other.
+export const RESERVED_PACKAGE_NAMES = new Set("break default func interface select case defer go map struct chan else goto package switch const fallthrough if range type continue for import return var".split(" "))
 function daoPackageError(path: string): string | null {
     const name = path.split("/").pop() ?? ""
-    if (!/^[a-z_][a-z0-9_]*$/.test(name) || RESERVED_PACKAGE_NAMES.has(name)) {
-        return "Realm name must be a valid, non-reserved Gno package identifier"
+    if (!/^[a-z][a-z0-9_]*$/.test(name) || RESERVED_PACKAGE_NAMES.has(name)) {
+        return "Realm name must be a valid, non-reserved Gno package identifier: a lowercase letter, then letters, digits or _"
     }
     return null
 }

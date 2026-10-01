@@ -8,6 +8,7 @@ const chain = vi.hoisted(() => ({
     price: vi.fn(async () => ({ gas: 1000, ugnot: 1 })),
     pendingAtWallet: null as unknown,
     tx: vi.fn(async (): Promise<boolean | "failed"> => false),
+    coins: "100000000ugnot",
 }))
 
 vi.mock("../../lib/dao/namespace", async (orig) => ({
@@ -19,6 +20,10 @@ vi.mock("../../lib/dao/packageStatus", async (orig) => ({
     assertPathAvailable: vi.fn(async () => ({ replacesParked: chain.replacesParked })),
     codeSubmissionPolicy: vi.fn(async () => chain.policy),
     waitForPackage: vi.fn(async () => chain.outcome),
+    abciQueryText: vi.fn(async (_ctx: unknown, path: string) => {
+        if (path.startsWith("bank/balances/")) return JSON.stringify(chain.coins)
+        throw new Error(`unexpected query ${path}`)
+    }),
 }))
 vi.mock("../../lib/grc20", async (orig) => ({
     ...(await orig<typeof import("../../lib/grc20")>()),
@@ -44,7 +49,7 @@ import { getAllSavedDAOs } from "../../lib/daoSlug"
 import { ChainRejectedError, doContractBroadcast, FALLBACK_GAS_PRICE } from "../../lib/grc20"
 import { executeSignature } from "../sign/signer"
 import { daoConfig, emptyDaoDraft } from "./createDao"
-import { createDaoRequest, deployCosts, runDeployChecks, type CreateDaoContext } from "./createDaoRequest"
+import { balanceShortfall, createDaoRequest, deployCosts, MISSING_NOTE, PARKED_NOTE, runDeployChecks, type CreateDaoContext } from "./createDaoRequest"
 
 const ME = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const config = daoConfig({ ...emptyDaoDraft(ME), name: "Gno Builders" }, ME)
@@ -52,7 +57,7 @@ const PATH = `gno.land/r/${ME}/gno_builders`
 
 function ctx(over: Partial<CreateDaoContext> = {}): CreateDaoContext {
     return {
-        wallet: ME, config, checks: { policy: "inert", replacesParked: false }, price: FALLBACK_GAS_PRICE, lines: [], warns: [],
+        wallet: ME, config, checks: { policy: "inert", replacesParked: false, balanceUgnot: 100_000_000n }, price: FALLBACK_GAS_PRICE, lines: [], warns: [],
         onRisenPrice: vi.fn(), onSubmitted: vi.fn(), onResult: vi.fn(), ...over,
     }
 }
@@ -65,6 +70,7 @@ beforeEach(() => {
     chain.price.mockResolvedValue({ gas: 1000, ugnot: 1 })
     chain.pendingAtWallet = null
     chain.tx.mockResolvedValue(false)
+    chain.coins = "100000000ugnot"
 })
 afterEach(() => { localStorage.clear(); clearPendingMemory(); vi.clearAllMocks() })
 
@@ -168,6 +174,16 @@ describe("createDaoRequest", () => {
         await expect(req.verify!(undefined, "TXHASH", undefined)).resolves.toBe(false)
         expect(c.onResult).toHaveBeenCalledWith({ kind: "pending", unconfirmed: false, reason: "awaiting approval" }, "TXHASH")
         expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ phase: "submitted", txHash: "TXHASH", reason: "awaiting approval" })
+        // The tray says what the wizard says: submitted, waiting for approval.
+        expect(req.pendingNote!()).toBe(PARKED_NOTE)
+    })
+
+    it("a status that could not be read leaves the tray's own words", async () => {
+        chain.outcome = { outcome: "pending", meta: null, unconfirmed: true }
+        const req = createDaoRequest(ctx())
+        await req.send(undefined, async () => {})
+        await expect(req.verify!(undefined, "TXHASH", undefined)).resolves.toBe(false)
+        expect(req.pendingNote!()).toBeUndefined()
     })
 
     it("a deploy the chain ran and refused is final: failed in the tray, its pending record dropped", async () => {
@@ -177,7 +193,7 @@ describe("createDaoRequest", () => {
         const req = createDaoRequest(c)
         await req.send(undefined, async () => {})
         await expect(req.verify!(undefined, "TXHASH", undefined)).resolves.toBe("failed")
-        expect(c.onResult).toHaveBeenCalledWith({ kind: "failed", error: "The network ran this deploy and refused it" }, "TXHASH")
+        expect(c.onResult).toHaveBeenCalledWith({ kind: "refused" }, "TXHASH")
         expect(listPendingDAOs("gnoland-1")).toEqual([])
     })
 
@@ -190,9 +206,45 @@ describe("createDaoRequest", () => {
             const req = createDaoRequest(c)
             await req.send(undefined, async () => {})
             await expect(req.verify!(undefined, "TXHASH", undefined)).resolves.toBe(false)
-            expect(c.onResult).toHaveBeenCalledWith({ kind: "failed", error: "The network has no package at this path" }, "TXHASH")
+            expect(c.onResult).toHaveBeenCalledWith({ kind: "missing" }, "TXHASH")
             expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ phase: "submitted", txHash: "TXHASH" })
+            expect(req.pendingNote!()).toBe(MISSING_NOTE)
         })
+
+    it("stops before the wallet when the balance no longer holds the fee and the deposit", async () => {
+        const c = ctx()
+        const req = createDaoRequest(c)
+        const { feeUgnot, capUgnot } = deployCosts(config, "inert", FALLBACK_GAS_PRICE)
+        chain.coins = `${feeUgnot + capUgnot - 1}ugnot`
+        await expect(req.recheck!(undefined)).rejects.toThrow(/Add GNOT to this wallet first\. Nothing was sent\./)
+        chain.coins = `${feeUgnot + capUgnot}ugnot`
+        await expect(req.recheck!(undefined)).resolves.toBeUndefined()
+    })
+
+    it.each([["an unanswered balance read", () => { throw new Error("no node") }], ["a malformed balance", () => '"lots"']])(
+        "stops before the wallet on %s, never assuming funds", async (_what, answer) => {
+            const { abciQueryText } = await import("../../lib/dao/packageStatus")
+            vi.mocked(abciQueryText).mockImplementationOnce(async () => answer())
+            await expect(createDaoRequest(ctx()).recheck!(undefined)).rejects.toThrow()
+            expect(chain.wallet).not.toHaveBeenCalled()
+        })
+
+    it("a policy unreadable at review that reads permissionless now still needs the balance", async () => {
+        chain.policy = "permissionless"
+        chain.coins = "1000000ugnot"
+        await expect(createDaoRequest(ctx({ checks: { policy: "unknown", replacesParked: false, balanceUgnot: 100_000_000n } })).recheck!(undefined))
+            .rejects.toThrow(/taken when the package is deployed\. Add GNOT to this wallet first\. Nothing was sent\./)
+    })
+
+    it("a policy unreadable at review is no change of rules; one unreadable now stops with its own words", async () => {
+        chain.policy = "inert"
+        await expect(createDaoRequest(ctx({ checks: { policy: "unknown", replacesParked: false, balanceUgnot: 100_000_000n } })).recheck!(undefined)).resolves.toBeUndefined()
+        const { codeSubmissionPolicy } = await import("../../lib/dao/packageStatus")
+        vi.mocked(codeSubmissionPolicy).mockRejectedValueOnce(new Error("no node"))
+        await expect(createDaoRequest(ctx()).recheck!(undefined)).rejects.toThrow(/couldn't read the network's rules/)
+        chain.policy = "permissionless"
+        await expect(createDaoRequest(ctx()).recheck!(undefined)).rejects.toThrow(/rules for this address changed/)
+    })
 
     it("refuses a second deploy to the same address while one waits for Adena", async () => {
         let release!: (v: { hash: string }) => void
@@ -208,9 +260,26 @@ describe("createDaoRequest", () => {
     })
 })
 
+describe("balanceShortfall", () => {
+    // friends_surf_club on gnoland-1: max_deposit 17000000ugnot, 8,120,800 ugnot taken at enable (81,208 bytes).
+    const costs = { feeUgnot: 60_000, estimateUgnot: 8_178_500, capUgnot: 17_000_000 }
+    it("needs the fee and the deposit cap, not the estimate, and says when the deposit leaves", () => {
+        expect(balanceShortfall(60_000n + 8_120_800n, costs, "inert")).toMatch(/can take up to 17\.1 GNOT.*deposit of about 8\.2 GNOT \(at most 17 GNOT\), taken when gno\.land enables the package/)
+        expect(balanceShortfall(17_059_999n, costs, "inert")).not.toBeNull()
+        expect(balanceShortfall(17_060_000n, costs, "inert")).toBeNull()
+        expect(balanceShortfall(0n, costs, "permissionless")).toMatch(/taken when the package is deployed/)
+    })
+})
+
 describe("runDeployChecks", () => {
+    it("names what to change when the address is taken: the DAO name", async () => {
+        const { assertPathAvailable, PathTakenError } = await import("../../lib/dao/packageStatus")
+        vi.mocked(assertPathAvailable).mockRejectedValueOnce(new PathTakenError("taken"))
+        await expect(runDeployChecks(ME, PATH)).rejects.toThrow("Change the DAO name in step 1: the address is made from the name's Latin letters a–z and digits, up to 20.")
+    })
+
     it("reports the policy and whether a parked submission is replaced", async () => {
         chain.replacesParked = true
-        await expect(runDeployChecks(ME, PATH)).resolves.toEqual({ policy: "inert", replacesParked: true })
+        await expect(runDeployChecks(ME, PATH)).resolves.toEqual({ policy: "inert", replacesParked: true, balanceUgnot: 100_000_000n })
     })
 })

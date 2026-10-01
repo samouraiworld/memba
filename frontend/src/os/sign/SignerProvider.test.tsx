@@ -107,6 +107,23 @@ describe("OS signing session boundary", () => {
         expect(toast).toHaveBeenCalledWith("Refused by the network: Vote. It did not take effect; the network fee was still charged.")
     })
 
+    it("says what the request knows when the chain does not confirm yet, in the tray and the toast", async () => {
+        const onSettled = vi.fn()
+        const parked = { ...request, send: vi.fn(async () => ({ hash: "PARKED_HASH" })), verify: vi.fn(async () => false), verifyAttempts: 1, pendingNote: () => "Waiting for network approval.", onSettled }
+        function Parked() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(parked)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.title} | {n.sub}</li>)}</ul></>
+        }
+        const toast = vi.fn()
+        render(<SignerProvider session={session("member")} toast={toast}><Parked /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("submitted", undefined))
+        expect(screen.getByText("warn | Submitted · Vote | Waiting for network approval.")).toBeInTheDocument()
+        expect(screen.queryByText(/hasn't shown it yet/)).toBeNull()
+        expect(toast).toHaveBeenCalledWith("Submitted: Vote. Waiting for network approval.")
+    })
+
     describe("a 'rejected' reply from Adena after its window opened", () => {
         const onSettled = vi.fn()
         const rejected = {

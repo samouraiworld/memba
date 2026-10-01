@@ -279,7 +279,7 @@ describe("Create DAO on gnoland-1", () => {
     it("discloses network, permanence, deposit and powers, and keeps Deploy disabled until confirmed", async () => {
         resumeReview()
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
-        expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.2 GNOT, capped at 13 GNOT/)
+        expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.3 GNOT, capped at 13 GNOT/)
         // gnoland-1 is inert: the submit model (48M gas) at 1 ugnot per 1000 gas, plus 20 %
         await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\. Your wallet shows the fee it signs\./))
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)

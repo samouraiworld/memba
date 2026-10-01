@@ -24,6 +24,9 @@ export type ChainContext = { rpcUrl: string; chainId: string; rpcUrls?: string[]
 
 export class ChainAnswerError extends Error {}
 
+/** The path holds a live package, or another creator's parked one. */
+export class PathTakenError extends Error {}
+
 const address = z.string().regex(/^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/)
 
 export const packageMetaSchema = z.strictObject({
@@ -86,7 +89,7 @@ export async function assertPathAvailable(ctx: ChainContext, path: string, signe
     const meta = await packageStatus(ctx, path, signal)
     if (meta.status === "absent") return { replacesParked: false }
     if (meta.status === "inert" && meta.creator !== undefined && meta.creator === signer) return { replacesParked: true }
-    throw new Error("This path is already used. Choose another realm name.")
+    throw new PathTakenError("This path is already used. Choose another realm name.")
 }
 
 const policyCache = new Map<string, Promise<string>>()
