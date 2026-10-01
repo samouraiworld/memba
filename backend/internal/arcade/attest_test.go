@@ -301,6 +301,19 @@ func TestParseOnChainEntry(t *testing.T) {
 	}
 }
 
+// An answer that is not a string is refused by an error that quotes its start,
+// not the whole answer: the error is logged, and a node's answer can be
+// megabytes long.
+func TestQevalString_ErrorQuotesOnlyTheStartOfTheAnswer(t *testing.T) {
+	_, err := QevalString("(" + strings.Repeat("7", 1<<20) + " int)")
+	if err == nil {
+		t.Fatal("an answer that is not a string must be an error")
+	}
+	if text := err.Error(); !strings.Contains(text, "(777") || len(text) > 200 {
+		t.Fatalf("error of %d bytes (%.80s), want a short one that starts the answer", len(text), text)
+	}
+}
+
 type attestRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f attestRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

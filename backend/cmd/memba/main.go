@@ -476,6 +476,10 @@ func main() {
 		Prefix:       envOr("MEMBA_TICKET_PREFIX", "Memba"),
 	})))
 
+	// Private curation inbox (a collection's founder and the curation managers).
+	// OFF (503) until MEMBA_CURATION_INBOX_KEY is set.
+	mux.Handle("/api/curation/inbox", curationInboxRoute(svc, database, os.Getenv("GNO_CHAIN_ID"), os.Getenv("MEMBA_CURATION_INBOX_KEY")))
+
 	// Arcade on-chain certify — the run-submit endpoint (BARRICADE, Space
 	// Invaders). OFF (404) until the operator sets MEMBA_ARCADE_SUBMIT_ENABLED,
 	// and each game is additionally gated by MEMBA_ARCADE_GAMES (comma list;
@@ -882,6 +886,58 @@ func analystConsensusHandler(v restTokenAddressValidator, consensus http.Handler
 		}
 		walletAuthed.ServeHTTP(w, r)
 	}))
+}
+
+// restTokenIdentityValidator is the part of *service.MultisigService that says
+// which chain a session token was issued for.
+type restTokenIdentityValidator interface {
+	ValidateRESTTokenIdentity(tokenJSON string) (addr, chainID string, err error)
+}
+
+// tokensOfChain accepts only session tokens issued for chainID; the general
+// validator also accepts every accepted chain and legacy tokens naming none.
+type tokensOfChain struct {
+	v       restTokenIdentityValidator
+	chainID string
+}
+
+func (t tokensOfChain) ValidateRESTTokenAddress(tokenJSON string) (string, error) {
+	addr, chainID, err := t.v.ValidateRESTTokenIdentity(tokenJSON)
+	if err == nil && chainID != t.chainID {
+		err = fmt.Errorf("token issued for chain %q, not %q", chainID, t.chainID)
+	}
+	return addr, err
+}
+
+// curationInboxHandler composes the private curation inbox route. While no
+// inbox is configured (a nil inbox) every request is answered 503 before any
+// token is looked at; otherwise a wallet session token issued for the inbox's
+// chain is required and the inbox acts for that token's wallet.
+func curationInboxHandler(v restTokenIdentityValidator, chainID string, inbox *service.CurationInbox) http.Handler {
+	if inbox == nil {
+		return inbox
+	}
+	return requireAuthAddressMiddleware(tokensOfChain{v, chainID}, inbox)
+}
+
+// curationInboxService is the part of *service.MultisigService the curation
+// inbox route needs: the session validator and the per-wallet limiter.
+type curationInboxService interface {
+	restTokenIdentityValidator
+	AllowUser(addr, endpoint string) bool
+}
+
+// curationInboxRoute builds the route main() mounts: the inbox of keyHex for
+// chainID, which counts each wallet on svc's limiter, behind
+// curationInboxHandler and the per-IP curation_inbox bucket. An unusable
+// configuration leaves the inbox off (503), with an error here rather than a
+// failed boot.
+func curationInboxRoute(svc curationInboxService, database *sql.DB, chainID, keyHex string) http.Handler {
+	inbox, err := service.NewCurationInbox(database, chainID, keyHex, svc.AllowUser)
+	if err != nil {
+		slog.Error("curation inbox disabled: invalid configuration", "error", err)
+	}
+	return rateLimitMiddleware("curation_inbox", curationInboxHandler(svc, chainID, inbox))
 }
 
 // requireAuthUploadMiddleware is requireAuthMiddleware PLUS a per-authenticated-wallet

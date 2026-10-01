@@ -97,6 +97,37 @@ flyctl secrets set GITHUB_CLIENT_SECRET=<new> --app memba-backend
 
 ---
 
+## MEMBA_CURATION_INBOX_KEY (Private Curation Inbox)
+
+**Impact of compromise:** Together with a copy of the database, an attacker can read every private founder/manager message. The key alone, or the database alone, reveals no message text.
+**Impact of rotation:** **Do not rotate.** Every stored message is sealed under this key and nothing re-seals them: after a change they are served as `unreadable` for good.
+**Custody:** two copies, the Fly secret and an entry in the owner's password manager. Losing both loses every stored message: a copy of the database does not help.
+
+Set it once, before the inbox is first used:
+
+```bash
+# 0. If this backend accepted unsigned logins (MEMBA_ALLOW_UNSIGNED_AUTH=1/true)
+#    at any time in the last 24 h, wait until 24 h have passed since enforcement,
+#    or rotate ED25519_SEED (above): a session obtained without a signature stays
+#    valid for 24 h and would open the inbox. The same holds after a lockout
+#    rollback (OPS_RUNBOOK §2.1).
+
+# 1. Generate the key
+KEY=$(openssl rand -hex 32)
+
+# 2. Save it in the owner's password manager FIRST, and check the saved entry
+#    equals $KEY. Until then nobody holds the key but this shell.
+
+# 3. Set the secret (triggers redeploy)
+flyctl secrets set MEMBA_CURATION_INBOX_KEY=$KEY --app memba-backend
+unset KEY
+```
+
+- Each boot logs `curation inbox enabled` with `key_id`, a fingerprint of the key (never the key); note it next to the saved entry. A `key_id` that differs from the previous boot means the key was changed: set the saved value back before anyone sends a message.
+- On compromise there is no rotation at this head: unset the secret to turn the inbox off (503), and treat the stored messages as disclosed.
+
+---
+
 ## Rotation Schedule
 
 | Secret | Rotation Frequency | Trigger |
@@ -106,6 +137,7 @@ flyctl secrets set GITHUB_CLIENT_SECRET=<new> --app memba-backend
 | LLM API Keys | Annually or on compromise | Quota abuse, key exposure |
 | CLERK_SECRET_KEY | Annually or on compromise | Per Clerk recommendation |
 | GITHUB_CLIENT_SECRET | Annually or on compromise | Per GitHub recommendation |
+| MEMBA_CURATION_INBOX_KEY | Never (stored messages become unreadable) | On compromise: unset to turn the inbox off |
 
 ---
 

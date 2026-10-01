@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -56,5 +57,26 @@ func TestQuestAbciQuery_ValidEmptyDoesNotFailOver(t *testing.T) {
 	}
 	if backupHits != 0 {
 		t.Fatalf("backup hit %d times; a valid empty must not fail over", backupHits)
+	}
+}
+
+// One node's answer is read up to 4 MiB of JSON (the payload is base64 in it,
+// a third longer). A longer answer is cut there and is an error, never a
+// shortened result; a payload just under the limit is returned whole.
+func TestQuestAbciQueryOnce_AnswerReadLimit(t *testing.T) {
+	for _, tc := range []struct {
+		payloadBytes int
+		whole        bool
+	}{{2900 << 10, true}, {3200 << 10, false}, {6 << 20, false}} {
+		payload := strings.Repeat("a", tc.payloadBytes)
+		node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { writeAbciData(w, payload) }))
+		got, err := questAbciQueryOnce(context.Background(), node.URL, "vm/qrender", "gno.land/r/x:")
+		node.Close()
+		if tc.whole && (err != nil || got != payload) {
+			t.Errorf("payload of %d bytes: got %d bytes and error %v, want it whole", tc.payloadBytes, len(got), err)
+		}
+		if !tc.whole && (err == nil || got != "") {
+			t.Errorf("payload of %d bytes: got %d bytes and error %v, want an error and nothing", tc.payloadBytes, len(got), err)
+		}
 	}
 }

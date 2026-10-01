@@ -279,6 +279,11 @@ func sessionPubkeysAccepted() bool {
 //   - Explicit opt-in "1" / "true": empty sigs ACCEPTED (dev mode only).
 const AllowUnsignedAuthEnv = "MEMBA_ALLOW_UNSIGNED_AUTH"
 
+// UnsignedAuthAllowed reports whether logins without a signature are accepted
+// (AllowUnsignedAuthEnv), for features that must stay off while anyone can
+// obtain a session for any address.
+func UnsignedAuthAllowed() bool { return allowUnsignedAuth() }
+
 func allowUnsignedAuth() bool {
 	switch os.Getenv(AllowUnsignedAuthEnv) {
 	case "1", "true", "TRUE":

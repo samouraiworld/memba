@@ -331,6 +331,15 @@ func TestIndexerBucket_BoundsLivePollingAndAllowsPageReads(t *testing.T) {
 	}
 }
 
+// The private curation inbox has its own per-IP bucket (each request makes the
+// backend ask a node), not the 100/min fallback of an unknown endpoint.
+func TestCurationInboxBucket_IsConfigured(t *testing.T) {
+	cfg, ok := DefaultConfigs()["curation_inbox"]
+	if !ok || cfg.MaxRequests != 30 || cfg.Window != time.Minute {
+		t.Fatalf("unexpected curation_inbox bucket: %+v, present=%t", cfg, ok)
+	}
+}
+
 // TestImageUploadEndpoint_PerUserCap proves the per-wallet AllowKey cap: a wallet is
 // blocked once it exceeds ImageUploadEndpoint's quota, while a different wallet keeps
 // its own independent bucket.

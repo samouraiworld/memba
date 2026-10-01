@@ -226,30 +226,33 @@ func (b *gnokeyBroadcaster) LookupEntry(ctx context.Context, run Run) (OnChainEn
 	return parseOnChainEntry(data)
 }
 
+// QevalString returns the string result carried by a vm/qeval answer. qeval
+// prints a string as a Go quoted literal followed by a type annotation; an
+// answer that is already bare JSON (an object or null) is returned as it is.
+func QevalString(out string) (string, error) {
+	s := strings.TrimSpace(out)
+	if strings.HasPrefix(s, "{") || strings.HasPrefix(s, "null") {
+		return s, nil
+	}
+	start := strings.IndexByte(s, '"')
+	if start < 0 {
+		return "", fmt.Errorf("unexpected qeval output %.64q", s) // its start only: the answer is a node's, of any length
+	}
+	for end := start + 1; end < len(s); end++ {
+		if s[end] != '"' {
+			continue
+		}
+		if value, err := strconv.Unquote(s[start : end+1]); err == nil {
+			return value, nil
+		}
+	}
+	return "", errors.New("malformed quoted result")
+}
+
 func parseOnChainEntry(data []byte) (OnChainEntry, bool, error) {
-	s := strings.TrimSpace(string(data))
-	// vm/qeval prints string return values as Go quoted literals followed by
-	// a type annotation. Decode that representation before parsing the JSON.
-	if !strings.HasPrefix(s, "{") && !strings.HasPrefix(s, "null") {
-		start := strings.IndexByte(s, '"')
-		if start < 0 {
-			return OnChainEntry{}, false, fmt.Errorf("arcade entry lookup: unexpected qeval output %q", s)
-		}
-		var unquoted string
-		decoded := false
-		for end := start + 1; end < len(s); end++ {
-			if s[end] != '"' {
-				continue
-			}
-			if value, err := strconv.Unquote(s[start : end+1]); err == nil {
-				unquoted, decoded = value, true
-				break
-			}
-		}
-		if !decoded {
-			return OnChainEntry{}, false, errors.New("arcade entry lookup: malformed quoted result")
-		}
-		s = unquoted
+	s, err := QevalString(string(data))
+	if err != nil {
+		return OnChainEntry{}, false, fmt.Errorf("arcade entry lookup: %w", err)
 	}
 	if s == "null" {
 		return OnChainEntry{}, false, nil

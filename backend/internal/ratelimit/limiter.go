@@ -29,6 +29,7 @@ func DefaultConfigs() map[string]Config {
 		"upload":             {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict (single downscaled avatar)
 		"upload_image":       {MaxRequests: 20, Window: time.Minute},  // App Store media — one listing is up to 7 files (icon + 6 screenshots), so > the strict avatar bucket, plus retries
 		"nft":                {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
+		"curation_inbox":     {MaxRequests: 30, Window: time.Minute},  // private curation inbox — each request re-reads access on chain
 		"arcade_submit":      {MaxRequests: 20, Window: time.Minute},  // BARRICADE run certify — each triggers a CPU-heavy node re-sim, so per-IP strict
 		"marketplace":        {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
 		"token_launches":     {MaxRequests: 60, Window: time.Minute},  // cached token launch-date map (read)
@@ -56,6 +57,11 @@ const (
 	// flooding; this per-wallet cap stops one authenticated wallet rotating IPs to
 	// fan out the CPU-heavy re-simulation.
 	ArcadeSubmitEndpoint = "arcade_submit"
+	// CurationInboxEndpoint gates every per-authenticated-address request to the
+	// private curation inbox, reads included, under the per-IP `curation_inbox`
+	// bucket; CurationSendEndpoint gates its sends as well.
+	CurationInboxEndpoint = "curation_inbox"
+	CurationSendEndpoint  = "curation_send"
 )
 
 // PerUserQuestConfigs returns the per-address quest rate limits (Q-03). Defaults:
@@ -80,6 +86,10 @@ func PerUserQuestConfigs(envInt func(name string, def int) int) map[string]Confi
 		// Per-wallet BARRICADE submit cap: a player certifies a handful of runs a
 		// day, so this bounds one wallet's re-simulation fan-out across rotated IPs.
 		ArcadeSubmitEndpoint: {MaxRequests: envInt("MEMBA_ARCADE_SUBMIT_RPM", 20), Window: time.Minute},
+		// Per-wallet curation inbox caps. Every request reads access from a node...
+		CurationInboxEndpoint: {MaxRequests: envInt("MEMBA_CURATION_INBOX_RPM", 30), Window: time.Minute},
+		// ...and a send adds to a conversation, not a feed.
+		CurationSendEndpoint: {MaxRequests: envInt("MEMBA_CURATION_SEND_RPM", 12), Window: time.Minute},
 		"default":            {MaxRequests: 10, Window: time.Minute},
 	}
 }

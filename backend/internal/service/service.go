@@ -298,6 +298,15 @@ func (s *MultisigService) ValidateRESTToken(tokenJSON string) error {
 // address on success — for REST callers that need the authenticated identity (e.g.
 // the per-wallet image-upload cap). Same validation contract as ValidateRESTToken.
 func (s *MultisigService) ValidateRESTTokenAddress(tokenJSON string) (string, error) {
+	addr, _, err := s.ValidateRESTTokenIdentity(tokenJSON)
+	return addr, err
+}
+
+// ValidateRESTTokenIdentity is ValidateRESTTokenAddress that also returns the
+// chain the token was issued for ("" for a legacy token that names none) — for
+// an endpoint that serves one chain only. Validation accepts every chain in
+// acceptedChainIDs; narrowing to one is the caller's.
+func (s *MultisigService) ValidateRESTTokenIdentity(tokenJSON string) (addr, chainID string, err error) {
 	// protojson, not encoding/json: it accepts both the proto field names
 	// (user_address) and their JSON names (userAddress). The frontend stores
 	// the session token camelCase (useAuth.saveToken) and sends that string as
@@ -305,33 +314,35 @@ func (s *MultisigService) ValidateRESTTokenAddress(tokenJSON string) (string, er
 	// signature — every upload / arcade-submit request failed with 401.
 	var token membav1.Token
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal([]byte(tokenJSON), &token); err != nil {
-		return "", fmt.Errorf("invalid token format: %w", err)
+		return "", "", fmt.Errorf("invalid token format: %w", err)
 	}
 	if err := auth.ValidateToken(s.publicKey, &token, s.acceptedChainIDs...); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return token.UserAddress, nil
+	return token.UserAddress, token.ChainId, nil
 }
 
-// AllowUpload applies the per-authenticated-wallet App Store media-upload cap using
-// the shared per-user limiter (same AllowKey machinery as the quest per-wallet caps).
-// Returns true when the wallet is under quota — or when no limiter is configured
-// (the default in tests), so it's a no-op there.
-func (s *MultisigService) AllowUpload(addr string) bool {
+// AllowUser applies the per-authenticated-wallet cap of endpoint (a
+// ratelimit.*Endpoint key) on the shared per-user limiter. Returns true when
+// the wallet is under quota — or when no limiter is configured (the default in
+// tests), so it's a no-op there.
+func (s *MultisigService) AllowUser(addr, endpoint string) bool {
 	if s.userLimiter == nil {
 		return true
 	}
-	return s.userLimiter.AllowKey(addr, ratelimit.ImageUploadEndpoint)
+	return s.userLimiter.AllowKey(addr, endpoint)
+}
+
+// AllowUpload applies the per-authenticated-wallet App Store media-upload cap
+// (AllowUser, same AllowKey machinery as the quest per-wallet caps).
+func (s *MultisigService) AllowUpload(addr string) bool {
+	return s.AllowUser(addr, ratelimit.ImageUploadEndpoint)
 }
 
 // AllowArcadeSubmit applies the per-authenticated-wallet BARRICADE submit cap
-// (same AllowKey machinery). Returns true when the wallet is under quota — or
-// when no limiter is configured (the default in tests), so it's a no-op there.
+// (AllowUser).
 func (s *MultisigService) AllowArcadeSubmit(addr string) bool {
-	if s.userLimiter == nil {
-		return true
-	}
-	return s.userLimiter.AllowKey(addr, ratelimit.ArcadeSubmitEndpoint)
+	return s.AllowUser(addr, ratelimit.ArcadeSubmitEndpoint)
 }
 
 // internalError logs the real error and returns a sanitized connect error.

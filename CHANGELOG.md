@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Curation inbox (backend, off until its key is set) (2026-10-01)
+- Curation inbox (backend, off until its key is set): a collection's founder and the curation managers share a private, encrypted message thread per collection; who may read or write is read from the curation realm on the chain at every request, from a caught-up node, and the answer must name the expected chain and be at most a minute old.
+
 ### Memba OS: Profile templates visitors can see (2026-10-01)
 - Changed: a Profile template now sets the tab order a visitor meets after Overview, and one column (simple) or two on wide windows; picking one keeps your sections, their order, hidden sections and links. Sections move only within their own tab, the order visitors see.
 

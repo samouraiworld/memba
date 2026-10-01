@@ -586,7 +586,7 @@ func questAbciQueryOnce(ctx context.Context, rpcURL, path, data string) (string,
 		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20)) // a longer answer is cut there and fails to parse
 	if err != nil {
 		return "", fmt.Errorf("read response: %w", err)
 	}
