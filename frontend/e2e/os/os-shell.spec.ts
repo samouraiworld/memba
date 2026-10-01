@@ -199,6 +199,10 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
         const modal = connectModal(page)
         await expect(modal.getByRole('heading', { name: 'Connect a wallet' })).toBeVisible()
+        // Adena's own app icon, served from this site and drawn at the tile's size.
+        const logo = modal.getByRole('button', { name: /Adena/ }).locator('img.os-wlogo')
+        await expect(logo).toHaveJSProperty('complete', true)
+        expect(await logo.evaluate((img: HTMLImageElement) => [img.naturalWidth > 0, img.offsetWidth])).toEqual([true, 36])
         await modal.getByRole('button', { name: /Adena/ }).click()
         await expect(modal.getByRole('heading', { name: 'Sign the login message' })).toBeVisible()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()

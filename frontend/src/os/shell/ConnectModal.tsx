@@ -1,10 +1,9 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
+// Adena's own app icon, unaltered, from its brand kit (docs.adena.app → Resources → Brand Assets → Download Logo, "app icon").
+import adenaLogo from "./adena-logo.svg"
 import { shortAddr } from "./format"
-import { ThingTile } from "./icons"
 import { useDialogKeys } from "./useDialogKeys"
 import type { OsSession } from "./useOsSession"
-
-const ADENA_TINT = ["#7E6CF2", "#4B3FD0"] as const
 
 function Head({ title, sub }: { title: string; sub?: string }) {
     return (
@@ -43,7 +42,7 @@ export function ConnectModal({ session }: { session: OsSession }) {
             body = <>
                 <Head title="Connect a wallet" sub="Voting, signing and posting need your approval in the wallet. Memba never holds your keys." />
                 <button type="button" className="os-wopt" onClick={session.chooseAdena} autoFocus>
-                    <ThingTile icon="wal" tint={ADENA_TINT} size={36} />
+                    <img src={adenaLogo} alt="" width={36} height={36} className="os-wlogo" />
                     <span className="os-grow"><b>Adena</b><span className="os-sub os-block">The gno.land wallet · works with Ledger</span></span>
                 </button>
                 <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Not now</button></div>

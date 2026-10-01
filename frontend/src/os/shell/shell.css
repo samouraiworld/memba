@@ -142,6 +142,8 @@
   border-radius: 12px; padding: 12px; cursor: pointer; text-align: left;
 }
 .memba-os .os-wopt:hover { border-color: var(--os-acc); }
+/* A wallet's own mark, shown as its maker draws it. */
+.memba-os .os-wlogo { flex: none; display: block; }
 .memba-os .os-steps { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.9; }
 .memba-os .os-steps a { color: var(--os-acc-ink); font-weight: 700; }
 /* The value column may shrink below its longest unbreakable string: long values wrap instead of widening the grid. */
