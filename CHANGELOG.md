@@ -128,6 +128,10 @@ Full changelogs are split by version range for easier navigation:
 - Fixed: if the network's reply to a multisig broadcast is lost or times out, Memba keeps the warning, the transaction's hash and what to do next on the page, and the next press checks the chain before sending anything.
 - Changed: Memba OS Multisig opens to guests. The app and any account's address and balance are visible, the chain says whether an address is a multisig, and a connect prompt appears only where your own multisigs, members and transactions would show.
 - Changed: a multisig proposal's fee defaults to twice the network gas price for its gas limit instead of a fixed 1 GNOT, so it still pays if the price rises while signatures are collected; it can be changed until the proposal is made, and Memba sends nothing when a fresh price has outgrown the signed fee.
+### Memba OS: the cooperation engine in About (2026-10-01)
+- Added: About explains all 20 tools, their onchain and offchain layers, Memba DAO stewardship, and the proposed community fee and reward model through four inspectable views. Published sources and existing shared accounts open in new tabs; future wallet roles stay marked as planned.
+- The short tour pauses while you read or interact and respects reduced motion. EVM and Bitcoin appear as parallel planned directions without release dates or order. A short manifesto and contribution/contact options explain the community vision.
+
 ### Memba OS: native Explorer window (2026-09-30)
 - Added: the Explorer window opens on a native realm directory with the chain's current figures, search and paging, and a direct field for any realm or package path. A realm or a directory tab opens in the same window, and Back returns to the directory. The figures poll only while the window is in front.
 

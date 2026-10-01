@@ -139,12 +139,13 @@ export function CooperationEngine({ chainId, support }: { chainId: string; suppo
                 </>}
                 {tab === "Fees & rewards" && <>
                     <p className="os-engine-caption"><strong>Target model.</strong> Fee-enabled features help sustain the OS and its contributors.</p>
-                    <div className="os-engine-fee-inputs">{FEATURES.filter(feature => ["store", "market", "tokens", "nft"].includes(feature.id)).map(tile)}</div>
-                    <div className="os-engine-flow" data-planned="true"><span>Application fees · planned convergence</span></div>
-                    {tile(RESERVE)}
-                    <div className="os-engine-flow" data-planned="true"><span>Memba DAO allocation policy · vision</span></div>
-                    {tile(DAO)}
-                    <div className="os-engine-pair">{tile(OPERATIONS)}{tile(REWARDS)}</div>
+                    <div className="os-engine-map os-engine-money-map">
+                        <div className="os-engine-fee-inputs">{FEATURES.filter(feature => ["store", "market", "tokens", "nft"].includes(feature.id)).map(tile)}</div>
+                        <div className="os-engine-flow" data-planned="true"><span>Application fees · planned convergence</span></div>
+                        <div className="os-engine-pair">{tile(RESERVE)}{tile(DAO)}</div>
+                        <div className="os-engine-flow" data-planned="true"><span>Memba DAO allocation policy · vision</span></div>
+                        <div className="os-engine-pair">{tile(OPERATIONS)}{tile(REWARDS)}</div>
+                    </div>
                     <p className="os-engine-caption">Operations funds the tools; rewards support contributors. These are proposed budgets or wallet roles, with no fixed distribution promised.</p>
                     <details className="os-engine-disclosure"><summary>Current custody and fees</summary>
                         <p>Each deployed feature defines its fee receiver and administrator. Inspect its source to see the current policy. The route above is the intended community model, not a claim that every fee already reaches the DAO.</p>{tile(STEWARDSHIP)}

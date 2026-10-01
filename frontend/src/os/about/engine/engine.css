@@ -43,6 +43,11 @@
 .memba-os .os-engine-gate { font-size: 10px; }
 .memba-os .os-engine-detail { min-height: 30px; padding: 4px 8px; border: 1px solid var(--os-line); border-radius: 6px; background: var(--os-card); color: var(--os-mut) !important; font-size: 11px !important; }
 .memba-os .os-engine-pair, .memba-os .os-engine-fee-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.memba-os .os-engine-money-map .os-engine-fee-inputs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.memba-os .os-engine-money-map .os-engine-fee-inputs .os-engine-tile { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.memba-os .os-engine-money-map .os-engine-fee-inputs .os-engine-tile-main > span { display: none; }
+.memba-os .os-engine-money-map .os-engine-fee-inputs .os-engine-tile-meta { align-items: start; }
+.memba-os .os-engine-money-map .os-engine-fee-inputs .os-engine-gate { display: none; }
 .memba-os .os-engine-flow { position: relative; display: grid; justify-items: center; padding: 4px 0; overflow: hidden; color: var(--os-mut); font-size: 10px; }
 .memba-os .os-engine-flow::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px solid var(--os-acc-ink); opacity: .4; }
 .memba-os .os-engine-flow::after { content: ""; position: absolute; left: calc(50% - 2px); top: -5px; width: 5px; height: 5px; border-radius: 50%; background: var(--os-acc-ink); animation: os-engine-signal 2.4s linear infinite; animation-play-state: paused; }
@@ -97,4 +102,6 @@
 @container os-window (max-width: 480px) {
   .memba-os .os-engine-families { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .memba-os .os-engine-families button { padding: 5px 8px; }
+  .memba-os .os-engine-money-map .os-engine-fee-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .memba-os .os-engine-money-map .os-engine-fee-inputs .os-engine-tile-meta { flex-direction: row; align-items: center; }
 }
