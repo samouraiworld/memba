@@ -49,6 +49,9 @@ func TestCurationInboxHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = database.Close() }()
+	if err := db.Migrate(database); err != nil {
+		t.Fatal(err)
+	}
 	call := func(h http.Handler, method, authHeader string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "/api/curation/inbox?collection=C1", strings.NewReader(`{"clientId":"client-id-0001","body":"hello"}`))
 		if authHeader != "" {
@@ -109,7 +112,7 @@ func TestCurationInboxHandler(t *testing.T) {
 		limiter = ratelimit.New(t.Context(), map[string]ratelimit.Config{"curation_inbox": {MaxRequests: 2, Window: time.Minute}})
 		t.Cleanup(func() { limiter = prev })
 		svc := &fakeCurationInboxService{fakeTokenIdentityValidator: fakeTokenIdentityValidator{addr: wallet, chainID: chain}}
-		route := curationInboxRoute(svc, database, chain, strings.Repeat("0f", 32))
+		route := curationInboxRoute(t.Context(), svc, database, chain, strings.Repeat("0f", 32))
 
 		// The wallet is over its cap on the service's limiter: refused by the inbox.
 		rec := call(route, http.MethodGet, "Bearer {}")
@@ -123,6 +126,28 @@ func TestCurationInboxHandler(t *testing.T) {
 		}
 		if rec := call(route, http.MethodGet, "Bearer {}"); rec.Code != http.StatusTooManyRequests || svc.calls != 1 {
 			t.Fatalf("third request of the IP: got %d, validator calls=%d, want 429 before any validation", rec.Code, svc.calls)
+		}
+	})
+
+	t.Run("the route starts the retention sweep, with or without a key", func(t *testing.T) {
+		old := time.Now().Add(-400 * 24 * time.Hour).Unix()
+		if _, err := database.Exec(`INSERT INTO curation_inbox_messages (chain_id, collection, seq, sender, client_id, created_at, key_id, nonce, body)
+			VALUES (?, 'C9', 1, ?, 'client-id-0009', ?, 'none', x'00', x'00'), (?, 'C9', 2, ?, 'client-id-0010', ?, 'none', x'00', x'00')`,
+			chain, wallet, old, chain, wallet, time.Now().Unix()); err != nil {
+			t.Fatal(err)
+		}
+		curationInboxRoute(t.Context(), &fakeCurationInboxService{}, database, chain, "")
+		for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+			var expired, kept int
+			if err := database.QueryRow(`SELECT COUNT(*) FILTER (WHERE created_at = ?), COUNT(*) FROM curation_inbox_messages WHERE collection = 'C9'`, old).Scan(&expired, &kept); err != nil {
+				t.Fatal(err)
+			}
+			if expired == 0 && kept == 1 {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("the inbox is off and nothing swept: %d expired and %d messages left, want 0 and 1", expired, kept)
+			}
 		}
 	})
 }

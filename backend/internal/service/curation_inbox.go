@@ -29,8 +29,9 @@ const (
 	// JSON may escape every byte of the text as \u00XX (six bytes).
 	curationInboxMaxRequest = 6*curationInboxMaxBody + 1024
 	curationInboxPageSize   = 50
-	// curationInboxMaxMessages bounds one thread. Messages are never deleted, so
-	// without it a single thread could grow the database without end.
+	// curationInboxMaxMessages bounds the messages one thread holds at a time.
+	// Messages are kept 12 months (curationInboxRetention), so without it a
+	// single thread could still grow the database without bound.
 	curationInboxMaxMessages = 2000
 	// curationInboxMaxLoggedError bounds the error text that one request which
 	// cannot be served adds to the log: it can quote what every node answered.
@@ -228,8 +229,10 @@ func (i *CurationInbox) send(w http.ResponseWriter, r *http.Request, collection,
 		return
 	}
 	sealed := i.aead.Seal(nil, nonce, []byte(in.Body), curationInboxAAD(i.chainID, collection, wallet, in.ClientID, now))
-	// seq is the next position in this chain's thread. Nothing is stored when the
-	// thread is full (HAVING) or this sender already used the client id (index).
+	// seq is the next position in this chain's thread; once every message of a
+	// thread has expired (12 months), the thread starts again at 1. Nothing is
+	// stored when the thread is full (HAVING) or this sender already used the
+	// client id (index).
 	res, err := i.db.ExecContext(r.Context(), `INSERT INTO curation_inbox_messages
 		(chain_id, collection, seq, sender, client_id, created_at, key_id, nonce, body)
 		SELECT ?, ?, COALESCE(MAX(seq), 0) + 1, ?, ?, ?, ?, ?, ?

@@ -477,8 +477,9 @@ func main() {
 	})))
 
 	// Private curation inbox (a collection's founder and the curation managers).
-	// OFF (503) until MEMBA_CURATION_INBOX_KEY is set.
-	mux.Handle("/api/curation/inbox", curationInboxRoute(svc, database, os.Getenv("GNO_CHAIN_ID"), os.Getenv("MEMBA_CURATION_INBOX_KEY")))
+	// OFF (503) until MEMBA_CURATION_INBOX_KEY is set; its 12-month retention
+	// sweep runs either way.
+	mux.Handle("/api/curation/inbox", curationInboxRoute(ctx, svc, database, os.Getenv("GNO_CHAIN_ID"), os.Getenv("MEMBA_CURATION_INBOX_KEY")))
 
 	// Arcade on-chain certify — the run-submit endpoint (BARRICADE, Space
 	// Invaders). OFF (404) until the operator sets MEMBA_ARCADE_SUBMIT_ENABLED,
@@ -932,7 +933,13 @@ type curationInboxService interface {
 // curationInboxHandler and the per-IP curation_inbox bucket. An unusable
 // configuration leaves the inbox off (503), with an error here rather than a
 // failed boot.
-func curationInboxRoute(svc curationInboxService, database *sql.DB, chainID, keyHex string) http.Handler {
+//
+// It also starts the hourly sweep that deletes messages older than 12 months,
+// until ctx is done, whether or not the inbox is on: retention is a promise
+// about stored rows, and unsetting the key (the answer to a compromise) leaves
+// them on disk.
+func curationInboxRoute(ctx context.Context, svc curationInboxService, database *sql.DB, chainID, keyHex string) http.Handler {
+	service.StartCurationInboxSweep(ctx, database, time.Hour)
 	inbox, err := service.NewCurationInbox(database, chainID, keyHex, svc.AllowUser)
 	if err != nil {
 		slog.Error("curation inbox disabled: invalid configuration", "error", err)

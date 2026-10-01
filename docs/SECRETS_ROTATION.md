@@ -124,7 +124,7 @@ unset KEY
 ```
 
 - Each boot logs `curation inbox enabled` with `key_id`, a fingerprint of the key (never the key); note it next to the saved entry. A `key_id` that differs from the previous boot means the key was changed: set the saved value back before anyone sends a message.
-- On compromise there is no rotation at this head: unset the secret to turn the inbox off (503), and treat the stored messages as disclosed.
+- On compromise there is no rotation at this head: unset the secret to turn the inbox off (503), and treat the stored messages as disclosed. The stored rows stay in the database until they are 12 months old: the retention sweep deletes them whether or not the key is set. After deletion their sealed bodies can remain up to 7 days in the Litestream WAL backups and in SQLite free pages: treat those as holding the same disclosed messages.
 
 ---
 
