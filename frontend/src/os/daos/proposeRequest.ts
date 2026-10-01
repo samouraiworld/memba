@@ -16,7 +16,9 @@ import { type MembaV2Config } from "../../lib/dao/membaV2"
 import { formatUgnot } from "../../lib/dao/v2Budget"
 import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { formatDuration } from "../../lib/templates/dao/v2/duration"
+import type { GasPrice } from "../../lib/grc20"
 import type { SignRequest } from "../sign/signer"
+import { sheetFee } from "./sheetFee"
 import { TYPE_LABELS } from "./proposal"
 
 export function proposalScope(realmPath: string, caller: string): GovernanceScope {
@@ -38,6 +40,8 @@ export interface ProposeContext {
     action: DaoAction
     effect: string
     onCreated: (id: number) => void
+    /** The network gas price quoted when the member asked to propose (see quoteGasPrice). */
+    gasPrice: GasPrice
 }
 
 export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
@@ -46,6 +50,7 @@ export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
     const plan = planDaoTx(ctx.daoKind, realmPath, action, caller)
     const overCeiling = planNeedsDepositOverride(plan)
     const cap = plan.maxDepositUgnot
+    const fee = sheetFee(plan, ctx.gasPrice)
     const scope = proposalScope(realmPath, caller)
     return {
         title: "Propose",
@@ -56,12 +61,12 @@ export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
             ["Voting", `lasts ${formatDuration(config.voting_period)}`],
             ["Passes with", `${config.threshold} % yes${config.quorum ? `, ${config.quorum} % quorum` : ""}`],
             ...(cap !== undefined ? [["Storage deposit", `up to ${formatUgnot(cap)}`] as [string, string]] : []),
-            ...(plan.gasWanted !== undefined ? [["Gas limit", plan.gasWanted.toLocaleString("en-US")] as [string, string]] : []),
+            ...fee.lines,
             ["Network", GNO_CHAIN_ID],
         ],
         warns: ctx.proposalKind === "archive" ? ["Archiving is permanent once executed."] : [],
         acks: overCeiling && cap !== undefined ? [`I approve a storage-deposit cap of ${formatUgnot(cap)}, above the usual 10 GNOT limit.`] : [],
-        note: "Memba re-checks the DAO and your membership before signing. Adena shows the final network fee.",
+        note: "Memba re-checks the DAO, your membership and the fee before signing.",
         label: () => `Proposal “${revealInvisibleFormatting(title.length > 40 ? `${title.slice(0, 40)}…` : title)}”`,
         receipt: scope,
         retainConfirmedReceipt: true,
@@ -70,8 +75,9 @@ export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
             const [fresh, members] = await Promise.all([getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true)])
             if (!fresh?.v2 || fresh.v2.archived || !members.some((m) => m.address === caller)) throw new Error("DAO membership or availability changed. Review your proposal again.")
             if (fresh.v2.electorate_version !== config.electorate_version) throw new Error("DAO membership changed. Review the proposal again.")
+            await fee.assertStillCovers()
         },
-        send: (_c, beforeSign) => broadcastDaoTx(plan, `Propose: ${title}`, beforeSign, { approvedDepositUgnot: overCeiling ? cap : undefined }),
+        send: (_c, beforeSign) => broadcastDaoTx(plan, `Propose: ${title}`, beforeSign, { approvedDepositUgnot: overCeiling ? cap : undefined, fee: fee.fee }),
         verifyAttempts: 1,
         verify: async (_c, hash, result) => {
             // A matching author/title in a later list is not proof that this

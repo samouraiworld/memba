@@ -19,6 +19,8 @@ import { Field, WizardFrame } from "../wizard/WizardFrame"
 import { realmForName } from "./daoNames"
 import { emptyDraft, evaluateProposal, needsRoles, needsTarget, proposalEffect, TYPE_HINTS, TYPE_LABELS, type Field as FieldName } from "./proposal"
 import { proposalDraftScope, proposalScope, proposeRequest } from "./proposeRequest"
+import { quoteSheetGasPrice } from "./sheetFee"
+import { useAlive } from "../shell/useAlive"
 import { useDaoConfig, useDaoMembers } from "./useOsDao"
 
 const STEPS = ["Type", "Details", "Review"] as const
@@ -44,6 +46,8 @@ export function ProposeWizard({ dao, session, open, close }: { dao: string; sess
 function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPath: string; session: OsSession; open: (spec: WindowSpec) => void; close: () => void }) {
     const caller = session.address
     const signer = useSigner()
+    const alive = useAlive()
+    const [quoting, setQuoting] = useState(false)
     const kind = useDaoKind(realmPath)
     const config = useDaoConfig(realmPath)
     const members = useDaoMembers(realmPath, undefined)
@@ -143,20 +147,26 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
         if (step === 1 && !detailsValid) { setShowErrors(true); return }
         if (step < STEPS.length - 1) { setStep(step + 1); return }
         if (!e.action) return
-        signer.sign(proposeRequest({
-            daoKind: "memba-v2", realmPath, daoName: v2.name, caller, config: v2, proposalKind: draft.kind, action: e.action,
-            effect: proposalEffect(draft, e, v2.name),
-            onCreated: (id) => {
-                if (!clearProposalDraft(draftScope)) {
-                    setCreatedId(id)
-                    setDraftError("Proposal created, but browser storage refused to remove its saved draft. Retry removal or clear this site's storage.")
+        const action = e.action
+        setQuoting(true)
+        void quoteSheetGasPrice().then((gasPrice) => {
+            if (!alive.current) return
+            setQuoting(false)
+            signer.sign(proposeRequest({
+                daoKind: "memba-v2", realmPath, daoName: v2.name, caller, config: v2, proposalKind: draft.kind, action, gasPrice,
+                effect: proposalEffect(draft, e, v2.name),
+                onCreated: (id) => {
+                    if (!clearProposalDraft(draftScope)) {
+                        setCreatedId(id)
+                        setDraftError("Proposal created, but browser storage refused to remove its saved draft. Retry removal or clear this site's storage.")
+                        open(specForTarget({ kind: "proposal", dao, n: id })!)
+                        return
+                    }
+                    close()
                     open(specForTarget({ kind: "proposal", dao, n: id })!)
-                    return
-                }
-                close()
-                open(specForTarget({ kind: "proposal", dao, n: id })!)
-            },
-        }))
+                },
+            }))
+        })
     }
 
     let body
@@ -239,8 +249,8 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
     }
 
     return (
-        <WizardFrame steps={STEPS} step={step} onBack={() => setStep(step - 1)} onNext={next}
-            nextLabel={step === STEPS.length - 1 ? "Propose…" : "Next"}
+        <WizardFrame steps={STEPS} step={step} onBack={() => setStep(step - 1)} onNext={next} nextDisabled={quoting}
+            nextLabel={quoting ? "Reading the fee…" : step === STEPS.length - 1 ? "Propose…" : "Next"}
             note={<>{draftError && <span className="os-fe" role="alert">{draftError}</span>}<span>{draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{draftSaved && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
             preview={(
                 <div className="os-stack os-tight">

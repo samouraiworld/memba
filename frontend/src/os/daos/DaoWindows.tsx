@@ -23,6 +23,8 @@ import { daoKindKey, useDaoKind } from "../../hooks/useDaoKind"
 import { nameForRealm, realmForName } from "./daoNames"
 import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
 import { voteRequest, voteScope } from "./voteRequest"
+import { quoteSheetGasPrice } from "./sheetFee"
+import { useAlive } from "../shell/useAlive"
 import { JoinMembaDao } from "./JoinMembaDao"
 import { UnknownOutcome } from "./UnknownOutcome"
 import { WeightedDaoFolder } from "./WeightedDaoFolder"
@@ -320,6 +322,8 @@ function Bar({ label, value, whole }: { label: string; value: number; whole: num
 
 function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: string; n: number; session: OsSession }) {
     const signer = useSigner()
+    const alive = useAlive()
+    const [quoting, setQuoting] = useState(false)
     const queryClient = useQueryClient()
     const { kind, ...q } = useProposal(realmPath, n)
     const config = useDaoConfig(realmPath)
@@ -355,10 +359,17 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     else if (members.isSuccess && !me) action = <p className="os-sub">Only members of this DAO can vote.</p>
     else {
         action = (
-            <button type="button" className="os-btn" disabled={!members.isSuccess || !config.isSuccess} onClick={() => signer.sign(voteRequest({
-                kind: kind.kind!, realmPath, daoName: config.data?.name || dao, proposal: p, caller: session.address,
-                electorateVersion: config.data?.v2?.electorate_version ?? null, power: me?.votingPower || null,
-            }))}>Vote…</button>
+            <button type="button" className="os-btn" disabled={quoting || !members.isSuccess || !config.isSuccess} onClick={() => {
+                setQuoting(true)
+                void quoteSheetGasPrice().then((gasPrice) => {
+                    if (!alive.current) return
+                    setQuoting(false)
+                    signer.sign(voteRequest({
+                        kind: kind.kind!, realmPath, daoName: config.data?.name || dao, proposal: p, caller: session.address,
+                        electorateVersion: config.data?.v2?.electorate_version ?? null, power: me?.votingPower || null, gasPrice,
+                    }))
+                })
+            }}>{quoting ? "Reading the fee…" : "Vote…"}</button>
         )
     }
 

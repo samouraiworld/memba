@@ -19,7 +19,9 @@ import { findV2VoterChoice, hasVotedOnV2, v2Context } from "../../lib/dao/membaV
 import { formatUgnot } from "../../lib/dao/v2Budget"
 import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { canVoteNow, VOTES_ARE_FINAL } from "../../lib/dao/v2Lifecycle"
+import type { GasPrice } from "../../lib/grc20"
 import type { SignRequest } from "../sign/signer"
+import { sheetFee } from "./sheetFee"
 import type { ProposalView } from "./useOsDao"
 
 export const VOTE_OPTIONS = ["Yes", "No", "Abstain"] as const
@@ -40,6 +42,8 @@ export interface VoteContext {
     electorateVersion: number | null
     /** Version-2: the member's voting power, when known. */
     power: number | null
+    /** The network gas price quoted when the member asked to vote (see quoteGasPrice). */
+    gasPrice: GasPrice
 }
 
 export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
@@ -51,7 +55,26 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
     const sample = plan("Yes")
     const overCeiling = planNeedsDepositOverride(sample)
     const cap = sample.maxDepositUgnot
+    const fee = sheetFee(sample, ctx.gasPrice)
     const memo = (choice: VoteOption | undefined) => `Vote ${CHOICE[choice ?? "Yes"]} on proposal #${proposal.id}`
+
+    // The DAO and the proposal as the member saw them: re-read just before the wallet opens.
+    const stateCheck = v2
+        ? async () => {
+            const [config, members, fresh, voted] = await Promise.all([
+                getDAOConfig(GNO_RPC_URL, realmPath, true),
+                getDAOMembers(GNO_RPC_URL, realmPath, undefined, true),
+                readV2Proposal(v2Context(GNO_RPC_URL, realmPath), proposal.id),
+                hasVotedOnV2(GNO_RPC_URL, realmPath, proposal.id, caller),
+            ])
+            if (!config?.v2 || config.v2.archived || !members.some((m) => m.address === caller)) throw new Error("DAO membership or availability changed. Review the action again.")
+            if (config.v2.electorate_version !== ctx.electorateVersion || fresh.electorate_version !== config.v2.electorate_version) throw new Error("The proposal electorate changed. Refresh before signing.")
+            if (voted !== false || !canVoteNow(fresh, Math.floor(Date.now() / 1000))) throw new Error("This vote is no longer available. Refresh the proposal.")
+        }
+        : async () => {
+            const fresh = await getProposalDetail(GNO_RPC_URL, realmPath, proposal.id)
+            if (!fresh || fresh.status !== "open") throw new Error("This proposal is no longer open for votes. Refresh it.")
+        }
 
     return {
         title: "Vote",
@@ -62,32 +85,20 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
             ["Your vote", choice ?? "Yes"],
             ...(ctx.power !== null ? [["Your voting power", `${ctx.power} of ${proposal.whole}`] as [string, string]] : []),
             ...(cap !== undefined ? [["Storage deposit", `up to ${formatUgnot(cap)}`] as [string, string]] : []),
-            ...(sample.gasWanted !== undefined ? [["Gas limit", sample.gasWanted.toLocaleString("en-US")] as [string, string]] : []),
+            ...fee.lines,
             ["Network", GNO_CHAIN_ID],
         ],
         acks: overCeiling && cap !== undefined ? [`I approve a storage-deposit cap of ${formatUgnot(cap)}, above the usual 10 GNOT limit.`] : [],
-        note: `${v2 ? VOTES_ARE_FINAL : "Votes are final."} Adena shows the final network fee before you sign.`,
+        note: v2 ? VOTES_ARE_FINAL : "Votes are final.",
         label: (choice) => `Vote ${choice ?? "Yes"} on #${proposal.id}`,
         receipt: voteScope(realmPath, caller, proposal.id),
         prepare: (choice) => ({ msgs: [plan(choice).msg] }),
-        recheck: v2
-            ? async () => {
-                const [config, members, fresh, voted] = await Promise.all([
-                    getDAOConfig(GNO_RPC_URL, realmPath, true),
-                    getDAOMembers(GNO_RPC_URL, realmPath, undefined, true),
-                    readV2Proposal(v2Context(GNO_RPC_URL, realmPath), proposal.id),
-                    hasVotedOnV2(GNO_RPC_URL, realmPath, proposal.id, caller),
-                ])
-                if (!config?.v2 || config.v2.archived || !members.some((m) => m.address === caller)) throw new Error("DAO membership or availability changed. Review the action again.")
-                if (config.v2.electorate_version !== ctx.electorateVersion || fresh.electorate_version !== config.v2.electorate_version) throw new Error("The proposal electorate changed. Refresh before signing.")
-                if (voted !== false || !canVoteNow(fresh, Math.floor(Date.now() / 1000))) throw new Error("This vote is no longer available. Refresh the proposal.")
-            }
-            : async () => {
-                const fresh = await getProposalDetail(GNO_RPC_URL, realmPath, proposal.id)
-                if (!fresh || fresh.status !== "open") throw new Error("This proposal is no longer open for votes. Refresh it.")
-            },
+        recheck: async () => {
+            await stateCheck()
+            await fee.assertStillCovers()
+        },
         send: (choice, beforeSign) => broadcastDaoTx(plan(choice), memo(choice), beforeSign,
-            { approvedDepositUgnot: overCeiling ? cap : undefined }),
+            { approvedDepositUgnot: overCeiling ? cap : undefined, fee: fee.fee }),
         verify: v2
             ? async (choice) => {
                 if (!(await hasVotedOnV2(GNO_RPC_URL, realmPath, proposal.id, caller))) return false

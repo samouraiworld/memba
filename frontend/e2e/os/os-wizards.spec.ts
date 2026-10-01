@@ -61,7 +61,7 @@ async function member(page: Page) {
     }, { address: ALICE })
 }
 
-type AdenaCall = { messages: { type: string; value: Record<string, unknown> }[] }
+type AdenaCall = { messages: { type: string; value: Record<string, unknown> }[]; gasFee?: number; gasWanted?: number }
 const adenaCalls = (page: Page) => page.evaluate(() => (window as unknown as { __adenaCalls: AdenaCall[] }).__adenaCalls)
 const win = (page: Page, name: string) => page.getByRole('region', { name, exact: true })
 
@@ -217,12 +217,15 @@ test.describe('Memba OS wizards', () => {
         await yes.press('ArrowRight')
         await expect(review.getByRole('radio', { name: 'No' })).toHaveAttribute('aria-checked', 'true')
         await expect(review.getByText('Gas limit')).toBeVisible()
-        await expect(review.getByText('Adena shows the final network fee', { exact: false })).toBeVisible()
+        // The fee is shown, rechecked and sent as shown: 15,000,000 gas at 1 ugnot per 1,000, with 20% headroom.
+        await expect(review.getByText('Network fee', { exact: true })).toBeVisible()
+        await expect(review.getByText('0.018 GNOT', { exact: true })).toBeVisible()
         await review.getByRole('button', { name: 'Sign in Adena' }).click()
         await expect(review).toHaveCount(0)
         await expect(proposal.getByText('You voted')).toBeVisible()
         const [call] = await adenaCalls(page)
         expect(call.messages[0].value).toMatchObject({ pkg_path: V2_DAO, func: 'Vote', args: ['1', 'NO'] })
+        expect([call.gasWanted, call.gasFee]).toEqual([15_000_000, 18_000])
     })
 
     test('a short landscape vote review keeps its actions reachable', async ({ page }) => {

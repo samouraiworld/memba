@@ -8,6 +8,8 @@ export const proposalRows = [
 ]
 export async function fulfillGovernance(page: Page, options: { empty?: boolean; missing?: boolean } = {}) {
     await fulfillOnchainReads(page, ({ path, arg, method }) => {
+        // The network price, which signing sheets read for their fee (1 ugnot per 1,000 gas, as gnoland-1 answers).
+        if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
         // Both consumers (governance-pro, complete-design) drive `/mainnet/...`.
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao:') return '# GovDAO\n\nGno chain governance — proposals and membership management.\n\n## Members\n[Memberstore](https://gno.land/r/gov/dao/v3/memberstore)\n\n## Proposals\n\nThreshold: 66%'

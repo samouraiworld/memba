@@ -68,6 +68,8 @@ function assertDepositAllowed(plan: DaoTxPlan, approvedDepositUgnot?: number): v
 export interface DaoSignOptions {
     /** The deposit cap, in ugnot, the member explicitly approved above the ceiling. */
     approvedDepositUgnot?: number
+    /** The gas limit and fee the member reviewed: sent exactly, instead of the broadcaster's own pricing. */
+    fee?: { gasWanted: number; gasFee: number }
 }
 
 /** Sign and broadcast a plan. */
@@ -81,8 +83,12 @@ export async function broadcastDaoTx(plan: DaoTxPlan, memo: string, beforeSign?:
  * themselves). Throws when the plan's deposit cap is above the ceiling and was
  * not explicitly approved.
  */
-export function daoBroadcastOptions(plan: DaoTxPlan, sign: DaoSignOptions = {}): { gasWanted?: number } {
+export function daoBroadcastOptions(plan: DaoTxPlan, sign: DaoSignOptions = {}): { gasWanted?: number; gasFee?: number } {
     assertDepositAllowed(plan, sign.approvedDepositUgnot)
+    if (sign.fee) {
+        if (plan.gasWanted !== undefined && plan.gasWanted !== sign.fee.gasWanted) throw new Error("The reviewed gas limit is not this transaction's. Review it again.")
+        return { gasWanted: sign.fee.gasWanted, gasFee: sign.fee.gasFee }
+    }
     return plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}
 }
 

@@ -94,6 +94,16 @@ describe("storage deposit ceiling", () => {
         expect(() => daoBroadcastOptions(withDeposit(10_000_001))).toThrow(/above the 10 GNOT limit/)
         expect(daoBroadcastOptions(withDeposit(10_000_000))).toEqual({ gasWanted: expect.any(Number) })
     })
+
+    it("sends the gas limit and fee the member reviewed, exactly", () => {
+        expect(daoBroadcastOptions(withDeposit(10_000_000), { fee: { gasWanted: 26_000_000, gasFee: 31_200 } })).toEqual({ gasWanted: 26_000_000, gasFee: 31_200 })
+        expect(() => daoBroadcastOptions(withDeposit(10_000_001), { fee: { gasWanted: 26_000_000, gasFee: 31_200 } })).toThrow(/above the 10 GNOT limit/)
+    })
+
+    it("refuses a reviewed gas limit that is not the plan's own", () => {
+        const plan = withDeposit(10_000_000)
+        expect(() => daoBroadcastOptions(plan, { fee: { gasWanted: plan.gasWanted! + 1, gasFee: 31_200 } })).toThrow("The reviewed gas limit is not this transaction's")
+    })
 })
 
 describe("proposal id from a broadcast result", () => {

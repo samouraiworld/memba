@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: DAO sheets show and send the exact fee (2026-10-01)
+- Fixed: Memba OS's DAO vote and proposal reviews now show the exact network fee, check it again just before the wallet opens, and send exactly that fee; a fee set in Settings is checked against what the network charges.
+
 ### Block Party: readable amber tiles (2026-10-01)
 - Fixed: in Memba OS's light theme, Block Party's amber tiles keep their numbers readable.
 

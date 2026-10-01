@@ -23,11 +23,24 @@ vi.mock("../../lib/dao/membaV2Shell", async (orig) => ({
     hasVotedOnV2: vi.fn(async () => chain.voted),
     findV2VoterChoice: vi.fn(async () => chain.choice),
 }))
+// A fresh quote at the reviewed price (1 ugnot per 1,000 gas, with 20% headroom) unless a test raises it.
+const quote = vi.hoisted(() => ({ ugnotPerThousandGas: 1 }))
+vi.mock("../../lib/grc20", async (orig) => ({
+    ...(await orig<typeof import("../../lib/grc20")>()),
+    freshFeeForGasWanted: vi.fn(async (gasWanted: number) => Math.ceil((gasWanted * 1.2 * quote.ugnotPerThousandGas) / 1000)),
+    networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: quote.ugnotPerThousandGas })),
+}))
+vi.mock("../../lib/dao/daoTx", async (orig) => ({
+    ...(await orig<typeof import("../../lib/dao/daoTx")>()),
+    broadcastDaoTx: vi.fn(async () => ({ hash: "HASH" })),
+}))
 vi.mock("../../lib/dao/v2Lifecycle", async (orig) => ({
     ...(await orig<typeof import("../../lib/dao/v2Lifecycle")>()),
     canVoteNow: vi.fn(() => chain.proposal.open),
 }))
 
+import { FALLBACK_GAS_PRICE } from "../../lib/grc20"
+import { broadcastDaoTx } from "../../lib/dao/daoTx"
 import { voteRequest, type VoteContext } from "./voteRequest"
 import type { ProposalView } from "./useOsDao"
 
@@ -36,7 +49,8 @@ const proposal: ProposalView = {
     whole: 10, unit: "power", tallyKnown: true, author: "g1author", endsAt: null, electorateVersion: 3, v2: null,
 }
 const ctx = (over: Partial<VoteContext> = {}): VoteContext => ({
-    kind: "memba-v2", realmPath: "gno.land/r/alice/team", daoName: "Team", proposal, caller: "g1member", electorateVersion: 3, power: 2, ...over,
+    kind: "memba-v2", realmPath: "gno.land/r/alice/team", daoName: "Team", proposal, caller: "g1member", electorateVersion: 3, power: 2,
+    gasPrice: { gas: 1000, ugnot: 1 }, ...over,
 })
 
 beforeEach(() => {
@@ -45,6 +59,8 @@ beforeEach(() => {
     chain.proposal = { electorate_version: 3, open: true }
     chain.voted = false
     chain.choice = null
+    quote.ugnotPerThousandGas = 1
+    localStorage.clear()
 })
 
 describe("voteRequest · version-2 re-checks (as on the classic proposal page)", () => {
@@ -96,5 +112,51 @@ describe("voteRequest · messages", () => {
         chain.proposal.open = false
         await expect(req.recheck!("No")).rejects.toThrow("no longer open")
         expect(req.verify).toBeUndefined()
+    })
+})
+
+describe("voteRequest · the network fee", () => {
+    it("shows the network price for the vote's gas limit, and sends exactly that fee", () => {
+        const req = voteRequest(ctx())
+        const lines = new Map(req.lines("Yes"))
+        expect(lines.get("Network fee")).toBe("0.018 GNOT")
+        expect(lines.get("Gas limit")).toBe("15,000,000")
+        expect(req.note).not.toMatch(/Adena shows/)
+    })
+
+    it("says when the price could not be read, and that the fee is re-checked before signing", () => {
+        const lines = new Map(voteRequest(ctx({ gasPrice: FALLBACK_GAS_PRICE })).lines("Yes"))
+        expect(lines.get("Network fee (price not read; re-checked before signing)")).toBe("0.018 GNOT")
+    })
+
+    it("sends exactly the fee shown, with the gas limit it pays for", async () => {
+        const req = voteRequest(ctx())
+        const beforeSign = async () => {}
+        await req.send("No", beforeSign)
+        expect(broadcastDaoTx).toHaveBeenCalledWith(expect.objectContaining({ gasWanted: 15_000_000 }), "Vote NO on proposal #7", beforeSign,
+            { approvedDepositUgnot: undefined, fee: { gasWanted: 15_000_000, gasFee: 18_000 } })
+    })
+
+    it("checks a fee set in Settings against what the chain charges, without Memba's headroom, and says to raise it there", async () => {
+        localStorage.setItem("memba_settings", JSON.stringify({ gasFee: 10_000, gasWanted: 10_000_000 }))
+        const req = voteRequest(ctx({ kind: "govdao", realmPath: "gno.land/r/gov/dao", electorateVersion: null, power: null }))
+        expect(new Map(req.lines("Yes")).get("Network fee (set in Settings)")).toBe("0.01 GNOT")
+        // 10,000,000 gas at 1 ugnot per 1,000 needs exactly 10,000: enough.
+        await expect(req.recheck!("Yes")).resolves.toBeUndefined()
+        quote.ugnotPerThousandGas = 2
+        await expect(req.recheck!("Yes")).rejects.toThrow("The fee set in Settings is below what the network now charges for this gas limit. Nothing was sent: raise it in Settings, then review again.")
+    })
+
+    it("shows the fee set in Settings for a DAO without a measured budget", () => {
+        const lines = new Map(voteRequest(ctx({ kind: "govdao", realmPath: "gno.land/r/gov/dao", electorateVersion: null, power: null })).lines("Yes"))
+        expect(lines.get("Network fee (set in Settings)")).toBe("1 GNOT")
+        expect(lines.get("Gas limit")).toBe("10,000,000")
+    })
+
+    it("stops before the wallet when a fresh quote no longer covers the fee shown", async () => {
+        const req = voteRequest(ctx())
+        await expect(req.recheck!("Yes")).resolves.toBeUndefined()
+        quote.ugnotPerThousandGas = 2
+        await expect(req.recheck!("Yes")).rejects.toThrow("The network fee increased since review")
     })
 })
