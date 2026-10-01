@@ -272,7 +272,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                             )}
                             <Rows rows={lines.map(([label, value]) => ({ label, value }))} />
                             {lines.some(([label]) => label === "Network fee") && (
-                                <p className="os-sub os-flush">Adena shows the fee it signs. It can differ from the figure above.</p>
+                                <p className="os-sub os-flush">Your wallet sets the fee it signs from its own gas estimate, usually lower than the figure above. Check the fee in Adena before you approve.</p>
                             )}
                             {(req.warns ?? []).map((w, i) => <p key={i} className="os-note os-warn">{w}</p>)}
                             {(req.acks ?? []).map((a, i) => (

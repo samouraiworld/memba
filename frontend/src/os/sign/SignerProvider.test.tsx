@@ -271,7 +271,7 @@ describe("OS signing session boundary", () => {
         })
     })
 
-    it("says once, for any request with a network fee line, that Adena shows the fee it signs", () => {
+    it("says once, for any request with a network fee line, that the wallet sets the fee it signs", () => {
         const withFee = { ...request, title: "Send", lines: () => [["To", "g1bob"], ["Network fee", "0.002 GNOT"]] as [string, string][] }
         function Reviews() {
             const signer = useSigner()
@@ -279,11 +279,11 @@ describe("OS signing session boundary", () => {
         }
         render(<SignerProvider session={session("member")} toast={vi.fn()}><Reviews /></SignerProvider>)
         fireEvent.click(screen.getByRole("button", { name: "With fee" }))
-        expect(screen.getAllByText("Adena shows the fee it signs. It can differ from the figure above.")).toHaveLength(1)
+        expect(screen.getAllByText("Your wallet sets the fee it signs from its own gas estimate, usually lower than the figure above. Check the fee in Adena before you approve.")).toHaveLength(1)
         fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
         fireEvent.click(screen.getByRole("button", { name: "Without fee" }))
         expect(screen.getByRole("dialog", { name: "Review · Vote" })).toBeInTheDocument()
-        expect(screen.queryByText(/Adena shows the fee it signs/)).toBeNull()
+        expect(screen.queryByText(/Your wallet sets the fee it signs/)).toBeNull()
     })
 
     it("contains transaction review focus and returns it to the invoking control", async () => {
