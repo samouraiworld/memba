@@ -522,16 +522,6 @@
     border-radius: 4px;
 }
 
-.val-active {
-    color: var(--color-k-accent-text);
-    background: rgba(0, 212, 170, 0.08);
-}
-
-.val-inactive {
-    color: var(--color-text-secondary);
-    background: var(--color-surface);
-}
-
 /* ── Toolbar Right ────────────────────────────────────────── */
 
 .val-toolbar-right {

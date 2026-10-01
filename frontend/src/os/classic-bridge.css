@@ -145,17 +145,12 @@
 .memba-os .os-classic .val-retry-btn:hover { background: var(--os-chip); }
 
 /* Real-data states a guest/e2e fixture never reaches (gated or empty in that mode):
- * validators.css .val-chain-badge and .val-profile-link (base + border),
- * dev-report's active nav/tab/filter pills, explorer's live-chain pulse. Bar
- * gradients (.val-power-mini-bar / .val-power-segment) go flat var(--os-acc)
- * rather than a two-stop gradient into --os-ok: the original was two shades of the
- * SAME teal (depth only), and --os-ok is a semantic success colour — mixing it in
- * would read as a health/status signal these bars don't carry. */
+ * validators.css .val-chain-badge, dev-report's active nav/tab/filter pills,
+ * explorer's live-chain pulse. The validator list, its candidates and their
+ * table, stats and paging are Memba OS's own Validators window: only the
+ * classic network tab, profiles and alerts still come through here. */
 .memba-os .os-classic .val-chain-badge { background: var(--os-chip); border-color: var(--os-acc); }
-.memba-os .os-classic .val-profile-link { border-color: var(--os-acc); }
-.memba-os .os-classic .val-profile-link:hover { border-color: var(--os-acc); background: var(--os-chip); }
-.memba-os .os-classic :is(.val-power-mini-bar, .val-power-segment) { background: var(--os-acc); }
-.memba-os .os-classic :is(.gl-subnav-link--active, .gl-tab--active, .gl-filter-btn--active, .val-active) { background: var(--os-chip); }
+.memba-os .os-classic :is(.gl-subnav-link--active, .gl-tab--active, .gl-filter-btn--active) { background: var(--os-chip); }
 /* explorer's live-chain dot: same Beta pulse as .animate-glow (index.css @keyframes
  * glow), applied directly rather than via that class — removed the same way. */
 .memba-os .os-classic .chain-metric__live { animation: none; }
@@ -167,18 +162,12 @@
 }
 .memba-os .os-classic :is(.gl-week-btn, .gl-export-btn):hover:not(:disabled) { border-color: var(--os-acc); }
 .memba-os .os-classic .gl-team-repo:hover { background: var(--os-chip); }
-.memba-os .os-classic :is(.gl-team-award, .gl-pagination-btn--active, .val-role-badge--validator, .val-valopers__count) { background: var(--os-chip); }
-.memba-os .os-classic :is(.gl-pagination-btn--active, .val-role-badge--validator, .val-valopers__count) { border-color: var(--os-acc); }
+.memba-os .os-classic :is(.gl-team-award, .gl-pagination-btn--active, .val-role-badge--validator) { background: var(--os-chip); }
+.memba-os .os-classic :is(.gl-pagination-btn--active, .val-role-badge--validator) { border-color: var(--os-acc); }
 .memba-os .os-classic .gl-view-btn--active { background: var(--os-chip); }
 .memba-os .os-classic .gl-thub-active-repo-pct { background: var(--os-chip); }
-.memba-os .os-classic :is(.val-stat-card, .val-stat-card--link):hover,
-.memba-os .os-classic .val-search:focus,
-.memba-os .os-classic .val-page-size:hover,
-.memba-os .os-classic .val-page-size:focus {
-  border-color: var(--os-acc);
-}
-.memba-os .os-classic .val-page-btn { border-color: var(--os-acc); background: var(--os-chip); }
-.memba-os .os-classic .val-page-btn:hover:not(:disabled) { border-color: var(--os-acc); background: var(--os-chip); }
+/* The network tab's node search. */
+.memba-os .os-classic .val-search:focus { border-color: var(--os-acc); }
 /* components/points/points.css .tier-badge--platinum reads --color-accent-teal
  * (tokens.css :root, #2dd4bf), a token this bridge doesn't otherwise alias. */
 .memba-os .os-classic .tier-badge--platinum { border-color: var(--os-acc); }
