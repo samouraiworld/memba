@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Token Launchpad in the Tokens window (2026-10-01)
+- The Tokens window shows Token Launchpad tokens, their fair sales, airdrops and vesting, and a member's balance and order, on networks where the Launchpad is published; elsewhere it says the Launchpad is not deployed there.
+
 ### Memba OS: Memba DAO treasury (2026-10-01)
 - A Memba DAO seat holder can propose, from the Treasury tab, moving the Market's or the App Store's fees to the treasury the DAO's policy names; it is offered only while the DAO controls that application, and the tab says why otherwise.
 

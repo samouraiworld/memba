@@ -1,16 +1,15 @@
-/** Structured reads for the unpublished samcrew Launchpad token realm.
- * No caller should infer deployment or enable writes from this source client.
+/** Structured reads of the Token Launchpad ledger, `r/samcrew/launchpad/tokens/v1`.
+ * Reads fail closed: off every network whose allowlist names the realm, and on a network switch.
  */
 import { isValidGnoAddressChecksum } from "./dao/address"
 import { queryEval, parseQevalJSON } from "./dao/shared"
 import { ACTIVE_NETWORK_KEY, currentNetworkKey, GNO_RPC_URL, isRealmValidOn } from "./config"
-import { decodeGoQuoted } from "./goQuote"
 import { AbciQueryError } from "./rpcFallback"
 
 export const TOKEN_LAUNCHPAD_PATH = "gno.land/r/samcrew/launchpad/tokens/v1"
 const MAX_INT64 = 9223372036854775807n
 const CFORD32 = "0123456789abcdefghjkmnpqrstvwxyz"
-export type TokenLaunchMode = "curve" | "direct_fixed" | "direct_capped" | "fairsale"
+export type TokenLaunchMode = "direct_fixed" | "direct_capped" | "fairsale"
 export type TokenLaunchpadReadErrorCode = "network_changed" | "realm_error" | "rpc_error" | "unavailable" | "invalid_response"
 
 export class TokenLaunchpadReadError extends Error {
@@ -24,6 +23,8 @@ export interface LaunchpadToken {
     id: string
     registryKey: string
     grc20Id: string
+    /** The realm that created the token and alone may mint it: the sales realm in release 1. */
+    issuer: string
     creator: string
     mode: TokenLaunchMode
     name: string
@@ -91,6 +92,7 @@ function registeredLedgerId(id: string): string {
     return `${TOKEN_LAUNCHPAD_PATH}.${id}.${suffix.join("")}`
 }
 
+// Keys the schema does not name are ignored, so the realm can add fields.
 /** Decode the exact TokenJSON/ListTokensJSON schema. Amounts must be decimal strings. */
 export function parseLaunchpadToken(value: unknown): LaunchpadToken {
     const row = record(value)
@@ -100,7 +102,7 @@ export function parseLaunchpadToken(value: unknown): LaunchpadToken {
     const grc20Id = stringField(row, "grc20Id")
     if (registryKey !== `${TOKEN_LAUNCHPAD_PATH}.${id}` || grc20Id !== registeredLedgerId(id)) invalid("token registry identity mismatch")
     const mode = stringField(row, "mode")
-    if (mode !== "curve" && mode !== "direct_fixed" && mode !== "direct_capped" && mode !== "fairsale") invalid("invalid mode")
+    if (mode !== "direct_fixed" && mode !== "direct_capped" && mode !== "fairsale") invalid("invalid mode")
     const decimals = row.decimals
     if (!Number.isInteger(decimals) || (decimals as number) < 0 || (decimals as number) > 12) invalid("invalid decimals")
     const initialSupply = decimalField(row, "initialSupply")
@@ -116,6 +118,7 @@ export function parseLaunchpadToken(value: unknown): LaunchpadToken {
         id,
         registryKey,
         grc20Id,
+        issuer: addressField(row, "issuer"),
         creator: addressField(row, "creator"),
         mode,
         name: stringField(row, "name"),
@@ -146,66 +149,51 @@ function parseQevalInt64(raw: string): bigint {
     return value
 }
 
-function parseQevalString(raw: string): string {
-    const match = raw.match(/^\(\s*("[\s\S]*")\s+string\s*\)\s*$/)
-    if (!match) invalid("invalid string result")
-    try { return decodeGoQuoted(match[1]) } catch { return invalid("invalid quoted string") }
-}
-
-export interface TokenPageBatch {
-    tokens: LaunchpadToken[]
-    /** The next zero-based page when the request budget ends on a full page. */
-    nextPage: number | null
-}
-
-/** No persistent cache: every call reads the active chain and detects network switches. */
-export class TokenLaunchpadClient {
-    readonly realmPath = TOKEN_LAUNCHPAD_PATH
-    constructor(readonly networkKey: string = ACTIVE_NETWORK_KEY) {}
-
-    private assertNetwork(): void {
+/**
+ * Reads one expression from a Launchpad realm on the network the caller was
+ * built for. A read on another network than the app's, or of a realm the
+ * network's allowlist does not name, fails before and after the RPC call.
+ */
+export async function readLaunchpad(networkKey: string, realmPath: string, expression: string): Promise<string> {
+    const assertNetwork = () => {
         // queryEval's RPC failover is tied to the app's active network. A client
         // captured before navigation must never read a different chain as its own.
-        if (this.networkKey !== ACTIVE_NETWORK_KEY || currentNetworkKey() !== this.networkKey) {
+        if (networkKey !== ACTIVE_NETWORK_KEY || currentNetworkKey() !== networkKey) {
             throw new TokenLaunchpadReadError("network_changed", "Launchpad network changed during read")
         }
-        if (!isRealmValidOn(this.networkKey, this.realmPath)) {
-            throw new TokenLaunchpadReadError("unavailable", "Launchpad token realm is not enabled on this network")
+        if (!isRealmValidOn(networkKey, realmPath)) {
+            throw new TokenLaunchpadReadError("unavailable", `${realmPath} is not enabled on this network`)
         }
     }
-
-    private async read(expression: string): Promise<string> {
-        this.assertNetwork()
-        let raw: string | null
-        try {
-            raw = await queryEval(GNO_RPC_URL, this.realmPath, expression, true)
-        } catch (error) {
-            this.assertNetwork()
-            if (error instanceof AbciQueryError) throw new TokenLaunchpadReadError("realm_error", "Launchpad realm rejected the read", { cause: error })
-            throw new TokenLaunchpadReadError("rpc_error", "Launchpad RPC read failed", { cause: error })
-        }
-        this.assertNetwork()
-        if (raw === null || raw === "") throw new TokenLaunchpadReadError("unavailable", "Launchpad realm returned no data")
-        return raw
+    assertNetwork()
+    let raw: string | null
+    try {
+        raw = await queryEval(GNO_RPC_URL, realmPath, expression, true)
+    } catch (error) {
+        assertNetwork()
+        if (error instanceof AbciQueryError) throw new TokenLaunchpadReadError("realm_error", `${realmPath} rejected the read`, { cause: error })
+        throw new TokenLaunchpadReadError("rpc_error", "Launchpad RPC read failed", { cause: error })
     }
+    assertNetwork()
+    if (raw === null || raw === "") throw new TokenLaunchpadReadError("unavailable", `${realmPath} returned no data`)
+    return raw
+}
 
-    private async json(expression: string): Promise<unknown> {
-        const parsed = parseQevalJSON(await this.read(expression))
-        if (parsed === null) invalid("malformed JSON return")
-        return parsed
-    }
+/** Reads a JSON view; the realm returns it as a Go string. */
+export async function readLaunchpadJSON(networkKey: string, realmPath: string, expression: string): Promise<unknown> {
+    const parsed = parseQevalJSON(await readLaunchpad(networkKey, realmPath, expression))
+    if (parsed === null) throw new TokenLaunchpadReadError("invalid_response", `${realmPath} returned malformed JSON`)
+    return parsed
+}
 
-    async token(id: string): Promise<LaunchpadToken> {
-        if (!/^T[1-9][0-9]{0,9}$/.test(id)) invalid("invalid requested id")
-        const token = parseLaunchpadToken(await this.json(`TokenJSON(${JSON.stringify(id)})`))
-        if (token.id !== id) invalid("token id mismatch")
-        return token
-    }
+/** Every read reaches the chain: no cache, so a network switch is always detected. */
+export class TokenLaunchpadClient {
+    constructor(readonly networkKey: string = ACTIVE_NETWORK_KEY) {}
 
     async listPage(page: number, size = 100): Promise<LaunchpadToken[]> {
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(size) || size < 1 || size > 100) invalid("invalid page request")
         if (BigInt(page) * BigInt(size) > MAX_INT64) invalid("page exceeds int64")
-        const tokens = parseTokenPage(await this.json(`ListTokensJSON(${page}, ${size})`), size)
+        const tokens = parseTokenPage(await readLaunchpadJSON(this.networkKey, TOKEN_LAUNCHPAD_PATH, `ListTokensJSON(${page}, ${size})`), size)
         const start = BigInt(page) * BigInt(size)
         for (let i = 0; i < tokens.length; i++) {
             if (tokens[i].id !== `T${start + BigInt(i) + 1n}`) invalid("token page has a gap or duplicate")
@@ -213,39 +201,8 @@ export class TokenLaunchpadClient {
         return tokens
     }
 
-    async list(startPage = 0, pageSize = 100, maxPages = 3): Promise<TokenPageBatch> {
-        if (!Number.isSafeInteger(maxPages) || maxPages < 1 || maxPages > 10) invalid("invalid page budget")
-        if (!Number.isSafeInteger(startPage) || startPage < 0 || !Number.isSafeInteger(startPage + maxPages)) invalid("invalid start page")
-        const tokens: LaunchpadToken[] = []
-        for (let offset = 0; offset < maxPages; offset++) {
-            const page = startPage + offset
-            if (!Number.isSafeInteger(page)) invalid("page overflow")
-            const part = await this.listPage(page, pageSize)
-            tokens.push(...part)
-            if (part.length < pageSize) return { tokens, nextPage: null }
-        }
-        return { tokens, nextPage: startPage + maxPages }
-    }
-
     async balanceOf(id: string, owner: string): Promise<bigint> {
         if (!/^T[1-9][0-9]{0,9}$/.test(id) || !isValidGnoAddressChecksum(owner)) invalid("invalid balance arguments")
-        return parseQevalInt64(await this.read(`BalanceOf(${JSON.stringify(id)}, address(${JSON.stringify(owner)}))`))
-    }
-
-    /** Separate count read; ListTokensJSON deliberately returns no total. */
-    async count(): Promise<bigint> {
-        return parseQevalInt64(await this.read("Count()"))
-    }
-
-    async totalSupply(id: string): Promise<bigint> {
-        if (!/^T[1-9][0-9]{0,9}$/.test(id)) invalid("invalid supply id")
-        return parseQevalInt64(await this.read(`TotalSupply(${JSON.stringify(id)})`))
-    }
-
-    async registryKeyOf(id: string): Promise<string> {
-        if (!/^T[1-9][0-9]{0,9}$/.test(id)) invalid("invalid registry id")
-        const key = parseQevalString(await this.read(`RegistryKeyOf(${JSON.stringify(id)})`))
-        if (key !== `${TOKEN_LAUNCHPAD_PATH}.${id}`) invalid("registry key mismatch")
-        return key
+        return parseQevalInt64(await readLaunchpad(this.networkKey, TOKEN_LAUNCHPAD_PATH, `BalanceOf(${JSON.stringify(id)}, address(${JSON.stringify(owner)}))`))
     }
 }

@@ -1,0 +1,6 @@
+.memba-os .os-tokens-list { display: grid; gap: 8px; }
+.memba-os .os-tokens-list .os-scard { width: 100%; }
+.memba-os .os-tokens-list .os-scard[aria-pressed="true"] { border-color: var(--os-acc); }
+.memba-os .os-tokens-facts { display: grid; grid-template-columns: minmax(105px, auto) minmax(0, 1fr); gap: 6px 12px; align-items: baseline; margin: 0; }
+.memba-os .os-tokens-facts dt { color: var(--os-mut); }
+.memba-os .os-tokens-facts dd { margin: 0; overflow-wrap: anywhere; }

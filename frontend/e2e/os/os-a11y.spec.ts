@@ -171,7 +171,7 @@ for (const scheme of ['light', 'dark'] as const) {
         test('tokens native unavailable window', async ({ page }) => {
             await page.goto(`${OS_ON}/os/tokens`)
             const tokens = page.getByRole('region', { name: 'Tokens', exact: true })
-            await expect(tokens.getByRole('note')).toContainText('factory is not deployed')
+            await expect(tokens.getByRole('note')).toContainText('Token Launchpad is not deployed')
             await expect(tokens.locator('.os-classic')).toHaveCount(0)
             expect(await violations(page)).toEqual([])
         })
