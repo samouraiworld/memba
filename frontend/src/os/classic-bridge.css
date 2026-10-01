@@ -28,6 +28,7 @@
   --color-k-amber-border: color-mix(in srgb, var(--os-warn) 35%, transparent);
   --color-k-warning: var(--os-warn);
   --color-k-warning-text: var(--os-warn);
+  --color-k-warning-fill: var(--os-warn-fill);
   --color-k-danger: var(--os-err);
   --color-k-danger-text: var(--os-err);
   --color-k-danger-tint: var(--os-err-bg);

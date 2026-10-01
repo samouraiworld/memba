@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party: readable amber tiles (2026-10-01)
+- Fixed: in Memba OS's light theme, Block Party's amber tiles keep their numbers readable.
+
 ### Curation inbox (backend, off until its key is set) (2026-10-01)
 - Curation inbox (backend, off until its key is set): a collection's founder and the curation managers share a private, encrypted message thread per collection; who may read or write is read from the curation realm on the chain at every request, from a caught-up node, and the answer must name the expected chain and be at most a minute old.
 - The curation inbox keeps messages 12 months: older ones are deleted at boot and then hourly.

@@ -125,9 +125,9 @@
   background: var(--color-k-accent);
 }
 .k-bp-tile[data-exp="10"] {
-  --bp-hue: var(--color-k-warning);
+  --bp-hue: var(--color-k-warning-fill);
   color: var(--color-k-on-govdao);
-  background: var(--color-k-warning);
+  background: var(--color-k-warning-fill);
 }
 .k-bp-tile[data-exp="11"] {
   --bp-hue: var(--color-k-govdao);
@@ -137,7 +137,7 @@
 .k-bp-tile[data-tier="super"] {
   --bp-hue: var(--color-k-govdao);
   color: var(--color-k-on-govdao);
-  background: linear-gradient(145deg, var(--color-k-govdao), var(--color-k-warning));
+  background: linear-gradient(145deg, var(--color-k-govdao), var(--color-k-warning-fill));
 }
 .k-bp-tile::before,
 .k-bp-tile::after {

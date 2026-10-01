@@ -32,6 +32,7 @@
   --os-ok-bg: #E1F5EC;
   --os-warn: #A34A07; /* 5.3:1 on --os-warn-bg (WCAG AA) */
   --os-warn-bg: #FEF0DC;
+  --os-warn-fill: #F59E0B; /* amber as a FILL under dark ink (8.6:1 with #1a1200); --os-warn is the text shade */
   --os-err: #B72B2B;
   --os-err-bg: rgba(217, 58, 58, .1);
   --os-rim: rgba(255, 255, 255, .6);
@@ -90,6 +91,7 @@
   --os-ok-bg: rgba(94, 211, 164, .14);
   --os-warn: #F6B25E;
   --os-warn-bg: rgba(246, 178, 94, .15);
+  --os-warn-fill: #F6B25E;
   --os-err: #FF8A8A;
   --os-err-bg: rgba(255, 120, 120, .12);
   --os-rim: rgba(255, 255, 255, .08);
