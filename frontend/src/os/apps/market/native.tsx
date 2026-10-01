@@ -9,12 +9,12 @@
  *
  * @module os/apps/market/native
  */
-import { useEffect, useRef } from "react"
+import { Suspense, useEffect, useRef } from "react"
 import type { NativeViewProps } from "../../native/types"
 import { GNO_CHAIN_ID, NETWORKS } from "../../../lib/config"
 import { getLiveLanes } from "../../../lib/marketplace/lanes"
 import type { AssetType } from "../../../lib/marketplace/types"
-import { Card, CardGrid, Pill } from "../../kit"
+import { Card, CardGrid, Loading, Pill } from "../../kit"
 import { sectionForClassic } from "../../page/classicRoute"
 import { Icon, type IconName } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
@@ -49,7 +49,8 @@ export default function MarketWindow({ section, session, open, fallback }: Nativ
                 <div className="os-row os-tight-row">
                     <button ref={back} type="button" className="os-btn os-quiet" onClick={() => go(null)}><span aria-hidden="true">←</span> Market lanes</button>
                 </div>
-                {fallback}
+                {/* Its own boundary: a classic page still loading must not hide, and so unfocus, the control above it. */}
+                <Suspense fallback={<Loading />}>{fallback}</Suspense>
             </>
         )
     }

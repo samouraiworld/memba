@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
+import { Suspense } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NETWORKS } from "../../../lib/config"
 import { classicForSection } from "../../page/classicRoute"
@@ -90,6 +91,23 @@ describe("Market window", () => {
 
         fireEvent.click(screen.getByRole("button", { name: "Market lanes" }))
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "app:market", target: { kind: "app", app: "market", section: null } }))
+    })
+
+    it("keeps the home control shown and focused while the classic page it opened is still loading", () => {
+        live("service")
+        // A classic page whose chunk has not arrived, inside a boundary like the window frame's.
+        let arrive = () => {}
+        const pending = new Promise<void>((resolve) => { arrive = resolve })
+        let loaded = false
+        function SlowPage(): JSX.Element { if (!loaded) throw pending; return <p>classic page</p> }
+        const open = vi.fn<(spec: WindowSpec) => void>()
+        const view = (section: string | null) => <Suspense fallback={<p>window loading</p>}><MarketWindow {...base} fallback={<SlowPage />} section={section} open={open} /></Suspense>
+        const { rerender } = render(view(null))
+        fireEvent.click(screen.getByRole("button", { name: /Services/ }))
+        rerender(view(sectionOf(open.mock.calls[0][0])))
+        expect(screen.queryByText("window loading")).toBeNull()
+        expect(screen.getByRole("button", { name: "Market lanes" })).toHaveFocus()
+        act(() => { loaded = true; arrive() })
     })
 
     it("carries focus into the view a card or the home control opens, instead of dropping it on the page", () => {
