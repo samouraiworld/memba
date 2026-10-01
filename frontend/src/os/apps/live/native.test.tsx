@@ -16,7 +16,7 @@ vi.mock("../../../hooks/home/useNow", () => ({ useNow: vi.fn() }))
 const mockActivity = vi.mocked(useRecentActivity)
 const now = Date.parse("2026-09-27T12:00:00Z")
 const refetch = vi.fn()
-const session = { network: { key: "mainnet", chainId: "gnoland1" } } as NativeViewProps["session"]
+const session = { network: { key: "mainnet", chainId: "gnoland-1" } } as NativeViewProps["session"]
 const props = { section: null, session, fallback: <span>Fallback</span> } as NativeViewProps
 const live = (children: ReactNode) => <LiveActivityProvider networkKey="mainnet" active>{children}</LiveActivityProvider>
 
@@ -58,7 +58,7 @@ describe("Live activity", () => {
         render(live(<><LiveWindow {...props} /><LiveTicker onOpen={onOpen} /></>))
         expect(screen.getAllByText("Voted on governance")).toHaveLength(2)
         expect(screen.getByText("Block 123")).toBeInTheDocument()
-        expect(screen.getByRole("link", { name: /Transaction/ })).toHaveAttribute("href", `https://gnoscan.io/transactions/details?txhash=${"a".repeat(64)}&chainId=gnoland1`)
+        expect(screen.getByRole("link", { name: /Transaction/ })).toHaveAttribute("href", `https://gnoscan.io/transactions/details?txhash=${"a".repeat(64)}&chainId=gnoland-1`)
         fireEvent.click(screen.getByRole("button", { name: /Open Live activity/ }))
         expect(onOpen).toHaveBeenCalledTimes(1)
         expect(mockActivity).toHaveBeenCalledTimes(1)

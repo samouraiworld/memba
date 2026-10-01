@@ -29,19 +29,20 @@ describe("normalizeTxHashHex", () => {
 
 describe("txExplorerUrl", () => {
     it("builds the chain-aware gnoscan transaction URL from either hash shape", () => {
-        expect(txExplorerUrl(HEX, "pearl-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=pearl-1`)
-        expect(txExplorerUrl(B64, "pearl-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=pearl-1`)
-        expect(txExplorerUrl(HEX, "gnoland1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=gnoland1`)
-        // Mainnet as gnoscan names it today.
+        expect(txExplorerUrl(HEX, "gnoland-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=gnoland-1`)
         expect(txExplorerUrl(B64, "gnoland-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=gnoland-1`)
+        expect(txExplorerUrl(HEX, "staging")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=staging`)
     })
     it("returns null for an unrecognized hash (caller renders plain text)", () => {
-        expect(txExplorerUrl("abc123def456789012345678", "pearl-1")).toBeNull()
-        expect(txExplorerUrl("", "pearl-1")).toBeNull()
+        expect(txExplorerUrl("abc123def456789012345678", "gnoland-1")).toBeNull()
+        expect(txExplorerUrl("", "gnoland-1")).toBeNull()
     })
     it("returns null for a chain gnoscan does not index (a dead link is worse than none)", () => {
         expect(txExplorerUrl(HEX, "test-13")).toBeNull()
         expect(txExplorerUrl(HEX, "")).toBeNull()
-        expect(GNOSCAN_CHAIN_IDS).toContain("pearl-1")
+        // Chains gnoscan dropped: their links would be dead.
+        expect(txExplorerUrl(HEX, "pearl-1")).toBeNull()
+        expect(txExplorerUrl(HEX, "gnoland1")).toBeNull()
+        expect(GNOSCAN_CHAIN_IDS).toEqual(["gnoland-1", "staging"])
     })
 })

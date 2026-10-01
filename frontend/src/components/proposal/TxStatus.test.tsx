@@ -11,11 +11,11 @@ describe("TxStatus", () => {
     })
 
     it("walks through wallet, block and confirmed", () => {
-        const { rerender } = render(<TxStatus state={{ phase: "wallet" }} chainId="pearl-1" />)
+        const { rerender } = render(<TxStatus state={{ phase: "wallet" }} chainId="gnoland-1" />)
         expect(screen.getByRole("status")).toHaveTextContent("Approve the transaction in your wallet")
-        rerender(<TxStatus state={{ phase: "block", hash: HASH }} chainId="pearl-1" />)
+        rerender(<TxStatus state={{ phase: "block", hash: HASH }} chainId="gnoland-1" />)
         expect(screen.getByRole("status")).toHaveTextContent("Waiting for the block")
-        rerender(<TxStatus state={{ phase: "confirmed", hash: HASH, message: "Vote recorded." }} chainId="pearl-1" />)
+        rerender(<TxStatus state={{ phase: "confirmed", hash: HASH, message: "Vote recorded." }} chainId="gnoland-1" />)
         expect(screen.getByRole("status")).toHaveTextContent("ConfirmedVote recorded.")
         expect(screen.getByRole("link", { name: HASH })).toHaveAttribute("href", expect.stringContaining(`txhash=${HASH}`))
     })

@@ -4,8 +4,8 @@
  * gnoweb (the per-network `explorerUrl` in `lib/config`) serves realms and
  * users but has NO `/tx/<hash>` route, so a gnoweb-based transaction link has
  * never resolved. gnoscan does index transactions and is chain-aware
- * (`?chainId=…`; its bundle ships `pearl-1`, `gnoland1` and `staging` as the
- * selectable chains — {@link GNOSCAN_CHAIN_IDS}), so that is the target.
+ * (`?chainId=…`; its bundle ships `gnoland-1` and `staging` as the selectable
+ * chains — {@link GNOSCAN_CHAIN_IDS}), so that is the target.
  *
  * Wallets disagree on the hash encoding: Adena ≥1.20.5 returns lowercase hex,
  * older Adena and a raw `broadcast_tx_commit` reply return base64 of the same
@@ -17,8 +17,8 @@
  * @module lib/txExplorerUrl
  */
 
-/** Chain ids gnoscan's chain selector knows (read from its shipped bundle, 2026-09-07; gnoland-1 found there 2026-10-01). */
-export const GNOSCAN_CHAIN_IDS: readonly string[] = ["gnoland-1", "pearl-1", "gnoland1", "staging"]
+/** Chain ids gnoscan's chain selector knows (read from its shipped bundle, 2026-10-01). */
+export const GNOSCAN_CHAIN_IDS: readonly string[] = ["gnoland-1", "staging"]
 
 const HEX_64 = /^(0x|0X)?[0-9a-fA-F]{64}$/
 // 32 bytes → exactly 44 base64 chars with one pad char.

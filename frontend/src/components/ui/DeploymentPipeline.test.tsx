@@ -5,7 +5,7 @@ import { DeploymentPipeline, type DeploymentPipelineProps } from "./DeploymentPi
 // Mock config module to avoid import issues in test env
 vi.mock("../../lib/config", () => ({
     getExplorerBaseUrl: () => "https://pearl.testnets.gno.land",
-    GNO_CHAIN_ID: "pearl-1",
+    GNO_CHAIN_ID: "gnoland-1",
 }))
 
 // 32-byte hash in both wallet shapes: Adena ≥1.20.5 hands back lowercase hex,
@@ -76,7 +76,7 @@ describe("DeploymentPipeline", () => {
         const txLink = screen.getByText("0001020304050607…")
         expect(txLink.closest("a")).toHaveAttribute(
             "href",
-            `https://gnoscan.io/transactions/details?txhash=${TX_HEX}&chainId=pearl-1`,
+            `https://gnoscan.io/transactions/details?txhash=${TX_HEX}&chainId=gnoland-1`,
         )
     })
 
@@ -91,7 +91,7 @@ describe("DeploymentPipeline", () => {
         const txLink = screen.getByText("0001020304050607…")
         expect(txLink.closest("a")).toHaveAttribute(
             "href",
-            `https://gnoscan.io/transactions/details?txhash=${TX_HEX}&chainId=pearl-1`,
+            `https://gnoscan.io/transactions/details?txhash=${TX_HEX}&chainId=gnoland-1`,
         )
     })
 

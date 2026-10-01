@@ -23,6 +23,7 @@ Full changelogs are split by version range for easier navigation:
 ### Memba OS: who voted, and what a multisig received (2026-10-02)
 - A proposal window in Memba OS now lists who voted and how, read from the chain, for Memba DAO (every seat, with its points) and for DAOs made from Memba's template (every voter, with their voting power). Guests see it too.
 - A multisig's window lists what it received and sent on chain, for guests too, names the proposal a send executed, and links each transaction on gnoscan; a validator's activity now says when a transfer was received.
+- Transaction links open on gnoscan only for the networks it shows today (mainnet and staging).
 
 ### Memba OS: multisig receipts (2026-10-02)
 - Fixed: Memba no longer sends a multisig transaction when its server cannot check the chain; it checks receipts on Memba's own node, with the public RPC as a fallback that can only confirm, retries over two blocks, says why a broadcast could not be recorded, and shows a recorded transaction as executed or failed instead of ready to broadcast.
