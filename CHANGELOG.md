@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: multisig window (2026-10-01)
+- Fixed: the multisig window no longer tells you that you are not a member when the address is a single-key account.
+
 ### Memba OS: DAO creation tells the truth (2026-10-01)
 - Fixed: a DAO deploy the network ran and refused now shows as refused in the signing tray, instead of staying unconfirmed.
 - Fixed: creating a DAO in Memba OS checks your balance for the network fee and the most the storage deposit can take, says when the deposit leaves your balance, always gives the DAO a valid address, and reports a deploy waiting for network approval the same way in the wizard and the signing tray.

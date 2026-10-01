@@ -142,7 +142,8 @@ export function MultisigWindow({ address, session, open }: { address: string; se
                 : kind.isError ? <p className="os-sub" role="status">Couldn't check this address on chain. <button type="button" className="os-btn os-quiet os-inline" onClick={() => void kind.refetch()}>Try again</button></p>
                 : kind.data === "multisig" ? <div className="os-row">{copyButton}</div>
                 : <p className="os-sub" role="status">{kind.data === "unused" ? "Not yet confirmed as a multisig on chain: nothing has been signed from this address." : "This address is a single-key account, not a multisig."}</p>}
-            {session.status !== "member" ? <ConnectHere session={session} text="A multisig's members see its members, threshold and transactions here. Connect a wallet to see them." />
+            {kind.data === "single" ? null
+                : session.status !== "member" ? <ConnectHere session={session} text="A multisig's members see its members, threshold and transactions here. Connect a wallet to see them." />
                 : notMember ? <p className="os-sub" role="status">You are not a member of this multisig.</p>
                 : <p className="os-sub" role="status">This multisig is not registered in Memba for your account. <button type="button" className="os-btn os-quiet os-inline" onClick={() => open(page("import"))}>Import it</button></p>}
         </div>

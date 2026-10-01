@@ -20,6 +20,8 @@ const pending = { id: 7, multisigAddress: MSIG, chainId: 'gnoland-1', msgsJson: 
 const ready = { ...pending, id: 9, memo: 'payroll', signatures: [{ userAddress: BOB, value: 'x' }, { userAddress: CAROL, value: 'z' }] }
 const done = { ...pending, id: 3, memo: '', finalHash: 'ABCDEF0123456789', signatures: [{ userAddress: BOB, value: 'x' }, { userAddress: ALICE, value: 'y' }] }
 
+const onChain = (address: string, type: string) => JSON.stringify({ BaseAccount: { address, pub_key: { '@type': type }, account_number: '5', sequence: '1' } })
+
 async function setup(page: Page) {
     await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
@@ -31,6 +33,7 @@ async function setup(page: Page) {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"42000000ugnot"'
         if (method === 'abci_query' && path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+        if (method === 'abci_query' && path === `auth/accounts/${CAROL}`) return onChain(CAROL, '/tm.PubKeySecp256k1')
         return null
     })
     await page.addInitScript(({ address }) => {
@@ -78,7 +81,6 @@ test.describe('Memba OS multisig', () => {
 
     test('a guest sees the Multisig app and an account’s address and balance, named by the chain, and is asked to connect only where their own data would be', async ({ page }) => {
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
-        const onChain = (address: string, type: string) => JSON.stringify({ BaseAccount: { address, pub_key: { '@type': type }, account_number: '5', sequence: '1' } })
         await fulfillOnchainReads(page, ({ method, path }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"42000000ugnot"'
@@ -108,6 +110,8 @@ test.describe('Memba OS multisig', () => {
             await expect(other.getByText('Account', { exact: true })).toBeVisible()
             await expect(other.getByText('42 GNOT')).toBeVisible()
             await expect(other.getByRole('button', { name: /deposit address/ })).toHaveCount(0)
+            // Only an address that may be a multisig has members to connect for.
+            await expect(other.getByText("A multisig's members see")).toHaveCount(address === ALICE ? 0 : 1)
         }
 
         await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
@@ -124,6 +128,12 @@ test.describe('Memba OS multisig', () => {
         await expect(account.getByText(MSIG)).toBeVisible()
         await expect(account.getByText('42 GNOT')).toBeVisible()
         await expect(account.getByText("Couldn't load this multisig.")).toHaveCount(0)
+
+        // A single key has no members: the chain's word stands alone.
+        await page.goto(`${OS_ON}/os/multisig/${CAROL}`)
+        const single = win(page, `Multisig ${CAROL.slice(0, 8)}…${CAROL.slice(-4)}`)
+        await expect(single.getByText('This address is a single-key account, not a multisig.')).toBeVisible()
+        await expect(single.getByText('You are not a member of this multisig.')).toHaveCount(0)
     })
 
     test('a guest opens the import and creation forms, each with its own connect prompt and a disabled submit', async ({ page }) => {
