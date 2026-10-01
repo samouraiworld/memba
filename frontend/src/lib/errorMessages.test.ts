@@ -2,7 +2,7 @@
  * Unit tests for errorMessages.ts — user-friendly error translation.
  */
 import { describe, it, expect } from "vitest"
-import { friendlyError, extractMessage, isUserCancellation } from "./errorMessages"
+import { friendlyError, extractMessage } from "./errorMessages"
 
 describe("friendlyError", () => {
     // ── Chain / ABCI errors ──────────────────────────────
@@ -271,19 +271,5 @@ describe("extractMessage", () => {
 
     it("handles null", () => {
         expect(extractMessage(null)).toBe("")
-    })
-})
-
-describe("isUserCancellation", () => {
-    it("detects user rejected", () => {
-        expect(isUserCancellation("User rejected the request")).toBe(true)
-    })
-
-    it("detects user denied", () => {
-        expect(isUserCancellation(new Error("user denied"))).toBe(true)
-    })
-
-    it("returns false for real errors", () => {
-        expect(isUserCancellation("out of gas")).toBe(false)
     })
 })

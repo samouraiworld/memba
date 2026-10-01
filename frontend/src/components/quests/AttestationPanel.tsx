@@ -23,7 +23,8 @@ import {
     type AttestationState,
 } from "../../lib/attestation"
 import { doContractBroadcast } from "../../lib/grc20"
-import { isUserCancellation, friendlyError } from "../../lib/errorMessages"
+import { friendlyError } from "../../lib/errorMessages"
+import { isUserCancellation } from "../../lib/userCancellation"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import "./attestationpanel.css"
 

@@ -1,7 +1,9 @@
 import { useState } from "react"
 import { ShieldCheck, ArrowRight, Wallet, Spinner } from "@phosphor-icons/react"
-import { doContractBroadcast } from "../../lib/grc20"
-import { ACTIVATION_PROFILE_REALM } from "../../lib/config"
+import { doContractBroadcast, networkGasPriceFresh } from "../../lib/grc20"
+import { ACTIVATION_MEMO, ACTIVATION_SEND_UGNOT, activationCosts, activationMsgs } from "../../lib/activation"
+import { formatUgnotExact } from "../../lib/dao/v2Budget"
+import { isUserCancellation } from "../../lib/userCancellation"
 import "./ActivationModal.css"
 
 interface ActivationModalProps {
@@ -31,32 +33,19 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
         setActivating(true)
         setError(null)
         try {
-            // W2.1: ride the guarded broadcaster — RPC-trust, wrong-chain and
-            // A6 confirmation apply to activation like any write. Any first
-            // transaction registers the key. (#1078's refusal was an old
-            // `bank/MsgSend` with an array amount; Adena accepts `/bank.MsgSend`
-            // with a string amount, which Memba OS's activation uses.) The realm VALIDATES field names against its
-            // schema (custom keys panic — owner-observed in Adena's gas sim),
-            // so this writes the schema's own "Bio" field with an EMPTY value:
-            // an activating account is untransacted by definition, so there is
-            // no existing profile to clobber, and "" renders as nothing.
-            await doContractBroadcast(
-                [{
-                    type: "vm/MsgCall",
-                    value: {
-                        caller: address,
-                        send: "",
-                        pkg_path: ACTIVATION_PROFILE_REALM,
-                        func: "SetStringField",
-                        args: ["Bio", ""],
-                    },
-                }],
-                "Memba Network Activation",
-            )
-
+            // W2.1: the guarded broadcaster, so RPC trust, the chain check and
+            // the confirmation dialog apply as to any write. The fee is read at
+            // the network's price now; the balance must hold it and the 1 ugnot.
+            let price
+            try { price = await networkGasPriceFresh() } catch { throw new Error("Couldn't read the network fee. Nothing was sent; try again in a moment.") }
+            const { gasWanted, feeUgnot } = activationCosts(price)
+            const needed = BigInt(feeUgnot) + ACTIVATION_SEND_UGNOT
+            if (checkedUgnot < needed) throw new Error(`Activation needs at least ${formatUgnotExact(Number(needed))}: the network fee and the 1 ugnot sent to yourself. Add GNOT to this address, then activate.`)
+            await doContractBroadcast(activationMsgs(address), ACTIVATION_MEMO, { gasWanted, gasFee: feeUgnot })
             onSuccess()
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err))
+            // A cancel in the confirmation dialog or a reject in Adena sends nothing.
+            setError(isUserCancellation(err) ? "Activation cancelled. Nothing was sent." : err instanceof Error ? err.message : String(err))
         } finally {
             setActivating(false)
         }
@@ -90,7 +79,7 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
                             <div className="step-number">2</div>
                             <div className="step-text">
                                 <strong>What happens?</strong>
-                                <span>A small note is written to your own on-chain profile — nothing is sent anywhere. Memba will automatically sign you in right after.</span>
+                                <span>Memba sends 1 ugnot from your address to itself. Only the network fee is spent, and nothing is written to any realm or profile. Adena shows it as a Transfer without its recipient or amount. Memba signs you in right after.</span>
                             </div>
                         </div>
                     </div>

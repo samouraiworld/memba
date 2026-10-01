@@ -1163,27 +1163,16 @@ export function getTelemetryRpcUrls(): string[] {
 export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /**
- * Realm the wallet-activation flow calls to register a fresh wallet's pubkey
- * on-chain (issue #1078). Any first transaction registers the key; this one is
- * chosen because Adena's DoContract only accepts VM message types (the old
- * bank/MsgSend self-send was rejected wholesale), and this vendored realm's
- * SetStringField writes a per-CALLER field — no cross-user effect, dust gas —
- * and ships in the same ceremony manifest as the rest of Memba, so it exists
- * on every chain the app serves by construction (sapphire: seq/height in
- * realm-versions.json; signature + field schema read back from the deployed
- * source via vm/qfile 2026-08-16). NOTE the realm validates field names — the
- * activation call must use a field from ITS schema ("Bio"), never an invented
- * key ("unknown string profile field" panic, caught live in Adena's gas sim).
+ * The profile realm Memba OS reads and publishes profiles in: SetStringField
+ * writes a field of the CALLER's own profile, no cross-user effect.
  */
-export function activationRealmFor(networkKey: string): string {
+export function profileRealmFor(networkKey: string): string {
     // Mainnet and Onyx have no samcrew deps/demo/profile vendor copy; gno core's
     // own gno.land/r/demo/profile is live on both with the same SetStringField
-    // and a schema that includes "Bio" (read back from the deployed source:
-    // gnoland-1 2026-09-23, onyx-1 2026-09-30).
-    return import.meta.env.VITE_ACTIVATION_REALM_PATH
+    // (read back from the deployed source: gnoland-1 2026-09-23, onyx-1 2026-09-30).
+    return import.meta.env.VITE_PROFILE_REALM_PATH
         || (networkKey === "mainnet" || networkKey === "onyx" ? "gno.land/r/demo/profile" : "gno.land/r/samcrew/deps/demo/profile")
 }
-export const ACTIVATION_PROFILE_REALM = activationRealmFor(ACTIVE_NETWORK_KEY)
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {

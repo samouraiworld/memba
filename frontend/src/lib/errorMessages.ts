@@ -340,12 +340,3 @@ export function extractMessage(error: unknown): string {
     }
     return ""
 }
-
-/**
- * Check if an error indicates the user intentionally cancelled.
- * Useful for suppressing error UI on user-initiated cancellations.
- */
-export function isUserCancellation(error: unknown): boolean {
-    const msg = extractMessage(error).toLowerCase()
-    return msg.includes("user rejected") || msg.includes("user denied") || msg.includes("cancelled")
-}

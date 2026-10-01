@@ -58,13 +58,11 @@
 > untransacted: no on-chain pubkey, so Adena refuses dapp-side signing and the app falls back to an
 > address-only login that enforced signed auth (correctly) rejects — the FIRST sign-in of every
 > user hits it. Handled in product since #1073/#1079: the refusal carries `AUTH-ACTIVATE-01` and
-> opens the activation flow. In Memba OS it sends 1 ugnot from the address to itself (`/bank.MsgSend`
-> with a string amount, which Adena accepts; #1078's refusal was an old `bank/MsgSend` with an array
-> amount): the network fee only, no storage deposit. The classic page still writes an empty Bio on
-> `ACTIVATION_PROFILE_REALM` (a ~0.21 GNOT storage deposit). Cutover checklist consequences: while the
-> classic flow exists, the activation realm (`r/samcrew/deps/demo/profile`) must be IN the ceremony
-> manifest of any new chain; the faucet must be live before the flag flip (activation needs gas), and
-> the first E2 sign-in after any cutover must be done with a FRESH wallet account, not a carried-over
+> opens the activation flow. Memba OS and the classic page both send 1 ugnot from the address to
+> itself (`/bank.MsgSend` with a string amount, which Adena accepts; #1078's refusal was an old
+> `bank/MsgSend` with an array amount): the network fee only, no storage deposit, no realm. Cutover
+> checklist consequences: the faucet must be live before the flag flip (activation needs gas), and the
+> first E2 sign-in after any cutover must be done with a FRESH wallet account, not a carried-over
 > transacted one.
 
 ### Critical environment variables

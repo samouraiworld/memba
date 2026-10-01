@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { formatSend } from "../sign/decode"
-import { ACTIVATION_SEND_UGNOT } from "./activation"
+import { ACTIVATION_SEND_UGNOT } from "../../lib/activation"
 // Adena's own app icon, unaltered, from its brand kit (docs.adena.app → Resources → Brand Assets → Download Logo, "app icon").
 import adenaLogo from "./adena-logo.svg"
 import { shortAddr } from "./format"

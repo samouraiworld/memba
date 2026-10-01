@@ -21,7 +21,8 @@ import type { LayoutContext } from "../../types/layout"
 import { signInWithWallet } from "./walletLogin"
 import { accountMark, accountMarkAfterBlocks } from "../sign/accountMark"
 import { executeSignature } from "../sign/signer"
-import { ACTIVATION_SEND_UGNOT, activationCosts, activationRequest } from "./activation"
+import { ACTIVATION_SEND_UGNOT, activationCosts } from "../../lib/activation"
+import { activationRequest } from "./activation"
 
 export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait"
 

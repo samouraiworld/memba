@@ -41,6 +41,7 @@ import {
     getTokenDecimals,
     __resetTokenDecimalsCache,
 } from './grc20'
+import { ACTIVATION_MEMO, activationMsgs } from './activation'
 import { GNO_CHAIN_ID } from './config'
 import { liveWallet } from '../test/walletStub'
 import * as Sentry from '@sentry/react'
@@ -558,8 +559,10 @@ describe('doContractBroadcast — OS member boundary', () => {
         ;(window as any).adena = { ...liveWallet({ address }), DoContract: doContract }
         setWalletActionGuard(() => false)
         // 1 ugnot from the connected address to itself: the key is registered, nothing else changes.
-        const activation = { type: '/bank.MsgSend', value: { from_address: address, to_address: address, amount: '1ugnot' } }
-        await expect(doContractBroadcast([activation], 'Memba Network Activation', { osActivation: true })).resolves.toMatchObject({ hash: 'ACT' })
+        // The message and memo the activation really sends: changing either must fail here.
+        const [activation] = activationMsgs(address)
+        expect(activation).toEqual({ type: '/bank.MsgSend', value: { from_address: address, to_address: address, amount: '1ugnot' } })
+        await expect(doContractBroadcast(activationMsgs(address), ACTIVATION_MEMO, { osActivation: true })).resolves.toMatchObject({ hash: 'ACT' })
         expect(doContract).toHaveBeenCalledOnce()
         const other = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
         for (const value of [

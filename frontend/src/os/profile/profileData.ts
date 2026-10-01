@@ -1,12 +1,12 @@
 /** Public profile reads from the deployed caller-keyed profile realm. */
-import { activationRealmFor, ACTIVE_NETWORK_KEY } from "../../lib/config"
+import { ACTIVE_NETWORK_KEY, profileRealmFor } from "../../lib/config"
 import { isValidGnoAddressChecksum } from "../../lib/dao/address"
 import { assertActiveRpcChain } from "../../lib/dao/chainIdentity"
 import { decodeGoQuoted } from "../../lib/goQuote"
 import { resilientAbciQuery } from "../../lib/rpcFallback"
 
 export const PROFILE_DOCUMENT_FIELD = "memba.profile.v1"
-export const PROFILE_REALM = activationRealmFor(ACTIVE_NETWORK_KEY)
+export const PROFILE_REALM = profileRealmFor(ACTIVE_NETWORK_KEY)
 const ABSENT = "__memba_profile_absent_7c4d93a3__"
 export const CORE_FIELDS = {
     displayName: "DisplayName",

@@ -26,7 +26,7 @@ import {
     FEED_INDEXED_NETWORK,
     selectableNetworksFor,
     reviewsPathFor,
-    activationRealmFor,
+    profileRealmFor,
     isReviewsAvailable,
     isRealmValid,
     ACTIVE_NETWORK_KEY,
@@ -210,11 +210,11 @@ describe('config constants', () => {
         }
     })
 
-    it('activates new wallets through a profile realm that is live on each network', () => {
-        expect(activationRealmFor('mainnet')).toBe('gno.land/r/demo/profile')
+    it('reads profiles from a profile realm that is live on each network', () => {
+        expect(profileRealmFor('mainnet')).toBe('gno.land/r/demo/profile')
         // onyx-1 has gno core's realm and not the samcrew vendor copy (vm/qfuncs, 2026-09-30).
-        expect(activationRealmFor('onyx')).toBe('gno.land/r/demo/profile')
-        expect(activationRealmFor('pearl')).toBe('gno.land/r/samcrew/deps/demo/profile')
+        expect(profileRealmFor('onyx')).toBe('gno.land/r/demo/profile')
+        expect(profileRealmFor('pearl')).toBe('gno.land/r/samcrew/deps/demo/profile')
     })
 
     it('chooses the reviews realm per network and gates review surfaces on it', () => {

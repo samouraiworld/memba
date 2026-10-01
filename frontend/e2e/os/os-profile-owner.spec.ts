@@ -92,7 +92,7 @@ async function editBioAndLocation(page: Page) {
 
 test.describe('Memba OS profile, as its owner', () => {
     test('publishing states the deposit and fee, and Adena gets capped calls with that gas limit and fee', async ({ page }) => {
-        // Wallet activation left an empty Bio, so Bio is a rewrite and Location a first write.
+        // A wallet activated before 2026-10-01 has an empty Bio, so Bio is a rewrite and Location a first write.
         await owner(page, 'ok', { DisplayName: 'Alice on Gno', Bio: '' })
         const { profile, review } = await editBioAndLocation(page)
         await expect(review.getByText('≈ 0.2274 GNOT (cap 0.47 GNOT)')).toBeVisible()

@@ -107,6 +107,11 @@ function TxConfirmationModal({
     // Parse transaction effects from messages
     const effects = messages.map((msg, i) => {
         const v = msg.value as Record<string, unknown>
+        if (msg.type === "/bank.MsgSend") {
+            const amount = String(v.amount ?? "")
+            const ugnot = /^(\d+)ugnot$/.exec(amount)
+            return { index: i, func: "Transfer", caller: String(v.from_address ?? ""), to: String(v.to_address ?? ""), send: ugnot ? formatUgnotExact(Number(ugnot[1])) : amount, args: [] as string[], pkgPath: "", depositCap: undefined }
+        }
         const deploy = deployEffect(msg)
         const func = deploy ? `Deploy realm ${deploy.path}` : (v.func as string) || "unknown"
         const caller = (v.caller as string) || (v.creator as string) || ""
@@ -115,7 +120,7 @@ function TxConfirmationModal({
         const pkgPath = deploy ? "" : (v.pkg_path as string) || ""
         const depositCap = deploy ? deploy.depositCap : callDepositCap(msg)
 
-        return { index: i, func, caller, send, args, pkgPath, depositCap }
+        return { index: i, func, caller, to: "", send, args, pkgPath, depositCap }
     })
 
     // Detect if any message involves sending funds
@@ -192,6 +197,14 @@ function TxConfirmationModal({
                                     </span>
                                 </div>
                             )}
+                            {e.to && (
+                                <div className="tx-confirm-detail-row">
+                                    <span className="tx-confirm-label">To</span>
+                                    <span className="tx-confirm-value">
+                                        <SignedAddress value={e.to} />
+                                    </span>
+                                </div>
+                            )}
                             {e.depositCap && (
                                 <div className="tx-confirm-detail-row">
                                     <span className="tx-confirm-label">Storage deposit cap</span>
@@ -200,7 +213,7 @@ function TxConfirmationModal({
                             )}
                             {e.send && (
                                 <div className="tx-confirm-detail-row">
-                                    <span className="tx-confirm-label">Send</span>
+                                    <span className="tx-confirm-label">{e.to ? "Amount" : "Send"}</span>
                                     <span className="tx-confirm-value tx-confirm-send">{e.send}</span>
                                 </div>
                             )}

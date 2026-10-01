@@ -1,17 +1,21 @@
-import { ACTIVATION_PROFILE_REALM } from "../../lib/config"
-import { describe, it, expect, vi } from "vitest"
+import { beforeEach, describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 
 // W2.1: activation must ride the GUARDED broadcaster (RPC-trust, wrong-chain,
 // A6 confirmation) — never window.adena directly.
 const doContractBroadcast = vi.fn()
-vi.mock("../../lib/grc20", () => ({
+const networkGasPriceFresh = vi.fn(async () => ({ gas: 1000, ugnot: 1 }))
+vi.mock("../../lib/grc20", async (orig) => ({
+    ...(await orig<typeof import("../../lib/grc20")>()),
     doContractBroadcast: (...a: unknown[]) => doContractBroadcast(...a),
+    networkGasPriceFresh: () => networkGasPriceFresh(),
 }))
 
 import { ActivationModal } from "./ActivationModal"
 
 describe("ActivationModal", () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
     it("offers a balance retry after the RPC fails in the forced flow", () => {
         const retry = vi.fn()
         render(<ActivationModal address="g1..." balanceError="RPC unavailable" onRetryBalance={retry} faucetUrl="https://faucet.gno.land" onSuccess={() => {}} />)
@@ -94,27 +98,12 @@ describe("ActivationModal", () => {
         await vi.waitFor(() => {
             expect(onSuccess).toHaveBeenCalled()
         })
-        // #1078: activation must be a VM call — Adena's DoContract rejects the
-        // bank/MsgSend TYPE wholesale, so a send-shaped activation is a
-        // guaranteed dead end for exactly the fresh wallets this modal serves.
+        // The same self-send as Memba OS: 1 ugnot to the address itself, at the network fee read now
+        // (2,000,000 gas at 1 ugnot per 1,000, with 20 % headroom), no realm and no storage deposit.
         expect(doContractBroadcast).toHaveBeenCalledWith(
-            [
-                {
-                    type: "vm/MsgCall",
-                    value: {
-                        caller: "g1abc",
-                        send: "",
-                        pkg_path: ACTIVATION_PROFILE_REALM,
-                        func: "SetStringField",
-                        // "Bio" is from the realm's OWN field schema — custom
-                        // keys panic ("unknown string profile field"). Empty
-                        // value: an untransacted account has no profile to
-                        // clobber, and "" renders as nothing.
-                        args: ["Bio", ""],
-                    },
-                },
-            ],
+            [{ type: "/bank.MsgSend", value: { from_address: "g1abc", to_address: "g1abc", amount: "1ugnot" } }],
             "Memba Network Activation",
+            { gasWanted: 2_000_000, gasFee: 2_400 },
         )
         // The unguarded path must stay dead.
         expect(adenaMock.DoContract).not.toHaveBeenCalled()
@@ -148,6 +137,39 @@ describe("ActivationModal", () => {
         )
         fireEvent.click(screen.getByRole("button", { name: /not now/i }))
         expect(onDismiss).toHaveBeenCalledTimes(1)
+    })
+
+    it("activates with exactly the fee and the 1 ugnot", async () => {
+        doContractBroadcast.mockResolvedValue({ hash: "abc" })
+        const onSuccess = vi.fn()
+        render(<ActivationModal address="g1abc" rawUgnot={2_401n} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled())
+        expect(doContractBroadcast).toHaveBeenCalledOnce()
+    })
+
+    it.each([
+        ["a cancel in the confirmation dialog", "Transaction cancelled by user"],
+        ["a reject in Adena", "Transaction rejected by user"],
+    ])("says plainly that %s sent nothing", async (_case, raw) => {
+        doContractBroadcast.mockRejectedValueOnce(new Error(raw))
+        render(<ActivationModal address="g1abc" rawUgnot={500_000n} faucetUrl="https://faucet.gno.land" onSuccess={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        expect(await screen.findByText("Activation cancelled. Nothing was sent.")).toBeInTheDocument()
+        expect(screen.queryByText(raw)).not.toBeInTheDocument()
+    })
+
+    it.each([
+        ["a balance below the fee and the 1 ugnot", 2_400n, () => {}, "Activation needs at least 0.002401 GNOT: the network fee and the 1 ugnot sent to yourself. Add GNOT to this address, then activate."],
+        ["an unreadable network fee", 500_000n, () => { networkGasPriceFresh.mockRejectedValueOnce(new Error("rpc down")) }, "Couldn't read the network fee. Nothing was sent; try again in a moment."],
+    ])("sends nothing with %s, and says why", async (_case, rawUgnot, setup, text) => {
+        setup()
+        const onSuccess = vi.fn()
+        render(<ActivationModal address="g1abc" rawUgnot={rawUgnot} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        expect(await screen.findByText(text)).toBeInTheDocument()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+        expect(onSuccess).not.toHaveBeenCalled()
     })
 
     it("surfaces a guard rejection instead of activating", async () => {

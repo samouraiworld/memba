@@ -141,3 +141,17 @@ describe("TxConfirmation arguments", () => {
     })
 })
 
+
+describe("TxConfirmation · bank send", () => {
+    it("shows a transfer's sender, recipient and exact amount, not an unknown action", async () => {
+        render(<TxConfirmationProvider><div /></TxConfirmationProvider>)
+        const me = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+        const send = { type: "/bank.MsgSend", value: { from_address: me, to_address: me, amount: "1ugnot" } }
+        await act(async () => { void captured.cb!([send], "Memba Network Activation", { feeUgnot: 2_400 }) })
+        expect(screen.getByText("Transfer", { selector: ".tx-confirm-func" })).toBeInTheDocument()
+        expect(screen.getByText("From")).toBeInTheDocument()
+        expect(screen.getByText("To")).toBeInTheDocument()
+        expect(screen.getByText("Amount").nextSibling).toHaveTextContent("0.000001 GNOT")
+        expect(screen.queryByText("unknown")).not.toBeInTheDocument()
+    })
+})
