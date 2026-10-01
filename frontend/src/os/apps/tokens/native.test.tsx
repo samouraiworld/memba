@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NETWORKS } from "../../../lib/config"
 import { TOKEN_LAUNCHPAD_PATH } from "../../../lib/tokenLaunchpadClient"
 import { TOKEN_LAUNCHPAD_SALES_PATH } from "../../../lib/tokenLaunchpadSalesClient"
+import { prepareAirdropManifest } from "../../../lib/tokenLaunchpadAirdropManifest"
 import type { SignRequest } from "../../sign/signer"
 import TokensWindow from "./native"
 
@@ -310,5 +311,57 @@ describe("Tokens window", () => {
         fireEvent.click(screen.getByRole("button", { name: "Release the proceeds" }))
         await waitFor(() => expect(signed()).toMatchObject({ func: "ReleaseFairProceeds", args: ["T1"] }))
         expect(screen.queryByRole("button", { name: "Settle the sale" })).toBeNull()
+    })
+
+    it("offers a member the vested part of a record, for its beneficiary", async () => {
+        availability.ledger = true; availability.sales = true
+        chain({
+            LaunchJSON: launchOf(sale, { vestingCount: 1 }),
+            VestingJSON: qjson({ index: 0, beneficiary: CREATOR, pendingBeneficiary: "", total: "100000000", claimed: "0", start: String(now - 1_000), cliff: "0", duration: "2000", revocable: false, revoked: false, revokedVested: "0" }),
+        })
+        show("mainnet", true)
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        fireEvent.click(await screen.findByRole("button", { name: /^Claim 4\d(\.\d+)? FAIR for the beneficiary$/ }))
+        await waitFor(() => expect(signed()).toMatchObject({ func: "ClaimVested", args: ["T1", "0"], send: "" }))
+    })
+
+    it("checks a pasted airdrop manifest against the chain and offers the member's own leaves", async () => {
+        availability.ledger = true; availability.sales = true
+        const manifest = prepareAirdropManifest("T1", [{ index: 0, beneficiary: MEMBER, amount: "1000000" }, { index: 1, beneficiary: CREATOR, amount: "500000" }])
+        chain({ LaunchJSON: launchOf(sale, { airdrop: { root: manifest.root, total: manifest.total, claimed: "0" } }), AirdropClaimed: "(false bool)" })
+        show("mainnet", true)
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        const paste = await screen.findByLabelText("The airdrop's manifest, as its creator published it")
+        fireEvent.change(paste, { target: { value: "{not json" } })
+        expect(screen.getByRole("alert")).toHaveTextContent("This is not a manifest: it does not read as JSON.")
+        fireEvent.change(paste, { target: { value: JSON.stringify({ ...manifest, total: "1" }) } })
+        expect(screen.getByRole("alert")).toHaveTextContent("This manifest does not match the airdrop recorded on chain.")
+        fireEvent.change(paste, { target: { value: JSON.stringify(manifest) } })
+        fireEvent.click(await screen.findByRole("button", { name: "Claim from the airdrop" }))
+        await waitFor(() => expect(signed()).toMatchObject({ func: "ClaimAirdrop", args: ["T1", "0", MEMBER, "1000000", manifest.claims[0].proof] }))
+    })
+
+    it("asks a guest with a valid manifest to connect to see their claims", async () => {
+        availability.ledger = true; availability.sales = true
+        const manifest = prepareAirdropManifest("T1", [{ index: 0, beneficiary: MEMBER, amount: "1000000" }])
+        chain({ LaunchJSON: launchOf(sale, { airdrop: { root: manifest.root, total: manifest.total, claimed: "0" } }) })
+        const { session } = show("mainnet")
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        fireEvent.change(await screen.findByLabelText("The airdrop's manifest, as its creator published it"), { target: { value: JSON.stringify(manifest) } })
+        fireEvent.click(screen.getByRole("button", { name: "Connect to see your claims" }))
+        expect(session.openConnect).toHaveBeenCalled()
+    })
+
+    it("asks a guest to connect to claim vested tokens", async () => {
+        availability.ledger = true; availability.sales = true
+        chain({
+            LaunchJSON: launchOf(sale, { vestingCount: 1 }),
+            VestingJSON: qjson({ index: 0, beneficiary: CREATOR, pendingBeneficiary: "", total: "100000000", claimed: "0", start: String(now - 1_000), cliff: "0", duration: "2000", revocable: false, revoked: false, revokedVested: "0" }),
+        })
+        const { session } = show("mainnet")
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        fireEvent.click(await screen.findByRole("button", { name: "Connect to claim" }))
+        expect(session.openConnect).toHaveBeenCalled()
+        expect(sign).not.toHaveBeenCalled()
     })
 })

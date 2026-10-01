@@ -184,4 +184,14 @@ describe("Token Launchpad sales reader", () => {
     it("derives the sales realm's address from its path", () => {
         expect(TOKEN_LAUNCHPAD_SALES_ADDRESS).toBe(SALES)
     })
+
+    it("reads whether an airdrop leaf is claimed", async () => {
+        queryEval.mockResolvedValueOnce("(true bool)").mockResolvedValueOnce("(false bool)").mockResolvedValueOnce("(0 int64)")
+        const reader = new TokenLaunchpadSalesClient()
+        expect(await reader.airdropClaimed("T1", 3)).toBe(true)
+        expect(await reader.airdropClaimed("T1", 3)).toBe(false)
+        await expect(reader.airdropClaimed("T1", 3)).rejects.toMatchObject({ code: "invalid_response" })
+        expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_SALES_PATH, 'AirdropClaimed("T1", 3)', true)
+        await expect(reader.airdropClaimed("T1", -1)).rejects.toMatchObject({ code: "invalid_response" })
+    })
 })

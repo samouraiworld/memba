@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: token claims (2026-10-01)
+- Claim vested tokens and airdrop leaves from the Tokens window, with the airdrop manifest checked against the chain before any claim is offered.
+
 ### Memba OS: fair-sale actions (2026-10-01)
 - Order in a fair sale, settle it, claim an order and release the creator's proceeds from the Tokens window.
 

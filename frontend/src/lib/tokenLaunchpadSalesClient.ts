@@ -5,7 +5,7 @@ import { sha256 } from "@noble/hashes/sha2.js"
 import { isValidGnoAddressChecksum } from "./dao/address"
 import { bech32Encode } from "./dao/realmAddress"
 import { ACTIVE_NETWORK_KEY } from "./config"
-import { parseLaunchpadToken, readLaunchpadJSON, TokenLaunchpadReadError, type LaunchpadToken } from "./tokenLaunchpadClient"
+import { parseLaunchpadToken, readLaunchpad, readLaunchpadJSON, TokenLaunchpadReadError, type LaunchpadToken } from "./tokenLaunchpadClient"
 
 export const TOKEN_LAUNCHPAD_SALES_PATH = "gno.land/r/samcrew/launchpad/sales/v1"
 /** The sales realm's address: it holds launch tokens, so no allocation or airdrop leaf may pay it. */
@@ -258,6 +258,16 @@ export class TokenLaunchpadSalesClient {
         const view = parseFairBuyer(await this.read(`FairBuyerJSON(${JSON.stringify(id)}, address(${JSON.stringify(buyer)}))`))
         if (view.buyer !== buyer) invalid("buyer mismatch")
         return view
+    }
+
+    /** Whether an airdrop leaf has been claimed. */
+    async airdropClaimed(id: string, index: number): Promise<boolean> {
+        tokenId(id)
+        if (!Number.isSafeInteger(index) || index < 0) invalid("invalid airdrop index")
+        const raw = await readLaunchpad(this.networkKey, TOKEN_LAUNCHPAD_SALES_PATH, `AirdropClaimed(${JSON.stringify(id)}, ${index})`)
+        const match = raw.match(/^\(\s*(true|false)\s+bool\s*\)\s*$/)
+        if (!match) invalid("invalid claimed answer")
+        return match[1] === "true"
     }
 
     async vesting(id: string, index: number): Promise<VestingView> {

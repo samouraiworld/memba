@@ -1,20 +1,17 @@
 /**
  * The fair-sale calls a member signs from the Tokens window: an order, the
  * settlement, a buyer's claim and the release of the creator's proceeds.
- * Each is one MsgCall to the sales realm, rechecked against the chain just
- * before Adena opens and verified by its transaction's result.
+ * Each is one call to the sales realm (see callRequest).
  *
  * @module os/apps/tokens/saleActions
  */
-import { GNO_CHAIN_ID } from "../../../lib/config"
-import { depositCapUgnot, formatUgnotExact } from "../../../lib/dao/v2Budget"
-import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, formatTokenAmount, freshFeeForGasWanted, type AminoMsg, type GasPrice } from "../../../lib/grc20"
+import { formatTokenAmount, type GasPrice } from "../../../lib/grc20"
 import { TokenLaunchpadClient } from "../../../lib/tokenLaunchpadClient"
 import { readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
 import { TOKEN_LAUNCHPAD_SALES_PATH, TokenLaunchpadSalesClient, type FairSaleView, type LaunchView } from "../../../lib/tokenLaunchpadSalesClient"
 import type { SignRequest } from "../../sign/signer"
 import { formatUgnot } from "../../wallet/send"
-import { verifySendTx } from "../../wallet/sendRequest"
+import { launchCallRequest } from "./callRequest"
 
 /** The schedule's price per lot at a Unix second, as fairmath.Schedule.PriceAt computes it. */
 export function priceAt(sale: FairSaleView, at: bigint): bigint {
@@ -91,9 +88,6 @@ export function saleActionRequest(ctx: SaleActionContext): SignRequest {
     const tokens = (amount: bigint) => `${formatTokenAmount(amount, launch.token.decimals)} ${ticker}`
     const quote = (amount: bigint) => sale.quoteCurrency === "ugnot" ? formatUgnot(amount) : `${amount} base units of ${sale.quoteCurrency}`
     const reader = new TokenLaunchpadSalesClient(network)
-    const { gasWanted, bytes } = COST[action.kind]
-    const gasFee = feeForGasWanted(gasWanted, ctx.gasPrice)
-    const depositCap = depositCapUgnot(bytes)
 
     let func: string, args: string[], send = "", title: string, summary: string
     let facts: [string, string][], recheck: () => Promise<void>, note: string
@@ -163,19 +157,9 @@ export function saleActionRequest(ctx: SaleActionContext): SignRequest {
             break
     }
 
-    const msg: AminoMsg = { type: "vm/MsgCall", value: { caller, send, pkg_path: TOKEN_LAUNCHPAD_SALES_PATH, func, args, max_deposit: `${depositCap}ugnot` } }
-    return {
-        title, summary, sub: `${launch.token.name} (${id}) on ${GNO_CHAIN_ID}`,
-        lines: () => [...facts, ["Storage deposit", `Up to ${formatUgnotExact(depositCap)}`], ["Network fee", formatUgnotExact(gasFee)]],
-        note,
-        label: () => summary,
-        prepare: () => ({ msgs: [msg] }),
-        recheck: async () => {
-            await recheck()
-            await assertFeeStillCovers(gasFee, () => freshFeeForGasWanted(gasWanted))
-        },
-        send: (_choice, beforeSign) => doContractBroadcast([msg], summary, { gasWanted, gasFee, beforeSign }),
-        verify: (_choice, hash) => verifySendTx(hash),
-        onSettled: outcome => ctx.onSettled(outcome),
-    }
+    return launchCallRequest({
+        caller, pkgPath: TOKEN_LAUNCHPAD_SALES_PATH, func, args, send, ...COST[action.kind],
+        title, summary, subject: `${launch.token.name} (${id})`, facts, note, recheck,
+        gasPrice: ctx.gasPrice, onSettled: ctx.onSettled,
+    })
 }

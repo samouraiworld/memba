@@ -10,10 +10,11 @@
  *
  * @module os/apps/tokens/native
  */
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
-import { formatTokenAmount as units, networkGasPriceFresh } from "../../../lib/grc20"
+import { formatTokenAmount as units, networkGasPriceFresh, type GasPrice } from "../../../lib/grc20"
+import { verifyAirdropManifest, type AirdropManifest } from "../../../lib/tokenLaunchpadAirdropManifest"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import { TokenLaunchpadClient, TokenLaunchpadReadError, TOKEN_LAUNCHPAD_PATH, type LaunchpadToken } from "../../../lib/tokenLaunchpadClient"
 import { TokenLaunchpadSalesClient, TOKEN_LAUNCHPAD_SALES_PATH, type FairSaleView, type LaunchView } from "../../../lib/tokenLaunchpadSalesClient"
@@ -21,7 +22,9 @@ import { readActionStatus, TOKEN_LAUNCHPAD_CONFIG_PATH } from "../../../lib/toke
 import { Empty, ErrorState, Loading, Pill } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import type { OsSession } from "../../shell/useOsSession"
+import type { SignRequest } from "../../sign/signer"
 import { useSigner } from "../../sign/signerContext"
+import { airdropClaimRequest, claimableNow, vestingClaimRequest } from "./claims"
 import CreateToken from "./CreateToken"
 import { canSettle, CLOCK_MARGIN, holdingGates, priceAt, PROOF_FORMAT, saleActionRequest, takingOrders, type SaleAction } from "./saleActions"
 import "./native.css"
@@ -167,41 +170,34 @@ function TokenDetails({ network, session, token }: { network: string; session: O
 }
 
 function LaunchSections({ network, session, launch }: { network: string; session: OsSession; launch: LaunchView }) {
-    const { token, fairSale, airdrop, vestingCount } = launch
-    const ticker = revealInvisibleFormatting(token.ticker)
+    const { fairSale, airdrop, vestingCount } = launch
     if (!fairSale && !airdrop && vestingCount === 0) return <p className="os-sub">This token has no sale, airdrop or vesting.</p>
     return (
         <div className="os-stack os-tight">
             {fairSale && <FairSale network={network} session={session} launch={launch} sale={fairSale} />}
-            {airdrop && <div>
-                <h4 className="os-h">Airdrop</h4>
-                <p>{units(airdrop.claimed, token.decimals)} of {units(airdrop.total, token.decimals)} {ticker} claimed.</p>
-            </div>}
-            {vestingCount > 0 && <Vesting network={network} token={token} count={vestingCount} />}
+            {airdrop && <Airdrop network={network} session={session} launch={launch} />}
+            {vestingCount > 0 && <Vesting network={network} session={session} launch={launch} />}
         </div>
     )
 }
 
 /**
- * Signs a fair-sale call for a member; a guest is asked to connect first. The
- * outcome is worded for the window, and the sale is read again once it lands.
+ * Signs a Launchpad call for a member; a guest is asked to connect first. The
+ * outcome is worded for the window, and the token is read again once it lands.
  */
-function useSaleAction(network: string, session: OsSession, launch: LaunchView) {
+function useLaunchCall(network: string, session: OsSession) {
     const signer = useSigner()
     const queries = useQueryClient()
     const [message, setMessage] = useState<string | null>(null)
-    const act = async (action: SaleAction) => {
+    const act = async (build: (caller: string, gasPrice: GasPrice, onSettled: (outcome: string) => void) => SignRequest) => {
         if (session.status !== "member") { session.openConnect(); return }
         setMessage(null)
         try {
             const gasPrice = await networkGasPriceFresh()
-            signer.sign(saleActionRequest({
-                network, caller: session.address, launch, action, gasPrice, now: BigInt(Math.floor(Date.now() / 1000)),
-                onSettled: outcome => {
-                    if (outcome === "confirmed" || outcome === "submitted") void queries.invalidateQueries({ queryKey: ["token-launchpad", network] })
-                    setMessage(outcome === "confirmed" ? "Done." : outcome === "submitted" ? "Sent; this view updates once the network includes it."
-                        : outcome === "unknown" ? "The outcome is unknown. Read the sale again before retrying." : null)
-                },
+            signer.sign(build(session.address, gasPrice, outcome => {
+                if (outcome === "confirmed" || outcome === "submitted") void queries.invalidateQueries({ queryKey: ["token-launchpad", network] })
+                setMessage(outcome === "confirmed" ? "Done." : outcome === "submitted" ? "Sent; this view updates once the network includes it."
+                    : outcome === "unknown" ? "The outcome is unknown. Read the token again before retrying." : null)
             }))
         } catch (e) {
             setMessage((e as Error).message || "The network fee could not be read. Try again.")
@@ -215,7 +211,10 @@ function FairSale({ network, session, launch, sale }: { network: string; session
     const address = session.status === "member" ? session.address : null
     const member = address !== null
     const ticker = revealInvisibleFormatting(token.ticker)
-    const { act, message } = useSaleAction(network, session, launch)
+    const call = useLaunchCall(network, session)
+    const message = call.message
+    const act = (action: SaleAction) => call.act((caller, gasPrice, onSettled) =>
+        saleActionRequest({ network, caller, launch, action, gasPrice, now: BigInt(Math.floor(Date.now() / 1000)), onSettled }))
     const [lots, setLots] = useState("1")
     const [proof, setProof] = useState("")
     const buyer = useQuery({
@@ -286,14 +285,18 @@ function FairSale({ network, session, launch, sale }: { network: string; session
     )
 }
 
-function Vesting({ network, token, count }: { network: string; token: LaunchpadToken; count: number }) {
+function Vesting({ network, session, launch }: { network: string; session: OsSession; launch: LaunchView }) {
+    const { token, vestingCount: count } = launch
     const [index, setIndex] = useState(0)
     const ticker = revealInvisibleFormatting(token.ticker)
+    const now = useNow()
+    const call = useLaunchCall(network, session)
     const record = useQuery({
         queryKey: ["token-launchpad", network, "vesting", token.id, index],
         queryFn: () => new TokenLaunchpadSalesClient(network).vesting(token.id, index),
         retry: false,
     })
+    const due = record.data ? claimableNow(record.data, now) : 0n
     return (
         <div>
             <h4 className="os-h">Vesting</h4>
@@ -302,11 +305,69 @@ function Vesting({ network, token, count }: { network: string; token: LaunchpadT
                 : <>
                     <p>Record {index + 1} of {count}: {units(record.data.claimed, token.decimals)} of {units(record.data.revoked ? record.data.revokedVested : record.data.total, token.decimals)} {ticker} claimed{record.data.revoked && `, revoked: ${units(record.data.revokedVested, token.decimals)} of the ${units(record.data.total, token.decimals)} had vested`}, for <span className="os-mono">{record.data.beneficiary}</span>.</p>
                     {record.data.pendingBeneficiary && <p className="os-sub">A move of this record to <span className="os-mono">{record.data.pendingBeneficiary}</span> is pending; no claim until it is accepted or cancelled.</p>}
+                    {due > 0n && <div className="os-row">
+                        <button type="button" className="os-btn" onClick={() => void call.act((caller, gasPrice, onSettled) => vestingClaimRequest({ network, caller, launch, record: record.data, now, gasPrice, onSettled }))}>
+                            {session.status === "member" ? `Claim ${units(due, token.decimals)} ${ticker} for the beneficiary` : "Connect to claim"}
+                        </button>
+                    </div>}
                 </>}
+            {call.message && <p className="os-sub" role="status">{call.message}</p>}
             {count > 1 && <div className="os-row">
                 <button type="button" className="os-btn os-quiet" disabled={index === 0} onClick={() => setIndex(index - 1)}>Previous record</button>
                 <button type="button" className="os-btn os-quiet" disabled={index + 1 >= count} onClick={() => setIndex(index + 1)}>Next record</button>
             </div>}
+        </div>
+    )
+}
+
+/**
+ * An airdrop's progress and, from the manifest its creator published, the
+ * member's own leaves to claim. The manifest is checked against the root and
+ * total recorded on chain before any leaf is offered.
+ */
+function Airdrop({ network, session, launch }: { network: string; session: OsSession; launch: LaunchView }) {
+    const { token, airdrop } = launch
+    const ticker = revealInvisibleFormatting(token.ticker)
+    const call = useLaunchCall(network, session)
+    const [text, setText] = useState("")
+    // Parsing and rebuilding up to 100,000 leaves happens once per pasted text, not per render.
+    const { manifest, problem } = useMemo((): { manifest: AirdropManifest | null; problem: string | null } => {
+        if (!text.trim() || !airdrop) return { manifest: null, problem: null }
+        let parsed: AirdropManifest
+        try { parsed = JSON.parse(text) as AirdropManifest } catch { return { manifest: null, problem: "This is not a manifest: it does not read as JSON." } }
+        try {
+            return { manifest: verifyAirdropManifest(parsed, { tokenId: token.id, root: airdrop.root, total: airdrop.total.toString() }), problem: null }
+        } catch {
+            return { manifest: null, problem: "This manifest does not match the airdrop recorded on chain." }
+        }
+    }, [text, token.id, airdrop])
+    const address = session.status === "member" ? session.address : null
+    const mine = manifest && address ? manifest.claims.filter(c => c.beneficiary === address) : []
+    const claimed = useQuery({
+        queryKey: ["token-launchpad", network, "airdrop-claimed", token.id, mine.map(c => c.index).join(",")],
+        queryFn: () => Promise.all(mine.map(c => new TokenLaunchpadSalesClient(network).airdropClaimed(token.id, c.index))),
+        enabled: mine.length > 0, retry: false,
+    })
+    if (!airdrop) return null
+    return (
+        <div className="os-stack os-tight">
+            <h4 className="os-h">Airdrop</h4>
+            <p>{units(airdrop.claimed, token.decimals)} of {units(airdrop.total, token.decimals)} {ticker} claimed.</p>
+            <label className="os-fl"><span className="os-fll">The airdrop's manifest, as its creator published it</span>
+                <textarea className="os-in os-ta os-mono" value={text} onChange={e => setText(e.target.value)} spellCheck={false} />
+            </label>
+            {problem && <p className="os-fe" role="alert">{problem}</p>}
+            {manifest && (address === null
+                ? <div className="os-row"><button type="button" className="os-btn" onClick={() => session.openConnect()}>Connect to see your claims</button></div>
+                : mine.length === 0 ? <p className="os-sub">This airdrop has nothing for {address}.</p>
+                : claimed.isPending ? <Loading label="Reading your claims…" />
+                : claimed.isError ? failure(claimed.error, "airdrop claims", () => void claimed.refetch())
+                : <ul className="os-list os-stack os-tight">{mine.map((c, i) => <li key={c.index} className="os-row">
+                    <span className="os-grow">{units(BigInt(c.amount), token.decimals)} {ticker}</span>
+                    {claimed.data[i] ? <span className="os-sub">Claimed</span>
+                        : <button type="button" className="os-btn" onClick={() => void call.act((caller, gasPrice, onSettled) => airdropClaimRequest({ network, caller, launch, claim: c, gasPrice, onSettled }))}>Claim from the airdrop</button>}
+                </li>)}</ul>)}
+            {call.message && <p className="os-sub" role="status">{call.message}</p>}
         </div>
     )
 }
