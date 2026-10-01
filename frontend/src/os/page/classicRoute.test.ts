@@ -112,7 +112,9 @@ describe("osTargetForClassic", () => {
 
 describe("pageNeedsWallet", () => {
     it("covers the pages that send guests away in the classic app", () => {
-        expect(["profile", "multisig", "apps/submit", "apps/review", "apps/my-submissions"].every(pageNeedsWallet)).toBe(true)
+        expect(["profile", "multisig"].every(pageNeedsWallet)).toBe(true)
+        // Native App Store sections: the store window serves guests itself.
+        expect(["apps/submit", "apps/review", "apps/my-submissions"].some(pageNeedsWallet)).toBe(false)
         expect(["feed", "validators", "profile/g1x", "apps", "apps/gno.land/r/alice/example"].some(pageNeedsWallet)).toBe(false)
     })
 
