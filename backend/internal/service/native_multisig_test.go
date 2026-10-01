@@ -543,3 +543,34 @@ func randomNonceSign(t *testing.T, key secp256k1.PrivKeySecp256k1, msg []byte) [
 		return append(r.FillBytes(make([]byte, 32)), s.FillBytes(make([]byte, 32))...)
 	}
 }
+
+// The detail read returns the caller's own name for the multisig, as the list does.
+func TestMultisigInfoReturnsTheCallersName(t *testing.T) {
+	h := setup(t)
+	h.svc.chainID = "native-local"
+	t.Setenv("MEMBA_ENABLE_NATIVE_GNO_MULTISIG", "true")
+	pk, keys, j := nativeTestIdentity(t)
+	addr := pk.Address().String()
+	ctx := context.Background()
+	creator := nativeTestToken(t, h, keys[0].PubKey().Address().String())
+	if _, err := h.svc.CreateOrJoinMultisig(ctx, connect.NewRequest(&membav1.CreateOrJoinMultisigRequest{
+		AuthToken: creator, ChainId: h.svc.chainID, MultisigPubkeyJson: j, ExpectedMultisigAddress: addr, Bech32Prefix: "g", Name: "techno-party-multisig",
+	})); err != nil {
+		t.Fatal("create:", err)
+	}
+	info := func(token *membav1.Token) *membav1.Multisig {
+		t.Helper()
+		r, err := h.svc.MultisigInfo(ctx, connect.NewRequest(&membav1.MultisigInfoRequest{AuthToken: token, ChainId: h.svc.chainID, MultisigAddress: addr}))
+		if err != nil {
+			t.Fatal("MultisigInfo:", err)
+		}
+		return r.Msg.Multisig
+	}
+	if ms := info(creator); ms.Name != "techno-party-multisig" || !ms.Joined {
+		t.Fatalf("creator: name %q joined %v", ms.Name, ms.Joined)
+	}
+	// Another member has not joined or named it yet.
+	if ms := info(nativeTestToken(t, h, keys[1].PubKey().Address().String())); ms.Name != "" || ms.Joined {
+		t.Fatalf("invited member: name %q joined %v", ms.Name, ms.Joined)
+	}
+}

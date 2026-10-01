@@ -214,18 +214,19 @@ func (s *MultisigService) MultisigInfo(
 	// PermissionDenied, not NotFound, regardless of whether the multisig exists).
 	// Joined or not: CreateOrJoinMultisig only writes rows for addresses in the key
 	// set, and an invited member must read the pubkey to import (join) by address.
-	var isMember bool
-	if err := s.db.QueryRowContext(ctx,
-		"SELECT EXISTS(SELECT 1 FROM user_multisigs WHERE chain_id = ? AND multisig_address = ? AND user_address = ?)",
+	// The name is the caller's own: each member names the multisig for themselves.
+	var ms membav1.Multisig
+	err = s.db.QueryRowContext(ctx,
+		"SELECT name, joined FROM user_multisigs WHERE chain_id = ? AND multisig_address = ? AND user_address = ?",
 		chainID, addr, userAddress,
-	).Scan(&isMember); err != nil {
-		return nil, internalError("MultisigInfo: membership check", err)
-	}
-	if !isMember {
+	).Scan(&ms.Name, &ms.Joined)
+	if err == sql.ErrNoRows {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
+	if err != nil {
+		return nil, internalError("MultisigInfo: membership check", err)
+	}
 
-	var ms membav1.Multisig
 	err = s.db.QueryRowContext(ctx,
 		"SELECT chain_id, address, pubkey_json, threshold, members_count, created_at FROM multisigs WHERE chain_id = ? AND address = ?",
 		chainID, addr,
