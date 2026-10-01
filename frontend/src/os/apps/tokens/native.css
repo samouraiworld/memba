@@ -6,3 +6,4 @@
 .memba-os .os-tokens-facts dd { margin: 0; overflow-wrap: anywhere; }
 .memba-os .os-tokens-arow { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; }
 @media (max-width: 560px) { .memba-os .os-tokens-arow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.memba-os .os-tokens-lots { width: 6rem; }

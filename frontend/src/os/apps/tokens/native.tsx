@@ -10,10 +10,10 @@
  *
  * @module os/apps/tokens/native
  */
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
-import { formatTokenAmount as units } from "../../../lib/grc20"
+import { formatTokenAmount as units, networkGasPriceFresh } from "../../../lib/grc20"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import { TokenLaunchpadClient, TokenLaunchpadReadError, TOKEN_LAUNCHPAD_PATH, type LaunchpadToken } from "../../../lib/tokenLaunchpadClient"
 import { TokenLaunchpadSalesClient, TOKEN_LAUNCHPAD_SALES_PATH, type FairSaleView, type LaunchView } from "../../../lib/tokenLaunchpadSalesClient"
@@ -21,7 +21,9 @@ import { readActionStatus, TOKEN_LAUNCHPAD_CONFIG_PATH } from "../../../lib/toke
 import { Empty, ErrorState, Loading, Pill } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import type { OsSession } from "../../shell/useOsSession"
+import { useSigner } from "../../sign/signerContext"
 import CreateToken from "./CreateToken"
+import { canSettle, CLOCK_MARGIN, holdingGates, priceAt, PROOF_FORMAT, saleActionRequest, takingOrders, type SaleAction } from "./saleActions"
 import "./native.css"
 
 const PAGE = 20
@@ -78,7 +80,6 @@ export default function TokensWindow({ session, fallback }: NativeViewProps) {
 }
 
 function Launchpad({ network, session }: { network: string; session: OsSession }) {
-    const address = session.status === "member" ? session.address : null
     const [page, setPage] = useState(0)
     const [selected, setSelected] = useState<LaunchpadToken | null>(null)
     const [creating, setCreating] = useState(false)
@@ -123,12 +124,13 @@ function Launchpad({ network, session }: { network: string; session: OsSession }
                     <button type="button" className="os-btn os-quiet" disabled={!tokens.data || tokens.data.length < PAGE || tokens.isFetching} onClick={() => turn(page + 1)}>Next</button>
                 </div>
             </section>
-            {selected && <TokenDetails key={selected.id} network={network} address={address} token={selected} />}
+            {selected && <TokenDetails key={selected.id} network={network} session={session} token={selected} />}
         </div>
     )
 }
 
-function TokenDetails({ network, address, token }: { network: string; address: string | null; token: LaunchpadToken }) {
+function TokenDetails({ network, session, token }: { network: string; session: OsSession; token: LaunchpadToken }) {
+    const address = session.status === "member" ? session.address : null
     const salesAvailable = isRealmValidOn(network, TOKEN_LAUNCHPAD_SALES_PATH)
     const balance = useQuery({
         queryKey: ["token-launchpad", network, "balance", token.id, address],
@@ -159,18 +161,18 @@ function TokenDetails({ network, address, token }: { network: string; address: s
             {!salesAvailable ? <p className="os-sub">Launch details are not available on this network.</p>
                 : launch.isPending ? <Loading label="Reading the launch…" />
                 : launch.isError ? failure(launch.error, "launch", () => void launch.refetch())
-                : <LaunchSections network={network} address={address} launch={launch.data} />}
+                : <LaunchSections network={network} session={session} launch={launch.data} />}
         </section>
     )
 }
 
-function LaunchSections({ network, address, launch }: { network: string; address: string | null; launch: LaunchView }) {
+function LaunchSections({ network, session, launch }: { network: string; session: OsSession; launch: LaunchView }) {
     const { token, fairSale, airdrop, vestingCount } = launch
     const ticker = revealInvisibleFormatting(token.ticker)
     if (!fairSale && !airdrop && vestingCount === 0) return <p className="os-sub">This token has no sale, airdrop or vesting.</p>
     return (
         <div className="os-stack os-tight">
-            {fairSale && <FairSale network={network} address={address} token={token} sale={fairSale} />}
+            {fairSale && <FairSale network={network} session={session} launch={launch} sale={fairSale} />}
             {airdrop && <div>
                 <h4 className="os-h">Airdrop</h4>
                 <p>{units(airdrop.claimed, token.decimals)} of {units(airdrop.total, token.decimals)} {ticker} claimed.</p>
@@ -180,8 +182,42 @@ function LaunchSections({ network, address, launch }: { network: string; address
     )
 }
 
-function FairSale({ network, address, token, sale }: { network: string; address: string | null; token: LaunchpadToken; sale: FairSaleView }) {
+/**
+ * Signs a fair-sale call for a member; a guest is asked to connect first. The
+ * outcome is worded for the window, and the sale is read again once it lands.
+ */
+function useSaleAction(network: string, session: OsSession, launch: LaunchView) {
+    const signer = useSigner()
+    const queries = useQueryClient()
+    const [message, setMessage] = useState<string | null>(null)
+    const act = async (action: SaleAction) => {
+        if (session.status !== "member") { session.openConnect(); return }
+        setMessage(null)
+        try {
+            const gasPrice = await networkGasPriceFresh()
+            signer.sign(saleActionRequest({
+                network, caller: session.address, launch, action, gasPrice, now: BigInt(Math.floor(Date.now() / 1000)),
+                onSettled: outcome => {
+                    if (outcome === "confirmed" || outcome === "submitted") void queries.invalidateQueries({ queryKey: ["token-launchpad", network] })
+                    setMessage(outcome === "confirmed" ? "Done." : outcome === "submitted" ? "Sent; this view updates once the network includes it."
+                        : outcome === "unknown" ? "The outcome is unknown. Read the sale again before retrying." : null)
+                },
+            }))
+        } catch (e) {
+            setMessage((e as Error).message || "The network fee could not be read. Try again.")
+        }
+    }
+    return { act, message }
+}
+
+function FairSale({ network, session, launch, sale }: { network: string; session: OsSession; launch: LaunchView; sale: FairSaleView }) {
+    const token = launch.token
+    const address = session.status === "member" ? session.address : null
+    const member = address !== null
     const ticker = revealInvisibleFormatting(token.ticker)
+    const { act, message } = useSaleAction(network, session, launch)
+    const [lots, setLots] = useState("1")
+    const [proof, setProof] = useState("")
     const buyer = useQuery({
         queryKey: ["token-launchpad", network, "buyer", token.id, address],
         queryFn: () => new TokenLaunchpadSalesClient(network).fairBuyer(token.id, address!),
@@ -196,6 +232,13 @@ function FairSale({ network, address, token, sale }: { network: string; address:
     })
     const lot = `${units(sale.lotSize, token.decimals)} ${ticker}`
     const sold = sale.settled && sale.succeeded
+    const ordering = sale.quoteCurrency === "ugnot" && takingOrders(sale, now, CLOCK_MARGIN) && lane.data?.open === true
+    const ordered = /^[1-9]\d{0,9}$/.test(lots) ? BigInt(lots) : null
+    const mine = buyer.data?.lots ?? 0n
+    const room = [sale.walletCapLots - mine, sale.hardCapLots - sale.totalLots].reduce((a, b) => (a < b ? a : b))
+    const proofOk = PROOF_FORMAT.test(proof)
+    const settleable = canSettle(sale, now)
+    const gates = holdingGates(sale)
 
     return (
         <div>
@@ -207,6 +250,7 @@ function FairSale({ network, address, token, sale }: { network: string; address:
                 <dt>Price per lot</dt><dd>{sale.startPrice === sale.floorPrice ? quote(sale.startPrice, sale.quoteCurrency) : `from ${quote(sale.startPrice, sale.quoteCurrency)} down to ${quote(sale.floorPrice, sale.quoteCurrency)}`}</dd>
                 <dt>Soft cap</dt><dd>{quote(sale.softCapQuote, sale.quoteCurrency)}</dd>
                 <dt>Per wallet</dt><dd>at most {sale.walletCapLots.toString()} lots</dd>
+                {gates.map(g => <Fragment key={g.tokenId}><dt>Holding gate</dt><dd>at least {g.minimum.toString()} base units of {g.tokenId}</dd></Fragment>)}
                 <dt>Protocol fee</dt><dd>{units(sale.primaryFeeBps, 2)}% of what is raised</dd>
                 {sold && <>
                     <dt>Raised</dt><dd>{quote(sale.grossQuote, sale.quoteCurrency)} at {quote(sale.closePrice, sale.quoteCurrency)} per lot</dd>
@@ -221,6 +265,23 @@ function FairSale({ network, address, token, sale }: { network: string; address:
                     buyer.data.claimed ? "Paid out."
                         : !buyer.data.settled ? "What it pays is known once the sale is settled."
                         : `It pays ${units(buyer.data.claimableTokens, token.decimals)} ${ticker} and ${quote(buyer.data.claimableRefund, sale.quoteCurrency)} back.`}</p>)}
+            {buyer.data && buyer.data.settled && !buyer.data.claimed && buyer.data.lots > 0n && (
+                <div className="os-row"><button type="button" className="os-btn" onClick={() => void act({ kind: "claim", buyer: buyer.data.buyer, claimableTokens: buyer.data.claimableTokens, claimableRefund: buyer.data.claimableRefund })}>Claim</button></div>
+            )}
+            {ordering && <div className="os-stack os-tight">
+                {sale.allowlistRoot && <label className="os-fl"><span className="os-fll">Allowlist proof, from the sale's creator (empty for a one-address list)</span>
+                    <textarea className="os-in os-ta os-mono" value={proof} onChange={e => setProof(e.target.value.trim())} spellCheck={false} />
+                    {!proofOk && <span className="os-fe" role="alert">A proof is lowercase hashes separated by commas.</span>}
+                </label>}
+                <div className="os-row">
+                    <input className="os-in os-tokens-lots" inputMode="numeric" value={lots} onChange={e => setLots(e.target.value)} aria-label="Lots to order" />
+                    <span className="os-sub os-grow">{ordered === null ? "Whole lots only." : ordered > room ? `You can order up to ${room} lots.` : `${units(ordered * sale.lotSize, token.decimals)} ${ticker} for at most ${quote(ordered * priceAt(sale, now - sale.intervalSeconds > sale.start ? now - sale.intervalSeconds : sale.start), sale.quoteCurrency)}`}</span>
+                    <button type="button" className="os-btn" disabled={ordered === null || ordered > room || !proofOk} onClick={() => ordered !== null && void act({ kind: "order", lots: ordered, proof, mine })}>{member ? "Order" : "Connect to order"}</button>
+                </div>
+            </div>}
+            {settleable && <div className="os-row"><button type="button" className="os-btn" onClick={() => void act({ kind: "settle" })}>{member ? "Settle the sale" : "Connect to settle"}</button></div>}
+            {sold && !sale.proceedsReleased && <div className="os-row"><button type="button" className="os-btn os-quiet" onClick={() => void act({ kind: "release" })}>{member ? "Release the proceeds" : "Connect to release the proceeds"}</button></div>}
+            {message && <p className="os-sub" role="status">{message}</p>}
         </div>
     )
 }

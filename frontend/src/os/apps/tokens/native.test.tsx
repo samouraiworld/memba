@@ -1,15 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NETWORKS } from "../../../lib/config"
 import { TOKEN_LAUNCHPAD_PATH } from "../../../lib/tokenLaunchpadClient"
 import { TOKEN_LAUNCHPAD_SALES_PATH } from "../../../lib/tokenLaunchpadSalesClient"
+import type { SignRequest } from "../../sign/signer"
 import TokensWindow from "./native"
 
 const availability = vi.hoisted(() => ({ ledger: false, sales: false, factory: false }))
 const queryEval = vi.hoisted(() => vi.fn())
 vi.mock("../../../lib/dao/shared", async (original) => ({ ...(await original<typeof import("../../../lib/dao/shared")>()), queryEval }))
-vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn() }) }))
+const sign = vi.hoisted(() => vi.fn(() => true))
+vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign }) }))
+vi.mock("../../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../../lib/grc20")>()), networkGasPriceFresh: async () => ({ gas: 1000, ugnot: 1 }) }))
 vi.mock("../../../lib/config", async (original) => {
     const config = await original<typeof import("../../../lib/config")>()
     return {
@@ -74,20 +77,23 @@ function chain(overrides: Record<string, string> = {}) {
 }
 
 function show(key: "mainnet" | "testnet12", member = false) {
-    const session = { status: member ? "member" : "guest", address: member ? MEMBER : undefined, network: { key, chainId: NETWORKS[key]?.chainId ?? "test12" } } as never
+    const session = { status: member ? "member" : "guest", address: member ? MEMBER : undefined, openConnect: vi.fn(), network: { key, chainId: NETWORKS[key]?.chainId ?? "test12" } }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    return render(
+    const view = render(
         <QueryClientProvider client={client}>
-            <TokensWindow section={null} query={undefined} session={session} active open={vi.fn()} push={vi.fn()} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic token page</p>} />
+            <TokensWindow section={null} query={undefined} session={session as never} active open={vi.fn()} push={vi.fn()} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic token page</p>} />
         </QueryClientProvider>,
     )
+    return { ...view, session }
 }
+const signed = () => (sign.mock.calls.at(-1) as unknown as [SignRequest])[0].prepare(undefined).msgs[0].value as { func: string; args: string[]; send: string }
 const reads = () => queryEval.mock.calls.map(call => call[2] as string)
 
 describe("Tokens window", () => {
     beforeEach(() => {
         availability.ledger = false; availability.sales = false; availability.factory = false
         queryEval.mockReset()
+        sign.mockClear()
         chain()
     })
 
@@ -176,6 +182,7 @@ describe("Tokens window", () => {
         show("mainnet")
         fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
         expect(await screen.findByText(/New orders are paused on the Launchpad; settlement and claims are not affected\.$/)).toBeInTheDocument()
+        expect(screen.queryByLabelText("Lots to order")).toBeNull()
     })
 
     it("words a cancelled and a failed sale as what they are", async () => {
@@ -255,5 +262,53 @@ describe("Tokens window", () => {
         expect(screen.getByRole("heading", { name: "Token" })).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
         expect(await screen.findByRole("button", { name: /Fair Token/ })).toBeInTheDocument()
+    })
+
+    it("lets a member order whole lots at the current price, attaching the bound, within the wallet cap", async () => {
+        availability.ledger = true; availability.sales = true
+        chain({ LaunchJSON: launchOf(openSale), FairBuyerJSON: qjson({ ...order, lots: "299", deposit: "149500000", claimableTokens: "0", settled: false }) })
+        show("mainnet", true)
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        const input = await screen.findByLabelText("Lots to order")
+        await screen.findByText(/Your order: 299 lots/)
+        fireEvent.change(input, { target: { value: "2" } })
+        expect(screen.getByText("You can order up to 1 lots.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Order" })).toBeDisabled()
+        fireEvent.change(input, { target: { value: "1" } })
+        expect(screen.getByText("1 FAIR for at most 0.5 GNOT")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Order" }))
+        await waitFor(() => expect(sign).toHaveBeenCalled())
+        expect(signed()).toMatchObject({ func: "ContributeFair", args: ["T1", "1", "500000"], send: "500000ugnot" })
+    })
+
+    it("asks a guest to connect to order", async () => {
+        availability.ledger = true; availability.sales = true
+        chain({ LaunchJSON: launchOf(openSale) })
+        const { session } = show("mainnet")
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        fireEvent.click(await screen.findByRole("button", { name: "Connect to order" }))
+        expect(session.openConnect).toHaveBeenCalled()
+        expect(sign).not.toHaveBeenCalled()
+    })
+
+    it("offers settlement of a closed sale, the claim of a settled order and the release of proceeds", async () => {
+        availability.ledger = true; availability.sales = true
+        chain({ LaunchJSON: launchOf({ ...openSale, hardClosedAt: String(now - 10) }), FairBuyerJSON: qjson({ ...order, settled: false, claimableTokens: "0" }) })
+        const { unmount } = show("mainnet", true)
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        fireEvent.click(await screen.findByRole("button", { name: "Settle the sale" }))
+        await waitFor(() => expect(sign).toHaveBeenCalled())
+        expect(signed()).toMatchObject({ func: "SettleFair", args: ["T1"], send: "" })
+        expect(screen.queryByRole("button", { name: "Claim" })).toBeNull()
+        unmount()
+
+        show("mainnet", true)
+        chain()
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        fireEvent.click(await screen.findByRole("button", { name: "Claim" }))
+        await waitFor(() => expect(signed()).toMatchObject({ func: "ClaimFair", args: ["T1", MEMBER] }))
+        fireEvent.click(screen.getByRole("button", { name: "Release the proceeds" }))
+        await waitFor(() => expect(signed()).toMatchObject({ func: "ReleaseFairProceeds", args: ["T1"] }))
+        expect(screen.queryByRole("button", { name: "Settle the sale" })).toBeNull()
     })
 })
