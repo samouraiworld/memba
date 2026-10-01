@@ -192,18 +192,17 @@ describe("NFT window", () => {
         expect(screen.queryByText("classic page")).toBeNull()
     })
 
-    it.each([
-        ["studio", "The creator studio arrives in a later version of Memba OS."],
-        ["studio/C1", "The creator studio arrives in a later version of Memba OS."],
-    ])("answers the %s section natively, never with the classic page", (section, text) => {
+    it("answers the studio sections natively: a guest is asked to connect, a collection's studio reads it", async () => {
         availability.enabled = true
         availability.ledger = true
-        const push = vi.fn()
-        show({ section, push })
-        expect(screen.getByRole("note")).toHaveTextContent(text)
+        const { unmount } = show({ section: "studio" })
+        expect(screen.getByText("Connect a wallet to manage the collections it created.")).toBeInTheDocument()
         expect(screen.queryByText("classic page")).toBeNull()
-        fireEvent.click(screen.getByRole("button", { name: "Browse collections" }))
-        expect(push.mock.calls[0][0].target).toEqual({ kind: "app", app: "nft", section: null })
+        unmount()
+        queryEval.mockResolvedValue(null)
+        show({ section: "studio/C1" })
+        expect(screen.getByText("Reading the collection…")).toBeInTheDocument()
+        expect(screen.queryByText("classic page")).toBeNull()
     })
 
     it.each(["collection/g1abc/foo", "c/C01", "c/C1/0", "mine/"])("hands a section it does not serve (%s) to the fallback, without reading the chain", (section) => {
