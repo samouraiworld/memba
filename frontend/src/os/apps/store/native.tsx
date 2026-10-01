@@ -7,7 +7,7 @@ import { ReviewsSection } from "../../../components/reviews/ReviewsSection"
 import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
 import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDate, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
-import { fetchAppStrict, fetchLiveCatalogue, isSafeRealmPath } from "../../../lib/appStore"
+import { fetchAppStrict, fetchLiveCatalogue, isAppStoreV3On, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { isValidCid } from "../../../lib/ipfs"
 import { networkGasPriceFresh } from "../../../lib/grc20"
@@ -20,6 +20,8 @@ import { specForTarget } from "../../shell/windows"
 import { useSigner } from "../../sign/signerContext"
 import { NativeReviewComposer } from "./NativeReviewComposer"
 import { reviewActionRequest } from "./reviewActionRequest"
+import { CuratorQueue } from "./CuratorQueue"
+import { ReportListing } from "./ReportListing"
 import "./native.css"
 
 const sections = [
@@ -163,7 +165,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>
-                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
+                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{listing && (listing.status === "live" || listing.status === "pending") && isAppStoreV3On(session.network.key) && <ReportListing session={session} listing={listing} appName={entry.name} onReported={() => void detail.refetch()} />}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
             </div>
         </>}
     </div>
@@ -223,11 +225,15 @@ function Extensions() {
 export default function StoreWindow(props: NativeViewProps) {
     const { section, session, open, fallback } = props
     if (section?.startsWith("apps/") || section?.startsWith("project/")) return <Detail {...props} />
-    if (section === "submit" || section === "review" || section === "my-submissions") return <>{fallback}</>
-    if (section !== null && section !== "ecosystem" && section !== "extensions") return <>{fallback}</>
+    if (section === "submit" || section === "my-submissions") return <>{fallback}</>
+    if (section !== null && section !== "ecosystem" && section !== "extensions" && section !== "review") return <>{fallback}</>
     const current = section ?? "discover"
-    const nav = session.status === "member" ? [...sections, { id: "my-submissions", name: "Your listings", icon: "prof" as const }] : sections
+    const nav = [
+        ...sections,
+        ...isAppStoreV3On(session.network.key) ? [{ id: "review", name: "Curator queue", icon: "doc" as const }] : [],
+        ...session.status === "member" ? [{ id: "my-submissions", name: "Your listings", icon: "prof" as const }] : [],
+    ]
     return <AppShell label="App Store" sections={nav} current={current} onSelect={(next) => open(specForTarget({ kind: "app", app: "store", section: next === "discover" ? null : next })!)}>
-        {current === "extensions" ? <Extensions /> : <Discovery key={`${current}:${props.query}`} props={props} section={current === "ecosystem" ? "ecosystem" : "discover"} />}
+        {current === "extensions" ? <Extensions /> : current === "review" ? <CuratorQueue session={session} open={open} /> : <Discovery key={`${current}:${props.query}`} props={props} section={current === "ecosystem" ? "ecosystem" : "discover"} />}
     </AppShell>
 }

@@ -104,3 +104,13 @@
   .memba-os .os-store-search input { flex-basis: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .memba-os .os-store-card, .memba-os .os-store-spotlight { transition: none; } .memba-os .os-store-card:hover, .memba-os .os-store-spotlight:hover { transform: none; } }
+.memba-os .os-store-report { display: grid; gap: 8px; border-top: 1px solid var(--os-line); padding-top: 10px; }
+.memba-os .os-store-report .os-btn { justify-self: start; }
+.memba-os .os-store-report > .os-store-review-error { color: var(--os-err); }
+.memba-os .os-store-queue-curators { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin: 0 0 12px; color: var(--os-mut); }
+.memba-os .os-store-queue-curators code, .memba-os .os-store-queue code { font: 11px var(--os-mono); overflow-wrap: anywhere; }
+.memba-os .os-store-queue { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.memba-os .os-store-queue li { display: grid; gap: 4px; border: 1px solid var(--os-line); border-radius: 14px; padding: 12px 14px; background: var(--os-card); color: var(--os-mut); min-width: 0; }
+.memba-os .os-store-queue-name { justify-self: start; border: 0; padding: 0; background: none; color: var(--os-ink); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.memba-os .os-store-queue-name:hover { text-decoration: underline; }
+.memba-os .os-store-queue-name:focus-visible { outline: 2px solid var(--os-acc-ink); outline-offset: 2px; border-radius: 4px; }

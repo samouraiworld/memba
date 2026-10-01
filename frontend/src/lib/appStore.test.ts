@@ -11,8 +11,17 @@ import {
     fetchByStatus,
     fetchByPublisher,
     fetchAppStoreStats,
+    appFlagStorageBytes,
+    assertAppReportApplies,
+    buildFlagAppMsg,
+    submitAppReport,
+    APP_FLAG_GAS_WANTED,
+    fetchCuratorQueue,
+    NothingSentError,
 } from "./appStore"
 import * as shared from "./dao/shared"
+import * as grc20 from "./grc20"
+import { depositCapUgnot } from "./dao/v2Budget"
 import { ACTIVE_NETWORK_KEY, appStorePathFor } from "./config"
 
 describe("APPSTORE_REALM_PATH", () => {
@@ -168,6 +177,8 @@ describe("strict native app detail", () => {
         const path = "gno.land/r/samcrew/block_party"
         const qe = vi.spyOn(shared, "queryEval").mockResolvedValue(null)
         await expect(fetchAppStrict(path)).rejects.toThrow("unavailable")
+        // Read on a node whose chain is checked on every failover.
+        expect(qe).toHaveBeenLastCalledWith(expect.any(String), APPSTORE_REALM_PATH, `GetListingJSON("${path}")`, true)
 
         qe.mockResolvedValue('("null" string)')
         await expect(fetchAppStrict(path)).resolves.toBeNull()
@@ -244,5 +255,138 @@ describe("fetchAppStoreStats (masthead counts via GetStatsJSON)", () => {
             pj.mockReturnValue(bad)
             expect(await fetchAppStoreStats()).toBeNull()
         }
+    })
+})
+
+describe("reporting a listing (FlagApp)", () => {
+    const PKG = "gno.land/r/samcrew/space_invaders"
+    const CALLER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+    afterEach(() => vi.restoreAllMocks())
+
+    /** The listing read answers `status`; the per-account report read answers `flagged`. */
+    function chain(status: string | null, flagged: string | null) {
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue(status === null ? null : { pkgPath: PKG, name: "Space Invaders", status })
+        return vi.spyOn(shared, "queryEval").mockImplementation(async (_rpc, _pkg, expr) =>
+            expr.startsWith("GetListingJSON") ? (status === null ? '("null" string)' : "[listing]") : flagged)
+    }
+
+    it("sizes the deposit cap on the bytes measured for real listing paths", () => {
+        // Measured on gnoland-1: 1,095 B (block_party), 1,098 B (space_invaders), 1,095 B (gnoswap/router).
+        expect(appFlagStorageBytes("gno.land/r/samcrew/block_party")).toBeGreaterThanOrEqual(1_095)
+        expect(appFlagStorageBytes(PKG)).toBeGreaterThanOrEqual(1_098)
+        expect(appFlagStorageBytes("gno.land/r/gnoswap/router")).toBeGreaterThanOrEqual(1_095)
+        expect(buildFlagAppMsg(CALLER, PKG).value.max_deposit).toBe(`${depositCapUgnot(appFlagStorageBytes(PKG))}ugnot`)
+    })
+
+    it("lets a first report on a live or pending listing through, reading both on a verified node", async () => {
+        const qe = chain("live", "(false bool)")
+        await expect(assertAppReportApplies(CALLER, PKG)).resolves.toBeUndefined()
+        expect(qe).toHaveBeenCalledWith(expect.any(String), APPSTORE_REALM_PATH, `HasGovernanceFlag("${PKG}", "${CALLER}")`, true)
+        chain("pending", "(false bool)")
+        await expect(assertAppReportApplies(CALLER, PKG)).resolves.toBeUndefined()
+    })
+
+    it("stops a second report, a closed or missing listing, an unreadable answer and a guest before the wallet", async () => {
+        chain("live", "(true bool)")
+        await expect(assertAppReportApplies(CALLER, PKG)).rejects.toThrow("already reported")
+        chain("delisted", "(false bool)")
+        await expect(assertAppReportApplies(CALLER, PKG)).rejects.toThrow("can no longer be reported")
+        chain(null, "(false bool)")
+        await expect(assertAppReportApplies(CALLER, PKG)).rejects.toThrow("can no longer be reported")
+        chain("live", null)
+        await expect(assertAppReportApplies(CALLER, PKG)).rejects.toThrow("could not be read")
+        await expect(assertAppReportApplies("", PKG)).rejects.toThrow("Connect your wallet")
+    })
+
+    it("sends from the classic page at the measured gas and the fee read now, checking again before the wallet", async () => {
+        const qe = chain("live", "(false bool)")
+        vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(21_000)
+        const broadcast = vi.spyOn(grc20, "doContractBroadcast").mockImplementation(async (_msgs, _memo, opts) => {
+            await opts?.beforeSign?.()
+            return { hash: "h" } as never
+        })
+        await expect(submitAppReport(CALLER, PKG)).resolves.toBe("h")
+        expect(broadcast).toHaveBeenCalledWith([buildFlagAppMsg(CALLER, PKG)], "Report app", expect.objectContaining({ gasWanted: APP_FLAG_GAS_WANTED, gasFee: 21_000 }))
+        // Once before the confirmation, once in beforeSign: two listing reads and two report reads.
+        expect(qe).toHaveBeenCalledTimes(4)
+    })
+
+    it("sends nothing when this account reported it meanwhile", async () => {
+        const qe = chain("live", "(false bool)")
+        vi.spyOn(grc20, "freshFeeForGasWanted").mockResolvedValue(21_000)
+        const wallet = vi.fn()
+        vi.spyOn(grc20, "doContractBroadcast").mockImplementation(async (_msgs, _memo, opts) => {
+            qe.mockImplementation(async (_rpc, _pkg, expr) => expr.startsWith("GetListingJSON") ? "[listing]" : "(true bool)")
+            await opts?.beforeSign?.()
+            wallet()
+            return { hash: "h" } as never
+        })
+        // Stopped in the check after the confirmation: marked as nothing sent, with the reason.
+        const sent = submitAppReport(CALLER, PKG)
+        await expect(sent).rejects.toBeInstanceOf(NothingSentError)
+        await expect(sent).rejects.toThrow("already reported")
+        expect(wallet).not.toHaveBeenCalled()
+    })
+})
+
+describe("curator queue (read-only)", () => {
+    afterEach(() => vi.restoreAllMocks())
+    const item = (id: number) => ({ id, pkgPath: `gno.land/r/alice/app${id}`, name: `App ${id}`, status: "pending" })
+    const CURATOR = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
+
+    function registry(pendingTotal: unknown, curators: unknown, windows: unknown[][], pendingAfter = pendingTotal) {
+        let page = 0
+        let statsReads = 0
+        return vi.spyOn(shared, "queryEval").mockImplementation(async (_rpc, _pkg, expr) => {
+            if (expr === "GetStatsJSON()") return JSON.stringify({ pending: statsReads++ === 0 ? pendingTotal : pendingAfter })
+            if (expr === "GetCuratorsJSON()") return JSON.stringify(curators)
+            return JSON.stringify(windows[page++] ?? [])
+        })
+    }
+    beforeEach(() => { vi.spyOn(shared, "parseQevalJSON").mockImplementation((raw) => JSON.parse(raw)) })
+
+    it("counts the pending listings reports hide from the registry's lists, reading every call on a verified node", async () => {
+        const qe = registry(3, [CURATOR], [[item(1), item(2)]])
+        await expect(fetchCuratorQueue(100)).resolves.toMatchObject({ hidden: 1, curators: [CURATOR], pending: [{ name: "App 1" }, { name: "App 2" }] })
+        expect(qe).toHaveBeenCalledWith(expect.any(String), APPSTORE_REALM_PATH, 'ListByStatusJSON("pending", 0, 100)', true)
+        for (const call of qe.mock.calls) expect(call[3]).toBe(true)
+    })
+
+    it("pages to the end, and does not state a hidden count when it stopped early", async () => {
+        registry(3, [CURATOR], [[item(1), item(2)], [item(3)]])
+        await expect(fetchCuratorQueue(2)).resolves.toMatchObject({ hidden: 0, pending: [{}, {}, {}] })
+        registry(9, [CURATOR], [[item(1), item(2)], [item(3), item(4)]])
+        await expect(fetchCuratorQueue(2, 2)).resolves.toMatchObject({ hidden: null })
+    })
+
+    it("states no hidden count when the pending counter moved while the pages were read", async () => {
+        registry(3, [CURATOR], [[item(1), item(2)]], 4)
+        await expect(fetchCuratorQueue()).resolves.toMatchObject({ hidden: null, pending: [{}, {}] })
+    })
+
+    it("never asks for a window longer than the realm serves", async () => {
+        const qe = registry(0, [CURATOR], [[]])
+        await fetchCuratorQueue(500)
+        expect(qe).toHaveBeenCalledWith(expect.any(String), APPSTORE_REALM_PATH, 'ListByStatusJSON("pending", 0, 100)', true)
+    })
+
+    it("throws instead of showing an empty queue when a read fails or answers nonsense", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue(null)
+        await expect(fetchCuratorQueue()).rejects.toThrow("unavailable")
+        registry("3", [CURATOR], [[]])
+        await expect(fetchCuratorQueue()).rejects.toThrow("invalid state")
+        registry(0, ['x") or Steal("'], [[]])
+        await expect(fetchCuratorQueue()).rejects.toThrow("invalid curator data")
+        registry(0, [CURATOR], [{} as never])
+        await expect(fetchCuratorQueue()).rejects.toThrow("invalid page")
+    })
+})
+
+describe("a listing field the realm does not give", () => {
+    afterEach(() => vi.restoreAllMocks())
+    it("stays missing instead of reading as zero", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue("[raw]")
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue({ pkgPath: "gno.land/r/samcrew/block_party", name: "Block Party", status: "live" })
+        await expect(fetchAppStrict("gno.land/r/samcrew/block_party")).resolves.toMatchObject({ resubmitCount: undefined })
     })
 })

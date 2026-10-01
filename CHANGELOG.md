@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: App Store report, curator queue and listings (2026-10-01)
+- Report an App Store listing from Memba OS, with its deposit and the five-report hide rule stated on both pages; a read-only curator queue shows pending listings, who decides, and how many reports hide.
+
 ### Memba OS: multisig window (2026-10-01)
 - Fixed: the multisig window no longer tells you that you are not a member when the address is a single-key account.
 

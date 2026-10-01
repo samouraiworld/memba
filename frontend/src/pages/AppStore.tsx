@@ -556,8 +556,9 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             )}
                         </p>
                         {/* Community safety valve (B1b): flaggable states only — the realm
-                            rejects flags on rejected/delisted apps anyway. */}
-                        {(app.status === "live" || app.status === "pending") && (
+                            rejects flags on rejected/delisted apps anyway. The stated threshold and
+                            costs are the v3 registry's. */}
+                        {isAppStoreV3() && (app.status === "live" || app.status === "pending") && (
                             <ReportAppButton pkgPath={app.pkgPath} />
                         )}
                     </aside>

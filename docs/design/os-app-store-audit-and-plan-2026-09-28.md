@@ -47,7 +47,8 @@ The recommended product model is **one discovery experience with explicit proven
 - **Categories:** a fixed user-facing taxonomy (Games, DeFi, Governance, Social, Wallets, Explorers, Developer tools, Infrastructure, Creative) mapped from legacy free-text categories without changing the immutable v3 fields. Search, category, availability, and source type compose; URL state is shareable.
 - **App detail:** native OS window with real icon, name/tagline, honest status, primary Open action, destination/network disclosure, screenshot gallery, description, publisher and realm/source panel, “what's new” only where supplied and dated, onchain reviews when live, and Report. Third-party destinations remain external tabs.
 - **Extensions:** dedicated Store section for add-ons that actually connect to Memba, with compatibility and activation state. Do not label a planned integration “active.”
-- **Your listings / Curator queue:** role-aware sections. Existing classic routes can be bridged first, then replaced with native flows after the signing sheet and transaction review are ready.
+- **Curator queue:** native and read-only for everyone (owner decision, 2026-09-30): the curator is the team's 2-of-3 multisig, later the Memba DAO, and neither signs from a browser. It lists the pending listings the registry returns and says how many pending listings reports hide, since no read lists those.
+- **Your listings:** the classic route is bridged until its native flow ships with the submission wizard.
 
 ### Visual system
 

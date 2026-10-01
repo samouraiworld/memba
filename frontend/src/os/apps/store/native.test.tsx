@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { AppListing } from "../../../lib/appStore"
 import type { ReviewAct } from "../../../components/reviews/ReviewCard"
@@ -7,7 +7,7 @@ import type { SignRequest } from "../../sign/signer"
 import { SignerContext, type SignerApi } from "../../sign/signerContext"
 import StoreWindow from "./native"
 
-const mocks = vi.hoisted(() => ({ fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), price: vi.fn(), applies: vi.fn(), mounts: 0 }))
+const mocks = vi.hoisted(() => ({ fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0 }))
 vi.mock("../../../lib/config", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/config")>(),
     isAppStoreEnabled: () => true, isAppReviewsAvailable: () => true, isRealmValidOn: () => true,
@@ -15,6 +15,8 @@ vi.mock("../../../lib/config", async (importActual) => ({
 vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
     fetchAppStrict: mocks.fetchAppStrict,
+    assertAppReportApplies: mocks.reportApplies,
+    fetchCuratorQueue: mocks.fetchCuratorQueue,
 }))
 vi.mock("../../../lib/reviews", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/reviews")>(),
@@ -61,6 +63,7 @@ function show(section = "apps/r/samcrew/app", session = guest) {
 beforeEach(() => {
     mocks.fetchAppStrict.mockReset(); mocks.fetchModerator.mockReset().mockResolvedValue(null)
     mocks.price.mockReset(); mocks.applies.mockReset().mockResolvedValue(undefined); mocks.mounts = 0
+    mocks.reportApplies.mockReset().mockResolvedValue(undefined); mocks.fetchCuratorQueue.mockReset()
     vi.mocked(signer.sign).mockReset(); openConnect.mockReset()
 })
 
@@ -224,3 +227,96 @@ describe("Store detail: an action on a review", () => {
     })
 })
 
+
+describe("Store detail: reporting a listing", () => {
+    const report = () => fireEvent.click(screen.getByRole("button", { name: "Report this listing" }))
+
+    it("states the count and the threshold to a visitor, and asks to connect when pressed", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ flagCount: 2 }))
+        show()
+        expect(await screen.findByText("Reports so far: 2. Reports from 5 different accounts hide a listing from the public lists until a curator clears them.")).toBeInTheDocument()
+        report()
+        expect(openConnect).toHaveBeenCalledTimes(1)
+        expect(mocks.reportApplies).not.toHaveBeenCalled()
+        expect(mocks.price).not.toHaveBeenCalled()
+        expect(signer.sign).not.toHaveBeenCalled()
+    })
+
+    it("checks the listing, reads the fee at that click, opens the sheet, and reads the listing again when the report lands", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ status: "pending" }))
+        mocks.price.mockResolvedValue({ gas: 1000, ugnot: 1 })
+        show(undefined, member)
+        await screen.findByText(/Reports so far: 0/)
+        report()
+        await waitFor(() => expect(signer.sign).toHaveBeenCalledTimes(1))
+        expect(mocks.reportApplies).toHaveBeenCalledWith(MEMBER, "gno.land/r/samcrew/app")
+        const request = vi.mocked(signer.sign).mock.calls[0][0] as SignRequest
+        expect([request.title, request.summary]).toEqual(["Report a listing", "Report Test App to the App Store curators"])
+        expect(request.prepare(undefined).msgs[0].value).toMatchObject({ caller: MEMBER, func: "FlagApp", args: ["gno.land/r/samcrew/app"] })
+        const reads = mocks.fetchAppStrict.mock.calls.length
+        request.onSettled?.("cancelled", undefined)
+        expect(screen.getByRole("button", { name: "Report this listing" })).toBeInTheDocument()
+        request.onSettled?.("confirmed", undefined)
+        expect(await screen.findByText("You reported this listing.")).toBeInTheDocument()
+        await waitFor(() => expect(mocks.fetchAppStrict.mock.calls.length).toBe(reads + 1))
+    })
+
+    it("opens no sheet when this account already reported it, and says so", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({}))
+        mocks.reportApplies.mockRejectedValue(new Error("You have already reported this listing."))
+        show(undefined, member)
+        await screen.findByText(/Reports so far/)
+        report()
+        expect(await screen.findByRole("alert")).toHaveTextContent("You have already reported this listing.")
+        expect(mocks.price).not.toHaveBeenCalled()
+        expect(signer.sign).not.toHaveBeenCalled()
+    })
+
+    it("offers no report on a listing the realm no longer takes reports for", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ status: "delisted" }))
+        show(undefined, member)
+        await screen.findByText("This listing is delisted. It is not in the approved catalogue.", { exact: false })
+        expect(screen.queryByRole("button", { name: "Report this listing" })).toBeNull()
+    })
+})
+
+describe("Store: curator queue", () => {
+    const CURATOR = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
+
+    it("shows a visitor the pending listings, who decides, and how many reports hide", async () => {
+        mocks.fetchCuratorQueue.mockResolvedValue({ pending: [listing({ status: "pending", flagCount: 1, resubmitCount: 2, createdAt: 452_990, publisher: "g1alice" })], hidden: 2, curators: [CURATOR, "g1othercurator"] })
+        show("review")
+        expect(await screen.findByText(CURATOR)).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "Curator queue" })).toBeInTheDocument()
+        expect(screen.getByText(/the Memba DAO is to take this over later/)).toBeInTheDocument()
+        // Named for what it is only when the registry lists it.
+        expect(screen.getAllByText(/the team's 2-of-3 multisig/)).toHaveLength(1)
+        expect(screen.getByText("g1othercurator")).toBeInTheDocument()
+        expect(screen.getByText("Listings with 5 or more reports are not listed here: the registry has no read that lists them. 2 pending listings are hidden this way now.")).toBeInTheDocument()
+        expect(screen.getByText("Reports: 1 · Edits used: 2 of 5")).toBeInTheDocument()
+        // A seeded listing's height is another chain's: none is shown.
+        expect(screen.queryByText(/at block/)).toBeNull()
+        // Read-only: no action on a listing but opening it.
+        expect(screen.queryByRole("button", { name: /Approve|Reject|Clear/ })).toBeNull()
+    })
+
+    it("says the hidden count is unknown when the queue was not read to its end, and never shows a failed read as empty", async () => {
+        // A listing whose edit count the registry did not give shows none, never zero.
+        mocks.fetchCuratorQueue.mockResolvedValueOnce({ pending: [listing({ status: "pending", flagCount: 0 })], hidden: null, curators: [CURATOR] })
+        show("review")
+        expect(await screen.findByText(/how many are hidden is not known/)).toBeInTheDocument()
+        expect(screen.getByText("Reports: 0")).toBeInTheDocument()
+        cleanup()
+        mocks.fetchCuratorQueue.mockRejectedValue(new Error("App Store registry is unavailable"))
+        show("review")
+        expect(await screen.findByText("The curator queue could not be read from the registry.")).toBeInTheDocument()
+        expect(screen.queryByText("No listings are waiting for review.")).toBeNull()
+    })
+
+    it("does not claim an empty queue when the only pending listings are hidden", async () => {
+        mocks.fetchCuratorQueue.mockResolvedValue({ pending: [], hidden: 1, curators: [CURATOR] })
+        show("review")
+        expect(await screen.findByText("No other pending listing can be shown.")).toBeInTheDocument()
+        expect(screen.queryByText("No listings are waiting for review.")).toBeNull()
+    })
+})

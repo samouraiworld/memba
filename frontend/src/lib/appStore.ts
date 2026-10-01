@@ -1,9 +1,9 @@
 /**
- * appStore — read-only client for the App Store realm (W9; v2 on testnets, v3 on mainnet).
+ * appStore — client for the App Store realm (W9; v2 on testnets, v3 on mainnet).
  *
  * Reads the realm's JSON getters (`ListLiveJSON`, `GetListingJSON`) via ABCI
- * `vm/qeval` and parses them. Read-only: the money path (RegisterApp) is a wallet
- * broadcast handled elsewhere; this module never writes.
+ * `vm/qeval` and parses them, and sends a report (`FlagApp`) at its measured cost.
+ * The money path (RegisterApp) is a wallet broadcast handled elsewhere.
  *
  * SECURITY: `pkgPath` reaches `GetListingJSON(...)` inside a qeval EXPRESSION, so
  * it is validated against a strict realm-path shape before interpolation — an
@@ -13,8 +13,9 @@
  */
 
 import { queryEval, parseQevalJSON } from "./dao/shared"
-import type { AminoMsg } from "./grc20"
-import { GNO_RPC_URL, MEMBA_DAO } from "./config"
+import { depositCapUgnot } from "./dao/v2Budget"
+import { assertFeeStillCovers, doContractBroadcast, freshFeeForGasWanted, type AminoMsg } from "./grc20"
+import { GNO_RPC_URL, isAppStoreEnabled, isRealmValidOn, MEMBA_DAO } from "./config"
 
 // The active App Store realm, chosen per network in config (MEMBA_DAO.appStorePath).
 export const APPSTORE_REALM_PATH = MEMBA_DAO.appStorePath
@@ -30,6 +31,10 @@ export function isV3Path(path: string): boolean {
 }
 export function isAppStoreV3(): boolean {
     return isV3Path(APPSTORE_REALM_PATH)
+}
+/** Reports and the curator queue need the v3 registry on this network: its threshold, reads and measured costs are the ones Memba states. */
+export function isAppStoreV3On(networkKey: string): boolean {
+    return isAppStoreEnabled() && isAppStoreV3() && isRealmValidOn(networkKey, APPSTORE_REALM_PATH)
 }
 
 /** App lifecycle status. The client passes these literals into `ListByStatusJSON` — never free text. */
@@ -66,19 +71,74 @@ export function isSafeRealmPath(p: string): boolean {
     return REALM_PATH_RE.test(p) && p.length <= 200
 }
 
+/** FlagApp measured on gnoland-1 (09-30): 7.03M to 7.53M gas. The limit is twice that. */
+export const APP_FLAG_GAS_WANTED = 15_000_000
+
+/** memba_appstore_v3 `FlagHideThreshold`: reports from this many accounts hide a listing from the public lists until a curator clears them. */
+export const FLAG_HIDE_THRESHOLD = 5
+
+/** Bytes a report stores, never returned: 1,095 to 1,098 measured for 25- to 33-byte paths, since the report's key holds the path. */
+export function appFlagStorageBytes(pkgPath: string): number {
+    return 1_070 + new TextEncoder().encode(pkgPath).length
+}
+
 /**
- * FlagApp(pkgPath) — the community report action. One flag per address per
- * listing (the realm dedupes and panics "already flagged"); at the realm's
- * hide threshold the listing drops from the public lists for curator review.
- * Same guard as the read path: pkgPath is validated before it becomes a
- * broadcast argument.
+ * FlagApp(pkgPath) — the community report action, with its deposit capped. One report per
+ * account per listing; at `FLAG_HIDE_THRESHOLD` the listing drops from the public lists until a
+ * curator clears the reports. pkgPath is validated before it becomes a broadcast argument.
  */
 export function buildFlagAppMsg(caller: string, pkgPath: string): AminoMsg {
     if (!isSafeRealmPath(pkgPath)) throw new Error("invalid app path")
     return {
         type: "vm/MsgCall",
-        value: { caller, send: "", pkg_path: APPSTORE_REALM_PATH, func: "FlagApp", args: [pkgPath] },
+        value: {
+            caller, send: "", pkg_path: APPSTORE_REALM_PATH, func: "FlagApp", args: [pkgPath],
+            max_deposit: `${depositCapUgnot(appFlagStorageBytes(pkgPath))}ugnot`,
+        },
     }
+}
+
+/** What the realm refuses after charging the fee, read from a verified node: a listing that is gone or closed, or a second report from this account. */
+export async function assertAppReportApplies(caller: string, pkgPath: string): Promise<void> {
+    if (!ADDRESS_RE.test(caller)) throw new Error("Connect your wallet first.")
+    const listing = await fetchAppStrict(pkgPath)
+    if (!listing || (listing.status !== "live" && listing.status !== "pending")) throw new Error("This listing can no longer be reported. Refresh the page.")
+    const raw = (await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, `HasGovernanceFlag(${JSON.stringify(pkgPath)}, ${JSON.stringify(caller)})`, true))?.trim()
+    if (raw === "(true bool)") throw new Error("You have already reported this listing.")
+    if (raw !== "(false bool)") throw new Error("The App Store registry could not be read. Nothing was sent.")
+}
+
+/** A check made before the wallet stopped the call: nothing was sent, and the message says why. */
+export class NothingSentError extends Error {}
+
+async function beforeWallet<T>(step: () => Promise<T>): Promise<T> {
+    try { return await step() }
+    catch (cause) { throw new NothingSentError(cause instanceof Error ? cause.message : String(cause)) }
+}
+
+/**
+ * Send one App Store call from a classic page at its measured gas limit and the fee read from the
+ * chain now, once. `check` (what the realm would refuse after charging the fee) runs before the
+ * confirmation opens and again after it closes, then the fee; a stop there is a `NothingSentError`.
+ */
+export async function sendAppStoreCall(msg: AminoMsg, memo: string, gasWanted: number, check: () => Promise<void>): Promise<string> {
+    await beforeWallet(check)
+    const gasFee = await beforeWallet(() => freshFeeForGasWanted(gasWanted).catch(() => {
+        throw new Error("The network fee could not be read. Nothing was sent; try again in a moment.")
+    }))
+    const { hash } = await doContractBroadcast([msg], memo, {
+        gasWanted, gasFee,
+        beforeSign: () => beforeWallet(async () => {
+            await check()
+            await assertFeeStillCovers(gasFee, () => freshFeeForGasWanted(gasWanted), "Try again to see the new fee.")
+        }),
+    })
+    return hash
+}
+
+/** Report from the classic page. */
+export function submitAppReport(caller: string, pkgPath: string): Promise<string> {
+    return sendAppStoreCall(buildFlagAppMsg(caller, pkgPath), "Report app", APP_FLAG_GAS_WANTED, () => assertAppReportApplies(caller, pkgPath))
 }
 
 function coerce(o: unknown): AppListing | null {
@@ -109,7 +169,8 @@ function coerce(o: unknown): AppListing | null {
         descr: typeof r.descr === "string" ? r.descr : undefined,
         rejectReason: rejectReason || undefined,
         screenshotCIDs: cids.length ? cids : undefined,
-        resubmitCount: Number(r.resubmitCount) || 0,
+        // Missing, never zero, when the realm does not give it (v2).
+        resubmitCount: typeof r.resubmitCount === "number" ? r.resubmitCount : undefined,
         paidResubmitCredit: r.paidResubmitCredit === true,
     }
 }
@@ -194,15 +255,66 @@ export async function fetchApp(pkgPath: string): Promise<AppListing | null> {
     return coerce(parseQevalJSON(raw))
 }
 
-/** Native detail read: only the realm's explicit null means absent. RPC failures stay errors. */
+/** Native detail read on a verified node: only the realm's explicit null means absent. RPC failures stay errors. */
 export async function fetchAppStrict(pkgPath: string): Promise<AppListing | null> {
     if (!isSafeRealmPath(pkgPath)) throw new Error("Invalid app path")
-    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, `GetListingJSON(${JSON.stringify(pkgPath)})`)
+    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, `GetListingJSON(${JSON.stringify(pkgPath)})`, true)
     if (!raw) throw new Error("App Store registry is unavailable")
     if (raw.trim() === '("null" string)') return null
     const listing = coerce(parseQevalJSON(raw))
     if (!listing || listing.pkgPath !== pkgPath) throw new Error("App Store registry returned an invalid listing")
     return listing
+}
+
+export interface CuratorQueue {
+    /** Pending listings the registry lists, oldest first. */
+    pending: AppListing[]
+    /** Pending listings that reports hide from the registry's lists; null when the queue was not read to its end. */
+    hidden: number | null
+    curators: string[]
+}
+
+async function evalStrict(expr: string): Promise<unknown> {
+    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, expr, true)
+    if (!raw) throw new Error("App Store registry is unavailable")
+    return parseQevalJSON(raw)
+}
+
+/** The realm's MaxPageLimit: a longer window comes back cut to this. */
+const MAX_PAGE_LIMIT = 100
+
+async function pendingTotal(): Promise<number> {
+    const stats = await evalStrict("GetStatsJSON()")
+    const pending = stats && typeof stats === "object" ? (stats as Record<string, unknown>).pending : undefined
+    if (typeof pending !== "number") throw new Error("App Store registry returned invalid state")
+    return pending
+}
+
+/**
+ * The curator queue, read on a verified node; a failed read throws, so an outage never looks like
+ * an empty queue. `ListByStatusJSON("pending")` leaves out listings hidden by reports and no read
+ * lists them, but `GetStatsJSON` counts them, so their number is known once the queue is read to its end.
+ */
+export async function fetchCuratorQueue(pageSize = MAX_PAGE_LIMIT, maxPages = 5): Promise<CuratorQueue> {
+    const size = Math.min(MAX_PAGE_LIMIT, Math.max(1, Math.floor(pageSize)))
+    const [before, curators] = await Promise.all([pendingTotal(), evalStrict("GetCuratorsJSON()")])
+    if (!Array.isArray(curators) || !curators.every((c) => typeof c === "string" && ADDRESS_RE.test(c))) {
+        throw new Error("App Store registry returned invalid curator data")
+    }
+    const pending: AppListing[] = []
+    let listed = 0
+    for (let page = 0; page < maxPages; page++) {
+        const window = await evalStrict(`ListByStatusJSON("pending", ${page * size}, ${size})`)
+        if (!Array.isArray(window)) throw new Error("App Store registry returned an invalid page")
+        listed += window.length
+        pending.push(...window.map(coerce).filter((x): x is AppListing => x !== null))
+        if (window.length < size) {
+            // The pages and the counter may be read at different heights: a count is stated only when the counter held still.
+            const after = await pendingTotal()
+            return { pending, hidden: after === before ? Math.max(0, before - listed) : null, curators }
+        }
+    }
+    return { pending, hidden: null, curators }
 }
 
 /** Realm-level catalog stats. v3's GetStatsJSON is a superset (adds per-status

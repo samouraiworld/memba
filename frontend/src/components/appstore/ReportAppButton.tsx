@@ -1,15 +1,16 @@
 /**
  * ReportAppButton — the App Store community safety valve (B1b).
  *
- * One on-chain flag per address per listing; at the realm's hide threshold the
- * listing drops from the public lists for curator review. The confirm step
- * discloses exactly that (an on-chain, public, one-shot action) before any
- * wallet prompt. Disconnected visitors get connect-on-action (the PostCard
- * flag pattern) instead of a dead button.
+ * One on-chain report per account per listing; at the realm's hide threshold the
+ * listing drops from the public lists until a curator clears the reports. The
+ * confirm step states that, and the deposit a report locks, before any wallet
+ * prompt. Disconnected visitors get connect-on-action (the PostCard flag
+ * pattern) instead of a dead button.
  */
 import { useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
-import { buildFlagAppMsg } from "../../lib/appStore"
+import { appFlagStorageBytes, FLAG_HIDE_THRESHOLD, NothingSentError, submitAppReport } from "../../lib/appStore"
+import { formatUgnot, STORAGE_PRICE_UGNOT } from "../../lib/dao/v2Budget"
 
 export function ReportAppButton({ pkgPath }: { pkgPath: string }) {
     const { connected, address, connect } = useAdena()
@@ -22,20 +23,16 @@ export function ReportAppButton({ pkgPath }: { pkgPath: string }) {
         setBusy(true)
         setError(null)
         try {
-            const { doContractBroadcast } = await import("../../lib/grc20")
-            await doContractBroadcast([buildFlagAppMsg(address, pkgPath)], "Report app")
+            await submitAppReport(address, pkgPath)
             setDone(true)
             setConfirming(false)
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
-            if (/already flagged/i.test(msg)) {
-                // The realm's dedupe: this address reported it before — that IS the end state.
-                setDone(true)
-                setConfirming(false)
-            } else if (/denied|rejected|cancel/i.test(msg)) {
+            if (/denied|rejected|cancel/i.test(msg)) {
                 setError(null) // wallet dismissal is not an error to shout about
             } else {
-                setError("Could not submit the report. Please try again.")
+                // Checks made before the wallet say what stopped them; anything else is generic.
+                setError(e instanceof NothingSentError ? msg : "The report did not go through. A transaction that fails on chain still costs its network fee.")
             }
         } finally {
             setBusy(false)
@@ -45,7 +42,7 @@ export function ReportAppButton({ pkgPath }: { pkgPath: string }) {
     if (done) {
         return (
             <span className="appreport appreport--done" data-testid="appreport-done">
-                Reported — a curator will review this listing.
+                Reported. Your report is recorded on the listing.
             </span>
         )
     }
@@ -70,9 +67,11 @@ export function ReportAppButton({ pkgPath }: { pkgPath: string }) {
             ) : (
                 <span className="appreport__confirm" data-testid="appreport-confirm">
                     <span className="appreport__copy">
-                        Reporting is on-chain and public — one report per address, and it
-                        can't be withdrawn. Enough reports hide the listing pending curator
-                        review.
+                        Reporting is on-chain and public: one report per account, and it
+                        can't be withdrawn. It pays a storage deposit of about{" "}
+                        {formatUgnot(appFlagStorageBytes(pkgPath) * STORAGE_PRICE_UGNOT)} that is not returned,
+                        plus the network fee. Reports from {FLAG_HIDE_THRESHOLD} different accounts hide
+                        the listing from the public lists until a curator clears them.
                     </span>
                     <button type="button" className="appbtn appbtn--ghost" disabled={busy}
                         data-testid="appreport-yes" onClick={() => void submit()}>
