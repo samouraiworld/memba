@@ -454,6 +454,10 @@ func main() {
 	// one listing is up to 7 files) AND a per-authenticated-wallet cap layered inside
 	// the auth middleware — a sybil rotating IPs still shares one bucket per address.
 	mux.Handle("/api/upload/image", rateLimitMiddleware("upload_image", requireAuthUploadMiddleware(svc, service.HandleIPFSUploadImage())))
+	// Curation evidence: a statement or reason of at most 16 KB, pinned as text; the
+	// answer is the (CID, SHA-256) pair a curation call commits. Same per-wallet cap
+	// as the other media, since it spends the same Lighthouse quota.
+	mux.Handle("/api/upload/curation-evidence", rateLimitMiddleware("upload_evidence", requireAuthUploadMiddleware(svc, service.HandleCurationEvidenceUpload())))
 
 	// NFT media proxy — fetches from Lighthouse/IPFS gateways, caches server-side.
 	// Public read endpoints (no auth); rate-limited.

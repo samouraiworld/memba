@@ -28,6 +28,7 @@ func DefaultConfigs() map[string]Config {
 		"analyst":            {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
 		"upload":             {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict (single downscaled avatar)
 		"upload_image":       {MaxRequests: 20, Window: time.Minute},  // App Store media — one listing is up to 7 files (icon + 6 screenshots), so > the strict avatar bucket, plus retries
+		"upload_evidence":    {MaxRequests: 20, Window: time.Minute},  // curation evidence texts — a few per application, review or appeal, plus retries
 		"nft":                {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
 		"curation_inbox":     {MaxRequests: 30, Window: time.Minute},  // private curation inbox — each request re-reads access on chain
 		"arcade_submit":      {MaxRequests: 20, Window: time.Minute},  // BARRICADE run certify — each triggers a CPU-heavy node re-sim, so per-IP strict
