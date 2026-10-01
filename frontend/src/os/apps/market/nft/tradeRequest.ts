@@ -1,8 +1,8 @@
 /**
- * Buying a listing and cancelling one's own go through the OS review sheet.
- * The sheet shows the listing as read when the member asked; right before the
- * wallet opens it is read again, and any change to its terms stops the
- * signature. Cancelling never asks the market lane: a seller can always
+ * Listing a token, buying a listing and cancelling one's own go through the
+ * OS review sheet. The sheet shows what was read when the member asked; right
+ * before the wallet opens it is read again, and any change to the terms stops
+ * the signature. Cancelling never asks the market lane: a seller can always
  * withdraw, paused market or not.
  *
  * @module os/apps/market/nft/tradeRequest
@@ -13,12 +13,15 @@ import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../../lib/
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../../lib/grc20"
 import { formatAmount, formatBPS } from "../../../../lib/nft/format"
 import { getLaneStatus, laneClosedReason } from "../../../../lib/nft/lane"
-import { NFT_MARKET_PATH, getListing, type NftListing, type NftSplit } from "../../../../lib/nft/market"
+import { NFT_LEDGER_PATH, getToken } from "../../../../lib/nft/ledger"
+import { NFT_MARKET_PATH, getListing, getMarketTerms, type NftListing, type NftSplit } from "../../../../lib/nft/market"
 import {
-    BUY_GAS_WANTED, BUY_STORAGE_BYTES, CANCEL_LISTING_GAS_WANTED, buildBuyMsg, buildCancelListingMsg, buyBlocker,
+    APPROVE_STORAGE_BYTES, BUY_GAS_WANTED, BUY_STORAGE_BYTES, CANCEL_LISTING_GAS_WANTED, LIST_GAS_WANTED, LIST_STORAGE_BYTES,
+    buildBuyMsg, buildCancelListingMsg, buildListMsgs, buyBlocker,
 } from "../../../../lib/nft/trade"
 import type { SettledOutcome, SignRequest } from "../../../sign/signer"
 import { verifySendTx } from "../../../wallet/sendRequest"
+import { utc } from "./reads"
 
 export interface ListingDraft {
     /** The listing as read when the member asked. */
@@ -31,7 +34,7 @@ export interface ListingDraft {
     onSettled?: (outcome: SettledOutcome) => void
 }
 
-function available(draft: ListingDraft): void {
+function available(draft: { networkKey: string; caller: string }): void {
     if (!isNftEnabled() || !isRealmValidOn(draft.networkKey, NFT_MARKET_PATH)) throw new Error("The NFT market is not available on this network.")
     if (!isValidGnoAddressChecksum(draft.caller)) throw new Error("Connect your wallet first.")
 }
@@ -50,14 +53,75 @@ async function assertSameListing(reviewed: NftListing): Promise<NftListing> {
     return read
 }
 
-/** Who the price goes to, line by line, as the realm computed it for this listing. */
-function payouts(listing: NftListing): [string, string][] {
-    const amount = (value: bigint) => formatAmount(value, listing.currency)
+/** Who the price goes to, line by line, as the realm computed it. */
+function payouts(order: { split: NftSplit; feeBPS: bigint; currency: string }): [string, string][] {
+    const amount = (value: bigint) => formatAmount(value, order.currency)
     return [
-        ["To the seller", amount(listing.split.seller)],
-        [`Protocol fee (${formatBPS(listing.feeBPS)})`, amount(listing.split.fee)],
-        ...listing.split.royalties.map((royalty): [string, string] => [`Royalty to ${royalty.account}`, amount(royalty.amount)]),
+        ["To the seller", amount(order.split.seller)],
+        [`Protocol fee (${formatBPS(order.feeBPS)})`, amount(order.split.fee)],
+        ...order.split.royalties.map((royalty): [string, string] => [`Royalty to ${royalty.account}`, amount(royalty.amount)]),
     ]
+}
+
+export interface ListDraft {
+    collection: string
+    number: bigint
+    /** In ugnot. */
+    price: bigint
+    expiresAt: bigint
+    /** The protocol fee in force and the split it gives, as read when the member asked. */
+    feeBPS: bigint
+    split: NftSplit
+    /** The member's open listing of this token, which this one replaces. */
+    replaces: string | null
+    caller: string
+    networkKey: string
+    chainId: string
+    gas: GasPrice
+    onSettled?: (outcome: SettledOutcome) => void
+}
+
+export function listRequest(draft: ListDraft): SignRequest {
+    available(draft)
+    const msgs = buildListMsgs(draft.caller, { ...draft, maxFeeBPS: draft.feeBPS })
+    const fee = feeForGasWanted(LIST_GAS_WANTED, draft.gas)
+    const token = `${draft.collection} #${draft.number}`
+    const order = { split: draft.split, feeBPS: draft.feeBPS, currency: "ugnot" }
+    return {
+        title: "List for sale",
+        summary: `List ${token} for ${formatAmount(draft.price, "ugnot")}`,
+        sub: draft.replaces ? `Replaces listing ${draft.replaces}` : "A new listing",
+        lines: () => [
+            ["Account", draft.caller],
+            ["Token", token],
+            ["Price", formatAmount(draft.price, "ugnot")],
+            ...payouts(order).map(([to, amount]): [string, string] => [`At a sale: ${to.charAt(0).toLowerCase()}${to.slice(1)}`, amount]),
+            ["Expires", utc(draft.expiresAt)],
+            ...(draft.replaces ? [["Replaces", `Your listing ${draft.replaces}, closed by this one`] as [string, string]] : []),
+            ["Approval", `The market may move this one token, through a sale only; it lapses when the token moves`],
+            ["Realms", `${NFT_LEDGER_PATH}, then ${NFT_MARKET_PATH}`],
+            ["Network", draft.chainId],
+            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(APPROVE_STORAGE_BYTES) + depositCapUgnot(LIST_STORAGE_BYTES))}; the listing's part (about 0.47 GNOT) goes to whoever closes it`],
+            ["Network fee", formatUgnotExact(fee)],
+        ],
+        note: "The token stays in your account until someone buys it. You can cancel the listing at any time, paused market or not. A listing does not move the token by itself: if you transfer it, the listing can no longer be bought.",
+        label: () => `List ${token}`,
+        prepare: () => ({ msgs }),
+        recheck: async () => {
+            available(draft)
+            if (draft.expiresAt * 1000n <= BigInt(Date.now()) + 60_000n) throw new Error("This listing's expiry has passed. Nothing was sent. Close the review and list again.")
+            const lane = await getLaneStatus("nft_market", "ugnot")
+            if (!lane.open) throw new Error(`${laneClosedReason(lane, "Trading")} Nothing was sent.`)
+            const held = await getToken(draft.collection, draft.number)
+            if (held.status !== "active" || held.owner !== draft.caller) throw new Error(`This account no longer holds ${token}. Nothing was sent.`)
+            const terms = await getMarketTerms(draft.collection, draft.price)
+            if (terms.feeBPS !== draft.feeBPS || terms.split === null || !sameSplit(terms.split, draft.split)) throw new Error("The market's terms changed after your review. Nothing was sent. Close the review and read them again.")
+            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(LIST_GAS_WANTED))
+        },
+        send: (_choice, beforeSign) => doContractBroadcast(msgs, `List ${token}`, { gasWanted: LIST_GAS_WANTED, gasFee: fee, beforeSign }),
+        verify: (_choice, hash) => verifySendTx(hash),
+        onSettled: draft.onSettled,
+    }
 }
 
 export function buyRequest(draft: ListingDraft): SignRequest {

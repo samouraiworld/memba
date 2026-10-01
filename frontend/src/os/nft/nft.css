@@ -6,3 +6,5 @@
 .memba-os .os-nft-media { display: block; width: 100%; height: auto; object-fit: cover; border-radius: var(--os-radius-ctl); background: var(--os-hover); }
 .memba-os .os-nft-square { aspect-ratio: 1 / 1; }
 .memba-os .os-nft-banner { aspect-ratio: 3 / 1; }
+.memba-os .os-nft-field :is(input, select) { min-height: 44px; box-sizing: border-box; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--os-line); background: var(--os-hover); color: var(--os-ink); font: 600 13px var(--os-mono); }
+.memba-os .os-nft-field :is(input, select):focus-visible { outline: 2px solid var(--os-acc); outline-offset: 0; }
