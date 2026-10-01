@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### BARRICADE (2026-10-01)
+- Fixed: the shop's To the wall button stays readable under the pointer, a Practice run is labelled Practice, and the 2.5D wave counter matches the status line.
+
 ### Memba OS: Memba DAO accepts applications natively (2026-10-01)
 - A Memba DAO seat holder can propose accepting an application the DAO has been nominated to control, from that application's row in the DAO window's Overview, through the Memba review. Memba offers one acceptance at a time and confirms it from the member's own proposal on chain.
 - Changed: the Memba DAO window no longer embeds the classic DAO page. Earlier versions of the DAO's contract are read-only in Memba OS, and the classic page still acts on them. Application details show their recorded state in plain words.

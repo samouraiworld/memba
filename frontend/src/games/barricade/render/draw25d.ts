@@ -337,7 +337,8 @@ function drawHud25d(ctx: CanvasRenderingContext2D, lay: Layout, s: SimState): vo
     // wave + score
     ctx.font = `600 ${Math.floor(hudH * 0.24)}px "JetBrains Mono", ui-monospace, monospace`
     ctx.fillStyle = PAPER
-    ctx.fillText(`WAVE ${s.wave}${s.phase === "boss" ? " · BOSS" : ""}`, 11, hudH * 0.82)
+    // s.wave counts from 0; the page's status line and the 2D HUD show it from 1.
+    ctx.fillText(`WAVE ${Math.min(s.wave + 1, WAVE_TOTAL)}${s.phase === "boss" ? " · BOSS" : ""}`, 11, hudH * 0.82)
     ctx.fillStyle = GOLD
     ctx.textAlign = "right"
     ctx.fillText(String(s.score), w - 12, hudH * 0.82)

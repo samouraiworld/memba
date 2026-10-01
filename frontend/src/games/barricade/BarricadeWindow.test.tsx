@@ -45,6 +45,14 @@ describe("Barricade in a compact OS window", () => {
         expect(screen.getByRole("button", { name: "Resume run" })).not.toHaveFocus()
     })
 
+    it("names the run it is in: a Practice run is not called a daily run", () => {
+        render(<MemoryRouter><Barricade /></MemoryRouter>)
+        expect(screen.getByText("Daily run · Season 0")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Practice" }))
+        expect(screen.queryByText("Daily run · Season 0")).toBeNull()
+        expect(screen.getByText("Practice", { selector: ".bar-eyebrow" })).toBeInTheDocument()
+    })
+
     it("announces a keyboard pause and focuses its Resume action", () => {
         render(<MemoryRouter><Barricade /></MemoryRouter>)
         fireEvent.click(screen.getByRole("button", { name: "Practice" }))

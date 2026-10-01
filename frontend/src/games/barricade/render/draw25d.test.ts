@@ -9,7 +9,7 @@ import { initFx, layout, pushFxEvents } from "./fx"
 // renderer's: it must draw without throwing and WITHOUT mutating the sim state or
 // the fx layer. (The look itself is verified on a real phone — the bake-off.)
 function stubCtx() {
-    const calls = { fillRect: 0, arc: 0, fillText: 0, stroke: 0, ellipseYs: [] as number[] }
+    const calls = { fillRect: 0, arc: 0, fillText: 0, stroke: 0, ellipseYs: [] as number[], texts: [] as string[] }
     return {
         ctx: {
             save() {},
@@ -44,8 +44,9 @@ function stubCtx() {
                 calls.fillRect++
             },
             strokeRect() {}, // the HUD HP-bar outline
-            fillText() {
+            fillText(text: string) {
                 calls.fillText++
+                calls.texts.push(text)
             },
             set fillStyle(_v: string) {},
             set strokeStyle(_v: string) {},
@@ -112,6 +113,9 @@ describe("draw25d (2.5D comparator)", () => {
         expect(calls.fillRect).toBeGreaterThan(0)
         expect(calls.stroke).toBeGreaterThan(0) // lane dividers + inked parapet/bust
         expect(calls.fillText).toBeGreaterThan(0) // the HUD
+        // The first wave reads as wave 1, as on the page's status line and the 2D HUD.
+        expect(state.wave).toBe(0)
+        expect(calls.texts).toContain("WAVE 1")
     })
 
     it("renders every archetype in perspective without throwing or mutating state", () => {

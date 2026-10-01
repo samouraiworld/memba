@@ -226,6 +226,11 @@
     color: var(--color-k-on-accent, #000);
     font-weight: 700;
 }
+/* The generic .bar-choice:hover below would swap the fill for a near-transparent one under the dark label. */
+.bar-shop .bar-choice--continue:hover {
+    background: var(--color-k-accent, #00d4aa);
+    filter: brightness(1.08);
+}
 
 @media (max-width: 360px) {
     .bar-shop { inset: auto 4px 4px; padding: 7px; }

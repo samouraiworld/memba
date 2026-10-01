@@ -622,7 +622,7 @@ export default function Barricade() {
             <Link className="bar-exit bar-exit--compact" to="../.." relative="path">Exit game</Link>
             <header className="bar-wordmark">
                 <div className="bar-wordmark__name">
-                    <span className="bar-eyebrow">Daily run · Season 0</span>
+                    <span className="bar-eyebrow">{isDaily ? "Daily run · Season 0" : "Practice"}</span>
                     <h1 className="bar-title">
                         MEMBA: <span className="bar-title__accent">BARRICADE</span>
                     </h1>
