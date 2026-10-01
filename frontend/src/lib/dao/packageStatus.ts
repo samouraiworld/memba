@@ -282,9 +282,9 @@ export async function checkPendingDAOs(ctx: ChainContext, onLive: (entry: Pendin
                 continue
             }
             if (meta.status === "live") {
-                check = "live-unsaved"
-                onLive(entry)
-                removePendingDAO(ctx.chainId, entry.path)
+                // Saved first: only a live DAO this browser could not save stays listed, as "live-unsaved".
+                try { onLive(entry) } catch { still.push({ ...entry, check: "live-unsaved" }); continue }
+                try { removePendingDAO(ctx.chainId, entry.path) } catch { /* saved; the record is dropped on the next check */ }
                 continue
             }
             check = meta.status === "inert" ? "waiting" : "not-found"

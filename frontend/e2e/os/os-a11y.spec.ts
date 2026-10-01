@@ -85,7 +85,7 @@ for (const scheme of ['light', 'dark'] as const) {
             await expect(page.getByRole('heading', { name: 'Fund the community education programme' })).toBeVisible()
             expect(await violations(page)).toEqual([])
             await page.goto(`${OS_ON}/os/daos/new`)
-            await expect(page.getByRole('region', { name: 'Create a DAO', exact: true }).getByText('Connect a wallet to create a DAO.')).toBeVisible()
+            await expect(page.getByRole('region', { name: 'Create a DAO', exact: true }).getByLabel('Name')).toBeVisible()
             expect(await violations(page)).toEqual([])
             expect(await accentFillContrasts(page)).toEqual([])
             await page.getByRole('button', { name: 'Memba menu' }).click()

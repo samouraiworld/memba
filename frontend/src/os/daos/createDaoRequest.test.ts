@@ -211,6 +211,11 @@ describe("createDaoRequest", () => {
             expect(req.pendingNote!()).toBe(MISSING_NOTE)
         })
 
+    it("refuses to build a deploy with the zero address as a member", async () => {
+        const { GUEST_SEAT, ZERO_MEMBER } = await import("./createDao")
+        expect(() => createDaoRequest(ctx({ config: { ...config, members: [...config.members, { address: GUEST_SEAT, power: 1, roles: ["member"] }] } }))).toThrow(ZERO_MEMBER)
+    })
+
     it("stops before the wallet when the balance no longer holds the fee and the deposit", async () => {
         const c = ctx()
         const req = createDaoRequest(c)

@@ -8,6 +8,7 @@
  */
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, NETWORKS } from "../../lib/config"
 import { DAO_DESCRIPTION_MAX, DAO_PRESETS, daoStepError, membersWhoCanPassAlone, RESERVED_PACKAGE_NAMES, type DAOCreationConfig, type DAOPreset } from "../../lib/daoTemplate"
+import { encodeBech32 } from "../../lib/templates/dao/v2/bech32"
 import { parsePower } from "./proposal"
 
 export const DAO_STEPS = ["Basics", "Members", "Rules", "Extras", "Review"] as const
@@ -33,12 +34,15 @@ export function presetById(id: string): DAOPreset {
     return DAO_PRESETS.find((p) => p.id === id) ?? DAO_PRESETS[0]
 }
 
-/** A new draft on the Team preset (the mockup's default), with the connected wallet as the first admin. */
-export function emptyDaoDraft(wallet: string): DaoDraft {
+/**
+ * A new draft on the Team preset (the mockup's default). Its first member is the
+ * connected wallet, labelled admin; a guest's first row stays empty until they connect.
+ */
+export function emptyDaoDraft(wallet: string | null): DaoDraft {
     const p = presetById("team")
     return {
         name: "", description: "", preset: p.id,
-        members: [{ address: wallet, powerText: "1", role: p.roles.includes("admin") ? "admin" : p.roles[0] }],
+        members: [{ address: wallet ?? "", powerText: "1", role: p.roles.includes("admin") ? "admin" : p.roles[0] }],
         threshold: p.threshold, quorum: p.quorum, categories: [...p.categories], treasury: false,
     }
 }
@@ -72,6 +76,24 @@ export function realmPathFor(wallet: string, name: string): string {
     return `gno.land/r/${wallet}/${slugForName(name)}`
 }
 
+/**
+ * A guest's empty first row is the seat their wallet takes on connecting. Until
+ * then it holds this well-formed stand-in, so the steps validate and the costs
+ * are priced; nothing is deployed without a wallet, and connecting replaces it.
+ */
+export const GUEST_SEAT = encodeBech32("g", Array(20).fill(0))
+
+export const ZERO_MEMBER = "A member address is the zero address, which no one holds. Remove it."
+
+export function withGuestSeat(d: DaoDraft): DaoDraft {
+    return d.members[0]?.address.trim() === "" ? { ...d, members: [{ ...d.members[0], address: GUEST_SEAT }, ...d.members.slice(1)] } : d
+}
+
+/** A guest's draft, taken over by the wallet that connects: the empty first row becomes the wallet. */
+export function adoptGuestDraft(d: DaoDraft, wallet: string): DaoDraft {
+    return d.members[0]?.address.trim() === "" ? { ...d, members: [{ ...d.members[0], address: wallet }, ...d.members.slice(1)] } : d
+}
+
 /** Rows with an address, as the generator takes them. An unreadable power stays NaN so validation reports it. */
 export function draftMembers(d: DaoDraft): DAOCreationConfig["members"] {
     return d.members
@@ -86,7 +108,11 @@ export function daoDraftError(d: DaoDraft, wallet: string, step: number): string
         if (d.description.length > DAO_DESCRIPTION_MAX) return `DAO description must be at most ${DAO_DESCRIPTION_MAX} characters`
         return daoStepError(1, data)
     }
-    if (step === 1) return daoStepError(2, data)
+    if (step === 1) {
+        // The zero address is a guest's stand-in seat only: no one holds it, so it is never a member.
+        if (d.members.some((m, i) => m.address.trim() === GUEST_SEAT && !(wallet === GUEST_SEAT && i === 0))) return ZERO_MEMBER
+        return daoStepError(2, data)
+    }
     if (step === 2) return d.categories.length === 0 ? "Keep at least one proposal category" : daoStepError(3, data)
     return null
 }

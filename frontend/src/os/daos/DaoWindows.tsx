@@ -26,6 +26,7 @@ import { voteRequest, voteScope } from "./voteRequest"
 import { quoteSheetGasPrice } from "./sheetFee"
 import { useAlive } from "../shell/useAlive"
 import { JoinMembaDao } from "./JoinMembaDao"
+import { ParkedDaos } from "./ParkedDaos"
 import { UnknownOutcome } from "./UnknownOutcome"
 import { WeightedDaoFolder } from "./WeightedDaoFolder"
 import { WeightedProposalWindow } from "./WeightedProposal"
@@ -98,6 +99,8 @@ function NotADao({ name }: { name: string }) {
 
 export function DaosApp({ open }: { open: (spec: WindowSpec) => void }) {
     const [path, setPath] = useState("")
+    // A parked DAO that the network enabled joins the saved list: re-read it.
+    const [, setSavedRev] = useState(0)
     const [err, setErr] = useState<string | null>(null)
     const featured = [
         { realmPath: FEATURED_DAO.realmPath, name: FEATURED_DAO.name },
@@ -139,6 +142,7 @@ export function DaosApp({ open }: { open: (spec: WindowSpec) => void }) {
                     <ul className="os-list">{saved.map(row)}</ul>
                 </section>
             )}
+            <ParkedDaos onEnabled={() => setSavedRev((r) => r + 1)} />
             <form className="os-stack os-tight" onSubmit={submit}>
                 <label className="os-h" htmlFor="os-dao-path">Open a DAO by address</label>
                 <div className="os-row os-nowrap">

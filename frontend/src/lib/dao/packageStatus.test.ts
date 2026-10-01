@@ -189,6 +189,16 @@ describe("pending DAOs", () => {
         expect(promote).toHaveBeenCalledWith(expect.objectContaining({ orgId: "team-a", txHash: "KEEP" }))
         expect(listPendingDAOs("gnoland-1")).toEqual([])
     })
+    it("a live DAO the caller saved is not listed again when dropping its record fails", async () => {
+        savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "KEEP", reason: "r" })
+        const full = vi.fn(() => { throw new Error("quota") })
+        const setItem = localStorage.setItem
+        const storageFull = () => { Object.defineProperty(localStorage, "setItem", { value: full, configurable: true }) }
+        const still = await checkPendingDAOs(ctx, storageFull)
+        Object.defineProperty(localStorage, "setItem", { value: setItem, configurable: true })
+        expect(full).toHaveBeenCalled()
+        expect(still).toEqual([])
+    })
     it("does not promote or delete after a late aborted status response", async () => {
         savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "KEEP", reason: "r" })
         const controller = new AbortController()

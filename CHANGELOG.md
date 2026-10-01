@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: DAO creation for guests (2026-10-01)
+- Guests can fill in the whole DAO creation wizard in Memba OS and connect only at Deploy; the DAOs window lists the DAO deploys this browser parked, re-checked on the chain; the execution delay is worded truly, and a wallet's saved draft is never replaced unasked.
+
 ### Memba OS: App Store report, curator queue and listings (2026-10-01)
 - Report an App Store listing from Memba OS, with its deposit and the five-report hide rule stated on both pages; a read-only curator queue shows pending listings, who decides, and how many reports hide.
 - App Store submissions, edits and delists send measured gas limits and capped deposits, state the deposit, are checked on chain before the wallet, and count field limits in bytes like the registry.

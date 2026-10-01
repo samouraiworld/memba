@@ -453,10 +453,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // Realms: wave 1 was published by the samcrew namespace multisig on
     // 2026-09-23 (realm-versions.json `mainnet`). What the app exposes is
     // exactly REALM_ALLOWLIST.mainnet — isRealmValidOn('mainnet', …) is true
-    // for those paths only. `realmsDeployed` stays false because memba_dao is
-    // not on mainnet (gno.land/r/samcrew/memba_dao → 404), so the DAO-backed
-    // surfaces keep the honest RealmsNotDeployedBanner; networkHasAllowlistedRealms
-    // is the finer signal for the wave-1 lanes. ugnot is transferable
+    // for those paths only. `realmsDeployed` stays false because Memba's realm
+    // set is only partly on mainnet (memba_dao went live at height 315078 on
+    // 2026-09-25; the realms listed as not deployed in realm-versions.json are
+    // not), so the classic surfaces that need the full set keep the honest
+    // RealmsNotDeployedBanner; networkHasAllowlistedRealms is the finer signal. ugnot is transferable
     // (bank restricted_denoms reads `[]`).
     //
     // Backend-pinned constants (FEED_INDEXED_NETWORK, SNAPSHOT_NETWORK,

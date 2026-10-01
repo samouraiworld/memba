@@ -26,8 +26,8 @@ import { daoSpec, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { Field, WizardFrame } from "../wizard/WizardFrame"
 import {
-    applyPreset, categoryChoices, clearDaoDraft, DAO_STEPS, daoConfig, daoDraftError, emptyDaoDraft, firstInvalidStep,
-    formatSeconds, presetById, readDaoDraft, realmPathFor, saveDaoDraft, soloMembers, totalPower, userDaoCapabilities, type DaoDraft,
+    adoptGuestDraft, applyPreset, categoryChoices, clearDaoDraft, DAO_STEPS, daoConfig, daoDraftError, emptyDaoDraft, firstInvalidStep,
+    formatSeconds, GUEST_SEAT, presetById, readDaoDraft, realmPathFor, saveDaoDraft, slugForName, soloMembers, totalPower, userDaoCapabilities, withGuestSeat, type DaoDraft,
 } from "./createDao"
 import { balanceShortfall, createDaoRequest, deployChain, deployCosts, depositLeaves, MISSING_NOTE, PARKED_NOTE, runDeployChecks, type DeployChecks, type DeployResult } from "./createDaoRequest"
 import { nameForRealm } from "./daoNames"
@@ -38,14 +38,18 @@ function Gate({ children }: { children: ReactNode }) {
     return <div className="os-holding"><ThingTile icon="folder" tint={DAO_TINT} size={44} /><div className="os-stack os-tight">{children}</div></div>
 }
 
+/** A guest's draft and step, carried to the wizard of the wallet they connect. */
+type GuestWork = { draft: DaoDraft; step: number } | null
+
 export function CreateDaoWizard({ session, open, close }: { session: OsSession; open: (spec: WindowSpec) => void; close: () => void }) {
+    const [guestWork, setGuestWork] = useState<GuestWork>(null)
     const caps = userDaoCapabilities()
     if (!caps.create) return <Gate><b>Creating a DAO is not available on {caps.label} yet.</b></Gate>
-    if (session.status !== "member") {
-        return <Gate><b>Connect a wallet to create a DAO.</b><span className="os-sub">The wallet you connect deploys the DAO and becomes its first admin.</span><button type="button" className="os-btn" onClick={session.openConnect}>Connect</button></Gate>
-    }
-    // Keyed by network and wallet: a draft and a saved submission belong to one wallet.
-    return <Wizard key={`${GNO_CHAIN_ID}:${session.address}`} wallet={session.address} open={open} close={close} />
+    if (session.status === "resuming") return <Gate><b>Reading your wallet…</b></Gate>
+    // Guests fill every step in; the wallet is asked for at Deploy. Keyed by network and
+    // wallet: a stored draft and a saved submission belong to one wallet.
+    const wallet = session.status === "member" ? session.address : null
+    return <Wizard key={`${GNO_CHAIN_ID}:${wallet ?? ""}`} wallet={wallet} carried={guestWork} onGuestWork={setGuestWork} onConnect={session.openConnect} open={open} close={close} />
 }
 
 type Outcome =
@@ -55,11 +59,23 @@ type Outcome =
 
 type Checked = { key: string; checks: DeployChecks } | { key: string; error: string }
 
-function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSpec) => void; close: () => void }) {
+function Wizard({ wallet, carried, onGuestWork, onConnect, open, close }: {
+    wallet: string | null; carried: GuestWork; onGuestWork: (work: GuestWork) => void; onConnect: () => void; open: (spec: WindowSpec) => void; close: () => void
+}) {
     const signer = useSigner()
-    const [draft, setDraft] = useState<DaoDraft>(() => readDaoDraft(GNO_CHAIN_ID, wallet) ?? emptyDaoDraft(wallet))
+    const [draft, setDraft] = useState<DaoDraft>(() => {
+        if (!wallet) return carried?.draft ?? emptyDaoDraft(null)
+        // What a guest filled in stays on screen when they connect.
+        return carried ? adoptGuestDraft(carried.draft, wallet) : readDaoDraft(GNO_CHAIN_ID, wallet) ?? emptyDaoDraft(wallet)
+    })
+    // A wallet's own saved draft is never replaced unasked: until the choice, nothing is saved.
+    const [savedDraft, setSavedDraft] = useState<DaoDraft | null>(() => {
+        const stored = wallet && carried ? readDaoDraft(GNO_CHAIN_ID, wallet) : null
+        return stored && wallet && carried && JSON.stringify(stored) !== JSON.stringify(adoptGuestDraft(carried.draft, wallet)) ? stored : null
+    })
     // A submission saved for the draft's address opens on the Review step, where it's checked.
-    const [step, setStep] = useState(() => (listPendingDAOs(GNO_CHAIN_ID).some((p) => p.path === realmPathFor(wallet, draft.name)) ? DAO_STEPS.length - 1 : 0))
+    const [step, setStep] = useState(() => carried?.step
+        ?? (wallet && listPendingDAOs(GNO_CHAIN_ID).some((p) => p.path === realmPathFor(wallet, draft.name)) ? DAO_STEPS.length - 1 : 0))
     const [error, setError] = useState<string | null>(null)
     const [ack, setAck] = useState(false)
     // Null until read: the review's fee is handed to the wallet as shown, so Deploy waits for it.
@@ -72,18 +88,31 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     const skipSave = useRef(false)
     const [, rerender] = useState(0)
 
-    const path = realmPathFor(wallet, draft.name)
+    // A guest's empty first row stands for their wallet until they connect.
+    const seat = wallet ?? GUEST_SEAT
+    const effective = useMemo(() => (wallet ? draft : withGuestSeat(draft)), [draft, wallet])
+    const path = realmPathFor(seat, draft.name)
+    const shownPath = wallet ? path : `gno.land/r/‹your address›/${slugForName(draft.name)}`
+    const who = (address: string) => (!wallet && address === GUEST_SEAT ? "you" : shortAddr(address))
     const preset = presetById(draft.preset)
-    const config = useMemo(() => daoConfig(draft, wallet), [draft, wallet])
+    const config = useMemo(() => daoConfig(effective, seat), [effective, seat])
     const onReview = step === DAO_STEPS.length - 1
     const checkKey = `${path}|${checkRev}`
     const current = checked?.key === checkKey ? checked : null
 
-    // The automatic draft (D18). A finished deploy clears it.
+    // The automatic draft (D18), kept for a wallet; a guest's lives on this page until they connect. A finished deploy clears it.
     useEffect(() => {
+        if (!wallet) {
+            const touched = step > 0 || JSON.stringify(draft) !== JSON.stringify(emptyDaoDraft(null))
+            onGuestWork(touched ? { draft, step } : null)
+            return
+        }
+        if (savedDraft) return
         if (outcome || skipSave.current) { skipSave.current = false; return }
         setDraftSaved(saveDaoDraft(GNO_CHAIN_ID, wallet, draft))
-    }, [wallet, draft, outcome])
+    }, [wallet, draft, step, outcome, onGuestWork, savedDraft])
+    // Taken over by the wallet: a later disconnect starts a fresh guest draft.
+    useEffect(() => { if (wallet) onGuestWork(null) }, [wallet, onGuestWork])
 
     useEffect(() => {
         let active = true
@@ -93,7 +122,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
 
     // The chain checks run as the Review step opens (mockup: "✓ You can publish under this address · ✓ The address is free").
     useEffect(() => {
-        if (!onReview) return
+        if (!onReview || !wallet) return
         let active = true
         runDeployChecks(wallet, path).then(
             (checks) => { if (active) setChecked({ key: checkKey, checks }) },
@@ -104,12 +133,12 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
 
     const activity = submissionKey(GNO_CHAIN_ID, path)
     const inFlight = useSyncExternalStore(subscribeSubmissions, () => isSubmissionActive(activity))
-    const saved = listPendingDAOs(GNO_CHAIN_ID).find((p) => p.path === path && (!p.wallet || p.wallet === wallet))
+    const saved = wallet ? listPendingDAOs(GNO_CHAIN_ID).find((p) => p.path === path && (!p.wallet || p.wallet === wallet)) : undefined
 
     const set = (patch: Partial<DaoDraft>) => { setDraft((d) => ({ ...d, ...patch })); setError(null) }
     const setMember = (i: number, patch: Partial<DaoDraft["members"][number]>) => set({ members: draft.members.map((m, j) => (j === i ? { ...m, ...patch } : m)) })
     const discardDraft = () => {
-        if (!clearDaoDraft(GNO_CHAIN_ID, wallet)) { setError("Browser storage refused to remove the saved draft. Try again or clear this site's storage in your browser."); return }
+        if (wallet && !clearDaoDraft(GNO_CHAIN_ID, wallet)) { setError("Browser storage refused to remove the saved draft. Try again or clear this site's storage in your browser."); return }
         skipSave.current = true
         setDraft(emptyDaoDraft(wallet))
         setStep(0)
@@ -119,7 +148,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
         setCheckRev((rev) => rev + 1)
         setDraftSaved(true)
     }
-    const clearCompletedDraft = () => setDraftClearWarning(!clearDaoDraft(GNO_CHAIN_ID, wallet))
+    const clearCompletedDraft = () => setDraftClearWarning(!!wallet && !clearDaoDraft(GNO_CHAIN_ID, wallet))
     const onPresetKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
         const next = event.key === "Home" ? 0 : event.key === "End" ? DAO_PRESETS.length - 1
             : event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % DAO_PRESETS.length
@@ -173,24 +202,26 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
     }
 
     // ── A saved submission for this address locks the deploy until it is checked ──
-    if (saved && onReview) {
+    if (saved && onReview && wallet) {
         return <SavedSubmission wallet={wallet} path={path} name={draft.name} txHash={saved.txHash} orgId={saved.orgId ?? null} inFlight={inFlight}
             unknown={outcome?.kind === "unknown"}
             onLive={() => { clearCompletedDraft(); setOutcome({ kind: "result", result: { kind: "live" }, hash: saved.txHash }) }}
             onReleased={() => { setOutcome(null); setAck(false); setCheckRev((r) => r + 1) }} />
     }
 
-    const solo = soloMembers(draft)
-    const total = totalPower(draft)
+    const solo = soloMembers(effective)
+    const total = totalPower(effective)
     const reviewLines: [string, string][] = [
-        ["Address", path],
+        ["Address", shownPath],
         ["Rules", `${draft.threshold} % yes${draft.quorum ? `, ${draft.quorum} % quorum` : ""} · votes last ${formatSeconds(preset.votingPeriodSeconds)}`],
-        ["Members", config.members.map((m) => `${shortAddr(m.address)} (${m.power}, ${m.roles.join(", ")})`).join(" · ")],
+        ["Members", config.members.map((m) => `${who(m.address)} (${m.power}, ${m.roles.join(", ")})`).join(" · ")],
         ["Storage deposit", `≈ ${formatGnot(costs.estimateUgnot)} (cap ${formatGnot(costs.capUgnot)}), taken from your balance ${depositLeaves(policy)}`],
         ["Network fee", !price ? "reading the network price…"
             // Not a read: say so while it is on screen. The price is read again before the wallet opens.
             : price === FALLBACK_GAS_PRICE ? `about ${formatGnot(costs.feeUgnot)} (estimate: the network price could not be read; it is read again before signing)`
-                : formatGnot(costs.feeUgnot)],
+                // Before the checks, the gas is sized for the larger of the two submission policies.
+                : !wallet ? `up to ${formatGnot(costs.feeUgnot)} (priced again once you connect)`
+                    : formatGnot(costs.feeUgnot)],
         ...(current && "checks" in current ? [["Your balance", formatGnot(Number(current.checks.balanceUgnot))] as [string, string]] : []),
         ["Network", GNO_CHAIN_ID],
     ]
@@ -202,7 +233,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
 
     const next = () => {
         if (step < 3) {
-            const err = daoDraftError(draft, wallet, step)
+            const err = daoDraftError(effective, seat, step)
             if (err) { setError(err); return }
         }
         if (!onReview) {
@@ -210,8 +241,10 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
             setStep(step + 1)
             return
         }
-        const bad = firstInvalidStep(draft, wallet)
-        if (bad !== null) { setStep(bad); setError(daoDraftError(draft, wallet, bad)); return }
+        const bad = firstInvalidStep(effective, seat)
+        if (bad !== null) { setStep(bad); setError(daoDraftError(effective, seat, bad)); return }
+        // A guest's draft is complete: the wallet is what's missing.
+        if (!wallet) { onConnect(); return }
         if (!ack) { setError("Confirm that you understand this deploys a permanent contract."); return }
         if (!current || !("checks" in current) || !price) return
         if (short) { setError(short); return }
@@ -256,7 +289,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                     </div>
                 </Field>
                 <Field label="Address on gno.land" hint="Permanent. It can't be changed or reused.">
-                    <div className="os-card os-mono os-break" data-testid="os-dao-path">{path}</div>
+                    <div className="os-card os-mono os-break" data-testid="os-dao-path">{shownPath}</div>
                 </Field>
             </div>
         )
@@ -267,7 +300,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                 <div className="os-mrow os-sub" aria-hidden="true"><span>Address</span><span>Power</span><span>Role</span><span /></div>
                 {draft.members.map((m, i) => (
                     <div key={i} className="os-mrow">
-                        <input className="os-in os-mono" value={m.address} onChange={(e) => setMember(i, { address: e.target.value })} placeholder="g1…" aria-label={`Member ${i + 1} address`} autoComplete="off" spellCheck={false} />
+                        <input className="os-in os-mono" value={m.address} onChange={(e) => setMember(i, { address: e.target.value })} placeholder={!wallet && i === 0 ? "Your address, when you connect" : "g1…"} aria-label={`Member ${i + 1} address`} autoComplete="off" spellCheck={false} />
                         <input className="os-in" inputMode="numeric" value={m.powerText} onChange={(e) => setMember(i, { powerText: e.target.value })} aria-label={`Member ${i + 1} voting power`} />
                         <select className="os-in" value={m.role} onChange={(e) => setMember(i, { role: e.target.value })} aria-label={`Member ${i + 1} role`}>
                             {preset.roles.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -279,13 +312,13 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                 <div className="os-row">
                     <button type="button" className="os-btn os-quiet" disabled={draft.members.length >= DAO_REALM_LIMITS.maxMembers}
                         onClick={() => set({ members: [...draft.members, { address: "", powerText: "1", role: preset.roles.includes("member") ? "member" : preset.roles[0] }] })}>+ Add member</button>
-                    {!draft.members.some((m) => m.address.trim() === wallet) && (
+                    {wallet && !draft.members.some((m) => m.address.trim() === wallet) && (
                         <button type="button" className="os-btn os-quiet" onClick={() => set({ members: [...draft.members, { address: wallet, powerText: "1", role: preset.roles.includes("admin") ? "admin" : preset.roles[0] }] })}>+ Add me</button>
                     )}
                     <span className="os-grow" />
                     <span className="os-sub">Total voting power {total}</span>
                 </div>
-                {solo.length > 0 && config.members.length > 1 && <p className="os-note os-warn">{solo.map(shortAddr).join(", ")} can pass proposals alone.</p>}
+                {solo.length > 0 && config.members.length > 1 && <p className="os-note os-warn">{solo.map(who).join(", ")} can pass proposals alone.</p>}
                 <p className="os-sub os-flush">Roles are labels; they grant no special powers.</p>
             </div>
         )
@@ -305,7 +338,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                             onClick={() => set({ categories: on ? draft.categories.filter((x) => x !== c) : [...draft.categories, c] })}>{c}</button>
                     })}</div>
                 </Field>
-                <div className="os-card os-sub">From the {preset.name} preset: voting opens {formatSeconds(preset.executionDelaySeconds)} after a proposal passes, votes last {formatSeconds(preset.votingPeriodSeconds)}, and a passed proposal can be executed for {formatSeconds(preset.executionWindowSeconds)}.</div>
+                <div className="os-card os-sub">From the {preset.name} preset: votes last {formatSeconds(preset.votingPeriodSeconds)}, and a passed proposal can be executed from {formatSeconds(preset.executionDelaySeconds)} after it passes, for {formatSeconds(preset.executionWindowSeconds)}.</div>
             </div>
         )
     } else if (step === 3) {
@@ -333,31 +366,42 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                 <div className="os-sub">{config.members.length} member{config.members.length === 1 ? "" : "s"} · {preset.name} rules</div>
                 <dl className="os-kv">{reviewLines.map(([k, v]) => <div key={k} className="os-kv-row"><dt>{k}</dt><dd className={k === "Address" ? "os-mono os-break" : undefined}>{v}</dd></div>)}</dl>
                 {reviewWarns.map((w) => <p key={w} className="os-note os-warn">{w}</p>)}
-                {!current && <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Checking the address on {GNO_CHAIN_ID}…</span></div>}
+                {!wallet && <p className="os-note" role="status">Connect a wallet to deploy. The address is made from your wallet's address, and Memba checks it and your balance before you sign.</p>}
+                {wallet && !current && <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Checking the address on {GNO_CHAIN_ID}…</span></div>}
                 {current && "checks" in current && <p className="os-note os-ok" data-testid="os-dao-checks">✓ You can publish under this address · ✓ The address is {current.checks.replacesParked ? "yours to replace" : "free"}</p>}
                 {short && <p className="os-note os-err" role="alert">{short} <button type="button" className="os-btn os-quiet os-inline" onClick={() => setCheckRev((r) => r + 1)}>Check again</button></p>}
                 {current && "error" in current && (
                     <p className="os-note os-err" role="alert">{current.error} <button type="button" className="os-btn os-quiet os-inline" onClick={() => setCheckRev((r) => r + 1)}>Check again</button></p>
                 )}
                 <p className="os-sub os-flush">Roles are labels; they grant no special powers. The code and the address are permanent once deployed.</p>
-                <label className="os-ack"><input type="checkbox" checked={ack} onChange={(e) => { setAck(e.target.checked); setError(null) }} /> I understand this deploys a permanent contract on {GNO_CHAIN_ID}.</label>
+                {wallet && <label className="os-ack"><input type="checkbox" checked={ack} onChange={(e) => { setAck(e.target.checked); setError(null) }} /> I understand this deploys a permanent contract on {GNO_CHAIN_ID}.</label>}
                 {inFlight && <p className="os-note" role="status">A deploy to this address is still waiting for Adena.</p>}
             </div>
         )
     }
 
+    const choice = savedDraft && (
+        <div className="os-note os-warn" role="status">
+            <span>This wallet already has a saved draft{savedDraft.name.trim() ? ` (“${savedDraft.name.trim()}”)` : ""}. Keep what you filled in, which replaces it, or open the saved one.</span>
+            <div className="os-row">
+                <button type="button" className="os-btn os-quiet os-inline" onClick={() => setSavedDraft(null)}>Keep what I filled in</button>
+                <button type="button" className="os-btn os-quiet os-inline" onClick={() => { setDraft(savedDraft); setStep(0); setError(null); setSavedDraft(null) }}>Open the saved draft</button>
+            </div>
+        </div>
+    )
+
     return (
         <WizardFrame steps={DAO_STEPS} step={step} onBack={() => { setError(null); setStep(step - 1) }} onNext={next}
-            nextLabel={onReview ? "Deploy with Adena…" : "Continue"}
-            nextDisabled={onReview && (!current || !("checks" in current) || inFlight || !price || short !== null)}
-            note={<>{error && <span className="os-fe" role="alert">{error}</span>}<span>{draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{draftSaved && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
+            nextLabel={onReview ? (wallet ? "Deploy with Adena…" : "Connect a wallet to deploy") : "Continue"}
+            nextDisabled={onReview && !!wallet && (!current || !("checks" in current) || inFlight || !price || short !== null)}
+            note={<>{error && <span className="os-fe" role="alert">{error}</span>}<span>{!wallet ? "This draft lasts while this page stays open, and is kept in this browser once you connect." : draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{(draftSaved || !wallet) && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
             preview={(
                 <div className="os-stack os-tight">
                     <h3 className="os-h os-flush">Your DAO</h3>
                     <div className="os-pvcard os-center">
                         <ThingTile icon="folder" tint={DAO_TINT} size={56} />
                         <b>{draft.name.trim() || <span className="os-sub">Name</span>}</b>
-                        <span className="os-sub os-mono os-break">{path}</span>
+                        <span className="os-sub os-mono os-break">{shownPath}</span>
                     </div>
                     <dl className="os-kv">
                         <div className="os-kv-row"><dt>Members</dt><dd>{config.members.length}</dd></div>
@@ -369,7 +413,7 @@ function Wizard({ wallet, open, close }: { wallet: string; open: (spec: WindowSp
                     </dl>
                 </div>
             )}>
-            {body}
+            {choice}{body}
         </WizardFrame>
     )
 }

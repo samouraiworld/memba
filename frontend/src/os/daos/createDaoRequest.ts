@@ -20,6 +20,7 @@ import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
 import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../../lib/templates/dao/v2/deposit"
 import type { SignRequest } from "../sign/signer"
 import { verifySendTx } from "../wallet/sendRequest"
+import { GUEST_SEAT, ZERO_MEMBER } from "./createDao"
 
 /** Chain checks walk the network's endpoint list (each endpoint must serve this chain). */
 export function deployChain(): ChainContext {
@@ -108,6 +109,8 @@ export interface CreateDaoContext {
 /** Throws (with a user message) when the configuration can't be generated. */
 export function createDaoRequest(ctx: CreateDaoContext): SignRequest<string> {
     const { wallet, config, checks } = ctx
+    // A guest's stand-in seat, or a pasted zero address, is never deployed as a member.
+    if (config.members.some((m) => m.address === GUEST_SEAT) || config.realmPath.includes(GUEST_SEAT)) throw new Error(ZERO_MEMBER)
     const path = config.realmPath
     const code = generateDAOCode(config)
     const { capUgnot, estimateUgnot, gasWanted, feeUgnot } = deployCosts(config, checks.policy, ctx.price)

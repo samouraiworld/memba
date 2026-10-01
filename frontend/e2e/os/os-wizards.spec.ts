@@ -314,9 +314,28 @@ test.describe('Memba OS wizards', () => {
         await expect(win(page, 'Create a DAO')).toHaveCount(0)
     })
 
-    test('a guest opening the Create DAO link is asked to connect', async ({ page }) => {
+    test('a deploy from this browser that is not live shows in the DAOs window with what the chain answers', async ({ page }) => {
+        await page.addInitScript((path) => localStorage.setItem('memba_pending_daos', JSON.stringify([{ chainId: 'gnoland-1', path, name: 'Gno Builders', txHash: 'H', reason: 'waiting', submittedAt: 1 }])), NEW_DAO_PATH)
+        await page.goto(`${OS_ON}/os/daos`)
+        const daos = win(page, 'DAOs')
+        await expect(daos.getByRole('heading', { name: 'Deployed from this browser, not live yet' })).toBeVisible()
+        await expect(daos.getByText(NEW_DAO_PATH)).toBeVisible()
+        await expect(daos.getByText('Not on chain yet: check the transaction before deploying again')).toBeVisible()
+    })
+
+    test('a guest fills in the whole Create DAO wizard and is asked to connect only at Deploy', async ({ page }) => {
         await page.addInitScript(() => localStorage.removeItem('memba_auth_token'))
         await page.goto(`${OS_ON}/os/daos/new`)
-        await expect(win(page, 'Create a DAO').getByText('Connect a wallet to create a DAO.')).toBeVisible()
+        const wiz = win(page, 'Create a DAO')
+        await wiz.getByLabel('Name').fill('Gno Builders')
+        await expect(wiz.getByTestId('os-dao-path')).toHaveText('gno.land/r/‹your address›/gno_builders')
+        await wiz.getByRole('button', { name: 'Continue' }).click()
+        await expect(wiz.getByLabel('Member 1 address')).toHaveAttribute('placeholder', 'Your address, when you connect')
+        for (let i = 0; i < 3; i++) await wiz.getByRole('button', { name: 'Continue' }).click()
+        await expect(wiz.getByText(/^Connect a wallet to deploy\. The address is made from your wallet's address/)).toBeVisible()
+        await expect(wiz.getByTestId('os-dao-checks')).toHaveCount(0)
+        await wiz.getByRole('button', { name: 'Connect a wallet to deploy' }).click()
+        await expect(page.getByRole('dialog', { name: 'Connect a wallet' })).toBeVisible()
+        expect(await adenaCalls(page)).toEqual([])
     })
 })

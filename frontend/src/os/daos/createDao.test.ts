@@ -3,9 +3,11 @@ import { generateDAOCode } from "../../lib/daoTemplate"
 import {
     applyPreset, clearDaoDraft, daoConfig, daoDraftError, emptyDaoDraft, firstInvalidStep, formatSeconds, readDaoDraft, realmPathFor,
     saveDaoDraft, slugForName, soloMembers, totalPower, type DaoDraft,
+    adoptGuestDraft, GUEST_SEAT, withGuestSeat, ZERO_MEMBER,
 } from "./createDao"
 
 const ME = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+const BOB = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const OTHER = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 
 const named = (over: Partial<DaoDraft> = {}): DaoDraft => ({ ...emptyDaoDraft(ME), name: "Gno Builders", ...over })
@@ -30,6 +32,31 @@ describe("the realm path", () => {
             expect(slugForName(name)).toBe(slug)
             expect(daoDraftError(named({ name }), ME, 0)).toBeNull()
         })
+})
+
+describe("a guest's draft", () => {
+    it("starts with an empty first row that stands for the guest's wallet, validates, and is taken over on connecting", async () => {
+        const { isChecksummedAddress } = await import("../../lib/templates/dao/v2/bech32")
+        expect(isChecksummedAddress(GUEST_SEAT, "g")).toBe(true)
+        const guest = { ...emptyDaoDraft(null), name: "Gno Builders" }
+        expect(guest.members[0].address).toBe("")
+        expect(daoDraftError(withGuestSeat(guest), GUEST_SEAT, 1)).toBeNull()
+        expect(adoptGuestDraft(guest, ME).members[0].address).toBe(ME)
+        // A first row the guest filled in is theirs, not the wallet's.
+        const typed = { ...guest, members: [{ ...guest.members[0], address: BOB }] }
+        expect(withGuestSeat(typed)).toBe(typed)
+        expect(adoptGuestDraft(typed, ME).members[0].address).toBe(BOB)
+        // A row of spaces is still empty.
+        const spaces = { ...guest, members: [{ ...guest.members[0], address: "  " }] }
+        expect(withGuestSeat(spaces).members[0].address).toBe(GUEST_SEAT)
+        expect(adoptGuestDraft(spaces, ME).members[0].address).toBe(ME)
+    })
+
+    it("the zero address is never a member: not pasted by a wallet, not in a guest's other rows", () => {
+        const pasted = { ...named(), members: [...named().members, { address: GUEST_SEAT, powerText: "1", role: "member" }] }
+        expect(daoDraftError(pasted, ME, 1)).toBe(ZERO_MEMBER)
+        expect(daoDraftError(withGuestSeat({ ...pasted, members: [{ ...pasted.members[0], address: "" }, pasted.members[1]] }), GUEST_SEAT, 1)).toBe(ZERO_MEMBER)
+    })
 })
 
 describe("step validation (the classic daoStepError)", () => {

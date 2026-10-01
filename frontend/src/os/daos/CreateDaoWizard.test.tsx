@@ -59,6 +59,124 @@ async function deployed() {
     return { req, verified }
 }
 
+describe("CreateDaoWizard — guests fill it in, the wallet is asked for at Deploy", () => {
+    const guest = { status: "guest", openConnect: vi.fn() } as unknown as OsSession
+    const toReview = () => { for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole("button", { name: "Continue" })) }
+
+    it("a guest walks every step; Deploy asks for a wallet and nothing reads the chain or stores the draft", async () => {
+        const { assertCanDeployTo } = await import("../../lib/dao/namespace")
+        render(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Gno Builders" } })
+        expect(screen.getByTestId("os-dao-path")).toHaveTextContent("gno.land/r/‹your address›/gno_builders")
+        toReview()
+        expect(screen.getByText(/^Connect a wallet to deploy\./)).toBeInTheDocument()
+        expect(screen.getAllByText("Members", { selector: "dt" })[0].nextElementSibling).toHaveTextContent(/^you \(1, admin\)$/)
+        expect(screen.queryByRole("checkbox")).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "Connect a wallet to deploy" }))
+        expect(guest.openConnect).toHaveBeenCalledOnce()
+        expect(sign).not.toHaveBeenCalled()
+        expect(assertCanDeployTo).not.toHaveBeenCalled()
+        expect(Object.keys(localStorage).filter((k) => k.startsWith("memba_os_dao_draft:"))).toEqual([])
+    })
+
+    it("connecting keeps what the guest filled in, on the step they were on, with their wallet as the first member", async () => {
+        const { rerender } = render(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Gno Builders" } })
+        toReview()
+        rerender(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        await screen.findByTestId("os-dao-checks")
+        expect(within(screen.getByText("Address").closest(".os-kv-row") as HTMLElement).getByRole("definition")).toHaveTextContent(`gno.land/r/${ME}/gno_builders`)
+        expect(screen.getAllByText("Members", { selector: "dt" })[0].nextElementSibling).toHaveTextContent(/\(1, admin\)$/)
+        expect(screen.getByRole("button", { name: "Deploy with Adena…" })).toBeInTheDocument()
+        expect(JSON.parse(localStorage.getItem(`memba_os_dao_draft:gnoland-1:${ME}`)!)).toMatchObject({ name: "Gno Builders", members: [{ address: ME }] })
+    })
+
+    const BOB = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+    const as = (address: string) => ({ status: "member", address, openConnect: vi.fn() }) as unknown as OsSession
+    const nameField = () => screen.getByLabelText("Name") as HTMLInputElement
+    const stored = (address: string) => JSON.parse(localStorage.getItem(`memba_os_dao_draft:gnoland-1:${address}`) ?? "null")
+
+    it("what is signed and stored after the hand-over holds the wallet, never the stand-in seat", async () => {
+        const { GUEST_SEAT } = await import("./createDao")
+        const { rerender } = render(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.change(nameField(), { target: { value: "Gno Builders" } })
+        toReview()
+        rerender(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        await screen.findByTestId("os-dao-checks")
+        fireEvent.click(screen.getByRole("checkbox"))
+        fireEvent.click(screen.getByRole("button", { name: "Deploy with Adena…" }))
+        const req = (sign.mock.calls[0] as unknown as [SignRequest<string>])[0]
+        const signed = JSON.stringify(req.prepare(undefined).msgs)
+        expect(signed).toContain(ME)
+        expect(signed).not.toContain(GUEST_SEAT)
+        expect(JSON.stringify(stored(ME))).not.toContain(GUEST_SEAT)
+    })
+
+    it("a wallet's own saved draft is not replaced unasked: the member chooses", () => {
+        saveDaoDraft("gnoland-1", ME, { ...emptyDaoDraft(ME), name: "Saved DAO" })
+        const { rerender, unmount } = render(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.change(nameField(), { target: { value: "Guest DAO" } })
+        rerender(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        expect(screen.getByText(/This wallet already has a saved draft \(“Saved DAO”\)/)).toBeInTheDocument()
+        expect(nameField().value).toBe("Guest DAO")
+        expect(stored(ME).name).toBe("Saved DAO")
+        fireEvent.click(screen.getByRole("button", { name: "Open the saved draft" }))
+        expect(nameField().value).toBe("Saved DAO")
+        unmount()
+
+        const second = render(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.change(nameField(), { target: { value: "Guest DAO" } })
+        second.rerender(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: "Keep what I filled in" }))
+        expect(stored(ME).name).toBe("Guest DAO")
+        expect(screen.queryByText(/already has a saved draft/)).toBeNull()
+    })
+
+    it("a guest who connects through a resuming session keeps their draft", () => {
+        const { rerender } = render(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.change(nameField(), { target: { value: "Gno Builders" } })
+        rerender(<CreateDaoWizard session={{ status: "resuming", openConnect: vi.fn() } as unknown as OsSession} open={vi.fn()} close={vi.fn()} />)
+        rerender(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        expect(nameField().value).toBe("Gno Builders")
+    })
+
+    it("no draft crosses wallets: a disconnect starts an empty guest draft, another wallet sees only its own", () => {
+        saveDaoDraft("gnoland-1", ME, { ...emptyDaoDraft(ME), name: "Mine" })
+        const { rerender } = render(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        expect(nameField().value).toBe("Mine")
+        rerender(<CreateDaoWizard session={guest} open={vi.fn()} close={vi.fn()} />)
+        expect(nameField().value).toBe("")
+        rerender(<CreateDaoWizard session={as(BOB)} open={vi.fn()} close={vi.fn()} />)
+        expect(nameField().value).toBe("")
+        expect(stored(BOB).members[0].address).toBe(BOB)
+    })
+
+    it("a connected member never sees the zero address called \"you\"", async () => {
+        const { GUEST_SEAT } = await import("./createDao")
+        saveDaoDraft("gnoland-1", ME, { ...emptyDaoDraft(ME), name: "Gno Builders", members: [{ address: ME, powerText: "1", role: "admin" }, { address: GUEST_SEAT, powerText: "9", role: "member" }] })
+        render(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: "Continue" }))
+        expect(screen.getByText(/can pass proposals alone/)).not.toHaveTextContent(/^you /)
+        fireEvent.click(screen.getByRole("button", { name: "Continue" }))
+        expect(screen.getByRole("alert")).toHaveTextContent("zero address")
+    })
+
+    it("while the wallet session resumes, it neither asks to connect nor shows a guest form", () => {
+        render(<CreateDaoWizard session={{ status: "resuming", openConnect: vi.fn() } as unknown as OsSession} open={vi.fn()} close={vi.fn()} />)
+        expect(screen.getByText("Reading your wallet…")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Connect/ })).toBeNull()
+        expect(screen.queryByLabelText("Name")).toBeNull()
+    })
+
+    it("says the execution delay comes after a proposal passes, before it can be executed", () => {
+        saveDaoDraft("gnoland-1", ME, { ...emptyDaoDraft(ME), name: "Gno Builders" })
+        render(<CreateDaoWizard session={session} open={vi.fn()} close={vi.fn()} />)
+        for (let i = 0; i < 2; i++) fireEvent.click(screen.getByRole("button", { name: "Continue" }))
+        expect(screen.getByText("From the Team preset: votes last 2 days, and a passed proposal can be executed from 1 hour after it passes, for 7 days.")).toBeInTheDocument()
+        expect(screen.queryByText(/voting opens/)).toBeNull()
+    })
+})
+
 describe("CreateDaoWizard — the result screen says what the tray says", () => {
     it("before the chain answers, says nothing about approval or the deposit", async () => {
         saveDaoDraft("gnoland-1", ME, { ...emptyDaoDraft(ME), name: "Gno Builders" })
