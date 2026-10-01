@@ -262,14 +262,19 @@ export async function assertRegisterApplies(s: AppSubmission, feeUgnot: number):
     if (await fetchAppStrict(s.pkgPath)) throw new Error("An app is already listed for this package path.")
 }
 
-/** An edit goes through only from the publisher, on a pending or rejected listing with edits left, unchanged since it was loaded. */
-export async function assertEditApplies(caller: string, s: AppSubmission, was: AppSubmission): Promise<void> {
+/**
+ * An edit goes through only from the publisher, on a pending or rejected listing with edits left,
+ * unchanged since it was loaded; with `editsUsed`, also not edited since (an unchanged edit still counts).
+ */
+export async function assertEditApplies(caller: string, s: AppSubmission, was: AppSubmission, editsUsed?: number): Promise<void> {
     assertValid(s)
     const listing = await fetchAppStrict(s.pkgPath)
     if (!listing || listing.publisher !== caller) throw new Error("Only the listing's publisher can edit it.")
     if (listing.status !== "pending" && listing.status !== "rejected") throw new Error("Only a pending or rejected listing can be edited.")
     if ((listing.resubmitCount ?? MAX_RESUBMITS) >= MAX_RESUBMITS) throw new Error(`This listing has used its ${MAX_RESUBMITS} edits.`)
-    if (!sameSubmission(listingToSubmission(listing), was)) throw new Error("This listing changed since it was loaded. Load it again, then edit it.")
+    if (!sameSubmission(listingToSubmission(listing), was) || (editsUsed !== undefined && listing.resubmitCount !== editsUsed)) {
+        throw new Error("This listing changed since it was loaded. Load it again, then edit it.")
+    }
 }
 
 /** Delisting from Memba is the publisher's: a listing that is theirs and not already delisted. */
@@ -278,6 +283,9 @@ export async function assertDelistApplies(caller: string, pkgPath: string): Prom
     if (!listing || listing.publisher !== caller) throw new Error("Only the listing's publisher can delist it here.")
     if (listing.status === "delisted") throw new Error("This listing is already delisted.")
 }
+
+/** The wallet memo of each listing call, the same from the classic pages and Memba OS. */
+export const LISTING_MEMO = { register: "Submit app", edit: "Resubmit app", delist: "Delist app" } as const
 
 /** What stopped a classic submit, edit or delist: the checks made before the wallet say it themselves; a wallet dismissal says nothing. */
 export function submitErrorText(e: unknown, action: string): string | null {
@@ -288,15 +296,15 @@ export function submitErrorText(e: unknown, action: string): string | null {
 }
 
 export function submitRegisterApp(caller: string, s: AppSubmission, feeUgnot: number): Promise<string> {
-    return sendAppStoreCall(buildRegisterAppMsg(caller, feeUgnot, s), "Submit app", REGISTER_GAS_WANTED, () => assertRegisterApplies(s, feeUgnot))
+    return sendAppStoreCall(buildRegisterAppMsg(caller, feeUgnot, s), LISTING_MEMO.register, REGISTER_GAS_WANTED, () => assertRegisterApplies(s, feeUgnot))
 }
 
 export function submitEditListing(caller: string, s: AppSubmission, was: AppSubmission): Promise<string> {
-    return sendAppStoreCall(buildEditListingMsg(caller, s, was), "Resubmit app", EDIT_GAS_WANTED, () => assertEditApplies(caller, s, was))
+    return sendAppStoreCall(buildEditListingMsg(caller, s, was), LISTING_MEMO.edit, EDIT_GAS_WANTED, () => assertEditApplies(caller, s, was))
 }
 
 export function submitDelistApp(caller: string, pkgPath: string): Promise<string> {
-    return sendAppStoreCall(buildDelistAppMsg(caller, pkgPath), "Delist app", DELIST_GAS_WANTED, () => assertDelistApplies(caller, pkgPath))
+    return sendAppStoreCall(buildDelistAppMsg(caller, pkgPath), LISTING_MEMO.delist, DELIST_GAS_WANTED, () => assertDelistApplies(caller, pkgPath))
 }
 
 /**

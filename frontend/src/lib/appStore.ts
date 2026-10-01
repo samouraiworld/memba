@@ -328,6 +328,25 @@ export async function fetchCuratorQueue(pageSize = MAX_PAGE_LIMIT, maxPages = 5)
     return { pending, hidden: null, curators }
 }
 
+/**
+ * A publisher's listings in every status, read on a verified node; a failed read throws, so an outage
+ * never looks like "no listings". `unshown` counts rows the registry returned that Memba does not show
+ * (a package path its link guard refuses, which the realm accepts).
+ */
+export async function fetchMyListings(publisher: string, maxPages = 5): Promise<{ listings: AppListing[]; unshown: number; complete: boolean }> {
+    if (!ADDRESS_RE.test(publisher)) throw new Error("Connect your wallet first.")
+    const listings: AppListing[] = []
+    let returned = 0
+    for (let page = 0; page < maxPages; page++) {
+        const window = await evalStrict(`ListByPublisherJSON(${JSON.stringify(publisher)}, ${page * MAX_PAGE_LIMIT}, ${MAX_PAGE_LIMIT})`)
+        if (!Array.isArray(window)) throw new Error("App Store registry returned an invalid page")
+        returned += window.length
+        listings.push(...window.map(coerce).filter((x): x is AppListing => x !== null))
+        if (window.length < MAX_PAGE_LIMIT) return { listings, unshown: returned - listings.length, complete: true }
+    }
+    return { listings, unshown: returned - listings.length, complete: false }
+}
+
 /** Realm-level catalog stats. v3's GetStatsJSON is a superset (adds per-status
  * counts); only the fields both generations expose are kept. */
 export interface AppStoreStats {

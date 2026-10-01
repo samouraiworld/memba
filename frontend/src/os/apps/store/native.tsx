@@ -21,6 +21,9 @@ import { useSigner } from "../../sign/signerContext"
 import { NativeReviewComposer } from "./NativeReviewComposer"
 import { reviewActionRequest } from "./reviewActionRequest"
 import { CuratorQueue } from "./CuratorQueue"
+import { isListingSubmitOpen } from "./listingRequest"
+import { SubmitListing } from "./SubmitListing"
+import { YourListings } from "./YourListings"
 import { ReportListing } from "./ReportListing"
 import "./native.css"
 
@@ -225,15 +228,20 @@ function Extensions() {
 export default function StoreWindow(props: NativeViewProps) {
     const { section, session, open, fallback } = props
     if (section?.startsWith("apps/") || section?.startsWith("project/")) return <Detail {...props} />
-    if (section === "submit" || section === "my-submissions") return <>{fallback}</>
-    if (section !== null && section !== "ecosystem" && section !== "extensions" && section !== "review") return <>{fallback}</>
+    if (section !== null && !["ecosystem", "extensions", "review", "submit", "my-submissions"].includes(section)) return <>{fallback}</>
     const current = section ?? "discover"
+    const listingsOpen = isListingSubmitOpen(session.network.key)
     const nav = [
         ...sections,
         ...isAppStoreV3On(session.network.key) ? [{ id: "review", name: "Curator queue", icon: "doc" as const }] : [],
-        ...session.status === "member" ? [{ id: "my-submissions", name: "Your listings", icon: "prof" as const }] : [],
+        ...listingsOpen ? [{ id: "my-submissions", name: "Your listings", icon: "prof" as const }] : [],
     ]
+    const closed = <p className="os-store-notice" role="status">Submitting listings is not open on this network yet.</p>
     return <AppShell label="App Store" sections={nav} current={current} onSelect={(next) => open(specForTarget({ kind: "app", app: "store", section: next === "discover" ? null : next })!)}>
-        {current === "extensions" ? <Extensions /> : current === "review" ? <CuratorQueue session={session} open={open} /> : <Discovery key={`${current}:${props.query}`} props={props} section={current === "ecosystem" ? "ecosystem" : "discover"} />}
+        {current === "extensions" ? <Extensions />
+            : current === "review" ? <CuratorQueue session={session} open={open} />
+            : current === "submit" ? listingsOpen ? <SubmitListing key={props.query ?? ""} session={session} query={props.query} push={props.push} /> : closed
+            : current === "my-submissions" ? listingsOpen ? <YourListings session={session} push={props.push} /> : closed
+            : <Discovery key={`${current}:${props.query}`} props={props} section={current === "ecosystem" ? "ecosystem" : "discover"} />}
     </AppShell>
 }

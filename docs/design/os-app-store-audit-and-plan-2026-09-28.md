@@ -48,7 +48,7 @@ The recommended product model is **one discovery experience with explicit proven
 - **App detail:** native OS window with real icon, name/tagline, honest status, primary Open action, destination/network disclosure, screenshot gallery, description, publisher and realm/source panel, “what's new” only where supplied and dated, onchain reviews when live, and Report. Third-party destinations remain external tabs.
 - **Extensions:** dedicated Store section for add-ons that actually connect to Memba, with compatibility and activation state. Do not label a planned integration “active.”
 - **Curator queue:** native and read-only for everyone (owner decision, 2026-09-30): the curator is the team's 2-of-3 multisig, later the Memba DAO, and neither signs from a browser. It lists the pending listings the registry returns and says how many pending listings reports hide, since no read lists those.
-- **Your listings:** the classic route is bridged until its native flow ships with the submission wizard.
+- **Your listings and Submit:** native. Guests can open the submission form and are asked to connect only when they send it; Your listings asks for the wallet because it shows that wallet's own listings. Submit, edit and delist go through the signing sheet at measured gas limits with capped deposits, and every call is checked on chain before the wallet opens. With the submission switch off, both say submissions are closed.
 
 ### Visual system
 

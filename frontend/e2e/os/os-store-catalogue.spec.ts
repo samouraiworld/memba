@@ -90,6 +90,27 @@ test('a visitor reads the curator queue, told which listings it cannot show', as
     await expect(detail.getByText('Reports so far: 2.', { exact: false })).toBeVisible()
 })
 
+test('a visitor fills in a listing in the native Store, reads its costs, and is asked to connect only to send it', async ({ page }) => {
+    await fulfillOnchainReads(page, ({ method, path, arg }) => {
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
+        if (path === 'vm/qeval' && arg.includes('ListLiveJSON')) return `(${JSON.stringify(JSON.stringify(live))} string)`
+        if (path === 'vm/qeval' && arg.includes('GetStatsJSON')) return `(${JSON.stringify(JSON.stringify({ total: 2, live: 2, pending: 0, rejected: 0, delisted: 0, registrationFee: 1000000, paused: false }))} string)`
+        return null
+    })
+    await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+    await page.goto(`${OS_FLAGS_ON}/os/store`)
+    const store = page.getByRole('region', { name: 'App Store', exact: true })
+    await store.getByRole('navigation', { name: 'App Store' }).getByRole('button', { name: 'Your listings' }).click()
+    await expect(store.getByText('Connect the wallet that published your listings to see them here.')).toBeVisible()
+    await store.getByRole('button', { name: 'Submit an app' }).click()
+    await expect(store.getByRole('heading', { name: 'Submit an app' })).toBeVisible()
+    await expect(store.getByText(/Listing fee: 1 GNOT, forwarded to the App Store treasury and not returned/)).toBeVisible()
+    await store.getByLabel(/Package path/).fill('gno.land/r/alice/garden')
+    await store.getByLabel(/^Name/).fill('Garden')
+    await expect(store.getByRole('button', { name: 'Connect to submit' })).toBeEnabled()
+    await expect(store.locator('.os-classic')).toHaveCount(0)
+})
+
 const live = [
     { id: 1, pkgPath: 'gno.land/r/gnoswap/router', name: 'GnoSwap', tagline: '', category: 'Exchange', iconCID: '', appURL: 'https://gnoswap.io/', publisher: '', status: 'live', flagCount: 0, createdAt: 0 },
     { id: 2, pkgPath: 'gno.land/r/gnoland/boards2/v0', name: 'Boards', tagline: '', category: 'Community', iconCID: '', appURL: 'https://gno.land/r/gnoland/boards2/v0', publisher: '', status: 'live', flagCount: 0, createdAt: 0 },

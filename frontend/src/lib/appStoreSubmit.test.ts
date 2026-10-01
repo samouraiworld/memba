@@ -347,6 +347,10 @@ describe("checks made before the wallet, on a verified node", () => {
         await expect(assertEditApplies(CALLER, s, s)).rejects.toThrow("used its 5 edits")
         read.mockResolvedValue(mine({ descr: "Changed on chain" }))
         await expect(assertEditApplies(CALLER, s, s)).rejects.toThrow("changed since it was loaded")
+        // An unchanged edit made meanwhile still spent an edit.
+        read.mockResolvedValue(mine({ resubmitCount: 2 }))
+        await expect(assertEditApplies(CALLER, s, s, 1)).rejects.toThrow("changed since it was loaded")
+        await expect(assertEditApplies(CALLER, s, s, 2)).resolves.toBeUndefined()
     })
 
     it("delists only the publisher's listing that is not delisted yet", async () => {

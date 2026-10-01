@@ -91,19 +91,9 @@ export function AppSubmit() {
                 ? submitEditListing(address, submission, mode.was)
                 : submitRegisterApp(address, submission, fee ?? Number.NaN)
         },
-        onSuccess: (_res, submission) => {
-            // The freshly-signed listing is pending — reflect it immediately (the chain read lags
-            // the broadcast), then let the next refetch reconcile. Uses the submitted form (the
-            // mutation variable), not a closure, so it matches exactly what was signed.
-            const optimistic: AppListing = {
-                id: 0, pkgPath: submission.pkgPath, name: submission.name, tagline: submission.tagline,
-                category: submission.category, iconCID: submission.iconCID, appURL: submission.appURL,
-                publisher: address, status: "pending", flagCount: 0, createdAt: 0, descr: submission.descr,
-            }
-            qc.setQueryData<AppListing[]>(["appStore", "mine", address], (prev) => [
-                optimistic,
-                ...(prev ?? []).filter((l) => l.pkgPath !== submission.pkgPath),
-            ])
+        onSuccess: () => {
+            // Sent, not yet seen on chain: the list is read again rather than shown as if it were.
+            void qc.invalidateQueries({ queryKey: ["appStore", "mine", address] })
             void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
             setDone(mode.kind)
             setTxError(null)
@@ -220,10 +210,10 @@ export function AppSubmit() {
             {done ? (
                 <div className="appstore__notice appsubmit__done" data-testid="appsubmit-done" role="status">
                     <p className="appstore__notice-title">
-                        {done === "edit" ? "Resubmitted — pending review again" : "Submitted — now pending review"}
+                        {done === "edit" ? "Resubmission sent" : "Submission sent"}; not visible on chain yet
                     </p>
                     <p className="appstore__muted">
-                        Your listing is <strong>pending review</strong>: it is not live in the store yet.
+                        Once the chain includes it, your listing is <strong>pending review</strong>: it is not live in the store yet.
                         A curator will approve it, or reject it with a reason you'll see below — fixing
                         and resubmitting after a rejection costs no listing fee.
                     </p>

@@ -149,7 +149,8 @@ describe("AppSubmit — the money path", () => {
         expect(msgs[0].value.send).toBe("1000000ugnot")
         expect(msgs[0].value.args[0]).toBe("gno.land/r/samcrew/my_app_v1")
         // Pending-state disclosure: the submitter must learn it is NOT live yet.
-        expect(await screen.findByTestId("appsubmit-done")).toHaveTextContent(/pending review/i)
+        // Sent is not seen on chain: the panel says so, and the list is read again.
+        expect(await screen.findByTestId("appsubmit-done")).toHaveTextContent(/Submission sent; not visible on chain yet.*Once the chain includes it, your listing is pending review/)
     })
 })
 

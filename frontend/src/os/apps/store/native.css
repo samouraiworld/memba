@@ -114,3 +114,5 @@
 .memba-os .os-store-queue-name { justify-self: start; border: 0; padding: 0; background: none; color: var(--os-ink); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
 .memba-os .os-store-queue-name:hover { text-decoration: underline; }
 .memba-os .os-store-queue-name:focus-visible { outline: 2px solid var(--os-acc-ink); outline-offset: 2px; border-radius: 4px; }
+.memba-os .os-store-mine-head { display: flex; align-items: center; gap: 8px; color: var(--os-ink); }
+.memba-os .os-store-mine-actions { display: flex; flex-wrap: wrap; gap: 8px; }

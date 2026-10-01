@@ -17,6 +17,7 @@ import {
     submitAppReport,
     APP_FLAG_GAS_WANTED,
     fetchCuratorQueue,
+    fetchMyListings,
     NothingSentError,
 } from "./appStore"
 import * as shared from "./dao/shared"
@@ -388,5 +389,33 @@ describe("a listing field the realm does not give", () => {
         vi.spyOn(shared, "queryEval").mockResolvedValue("[raw]")
         vi.spyOn(shared, "parseQevalJSON").mockReturnValue({ pkgPath: "gno.land/r/samcrew/block_party", name: "Block Party", status: "live" })
         await expect(fetchAppStrict("gno.land/r/samcrew/block_party")).resolves.toMatchObject({ resubmitCount: undefined })
+    })
+})
+
+describe("a publisher's own listings (strict)", () => {
+    afterEach(() => vi.restoreAllMocks())
+    const ME = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+    const row = (id: number) => ({ id, pkgPath: `gno.land/r/alice/app${id}`, name: `App ${id}`, status: "rejected" })
+
+    it("reads every status on a verified node, page by page, and says when it stopped early", async () => {
+        vi.spyOn(shared, "parseQevalJSON").mockImplementation((raw) => JSON.parse(raw))
+        const pages = [Array.from({ length: 100 }, (_, i) => row(i + 1)), [row(101)]]
+        const qe = vi.spyOn(shared, "queryEval").mockImplementation(async () => JSON.stringify(pages.shift() ?? []))
+        await expect(fetchMyListings(ME)).resolves.toMatchObject({ complete: true, listings: expect.arrayContaining([expect.objectContaining({ name: "App 101" })]) })
+        expect(qe).toHaveBeenNthCalledWith(2, expect.any(String), APPSTORE_REALM_PATH, `ListByPublisherJSON("${ME}", 100, 100)`, true)
+        qe.mockImplementation(async () => JSON.stringify(Array.from({ length: 100 }, (_, i) => row(i + 1))))
+        await expect(fetchMyListings(ME, 2)).resolves.toMatchObject({ complete: false })
+    })
+
+    it("counts the rows the registry returns that Memba does not show", async () => {
+        vi.spyOn(shared, "parseQevalJSON").mockImplementation((raw) => JSON.parse(raw))
+        vi.spyOn(shared, "queryEval").mockResolvedValue(JSON.stringify([row(1), { ...row(2), pkgPath: "gno.land/r/alice/has space" }]))
+        await expect(fetchMyListings(ME)).resolves.toMatchObject({ unshown: 1, complete: true, listings: [expect.objectContaining({ name: "App 1" })] })
+    })
+
+    it("throws instead of reading as no listings, and refuses a non-address", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue(null)
+        await expect(fetchMyListings(ME)).rejects.toThrow("unavailable")
+        await expect(fetchMyListings('x") or Steal("')).rejects.toThrow("Connect your wallet first.")
     })
 })
