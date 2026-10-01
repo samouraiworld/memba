@@ -114,6 +114,33 @@ test.describe('Memba OS profile, as its owner', () => {
         await expect(profile.getByText('Hello', { exact: true })).toBeVisible()
     })
 
+    for (const [width, height, minSheet] of [[1900, 1000, 640], [375, 812, 0]] as const) {
+        test(`every review row shows its whole value inside the sheet at ${width} px`, async ({ page }) => {
+            await owner(page, 'ok', { DisplayName: 'Alice on Gno', Bio: '' })
+            await page.setViewportSize({ width, height })
+            await page.goto(`${OS_FLAGS_ON}/os/profile`)
+            await page.getByTestId('os-profile-window').getByRole('button', { name: 'Edit profile' }).click()
+            const editor = page.getByTestId('os-profile-editor')
+            // Long values without break opportunities: what pushed the value column off the sheet.
+            await editor.getByRole('textbox', { name: 'Bio' }).fill(`${'x'.repeat(160)} and some words`)
+            await editor.getByLabel('Homepage URL').fill(`https://example.org/${'a'.repeat(150)}`)
+            await editor.getByRole('button', { name: /Review & publish \d changes/ }).click()
+            const review = page.getByRole('dialog', { name: 'Review · Publish profile' })
+            await expect(review).toBeVisible()
+            const box = await review.boundingBox()
+            expect(box!.x).toBeGreaterThanOrEqual(0)
+            expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+            expect(box!.width).toBeGreaterThanOrEqual(minSheet)
+            const overflow = await review.evaluate((dialog) => {
+                const edge = dialog.getBoundingClientRect().right
+                const body = dialog.querySelector<HTMLElement>('.os-rvb')!
+                const cut = [...dialog.querySelectorAll('dd')].filter((dd) => dd.getBoundingClientRect().right > edge + 0.5 || dd.scrollWidth > dd.clientWidth + 1)
+                return { sideways: body.scrollWidth > body.clientWidth + 1, cut: cut.map((dd) => dd.previousElementSibling?.textContent) }
+            })
+            expect(overflow).toEqual({ sideways: false, cut: [] })
+        })
+    }
+
     test('rejecting in Adena sends nothing and keeps the draft unlocked', async ({ page }) => {
         const fields = { DisplayName: 'Alice on Gno', Bio: '' }
         await owner(page, 'reject', fields)

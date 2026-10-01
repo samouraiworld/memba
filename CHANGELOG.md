@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: review sheet (2026-10-01)
+- Fixed: the Memba OS review sheet is wider on desktop and wraps long values, so every row shows what Adena should show without scrolling sideways.
+
 ### BARRICADE (2026-10-01)
 - Fixed: the shop's To the wall button stays readable under the pointer, a Practice run is labelled Practice, and the 2.5D wave counter matches the status line.
 

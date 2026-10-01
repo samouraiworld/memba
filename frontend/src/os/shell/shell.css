@@ -144,7 +144,9 @@
 .memba-os .os-wopt:hover { border-color: var(--os-acc); }
 .memba-os .os-steps { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.9; }
 .memba-os .os-steps a { color: var(--os-acc-ink); font-weight: 700; }
-.memba-os .os-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12px; align-items: baseline; margin: 0; }
+/* The value column may shrink below its longest unbreakable string: long values wrap instead of widening the grid. */
+.memba-os .os-kv { display: grid; grid-template-columns: minmax(6em, max-content) minmax(0, 1fr); gap: 6px 14px; font-size: 12px; align-items: baseline; margin: 0; min-width: 0; }
+.memba-os .os-kv dt, .memba-os .os-kv dd { min-width: 0; overflow-wrap: anywhere; }
 .memba-os .os-kv dt { color: var(--os-mut); }
 .memba-os .os-kv dd { margin: 0; text-align: right; font-weight: 700; }
 .memba-os .os-note { margin: 0; font-size: 12px; padding: 8px 10px; border-radius: 10px; background: var(--os-chip); }
@@ -315,7 +317,7 @@
 
 /* review sheet (mockup .review .rvh .rvb .rvf) */
 .memba-os .os-review {
-  width: min(460px, 100%); max-height: calc(100% - 32px); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden;
+  width: min(720px, calc(100% - 32px)); max-height: calc(100% - 32px); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden;
   box-shadow: 0 40px 80px -20px var(--os-shadow); animation: os-pop .18s; user-select: text; -webkit-user-select: text;
 }
 .memba-os .os-rvh { padding: 18px 20px 12px; display: grid; gap: 4px; border-bottom: 1px solid var(--os-line); }
@@ -328,6 +330,11 @@
 .memba-os .os-ack { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .memba-os .os-ack input { margin-top: 2px; accent-color: var(--os-acc); }
 .memba-os .os-adena summary { cursor: pointer; font-weight: 800; font-size: 12px; margin-bottom: 8px; }
+/* A phone-width sheet puts each label over its value. */
+@media (max-width: 420px) {
+  .memba-os .os-review .os-kv { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .memba-os .os-review .os-kv dd { text-align: left; margin-bottom: 6px; }
+}
 
 /* wizard windows (mockup .fl .opt .chipset .pvcard, step bar) */
 .memba-os .os-wiz { display: grid; grid-template-rows: auto 1fr auto; gap: 14px; min-height: 100%; }
