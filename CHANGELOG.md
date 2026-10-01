@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: execute DAO proposals (2026-10-02)
+- Members can execute an accepted proposal of a DAO made from Memba's template from its Memba OS window, through the review sheet: Memba checks membership, the execution window, the action and the fee before Adena opens, and confirms the member's own transaction on chain. The link to the classic page is gone.
+
 ### Memba OS: who voted, and what a multisig received (2026-10-02)
 - A proposal window in Memba OS now lists who voted and how, read from the chain, for Memba DAO (every seat, with its points) and for DAOs made from Memba's template (every voter, with their voting power). Guests see it too.
 - A multisig's window lists what it received and sent on chain, for guests too, names the proposal a send executed, and links each transaction on gnoscan; a validator's activity now says when a transfer was received.

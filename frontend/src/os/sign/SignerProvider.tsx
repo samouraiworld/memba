@@ -171,7 +171,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         notify(ok === true
             ? { kind: "ok", title: `Confirmed · ${label}`, sub: where }
             : ok === "failed"
-                ? { kind: "fail", title: `Refused by the network · ${label}`, sub: `${where}: the chain ran it and refused it. It did not take effect; the network fee was still charged.` }
+                ? { kind: "fail", title: `Refused by the network · ${label}`, sub: `${where}: ${req.failedNote?.() ?? "the chain ran it and refused it. It did not take effect; the network fee was still charged."}` }
                 : ok === null
                     ? { kind: "ok", title: `Submitted · ${label}`, sub: where }
                     : { kind: "warn", title: `Submitted · ${label}`, sub: pendingNote ?? "The chain hasn't shown it yet. Don't send it again." })

@@ -110,6 +110,20 @@ describe("OS signing session boundary", () => {
         expect(toast).toHaveBeenCalledWith("Refused by the network: Vote. It did not take effect; the network fee was still charged.")
     })
 
+    it("says why the chain refused it when the request knows", async () => {
+        const onSettled = vi.fn()
+        const lostRace = { ...request, send: vi.fn(async () => ({ hash: "RACE_HASH" })), verify: vi.fn(async () => "failed" as const), failedNote: () => "another member did it first.", onSettled }
+        function LostRace() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(lostRace)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.title} | {n.sub}</li>)}</ul></>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><LostRace /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("failed", undefined))
+        expect(screen.getByText("fail | Refused by the network · Vote | gnoland-1 · RACE_HASH…: another member did it first.")).toBeInTheDocument()
+    })
+
     describe("as the sheet opens", () => {
         afterEach(() => { cleanup(); vi.unstubAllGlobals() })
         const ok = { status: "success", data: { address: "g1alpha", chainId: "gnoland-1" } }

@@ -2,7 +2,7 @@
  * Lifecycle facts of a version-2 DAO proposal, derived from the realm's own
  * record (times are block times in unix seconds).
  */
-import type { MembaV2ProposalSummary, MembaV2Status } from "./membaV2"
+import type { MembaV2Proposal, MembaV2ProposalSummary, MembaV2Status } from "./membaV2"
 
 export const V2_STATUS_LABELS: Record<MembaV2Status, string> = {
     ACTIVE: "Voting",
@@ -61,4 +61,13 @@ export function executionState(p: V2Proposal, nowSeconds: number): "not-accepted
 /** Percent of the electorate's power, one decimal. */
 export function powerPercent(part: number, whole: number): number {
     return whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0
+}
+
+/** What a version-2 proposal does when executed, in words. */
+export const V2_ACTION_LABELS: Record<MembaV2Proposal["action"]["kind"], string> = {
+    text: "Text proposal",
+    add_member: "Add member",
+    remove_member: "Remove member",
+    set_roles: "Change roles",
+    archive: "Archive the DAO",
 }

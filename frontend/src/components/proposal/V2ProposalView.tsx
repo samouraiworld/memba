@@ -21,7 +21,7 @@ import { formatUgnot } from "../../lib/dao/v2Budget"
 import { friendlyDaoError } from "../../lib/dao/errors"
 import { hasInvisibleFormatting, revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import {
-    V2_STATUS_EXPLANATIONS, V2_STATUS_LABELS, VOTES_ARE_FINAL,
+    V2_ACTION_LABELS, V2_STATUS_EXPLANATIONS, V2_STATUS_LABELS, VOTES_ARE_FINAL,
     canVoteNow, executionState, formatChainTime, powerPercent, relativeTime,
 } from "../../lib/dao/v2Lifecycle"
 import { clearVoteCache } from "../../lib/dao/voteScanner"
@@ -35,6 +35,8 @@ import type { LayoutContext } from "../../types/layout"
 import { TxStatus, type TxState } from "./TxStatus"
 import { useCurrentRequest } from "../../hooks/useCurrentRequest"
 import { beginGovernanceRequest, governanceRequestActive, clearGovernanceReceipt, readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
+import { executeScope } from "../../os/daos/executeRequest"
+import { voteScope } from "../../os/daos/voteRequest"
 import "../../pages/proposalview.css"
 import "../dao/dao-shell.css"
 import "./v2-proposal.css"
@@ -42,14 +44,6 @@ import "./v2-proposal.css"
 type Intent = { kind: "vote"; choice: VoteChoice } | { kind: "execute" }
 /** `depositApproved`: the member allowed this plan's above-ceiling deposit cap in this dialog. */
 type Pending = (Intent & { plan: DaoTxPlan; electorateVersion: number; needsDepositOverride: boolean; depositApproved: boolean }) | null
-
-const ACTION_LABELS: Record<MembaV2Proposal["action"]["kind"], string> = {
-    text: "Text proposal",
-    add_member: "Add member",
-    remove_member: "Remove member",
-    set_roles: "Change roles",
-    archive: "Archive the DAO",
-}
 
 function useNowSeconds(): number {
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
@@ -65,7 +59,7 @@ function ActionDetails({ proposal }: { proposal: MembaV2Proposal }) {
     return (
         <dl className="v2p-facts">
             <dt>Action</dt>
-            <dd>{ACTION_LABELS[a.kind]}</dd>
+            <dd>{V2_ACTION_LABELS[a.kind]}</dd>
             {a.target && (<><dt>Member</dt><dd className="v2p-address">{a.target}</dd></>)}
             {a.kind === "add_member" && (<><dt>Voting power</dt><dd>{a.power.toLocaleString("en-US")}</dd></>)}
             {(a.kind === "add_member" || a.kind === "set_roles") && (<><dt>Roles</dt><dd>{a.roles.length > 0 ? a.roles.join(", ") : "No roles"}</dd></>)}
@@ -85,10 +79,11 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
     const queryClient = useQueryClient()
     const { auth, adena } = useOutletContext<LayoutContext>()
     const { isCurrent, assertCurrent } = useCurrentRequest()
-    const scopes = useMemo(() => {
-        const base = { chainId: GNO_CHAIN_ID, realmPath, caller: adena.address || "" }
-        return { vote: { ...base, operation: `vote:${proposalId}` }, execute: { ...base, operation: `execute:${proposalId}` } }
-    }, [realmPath, proposalId, adena.address])
+    // The OS proposal window keeps its receipts under the same scopes, so either interface sees the other's lock.
+    const scopes = useMemo(() => ({
+        vote: voteScope(realmPath, adena.address || "", proposalId),
+        execute: executeScope(realmPath, adena.address || "", proposalId),
+    }), [realmPath, proposalId, adena.address])
     const [receipts, setReceipts] = useState(() => ({ vote: readGovernanceReceipt(scopes.vote), execute: readGovernanceReceipt(scopes.execute) }))
     const [acknowledged, setAcknowledged] = useState(false)
     const [recoveryMessage, setRecoveryMessage] = useState("")

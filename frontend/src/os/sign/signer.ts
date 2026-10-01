@@ -59,6 +59,8 @@ export interface SignRequest<C extends string = string> {
     verifyAttempts?: number
     /** What the tray says when `verify` answers "not yet" (`false`), when the request knows more than that. */
     pendingNote?: () => string | undefined
+    /** What the tray says when `verify` answers `"failed"`, when the request knows why. */
+    failedNote?: () => string | undefined
     /** Nothing took effect (stopped before the wallet, rejected in it, or refused by the node): drop what `send` saved. */
     onNothingSent?: () => void
     onSettled?: (outcome: SettledOutcome, choice: C | undefined) => void
