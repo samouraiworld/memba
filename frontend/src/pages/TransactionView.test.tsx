@@ -73,6 +73,7 @@ vi.mock("../lib/config", () => ({
 vi.mock("../lib/nativeMultisigBroadcast", async importOriginal => ({
     ...await importOriginal<typeof import("../lib/nativeMultisigBroadcast")>(),
     broadcastNativeTransaction: vi.fn(),
+    waitOneBlock: vi.fn(async () => {}),
 }))
 
 vi.mock("../lib/dao/realmAddress", () => ({
@@ -83,7 +84,7 @@ vi.mock("../lib/dao/realmAddress", () => ({
 import { Code, ConnectError } from "@connectrpc/connect"
 import { TransactionView } from "./TransactionView"
 import { api } from "../lib/api"
-import { broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash } from "../lib/nativeMultisigBroadcast"
+import { broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash, waitOneBlock } from "../lib/nativeMultisigBroadcast"
 import { networkGasPriceFresh } from "../lib/grc20"
 import { clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt } from "../lib/nativeReceipt"
 
@@ -195,7 +196,7 @@ describe("native confirmation and receipt recovery", () => {
         await screen.findByText("TX #7")
         fireEvent.click(screen.getByText("Broadcast to Chain"))
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
-        await screen.findByText("receipt unavailable")
+        await screen.findByText("Memba couldn't check this transaction on chain right now. Nothing was sent again; the saved hash stays here. Try again in a moment.")
         expect(readNativeReceipt(receiptKey())).toBe(HASH)
         expect(screen.getByText(HASH)).toBeInTheDocument()
         expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
@@ -206,6 +207,9 @@ describe("native confirmation and receipt recovery", () => {
         await screen.findByText("Retry receipt verification")
         fireEvent.click(screen.getByText("Retry receipt verification"))
         await screen.findByText(/VERIFIED ON-CHAIN/)
+        // Signed at sequence N stays as it was; the progress says what happened, not "ready".
+        expect(screen.getByText("Executed on chain")).toBeInTheDocument()
+        expect(screen.queryByText("Ready to broadcast")).not.toBeInTheDocument()
         await waitFor(() => expect(invalidated).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["multisig"] })))
         expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
         expect(api.completeTransaction).toHaveBeenCalledTimes(3)
@@ -220,13 +224,90 @@ describe("native confirmation and receipt recovery", () => {
         render(<TransactionView />)
         await screen.findByText("Retry receipt verification")
         fireEvent.click(screen.getByText("Retry receipt verification"))
-        await screen.findByText("still unavailable")
+        await screen.findByText("Memba couldn't check this transaction on chain right now. Nothing was sent again; the saved hash stays here. Try again in a moment.")
         fireEvent.click(screen.getByText("Retry receipt verification"))
         await waitFor(() => expect(api.completeTransaction).toHaveBeenCalledTimes(2))
         await screen.findByText("Retry receipt verification")
         expect(readNativeReceipt(receiptKey())).toBe(HASH)
         expect(broadcastNativeTransaction).not.toHaveBeenCalled()
         expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
+    })
+
+    it("asks again over about two blocks, then says why a saved hash could not be recorded, keeps it, and sends nothing", async () => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValue(new ConnectError("the node Memba checks has no transaction at this hash yet", Code.FailedPrecondition))
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText("Memba could not record it: the node Memba checks has no transaction at this hash yet. Nothing was sent again; the saved hash stays here.")
+        expect(api.completeTransaction).toHaveBeenCalledTimes(3)
+        expect(waitOneBlock).toHaveBeenCalledTimes(2)
+        expect(screen.queryByText(/failed_precondition|Something went wrong/)).not.toBeInTheDocument()
+        expect(readNativeReceipt(receiptKey())).toBe(HASH)
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+    })
+
+    it("asks again when the server cannot look, and records it once it can", async () => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        const unavailable = () => new ConnectError("", Code.Unavailable)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(unavailable()).mockRejectedValueOnce(unavailable())
+            .mockImplementationOnce(async () => {
+                vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
+                return {} as never
+            })
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(api.completeTransaction).toHaveBeenCalledTimes(3)
+        expect(waitOneBlock).toHaveBeenCalledTimes(2)
+    })
+
+    it("records a hash the checked node shows a block later, with no alert", async () => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(new ConnectError("the node Memba checks has no transaction at this hash yet", Code.FailedPrecondition))
+            .mockImplementationOnce(async () => {
+                vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
+                return {} as never
+            })
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(waitOneBlock).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    })
+
+    it.each([
+        [Code.Unauthenticated, "Your Memba session has ended. Sign in again, then retry. Nothing was sent again; the saved hash stays here."],
+        [Code.PermissionDenied, "Memba records it only for a member of this multisig, signed in on its network. Check the wallet and network you are signed in with. Nothing was sent again; the saved hash stays here."],
+        [Code.Internal, "Memba's server failed while recording it. Nothing was sent again; the saved hash stays here. Report it if it repeats."],
+    ])("states the real cause for code %s, once, without asking again", async (code, text) => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValue(new ConnectError("", code))
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(text)
+        expect(api.completeTransaction).toHaveBeenCalledTimes(1)
+        expect(waitOneBlock).not.toHaveBeenCalled()
+    })
+
+    it("takes a hash another member already recorded as recorded", async () => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValueOnce(nativeResponse() as never).mockResolvedValueOnce(nativeResponse() as never)
+            .mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(new ConnectError("", Code.NotFound))
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(readNativeReceipt(receiptKey())).toBe("")
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
     })
 
     it("reconciles a lost completion response from server state without repeating Complete", async () => {
@@ -274,6 +355,7 @@ describe("native confirmation and receipt recovery", () => {
     it.each([
         ["the rate limit", () => new ConnectError("slow down", Code.ResourceExhausted)],
         ["a chain node the backend cannot reach", () => new ConnectError("rpc", Code.Unavailable)],
+        ["a server not set up to check receipts", () => new ConnectError("this server cannot check transactions on chain: native receipt verification is not configured", Code.Unavailable)],
         ["a request that never arrived", () => new Error("Failed to fetch")],
     ])("does not take %s for 'not on chain': nothing is sent", async (_why, failure) => {
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
@@ -458,6 +540,8 @@ describe("native confirmation and receipt recovery", () => {
         vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: false, onchainError: "insufficient coins" } } as never)
         render(<TransactionView />)
         await screen.findByText(/FAILED ON-CHAIN/)
+        // The status badge and the signature progress both say so.
+        expect(screen.getAllByText("Failed on chain")).toHaveLength(2)
         expect(screen.getByText(/The network refused this transaction:/)).toHaveTextContent("insufficient coins")
         expect(screen.getByText(/create a new proposal/)).toBeInTheDocument()
         expect(screen.queryByText("Broadcast to Chain")).toBeNull()
@@ -730,6 +814,9 @@ describe("TransactionView — completion + verified flag", () => {
         await renderTx(makeTx({ multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}', finalHash: HASH, verified: true }))
         expect(screen.getByText(/VERIFIED ON-CHAIN/)).toBeInTheDocument()
         expect(screen.queryByText(/UNCONFIRMED/)).not.toBeInTheDocument()
+        expect(screen.getByText("Executed on chain")).toBeInTheDocument()
+        // The sequence the members signed, not the account's current one.
+        expect(screen.getByText("Signed at sequence")).toBeInTheDocument()
         expect(screen.queryByText(/not verified against this transaction/)).not.toBeInTheDocument()
     })
 
@@ -737,6 +824,9 @@ describe("TransactionView — completion + verified flag", () => {
         await renderTx(makeTx({ finalHash: "ABCDEF", verified: true }))
         expect(screen.getByText(/Hash recorded \(not verified against this transaction\)/)).toBeInTheDocument()
         expect(screen.queryByText(/VERIFIED ON-CHAIN/)).not.toBeInTheDocument()
+        // Only a native receipt says executed; a legacy row's hash is only recorded.
+        expect(screen.getByText("Hash recorded", { exact: true })).toBeInTheDocument()
+        expect(screen.queryByText("Executed on chain")).not.toBeInTheDocument()
     })
 
     it("shows UNCONFIRMED for a client-claimed hash the chain didn't confirm", async () => {

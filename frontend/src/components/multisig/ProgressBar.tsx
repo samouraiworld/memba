@@ -5,9 +5,17 @@ interface ProgressBarProps {
     verified: number;
     threshold: number;
     total: number;
+    /** The chain's outcome, once recorded: it replaces the readiness label and its colour. */
+    outcome?: "executed" | "failed" | "recorded";
 }
 
-export function ProgressBar({ current, verified, threshold, total }: ProgressBarProps) {
+const OUTCOME = {
+    executed: { label: "Executed on chain", color: "var(--color-k-accent)", background: "var(--color-k-accent-subtle)", border: "var(--color-k-accent-border)" },
+    failed: { label: "Failed on chain", color: "var(--color-danger, #ef4444)", background: "rgba(239,68,68,0.1)", border: "var(--color-danger, #ef4444)" },
+    recorded: { label: "Hash recorded", color: "var(--color-text-secondary)", background: "var(--color-k-amber-subtle)", border: "var(--color-k-amber-border)" },
+}
+
+export function ProgressBar({ current, verified, threshold, total, outcome }: ProgressBarProps) {
     const submittedPct = total > 0 ? (current / total) * 100 : 0;
     const verifiedPct = total > 0 ? (verified / total) * 100 : 0;
     const thresholdPercentage = total > 0 ? (threshold / total) * 100 : 0;
@@ -16,6 +24,7 @@ export function ProgressBar({ current, verified, threshold, total }: ProgressBar
     const quorumSubmitted = current >= threshold;
     const quorumVerified = verified >= threshold;
     const isReady = quorumSubmitted && quorumVerified;
+    const done = outcome ? OUTCOME[outcome] : null;
 
     return (
         <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -68,15 +77,15 @@ export function ProgressBar({ current, verified, threshold, total }: ProgressBar
                 <span style={{
                     fontSize: "var(--pro-caption, 11px)", padding: "2px 8px", borderRadius: 4,
                     fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                    background: isReady ? "var(--color-k-accent-subtle)" : "var(--color-k-amber-subtle)",
-                    color: isReady ? "var(--color-k-accent)" : "var(--color-k-warning)",
-                    border: `1px solid ${isReady ? "var(--color-k-accent-border)" : "var(--color-k-amber-border)"}`,
+                    background: done?.background ?? (isReady ? "var(--color-k-accent-subtle)" : "var(--color-k-amber-subtle)"),
+                    color: done?.color ?? (isReady ? "var(--color-k-accent)" : "var(--color-k-warning)"),
+                    border: `1px solid ${done?.border ?? (isReady ? "var(--color-k-accent-border)" : "var(--color-k-amber-border)")}`,
                 }}>
-                    {isReady
+                    {done?.label ?? (isReady
                         ? "Ready to broadcast"
                         : quorumSubmitted
                             ? "Quorum includes unverified signatures"
-                            : `${threshold - current} more needed`}
+                            : `${threshold - current} more needed`)}
                 </span>
             </div>
         </div>

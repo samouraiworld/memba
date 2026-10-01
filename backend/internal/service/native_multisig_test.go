@@ -12,9 +12,11 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -287,13 +289,19 @@ func TestNativeProposalSignExport(t *testing.T) {
 	hash := sha256.Sum256(ready.NativeTxBytes)
 	status := ctypes.ResultStatus{}
 	status.NodeInfo.Network = h.svc.chainID
+	status.SyncInfo.LatestBlockTime = time.Now()
 	receipt := ctypes.ResultTx{Hash: hash[:], Height: 1, Tx: ready.NativeTxBytes}
 	// How the node answers a Tx lookup: with the receipt, with its own
 	// "no such transaction" error, with another error, or with no answer. And
 	// the multisig account it holds, which says whether a sequence was used.
 	txAnswer := "receipt"
 	accountSequence := "0"
-	account := func() []byte {
+	// The account as it was at a given block, when it differs from today's.
+	accountAt := map[string]string{}
+	account := func(height string) []byte {
+		if past, ok := accountAt[height]; ok {
+			return []byte(fmt.Sprintf(`{"BaseAccount":{"address":%q,"coins":"","public_key":null,"account_number":"7","sequence":%q}}`, addr, past))
+		}
 		if accountSequence == "unreadable" {
 			return []byte("null")
 		}
@@ -306,6 +314,9 @@ func TestNativeProposalSignExport(t *testing.T) {
 		var request struct {
 			Method string          `json:"method"`
 			ID     json.RawMessage `json:"id"`
+			Params struct {
+				Height string `json:"height"`
+			} `json:"params"`
 		}
 		if json.NewDecoder(r.Body).Decode(&request) != nil {
 			w.WriteHeader(400)
@@ -322,7 +333,7 @@ func TestNativeProposalSignExport(t *testing.T) {
 		case request.Method == "status":
 			result = status
 		case request.Method == "abci_query":
-			result = ctypes.ResultABCIQuery{Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: account()}}}
+			result = ctypes.ResultABCIQuery{Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: account(request.Params.Height)}}}
 		case txAnswer == "absent":
 			reply.Error = map[string]any{"code": -32603, "message": "Internal error", "data": "Could not find tx result for hash #" + fmtHash(hash[:])}
 		case txAnswer == "absent for another hash":
@@ -383,11 +394,111 @@ func TestNativeProposalSignExport(t *testing.T) {
 		_, err := h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{AuthToken: token, TransactionId: id, FinalHash: fmtHash(hash[:])}))
 		return err
 	}
+	// A server that cannot look never answers "not on chain": the client would broadcast.
+	for name, value := range map[string]string{"MEMBA_NATIVE_GNO_RPC_URL": "", "MEMBA_ENABLE_NATIVE_GNO_MULTISIG": ""} {
+		kept := os.Getenv(name)
+		t.Setenv(name, value)
+		if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable || !strings.Contains(err.Error(), "not configured") {
+			t.Fatalf("%s unset: %v", name, err)
+		}
+		t.Setenv(name, kept)
+	}
+	if get().Transaction.FinalHash != "" {
+		t.Fatal("an unconfigured check recorded a hash")
+	}
+	// A stored identity that no longer matches its address is Memba's fault, never "absent".
+	if _, err := h.db.Exec("UPDATE multisigs SET threshold = threshold + 1 WHERE address = ?", addr); err != nil {
+		t.Fatal(err)
+	}
+	if err := complete(); connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("stored identity mismatch: %v", err)
+	}
+	if _, err := h.db.Exec("UPDATE multisigs SET threshold = threshold - 1 WHERE address = ?", addr); err != nil {
+		t.Fatal(err)
+	}
 	status.NodeInfo.Network = "wrong-chain"
 	if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Fatalf("wrong RPC chain: %v", err)
 	}
 	status.NodeInfo.Network = h.svc.chainID
+	t.Setenv("MEMBA_NATIVE_GNO_RPC_FALLBACK_URL", server.URL)
+	// A primary that is not the chain, still syncing, behind, slow to answer
+	// or unreachable hands over to the fallback, which may confirm a receipt
+	// (here: one refused before execution, which says so) but never answer
+	// "absent": a pool's next request can reach another node.
+	primary := ctypes.ResultStatus{}
+	primary.NodeInfo.Network = h.svc.chainID
+	primaryDelay := time.Duration(0)
+	// How the primary answers /tx: "absent", or a node error, after primaryTxDelay.
+	primaryTx, primaryTxDelay := "absent", time.Duration(0)
+	primaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Method string          `json:"method"`
+			ID     json.RawMessage `json:"id"`
+		}
+		if json.NewDecoder(r.Body).Decode(&request) != nil {
+			w.WriteHeader(400)
+			return
+		}
+		reply := map[string]any{"jsonrpc": "2.0", "id": request.ID}
+		switch {
+		case request.Method == "status":
+			time.Sleep(primaryDelay)
+			encoded, _ := amino.MarshalJSON(primary)
+			reply["result"] = json.RawMessage(encoded)
+		case primaryTx == "absent":
+			time.Sleep(primaryTxDelay)
+			reply["error"] = map[string]any{"code": -32603, "message": "Internal error", "data": "Could not find tx result for hash #" + fmtHash(hash[:])}
+		default:
+			time.Sleep(primaryTxDelay)
+			reply["error"] = map[string]any{"code": -32603, "message": "Internal error", "data": "block not found for height 12"}
+		}
+		_ = json.NewEncoder(w).Encode(reply)
+	}))
+	defer primaryServer.Close()
+	t.Setenv("MEMBA_NATIVE_GNO_RPC_URL", primaryServer.URL)
+	keptStatus, keptTx := nativeStatusTimeout, nativeTxTimeout
+	nativeStatusTimeout, nativeTxTimeout = 200*time.Millisecond, 200*time.Millisecond
+	receipt.TxResult.Error = abci.StringError("insufficient fee")
+	accountSequence = "3"
+	healthy := func() {
+		primary = ctypes.ResultStatus{}
+		primary.NodeInfo.Network = h.svc.chainID
+		primary.SyncInfo.LatestBlockTime = time.Now()
+		primaryDelay, primaryTx, primaryTxDelay = 0, "absent", 0
+	}
+	for _, c := range []struct {
+		name string
+		bad  func()
+	}{
+		{"on another chain", func() { primary.NodeInfo.Network = "wrong-chain" }},
+		{"still syncing", func() { primary.SyncInfo.CatchingUp = true }},
+		{"behind", func() { primary.SyncInfo.LatestBlockTime = time.Now().Add(-time.Minute) }},
+		{"dated in the future", func() { primary.SyncInfo.LatestBlockTime = time.Now().Add(time.Minute) }},
+		{"slow to give its status", func() { primaryDelay = time.Second }},
+		{"failing its /tx lookup", func() { primaryTx = "node error" }},
+		{"slow to answer /tx", func() { primaryTxDelay = time.Second }},
+	} {
+		healthy()
+		c.bad()
+		if err := complete(); connect.CodeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "refused this transaction before executing it") {
+			t.Fatalf("primary %s: the fallback's receipt was not used: %v", c.name, err)
+		}
+	}
+	healthy()
+	nativeStatusTimeout, nativeTxTimeout = keptStatus, keptTx
+	// The current primary itself decides absence.
+	if err := complete(); connect.CodeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "has no transaction at this hash yet") {
+		t.Fatalf("absent on the primary: %v", err)
+	}
+	t.Setenv("MEMBA_NATIVE_GNO_RPC_URL", "http://127.0.0.1:1")
+	txAnswer = "absent"
+	if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("absent on the fallback must not let a client broadcast: %v", err)
+	}
+	receipt.TxResult.Error = nil
+	t.Setenv("MEMBA_NATIVE_GNO_RPC_URL", server.URL)
+	t.Setenv("MEMBA_NATIVE_GNO_RPC_FALLBACK_URL", "")
 	// Only the node's own "no such transaction" lets a client broadcast.
 	for answer, want := range map[string]connect.Code{"absent": connect.CodeFailedPrecondition, "absent for another hash": connect.CodeUnavailable, "node error": connect.CodeUnavailable, "no answer": connect.CodeUnavailable} {
 		txAnswer = answer
@@ -411,7 +522,7 @@ func TestNativeProposalSignExport(t *testing.T) {
 	other := []byte("another transaction")
 	otherHash := sha256.Sum256(other)
 	receipt = ctypes.ResultTx{Hash: otherHash[:], Height: 1, Tx: other}
-	if _, err := h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{AuthToken: token, TransactionId: id, FinalHash: fmtHash(otherHash[:])})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+	if _, err := h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{AuthToken: token, TransactionId: id, FinalHash: fmtHash(otherHash[:])})); connect.CodeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "is not this proposal") {
 		t.Fatalf("receipt of another transaction: %v", err)
 	}
 	receipt = ctypes.ResultTx{Hash: hash[:], Height: 1, Tx: ready.NativeTxBytes}
@@ -468,6 +579,16 @@ func TestNativeProposalSignExport(t *testing.T) {
 	if open.Transaction.FinalHash != "" || open.Transaction.OnchainError != "insufficient fee: gas price rose" || !bytes.Equal(open.NativeTxBytes, failed.NativeTxBytes) {
 		t.Fatalf("a refusal before execution closed the proposal or lost its reason: %+v", open.Transaction)
 	}
+	// The same bytes ran later: a node that lags still returns the old refused
+	// receipt while today's account has moved on. The account is read at the
+	// receipt's block, so the old refusal never closes the proposal.
+	accountAt["2"] = "4"
+	accountSequence = "5"
+	if err := complete(); connect.CodeOf(err) != connect.CodeFailedPrecondition || get().Transaction.FinalHash != "" {
+		t.Fatalf("an old refusal closed a proposal whose bytes ran since: %v", err)
+	}
+	delete(accountAt, "2")
+	accountSequence = "4"
 	for _, unreadable := range []string{"unreadable", "another account"} {
 		accountSequence = unreadable
 		if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable {
@@ -477,6 +598,14 @@ func TestNativeProposalSignExport(t *testing.T) {
 	// Refused while running its messages: the sequence is used, so the
 	// proposal can never run and is closed as failed, with the chain's reason.
 	accountSequence = "5"
+	// Already used the block before: a refused replay of bytes that ran
+	// earlier, not this proposal's failure. No answer, nothing closed.
+	accountAt["1"] = "5"
+	receipt.TxResult.Error = abci.StringError("insufficient coins")
+	if err := complete(); connect.CodeOf(err) != connect.CodeUnavailable || get().Transaction.FinalHash != "" {
+		t.Fatalf("a refused replay closed the proposal: %v", err)
+	}
+	accountAt["1"] = "4"
 	// Long, and cut through a two-byte character at the bound.
 	receipt.TxResult.Error = abci.StringError("insufficient coins")
 	receipt.TxResult.Log = strings.Repeat("x", maxOnchainError-20) + strings.Repeat("é", 300)

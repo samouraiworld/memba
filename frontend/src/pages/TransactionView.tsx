@@ -20,7 +20,7 @@ import type { LayoutContext } from "../types/layout"
 import "./txview.css"
 import { isNativeMultisig, nativeFeeCovers } from "../lib/nativeMultisig"
 import { networkGasPriceFresh } from "../lib/grc20"
-import { assertNativeAction, broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash } from "../lib/nativeMultisigBroadcast"
+import { assertNativeAction, broadcastNativeTransaction, NativeOutcomeUnknownError, nativeTxHash, waitOneBlock } from "../lib/nativeMultisigBroadcast"
 import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readBroadcastAttempts, readNativeReceipt, saveBroadcastAttempt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "../lib/nativeReceipt"
 
 const LEGACY_READ_ONLY_MESSAGE = "Legacy multisig records are read-only history: this proposal cannot be signed or broadcast from Memba."
@@ -64,6 +64,48 @@ async function askWhetherOnChain(authToken: Token, transactionId: number, hash: 
     } catch (err) {
         const code = ConnectError.from(err).code
         return code === Code.FailedPrecondition ? "absent" : code === Code.NotFound ? "completed" : "unanswered"
+    }
+}
+
+/** A broadcast hash the backend did not record: the member reads why, in full, until they act. */
+class ReceiptNotRecordedError extends Error {}
+
+/**
+ * Records a broadcast's hash. A refusal keeps the saved hash, and nothing is sent again from
+ * here; "already recorded" (another member was faster) is not a refusal: the refresh shows it.
+ * The node Memba checks may be a block behind the one that took the broadcast, so "not there
+ * yet" and "could not look" are asked again over about two blocks first.
+ */
+async function recordReceipt(authToken: Token, transactionId: number, hash: string): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            await api.completeTransaction({ authToken, transactionId, finalHash: hash })
+            return
+        } catch (err) {
+            const e = ConnectError.from(err)
+            if (e.code === Code.NotFound) return
+            if ((e.code === Code.FailedPrecondition || e.code === Code.Unavailable) && attempt < 2) {
+                await waitOneBlock()
+                continue
+            }
+            throw new ReceiptNotRecordedError(receiptRefusal(e))
+        }
+    }
+}
+
+function receiptRefusal(e: ConnectError): string {
+    const kept = "Nothing was sent again; the saved hash stays here."
+    switch (e.code) {
+        case Code.FailedPrecondition:
+            return `Memba could not record it: ${e.rawMessage || "the chain does not show it"}. ${kept}`
+        case Code.Unauthenticated:
+            return `Your Memba session has ended. Sign in again, then retry. ${kept}`
+        case Code.PermissionDenied:
+            return `Memba records it only for a member of this multisig, signed in on its network. Check the wallet and network you are signed in with. ${kept}`
+        case Code.Internal:
+            return `Memba's server failed while recording it. ${kept} Report it if it repeats.`
+        default:
+            return `Memba couldn't check this transaction on chain right now. ${kept} Try again in a moment.`
     }
 }
 
@@ -288,7 +330,7 @@ export function TransactionView() {
                         if (!saveNativeReceipt(receiptKey, hash)) setRecoveryWarning("Browser storage failed after broadcast. Copy the hash before leaving this tab; receipt retry is still available here.")
                     }
                 }
-                if (hash) await api.completeTransaction({ authToken: token, transactionId: tx.id, finalHash: hash })
+                if (hash) await recordReceipt(token, tx.id, hash)
                 const refreshed = await txQuery.refetch()
                 // Keep the hint if refresh fails or remains stale: never turn
                 // a successful broadcast back into a broadcast-ready button.
@@ -302,7 +344,7 @@ export function TransactionView() {
             // cannot execute on Gno and the backend refuses to complete them.
             throw new Error(LEGACY_READ_ONLY_MESSAGE)
         } catch (err) {
-            if (err instanceof NativeOutcomeUnknownError) setBroadcastAlert(err.message)
+            if (err instanceof NativeOutcomeUnknownError || err instanceof ReceiptNotRecordedError) setBroadcastAlert(err.message)
             else setActionError(err instanceof Error ? err.message : "Broadcast failed")
         } finally {
             broadcastBusy.current = false
@@ -412,7 +454,7 @@ export function TransactionView() {
                 <DetailRow label="Memo" value={tx.memo ? <SignedText value={tx.memo} /> : "—"} />
                 <DetailRow label="Fee" value={fee.amount !== "—" ? `${fee.amount} (gas: ${fee.gas})` : `Gas: ${fee.gas}`} />
                 <DetailRow label="Account #" value={String(tx.accountNumber)} />
-                <DetailRow label="Sequence" value={String(tx.sequence)} />
+                <DetailRow label="Signed at sequence" value={String(tx.sequence)} />
             </div>
 
             {/* ── Signature Progress ──────────────────────────── */}
@@ -423,6 +465,7 @@ export function TransactionView() {
                     verified={tx.signatures.filter(s => s.verified).length}
                     threshold={tx.threshold}
                     total={tx.membersCount}
+                    outcome={!tx.finalHash ? undefined : native && tx.onchainError ? "failed" : native && tx.verified ? "executed" : "recorded"}
                 />
             </div>
 

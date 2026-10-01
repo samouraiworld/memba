@@ -1,6 +1,6 @@
 # Native Gno multisig release boundary
 
-Native multisig (creating a multisig, proposing, signing and broadcasting) runs on memba.club when both switches below are on. The owner released it on 2026-10-01; the switches are set in the deployments by the owner, never by a code change.
+Native multisig (creating a multisig, proposing, signing and broadcasting) runs on memba.club when the two switches below are on and the backend has its receipt RPC. The owner released it on 2026-10-01; the switches are set in the deployments by the owner, never by a code change.
 
 ## Identity and compatibility
 
@@ -16,15 +16,16 @@ Native multisig (creating a multisig, proposing, signing and broadcasting) runs 
 |---|---|
 | `VITE_ENABLE_NATIVE_GNO_MULTISIG` | Absent or `false` by default. `true` shows native creation, proposals, signing and broadcasting. Set by the owner for memba.club. |
 | `MEMBA_ENABLE_NATIVE_GNO_MULTISIG` | Absent or `false`. Only `true` or `1` enables native backend writes, and only for the backend's configured chain. |
-| `MEMBA_NATIVE_GNO_RPC_URL` | Unset. Receipt verification requires an explicitly configured RPC and matching chain; it never uses unrelated fallback endpoints. |
+| `MEMBA_NATIVE_GNO_RPC_URL` | Required with the backend switch; memba.club's `fly.toml` sets `https://rpc.mainnet.samourai.live`, Samourai's own node, a second operator Memba trusts besides the public RPC. It must be ONE node, not a load-balanced pool: it alone may answer that a transaction is absent, which lets a member broadcast, and only while it reports the chain, is not syncing and has a block from the last 10 seconds (and none dated ahead of the server clock). While it is unset the backend answers that it cannot check the chain, so Memba sends no native transaction (it cannot learn whether one is already on chain) and records none. |
+| `MEMBA_NATIVE_GNO_RPC_FALLBACK_URL` | Optional; memba.club's `fly.toml` sets the public pool `https://rpc.gno.land:443`. Asked only when the primary is unreachable, slow, on another chain, syncing or behind, or cannot look the transaction up. It may confirm a receipt (checked against the hash and the proposal whichever pool node sends it), never answer that one is absent. |
 
-The environment templates keep both switches off. Before the first live use on a chain, rehearse once there with a throwaway multisig and a small amount: create, propose, sign to quorum, broadcast, and check the recorded result.
+The environment templates keep both switches off and the receipt nodes unset. Before the first live use on a chain, rehearse once there with a throwaway multisig and a small amount: create, propose, sign to quorum, broadcast, and check the recorded result.
 
 ## Review, execution and recovery
 
 The review card shows full recipients and exact monetary amounts. A proposal's fee defaults to twice a fresh network gas price for its gas limit (a default price, labelled as such, when the price cannot be read), because signatures can take days to gather. It can be changed only before the proposal is made; every member signs that exact fee, which is paid on execution. Before broadcasting, Memba checks the signed fee against a fresh price and sends nothing when the price has outgrown it. The current transaction API supports account numbers and sequences only through `uint32`; larger or malformed counters are refused.
 
-The backend assembles an export only after verifying a quorum over one consistent payload rendering. The native broadcaster sends node-encoded bytes to the root JSON-RPC endpoint and checks chain identity, sync state, successful CheckTx/DeliverTx, committed height and transaction hash. Completion separately verifies the chain receipt, executed bytes and signatures against the stored proposal.
+The backend assembles an export only after verifying a quorum over one consistent payload rendering. The native broadcaster sends node-encoded bytes to the root JSON-RPC endpoint and checks chain identity, sync state, successful CheckTx/DeliverTx, committed height and transaction hash. Completion separately verifies the chain receipt, executed bytes and signatures against the stored proposal. A refused receipt closes the proposal only when the account's sequence moved at that receipt's block and not before it (it ran there and failed); a refusal before execution keeps it open, even if a node still returns it after the same bytes ran later.
 
 After a successful broadcast returns a validated hash, the browser saves that hash before asking the backend to record completion. Receipt-only retry must not send the transaction again. A response lost after backend completion is reconciled by reading the stored verified result first. The local hash is only a hint, never proof of execution.
 

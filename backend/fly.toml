@@ -91,6 +91,14 @@ primary_region = 'cdg'
   # Generic low-volume reads → the public mainnet canonical. The feed tailer
   # polls a DIFFERENT node (FEED_RPC_URL → rpc.mainnet.samourai.live).
   GNO_RPC_URL = 'https://rpc.gno.land:443'
+  # Native multisig receipt checks. The primary is ONE node (ours): only it,
+  # checked as the chain with a block from the last 10 s, may answer that a
+  # transaction is absent, which lets a member broadcast. The fallback is the
+  # public load-balanced pool, where each request can reach another node: it
+  # is asked only when the primary cannot answer, and may only confirm a
+  # receipt. A secret of the same name wins over these lines.
+  MEMBA_NATIVE_GNO_RPC_URL = 'https://rpc.mainnet.samourai.live'
+  MEMBA_NATIVE_GNO_RPC_FALLBACK_URL = 'https://rpc.gno.land:443'
   # NFT indexer — DISABLED. No NFT market is deployed on gno.land mainnet
   # (realm-versions.json `mainnet`, 2026-09-23); the pearl-era notes below
   # apply once one ships. Re-enabling also waits for the owner to wire the Prometheus scraper + Alertmanager so the

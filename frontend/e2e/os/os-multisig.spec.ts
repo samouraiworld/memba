@@ -328,9 +328,23 @@ test.describe('Memba OS multisig · native broadcast', () => {
         await expect(page.getByRole('button', { name: 'Broadcast to Chain' })).toBeEnabled()
     })
 
+    test('a node a block behind records the sent transaction on its own, after asking again', async ({ page }) => {
+        await setup(page)
+        const state = await chainAndBackend(page, { complete: ['absent', 'absent', 'recorded'], broadcast: [] })
+        await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
+        await broadcast(page)
+        // Recorded: the recovery card closes and the hash stays as the transaction's.
+        await expect.poll(() => state.recorded, { timeout: 15_000 }).toBe(HASH)
+        await expect(page.getByRole('status').filter({ hasText: 'Broadcast receipt recovery' })).toHaveCount(0)
+        await expect(page.getByText(HASH)).toBeVisible()
+        expect(state.broadcasts).toBe(1)
+        expect(state.completeCalls).toEqual([HASH, HASH, HASH])
+    })
+
     test('a sent transaction whose recording failed keeps its hash, and the retry only records it', async ({ page }) => {
         await setup(page)
-        const state = await chainAndBackend(page, { complete: ['absent', 'unavailable', 'recorded'], broadcast: [] })
+        // The recording is asked three times, about a block apart, before the page gives up.
+        const state = await chainAndBackend(page, { complete: ['absent', 'unavailable', 'unavailable', 'unavailable', 'recorded'], broadcast: [] })
         await page.goto(`${OS_NATIVE_MSIG}/os/wallet/tx/9`)
         await broadcast(page)
         const recovery = page.getByRole('status').filter({ hasText: 'Broadcast receipt recovery' })
@@ -340,7 +354,7 @@ test.describe('Memba OS multisig · native broadcast', () => {
         await expect(recovery).toHaveCount(0)
         await expect(page.getByText(HASH)).toBeVisible()
         expect(state.broadcasts).toBe(1)
-        expect(state.completeCalls).toEqual([HASH, HASH, HASH])
+        expect(state.completeCalls).toEqual([HASH, HASH, HASH, HASH, HASH])
     })
 })
 

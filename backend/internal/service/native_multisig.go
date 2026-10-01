@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	gnorpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/gnomultisig"
@@ -39,12 +40,14 @@ func (s *MultisigService) confirmNative(ctx context.Context, req *connect.Reques
 	if req.Msg.GetAuthToken().GetChainId() != t.ChainId {
 		return connect.NewError(connect.CodePermissionDenied, nil)
 	}
+	// FailedPrecondition tells the client the transaction is not on chain, so
+	// it may broadcast: a server that cannot look says Unavailable instead.
 	if !s.nativeMultisigEnabled(t.ChainId) || os.Getenv("MEMBA_NATIVE_GNO_RPC_URL") == "" {
-		return connect.NewError(connect.CodeFailedPrecondition, nil)
+		return connect.NewError(connect.CodeUnavailable, errReceiptCheckUnconfigured)
 	}
 	pk, err := gnomultisig.Parse(t.MultisigPubkeyJson)
 	if err != nil || pk.Address().String() != t.MultisigAddress || uint64(pk.K) != uint64(t.Threshold) || uint64(len(pk.PubKeys)) != uint64(t.MembersCount) {
-		return connect.NewError(connect.CodeFailedPrecondition, nil)
+		return internalError("CompleteTransaction: native identity", gnomultisig.ErrInvalid)
 	}
 	h, err := normalizeTxHashHex(req.Msg.FinalHash)
 	if err != nil {
@@ -54,27 +57,13 @@ func (s *MultisigService) confirmNative(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, nil)
 	}
-	client, err := gnorpc.NewHTTPClient(os.Getenv("MEMBA_NATIVE_GNO_RPC_URL"))
-	if err != nil {
-		return connect.NewError(connect.CodeUnavailable, nil)
-	}
-	defer func() { _ = client.Close() }()
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-	status, err := client.Status(ctx, nil)
-	if err != nil || status == nil || status.NodeInfo.Network != t.ChainId || status.SyncInfo.CatchingUp {
-		return connect.NewError(connect.CodeUnavailable, nil)
-	}
-	// FailedPrecondition means the node answered and holds no such
-	// transaction, so the caller may broadcast; any other failure to look it
-	// up is Unavailable, which must never read as "not on chain".
-	receipt, err := client.Tx(ctx, hash)
+	receipt, client, err := nativeReceipt(ctx, t.ChainId, hash)
 	if err != nil {
-		if txAbsent(err, hash) {
-			return connect.NewError(connect.CodeFailedPrecondition, nil)
-		}
-		return connect.NewError(connect.CodeUnavailable, nil)
+		return err
 	}
+	defer func() { _ = client.Close() }()
 	// An answer that is not a committed receipt for the hash asked about is
 	// no answer. A receipt of another transaction says this proposal is not
 	// at that hash.
@@ -83,7 +72,7 @@ func (s *MultisigService) confirmNative(ctx context.Context, req *connect.Reques
 		return connect.NewError(connect.CodeUnavailable, nil)
 	}
 	if gnomultisig.ValidateSigned(pk, nativeFields(t), receipt.Tx) != nil {
-		return connect.NewError(connect.CodeFailedPrecondition, nil)
+		return connect.NewError(connect.CodeFailedPrecondition, errTxNotThisProposal)
 	}
 	if receipt.TxResult.Error == nil {
 		_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = TRUE, onchain_error = NULL WHERE id = ? AND final_hash IS NULL", h, t.Id)
@@ -98,7 +87,7 @@ func (s *MultisigService) confirmNative(ctx context.Context, req *connect.Reques
 	// sequence as it was and the signed bytes valid: the reason is kept and
 	// the proposal stays open to be broadcast again.
 	reason := onchainReason(receipt.TxResult)
-	used, err := sequenceUsed(ctx, client, t.MultisigAddress, uint64(t.Sequence))
+	used, err := sequenceUsed(ctx, client, t.MultisigAddress, uint64(t.Sequence), receipt.Height)
 	if err != nil {
 		return connect.NewError(connect.CodeUnavailable, nil)
 	}
@@ -108,12 +97,93 @@ func (s *MultisigService) confirmNative(ctx context.Context, req *connect.Reques
 		}
 		return connect.NewError(connect.CodeFailedPrecondition, errRefusedBeforeExecution)
 	}
+	// Used at the receipt's block. Already used the block before means this
+	// receipt is a refused replay of bytes that ran earlier, not this
+	// proposal's failure: no answer rather than a wrong, permanent one.
+	usedBefore, err := sequenceUsed(ctx, client, t.MultisigAddress, uint64(t.Sequence), receipt.Height-1)
+	if err != nil || usedBefore || receipt.Height < 2 {
+		return connect.NewError(connect.CodeUnavailable, nil)
+	}
 	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = FALSE, onchain_error = ? WHERE id = ? AND final_hash IS NULL", h, reason, t.Id)
 	if err != nil {
 		return internalError("CompleteTransaction: native failure", err)
 	}
 	return nil
 }
+
+// Receipt nodes. The primary (MEMBA_NATIVE_GNO_RPC_URL) must be one node:
+// every request reaches the node that was checked, so it alone may answer
+// that a transaction is absent. The fallback (MEMBA_NATIVE_GNO_RPC_FALLBACK_URL)
+// may be a load-balanced pool, where each request can reach another node: it
+// may only confirm a receipt, which is checked against the hash and the
+// proposal whichever node sends it.
+var (
+	// Each node gets this long per request, so one that hangs leaves the
+	// fallback time inside the 8 s budget.
+	nativeStatusTimeout = 3 * time.Second
+	nativeTxTimeout     = 3 * time.Second
+	// A node whose newest block is older than this is behind (CatchingUp
+	// covers only the initial sync); one dated ahead of this host's clock by
+	// more than the skew is not trusted either.
+	nativeNodeFreshness = 10 * time.Second
+	nativeClockSkew     = 5 * time.Second
+)
+
+// nativeReceipt finds the transaction's receipt. FailedPrecondition (absent)
+// comes only from the primary, checked as the chain and current; every other
+// failure is Unavailable, which must never read as "not on chain".
+func nativeReceipt(ctx context.Context, chainID string, hash []byte) (*ctypes.ResultTx, *gnorpc.RPCClient, error) {
+	for i, url := range []string{os.Getenv("MEMBA_NATIVE_GNO_RPC_URL"), os.Getenv("MEMBA_NATIVE_GNO_RPC_FALLBACK_URL")} {
+		decides := i == 0
+		client := nativeNode(ctx, url, chainID, decides)
+		if client == nil {
+			continue
+		}
+		txCtx, cancel := context.WithTimeout(ctx, nativeTxTimeout)
+		receipt, err := client.Tx(txCtx, hash)
+		cancel()
+		if err == nil {
+			return receipt, client, nil
+		}
+		_ = client.Close()
+		if decides && txAbsent(err, hash) {
+			return nil, nil, connect.NewError(connect.CodeFailedPrecondition, errTxNotOnChain)
+		}
+	}
+	return nil, nil, connect.NewError(connect.CodeUnavailable, nil)
+}
+
+func current(latestBlock time.Time) bool {
+	age := time.Since(latestBlock)
+	return age < nativeNodeFreshness && age > -nativeClockSkew
+}
+
+// nativeNode is a client for url when it answers as the chain and, for the
+// node that decides absence, has a block from the last nativeNodeFreshness.
+func nativeNode(ctx context.Context, url, chainID string, decides bool) *gnorpc.RPCClient {
+	if url == "" {
+		return nil
+	}
+	client, err := gnorpc.NewHTTPClient(url)
+	if err != nil {
+		return nil
+	}
+	statusCtx, cancel := context.WithTimeout(ctx, nativeStatusTimeout)
+	status, err := client.Status(statusCtx, nil)
+	cancel()
+	if err == nil && status != nil && status.NodeInfo.Network == chainID && !status.SyncInfo.CatchingUp &&
+		(!decides || current(status.SyncInfo.LatestBlockTime)) {
+		return client
+	}
+	_ = client.Close()
+	return nil
+}
+
+var (
+	errReceiptCheckUnconfigured = errors.New("this server cannot check transactions on chain: native receipt verification is not configured")
+	errTxNotOnChain             = errors.New("the node Memba checks has no transaction at this hash yet")
+	errTxNotThisProposal        = errors.New("the transaction at this hash is not this proposal")
+)
 
 var errRefusedBeforeExecution = errors.New("the network refused this transaction before executing it; the signed transaction is still valid")
 
@@ -130,10 +200,12 @@ func onchainReason(r abci.ResponseDeliverTx) string {
 	return strings.ToValidUTF8(truncate(reason, maxOnchainError), "")
 }
 
-// sequenceUsed reads the account on the node that returned the receipt and
-// reports whether its sequence has moved past the proposal's.
-func sequenceUsed(ctx context.Context, client *gnorpc.RPCClient, addr string, sequence uint64) (bool, error) {
-	res, err := client.ABCIQuery(ctx, "auth/accounts/"+addr, nil)
+// sequenceUsed reads the account as it was at the receipt's block and reports
+// whether its sequence had moved past the proposal's. The same bytes refused
+// before execution at that block may have run since: today's account would
+// call the old refusal final.
+func sequenceUsed(ctx context.Context, client *gnorpc.RPCClient, addr string, sequence uint64, height int64) (bool, error) {
+	res, err := client.ABCIQueryWithOptions(ctx, "auth/accounts/"+addr, nil, gnorpc.ABCIQueryOptions{Height: height})
 	if err != nil || res.Response.Error != nil {
 		return false, errors.New("account unreadable")
 	}

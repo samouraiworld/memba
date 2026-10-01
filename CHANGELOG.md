@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: multisig receipts (2026-10-02)
+- Fixed: Memba no longer sends a multisig transaction when its server cannot check the chain; it checks receipts on Memba's own node, with the public RPC as a fallback that can only confirm, retries over two blocks, says why a broadcast could not be recorded, and shows a recorded transaction as executed or failed instead of ready to broadcast.
+
 ### Memba OS: wallet activation and signing (2026-10-01)
 - Fixed: activating a new address in Memba OS sends 0.000001 GNOT to itself: it costs only the network fee (about 0.002 GNOT) instead of locking a storage deposit, is reviewed in its own step with what Adena shows, and no longer opens the old confirmation window.
 - Activating a new wallet from the classic page also sends 1 ugnot to itself, the network fee only, instead of writing to a profile and locking a storage deposit; its confirmation shows the transfer, and a cancel says nothing was sent.

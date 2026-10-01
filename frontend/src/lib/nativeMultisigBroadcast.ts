@@ -24,6 +24,11 @@ export class NativeOutcomeUnknownError extends Error {
     }
 }
 
+/** About one gnoland-1 block (~3.4 s): time for a node that is a block behind to catch up. */
+export function waitOneBlock(): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, 3_500))
+}
+
 /** The hash the chain gives these exact bytes: known before they are sent. */
 export function nativeTxHash(bytes: Uint8Array): string {
     return Array.from(sha256(bytes), b => b.toString(16).padStart(2, "0")).join("").toUpperCase()
