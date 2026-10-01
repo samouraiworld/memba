@@ -1,6 +1,6 @@
 /**
  * The checks a weighted DAO action must pass against fresh chain state, shared
- * by the classic workspace (pages/WeightedDAO) and the Memba OS signing
+ * by the classic page (pages/WeightedDAO) and the Memba OS signing
  * requests (os/daos/weightedRequest). They run before an action is offered for
  * confirmation and again right before the wallet opens. A read cannot rule out
  * a later on-chain race: the realm stays the final judge.
@@ -65,15 +65,15 @@ async function assertHandoffStillNominated({ ctx, assertCurrent }: WeightedActio
     if (state.kind === "awaiting") throw new Error(`${target} no longer names the DAO as its pending ${role} (pending: ${reveal(state.pending || "none")}), so this acceptance would fail; refresh before acting`)
 }
 
-/** The receipt of a vote or an execution signed in Memba OS, kept while its outcome is unknown. */
-export function weightedScope(chainId: string, realmPath: string, caller: string, operation: "vote" | "execute", id: string): GovernanceScope {
+/** The receipt of a vote, an execution or an acceptance proposal signed in Memba OS, kept while its outcome is unknown. */
+export function weightedScope(chainId: string, realmPath: string, caller: string, operation: "vote" | "execute" | "accept", id: string): GovernanceScope {
     return { chainId, realmPath, caller, operation: `weighted-${operation}:${id}` }
 }
 
 /**
  * The receipts that lock acting on proposal `id`: while either outcome is
  * unknown, neither a vote nor an execution is offered on it, in the proposal
- * window or in the workspace.
+ * window or on the classic page.
  */
 export function weightedLocks(chainId: string, realmPath: string, caller: string, id: string) {
     return (["vote", "execute"] as const).map((operation) => ({ operation, scope: weightedScope(chainId, realmPath, caller, operation, id) }))
@@ -99,6 +99,31 @@ export function weightedLockSettled(lock: { operation: "vote" | "execute"; recei
     if (!isVoteOpen(p)) return true
     const tried = lock.receipt ? TRIED_VOTE.exec(lock.receipt.label)?.[1] : undefined
     return !!tried && !!ballot && ballot !== "error" && ballot.choice === tried.toLowerCase()
+}
+
+/**
+ * The receipt of an acceptance proposal signed in Memba OS. One lock for the
+ * whole DAO: only one acceptance may be open at a time, so while an attempt's
+ * outcome is unknown no other is offered.
+ */
+export function weightedAcceptLock(chainId: string, realmPath: string, caller: string) {
+    const scope = weightedScope(chainId, realmPath, caller, "accept", "handover")
+    const receipt = readGovernanceReceipt(scope)
+    return receipt ? { scope, receipt } : null
+}
+
+/**
+ * Why an action is locked by a Memba OS attempt whose outcome is unknown, or
+ * null. The classic page refuses what this names; it writes no receipt itself.
+ */
+export function weightedActionLock(chainId: string, realmPath: string, caller: string, action: WeightedAction): string | null {
+    if ((action.type === "vote" || action.type === "execute") && weightedLocks(chainId, realmPath, caller, action.id).length) {
+        return `An earlier attempt on proposal #${action.id} has an unknown outcome; check it in the proposal's Memba OS window before trying again`
+    }
+    if (action.type === "accept" && weightedAcceptLock(chainId, realmPath, caller)) {
+        return "An earlier acceptance proposal has an unknown outcome; check it in the DAO's Memba OS window before proposing again"
+    }
+    return null
 }
 
 export async function checkWeightedAction(check: WeightedActionCheck): Promise<WeightedActionChecked> {

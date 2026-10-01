@@ -72,7 +72,7 @@ for (const width of [1280, 390]) {
         await expect(fee.getByText('Financial', { exact: true })).toBeVisible()
         await expect(fee.getByRole('note')).toContainText('invalidates every other outstanding proposal')
         await fee.getByText('State frozen at proposal time').click()
-        await expect(fee.getByText('pendingAdmin')).toBeVisible()
+        await expect(fee.getByText('Pending admin')).toBeVisible()
         await expect(workspace.getByRole('article', { name: 'Proposal 18' }).getByText('Routine', { exact: true })).toBeVisible()
         for (const button of await workspace.getByRole('button', { name: /^(Vote .*|Execute proposal|Propose acceptance)$/ }).all()) await expect(button).toBeDisabled()
         expect(await workspace.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)

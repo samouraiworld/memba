@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedBallot, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
+import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedBallot, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { weightedFixture } from "../../lib/dao/testdata/weighted"
 import v12Native from "../../lib/dao/testdata/weighted-v12/native.json"
 import { v12CallBudget, v12ExecuteBudget } from "../../lib/dao/weightedBudget"
@@ -7,13 +7,15 @@ import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { beginGovernanceRequest, clearGovernanceMemory, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { weightedScope } from "../../lib/dao/weightedActions"
 
-vi.mock("../../lib/dao/weighted", async (original) => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn() }))
+vi.mock("../../lib/dao/weighted", async (original) => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn(), readOpenWeightedProposals: vi.fn() }))
+vi.mock("../../lib/dao/weightedAcceptance", async (original) => ({ ...(await original<typeof import("../../lib/dao/weightedAcceptance")>()), readTargetAuthority: vi.fn() }))
 vi.mock("../../lib/dao/weightedWallet", () => ({ assertLiveWalletChain: vi.fn() }))
 vi.mock("../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../lib/grc20")>()), doContractBroadcast: vi.fn(), freshFeeForGasWanted: vi.fn() }))
-const { readWeightedBallot, readWeightedProposal, readWeightedSnapshot } = await import("../../lib/dao/weighted")
+const { readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, readWeightedSnapshot } = await import("../../lib/dao/weighted")
+const { readTargetAuthority, weightedDaoAddress } = await import("../../lib/dao/weightedAcceptance")
 const { assertLiveWalletChain } = await import("../../lib/dao/weightedWallet")
 const { doContractBroadcast, freshFeeForGasWanted, FALLBACK_GAS_PRICE, feeForGasWanted } = await import("../../lib/grc20")
-const { weightedExecuteRequest, weightedVoteOptions, weightedVoteRequest } = await import("./weightedRequest")
+const { weightedAcceptRequest, weightedExecuteRequest, weightedVoteOptions, weightedVoteRequest } = await import("./weightedRequest")
 
 const MEMBA_DAO = "gno.land/r/samcrew/memba_dao"
 const r = v12Native.records
@@ -118,9 +120,9 @@ describe("a weighted vote as a signing request", () => {
         const snap = { config: weightedConfigSchema.parse(v2.config), members: v2.members, page: weightedPageSchema.parse(v2.page) } as WeightedSnapshot
         const p = snap.page.proposals[0] as WeightedProposal
         expect(() => weightedVoteRequest({ realmPath: v2.config.realmPath, daoName: "Team", snapshot: snap, proposal: { ...p, status: "VOTING", votingClosed: false }, caller: snap.members[1].address, gasPrice: PRICE }, ["Yes"]))
-            .toThrow("This DAO version is acted on in its workspace")
+            .toThrow("Memba OS acts only on the current version of this DAO's contract; Memba's classic DAO page still acts on this one.")
         expect(() => weightedExecuteRequest({ realmPath: v2.config.realmPath, daoName: "Team", snapshot: snap, proposal: { ...p, status: "READY", ready: true }, caller: snap.members[1].address, gasPrice: PRICE }, [], true))
-            .toThrow("This DAO version is acted on in its workspace")
+            .toThrow("Memba OS acts only on the current version of this DAO's contract; Memba's classic DAO page still acts on this one.")
     })
 })
 
@@ -155,11 +157,14 @@ describe("an earlier attempt with an unknown outcome", () => {
 
     it("stops signing when the other action's receipt appears after the review, but not for this attempt's own", async () => {
         const vote = weightedVoteRequest(ctx(), ["Yes", "No", "Abstain"])
-        // The signer saves this attempt's receipt before the wallet opens.
-        save("vote")
-        await expect(vote.recheck!("No")).resolves.toBeUndefined()
-        save("execute")
-        await expect(vote.recheck!("No")).rejects.toThrow(LOCKED)
+        // The signer begins this attempt's request and saves its receipt before the wallet opens.
+        const finish = beginGovernanceRequest(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "vote", "17"))
+        try {
+            save("vote")
+            await expect(vote.recheck!("No")).resolves.toBeUndefined()
+            save("execute")
+            await expect(vote.recheck!("No")).rejects.toThrow(LOCKED)
+        } finally { finish() }
     })
 })
 
@@ -214,5 +219,69 @@ describe("a weighted execution as a signing request", () => {
         vi.mocked(readWeightedProposal).mockResolvedValueOnce({ ...proposal("17"), status: "EXECUTED" } as Awaited<ReturnType<typeof readWeightedProposal>>)
         expect(await req.verify!(undefined, HASH, undefined)).toBe(true)
         expect(await req.verify!(undefined, HASH, undefined)).toBe(false)
+    })
+})
+
+describe("an acceptance proposal as a signing request", () => {
+    const act = () => ({ realmPath: MEMBA_DAO, daoName: "Memba DAO", snapshot: snapshot(), caller: MIKAEL, gasPrice: PRICE })
+    const PUBLISHER = snapshot().config.marketPolicy.successor
+    beforeEach(() => {
+        vi.mocked(readOpenWeightedProposals).mockResolvedValue([])
+        vi.mocked(readTargetAuthority).mockResolvedValue({ current: PUBLISHER, pending: weightedDaoAddress(MEMBA_DAO), failed: [] })
+    })
+
+    it("signs exactly the acceptance call, with its measured budget, and says what passing does", () => {
+        const req = weightedAcceptRequest(act(), "marketPolicy")
+        const budget = v12CallBudget("ProposeMarketAccept")
+        expect(req.summary).toBe("Propose that Memba DAO accepts the handover of Market config")
+        expect(req.prepare(undefined).msgs).toEqual([{ type: "vm/MsgCall", value: { caller: MIKAEL, send: "", pkg_path: MEMBA_DAO, func: "ProposeMarketAccept", args: [], max_deposit: `${budget.maxDepositUgnot}ugnot` } }])
+        expect(req.lines(undefined)).toContainEqual(["Passes with", "6 points and at least 4 people, then 24 hours, or 5 developers, then 72 hours"])
+        expect(req.lines(undefined)).toContainEqual(["Network fee", formatUgnotExact(feeForGasWanted(budget.gasWanted, PRICE))])
+        expect(req.warns).toEqual(["Memba offers one acceptance at a time, since executing any proposal invalidates the others: no other is offered here until this one executes or closes."])
+        expect(req.receipt).toEqual({ chainId: "gnoland-1", realmPath: MEMBA_DAO, caller: MIKAEL, operation: "weighted-accept:handover" })
+    })
+
+    it("refuses to sign when another acceptance is open or the target no longer names the DAO", async () => {
+        const req = weightedAcceptRequest(act(), "marketPolicy")
+        await expect(req.recheck!(undefined)).resolves.toBeUndefined()
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([{ ...proposal("17"), id: "27", action: { ...proposal("17").action, operation: "accept-admin" } } as WeightedProposal])
+        await expect(req.recheck!(undefined)).rejects.toThrow("Acceptance proposal #27 is still open")
+        vi.mocked(readTargetAuthority).mockResolvedValueOnce({ current: PUBLISHER, pending: "", failed: [] })
+        await expect(req.recheck!(undefined)).rejects.toThrow("is not ready for the DAO to accept")
+    })
+
+    it("is stopped by an earlier acceptance attempt with an unknown outcome, from any tab", () => {
+        const req = weightedAcceptRequest(act(), "marketPolicy")
+        saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "accept", "handover"), { phase: "submitted", hash: "ab".repeat(32), label: "earlier" })
+        expect(() => req.prepare(undefined)).toThrow("An earlier acceptance proposal has an unknown outcome. Check it before proposing again.")
+        expect(() => weightedAcceptRequest(act(), "badgesPolicy")).toThrow("An earlier acceptance proposal has an unknown outcome")
+    })
+
+    it("confirms the new proposal on chain: the one the wallet reports, or an open acceptance of that application", async () => {
+        const req = weightedAcceptRequest(act(), "marketPolicy")
+        const created = { deliver_tx: { ResponseBase: { Data: btoa("(28 uint64)") } } }
+        vi.mocked(readWeightedProposal).mockResolvedValueOnce({ ...proposal("17"), id: "28", action: { ...proposal("17").action, operation: "accept-admin" } } as Awaited<ReturnType<typeof readWeightedProposal>>)
+        expect(await req.verify!(undefined, HASH, created)).toBe(true)
+        expect(readWeightedProposal).toHaveBeenLastCalledWith(expect.anything(), "28", snapshot().config.schema)
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([])
+        expect(await req.verify!(undefined, HASH, undefined)).toBe(false)
+        // Not proof: another member's acceptance of it, or this member's acceptance of another application.
+        const acceptance = (over: Partial<WeightedProposal>) => ({ ...proposal("17"), id: "28", action: { ...proposal("17").action, operation: "accept-admin" }, ...over }) as WeightedProposal
+        vi.mocked(readWeightedProposal).mockResolvedValueOnce(acceptance({ proposer: snapshot().members[2].address }) as Awaited<ReturnType<typeof readWeightedProposal>>)
+        expect(await req.verify!(undefined, HASH, created)).toBe(false)
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([acceptance({ proposer: snapshot().members[2].address }), { ...acceptance({}), action: { ...weightedProposalSchema.parse(r.proposal_10).proposal.action } } as WeightedProposal])
+        expect(await req.verify!(undefined, HASH, undefined)).toBe(false)
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([acceptance({ proposer: MIKAEL })])
+        expect(await req.verify!(undefined, HASH, undefined)).toBe(true)
+    })
+
+    it("still prepares the acceptance while its own request runs, for the wallet checklist", () => {
+        const req = weightedAcceptRequest(act(), "marketPolicy")
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "accept", "handover")
+        const finish = beginGovernanceRequest(scope)
+        try {
+            saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: "Propose accepting Market config" })
+            expect(req.prepare(undefined).msgs).toHaveLength(1)
+        } finally { finish() }
     })
 })

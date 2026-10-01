@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
 import { assertWeightedWrites, buildWeightedMessage, readOpenWeightedProposals, isUnreadableProposal, readWeightedBallot, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
-import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, packageAddress, applicationDetails, expectedCategory, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
+import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, packageAddress, applicationDetails, expectedCategory, factLabel, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
@@ -546,10 +546,37 @@ describe("immediate thresholds", () => {
 describe("display helpers", () => {
     it("lists only operation parameters that are set and flattens the frozen state", () => {
         const action = (id: number) => weightedProposalSchema.parse(records[`proposal_${id}`]).proposal.action as WeightedApplicationAction
-        expect(applicationDetails(action(17))).toEqual([["lane", "service"], ["bps", "150"]])
+        expect(applicationDetails(action(17))).toEqual([["Lane", "service"], ["Fee (basis points)", "150"]])
         expect(applicationDetails(action(22))).toEqual([])
-        expect(applicationDetails(action(18))).toEqual([["id", "1"]])
-        expect(flattenBefore(action(9).before)).toContainEqual(["contract.milestones", "(none)"])
-        expect(flattenBefore(action(8).before)).toContainEqual(["listing.status", "(unset)"])
+        expect(applicationDetails(action(18))).toEqual([["Item", "1"]])
+        expect(flattenBefore(action(9).before)).toContainEqual(["Contract · milestones", "(none)"])
+        expect(flattenBefore(action(8).before)).toContainEqual(["Listing · status", "(unset)"])
+    })
+
+    it("labels contract fields and values in words", () => {
+        expect(factLabel("daoMember")).toBe("The DAO is a member")
+        expect(factLabel("ownerRoles")).toBe("Roles of the owner")
+        expect(factLabel("subjectListed")).toBe("The address concerned is an attester")
+        expect(factLabel("subjectRoles")).toBe("Roles of the address concerned")
+        // Named parameters only at the top level; nested fields word by word.
+        expect(factLabel("id")).toBe("Item")
+        expect(factLabel("contract.id")).toBe("Contract · ID")
+        expect(factLabel("fees.rawBps")).toBe("Fees · raw fee (basis points)")
+        expect(factLabel("subject")).toBe("The address concerned")
+        // Milestones count from 1 in both the action and its frozen state.
+        // As the chain answers: the index is a uint64 string, counted from 0.
+        const pay = { type: "escrow", target: "gno.land/r/samcrew/escrow_v4", operation: "pay-freelancer", recipient: "", contractId: "3", milestoneIndex: "0", before: {} } as unknown as WeightedApplicationAction
+        expect(applicationDetails(pay)).toEqual([["Contract", "3"], ["Milestone", "1"]])
+        expect(factLabel("successorListed")).toBe("The successor is an attester")
+        expect(factLabel("subjectModerator")).toBe("The address concerned is a moderator")
+        expect(factLabel("pendingAdmin")).toBe("Pending admin")
+        expect(factLabel("listing.cooldownUntil")).toBe("Listing · cooldown until")
+        const frozen = flattenBefore({ daoMember: false, ownerMember: true, milestones: [{ status: "" }] })
+        expect(frozen).toEqual([["The DAO is a member", "No"], ["The owner is a member", "Yes"], ["Milestones · 1 · status", "(unset)"]])
+        // No field reaches the reader in its camel-case contract name.
+        for (let id = 1; id <= 26; id++) {
+            const p = records[`proposal_${id}`] ? weightedProposalSchema.parse(records[`proposal_${id}`]).proposal : null
+            if (p && "before" in p.action) for (const [label] of flattenBefore(p.action.before)) expect(label).not.toMatch(/[a-z][A-Z]/)
+        }
     })
 })

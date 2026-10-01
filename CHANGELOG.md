@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Memba DAO accepts applications natively (2026-10-01)
+- A Memba DAO seat holder can propose accepting an application the DAO has been nominated to control, from that application's row in the DAO window's Overview, through the Memba review. Memba offers one acceptance at a time and confirms it from the member's own proposal on chain.
+- Changed: the Memba DAO window no longer embeds the classic DAO page. Earlier versions of the DAO's contract are read-only in Memba OS, and the classic page still acts on them. Application details show their recorded state in plain words.
+
 ### Gnolove milestones (2026-10-01)
 - Fixed: a Gnolove milestone description is sanitised like every other rendered markdown, so in-app links stay in the tab.
 

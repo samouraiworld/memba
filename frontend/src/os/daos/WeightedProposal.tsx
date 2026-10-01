@@ -12,7 +12,7 @@ import { weightedLocks, weightedLockSettled } from "../../lib/dao/weightedAction
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWriteKinds, weightedWritesHeld, type WeightedMember, type WeightedProposal, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { applicationDetails, flattenBefore } from "../../lib/dao/weightedApplications"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
-import { CATEGORY_TEXT, EXECUTION_INVALIDATES, STATUS_TEXT, UNREADABLE_PROPOSAL, ballotText, chainTimeText, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, statusNote, tallyText, weightedDaoTitle, weightedReadError, type BallotView, writesHeldText } from "../../lib/dao/weightedView"
+import { CATEGORY_TEXT, EXECUTION_INVALIDATES, STATUS_TEXT, UNREADABLE_PROPOSAL, ballotText, chainTimeText, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, statusNote, tallyText, weightedDaoTitle, weightedReadError, type BallotView, writesHeldText, CURRENT_VERSION_ONLY } from "../../lib/dao/weightedView"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
 import type { OsSession } from "../shell/useOsSession"
@@ -103,6 +103,7 @@ function Acting(props: ActingProps) {
     const { p, snapshot, realmPath, session } = props
     if (!isOpenProposal(p)) return null
     if (weightedWritesHeld(GNO_CHAIN_ID, snapshot.config.schema, realmPath)) return <WeightedHold />
+    if (snapshot.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) return <p className="os-sub">{CURRENT_VERSION_ONLY}</p>
     // A session still resuming is neither a guest nor a member yet: it is asked nothing.
     if (session.status === "resuming") return null
     if (session.status === "guest") {
@@ -151,11 +152,8 @@ function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingPro
     }
     const { schema } = snapshot.config
     const kinds = weightedWriteKinds(schema, GNO_CHAIN_ID, realmPath)
-    // Only the application version is signed here (measured budgets, verifiable results); older versions act in the workspace.
-    const native = schema === WEIGHTED_APPLICATIONS_SCHEMA
-    const votes = native && kinds.has("vote") ? weightedVoteOptions(p, schema, ballot) : []
-    const executes = native && kinds.has("execute") && p.ready
-    const inWorkspace = native ? [] : [kinds.has("vote") && isVoteOpen(p) && "Vote on it", kinds.has("execute") && p.ready && "execute it"].filter((s): s is string => !!s)
+    const votes = kinds.has("vote") ? weightedVoteOptions(p, schema, ballot) : []
+    const executes = kinds.has("execute") && p.ready
     // What executing it would invalidate, as far as the newest proposals were read.
     const others = newest.data ? openProposalsOf(newest.data.page) : { open: [], complete: false }
     const otherOpen = others.open.filter((o) => o.id !== p.id).map((o) => o.id)
@@ -166,7 +164,7 @@ function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingPro
         try { signer.sign(request({ realmPath, daoName: weightedDaoTitle(realmPath, dao), snapshot, proposal: p, caller, gasPrice: await quoteWeightedGasPrice() })) }
         catch (err) { setFailed(err instanceof Error ? err.message : String(err)) }
     }
-    if (votes?.length === 0 && !executes && !inWorkspace.length) {
+    if (votes?.length === 0 && !executes) {
         return isVoteOpen(p) ? null : <p className="os-sub">Voting is over. Any seat holder can execute it from the earliest time above.</p>
     }
     return (
@@ -174,7 +172,6 @@ function SeatActions({ p, snapshot, realmPath, dao, ballot, session }: ActingPro
             {votes === null ? <span className="os-sub" role="status">Reading your ballot…</span>
                 : votes.length > 0 && <button type="button" className="os-btn" onClick={() => void review((ctx) => weightedVoteRequest(ctx, votes) as SignRequest<string>)}>Vote…</button>}
             {executes && <button type="button" className="os-btn" onClick={() => void review((ctx) => weightedExecuteRequest(ctx, otherOpen, others.complete))}>Execute…</button>}
-            {inWorkspace.length > 0 && <span className="os-sub">{inWorkspace.join(" or ").replace(/^e/, "E")} from the workspace in this DAO's Proposals section.</span>}
             {failed && <p className="os-note os-warn" role="alert">{failed}</p>}
         </div>
     )

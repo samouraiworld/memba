@@ -161,7 +161,7 @@ const TABS: { id: DaoSection; label: string }[] = [
     { id: "overview", label: "Overview" }, { id: "proposals", label: "Proposals" }, { id: "members", label: "Members" }, { id: "treasury", label: "Treasury" },
 ]
 
-interface DaoFolderProps { name: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession; active?: boolean }
+interface DaoFolderProps { name: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession }
 
 export function DaoFolder(props: DaoFolderProps) {
     const realmPath = realmForName(props.name)
@@ -169,7 +169,7 @@ export function DaoFolder(props: DaoFolderProps) {
     return <DaoFolderBody {...props} realmPath={realmPath} />
 }
 
-function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoFolderProps & { realmPath: string }) {
+function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderProps & { realmPath: string }) {
     const kind = useDaoKind(realmPath)
     // The equal-headcount loaders below read nothing until the contract is known to be one of theirs.
     const standard = !kind.loading && !kind.error && kind.kind !== "weighted"
@@ -202,7 +202,7 @@ function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoF
         )
     }
     let body: ReactNode
-    if (kind.kind === "weighted") body = <WeightedDaoFolder name={name} realmPath={realmPath} section={section} open={open} session={session} active={active} />
+    if (kind.kind === "weighted") body = <WeightedDaoFolder name={name} realmPath={realmPath} section={section} open={open} session={session} />
     else if (config.isPending) body = <Loading what="the DAO" />
     else if (config.isError) body = <Failed what="this DAO" retry={() => void config.refetch()} />
     else if (!config.data) body = <p className="os-note os-warn">No DAO answers at {realmPath} on this network.</p>
@@ -278,8 +278,7 @@ function DaoFolderBody({ name, realmPath, section, open, session, active }: DaoF
                 ))}
             </div>
             <div id={panelId} className="os-folder-body" role="tabpanel" aria-labelledby={tabId(section)} tabIndex={0}>
-                {/* One element around the body on every section: switching sections must not remount it (a weighted DAO's open workspace lives in it). */}
-                {join ? <div className="os-stack">{body}{section === "overview" && join}</div> : body}
+                {join && section === "overview" ? <div className="os-stack">{body}{join}</div> : body}
             </div>
         </div>
     )

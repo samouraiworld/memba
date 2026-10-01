@@ -334,24 +334,53 @@ export const APPLICATION_LABELS: Record<WeightedApplicationAction["type"], strin
     escrow: "Escrow", badges: "Badges", feed: "Feed", channels: "DAO channels", feedback: "Feedback",
 }
 
-/** Operation parameters worth showing, in host field order; unset values are omitted. Invisible and bidi characters are made visible. */
+// The owner is the one when the state was frozen, not necessarily today's. Only Arcade lists addresses: its attesters.
+const WHO: Record<string, string> = { owner: "The owner", dao: "The DAO", successor: "The successor", subject: "The address concerned" }
+const IS: Record<string, string> = { Admin: "is an admin", Curator: "is a curator", Listed: "is an attester", Member: "is a member", Moderator: "is a moderator" }
+/** An action's own parameters named for a reader (top level only: nested state is labelled word by word). */
+const NAMED: Record<string, string> = { bps: "Fee (basis points)", id: "Item", contractId: "Contract", milestoneIndex: "Milestone", fee: "Fee (ugnot)", path: "Listing path", subject: WHO.subject }
+
+/**
+ * A contract field as a reader says it: "daoMember" is "The DAO is a
+ * member", "ownerRoles" is "The current owner's roles", "pendingAdmin" is
+ * "Pending admin". A nested field joins its parts with " · ".
+ */
+export function factLabel(key: string): string {
+    return key.split(".").map((part, i) => {
+        const who = /^(owner|dao|successor|subject)(Admin|Curator|Listed|Member|Moderator|Roles)$/.exec(part)
+        if (who) return who[2] === "Roles" ? `Roles of ${WHO[who[1]].replace(/^The/, "the")}` : `${WHO[who[1]]} ${IS[who[2]]}`
+        const words = (i === 0 ? NAMED[part] : undefined) ?? part.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().replace(/^id$/, "ID").replace(/\bbps\b/, "fee (basis points)")
+        return i === 0 ? words.charAt(0).toUpperCase() + words.slice(1) : words
+    }).join(" · ")
+}
+
+/** A contract value as a reader says it; invisible and bidi characters are made visible. */
+function factValue(value: unknown): string {
+    if (value === null) return "(none)"
+    if (value === "") return "(unset)"
+    if (typeof value === "boolean") return value ? "Yes" : "No"
+    return revealInvisibleFormatting(String(value))
+}
+
+/** Operation parameters worth showing, in host field order, labelled for a reader; unset values are omitted. */
 export function applicationDetails(action: WeightedApplicationAction): [string, string][] {
     const skip = new Set(["type", "target", "operation", "before"])
     const out: [string, string][] = []
     for (const [key, value] of Object.entries(action)) {
         if (skip.has(key) || value === "" || value === null || (action.type === "market-config" && key === "bps" && action.operation !== "set-fee") || (action.type === "appstore" && key === "fee" && action.operation !== "set-fee") || (action.type === "reviews" && key === "id" && value === "0")) continue
-        out.push([key, revealInvisibleFormatting(String(value))])
+        // Milestones are numbered from 1, as the frozen state lists them.
+        // The contract counts milestones from 0 (a uint64 string); the frozen state lists them from 1.
+        out.push([factLabel(key), key === "milestoneIndex" && typeof value === "string" ? String(BigInt(value) + 1n) : factValue(value)])
     }
     return out
 }
 
-/** Flatten the frozen pre-state into labelled rows (nested objects use dotted keys); invisible characters are made visible. */
+/** Flatten the frozen pre-state into rows labelled for a reader (a nested field joins its parts). */
 export function flattenBefore(value: unknown, prefix = ""): [string, string][] {
-    if (value === null) return [[prefix, "(none)"]]
-    if (typeof value !== "object") return [[prefix, value === "" ? "(unset)" : revealInvisibleFormatting(String(value))]]
+    if (value === null || typeof value !== "object") return [[factLabel(prefix), factValue(value)]]
     const rows: [string, string][] = []
-    const entries = Array.isArray(value) ? value.map((v, i) => [String(i), v] as const) : Object.entries(value)
-    if (entries.length === 0) return [[prefix, "(none)"]]
+    const entries = Array.isArray(value) ? value.map((v, i) => [String(i + 1), v] as const) : Object.entries(value)
+    if (entries.length === 0) return [[factLabel(prefix), "(none)"]]
     for (const [key, v] of entries) rows.push(...flattenBefore(v, prefix ? `${prefix}.${key}` : key))
     return rows
 }

@@ -5,20 +5,22 @@
  * (lib/dao/weighted), never through the equal-headcount loaders the other DAO
  * kinds use.
  *
- * A seat holder votes and executes in each proposal's window. Proposing (and
- * acting on older contract versions) still runs in the weighted workspace,
- * shown inside the Proposals section on request.
+ * A seat holder votes and executes in each proposal's window, and proposes
+ * that the DAO accepts an application from the Overview, each through the
+ * Memba OS signing sheet. Older contract versions are read-only here.
  *
  * @module os/daos/WeightedDaoFolder
  */
-import { lazy, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react"
+import { useEffect, useRef, useState } from "react"
 import { GNO_CHAIN_ID } from "../../lib/config"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWritesHeld, type WeightedProposal, type WeightedSnapshot, type WeightedV12Config } from "../../lib/dao/weighted"
-import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, weightedDaoAddress, type AcceptanceState } from "../../lib/dao/weightedAcceptance"
+import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, acceptAdapterFor, nextRecommendedAcceptance, weightedDaoAddress, type AcceptanceState } from "../../lib/dao/weightedAcceptance"
 import { teamWallet } from "../../lib/dao/weightedTreasury"
-import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, roleText, seatText, seatsRule, tallyText, votingRule, weightedDaoTitle, weightedReadError, ROLES_ADD_NOTHING, seatsSummary } from "../../lib/dao/weightedView"
-import { isWalletRequestPending, subscribeWalletActivity } from "../../lib/walletActivity"
+import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, openProposalsOf, roleText, seatText, seatsRule, tallyText, votingRule, weightedDaoTitle, weightedReadError, ROLES_ADD_NOTHING, seatsSummary } from "../../lib/dao/weightedView"
+import { clearGovernanceReceipt, governanceRequestActive, type GovernanceScope } from "../../lib/dao/governanceRecovery"
+import { weightedAcceptLock } from "../../lib/dao/weightedActions"
+import type { ApplicationPolicyKey } from "../../lib/dao/weightedApplications"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
 import { ThingTile } from "../shell/icons"
@@ -26,59 +28,38 @@ import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { formatUgnot } from "../wallet/send"
+import { useSigner } from "../sign/signerContext"
+import { UnknownOutcome } from "./UnknownOutcome"
 import { StatusPill, WeightedHold } from "./WeightedProposal"
+import { quoteWeightedGasPrice, weightedAcceptRequest } from "./weightedRequest"
 import { useAcceptanceStates, useFeeDestinations, useRefreshWeightedDao, useWeightedBalance, useWeightedSnapshot } from "./useWeightedDao"
 
-const ClassicPage = lazy(() => import("../page/ClassicPage").then((m) => ({ default: m.ClassicPage })))
-
-interface FolderProps { name: string; realmPath: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession; active?: boolean }
+interface FolderProps { name: string; realmPath: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession }
 
 export function WeightedDaoFolder(props: FolderProps) {
-    const { realmPath, section, session, active } = props
+    const { realmPath, section, session } = props
     const snapshot = useWeightedSnapshot(realmPath)
-    const [workspace, setWorkspace] = useState(false)
-    // Closing the workspace unmounts nothing the focus could stay on: it goes back to the button that opened it.
-    const returnFocusRef = useRef(false)
+    const signer = useSigner()
+    const refresh = useRefreshWeightedDao(realmPath)
+    // After a signature settles, read the DAO again: an acceptance proposed here shows at once. Only a new one: the folder
+    // remounts when its sections change.
+    const seen = useRef(signer.version)
+    useEffect(() => {
+        if (signer.version === seen.current) return
+        seen.current = signer.version
+        void refresh()
+    }, [signer.version, refresh])
     const data = snapshot.data
     if (!data) return snapshot.isError ? <ErrorState message={weightedReadError(snapshot.error)} onRetry={() => void snapshot.refetch()} /> : <Loading label="Reading governance state…" />
-    const inWorkspace = workspace && section === "proposals"
     return (
         <>
             {/* A later read that fails leaves the previous one on screen, and says so. */}
             {snapshot.isError && <ErrorState message={`${weightedReadError(snapshot.error)} This is the previous read.`} onRetry={() => void snapshot.refetch()} />}
-            {/* Once open, the workspace stays mounted behind the other sections: a signature it is waiting for is not lost to a tab. */}
-            {workspace && <div hidden={!inWorkspace}><Workspace realmPath={realmPath} session={session} active={active && inWorkspace} close={() => { returnFocusRef.current = true; setWorkspace(false) }} /></div>}
-            {inWorkspace ? null
-                : section === "proposals" ? <Proposals {...props} newest={data} openWorkspace={() => setWorkspace(true)} returnFocusRef={returnFocusRef} />
-                    : section === "members" ? <Members data={data} session={session} />
-                        : section === "treasury" ? <Treasury realmPath={realmPath} data={data} />
-                            : <Overview {...props} data={data} />}
+            {section === "proposals" ? <Proposals {...props} newest={data} />
+                : section === "members" ? <Members data={data} session={session} />
+                    : section === "treasury" ? <Treasury realmPath={realmPath} data={data} />
+                        : <Overview {...props} data={data} />}
         </>
-    )
-}
-
-/** The weighted workspace inside the window. What is done in it changes what the native sections show, so they are read again when its wallet request ends and when it closes. */
-function Workspace({ realmPath, session, active, close }: { realmPath: string; session: OsSession; active?: boolean; close: () => void }) {
-    const refresh = useRefreshWeightedDao(realmPath)
-    const signing = useSyncExternalStore(subscribeWalletActivity, isWalletRequestPending)
-    const wasSigning = useRef(false)
-    const heading = useRef<HTMLHeadingElement>(null)
-    useEffect(() => {
-        if (wasSigning.current && !signing) void refresh()
-        wasSigning.current = signing
-    }, [signing, refresh])
-    // The button that opened it is gone: focus moves to what replaced it.
-    useEffect(() => { heading.current?.focus() }, [])
-    return (
-        <div className="os-stack os-tight">
-            <h3 ref={heading} tabIndex={-1} className="os-h">Propose, vote or execute</h3>
-            <div className="os-row">
-                {/* Closing the workspace while the wallet is open would drop its result. */}
-                <button type="button" className="os-btn os-quiet" disabled={signing} onClick={() => { void refresh(); close() }}>Back to the proposal list</button>
-                {signing && <span className="os-sub" role="status">A wallet request is open. The workspace stays open until it ends.</span>}
-            </div>
-            <ClassicPage network={session.network.key} page={`weighted-dao/${realmPath}`} layout={session.layout} active={active} />
-        </div>
     )
 }
 
@@ -146,15 +127,19 @@ function Overview({ name, realmPath, data, open, session }: FolderProps & { data
                     <button type="button" className="os-btn os-quiet" onClick={() => open(daoSpec(name, "proposals"))}>All {data.page.total} proposals</button>
                 )}
             </section>
-            {config.schema === WEIGHTED_APPLICATIONS_SCHEMA && <Applications realmPath={realmPath} config={config} />}
+            {config.schema === WEIGHTED_APPLICATIONS_SCHEMA && <Applications realmPath={realmPath} name={name} data={data} config={config} session={session} />}
         </div>
     )
 }
 
 const STATE_TONE: Record<AcceptanceState["kind"], PillTone | undefined> = { dao: "ok", ready: undefined, blocked: "err", awaiting: "neutral" }
 
-function Applications({ realmPath, config }: { realmPath: string; config: WeightedV12Config }) {
+interface ApplicationsProps { realmPath: string; name: string; data: WeightedSnapshot; config: WeightedV12Config; session: OsSession }
+
+function Applications({ realmPath, name, data, config, session }: ApplicationsProps) {
     const acceptance = useAcceptanceStates(realmPath, config)
+    // Only one acceptance may be open: the one open among the newest proposals, if any.
+    const openAcceptance = openProposalsOf(data.page).open.find((p) => acceptAdapterFor(p.action) !== null)
     const states = acceptance.data ?? {}
     const read = ACCEPTANCE_ORDER.map((key) => states[key]).filter((s): s is AcceptanceState => s !== undefined && s !== "error")
     const total = ACCEPTANCE_ORDER.length
@@ -162,12 +147,14 @@ function Applications({ realmPath, config }: { realmPath: string; config: Weight
         <section>
             <h3 className="os-h">Applications the DAO governs</h3>
             <p className="os-sub">
-                Each application is handed over in two steps: its publisher nominates the DAO, then the DAO accepts by a critical vote, one application at a time.
+                Each application is handed over in two steps: its publisher nominates the DAO, then the DAO accepts by a critical vote. Memba offers one acceptance at a time: executing any proposal invalidates the others.
                 {/* A count is a claim about all of them: none is made from a partial read. */}
                 {acceptance.data && (read.length === total ? ` The DAO controls ${read.filter((s) => s.kind === "dao").length} of ${total} today.` : ` ${total - read.length} of ${total} could not be read.`)}
             </p>
             {/* A later read that fails leaves the previous one on screen, and says so. */}
             {acceptance.isError && <ErrorState message={acceptance.data ? "The applications' current owners could not be read again. This is the previous read." : "The applications' current owners could not be read."} onRetry={() => void acceptance.refetch()} />}
+            {/* The attempt landed only if the open acceptance is this member's own (verify's proof). */}
+            <AcceptanceLock realmPath={realmPath} session={session} landed={!!openAcceptance && openAcceptance.proposer === session.address} />
             <ol className="os-list">{ACCEPTANCE_ORDER.map((key) => {
                 const state = states[key]
                 const known = state !== undefined && state !== "error" ? state : null
@@ -186,6 +173,7 @@ function Applications({ realmPath, config }: { realmPath: string; config: Weight
                             {known?.kind === "dao" && known.pending && <span className="os-sub os-block">A handover back to <span className="os-mono">{shortAddr(known.pending)}</span> is pending.</span>}
                             {known?.kind === "blocked" && known.reasons.map((reason) => <span key={reason} className="os-sub os-block">{reason}</span>)}
                             {known?.kind === "ready" && <span className="os-sub os-block">{ACCEPTANCE_CONSEQUENCES[key]}</span>}
+                            {known?.kind === "ready" && <ProposeAcceptance adapter={key} realmPath={realmPath} name={name} data={data} session={session} openAcceptance={openAcceptance} />}
                             <details className="os-sub">
                                 <summary>Its rules</summary>
                                 {applicationRules(key, config[key]).map((rule) => <span key={rule} className="os-block">{rule}</span>)}
@@ -201,26 +189,63 @@ function Applications({ realmPath, config }: { realmPath: string; config: Weight
     )
 }
 
-function Proposals({ name, realmPath, open, session, newest, openWorkspace, returnFocusRef }: FolderProps & { newest: WeightedSnapshot; openWorkspace: () => void; returnFocusRef: RefObject<boolean> }) {
+/**
+ * An acceptance attempt with an unknown outcome locks proposing another until
+ * the member checks it. Once an acceptance is open on chain, the one-open rule
+ * holds anyway, so the lock is moot and cleared.
+ */
+function AcceptanceLock({ realmPath, session, landed }: { realmPath: string; session: OsSession; landed: boolean }) {
+    const [, rerender] = useState(0)
+    const lock = session.status === "member" ? weightedAcceptLock(GNO_CHAIN_ID, realmPath, session.address) : null
+    const mootKey = landed && lock ? JSON.stringify(lock) : ""
+    useEffect(() => {
+        if (!mootKey) return
+        try { clearGovernanceReceipt((JSON.parse(mootKey) as { scope: GovernanceScope }).scope) } catch { return /* its request is still in flight */ }
+        // The receipt lives in browser storage, outside React: read it again once cleared.
+        queueMicrotask(() => rerender((x) => x + 1))
+    }, [mootKey])
+    if (!lock) return null
+    if (governanceRequestActive(lock.scope)) return <p className="os-sub" role="status">Waiting for the wallet…</p>
+    return <UnknownOutcome key={JSON.stringify(lock.scope)} scope={lock.scope} receipt={lock.receipt} attempt="proposal" again="proposing an acceptance again" onCleared={() => rerender((x) => x + 1)} />
+}
+
+/** A seat holder proposes that the DAO accepts an application it has been nominated for; a guest is asked to connect here. */
+function ProposeAcceptance({ adapter, realmPath, name, data, session, openAcceptance }: { adapter: ApplicationPolicyKey; realmPath: string; name: string; data: WeightedSnapshot; session: OsSession; openAcceptance?: WeightedProposal }) {
+    const signer = useSigner()
+    const [failed, setFailed] = useState<string | null>(null)
+    // Said to everyone, on a held DAO too: while one acceptance is open, Memba offers no other (and this one may be it).
+    if (openAcceptance) {
+        return <span className="os-sub os-block">{acceptAdapterFor(openAcceptance.action) === adapter
+            ? `Acceptance proposal #${openAcceptance.id} for this application is open.`
+            : `Acceptance proposal #${openAcceptance.id} is open: propose this one after it executes or closes.`}</span>
+    }
+    if (weightedWritesHeld(GNO_CHAIN_ID, data.config.schema, realmPath)) return null
+    if (session.status === "resuming") return null
+    if (session.status === "guest") return <button type="button" className="os-btn os-quiet" onClick={session.openConnect}>Connect to propose</button>
+    if (!data.members.some((m) => m.address === session.address) || weightedAcceptLock(GNO_CHAIN_ID, realmPath, session.address)) return null
+    const review = async () => {
+        setFailed(null)
+        try { signer.sign(weightedAcceptRequest({ realmPath, daoName: weightedDaoTitle(realmPath, name), snapshot: data, caller: session.address, gasPrice: await quoteWeightedGasPrice() }, adapter)) }
+        catch (err) { setFailed(err instanceof Error ? err.message : String(err)) }
+    }
+    return (
+        <>
+            <button type="button" className="os-btn os-quiet" onClick={() => void review()}>Propose acceptance…</button>
+            {failed && <span className="os-note os-warn os-block" role="alert">{failed}</span>}
+        </>
+    )
+}
+
+function Proposals({ name, realmPath, open, session, newest }: FolderProps & { newest: WeightedSnapshot }) {
     const [before, setBefore] = useState("0")
     const older = useWeightedSnapshot(realmPath, before, before !== "0")
     const page = before === "0" ? newest : older.data
     const held = weightedWritesHeld(GNO_CHAIN_ID, newest.config.schema, realmPath)
     const seat = newest.members.some((m) => m.address === session.address)
-    // Consumed by the button's ref when it mounts; a close that mounts no button (the seat went away) must not steal focus later.
-    useEffect(() => { returnFocusRef.current = false }, [returnFocusRef])
     return (
         <div className="os-stack os-tight">
-            <div className="os-row os-between">
-                <span className="os-sub">{newest.page.total} {newest.page.total === "1" ? "proposal" : "proposals"} recorded</span>
-                {/* Acting needs a seat: a guest is asked to connect here, and only here. A session still resuming is asked nothing. */}
-                {held ? null
-                    : session.status === "guest" ? <button type="button" className="os-btn" onClick={session.openConnect}>Connect to propose, vote or execute</button>
-                        : seat && (
-                            <button type="button" className="os-btn" onClick={openWorkspace}
-                                ref={(node) => { if (node && returnFocusRef.current) { returnFocusRef.current = false; node.focus() } }}>Propose, vote or execute</button>
-                        )}
-            </div>
+            {/* Acting is in each proposal's window (vote, execute) and in the Overview's applications (propose): each asks a guest to connect there. */}
+            <span className="os-sub">{newest.page.total} {newest.page.total === "1" ? "proposal" : "proposals"} recorded</span>
             {held && <WeightedHold />}
             {!seat && <Seat data={newest} session={session} />}
             {/* The newest page's failed re-read is said above the sections; an older page's is said here. */}

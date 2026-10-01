@@ -111,6 +111,39 @@ it("refuses a vote while an attempt from the Memba OS proposal window has an unk
         expect(doContractBroadcast).not.toHaveBeenCalled()
     } finally { clearGovernanceMemory(); localStorage.clear() }
 })
+it("refuses an acceptance while a Memba OS acceptance attempt has an unknown outcome", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const data = v12Snapshot()
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    saveGovernanceReceipt(weightedScope("pearl", weightedRealm, data.members[1].address, "accept", "handover"), { phase: "submitted", hash: "ab".repeat(32), label: "Propose accepting Badges" })
+    try {
+        render(<App network="pearl" address={data.members[1].address} />)
+        const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+        expect(await within(market).findByText("Ready to accept")).toBeTruthy()
+        const button = within(market).getByRole("button", { name: "Propose acceptance" })
+        fireEvent.click(button)
+        expect(await screen.findByRole("alert")).toHaveTextContent("An earlier acceptance proposal has an unknown outcome")
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    } finally { clearGovernanceMemory(); localStorage.clear() }
+})
+it("refuses at the wallet an acceptance locked while its checks ran", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const data = v12Snapshot()
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    // A Memba OS acceptance attempt is recorded while this click's chain reads are running.
+    vi.mocked(doContractBroadcast).mockImplementationOnce(async (_msgs, _memo, opts) => {
+        saveGovernanceReceipt(weightedScope("pearl", weightedRealm, data.members[1].address, "accept", "handover"), { phase: "submitted", hash: "ab".repeat(32), label: "Propose accepting Badges" })
+        await opts?.beforeSign?.()
+        return { hash: "a".repeat(64) }
+    })
+    try {
+        render(<App network="pearl" address={data.members[1].address} />)
+        const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+        expect(await within(market).findByText("Ready to accept")).toBeTruthy()
+        fireEvent.click(within(market).getByRole("button", { name: "Propose acceptance" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent("An earlier acceptance proposal has an unknown outcome")
+    } finally { clearGovernanceMemory(); localStorage.clear() }
+})
 it("refuses at the wallet a vote locked while its checks ran", async () => {
     // Another window records an unknown outcome while this click's chain reads are still running.
     vi.mocked(doContractBroadcast).mockImplementationOnce(async (_msgs, _memo, opts) => {
@@ -258,8 +291,8 @@ it("renders the v12 adapter policies, categories, operations and frozen state re
     expect(within(fee).getByText("Ready to execute")).toBeTruthy()
     expect(within(fee).getByText("150")).toBeTruthy()
     expect(within(fee).getByText("State frozen at proposal time")).toBeTruthy()
-    expect(within(fee).getByText("pendingAdmin")).toBeTruthy()
-    expect(within(fee).getAllByText("bps")).toHaveLength(2)
+    expect(within(fee).getByText("Pending admin")).toBeTruthy()
+    expect(within(fee).getAllByText("Fee (basis points)")).toHaveLength(2)
     expect(within(fee).getByRole("note").textContent).toMatch(/invalidates every other outstanding proposal/)
     expect(within(fee).getByRole("button", { name: "Execute proposal" }).hasAttribute("disabled")).toBe(true)
     const hide = screen.getByRole("article", { name: "Proposal 18" })

@@ -26,11 +26,7 @@ const key = (realmPath: string, ...rest: string[]) => ["dao", "weighted", GNO_CH
  */
 const REREAD_MS = 60_000
 
-/**
- * Read this DAO again from the chain, now: after a signature in the proposal
- * window, and when the workspace's wallet request ends or it closes (it does
- * not sign through the Memba OS signer).
- */
+/** Read this DAO again from the chain, now: after a signature settles in one of its windows. */
 export function useRefreshWeightedDao(realmPath: string) {
     const queryClient = useQueryClient()
     return useCallback(() => queryClient.invalidateQueries({ queryKey: key(realmPath) }), [queryClient, realmPath])

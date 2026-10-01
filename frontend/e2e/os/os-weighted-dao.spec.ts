@@ -10,14 +10,6 @@ import { MAINNET, MEMBER, RESERVE, castBallots, memberWallet, v12Read } from '..
 const win = (page: Page, name: string) => page.getByRole('region', { name, exact: true })
 /** Links in a window that would leave Memba OS. */
 const linksOut = (window: ReturnType<typeof win>) => window.locator('a[href]').evaluateAll((links) => links.map((a) => a.getAttribute('href')).filter((href) => !href!.startsWith('/os')))
-/** The wallet answers only when the test lets it, like Adena waiting for its owner. */
-const holdWallet = (page: Page) => page.addInitScript(() => {
-    const w = window as unknown as { adena: { DoContract: (request: unknown) => Promise<unknown> }; __releaseWallet?: () => void }
-    const sign = w.adena.DoContract
-    w.adena.DoContract = (request) => new Promise((resolve) => { w.__releaseWallet = () => resolve(sign(request)) })
-})
-const walletWaiting = (page: Page) => expect.poll(() => page.evaluate(() => typeof (window as unknown as { __releaseWallet?: () => void }).__releaseWallet)).toBe('function')
-const releaseWallet = (page: Page) => page.evaluate(() => (window as unknown as { __releaseWallet: () => void }).__releaseWallet())
 const fits = async (window: ReturnType<typeof win>) => {
     const widths = await window.locator('.os-wbody').evaluate((body) => ({ visible: body.clientWidth, content: body.scrollWidth }))
     expect(widths.content).toBeLessThanOrEqual(widths.visible)
@@ -78,8 +70,8 @@ test.describe('Memba OS weighted DAO', () => {
 
         await folder.getByRole('tab', { name: 'Proposals' }).click()
         await expect(folder.getByText('26 proposals recorded')).toBeVisible()
-        // A guest reads everything; the connect prompt is at the acting step.
-        await expect(folder.getByRole('button', { name: 'Connect to propose, vote or execute' })).toBeVisible()
+        // A guest reads everything; the connect prompts are at the acting steps (an application's acceptance, a proposal's window).
+        await expect(folder.getByRole('button', { name: /Connect/ })).toHaveCount(0)
         await folder.getByRole('button', { name: /#17 Market config · Set a fee/ }).click()
         const proposal = win(page, 'memba_dao · Proposal #17')
         await expect(proposal.getByRole('heading', { name: '#17 Market config · Set a fee' })).toBeVisible()
@@ -117,25 +109,28 @@ test.describe('Memba OS weighted DAO', () => {
         await expect(proposal.getByText('It passed. It can execute from the earliest time below.')).toBeVisible()
     })
 
-    test('a member proposes an acceptance from the DAO window, and the wallet gets exactly the reviewed call', async ({ page }) => {
+    test('a member proposes an acceptance from the Overview through the Memba review, and the wallet gets exactly the reviewed call', async ({ page }) => {
         await memberWallet(page, MAINNET)
-        await page.goto(`${OS_ON}/os/dao/memba_dao/proposals`)
+        await page.goto(`${OS_ON}/os/dao/memba_dao`)
         const folder = win(page, 'memba_dao')
-        await folder.getByRole('button', { name: 'Propose, vote or execute' }).click()
-        const market = folder.getByRole('listitem', { name: 'marketPolicy adapter' })
+        const market = folder.getByRole('listitem', { name: 'Market config' })
         await expect(market.getByText('Ready to accept')).toBeVisible()
-        await market.getByRole('button', { name: 'Propose acceptance' }).click()
-        const dialog = page.getByRole('dialog', { name: 'Confirm transaction' })
-        await expect(dialog.getByText('ProposeMarketAccept', { exact: true })).toBeVisible()
-        await expect(dialog.getByText('2.13 GNOT', { exact: true })).toBeVisible()
-        await dialog.getByRole('button', { name: 'Confirm & Broadcast' }).click()
-        await expect(folder.getByText(/^Transaction submitted: (ab){32}\./)).toBeVisible()
+        await market.getByRole('button', { name: 'Propose acceptance…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Propose' })
+        await expect(review.getByRole('heading', { name: 'Propose that Memba DAO accepts the handover of Market config' })).toBeVisible()
+        await expect(review.getByText('Network fee', { exact: true })).toBeVisible()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review).toHaveCount(0)
+        // The Memba review replaced the classic confirmation.
+        await expect(page.getByRole('dialog', { name: 'Confirm transaction' })).toHaveCount(0)
         const requests = await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)
         expect(requests).toHaveLength(1)
         expect(requests[0]).toMatchObject({ gasWanted: 24_000_000, messages: [{ type: '/vm.m_call', value: { caller: MEMBER, send: '', pkg_path: 'gno.land/r/samcrew/memba_dao', func: 'ProposeMarketAccept', args: [], max_deposit: '2130000ugnot' } }] })
-        expect(new URL(page.url()).pathname).toBe('/os/dao/memba_dao/proposals')
-        await folder.getByRole('button', { name: 'Back to the proposal list' }).click()
-        await expect(folder.getByText('26 proposals recorded')).toBeVisible()
+        // The fake chain never lists the new proposal: sent, not confirmed, and no second acceptance until the member checks it.
+        await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
+        await expect(page.getByText('Submitted · Propose accepting Market config')).toBeVisible()
+        await expect(folder.getByText('A previous proposal attempt is saved. Check its outcome before proposing an acceptance again.')).toBeVisible()
+        await expect(folder.getByRole('button', { name: 'Propose acceptance…' })).toHaveCount(0)
     })
 
     test('a member votes in the proposal window through the Memba review, and the chain then shows the ballot', async ({ page }) => {
@@ -169,46 +164,6 @@ test.describe('Memba OS weighted DAO', () => {
         await expect(proposal.getByText('You voted no (block 450001).')).toBeVisible()
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
         await expect(page.getByText('Confirmed · Vote No on #17')).toBeVisible()
-    })
-
-    test('a signature that finishes while another window is in front still reports its transaction', async ({ page }) => {
-        await memberWallet(page, MAINNET)
-        await holdWallet(page)
-        await page.goto(`${OS_ON}/os/dao/memba_dao/proposals`)
-        const folder = win(page, 'memba_dao')
-        await folder.getByRole('button', { name: 'Propose, vote or execute' }).click()
-        await folder.getByRole('listitem', { name: 'marketPolicy adapter' }).getByRole('button', { name: 'Propose acceptance' }).click()
-        await page.getByRole('dialog', { name: 'Confirm transaction' }).getByRole('button', { name: 'Confirm & Broadcast' }).click()
-        await walletWaiting(page)
-        // The address bar follows the front window: /os/dao/memba_dao/proposals becomes /os/daos.
-        await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'DAOs' }).click()
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/daos')
-        await releaseWallet(page)
-        await expect(folder.getByText(/^Transaction submitted: (ab){32}\./)).toBeVisible()
-        await expect(folder.getByText(/Wallet or page changed/)).toHaveCount(0)
-    })
-
-    test('a signature pending in the workspace survives a visit to the Overview and back', async ({ page }) => {
-        await memberWallet(page, MAINNET)
-        await holdWallet(page)
-        await page.goto(`${OS_ON}/os/dao/memba_dao/proposals`)
-        const folder = win(page, 'memba_dao')
-        await folder.getByRole('button', { name: 'Propose, vote or execute' }).click()
-        await folder.getByRole('listitem', { name: 'marketPolicy adapter' }).getByRole('button', { name: 'Propose acceptance' }).click()
-        await page.getByRole('dialog', { name: 'Confirm transaction' }).getByRole('button', { name: 'Confirm & Broadcast' }).click()
-        await walletWaiting(page)
-        await folder.getByRole('tab', { name: 'Overview' }).click()
-        await expect(folder.getByText('7 seats · 8 voting points · gnoland-1')).toBeVisible()
-        await expect(folder.getByText(/#join posts/)).toBeVisible()
-        await folder.getByRole('tab', { name: 'Proposals' }).click()
-        // Still the same workspace, still waiting for the same wallet request.
-        await expect(folder.getByRole('button', { name: 'Back to the proposal list' })).toBeDisabled()
-        await expect(folder.getByText('A wallet request is open. The workspace stays open until it ends.')).toBeVisible()
-        await releaseWallet(page)
-        await expect(folder.getByText(/^Transaction submitted: (ab){32}\./)).toBeVisible()
-        await expect(folder.getByText(/Wallet or page changed/)).toHaveCount(0)
-        const requests = await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)
-        expect(requests).toHaveLength(1)
     })
 
     test('the DAOs list keeps its Create button inside a 320 px window', async ({ page }, info) => {

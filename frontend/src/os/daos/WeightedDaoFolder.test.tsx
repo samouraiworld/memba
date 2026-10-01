@@ -1,23 +1,21 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
-import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, type WeightedSnapshot } from "../../lib/dao/weighted"
+import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, type WeightedSnapshot } from "../../lib/dao/weighted"
 import { weightedFixture } from "../../lib/dao/testdata/weighted"
 import v12Native from "../../lib/dao/testdata/weighted-v12/native.json"
 import { weightedDaoAddress, type AcceptanceState } from "../../lib/dao/weightedAcceptance"
 import { APPLICATION_POLICY_KEYS, type ApplicationPolicyKey } from "../../lib/dao/weightedApplications"
 import type { FeeDestination } from "../../lib/dao/weightedTreasury"
-import { beginWalletActivity } from "../../lib/walletActivity"
+import { beginGovernanceRequest, clearGovernanceMemory, readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
+import { weightedScope } from "../../lib/dao/weightedActions"
+import type { SignRequest } from "../sign/signer"
 import { renderWithProviders } from "../../test/test-utils"
 import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 import type { OsWindow } from "../shell/windows"
 
-// The page a window shows is stubbed to what it was asked to show, and with which wallet context.
-const classicPage = vi.fn((props: { network: string; page: string }) => <div data-testid="page">{props.network}/{props.page}</div>)
-vi.mock("../page/ClassicPage", () => ({ ClassicPage: (props: { network: string; page: string }) => classicPage(props) }))
 vi.mock("../../lib/config", async original => ({ ...(await original<typeof import("../../lib/config")>()), isFeedEnabled: vi.fn(() => false) }))
 vi.mock("./useOsDao", async original => ({
     ...(await original<typeof import("./useOsDao")>()),
@@ -25,7 +23,10 @@ vi.mock("./useOsDao", async original => ({
     useDaoProposals: vi.fn(() => ({ data: [], isPending: false, isError: false })),
     useDaoMembers: vi.fn(() => ({ data: [], isPending: false, isError: false })),
 }))
-vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn(() => true), version: 0 }) }))
+// The signing sheet is the Memba OS signer's: here it records what it was asked to review.
+const { sign } = vi.hoisted(() => ({ sign: vi.fn<(req: SignRequest) => boolean>(() => true) }))
+vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign, version: 0 }) }))
+vi.mock("../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../lib/grc20")>()), networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })) }))
 vi.mock("../../hooks/useDaoKind", async original => ({ ...(await original<typeof import("../../hooks/useDaoKind")>()), useDaoKind: vi.fn() }))
 vi.mock("./ProposeWizard", () => ({ ProposeWizard: ({ dao }: { dao: string }) => <div>wizard for {dao}</div> }))
 vi.mock("../../lib/dao/weighted", async original => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedBallot: vi.fn() }))
@@ -54,7 +55,7 @@ const guest = { status: "guest", address: "", network: { key: "mainnet" }, layou
 const as = (address: string) => ({ ...guest, status: "member", address }) as unknown as OsSession
 const open = vi.fn()
 const folderUi = (section: DaoSection, session = guest, realmPath = MEMBA_DAO, name = "memba_dao") =>
-    <WeightedDaoFolder name={name} realmPath={realmPath} section={section} open={open} session={session} active />
+    <WeightedDaoFolder name={name} realmPath={realmPath} section={section} open={open} session={session} />
 let client: QueryClient
 /** Rendered in a query client the test can reach (`rerender` keeps its providers). */
 function show(...args: Parameters<typeof folderUi>) {
@@ -71,6 +72,8 @@ const fees = (market: string | null, appstore: string | null): FeeDestination[] 
 
 beforeEach(() => {
     vi.clearAllMocks()
+    clearGovernanceMemory()
+    localStorage.clear()
     for (const key of Object.keys(balances)) delete balances[key]
     vi.mocked(readWeightedSnapshot).mockImplementation(async (_ctx, before = "0") => v12(before === "0" ? "proposals_page_1" : "proposals_page_2"))
     vi.mocked(readAcceptanceStates).mockImplementation(async () => states())
@@ -158,6 +161,105 @@ describe("a weighted DAO's overview", () => {
         const market = await screen.findByRole("listitem", { name: "Market config" })
         expect(await within(market).findByText(/^Current admin:/)).toHaveTextContent("Current admin: g136j0m0…5cpf · nominated: g1jw76lx…r2u0")
         expect(within(screen.getByRole("listitem", { name: "Badges" })).getByText(/^Current owner:/)).toHaveTextContent("Current owner: g136j0m0…5cpf · nominated: nobody yet")
+    })
+
+    it("lets a seat holder propose that the DAO accepts an application it is nominated for, through the signing review", async () => {
+        const member = v12().members[1].address
+        show("overview", as(member))
+        const market = await screen.findByRole("listitem", { name: "Market config" })
+        fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance…" }))
+        await waitFor(() => expect(sign).toHaveBeenCalledTimes(1))
+        const req = sign.mock.calls[0][0]
+        expect(req.title).toBe("Propose")
+        expect(req.summary).toBe("Propose that Memba DAO accepts the handover of Market config")
+        expect(req.receipt).toEqual(weightedScope("gnoland-1", MEMBA_DAO, member, "accept", "handover"))
+        expect(req.prepare(undefined).msgs[0].value).toMatchObject({ caller: member, pkg_path: MEMBA_DAO, func: "ProposeMarketAccept", args: [] })
+        // Only the nominated application offers it; the other nine are controlled already.
+        expect(screen.getAllByRole("button", { name: "Propose acceptance…" })).toHaveLength(1)
+    })
+
+    it("asks a guest to connect at the acceptance, offers nothing to an account without a seat or on a held DAO", async () => {
+        show("overview")
+        fireEvent.click(await within(await screen.findByRole("listitem", { name: "Market config" })).findByRole("button", { name: "Connect to propose" }))
+        expect(guest.openConnect).toHaveBeenCalledTimes(1)
+        const outsider = show("overview", as("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+        expect(await within(outsider.container).findByText(/^Your address holds none of the 7 seats:/)).toBeInTheDocument()
+        await within(await within(outsider.container).findByRole("listitem", { name: "Market config" })).findByText("Ready to accept")
+        expect(within(outsider.container).queryByRole("button", { name: /Propose acceptance|Connect to propose/ })).toBeNull()
+        const other = "gno.land/r/samcrew/memba_dao_v2"
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => ({ ...v12(), config: { ...v12().config, realmPath: other } }))
+        const held = show("overview", as(v12().members[1].address), other, "samcrew.memba_dao_v2")
+        await within(await within(held.container).findByRole("listitem", { name: "Market config" })).findByText("Ready to accept")
+        expect(within(held.container).queryByRole("button", { name: /Propose acceptance|Connect to propose/ })).toBeNull()
+    })
+
+    it("offers no acceptance while another is open, and none while an earlier attempt's outcome is unknown", async () => {
+        const member = v12().members[1].address
+        const data = v12()
+        const at = data.page.proposals.findIndex((p) => p.id === "13")
+        data.page.proposals[at] = { ...data.page.proposals[at], status: "VOTING", ready: false, votingClosed: false } as typeof data.page.proposals[number]
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+        const busy = show("overview", as(member))
+        expect(await within(busy.container).findByText("Acceptance proposal #13 is open: propose this one after it executes or closes.")).toBeInTheDocument()
+        expect(within(busy.container).queryByRole("button", { name: "Propose acceptance…" })).toBeNull()
+        busy.unmount()
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12())
+        saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, member, "accept", "handover"), { phase: "submitted", hash: "ab".repeat(32), label: "Propose accepting Market config" })
+        show("overview", as(member))
+        expect(await screen.findByText("A previous proposal attempt is saved. Check its outcome before proposing an acceptance again.")).toBeInTheDocument()
+        await within(screen.getByRole("listitem", { name: "Market config" })).findByText("Ready to accept")
+        expect(screen.queryByRole("button", { name: "Propose acceptance…" })).toBeNull()
+    })
+
+    it("says which acceptance is open, to everyone, and clears an acceptance lock only once this member's own is open on chain", async () => {
+        const member = v12().members[1].address
+        // Market config's own acceptance, #27, is open.
+        const market = { ...weightedProposalSchema.parse(r.proposal_4).proposal, id: "27", status: "VOTING", ready: false, qualified: false, votingClosed: false }
+        const withOpen = (proposer: string) => {
+            const data = v12()
+            data.page = { ...data.page, total: "27", proposals: [{ ...market, proposer } as typeof data.page.proposals[number], ...data.page.proposals] }
+            return data
+        }
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, member, "accept", "handover")
+        saveGovernanceReceipt(scope, { phase: "submitted", hash: "ab".repeat(32), label: "Propose accepting Market config" })
+        // Another member's acceptance is no proof that this member's attempt landed: the lock stays.
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => withOpen(v12().members[2].address))
+        const other = show("overview", as(member))
+        expect(await within(other.container).findByText("Outcome unknown.")).toBeInTheDocument()
+        expect(readGovernanceReceipt(scope)).not.toBeNull()
+        other.unmount()
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => withOpen(member))
+        const seat = show("overview", as(member))
+        expect(await within(seat.container).findByText("Acceptance proposal #27 for this application is open.")).toBeInTheDocument()
+        // It landed: the lock is moot, cleared, and not shown.
+        await waitFor(() => expect(readGovernanceReceipt(scope)).toBeNull())
+        expect(within(seat.container).queryByText("Outcome unknown.")).toBeNull()
+        seat.unmount()
+        const visitor = show("overview")
+        expect(await within(visitor.container).findByText("Acceptance proposal #27 for this application is open.")).toBeInTheDocument()
+        expect(within(visitor.container).queryByRole("button", { name: "Connect to propose" })).toBeNull()
+        visitor.unmount()
+        // On a DAO held read-only here too.
+        const other2 = "gno.land/r/samcrew/memba_dao_v2"
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => { const d = withOpen(member); return { ...d, config: { ...d.config, realmPath: other2 } } })
+        show("overview", as(member), other2, "samcrew.memba_dao_v2")
+        expect(await screen.findByText("Acceptance proposal #27 for this application is open.")).toBeInTheDocument()
+    })
+
+    it("keeps an acceptance lock while its own request is still in flight, even with an acceptance open, and says the wallet is waiting", async () => {
+        const member = v12().members[1].address
+        const data = v12()
+        const open = { ...weightedProposalSchema.parse(r.proposal_4).proposal, id: "27", status: "VOTING", ready: false, qualified: false, votingClosed: false }
+        data.page = { ...data.page, total: "27", proposals: [open as typeof data.page.proposals[number], ...data.page.proposals] }
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, member, "accept", "handover")
+        saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: "Propose accepting Market config" })
+        const finish = beginGovernanceRequest(scope)
+        try {
+            show("overview", as(member))
+            expect(await screen.findByText("Waiting for the wallet…")).toBeInTheDocument()
+            expect(readGovernanceReceipt(scope)).not.toBeNull()
+        } finally { finish() }
     })
 
     it("keeps the applications' previous read, and says so, when a later read fails", async () => {
@@ -313,87 +415,12 @@ describe("a weighted DAO's proposals", () => {
         expect(screen.getByText("No proposals yet.")).toBeInTheDocument()
     })
 
-    it("asks a guest to connect only to act, tells an account without a seat why it cannot, and offers nothing on a held DAO", async () => {
-        const openConnect = vi.mocked(guest.openConnect)
-        show("proposals")
-        fireEvent.click(await screen.findByRole("button", { name: "Connect to propose, vote or execute" }))
-        expect(openConnect).toHaveBeenCalledTimes(1)
-        expect(classicPage).not.toHaveBeenCalled()
-        show("proposals", as("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-        expect(await screen.findByText(/^Your address holds none of the 7 seats:/)).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: "Propose, vote or execute" })).toBeNull()
-        const other = "gno.land/r/samcrew/memba_dao_v2"
-        vi.mocked(readWeightedSnapshot).mockImplementation(async () => ({ ...v12(), config: { ...v12().config, realmPath: other } }))
-        show("proposals", as(v12().members[1].address), other, "samcrew.memba_dao_v2")
-        expect(await screen.findByText("This DAO is read-only in Memba on gnoland-1: Memba builds no governance transaction for it here.")).toBeInTheDocument()
-        expect(screen.getAllByRole("button", { name: /^(Connect to propose|Propose), vote or execute$/ })).toHaveLength(1)
-    })
-
     it("asks nothing of a session that is still resuming", async () => {
         show("proposals", { ...guest, status: "resuming" } as unknown as OsSession)
         expect(await screen.findByText("26 proposals recorded")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /vote or execute$/ })).toBeNull()
     })
 
-    it("keeps the workspace mounted behind the other sections, so a signature it waits for is not lost to a tab", async () => {
-        const member = as(v12().members[1].address)
-        const view = show("proposals", member)
-        fireEvent.click(await screen.findByRole("button", { name: "Propose, vote or execute" }))
-        const page = await screen.findByTestId("page")
-        view.rerender(folderUi("members", member))
-        expect(await screen.findByText("Founder · 2 points")).toBeInTheDocument()
-        expect(screen.getByTestId("page")).toBe(page)
-        expect(page).not.toBeVisible()
-        expect(classicPage).toHaveBeenLastCalledWith(expect.objectContaining({ active: false }))
-        view.rerender(folderUi("proposals", member))
-        expect(screen.getByTestId("page")).toBe(page)
-        expect(page).toBeVisible()
-        expect(screen.queryByText("26 proposals recorded")).toBeNull()
-    })
-
-    it("cannot be closed while the wallet is open, and reads the DAO again when the wallet request ends", async () => {
-        show("proposals", as(v12().members[1].address))
-        fireEvent.click(await screen.findByRole("button", { name: "Propose, vote or execute" }))
-        await screen.findByTestId("page")
-        const reads = vi.mocked(readWeightedSnapshot).mock.calls.length
-        let end!: () => void
-        act(() => { end = beginWalletActivity() })
-        expect(screen.getByRole("button", { name: "Back to the proposal list" })).toBeDisabled()
-        expect(screen.getByRole("status")).toHaveTextContent("A wallet request is open. The workspace stays open until it ends.")
-        expect(vi.mocked(readWeightedSnapshot).mock.calls.length).toBe(reads)
-        act(() => end())
-        expect(screen.getByRole("button", { name: "Back to the proposal list" })).toBeEnabled()
-        await waitFor(() => expect(vi.mocked(readWeightedSnapshot).mock.calls.length).toBeGreaterThan(reads))
-    })
-
-    it("opens the workspace for proposing, voting and executing inside the window, and returns to the list", async () => {
-        show("proposals", as(v12().members[1].address))
-        fireEvent.click(await screen.findByRole("button", { name: "Propose, vote or execute" }))
-        expect(await screen.findByTestId("page")).toHaveTextContent(`mainnet/weighted-dao/${MEMBA_DAO}`)
-        // The button that opened it is gone: focus is on the workspace's heading, not lost to the page.
-        expect(screen.getByRole("heading", { name: "Propose, vote or execute" })).toHaveFocus()
-        expect(classicPage).toHaveBeenLastCalledWith(expect.objectContaining({ active: true }))
-        expect(screen.queryByRole("link")).toBeNull()
-        // Coming back reads the DAO again: what was done in the workspace must show in the list.
-        const total = { ...v12(), page: { ...v12().page, total: "27" } }
-        vi.mocked(readWeightedSnapshot).mockImplementation(async () => total)
-        fireEvent.click(screen.getByRole("button", { name: "Back to the proposal list" }))
-        expect(await screen.findByText("27 proposals recorded")).toBeInTheDocument()
-        expect(screen.getByRole("button", { name: "Propose, vote or execute" })).toHaveFocus()
-    })
-
-    it("does not move focus later when the workspace closed with no button to return to", async () => {
-        const member = as(v12().members[1].address)
-        const view = show("proposals", member)
-        fireEvent.click(await screen.findByRole("button", { name: "Propose, vote or execute" }))
-        await screen.findByTestId("page")
-        // The account changes to one without a seat, then the workspace closes: there is no opener to focus.
-        view.rerender(folderUi("proposals", as("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")))
-        fireEvent.click(screen.getByRole("button", { name: "Back to the proposal list" }))
-        expect(await screen.findByText(/^Your address holds none of the 7 seats:/)).toBeInTheDocument()
-        view.rerender(folderUi("proposals", member))
-        expect(await screen.findByRole("button", { name: "Propose, vote or execute" })).not.toHaveFocus()
-    })
 })
 
 describe("a weighted DAO's treasury", () => {
@@ -497,33 +524,10 @@ describe("a weighted DAO's folder window", () => {
         expect(await screen.findByText("7 seats · 8 voting points · gnoland-1")).toBeInTheDocument()
         expect(within(screen.getByRole("tablist", { name: "DAO sections" })).getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Overview", "Proposals", "Members", "Treasury"])
         expect(screen.queryByRole("link")).toBeNull()
-        expect(classicPage).not.toHaveBeenCalled()
         expect(useDaoConfig).toHaveBeenLastCalledWith(MEMBA_DAO, false)
         expect(useDaoProposals).toHaveBeenLastCalledWith(MEMBA_DAO, false)
         // The Memba DAO's #join posts stay on its overview.
         expect(screen.getByText(/#join posts are Feed posts/)).toBeInTheDocument()
-    })
-
-    it("keeps an open workspace, and the wallet request it waits for, through a visit to the Overview", async () => {
-        kindState({ kind: "weighted" })
-        const member = as(v12().members[1].address)
-        const ui = (section: DaoSection) => <WindowBody win={windowFor("dao:memba_dao", "memba_dao", { kind: "dao", name: "memba_dao", section })} session={member} open={open} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} active />
-        const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        const view = render(ui("proposals"), { wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={queries}><MemoryRouter>{children}</MemoryRouter></QueryClientProvider> })
-        fireEvent.click(await screen.findByRole("button", { name: "Propose, vote or execute" }))
-        const page = await screen.findByTestId("page")
-        let end!: () => void
-        act(() => { end = beginWalletActivity() })
-        try {
-            // The Overview adds the #join posts beside the DAO: the section around the workspace must not be replaced for them.
-            view.rerender(ui("overview"))
-            expect(await screen.findByText(/#join posts are Feed posts/)).toBeInTheDocument()
-            expect(screen.getByTestId("page")).toBe(page)
-            view.rerender(ui("proposals"))
-            expect(screen.getByTestId("page")).toBe(page)
-            expect(page).toBeVisible()
-            expect(screen.getByRole("button", { name: "Back to the proposal list" })).toBeDisabled()
-        } finally { act(() => end()) }
     })
 
     it("keeps the #join posts off the other sections, and reads no member list through the other kinds' loader", async () => {

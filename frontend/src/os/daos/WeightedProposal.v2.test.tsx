@@ -23,24 +23,16 @@ const show = () => renderWithProviders(<WeightedProposalWindow dao="memba_dao" r
 beforeEach(() => { vi.clearAllMocks() })
 
 describe("a proposal of a version before the application version", () => {
-    it("sends a seat holder to the workspace to vote or execute, since the window could not verify either", async () => {
+    it("is read-only in Memba OS, for a seat holder and a guest alike", async () => {
         vi.mocked(readWeightedSnapshot).mockResolvedValue(snapshot({ status: "READY", ready: true, votingClosed: false }))
-        show()
-        expect(await screen.findByText("Vote on it or execute it from the workspace in this DAO's Proposals section.")).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: /^(Vote|Execute)…$/ })).toBeNull()
+        const seat = show()
+        expect(await screen.findByText("Memba OS acts only on the current version of this DAO's contract; Memba's classic DAO page still acts on this one.")).toBeInTheDocument()
+        expect(screen.queryByRole("button")).toBeNull()
         // This version publishes no ballot, so none is read.
         expect(readWeightedBallot).not.toHaveBeenCalled()
-    })
-
-    it("names only what is left: voting, before the proposal is ready", async () => {
-        vi.mocked(readWeightedSnapshot).mockResolvedValue(snapshot({ status: "VOTING", ready: false, votingClosed: false }))
-        show()
-        expect(await screen.findByText("Vote on it from the workspace in this DAO's Proposals section.")).toBeInTheDocument()
-    })
-
-    it("names only what is left: executing, once voting is over", async () => {
-        vi.mocked(readWeightedSnapshot).mockResolvedValue(snapshot({ status: "READY", ready: true, votingClosed: true }))
-        show()
-        expect(await screen.findByText("Execute it from the workspace in this DAO's Proposals section.")).toBeInTheDocument()
+        seat.unmount()
+        renderWithProviders(<WeightedProposalWindow dao="memba_dao" realmPath={weightedRealm} id="1" session={{ ...member, status: "guest", address: "" } as unknown as OsSession} />)
+        expect(await screen.findByText("Memba OS acts only on the current version of this DAO's contract; Memba's classic DAO page still acts on this one.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Connect" })).toBeNull()
     })
 })

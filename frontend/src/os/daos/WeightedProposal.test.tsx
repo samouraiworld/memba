@@ -51,8 +51,8 @@ describe("a weighted DAO proposal window", () => {
         // The first match is the proposal's own fact; the frozen target state repeats some labels below.
         const facts = (label: string) => screen.getAllByText(label)[0].nextElementSibling!
         expect(facts("Target realm")).toHaveTextContent("gno.land/r/samcrew/memba_market_config")
-        expect(facts("lane")).toHaveTextContent("service")
-        expect(facts("bps")).toHaveTextContent("150")
+        expect(facts("Lane")).toHaveTextContent("service")
+        expect(facts("Fee (basis points)")).toHaveTextContent("150")
         expect(screen.getByText("Points voting yes").parentElement!).toHaveTextContent("5 of 8")
         expect(screen.getByText("People voting yes").parentElement!).toHaveTextContent("4 of 7")
         expect(screen.getByText("Developers voting yes").parentElement!).toHaveTextContent("3 of 6")
@@ -60,7 +60,7 @@ describe("a weighted DAO proposal window", () => {
         expect(screen.getByText("Executing this proposal invalidates every other outstanding proposal.")).toBeInTheDocument()
         expect(facts("Voting closes").querySelector("time")).toHaveAttribute("dateTime", v12().page.proposals.find((p) => p.id === "17")!.votingDeadline)
         const frozen = screen.getByText("State frozen at proposal time").closest("details")!
-        expect(within(frozen).getByText("treasury").nextElementSibling!).toHaveTextContent("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf")
+        expect(within(frozen).getByText("Treasury").nextElementSibling!).toHaveTextContent("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf")
         expect(pagesRead()).toEqual(["0"])
     })
 

@@ -80,6 +80,9 @@ export function seatsSummary(config: WeightedConfig): string {
     return `${config.rosterSize} seats · ${config.totalPoints} voting points`
 }
 
+/** Older contract versions (no measured budgets, no published ballots) are read-only in Memba OS. */
+export const CURRENT_VERSION_ONLY = "Memba OS acts only on the current version of this DAO's contract; Memba's classic DAO page still acts on this one."
+
 /** What a role does not give. */
 export const ROLES_ADD_NOTHING = "Admin and finance roles add no voting power and no exclusive right to execute."
 

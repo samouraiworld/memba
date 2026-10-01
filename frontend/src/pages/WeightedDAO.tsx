@@ -5,9 +5,9 @@ import { isUnreadableProposal, readWeightedBallot, weightedApplicationPolicies, 
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
 import { ACCEPT_FUNCS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
-import { broadcastWeightedPlan, checkWeightedAction, weightedLocks, weightedMemo } from "../lib/dao/weightedActions"
+import { broadcastWeightedPlan, checkWeightedAction, weightedActionLock, weightedMemo } from "../lib/dao/weightedActions"
 import { v12CallBudget } from "../lib/dao/weightedBudget"
-import { CATEGORY_TEXT, EXECUTION_INVALIDATES, POLICY_LABELS, STATUS_TEXT, UNREADABLE_PROPOSAL, executionWarning, applicationRules, ballotText, decisionRules, invalidationRule, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, roleText, seatText, seatsRule, statusNote, tallyText, votingRule, weightedReadError, type BallotView, ROLES_ADD_NOTHING, seatsSummary, writesHeldText } from "../lib/dao/weightedView"
+import { CATEGORY_TEXT, EXECUTION_INVALIDATES, POLICY_LABELS, STATUS_TEXT, UNREADABLE_PROPOSAL, executionWarning, applicationRules, ballotText, decisionRules, invalidationRule, isOpenProposal, isVoteOpen, openProposalsOf, proposalTimes, roleText, seatText, seatsRule, statusNote, tallyText, votingRule, weightedReadError, type BallotView, ROLES_ADD_NOTHING, seatsSummary, writesHeldText, weightedDaoTitle } from "../lib/dao/weightedView"
 import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { formatUgnotExact } from "../lib/dao/v2Budget"
@@ -109,10 +109,9 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
         }
         const isV12 = data?.config.schema === WEIGHTED_APPLICATIONS_SCHEMA
         try {
-            // A vote or execution signed in the Memba OS proposal window with an unknown outcome locks this one too.
-            if ((action.type === "vote" || action.type === "execute") && weightedLocks(chainId, realmPath, wallet.address, action.id).length) {
-                throw new Error(`An earlier attempt on proposal #${action.id} has an unknown outcome; check it in the proposal's Memba OS window before trying again`)
-            }
+            // A vote, execution or acceptance signed in Memba OS with an unknown outcome locks this one too.
+            const locked = () => { const why = weightedActionLock(chainId, realmPath, wallet.address, action); if (why) throw new Error(why) }
+            locked()
             const check = { ctx, caller: wallet.address, action, assertCurrent }
             const { snapshot: fresh, executes } = await checkWeightedAction({ ...check, phase: "review", reviewed: data ? weightedAuthority(data) : null })
             const plan = planWeightedTx(wallet.address, realmPath, action, fresh.config.schema, chainId, executes)
@@ -120,9 +119,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             const beforeSign = async () => {
                 assertCurrent()
                 // Seconds of chain reads have passed since the click: a lock written meanwhile, in any tab, still stops it.
-                if ((action.type === "vote" || action.type === "execute") && weightedLocks(chainId, realmPath, wallet.address, action.id).length) {
-                    throw new Error(`An earlier attempt on proposal #${action.id} has an unknown outcome; check it in the proposal's Memba OS window before trying again`)
-                }
+                locked()
                 assertWeightedPlanSignable(plan)
                 await checkWeightedAction({ ...check, phase: "sign", reviewed: weightedAuthority(fresh), executes })
                 // doContractBroadcast runs the shared wallet-network guard before and
@@ -154,7 +151,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
         } finally { operation.current = false; if (active.current) setBusy(false) }
     }
     return <div className="weighted-dao">
-        <header><p className="weighted-dao__eyebrow">Founding governance</p><h1>Memba weighted DAO</h1><p className="weighted-dao__path">{reveal(realmPath)}</p><p>{chainId} · {applications ? "Role and application governance" : "Role governance"}</p></header>
+        <header><p className="weighted-dao__eyebrow">Founding governance</p><h1>{weightedDaoTitle(realmPath, "DAO governance")}</h1><p className="weighted-dao__path">{reveal(realmPath)}</p><p>{chainId} · {applications ? "Role and application governance" : "Role governance"}</p></header>
         <section className="k-card" aria-labelledby="weighted-policy"><h2 id="weighted-policy">How decisions pass</h2>
             {data && <>
                 <p>{seatsSummary(data.config)}. {seatsRule(data.config)}</p>

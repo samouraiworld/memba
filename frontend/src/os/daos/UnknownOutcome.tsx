@@ -8,7 +8,7 @@
 import { useState } from "react"
 import { clearGovernanceReceipt, type GovernanceReceipt, type GovernanceScope } from "../../lib/dao/governanceRecovery"
 
-const WORDS = { vote: { noun: "vote", again: "voting again" }, execution: { noun: "execution", again: "executing again" } } as const
+const WORDS = { vote: { noun: "vote", again: "voting again" }, execution: { noun: "execution", again: "executing again" }, proposal: { noun: "proposal", again: "proposing again" } } as const
 
 /** `again` names what the lock blocks when it is more than the same action. */
 export function UnknownOutcome({ scope, receipt, attempt, again = WORDS[attempt].again, onCleared }: { scope: GovernanceScope; receipt: GovernanceReceipt; attempt: keyof typeof WORDS; again?: string; onCleared: () => void }) {

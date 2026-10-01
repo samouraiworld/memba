@@ -111,7 +111,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     }
     if (t.kind === "app" && t.app === "daos" && t.section === "new") return <CreateDaoWizard session={a.session} open={a.open} close={a.close} />
     if (t.kind === "app" && t.app === "daos" && t.section === null) return <DaosApp open={a.open} />
-    if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} session={a.session} active={a.active} />
+    if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} session={a.session} />
     if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} open={a.open} />
     if (t.kind === "new-proposal") return <NewProposalWindow dao={t.dao} session={a.session} open={a.open} close={a.close} />
     if (t.kind === "desktop") return null
