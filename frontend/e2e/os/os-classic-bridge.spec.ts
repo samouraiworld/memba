@@ -48,10 +48,11 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 // Feed, Tokens and News now have native windows; this sweep covers classic pages, and
-// the Validators window, whose home is native, on that view's own root. The Explorer's
-// home is native too: its classic directory is swept at a tab address. Quests' hub is
-// native as well: a quest's own page is the classic one, on the hub's stylesheet.
-const APPS = ['quests/connect-wallet', 'validators', 'profile', 'explorer?tab=packages', 'feedback', 'dev-report']
+// the Validators window, whose home is native, on that view's own root. Validators'
+// network tab and the Explorer's directory are still classic: they are swept at their tab
+// addresses. Quests' hub is native as well: a quest's own page is the classic one, on the
+// hub's stylesheet.
+const APPS = ['quests/connect-wallet', 'validators', 'validators?tab=network', 'profile', 'explorer?tab=packages', 'feedback', 'dev-report']
 const NATIVE_ROOT: Record<string, string> = { validators: '.os-validators' }
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
@@ -111,6 +112,8 @@ test('no Beta teal inside the app windows', async ({ page }) => {
     // needs the extra headroom.
     test.setTimeout(APPS.length * 40_000 + 30_000)
     await guest(page)
+    // Served after the chain-read abort, so it wins: both Validators views sweep their table, not a read error.
+    await fulfillProValidatorRoster(page, 'mixed')
     await page.addInitScript(() => {
         localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_booted', '1')
@@ -120,12 +123,12 @@ test('no Beta teal inside the app windows', async ({ page }) => {
     expect(hits).toEqual([])
 })
 
-// The main sweep above only runs a guest, light-theme pass (real per-validator
-// data and dark-theme literals are out of its reach as a guest). This pass adds
-// dark-theme coverage for the two apps most likely to carry a theme-specific
-// literal (chart/heatmap tokens, validator status colours).
+// The main sweep above only runs a light-theme pass. This pass adds dark-theme
+// coverage for the apps most likely to carry a theme-specific literal
+// (chart/heatmap tokens, validator status colours on both Validators views).
+const DARK_APPS = ['validators', 'validators?tab=network', 'dev-report']
 test('no Beta teal inside the app windows (dark: validators, dev-report)', async ({ page }) => {
-    test.setTimeout(2 * 40_000 + 30_000)
+    test.setTimeout(DARK_APPS.length * 40_000 + 30_000)
     await guest(page)
     // Served after the chain-read abort, so it wins: the Validators table, with every health state.
     await fulfillProValidatorRoster(page, 'mixed')
@@ -135,7 +138,7 @@ test('no Beta teal inside the app windows (dark: validators, dev-report)', async
         localStorage.setItem('memba_os_booted', '1')
     })
     const hits: string[] = []
-    for (const app of ['validators', 'dev-report']) await sweepTealFor(page, app, hits)
+    for (const app of DARK_APPS) await sweepTealFor(page, app, hits)
     expect(hits).toEqual([])
 })
 
