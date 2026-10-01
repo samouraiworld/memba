@@ -1,9 +1,10 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 // Adena's own app icon, unaltered, from its brand kit (docs.adena.app → Resources → Brand Assets → Download Logo, "app icon").
 import adenaLogo from "./adena-logo.svg"
 import { shortAddr } from "./format"
 import { useDialogKeys } from "./useDialogKeys"
 import type { OsSession } from "./useOsSession"
+import { walletOnOtherChain } from "./walletLogin"
 
 function Head({ title, sub }: { title: string; sub?: string }) {
     return (
@@ -27,6 +28,9 @@ export function ConnectModal({ session }: { session: OsSession }) {
     const { stage, error, note } = session
     const mobileBrowser = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
     const dialog = useRef<HTMLDivElement>(null)
+    // The network Adena was on when a switch to Memba's failed: the failure stands while Adena still reports it.
+    const [switchFailedOn, setSwitchFailedOn] = useState<string | null>(null)
+    const otherChain = stage === "login" ? walletOnOtherChain(session.walletChainId, session.network.chainId) : null
     useEffect(() => {
         if (!stage || !dialog.current) return
         if (dialog.current.contains(document.activeElement)) return
@@ -72,7 +76,13 @@ export function ConnectModal({ session }: { session: OsSession }) {
                 <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button></div>
             </>
             break
-        case "login":
+        case "login": {
+            const chain = session.network.chainId
+            const switchWallet = async () => {
+                const from = session.walletChainId
+                setSwitchFailedOn(null)
+                if (!(await session.switchWallet())) setSwitchFailedOn(from)
+            }
             body = <>
                 <Head title="Sign the login message" sub="It proves you own this address. It’s never sent to the chain and costs nothing." />
                 {note && <p className="os-note" role="status">{note}</p>}
@@ -81,12 +91,18 @@ export function ConnectModal({ session }: { session: OsSession }) {
                     <dt>Network</dt><dd>{session.network.chainId}</dd>
                     <dt>Cost</dt><dd>Free</dd>
                 </dl>
+                {otherChain && <p className="os-note os-err" role="alert">
+                    {switchFailedOn === session.walletChainId ? `Adena didn't switch to ${chain}. Switch it to ${chain} in Adena, then sign in.` : otherChain}
+                </p>}
                 <div className="os-row os-end">
                     <button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button>
-                    <button type="button" className="os-btn" onClick={session.signIn} autoFocus>Sign in Adena</button>
+                    {otherChain
+                        ? <button type="button" className="os-btn" onClick={() => { void switchWallet() }} autoFocus>Switch Adena to {chain}</button>
+                        : <button type="button" className="os-btn" onClick={session.signIn} autoFocus>Sign in Adena</button>}
                 </div>
             </>
             break
+        }
         case "loginwait":
             body = <>
                 <Head title="Confirm in Adena" sub="Sign the login message." />
@@ -127,7 +143,8 @@ export function ConnectModal({ session }: { session: OsSession }) {
             <div ref={dialog} className="os-modal os-glass" role="dialog" aria-modal="true" aria-label="Connect a wallet" tabIndex={-1}
                 onKeyDown={onKeyDown}>
                 {body}
-                {error && <p className="os-note os-err" role="alert">{error}</p>}
+                {/* The network note replaces an error from a sign-in it explains. */}
+                {error && !otherChain && <p className="os-note os-err" role="alert">{error}</p>}
             </div>
         </div>
     )

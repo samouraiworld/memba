@@ -35,6 +35,8 @@ vi.mock("../hooks/useAuth", () => ({ useAuth: () => ({
   getChallenge: mocks.challenge, getToken: mocks.token,
 }) }));
 vi.mock("../hooks/useNetwork", () => ({ useNetwork: () => ({ chainId: "test-chain" }) }));
+// Adena is on the page's network; the sign-in checks that live before anything else.
+vi.mock("../lib/walletNetworkGuard", () => ({ assertLiveWalletNetwork: vi.fn(async () => ({ chainId: "test-chain", address: "g1connected", rpcUrl: "" })) }));
 vi.mock("../game/hooks/useDailyChallenge", () => {
   const data = { ready: true, source: "network", date: "2026-09-28", seed: 12345,
     modifier: "standard", par: 100, moveBudget: 30, blockHeight: 42, blockHash: "abc" };

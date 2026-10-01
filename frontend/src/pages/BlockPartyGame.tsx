@@ -5,7 +5,7 @@ import { useAdena } from "../hooks/useAdena";
 import { useAuth } from "../hooks/useAuth";
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard";
 import { useNetwork } from "../hooks/useNetwork";
-import { buildTokenRequestInfo } from "../lib/loginChallenge";
+import { signInWithWallet } from "../os/shell/walletLogin";
 import { useDailyChallenge } from "../game/hooks/useDailyChallenge";
 import { useGame, type GameMode } from "../game/hooks/useGame";
 import { isGameKeyEvent, useKeyboard } from "../game/hooks/useKeyboard";
@@ -32,16 +32,6 @@ const INTRO_KEY = "bp:intro:v1";
 
 // Mode tabs in display order — shared by the tablist markup and the keyboard hook.
 const MODE_TAB_KEYS = ["ranked", "practice"] as const;
-
-// Encode Uint8Array to base64 string (protojson format for bytes fields) —
-// mirrors components/layout/Layout.tsx's login flow exactly.
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
 
 function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0];
@@ -278,37 +268,7 @@ export default function BlockPartyGame() {
     try {
       if (auth.isAuthenticated) return;
 
-      const challengeRes = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId);
-      if (!challengeRes) throw new Error("Failed to get challenge");
-
-      const nonceB64 = bytesToBase64(challengeRes.nonce);
-      const signed = await adena.signLoginChallenge(network.chainId, nonceB64);
-      let signature = "";
-      let pubkey = adena.pubkeyJSON || "";
-      if (signed) {
-        signature = signed.signature;
-        if (signed.pubKey) pubkey = signed.pubKey;
-      }
-
-      if (!pubkey && !adena.address) {
-        throw new Error("Wallet address unavailable — reconnect your wallet to sign in.");
-      }
-
-      const info = buildTokenRequestInfo({
-        nonceB64,
-        expiration: challengeRes.expiration,
-        serverSignatureB64: bytesToBase64(challengeRes.serverSignature),
-        boundPubkeyHash: challengeRes.boundPubkeyHash || "",
-        chainId: challengeRes.chainId || network.chainId,
-        ...(pubkey ? { userPubkeyJson: pubkey } : { userAddress: adena.address }),
-      });
-      const infoJson = JSON.stringify(info);
-
-      const token = await auth.getToken(infoJson, signature);
-      // getToken returns null on ordinary rejections (session-account rejections
-      // throw with human copy) — without this check a failed sign-in was a
-      // silent no-op on this surface.
-      if (!token) throw new Error("Sign-in failed — please try again.");
+      await signInWithWallet(adena, auth, network.chainId);
     } catch (err) {
       console.error("[Memba] Block Party login failed:", err);
       setAuthError(err instanceof Error ? err.message : "Sign-in failed");

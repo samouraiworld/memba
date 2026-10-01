@@ -353,6 +353,24 @@ describe("useAdena — changedNetwork subscription", () => {
         expect(result.current.chainId).toBe("othernet")
     })
 
+    it("re-reads the account's key on a network change: Adena's key is per network", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({ On: vi.fn((event: string, cb: () => void) => { if (event === "changedNetwork") changedHandler = cb; return true }) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1", pubKeyValue: null }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        expect(result.current.pubkeyJSON).toBe("")
+        // On the new network the account has transacted: its key is known there.
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "gnoland-1", pubKeyValue: "Akey==" }))
+        await act(async () => { await changedHandler!() })
+        expect(result.current.pubkeyJSON).toBe('{"type":"tendermint/PubKeySecp256k1","value":"Akey=="}')
+        // And back to a network where it never transacted: no key, so login asks by address.
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1", pubKeyValue: null }))
+        await act(async () => { await changedHandler!() })
+        expect(result.current.pubkeyJSON).toBe("")
+    })
+
     it("does not subscribe to changedNetwork while disconnected", () => {
         const adena = makeAdena()
         setAdena(adena)
@@ -864,5 +882,38 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         } finally {
             restore()
         }
+    })
+})
+
+describe("useAdena — switching networks and signing the login message", () => {
+    it("takes a switch to the network Adena is already on as done, and re-reads the account Memba holds", async () => {
+        const adena = makeAdena({ SwitchNetwork: vi.fn().mockResolvedValue({ status: "failure", type: "REDUNDANT_CHANGE_REQUEST" }) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1" }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "gnoland-1" }))
+        let switched = false
+        await act(async () => { switched = await result.current.switchWalletNetwork("gnoland-1") })
+        expect(switched).toBe(true)
+        expect(result.current.chainId).toBe("gnoland-1")
+        adena.SwitchNetwork.mockResolvedValue({ status: "failure", type: "SWITCH_NETWORK_REJECTED" })
+        await act(async () => { switched = await result.current.switchWalletNetwork("gnoland-1") })
+        expect(switched).toBe(false)
+    })
+
+    it("says why Adena returned no login signature", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        const reply = async (res: unknown) => { adena.SignMultisigTransaction.mockResolvedValueOnce(res); return result.current.signLoginChallenge("gnoland-1", "AQID") }
+        expect(await reply({ status: "failure", type: "SIGN_REJECTED" })).toBe("declined")
+        expect(await reply({ status: "failure", type: "UNSUPPORTED_TYPE" })).toBe("session-account")
+        expect(await reply({ status: "failure", type: "SIGN_MULTISIG_TRANSACTION_FAILED", data: { error: { message: "Public key not found. This account has not sent any transactions yet." } } })).toBe("no-key")
+        expect(await reply({ status: "failure", type: "SIGN_MULTISIG_TRANSACTION_FAILED", data: { error: { message: "boom" } } })).toBe("failed")
+        expect(await reply({ status: "success", data: { signature: { signature: "c2ln", pub_key: { value: "Akey==" } } } })).toEqual({ signature: "c2ln", pubKey: '{"type":"tendermint/PubKeySecp256k1","value":"Akey=="}' })
+        setAdena({ ...adena, SignMultisigTransaction: undefined })
+        expect(await result.current.signLoginChallenge("gnoland-1", "AQID")).toBe("unsupported")
     })
 })

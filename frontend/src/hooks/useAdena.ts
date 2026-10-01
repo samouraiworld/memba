@@ -4,7 +4,7 @@ import { isTrustedRpcDomain, networkScopedKey } from "../lib/config";
 import { setWalletRpcContext, UNVERIFIED_CHAIN_ID } from "../lib/grc20";
 import { buildAdenaMultisigDoc, type CanonicalSignDoc } from "../lib/multisigTx";
 import { trackEvent } from "../lib/analytics";
-import { buildLoginChallengeDoc, adenaPubKeyToJSON } from "../lib/loginChallenge";
+import { buildLoginChallengeDoc, adenaPubKeyToJSON, loginRefusal, type LoginRefusal, type LoginSignature } from "../lib/loginChallenge";
 import { logWalletEvent, installWalletLogDump } from "../lib/walletDebug";
 
 // Adena injects `window.adena` when the extension is installed.
@@ -56,6 +56,11 @@ const SESSION_KEY = "memba_adena_connected";
 // cached while the app targeted test12 must not be served as current after
 // a switch to test13 (it would skip re-validation on reconnect).
 const SESSION_RPC_KEY = networkScopedKey("memba_adena_rpc");
+
+/** The backend's JSON for the key Adena reports on its current network; "" while the account has never transacted there. */
+function pubkeyJSONOf(publicKey: { value?: string } | null | undefined): string {
+    return publicKey?.value ? adenaPubKeyToJSON(publicKey.value) : "";
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getAdena(): any {
@@ -215,15 +220,7 @@ export function useAdena() {
 
             const { address, publicKey, chainId } = accountRes.data;
 
-            // Public key may be null for accounts that haven't transacted on-chain yet.
-            // In that case, connect with address-only — auth will use the direct address path.
-            let pubkeyJSON = "";
-            if (publicKey?.value) {
-                pubkeyJSON = JSON.stringify({
-                    type: "tendermint/PubKeySecp256k1",
-                    value: publicKey.value,
-                });
-            }
+            const pubkeyJSON = pubkeyJSONOf(publicKey);
 
             // SECURITY: Read wallet's active RPC URL via GetNetwork()
             let rpcUrl = "";
@@ -389,31 +386,82 @@ export function useAdena() {
      *  The doc is byte-identical to the backend's LoginChallengeSignBytes; the
      *  backend reconstructs + verifies it. Returns the base64 signature AND the
      *  signer's pubkey (from the sign response) — the latter lets untransacted
-     *  wallets (no on-chain pubkey) authenticate by proving key ownership. Returns
-     *  null if the wallet is unavailable / rejects / lacks the primitive. */
+     *  wallets (no on-chain pubkey) authenticate by proving key ownership. Says
+     *  why when there is no signature. */
     const signLoginChallenge = useCallback(
-        async (chainId: string, nonceBase64: string): Promise<{ signature: string; pubKey: string } | null> => {
+        async (chainId: string, nonceBase64: string): Promise<LoginSignature | LoginRefusal> => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const adena = getAdena() as any;
-            if (!adena || !state.connected || !state.address) return null;
-            if (typeof adena.SignMultisigTransaction !== "function") return null;
+            if (!adena || !state.connected || !state.address) return "failed";
+            if (typeof adena.SignMultisigTransaction !== "function") return "unsupported";
             try {
                 const doc = buildLoginChallengeDoc(chainId, state.address, nonceBase64);
                 const res = await withWalletActivity(async () => adena.SignMultisigTransaction(doc));
-                if (!res || res.status === "failure") return null;
+                if (!res) return "failed";
+                if (res.status === "failure") return loginRefusal(res);
                 const signature = res.data?.signature?.signature;
-                if (!signature) return null;
+                if (!signature) return "failed";
                 // Adena returns the pubkey it signed with: { "@type":"/tm.PubKeySecp256k1", value }.
                 const pubKeyValue = res.data?.signature?.pub_key?.value;
                 const pubKey = pubKeyValue ? adenaPubKeyToJSON(pubKeyValue) : "";
                 return { signature, pubKey };
             } catch (err) {
                 console.error("[Memba] login challenge sign error:", err);
-                return null;
+                return "failed";
             }
         },
         [state.connected, state.address]
     );
+
+    /** Read Adena's account and network again after it changed network: the address, chain, key and RPC it reports there. */
+    const rereadWallet = useCallback(async () => {
+        const adena = getAdena();
+        if (!adena) return;
+        logWalletEvent("changedNetwork");
+        // Fail CLOSED for the whole re-validation window: from the instant
+        // the wallet switches until the async reads below resolve, the old
+        // trust/chain values are stale — a broadcast racing this handler
+        // must be blocked, not waved through on pre-switch state.
+        setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
+        try {
+            const netRes = await adena.GetNetwork();
+            const url = netRes?.data?.rpcUrl || "";
+            const trusted = url ? isTrustedRpcDomain(url) : false;
+
+            // R2-CHN-E: the NEW chainId must reach grc20's wrong-chain guard.
+            // Calling setWalletRpcContext with 2 args resets _walletChainId
+            // to null, which silently DISABLES the guard right when it
+            // matters most (the wallet just switched networks). The cached
+            // chain id and account come from the account read (GetNetwork
+            // also reports a chainId; the live check before every signature
+            // requires the two to agree). If the account read fails, fail
+            // CLOSED with the unverified sentinel — signing stays blocked
+            // until the chain is verified again.
+            let chainId: string = UNVERIFIED_CHAIN_ID;
+            let address: string | null = null;
+            try {
+                const acct = await adena.GetAccount();
+                if (acct.status !== "failure" && acct.data) {
+                    chainId = acct.data.chainId || UNVERIFIED_CHAIN_ID;
+                    address = acct.data.address || null;
+                    // Adena's key is per network: unknown on a network the account never used, known only there.
+                    setState((s) => ({
+                        ...s,
+                        address: acct.data.address,
+                        chainId: acct.data.chainId,
+                        pubkeyJSON: pubkeyJSONOf(acct.data.publicKey),
+                    }));
+                }
+            } catch { /* keep the fail-closed sentinel */ }
+
+            setWalletRpcContext(url || null, trusted, chainId, address);
+            setState((s) => ({ ...s, rpcUrl: url, rpcTrusted: trusted }));
+        } catch {
+            // GetNetwork failed after switch → strict: untrusted + unverified chain
+            setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
+            setState((s) => ({ ...s, rpcUrl: "", rpcTrusted: false }));
+        }
+    }, []);
 
     /** Add a network to Adena wallet. Opens a confirmation popup.
      *  Params match Adena's AddNetworkParams: { chainId, chainName, rpcUrl }.
@@ -451,6 +499,8 @@ export function useAdena() {
             try {
                 const res = await withWalletActivity<AdenaPromptResult>(() => adena.SwitchNetwork(chainId));
                 if (res.status !== "failure") return true;
+                // Already there: Memba's copy of the account is what is stale.
+                if (res.type === "REDUNDANT_CHANGE_REQUEST") { await rereadWallet(); return true; }
                 // UNADDED_NETWORK: try adding the network first, then switch again
                 if (res.type === "UNADDED_NETWORK" && chainName && rpcUrl) {
                     const added = await addNetwork({ chainId, chainName, rpcUrl });
@@ -464,7 +514,7 @@ export function useAdena() {
                 return false;
             }
         },
-        [addNetwork],
+        [addNetwork, rereadWallet],
     );
 
     const disconnect = useCallback(() => {
@@ -494,54 +544,11 @@ export function useAdena() {
         const adena = getAdena();
         if (!adena?.On || typeof adena.GetNetwork !== "function") return;
 
-        const registered = adena.On("changedNetwork", async () => {
-            logWalletEvent("changedNetwork");
-            // Fail CLOSED for the whole re-validation window: from the instant
-            // the wallet switches until the async reads below resolve, the old
-            // trust/chain values are stale — a broadcast racing this handler
-            // must be blocked, not waved through on pre-switch state.
-            setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
-            try {
-                const netRes = await adena.GetNetwork();
-                const url = netRes?.data?.rpcUrl || "";
-                const trusted = url ? isTrustedRpcDomain(url) : false;
-
-                // R2-CHN-E: the NEW chainId must reach grc20's wrong-chain guard.
-                // Calling setWalletRpcContext with 2 args resets _walletChainId
-                // to null, which silently DISABLES the guard right when it
-                // matters most (the wallet just switched networks). The cached
-                // chain id and account come from the account read (GetNetwork
-                // also reports a chainId; the live check before every signature
-                // requires the two to agree). If the account read fails, fail
-                // CLOSED with the unverified sentinel — signing stays blocked
-                // until the chain is verified again.
-                let chainId: string = UNVERIFIED_CHAIN_ID;
-                let address: string | null = null;
-                try {
-                    const acct = await adena.GetAccount();
-                    if (acct.status !== "failure" && acct.data) {
-                        chainId = acct.data.chainId || UNVERIFIED_CHAIN_ID;
-                        address = acct.data.address || null;
-                        setState((s) => ({
-                            ...s,
-                            address: acct.data.address,
-                            chainId: acct.data.chainId,
-                        }));
-                    }
-                } catch { /* keep the fail-closed sentinel */ }
-
-                setWalletRpcContext(url || null, trusted, chainId, address);
-                setState((s) => ({ ...s, rpcUrl: url, rpcTrusted: trusted }));
-            } catch {
-                // GetNetwork failed after switch → strict: untrusted + unverified chain
-                setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
-                setState((s) => ({ ...s, rpcUrl: "", rpcTrusted: false }));
-            }
-        });
+        const registered = adena.On("changedNetwork", () => { void rereadWallet(); });
 
         // Cleanup: Adena.On returns boolean, no unsubscribe available
         void registered;
-    }, [state.connected]);
+    }, [state.connected, rereadWallet]);
 
     return {
         ...state,

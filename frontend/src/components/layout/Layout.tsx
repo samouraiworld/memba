@@ -10,8 +10,8 @@ import { useNotifications } from "../../hooks/useNotifications"
 import { useFeedReplyBadge } from "../../hooks/useFeedReplyBadge"
 import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
-import { buildTokenRequestInfo } from "../../lib/loginChallenge"
 import { ACTIVATION_REQUIRED_CODE, ACTIVATION_LOGIN_MSG } from "../../lib/loginErrors"
+import { signInWithWallet } from "../../os/shell/walletLogin"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { DesktopShell } from "./DesktopShell"
 import { PRO_APP_ENABLED, PRO_SHELL_ENABLED } from "../../lib/config"
@@ -44,16 +44,6 @@ import { isProGovernanceRoute } from "../../lib/proGovernance"
 import { professionalPage } from "../../lib/proApp"
 import "../../professional.css"
 import "../../pages/governance-professional.css"
-
-
-// Encode Uint8Array to base64 string (protojson format for bytes fields)
-function bytesToBase64(bytes: Uint8Array): string {
-    let binary = ""
-    for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i])
-    }
-    return btoa(binary)
-}
 
 export function Layout() {
     const pathname = useLocation().pathname
@@ -99,59 +89,11 @@ export function Layout() {
         setAuthError(null)
 
         try {
-            // 1. Get a server challenge. Bound to our pubkey when the chain already
-            // knows it (AUTH-01 defense-in-depth); unbound otherwise — proof then comes
-            // from the signature below. Also binds the active chain so it round-trips
-            // (AUTH-CHAINID-01).
-            const challenge = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId)
-            if (!challenge) throw new Error("Failed to get challenge")
+            // The same steps as Memba OS: challenge, signed login message (or the
+            // address-only request of an untransacted wallet), token.
+            const token = await signInWithWallet(adena, auth, network.chainId)
 
-            // 2. Sign the tx-shaped login proof via Adena's SignMultisigTransaction
-            // (Adena has no ADR-036). That popup resolves the signature back to the page
-            // and signs the doc as-is (no gas simulation), so it works on test12's
-            // zero-fee chain. The signature proves key ownership; Adena's response carries
-            // the signer's pubkey. Lockout-safe: if signing is declined/unavailable, fall
-            // back to the unsigned flow gated by MEMBA_ALLOW_UNSIGNED_AUTH using the chain
-            // pubkey. (Untransacted wallets can't sign — Adena requires an on-chain pubkey
-            // — so they fall through to the guidance error below until they transact once.)
-            const nonceB64 = bytesToBase64(challenge.nonce)
-            const signed = await adena.signLoginChallenge(network.chainId, nonceB64)
-            let signature = ""
-            let pubkey = adena.pubkeyJSON || ""
-            if (signed) {
-                signature = signed.signature
-                if (signed.pubKey) pubkey = signed.pubKey // authoritative (from sign response)
-            } else {
-                console.warn("[Memba] login signature unavailable (declined/unsupported) — unsigned fallback")
-            }
-
-            // No pubkey: an untransacted wallet — Adena (#800) won't sign for it or
-            // reveal its pubkey. Fall through to ADDRESS-ONLY login so ANY wallet can
-            // sign in (the server gates this behind MEMBA_ALLOW_UNSIGNED_AUTH; on a
-            // chain where signed auth is enforced it returns a clear "activate your
-            // wallet" error). Only hard-fail if the wallet gave us no address at all.
-            if (!pubkey && !adena.address) {
-                throw new Error("Wallet address unavailable — reconnect your wallet to sign in.")
-            }
-
-            // 3. Build TokenRequestInfo (protojson). The challenge MUST be echoed with
-            // all server-signed fields — including chainId — or ValidateChallenge fails.
-            // Transacted wallet → pubkey (ownership proof); untransacted → address-only.
-            const info = buildTokenRequestInfo({
-                nonceB64,
-                expiration: challenge.expiration,
-                serverSignatureB64: bytesToBase64(challenge.serverSignature),
-                boundPubkeyHash: challenge.boundPubkeyHash || "",
-                chainId: challenge.chainId || network.chainId,
-                ...(pubkey ? { userPubkeyJson: pubkey } : { userAddress: adena.address }),
-            })
-            const infoJson = JSON.stringify(info)
-
-            // 4. Exchange for auth token
-            const token = await auth.getToken(infoJson, signature)
-            if (!token) throw new Error("Authentication failed")
-
-            // 5. Quest integration: sync localStorage quests to backend + mark connect-wallet
+            // Quest integration: sync localStorage quests to backend + mark connect-wallet
             completeQuest("connect-wallet", token)
             syncQuestsToBackend(token).catch(() => { /* offline-first */ })
         } catch (err) {
@@ -275,6 +217,18 @@ export function Layout() {
         loginAttemptedRef.current = false
         performLogin()
     }, [performLogin])
+
+    // A sign-in that failed on Adena's previous network says nothing about the new one: once Adena
+    // reports another network, try again there (the user just switched, often from the network note).
+    const failedOnChain = useRef<string | null>(null)
+    useEffect(() => {
+        if (!authError) { failedOnChain.current = null; return }
+        if (failedOnChain.current === null) { failedOnChain.current = adena.chainId; return }
+        if (failedOnChain.current !== adena.chainId) {
+            failedOnChain.current = null
+            retryLogin()
+        }
+    }, [authError, adena.chainId, retryLogin])
 
     // ── B3: Syncing timeout — after 10s of reconnecting, stop blocking ──
     const [syncTimedOut, setSyncTimedOut] = useState(false)

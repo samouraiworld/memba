@@ -43,7 +43,8 @@ async function newWallet(page: Page) {
             GetAccount: async () => account(),
             AddEstablish: async () => { approved = true; return { status: 'success' } },
             GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
-            SignMultisigTransaction: async () => ({ status: 'failure', type: 'NO_PUBKEY' }),
+            // What Adena answers for an account with no key on its network.
+            SignMultisigTransaction: async () => ({ status: 'failure', type: 'SIGN_MULTISIG_TRANSACTION_FAILED', data: { error: { message: 'Public key not found. This account has not sent any transactions yet.' } } }),
             On: () => true,
             DoContract: async () => { throw new Error('e2e: wallet writes disabled') },
         } })
@@ -211,6 +212,54 @@ test.describe('Memba OS shell · entry scenarios', () => {
         // Signed-out guidance, so it can be put off.
         await modal.getByRole('button', { name: 'Later' }).click()
         await expect(connectModal(page)).toHaveCount(0)
+    })
+
+    test('a wallet on another network: the login step offers switching Adena, says when it fails, and signs with the key Adena has after the switch', async ({ page }) => {
+        await page.addInitScript(({ address, pubkey }) => {
+            let chainId = 'onyx-1'
+            let approved = false
+            let switches = 0
+            const onNetwork: Array<() => void> = []
+            Object.defineProperty(window, 'adena', { value: {
+                // The key is per network: this account only ever transacted on gnoland-1.
+                GetAccount: async () => approved
+                    ? { status: 'success', data: { address, coins: '0ugnot', publicKey: chainId === 'gnoland-1' ? { '@type': '/tm.PubKeySecp256k1', value: pubkey } : null, accountNumber: '1', sequence: '1', chainId } }
+                    : { status: 'failure', type: 'NOT_CONNECTED' },
+                AddEstablish: async () => { approved = true; return { status: 'success' } },
+                GetNetwork: async () => ({ status: 'success', data: { chainId, rpcUrl: 'https://rpc.gno.land' } }),
+                // The first switch is declined in Adena; the second goes through.
+                SwitchNetwork: async (to: string) => {
+                    if (switches++ === 0) return { status: 'failure', type: 'SWITCH_NETWORK_REJECTED' }
+                    chainId = to; onNetwork.forEach((f) => f()); return { status: 'success' }
+                },
+                On: (event: string, f: () => void) => { if (event === 'changedNetwork') onNetwork.push(f); return true },
+                SignMultisigTransaction: async () => ({ status: 'success', data: { signature: { signature: 'AQID', pub_key: { value: pubkey } } } }),
+                DoContract: async () => { throw new Error('e2e: wallet writes disabled') },
+            } })
+        }, { address: ADDR, pubkey: PUBKEY })
+        let challengedFor = ''
+        await page.route('**/memba.v1.MultisigService/GetChallenge', (route) => {
+            challengedFor = route.request().postDataJSON().userPubkeyJson
+            return route.fulfill({ json: { challenge: { nonce: 'AQID', expiration: '2099-01-01T00:00:00Z', serverSignature: 'CQ==', boundPubkeyHash: '', chainId: 'gnoland-1' } } })
+        })
+        await page.route('**/memba.v1.MultisigService/GetToken', (route) => route.fulfill({
+            json: { authToken: { nonce: 'e2e', userAddress: ADDR, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' } },
+        }))
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await expect(modal.getByRole('heading', { name: 'Sign the login message' })).toBeVisible()
+        await expect(modal.getByRole('alert')).toHaveText('Adena is on onyx-1, but Memba is on gnoland-1. Switch Adena to gnoland-1 to sign in.')
+        await expect(modal.getByRole('button', { name: 'Sign in Adena' })).toHaveCount(0)
+        await modal.getByRole('button', { name: 'Switch Adena to gnoland-1' }).click()
+        await expect(modal.getByRole('alert')).toHaveText("Adena didn't switch to gnoland-1. Switch it to gnoland-1 in Adena, then sign in.")
+        await modal.getByRole('button', { name: 'Switch Adena to gnoland-1' }).click()
+        await expect(modal.getByRole('alert')).toHaveCount(0)
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(connectModal(page)).toHaveCount(0)
+        // The challenge is bound to the key Adena has on gnoland-1, read again after the switch.
+        expect(challengedFor).toBe(JSON.stringify({ type: 'tendermint/PubKeySecp256k1', value: PUBKEY }))
     })
 
     test('connect without Adena: the install step', async ({ page }) => {

@@ -14,14 +14,8 @@ import { useCallback, useRef, useState } from "react"
 import { useAdena } from "./useAdena"
 import { useAuth } from "./useAuth"
 import { useNetwork } from "./useNetwork"
-import { buildTokenRequestInfo } from "../lib/loginChallenge"
+import { signInWithWallet } from "../os/shell/walletLogin"
 import { submitRun, type ArcadeSubmitBody, type ArcadeSubmitResult } from "../lib/arcade"
-
-function bytesToBase64(bytes: Uint8Array): string {
-    let binary = ""
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-    return btoa(binary)
-}
 
 function readStoredToken(): string {
     try {
@@ -49,31 +43,7 @@ export function useArcadeCertify() {
             const ok = await adena.connect()
             if (!ok) throw new Error("Connect your wallet to certify.")
         }
-        if (!auth.isAuthenticated) {
-            const challengeRes = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId)
-            if (!challengeRes) throw new Error("Couldn't start sign-in — try again.")
-            const nonceB64 = bytesToBase64(challengeRes.nonce)
-            const signed = await adena.signLoginChallenge(network.chainId, nonceB64)
-            let signature = ""
-            let pubkey = adena.pubkeyJSON || ""
-            if (signed) {
-                signature = signed.signature
-                if (signed.pubKey) pubkey = signed.pubKey
-            }
-            if (!pubkey && !adena.address) {
-                throw new Error("Wallet address unavailable — reconnect your wallet.")
-            }
-            const info = buildTokenRequestInfo({
-                nonceB64,
-                expiration: challengeRes.expiration,
-                serverSignatureB64: bytesToBase64(challengeRes.serverSignature),
-                boundPubkeyHash: challengeRes.boundPubkeyHash || "",
-                chainId: challengeRes.chainId || network.chainId,
-                ...(pubkey ? { userPubkeyJson: pubkey } : { userAddress: adena.address }),
-            })
-            const token = await auth.getToken(JSON.stringify(info), signature)
-            if (!token) throw new Error("Sign-in failed — please try again.")
-        }
+        if (!auth.isAuthenticated) await signInWithWallet(adena, auth, network.chainId)
         const stored = readStoredToken()
         if (!stored) throw new Error("Sign in with your wallet to certify.")
         return stored

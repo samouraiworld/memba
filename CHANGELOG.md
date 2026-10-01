@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: signing in (2026-10-01)
+- Fixed: signing in with Adena on another network now says so and offers to switch; after a switch Memba reads the account's key on the new network. Sign-in now says whether Adena declined, can't sign with a session account, needs an update, or the account must be activated, and tells a server outage apart from a refused login. Arcade and Block Party sign in the same way.
+
 ### Memba OS: multisig (2026-10-01)
 - After you create a multisig, its wallet opens and the form cannot be sent twice; the Multisig app explains what a multisig is, and Fetch Key says how a member's key reaches the chain.
 - Fixed: a multisig's page shows the name you gave it, instead of "Unnamed multisig".

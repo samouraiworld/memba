@@ -1,26 +1,27 @@
 /**
- * Wallet → Memba session: challenge, login signature, token. The same steps
- * and the same fallbacks as Layout's performLogin (components/layout/Layout.tsx),
- * which the current app keeps using; Memba OS runs outside that Layout, so it
- * calls this with the same hooks (useAdena, useAuth). Keep the two in step.
+ * Wallet → Memba session: challenge, login signature, token. Memba OS and the
+ * classic Layout (performLogin) both sign in through it, with the same hooks
+ * (useAdena, useAuth).
  *
  * @module os/shell/walletLogin
  */
 import type { Token } from "../../gen/memba/v1/memba_pb"
-import { buildTokenRequestInfo } from "../../lib/loginChallenge"
+import { buildTokenRequestInfo, type LoginRefusal, type LoginSignature } from "../../lib/loginChallenge"
+import { SESSION_ACCOUNT_LOGIN_MSG } from "../../lib/loginErrors"
+import { assertLiveWalletNetwork } from "../../lib/walletNetworkGuard"
 
 export interface LoginWallet {
     connected: boolean
     address: string
     pubkeyJSON: string
-    signLoginChallenge: (chainId: string, nonceBase64: string) => Promise<{ signature: string; pubKey: string } | null>
+    signLoginChallenge: (chainId: string, nonceBase64: string) => Promise<LoginSignature | LoginRefusal>
 }
 
 export interface LoginAuth {
     getChallenge: (userPubkeyJson?: string, chainId?: string) => Promise<
         { nonce: Uint8Array; expiration: string; serverSignature: Uint8Array; boundPubkeyHash?: string; chainId?: string } | undefined
     >
-    /** Rethrows the actionable login errors (activation, chain mismatch, session reject). */
+    /** Null when the server refused the login without a code; rethrows the coded refusals and the server's failures. */
     getToken: (infoJson: string, userSignature: string) => Promise<Token | null | undefined>
 }
 
@@ -32,14 +33,33 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 /**
+ * Why the wallet can't sign in to `chainId` from the chain it is on, or null.
+ * Adena signs the login message for its own network, whatever the message
+ * names, so a login signed elsewhere can never verify.
+ */
+export function walletOnOtherChain(walletChainId: string, chainId: string): string | null {
+    return walletChainId && walletChainId !== chainId ? `Adena is on ${walletChainId}, but Memba is on ${chainId}. Switch Adena to ${chainId} to sign in.` : null
+}
+
+/** What to tell the user when Adena returned no signature; "no-key" has none: it signs in by address instead. */
+const REFUSALS: Record<Exclude<LoginRefusal, "no-key">, string> = {
+    declined: "You declined the login message in Adena. Sign in again when you're ready.",
+    "session-account": SESSION_ACCOUNT_LOGIN_MSG,
+    unsupported: "This version of Adena can't sign Memba's login message. Update Adena, then sign in again.",
+    failed: "Adena couldn't sign the login message. Try again.",
+}
+
+/**
  * Signs in the connected wallet. Returns the session token, or throws with a
- * message to show. An untransacted wallet can't sign (Adena needs the key on
- * chain), so it falls back to an address-only request; where signed login is
- * enforced the server answers AUTH-ACTIVATE-01, which the caller turns into
- * the activation step.
+ * message to show. Adena signs for the network it is on, so that is checked
+ * live first. An account with no key on that network can't sign (it never
+ * sent a transaction there): it asks by address instead, and where signed
+ * login is enforced the server answers AUTH-ACTIVATE-01, which the caller
+ * turns into the activation step. No other refusal sends an unsigned request.
  */
 export async function signInWithWallet(wallet: LoginWallet, auth: LoginAuth, chainId: string): Promise<Token> {
     if (!wallet.connected || !wallet.address) throw new Error("Connect your wallet first.")
+    await assertLiveWalletNetwork(chainId, { address: wallet.address })
 
     // Bound to the pubkey when the chain already knows it; bound to the chain always.
     const challenge = await auth.getChallenge(wallet.pubkeyJSON || undefined, chainId)
@@ -47,12 +67,10 @@ export async function signInWithWallet(wallet: LoginWallet, auth: LoginAuth, cha
 
     const nonceB64 = bytesToBase64(challenge.nonce)
     const signed = await wallet.signLoginChallenge(chainId, nonceB64)
-    let signature = ""
-    let pubkey = wallet.pubkeyJSON || ""
-    if (signed) {
-        signature = signed.signature
-        if (signed.pubKey) pubkey = signed.pubKey // the key Adena signed with is authoritative
-    }
+    if (typeof signed === "string" && signed !== "no-key") throw new Error(REFUSALS[signed])
+    const signature = typeof signed === "string" ? "" : signed.signature
+    // The key Adena signed with is authoritative; with no key on this network there is none.
+    const pubkey = typeof signed === "string" ? "" : signed.pubKey || wallet.pubkeyJSON
 
     const info = buildTokenRequestInfo({
         nonceB64,
@@ -64,6 +82,10 @@ export async function signInWithWallet(wallet: LoginWallet, auth: LoginAuth, cha
     })
 
     const token = await auth.getToken(JSON.stringify(info), signature)
-    if (!token) throw new Error("Sign-in failed. Try again.")
+    if (!token) {
+        throw new Error(Date.parse(challenge.expiration) <= Date.now()
+            ? "The login message expired before Memba could check it. Sign in again."
+            : `Memba couldn't verify this sign-in. Make sure Adena is on ${chainId}, then sign in again.`)
+    }
     return token
 }

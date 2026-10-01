@@ -33,6 +33,27 @@ export function adenaPubKeyToJSON(value: string): string {
     return JSON.stringify({ type: "tendermint/PubKeySecp256k1", value })
 }
 
+/** The login signature Adena returned, with the key it signed with. */
+export interface LoginSignature { signature: string; pubKey: string }
+
+/**
+ * Why Adena returned no login signature: the user declined; the account has
+ * no key on Adena's current network (it never sent a transaction there); a
+ * session account (Adena refuses it); an Adena too old to sign the message;
+ * or anything else.
+ */
+export type LoginRefusal = "declined" | "no-key" | "session-account" | "unsupported" | "failed"
+
+/** Reads Adena's failure reply to SignMultisigTransaction. */
+export function loginRefusal(reply: { type?: unknown; data?: { error?: { message?: unknown } } | null }): LoginRefusal {
+    const type = typeof reply.type === "string" ? reply.type : ""
+    const message = typeof reply.data?.error?.message === "string" ? reply.data.error.message : ""
+    if (type.includes("REJECTED")) return "declined"
+    if (type === "UNSUPPORTED_TYPE") return "session-account"
+    if (message.includes("Public key not found")) return "no-key"
+    return "failed"
+}
+
 /** Adena SignMultisigTransaction document for the login challenge. */
 export interface LoginChallengeDoc {
     tx: {

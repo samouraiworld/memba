@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { api } from "../lib/api";
 import {
     SESSION_REJECT_CODE, SESSION_ACCOUNT_LOGIN_MSG,
@@ -144,6 +145,16 @@ export function useAuth() {
                 if (message.includes(ACTIVATION_REQUIRED_CODE)) {
                     setState((s) => ({ ...s, loading: false, error: ACTIVATION_LOGIN_MSG }));
                     throw new Error(`${ACTIVATION_LOGIN_MSG} (${ACTIVATION_REQUIRED_CODE})`);
+                }
+                // Only an uncoded refusal is the null result; anything else is the
+                // server failing to answer, which says nothing about the login.
+                const code = ConnectError.from(err).code;
+                if (code !== Code.PermissionDenied) {
+                    const failure = code === Code.ResourceExhausted
+                        ? "Too many sign-in attempts. Wait a minute, then sign in again."
+                        : "Memba's server didn't complete the sign-in. Try again in a moment.";
+                    setState((s) => ({ ...s, loading: false, error: failure }));
+                    throw new Error(failure);
                 }
                 setState((s) => ({ ...s, loading: false, error: message }));
                 return null;
