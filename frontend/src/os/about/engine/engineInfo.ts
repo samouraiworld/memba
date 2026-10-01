@@ -77,12 +77,12 @@ export function publicTarget(brick: Brick, chainId: string): { href: string; kin
     const entry = Object.entries(NETWORKS).find(([, network]) => network.chainId === chainId)
     if (!entry) return undefined
     const [key, network] = entry
-    if (brick.account && chainId === "gnoland-1") return {
+    if (brick.account && chainId === NETWORKS.mainnet.chainId) return {
         href: `${network.rpcUrl.replace(/\/$/, "")}/abci_query?path=${encodeURIComponent(`"auth/accounts/${brick.account}"`)}`, kind: "Account",
     }
     // The founding DAO and its packages are individually verified deployments,
     // distinct from the factory's callable-application allowlist.
-    const verifiedCore = chainId === "gnoland-1" && (brick.realm === "gno.land/r/samcrew/memba_dao"
+    const verifiedCore = chainId === NETWORKS.mainnet.chainId && (brick.realm === "gno.land/r/samcrew/memba_dao"
         || brick.realm === "gno.land/p/samcrew/memba_weighted_host" || brick.realm === "gno.land/p/samcrew/memba_weighted_policy"
         || brick.realm === "gno.land/r/samcrew/memba_dao_channels_v2" || brick.realm === "gno.land/r/samcrew/memba_arcade_leaderboard_v1"
         || brick.realm === "gno.land/r/samcrew/memba_market_config" || brick.realm === "gno.land/r/demo/profile")
