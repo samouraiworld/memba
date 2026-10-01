@@ -93,6 +93,7 @@ test.describe('Memba OS multisig', () => {
         const app = win(page, 'Multisig')
         await expect(app.getByRole('button', { name: 'Import' })).toBeEnabled()
         await expect(app.getByText('Connect a wallet to see the multisigs you sign for.')).toBeVisible()
+        await expect(app.getByText(/^A multisig is a shared account/)).toBeVisible()
 
         await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
         const account = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`)
@@ -448,7 +449,10 @@ test.describe('Memba OS multisig · native lifecycle', () => {
         }
         await expect(alice.getByText(MSIG_NATIVE)).toBeVisible()
         await alice.getByRole('button', { name: 'Create Multisig' }).click()
-        await expect(alice.getByText('Configuration registered; nothing was broadcast.')).toBeVisible()
+        // The new wallet opens, under the name it was given; the create window keeps only its result.
+        await expect.poll(() => new URL(alice.url()).pathname).toBe(`/os/multisig/${MSIG_NATIVE}`)
+        await expect(win(alice, `Multisig ${MSIG_NATIVE.slice(0, 8)}…${MSIG_NATIVE.slice(-4)}`).getByText('Demo treasury')).toBeVisible()
+        await expect(alice.getByRole('button', { name: 'Create Multisig' })).toHaveCount(0)
         expect(fake.multisig?.address).toBe(MSIG_NATIVE)
 
         // Propose 1 GNOT at twice the network price for the gas limit: 10,000,000 gas at 1 ugnot per 1,000, times 2.

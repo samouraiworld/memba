@@ -6,7 +6,8 @@ import { createNativeMultisig, memberAddress, nativeAddress } from "../lib/nativ
 const config = vi.hoisted(() => ({ ENABLE_NATIVE_GNO_MULTISIG: true, GNO_CHAIN_ID: "native-local", GNO_RPC_URL: "http://127.0.0.1:26657", GNO_BECH32_PREFIX: "g" }))
 vi.mock("../lib/config", () => config)
 vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ auth: { isAuthenticated: true, token: { userAddress: "test-member" } } }) }))
-vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
+const navigate = vi.hoisted(() => vi.fn())
+vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => navigate }))
 vi.mock("../lib/api", () => ({ api: { createOrJoinMultisig: vi.fn() } }))
 vi.mock("@tanstack/react-query", async original => ({ ...(await original<typeof import("@tanstack/react-query")>()), useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
 vi.mock("../components/ui/ErrorToast", () => ({ ErrorToast: ({ message }: { message: string | null }) => message ? <p role="alert">{message}</p> : null }))
@@ -48,12 +49,28 @@ describe("native multisig registration", () => {
         const expected = nativeAddress(createNativeMultisig(members, 2))
         expect(screen.getByText(expected)).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Create Multisig" }))
-        await screen.findByText(/Configuration registered; nothing was broadcast/)
+        await screen.findByText(/Local rehearsal is registered in Memba: 2 of 3 members sign its transactions\. Nothing was signed or sent on chain\./)
+        // The new wallet opens, and the form is gone: the same configuration cannot be registered twice.
+        expect(navigate).toHaveBeenCalledExactlyOnceWith(`/multisig/${expected}`)
+        expect(screen.queryByRole("button", { name: "Create Multisig" })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Open wallet" }))
+        expect(navigate).toHaveBeenLastCalledWith(`/multisig/${expected}`)
         const request = vi.mocked(api.createOrJoinMultisig).mock.calls[0][0]
         expect(request.expectedMultisigAddress).toBe(expected)
         expect(request.nativeCreate).toBe(true)
         expect(JSON.parse(request.multisigPubkeyJson!)).toEqual(createNativeMultisig(members, 2))
         expect(fetch).not.toHaveBeenCalled()
+    })
+    it.each([
+        ["an address with no account", { result: { response: { ResponseBase: { Error: null, Data: null } } } }, "This address has no account on chain yet, so no public key. Once it holds GNOT and the member signs any transaction from it (a small send from their own wallet is enough), Fetch Key works. Or paste their public key."],
+        ["an account that never signed", { result: { response: { ResponseBase: { Error: null, Data: btoa(JSON.stringify({ BaseAccount: { address: members[0].address } })) } } } }, "This address has not signed a transaction yet, so the chain has no public key for it. It appears once the member signs any transaction from this address (a small send from their own wallet is enough); then Fetch Key works. Or paste their public key."],
+    ])("says how a member's key reaches the chain for %s, and offers to paste it", async (_case, body, text) => {
+        vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(body)))
+        render(<CreateMultisig />)
+        fireEvent.change(screen.getByPlaceholderText("g1member1..."), { target: { value: members[0].address } })
+        fireEvent.click(screen.getAllByText("Fetch Key")[0])
+        expect(await screen.findByText(`⚠ ${text}`)).toBeVisible()
+        expect(screen.getByLabelText("Member 1 public key")).toBeVisible()
     })
     it("keeps production activation held and rejects mismatched address labels", () => {
         config.ENABLE_NATIVE_GNO_MULTISIG = false

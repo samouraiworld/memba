@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: multisig (2026-10-01)
+- After you create a multisig, its wallet opens and the form cannot be sent twice; the Multisig app explains what a multisig is, and Fetch Key says how a member's key reaches the chain.
+
 ### Memba OS: token claims (2026-10-01)
 - Claim vested tokens and airdrop leaves from the Tokens window, with the airdrop manifest checked against the chain before any claim is offered.
 

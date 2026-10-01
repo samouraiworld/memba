@@ -6,6 +6,7 @@ import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_RPC_URL, GNO_BECH32_PREFIX, ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
 import { createNativeMultisig, memberAddress, nativeAddress } from "../lib/nativeMultisig"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import type { LayoutContext } from "../types/layout"
 import "./createmultisig.css"
 
@@ -73,7 +74,7 @@ export function CreateMultisig() {
             const rawValue = json?.result?.response?.ResponseBase?.Data || json?.result?.response?.ResponseBase?.Value || json?.result?.response?.Value
             if (!res.ok || json?.error || json?.result?.response?.ResponseBase?.Error) throw new Error("Account query failed")
             if (!rawValue) {
-                update({ fetching: false, fetchError: "Account not found on chain — paste the member's public key; no activation transaction is needed.", showManualInput: true })
+                update({ fetching: false, fetchError: "This address has no account on chain yet, so no public key. Once it holds GNOT and the member signs any transaction from it (a small send from their own wallet is enough), Fetch Key works. Or paste their public key.", showManualInput: true })
                 return
             }
 
@@ -83,7 +84,7 @@ export function CreateMultisig() {
             const pubkey = account?.pub_key || account?.PubKey || account?.public_key
 
             if (!pubkey || !pubkey.value) {
-                update({ fetching: false, fetchError: "No public key published. Ask the member for their public key and verify possession offline. Do not send an activation transaction.", showManualInput: true })
+                update({ fetching: false, fetchError: "This address has not signed a transaction yet, so the chain has no public key for it. It appears once the member signs any transaction from this address (a small send from their own wallet is enough); then Fetch Key works. Or paste their public key.", showManualInput: true })
                 return
             }
 
@@ -139,6 +140,7 @@ export function CreateMultisig() {
             if (res.multisigAddress !== expectedAddress) throw new Error("Server returned a different wallet identity; stop and review")
             setRegisteredAddress(expectedAddress)
             void queryClient.invalidateQueries({ queryKey: ["multisig"] })
+            navigate(`/multisig/${expectedAddress}`)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create multisig")
         } finally {
@@ -154,6 +156,20 @@ export function CreateMultisig() {
         catch (e) { previewError = e instanceof Error ? e.message : "Invalid member configuration" }
     }
     const canSubmit = ENABLE_NATIVE_GNO_MULTISIG && auth.isAuthenticated && name.trim() && !!preview && !loading
+
+    // Registered: the form is gone, so the same configuration cannot be sent twice.
+    if (registeredAddress) return (
+        <div className="animate-fade-in cms-page">
+            <h2 className="cms-title">Multisig created</h2>
+            <p role="status">
+                {revealInvisibleFormatting(name.trim())} is registered in Memba: {threshold} of {members.length} members sign its transactions.
+                Nothing was signed or sent on chain. Its address: <code>{registeredAddress}</code>
+            </p>
+            <div className="cms-submit-row">
+                <button type="button" className="k-btn-primary" onClick={() => navigate(`/multisig/${registeredAddress}`)}>Open wallet</button>
+            </div>
+        </div>
+    )
 
     return (
         <div className="animate-fade-in cms-page">
@@ -296,7 +312,6 @@ export function CreateMultisig() {
                 </div>
             )}
 
-            {registeredAddress && <p role="status">Configuration registered; nothing was broadcast. <button onClick={() => navigate(`/multisig/${registeredAddress}`)}>Open wallet</button></p>}
             <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
     )

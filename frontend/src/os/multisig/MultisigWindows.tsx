@@ -42,6 +42,9 @@ function Loading({ what }: { what: string }) {
     return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading {what}…</span></div>
 }
 
+/** What a multisig is, for a guest and for a member with none yet. */
+const ABOUT = "A multisig is a shared account: a transaction leaves it only when enough of its members sign, for example 2 of 3. Memba keeps the members' public keys and their signatures until the transaction is sent."
+
 const page = (section: string): WindowSpec => specForTarget({ kind: "app", app: "multisig", section })!
 const accountSpec = (address: string): WindowSpec => specForTarget({ kind: "multisig", address })!
 
@@ -85,13 +88,13 @@ export function MultisigApp({ session, open }: { session: OsSession; open: (spec
                 <button type="button" className="os-btn os-quiet" onClick={() => open(page("import"))}>Import</button>
             </div>
             {!ENABLE_NATIVE_GNO_MULTISIG && <p className="os-sub" role="status">Native multisig registration is on hold pending release approval. Existing accounts can still be imported for read-only history.</p>}
-            {session.status !== "member" ? <ConnectHere session={session} text="Connect a wallet to see the multisigs you sign for." /> : list.isPending ? <Loading what="your multisigs" /> : list.isError ? (
+            {session.status !== "member" ? <><p className="os-sub">{ABOUT}</p><ConnectHere session={session} text="Connect a wallet to see the multisigs you sign for." /></> : list.isPending ? <Loading what="your multisigs" /> : list.isError ? (
                 <p className="os-note os-err" role="alert">Couldn't load your multisigs. <button type="button" className="os-btn os-quiet os-inline" onClick={() => void list.refetch()}>Try again</button></p>
             ) : (
                 <>
                     <section>
                         <h3 className="os-h">Your multisigs</h3>
-                        {joined.length ? <ul className="os-list">{joined.map((m) => row(m))}</ul> : <p className="os-sub">None yet. Create one, or import one by address.</p>}
+                        {joined.length ? <ul className="os-list">{joined.map((m) => row(m))}</ul> : <><p className="os-sub">{ABOUT}</p><p className="os-sub">None yet. Create one, or import one by address.</p></>}
                     </section>
                     {all.length === 50 && <p className="os-sub" role="status">Showing the newest 50 accounts. Older accounts may not appear here.</p>}
                     {invited.length > 0 && (
