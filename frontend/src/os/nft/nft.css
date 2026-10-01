@@ -9,3 +9,5 @@
 /* An image on a creator's own host is not loaded: the generated art says why. */
 .memba-os .os-nft-outside { position: relative; display: block; }
 .memba-os .os-nft-outside-note { position: absolute; inset: auto 0 0 0; padding: 4px 6px; font-size: 11px; line-height: 1.3; color: var(--os-ink); background: var(--os-opaque); border-radius: 0 0 var(--os-radius-ctl) var(--os-radius-ctl); }
+.memba-os .os-nft-field :is(input, select) { min-height: 44px; box-sizing: border-box; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--os-line); background: var(--os-hover); color: var(--os-ink); font: 600 13px var(--os-mono); }
+.memba-os .os-nft-field :is(input, select):focus-visible { outline: 2px solid var(--os-acc); outline-offset: 0; }
