@@ -11,8 +11,14 @@ const realms = vi.hoisted(() => ({ drops: true, curation: true }))
 const reads = vi.hoisted(() => ({
     getCollection: vi.fn(), getCapabilities: vi.fn(), listTokens: vi.fn(), listStages: vi.fn(), getCurationRecord: vi.fn(), fetchTokenMetadata: vi.fn(),
 }))
-vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), getCollection: reads.getCollection, getCapabilities: reads.getCapabilities, listTokens: reads.listTokens }))
-vi.mock("../../../lib/nft/drops", async (original) => ({ ...(await original<object>()), listStages: reads.listStages }))
+vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), getCollection: reads.getCollection, getCapabilities: reads.getCapabilities, listTokens: reads.listTokens, getToken: (...args: unknown[]) => minting.getToken(...args) }))
+const minting = vi.hoisted(() => ({
+    sign: vi.fn(), mintedBy: vi.fn(), gateUsed: vi.fn(), getToken: vi.fn(), getLaneStatus: vi.fn(), price: vi.fn(),
+}))
+vi.mock("../../../lib/nft/drops", async (original) => ({ ...(await original<object>()), listStages: reads.listStages, mintedBy: minting.mintedBy, gateUsed: minting.gateUsed }))
+vi.mock("../../../lib/nft/lane", async (original) => ({ ...(await original<object>()), getLaneStatus: minting.getLaneStatus }))
+vi.mock("../../../lib/grc20", async (original) => ({ ...(await original<object>()), networkGasPriceFresh: minting.price }))
+vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign: minting.sign }) }))
 vi.mock("../../../lib/nft/curation", async (original) => ({ ...(await original<object>()), getCurationRecord: reads.getCurationRecord }))
 vi.mock("../../../lib/nft/metadata", async (original) => ({ ...(await original<object>()), fetchTokenMetadata: reads.fetchTokenMetadata }))
 vi.mock("../../../lib/config", async (original) => ({
@@ -47,11 +53,15 @@ const stage = (index: number, kind: string, more: object = {}) => ({
 })
 const token = (number: number) => ({ collection: "C1", number: BigInt(number), owner: CREATOR, status: "active", uri: `${IMAGE}/${number}.json` })
 
-function show(push = vi.fn()) {
+const MEMBER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+const guest = { status: "guest", network: { key: "testnet12", chainId: "test12" }, openConnect: vi.fn() }
+const member = { status: "member", address: MEMBER, network: { key: "testnet12", chainId: "test12" }, openConnect: vi.fn() }
+
+function show(push = vi.fn(), session: object = guest) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
         <QueryClientProvider client={client}>
-            <NftWindow section="c/C1" session={{ status: "guest", network: { key: "testnet12" } } as never} active open={vi.fn()} push={push} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
+            <NftWindow section="c/C1" session={session as never} active open={vi.fn()} push={push} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
         </QueryClientProvider>,
     )
     return push
@@ -69,6 +79,12 @@ describe("NFT collection profile", () => {
         reads.listStages.mockResolvedValue([])
         reads.listTokens.mockResolvedValue([])
         reads.fetchTokenMetadata.mockResolvedValue({ name: "Relevé", description: null, image: null, attributes: [] })
+        for (const mock of Object.values(minting)) mock.mockReset()
+        guest.openConnect.mockReset()
+        minting.getLaneStatus.mockResolvedValue({ lane: "nft_drops", currency: "ugnot", paused: false, allowlisted: true, laneReady: true, open: true })
+        minting.mintedBy.mockResolvedValue(0n)
+        minting.gateUsed.mockResolvedValue(false)
+        minting.price.mockResolvedValue({ gas: 1000, ugnot: 1 })
     })
 
     it("shows the collection, its people and a way to trade it, for a guest", async () => {
@@ -150,7 +166,7 @@ describe("NFT collection profile", () => {
         expect(reads.listStages).not.toHaveBeenCalled()
     })
 
-    it("lists mint stages read-only, with the fee split in words and no mint action", async () => {
+    it("lists mint stages with the fee split in words, and a mint action only on an open stage Memba can mint in", async () => {
         reads.listStages.mockResolvedValue([
             stage(0, "fixed", { supplyCap: 50n, minted: 12n }),
             stage(1, "dutch", { start: 1_790_100_000n, end: 1_790_200_000n, open: true, price: 10_000_000n, floor: 1_000_000n, currentPrice: 4_000_000n, feeBPS: 0n }),
@@ -171,10 +187,77 @@ describe("NFT collection profile", () => {
         expect(holder).toHaveTextContent("Minted0, no stage cap")
         expect(allowlist).toHaveTextContent("Price1,500 foo20Currencygno.land/r/demo/foo20Per walletEach allowed address has its own allowance")
         expect(allowlist).toHaveTextContent(`Allowlist root${ROOT.slice(0, 12)}…`)
-        expect(stages).toHaveTextContent("Minting arrives in a later version of Memba OS.")
-        expect(within(stages).queryByRole("button", { name: /mint/i })).toBeNull()
+        for (const closed of [fixed, holder, allowlist]) expect(within(closed).queryByRole("button", { name: /mint/i })).toBeNull()
         fireEvent.click(within(holder).getByRole("button", { name: "C2" }))
         expect(pushed(push)).toEqual(["nft/c/C2"])
+        // A guest reads every stage and is asked to connect only when minting.
+        fireEvent.click(within(dutch).getByRole("button", { name: "Connect to mint" }))
+        expect(guest.openConnect).toHaveBeenCalledOnce()
+        expect(minting.mintedBy).not.toHaveBeenCalled()
+        expect(minting.sign).not.toHaveBeenCalled()
+    })
+
+    it("says why an open stage cannot be minted in Memba yet", async () => {
+        reads.listStages.mockResolvedValue([
+            stage(0, "allowlist", { open: true, perWallet: 0n, root: ROOT }),
+            stage(1, "fixed", { start: 1_790_100_000n, end: 1_790_200_000n, currency: "gno.land/r/demo/foo20" }),
+            stage(2, "fixed", { start: 1_790_300_000n, end: 1_790_400_000n, open: true, supplyCap: 5n, minted: 5n }),
+        ])
+        show(vi.fn(), member)
+        const [allowlist, token, soldOut] = await within(await screen.findByRole("region", { name: "Mint stages" })).findAllByRole("listitem")
+        expect(allowlist).toHaveTextContent("Minting from an allowlist arrives in a later version of Memba OS.")
+        expect(token).not.toHaveTextContent("Minting in a token")
+        expect(soldOut).toHaveTextContent("This stage is sold out.")
+        expect(screen.queryByRole("button", { name: /mint/i })).toBeNull()
+    })
+
+    it("opens the review with the exact Mint call after reading the lane, the fee and the member's count", async () => {
+        reads.listStages.mockResolvedValue([stage(0, "dutch", { open: true, price: 10_000_000n, floor: 1_000_000n, currentPrice: 4_000_000n })])
+        minting.mintedBy.mockResolvedValue(1n)
+        show(vi.fn(), member)
+        fireEvent.click(await screen.findByRole("button", { name: "Mint" }))
+        await vi.waitFor(() => expect(minting.sign).toHaveBeenCalledOnce())
+        expect(minting.getLaneStatus).toHaveBeenCalledWith("nft_drops", "ugnot")
+        expect(minting.mintedBy).toHaveBeenCalledWith("C1", 0, MEMBER)
+        const request = minting.sign.mock.calls[0][0]
+        expect(request.prepare().msgs[0].value).toMatchObject({ caller: MEMBER, send: "4000000ugnot", func: "Mint", args: ["C1", "0", "ugnot", "4000000", "0", "", "0"] })
+        expect(Object.fromEntries(request.lines())).toMatchObject({ "Collection": "Relevés (C1)", "Minted by you in this stage": "1 of 2" })
+    })
+
+    it("stops before the review when the lane is paused, the wallet limit is reached or a read fails", async () => {
+        reads.listStages.mockResolvedValue([stage(0, "fixed", { open: true })])
+        minting.getLaneStatus.mockResolvedValueOnce({ lane: "nft_drops", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false })
+        show(vi.fn(), member)
+        const mint = await screen.findByRole("button", { name: "Mint" })
+        fireEvent.click(mint)
+        expect(await screen.findByRole("alert")).toHaveTextContent("Minting is paused on this network for now.")
+        minting.mintedBy.mockResolvedValueOnce(2n)
+        fireEvent.click(mint)
+        await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("This account has minted as many tokens as this stage allows per wallet."))
+        minting.price.mockRejectedValueOnce(new ReadError("Could not read the gas price"))
+        fireEvent.click(mint)
+        await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("The network could not be read. Try again in a moment."))
+        expect(minting.sign).not.toHaveBeenCalled()
+    })
+
+    it("asks for a gate token the member holds and has not used in a holder stage", async () => {
+        reads.listStages.mockResolvedValue([stage(0, "holder", { open: true, gate: "C2", price: 0n, currentPrice: 0n })])
+        minting.getToken.mockResolvedValue({ collection: "C2", number: 7n, owner: CREATOR, status: "active", uri: "" })
+        show(vi.fn(), member)
+        const mint = await screen.findByRole("button", { name: "Mint" })
+        fireEvent.click(mint)
+        expect(await screen.findByRole("alert")).toHaveTextContent("Enter the number of the C2 token that pays for this mint.")
+        fireEvent.change(screen.getByRole("textbox", { name: "Number of the C2 token that pays for this mint" }), { target: { value: "7" } })
+        fireEvent.click(mint)
+        await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("This account does not hold C2 #7."))
+        minting.getToken.mockResolvedValue({ collection: "C2", number: 7n, owner: MEMBER, status: "active", uri: "" })
+        minting.gateUsed.mockResolvedValueOnce(true)
+        fireEvent.click(mint)
+        await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("C2 #7 has already paid for a mint in this stage."))
+        fireEvent.click(mint)
+        await vi.waitFor(() => expect(minting.sign).toHaveBeenCalledOnce())
+        expect(minting.gateUsed).toHaveBeenLastCalledWith("C1", 0, 7n)
+        expect(minting.sign.mock.calls[0][0].prepare().msgs[0].value).toMatchObject({ send: "", args: ["C1", "0", "ugnot", "0", "0", "", "7"] })
     })
 
     it("shows unreadable stages as an error and no stage as empty", async () => {

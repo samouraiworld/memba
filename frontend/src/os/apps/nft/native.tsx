@@ -7,7 +7,7 @@
  * home lists the newest collections, read strictly: a failed read is shown as
  * an error with a retry, a list the ledger refused and data that breaks its
  * rules as errors without one, and none as an empty ledger. Guests browse
- * freely; only My collectibles asks for a wallet. Creating a collection and
+ * freely; only My collectibles and minting ask for a wallet. Creating a collection and
  * the studio arrive later and say so. A section this window does not serve is
  * handed through as `fallback`.
  *
@@ -111,7 +111,7 @@ export default function NftWindow({ section, session, push, openApp, fallback }:
     }
     switch (route.kind) {
         // Keyed, so a collapsed presentation or a loaded page never carries over to another collection.
-        case "collection": return <CollectionProfile key={route.collection} screen={screen} id={route.collection} />
+        case "collection": return <CollectionProfile key={route.collection} screen={screen} session={session} id={route.collection} />
         case "token": return <TokenItem key={`${route.collection}/${route.number}`} screen={screen} collection={route.collection} number={route.number} />
         case "mine": return <MyCollectibles screen={screen} session={session} />
         case "create": case "studio": case "studio-collection":
