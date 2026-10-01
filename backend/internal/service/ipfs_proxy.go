@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"time"
 )
@@ -146,72 +148,11 @@ func ipfsUploadHandler(maxBytes int64, sanitizedName string, opts ...ipfsUploadO
 			return
 		}
 
-		// Build the outbound multipart request to Lighthouse.
-		pr, pw := io.Pipe()
-		mw := multipart.NewWriter(pw)
-		go func() {
-			defer func() { _ = pw.Close() }()
-			part, cerr := mw.CreateFormFile("file", sanitizedName) // sanitized — never forward user input
-			if cerr != nil {
-				_ = pw.CloseWithError(cerr)
-				return
-			}
-			if _, cerr := io.Copy(part, br); cerr != nil {
-				_ = pw.CloseWithError(cerr)
-				return
-			}
-			_ = mw.Close()
-		}()
-
-		req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, o.resolvedURL(), pr)
-		if err != nil {
-			slog.Error("failed to create lighthouse request", "error", err)
-			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-			return
-		}
-		req.Header.Set("Content-Type", mw.FormDataContentType())
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-
-		resp, err := o.resolvedClient().Do(req)
-		if err != nil {
-			slog.Error("lighthouse upload failed", "error", err)
-			http.Error(w, `{"error":"IPFS upload failed"}`, http.StatusBadGateway)
-			return
-		}
-		defer func() { _ = resp.Body.Close() }()
-
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 1*1024*1024)) // 1MB max response
-		if err != nil {
-			slog.Error("failed to read lighthouse response", "error", err)
-			http.Error(w, `{"error":"IPFS upload failed"}`, http.StatusBadGateway)
-			return
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			slog.Warn("lighthouse returned non-200", "status", resp.StatusCode, "body", string(body))
+		cid, status, failure := lighthouseAdd(r.Context(), o, apiKey, sanitizedName, "", br) // sanitized — never forward user input
+		if status != 0 {
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = fmt.Fprintf(w, `{"error":"IPFS upload failed (status %d)"}`, resp.StatusCode)
-			return
-		}
-
-		var lhResp struct {
-			Hash string `json:"Hash"`
-			Cid  string `json:"cid"`
-		}
-		if err := json.Unmarshal(body, &lhResp); err != nil {
-			slog.Error("failed to parse lighthouse response", "error", err, "body", string(body))
-			http.Error(w, `{"error":"failed to parse IPFS response"}`, http.StatusBadGateway)
-			return
-		}
-
-		cid := lhResp.Hash
-		if cid == "" {
-			cid = lhResp.Cid
-		}
-		if cid == "" {
-			slog.Error("lighthouse returned no CID", "body", string(body))
-			http.Error(w, `{"error":"IPFS upload returned no CID"}`, http.StatusBadGateway)
+			w.WriteHeader(status)
+			_, _ = io.WriteString(w, failure)
 			return
 		}
 
@@ -220,6 +161,79 @@ func ipfsUploadHandler(maxBytes int64, sanitizedName string, opts ...ipfsUploadO
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"cid": cid})
 	})
+}
+
+// lighthouseAdd streams content to Lighthouse as one file part named filename
+// (application/octet-stream unless contentType is set), with the server-side
+// bearer, and returns the CID it answered. On failure it returns the HTTP
+// status and the JSON error body to send back instead.
+func lighthouseAdd(ctx context.Context, o ipfsUploadOptions, apiKey, filename, contentType string, content io.Reader) (string, int, string) {
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+	go func() {
+		defer func() { _ = pw.Close() }()
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		h.Set("Content-Type", contentType)
+		part, cerr := mw.CreatePart(h)
+		if cerr != nil {
+			_ = pw.CloseWithError(cerr)
+			return
+		}
+		if _, cerr := io.Copy(part, content); cerr != nil {
+			_ = pw.CloseWithError(cerr)
+			return
+		}
+		_ = mw.Close()
+	}()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.resolvedURL(), pr)
+	if err != nil {
+		slog.Error("failed to create lighthouse request", "error", err)
+		return "", http.StatusInternalServerError, `{"error":"internal error"}`
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := o.resolvedClient().Do(req)
+	if err != nil {
+		slog.Error("lighthouse upload failed", "error", err)
+		return "", http.StatusBadGateway, `{"error":"IPFS upload failed"}`
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1*1024*1024)) // 1MB max response
+	if err != nil {
+		slog.Error("failed to read lighthouse response", "error", err)
+		return "", http.StatusBadGateway, `{"error":"IPFS upload failed"}`
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Warn("lighthouse returned non-200", "status", resp.StatusCode, "body", string(body))
+		return "", http.StatusBadGateway, fmt.Sprintf(`{"error":"IPFS upload failed (status %d)"}`, resp.StatusCode)
+	}
+
+	var lhResp struct {
+		Hash string `json:"Hash"`
+		Cid  string `json:"cid"`
+	}
+	if err := json.Unmarshal(body, &lhResp); err != nil {
+		slog.Error("failed to parse lighthouse response", "error", err, "body", string(body))
+		return "", http.StatusBadGateway, `{"error":"failed to parse IPFS response"}`
+	}
+
+	cid := lhResp.Hash
+	if cid == "" {
+		cid = lhResp.Cid
+	}
+	if cid == "" {
+		slog.Error("lighthouse returned no CID", "body", string(body))
+		return "", http.StatusBadGateway, `{"error":"IPFS upload returned no CID"}`
+	}
+	return cid, 0, ""
 }
 
 // isAcceptedRasterType reports whether the declared media type is a raster image we
