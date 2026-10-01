@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { OS_OFF, OS_ON } from '../../playwright.os.config'
+import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 
 // The four entry scenarios of mockup v4, on the real shell, wallet hooks and
 // login code. Adena is a page-level stub and the backend's auth calls are
 // fulfilled per test; nothing here talks to a chain.
 
-const ADDR = 'g1us8428u2a5satrlxzagqqa5m6vmuze025anjljj'
+// A real, checksummed address: activation's exact-call exemption refuses a malformed caller.
+const ADDR = 'g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj'
 const PUBKEY = 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE'
 
 /** Abort egress (RPC, indexer, backend) unless a test routes it first. */
@@ -208,10 +210,161 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(modal.getByRole('heading', { name: 'Sign the login message' })).toBeVisible()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
         await expect(modal.getByRole('heading', { name: 'Activate your address' })).toBeVisible()
-        await expect(modal.getByText('≈ 0.01 GNOT')).toBeVisible()
+        // What it does and costs, said truly: a self-send of 0.000001 GNOT, the network fee only.
+        await expect(modal.getByText('Sends 0.000001 GNOT from your address to itself')).toBeVisible()
+        // What Adena renders for a bank send: the message, its type and function, never the recipient or amount.
+        const adenaShows = modal.getByLabel('Adena should show')
+        await expect(adenaShows.getByText('/bank.MsgSend')).toBeVisible()
+        await expect(adenaShows.getByText('Memba Network Activation')).toBeVisible()
+        await expect(modal.getByText(/Adena does not show a transfer’s recipient or amount/)).toBeVisible()
+        await expect(modal.getByText(/Storage deposit/)).toHaveCount(0)
         // Signed-out guidance, so it can be put off.
         await modal.getByRole('button', { name: 'Later' }).click()
         await expect(connectModal(page)).toHaveCount(0)
+    })
+
+    test('activation is reviewed in its own step and signed without the classic confirmation', async ({ page }) => {
+        await newWallet(page)
+        // A funded, never-used address: the balance and the network price are read.
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            return null
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>>; __activation: unknown[] }
+            w.__activation = []
+            w.adena.DoContract = async (tx: unknown) => { w.__activation.push(tx); return { status: 'success', data: { hash: 'ACTIVATED' } } }
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(modal.getByRole('heading', { name: 'Activate your address' })).toBeVisible()
+        await expect(modal.getByText('0.0024 GNOT', { exact: true })).toBeVisible()
+        // A double click sends one transaction: the step is left at the first click, with nothing to put it off.
+        await modal.getByRole('button', { name: 'Activate in Adena' }).dblclick()
+        await expect(modal.getByText('Your address is active. Sign the login message to finish.')).toBeVisible()
+        // The step was the review: no classic confirmation opened over the OS.
+        await expect(page.getByText('Confirm Transaction')).toHaveCount(0)
+        const sent = await page.evaluate(() => (window as unknown as { __activation: { messages: { value: Record<string, unknown> }[]; gasWanted: number; gasFee: number }[] }).__activation)
+        expect(sent).toHaveLength(1)
+        const [tx] = sent
+        expect(tx.messages).toEqual([{ type: '/bank.MsgSend', value: { from_address: ADDR, to_address: ADDR, amount: '1ugnot' } }])
+        expect([tx.gasWanted, tx.gasFee]).toEqual([2_000_000, 2_400])
+    })
+
+    test('switching the account in Adena while activation checks runs sends nothing', async ({ page }) => {
+        await newWallet(page)
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            return null
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => unknown>; __sent: number; __hold: boolean; __release: () => void; __accountChanged: () => void }
+            w.__sent = 0
+            w.__hold = false
+            w.adena.DoContract = async () => { w.__sent++; return { status: 'success', data: { hash: 'X' } } }
+            w.adena.On = (event: unknown, cb: unknown) => { if (event === 'changedAccount') w.__accountChanged = cb as () => void; return true }
+            // The wallet check before signing waits here while the test switches the account.
+            const read = w.adena.GetAccount
+            w.adena.GetAccount = async (...a: unknown[]) => {
+                if (w.__hold) await new Promise<void>((resolve) => { w.__release = resolve })
+                return (read as (...b: unknown[]) => Promise<unknown>).apply(w.adena, a)
+            }
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeEnabled()
+        await page.evaluate(() => { (window as unknown as { __hold: boolean }).__hold = true })
+        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await page.waitForFunction(() => typeof (window as unknown as { __release?: () => void }).__release === 'function')
+        await page.evaluate(() => {
+            const w = window as unknown as { __hold: boolean; __release: () => void; __accountChanged: () => void }
+            w.__accountChanged()
+            w.__hold = false
+            w.__release()
+        })
+        await page.waitForTimeout(1500)
+        expect(await page.evaluate(() => (window as unknown as { __sent: number }).__sent)).toBe(0)
+    })
+
+    test('after the price rose, or after Later, activation shows the network price read again', async ({ page }) => {
+        await newWallet(page)
+        let price = 1
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return `{"gas":1000,"price":"${price}ugnot"}`
+            return null
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(modal.getByText('0.0024 GNOT', { exact: true })).toBeVisible()
+        // The price doubles before the click: the check before Adena refuses, and the step shows the new fee.
+        price = 2
+        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await expect(modal.getByText('0.0048 GNOT', { exact: true })).toBeVisible()
+        // Put off and opened again: read again too.
+        price = 3
+        await modal.getByRole('button', { name: 'Later' }).click()
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        await connectModal(page).getByRole('button', { name: /Adena/ }).click()
+        await expect(connectModal(page).getByText('0.0072 GNOT', { exact: true })).toBeVisible()
+    })
+
+    test('a cancel in Adena during activation says so, and nothing was sent', async ({ page }) => {
+        await newWallet(page)
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            // The account as the chain keeps it: unchanged blocks after the cancel.
+            if (path.startsWith('auth/accounts/')) return JSON.stringify({ BaseAccount: { address: ADDR, coins: '1000000ugnot', public_key: null, account_number: '9', sequence: '0' } })
+            return null
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>> }
+            w.adena.DoContract = async () => { throw new Error('User rejected the transaction') }
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
+        await expect(modal.getByRole('button', { name: 'Later' })).toHaveCount(0)
+        await expect(modal.getByText(/Cancelled in Adena\. Your account shows no change/)).toBeVisible({ timeout: 30_000 })
+        await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeEnabled()
+    })
+
+    test('activation waits for a balance that holds its network fee, and says how much', async ({ page }) => {
+        await newWallet(page)
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"2400ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            return null
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        // 2,400 ugnot is the fee alone: the 1 ugnot sent to itself must be there too.
+        await expect(modal.getByText('Activation needs at least 0.002401 GNOT here: the network fee and the 0.000001 GNOT sent to yourself. Send this address at least that much, then activate.')).toBeVisible()
+        await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeDisabled()
     })
 
     test('a wallet on another network: the login step offers switching Adena, says when it fails, and signs with the key Adena has after the switch', async ({ page }) => {

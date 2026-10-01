@@ -145,7 +145,7 @@ describe("Create DAO on gnoland-1", () => {
         expect(listPendingDAOs("gnoland-1")).toEqual([])
         // The review now shows the fee at the new price.
         const risen = feeForGasWanted(48_000_000, { gas: 1000, ugnot: 8 })
-        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(`Network fee: ${formatGnot(risen)}. Gas limit 48,000,000.`))
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(`Network fee: ${formatGnot(risen)}. Your wallet sets the fee it signs`))
 
         await deploy()
         await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1))
@@ -172,7 +172,7 @@ describe("Create DAO on gnoland-1", () => {
         gasPrice = "not json"
         resumeReview()
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
-        await waitFor(() => expect(disclosure).toHaveTextContent("Network fee: about 0.058 GNOT, an estimate: the network price could not be read. It is read again when you press Deploy. Gas limit 48,000,000."))
+        await waitFor(() => expect(disclosure).toHaveTextContent("Network fee: about 0.058 GNOT, an estimate: the network price could not be read. It is read again when you press Deploy. Your wallet sets the fee it signs from its own gas estimate; it can differ from this figure."))
         confirm(); await deploy()
         expect(await screen.findByText(/Couldn't confirm the current network fee/)).toBeInTheDocument()
         expect(mocks.broadcast).not.toHaveBeenCalled()
@@ -186,13 +186,13 @@ describe("Create DAO on gnoland-1", () => {
 
     it("stops for a new look when the deploy now needs more gas than the review was sized for", async () => {
         resumeReview()
-        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Gas limit 48,000,000\./))
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Network fee: 0\.058 GNOT\./))
         clearPolicyCache()
         policyReply = fixture("policy-permissionless")
         confirm(); await deploy()
-        expect(await screen.findByText(/needs a higher gas limit than the review showed/)).toBeInTheDocument()
+        expect(await screen.findByText(/needs more gas than the review priced/)).toBeInTheDocument()
         expect(mocks.broadcast).not.toHaveBeenCalled()
-        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Gas limit 57,000,000\./))
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Network fee: 0\.068 GNOT\./))
     })
 
     it("cancels obsolete preflight before opening the wallet", async () => {
@@ -281,7 +281,7 @@ describe("Create DAO on gnoland-1", () => {
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
         expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.3 GNOT, capped at 13 GNOT/)
         // gnoland-1 is inert: the submit model (48M gas) at 1 ugnot per 1000 gas, plus 20 %
-        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\. Your wallet shows the fee it signs\./))
+        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\. Your wallet sets the fee it signs from its own gas estimate; it can differ from this figure\. Check the fee in Adena before you approve\./))
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
         expect(disclosure).toHaveTextContent("Roles grant no special powers. Voting power decides.")
         expect(disclosure).not.toHaveTextContent("No member has special powers")
@@ -319,7 +319,7 @@ describe("Create DAO on gnoland-1", () => {
         fireEvent.click(deployButton())
         expect(mocks.broadcast).not.toHaveBeenCalled()
         answer()
-        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\./))
+        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: 0\.058 GNOT\./))
         expect(deployButton()).toBeEnabled()
     })
 
@@ -327,7 +327,7 @@ describe("Create DAO on gnoland-1", () => {
         statuses = [meta.absent(), meta.inert(), meta.live()]
         resumeReview()
         // The wallet is asked for what the review shows, so deploy once it shows the network's sizing.
-        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Network fee: 0\.058 GNOT\. Gas limit 48,000,000\./))
+        await waitFor(() => expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Network fee: 0\.058 GNOT\./))
         confirm()
         await deploy()
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()

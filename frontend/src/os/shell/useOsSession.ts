@@ -12,13 +12,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
 import { useAuth } from "../../hooks/useAuth"
 import { useBalance } from "../../hooks/useBalance"
-import { ACTIVATION_PROFILE_REALM, NETWORKS } from "../../lib/config"
-import { doContractBroadcast } from "../../lib/grc20"
+import { NETWORKS } from "../../lib/config"
+import { FALLBACK_GAS_PRICE, networkGasPriceFresh, type GasPrice } from "../../lib/grc20"
 import { ACTIVATION_REQUIRED_CODE } from "../../lib/loginErrors"
 import { completeQuest, setQuestWalletAddress, syncQuestsToBackend } from "../../lib/quests"
 import { activeOsNetwork } from "./network"
 import type { LayoutContext } from "../../types/layout"
 import { signInWithWallet } from "./walletLogin"
+import { accountMark, accountMarkAfterBlocks } from "../sign/accountMark"
+import { executeSignature } from "../sign/signer"
+import { ACTIVATION_SEND_UGNOT, activationCosts, activationRequest } from "./activation"
 
 export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait"
 
@@ -63,6 +66,18 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const balanceKnown = !balanceLoading && rawUgnot !== undefined
     const spendableUgnot = balanceLoading ? undefined : rawUgnot
     const displayedBalance = balanceLoading ? "— GNOT" : balance
+    // Activation is priced at the network's rate when its step shows and re-checked before Adena opens.
+    // That is the fee Memba asks for; Adena may set its own from its gas estimate.
+    const [activationPrice, setActivationPrice] = useState<GasPrice | null>(null)
+    const activationCost = activationPrice ? activationCosts(activationPrice) : null
+    const pricingActivation = stage === "activate" || activationForced
+    useEffect(() => {
+        if (!pricingActivation || activationPrice) return
+        let alive = true
+        // Read from the chain each time the step opens (not the shared cache): after a rise or a put-off, the figure is current.
+        networkGasPriceFresh().then((p) => { if (alive) setActivationPrice(p) }, () => { if (alive) setActivationPrice(FALLBACK_GAS_PRICE) })
+        return () => { alive = false }
+    }, [pricingActivation, activationPrice])
 
     useEffect(() => {
         if (!adena.reconnecting) return
@@ -151,32 +166,34 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     }, [adena, auth, network.chainId, go, onSignedIn, restoreConnectFocus])
 
     const activate = useCallback(async () => {
+        if (!activationPrice) return
         const my = ++epoch.current
+        // Leaves the activate step at once: a second click can't send a second transaction.
         go("activatewait")
-        try {
-            // The same transaction as ActivationModal: a MsgCall writing an empty
-            // "Bio" on the caller's own profile. Any first transaction registers
-            // the key; Adena refuses a bank send through DoContract.
-            await doContractBroadcast(
-                [{
-                    type: "vm/MsgCall",
-                    value: { caller: adena.address, send: "", pkg_path: ACTIVATION_PROFILE_REALM, func: "SetStringField", args: ["Bio", ""] },
-                }],
-                "Memba Network Activation",
-                { osActivation: true },
-            )
-            if (epoch.current !== my) return
-            if (activationForced) { window.location.reload(); return } // re-read the wallet with its key
-            setNote("Your address is active. Sign the login message to finish.")
-            go("login")
-        } catch (err) {
-            if (epoch.current !== my) return
-            go("activate", err instanceof Error ? err.message : String(err))
+        // 1 ugnot to the address itself: any first transaction registers the key. Signed through the OS
+        // path, so no classic confirmation opens: the step the person just read is the review.
+        const req = activationRequest(adena.address, activationPrice)
+        const address = adena.address
+        const res = await executeSignature(req, undefined, req.prepare(undefined).msgs, () => {}, () => epoch.current === my, {
+            // A "rejected" reply is confirmed against the account, so a plain cancel reads as one.
+            before: () => accountMark(address),
+            after: () => accountMarkAfterBlocks(address),
+        })
+        if (epoch.current !== my) return
+        if (res.outcome !== "sent") {
+            // The price is read again for the next attempt: it may be what refused this one.
+            setActivationPrice(null)
+            go("activate", res.error)
+            return
         }
-    }, [adena.address, activationForced, go])
+        if (activationForced) { window.location.reload(); return } // re-read the wallet with its key
+        setNote("Your address is active. Sign the login message to finish.")
+        go("login")
+    }, [adena.address, activationForced, activationPrice, go])
 
     const cancel = useCallback(() => {
         epoch.current++
+        setActivationPrice(null)
         go(null)
         restoreConnectFocus()
         setNote(null)
@@ -219,8 +236,12 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         refreshBalance,
         stage: activationForced && stage !== "activatewait" ? ("activate" as const) : stage,
         activationForced,
-        /** Known to be empty: activation can't pay its fee yet. */
-        noFunds: balanceKnown && rawUgnot === 0n,
+        /** What activation costs at the network's price, once read. */
+        activationCost,
+        /** The price could not be read: the fee shown is an estimate, re-read before Adena opens. */
+        activationPriceEstimated: activationPrice === FALLBACK_GAS_PRICE,
+        /** Known to be short of the fee: activation can't go through yet. */
+        noFunds: balanceKnown && activationCost !== null && rawUgnot! < BigInt(activationCost.feeUgnot) + ACTIVATION_SEND_UGNOT,
         balanceUnknown: !balanceKnown,
         error,
         note,

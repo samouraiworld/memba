@@ -53,10 +53,10 @@ describe("sameMsgs", () => {
 })
 
 describe("adenaChecklist for a GNOT send", () => {
-    it("shows it as Adena labels it", () => {
+    it("shows it as Adena renders it: the message, its type and function, never a recipient or an amount", () => {
         const rows = adenaChecklist([{ type: "/bank.MsgSend", value: { from_address: "g1a", to_address: "g1b", amount: "1500000ugnot" } }], "gnoland-1")
         expect(rows).toEqual([
-            { label: "Action", value: "Transfer" }, { label: "To", value: "g1b", mono: true }, { label: "Amount", value: "1.5 GNOT" },
+            { label: "Message", value: "Transfer" }, { label: "type", value: "/bank.MsgSend", mono: true }, { label: "function", value: "Transfer", mono: true },
             { label: "Network", value: "gnoland-1", mono: true },
         ])
     })

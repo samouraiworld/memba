@@ -123,7 +123,7 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
     const [showDraftBanner, setShowDraftBanner] = useState(!!draftCandidate && !recovery)
     const [confirmReset, setConfirmReset] = useState(false)
     const [draftWarning, setDraftWarning] = useState<string | null>(null)
-    // Null until read: the fee and the gas limit are handed to the wallet as shown, so Deploy waits for both.
+    // Null until read: Memba hands the wallet this fee and gas limit (Adena may replace them with its own), so Deploy waits for both.
     const [gasPrice, setGasPrice] = useState<GasPrice | null>(null)
 
     useEffect(() => {
@@ -349,12 +349,12 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
             setReplacesParked(replacing)
             // The policy only sizes the transaction; success is read from the chain.
             const policy = await codeSubmissionPolicy(chain).catch(() => "unknown")
-            // The wallet is asked for exactly the gas limit and fee the review showed: a deploy
-            // that now needs more gas (the policy changed, or could not be read this time), or a
-            // higher price, needs a new look first.
+            // The wallet is asked for the gas limit and fee the review priced (Adena may replace them):
+            // a deploy that now needs more gas (the policy changed, or could not be read this time),
+            // or a higher price, needs a new look first.
             if (deployGasForPolicy(config, policy) > deployGas) {
                 setSubmissionPolicy(policy)
-                throw new Error("This deploy needs a higher gas limit than the review showed. Check the new fee, then deploy again.")
+                throw new Error("This deploy now needs more gas than the review priced. Check the new network fee, then deploy again.")
             }
             await assertFeeStillCovers(networkFeeUgnot, async () => {
                 const price = await networkGasPriceFresh()
@@ -609,7 +609,7 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
                     walletAddress={adena.address}
                     networkLabel={caps.label} chainId={GNO_CHAIN_ID} windows={windows}
                     depositEstimateUgnot={depositEstimateUgnot} depositCapUgnot={depositCapUgnot}
-                    deployGas={deployGas} networkFeeUgnot={feeReady ? networkFeeUgnot : null} feeEstimated={gasPrice === FALLBACK_GAS_PRICE} channelsFeeUgnot={getGasConfig().fee}
+                    networkFeeUgnot={feeReady ? networkFeeUgnot : null} feeEstimated={gasPrice === FALLBACK_GAS_PRICE} channelsFeeUgnot={getGasConfig().fee}
                     channelsPlanned={channelsPlanned}
                     confirmed={confirmed} onConfirmChange={setConfirmed}
                     onGoToStep={goToStep} onDeploy={deployDAO}

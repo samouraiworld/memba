@@ -8,7 +8,7 @@ import { withWalletActivity } from "./walletActivity"
  * - v2.1a: $MEMBA/$MEMBATEST token helpers
  */
 
-import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL, ACTIVATION_PROFILE_REALM } from "./config"
+import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
 import { getGasConfig } from "./gasConfig"
 import { getRpcUrlsInOrder } from "./rpcFallback"
 import { abciQueryText } from "./dao/packageStatus"
@@ -387,15 +387,14 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
         throw new Error("Invalid network fee")
     }
 
-    // First-time wallet activation precedes OS sign-in. Only its exact Bio
-    // registration call can use this exception; the option alone grants nothing.
+    // First-time wallet activation precedes OS sign-in. Only its exact call, 1 ugnot
+    // sent from the connected address to itself, can use this exception; the option alone grants nothing.
     const activation = opts?.osActivation === true && memo === "Memba Network Activation"
-        && msgs.length === 1 && msgs[0].type === "vm/MsgCall"
-        && typeof msgs[0].value.caller === "string" && /^g1[02-9ac-hj-np-z]{38}$/.test(msgs[0].value.caller)
-        && msgs[0].value.caller === _walletAddress
-        && msgs[0].value.send === "" && msgs[0].value.pkg_path === ACTIVATION_PROFILE_REALM
-        && msgs[0].value.func === "SetStringField" && Array.isArray(msgs[0].value.args)
-        && msgs[0].value.args.length === 2 && msgs[0].value.args[0] === "Bio" && msgs[0].value.args[1] === ""
+        && msgs.length === 1 && msgs[0].type === "/bank.MsgSend"
+        && Object.keys(msgs[0].value).sort().join() === "amount,from_address,to_address"
+        && typeof msgs[0].value.from_address === "string" && /^g1[02-9ac-hj-np-z]{38}$/.test(msgs[0].value.from_address)
+        && msgs[0].value.from_address === _walletAddress && msgs[0].value.to_address === _walletAddress
+        && msgs[0].value.amount === "1ugnot"
     assertWalletActionAllowed(activation)
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {

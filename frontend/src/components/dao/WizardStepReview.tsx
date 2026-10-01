@@ -24,7 +24,6 @@ interface Props {
     windows: { votingPeriodSeconds: number; executionDelaySeconds: number; executionWindowSeconds: number }
     depositEstimateUgnot: number
     depositCapUgnot: number
-    deployGas: number
     /** Null while the network price or the chain's deploy policy is being read: Deploy waits for both. */
     networkFeeUgnot: number | null
     /** The network price could not be read: the figure is computed at the usual price and says so. */
@@ -49,7 +48,7 @@ export function WizardStepReview({
     name, description, realmPath, selectedPreset,
     threshold, quorum, availableRoles, proposalCategories,
     validMembers, totalPower, generatedCode, deploying, walletAddress,
-    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, deployGas, networkFeeUgnot, feeEstimated, channelsFeeUgnot, channelsPlanned,
+    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, networkFeeUgnot, feeEstimated, channelsFeeUgnot, channelsPlanned,
     confirmed, onConfirmChange, onGoToStep, onDeploy,
 }: Props) {
     const signatures = channelsPlanned ? 2 : 1
@@ -136,8 +135,8 @@ export function WizardStepReview({
                 <div><strong>Network fee:</strong> {networkFeeUgnot === null
                     ? "reading from the network…"
                     : feeEstimated
-                        ? `about ${formatGnot(networkFeeUgnot)}, an estimate: the network price could not be read. It is read again when you press Deploy. Gas limit ${deployGas.toLocaleString("en-US")}.`
-                        : `${formatGnot(networkFeeUgnot)}. Gas limit ${deployGas.toLocaleString("en-US")}. Your wallet shows the fee it signs.`}</div>
+                        ? `about ${formatGnot(networkFeeUgnot)}, an estimate: the network price could not be read. It is read again when you press Deploy. Your wallet sets the fee it signs from its own gas estimate; it can differ from this figure. Check the fee in Adena before you approve.`
+                        : `${formatGnot(networkFeeUgnot)}. Your wallet sets the fee it signs from its own gas estimate; it can differ from this figure. Check the fee in Adena before you approve.`}</div>
                 {channelsPlanned && (
                     <div><strong>Channels companion (second signature):</strong> storage deposit cap {formatGnot(depositCapUgnot)}, network fee {formatGnot(channelsFeeUgnot)}.</div>
                 )}

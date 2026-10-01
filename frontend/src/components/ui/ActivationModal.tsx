@@ -32,10 +32,10 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
         setError(null)
         try {
             // W2.1: ride the guarded broadcaster — RPC-trust, wrong-chain and
-            // A6 confirmation apply to activation like any write. The tx is a
-            // MsgCall, NOT a bank send: Adena's DoContract rejects the
-            // bank/MsgSend TYPE outright (#1078), and any first transaction
-            // registers the key. The realm VALIDATES field names against its
+            // A6 confirmation apply to activation like any write. Any first
+            // transaction registers the key. (#1078's refusal was an old
+            // `bank/MsgSend` with an array amount; Adena accepts `/bank.MsgSend`
+            // with a string amount, which Memba OS's activation uses.) The realm VALIDATES field names against its
             // schema (custom keys panic — owner-observed in Adena's gas sim),
             // so this writes the schema's own "Bio" field with an EMPTY value:
             // an activating account is untransacted by definition, so there is

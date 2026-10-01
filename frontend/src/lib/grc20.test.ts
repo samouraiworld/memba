@@ -41,7 +41,7 @@ import {
     getTokenDecimals,
     __resetTokenDecimalsCache,
 } from './grc20'
-import { ACTIVATION_PROFILE_REALM, GNO_CHAIN_ID } from './config'
+import { GNO_CHAIN_ID } from './config'
 import { liveWallet } from '../test/walletStub'
 import * as Sentry from '@sentry/react'
 
@@ -557,12 +557,29 @@ describe('doContractBroadcast — OS member boundary', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { ...liveWallet({ address }), DoContract: doContract }
         setWalletActionGuard(() => false)
-        const activation = { type: 'vm/MsgCall', value: { caller: address, send: '', pkg_path: ACTIVATION_PROFILE_REALM, func: 'SetStringField', args: ['Bio', ''] } }
+        // 1 ugnot from the connected address to itself: the key is registered, nothing else changes.
+        const activation = { type: '/bank.MsgSend', value: { from_address: address, to_address: address, amount: '1ugnot' } }
         await expect(doContractBroadcast([activation], 'Memba Network Activation', { osActivation: true })).resolves.toMatchObject({ hash: 'ACT' })
         expect(doContract).toHaveBeenCalledOnce()
-        await expect(doContractBroadcast([{ ...activation, value: { ...activation.value, args: ['Bio', 'changed'] } }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
-        await expect(doContractBroadcast([{ ...activation, value: { ...activation.value, caller: 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c' } }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        const other = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
+        for (const value of [
+            { ...activation.value, to_address: other },
+            { ...activation.value, from_address: other, to_address: other },
+            { ...activation.value, amount: '2ugnot' },
+            { ...activation.value, amount: '1ugnot,1foo' },
+            { ...activation.value, extra: 'x' },
+        ]) {
+            await expect(doContractBroadcast([{ ...activation, value }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        }
+        await expect(doContractBroadcast([activation, activation], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        // Another message type with the same fields (the old amino name Adena refuses).
+        await expect(doContractBroadcast([{ ...activation, type: 'bank/MsgSend' }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        // A connected address that isn't a well-formed gno.land address.
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID, 'g1NOTANADDRESS')
+        await expect(doContractBroadcast([{ ...activation, value: { from_address: 'g1NOTANADDRESS', to_address: 'g1NOTANADDRESS', amount: '1ugnot' } }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID, address)
         await expect(doContractBroadcast([activation], 'Memba Network Activation')).rejects.toThrow(/Memba session ended/)
+        await expect(doContractBroadcast([activation], 'another memo', { osActivation: true })).rejects.toThrow(/Memba session ended/)
         expect(doContract).toHaveBeenCalledOnce()
     })
 })

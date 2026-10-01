@@ -28,7 +28,8 @@ export function adenaChecklist(msgs: readonly AminoMsg[], chainId: string): Sign
     for (const msg of msgs) {
         const v = msg.value ?? {}
         if (msg.type === "/bank.MsgSend") {
-            rows.push({ label: "Action", value: "Transfer" }, { label: "To", value: String(v.to_address ?? "—"), mono: true }, { label: "Amount", value: formatSend(v.amount) ?? "—" })
+            // As Adena 1.21.6 renders a bank send (its default message view): no recipient, no amount.
+            rows.push({ label: "Message", value: "Transfer" }, { label: "type", value: "/bank.MsgSend", mono: true }, { label: "function", value: "Transfer", mono: true })
             continue
         }
         const deploy = deployEffect(msg)

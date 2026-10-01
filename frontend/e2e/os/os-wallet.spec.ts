@@ -85,7 +85,11 @@ test.describe('Memba OS wallet', () => {
         await send.getByRole('button', { name: 'Review…' }).click()
 
         const review = page.getByRole('dialog', { name: 'Review · Send' })
-        await expect(review.getByText('Transfer', { exact: true })).toBeVisible()
+        // What Adena shows for a bank send: the message and its type, no recipient or amount.
+        const adena = review.locator('details', { hasText: 'Adena should show' })
+        await expect(adena.getByText('/bank.MsgSend', { exact: true })).toBeVisible()
+        await expect(adena.getByText('Transfer', { exact: true })).toHaveCount(2)
+        await expect(adena.getByText(BOB)).toHaveCount(0)
         await expect(review.getByRole('button', { name: 'Sign in Adena' })).toBeDisabled()
         await review.getByLabel(/I checked the full address with the recipient/).check()
         await review.getByRole('button', { name: 'Sign in Adena' }).click()

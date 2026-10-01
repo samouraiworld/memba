@@ -1,10 +1,30 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { formatSend } from "../sign/decode"
+import { ACTIVATION_SEND_UGNOT } from "./activation"
 // Adena's own app icon, unaltered, from its brand kit (docs.adena.app → Resources → Brand Assets → Download Logo, "app icon").
 import adenaLogo from "./adena-logo.svg"
 import { shortAddr } from "./format"
 import { useDialogKeys } from "./useDialogKeys"
 import type { OsSession } from "./useOsSession"
 import { walletOnOtherChain } from "./walletLogin"
+
+/** GNOT exactly, never rounded: "0.0024 GNOT". */
+const exact = (ugnot: bigint | number) => formatSend(`${ugnot}ugnot`)
+
+/** What Adena shows for the activation, as Adena 1.21.6 renders a bank send (its default message view). */
+function AdenaShows() {
+    return (
+        <>
+            <dl className="os-kv os-card" aria-label="Adena should show">
+                <dt>Message</dt><dd>1. Transfer</dd>
+                <dt>type</dt><dd className="os-mono">/bank.MsgSend</dd>
+                <dt>function</dt><dd className="os-mono">Transfer</dd>
+                <dt>Memo</dt><dd>Memba Network Activation</dd>
+            </dl>
+            <p className="os-sub os-flush">Adena does not show a transfer’s recipient or amount: this one is {exact(ACTIVATION_SEND_UGNOT)} to your own address.</p>
+        </>
+    )
+}
 
 function Head({ title, sub }: { title: string; sub?: string }) {
     return (
@@ -40,6 +60,7 @@ export function ConnectModal({ session }: { session: OsSession }) {
     const closeable = !!stage && !(stage === "activate" && session.activationForced) && stage !== "activatewait"
     useDialogKeys(dialog, !!stage, "button:not(:disabled), a[href]", closeable ? session.cancel : undefined)
     if (!stage) return null
+    const cost = session.activationCost
     let body: ReactNode
     switch (stage) {
         case "pick":
@@ -114,22 +135,23 @@ export function ConnectModal({ session }: { session: OsSession }) {
             body = <>
                 <Head title="Activate your address" sub="Your address has never sent a transaction, so the chain doesn’t know its public key yet. Memba needs it to check your signatures." />
                 <dl className="os-kv os-card">
-                    <dt>What happens</dt><dd>Saves an empty profile field</dd>
-                    <dt>Network</dt><dd>{session.network.chainId}</dd>
-                    <dt>Cost</dt><dd>≈ 0.01 GNOT</dd>
+                    <dt>What happens</dt><dd>Sends {exact(ACTIVATION_SEND_UGNOT)} from your address to itself</dd>
                     <dt>How often</dt><dd>Once, never again</dd>
+                    <dt>Network fee</dt><dd>{cost ? `${session.activationPriceEstimated ? "about " : ""}${exact(cost.feeUgnot)}` : "reading the network price…"}</dd>
                 </dl>
-                {session.noFunds && <p className="os-note os-warn" role="status">This address holds no GNOT yet. Send it a little (0.01 GNOT is enough), then activate.</p>}
+                <p className="os-sub os-flush">Your wallet sets the fee it signs from its own gas estimate, usually lower than the figure above. Check the fee in Adena before you approve.</p>
+                <AdenaShows />
+                {session.noFunds && cost && <p className="os-note os-warn" role="status">Activation needs at least {exact(BigInt(cost.feeUgnot) + ACTIVATION_SEND_UGNOT)} here: the network fee and the {exact(ACTIVATION_SEND_UGNOT)} sent to yourself. Send this address at least that much, then activate.</p>}
                 {session.balanceUnknown && <p className="os-note os-warn" role="status">{session.balanceError ? "Balance unavailable. Retry the check before activating." : "Checking this address's GNOT balance…"}</p>}
                 <div className="os-row os-end">
                     {closeable && <button type="button" className="os-btn os-quiet" onClick={session.cancel}>Later</button>}
                     {session.balanceUnknown && <button type="button" className="os-btn os-quiet" onClick={() => { void session.refreshBalance() }}>Retry balance check</button>}
-                    <button type="button" className="os-btn" onClick={session.activate} disabled={session.noFunds || session.balanceUnknown} autoFocus>Activate in Adena</button>
+                    <button type="button" className="os-btn" onClick={session.activate} disabled={session.noFunds || session.balanceUnknown || !cost} autoFocus>Activate in Adena</button>
                 </div>
             </>
             break
         case "activatewait":
-            body = <><Head title="Confirm in Adena" sub="Approve the activation." /><Waiting label="Waiting for Adena…" /></>
+            body = <><Head title="Confirm in Adena" sub="Approve the activation. Check Adena shows:" /><AdenaShows /><Waiting label="Waiting for Adena…" /></>
             break
     }
     const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
