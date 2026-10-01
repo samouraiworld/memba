@@ -7,6 +7,7 @@
 import { useGnoloveMilestone } from "../../hooks/gnolove"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import { renderMarkdown } from "../../lib/markdownLite"
+import { sanitizeMarkdownHtml } from "../../lib/sanitizeMarkdownHtml"
 
 export default function GnoloveMilestone() {
     const { data: milestone, isLoading, isError, refetch } = useGnoloveMilestone()
@@ -64,10 +65,10 @@ export default function GnoloveMilestone() {
                 <div className="gl-panel gl-mb-16">
                     <h2 className="gl-panel-title">Original milestone description</h2>
                     {complete && <p className="gl-panel-subtitle">This milestone is complete. Its original description below may still refer to work in progress.</p>}
-                    {/* renderMarkdown escapes all HTML then applies safe markdown transforms; source is GitHub API */}
+                    {/* Text from the GitHub API: rendered, then sanitised like every other renderMarkdown output. */}
                     <div
                         className="gl-ms-description"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(milestone.description) }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(milestone.description)) }}
                     />
                 </div>
             )}

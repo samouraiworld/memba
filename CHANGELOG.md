@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Gnolove milestones (2026-10-01)
+- Fixed: a Gnolove milestone description is sanitised like every other rendered markdown, so in-app links stay in the tab.
+
 ### Memba OS: DAO creation for guests (2026-10-01)
 - Guests can fill in the whole DAO creation wizard in Memba OS and connect only at Deploy; the DAOs window lists the DAO deploys this browser parked, re-checked on the chain; the execution delay is worded truly, and a wallet's saved draft is never replaced unasked.
 

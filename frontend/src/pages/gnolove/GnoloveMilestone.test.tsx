@@ -22,6 +22,17 @@ describe("GnoloveMilestone", () => {
         expect(screen.getByRole("heading", { name: "Original milestone description" })).toBeInTheDocument()
     })
 
+    it("sanitises the description like every other rendered markdown: in-app links stay in the tab", () => {
+        mockMilestone.mockReturnValue({
+            data: { number: 12, title: "Release", description: "See [the board](/gnolove) and [GitHub](https://github.com/example).", issues: [] },
+            isLoading: false, isError: false,
+        })
+        render(<GnoloveMilestone />)
+        const board = screen.getByRole("link", { name: "the board" })
+        expect(board).not.toHaveAttribute("target")
+        expect(screen.getByRole("link", { name: "GitHub" })).toHaveAttribute("rel", "noopener noreferrer")
+    })
+
     it("distinguishes a failed milestone read and offers retry", () => {
         const refetch = vi.fn()
         mockMilestone.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch })
