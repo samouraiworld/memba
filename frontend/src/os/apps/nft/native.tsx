@@ -7,8 +7,8 @@
  * home lists the newest collections, read strictly: a failed read is shown as
  * an error with a retry, a list the ledger refused and data that breaks its
  * rules as errors without one, and none as an empty ledger. Guests browse
- * freely; only My collectibles and minting ask for a wallet. Creating a collection and
- * the studio arrive later and say so. A section this window does not serve is
+ * freely; only My collectibles, minting and creating ask for a wallet. The
+ * studio arrives later and says so. A section this window does not serve is
  * handed through as `fallback`.
  *
  * @module os/apps/nft/native
@@ -26,6 +26,7 @@ import { specForTarget } from "../../shell/windows"
 import type { NftScreen } from "./screen"
 import { TokenItem } from "./item"
 import { MyCollectibles } from "./mine"
+import { CreateCollection } from "./create"
 import { CollectionProfile } from "./profile"
 
 const SHOWN = 20
@@ -73,7 +74,7 @@ function Collections({ screen }: { screen: NftScreen }) {
     )
 }
 
-const LATER = { create: "Creating a collection", studio: "The creator studio", "studio-collection": "The creator studio" } as const
+const LATER = { studio: "The creator studio", "studio-collection": "The creator studio" } as const
 
 export default function NftWindow({ section, session, push, openApp, fallback }: NativeViewProps) {
     const route = parseNftSection(section)
@@ -114,7 +115,8 @@ export default function NftWindow({ section, session, push, openApp, fallback }:
         case "collection": return <CollectionProfile key={route.collection} screen={screen} session={session} id={route.collection} />
         case "token": return <TokenItem key={`${route.collection}/${route.number}`} screen={screen} collection={route.collection} number={route.number} />
         case "mine": return <MyCollectibles screen={screen} session={session} />
-        case "create": case "studio": case "studio-collection":
+        case "create": return <CreateCollection screen={screen} session={session} />
+        case "studio": case "studio-collection":
             return (
                 <div className="os-stack">
                     <p className="os-note" role="note">{LATER[route.kind]} arrives in a later version of Memba OS.</p>
