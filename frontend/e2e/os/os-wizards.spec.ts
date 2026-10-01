@@ -230,6 +230,33 @@ test.describe('Memba OS wizards', () => {
         expect([call.gasWanted, call.gasFee]).toEqual([15_000_000, 18_000])
     })
 
+    test('a locked Adena is asked to unlock in its own window, then the vote is signed', async ({ page }) => {
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>>; __locked: boolean; __unlock: () => void; __unlockAsked: boolean }
+            const LOCKED = { status: 'failure', type: 'WALLET_LOCKED', data: {} }
+            w.__locked = false
+            for (const k of ['GetAccount', 'GetNetwork']) {
+                const read = w.adena[k]
+                w.adena[k] = async (...a: unknown[]) => (w.__locked ? LOCKED : read.apply(w.adena, a))
+            }
+            // Adena's connect window for a connected site: its login screen, then ALREADY_CONNECTED.
+            w.adena.AddEstablish = () => new Promise((resolve) => { w.__unlockAsked = true; w.__unlock = () => { w.__locked = false; resolve({ status: 'failure', type: 'ALREADY_CONNECTED', data: {} }) } })
+        })
+        await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/1`)
+        await win(page, 'test.teamv2 · Proposal #1').getByRole('button', { name: 'Vote…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Vote' })
+        await expect(review.getByText('0.018 GNOT', { exact: true })).toBeVisible()
+        await page.evaluate(() => { (window as unknown as { __locked: boolean }).__locked = true })
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review.getByRole('heading', { name: 'Unlock Adena' })).toBeVisible()
+        expect(await page.evaluate(() => (window as unknown as { __unlockAsked?: boolean }).__unlockAsked)).toBe(true)
+        expect(await adenaCalls(page)).toEqual([])
+        await page.evaluate(() => (window as unknown as { __unlock: () => void }).__unlock())
+        await expect(review).toHaveCount(0)
+        const [call] = await adenaCalls(page)
+        expect(call.messages[0].value).toMatchObject({ pkg_path: V2_DAO, func: 'Vote' })
+    })
+
     test('a short landscape vote review keeps its actions reachable', async ({ page }) => {
         await page.setViewportSize({ width: 667, height: 320 })
         await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/1`)

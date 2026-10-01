@@ -28,7 +28,7 @@ afterEach(() => vi.unstubAllGlobals())
 it("delegates to the shared wallet-network guard with the page's chain and the session account", async () => {
     wallet()
     await expect(check()).resolves.toMatchObject({ chainId: "test-13", address })
-    expect(assertLiveWalletNetwork).toHaveBeenCalledExactlyOnceWith("test-13", { address })
+    expect(assertLiveWalletNetwork).toHaveBeenCalledExactlyOnceWith("test-13", { address, unlock: true })
 })
 
 it("refuses an empty or unknown wallet chain id (shared guard)", async () => {
@@ -66,7 +66,7 @@ it("adds the hold list on top of whatever chain the shared guard accepted", asyn
 it("lets the released mainnet DAO through the shared guard on gnoland-1", async () => {
     wallet({ accountChain: "gnoland-1", networkChain: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" })
     await expect(assertLiveWalletChain({ chainId: "gnoland-1", address, schema: V12, realmPath: RELEASED })).resolves.toMatchObject({ chainId: "gnoland-1", address })
-    expect(assertLiveWalletNetwork).toHaveBeenCalledExactlyOnceWith("gnoland-1", { address })
+    expect(assertLiveWalletNetwork).toHaveBeenCalledExactlyOnceWith("gnoland-1", { address, unlock: true })
     // The shared guard's refusals still apply to it: another account, another chain.
     wallet({ accountChain: "gnoland-1", networkChain: "gnoland-1", rpcUrl: "https://rpc.gno.land:443", who: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" })
     await expect(assertLiveWalletChain({ chainId: "gnoland-1", address, schema: V12, realmPath: RELEASED })).rejects.toThrow("not the one connected")

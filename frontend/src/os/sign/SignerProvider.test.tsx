@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { ChainRejectedError, setTxConfirmationCallback } from "../../lib/grc20"
 import type { OsSession } from "../shell/useOsSession"
@@ -105,6 +105,80 @@ describe("OS signing session boundary", () => {
         expect(screen.getByText(/^fail \| Refused by the network · Vote \| gnoland-1 · REFUSED_HA…: the chain ran it and refused it\. It did not take effect; the network fee was still charged\.$/)).toBeInTheDocument()
         expect(screen.queryByText(/hasn't shown it yet/)).toBeNull()
         expect(toast).toHaveBeenCalledWith("Refused by the network: Vote. It did not take effect; the network fee was still charged.")
+    })
+
+    describe("Adena's unlock window", () => {
+        const LOCKED = { status: "failure", type: "WALLET_LOCKED", data: {} }
+        const OK_ACCOUNT = { status: "success", data: { address: "g1alpha", chainId: "gnoland-1" } }
+        const OK_NETWORK = { status: "success", data: { chainId: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" } }
+        let closeWindow = () => {}
+        function lockedAdena() {
+            let unlock = () => {}
+            const state = { locked: true }
+            vi.stubGlobal("adena", {
+                GetAccount: vi.fn(async () => (state.locked ? LOCKED : OK_ACCOUNT)),
+                GetNetwork: vi.fn(async () => (state.locked ? LOCKED : OK_NETWORK)),
+                AddEstablish: vi.fn(() => new Promise((resolve) => { unlock = () => { state.locked = false; resolve({ status: "failure", type: "ALREADY_CONNECTED" }) } })),
+            })
+            closeWindow = () => unlock()
+            return { unlock: () => unlock() }
+        }
+        function Open({ req }: { req: typeof request }) {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(req)}>Open review</button>
+        }
+        // Each signature is ended by the test: only one may be in flight at a time.
+        let stop = () => {}
+        let sent: Promise<unknown> = Promise.resolve()
+        const held = () => new Promise<never>((_, reject) => { stop = () => reject(new Error("stopped by the test")) })
+        const start = (send: typeof request.send) => {
+            const tracked = vi.fn((...args: Parameters<typeof request.send>) => { sent = Promise.resolve(send(...args)); return sent })
+            render(<SignerProvider session={session("member")} toast={vi.fn()}><Open req={{ ...request, send: tracked }} /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        }
+        afterEach(async () => {
+            // An unlock window still open is closed first, so the signature reaches the point the test ends it.
+            await act(async () => { closeWindow(); await new Promise((r) => setTimeout(r, 0)); stop(); await sent.catch(() => {}) })
+            closeWindow = () => {}
+            cleanup()
+            vi.unstubAllGlobals()
+        })
+
+        it("a slow check with an unlocked wallet still says Memba is checking", async () => {
+            const { beginWalletActivity } = await import("../../lib/walletActivity")
+            // The reload hold every OS signature keeps is not an unlock window.
+            start(vi.fn(async () => { const end = beginWalletActivity(); try { return await held() } finally { end() } }))
+            expect(await screen.findByRole("heading", { name: "Checking before you sign…" })).toBeInTheDocument()
+            expect(screen.queryByRole("heading", { name: "Unlock Adena" })).toBeNull()
+        })
+
+        it("says to unlock while the window is open, and goes back to checking when it closes", async () => {
+            const { assertLiveWalletNetwork } = await import("../../lib/walletNetworkGuard")
+            const adena = lockedAdena()
+            start(vi.fn(async () => { await assertLiveWalletNetwork("gnoland-1", { unlock: true }); return held() }))
+            expect(await screen.findByRole("heading", { name: "Unlock Adena" })).toBeInTheDocument()
+            expect(screen.getByText("Adena is locked. Enter your password in the window it opened; Memba then continues to the signature.")).toBeInTheDocument()
+            await act(async () => { adena.unlock() })
+            expect(await screen.findByRole("heading", { name: "Checking before you sign…" })).toBeInTheDocument()
+            expect(screen.queryByRole("heading", { name: "Unlock Adena" })).toBeNull()
+        })
+
+        it("an unlock at the last check, after Adena was announced, says to unlock and hides the checklist", async () => {
+            const { assertLiveWalletNetwork } = await import("../../lib/walletNetworkGuard")
+            lockedAdena()
+            start(vi.fn(async (_c: unknown, beforeSign: () => Promise<unknown>) => {
+                // As doContractBroadcast does: the reviewed messages are confirmed before beforeSign.
+                const confirm = setTxConfirmationCallback(null)
+                setTxConfirmationCallback(confirm)
+                await confirm!([], "")
+                await beforeSign()
+                await assertLiveWalletNetwork("gnoland-1", { unlock: true })
+                return held()
+            }) as typeof request.send)
+            expect(await screen.findByRole("heading", { name: "Unlock Adena" })).toBeInTheDocument()
+            expect(screen.queryByText("If anything differs, reject it in Adena.")).toBeNull()
+        })
     })
 
     it("says what the request knows when the chain does not confirm yet, in the tray and the toast", async () => {

@@ -376,7 +376,7 @@ interface BroadcastOptions {
 /** The wallet checks, run before the wallet request: a refusal here means nothing was sent. */
 async function walletStillSafe(allowOsActivation: boolean): Promise<void> {
     assertWalletBroadcastSafeInternal(allowOsActivation)
-    await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress })
+    await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress, unlock: true })
 }
 
 async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: BroadcastOptions): Promise<{ hash: string; result?: unknown }> {

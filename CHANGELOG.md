@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Adena (2026-10-01)
+- When Adena has locked itself, signing in Memba OS asks you to unlock it in Adena's own window and then continues, instead of stopping with an error.
+
 ### Memba OS: review sheet (2026-10-01)
 - Fixed: the Memba OS review sheet is wider on desktop and wraps long values, so every row shows what Adena should show without scrolling sideways.
 

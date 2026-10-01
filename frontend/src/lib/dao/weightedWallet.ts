@@ -12,7 +12,7 @@ import { weightedWritesHeld } from "./weighted"
 
 export async function assertLiveWalletChain(expected: { chainId: string; address: string; schema: string; realmPath: string }): Promise<LiveWalletNetwork> {
     if (weightedWritesHeld(expected.chainId, expected.schema, expected.realmPath)) throw new WalletNetworkError("Mainnet governance writes remain on hold")
-    const live = await assertLiveWalletNetwork(expected.chainId, { address: expected.address })
+    const live = await assertLiveWalletNetwork(expected.chainId, { address: expected.address, unlock: true })
     if (weightedWritesHeld(live.chainId, expected.schema, expected.realmPath)) throw new WalletNetworkError(`Your wallet is on ${networkLabelForChain(live.chainId)}, where governance writes remain on hold`)
     // A release is per chain: never let a wallet on another chain through, even if the shared guard did.
     if (live.chainId !== expected.chainId) throw new WalletNetworkError(`Your wallet is on ${networkLabelForChain(live.chainId)}, not ${networkLabelForChain(expected.chainId)}`)

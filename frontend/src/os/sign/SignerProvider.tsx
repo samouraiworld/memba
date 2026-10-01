@@ -5,9 +5,10 @@
  *
  * @module os/sign/SignerProvider
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { clearGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { beginWalletActivity } from "../../lib/walletActivity"
+import { isAdenaUnlockOpen, subscribeAdenaUnlock } from "../../lib/walletNetworkGuard"
 import { useDialogKeys } from "../shell/useDialogKeys"
 import type { OsSession } from "../shell/useOsSession"
 import { accountMark, accountMarkAfterBlocks } from "./accountMark"
@@ -227,6 +228,8 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
     const lines = req.lines(choice)
     const allAcked = review.acked.every(Boolean)
     const canGo = stage === "review" && session.status === "member" && !wrongNet && !prepareError && allAcked
+    // Adena's unlock window, whichever wallet check opened it (before or after Memba's rechecks).
+    const unlocking = useSyncExternalStore(subscribeAdenaUnlock, isAdenaUnlockOpen) && stage !== "review"
 
     useLayoutEffect(() => {
         const el = dialog.current
@@ -298,12 +301,13 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                 {stage !== "review" && (
                     <>
                         <div className="os-rvh" role="status">
-                            <div className="os-row"><span className="os-spin" aria-hidden="true" /><h2 className="os-rv-title">{stage === "checking" ? "Checking before you sign…" : stage === "settling" ? "Checking your account…" : "Confirm in Adena"}</h2></div>
-                            <div className="os-sub">{stage === "checking" ? "Memba re-reads the chain so what you sign still applies."
+                            <div className="os-row"><span className="os-spin" aria-hidden="true" /><h2 className="os-rv-title">{unlocking ? "Unlock Adena" : stage === "checking" ? "Checking before you sign…" : stage === "settling" ? "Checking your account…" : "Confirm in Adena"}</h2></div>
+                            <div className="os-sub">{unlocking ? "Adena is locked. Enter your password in the window it opened; Memba then continues to the signature."
+                                : stage === "checking" ? "Memba re-reads the chain so what you sign still applies."
                                 : stage === "settling" ? "Adena reported a cancellation. It says the same when its window is closed after you confirm, so Memba waits three blocks and compares your account first. This can take half a minute."
                                     : "Adena opened in its own window. Check it shows:"}</div>
                         </div>
-                        {stage === "wallet" && (
+                        {stage === "wallet" && !unlocking && (
                             <div className="os-rvb">
                                 <Rows rows={checklist} />
                                 <p className="os-sub os-flush">If anything differs, reject it in Adena.</p>

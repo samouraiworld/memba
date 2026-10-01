@@ -89,6 +89,18 @@ describe.each(PATHS)("%s", (_name, sign) => {
         expect(DoContract).not.toHaveBeenCalled()
     })
 
+    it("asks a locked Adena to unlock in its own window, then signs", async () => {
+        const wallet = liveWallet()
+        const LOCKED = { status: "failure", type: "WALLET_LOCKED", data: {} }
+        wallet.GetAccount.mockResolvedValueOnce(LOCKED as never)
+        wallet.GetNetwork.mockResolvedValueOnce(LOCKED as never)
+        const AddEstablish = vi.fn(async () => ({ status: "failure", type: "ALREADY_CONNECTED", data: {} }))
+        vi.stubGlobal("adena", { ...wallet, AddEstablish, DoContract })
+        await sign()
+        expect(AddEstablish).toHaveBeenCalledWith("Memba")
+        expect(DoContract).toHaveBeenCalledTimes(1)
+    })
+
     it("signs when the wallet names the page's chain", async () => {
         vi.stubGlobal("adena", { ...liveWallet(), DoContract })
         await sign()
