@@ -18,6 +18,7 @@ import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, networkGasP
 import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
 import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../../lib/templates/dao/v2/deposit"
 import type { SignRequest } from "../sign/signer"
+import { verifySendTx } from "../wallet/sendRequest"
 
 /** Chain checks walk the network's endpoint list (each endpoint must serve this chain). */
 export function deployChain(): ChainContext {
@@ -139,6 +140,13 @@ export function createDaoRequest(ctx: CreateDaoContext): SignRequest<string> {
                 try { savePendingDAO({ ...intent, phase: "submitted", txHash: hash, reason }) } catch { /* the wizard still shows the path and transaction */ }
                 ctx.onResult({ kind: "pending", unconfirmed: outcome.unconfirmed, reason }, hash)
                 return false
+            }
+            // No package: only the deploy's own transaction tells a refusal apart from one not shown yet.
+            const seen = await verifySendTx(hash).catch(() => false as const)
+            if (seen === "failed") {
+                try { removePendingDAO(GNO_CHAIN_ID, path) } catch { /* nothing was deployed; the record is re-checked from the DAOs list */ }
+                ctx.onResult({ kind: "failed", error: "The network ran this deploy and refused it" }, hash)
+                return "failed"
             }
             ctx.onResult({ kind: "failed", error: outcome.error }, hash)
             return false

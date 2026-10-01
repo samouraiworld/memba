@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: DAO creation tells the truth (2026-10-01)
+- Fixed: a DAO deploy the network ran and refused now shows as refused in the signing tray, instead of staying unconfirmed.
+
 ### Memba OS: DAO sheets show and send the exact fee (2026-10-01)
 - Fixed: Memba OS's DAO vote and proposal reviews now show the exact network fee, check it again just before the wallet opens, and send exactly that fee; a fee set in Settings is checked against what the network charges.
 

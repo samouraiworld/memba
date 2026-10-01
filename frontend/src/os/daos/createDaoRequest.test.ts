@@ -7,6 +7,7 @@ const chain = vi.hoisted(() => ({
     wallet: vi.fn(async (): Promise<{ hash: string }> => ({ hash: "TXHASH" })),
     price: vi.fn(async () => ({ gas: 1000, ugnot: 1 })),
     pendingAtWallet: null as unknown,
+    tx: vi.fn(async (): Promise<boolean | "failed"> => false),
 }))
 
 vi.mock("../../lib/dao/namespace", async (orig) => ({
@@ -35,6 +36,7 @@ vi.mock("../../lib/grc20", async (orig) => ({
         return chain.wallet()
     }),
 }))
+vi.mock("../wallet/sendRequest", () => ({ verifySendTx: () => chain.tx() }))
 vi.mock("../../lib/config", async (orig) => ({ ...(await orig<typeof import("../../lib/config")>()), GNO_CHAIN_ID: "gnoland-1" }))
 
 import { clearPendingMemory, listPendingDAOs } from "../../lib/dao/packageStatus"
@@ -62,6 +64,7 @@ beforeEach(() => {
     chain.wallet.mockImplementation(async () => ({ hash: "TXHASH" }))
     chain.price.mockResolvedValue({ gas: 1000, ugnot: 1 })
     chain.pendingAtWallet = null
+    chain.tx.mockResolvedValue(false)
 })
 afterEach(() => { localStorage.clear(); clearPendingMemory(); vi.clearAllMocks() })
 
@@ -166,6 +169,30 @@ describe("createDaoRequest", () => {
         expect(c.onResult).toHaveBeenCalledWith({ kind: "pending", unconfirmed: false, reason: "awaiting approval" }, "TXHASH")
         expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ phase: "submitted", txHash: "TXHASH", reason: "awaiting approval" })
     })
+
+    it("a deploy the chain ran and refused is final: failed in the tray, its pending record dropped", async () => {
+        chain.outcome = { outcome: "failed", error: "The network has no package at this path" }
+        chain.tx.mockResolvedValue("failed")
+        const c = ctx()
+        const req = createDaoRequest(c)
+        await req.send(undefined, async () => {})
+        await expect(req.verify!(undefined, "TXHASH", undefined)).resolves.toBe("failed")
+        expect(c.onResult).toHaveBeenCalledWith({ kind: "failed", error: "The network ran this deploy and refused it" }, "TXHASH")
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
+    })
+
+    it.each([["not shown", async () => false as const], ["delivered, not refused", async () => true as const], ["unreadable", async () => { throw new Error("no node") }]])(
+        "a missing package whose transaction is %s stays unconfirmed and recorded",
+        async (_what, tx: () => Promise<boolean | "failed">) => {
+            chain.outcome = { outcome: "failed", error: "The network has no package at this path" }
+            chain.tx.mockImplementation(tx)
+            const c = ctx()
+            const req = createDaoRequest(c)
+            await req.send(undefined, async () => {})
+            await expect(req.verify!(undefined, "TXHASH", undefined)).resolves.toBe(false)
+            expect(c.onResult).toHaveBeenCalledWith({ kind: "failed", error: "The network has no package at this path" }, "TXHASH")
+            expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ phase: "submitted", txHash: "TXHASH" })
+        })
 
     it("refuses a second deploy to the same address while one waits for Adena", async () => {
         let release!: (v: { hash: string }) => void
