@@ -36,7 +36,7 @@ for (const view of [
     { name: 'light', theme: 'light', width: 1400, height: 900 },
     { name: 'dark', theme: 'dark', width: 1400, height: 900 },
     { name: '420px', theme: 'light', width: 1400, height: 900, windowWidth: 420 },
-    { name: 'phone', theme: 'light', width: 375, height: 760 },
+    { name: 'phone', theme: 'light', width: 360, height: 760 },
 ] as const) {
     test(`About accessibility and layout · ${view.name}`, async ({ page }, testInfo) => {
         await guest(page, view.width, view.height)
@@ -54,6 +54,12 @@ for (const view of [
         expect(await findHorizontalClipping(page, '.memba-os')).toEqual([])
         if (view.name === 'phone') expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(view.width)
         await settleAnimations(page)
+        for (const name of ['Community', 'Fees & rewards', 'Roadmap', 'Engine']) {
+            await about.getByRole('button', { name, exact: true }).click()
+            expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+            const scan = await new AxeBuilder({ page }).include('.os-about').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+            expect(scan.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${name} accessibility`).toEqual([])
+        }
         const results = await new AxeBuilder({ page }).include('.memba-os').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
         expect(results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual([])
         const screenshot = testInfo.outputPath(`about-${view.name}.png`)
@@ -61,3 +67,28 @@ for (const view of [
         await testInfo.attach(`about-${view.name}`, { path: screenshot, contentType: 'image/png' })
     })
 }
+
+test('About keeps inspected tools readable, restores scroll, and opens public source in a new tab', async ({ page, context }) => {
+    await guest(page, 1280, 900)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto(`${OS_ON}/os/about`)
+    const about = page.getByRole('region', { name: 'About Memba OS', exact: true })
+    await about.getByRole('button', { name: 'Explore all 20 tools' }).click()
+    const trigger = about.getByRole('button', { name: 'Details: Shared wallets' })
+    await trigger.scrollIntoViewIfNeeded()
+    const body = about.locator('.os-wbody')
+    const scroll = await body.evaluate(el => el.scrollTop)
+    await trigger.click()
+    await expect(about.getByRole('region', { name: 'Shared wallets details' })).toContainText('signature collection')
+    await about.getByRole('button', { name: 'Back to Engine' }).click()
+    await expect(trigger).toBeFocused()
+    expect(Math.abs(await body.evaluate(el => el.scrollTop) - scroll)).toBeLessThan(5)
+    await context.route('https://gno.land/r/samcrew/memba_dao$source', route => route.fulfill({ body: '<h1>Public realm source</h1>', contentType: 'text/html' }))
+    const source = about.getByRole('link', { name: 'Memba DAO (opens in new tab)', exact: true })
+    const popupPromise = context.waitForEvent('page')
+    await source.click()
+    const popup = await popupPromise
+    await expect(popup).toHaveURL('https://gno.land/r/samcrew/memba_dao$source')
+    await expect(page).toHaveURL(`${OS_ON}/os/about`)
+    await popup.close()
+})

@@ -6,6 +6,7 @@ import type { WindowSpec } from "../shell/windows"
 import { specForTarget } from "../shell/windows"
 import { applyToJoinSpec } from "../daos/joinSpec"
 import { ABOUT_LINKS, LICENSE_URL, bootEntryPath, buildCommit } from "./aboutInfo"
+import { CooperationEngine } from "./engine/CooperationEngine"
 import "./about.css"
 
 function useBuildCommit(): string | null {
@@ -30,6 +31,7 @@ export function AboutWindow({ chainId, openApp, open }: {
     const commit = useBuildCommit()
     const membership = useCommunityMembership(isFeedEnabled())
     const [markAvailable, setMarkAvailable] = useState(true)
+    const [showSupport, setShowSupport] = useState(false)
     return (
         <div className="os-about">
             <header className="os-about-head">
@@ -41,6 +43,13 @@ export function AboutWindow({ chainId, openApp, open }: {
                     <p className="os-sub os-mono">Version {APP_VERSION}{commit ? ` · Build ${commit}` : ""} · Chain {chainId}</p>
                 </div>
             </header>
+            <CooperationEngine chainId={chainId} support={() => setShowSupport(true)} />
+            {showSupport && <div className="os-about-support" role="region" aria-label="Support Memba">
+                <p>Contribute code, test the tools or discuss backing the project with the crew.</p>
+                <a href="https://github.com/samouraiworld/memba/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contribution guide (opens in new tab)</a>
+                <a href="https://t.me/samouraicoop" target="_blank" rel="noopener noreferrer">Contact the crew (opens in new tab)</a>
+                <button type="button" className="os-btn os-quiet" onClick={() => setShowSupport(false)}>Close support options</button>
+            </div>}
             <p className="os-about-note" role="note"><strong>Public Beta.</strong> Memba is experimental software. If you make a transaction, use small amounts and check it before signing.</p>
             <div className="os-about-actions">
                 <button type="button" className="os-btn" onClick={() => openApp("news")}>Read the blog</button>

@@ -1,6 +1,6 @@
 .memba-os .os-about {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   max-width: 560px;
   color: var(--os-ink);
 }
@@ -11,17 +11,17 @@
   gap: 14px;
 }
 
-.memba-os .os-about-head img { flex: none; }
+.memba-os .os-about-head img { flex: none; width: 40px; height: 40px; }
 .memba-os .os-about-mark {
   display: grid;
   place-items: center;
   flex: none;
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   border-radius: 14px;
   background: var(--os-acc);
   color: var(--os-on-acc);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
 }
 .memba-os .os-about-head h2 { margin: 0 0 4px; font-size: 20px; }
@@ -46,6 +46,9 @@
 .memba-os .os-about-links a { color: var(--os-acc-ink); font-weight: 700; }
 .memba-os .os-about-credit { margin: 0; }
 .memba-os .os-about-credit a { text-decoration: underline; text-underline-offset: 2px; }
+.memba-os .os-about-support { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--os-line); border-radius: 10px; }
+.memba-os .os-about-support p { margin: 0; }
+.memba-os .os-about-support a { color: var(--os-acc-ink); }
 
 @container os-window (max-width: 420px) {
   .memba-os .os-about-head img,

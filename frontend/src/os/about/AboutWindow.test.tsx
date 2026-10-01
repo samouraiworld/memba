@@ -100,4 +100,14 @@ describe("AboutWindow", () => {
         expect(screen.queryByText(/#join/)).not.toBeInTheDocument()
         expect(useCommunityMembership).toHaveBeenCalledWith(false)
     })
+
+    it("offers contribution and contact choices without inventing a funding recipient", () => {
+        draw()
+        fireEvent.click(screen.getByRole("button", { name: "Support Memba" }))
+        expect(screen.getByRole("region", { name: "Support Memba" })).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "Contribution guide (opens in new tab)" })).toHaveAttribute("href", "https://github.com/samouraiworld/memba/blob/main/CONTRIBUTING.md")
+        expect(screen.getByRole("link", { name: "Contact the crew (opens in new tab)" })).toHaveAttribute("href", "https://t.me/samouraicoop")
+        fireEvent.click(screen.getByRole("button", { name: "Close support options" }))
+        expect(screen.queryByRole("region", { name: "Support Memba" })).not.toBeInTheDocument()
+    })
 })
