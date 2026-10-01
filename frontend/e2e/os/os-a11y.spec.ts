@@ -108,8 +108,8 @@ for (const scheme of ['light', 'dark'] as const) {
 
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
  * inside the window instead. The Explorer's home is native (scanned below); its classic
- * directory is still what a tab address shows. */
-const CLASSIC_APPS = ['quests', 'dev-report', 'explorer?tab=packages', 'feedback']
+ * directory is still what a tab address shows. The Quests hub is native too (scanned below). */
+const CLASSIC_APPS = ['dev-report', 'explorer?tab=packages', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
@@ -194,6 +194,15 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.goto(`${OS_ON}/os/validators`)
             const validators = page.getByRole('region', { name: 'Validators', exact: true })
             await expect(validators.getByRole('alert')).toContainText('The validator set could not be read')
+            expect(await violations(page)).toEqual([])
+        })
+
+        test('Quests native hub', async ({ page }) => {
+            await page.goto(`${OS_ON}/os/quests`)
+            const quests = page.getByRole('region', { name: 'Quests', exact: true })
+            await expect(quests.getByRole('heading', { level: 1, name: 'Quests' })).toBeVisible()
+            await expect(quests.getByRole('button', { name: /^First Package/ })).toBeVisible()
+            await expect(quests.locator('.os-classic')).toHaveCount(0)
             expect(await violations(page)).toEqual([])
         })
 

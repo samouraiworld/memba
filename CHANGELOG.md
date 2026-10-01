@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: native Quests window (2026-10-01)
+- Added: the Quests window opens on a native hub: rank and XP recorded for a connected address, every quest browsable without a wallet, filters by category, difficulty and state, and the quests mainnet cannot complete named. A quest's page and the leaderboard open in the same window, and Back returns to the hub. On-chain quest attestation stays in the window for a connected wallet.
+
 ### Memba DAO: a proposal stays locked after an unknown outcome (2026-10-01)
 - In Memba OS, a Memba DAO proposal stays locked after a vote or execution whose outcome is unknown, even across browser tabs, until you check it; a vote's lock lifts by itself once the chain shows the ballot or voting has closed.
 

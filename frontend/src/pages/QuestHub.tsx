@@ -17,19 +17,17 @@ import { Link, useSearchParams } from "react-router-dom"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { useAdena } from "../hooks/useAdena"
-import { loadQuestProgress, trackPageVisit, fetchUserQuests, type UserQuestState } from "../lib/quests"
+import { completedQuestIds, hasUnsyncedQuests, loadQuestProgress, trackPageVisit, fetchUserQuests, type UserQuestState } from "../lib/quests"
 import {
     getLiveQuests,
     getComingSoonQuests,
     isQuestAvailable,
     calculateRank,
     xpToNextRank,
-    RETIRED_QUEST_IDS,
     type QuestCategory,
     type QuestDifficulty,
 } from "../lib/gnobuilders"
 import { questHubStatus } from "../lib/questNetwork"
-import { useWindowActive } from "../os/page/WindowActivity"
 import { RankBadge } from "../components/quests/RankBadge"
 import { AttestationPanel } from "../components/quests/AttestationPanel"
 import { QuestCard } from "../components/quests/QuestCard"
@@ -74,7 +72,6 @@ export default function QuestHub() {
         idFor: (k) => `quest-tab-${k}`,
     })
     const adena = useAdena()
-    const windowActive = useWindowActive()
     const [localProgress, setLocalProgress] = useState(() => ({ address: adena.address, state: loadQuestProgress(adena.address || null) }))
     const questState = localProgress.address === adena.address ? localProgress.state : EMPTY_PROGRESS
     const [backendProgress, setBackendProgress] = useState<{ address: string; state: UserQuestState } | null>(null)
@@ -115,7 +112,7 @@ export default function QuestHub() {
     // post-sync number lands without a reload.
     useEffect(() => {
         const addr = adena.address
-        if (!addr || !windowActive) return
+        if (!addr) return
         let cancelled = false
         let requestId = 0
         const load = () => {
@@ -144,7 +141,7 @@ export default function QuestHub() {
             window.removeEventListener("quest-completed", load)
             window.removeEventListener("quest-progress-updated", load)
         }
-    }, [adena.address, windowActive, backendRetry])
+    }, [adena.address, backendRetry])
 
     // Only trust the fetched backend state while a wallet is connected (it falls
     // back to localStorage when disconnected, without clearing state in-effect).
@@ -157,24 +154,10 @@ export default function QuestHub() {
 
     // Completed set = union of backend + local, so a just-completed quest shows
     // done immediately (optimistic) even before its backend sync lands.
-    const completedIds = useMemo(() => {
-        const serverIds = new Set(effectiveBackend?.completed.map(c => c.questId) ?? [])
-        const ids = new Set(questState.completed
-            .filter(c => !effectiveBackend || !RETIRED_QUEST_IDS.has(c.questId) || serverIds.has(c.questId))
-            .map(c => c.questId))
-        if (effectiveBackend) for (const c of effectiveBackend.completed) ids.add(c.questId)
-        return ids
-    }, [questState, effectiveBackend])
+    const completedIds = useMemo(() => completedQuestIds(questState, effectiveBackend), [questState, effectiveBackend])
 
-    // "Syncing" when localStorage holds a completion the backend hasn't recorded
-    // yet — a set difference, not a count compare (Q-10). A count compare is wrong
-    // when the two sides hold the same number of *different* quests (e.g. one earned
-    // on another device), so it could both false-positive and false-negative.
-    const syncing = useMemo(() => {
-        if (!effectiveBackend) return false
-        const backendIds = new Set(effectiveBackend.completed.map(c => c.questId))
-        return questState.completed.some(c => !RETIRED_QUEST_IDS.has(c.questId) && !backendIds.has(c.questId))
-    }, [effectiveBackend, questState])
+    // "Syncing" when localStorage holds a completion the backend hasn't recorded yet (Q-10).
+    const syncing = useMemo(() => hasUnsyncedQuests(questState, effectiveBackend), [effectiveBackend, questState])
 
     // First authoritative fetch in flight (wallet connected, no backend state yet):
     // signal "confirming" rather than letting the XP silently jump local→server (Q-11).

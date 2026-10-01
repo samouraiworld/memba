@@ -15,19 +15,41 @@ async function guest(page: Page, width: number) {
     await page.setViewportSize({ width, height: 800 })
 }
 
+// The hub is the native window; a quest's own page and the leaderboard are the classic pages inside it.
 test('filtered Quest Hub returns from a deployment detail with its query intact', async ({ page }) => {
     await guest(page, 1400)
     await page.goto(`${OS_ON}/os/quests`)
     const win = page.getByRole('region', { name: 'Quests', exact: true })
-    await win.getByRole('tab', { name: /Developers/ }).click()
-    await expect(win.getByRole('tab', { name: /Developers/ })).toHaveAttribute('aria-selected', 'true')
-    await win.getByTestId('quest-deploy-hello-pkg').click()
+    const developers = win.getByRole('group', { name: 'Category' }).getByRole('button', { name: /Developers/ })
+    await developers.click()
+    await expect(developers).toHaveAttribute('aria-pressed', 'true')
+    await expect(page).toHaveURL(/category=developer/)
+    await win.getByRole('button', { name: /^First Package/ }).click()
     await expect(win.getByRole('heading', { name: 'First Package' })).toBeVisible()
     await expect(win.getByText('Coming soon', { exact: true })).toHaveCount(0)
+    // Opening a quest is a history entry: Back returns to the hub as it was filtered.
+    await page.goBack()
+    await expect(developers).toHaveAttribute('aria-pressed', 'true')
+    await expect(page).toHaveURL(/category=developer/)
+    await page.goForward()
+    await expect(win.getByRole('heading', { name: 'First Package' })).toBeVisible()
     await expect(win.getByRole('link', { name: 'Back to Quest Hub' })).toHaveAttribute('href', '/os/quests?category=developer')
     await win.getByRole('link', { name: 'Back to Quest Hub' }).click()
-    await expect(win.getByRole('tab', { name: /Developers/ })).toHaveAttribute('aria-selected', 'true')
+    await expect(developers).toHaveAttribute('aria-pressed', 'true')
     await expect(page).toHaveURL(/category=developer/)
+    await expect(win.locator('.os-classic')).toHaveCount(0)
+})
+
+test('the native hub opens the leaderboard in the same window, and the address bar follows', async ({ page }) => {
+    await guest(page, 1400)
+    await page.goto(`${OS_ON}/os/quests`)
+    const win = page.getByRole('region', { name: 'Quests', exact: true })
+    await win.getByRole('button', { name: 'Leaderboard' }).click()
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/os/quests/leaderboard')
+    await expect(win.locator('.k-leaderboard')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Quests', exact: true })).toHaveCount(1)
+    await page.goBack()
+    await expect(win.getByRole('heading', { level: 1, name: 'Quests' })).toBeVisible()
 })
 
 test('a 360 px OS window keeps XP visible in a populated leaderboard table', async ({ page }) => {

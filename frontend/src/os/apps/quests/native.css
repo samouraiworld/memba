@@ -1,0 +1,22 @@
+.memba-os .os-quests { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-bottom: 12px; }
+.memba-os .os-quests .os-quests-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.memba-os .os-quests h1 { margin: 0 0 4px; font-size: 20px; line-height: 1.2; letter-spacing: -.02em; }
+.memba-os .os-quests .os-quests-head p { margin: 0; }
+.memba-os .os-quests .os-quests-filters { display: grid; gap: 8px; }
+.memba-os .os-quests .os-quests-search { display: flex; gap: 8px; }
+.memba-os .os-quests .os-quests-card { display: grid; gap: 6px; }
+.memba-os .os-quests .os-quests-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.memba-os .os-quests .os-quests-title b { font-size: 13px; overflow-wrap: anywhere; }
+.memba-os .os-quests .os-quests-xp { flex: none; color: var(--os-acc-ink); font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.memba-os .os-quests .os-quests-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.memba-os .os-quests .os-quests-closed summary { cursor: pointer; font-weight: 700; }
+.memba-os .os-quests .os-quests-closed p { margin: 8px 0; }
+.memba-os .os-quests .os-quests-closed ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 4px 16px; }
+.memba-os .os-quests .os-quests-closed li { display: flex; justify-content: space-between; gap: 8px; color: var(--os-mut); }
+/* The classic attestation panel reads classic colour tokens: give it the window's. */
+.memba-os .os-quests .os-quests-attest { --color-k-text: var(--os-ink); --color-k-dim: var(--os-mut); --color-k-muted: var(--os-mut); --color-k-panel: var(--os-card); --color-k-elevated: var(--os-card); --color-k-edge: var(--os-line); --color-k-accent-text: var(--os-acc-ink); --color-k-accent-border: var(--os-acc-ink); --color-k-accent-subtle: var(--os-chip); --color-k-accent-tint: var(--os-chip); --color-k-danger-text: var(--os-err); --color-k-danger-subtle: var(--os-err-bg); }
+.memba-os .os-quests .os-quests-attest:empty { display: none; }
+.memba-os .os-quests .os-quests-attest .k-attest { margin-top: 0; }
+@container os-window (max-width: 420px) {
+  .memba-os .os-quests .os-gate { flex-wrap: wrap; }
+}

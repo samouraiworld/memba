@@ -412,6 +412,31 @@ export async function fetchUserQuests(address: string): Promise<UserQuestState |
     return null
 }
 
+/**
+ * The quests to show as completed: the server's record plus this browser's, so
+ * a quest just completed here shows at once. A retired quest counts only when
+ * the server recorded it.
+ */
+export function completedQuestIds(local: UserQuestState, server: UserQuestState | null): Set<string> {
+    const serverIds = new Set(server?.completed.map(c => c.questId) ?? [])
+    const ids = new Set(local.completed
+        .filter(c => !server || !RETIRED_QUEST_IDS.has(c.questId) || serverIds.has(c.questId))
+        .map(c => c.questId))
+    for (const id of serverIds) ids.add(id)
+    return ids
+}
+
+/**
+ * True when this browser holds a completion the server has not recorded: a set
+ * difference, not a count compare (the two sides can hold the same number of
+ * different quests, e.g. one earned on another device).
+ */
+export function hasUnsyncedQuests(local: UserQuestState, server: UserQuestState | null): boolean {
+    if (!server) return false
+    const serverIds = new Set(server.completed.map(c => c.questId))
+    return local.completed.some(c => !RETIRED_QUEST_IDS.has(c.questId) && !serverIds.has(c.questId))
+}
+
 export interface CandidatureEligibility {
     eligible: boolean
     /** Backend verified XP when known (connected + backend reachable), else null. */

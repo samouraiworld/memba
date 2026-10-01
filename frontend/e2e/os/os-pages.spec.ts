@@ -22,9 +22,10 @@ test.describe('Memba OS pages in windows', () => {
     test.beforeEach(async ({ page }) => { await guest(page) })
 
     test('an app without a native window shows its Memba page inside the window', async ({ page }) => {
-        await page.goto(`${OS_ON}/os/quests`)
-        const quests = win(page, 'Quests')
-        await expect(quests.locator('.os-classic')).toBeVisible()
+        // Dev Report has no native window (the Quests hub is native now).
+        await page.goto(`${OS_ON}/os/dev-report`)
+        const report = win(page, 'Dev Report')
+        await expect(report.locator('.os-classic')).toBeVisible()
         await expect(page.getByRole('link', { name: /in Memba$/ })).toHaveCount(0)
         // Memba's own navigation chrome stays out: the window holds the page only.
         await expect(page.locator('.os-classic nav[aria-label="Main navigation"], .os-classic .k-sidebar')).toHaveCount(0)
@@ -114,15 +115,17 @@ test.describe('Memba OS pages in windows', () => {
     })
 
     test('a link inside the page stays in its window, and the address bar follows', async ({ page }) => {
-        await page.goto(`${OS_ON}/os/quests`)
+        // The leaderboard is a classic page in the Quests window (the hub is native).
+        await page.goto(`${OS_ON}/os/quests/leaderboard`)
         const quests = win(page, 'Quests')
-        const board = quests.getByRole('link', { name: 'View Leaderboard' })
-        await expect(board).toHaveAttribute('href', '/os/quests/leaderboard')
-        await board.click()
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/quests/leaderboard')
-        await expect(page.getByRole('region', { name: 'Quests', exact: true })).toHaveCount(1)
-        await page.goBack()
+        const hub = quests.getByRole('link', { name: 'View Quests' })
+        await expect(hub).toHaveAttribute('href', '/os/quests')
+        await hub.click()
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/quests')
+        await expect(page.getByRole('region', { name: 'Quests', exact: true })).toHaveCount(1)
+        await expect(quests.getByRole('heading', { level: 1, name: 'Quests' })).toBeVisible()
+        await page.goBack()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/quests/leaderboard')
     })
 
     test('a link in Settings opens another system window beside it', async ({ page }) => {

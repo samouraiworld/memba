@@ -49,8 +49,9 @@ for (const theme of ['light', 'dark'] as const) {
 
 // Feed, Tokens and News now have native windows; this sweep covers classic pages, and
 // the Validators window, whose home is native, on that view's own root. The Explorer's
-// home is native too: its classic directory is swept at a tab address.
-const APPS = ['quests', 'validators', 'profile', 'explorer?tab=packages', 'feedback', 'dev-report']
+// home is native too: its classic directory is swept at a tab address. Quests' hub is
+// native as well: a quest's own page is the classic one, on the hub's stylesheet.
+const APPS = ['quests/connect-wallet', 'validators', 'profile', 'explorer?tab=packages', 'feedback', 'dev-report']
 const NATIVE_ROOT: Record<string, string> = { validators: '.os-validators' }
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
@@ -225,8 +226,8 @@ for (const view of [
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.emulateMedia({ colorScheme: view.theme, reducedMotion: 'reduce' })
         await page.setViewportSize({ width: view.width, height: view.height })
-        // Quests is still a classic page in a window.
-        await page.goto(`${OS_ON}/os/quests`)
+        // The Quests hub is native; its leaderboard is still a classic page in the window.
+        await page.goto(`${OS_ON}/os/quests/leaderboard`)
         const quests = page.getByRole('region', { name: 'Quests', exact: true })
         const classic = quests.locator('.os-classic')
         await expect(classic).toBeVisible({ timeout: 30_000 })

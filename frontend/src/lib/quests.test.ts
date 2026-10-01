@@ -12,6 +12,8 @@ import {
     getCompletionPercent,
     trackPageVisit,
     trackDirectoryTab,
+    completedQuestIds,
+    hasUnsyncedQuests,
 } from "./quests"
 
 beforeEach(() => {
@@ -219,5 +221,26 @@ describe("trackDirectoryTab", () => {
         expect(isQuestCompleted("directory-tabs")).toBe(false)
         trackDirectoryTab("packages")
         expect(isQuestCompleted("directory-tabs")).toBe(true)
+    })
+})
+
+describe("completedQuestIds and hasUnsyncedQuests", () => {
+    const done = (...ids: string[]) => ({ completed: ids.map(questId => ({ questId, completedAt: 1 })), totalXP: 0 })
+
+    it("merges the server's record with this browser's", () => {
+        expect([...completedQuestIds(done("use-cmdk"), done("connect-wallet"))].sort()).toEqual(["connect-wallet", "use-cmdk"])
+        expect(hasUnsyncedQuests(done("use-cmdk"), done("connect-wallet"))).toBe(true)
+        expect(hasUnsyncedQuests(done("connect-wallet"), done("connect-wallet", "use-cmdk"))).toBe(false)
+    })
+
+    it("uses this browser's record alone while the server's is unknown, and then nothing is unsynced", () => {
+        expect([...completedQuestIds(done("use-cmdk", "submit-feedback"), null)]).toEqual(["use-cmdk", "submit-feedback"])
+        expect(hasUnsyncedQuests(done("use-cmdk"), null)).toBe(false)
+    })
+
+    it("counts a retired quest only when the server recorded it", () => {
+        expect([...completedQuestIds(done("submit-feedback"), done())]).toEqual([])
+        expect(hasUnsyncedQuests(done("submit-feedback"), done())).toBe(false)
+        expect([...completedQuestIds(done("submit-feedback"), done("submit-feedback"))]).toEqual(["submit-feedback"])
     })
 })

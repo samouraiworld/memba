@@ -718,32 +718,14 @@
     }
 }
 
-/* The same layout in a narrow Memba OS window (the viewport is still a desktop's). */
+/* The same layout in a narrow Memba OS window (the viewport is still a desktop's).
+   Only what a quest page or Quest Admin uses: the hub itself is a native window there. */
 @container os-window (max-width: 768px) {
     .k-questhub-hero {
         flex-direction: column;
         text-align: center;
     }
 
-    .k-questhub-hero-stats {
-        align-items: center;
-        min-width: 0;
-    }
-
-    .k-questhub-filters {
-        flex-direction: column;
-    }
-
-    .k-questhub-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .k-questhub-tabs {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-    }
-
-    .k-questhub-select,
     .k-questhub-search {
         width: 100%;
     }
@@ -771,7 +753,6 @@
         margin-bottom: var(--space-4);
     }
     .k-questhub-hero h1 { font-size: 1.5rem; }
-    .k-questhub-hero-stats { gap: var(--space-1); }
     .k-questdetail-deploy-row {
         flex-direction: column;
     }
