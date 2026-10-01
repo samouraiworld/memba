@@ -24,7 +24,7 @@ const mockHook = vi.mocked(useRecentActivity)
 
 const item = (over: Partial<ActivityItem>): ActivityItem => ({
     kind: "call", title: "Approve · gnoswap/gns", actor: "g1abcabcabcabcabcabcabcabcabcabcabcabcabc",
-    pkgPath: "gno.land/r/gnoswap/gns", func: "Approve", txHash: "h1", blockHeight: 100, extraCount: 0, ...over,
+    pkgPath: "gno.land/r/gnoswap/gns", func: "Approve", txHash: "h1", blockHeight: 100, extraCount: 0, msgIndex: 0, ...over,
 })
 
 const set = (over: Partial<ReturnType<typeof useRecentActivity>>) =>

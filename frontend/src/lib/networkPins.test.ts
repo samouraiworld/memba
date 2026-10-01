@@ -136,10 +136,10 @@ const ALLOWLIST: Pin[] = [
     },
     {
         file: "lib/txExplorerUrl.ts",
-        allow: ["pearl-1", "gnoland1", "staging"],
+        allow: ["gnoland-1", "pearl-1", "gnoland1", "staging"],
         why:
             "GNOSCAN_CHAIN_IDS — the chains the external gnoscan explorer indexes " +
-            "(read from its own bundle on 2026-09-07), not a Memba deploy target. " +
+            "(read from its own bundle on 2026-09-07; gnoland-1 on 2026-10-01), not a Memba deploy target. " +
             "A transaction link is only rendered for a chain gnoscan can show; " +
             "every other chain id gets plain hash text. Verify against gnoscan " +
             "before adding a chain here.",

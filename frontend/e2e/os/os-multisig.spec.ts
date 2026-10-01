@@ -22,7 +22,22 @@ const done = { ...pending, id: 3, memo: '', finalHash: 'ABCDEF0123456789', signa
 
 const onChain = (address: string, type: string) => JSON.stringify({ BaseAccount: { address, pub_key: { '@type': type }, account_number: '5', sequence: '1' } })
 
+/** The tx-indexer, reached through the backend's /api/indexer proxy: no live read escapes a spec. */
+const RECEIVED_HASH = Buffer.from('a'.repeat(64), 'hex').toString('base64')
+const SENT_HASH_HEX = 'B'.repeat(64)
+async function stubIndexer(page: Page, transfers: { hash: string; from: string; to: string; amount: string }[] = [], fail = false) {
+    await page.route('**/api/indexer**', (route) => {
+        if (fail) return route.fulfill({ status: 502, contentType: 'text/plain', body: 'upstream fetch failed' })
+        const query = String(JSON.parse(route.request().postData() ?? '{}').query ?? '')
+        const data = query.includes('latestBlockHeight') ? { latestBlockHeight: 480_000 }
+            : query.includes('getBlocks') ? { getBlocks: [] }
+            : { transactions: transfers.map((t, i) => ({ hash: t.hash, block_height: 476_387 + i, messages: [{ value: { __typename: 'BankMsgSend', from_address: t.from, to_address: t.to, amount: t.amount } }] })) }
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data }) })
+    })
+}
+
 async function setup(page: Page) {
+    await stubIndexer(page)
     await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
     await page.route('**/memba.v1.MultisigService/Multisigs', (route) => route.fulfill(json({ multisigs: [team, invite] })))
@@ -79,8 +94,53 @@ test.describe('Memba OS multisig', () => {
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/wallet/tx/3')
     })
 
+    test('a multisig window lists what it received and sent on chain, naming the proposal a send executed', async ({ page }) => {
+        await setup(page)
+        const executed = { ...done, finalHash: SENT_HASH_HEX }
+        await page.route('**/memba.v1.MultisigService/Transactions', (route) =>
+            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ transactions: /EXECUTED/.test(route.request().postData() ?? '') ? [executed] : [] }) }))
+        await stubIndexer(page, [
+            { hash: RECEIVED_HASH, from: BOB, to: MSIG, amount: '1100000ugnot' },
+            { hash: Buffer.from(SENT_HASH_HEX, 'hex').toString('base64'), from: MSIG, to: CAROL, amount: '5000000ugnot' },
+        ])
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        const transfers = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`).getByRole('region', { name: 'Received and sent' })
+        await expect(transfers.getByText('Transfers in the last 40,000 blocks, from the gno.land indexer.')).toBeVisible()
+        const received = transfers.getByRole('listitem').filter({ hasText: 'Received 1.1 GNOT' })
+        await expect(received.getByText(`from ${BOB}`)).toBeVisible()
+        await expect(received.getByText('Block 476,387')).toBeVisible()
+        await expect(received.getByRole('button', { name: /View proposal/ })).toHaveCount(0)
+        await expect(received.getByRole('link', { name: 'Transaction' })).toHaveAttribute('href', `https://gnoscan.io/transactions/details?txhash=${'a'.repeat(64)}&chainId=gnoland-1`)
+        const sent = transfers.getByRole('listitem').filter({ hasText: 'Sent 5 GNOT' })
+        await expect(sent.getByText(`to ${CAROL}`)).toBeVisible()
+        await sent.getByRole('button', { name: 'View proposal #3' }).click()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/wallet/tx/3')
+    })
+
+    test('a window says when it shows only the newest transfers, and when there are none', async ({ page }) => {
+        await setup(page)
+        await stubIndexer(page, Array.from({ length: 20 }, (_, i) => ({ hash: Buffer.from(String(i).padStart(64, '0'), 'hex').toString('base64'), from: BOB, to: MSIG, amount: '1ugnot' })))
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        const transfers = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`).getByRole('region', { name: 'Received and sent' })
+        await expect(transfers.getByText('Showing the 20 newest transfers: older ones in that range may not appear.')).toBeVisible()
+        await expect(transfers.getByRole('listitem')).toHaveCount(20)
+        await stubIndexer(page, [])
+        await page.reload()
+        await expect(win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`).getByRole('region', { name: 'Received and sent' }).getByText('No transfers in recent blocks.')).toBeVisible()
+    })
+
+    test('when the indexer cannot answer, the window says so and claims no transfers', async ({ page }) => {
+        await setup(page)
+        await stubIndexer(page, [], true)
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        const transfers = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`).getByRole('region', { name: 'Received and sent' })
+        await expect(transfers.getByRole('alert')).toHaveText("Couldn't read this account's transfers: the indexer did not answer, or this account moved more than it returns at once. Try again")
+        await expect(transfers.getByText('No transfers in recent blocks.')).toHaveCount(0)
+    })
+
     test('a guest sees the Multisig app and an account’s address and balance, named by the chain, and is asked to connect only where their own data would be', async ({ page }) => {
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+        await stubIndexer(page, [{ hash: RECEIVED_HASH, from: BOB, to: MSIG, amount: '1100000ugnot' }])
         await fulfillOnchainReads(page, ({ method, path }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"42000000ugnot"'
@@ -102,6 +162,8 @@ test.describe('Memba OS multisig', () => {
         await expect(account.getByText('42 GNOT')).toBeVisible()
         await expect(account.getByRole('button', { name: 'Copy gnoland-1 deposit address' })).toBeVisible()
         await expect(account.getByText("A multisig's members see its members, threshold and transactions here. Connect a wallet to see them.")).toBeVisible()
+        // Transfers are public chain data: a guest sees them too.
+        await expect(account.getByRole('region', { name: 'Received and sent' }).getByText('Received 1.1 GNOT')).toBeVisible()
 
         // A link can carry any address: a single key is not dressed as a treasury, nor is one the chain has no key for.
         for (const [address, says] of [[ALICE, 'This address is a single-key account, not a multisig.'], [BOB, 'Not yet confirmed as a multisig on chain: nothing has been signed from this address.']]) {
@@ -376,6 +438,7 @@ test.describe('Memba OS multisig · native lifecycle', () => {
 
     async function memberSession(browser: Browser, me: { pub: string; address: string }, fake: Fake): Promise<Page> {
         const page = await (await browser.newContext({ viewport: { width: 1280, height: 860 } })).newPage()
+        await stubIndexer(page)
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
         const ok = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
         const req = (route: { request(): { postData(): string | null } }) => JSON.parse(route.request().postData() ?? '{}')

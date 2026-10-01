@@ -71,6 +71,49 @@ describe("parseActivity", () => {
         expect(items[0]).toMatchObject({ kind: "transfer", actor: "g1g" })
     })
 
+    it("says whether the address it is about received or sent a transfer, with the exact amount", () => {
+        const sent = send("g1g", "g1h", "1100000ugnot")
+        expect(parseActivity([tx(105, "h6", [sent])], new Map(), { subject: "g1h" })[0])
+            .toMatchObject({ kind: "transfer", title: "Received 1.1 GNOT", actor: "g1g", to: "g1h", direction: "received" })
+        expect(parseActivity([tx(105, "h6", [sent])], new Map(), { subject: "g1g" })[0]).toMatchObject({ title: "Sent 1.1 GNOT" })
+        // To itself: nothing arrives from anyone else.
+        expect(parseActivity([tx(105, "h6", [send("g1g", "g1g", "1ugnot")])], new Map(), { subject: "g1g" })[0]).toMatchObject({ title: "Sent 0.000001 GNOT" })
+        expect(parseActivity([tx(105, "h6", [send("g1g", "g1h", "5foo")])], new Map(), { subject: "g1h" })[0]).toMatchObject({ title: "Received 5foo" })
+    })
+
+    it("shows a chain-wide transfer in GNOT, as sent", () => {
+        const [item] = parseActivity([tx(105, "h6", [send("g1g", "g1h", "1000000ugnot")])], new Map())
+        expect(item.title).toBe("Sent 1 GNOT")
+        expect(item.direction).toBeUndefined()
+    })
+
+    it("never shows a failed transaction", () => {
+        const failed = { ...tx(105, "h6", [send("g1g", "g1h", "1000000ugnot")]), success: false }
+        expect(parseActivity([failed], new Map(), { subject: "g1h" })).toEqual([])
+    })
+
+    it("gives every send naming the address its own row, whatever comes first in the transaction", () => {
+        // A send between others first, then one to the address: the row is the one it received.
+        const [received] = parseActivity([tx(105, "h6", [send("g1x", "g1y", "5ugnot"), send("g1y", "g1h", "7ugnot")])], new Map(), { subject: "g1h" })
+        expect(received).toMatchObject({ title: "Received 0.000007 GNOT", actor: "g1y", msgIndex: 1, extraCount: 1 })
+        // A multisig paying two people in one transaction: two rows.
+        const two = parseActivity([tx(105, "h6", [send("g1h", "g1a", "1000000ugnot"), send("g1h", "g1b", "2000000ugnot")])], new Map(), { subject: "g1h" })
+        expect(two.map((r) => [r.title, r.to, r.msgIndex])).toEqual([["Sent 1 GNOT", "g1a", 0], ["Sent 2 GNOT", "g1b", 1]])
+        // A call before the send: the send is not hidden behind it.
+        const mixed = parseActivity([tx(105, "h6", [call("g1h", "gno.land/r/x/a", "F"), send("g1h", "g1a", "3ugnot")])], new Map(), { subject: "g1h" })
+        expect(mixed.map((r) => r.kind)).toEqual(["transfer", "call"])
+    })
+
+    it("drops a send it cannot read, never guessing a transfer", () => {
+        for (const bad of [send("g1g", "", "5ugnot"), send("g1g", "g1h", ""), send("g1g", "g1h", "-5ugnot"), send("g1g", "g1h", "0ugnot"), send("g1g", "g1h", "five"), send("", "g1h", "5ugnot")]) {
+            expect(parseActivity([tx(105, "h6", [bad])], new Map(), { subject: "g1h" })).toEqual([])
+        }
+    })
+
+    it("formats a large ugnot amount exactly", () => {
+        expect(parseActivity([tx(105, "h6", [send("g1g", "g1h", "9007199254740993ugnot")])], new Map(), { subject: "g1h" })[0].title).toBe("Received 9,007,199,254.740993 GNOT")
+    })
+
     it("maps MsgRun to a run item", () => {
         const items = parseActivity([tx(106, "h7", [run("g1i")])], new Map())
         expect(items[0].kind).toBe("run")
@@ -193,7 +236,10 @@ function mockIndexer(opts: {
             return { ok: true, json: async () => ({ data: { transactions: opts.txs ?? null } }) } as Response
         }
         if (q.includes("getBlocks")) {
-            return { ok: true, json: async () => ({ data: { getBlocks: opts.blocks ?? [] } }) } as Response
+            // One alias per height asked: b0: getBlocks(where:{height:{eq:N}}).
+            const data = Object.fromEntries([...q.matchAll(/(b\d+): getBlocks\(where:\{height:\{eq:(\d+)\}\}\)/g)]
+                .map(([, alias, h]) => [alias, (opts.blocks ?? []).filter((b) => b.height === Number(h))]))
+            return { ok: true, json: async () => ({ data }) } as Response
         }
         throw new Error(`unexpected query: ${q}`)
     })
@@ -215,6 +261,29 @@ describe("fetchAddressActivity", () => {
         expect(items.map(i => i.txHash)).toEqual(["new", "old"]) // newest block first
         expect(items[0]).toMatchObject({ kind: "deploy", actor: ADDR, pkgPath: "gno.land/r/x/b", time: "2026-06-25T13:00:00Z" })
         expect(items[1]).toMatchObject({ kind: "call", actor: ADDR, func: "F" })
+    })
+
+    it("asks only for successful transactions, only bank sends for transfers, and the times of exactly the blocks shown", async () => {
+        const other = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+        const fetchMock = mockIndexer({
+            txs: [300, 100_000].map((h) => ({ hash: `h${h}`, block_height: h, messages: [{ value: { __typename: "BankMsgSend", from_address: other, to_address: ADDR, amount: "1ugnot" } }] })),
+            blocks: [{ height: 300, time: "2026-10-01T10:00:00Z" }, { height: 100_000, time: "2026-10-01T11:00:00Z" }],
+        })
+        vi.stubGlobal("fetch", fetchMock)
+        const items = await fetchAddressActivity(INDEXER, ADDR, { transfersOnly: true })
+        const queries = fetchMock.mock.calls.map(([, init]) => (JSON.parse(String(init?.body)) as { query: string }).query)
+        const txQuery = queries.find((q) => q.includes("transactions("))!
+        expect(txQuery).toContain("success:true")
+        expect(txQuery).not.toContain("caller:")
+        expect(queries.find((q) => q.includes("getBlocks"))).not.toMatch(/gt:|lt:/)
+        expect(items.map((i) => i.time)).toEqual(["2026-10-01T11:00:00Z", "2026-10-01T10:00:00Z"])
+    })
+
+    it("reads a transfer to the address as received", async () => {
+        const other = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+        vi.stubGlobal("fetch", mockIndexer({ txs: [{ hash: "in", block_height: 300, messages: [{ value: { __typename: "BankMsgSend", from_address: other, to_address: ADDR, amount: "1100000ugnot" } }] }] }))
+        const [item] = await fetchAddressActivity(INDEXER, ADDR)
+        expect(item).toMatchObject({ kind: "transfer", title: "Received 1.1 GNOT", actor: other, to: ADDR })
     })
 
     it("filters by the address across caller, creator, from_address and to_address (OR)", async () => {

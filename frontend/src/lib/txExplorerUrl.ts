@@ -17,8 +17,8 @@
  * @module lib/txExplorerUrl
  */
 
-/** Chain ids gnoscan's chain selector knows (read from its shipped bundle, 2026-09-07). */
-export const GNOSCAN_CHAIN_IDS: readonly string[] = ["pearl-1", "gnoland1", "staging"]
+/** Chain ids gnoscan's chain selector knows (read from its shipped bundle, 2026-09-07; gnoland-1 found there 2026-10-01). */
+export const GNOSCAN_CHAIN_IDS: readonly string[] = ["gnoland-1", "pearl-1", "gnoland1", "staging"]
 
 const HEX_64 = /^(0x|0X)?[0-9a-fA-F]{64}$/
 // 32 bytes → exactly 44 base64 chars with one pad char.

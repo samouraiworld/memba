@@ -31,7 +31,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 const item = (over: Partial<ActivityItem> = {}): ActivityItem => ({
     kind: "call", title: "F · x/a", actor: ADDR, pkgPath: "gno.land/r/x/a", func: "F",
-    txHash: "h1", blockHeight: 100, extraCount: 0, ...over,
+    txHash: "h1", blockHeight: 100, extraCount: 0, msgIndex: 0, ...over,
 })
 
 describe("useAddressActivity", () => {

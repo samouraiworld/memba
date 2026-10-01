@@ -21,7 +21,7 @@ describe("TxStatus", () => {
     })
 
     it("shows a copyable hash without a link where no explorer indexes the chain", () => {
-        render(<TxStatus state={{ phase: "confirmed", hash: HASH, message: "Done." }} chainId="gnoland-1" />)
+        render(<TxStatus state={{ phase: "confirmed", hash: HASH, message: "Done." }} chainId="test-13" />)
         expect(screen.queryByRole("link")).not.toBeInTheDocument()
         expect(screen.getByTitle("Transaction hash")).toHaveTextContent(HASH)
     })

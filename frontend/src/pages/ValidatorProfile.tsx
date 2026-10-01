@@ -77,7 +77,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
                     {item.extraCount > 0 && <span className="vp-act__more"> · +{item.extraCount} more</span>}
                 </span>
                 <span className="vp-act__meta">
-                    {item.actor && <span className="vp-act__actor vd-mono">{truncateValidatorAddr(item.actor)}</span>}
+                    {item.direction === "sent" && item.to ? <span className="vp-act__actor vd-mono">to {truncateValidatorAddr(item.to)}</span>
+                        : item.actor && <span className="vp-act__actor vd-mono">{item.direction === "received" ? "from " : ""}{truncateValidatorAddr(item.actor)}</span>}
                     {when && <span className="vp-act__when">{when}</span>}
                 </span>
             </span>
@@ -712,7 +713,7 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
                             {!activity.loading && !activity.error && activity.items.length > 0 && (
                                 <>
                                     <ol className="vp-act__list" data-testid="vp-activity-list">
-                                        {activity.items.map((item) => <ActivityRow key={item.txHash} item={item} />)}
+                                        {activity.items.map((item) => <ActivityRow key={`${item.txHash}:${item.msgIndex}`} item={item} />)}
                                     </ol>
                                     <p className="vp-act__note">Showing recent transactions from the chain indexer (most recent first).</p>
                                 </>

@@ -27,16 +27,19 @@ export interface AddressActivityResult {
     refetch: () => void
 }
 
-const LIMIT = 20
+/** The newest transactions read for one address. */
+export const ADDRESS_ACTIVITY_LIMIT = 20
 
-export function useAddressActivity(address: string | undefined): AddressActivityResult {
+/** `transfersOnly`: bank sends to and from the address, nothing else. */
+export function useAddressActivity(address: string | undefined, opts?: { transfersOnly?: boolean }): AddressActivityResult {
+    const transfersOnly = !!opts?.transfersOnly
     const indexerUrl = getIndexerUrl()
     const enabled = !!indexerUrl && !!address
 
     const query = useQuery({
-        queryKey: ["useAddressActivity", address, indexerUrl],
+        queryKey: ["useAddressActivity", address, indexerUrl, transfersOnly],
         queryFn: ({ signal }) =>
-            fetchAddressActivity(indexerUrl as string, address as string, { limit: LIMIT, signal }),
+            fetchAddressActivity(indexerUrl as string, address as string, { limit: ADDRESS_ACTIVITY_LIMIT, signal, transfersOnly }),
         enabled,
         staleTime: 30_000,
         retry: false,

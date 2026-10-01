@@ -32,6 +32,8 @@ describe("txExplorerUrl", () => {
         expect(txExplorerUrl(HEX, "pearl-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=pearl-1`)
         expect(txExplorerUrl(B64, "pearl-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=pearl-1`)
         expect(txExplorerUrl(HEX, "gnoland1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=gnoland1`)
+        // Mainnet as gnoscan names it today.
+        expect(txExplorerUrl(B64, "gnoland-1")).toBe(`https://gnoscan.io/transactions/details?txhash=${HEX}&chainId=gnoland-1`)
     })
     it("returns null for an unrecognized hash (caller renders plain text)", () => {
         expect(txExplorerUrl("abc123def456789012345678", "pearl-1")).toBeNull()

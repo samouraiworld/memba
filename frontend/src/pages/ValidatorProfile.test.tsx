@@ -104,7 +104,7 @@ function setActivity(over: Partial<ReturnType<typeof useAddressActivity>> = {}) 
 }
 const actItem = (over: Partial<ActivityItem> = {}): ActivityItem => ({
     kind: "call", title: "Approve · gnoswap/gns", actor: OPERATOR, pkgPath: "gno.land/r/gnoswap/gns",
-    func: "Approve", txHash: "h1", blockHeight: 100, extraCount: 0, ...over,
+    func: "Approve", txHash: "h1", blockHeight: 100, extraCount: 0, msgIndex: 0, ...over,
 })
 
 function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -441,6 +441,20 @@ describe("ValidatorProfile — Contributions / Activity / Quests / Reviews", () 
         const panel = screen.getByTestId("vp-tab-activity")
         expect(within(panel).getAllByTestId("vp-activity-row")).toHaveLength(2)
         expect(within(panel).getByRole("link", { name: /Deployed r\/demo\/foo/i }).getAttribute("href")).toContain("/r/demo/foo")
+    })
+
+    it("Activity tab says who a transfer came from or went to", async () => {
+        const other = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+        setActivity({ items: [
+            actItem({ txHash: "h1", kind: "transfer", title: "Received 1 GNOT", actor: other, to: OPERATOR, direction: "received", pkgPath: undefined, func: undefined }),
+            actItem({ txHash: "h2", kind: "transfer", title: "Sent 2 GNOT", actor: OPERATOR, to: other, direction: "sent", pkgPath: undefined, func: undefined }),
+        ] })
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
+        const [received, sent] = within(screen.getByTestId("vp-tab-activity")).getAllByTestId("vp-activity-row")
+        expect(received).toHaveTextContent(/from g1747t…/)
+        expect(sent).toHaveTextContent(/to g1747t…/)
     })
 
     it("Activity tab shows an honest empty state (not a fake coming-soon)", async () => {

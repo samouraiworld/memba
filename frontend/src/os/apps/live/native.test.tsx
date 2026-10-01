@@ -53,7 +53,7 @@ describe("Live activity", () => {
     })
 
     it("shows an indexed transaction and opens Live from the ticker", () => {
-        set({ items: [{ kind: "governance", title: "Voted on governance", actor: "g1someone", txHash: "a".repeat(64), blockHeight: 123, time: "2026-09-27T11:59:00Z", extraCount: 0 }] })
+        set({ items: [{ kind: "governance", title: "Voted on governance", actor: "g1someone", txHash: "a".repeat(64), blockHeight: 123, time: "2026-09-27T11:59:00Z", extraCount: 0, msgIndex: 0 }] })
         const onOpen = vi.fn()
         render(live(<><LiveWindow {...props} /><LiveTicker onOpen={onOpen} /></>))
         expect(screen.getAllByText("Voted on governance")).toHaveLength(2)
@@ -67,7 +67,7 @@ describe("Live activity", () => {
 
     it("labels a halted chain as paused even when the indexer returns data", () => {
         vi.mocked(useChainHealth).mockReturnValue({ degraded: true, health: "halted", blockAge: 500, loading: false })
-        set({ items: [{ kind: "post", title: "Posted on the feed", actor: "g1someone", txHash: "b".repeat(64), blockHeight: 120, extraCount: 0 }] })
+        set({ items: [{ kind: "post", title: "Posted on the feed", actor: "g1someone", txHash: "b".repeat(64), blockHeight: 120, extraCount: 0, msgIndex: 0 }] })
         render(live(<><LiveWindow {...props} /><LiveTicker onOpen={vi.fn()} /></>))
         expect(screen.getByText(/Chain activity appears paused/)).toBeInTheDocument()
         const ticker = screen.getByRole("button", { name: /activity paused/ })
@@ -76,7 +76,7 @@ describe("Live activity", () => {
     })
 
     it("distinguishes an old sampled transaction from a fresh relay check", () => {
-        set({ items: [{ kind: "post", title: "Posted on the feed", actor: "g1someone", txHash: "c".repeat(64), blockHeight: 111, time: "2026-09-25T12:00:00Z", extraCount: 0 }] })
+        set({ items: [{ kind: "post", title: "Posted on the feed", actor: "g1someone", txHash: "c".repeat(64), blockHeight: 111, time: "2026-09-25T12:00:00Z", extraCount: 0, msgIndex: 0 }] })
         render(live(<><LiveWindow {...props} /><LiveTicker onOpen={vi.fn()} /></>))
         expect(screen.getByText(/Indexer checked just now · latest sampled transaction 2d ago/)).toBeInTheDocument()
         expect(screen.getByText(/Indexer tip freshness is not independently verified/)).toBeInTheDocument()

@@ -16,6 +16,9 @@ import { api } from "../../lib/api"
 import { GNO_BECH32_PREFIX, GNO_CHAIN_ID } from "../../lib/config"
 import { parseMsgs } from "../../lib/parseMsgs"
 import { useBalance } from "../../hooks/useBalance"
+import { ADDRESS_ACTIVITY_LIMIT, useAddressActivity } from "../../hooks/useAddressActivity"
+import { ADDRESS_WINDOW_BLOCKS, formatActivityTime } from "../../lib/activity"
+import { normalizeTxHashHex, txExplorerUrl } from "../../lib/txExplorerUrl"
 import { StatusBadge } from "../../components/ui/StatusBadge"
 import { getMultisigStatus } from "../../components/ui/txStatus"
 import { ENABLE_NATIVE_GNO_MULTISIG } from "../../lib/config"
@@ -118,6 +121,48 @@ function txTitle(tx: Transaction): { title: string; detail: string } {
     return { title: `${first?.label ?? "Transaction"}${rest.length ? ` + ${rest.length} more` : ""}`, detail: tx.memo ? `${detail} · “${tx.memo}”` : detail }
 }
 
+/**
+ * Transfers to and from the account, from the gno.land indexer: public chain data,
+ * so guests see them too. Only recent blocks are read (the indexer has no paging).
+ * A send whose hash a recorded proposal carries names that proposal.
+ */
+function Transfers({ address, executed = [], open }: { address: string; executed?: readonly Transaction[]; open: (spec: WindowSpec) => void }) {
+    const activity = useAddressActivity(address, { transfersOnly: true })
+    if (!activity.available) return null
+    const proposalOf = new Map(executed.flatMap((tx) => {
+        const hex = normalizeTxHashHex(tx.finalHash)
+        return hex ? [[hex, tx.id] as const] : []
+    }))
+    const transfers = activity.items.filter((item) => item.kind === "transfer")
+    const capped = activity.items.length >= ADDRESS_ACTIVITY_LIMIT
+    return (
+        <section aria-label="Received and sent">
+            <h3 className="os-h">Received and sent</h3>
+            <p className="os-sub">Transfers in the last {ADDRESS_WINDOW_BLOCKS.toLocaleString("en-US")} blocks, from the gno.land indexer.</p>
+            {activity.loading ? <Loading what="transfers" />
+                : activity.error ? <p className="os-note os-err" role="alert">Couldn't read this account's transfers: the indexer did not answer, or this account moved more than it returns at once. <button type="button" className="os-btn os-quiet os-inline" onClick={() => activity.refetch()}>Try again</button></p>
+                : transfers.length === 0 ? <p className="os-sub">No transfers in recent blocks.</p>
+                : <>{capped && <p className="os-sub" role="status">Showing the {ADDRESS_ACTIVITY_LIMIT} newest transfers: older ones in that range may not appear.</p>}<ul className="os-list">{transfers.map((item) => {
+                    const received = item.direction === "received"
+                    const hex = normalizeTxHashHex(item.txHash)
+                    const proposal = hex ? proposalOf.get(hex) : undefined
+                    const link = txExplorerUrl(item.txHash, GNO_CHAIN_ID)
+                    const when = formatActivityTime(item.time)
+                    return (
+                        <li key={`${item.txHash}:${item.msgIndex}`} className="os-it os-top">
+                            <div className="os-grow">
+                                <b>{item.title}</b>
+                                <div className="os-sub os-mono os-break">{received ? `from ${item.actor}` : `to ${item.to ?? ""}`}</div>
+                                <div className="os-sub">Block {item.blockHeight.toLocaleString("en-US")}{when ? ` · ${when}` : ""}{link ? <> · <a href={link} target="_blank" rel="noreferrer">Transaction</a></> : null}</div>
+                            </div>
+                            {proposal !== undefined && <button type="button" className="os-btn os-quiet" aria-label={`View proposal #${proposal}`} onClick={() => open(specForTarget({ kind: "app", app: "wallet", section: `tx/${proposal}` })!)}>Proposal #{proposal}</button>}
+                        </li>
+                    )
+                })}</ul></>}
+        </section>
+    )
+}
+
 export function MultisigWindow({ address, session, open }: { address: string; session: OsSession; open: (spec: WindowSpec) => void }) {
     const detail = useMultisigDetail(session.layout.auth, address)
     const balance = useBalance(address)
@@ -149,6 +194,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
                 : session.status !== "member" ? <ConnectHere session={session} text="A multisig's members see its members, threshold and transactions here. Connect a wallet to see them." />
                 : notMember ? <p className="os-sub" role="status">You are not a member of this multisig.</p>
                 : <p className="os-sub" role="status">This multisig is not registered in Memba for your account. <button type="button" className="os-btn os-quiet os-inline" onClick={() => open(page("import"))}>Import it</button></p>}
+            {(kind.data === "multisig" || kind.data === "unused") && <Transfers address={address} open={open} />}
         </div>
     )
     if (detail.isPending) return <Loading what="this multisig" />
@@ -204,6 +250,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
                     })}</ul>
                 )}
             </section>
+            <Transfers address={address} executed={detail.data.executed} open={open} />
         </div>
     )
 }
