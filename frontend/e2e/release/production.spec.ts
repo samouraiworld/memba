@@ -17,6 +17,28 @@ test.beforeEach(async ({ page, request }) => {
     })
 })
 
+// A guard, not a reproduction of the stuck card: here build A's files leave the server with build B, so an
+// uncontrolled tab also recovers through the missing-chunk reload. UpdateNotice.test pins the worker handling itself.
+test('a tab opened by a hard reload, which no worker controls, still updates to build B on one click', async ({ page, request, context }) => {
+    await ready(page)
+    // Another Memba tab, still on build A's worker, keeps build B's worker waiting.
+    const other = await context.newPage()
+    await other.goto('/mainnet')
+    await expect.poll(() => other.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
+    // What Cmd/Ctrl+Shift+R does: the page loads around the service worker and is left uncontrolled.
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Page.reload', { ignoreCache: true })
+    await expect(page.getByTestId('home-spine-visitor')).toBeVisible()
+    expect(await page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(false)
+    await request.post('/__release?build=b')
+    const newEntry = '/' + (await (await request.get('/build-info.json')).json()).entry
+    await page.evaluate(async () => { await (await navigator.serviceWorker.ready).update() })
+    await expect(page.getByRole('button', { name: 'Reload to update' })).toBeVisible()
+    await page.getByRole('button', { name: 'Reload to update' }).click()
+    await expect(page.locator('script[type=module]')).toHaveAttribute('src', newEntry)
+    await expect(page.getByText(/The update (could not|did not) start/)).toHaveCount(0)
+})
+
 test('an old tab offers build B without reloading, then boots B offline after a click', async ({ page, request, context }) => {
     await ready(page)
     const records = await page.evaluate(() => {
