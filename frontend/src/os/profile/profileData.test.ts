@@ -7,7 +7,7 @@ vi.mock("../../lib/rpcFallback", async (original) => ({
 }))
 
 import { resilientAbciQuery } from "../../lib/rpcFallback"
-import { CORE_FIELDS, defaultProfileDocument, encodeProfileDocument, layoutLocked, parseProfileDocument, parseProfileString, PROFILE_DOCUMENT_FIELD, readProfileOnChain, safeProfileUrl } from "./profileData"
+import { ALL_SECTIONS, CORE_FIELDS, defaultProfileDocument, encodeProfileDocument, layoutLocked, parseProfileDocument, parseProfileString, PROFILE_DOCUMENT_FIELD, readProfileOnChain, safeProfileUrl, SECTION_TAB, TAB_NAMES, TEMPLATE_TABS } from "./profileData"
 
 const ADDRESS = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 const q = vi.mocked(resilientAbciQuery)
@@ -17,7 +17,7 @@ describe("public on-chain profile", () => {
     beforeEach(() => q.mockReset())
 
     it("accepts only bounded presentation data and safe https URLs", () => {
-        const document = { ...defaultProfileDocument("builder"), title: "Designer", links: [{ label: "Work", url: "https://example.org/" }] }
+        const document = { ...defaultProfileDocument(), template: "builder" as const, title: "Designer", links: [{ label: "Work", url: "https://example.org/" }] }
         expect(parseProfileDocument(encodeProfileDocument(document))).toEqual(document)
         expect(parseProfileDocument(JSON.stringify({ ...document, accent: "url(javascript:evil)" }))).toBeNull()
         expect(parseProfileDocument(JSON.stringify({ ...document, links: [{ label: "Bad", url: "javascript:alert(1)" }] }))).toBeNull()
@@ -25,6 +25,16 @@ describe("public on-chain profile", () => {
         expect(parseProfileDocument("x".repeat(4097))).toBeNull()
         expect(safeProfileUrl("https://user:pass@example.org/")).toBeNull()
         expect(safeProfileUrl("http://example.org/")).toBeNull()
+    })
+
+    it("gives every template its own tab order over the same tabs, and every section a tab", () => {
+        const orders = Object.values(TEMPLATE_TABS)
+        for (const order of orders) {
+            expect(order[0]).toBe("overview")
+            expect([...order].sort()).toEqual(Object.keys(TAB_NAMES).sort())
+        }
+        expect(new Set(orders.map((order) => order.join())).size).toBe(orders.length)
+        expect(ALL_SECTIONS.every((section) => TEMPLATE_TABS.simple.includes(SECTION_TAB[section]))).toBe(true)
     })
 
     it("decodes live Gno qeval strings, including Unicode not accepted by JSON.parse", () => {

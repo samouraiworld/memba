@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Profile templates visitors can see (2026-10-01)
+- Changed: a Profile template now sets the tab order a visitor meets after Overview, and one column (simple) or two on wide windows; picking one keeps your sections, their order, hidden sections and links. Sections move only within their own tab, the order visitors see.
+
 ### Memba OS: native Quests window (2026-10-01)
 - Added: the Quests window opens on a native hub: rank and XP recorded for a connected address, every quest browsable without a wallet, filters by category, difficulty and state, and the quests mainnet cannot complete named. A quest's page and the leaderboard open in the same window, and Back returns to the hub. On-chain quest attestation stays in the window for a connected wallet.
 

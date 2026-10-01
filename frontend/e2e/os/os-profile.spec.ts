@@ -45,6 +45,8 @@ test.describe('Memba OS native profile', () => {
         await expect(profile.getByRole('region', { name: 'Credentials' })).toBeVisible()
         await expect(profile.getByText('2.5 GNOT')).toBeVisible()
         await expect(profile.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
+        // The published Builder template puts Contributions and Home right after the overview.
+        await expect(profile.getByRole('tab')).toHaveText(['Overview', 'Contributions', 'Home', 'DAOs', 'Feed'])
         await expect(profile.getByText('On-chain Home found')).toBeVisible()
         await profile.getByRole('button', { name: 'Copy share link' }).click()
         await expect(profile).toBeVisible()
@@ -86,6 +88,34 @@ test.describe('Memba OS native profile', () => {
         await expect(editor.locator('.os-profile-phone')).toBeVisible()
         await editor.getByRole('button', { name: 'Undo' }).click()
         await expect(editor.getByTestId('os-profile-canvas').getByRole('heading', { name: 'Your name' })).toBeVisible()
+    })
+
+    test('template and section controls change what the canvas shows', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/profile`)
+        await page.getByRole('region', { name: 'Profile', exact: true }).getByRole('navigation', { name: 'Profile' }).getByRole('button', { name: 'Try editor' }).click()
+        const editor = page.getByTestId('os-profile-editor')
+        const canvas = editor.getByTestId('os-profile-canvas')
+        await expect(canvas.getByRole('tab')).toHaveText(['Overview', 'Home', 'DAOs', 'Contributions', 'Feed'])
+        await editor.getByRole('group', { name: 'Profile template' }).getByRole('button', { name: 'community' }).click()
+        await expect(canvas.getByRole('tab')).toHaveText(['Overview', 'DAOs', 'Feed', 'Home', 'Contributions'])
+        await editor.getByRole('group', { name: 'Profile template' }).getByRole('button', { name: 'builder' }).click()
+        await expect(canvas.getByRole('tab')).toHaveText(['Overview', 'Contributions', 'Home', 'DAOs', 'Feed'])
+
+        const overview = () => canvas.locator('.os-profile-sections').getByRole('region')
+        await expect(overview().first()).toHaveAccessibleName('About')
+        await editor.getByRole('button', { name: 'Move About down' }).click()
+        await expect(overview().first()).toHaveAccessibleName('Links')
+        await expect(overview().nth(1)).toHaveAccessibleName('About')
+        // Links and About are the first two Overview sections, so neither control is a dead end.
+        await expect(editor.getByRole('button', { name: 'Move Links up' })).toBeDisabled()
+        await expect(editor.getByRole('button', { name: 'Move Feed activity up' })).toHaveCount(0)
+
+        await canvas.getByRole('tab', { name: 'DAOs' }).click()
+        await expect(overview().first()).toHaveAccessibleName('Memberships and roles')
+        await editor.getByRole('button', { name: 'Move Governance votes up' }).click()
+        await expect(overview().first()).toHaveAccessibleName('Governance votes')
+        await editor.getByRole('list', { name: 'Feed tab sections' }).getByRole('checkbox').uncheck()
+        await expect(canvas.getByRole('tab', { name: 'Feed' })).toHaveCount(0)
     })
 
     test('public profile fits a phone viewport', async ({ page }) => {

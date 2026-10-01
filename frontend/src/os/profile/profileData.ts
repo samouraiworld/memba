@@ -39,18 +39,28 @@ export interface ProfileDocument {
 }
 
 export const ALL_SECTIONS: readonly ProfileSection[] = ["about", "links", "daos", "votes", "assets", "credentials", "feed", "reviews"]
+export const SECTION_LABELS: Record<ProfileSection, string> = {
+    about: "About", links: "Links", daos: "Memberships and roles", votes: "Governance votes", assets: "Public assets", credentials: "Credentials", feed: "Feed activity", reviews: "Reviews",
+}
+export type ProfileTab = "overview" | "home" | "daos" | "contributions" | "feed"
+export const TAB_NAMES: Record<ProfileTab, string> = { overview: "Overview", home: "Home", daos: "DAOs", contributions: "Contributions", feed: "Feed" }
+/** The tab each section is shown in. A section's position only matters among the sections of its tab. */
+export const SECTION_TAB: Record<ProfileSection, "overview" | "daos" | "feed"> = {
+    about: "overview", links: "overview", assets: "overview", credentials: "overview", reviews: "overview", daos: "daos", votes: "daos", feed: "feed",
+}
+/** A template is what a visitor meets after the overview, plus one column (simple) or two. */
+export const TEMPLATE_TABS: Record<ProfileTemplate, readonly ProfileTab[]> = {
+    simple: ["overview", "home", "daos", "contributions", "feed"],
+    builder: ["overview", "contributions", "home", "daos", "feed"],
+    community: ["overview", "daos", "feed", "home", "contributions"],
+}
 const TEMPLATES: readonly ProfileTemplate[] = ["simple", "builder", "community"]
 const ACCENTS: readonly ProfileAccent[] = ["indigo", "teal", "rose", "amber"]
 const MAX_DOCUMENT_BYTES = 4096
 const MAX_QEVAL_CHARS = 24_000
 
-export function defaultProfileDocument(template: ProfileTemplate = "simple"): ProfileDocument {
-    const sections: ProfileSection[] = template === "builder"
-        ? ["about", "links", "feed", "daos", "votes", "assets", "credentials", "reviews"]
-        : template === "community"
-            ? ["about", "daos", "feed", "links", "votes", "assets", "credentials", "reviews"]
-            : [...ALL_SECTIONS]
-    return { version: 1, template, accent: "indigo", title: "", company: "", cover: "", links: [], sections, hidden: [] }
+export function defaultProfileDocument(): ProfileDocument {
+    return { version: 1, template: "simple", accent: "indigo", title: "", company: "", cover: "", links: [], sections: [...ALL_SECTIONS], hidden: [] }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

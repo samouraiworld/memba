@@ -8,16 +8,10 @@ import { fetchUserFeed } from "../../lib/feedApi"
 import { fetchNFTPortfolio } from "../../lib/nftApi"
 import { ReviewsModeration } from "../../components/reviews/ModerationPolicy"
 import { fetchReviews } from "../../lib/reviews"
-import { safeProfileUrl, type ProfileSection } from "./profileData"
+import { safeProfileUrl, SECTION_LABELS, SECTION_TAB, TAB_NAMES, TEMPLATE_TABS, type ProfileSection, type ProfileTab } from "./profileData"
 import type { ShownProfile } from "./profileModel"
 import { readHomeRealm } from "./profileHome"
 import { readProfileMemberships } from "./profileMemberships"
-
-const LABELS: Record<ProfileSection, string> = {
-    about: "About", links: "Links", daos: "Memberships and roles", votes: "Governance votes", assets: "Public assets", credentials: "Credentials", feed: "Feed activity", reviews: "Reviews",
-}
-type ProfileTab = "overview" | "home" | "daos" | "contributions" | "feed"
-const TAB_NAMES: Record<ProfileTab, string> = { overview: "Overview", home: "Home", daos: "DAOs", contributions: "Contributions", feed: "Feed" }
 
 export function ProfileCanvas({ profile, preview = false }: { profile: ShownProfile; preview?: boolean }) {
     const { document, address } = profile
@@ -26,7 +20,7 @@ export function ProfileCanvas({ profile, preview = false }: { profile: ShownProf
     const networkPath = useNetworkPath()
     const tabId = useId().replace(/:/g, "")
     const visible = (section: ProfileSection) => !document.hidden.includes(section)
-    const tabs: ProfileTab[] = ["overview", "home", ...(visible("daos") || visible("votes") ? ["daos" as const] : []), "contributions", ...(visible("feed") ? ["feed" as const] : [])]
+    const tabs = TEMPLATE_TABS[document.template].filter((name) => name === "daos" ? visible("daos") || visible("votes") : name !== "feed" || visible("feed"))
     const tab = tabs.includes(selectedTab) ? selectedTab : "overview"
     const balance = useBalance(preview ? null : address)
     const home = useQuery({ queryKey: ["profile", "home", GNO_CHAIN_ID, address], queryFn: () => readHomeRealm(address), enabled: !preview, staleTime: 60_000, retry: false })
@@ -91,8 +85,8 @@ export function ProfileCanvas({ profile, preview = false }: { profile: ShownProf
         </>}
         {tab === "feed" && <div className="os-profile-feed-switch" role="group" aria-label="Feed type"><button type="button" aria-pressed={feedKind === "posts"} onClick={() => setFeedKind("posts")}>Posts</button><button type="button" aria-pressed={feedKind === "replies"} onClick={() => setFeedKind("replies")}>Replies</button></div>}
         <div className="os-profile-sections">
-            {document.sections.filter(visible).filter((section) => tab === "overview" ? ["about", "links", "assets", "credentials", "reviews"].includes(section) : tab === "daos" ? ["daos", "votes"].includes(section) : tab === "feed" ? section === "feed" : false).map((section) => <section key={section} className="os-profile-section" aria-label={LABELS[section]}>
-                <h2>{LABELS[section]}</h2>
+            {document.sections.filter((section) => visible(section) && SECTION_TAB[section] === tab).map((section) => <section key={section} className="os-profile-section" aria-label={SECTION_LABELS[section]}>
+                <h2>{SECTION_LABELS[section]}</h2>
                 {section === "about" && (profile.bio.value ? <><p className="os-profile-bio">{profile.bio.value}</p><small>Source: {profile.bio.source}</small></> : <p className="os-profile-muted">No introduction in the shared profile yet. The personal Home may tell you more.</p>)}
                 {section === "links" && (links.length ? <ul className="os-profile-links">{links.map((link) => <li key={`${link.label}:${link.url}`}><a href={link.url} target="_blank" rel="noopener noreferrer">{link.label} ↗</a><small>{new URL(link.url).hostname} · {link.source}</small></li>)}</ul> : <p className="os-profile-muted">No public links yet.</p>)}
                 {section === "daos" && <>

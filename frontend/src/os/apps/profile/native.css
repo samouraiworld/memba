@@ -34,6 +34,7 @@
 .os-profile-order li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--color-border, #778); }
 .os-profile-order li > div { display: flex; align-items: center; gap: 5px; }
 .os-profile-order label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.os-profile-order small { color: var(--color-text-secondary, #697386); font-size: 11px; }
 .os-profile-preview { min-width: 0; }
 .os-profile-preview-bar { justify-content: space-between; flex-wrap: wrap; margin: 0 0 12px; }
 .os-profile-preview-bar > div { display: flex; gap: 5px; }

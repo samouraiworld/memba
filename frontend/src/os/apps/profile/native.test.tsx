@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "../../../test/test-utils"
 import type { SignRequest } from "../../sign/signer"
@@ -327,6 +327,36 @@ describe("Profile window: the editor and the chain read it is built on", () => {
         show(OTHER)
         expect(screen.getByText("Reading profile from Gno…")).toBeInTheDocument()
         expect(screen.queryByTestId("canvas")).toBeNull()
+    })
+})
+
+describe("Profile window: templates and section order", () => {
+    const listed = (tab: string) => within(screen.getByRole("list", { name: `${tab} tab sections` })).getAllByRole("listitem").map((item) => item.firstChild!.textContent)
+
+    it("moves a section only among the sections of its own tab", async () => {
+        open()
+        fireEvent.click(await screen.findByRole("button", { name: "Edit profile" }))
+        expect(listed("Overview")).toEqual(["About · Overview tab", "Links · Overview tab", "Public assets · Overview tab", "Credentials · Overview tab", "Reviews · Overview tab"])
+        fireEvent.click(screen.getByRole("button", { name: "Move Links down" }))
+        // Its neighbour in the Overview tab, not the DAOs section that sits between them in the stored order.
+        expect(listed("Overview")).toEqual(["About · Overview tab", "Public assets · Overview tab", "Links · Overview tab", "Credentials · Overview tab", "Reviews · Overview tab"])
+        expect(listed("DAOs")).toEqual(["Memberships and roles · DAOs tab", "Governance votes · DAOs tab"])
+        expect(screen.getByRole("button", { name: "Move Reviews down" })).toBeDisabled()
+    })
+
+    it("changes only the template when one is picked: the section order and what is hidden stay", async () => {
+        open()
+        fireEvent.click(await screen.findByRole("button", { name: "Edit profile" }))
+        const showLinks = () => within(screen.getByRole("list", { name: "Overview tab sections" })).getAllByRole("checkbox")[1]
+        fireEvent.click(showLinks())
+        fireEvent.click(screen.getByRole("button", { name: "Move Reviews up" }))
+        const order = listed("Overview")
+        expect(order.at(-2)).toBe("Reviews · Overview tab")
+        fireEvent.click(screen.getByRole("button", { name: "builder" }))
+        expect(screen.getByRole("button", { name: "builder" })).toHaveAttribute("aria-pressed", "true")
+        expect(screen.getByText("Two columns on wide windows. Contributions and Home follow the overview.")).toBeInTheDocument()
+        expect(listed("Overview")).toEqual(order)
+        expect(showLinks()).not.toBeChecked()
     })
 })
 

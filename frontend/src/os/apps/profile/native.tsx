@@ -11,7 +11,7 @@ import type { NativeViewProps } from "../../native/types"
 import { useSigner } from "../../sign/signerContext"
 import { specForTarget } from "../../shell/windows"
 import { ProfileCanvas } from "../../profile/ProfileCanvas"
-import { ALL_SECTIONS, CORE_LIMITS, defaultProfileDocument, layoutLocked, readProfileOnChain, type CoreField, type ProfileChainRead, type ProfileDocument, type ProfileSection } from "../../profile/profileData"
+import { CORE_LIMITS, defaultProfileDocument, layoutLocked, readProfileOnChain, SECTION_LABELS, SECTION_TAB, TAB_NAMES, type CoreField, type ProfileChainRead, type ProfileDocument, type ProfileSection, type ProfileTab, type ProfileTemplate } from "../../profile/profileData"
 import { shownProfile } from "../../profile/profileModel"
 import { bioClearHeld, canPublishProfileDocument, draftFromChain, importLegacyProfile, profileChanges, profileLockKey, profilePublishEnabled, profilePublishRequest, profileReadIncomplete, rebaseDraft, unpublishedChanges, validateProfileDraft, type ProfileDraft } from "../../profile/profilePublish"
 import { usernameLockKey, usernameRegistrationRequest } from "../../profile/profileUsername"
@@ -19,7 +19,11 @@ import "./native.css"
 
 const SAMPLE_ADDRESS = "sample profile · local preview"
 const FIELD_NAMES: Record<CoreField, string> = { displayName: "Display name", bio: "Bio", avatar: "Avatar", homepage: "Homepage", location: "Location" }
-const SECTION_NAMES: Record<ProfileSection, string> = { about: "About", links: "Links", daos: "Projects", votes: "Votes", assets: "Assets", credentials: "Credentials", feed: "Feed", reviews: "Reviews" }
+const TEMPLATE_NOTES: Record<ProfileTemplate, string> = {
+    simple: "One column. Home and DAOs follow the overview.",
+    builder: "Two columns on wide windows. Contributions and Home follow the overview.",
+    community: "Two columns on wide windows. DAOs and Feed follow the overview.",
+}
 const sampleChain: ProfileChainRead = {
     core: { displayName: "Your name", bio: "A short introduction to your work and community.", avatar: "", homepage: "", location: "" },
     document: { ...defaultProfileDocument(), title: "Your role" }, documentPresent: true, documentUnreadable: false, documentInvalid: false, documentNewer: false, documentOversize: false, missingCore: [], invalidCore: [],
@@ -275,12 +279,12 @@ function ProfileEditor({ address, base, legacy, demo = false, onPublished, onCon
         } catch { setNotice("The chain could not be checked. Publication remains locked.") }
         finally { setChecking(false) }
     }
+    const tabSections = (tab: ProfileTab) => draft.document.sections.filter((section) => SECTION_TAB[section] === tab)
+    // A section trades places with its neighbour in the same tab: that is the only order the canvas shows.
     const move = (section: ProfileSection, by: number) => {
-        const sections = [...draft.document.sections]
-        const index = sections.indexOf(section), next = index + by
-        if (next < 0 || next >= sections.length) return
-        ;[sections[index], sections[next]] = [sections[next], sections[index]]
-        document({ ...draft.document, sections })
+        const group = tabSections(SECTION_TAB[section])
+        const other = group[group.indexOf(section) + by]
+        if (other) document({ ...draft.document, sections: draft.document.sections.map((item) => item === section ? other : item === other ? section : item) })
     }
     return <div className="os-profile-editor" data-pane={pane} data-testid="os-profile-editor">
         <div className="os-profile-pane-switch" role="group" aria-label="Editor pane"><button type="button" aria-pressed={pane === "edit"} onClick={() => setPane("edit")}>Edit</button><button type="button" aria-pressed={pane === "preview"} onClick={() => setPane("preview")}>Preview</button></div>
@@ -307,13 +311,17 @@ function ProfileEditor({ address, base, legacy, demo = false, onPublished, onCon
                 <label>Cover image URL<input type="url" maxLength={256} placeholder="https://" value={draft.document.cover} onChange={(e) => document({ ...draft.document, cover: e.target.value })} disabled={layoutOff} /></label>
             </div>
             <h3>Presentation</h3>
-            <div className="os-profile-choices" role="group" aria-label="Profile template">{(["simple", "builder", "community"] as const).map((value) => <button type="button" key={value} aria-pressed={draft.document.template === value} disabled={layoutOff} onClick={() => document({ ...defaultProfileDocument(value), title: draft.document.title, company: draft.document.company, cover: draft.document.cover, links: draft.document.links, accent: draft.document.accent })}>{value}</button>)}</div>
+            <div className="os-profile-choices" role="group" aria-label="Profile template">{(["simple", "builder", "community"] as const).map((value) => <button type="button" key={value} aria-pressed={draft.document.template === value} disabled={layoutOff} onClick={() => document({ ...draft.document, template: value })}>{value}</button>)}</div>
+            <p className="os-profile-muted">{TEMPLATE_NOTES[draft.document.template]}</p>
             <div className="os-profile-choices" role="group" aria-label="Accent color">{(["indigo", "teal", "rose", "amber"] as const).map((value) => <button type="button" key={value} aria-pressed={draft.document.accent === value} disabled={layoutOff} onClick={() => document({ ...draft.document, accent: value })}>{value}</button>)}</div>
             <h3>Links</h3>
             {draft.document.links.map((link, index) => <div className="os-profile-link-edit" key={index}><input aria-label={`Link ${index + 1} label`} placeholder="Label" maxLength={40} value={link.label} disabled={layoutOff} onChange={(e) => document({ ...draft.document, links: draft.document.links.map((v, i) => i === index ? { ...v, label: e.target.value } : v) })} /><input aria-label={`Link ${index + 1} URL`} type="url" placeholder="https://" maxLength={256} value={link.url} disabled={layoutOff} onChange={(e) => document({ ...draft.document, links: draft.document.links.map((v, i) => i === index ? { ...v, url: e.target.value } : v) })} /><button type="button" aria-label={`Remove link ${index + 1}`} disabled={layoutOff} onClick={() => document({ ...draft.document, links: draft.document.links.filter((_, i) => i !== index) })}>Remove</button></div>)}
             <button type="button" className="os-btn os-quiet" disabled={draft.document.links.length >= 5 || layoutOff} onClick={() => document({ ...draft.document, links: [...draft.document.links, { label: "", url: "" }] })}>Add link</button>
             <h3>Sections</h3>
-            <ul className="os-profile-order">{draft.document.sections.map((section, index) => <li key={section}><span>{SECTION_NAMES[section]}</span><div><button type="button" aria-label={`Move ${SECTION_NAMES[section]} up`} disabled={index === 0 || layoutOff} onClick={() => move(section, -1)}>↑</button><button type="button" aria-label={`Move ${SECTION_NAMES[section]} down`} disabled={index === ALL_SECTIONS.length - 1 || layoutOff} onClick={() => move(section, 1)}>↓</button><label><input type="checkbox" checked={!draft.document.hidden.includes(section)} disabled={layoutOff} onChange={(e) => document({ ...draft.document, hidden: e.target.checked ? draft.document.hidden.filter((s) => s !== section) : [...draft.document.hidden, section] })} /> Show</label></div></li>)}</ul>
+            {(["overview", "daos", "feed"] as const).map((tab) => {
+                const group = tabSections(tab)
+                return <ul key={tab} className="os-profile-order" aria-label={`${TAB_NAMES[tab]} tab sections`}>{group.map((section, index) => <li key={section}><span>{SECTION_LABELS[section]} <small>· {TAB_NAMES[tab]} tab</small></span><div>{group.length > 1 && <><button type="button" aria-label={`Move ${SECTION_LABELS[section]} up`} disabled={index === 0 || layoutOff} onClick={() => move(section, -1)}>↑</button><button type="button" aria-label={`Move ${SECTION_LABELS[section]} down`} disabled={index === group.length - 1 || layoutOff} onClick={() => move(section, 1)}>↓</button></>}<label><input type="checkbox" checked={!draft.document.hidden.includes(section)} disabled={layoutOff} onChange={(e) => document({ ...draft.document, hidden: e.target.checked ? draft.document.hidden.filter((s) => s !== section) : [...draft.document.hidden, section] })} /> Show</label></div></li>)}</ul>
+            })}
             {!canPublishProfileDocument && !demo && <p className="os-profile-notice">This network supports standard profile fields only. Layout and extra fields are available on mainnet.</p>}
             <div className="os-profile-save"><button type="button" className="os-btn os-quiet" disabled={!history.length} onClick={() => { const last = history.at(-1); if (last) { show(last); saveDraft(last); setHistory(history.slice(0, -1)) } }}>Undo</button><button type="button" className="os-btn os-quiet" onClick={() => update(draftFromChain(base))}>Reset to published</button></div>
             </div>
