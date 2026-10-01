@@ -21,6 +21,7 @@ import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, format
 import type { SignRequest } from "../sign/signer"
 import { verifySendTx } from "../wallet/sendRequest"
 import { GUEST_SEAT, ZERO_MEMBER } from "./createDao"
+import { withFeeCheck } from "../sign/recheck"
 
 /** Chain checks walk the network's endpoint list (each endpoint must serve this chain). */
 export function deployChain(): ChainContext {
@@ -42,15 +43,21 @@ export interface DeployChecks {
  */
 export async function runDeployChecks(wallet: string, realmPath: string): Promise<DeployChecks> {
     const chain = deployChain()
-    await assertCanDeployTo(chain, wallet, realmPath)
-    const { replacesParked } = await assertPathAvailable(chain, realmPath, wallet).catch((err: unknown) => {
+    // Read together; a refusal is reported in this order whichever answer comes first.
+    const [namespace, path, policy, balance] = await Promise.allSettled([
+        assertCanDeployTo(chain, wallet, realmPath),
+        assertPathAvailable(chain, realmPath, wallet),
+        // The policy only sizes the transaction; success is read from the chain.
+        codeSubmissionPolicy(chain).catch(() => "unknown"),
+        abciQueryText(chain, `bank/balances/${wallet}`, "").then(ugnotInCoinsJson),
+    ])
+    if (namespace.status === "rejected") throw namespace.reason
+    if (path.status === "rejected") {
         // The address is made from the DAO name: say what to change.
-        throw err instanceof PathTakenError ? new Error("This address is already used on the network. Change the DAO name in step 1: the address is made from the name's Latin letters a–z and digits, up to 20.") : err
-    })
-    // The policy only sizes the transaction; success is read from the chain.
-    const policy = await codeSubmissionPolicy(chain).catch(() => "unknown")
-    const balanceUgnot = ugnotInCoinsJson(await abciQueryText(chain, `bank/balances/${wallet}`, ""))
-    return { policy, replacesParked, balanceUgnot }
+        throw path.reason instanceof PathTakenError ? new Error("This address is already used on the network. Change the DAO name in step 1: the address is made from the name's Latin letters a–z and digits, up to 20.") : path.reason
+    }
+    if (balance.status === "rejected") throw balance.reason
+    return { policy: policy.status === "fulfilled" ? policy.value : "unknown", replacesParked: path.value.replacesParked, balanceUgnot: balance.value }
 }
 
 /** Deposit and fee for the review, as the classic page computes them. */
@@ -134,21 +141,22 @@ export function createDaoRequest(ctx: CreateDaoContext): SignRequest<string> {
         label: () => `Deploy ${config.name.trim()}`,
         prepare: () => ({ msgs }),
         recheck: async () => {
-            const fresh = await runDeployChecks(wallet, path)
-            // A policy unreadable at review sized the larger budget, which covers either policy.
-            if (checks.policy !== "unknown" && fresh.policy === "unknown") throw new Error("Memba couldn't read the network's rules for new packages just now. Nothing was sent: try again.")
-            if ((checks.policy !== "unknown" && fresh.policy !== checks.policy) || fresh.replacesParked !== checks.replacesParked) {
-                throw new Error("The network's rules for this address changed. Review the deploy again.")
-            }
-            const short = balanceShortfall(fresh.balanceUgnot, { feeUgnot, estimateUgnot, capUgnot }, fresh.policy)
-            if (short) throw new Error(`${short} Nothing was sent.`)
             // The wallet is asked for the reviewed fee: a higher price since then needs a new review.
-            await assertFeeStillCovers(feeUgnot, async () => {
+            const priced = assertFeeStillCovers(feeUgnot, async () => {
                 const price = await networkGasPriceFresh()
                 const fee = feeForGasWanted(gasWanted, price)
                 // Only a rise is shown: a lower price still signs the fee that was reviewed.
                 if (fee > feeUgnot) ctx.onRisenPrice?.(price)
                 return fee
+            })
+            await withFeeCheck(runDeployChecks(wallet, path), priced, (fresh) => {
+                // A policy unreadable at review sized the larger budget, which covers either policy.
+                if (checks.policy !== "unknown" && fresh.policy === "unknown") throw new Error("Memba couldn't read the network's rules for new packages just now. Nothing was sent: try again.")
+                if ((checks.policy !== "unknown" && fresh.policy !== checks.policy) || fresh.replacesParked !== checks.replacesParked) {
+                    throw new Error("The network's rules for this address changed. Review the deploy again.")
+                }
+                const short = balanceShortfall(fresh.balanceUgnot, { feeUgnot, estimateUgnot, capUgnot }, fresh.policy)
+                if (short) throw new Error(`${short} Nothing was sent.`)
             })
         },
         send: async (_c, beforeSign) => {

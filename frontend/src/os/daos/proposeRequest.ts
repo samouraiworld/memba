@@ -20,6 +20,7 @@ import type { GasPrice } from "../../lib/grc20"
 import type { SignRequest } from "../sign/signer"
 import { sheetFee } from "./sheetFee"
 import { TYPE_LABELS } from "./proposal"
+import { withFeeCheck } from "../sign/recheck"
 
 export function proposalScope(realmPath: string, caller: string): GovernanceScope {
     return { chainId: GNO_CHAIN_ID, realmPath, caller, operation: "proposal" }
@@ -72,10 +73,11 @@ export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
         retainConfirmedReceipt: true,
         prepare: () => ({ msgs: [plan.msg] }),
         recheck: async () => {
-            const [fresh, members] = await Promise.all([getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true)])
-            if (!fresh?.v2 || fresh.v2.archived || !members.some((m) => m.address === caller)) throw new Error("DAO membership or availability changed. Review your proposal again.")
-            if (fresh.v2.electorate_version !== config.electorate_version) throw new Error("DAO membership changed. Review the proposal again.")
-            await fee.assertStillCovers()
+            const dao = Promise.all([getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true)])
+            await withFeeCheck(dao, fee.assertStillCovers(), ([fresh, members]) => {
+                if (!fresh?.v2 || fresh.v2.archived || !members.some((m) => m.address === caller)) throw new Error("DAO membership or availability changed. Review your proposal again.")
+                if (fresh.v2.electorate_version !== config.electorate_version) throw new Error("DAO membership changed. Review the proposal again.")
+            })
         },
         send: (_c, beforeSign) => broadcastDaoTx(plan, `Propose: ${title}`, beforeSign, { approvedDepositUgnot: overCeiling ? cap : undefined, fee: fee.fee }),
         verifyAttempts: 1,

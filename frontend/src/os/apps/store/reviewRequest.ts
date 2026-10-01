@@ -7,6 +7,7 @@ import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeFor
 import { buildPostReviewMsg, REVIEW_BODY_MAX_BYTES, REVIEW_GAS_WANTED, REVIEWS_PKG_PATH, reviewStorageBytes } from "../../../lib/reviews"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
+import { withFeeCheck } from "../../sign/recheck"
 
 export interface StoreReviewDraft {
     subject: string
@@ -59,10 +60,10 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
         recheck: async () => {
             validated(review)
             // Strict: a registry outage must surface as one, not as a delisted app.
-            const listing = await fetchAppStrict(review.subject)
-            if (!listing || listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
-            if (listing.name !== review.appName) throw new Error("This app's listing changed. Refresh before reviewing.")
-            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED))
+            await withFeeCheck(fetchAppStrict(review.subject), assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED)), (listing) => {
+                if (!listing || listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
+                if (listing.name !== review.appName) throw new Error("This app's listing changed. Refresh before reviewing.")
+            })
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], "Review app", { gasWanted: REVIEW_GAS_WANTED, gasFee: fee, beforeSign }),
         verify: (_choice, hash) => verifySendTx(hash),

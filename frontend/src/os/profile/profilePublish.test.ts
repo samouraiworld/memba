@@ -60,6 +60,21 @@ describe("profile publication", () => {
         expect(profileMessages(ADDRESS, changes)[0].value.args).toEqual(["memba.profile.v1", changes[0].after])
     })
 
+    it("reads the published profile and the network price at the same time", async () => {
+        const draft = draftFromChain(base)
+        draft.core.bio = "New bio"
+        const request = profilePublishRequest(ADDRESS, base, draft, FALLBACK_GAS_PRICE, vi.fn())
+        let profileRead!: () => void
+        vi.mocked(readProfileOnChain).mockImplementationOnce(() => new Promise((resolve) => { profileRead = () => resolve(base) }))
+        vi.mocked(freshFeeForGasWanted).mockReset().mockResolvedValue(1)
+        const checking = request.recheck!(undefined)
+        await vi.waitFor(() => expect(profileRead).toBeTypeOf("function"))
+        // The profile hasn't answered, and the price is already asked.
+        expect(freshFeeForGasWanted).toHaveBeenCalled()
+        profileRead()
+        await expect(checking).resolves.toBeUndefined()
+    })
+
     it("stops if the published field changed since editing", async () => {
         const draft = draftFromChain(base)
         draft.core.bio = "New bio"

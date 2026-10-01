@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { clearRpcChainChecks } from "./chainIdentity"
 import { weightedConfigSchema, type WeightedV12Config } from "./weighted"
 import v12Native from "./testdata/weighted-v12/native.json"
 
@@ -27,7 +28,8 @@ function chain(network: string, treasuries: Record<string, string | Error>) {
 }
 const address = (value: string) => `("${value}" .uverse.address)`
 
-beforeEach(() => { rpc.mockReset() })
+// Each case starts with no node verified: the chain memo (chainIdentity) is per page.
+beforeEach(() => { rpc.mockReset(); clearRpcChainChecks() })
 
 describe("where the governed applications pay their fees", () => {
     it("reads each target's current treasury next to the one the DAO's policy names", async () => {

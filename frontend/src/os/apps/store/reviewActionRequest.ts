@@ -9,6 +9,7 @@ import {
 } from "../../../lib/reviews"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
+import { withFeeCheck } from "../../sign/recheck"
 
 export interface StoreReviewAction {
     action: ReviewAction
@@ -103,8 +104,7 @@ export function reviewActionRequest(input: StoreReviewAction): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(input)
-            await assertReviewActionApplies(caller, action)
-            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED))
+            await withFeeCheck(assertReviewActionApplies(caller, action), assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED)))
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], title, { gasWanted: REVIEW_GAS_WANTED, gasFee: fee, beforeSign }),
         verify: (_choice, hash) => verifySendTx(hash),

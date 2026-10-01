@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { clearRpcChainChecks } from "./chainIdentity"
 import { directRpcCall } from "../rpcFallback"
 import { parseWeightedQeval } from "./weighted"
 import {
@@ -31,6 +32,8 @@ let network = ctx.chainId
 const expressions: string[] = []
 
 beforeEach(() => {
+    // Each case starts with no node verified: the chain memo (chainIdentity) is per page.
+    clearRpcChainChecks()
     vi.clearAllMocks()
     network = ctx.chainId
     expressions.length = 0
@@ -129,9 +132,17 @@ describe("memba v2 reader — real realm outputs", () => {
 })
 
 describe("memba v2 reader — refuses what it cannot trust", () => {
+    it("after one failed status read, the next read asks its node again", async () => {
+        const real = vi.mocked(directRpcCall).getMockImplementation()!
+        vi.mocked(directRpcCall).mockImplementationOnce(async () => { throw new TypeError("Failed to fetch") })
+        await expect(readV2Config(ctx)).rejects.toThrow("Failed to fetch")
+        vi.mocked(directRpcCall).mockImplementation(real)
+        await expect(readV2Config(ctx)).resolves.toMatchObject({ threshold: expect.any(Number) })
+    })
+
     it("refuses an endpoint serving another chain", async () => {
         network = "other-chain"
-        await expect(readV2Config(ctx)).rejects.toThrow("network")
+        await expect(readV2Config(ctx)).rejects.toThrow("This RPC serves other-chain")
         expect(expressions).toEqual([])
     })
 

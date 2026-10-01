@@ -68,6 +68,21 @@ describe("voteRequest · version-2 re-checks (as on the classic proposal page)",
         await expect(voteRequest(ctx()).recheck!("Yes")).resolves.toBeUndefined()
     })
 
+    it("reads the DAO and the network price at the same time", async () => {
+        const { getDAOConfig } = await import("../../lib/dao")
+        const { freshFeeForGasWanted } = await import("../../lib/grc20")
+        let daoRead!: () => void
+        const real = vi.mocked(getDAOConfig).getMockImplementation()!
+        vi.mocked(getDAOConfig).mockImplementationOnce((...a) => new Promise((resolve) => { daoRead = () => resolve(real(...a)) }))
+        vi.mocked(freshFeeForGasWanted).mockClear()
+        const checking = voteRequest(ctx()).recheck!("Yes")
+        await vi.waitFor(() => expect(daoRead).toBeTypeOf("function"))
+        // The DAO hasn't answered, and the price is already asked.
+        await vi.waitFor(() => expect(freshFeeForGasWanted).toHaveBeenCalled())
+        daoRead()
+        await expect(checking).resolves.toBeUndefined()
+    })
+
     it.each([
         ["the DAO is archived", () => { chain.config = { v2: { archived: true, electorate_version: 3 } } }, "availability changed"],
         ["the member left", () => { chain.members = [] }, "membership"],

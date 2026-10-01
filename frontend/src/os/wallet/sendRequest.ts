@@ -14,6 +14,7 @@ import { abciErrorPresent, directRpcCall, getRpcUrlsInOrder } from "../../lib/rp
 import { normalizeTxHashHex } from "../../lib/txExplorerUrl"
 import type { SignRequest } from "../sign/signer"
 import { buildSendMsg, claimSendLock, clearSendLock, formatUgnot, SEND_GAS_WANTED, updateSendLockHash } from "./send"
+import { withFeeCheck } from "../sign/recheck"
 
 export interface SendContext {
     from: string
@@ -93,15 +94,15 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
         label: () => label,
         prepare: () => ({ msgs }),
         recheck: async () => {
-            if ((await ctx.currentWallet()) !== ctx.from) throw new Error("Your wallet changed since the review. Review the send again.")
-            if (ctx.currentFee) await assertFeeStillCovers(ctx.feeUgnot, ctx.currentFee)
             // A name can change owner: the address reviewed is the one paid, but only while the name still points there.
-            if (ctx.toName) {
-                const now = await (ctx.resolveName ?? resolveNameNow)(ctx.toName)
+            const state = Promise.all([ctx.currentWallet(), ctx.toName ? (ctx.resolveName ?? resolveNameNow)(ctx.toName) : Promise.resolve(ctx.to)])
+            await withFeeCheck(state, ctx.currentFee ? assertFeeStillCovers(ctx.feeUgnot, ctx.currentFee) : Promise.resolve(), ([wallet, now]) => {
+                if (wallet !== ctx.from) throw new Error("Your wallet changed since the review. Review the send again.")
+                if (!ctx.toName) return
                 if (now === null) throw new Error(`Couldn't confirm @${ctx.toName} just now. Nothing was sent; try again.`)
                 if (now === "") throw new Error(`@${ctx.toName} is no longer registered. Nothing was sent.`)
                 if (now !== ctx.to) throw new Error(`@${ctx.toName} now points to another address. Nothing was sent; review the send again.`)
-            }
+            })
         },
         send: async (_c, beforeSign) => {
             // Web Locks serialize tabs in the same browser profile. The durable

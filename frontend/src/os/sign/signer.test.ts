@@ -32,6 +32,19 @@ afterEach(() => {
 })
 
 describe("executeSignature", () => {
+    it("reads the account mark and runs the request's rechecks at the same time", async () => {
+        let markRead!: (mark: string) => void
+        let rechecked!: () => void
+        const sent = { before: vi.fn(() => new Promise<string>((resolve) => { markRead = resolve })), after: vi.fn(async () => "M"), onSettling: vi.fn() }
+        const recheck = vi.fn(() => new Promise<void>((resolve) => { rechecked = resolve }))
+        const pending = executeSignature(request({ recheck }), "YES", [msg], () => {}, () => true, sent)
+        // Neither has answered, and both are already asked.
+        await vi.waitFor(() => { expect(sent.before).toHaveBeenCalled(); expect(recheck).toHaveBeenCalled() })
+        markRead("M")
+        rechecked()
+        await expect(pending).resolves.toMatchObject({ outcome: "sent" })
+    })
+
     it("approves exactly the reviewed messages, then restores the classic confirmation", async () => {
         const classic = vi.fn(async () => true)
         setTxConfirmationCallback(classic)

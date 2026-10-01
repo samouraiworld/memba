@@ -26,6 +26,7 @@ import { teamWallet } from "../../lib/dao/weightedTreasury"
 import { CURRENT_VERSION_ONLY, POLICY_LABELS, decisionRules, executionWarning, isVoteOpen, openProposalsOf, type BallotView } from "../../lib/dao/weightedView"
 import { assertLiveWalletChain } from "../../lib/dao/weightedWallet"
 import type { SignRequest } from "../sign/signer"
+import { withFeeCheck } from "../sign/recheck"
 
 const WEIGHTED_VOTE_OPTIONS = ["Yes", "No", "Abstain"] as const
 export type WeightedVoteOption = (typeof WEIGHTED_VOTE_OPTIONS)[number]
@@ -155,7 +156,7 @@ export function weightedVoteRequest(ctx: WeightedRequestContext, choices: readon
         label: (choice) => weightedVoteLabel(choice ?? choices[0], proposal.id),
         receipt: weightedScope(GNO_CHAIN_ID, realmPath, caller, "vote", proposal.id),
         prepare: parts.prepare,
-        recheck: async (choice) => { await parts.check(choice); await parts.assertFee() },
+        recheck: async (choice) => { await withFeeCheck(parts.check(choice), parts.assertFee()) },
         send: parts.send,
         verify: async (choice) => (await readWeightedBallot(contextOf(realmPath), proposal.id, caller)).choice === BALLOT[choice ?? choices[0]],
     }
@@ -182,12 +183,12 @@ export function weightedExecuteRequest(ctx: WeightedRequestContext, otherOpen: r
         receipt: weightedScope(GNO_CHAIN_ID, realmPath, caller, "execute", proposal.id),
         prepare: parts.prepare,
         recheck: async () => {
-            const { snapshot: fresh } = await parts.check(undefined)
-            const now = openProposalsOf(fresh.page)
-            if (now.open.some((o) => o.id !== proposal.id && !otherOpen.includes(o.id)) || (complete && !now.complete)) {
-                throw new Error("More proposals are open than when you reviewed this execution. Review it again.")
-            }
-            await parts.assertFee()
+            await withFeeCheck(parts.check(undefined), parts.assertFee(), ({ snapshot: fresh }) => {
+                const now = openProposalsOf(fresh.page)
+                if (now.open.some((o) => o.id !== proposal.id && !otherOpen.includes(o.id)) || (complete && !now.complete)) {
+                    throw new Error("More proposals are open than when you reviewed this execution. Review it again.")
+                }
+            })
         },
         send: parts.send,
         verify: async () => (await readWeightedProposal(contextOf(realmPath), proposal.id, snapshot.config.schema)).status === "EXECUTED",
@@ -220,7 +221,7 @@ export function weightedAcceptRequest(ctx: WeightedActContext, adapter: Applicat
         label: () => `Propose accepting ${label}`,
         receipt: weightedScope(GNO_CHAIN_ID, realmPath, caller, "accept", "handover"),
         prepare: parts.prepare,
-        recheck: async () => { await parts.check(undefined); await parts.assertFee() },
+        recheck: async () => { await withFeeCheck(parts.check(undefined), parts.assertFee()) },
         send: parts.send,
         // Proof on chain: an acceptance of this application proposed by this member (the one the wallet names, when it does).
         verify: async (_choice, _hash, result) => {
@@ -266,7 +267,7 @@ export function weightedTreasuryRequest(ctx: WeightedActContext, adapter: Treasu
         label: () => `Propose moving ${label} fees`,
         receipt: weightedScope(GNO_CHAIN_ID, realmPath, caller, "treasury", adapter),
         prepare: parts.prepare,
-        recheck: async () => { await parts.check(undefined); await parts.assertFee() },
+        recheck: async () => { await withFeeCheck(parts.check(undefined), parts.assertFee()) },
         send: parts.send,
         // Proof on chain: a proposal of this member moving this application's fees (the one the wallet names, when it does).
         verify: async (_choice, _hash, result) => {

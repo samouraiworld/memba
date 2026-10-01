@@ -7,6 +7,7 @@ import { assertFeeStillCovers, doContractBroadcast, freshFeeForGasWanted, type A
 import type { SignRequest } from "../sign/signer"
 import { profilePublishCosts, profileStorageBytes, type StoredValueChange } from "./profileBudget"
 import { CORE_FIELDS, CORE_LIMITS, encodeProfileDocument, layoutLocked, PROFILE_DOCUMENT_FIELD, PROFILE_REALM, readProfileOnChain, safeProfileUrl, type ProfileChainRead, type ProfileCore, type ProfileDocument } from "./profileData"
+import { withFeeCheck } from "../sign/recheck"
 
 export interface ProfileDraft { core: Record<keyof ProfileCore, string>; document: ProfileDocument }
 export interface ProfileChange extends StoredValueChange {
@@ -190,11 +191,11 @@ export function profilePublishRequest(address: string, base: ProfileChainRead, d
         label: () => "Publish profile",
         prepare: () => ({ msgs }),
         recheck: async () => {
-            const fresh = await readProfileOnChain(address)
-            if (profileReadIncomplete(fresh)) throw new Error("The current profile could not be verified. Nothing was sent.")
-            const layoutNowLocked = layoutLocked(fresh) && changes.some(({ field }) => field === PROFILE_DOCUMENT_FIELD)
-            if (layoutNowLocked || changes.some(({ field, before, repair }) => needsRepair(fresh, field) !== repair || (!repair && currentValue(fresh, field) !== before))) throw new Error("Your published profile changed. Reload it and review the draft before publishing.")
-            await assertFeeStillCovers(costs.feeUgnot, () => freshFeeForGasWanted(costs.gasWanted))
+            await withFeeCheck(readProfileOnChain(address), assertFeeStillCovers(costs.feeUgnot, () => freshFeeForGasWanted(costs.gasWanted)), (fresh) => {
+                if (profileReadIncomplete(fresh)) throw new Error("The current profile could not be verified. Nothing was sent.")
+                const layoutNowLocked = layoutLocked(fresh) && changes.some(({ field }) => field === PROFILE_DOCUMENT_FIELD)
+                if (layoutNowLocked || changes.some(({ field, before, repair }) => needsRepair(fresh, field) !== repair || (!repair && currentValue(fresh, field) !== before))) throw new Error("Your published profile changed. Reload it and review the draft before publishing.")
+            })
         },
         send: async (_choice, beforeSign) => {
             localStorage.setItem(key, JSON.stringify({ at: Date.now(), changes, draft: JSON.stringify(draft) }))

@@ -11,6 +11,7 @@ import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 import { validateRealmPath } from "../templates/sanitizer"
 import { isChecksummedAddress } from "../templates/dao/v2/bech32"
+import { assertRpcChain } from "./chainIdentity"
 import { parseWeightedQeval } from "./weighted"
 
 export const MEMBA_V2_TEMPLATE = "memba-dao/2"
@@ -138,15 +139,13 @@ function checkId(id: number) {
     if (!Number.isSafeInteger(id) || id < 1) throw new Error("Invalid proposal id")
 }
 
-async function assertChain(ctx: MembaV2Context, signal?: AbortSignal) {
-    const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(ctx.rpcUrl, "status", {}, signal))
-    if (status.node_info.network !== ctx.chainId) throw new Error("RPC network does not match the selected chain")
-}
-
 async function qeval(ctx: MembaV2Context, expression: string, signal?: AbortSignal): Promise<string> {
     checkContext(ctx)
     if (signal?.aborted) throw new Error("Read cancelled")
-    await assertChain(ctx, signal)
+    // The node's chain, remembered for a minute once verified (chainIdentity), not read before every query.
+    // Its only node is probed again even right after a failed status read: nothing else could answer.
+    await assertRpcChain(ctx.rpcUrl, ctx.chainId, true)
+    if (signal?.aborted) throw new Error("Read cancelled")
     const data = Array.from(new TextEncoder().encode(`${ctx.realmPath}.${expression}`), (b) => b.toString(16).padStart(2, "0")).join("")
     const result = await directRpcCall(ctx.rpcUrl, "abci_query", { path: '"vm/qeval"', data: `0x${data}` }, signal)
     const parsed = z.object({ response: z.object({ ResponseBase: z.object({ Data: z.string().nullable(), Error: z.unknown().optional() }) }) }).parse(result)

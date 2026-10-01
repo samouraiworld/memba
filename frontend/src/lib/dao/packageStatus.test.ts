@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { clearRpcChainChecks } from "./chainIdentity"
 import { directRpcCall } from "../rpcFallback"
 import {
     assertPathAvailable,
@@ -33,6 +34,8 @@ const encode = (s: string) => btoa(String.fromCharCode(...new TextEncoder().enco
 const decodeHex = (h: string) => new TextDecoder().decode(Uint8Array.from(h.slice(2).match(/../g) ?? [], (x) => parseInt(x, 16)))
 
 beforeEach(() => {
+    // Each case starts with no node verified: the chain memo (chainIdentity) is per page.
+    clearRpcChainChecks()
     vi.clearAllMocks()
     localStorage.clear()
     clearPendingMemory()
@@ -63,8 +66,9 @@ describe("packageStatus", () => {
 
     it("refuses a wrong chain, an unknown shape and an answer for another path", async () => {
         network = "pearl-1"
-        await expect(packageStatus(ctx, LIVE_PATH)).rejects.toThrow("network")
+        await expect(packageStatus(ctx, LIVE_PATH)).rejects.toThrow("This RPC serves pearl-1, not gnoland-1")
         network = ctx.chainId
+        clearRpcChainChecks() // a node found on another chain is refused for the rest of the page
         answer = () => '{"path":"gno.land/r/sys/users","status":"deleted"}'
         await expect(packageStatus(ctx, LIVE_PATH)).rejects.toThrow()
         answer = () => fixture("live")
@@ -82,7 +86,18 @@ describe("packageStatus", () => {
         const list = { ...ctx, rpcUrls: ["https://down.invalid", "https://other.invalid", "https://good.invalid"] }
         expect((await packageStatus(list, LIVE_PATH)).status).toBe("live")
         expect(seen).toEqual(["https://down.invalid status", "https://other.invalid status", "https://good.invalid status", "https://good.invalid abci_query"])
-        await expect(packageStatus({ ...ctx, rpcUrls: ["https://down.invalid", "https://other.invalid"] }, LIVE_PATH)).rejects.toThrow("network")
+        await expect(packageStatus({ ...ctx, rpcUrls: ["https://down.invalid", "https://other.invalid"] }, LIVE_PATH)).rejects.toThrow("This RPC serves pearl-1")
+    })
+
+    it("after one failed status read, the next read asks the node again instead of refusing from memory", async () => {
+        const real = vi.mocked(directRpcCall).getMockImplementation()!
+        vi.mocked(directRpcCall).mockImplementationOnce(async () => { throw new TypeError("Failed to fetch") })
+        await expect(packageStatus(ctx, LIVE_PATH)).rejects.toThrow("Failed to fetch")
+        vi.mocked(directRpcCall).mockImplementation(real)
+        // Healthy again: the read succeeds, and it took a real status probe to get there.
+        const before = vi.mocked(directRpcCall).mock.calls.filter(([, method]) => method === "status").length
+        expect((await packageStatus(ctx, LIVE_PATH)).status).toBe("live")
+        expect(vi.mocked(directRpcCall).mock.calls.filter(([, method]) => method === "status").length).toBe(before + 1)
     })
 
     it("refuses a path that is live or waiting for approval, and allows an absent one", async () => {
@@ -111,6 +126,7 @@ describe("packageStatus", () => {
         answer = () => fixture("policy-permissionless")
         expect(await codeSubmissionPolicy({ ...ctx, chainId: "pearl-1" }).catch(() => "wrong chain refused")).toBe("wrong chain refused")
         network = "pearl-1"
+        clearRpcChainChecks() // the same node, now on pearl-1, as a new page would find it
         expect(await codeSubmissionPolicy({ ...ctx, chainId: "pearl-1" })).toBe("permissionless")
     })
 })

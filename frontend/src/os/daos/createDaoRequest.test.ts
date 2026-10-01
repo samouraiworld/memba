@@ -216,6 +216,19 @@ describe("createDaoRequest", () => {
         expect(() => createDaoRequest(ctx({ config: { ...config, members: [...config.members, { address: GUEST_SEAT, power: 1, roles: ["member"] }] } }))).toThrow(ZERO_MEMBER)
     })
 
+    it("reads the address checks and the network price at the same time", async () => {
+        const { assertCanDeployTo } = await import("../../lib/dao/namespace")
+        let namespaceRead!: () => void
+        vi.mocked(assertCanDeployTo).mockImplementationOnce(() => new Promise<void>((resolve) => { namespaceRead = resolve }))
+        chain.price.mockClear()
+        const checking = createDaoRequest(ctx()).recheck!(undefined)
+        await vi.waitFor(() => expect(namespaceRead).toBeTypeOf("function"))
+        // The namespace hasn't answered, and the price is already asked.
+        expect(chain.price).toHaveBeenCalled()
+        namespaceRead()
+        await expect(checking).resolves.toBeUndefined()
+    })
+
     it("stops before the wallet when the balance no longer holds the fee and the deposit", async () => {
         const c = ctx()
         const req = createDaoRequest(c)
@@ -277,6 +290,21 @@ describe("balanceShortfall", () => {
 })
 
 describe("runDeployChecks", () => {
+    it("starts every read at once: namespace, address, policy and balance", async () => {
+        const { assertCanDeployTo } = await import("../../lib/dao/namespace")
+        const { abciQueryText, assertPathAvailable, codeSubmissionPolicy } = await import("../../lib/dao/packageStatus")
+        let answer!: () => void
+        vi.mocked(assertCanDeployTo).mockImplementationOnce(() => new Promise<void>((resolve) => { answer = resolve }))
+        const checks = runDeployChecks(ME, PATH)
+        await vi.waitFor(() => expect(answer).toBeTypeOf("function"))
+        // The namespace hasn't answered, and the other reads are already out.
+        expect(assertPathAvailable).toHaveBeenCalled()
+        expect(codeSubmissionPolicy).toHaveBeenCalled()
+        expect(abciQueryText).toHaveBeenCalledWith(expect.anything(), `bank/balances/${ME}`, "")
+        answer()
+        await expect(checks).resolves.toMatchObject({ policy: "inert" })
+    })
+
     it("names what to change when the address is taken: the DAO name", async () => {
         const { assertPathAvailable, PathTakenError } = await import("../../lib/dao/packageStatus")
         vi.mocked(assertPathAvailable).mockRejectedValueOnce(new PathTakenError("taken"))

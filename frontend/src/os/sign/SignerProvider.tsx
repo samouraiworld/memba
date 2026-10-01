@@ -8,7 +8,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { clearGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { beginWalletActivity } from "../../lib/walletActivity"
-import { isAdenaUnlockOpen, subscribeAdenaUnlock } from "../../lib/walletNetworkGuard"
+import { assertActiveRpcChain } from "../../lib/dao/chainIdentity"
+import { assertLiveWalletNetwork, isAdenaUnlockOpen, subscribeAdenaUnlock, WALLET_LOCKED_MESSAGE, WalletNetworkError } from "../../lib/walletNetworkGuard"
 import { useDialogKeys } from "../shell/useDialogKeys"
 import type { OsSession } from "../shell/useOsSession"
 import { accountMark, accountMarkAfterBlocks } from "./accountMark"
@@ -230,6 +231,29 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
     const canGo = stage === "review" && session.status === "member" && !wrongNet && !prepareError && allAcked
     // Adena's unlock window, whichever wallet check opened it (before or after Memba's rechecks).
     const unlocking = useSyncExternalStore(subscribeAdenaUnlock, isAdenaUnlockOpen) && stage !== "review"
+    // While the person reads: the wallet, so a locked or switched one shows before the click, and the
+    // node, so the rechecks after the click find its chain verified. The checks before Adena opens still run.
+    // A note belongs to the moment it was read: back on the review after a refusal, with another
+    // session account, or once the session ends, an older answer is not shown.
+    const [walletNote, setWalletNote] = useState<{ at: string; text: string | null } | null>(null)
+    const member = session.status === "member" ? session.address : null
+    const noteAt = [chain, member ?? "", stage, error ?? "", req.summary].join("|")
+    useEffect(() => {
+        if (!member || stage !== "review") return
+        let alive = true
+        const read = () => {
+            void assertActiveRpcChain().catch(() => {})
+            assertLiveWalletNetwork(chain, { address: member }).then(() => { if (alive) setWalletNote({ at: noteAt, text: null }) }, (err: unknown) => {
+                if (!alive || !(err instanceof WalletNetworkError)) return
+                setWalletNote({ at: noteAt, text: err.message === WALLET_LOCKED_MESSAGE ? "Adena is locked. It asks for your password when you sign." : err.message })
+            })
+        }
+        read()
+        // Unlocking or switching accounts happens in Adena's own window: read again when this one is back.
+        window.addEventListener("focus", read)
+        return () => { alive = false; window.removeEventListener("focus", read) }
+    }, [noteAt, chain, member, stage])
+    const shownWalletNote = walletNote?.at === noteAt ? walletNote.text : null
 
     useLayoutEffect(() => {
         const el = dialog.current
@@ -286,6 +310,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                                 <p className="os-note os-err" role="alert">Adena is on {session.walletChainId}, but Memba is on {chain}. Switch Adena to {chain} before signing.</p>
                             )}
                             {session.status !== "member" && <p className="os-note os-err" role="alert">Your Memba session ended. Cancel this review, then connect again before signing.</p>}
+                            {shownWalletNote && !wrongNet && <p className="os-note os-warn" role="status">{shownWalletNote}</p>}
                             {error && <p className="os-note os-err" role="alert">{error}</p>}
                             {req.note && <p className="os-sub os-flush">{req.note}</p>}
                             <p className="os-sub os-flush">Next, Adena opens. Check it shows the same details.</p>

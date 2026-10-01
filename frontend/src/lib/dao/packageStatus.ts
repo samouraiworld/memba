@@ -15,6 +15,7 @@
  */
 import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
+import { assertRpcChain, isRememberedUnreachable } from "./chainIdentity"
 
 /**
  * Where to read. `rpcUrls`, when given, is tried in order (the network's
@@ -43,11 +44,6 @@ export type PackageMeta = z.infer<typeof packageMetaSchema>
 
 const hex = (s: string) => Array.from(new TextEncoder().encode(s), (b) => b.toString(16).padStart(2, "0")).join("")
 
-async function assertChain(rpcUrl: string, chainId: string, signal?: AbortSignal) {
-    const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(rpcUrl, "status", {}, signal))
-    if (status.node_info.network !== chainId) throw new Error("RPC network does not match the selected chain")
-}
-
 /**
  * One ABCI query, on the first endpoint that answers and serves the expected
  * chain. A chain-level error (the query itself failed) is not retried elsewhere.
@@ -55,20 +51,31 @@ async function assertChain(rpcUrl: string, chainId: string, signal?: AbortSignal
 export async function abciQueryText(ctx: ChainContext, path: string, data: string, signal?: AbortSignal): Promise<string> {
     const urls = ctx.rpcUrls && ctx.rpcUrls.length > 0 ? ctx.rpcUrls : [ctx.rpcUrl]
     let lastError: unknown = new Error(`Query ${path} failed`)
-    for (const rpcUrl of urls) {
-        if (signal?.aborted) break
-        try {
-            await assertChain(rpcUrl, ctx.chainId, signal)
-            const params: Record<string, string> = { path: `"${path}"` }
-            if (data !== "") params.data = `0x${hex(data)}`
-            const result = await directRpcCall(rpcUrl, "abci_query", params, signal)
-            const parsed = z.object({ response: z.object({ ResponseBase: z.object({ Data: z.string().nullable(), Error: z.unknown().optional() }) }) }).parse(result)
-            if (abciErrorPresent(parsed.response.ResponseBase.Error) || !parsed.response.ResponseBase.Data) throw new ChainAnswerError(`Query ${path} failed`)
-            return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(parsed.response.ResponseBase.Data), (c) => c.charCodeAt(0)))
-        } catch (err) {
-            if (err instanceof ChainAnswerError) throw err
-            lastError = err
+    // A node that just failed is skipped for a while; when that leaves none to ask, every one is probed again
+    // rather than refusing from memory alone.
+    for (const retryUnreachable of [false, true]) {
+        let skippedOnly = true
+        for (const rpcUrl of urls) {
+            if (signal?.aborted) break
+            // Skipped from memory, with no network call: the only case the second pass is for.
+            const skipped = !retryUnreachable && isRememberedUnreachable(rpcUrl, ctx.chainId)
+            try {
+                // The node's chain, remembered for a minute once verified (chainIdentity), not read before every query.
+                await assertRpcChain(rpcUrl, ctx.chainId, retryUnreachable)
+                if (signal?.aborted) throw new Error("Read cancelled")
+                const params: Record<string, string> = { path: `"${path}"` }
+                if (data !== "") params.data = `0x${hex(data)}`
+                const result = await directRpcCall(rpcUrl, "abci_query", params, signal)
+                const parsed = z.object({ response: z.object({ ResponseBase: z.object({ Data: z.string().nullable(), Error: z.unknown().optional() }) }) }).parse(result)
+                if (abciErrorPresent(parsed.response.ResponseBase.Error) || !parsed.response.ResponseBase.Data) throw new ChainAnswerError(`Query ${path} failed`)
+                return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(parsed.response.ResponseBase.Data), (c) => c.charCodeAt(0)))
+            } catch (err) {
+                if (err instanceof ChainAnswerError) throw err
+                if (!skipped) skippedOnly = false
+                lastError = err
+            }
         }
+        if (!skippedOnly || signal?.aborted) break
     }
     throw lastError
 }

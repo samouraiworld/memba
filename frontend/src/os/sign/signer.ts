@@ -141,15 +141,17 @@ export async function executeSignature<C extends string>(
         }
         const res = await req.send(choice, async () => {
             // Without this read a later "rejected" reply cannot be confirmed, and is reported as unknown.
-            if (sent) {
+            // It runs alongside the request's rechecks: one wait before the wallet opens, not two.
+            const marking = (async () => {
+                if (!sent) return
                 let timer: ReturnType<typeof setTimeout> | undefined
                 markBefore = await Promise.race([
                     sent.before().catch(() => null),
                     new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), FIRST_READ_MS) }),
                 ])
                 clearTimeout(timer)
-            }
-            await req.recheck?.(choice)
+            })()
+            await Promise.all([marking, req.recheck?.(choice)])
             if (!canOpenWallet()) throw new Error("Your Memba session ended. Connect again before signing.")
             if (!restored) throw new Error("Signature review expired. Try again.")
             walletStarted = true

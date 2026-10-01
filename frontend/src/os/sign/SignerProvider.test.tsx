@@ -7,6 +7,9 @@ import { accountMark, accountMarkAfterBlocks } from "./accountMark"
 import { useSigner } from "./signerContext"
 import { SignerProvider } from "./SignerProvider"
 
+const warm = vi.hoisted(() => vi.fn(async () => undefined))
+vi.mock("../../lib/dao/chainIdentity", async (orig) => ({ ...(await orig<typeof import("../../lib/dao/chainIdentity")>()), assertActiveRpcChain: warm }))
+
 // The chain reads behind the "rejected" check; their own tests are in accountMark.test.ts.
 vi.mock("./accountMark", () => ({ accountMark: vi.fn(async () => "7 5000000ugnot"), accountMarkAfterBlocks: vi.fn(async () => "7 5000000ugnot") }))
 
@@ -105,6 +108,103 @@ describe("OS signing session boundary", () => {
         expect(screen.getByText(/^fail \| Refused by the network · Vote \| gnoland-1 · REFUSED_HA…: the chain ran it and refused it\. It did not take effect; the network fee was still charged\.$/)).toBeInTheDocument()
         expect(screen.queryByText(/hasn't shown it yet/)).toBeNull()
         expect(toast).toHaveBeenCalledWith("Refused by the network: Vote. It did not take effect; the network fee was still charged.")
+    })
+
+    describe("as the sheet opens", () => {
+        afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+        const ok = { status: "success", data: { address: "g1alpha", chainId: "gnoland-1" } }
+        const net = { status: "success", data: { chainId: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" } }
+
+        it("reads the wallet and verifies the node while the person reads, and says nothing when all is well", async () => {
+            const wallet = { GetAccount: vi.fn(async () => ok), GetNetwork: vi.fn(async () => net) }
+            vi.stubGlobal("adena", wallet)
+            warm.mockClear()
+            render(<SignerProvider session={session("member")} toast={vi.fn()}><OpenReview /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            await waitFor(() => expect(wallet.GetAccount).toHaveBeenCalled())
+            expect(warm).toHaveBeenCalled()
+            expect(screen.queryByText(/Adena is locked/)).toBeNull()
+            expect(screen.getByRole("button", { name: "Sign in Adena" })).toBeEnabled()
+        })
+
+        it("tells before the click that Adena is locked and will ask for the password, without blocking", async () => {
+            const locked = { status: "failure", type: "WALLET_LOCKED", data: {} }
+            vi.stubGlobal("adena", { GetAccount: vi.fn(async () => locked), GetNetwork: vi.fn(async () => locked), AddEstablish: vi.fn() })
+            render(<SignerProvider session={session("member")} toast={vi.fn()}><OpenReview /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            expect(await screen.findByText("Adena is locked. It asks for your password when you sign.")).toBeInTheDocument()
+            expect(screen.getByRole("button", { name: "Sign in Adena" })).toBeEnabled()
+            // Nothing opens in Adena until the person signs.
+            expect((window as unknown as { adena: { AddEstablish: ReturnType<typeof vi.fn> } }).adena.AddEstablish).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("the wallet note stays current", () => {
+        afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+        const LOCKED = { status: "failure", type: "WALLET_LOCKED", data: {} }
+        const account = (address: string) => ({ status: "success", data: { address, chainId: "gnoland-1" } })
+        const NET = { status: "success", data: { chainId: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" } }
+        function wallet(first: unknown) {
+            const state = { reply: first }
+            vi.stubGlobal("adena", { GetAccount: vi.fn(async () => state.reply), GetNetwork: vi.fn(async () => (state.reply === LOCKED ? LOCKED : NET)), AddEstablish: vi.fn() })
+            return state
+        }
+        const LOCKED_NOTE = "Adena is locked. It asks for your password when you sign."
+
+        it("clears the locked note once Adena is unlocked and this window is back in front", async () => {
+            const state = wallet(LOCKED)
+            render(<SignerProvider session={session("member")} toast={vi.fn()}><OpenReview /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            expect(await screen.findByText(LOCKED_NOTE)).toBeInTheDocument()
+            state.reply = account("g1alpha")
+            await act(async () => { window.dispatchEvent(new Event("focus")) })
+            await waitFor(() => expect(screen.queryByText(LOCKED_NOTE)).toBeNull())
+        })
+
+        it("clears the other-account note once the session's account is back in Adena", async () => {
+            const state = wallet(account("g1other"))
+            render(<SignerProvider session={session("member")} toast={vi.fn()}><OpenReview /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            expect(await screen.findByText(/not the one connected to Memba/)).toBeInTheDocument()
+            state.reply = account("g1alpha")
+            await act(async () => { window.dispatchEvent(new Event("focus")) })
+            await waitFor(() => expect(screen.queryByText(/not the one connected to Memba/)).toBeNull())
+        })
+
+        it("back on the review after a refusal, hides the earlier note at once and says what the wallet says now", async () => {
+            const state = wallet(LOCKED)
+            let answerNow!: () => void
+            const refusing = {
+                ...request,
+                send: vi.fn(async () => {
+                    // The wallet's next answer waits: an earlier note must not stand in for it meanwhile.
+                    state.reply = new Promise((resolve) => { answerNow = () => resolve(account("g1alpha")) })
+                    throw new Error("This vote is no longer available.")
+                }),
+            }
+            function Refusing() {
+                const signer = useSigner()
+                return <button type="button" onClick={() => signer.sign(refusing)}>Open review</button>
+            }
+            render(<SignerProvider session={session("member")} toast={vi.fn()}><Refusing /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            expect(await screen.findByText(LOCKED_NOTE)).toBeInTheDocument()
+            fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+            expect(await screen.findByText(/no longer available/)).toBeInTheDocument()
+            expect(screen.queryByText(LOCKED_NOTE)).toBeNull()
+            await act(async () => { answerNow() })
+            expect(screen.queryByText(LOCKED_NOTE)).toBeNull()
+        })
+
+        it("shows no wallet note once the session has ended", async () => {
+            wallet(LOCKED)
+            const { rerender } = render(<SignerProvider session={session("member")} toast={vi.fn()}><OpenReview /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            expect(await screen.findByText(LOCKED_NOTE)).toBeInTheDocument()
+            rerender(<SignerProvider session={session("guest")} toast={vi.fn()}><OpenReview /></SignerProvider>)
+            expect(screen.getByText(/Your Memba session ended/)).toBeInTheDocument()
+            expect(screen.queryByText(LOCKED_NOTE)).toBeNull()
+        })
     })
 
     describe("Adena's unlock window", () => {

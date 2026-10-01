@@ -6,6 +6,7 @@ import { assertFeeStillCovers, doContractBroadcast, freshFeeForGasWanted, type G
 import { buildRegisterUsernameMsg, fetchRegisterPrice, nymNameProblem, REGISTER_DEPOSIT_UGNOT, REGISTER_MAX_DEPOSIT_UGNOT, registerBroadcastOptions } from "../../lib/usernameRegistration"
 import type { SignRequest } from "../sign/signer"
 import { formatUgnot } from "../wallet/send"
+import { withFeeCheck } from "../sign/recheck"
 
 export function usernameLockKey(address: string): string { return `memba_username_register:${GNO_CHAIN_ID}:${address}` }
 
@@ -36,12 +37,12 @@ export async function usernameRegistrationRequest(address: string, name: string,
         label: () => `Register @${name}`,
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
-            const current = await fetchRegisterPrice(registrar)
-            if (current === null || current !== price) throw new Error("The registration price changed or could not be checked. Review again.")
-            const owner = await resolveUsernameToAddress(name)
-            if (owner === null) throw new Error("The username registry could not be checked. Nothing was sent.")
-            if (owner !== "") throw new Error("That username is already registered. Nothing was sent.")
-            await assertFeeStillCovers(options.gasFee, () => freshFeeForGasWanted(options.gasWanted))
+            const registry = Promise.all([fetchRegisterPrice(registrar), resolveUsernameToAddress(name)])
+            await withFeeCheck(registry, assertFeeStillCovers(options.gasFee, () => freshFeeForGasWanted(options.gasWanted)), ([current, owner]) => {
+                if (current === null || current !== price) throw new Error("The registration price changed or could not be checked. Review again.")
+                if (owner === null) throw new Error("The username registry could not be checked. Nothing was sent.")
+                if (owner !== "") throw new Error("That username is already registered. Nothing was sent.")
+            })
         },
         send: async (_choice, beforeSign) => {
             localStorage.setItem(key, JSON.stringify({ name, at: Date.now() }))

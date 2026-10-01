@@ -5,6 +5,7 @@ import { APP_FLAG_GAS_WANTED, APPSTORE_REALM_PATH, appFlagStorageBytes, assertAp
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
+import { withFeeCheck } from "../../sign/recheck"
 
 export interface StoreReport {
     pkgPath: string
@@ -48,8 +49,7 @@ export function reportRequest(input: StoreReport): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(input)
-            await assertAppReportApplies(caller, pkgPath)
-            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(APP_FLAG_GAS_WANTED))
+            await withFeeCheck(assertAppReportApplies(caller, pkgPath), assertFeeStillCovers(fee, () => freshFeeForGasWanted(APP_FLAG_GAS_WANTED)))
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], title, { gasWanted: APP_FLAG_GAS_WANTED, gasFee: fee, beforeSign }),
         verify: (_choice, hash) => verifySendTx(hash),

@@ -11,6 +11,7 @@ import {
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type AminoMsg, type GasPrice } from "../../../lib/grc20"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
+import { withFeeCheck } from "../../sign/recheck"
 
 export type ListingAction =
     | { kind: "register"; submission: AppSubmission; feeUgnot: number }
@@ -85,8 +86,7 @@ export function listingRequest(input: StoreListingCall): SignRequest {
         label: () => title,
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
-            await check()
-            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(gas))
+            await withFeeCheck(check(), assertFeeStillCovers(fee, () => freshFeeForGasWanted(gas)))
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], LISTING_MEMO[action.kind], { gasWanted: gas, gasFee: fee, beforeSign }),
         verify: (_choice, hash) => verifySendTx(hash),

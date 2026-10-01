@@ -61,6 +61,9 @@ export class WalletNetworkError extends Error {
 
 const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "")
 
+/** The refusal for a locked Adena that was not, or could not be, unlocked. */
+export const WALLET_LOCKED_MESSAGE = "Adena is locked — unlock it, then try again."
+
 /** "gno.land (gnoland-1)" for a known chain, the bare chain id otherwise. */
 export function networkLabelForChain(chainId: string): string {
     const active = NETWORKS[ACTIVE_NETWORK_KEY]
@@ -82,7 +85,7 @@ function unreported(expectedChainId: string): WalletNetworkError {
  */
 function failedReply(replies: WalletReply[], expectedChainId: string): WalletNetworkError {
     const types = replies.map((r) => (r?.status === "failure" ? text(r.type) : ""))
-    if (types.includes("WALLET_LOCKED")) return new WalletNetworkError("Adena is locked — unlock it, then try again.")
+    if (types.includes("WALLET_LOCKED")) return new WalletNetworkError(WALLET_LOCKED_MESSAGE)
     if (types.includes("NOT_CONNECTED")) return new WalletNetworkError("Adena is not connected to Memba — reconnect your wallet, then try again.")
     return unreported(expectedChainId)
 }

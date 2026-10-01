@@ -6,6 +6,7 @@
  * and v2.1a Memba-specific helpers.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { clearRpcChainChecks } from './dao/chainIdentity'
 import {
     calculateFee,
     feeDisclosure,
@@ -74,6 +75,8 @@ const WRONG_CHAIN = `${GNO_CHAIN_ID}-other`
 // per-test resets run only when every assertion passes, so a single failure
 // would leak its context into every test after it.
 beforeEach(() => {
+    // Each case starts with no node verified: the chain memo (chainIdentity) is per page.
+    clearRpcChainChecks()
     vi.mocked(Sentry.captureException).mockClear()
     setWalletRpcContext(null, false, null)
     setTxConfirmationCallback(null)

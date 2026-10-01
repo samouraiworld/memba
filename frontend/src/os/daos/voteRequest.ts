@@ -23,6 +23,7 @@ import type { GasPrice } from "../../lib/grc20"
 import type { SignRequest } from "../sign/signer"
 import { sheetFee } from "./sheetFee"
 import type { ProposalView } from "./useOsDao"
+import { withFeeCheck } from "../sign/recheck"
 
 export const VOTE_OPTIONS = ["Yes", "No", "Abstain"] as const
 export type VoteOption = (typeof VOTE_OPTIONS)[number]
@@ -94,8 +95,7 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
         receipt: voteScope(realmPath, caller, proposal.id),
         prepare: (choice) => ({ msgs: [plan(choice).msg] }),
         recheck: async () => {
-            await stateCheck()
-            await fee.assertStillCovers()
+            await withFeeCheck(stateCheck(), fee.assertStillCovers())
         },
         send: (choice, beforeSign) => broadcastDaoTx(plan(choice), memo(choice), beforeSign,
             { approvedDepositUgnot: overCeiling ? cap : undefined, fee: fee.fee }),

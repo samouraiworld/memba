@@ -15,7 +15,7 @@ vi.mock("../rpcFallback", async (orig) => ({
 }))
 
 import { clearExcludedRpcEndpoints, directRpcCall, getRpcUrlsInOrder, resilientAbciQueryDetailed } from "../rpcFallback"
-import { assertActiveRpcChain, assertRpcChain, clearRpcChainChecks, RpcChainMismatchError, UNREACHABLE_RETRY_MS } from "./chainIdentity"
+import { assertActiveRpcChain, assertRpcChain, clearRpcChainChecks, RpcChainMismatchError, UNREACHABLE_RETRY_MS, VERIFIED_TTL_MS } from "./chainIdentity"
 import { queryRender } from "./shared"
 
 const status = vi.mocked(directRpcCall)
@@ -51,11 +51,30 @@ describe("RPC chain identity", () => {
         await expect(assertRpcChain("https://rpc.one", "gnoland-1")).rejects.toThrow("This RPC serves pearl-1, not gnoland-1")
     })
 
-    it("checks each RPC once per session", async () => {
+    it("checks each RPC once a minute: within the minute the verified answer stands, after it the chain is read again", async () => {
+        vi.useFakeTimers()
         answering({ "https://rpc.one": "gnoland-1" })
         await assertRpcChain("https://rpc.one", "gnoland-1")
         await assertRpcChain("https://rpc.one", "gnoland-1")
         expect(callsTo("https://rpc.one")).toBe(1)
+        vi.advanceTimersByTime(VERIFIED_TTL_MS - 1)
+        await assertRpcChain("https://rpc.one", "gnoland-1")
+        expect(callsTo("https://rpc.one")).toBe(1)
+        // A host repointed while the page was open is found at the next check.
+        answering({ "https://rpc.one": "pearl-1" })
+        vi.advanceTimersByTime(2)
+        await expect(assertRpcChain("https://rpc.one", "gnoland-1")).rejects.toThrow(RpcChainMismatchError)
+        expect(callsTo("https://rpc.one")).toBe(2)
+    })
+
+    it("drops a node from the failover list only when it isn't on this app's chain", async () => {
+        answering({ "https://rpc.one": "gnoland-1", "https://rpc.two": "gnoland-1" })
+        // A read for another network's record: the node is refused for that read, and still serves this app.
+        await expect(assertRpcChain("https://rpc.one", "pearl-1")).rejects.toThrow(RpcChainMismatchError)
+        expect(getRpcUrlsInOrder()).toContain("https://rpc.one")
+        answering({ "https://rpc.one": "pearl-1", "https://rpc.two": "gnoland-1" })
+        await expect(assertRpcChain("https://rpc.one", "gnoland-1")).rejects.toThrow(RpcChainMismatchError)
+        expect(getRpcUrlsInOrder()).not.toContain("https://rpc.one")
     })
 
     it("remembers a chain mismatch without probing the endpoint again", async () => {
