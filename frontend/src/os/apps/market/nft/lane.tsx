@@ -1,6 +1,7 @@
 /**
- * The Market window's NFT lane, read-only: Explore, one collection, one
- * token's trade panel, and My trading, each a section of the Market window.
+ * The Market window's NFT lane: Explore, one collection, one token's trade
+ * panel (where a listing is bought or cancelled), and My trading, each a
+ * section of the Market window.
  * Loaded on its own, the first time an NFT section opens.
  *
  * @module os/apps/market/nft/lane
@@ -29,7 +30,7 @@ export default function NftLane({ route, session, open, push }: { route: MarketN
             {route.kind === "explore" ? <Explore lane={lane} />
                 : route.kind === "mine" ? <MyTrading lane={lane} address={session.address} connect={session.openConnect} />
                 : route.kind === "collection" ? <CollectionTrade lane={lane} collection={route.collection} />
-                : <ItemTrade lane={lane} collection={route.collection} number={route.number} />}
+                : <ItemTrade lane={lane} session={session} collection={route.collection} number={route.number} />}
         </div>
     )
 }
