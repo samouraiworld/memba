@@ -9,13 +9,15 @@ import { weightedScope } from "../../lib/dao/weightedActions"
 
 vi.mock("../../lib/dao/weighted", async (original) => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn(), readOpenWeightedProposals: vi.fn() }))
 vi.mock("../../lib/dao/weightedAcceptance", async (original) => ({ ...(await original<typeof import("../../lib/dao/weightedAcceptance")>()), readTargetAuthority: vi.fn() }))
+vi.mock("../../lib/dao/weightedTreasury", async (original) => ({ ...(await original<typeof import("../../lib/dao/weightedTreasury")>()), readFeeDestinations: vi.fn() }))
 vi.mock("../../lib/dao/weightedWallet", () => ({ assertLiveWalletChain: vi.fn() }))
 vi.mock("../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../lib/grc20")>()), doContractBroadcast: vi.fn(), freshFeeForGasWanted: vi.fn() }))
 const { readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, readWeightedSnapshot } = await import("../../lib/dao/weighted")
 const { readTargetAuthority, weightedDaoAddress } = await import("../../lib/dao/weightedAcceptance")
 const { assertLiveWalletChain } = await import("../../lib/dao/weightedWallet")
 const { doContractBroadcast, freshFeeForGasWanted, FALLBACK_GAS_PRICE, feeForGasWanted } = await import("../../lib/grc20")
-const { weightedAcceptRequest, weightedExecuteRequest, weightedVoteOptions, weightedVoteRequest } = await import("./weightedRequest")
+const { weightedAcceptRequest, weightedExecuteRequest, weightedTreasuryRequest, weightedVoteOptions, weightedVoteRequest } = await import("./weightedRequest")
+const { readFeeDestinations } = await import("../../lib/dao/weightedTreasury")
 
 const MEMBA_DAO = "gno.land/r/samcrew/memba_dao"
 const r = v12Native.records
@@ -283,5 +285,64 @@ describe("an acceptance proposal as a signing request", () => {
             saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: "Propose accepting Market config" })
             expect(req.prepare(undefined).msgs).toHaveLength(1)
         } finally { finish() }
+    })
+})
+
+describe("a treasury proposal as a signing request", () => {
+    const act = () => ({ realmPath: MEMBA_DAO, daoName: "Memba DAO", snapshot: snapshot(), caller: MIKAEL, gasPrice: PRICE })
+    const config = snapshot().config as Extract<WeightedSnapshot["config"], { appstorePolicy: unknown }>
+    const RESERVE = config.appstorePolicy.treasury
+    const PUBLISHER = config.appstorePolicy.successor
+    beforeEach(() => {
+        vi.mocked(readOpenWeightedProposals).mockResolvedValue([])
+        vi.mocked(readTargetAuthority).mockResolvedValue({ current: weightedDaoAddress(MEMBA_DAO), pending: "", failed: [] })
+        vi.mocked(readFeeDestinations).mockResolvedValue([
+            { key: "marketPolicy", fees: "Market fees", target: config.marketPolicy.target, policyTreasury: RESERVE, current: PUBLISHER },
+            { key: "appstorePolicy", fees: "App Store registration fees", target: config.appstorePolicy.target, policyTreasury: RESERVE, current: PUBLISHER },
+        ])
+    })
+
+    it("signs exactly the treasury call with its measured budget, and says where the fees go today and would go", () => {
+        const req = weightedTreasuryRequest(act(), "appstorePolicy", PUBLISHER)
+        const budget = v12CallBudget("ProposeAppstoreTreasury")
+        expect(req.summary).toBe("Propose that App Store pays its fees to the Reserve wallet")
+        expect(req.prepare(undefined).msgs).toEqual([{ type: "vm/MsgCall", value: { caller: MIKAEL, send: "", pkg_path: MEMBA_DAO, func: "ProposeAppstoreTreasury", args: [], max_deposit: `${budget.maxDepositUgnot}ugnot` } }])
+        const lines = req.lines(undefined)
+        expect(lines).toContainEqual(["Paid today to", "Publisher wallet"])
+        expect(lines).toContainEqual(["Would be paid to", `Reserve wallet (${RESERVE}), the address the DAO's policy names`])
+        expect(lines).toContainEqual(["Passes with", "5 points and at least 3 people, with no delay"])
+        expect(req.warns).toEqual(["Executing it, like any proposal, invalidates every other open proposal of this DAO."])
+        expect(req.receipt).toEqual({ chainId: "gnoland-1", realmPath: MEMBA_DAO, caller: MIKAEL, operation: "weighted-treasury:appstorePolicy" })
+    })
+
+    it("refuses to sign once the DAO no longer controls the application", async () => {
+        const req = weightedTreasuryRequest(act(), "appstorePolicy", PUBLISHER)
+        await expect(req.recheck!(undefined)).resolves.toBeUndefined()
+        vi.mocked(readTargetAuthority).mockResolvedValueOnce({ current: PUBLISHER, pending: "", failed: [] })
+        await expect(req.recheck!(undefined)).rejects.toThrow("The DAO does not control App Store yet")
+    })
+
+    it("names a policy treasury that is not one of the team's wallets by its address alone", () => {
+        const other = MIKAEL
+        const req = weightedTreasuryRequest({ ...act(), snapshot: { ...snapshot(), config: { ...config, appstorePolicy: { ...config.appstorePolicy, treasury: other } } } }, "appstorePolicy", PUBLISHER)
+        expect(req.summary).toBe(`Propose that App Store pays its fees to ${other}`)
+        expect(req.lines(undefined)).toContainEqual(["Would be paid to", `${other}, the address the DAO's policy names`])
+    })
+
+    it("confirms only this member's proposal moving these fees", async () => {
+        const req = weightedTreasuryRequest(act(), "appstorePolicy", PUBLISHER)
+        const move = (over: Partial<WeightedProposal>) => ({ ...proposal("17"), id: "30", action: { ...proposal("17").action, type: "appstore", operation: "set-treasury" }, ...over }) as unknown as WeightedProposal
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([move({ proposer: snapshot().members[2].address })])
+        expect(await req.verify!(undefined, HASH, undefined)).toBe(false)
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([move({ proposer: MIKAEL })])
+        expect(await req.verify!(undefined, HASH, undefined)).toBe(true)
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([{ ...move({ proposer: MIKAEL }), action: { ...proposal("17").action, operation: "set-treasury" } } as WeightedProposal])
+        expect(await req.verify!(undefined, HASH, undefined)).toBe(false)
+    })
+
+    it("is stopped by an earlier attempt for the same fees with an unknown outcome, not by one for the other application", () => {
+        saveGovernanceReceipt(weightedScope("gnoland-1", MEMBA_DAO, MIKAEL, "treasury", "marketPolicy"), { phase: "submitted", hash: "ab".repeat(32), label: "earlier" })
+        expect(() => weightedTreasuryRequest(act(), "appstorePolicy", PUBLISHER)).not.toThrow()
+        expect(() => weightedTreasuryRequest(act(), "marketPolicy", PUBLISHER)).toThrow("An earlier proposal to move these fees has an unknown outcome")
     })
 })

@@ -314,6 +314,22 @@ export const ACCEPT_FUNCS = {
     feedbackPolicy: "ProposeFeedbackAccept",
 } as const satisfies Record<ApplicationPolicyKey, string>
 
+/**
+ * The realm's exported proposal that an application pays its fees to the
+ * treasury the DAO's policy names; each takes no argument (the recipient is
+ * the policy's own). Only the Market and the App Store have a treasury.
+ */
+export const TREASURY_FUNCS = { marketPolicy: "ProposeMarketTreasury", appstorePolicy: "ProposeAppstoreTreasury" } as const
+export type TreasuryPolicyKey = keyof typeof TREASURY_FUNCS
+/** Action type the host records for each treasury proposal (operation "set-treasury"). */
+const TREASURY_ACTION_TYPES: Record<TreasuryPolicyKey, "market-config" | "appstore"> = { marketPolicy: "market-config", appstorePolicy: "appstore" }
+
+/** The application a stored action moves the treasury of, or null when it is no treasury change. */
+export function treasuryAdapterFor(action: { type: string; operation?: string }): TreasuryPolicyKey | null {
+    if (action.operation !== "set-treasury") return null
+    return (Object.keys(TREASURY_ACTION_TYPES) as TreasuryPolicyKey[]).find((key) => TREASURY_ACTION_TYPES[key] === action.type) ?? null
+}
+
 /** Action type and operation the host records for each acceptance. */
 export const ACCEPT_ACTIONS: Record<ApplicationPolicyKey, { type: string; operation: string }> = {
     marketPolicy: { type: "market-config", operation: "accept-admin" }, reviewsPolicy: { type: "reviews", operation: "accept-moderator" },

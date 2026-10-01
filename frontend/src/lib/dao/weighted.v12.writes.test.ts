@@ -64,7 +64,7 @@ describe("v12 message builders match the realm's exported signatures", () => {
     })
 
     it("on gnoland-1 builds calls only for the released DAO (v12 at r/samcrew/memba_dao)", () => {
-        const actions = [{ type: "vote", id: "1", vote: "yes" }, { type: "execute", id: "1" }, { type: "accept", adapter: "marketPolicy" }] as const
+        const actions = [{ type: "vote", id: "1", vote: "yes" }, { type: "execute", id: "1" }, { type: "accept", adapter: "marketPolicy" }, { type: "treasury", adapter: "appstorePolicy" }] as const
         // Held: every other version at the released path, and v12 at any other path.
         const held: [string, string][] = [[WEIGHTED_SCHEMA, realmPath], [WEIGHTED_RECOVERY_SCHEMA, realmPath], [schema, "gno.land/r/samcrew/memba_dao_v2"], [schema, "gno.land/r/other/memba_dao"], [schema, `${realmPath} `]]
         for (const [version, path] of held) {
@@ -75,13 +75,26 @@ describe("v12 message builders match the realm's exported signatures", () => {
         }
         // Released: the same calls, budgets and caps as on any test network.
         expect(weightedWritesHeld("gnoland-1", schema, realmPath)).toBe(false)
-        expect([...weightedWriteKinds(schema, "gnoland-1", realmPath)].sort()).toEqual(["accept", "execute", "vote"])
+        expect([...weightedWriteKinds(schema, "gnoland-1", realmPath)].sort()).toEqual(["accept", "execute", "treasury", "vote"])
         for (const action of actions)
             expect(planWeightedTx(caller, realmPath, action, schema, "gnoland-1", { type: "set-role", grant: true })).toEqual(planWeightedTx(caller, realmPath, action, schema, "test-chain", { type: "set-role", grant: true }))
         expect(WEIGHTED_WRITE_RELEASES).toEqual([{ chainId: "gnoland-1", schema, realmPath }])
-        expect([...weightedWriteKinds(schema, "test-chain", realmPath)].sort()).toEqual(["accept", "execute", "vote"])
+        expect([...weightedWriteKinds(schema, "test-chain", realmPath)].sort()).toEqual(["accept", "execute", "treasury", "vote"])
         expect(weightedWriteKinds("memba-weighted-host/v13", "test-chain", realmPath).size).toBe(0)
         expect(() => planWeightedTx(caller, realmPath, { type: "accept", adapter: "marketPolicy" }, WEIGHTED_RECOVERY_SCHEMA, "test-chain")).toThrow("read-only")
+    })
+
+    it("builds the treasury proposals with no argument, the measured budget, and only for the two applications that have one", () => {
+        for (const [adapter, func] of [["marketPolicy", "ProposeMarketTreasury"], ["appstorePolicy", "ProposeAppstoreTreasury"]] as const) {
+            const plan = planWeightedTx(caller, realmPath, { type: "treasury", adapter }, schema, "test-chain")
+            const budget = v12CallBudget(func)
+            expect(toAdenaMessages([plan.msg])[0]).toMatchObject({ type: "/vm.m_call", value: { func, args: [], send: "", max_deposit: `${budget.maxDepositUgnot}ugnot` } })
+            expect(plan.gasWanted).toBe(budget.gasWanted)
+            // The realm exports exactly that call, taking no argument.
+            expect(exportsText).toMatch(new RegExp(`\\b${func}\\(cur realm\\) uint64\\b`))
+        }
+        expect(() => planWeightedTx(caller, realmPath, { type: "treasury", adapter: "escrowPolicy" } as unknown as WeightedAction, schema, "test-chain")).toThrow("This application has no treasury")
+        expect(() => planWeightedTx(caller, realmPath, { type: "treasury", adapter: "marketPolicy" }, WEIGHTED_RECOVERY_SCHEMA, "test-chain")).toThrow("read-only")
     })
 
     it("re-checks the reviewed cap before signing", () => {

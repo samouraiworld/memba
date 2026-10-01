@@ -62,10 +62,12 @@ test.describe('Memba OS weighted DAO', () => {
         await folder.getByRole('tab', { name: 'Treasury' }).click()
         await expect(folder.getByText('This DAO has no treasury and cannot spend funds')).toBeVisible()
         await expect(folder.getByRole('listitem').filter({ hasText: 'Market fees' })).toContainText('Paid today to g136j0m0…5cpf.')
-        await expect(folder.getByRole('listitem').filter({ hasText: 'Market fees' })).toContainText('While the DAO controls Market config, a financial vote can move the fees there')
+        await expect(folder.getByRole('listitem').filter({ hasText: 'Market fees' })).toContainText('While the DAO controls Market config with no handover pending, a financial vote can move the fees there')
         await expect(folder.getByRole('listitem').filter({ hasText: 'Reserve wallet' })).toContainText('1.337 GNOT')
-        // Nothing on the treasury can move funds.
-        await expect(folder.getByRole('tabpanel').getByRole('button')).toHaveCount(0)
+        // Nothing on the treasury moves funds. The fake chain's DAO does not control Market config: Memba says so and offers nothing;
+        // it controls the App Store, whose fees a guest is asked to connect to propose moving.
+        await expect(folder.getByRole('listitem').filter({ hasText: 'Market fees' })).toContainText('A seat holder can propose this only while the DAO controls Market config.')
+        await expect(folder.getByRole('tabpanel').getByRole('button')).toHaveText(['Connect to propose'])
         await page.screenshot({ path: info.outputPath('os-weighted-dao-treasury.png'), animations: 'disabled' })
 
         await folder.getByRole('tab', { name: 'Proposals' }).click()
@@ -131,6 +133,23 @@ test.describe('Memba OS weighted DAO', () => {
         await expect(page.getByText('Submitted · Propose accepting Market config')).toBeVisible()
         await expect(folder.getByText('A previous proposal attempt is saved. Check its outcome before proposing an acceptance again.')).toBeVisible()
         await expect(folder.getByRole('button', { name: 'Propose acceptance…' })).toHaveCount(0)
+    })
+
+    test('a member proposes moving the App Store fees to the Reserve from the Treasury tab, and the wallet gets exactly that call', async ({ page }) => {
+        await memberWallet(page, MAINNET)
+        await page.goto(`${OS_ON}/os/dao/memba_dao/treasury`)
+        const folder = win(page, 'memba_dao')
+        await folder.getByRole('listitem').filter({ hasText: 'App Store registration fees' }).getByRole('button', { name: 'Propose moving these fees…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Propose' })
+        await expect(review.getByRole('heading', { name: 'Propose that App Store pays its fees to the Reserve wallet' })).toBeVisible()
+        await expect(review.getByText('Network fee', { exact: true })).toBeVisible()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review).toHaveCount(0)
+        const requests = await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)
+        expect(requests).toHaveLength(1)
+        expect(requests[0]).toMatchObject({ gasWanted: 44_000_000, messages: [{ type: '/vm.m_call', value: { caller: MEMBER, send: '', pkg_path: 'gno.land/r/samcrew/memba_dao', func: 'ProposeAppstoreTreasury', args: [], max_deposit: '2270000ugnot' } }] })
+        await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
+        await expect(page.getByText('Submitted · Propose moving App Store fees')).toBeVisible()
     })
 
     test('a member votes in the proposal window through the Memba review, and the chain then shows the ballot', async ({ page }) => {

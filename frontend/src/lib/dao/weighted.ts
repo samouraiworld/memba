@@ -3,7 +3,7 @@ import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 import type { AminoMsg } from "./shared"
 import { address, id, personID, realm, role, time, uint64 } from "./weightedPrimitives"
-import { ACCEPT_FUNCS, APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, type ApplicationPolicyKey, OPERATION_WORDS, type WeightedApplicationAction } from "./weightedApplications"
+import { ACCEPT_FUNCS, APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, type ApplicationPolicyKey, OPERATION_WORDS, type WeightedApplicationAction, TREASURY_FUNCS, type TreasuryPolicyKey } from "./weightedApplications"
 import { v12BudgetWithinCeiling, v12CallBudget, v12ExecuteBudget } from "./weightedBudget"
 
 export const WEIGHTED_SCHEMA = "memba-weighted-host/v1"
@@ -122,7 +122,7 @@ export function isUnreadableProposal(p: WeightedPageEntry): p is UnreadableWeigh
 export type WeightedMember = z.infer<typeof member>
 export type WeightedPage = Omit<z.infer<typeof weightedPageSchema>, "proposals"> & { proposals: WeightedPageEntry[] }
 export type WeightedContext = { rpcUrl: string; chainId: string; realmPath: string }
-export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string } | { type: "accept"; adapter: ApplicationPolicyKey }
+export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string } | { type: "accept"; adapter: ApplicationPolicyKey } | { type: "treasury"; adapter: TreasuryPolicyKey }
 
 /** Decode the Go string literal, including non-JSON \x, \U and octal escapes. */
 export function parseWeightedQeval(raw: string): unknown {
@@ -329,9 +329,10 @@ const NO_WRITES: ReadonlySet<WeightedWriteKind> = new Set()
 const WRITE_KINDS: Record<WeightedSchemaVersion, ReadonlySet<WeightedWriteKind>> = {
     [WEIGHTED_SCHEMA]: new Set(["propose", "vote", "execute"]),
     [WEIGHTED_RECOVERY_SCHEMA]: new Set(["propose", "recover", "vote", "execute"]),
-    // v12 (the mainnet governing DAO): adapter acceptance, ballots and
-    // execution. Role and key-recovery proposals arrive in a later slice.
-    [WEIGHTED_APPLICATIONS_SCHEMA]: new Set(["accept", "vote", "execute"]),
+    // v12 (the mainnet governing DAO): adapter acceptance, the Market and App
+    // Store treasury proposals, ballots and execution. Role and key-recovery
+    // proposals arrive in a later slice.
+    [WEIGHTED_APPLICATIONS_SCHEMA]: new Set(["accept", "treasury", "vote", "execute"]),
 }
 
 /** The gnoland-1 governance write hold: no weighted DAO call is built there unless released below. */
@@ -388,6 +389,10 @@ export function planWeightedTx(caller: string, realmPath: string, action: Weight
     else if (action.type === "accept") {
         if (!Object.hasOwn(ACCEPT_FUNCS, action.adapter)) throw new Error("Unknown application adapter")
         func = ACCEPT_FUNCS[action.adapter]; args = []
+    }
+    else if (action.type === "treasury") {
+        if (!Object.hasOwn(TREASURY_FUNCS, action.adapter)) throw new Error("This application has no treasury")
+        func = TREASURY_FUNCS[action.adapter]; args = []
     }
     else throw new Error("Unsupported weighted action")
     const value = { caller, send: "", pkg_path: realmPath, func, args }

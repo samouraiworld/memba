@@ -16,11 +16,11 @@ import { GNO_CHAIN_ID } from "../../lib/config"
 import { revealInvisibleFormatting as reveal } from "../../lib/dao/v2Text"
 import { isUnreadableProposal, WEIGHTED_APPLICATIONS_SCHEMA, weightedProposalTitle, weightedWritesHeld, type WeightedProposal, type WeightedSnapshot, type WeightedV12Config } from "../../lib/dao/weighted"
 import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, acceptAdapterFor, nextRecommendedAcceptance, weightedDaoAddress, type AcceptanceState } from "../../lib/dao/weightedAcceptance"
-import { teamWallet } from "../../lib/dao/weightedTreasury"
+import { teamWallet, type FeeDestination } from "../../lib/dao/weightedTreasury"
 import { CATEGORY_TEXT, POLICY_LABELS, UNREADABLE_PROPOSAL, applicationRules, decisionRules, invalidationRule, isOpenProposal, openProposalsOf, roleText, seatText, seatsRule, tallyText, votingRule, weightedDaoTitle, weightedReadError, ROLES_ADD_NOTHING, seatsSummary } from "../../lib/dao/weightedView"
 import { clearGovernanceReceipt, governanceRequestActive, type GovernanceScope } from "../../lib/dao/governanceRecovery"
-import { weightedAcceptLock } from "../../lib/dao/weightedActions"
-import type { ApplicationPolicyKey } from "../../lib/dao/weightedApplications"
+import { weightedAcceptLock, weightedTreasuryLock } from "../../lib/dao/weightedActions"
+import { treasuryAdapterFor, type ApplicationPolicyKey } from "../../lib/dao/weightedApplications"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { shortAddr } from "../shell/format"
 import { ThingTile } from "../shell/icons"
@@ -31,7 +31,7 @@ import { formatUgnot } from "../wallet/send"
 import { useSigner } from "../sign/signerContext"
 import { UnknownOutcome } from "./UnknownOutcome"
 import { StatusPill, WeightedHold } from "./WeightedProposal"
-import { quoteWeightedGasPrice, weightedAcceptRequest } from "./weightedRequest"
+import { quoteWeightedGasPrice, weightedAcceptRequest, weightedTreasuryRequest } from "./weightedRequest"
 import { useAcceptanceStates, useFeeDestinations, useRefreshWeightedDao, useWeightedBalance, useWeightedSnapshot } from "./useWeightedDao"
 
 interface FolderProps { name: string; realmPath: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession }
@@ -57,7 +57,7 @@ export function WeightedDaoFolder(props: FolderProps) {
             {snapshot.isError && <ErrorState message={`${weightedReadError(snapshot.error)} This is the previous read.`} onRetry={() => void snapshot.refetch()} />}
             {section === "proposals" ? <Proposals {...props} newest={data} />
                 : section === "members" ? <Members data={data} session={session} />
-                    : section === "treasury" ? <Treasury realmPath={realmPath} data={data} />
+                    : section === "treasury" ? <Treasury realmPath={realmPath} name={props.name} data={data} session={session} />
                         : <Overview {...props} data={data} />}
         </>
     )
@@ -236,6 +236,58 @@ function ProposeAcceptance({ adapter, realmPath, name, data, session, openAccept
     )
 }
 
+/**
+ * A seat holder proposes the financial vote that moves an application's fees to
+ * the treasury the DAO's policy names. It fails closed, saying why, while the
+ * DAO does not control the application, a handover is pending, or one is open;
+ * with no treasury set, or the fees already there, it offers nothing.
+ */
+function ProposeTreasury({ fees, realmPath, name, data, config, session }: { fees: FeeDestination; realmPath: string; name: string; data: WeightedSnapshot; config: WeightedV12Config; session: OsSession }) {
+    const signer = useSigner()
+    // Read only while the fees could still move: a row already paying the policy's treasury only clears a moot lock.
+    const acceptance = useAcceptanceStates(realmPath, config, !!fees.current && fees.current !== fees.policyTreasury)
+    const [failed, setFailed] = useState<string | null>(null)
+    const [, rerender] = useState(0)
+    const adapter = fees.key
+    const label = POLICY_LABELS[adapter]
+    const open = openProposalsOf(data.page).open.find((p) => treasuryAdapterFor(p.action) === adapter)
+    const lock = session.status === "member" ? weightedTreasuryLock(GNO_CHAIN_ID, realmPath, session.address, adapter) : null
+    // The attempt landed (this member's proposal is open) or the fees moved: the lock is moot.
+    const mootKey = lock && ((open && open.proposer === session.address) || fees.current === fees.policyTreasury) ? JSON.stringify(lock.scope) : ""
+    useEffect(() => {
+        if (!mootKey) return
+        try { clearGovernanceReceipt(JSON.parse(mootKey) as GovernanceScope) } catch { return /* its request is still in flight */ }
+        // The receipt lives in browser storage, outside React: read it again once cleared.
+        queueMicrotask(() => rerender((x) => x + 1))
+    }, [mootKey])
+    const paidToday = fees.current
+    if (!paidToday || paidToday === fees.policyTreasury) return null
+    if (open) return <span className="os-sub os-block">Proposal #{open.id} to move these fees is open.</span>
+    if (weightedWritesHeld(GNO_CHAIN_ID, config.schema, realmPath)) return null
+    const state = acceptance.data?.[adapter]
+    if (state === undefined || state === "error") return acceptance.isError || state === "error" ? <span className="os-sub os-block">Whether the DAO controls {label} could not be read.</span> : null
+    if (state.kind !== "dao") return <span className="os-sub os-block">A seat holder can propose this only while the DAO controls {label}.</span>
+    if (state.pending) return <span className="os-sub os-block">A handover of {label} back to its publisher is pending: a seat holder can propose this only if the DAO cancels it.</span>
+    if (session.status === "resuming") return null
+    if (session.status === "guest") return <button type="button" className="os-btn os-quiet" onClick={session.openConnect}>Connect to propose</button>
+    if (!data.members.some((m) => m.address === session.address)) return null
+    if (lock) {
+        if (governanceRequestActive(lock.scope)) return <span className="os-sub os-block" role="status">Waiting for the wallet…</span>
+        return <UnknownOutcome key={JSON.stringify(lock.scope)} scope={lock.scope} receipt={lock.receipt} attempt="proposal" again="proposing to move these fees again" onCleared={() => rerender((x) => x + 1)} />
+    }
+    const review = async () => {
+        setFailed(null)
+        try { signer.sign(weightedTreasuryRequest({ realmPath, daoName: weightedDaoTitle(realmPath, name), snapshot: data, caller: session.address, gasPrice: await quoteWeightedGasPrice() }, adapter, paidToday)) }
+        catch (err) { setFailed(err instanceof Error ? err.message : String(err)) }
+    }
+    return (
+        <>
+            <button type="button" className="os-btn os-quiet" onClick={() => void review()}>Propose moving these fees…</button>
+            {failed && <span className="os-note os-warn os-block" role="alert">{failed}</span>}
+        </>
+    )
+}
+
 function Proposals({ name, realmPath, open, session, newest }: FolderProps & { newest: WeightedSnapshot }) {
     const [before, setBefore] = useState("0")
     const older = useWeightedSnapshot(realmPath, before, before !== "0")
@@ -314,7 +366,7 @@ function Wallet({ realmPath, address }: { realmPath: string; address: string }) 
     )
 }
 
-function Treasury({ realmPath, data }: { realmPath: string; data: WeightedSnapshot }) {
+function Treasury({ realmPath, name, data, session }: { realmPath: string; name: string; data: WeightedSnapshot; session: OsSession }) {
     const dao = weightedDaoAddress(realmPath)
     const own = useWeightedBalance(realmPath, dao)
     const { config } = data
@@ -334,12 +386,12 @@ function Treasury({ realmPath, data }: { realmPath: string; data: WeightedSnapsh
                 </dl>
                 {own.data !== undefined && own.data > 0n && <p className="os-note os-warn">Coins at the DAO's own address cannot be withdrawn: the contract has no way to send them.</p>}
             </div>
-            {config.schema === WEIGHTED_APPLICATIONS_SCHEMA && <Fees realmPath={realmPath} config={config} />}
+            {config.schema === WEIGHTED_APPLICATIONS_SCHEMA && <Fees realmPath={realmPath} name={name} data={data} config={config} session={session} />}
         </div>
     )
 }
 
-function Fees({ realmPath, config }: { realmPath: string; config: WeightedV12Config }) {
+function Fees({ realmPath, name, data, config, session }: { realmPath: string; name: string; data: WeightedSnapshot; config: WeightedV12Config; session: OsSession }) {
     const fees = useFeeDestinations(realmPath, config)
     if (!fees.data) return fees.isError ? <ErrorState message="The applications' treasuries could not be read." onRetry={() => void fees.refetch()} /> : <Loading label="Reading the applications' treasuries…" />
     const wallets = [...new Set(fees.data.flatMap((d) => [d.current, d.policyTreasury]).filter((a): a is string => !!a))]
@@ -359,9 +411,14 @@ function Fees({ realmPath, config }: { realmPath: string; config: WeightedV12Con
                                 : <>
                                     <span className="os-block">{d.current === null ? "Its treasury could not be read." : d.current === "" ? "It has no treasury set." : <>Paid today to <span className="os-mono">{shortAddr(d.current)}</span>.</>}</span>
                                     <span className="os-sub os-block">
-                                        The DAO's policy names {named}{d.current ? " instead" : ""}. While the DAO controls {POLICY_LABELS[d.key]}, a financial vote can move the fees there, and to no other address.
+                                        {d.current === ""
+                                            ? <>The DAO's policy names {named}. A financial vote can move the fees there only once {POLICY_LABELS[d.key]} has a treasury set and the DAO controls it.</>
+                                            : d.current === null ? <>The DAO's policy names {named}.</>
+                                                : <>The DAO's policy names {named} instead. While the DAO controls {POLICY_LABELS[d.key]} with no handover pending, a financial vote can move the fees there, and to no other address.</>}
                                     </span>
                                 </>}
+                            {/* Rendered for every row: once the fees have moved, it clears this member's lock. */}
+                            <ProposeTreasury fees={d} realmPath={realmPath} name={name} data={data} config={config} session={session} />
                         </span>
                     </li>
                 )

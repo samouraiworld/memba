@@ -4,9 +4,11 @@ import v12Native from "./testdata/weighted-v12/native.json"
 
 vi.mock("./weighted", async (original) => ({ ...(await original<typeof import("./weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn(), readOpenWeightedProposals: vi.fn() }))
 vi.mock("./weightedAcceptance", async (original) => ({ ...(await original<typeof import("./weightedAcceptance")>()), readTargetAuthority: vi.fn() }))
+vi.mock("./weightedTreasury", async (original) => ({ ...(await original<typeof import("./weightedTreasury")>()), readFeeDestinations: vi.fn() }))
 const { readOpenWeightedProposals, readWeightedProposal, readWeightedSnapshot } = await import("./weighted")
 const { readTargetAuthority, weightedDaoAddress } = await import("./weightedAcceptance")
 const { checkWeightedAction, weightedLockSettled, weightedVoteLabel } = await import("./weightedActions")
+const { readFeeDestinations } = await import("./weightedTreasury")
 
 const r = v12Native.records
 const snapshot = () => ({ config: weightedConfigSchema.parse(r.config), members: weightedMembersSchema.parse(r.members).members, page: weightedPageSchema.parse(r.proposals_page_1) }) as WeightedSnapshot
@@ -91,5 +93,40 @@ describe("a lock the chain has made moot", () => {
         expect(weightedLockSettled(lock, { status: "TIMELOCKED", votingClosed: true }, ballot(null))).toBe(true)
         // A label it did not write says nothing about the choice.
         expect(weightedLockSettled({ operation: "vote", receipt: receipt("something else") }, open, ballot("no"))).toBe(false)
+    })
+})
+
+describe("a proposal that an application pays its fees to the policy's treasury", () => {
+    const RESERVE = snapshot().config.appstorePolicy.treasury
+    const treasury = { type: "treasury", adapter: "appstorePolicy" } as const
+    const run = () => checkWeightedAction({ ctx, caller, action: treasury, phase: "sign", reviewed: weightedAuthority(snapshot()), assertCurrent: () => {} })
+    const paid = (appstore: string | null) => vi.mocked(readFeeDestinations).mockResolvedValue([
+        { key: "marketPolicy", fees: "Market fees", target: snapshot().config.marketPolicy.target, policyTreasury: RESERVE, current: PUBLISHER },
+        { key: "appstorePolicy", fees: "App Store registration fees", target: snapshot().config.appstorePolicy.target, policyTreasury: RESERVE, current: appstore },
+    ])
+    beforeEach(() => {
+        vi.mocked(readTargetAuthority).mockResolvedValue({ current: DAO, pending: "", failed: [] })
+        paid(PUBLISHER)
+    })
+
+    it("is accepted only while the DAO controls the application, nothing is pending and today's treasury is set and differs", async () => {
+        await expect(run()).resolves.toMatchObject({ snapshot: expect.anything() })
+        vi.mocked(readTargetAuthority).mockResolvedValueOnce({ current: PUBLISHER, pending: DAO, failed: [] })
+        await expect(run()).rejects.toThrow("The DAO does not control App Store yet, so it cannot move its fees")
+        vi.mocked(readTargetAuthority).mockResolvedValueOnce({ current: DAO, pending: PUBLISHER, failed: [] })
+        await expect(run()).rejects.toThrow("A handover of App Store back to its publisher is pending")
+        paid(RESERVE)
+        await expect(run()).rejects.toThrow("App Store already pays its fees to the address the DAO's policy names")
+        paid(null)
+        await expect(run()).rejects.toThrow("App Store's treasury could not be read")
+        // The host refuses to move fees from an unset treasury.
+        paid("")
+        await expect(run()).rejects.toThrow("App Store has no treasury set; the DAO can move its fees only once one is set")
+    })
+
+    it("is refused while a proposal moving the same fees is open", async () => {
+        const open = { ...acceptance, id: "29", status: "VOTING", action: { ...acceptance.action, type: "appstore", operation: "set-treasury" } } as unknown as WeightedProposal
+        vi.mocked(readOpenWeightedProposals).mockResolvedValueOnce([open])
+        await expect(run()).rejects.toThrow("Proposal #29 to move App Store's fees is still open")
     })
 })

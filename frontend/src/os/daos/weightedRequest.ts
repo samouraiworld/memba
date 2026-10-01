@@ -19,9 +19,10 @@ import {
     WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedContext, type WeightedProposal, type WeightedSnapshot, type WeightedTxPlan,
 } from "../../lib/dao/weighted"
 import { proposalIdFromTxResult } from "../../lib/dao/daoTx"
-import { broadcastWeightedPlan, checkWeightedAction, weightedAcceptLock, weightedLocks, weightedMemo, weightedScope, weightedVoteLabel } from "../../lib/dao/weightedActions"
+import { broadcastWeightedPlan, checkWeightedAction, weightedAcceptLock, weightedTreasuryLock, weightedLocks, weightedMemo, weightedScope, weightedVoteLabel } from "../../lib/dao/weightedActions"
 import { ACCEPTANCE_CONSEQUENCES, acceptAdapterFor } from "../../lib/dao/weightedAcceptance"
-import type { ApplicationPolicyKey } from "../../lib/dao/weightedApplications"
+import { treasuryAdapterFor, type ApplicationPolicyKey, type TreasuryPolicyKey } from "../../lib/dao/weightedApplications"
+import { teamWallet } from "../../lib/dao/weightedTreasury"
 import { CURRENT_VERSION_ONLY, POLICY_LABELS, decisionRules, executionWarning, isVoteOpen, openProposalsOf, type BallotView } from "../../lib/dao/weightedView"
 import { assertLiveWalletChain } from "../../lib/dao/weightedWallet"
 import type { SignRequest } from "../sign/signer"
@@ -225,6 +226,52 @@ export function weightedAcceptRequest(ctx: WeightedActContext, adapter: Applicat
         verify: async (_choice, _hash, result) => {
             const id = proposalIdFromTxResult(result)
             const ours = (p: WeightedProposal) => p.proposer === caller && acceptAdapterFor(p.action) === adapter
+            if (id !== null) return ours(await readWeightedProposal(contextOf(realmPath), String(id), snapshot.config.schema))
+            return (await readOpenWeightedProposals(contextOf(realmPath))).some(ours)
+        },
+    }
+}
+
+/**
+ * A financial proposal that an application pays its fees to the treasury the
+ * DAO's policy names. The recheck is the classic page's rule set: the DAO
+ * controls it with no handover pending, today's treasury is set and differs, and none
+ * is open for it. Verified by this member's open proposal on chain.
+ */
+export function weightedTreasuryRequest(ctx: WeightedActContext, adapter: TreasuryPolicyKey, paidToday: string): SignRequest {
+    const { realmPath, snapshot, caller } = ctx
+    if (snapshot.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) throw new Error(CURRENT_VERSION_ONLY)
+    const policy = snapshot.config[adapter]
+    const action = (): WeightedAction => ({ type: "treasury", adapter })
+    const parts = requestParts(ctx, action, {
+        assert: () => {
+            const earlier = weightedTreasuryLock(GNO_CHAIN_ID, realmPath, caller, adapter)
+            if (earlier && !governanceRequestActive(earlier.scope)) throw new Error("An earlier proposal to move these fees has an unknown outcome. Check it before proposing again.")
+        },
+    })
+    const label = POLICY_LABELS[adapter]
+    const financial = decisionRules(snapshot.config).find((rule) => rule.category === "financial")!
+    const named = teamWallet(policy.treasury)?.name
+    return {
+        title: "Propose",
+        summary: `Propose that ${label} pays its fees to ${named ? `the ${named}` : policy.treasury}`,
+        sub: reveal(policy.target),
+        lines: () => [
+            ["Paid today to", teamWallet(paidToday)?.name ?? paidToday],
+            ["Would be paid to", `${named ? `${named} (${policy.treasury})` : policy.treasury}, the address the DAO's policy names`],
+            ["Passes with", `${financial.routes.join(", or ")}, with no delay`],
+            ...parts.lines(undefined),
+        ],
+        warns: ["Executing it, like any proposal, invalidates every other open proposal of this DAO."],
+        label: () => `Propose moving ${label} fees`,
+        receipt: weightedScope(GNO_CHAIN_ID, realmPath, caller, "treasury", adapter),
+        prepare: parts.prepare,
+        recheck: async () => { await parts.check(undefined); await parts.assertFee() },
+        send: parts.send,
+        // Proof on chain: a proposal of this member moving this application's fees (the one the wallet names, when it does).
+        verify: async (_choice, _hash, result) => {
+            const id = proposalIdFromTxResult(result)
+            const ours = (p: WeightedProposal) => p.proposer === caller && treasuryAdapterFor(p.action) === adapter
             if (id !== null) return ours(await readWeightedProposal(contextOf(realmPath), String(id), snapshot.config.schema))
             return (await readOpenWeightedProposals(contextOf(realmPath))).some(ours)
         },

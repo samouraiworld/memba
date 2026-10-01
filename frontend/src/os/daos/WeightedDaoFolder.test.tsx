@@ -433,8 +433,8 @@ describe("a weighted DAO's treasury", () => {
         expect(await screen.findByText("0 GNOT")).toBeInTheDocument()
         const market = (await screen.findByText("Market fees")).closest("li")!
         expect(market).toHaveTextContent("Paid today to g136j0m0…5cpf.")
-        expect(market).toHaveTextContent("The DAO's policy names g1jw76lx…r2u0 instead. While the DAO controls Market config, a financial vote can move the fees there, and to no other address.")
-        expect(screen.getByText("App Store registration fees").closest("li")!).toHaveTextContent("While the DAO controls App Store, a financial vote")
+        expect(market).toHaveTextContent("The DAO's policy names g1jw76lx…r2u0 instead. While the DAO controls Market config with no handover pending, a financial vote can move the fees there, and to no other address.")
+        expect(screen.getByText("App Store registration fees").closest("li")!).toHaveTextContent("While the DAO controls App Store with no handover pending, a financial vote")
         expect(screen.getByText(/^Escrow pays its service fee to the Market treasury\./)).toHaveTextContent("while the DAO controls Escrow, a financial vote can propose another one, who must accept, and never the DAO itself.")
         const reserve = screen.getByText("Reserve wallet").closest("li")!
         expect(reserve).toHaveTextContent(RESERVE)
@@ -444,9 +444,84 @@ describe("a weighted DAO's treasury", () => {
         expect(publisher).toHaveTextContent("The team declares it a 2-of-3 multisig.")
         expect(publisher).toHaveTextContent("221.04 GNOT")
         expect(screen.getByText("Spending from a wallet takes its own signers, not a DAO vote.")).toBeInTheDocument()
-        // Nothing here can move funds.
-        expect(screen.queryByRole("button")).toBeNull()
+        // Nothing here moves funds: the only action is asking to connect, to propose where an application's fees go.
+        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Connect to propose"])
         expect(screen.queryByRole("link")).toBeNull()
+    })
+
+    it("offers a seat holder the vote that moves an application's fees only while the DAO controls it, and says why otherwise", async () => {
+        const member = v12().members[1].address
+        // The fixtures' DAO controls the App Store and is only nominated for Market config.
+        show("treasury", as(member))
+        const market = (await screen.findByText("Market fees")).closest("li")!
+        expect(await within(market).findByText("A seat holder can propose this only while the DAO controls Market config.")).toBeInTheDocument()
+        expect(within(market).queryByRole("button")).toBeNull()
+        const appstore = screen.getByText("App Store registration fees").closest("li")!
+        fireEvent.click(await within(appstore).findByRole("button", { name: "Propose moving these fees…" }))
+        await waitFor(() => expect(sign).toHaveBeenCalledTimes(1))
+        const req = sign.mock.calls[0][0]
+        expect(req.summary).toBe("Propose that App Store pays its fees to the Reserve wallet")
+        expect(req.receipt).toEqual(weightedScope("gnoland-1", MEMBA_DAO, member, "treasury", "appstorePolicy"))
+        expect(req.prepare(undefined).msgs[0].value).toMatchObject({ func: "ProposeAppstoreTreasury", args: [] })
+    })
+
+    it("offers no treasury vote while one is open, while a handover back is pending, or on a held DAO", async () => {
+        const member = v12().members[1].address
+        const data = v12()
+        const open = { ...weightedProposalSchema.parse(r.proposal_8).proposal, id: "31", status: "VOTING", ready: false, qualified: false, votingClosed: false, proposer: member }
+        data.page = { ...data.page, total: "31", proposals: [{ ...open, action: { ...open.action, operation: "set-treasury" } } as typeof data.page.proposals[number], ...data.page.proposals] }
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+        const busy = show("treasury", as(member))
+        expect(await within(busy.container).findByText("Proposal #31 to move these fees is open.")).toBeInTheDocument()
+        busy.unmount()
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12())
+        vi.mocked(readAcceptanceStates).mockImplementation(async () => ({ ...states(), appstorePolicy: { kind: "dao", pending: PUBLISHER } }))
+        const pending = show("treasury", as(member))
+        expect(await within(pending.container).findByText("A handover of App Store back to its publisher is pending: a seat holder can propose this only if the DAO cancels it.")).toBeInTheDocument()
+        pending.unmount()
+        vi.mocked(readAcceptanceStates).mockImplementation(async () => states())
+        const other = "gno.land/r/samcrew/memba_dao_v2"
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => ({ ...v12(), config: { ...v12().config, realmPath: other } }))
+        show("treasury", as(member), other, "samcrew.memba_dao_v2")
+        expect(await screen.findByText("App Store registration fees")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Propose moving|Connect to propose/ })).toBeNull()
+    })
+
+    it("keeps a treasury attempt's lock until the member's own proposal is open on chain, then clears it", async () => {
+        const member = v12().members[1].address
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, member, "treasury", "appstorePolicy")
+        saveGovernanceReceipt(scope, { phase: "submitted", hash: "ab".repeat(32), label: "Propose moving App Store fees" })
+        const locked = show("treasury", as(member))
+        expect(await within(locked.container).findByText("A previous proposal attempt is saved. Check its outcome before proposing to move these fees again.")).toBeInTheDocument()
+        expect(within(locked.container).queryByRole("button", { name: "Propose moving these fees…" })).toBeNull()
+        locked.unmount()
+        const data = v12()
+        const open = { ...weightedProposalSchema.parse(r.proposal_8).proposal, id: "31", status: "VOTING", ready: false, qualified: false, votingClosed: false, proposer: member }
+        data.page = { ...data.page, total: "31", proposals: [{ ...open, action: { ...open.action, operation: "set-treasury" } } as typeof data.page.proposals[number], ...data.page.proposals] }
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+        show("treasury", as(member))
+        expect(await screen.findByText("Proposal #31 to move these fees is open.")).toBeInTheDocument()
+        await waitFor(() => expect(readGovernanceReceipt(scope)).toBeNull())
+    })
+
+    it("offers no treasury vote for an application with no treasury set, which the host refuses", async () => {
+        const member = v12().members[1].address
+        vi.mocked(readFeeDestinations).mockImplementation(async () => fees(PUBLISHER, ""))
+        show("treasury", as(member))
+        // The DAO controls the App Store in the fixtures: only the unset treasury holds the vote back.
+        expect(await screen.findByText("A seat holder can propose this only while the DAO controls Market config.")).toBeInTheDocument()
+        expect(screen.getByText("App Store registration fees").closest("li")!).toHaveTextContent("It has no treasury set.")
+        expect(screen.queryByRole("button", { name: /Propose moving|Connect to propose/ })).toBeNull()
+    })
+
+    it("clears a treasury attempt's lock once the fees have moved", async () => {
+        const member = v12().members[1].address
+        const scope = weightedScope("gnoland-1", MEMBA_DAO, member, "treasury", "appstorePolicy")
+        saveGovernanceReceipt(scope, { phase: "submitted", hash: "ab".repeat(32), label: "Propose moving App Store fees" })
+        vi.mocked(readFeeDestinations).mockImplementation(async () => fees(PUBLISHER, RESERVE))
+        show("treasury", as(member))
+        expect((await screen.findByText("App Store registration fees")).closest("li")!).toHaveTextContent("the address the DAO's policy names.")
+        await waitFor(() => expect(readGovernanceReceipt(scope)).toBeNull())
     })
 
     it("drops the policy note once an application pays the address the policy names", async () => {
@@ -455,6 +530,8 @@ describe("a weighted DAO's treasury", () => {
         expect((await screen.findByText("Market fees")).closest("li")!).toHaveTextContent("Paid today to g1jw76lx…r2u0, the address the DAO's policy names.")
         expect(screen.queryByText(/instead|a financial vote can move/)).toBeNull()
         expect(screen.queryByText("Publisher wallet")).toBeNull()
+        // Nothing can move there: whether the DAO controls the applications is not read.
+        expect(readAcceptanceStates).not.toHaveBeenCalled()
     })
 
     it("says what it could not read instead of showing the policy's address as the current one", async () => {
@@ -464,9 +541,11 @@ describe("a weighted DAO's treasury", () => {
         const market = (await screen.findByText("Market fees")).closest("li")!
         expect(market).toHaveTextContent("Its treasury could not be read.")
         // No difference is claimed from a value that was never read.
-        expect(market).toHaveTextContent("The DAO's policy names g1jw76lx…r2u0. While the DAO controls Market config")
-        expect(market).not.toHaveTextContent("instead")
-        expect(screen.getByText("App Store registration fees").closest("li")!).toHaveTextContent("It has no treasury set.")
+        expect(market).toHaveTextContent("The DAO's policy names g1jw76lx…r2u0.")
+        expect(market).not.toHaveTextContent(/instead|financial vote/)
+        const appstore = screen.getByText("App Store registration fees").closest("li")!
+        expect(appstore).toHaveTextContent("It has no treasury set.")
+        expect(appstore).toHaveTextContent("The DAO's policy names g1jw76lx…r2u0. A financial vote can move the fees there only once App Store has a treasury set and the DAO controls it.")
         const failed = await screen.findByText(/^Could not be read/)
         balances[DAO] = 4_000_000n
         fireEvent.click(within(failed).getByRole("button", { name: "Retry" }))

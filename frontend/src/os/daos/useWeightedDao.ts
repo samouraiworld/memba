@@ -64,11 +64,11 @@ export function useWeightedProposalEntry(realmPath: string, id: string) {
 }
 
 /** Who controls each application the DAO governs. */
-export function useAcceptanceStates(realmPath: string, config: WeightedV12Config) {
+export function useAcceptanceStates(realmPath: string, config: WeightedV12Config, enabled = true) {
     return useQuery({
         queryKey: key(realmPath, "acceptance"),
         queryFn: ({ signal }) => readAcceptanceStates(contextOf(realmPath), weightedApplicationPolicies(config), signal),
-        staleTime: 30_000, refetchInterval: REREAD_MS, retry: false,
+        staleTime: 30_000, refetchInterval: REREAD_MS, retry: false, enabled,
     })
 }
 

@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Memba DAO treasury (2026-10-01)
+- A Memba DAO seat holder can propose, from the Treasury tab, moving the Market's or the App Store's fees to the treasury the DAO's policy names; it is offered only while the DAO controls that application, and the tab says why otherwise.
+
 ### Memba OS: Adena (2026-10-01)
 - When Adena has locked itself, signing in Memba OS asks you to unlock it in Adena's own window and then continues, instead of stopping with an error.
 - The connect dialog shows Adena's official logo.

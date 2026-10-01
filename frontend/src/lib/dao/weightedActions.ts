@@ -13,8 +13,9 @@ import {
     WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedContext, type WeightedProposal, type WeightedSnapshot, type WeightedTxPlan,
 } from "./weighted"
 import { ACCEPTANCE_LABELS, AUTHORITY_GETTERS, acceptanceState, readTargetAuthority, weightedDaoAddress } from "./weightedAcceptance"
-import { acceptAdapterFor, type ApplicationPolicyKey } from "./weightedApplications"
-import { isVoteOpen, type BallotView } from "./weightedView"
+import { acceptAdapterFor, treasuryAdapterFor, type ApplicationPolicyKey, type TreasuryPolicyKey } from "./weightedApplications"
+import { readFeeDestinations } from "./weightedTreasury"
+import { POLICY_LABELS, isVoteOpen, type BallotView } from "./weightedView"
 
 export interface WeightedActionCheck {
     ctx: WeightedContext
@@ -52,6 +53,29 @@ async function assertAcceptable({ ctx, assertCurrent }: WeightedActionCheck, sna
     if (state.kind !== "ready") throw new Error(`${reveal(policy.target)} is not ready for the DAO to accept (${ACCEPTANCE_LABELS[state.kind].toLowerCase()}); refresh before acting`)
 }
 
+/**
+ * The host takes a treasury proposal only while the DAO controls the
+ * application with no handover pending, and only to the policy's treasury
+ * when today's is set and differs; Memba offers one open per application.
+ */
+async function assertTreasuryProposable({ ctx, assertCurrent }: WeightedActionCheck, snapshot: WeightedSnapshot, adapter: TreasuryPolicyKey) {
+    if (snapshot.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) throw new Error("This DAO has no application adapters")
+    const policy = snapshot.config[adapter]
+    const label = POLICY_LABELS[adapter]
+    const state = acceptanceState(await readTargetAuthority(ctx, adapter, policy.target, policy.successor), weightedDaoAddress(ctx.realmPath))
+    assertCurrent()
+    if (state.kind !== "dao") throw new Error(`The DAO does not control ${label} yet, so it cannot move its fees`)
+    if (state.pending) throw new Error(`A handover of ${label} back to its publisher is pending; its fees cannot move until that is settled`)
+    const current = (await readFeeDestinations(ctx, snapshot.config)).find(d => d.key === adapter)?.current
+    assertCurrent()
+    if (current === null || current === undefined) throw new Error(`${label}'s treasury could not be read; refresh before acting`)
+    if (current === "") throw new Error(`${label} has no treasury set; the DAO can move its fees only once one is set`)
+    if (current === policy.treasury) throw new Error(`${label} already pays its fees to the address the DAO's policy names`)
+    const open = (await readOpenWeightedProposals(ctx)).find(p => treasuryAdapterFor(p.action) === adapter)
+    assertCurrent()
+    if (open) throw new Error(`Proposal #${open.id} to move ${label}'s fees is still open`)
+}
+
 /** The host refuses an acceptance whose frozen nomination no longer holds. */
 async function assertHandoffStillNominated({ ctx, assertCurrent }: WeightedActionCheck, snapshot: WeightedSnapshot, executes: WeightedProposal["action"]) {
     const handoff = snapshot.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? acceptAdapterFor(executes) : null
@@ -66,7 +90,7 @@ async function assertHandoffStillNominated({ ctx, assertCurrent }: WeightedActio
 }
 
 /** The receipt of a vote, an execution or an acceptance proposal signed in Memba OS, kept while its outcome is unknown. */
-export function weightedScope(chainId: string, realmPath: string, caller: string, operation: "vote" | "execute" | "accept", id: string): GovernanceScope {
+export function weightedScope(chainId: string, realmPath: string, caller: string, operation: "vote" | "execute" | "accept" | "treasury", id: string): GovernanceScope {
     return { chainId, realmPath, caller, operation: `weighted-${operation}:${id}` }
 }
 
@@ -112,6 +136,13 @@ export function weightedAcceptLock(chainId: string, realmPath: string, caller: s
     return receipt ? { scope, receipt } : null
 }
 
+/** The receipt of a treasury proposal for one application signed in Memba OS: while its outcome is unknown, no other is offered for it. */
+export function weightedTreasuryLock(chainId: string, realmPath: string, caller: string, adapter: TreasuryPolicyKey) {
+    const scope = weightedScope(chainId, realmPath, caller, "treasury", adapter)
+    const receipt = readGovernanceReceipt(scope)
+    return receipt ? { scope, receipt } : null
+}
+
 /**
  * Why an action is locked by a Memba OS attempt whose outcome is unknown, or
  * null. The classic page refuses what this names; it writes no receipt itself.
@@ -142,6 +173,7 @@ export async function checkWeightedAction(check: WeightedActionCheck): Promise<W
         return { snapshot }
     }
     if (action.type === "accept") { await assertAcceptable(check, snapshot, action.adapter); return { snapshot } }
+    if (action.type === "treasury") { await assertTreasuryProposable(check, snapshot, action.adapter); return { snapshot } }
     const changed = signing ? "Proposal changed during confirmation; refresh" : "Proposal state changed; refresh before acting"
     const proposal = await readWeightedProposal(ctx, action.id, snapshot.config.schema)
     assertCurrent()
@@ -163,6 +195,7 @@ export function weightedMemo(action: WeightedAction, snapshot: WeightedSnapshot)
     if (action.type === "recover") return `Recover ${reveal(action.personId)}: ${action.oldAddress} → ${action.newAddress}. Preserve voting weight and roles.`
     if (action.type === "propose") return `Propose ${action.grant ? "grant" : "removal"} of ${action.role}: ${action.target}`
     if (action.type === "accept") return `Propose that the DAO accepts authority over ${snapshot.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? snapshot.config[action.adapter].target : ""}`
+    if (action.type === "treasury") return snapshot.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? `Propose that ${snapshot.config[action.adapter].target} pays its fees to ${snapshot.config[action.adapter].treasury}` : ""
     return action.type === "vote" ? `vote ${action.vote} on weighted proposal ${action.id}` : `execute weighted proposal ${action.id}`
 }
 
