@@ -50,7 +50,7 @@ describe("DAO proposal fee", () => {
         const { req } = request()
         const lines = new Map(req.lines(undefined))
         expect(lines.get("Network fee")).toMatch(/GNOT$/)
-        expect(lines.get("Gas limit")).toBe("26,000,000")
+        expect(lines.has("Gas limit")).toBe(false)
         expect(req.note).toBe("Memba re-checks the DAO, your membership and the fee before signing.")
     })
 

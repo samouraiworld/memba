@@ -120,7 +120,7 @@ describe("voteRequest · the network fee", () => {
         const req = voteRequest(ctx())
         const lines = new Map(req.lines("Yes"))
         expect(lines.get("Network fee")).toBe("0.018 GNOT")
-        expect(lines.get("Gas limit")).toBe("15,000,000")
+        expect(lines.has("Gas limit")).toBe(false)
         expect(req.note).not.toMatch(/Adena shows/)
     })
 
@@ -150,7 +150,6 @@ describe("voteRequest · the network fee", () => {
     it("shows the fee set in Settings for a DAO without a measured budget", () => {
         const lines = new Map(voteRequest(ctx({ kind: "govdao", realmPath: "gno.land/r/gov/dao", electorateVersion: null, power: null })).lines("Yes"))
         expect(lines.get("Network fee (set in Settings)")).toBe("1 GNOT")
-        expect(lines.get("Gas limit")).toBe("10,000,000")
     })
 
     it("stops before the wallet when a fresh quote no longer covers the fee shown", async () => {

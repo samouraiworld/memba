@@ -24,6 +24,7 @@ Full changelogs are split by version range for easier navigation:
 - Fixed: activating a new address in Memba OS sends 0.000001 GNOT to itself: it costs only the network fee (about 0.002 GNOT) instead of locking a storage deposit, is reviewed in its own step with what Adena shows, and no longer opens the old confirmation window.
 - Activating a new wallet from the classic page also sends 1 ugnot to itself, the network fee only, instead of writing to a profile and locking a storage deposit; its confirmation shows the transfer, and a cancel says nothing was sent.
 - Fixed: "Reload to update" now finishes the update even when the page was opened with a hard reload, instead of failing with "The update could not start".
+- The DAO vote and proposal reviews no longer show a gas limit: Adena sets the gas when it signs.
 
 ### Memba OS: signing in (2026-10-01)
 - Fixed: signing in with Adena on another network now says so and offers to switch; after a switch Memba reads the account's key on the new network. Sign-in now says whether Adena declined, can't sign with a session account, needs an update, or the account must be activated, and tells a server outage apart from a refused login. Arcade and Block Party sign in the same way.

@@ -38,8 +38,8 @@ export function sheetFee(plan: DaoTxPlan, price: GasPrice) {
     const label = !measured ? "Network fee (set in Settings)"
         : price === FALLBACK_GAS_PRICE ? "Network fee (price not read; re-checked before signing)" : "Network fee"
     return {
-        /** The two review lines: the fee and the gas limit it pays for. */
-        lines: [[label, formatUgnotExact(gasFee)], ["Gas limit", gasWanted.toLocaleString("en-US")]] as [string, string][],
+        /** The review line. No gas limit: Adena sets its own when it signs. */
+        line: [label, formatUgnotExact(gasFee)] as [string, string],
         assertStillCovers: measured
             ? () => assertFeeStillCovers(gasFee, () => freshFeeForGasWanted(gasWanted))
             : () => assertSettingsFeeCovers(gasFee, gasWanted),

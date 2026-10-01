@@ -85,7 +85,7 @@ export function voteRequest(ctx: VoteContext): SignRequest<VoteOption> {
             ["Your vote", choice ?? "Yes"],
             ...(ctx.power !== null ? [["Your voting power", `${ctx.power} of ${proposal.whole}`] as [string, string]] : []),
             ...(cap !== undefined ? [["Storage deposit", `up to ${formatUgnot(cap)}`] as [string, string]] : []),
-            ...fee.lines,
+            fee.line,
             ["Network", GNO_CHAIN_ID],
         ],
         acks: overCeiling && cap !== undefined ? [`I approve a storage-deposit cap of ${formatUgnot(cap)}, above the usual 10 GNOT limit.`] : [],

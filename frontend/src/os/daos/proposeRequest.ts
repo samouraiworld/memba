@@ -61,7 +61,7 @@ export function proposeRequest(ctx: ProposeContext): SignRequest<string> {
             ["Voting", `lasts ${formatDuration(config.voting_period)}`],
             ["Passes with", `${config.threshold} % yes${config.quorum ? `, ${config.quorum} % quorum` : ""}`],
             ...(cap !== undefined ? [["Storage deposit", `up to ${formatUgnot(cap)}`] as [string, string]] : []),
-            ...fee.lines,
+            fee.line,
             ["Network", GNO_CHAIN_ID],
         ],
         warns: ctx.proposalKind === "archive" ? ["Archiving is permanent once executed."] : [],

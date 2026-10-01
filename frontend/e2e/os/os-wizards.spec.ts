@@ -209,7 +209,7 @@ test.describe('Memba OS wizards', () => {
         await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith('memba_governance:') && key.includes('"proposal"')))).toBe(false)
     })
 
-    test('a version-2 vote reviews its gas limit and confirms the chosen vote', async ({ page }) => {
+    test('a version-2 vote reviews its fee and confirms the chosen vote', async ({ page }) => {
         await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/1`)
         const proposal = win(page, 'test.teamv2 · Proposal #1')
         await proposal.getByRole('button', { name: 'Vote…' }).click()
@@ -218,7 +218,7 @@ test.describe('Memba OS wizards', () => {
         await yes.focus()
         await yes.press('ArrowRight')
         await expect(review.getByRole('radio', { name: 'No' })).toHaveAttribute('aria-checked', 'true')
-        await expect(review.getByText('Gas limit')).toBeVisible()
+        await expect(review.getByText('Gas limit')).toHaveCount(0)
         // The fee is shown, rechecked and sent as shown: 15,000,000 gas at 1 ugnot per 1,000, with 20% headroom.
         await expect(review.getByText('Network fee', { exact: true })).toBeVisible()
         await expect(review.getByText('0.018 GNOT', { exact: true })).toBeVisible()
