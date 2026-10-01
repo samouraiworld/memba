@@ -1,7 +1,7 @@
 /** Whether a Launchpad lane takes new actions in a currency now: config's
  * `ActionStatusJSON`, schema `launchpad-config-action-v1`. Exits never depend on it.
  */
-import { readLaunchpadJSON, TokenLaunchpadReadError } from "./tokenLaunchpadClient"
+import { readLaunchpad, readLaunchpadJSON, TokenLaunchpadReadError } from "./tokenLaunchpadClient"
 
 export const TOKEN_LAUNCHPAD_CONFIG_PATH = "gno.land/r/samcrew/launchpad/config/v1"
 export type LaunchpadLane = "direct" | "fairsale" | "airdrop" | "collection" | "nft_drops" | "nft_market"
@@ -48,4 +48,13 @@ export async function readActionStatus(networkKey: string, lane: LaunchpadLane, 
     if (currency.length === 0 || currency.length > 200) invalid("invalid currency")
     const value = await readLaunchpadJSON(networkKey, TOKEN_LAUNCHPAD_CONFIG_PATH, `ActionStatusJSON(${JSON.stringify(lane)}, ${JSON.stringify(currency)})`)
     return parseActionStatus(value, lane, currency)
+}
+
+/** Whether config reserves a ticker: the ledger refuses a token that takes one. */
+export async function readReserved(networkKey: string, ticker: string): Promise<boolean> {
+    if (!/^[A-Z0-9]{1,10}$/.test(ticker)) invalid("invalid ticker")
+    const raw = await readLaunchpad(networkKey, TOKEN_LAUNCHPAD_CONFIG_PATH, `IsReserved(${JSON.stringify(ticker)})`)
+    const match = raw.match(/^\(\s*(true|false)\s+bool\s*\)\s*$/)
+    if (!match) invalid("invalid reserved answer")
+    return match[1] === "true"
 }

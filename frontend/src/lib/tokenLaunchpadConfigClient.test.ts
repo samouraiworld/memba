@@ -13,7 +13,7 @@ vi.mock("./config", async (load) => ({
     isRealmValidOn: () => true,
 }))
 
-import { parseActionStatus, readActionStatus, TOKEN_LAUNCHPAD_CONFIG_PATH } from "./tokenLaunchpadConfigClient"
+import { parseActionStatus, readActionStatus, readReserved, TOKEN_LAUNCHPAD_CONFIG_PATH } from "./tokenLaunchpadConfigClient"
 
 const status = { schema: "launchpad-config-action-v1", lane: "fairsale", currency: "ugnot", version: "4", paused: false, allowlisted: true, laneReady: true, configGateOpen: true }
 const qjson = (value: unknown) => `(${JSON.stringify(JSON.stringify(value))} string)`
@@ -40,5 +40,15 @@ describe("Token Launchpad config gate reader", () => {
         await expect(readActionStatus("mainnet", "direct", "")).rejects.toMatchObject({ code: "invalid_response" })
         await expect(readActionStatus("mainnet", "direct", "x".repeat(201))).rejects.toMatchObject({ code: "invalid_response" })
         expect(queryEval).not.toHaveBeenCalled()
+    })
+
+    it("reads whether config reserves a ticker", async () => {
+        queryEval.mockResolvedValueOnce("(true bool)").mockResolvedValueOnce("(false bool)").mockResolvedValueOnce("(1 int64)")
+        expect(await readReserved("mainnet", "MEMBA")).toBe(true)
+        expect(await readReserved("mainnet", "REHA")).toBe(false)
+        await expect(readReserved("mainnet", "REHA")).rejects.toMatchObject({ code: "invalid_response" })
+        expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_CONFIG_PATH, 'IsReserved("MEMBA")', true)
+        await expect(readReserved("mainnet", 'X")')).rejects.toMatchObject({ code: "invalid_response" })
+        expect(queryEval).toHaveBeenCalledTimes(3)
     })
 })

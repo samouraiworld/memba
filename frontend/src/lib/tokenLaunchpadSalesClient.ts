@@ -1,11 +1,15 @@
 /** Structured reads of the Token Launchpad sales realm, `r/samcrew/launchpad/sales/v1`:
  * a token's launch state, a fair-sale buyer and a vesting record, schema `launchpad-sales-v1`.
  */
+import { sha256 } from "@noble/hashes/sha2.js"
 import { isValidGnoAddressChecksum } from "./dao/address"
+import { bech32Encode } from "./dao/realmAddress"
 import { ACTIVE_NETWORK_KEY } from "./config"
 import { parseLaunchpadToken, readLaunchpadJSON, TokenLaunchpadReadError, type LaunchpadToken } from "./tokenLaunchpadClient"
 
 export const TOKEN_LAUNCHPAD_SALES_PATH = "gno.land/r/samcrew/launchpad/sales/v1"
+/** The sales realm's address: it holds launch tokens, so no allocation or airdrop leaf may pay it. */
+export const TOKEN_LAUNCHPAD_SALES_ADDRESS = bech32Encode("g", sha256(new TextEncoder().encode(`pkgPath:${TOKEN_LAUNCHPAD_SALES_PATH}`)).slice(0, 20))
 const MAX_INT64 = 9223372036854775807n
 
 function invalid(message: string): never {
@@ -90,6 +94,16 @@ export interface FairSaleView {
 
 export interface AirdropView { root: string; total: bigint; claimed: bigint }
 
+/** What a launch costs now (`TermsJSON`). A fee of null means the currency has no terms. */
+export interface LaunchTermsView {
+    version: bigint
+    currency: string
+    directCreationFee: bigint | null
+    fairSaleCreationFee: bigint | null
+    fairSaleRaiseCap: bigint
+    primaryFeeBps: bigint | null
+}
+
 export interface LaunchView {
     token: LaunchpadToken
     /** Tokens the sales realm still owes in this token: vesting, airdrop and sale claims. */
@@ -158,6 +172,25 @@ function parseFairSale(r: Record<string, unknown>, token: LaunchpadToken): FairS
     return sale
 }
 
+/** An int64 the realm writes as -1 when the currency has no terms. */
+function fee(row: Record<string, unknown>, key: string): bigint | null {
+    return row[key] === "-1" ? null : amount(row, key)
+}
+
+// Keys the schema does not name are ignored, so the realm can add fields.
+export function parseTerms(value: unknown, currency: string): LaunchTermsView {
+    const row = object(value)
+    if (row.schema !== "launchpad-sales-terms-v1") invalid("unknown terms schema")
+    if (row.currency !== currency) invalid("terms for another currency")
+    const terms = {
+        version: amount(row, "version"), currency,
+        directCreationFee: fee(row, "directCreationFee"), fairSaleCreationFee: fee(row, "fairSaleCreationFee"),
+        fairSaleRaiseCap: amount(row, "fairSaleRaiseCap"), primaryFeeBps: fee(row, "primaryFeeBps"),
+    }
+    if (terms.version === 0n || (terms.primaryFeeBps !== null && terms.primaryFeeBps > 500n)) invalid("inconsistent terms")
+    return terms
+}
+
 // Keys the schema does not name are ignored, so the realm can add fields.
 export function parseLaunch(value: unknown): LaunchView {
     const row = object(value)
@@ -205,6 +238,11 @@ export class TokenLaunchpadSalesClient {
 
     private read(expression: string): Promise<unknown> {
         return readLaunchpadJSON(this.networkKey, TOKEN_LAUNCHPAD_SALES_PATH, expression)
+    }
+
+    async terms(currency: string): Promise<LaunchTermsView> {
+        if (currency.length === 0 || currency.length > 200) invalid("invalid currency")
+        return parseTerms(await this.read(`TermsJSON(${JSON.stringify(currency)})`), currency)
     }
 
     async launch(id: string): Promise<LaunchView> {

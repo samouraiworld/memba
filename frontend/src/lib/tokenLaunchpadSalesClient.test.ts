@@ -16,7 +16,7 @@ vi.mock("./config", async (load) => ({
     isRealmValidOn: (...args: unknown[]) => isRealmValidOn(...args),
 }))
 
-import { TokenLaunchpadSalesClient, TOKEN_LAUNCHPAD_SALES_PATH, parseLaunch, parseFairBuyer, parseVesting } from "./tokenLaunchpadSalesClient"
+import { TokenLaunchpadSalesClient, TOKEN_LAUNCHPAD_SALES_ADDRESS, TOKEN_LAUNCHPAD_SALES_PATH, parseLaunch, parseFairBuyer, parseTerms, parseVesting } from "./tokenLaunchpadSalesClient"
 import { TOKEN_LAUNCHPAD_PATH } from "./tokenLaunchpadClient"
 
 const CREATOR = "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"
@@ -167,5 +167,21 @@ describe("Token Launchpad sales reader", () => {
     it("keeps the unpublished sales realm out of the real mainnet allowlist", async () => {
         const config = await vi.importActual<typeof import("./config")>("./config")
         expect(config.isRealmValidOn("mainnet", TOKEN_LAUNCHPAD_SALES_PATH)).toBe(false)
+    })
+
+    it("reads what a launch costs, with -1 as no terms", async () => {
+        const terms = { schema: "launchpad-sales-terms-v1", version: "4", currency: "ugnot", directCreationFee: "1000000", fairSaleCreationFee: "2000000", fairSaleRaiseCap: "1000000000", primaryFeeBps: "200" }
+        queryEval.mockResolvedValueOnce(qjson(terms))
+        expect(await new TokenLaunchpadSalesClient().terms("ugnot")).toEqual({ version: 4n, currency: "ugnot", directCreationFee: 1_000_000n, fairSaleCreationFee: 2_000_000n, fairSaleRaiseCap: 1_000_000_000n, primaryFeeBps: 200n })
+        expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_SALES_PATH, 'TermsJSON("ugnot")', true)
+        expect(parseTerms({ ...terms, directCreationFee: "-1", fairSaleCreationFee: "-1", fairSaleRaiseCap: "0", primaryFeeBps: "-1" }, "ugnot")).toMatchObject({ directCreationFee: null, fairSaleCreationFee: null, primaryFeeBps: null })
+        for (const bad of [{ ...terms, schema: "v2" }, { ...terms, currency: "uatom" }, { ...terms, version: "0" }, { ...terms, primaryFeeBps: "501" }, { ...terms, directCreationFee: "-2" }, { ...terms, fairSaleRaiseCap: "-1" }]) {
+            expect(() => parseTerms(bad, "ugnot"), JSON.stringify(bad)).toThrow()
+        }
+        await expect(new TokenLaunchpadSalesClient().terms("")).rejects.toMatchObject({ code: "invalid_response" })
+    })
+
+    it("derives the sales realm's address from its path", () => {
+        expect(TOKEN_LAUNCHPAD_SALES_ADDRESS).toBe(SALES)
     })
 })

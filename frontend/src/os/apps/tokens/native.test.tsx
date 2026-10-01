@@ -9,6 +9,7 @@ import TokensWindow from "./native"
 const availability = vi.hoisted(() => ({ ledger: false, sales: false, factory: false }))
 const queryEval = vi.hoisted(() => vi.fn())
 vi.mock("../../../lib/dao/shared", async (original) => ({ ...(await original<typeof import("../../../lib/dao/shared")>()), queryEval }))
+vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn() }) }))
 vi.mock("../../../lib/config", async (original) => {
     const config = await original<typeof import("../../../lib/config")>()
     return {
@@ -245,5 +246,14 @@ describe("Tokens window", () => {
         show("mainnet", true)
         fireEvent.click(await screen.findByRole("button", { name: /Plain Token/ }))
         expect(await screen.findByText("This network's balance does not follow the Launchpad's rules, so it is not shown.")).toBeInTheDocument()
+    })
+
+    it("opens the creation wizard to a guest and comes back to the list", async () => {
+        availability.ledger = true; availability.sales = true
+        show("mainnet")
+        fireEvent.click(screen.getByRole("button", { name: "Create a token" }))
+        expect(screen.getByRole("heading", { name: "Token" })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+        expect(await screen.findByRole("button", { name: /Fair Token/ })).toBeInTheDocument()
     })
 })

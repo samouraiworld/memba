@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: create a Launchpad token (2026-10-01)
+- Create a Launchpad token in the Tokens window, with vesting allocations and an optional airdrop, paying the creation fee read from the network's live launch terms.
+
 ### Memba OS: Token Launchpad in the Tokens window (2026-10-01)
 - The Tokens window shows Token Launchpad tokens, their fair sales, airdrops and vesting, and a member's balance and order, on networks where the Launchpad is published; elsewhere it says the Launchpad is not deployed there.
 

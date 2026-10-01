@@ -4,3 +4,5 @@
 .memba-os .os-tokens-facts { display: grid; grid-template-columns: minmax(105px, auto) minmax(0, 1fr); gap: 6px 12px; align-items: baseline; margin: 0; }
 .memba-os .os-tokens-facts dt { color: var(--os-mut); }
 .memba-os .os-tokens-facts dd { margin: 0; overflow-wrap: anywhere; }
+.memba-os .os-tokens-arow { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+@media (max-width: 560px) { .memba-os .os-tokens-arow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }

@@ -11,26 +11,21 @@
  * @module os/apps/tokens/native
  */
 import { useEffect, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
+import { formatTokenAmount as units } from "../../../lib/grc20"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import { TokenLaunchpadClient, TokenLaunchpadReadError, TOKEN_LAUNCHPAD_PATH, type LaunchpadToken } from "../../../lib/tokenLaunchpadClient"
 import { TokenLaunchpadSalesClient, TOKEN_LAUNCHPAD_SALES_PATH, type FairSaleView, type LaunchView } from "../../../lib/tokenLaunchpadSalesClient"
-import { readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
+import { readActionStatus, TOKEN_LAUNCHPAD_CONFIG_PATH } from "../../../lib/tokenLaunchpadConfigClient"
 import { Empty, ErrorState, Loading, Pill } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
+import type { OsSession } from "../../shell/useOsSession"
+import CreateToken from "./CreateToken"
 import "./native.css"
 
 const PAGE = 20
 const MODE_LABEL: Record<LaunchpadToken["mode"], string> = { direct_fixed: "Fixed supply", direct_capped: "Capped supply", fairsale: "Fair sale" }
-
-/** An exact decimal rendering of base units; no float on the way. */
-function units(amount: bigint, decimals: number): string {
-    if (decimals === 0) return amount.toString()
-    const digits = amount.toString().padStart(decimals + 1, "0")
-    const fraction = digits.slice(-decimals).replace(/0+$/, "")
-    return digits.slice(0, -decimals) + (fraction ? `.${fraction}` : "")
-}
 
 function quote(amount: bigint, currency: string): string {
     return currency === "ugnot" ? `${units(amount, 6)} GNOT` : `${amount} base units of ${revealInvisibleFormatting(currency)}`
@@ -69,7 +64,7 @@ function saleStatus(sale: FairSaleView, now: bigint, laneOpen: boolean | undefin
 export default function TokensWindow({ session, fallback }: NativeViewProps) {
     const network = session.network.key
     if (isRealmValidOn(network, TOKEN_LAUNCHPAD_PATH)) {
-        return <Launchpad network={network} address={session.status === "member" ? session.address : null} />
+        return <Launchpad network={network} session={session} />
     }
     if (isRealmValidOn(network, GRC20_FACTORY_PATH)) return <>{fallback}</>
     return (
@@ -82,18 +77,28 @@ export default function TokensWindow({ session, fallback }: NativeViewProps) {
     )
 }
 
-function Launchpad({ network, address }: { network: string; address: string | null }) {
+function Launchpad({ network, session }: { network: string; session: OsSession }) {
+    const address = session.status === "member" ? session.address : null
     const [page, setPage] = useState(0)
     const [selected, setSelected] = useState<LaunchpadToken | null>(null)
+    const [creating, setCreating] = useState(false)
+    const queries = useQueryClient()
     const tokens = useQuery({
         queryKey: ["token-launchpad", network, "page", page],
         queryFn: () => new TokenLaunchpadClient(network).listPage(page, PAGE),
         staleTime: 30_000, retry: false,
     })
     const turn = (next: number) => { setPage(next); setSelected(null) }
+    if (creating) {
+        return <CreateToken network={network} session={session} onClose={() => setCreating(false)}
+            onCreated={() => void queries.invalidateQueries({ queryKey: ["token-launchpad", network] })} />
+    }
 
     return (
         <div className="os-stack os-tokens">
+            {isRealmValidOn(network, TOKEN_LAUNCHPAD_SALES_PATH) && isRealmValidOn(network, TOKEN_LAUNCHPAD_CONFIG_PATH) && <div className="os-row">
+                <button type="button" className="os-btn" onClick={() => setCreating(true)}>Create a token</button>
+            </div>}
             <section aria-labelledby="tokens-list" className="os-stack os-tight">
                 <h3 className="os-h" id="tokens-list">Launchpad tokens</h3>
                 {tokens.isPending ? <Loading label="Reading tokens…" />

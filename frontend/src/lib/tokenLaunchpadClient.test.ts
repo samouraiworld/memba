@@ -145,4 +145,10 @@ describe("Token Launchpad structured reader", () => {
         }
         expect(queryEval).toHaveBeenCalledTimes(1)
     })
+
+    it("counts the tokens created", async () => {
+        queryEval.mockResolvedValueOnce("(6 int64)")
+        expect(await new TokenLaunchpadClient().count()).toBe(6n)
+        expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_PATH, "Count()", true)
+    })
 })

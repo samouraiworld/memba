@@ -201,6 +201,11 @@ export class TokenLaunchpadClient {
         return tokens
     }
 
+    /** The number of tokens created; the next one is T<count + 1>. */
+    async count(): Promise<bigint> {
+        return parseQevalInt64(await readLaunchpad(this.networkKey, TOKEN_LAUNCHPAD_PATH, "Count()"))
+    }
+
     async balanceOf(id: string, owner: string): Promise<bigint> {
         if (!/^T[1-9][0-9]{0,9}$/.test(id) || !isValidGnoAddressChecksum(owner)) invalid("invalid balance arguments")
         return parseQevalInt64(await readLaunchpad(this.networkKey, TOKEN_LAUNCHPAD_PATH, `BalanceOf(${JSON.stringify(id)}, address(${JSON.stringify(owner)}))`))
