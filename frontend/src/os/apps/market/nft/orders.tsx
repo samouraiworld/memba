@@ -114,8 +114,9 @@ const KIND: Record<NftOfferKind, string> = { token: "Token offer", collection: "
  * An offer, labelled by what it is for. `forToken`: shown on one token's panel,
  * where a trait offer applies only if that token carries the trait. A card
  * opens the token or collection the offer is for, unless it is already shown.
+ * `action` (cancel, accept) sits below the card, never inside a card that is a button.
  */
-export function OfferCard({ offer, lane, mine = false, forToken = false }: { offer: NftOffer; lane: LaneProps; mine?: boolean; forToken?: boolean }) {
+export function OfferCard({ offer, lane, mine = false, forToken = false, action }: { offer: NftOffer; lane: LaneProps; mine?: boolean; forToken?: boolean; action?: ReactNode }) {
     const now = useNow(60_000)
     const expired = isExpired(offer, now)
     const trait = revealInvisibleFormatting(offer.trait)
@@ -131,6 +132,7 @@ export function OfferCard({ offer, lane, mine = false, forToken = false }: { off
             {expired && <Pill tone="warn">{mine ? "Expired: yours to close" : "Expired: waiting for its refund"}</Pill>}
         </span>
     )
-    if (forToken) return <Card>{body}</Card>
-    return <Card onClick={() => lane.go(offer.kind === "token" ? { kind: "token", collection: offer.collection, number: offer.number } : { kind: "collection", collection: offer.collection })}>{body}</Card>
+    const card = forToken ? <Card>{body}</Card>
+        : <Card onClick={() => lane.go(offer.kind === "token" ? { kind: "token", collection: offer.collection, number: offer.number } : { kind: "collection", collection: offer.collection })}>{body}</Card>
+    return action ? <div className="os-stack os-tight">{card}{action}</div> : card
 }

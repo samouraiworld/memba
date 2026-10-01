@@ -1,17 +1,19 @@
 /**
- * The market realm's listing calls as Memba signs them: listing a token in
- * GNOT, buying a listing priced in GNOT, and a seller cancelling its own
- * listing. Buy names the currency and price the buyer read, so a listing on
- * other terms takes nothing; List names the highest protocol fee the seller
- * accepts. Listings priced in a token need that token's own approval call:
- * Memba does not buy them yet, and says so.
+ * The market realm's order calls as Memba signs them, all in GNOT: listing a
+ * token, buying a listing, a seller cancelling its own listing, making an
+ * offer on a token or a collection, cancelling one's own offer, and a holder
+ * accepting an offer. Buy and AcceptOffer name the currency and price the
+ * caller read, so an order on other terms takes nothing; List and MakeOffer
+ * name the highest protocol fee the caller accepts. Orders priced in a token
+ * need that token's own approval call, and trait offers need a proof built
+ * from the creator's trait list: Memba does not handle either yet, and says so.
  *
  * @module lib/nft/trade
  */
 import { depositCapUgnot } from "../dao/v2Budget"
 import type { AminoMsg } from "../grc20"
 import { NFT_LEDGER_PATH } from "./ledger"
-import { NFT_MARKET_PATH, type NftListing } from "./market"
+import { NFT_MARKET_PATH, type NftListing, type NftOffer } from "./market"
 import { address, collectionId, tokenNumber } from "./parse"
 import { natural } from "./read"
 
@@ -22,6 +24,10 @@ export const BUY_GAS_WANTED = 50_000_000
 export const CANCEL_LISTING_GAS_WANTED = 25_000_000
 /** Approve (9.3M) and List (15.7M) in one transaction. */
 export const LIST_GAS_WANTED = 50_000_000
+/** MakeOffer 14.3 to 16.5M, CancelOffer 9.7M, Approve and AcceptOffer 9.3M + 24.9M. */
+export const MAKE_OFFER_GAS_WANTED = 35_000_000
+export const CANCEL_OFFER_GAS_WANTED = 20_000_000
+export const ACCEPT_OFFER_GAS_WANTED = 70_000_000
 
 /** The market realm's address, derived from its path: the account a seller approves for one token. */
 export const NFT_MARKET_ADDRESS = "g1nn54k5fmly8agexe3ll4t6clqmcefsn7nr9ee3"
@@ -49,6 +55,10 @@ export const CANCEL_LISTING_STORAGE_BYTES = 500
 /** Each message has its own cap: the approval (1.1 KB measured) and the listing (4.7 KB, all freed when it closes). */
 export const APPROVE_STORAGE_BYTES = 1_500
 export const LIST_STORAGE_BYTES = 5_000
+/** An open offer holds 4.8 to 4.9 KB, all freed when it closes; an accepted one adds the token to the buyer's holdings. */
+export const OFFER_STORAGE_BYTES = 5_000
+export const CANCEL_OFFER_STORAGE_BYTES = 500
+export const ACCEPT_OFFER_STORAGE_BYTES = 4_000
 
 /** Why `viewer` cannot buy this listing in Memba now; empty when it can. A guest can: it is asked to connect. */
 export function buyBlocker(listing: NftListing, viewer: string): string {
@@ -101,4 +111,58 @@ export function buildBuyMsg(caller: string, listing: NftListing): AminoMsg {
 export function buildCancelListingMsg(caller: string, listing: NftListing): AminoMsg {
     if (caller !== listing.seller) throw new Error("Only the seller can cancel this listing now.")
     return call(caller, "Cancel", [listing.id], "", CANCEL_LISTING_STORAGE_BYTES)
+}
+
+/** What Memba makes an offer for: one token, or any token of a collection. */
+export type MadeOfferKind = "token" | "collection"
+
+export interface OfferTerms {
+    kind: MadeOfferKind
+    collection: string
+    /** The token of a token offer; 0 for a collection offer. */
+    number: bigint
+    /** In ugnot, escrowed by the market until the offer closes. */
+    price: bigint
+    expiresAt: bigint
+    maxFeeBPS: bigint
+}
+
+/** MakeOffer(kind, collection, number, "", price, expiresAt, "ugnot", maxFeeBPS), with the price attached. */
+export function buildMakeOfferMsg(caller: string, terms: OfferTerms): AminoMsg {
+    const id = collectionId(terms.collection)
+    const number = terms.kind === "token" ? tokenNumber(terms.number.toString()) : 0n
+    if (terms.kind === "collection" && terms.number !== 0n) throw new Error("A collection offer names no token.")
+    if (terms.price <= 0n) throw new Error("Set a price above zero.")
+    const price = natural(terms.price, "price")
+    return call(caller, "MakeOffer", [terms.kind, id, number.toString(), "", price.toString(), natural(terms.expiresAt, "expiry").toString(), NATIVE, natural(terms.maxFeeBPS, "maximum fee").toString()], `${price}${NATIVE}`, OFFER_STORAGE_BYTES)
+}
+
+/** CancelOffer(id): the buyer takes its escrow back, expired or not, paused market or not. */
+export function buildCancelOfferMsg(caller: string, offer: NftOffer): AminoMsg {
+    if (caller !== offer.buyer) throw new Error("Only the buyer can cancel this offer.")
+    return call(caller, "CancelOffer", [offer.id], "", CANCEL_OFFER_STORAGE_BYTES)
+}
+
+/** Why `holder` cannot accept this offer for token `number` in Memba now; empty when it can. */
+export function acceptBlocker(offer: NftOffer, number: bigint, holder: string): string {
+    if (holder === offer.buyer) return "This is your offer."
+    if (offer.kind === "trait") return "Accepting a trait offer arrives in a later version of Memba OS."
+    if (offer.kind === "token" && offer.number !== number) return "This offer is for another token."
+    if (offer.currency !== NATIVE) return "Accepting an offer in a token arrives in a later version of Memba OS."
+    return ""
+}
+
+/**
+ * The ledger's Approve(id, market, number), then AcceptOffer(id, number, "",
+ * "ugnot", price): one transaction, so the market is never left approved for
+ * a token that was not sold. The token's own listing, if any, closes with it.
+ */
+export function buildAcceptOfferMsgs(caller: string, offer: NftOffer, number: bigint): AminoMsg[] {
+    const blocker = acceptBlocker(offer, number, caller)
+    if (blocker) throw new Error(blocker)
+    const token = tokenNumber(number.toString()).toString()
+    return [
+        call(caller, "Approve", [offer.collection, NFT_MARKET_ADDRESS, token], "", APPROVE_STORAGE_BYTES, NFT_LEDGER_PATH),
+        call(caller, "AcceptOffer", [offer.id, token, "", NATIVE, offer.price.toString()], "", ACCEPT_OFFER_STORAGE_BYTES),
+    ]
 }

@@ -34,12 +34,12 @@ export interface ListingDraft {
     onSettled?: (outcome: SettledOutcome) => void
 }
 
-function available(draft: { networkKey: string; caller: string }): void {
+export function available(draft: { networkKey: string; caller: string }): void {
     if (!isNftEnabled() || !isRealmValidOn(draft.networkKey, NFT_MARKET_PATH)) throw new Error("The NFT market is not available on this network.")
     if (!isValidGnoAddressChecksum(draft.caller)) throw new Error("Connect your wallet first.")
 }
 
-const sameSplit = (a: NftSplit, b: NftSplit) => a.seller === b.seller && a.fee === b.fee && a.royalties.length === b.royalties.length &&
+export const sameSplit = (a: NftSplit, b: NftSplit) => a.seller === b.seller && a.fee === b.fee && a.royalties.length === b.royalties.length &&
     a.royalties.every((royalty, index) => royalty.account === b.royalties[index].account && royalty.amount === b.royalties[index].amount)
 
 /** The listing read again is the one reviewed: still open, on the same terms, paid out the same way. */
@@ -54,7 +54,7 @@ async function assertSameListing(reviewed: NftListing): Promise<NftListing> {
 }
 
 /** Who the price goes to, line by line, as the realm computed it. */
-function payouts(order: { split: NftSplit; feeBPS: bigint; currency: string }): [string, string][] {
+export function payouts(order: { split: NftSplit; feeBPS: bigint; currency: string }): [string, string][] {
     const amount = (value: bigint) => formatAmount(value, order.currency)
     return [
         ["To the seller", amount(order.split.seller)],
