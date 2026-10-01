@@ -1,16 +1,25 @@
 /**
- * A collection's mint stages, read-only: when each is open, what it costs and
- * who may mint in it. Minting itself comes in a later version. The drops realm
- * is published on no network yet; where it is not allowlisted the section says
- * so without reading.
+ * A collection's mint stages: when each is open, what it costs and who may
+ * mint in it, and a Mint button on an open stage Memba can mint in (see
+ * lib/nft/mint). Guests read everything and are asked to connect only when
+ * they mint. The drops realm is published on no network yet; where it is not
+ * allowlisted the section says so without reading.
  *
  * @module os/apps/nft/stages
  */
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
 import { isRealmValidOn } from "../../../lib/config"
-import { NFT_DROPS_PATH, listStages, type NftStage, type NftStageKind } from "../../../lib/nft/drops"
+import { networkGasPriceFresh } from "../../../lib/grc20"
+import { NFT_DROPS_PATH, listStages, mintedBy, type NftStage, type NftStageKind } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
+import { getLaneStatus, laneClosedReason } from "../../../lib/nft/lane"
+import { NATIVE_CURRENCY, mintBlocker } from "../../../lib/nft/mint"
+import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
+import { useSigner } from "../../sign/signerContext"
+import type { OsSession } from "../../shell/useOsSession"
 import { Empty, Loading, Pill } from "../../kit"
+import { assertGateToken, mintRequest } from "./mintRequest"
 import { ReadFailure } from "./parts"
 import type { NftScreen } from "./screen"
 
@@ -25,8 +34,82 @@ function when(seconds: bigint): string {
     return `${new Date(Number(seconds) * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`
 }
 
+/** A failed check before the review, in words a member can act on. */
+function reason(err: unknown): string {
+    if (err instanceof ReadError) return "The network could not be read. Try again in a moment."
+    if (err instanceof RealmRefusedError) return "The network refused this read. Refresh the collection."
+    return err instanceof Error ? err.message : String(err)
+}
+
+interface MintTarget { collection: string; collectionName: string }
+
+/**
+ * Mint one token: everything the sheet shows is read at this click (fee, the
+ * lane, the member's count, the gate token), so a closed lane or a used gate
+ * token is said here rather than in the sheet.
+ */
+function MintAction({ screen, session, target, stage }: { screen: NftScreen; session: OsSession; target: MintTarget; stage: NftStage }) {
+    const signer = useSigner()
+    const client = useQueryClient()
+    const [gate, setGate] = useState("")
+    const [busy, setBusy] = useState(false)
+    const [error, setError] = useState("")
+    const alive = useRef(true)
+    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const blocker = mintBlocker(stage)
+    if (blocker) return stage.open ? <p className="os-sub">{blocker}</p> : null
+
+    const holder = stage.kind === "holder"
+    const mint = async () => {
+        if (session.status !== "member") { session.openConnect(); return }
+        setError("")
+        const gateNumber = holder ? (/^[1-9]\d{0,18}$/.test(gate.trim()) ? BigInt(gate.trim()) : 0n) : 0n
+        if (holder && gateNumber === 0n) { setError(`Enter the number of the ${stage.gate} token that pays for this mint.`); return }
+        setBusy(true)
+        try {
+            const caller = session.address
+            const [price, lane, minted] = await Promise.all([
+                networkGasPriceFresh(), getLaneStatus("nft_drops", NATIVE_CURRENCY), mintedBy(target.collection, stage.index, caller),
+            ])
+            if (!lane.open) throw new Error(laneClosedReason(lane, "Minting"))
+            // mintRequest refuses a member at the stage's wallet limit, with its reason.
+            if (holder) await assertGateToken(target.collection, stage, gateNumber, caller)
+            if (!alive.current) return
+            signer.sign(mintRequest({
+                ...target, stage, gateNumber, mintedSoFar: minted, caller,
+                networkKey: screen.network, chainId: screen.chainId, price,
+                onSettled: (outcome) => {
+                    if (outcome !== "confirmed" && outcome !== "submitted") return
+                    void client.invalidateQueries({ queryKey: ["nft", "drops", "stages", screen.chainId, target.collection] })
+                    void client.invalidateQueries({ queryKey: ["nft", "ledger"] })
+                },
+            }))
+        } catch (err) {
+            if (alive.current) setError(reason(err))
+        } finally {
+            if (alive.current) setBusy(false)
+        }
+    }
+    return (
+        <div className="os-stack os-tight">
+            <div className="os-row">
+                {holder && (
+                    <label className="os-row os-tight-row os-nft-gate">
+                        <span>{stage.gate} token #</span>
+                        <input inputMode="numeric" size={8} value={gate} onChange={(event) => setGate(event.target.value)} aria-label={`Number of the ${stage.gate} token that pays for this mint`} />
+                    </label>
+                )}
+                <button type="button" className="os-btn" disabled={busy} onClick={() => void mint()}>
+                    {busy ? "Checking…" : session.status === "member" ? "Mint" : "Connect to mint"}
+                </button>
+            </div>
+            {error && <p className="os-note os-warn" role="alert">{error}</p>}
+        </div>
+    )
+}
+
 /** `readAt` is when the stages were read (ms): a closed stage starting after it had not opened yet. */
-function Stage({ screen, stage, readAt }: { screen: NftScreen; stage: NftStage; readAt: number }) {
+function Stage({ screen, session, target, stage, readAt }: { screen: NftScreen; session: OsSession; target: MintTarget; stage: NftStage; readAt: number }) {
     const amount = (value: bigint) => formatAmount(value, stage.currency)
     const upcoming = !stage.open && stage.start * 1000n > BigInt(readAt)
     const status = stage.open ? "Open now" : upcoming ? "Upcoming" : "Ended"
@@ -53,11 +136,12 @@ function Stage({ screen, stage, readAt }: { screen: NftScreen; stage: NftStage; 
                 {/* EditStage replaces a stage only before it starts. */}
                 {upcoming ? " The creator can still change this stage, this split included, until it starts." : " This split is fixed for the stage."}
             </p>
+            <MintAction screen={screen} session={session} target={target} stage={stage} />
         </li>
     )
 }
 
-export function Stages({ screen, collection }: { screen: NftScreen; collection: string }) {
+export function Stages({ screen, session, collection, collectionName }: { screen: NftScreen; session: OsSession; collection: string; collectionName: string }) {
     const available = isRealmValidOn(screen.network, NFT_DROPS_PATH)
     const stages = useQuery({
         queryKey: ["nft", "drops", "stages", screen.chainId, collection],
@@ -73,8 +157,9 @@ export function Stages({ screen, collection }: { screen: NftScreen; collection: 
                 : stages.isError ? <ReadFailure error={stages.error} what="mint stages" retry={() => void stages.refetch()} />
                 : stages.data.length === 0 ? <Empty title="This collection has no mint stage." />
                 : <div className="os-stack os-tight">
-                    <ul className="os-list os-stack os-tight">{stages.data.map((stage) => <Stage key={stage.index} screen={screen} stage={stage} readAt={stages.dataUpdatedAt} />)}</ul>
-                    <p className="os-note" role="note">Minting arrives in a later version of Memba OS.</p>
+                    <ul className="os-list os-stack os-tight">{stages.data.map((stage) => (
+                        <Stage key={stage.index} screen={screen} session={session} target={{ collection, collectionName }} stage={stage} readAt={stages.dataUpdatedAt} />
+                    ))}</ul>
                 </div>}
         </section>
     )

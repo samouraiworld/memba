@@ -17,6 +17,8 @@
 .memba-os .os-nft-title { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
 .memba-os .os-nft-lines { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; }
 .memba-os .os-nft-item { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+.memba-os .os-nft-gate input { width: 9ch; min-height: 44px; box-sizing: border-box; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--os-line); background: var(--os-hover); color: var(--os-ink); font: 600 13px var(--os-mono); }
+.memba-os .os-nft-gate input:focus-visible { outline: 2px solid var(--os-acc); outline-offset: 0; }
 @container os-window (max-width: 560px) {
   .memba-os .os-nft-item { grid-template-columns: minmax(0, 1fr); }
   .memba-os .os-nft-head { flex-wrap: wrap; }

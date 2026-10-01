@@ -1,9 +1,10 @@
 /**
  * A collection's profile: its presentation and people, the Collection
- * Passport, curation marks, mint stages and tokens. A collection curators
- * hide keeps every section; its image, banner, description, website and token
- * art stay collapsed until the viewer asks (see useCurationHide). A soulbound
- * collection is never sold, so it has no way to Market.
+ * Passport, curation marks, mint stages (with minting) and tokens. A
+ * collection curators hide keeps every section; its image, banner,
+ * description, website and token art stay collapsed until the viewer asks
+ * (see useCurationHide). A soulbound collection is never sold, so it has no
+ * way to Market.
  *
  * @module os/apps/nft/profile
  */
@@ -13,6 +14,7 @@ import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import type { NftCollection } from "../../../lib/nft/ledger"
 import { webUrl } from "../../../lib/nft/metadata"
 import { TokenMedia } from "../../nft/TokenMedia"
+import type { OsSession } from "../../shell/useOsSession"
 import { Loading } from "../../kit"
 import { Curation } from "./curation"
 import { Back, ReadFailure } from "./parts"
@@ -32,7 +34,7 @@ function People({ collection }: { collection: NftCollection }) {
     )
 }
 
-function Profile({ screen, collection }: { screen: NftScreen; collection: NftCollection }) {
+function Profile({ screen, session, collection }: { screen: NftScreen; session: OsSession; collection: NftCollection }) {
     const hide = useCurationHide(screen, collection.id)
     const { shown } = hide
     const name = revealInvisibleFormatting(collection.name)
@@ -58,21 +60,21 @@ function Profile({ screen, collection }: { screen: NftScreen; collection: NftCol
                 {hide.curated ? <Curation hide={hide} collapsed="Its image, banner, description, website and token art" /> : <p className="os-sub">Curation is not available on this network.</p>}
             </section>
             <Passport screen={screen} collection={collection} />
-            <Stages screen={screen} collection={collection.id} />
+            <Stages screen={screen} session={session} collection={collection.id} collectionName={name} />
             <TokenGrid screen={screen} collection={collection.id} showMedia={shown} />
         </div>
     )
 }
 
 /** `back` goes on the control back to Collections, which takes focus when this screen is opened from another. */
-export function CollectionProfile({ screen, id, back }: { screen: NftScreen; id: string; back: Ref<HTMLButtonElement> }) {
+export function CollectionProfile({ screen, session, id, back }: { screen: NftScreen; session: OsSession; id: string; back: Ref<HTMLButtonElement> }) {
     const collection = useQuery(collectionQuery(screen.chainId, id))
     return (
         <div className="os-stack">
             <Back ref={back} label="Collections" onClick={() => screen.go({ kind: "home" })} />
             {collection.isPending ? <Loading label="Reading the collection…" />
                 : collection.isError ? <ReadFailure error={collection.error} what="collection" refused={`There is no collection ${id} on this network.`} retry={() => void collection.refetch()} />
-                : <Profile screen={screen} collection={collection.data} />}
+                : <Profile screen={screen} session={session} collection={collection.data} />}
         </div>
     )
 }
