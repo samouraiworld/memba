@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba OS: App Store report, curator queue and listings (2026-10-01)
 - Report an App Store listing from Memba OS, with its deposit and the five-report hide rule stated on both pages; a read-only curator queue shows pending listings, who decides, and how many reports hide.
+- App Store submissions, edits and delists send measured gas limits and capped deposits, state the deposit, are checked on chain before the wallet, and count field limits in bytes like the registry.
 
 ### Memba OS: multisig window (2026-10-01)
 - Fixed: the multisig window no longer tells you that you are not a member when the address is a single-key account.

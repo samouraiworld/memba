@@ -8,6 +8,7 @@ let v3 = true
 let adena = { connected: true, address: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0", connect: vi.fn() }
 const fetchByPublisher = vi.fn()
 const loadEditForm = vi.fn()
+const fetchAppStrict = vi.fn()
 const doContractBroadcast = vi.fn()
 
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => adena }))
@@ -16,14 +17,14 @@ vi.mock("../lib/config", async (a) => ({
 }))
 vi.mock("../lib/appStore", async (a) => {
     const actual = await a<typeof import("../lib/appStore")>()
-    return { ...actual, isAppStoreV3: () => v3, fetchByPublisher: (...x: unknown[]) => fetchByPublisher(...x) }
+    return { ...actual, isAppStoreV3: () => v3, fetchByPublisher: (...x: unknown[]) => fetchByPublisher(...x), fetchAppStrict: (...x: unknown[]) => fetchAppStrict(...x) }
 })
 vi.mock("../lib/appStoreSubmit", async (a) => {
     const actual = await a<typeof import("../lib/appStoreSubmit")>()
     return { ...actual, loadEditForm: (...x: unknown[]) => loadEditForm(...x) }
 })
 vi.mock("../lib/grc20", async (a) => ({
-    ...await a<typeof import("../lib/grc20")>(), doContractBroadcast: (...x: unknown[]) => doContractBroadcast(...x),
+    ...await a<typeof import("../lib/grc20")>(), doContractBroadcast: (...x: unknown[]) => doContractBroadcast(...x), freshFeeForGasWanted: async () => 30_000,
 }))
 
 const { PublisherConsole } = await import("./PublisherConsole")
@@ -41,6 +42,7 @@ beforeEach(() => {
     adena = { connected: true, address: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0", connect: vi.fn() }
     fetchByPublisher.mockReset().mockResolvedValue([])
     loadEditForm.mockReset().mockResolvedValue(null)
+    fetchAppStrict.mockReset().mockResolvedValue(null)
     doContractBroadcast.mockReset().mockResolvedValue({ hash: "0x" })
 })
 
@@ -81,6 +83,8 @@ describe("PublisherConsole — inline edit", () => {
             pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", tagline: "", descr: "D",
             category: "", iconCID: "", screenshotsCSV: "s1,s2", appURL: "",
         })
+        // Read again before the wallet: still this publisher's, rejected, with edits left, as loaded.
+        fetchAppStrict.mockResolvedValue(listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected", descr: "D", screenshotCIDs: ["s1", "s2"], resubmitCount: 1 }))
         renderWithProviders(<PublisherConsole />, { route: "/test13/apps/my-submissions" })
         await screen.findByText("Bad App")
         fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
@@ -128,6 +132,7 @@ describe("PublisherConsole — inline edit", () => {
 describe("PublisherConsole — delist", () => {
     it("arms, then broadcasts DelistApp and flips the row to Delisted", async () => {
         fetchByPublisher.mockResolvedValue([listing({ status: "live", name: "Live One" })])
+        fetchAppStrict.mockResolvedValue(listing({ status: "live", name: "Live One" }))
         renderWithProviders(<PublisherConsole />, { route: "/test13/apps/my-submissions" })
         fireEvent.click(await screen.findByRole("button", { name: /^delist$/i }))
         expect(doContractBroadcast).not.toHaveBeenCalled()

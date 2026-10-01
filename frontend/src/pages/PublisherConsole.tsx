@@ -2,8 +2,8 @@
  * PublisherConsole — the standalone App Store publisher surface at `/apps/my-submissions`.
  *
  * A first-class, paginated view of the connected wallet's own listings (any status): status at a
- * glance, curator reject reasons, remaining free edits, community flag counts, a link to the live
- * store page, plus the free resubmit and one-way delist actions. Editing happens **in place**: the
+ * glance, curator reject reasons, remaining edits, community flag counts, a link to the live
+ * store page, plus the resubmit (no listing fee) and one-way delist actions. Editing happens **in place**: the
  * console loads the listing's FULL on-chain detail (`loadEditForm`) and opens the shared
  * `ListingFields` form right here, so `EditListing` never overwrites a field with a blank and the
  * publisher never leaves the console.
@@ -23,7 +23,7 @@ import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreSubmitEnabled } from "../lib/config"
 import { isAppStoreV3, fetchByPublisher, type AppListing } from "../lib/appStore"
 import {
-    loadEditForm, buildDelistAppMsg, buildEditListingMsg, validateSubmission, type AppSubmission,
+    loadEditForm, submitDelistApp, submitEditListing, submitErrorText, validateSubmission, type AppSubmission,
 } from "../lib/appStoreSubmit"
 import { ListingFields } from "../components/appstore/ListingFields"
 import { PublisherListings } from "../components/appstore/PublisherListings"
@@ -40,6 +40,8 @@ export function PublisherConsole() {
     const [editLoading, setEditLoading] = useState<string | null>(null)
     const [editError, setEditError] = useState<string | null>(null)
     const [editForm, setEditForm] = useState<AppSubmission | null>(null)
+    // The listing as loaded: an edit is checked against it before the wallet opens.
+    const [editWas, setEditWas] = useState<AppSubmission | null>(null)
     const [txError, setTxError] = useState<string | null>(null)
     const [delistArm, setDelistArm] = useState<string | null>(null)
     const [delistError, setDelistError] = useState<string | null>(null)
@@ -58,8 +60,7 @@ export function PublisherConsole() {
 
     const delist = useMutation({
         mutationFn: async (pkgPath: string) => {
-            const { doContractBroadcast } = await import("../lib/grc20")
-            return doContractBroadcast([buildDelistAppMsg(address, pkgPath)], "Delist app")
+            return submitDelistApp(address, pkgPath)
         },
         onSuccess: (_res, pkgPath) => {
             // Optimistic flip — the chain read lags the broadcast, so don't invalidate "mine" (a
@@ -71,19 +72,16 @@ export function PublisherConsole() {
             setDelistError(null)
         },
         onError: (e: unknown) => {
-            const msg = e instanceof Error ? e.message : String(e)
-            setDelistError(/denied|rejected by user|cancel/i.test(msg)
-                ? null
-                : "The delist transaction didn't go through — please try again.")
+            setDelistError(submitErrorText(e, "delist"))
         },
     })
 
-    // EditListing — free resubmit of the edited listing. Optimistically flip the row back to pending
+    // EditListing — resubmit of the edited listing, no listing fee. Optimistically flip the row back to pending
     // (with the edited fields) and close the inline form; the next refetch reconciles with the chain.
     const resubmit = useMutation({
         mutationFn: async (form: AppSubmission) => {
-            const { doContractBroadcast } = await import("../lib/grc20")
-            return doContractBroadcast([buildEditListingMsg(address, form)], "Resubmit app")
+            if (!editWas) throw new Error("This listing changed since it was loaded. Load it again, then edit it.")
+            return submitEditListing(address, form, editWas)
         },
         onSuccess: (_res, form) => {
             qc.setQueryData<AppListing[]>(queryKey, (prev) =>
@@ -99,10 +97,7 @@ export function PublisherConsole() {
             setTxError(null)
         },
         onError: (e: unknown) => {
-            const msg = e instanceof Error ? e.message : String(e)
-            setTxError(/denied|rejected by user|cancel/i.test(msg)
-                ? null
-                : "The transaction didn't go through — please try again.")
+            setTxError(submitErrorText(e, "resubmission"))
         },
     })
 
@@ -121,6 +116,7 @@ export function PublisherConsole() {
         }
         setTxError(null)
         setEditForm(form)
+        setEditWas(form)
     }
 
     // Adapt the nullable editForm state to ListingFields' non-null setter (edit form is open here).
@@ -193,8 +189,9 @@ export function PublisherConsole() {
                     onSubmit={(e) => { e.preventDefault(); if (canResubmit) resubmit.mutate(editForm) }}
                 >
                     <div className="appsubmit__editnote" role="note">
-                        Fixing <code className="apppath">{editForm.pkgPath}</code> — resubmitting is free and
-                        sends it back to review.{" "}
+                        Fixing <code className="apppath">{editForm.pkgPath}</code> — resubmitting costs no
+                        listing fee, only the network fee and a small deposit for anything it adds, and sends it
+                        back to review.{" "}
                         <button type="button" className="appsubmit__linkbtn"
                             onClick={() => { setEditForm(null); setTxError(null) }}>
                             Cancel
@@ -207,7 +204,7 @@ export function PublisherConsole() {
                     {txError && <p className="appsubmit__txerror" role="alert">{txError}</p>}
                     <button type="submit" className="appbtn appbtn--primary appsubmit__submit"
                         data-testid="console-resubmit" disabled={!canResubmit}>
-                        {resubmit.isPending ? "Waiting for wallet…" : "Resubmit for review (free)"}
+                        {resubmit.isPending ? "Waiting for wallet…" : "Resubmit for review (no listing fee)"}
                     </button>
                 </form>
             ) : items.length === 0 ? (

@@ -26,6 +26,9 @@ vi.mock("../lib/appStore", async (importActual) => {
         isAppStoreV3: () => v3,
         fetchByPublisher: (...a: unknown[]) => fetchByPublisher(...a),
         fetchApp: (...a: unknown[]) => fetchApp(...a),
+        // The checks before the wallet read the same listing, and the registry's fee and pause switch.
+        fetchAppStrict: (...a: unknown[]) => fetchApp(...a),
+        fetchRegistryState: async () => ({ pending: 0, registrationFee: await fetchRegistrationFee(), paused: false }),
     }
 })
 vi.mock("../lib/appStoreSubmit", async (importActual) => {
@@ -34,7 +37,7 @@ vi.mock("../lib/appStoreSubmit", async (importActual) => {
 })
 vi.mock("../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../lib/grc20")>()
-    return { ...actual, doContractBroadcast: (...a: unknown[]) => doContractBroadcast(...a) }
+    return { ...actual, doContractBroadcast: (...a: unknown[]) => doContractBroadcast(...a), freshFeeForGasWanted: async () => 36_000 }
 })
 // Keep the REAL isValidImageMime (the uploader's client-side reject must be exercised);
 // only stub the network-touching uploadImage.
@@ -49,7 +52,7 @@ function mine(over: Partial<AppListing>): AppListing {
     return {
         id: 1, pkgPath: "gno.land/r/samcrew/mine_v1", name: "Mine", tagline: "", category: "",
         iconCID: "", appURL: "", publisher: adena.address, status: "pending", flagCount: 0,
-        createdAt: 0, ...over,
+        createdAt: 0, resubmitCount: 0, ...over,
     }
 }
 
@@ -100,6 +103,8 @@ describe("AppSubmit — fee disclosure (read live from the realm)", () => {
         expect(fee.textContent).toMatch(/1 GNOT/)
         expect(fee.textContent).toMatch(/treasury/i)
         expect(fee.textContent).toMatch(/not refundable, including if rejected/i)
+        // An empty form still stores the base listing: about 0.79 GNOT, never returned.
+        expect(fee.textContent).toMatch(/The listing also pays a\s+storage deposit of about 0\.79 GNOT that\s+is not returned, and the transaction costs a network fee\./)
     })
 
     it("blocks submission when the fee can't be read (exact-coin: never guess)", async () => {
@@ -243,6 +248,7 @@ describe("AppSubmit — my submissions (B5 lite)", () => {
 describe("AppSubmit — delist (one-way, armed confirm)", () => {
     it("arms a warning first, then broadcasts DelistApp and flips the row to Delisted", async () => {
         fetchByPublisher.mockResolvedValue([mine({ status: "live", name: "Mine" })])
+        fetchApp.mockResolvedValue(mine({ status: "live", name: "Mine" }))
         renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
 
         fireEvent.click(await screen.findByRole("button", { name: /^delist$/i }))
@@ -265,13 +271,14 @@ describe("AppSubmit — delist (one-way, armed confirm)", () => {
     it("a failed delist shows the error in the confirm box and stays armed for retry", async () => {
         doContractBroadcast.mockRejectedValueOnce(new Error("network exploded"))
         fetchByPublisher.mockResolvedValue([mine({ status: "live", name: "Mine" })])
+        fetchApp.mockResolvedValue(mine({ status: "live", name: "Mine" }))
         renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
         fireEvent.click(await screen.findByRole("button", { name: /^delist$/i }))
         fireEvent.click(screen.getByRole("button", { name: /yes, delist/i }))
         // Error renders INSIDE the still-armed confirm box (review F-1: the
         // page-level txError is invisible once the done panel shows).
         await waitFor(() =>
-            expect(screen.getByTestId("delist-confirm").textContent).toMatch(/didn't go through/i)
+            expect(screen.getByTestId("delist-confirm").textContent).toMatch(/did not go through.*still costs its network fee/i)
         )
         expect(screen.getByRole("button", { name: /yes, delist/i })).toBeEnabled()
         expect(screen.queryByText("Delisted")).not.toBeInTheDocument()

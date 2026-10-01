@@ -338,7 +338,7 @@ describe("curator queue (read-only)", () => {
         let page = 0
         let statsReads = 0
         return vi.spyOn(shared, "queryEval").mockImplementation(async (_rpc, _pkg, expr) => {
-            if (expr === "GetStatsJSON()") return JSON.stringify({ pending: statsReads++ === 0 ? pendingTotal : pendingAfter })
+            if (expr === "GetStatsJSON()") return JSON.stringify({ pending: statsReads++ === 0 ? pendingTotal : pendingAfter, registrationFee: 1_000_000, paused: false })
             if (expr === "GetCuratorsJSON()") return JSON.stringify(curators)
             return JSON.stringify(windows[page++] ?? [])
         })

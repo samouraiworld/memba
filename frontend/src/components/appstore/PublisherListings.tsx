@@ -26,8 +26,8 @@ export interface PublisherListingsProps {
 
 /**
  * PublisherListings — the caller's own App Store listings: status, curator reject reasons, the
- * remaining free edits (bounded by the realm's MaxResubmits), the community flag count, a link to
- * the live store page, and the free resubmit + one-way delist actions. Purely presentational —
+ * remaining edits (bounded by the realm's MaxResubmits), the community flag count, a link to
+ * the live store page, and the resubmit (no listing fee) + one-way delist actions. Purely presentational —
  * every action is a prop callback, so both /apps/submit and the /apps/my-submissions console reuse
  * it without duplicating the delist/resubmit wiring.
  */
@@ -70,7 +70,7 @@ export function PublisherListings({
                             <div className="appsubmit__editrow">
                                 <button type="button" className="appbtn appbtn--ghost appsubmit__resubmit"
                                     disabled={loading} onClick={() => onResubmit(l)}>
-                                    {loading ? "Loading…" : l.status === "rejected" ? "Fix & resubmit (free)" : "Edit listing"}
+                                    {loading ? "Loading…" : l.status === "rejected" ? "Fix & resubmit" : "Edit listing"}
                                 </button>
                                 <span className="appsubmit__editsleft">{editsLeft} edits left</span>
                             </div>

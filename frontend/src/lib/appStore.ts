@@ -111,9 +111,15 @@ export async function assertAppReportApplies(caller: string, pkgPath: string): P
 /** A check made before the wallet stopped the call: nothing was sent, and the message says why. */
 export class NothingSentError extends Error {}
 
+/** What the RPC layer or the browser says when the network cannot be reached: not quoted to the user. */
+const TRANSPORT = /^(RPC error|HTTP \d|Malformed abci_query)|Failed to fetch|NetworkError|Load failed|timed? ?out/i
+
 async function beforeWallet<T>(step: () => Promise<T>): Promise<T> {
     try { return await step() }
-    catch (cause) { throw new NothingSentError(cause instanceof Error ? cause.message : String(cause)) }
+    catch (cause) {
+        const msg = cause instanceof Error ? cause.message : String(cause)
+        throw new NothingSentError(cause instanceof TypeError || TRANSPORT.test(msg) ? "Memba could not reach the network. Nothing was sent; try again in a moment." : msg)
+    }
 }
 
 /**
@@ -283,12 +289,17 @@ async function evalStrict(expr: string): Promise<unknown> {
 /** The realm's MaxPageLimit: a longer window comes back cut to this. */
 const MAX_PAGE_LIMIT = 100
 
-async function pendingTotal(): Promise<number> {
+/** The registry's counters, fee and pause switch, read on a verified node. */
+export interface RegistryState { pending: number; registrationFee: number; paused: boolean }
+
+export async function fetchRegistryState(): Promise<RegistryState> {
     const stats = await evalStrict("GetStatsJSON()")
-    const pending = stats && typeof stats === "object" ? (stats as Record<string, unknown>).pending : undefined
-    if (typeof pending !== "number") throw new Error("App Store registry returned invalid state")
-    return pending
+    const r = stats && typeof stats === "object" ? stats as Record<string, unknown> : {}
+    if (typeof r.pending !== "number" || !Number.isSafeInteger(r.registrationFee) || typeof r.paused !== "boolean") throw new Error("App Store registry returned invalid state")
+    return { pending: r.pending, registrationFee: r.registrationFee as number, paused: r.paused }
 }
+
+const pendingTotal = async () => (await fetchRegistryState()).pending
 
 /**
  * The curator queue, read on a verified node; a failed read throws, so an outage never looks like
