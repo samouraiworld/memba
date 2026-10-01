@@ -20,6 +20,7 @@ import {
     type MembaV2Config,
     type MembaV2Context,
     type MembaV2ProposalSummary,
+    type MembaV2Votes,
 } from "./membaV2"
 import { resolveUsernames, type DAOConfig, type DAOMember, type DAOProposal, type VoteRecord } from "./shared"
 
@@ -172,19 +173,40 @@ export function hasVotedOnV2(rpcUrl: string, realmPath: string, id: number, vote
     return hasVotedV2(v2Context(rpcUrl, realmPath), id, voter)
 }
 
-/** Find one vote across every allowed page. Missing or truncated pages are an
- * unavailable read, not proof that the member chose nothing. */
-export async function findV2VoterChoice(rpcUrl: string, realmPath: string, id: number, voter: string, signal?: AbortSignal): Promise<VoteChoice | null> {
+/** Every vote of a proposal, across every allowed page. A missing or truncated
+ * page is an unavailable read, never a shorter list; so is a vote cast between
+ * two pages (votes are kept in address order, so it shifts the second page). */
+export async function readV2AllVotes(rpcUrl: string, realmPath: string, id: number, signal?: AbortSignal): Promise<MembaV2Votes["votes"]> {
     const ctx = v2Context(rpcUrl, realmPath)
-    let offset = 0
+    const votes: MembaV2Votes["votes"] = []
+    let total: number | null = null
     for (let page = 0; page < V2_MAX_MEMBER_PAGES; page++) {
-        const result = await readV2Votes(ctx, id, { offset, limit: MEMBA_V2_MAX_PAGE }, signal)
+        const result = await readV2Votes(ctx, id, { offset: votes.length, limit: MEMBA_V2_MAX_PAGE }, signal)
         if (result.total > V2_MAX_VOTES) throw new Error("Vote count exceeds the DAO member limit")
-        if (result.votes.length !== Math.min(MEMBA_V2_MAX_PAGE, Math.max(0, result.total - offset))) throw new Error("Truncated vote page")
-        const match = result.votes.find((vote) => vote.voter === voter)
-        if (match) return match.choice
-        offset += result.votes.length
-        if (offset >= result.total) return null
+        if (total !== null && result.total !== total) throw new Error("Votes changed while they were read")
+        total = result.total
+        if (result.votes.length !== Math.min(MEMBA_V2_MAX_PAGE, Math.max(0, total - votes.length))) throw new Error("Truncated vote page")
+        votes.push(...result.votes)
+        if (votes.length >= total) {
+            if (new Set(votes.map((v) => v.voter)).size !== votes.length) throw new Error("Duplicate voter in the proposal's vote pages")
+            return votes
+        }
     }
-    throw new Error("Vote page limit reached before the voter could be checked")
+    throw new Error("Vote page limit reached before every vote could be read")
+}
+
+/** A vote with the voter's registered @name ("" when they have none). */
+export type V2Voter = MembaV2Votes["votes"][number] & { username: string }
+
+/** Every vote of a proposal, naming each voter who has a registered name; nobody else's name is looked up. */
+export async function readV2Voters(rpcUrl: string, realmPath: string, id: number, signal?: AbortSignal): Promise<V2Voter[]> {
+    const votes = await readV2AllVotes(rpcUrl, realmPath, id, signal)
+    const named: DAOMember[] = votes.map((v) => ({ address: v.voter, roles: [], tier: "", votingPower: v.power, username: "" }))
+    await resolveUsernames(rpcUrl, named)
+    return votes.map((v, i) => ({ ...v, username: named[i].username }))
+}
+
+/** One member's choice, or null when they have not voted. */
+export async function findV2VoterChoice(rpcUrl: string, realmPath: string, id: number, voter: string, signal?: AbortSignal): Promise<VoteChoice | null> {
+    return (await readV2AllVotes(rpcUrl, realmPath, id, signal)).find((vote) => vote.voter === voter)?.choice ?? null
 }

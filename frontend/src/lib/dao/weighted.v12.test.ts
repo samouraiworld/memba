@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
-import { assertWeightedWrites, buildWeightedMessage, readOpenWeightedProposals, isUnreadableProposal, readWeightedBallot, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
+import { assertWeightedWrites, buildWeightedMessage, readOpenWeightedProposals, isUnreadableProposal, readWeightedBallot, readWeightedBallots, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
 import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, packageAddress, applicationDetails, expectedCategory, factLabel, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
@@ -510,6 +510,29 @@ describe("ballots and pending votes", () => {
         const mis = structuredClone(r); (mis.items[2].action as Json).operation = "grant-everything"
         pendingRoute(mis)
         expect((await readWeightedPendingVotes(ctx, r.voter)).items.filter(isUnreadableProposal)).toHaveLength(1)
+    })
+
+    it("reads every seat's ballot in the order asked, after one check of the RPC's chain", async () => {
+        const b = records.ballot_not_voted as { proposalId: string; voter: string }
+        const voters = (records.members as { members: { address: string }[] }).members.map(m => m.address)
+        const decode = (data: unknown) => new TextDecoder().decode(Uint8Array.from(String(data).slice(2).match(/../g)!, h => parseInt(h, 16)))
+        vi.mocked(directRpcCall).mockClear()
+        vi.mocked(directRpcCall).mockImplementation(async (_url, method, params) => {
+            if (method === "status") return { node_info: { network: ctx.chainId } }
+            const voter = decode((params as { data: string }).data).match(/GetBallotJSON\("\d+", "(g1[0-9a-z]+)"\)$/)![1]
+            return { response: { ResponseBase: { Data: btoa(String.fromCharCode(...new TextEncoder().encode(qevalWire({ ...b, voter })))), Error: null } } }
+        })
+        expect((await readWeightedBallots(ctx, b.proposalId, voters)).map(x => x.voter)).toEqual(voters)
+        expect(vi.mocked(directRpcCall).mock.calls.filter(c => c[1] === "status")).toHaveLength(1)
+        expect(vi.mocked(directRpcCall).mock.calls.filter(c => c[1] === "abci_query")).toHaveLength(voters.length)
+        // An RPC that answers for another chain is refused before any ballot is read.
+        vi.mocked(directRpcCall).mockClear()
+        vi.mocked(directRpcCall).mockImplementation(async (_url, method) => method === "status" ? { node_info: { network: "gnoland-0" } } : { response: { ResponseBase: { Data: null, Error: null } } })
+        await expect(readWeightedBallots(ctx, b.proposalId, voters)).rejects.toThrow("network")
+        expect(vi.mocked(directRpcCall).mock.calls.filter(c => c[1] === "abci_query")).toHaveLength(0)
+        // A reply about another address is refused.
+        pendingRoute(b)
+        await expect(readWeightedBallots(ctx, b.proposalId, [b.voter, voters.find(v => v !== b.voter)!])).rejects.toThrow("does not match")
     })
 
     it("reads one ballot and checks it answers the question asked", async () => {

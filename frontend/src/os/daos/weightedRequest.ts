@@ -102,7 +102,6 @@ function requestParts<C extends string>(ctx: WeightedActContext, action: (choice
         lines: (choice: C | undefined): [string, string][] => [
             ["Storage deposit", `up to ${formatUgnot(plan(choice).maxDepositUgnot)}`],
             [gasPrice === FALLBACK_GAS_PRICE ? "Network fee (estimate: the price could not be read)" : "Network fee", formatUgnotExact(gasFee)],
-            ["Gas limit", gasWanted.toLocaleString("en-US")],
             ["Network", GNO_CHAIN_ID],
         ],
         /** The classic page's checks against the reviewed DAO, then the wallet's chain; returns the fresh read. */

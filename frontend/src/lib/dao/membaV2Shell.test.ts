@@ -8,7 +8,7 @@ import { resolveDaoKind } from "./kind"
 import { getDAOConfig } from "./config"
 import { getDAOMembers, getMemberRole } from "./members"
 import { getDAOProposals, getProposalDetail, getProposalVotes, invalidateProposalCache } from "./proposals"
-import { findV2VoterChoice, V2_MAX_PROPOSAL_PAGES } from "./membaV2Shell"
+import { findV2VoterChoice, readV2AllVotes, readV2Voters, V2_MAX_PROPOSAL_PAGES } from "./membaV2Shell"
 
 vi.mock("../rpcFallback", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../rpcFallback")>()),
@@ -152,6 +152,34 @@ describe("version-2 DAOs in the generic readers", () => {
         expressions.length = 0
         expect(await findV2VoterChoice(RPC, REALM, 1, addr(61))).toBeNull()
         expect(expressions).toHaveLength(2)
+    })
+
+    it("reads every vote of a proposal, with each voter's choice and power, across both pages", async () => {
+        const votes = Array.from({ length: 60 }, (_, i) => ({ voter: addr(i + 1), choice: i % 3 === 0 ? "NO" : "YES", power: i + 1 }))
+        replies["GetVotesJSON(1, 0, 50)"] = wire({ total: 60, offset: 0, votes: votes.slice(0, 50) })
+        replies["GetVotesJSON(1, 50, 50)"] = wire({ total: 60, offset: 50, votes: votes.slice(50) })
+        expect(await readV2AllVotes(RPC, REALM, 1)).toEqual(votes)
+        // A short page is an unavailable read, never a shorter list.
+        replies["GetVotesJSON(1, 50, 50)"] = wire({ total: 60, offset: 50, votes: votes.slice(50, 55) })
+        await expect(readV2AllVotes(RPC, REALM, 1)).rejects.toThrow("Truncated vote page")
+    })
+
+    it("refuses votes that changed between its two pages, which would repeat one voter and miss another", async () => {
+        const votes = Array.from({ length: 61 }, (_, i) => ({ voter: addr(i + 1), choice: "YES", power: 1 }))
+        replies["GetVotesJSON(1, 0, 50)"] = wire({ total: 60, offset: 0, votes: votes.slice(0, 50) })
+        // A vote cast in between shifts the address-ordered list: the second page starts one entry early.
+        replies["GetVotesJSON(1, 50, 50)"] = wire({ total: 61, offset: 50, votes: votes.slice(49, 60) })
+        await expect(readV2AllVotes(RPC, REALM, 1)).rejects.toThrow("Votes changed while they were read")
+        replies["GetVotesJSON(1, 50, 50)"] = wire({ total: 60, offset: 50, votes: votes.slice(49, 59) })
+        await expect(readV2AllVotes(RPC, REALM, 1)).rejects.toThrow("Duplicate voter")
+    })
+
+    it("names each voter who has a registered name, and only the voters", async () => {
+        replies["GetVotesJSON(1, 0, 50)"] = wire({ total: 2, offset: 0, votes: [{ voter: addr(1), choice: "YES", power: 2 }, { voter: addr(2), choice: "ABSTAIN", power: 1 }] })
+        const voters = await readV2Voters(RPC, REALM, 1)
+        expect(voters.map((v) => [v.voter, v.choice, v.power])).toEqual([[addr(1), "YES", 2], [addr(2), "ABSTAIN", 1]])
+        expect(voters.every((v) => typeof v.username === "string")).toBe(true)
+        expect(expressions.filter((e) => e.startsWith("GetMembers"))).toEqual([])
     })
 
     it("treats an incomplete vote page as unavailable instead of a missing choice", async () => {

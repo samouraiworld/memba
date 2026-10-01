@@ -18,7 +18,8 @@ import { shortAddr } from "../shell/format"
 import type { OsSession } from "../shell/useOsSession"
 import { useSigner } from "../sign/signerContext"
 import { UnknownOutcome } from "./UnknownOutcome"
-import { useRefreshWeightedDao, useWeightedBallot, useWeightedProposalEntry, useWeightedSnapshot } from "./useWeightedDao"
+import { useRefreshWeightedDao, useWeightedBallot, useWeightedBallots, useWeightedProposalEntry, useWeightedSnapshot } from "./useWeightedDao"
+import { Voters } from "./Voters"
 import type { SignRequest } from "../sign/signer"
 import { quoteWeightedGasPrice, weightedExecuteRequest, weightedVoteOptions, weightedVoteRequest, type WeightedRequestContext } from "./weightedRequest"
 
@@ -87,6 +88,30 @@ export function WeightedProposalWindow({ realmPath, dao, id, session }: { realmP
             {stale}
             <Detail p={q.data.entry} snapshot={q.data.snapshot} realmPath={realmPath} dao={dao} ballot={readsBallot ? (ballot.isError ? "error" : ballot.data) : undefined} session={session} />
         </div>
+    )
+}
+
+/**
+ * Every seat's ballot on this proposal (the application version publishes
+ * ballots). The electorate is frozen when a proposal opens: a seat whose key
+ * changed since votes on it with its earlier address, which this list does not
+ * read, so it claims nothing for that seat.
+ */
+function SeatBallots({ realmPath, p, members }: { realmPath: string; p: WeightedProposal; members: readonly WeightedMember[] }) {
+    const ballots = useWeightedBallots(realmPath, p.id, members.map((m) => m.address), true)
+    const open = isVoteOpen(p)
+    return (
+        <Voters error={ballots.isError} rows={ballots.data?.map((b) => {
+            const seat = members.find((m) => m.address === b.voter)!
+            return {
+                address: b.voter,
+                name: reveal(seat.personId),
+                choice: !b.eligible ? "Key changed" : b.choice ? b.choice[0].toUpperCase() + b.choice.slice(1) : open ? "Not voted" : "Did not vote",
+                weight: seat.weight === 1 ? "1 point" : `${seat.weight} points`,
+            }
+        })}>
+            {ballots.data?.some((b) => !b.eligible) && <p className="os-sub">A seat whose key changed after this proposal opened votes on it with its earlier address, which this list does not read.</p>}
+        </Voters>
     )
 }
 
@@ -205,6 +230,7 @@ function Detail({ p, snapshot, realmPath, dao, ballot, session }: ActingProps) {
                 {mine && <p className="os-note">{mine}</p>}
                 <Acting p={p} snapshot={snapshot} realmPath={realmPath} dao={dao} ballot={ballot} session={session} />
             </div>
+            {config.schema === WEIGHTED_APPLICATIONS_SCHEMA && <SeatBallots realmPath={realmPath} p={p} members={members} />}
             {"before" in p.action && (
                 <details className="os-card">
                     <summary>State frozen at proposal time</summary>

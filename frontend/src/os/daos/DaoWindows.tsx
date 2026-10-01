@@ -21,7 +21,8 @@ import { daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "../shell/wi
 import { useSigner } from "../sign/signerContext"
 import { daoKindKey, useDaoKind } from "../../hooks/useDaoKind"
 import { nameForRealm, realmForName } from "./daoNames"
-import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
+import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal, useV2Votes } from "./useOsDao"
+import { Voters } from "./Voters"
 import { voteRequest, voteScope } from "./voteRequest"
 import { quoteSheetGasPrice } from "./sheetFee"
 import { useAlive } from "../shell/useAlive"
@@ -303,6 +304,8 @@ export function NewProposalWindow({ dao, session, open, close }: { dao: string; 
     return <StandardDaoOnly dao={dao} realmPath={realmPath} what="the DAO contract" open={open}><ProposeWizard dao={dao} session={session} open={open} close={close} /></StandardDaoOnly>
 }
 
+const CHOICE_WORDS = { YES: "Yes", NO: "No", ABSTAIN: "Abstain" } as const
+
 /** Chain-style seconds, refreshed every 30 s (relative "ends in" times). */
 function useNowSeconds(): number {
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
@@ -334,6 +337,7 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     const v2 = kind.kind === "memba-v2"
     const members = useDaoMembers(realmPath, config.data?.memberstorePath, member && !config.isPending)
     const myVote = useMyVote(realmPath, n, session.address, v2)
+    const votes = useV2Votes(realmPath, n, v2)
     const [, rerender] = useState(0)
     const now = useNowSeconds()
 
@@ -357,7 +361,10 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
     if (!kind.capabilities.vote) action = <p className="os-sub">Memba can't vote on this kind of DAO.</p>
     else if (!member) action = <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
     else if (receipt) action = <UnknownOutcome key={JSON.stringify(scope)} scope={scope!} receipt={receipt} attempt="vote" onCleared={() => { rerender((x) => x + 1); void refreshDaoState(queryClient) }} />
-    else if (myVote.data?.voted) action = <p className="os-note">{myVote.data.choice === null ? "Your vote is recorded; the choice could not be read right now." : <>You voted <b>{myVote.data.choice === "YES" ? "Yes" : myVote.data.choice === "NO" ? "No" : "Abstain"}</b>. Votes are final.</>}</p>
+    else if (myVote.data) {
+        const mine = votes.data?.find((v) => v.voter === session.address)
+        action = <p className="os-note">{mine ? <>You voted <b>{CHOICE_WORDS[mine.choice]}</b>. Votes are final.</> : votes.isError ? "Your vote is recorded; the choice could not be read right now." : "Your vote is recorded."}</p>
+    }
     else if (!openNow) action = <p className="os-sub">Voting is closed.</p>
     else if (members.isSuccess && !me) action = <p className="os-sub">Only members of this DAO can vote.</p>
     else {
@@ -394,6 +401,14 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
                 </div>
             ) : <p className="os-sub">The votes couldn't be read right now.</p>}
             <div className="os-vote">{action}</div>
+            {v2 && (
+                <Voters error={votes.isError} none={openNow ? "No one has voted yet." : "No one voted."} rows={votes.data?.map((v) => ({
+                    address: v.voter,
+                    name: v.username ? revealInvisibleFormatting(v.username) : null,
+                    choice: CHOICE_WORDS[v.choice],
+                    weight: `${v.power} voting power`,
+                }))} />
+            )}
             {p.v2?.status === "ACCEPTED" && (
                 <p className="os-note">
                     {executionState(p.v2, now) === "open" ? "This proposal can now be executed. "

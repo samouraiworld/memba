@@ -212,6 +212,8 @@ test.describe('Memba OS wizards', () => {
     test('a version-2 vote reviews its fee and confirms the chosen vote', async ({ page }) => {
         await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/1`)
         const proposal = win(page, 'test.teamv2 · Proposal #1')
+        const votes = proposal.locator('section').filter({ has: page.getByRole('heading', { name: 'Votes' }) })
+        await expect(votes).toContainText('No one has voted yet.')
         await proposal.getByRole('button', { name: 'Vote…' }).click()
         const review = page.getByRole('dialog', { name: 'Review · Vote' })
         const yes = review.getByRole('radio', { name: 'Yes' })
@@ -225,6 +227,8 @@ test.describe('Memba OS wizards', () => {
         await review.getByRole('button', { name: 'Sign in Adena' }).click()
         await expect(review).toHaveCount(0)
         await expect(proposal.getByText('You voted')).toBeVisible()
+        // The voter list is read again with the rest: who voted, what, and with what power.
+        await expect(votes.getByRole('listitem')).toHaveText([`${ALICE}No2 voting power`])
         const [call] = await adenaCalls(page)
         expect(call.messages[0].value).toMatchObject({ pkg_path: V2_DAO, func: 'Vote', args: ['1', 'NO'] })
         expect([call.gasWanted, call.gasFee]).toEqual([15_000_000, 18_000])

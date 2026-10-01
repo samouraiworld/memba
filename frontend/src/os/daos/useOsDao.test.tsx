@@ -14,11 +14,11 @@ vi.mock("../../hooks/useDaoKind", () => ({ useDaoKind: vi.fn() }))
 vi.mock("../../lib/dao/membaV2Shell", async (original) => ({
     ...(await original<typeof import("../../lib/dao/membaV2Shell")>()),
     hasVotedOnV2: vi.fn(),
-    findV2VoterChoice: vi.fn(),
+    readV2AllVotes: vi.fn(),
 }))
 
 import { getDAOConfig, getProposalDetail } from "../../lib/dao"
-import { findV2VoterChoice, hasVotedOnV2 } from "../../lib/dao/membaV2Shell"
+import { hasVotedOnV2, readV2AllVotes } from "../../lib/dao/membaV2Shell"
 import { useDaoKind } from "../../hooks/useDaoKind"
 import { useDaoConfig, useMyVote, useProposal } from "./useOsDao"
 
@@ -70,14 +70,14 @@ describe("OS DAO loaders and the contract kind", () => {
 })
 
 describe("OS DAO member vote", () => {
-    it("keeps the vote recorded with unknown choice when vote pages are unavailable", async () => {
+    it("asks only whether the address voted: how it voted comes from the list of votes", async () => {
         vi.mocked(hasVotedOnV2).mockResolvedValue(true)
-        vi.mocked(findV2VoterChoice).mockRejectedValue(new Error("RPC unavailable"))
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
         const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
         const { result } = renderHook(() => useMyVote("gno.land/r/alice/team", 7, "g1member", true), { wrapper })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
-        expect(result.current.data).toEqual({ voted: true, choice: null })
+        expect(result.current.data).toBe(true)
+        expect(readV2AllVotes).not.toHaveBeenCalled()
     })
 })

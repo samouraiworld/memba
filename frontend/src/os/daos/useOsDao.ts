@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { getDAOConfig, getDAOMembers, getDAOProposals, getProposalDetail, getProposalVotes, type DAOProposal, type VoteRecord } from "../../lib/dao"
 import { readV2Proposal, type MembaV2Proposal } from "../../lib/dao/membaV2"
-import { findV2VoterChoice, hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
+import { hasVotedOnV2, readV2Voters, v2Context } from "../../lib/dao/membaV2Shell"
 import { canVoteNow, V2_STATUS_LABELS } from "../../lib/dao/v2Lifecycle"
 import { useDaoKind } from "../../hooks/useDaoKind"
 
@@ -98,17 +98,23 @@ export function useProposal(realmPath: string, id: number) {
     return { kind, ...q }
 }
 
-/** Has this address voted, and how (version-2 DAOs; older DAOs don't expose it per voter). */
+/** Every vote of a version-2 proposal, with the voters' names, read again each minute. */
+export function useV2Votes(realmPath: string, id: number, enabled: boolean) {
+    return useQuery({
+        queryKey: ["dao", "v2", "votes", GNO_CHAIN_ID, realmPath, id],
+        queryFn: ({ signal }) => readV2Voters(GNO_RPC_URL, realmPath, id, signal),
+        enabled,
+        staleTime: 10_000,
+        refetchInterval: 60_000,
+    })
+}
+
+/** Has this address voted (version-2 DAOs; how it voted is in the list of votes). */
 export function useMyVote(realmPath: string, id: number, address: string, v2: boolean) {
     return useQuery({
         queryKey: ["dao", "v2", "myVote", GNO_CHAIN_ID, realmPath, id, address],
         enabled: v2 && !!address,
-        queryFn: async ({ signal }) => {
-            const voted = await hasVotedOnV2(GNO_RPC_URL, realmPath, id, address)
-            if (!voted) return { voted: false as const, choice: null }
-            const choice = await findV2VoterChoice(GNO_RPC_URL, realmPath, id, address, signal).catch(() => null)
-            return { voted: true as const, choice }
-        },
+        queryFn: () => hasVotedOnV2(GNO_RPC_URL, realmPath, id, address),
         staleTime: 10_000,
     })
 }

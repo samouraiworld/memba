@@ -52,7 +52,7 @@ describe("a weighted vote as a signing request", () => {
         expect(req.lines("No")).toEqual([
             ["Your vote", "No"], ["Your voting points", "1 of 8"],
             ["Storage deposit", expect.stringMatching(/^up to [\d.]+ GNOT$/)], ["Network fee", formatUgnotExact(feeForGasWanted(budget.gasWanted, PRICE))],
-            ["Gas limit", budget.gasWanted.toLocaleString("en-US")], ["Network", "gnoland-1"],
+            ["Network", "gnoland-1"],
         ])
         expect(req.note).toBe("You can change your vote until voting closes, unless the proposal is executed or invalidated first.")
         expect(req.receipt).toEqual({ chainId: "gnoland-1", realmPath: MEMBA_DAO, caller: MIKAEL, operation: "weighted-vote:17" })

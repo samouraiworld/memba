@@ -9,7 +9,7 @@
 import { useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
-import { readWeightedBallot, readWeightedSnapshot, weightedApplicationPolicies, type WeightedContext, type WeightedV12Config } from "../../lib/dao/weighted"
+import { readWeightedBallot, readWeightedBallots, readWeightedSnapshot, weightedApplicationPolicies, type WeightedContext, type WeightedV12Config } from "../../lib/dao/weighted"
 import { readAcceptanceStates } from "../../lib/dao/weightedAcceptance"
 import { readFeeDestinations, readHeldUgnot } from "../../lib/dao/weightedTreasury"
 
@@ -77,6 +77,15 @@ export function useWeightedBallot(realmPath: string, id: string, voter: string, 
     return useQuery({
         queryKey: key(realmPath, "ballot", id, voter),
         queryFn: ({ signal }) => readWeightedBallot(contextOf(realmPath), id, voter, signal),
+        enabled, staleTime: 10_000, refetchInterval: REREAD_MS, retry: false,
+    })
+}
+
+/** Every seat's ballot on one proposal, in roster order. */
+export function useWeightedBallots(realmPath: string, id: string, voters: readonly string[], enabled: boolean) {
+    return useQuery({
+        queryKey: key(realmPath, "ballots", id, ...voters),
+        queryFn: ({ signal }) => readWeightedBallots(contextOf(realmPath), id, voters, signal),
         enabled, staleTime: 10_000, refetchInterval: REREAD_MS, retry: false,
     })
 }

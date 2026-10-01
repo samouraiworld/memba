@@ -270,13 +270,24 @@ export async function assertWeightedChain(ctx: Pick<WeightedContext, "rpcUrl" | 
     if (status.node_info.network !== ctx.chainId) throw new Error("RPC network does not match the selected chain")
 }
 
-/** One address's ballot on one proposal. Eligibility is the electorate frozen when the proposal was created. */
-export async function readWeightedBallot(ctx: WeightedContext, proposalId: string, voter: string, signal?: AbortSignal): Promise<WeightedBallot> {
-    id.parse(proposalId); address.parse(voter)
+/**
+ * The ballots of several addresses on one proposal, in the order asked, after
+ * one check of the RPC's chain. Eligibility is the electorate frozen when the
+ * proposal was created.
+ */
+export async function readWeightedBallots(ctx: WeightedContext, proposalId: string, voters: readonly string[], signal?: AbortSignal): Promise<WeightedBallot[]> {
+    id.parse(proposalId); voters.forEach(v => address.parse(v))
     await assertWeightedChain(ctx, signal)
-    const ballot = weightedBallotSchema.parse(await read(ctx, `GetBallotJSON("${proposalId}", "${voter}")`, signal))
-    if (ballot.proposalId !== proposalId || ballot.voter !== voter) throw new Error("Ballot does not match the request")
-    return ballot
+    return Promise.all(voters.map(async voter => {
+        const ballot = weightedBallotSchema.parse(await read(ctx, `GetBallotJSON("${proposalId}", "${voter}")`, signal))
+        if (ballot.proposalId !== proposalId || ballot.voter !== voter) throw new Error("Ballot does not match the request")
+        return ballot
+    }))
+}
+
+/** One address's ballot on one proposal. */
+export async function readWeightedBallot(ctx: WeightedContext, proposalId: string, voter: string, signal?: AbortSignal): Promise<WeightedBallot> {
+    return (await readWeightedBallots(ctx, proposalId, [voter], signal))[0]
 }
 
 /**

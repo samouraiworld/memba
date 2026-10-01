@@ -109,6 +109,10 @@ test.describe('Memba OS weighted DAO', () => {
         const proposal = win(page, 'memba_dao · Proposal #26')
         await expect(proposal.getByRole('heading', { name: '#26 Feedback · Create a channel' })).toBeVisible()
         await expect(proposal.getByText('It passed. It can execute from the earliest time below.')).toBeVisible()
+        // Every seat's ballot, read from the chain for a guest too; the founder's seat weighs 2 points.
+        const seats = proposal.locator('section').filter({ has: page.getByRole('heading', { name: 'Votes' }) }).getByRole('listitem')
+        await expect(seats).toHaveCount(7)
+        await expect(seats.first()).toContainText('2 points')
     })
 
     test('a member proposes an acceptance from the Overview through the Memba review, and the wallet gets exactly the reviewed call', async ({ page }) => {

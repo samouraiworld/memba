@@ -10,7 +10,7 @@ import type { OsSession } from "../shell/useOsSession"
 import type { SignRequest } from "../sign/signer"
 import { weightedScope } from "../../lib/dao/weightedActions"
 
-vi.mock("../../lib/dao/weighted", async original => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedBallot: vi.fn() }))
+vi.mock("../../lib/dao/weighted", async original => ({ ...(await original<typeof import("../../lib/dao/weighted")>()), readWeightedSnapshot: vi.fn(), readWeightedBallot: vi.fn(), readWeightedBallots: vi.fn() }))
 // The price read when the member asks to act.
 vi.mock("../../lib/grc20", async original => ({ ...(await original<typeof import("../../lib/grc20")>()), networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })) }))
 // The signing sheet is the Memba OS signer's: here it records what it was asked to review.
@@ -18,7 +18,7 @@ const sign = vi.fn<(req: SignRequest) => boolean>(() => true)
 const signer = { version: 0 }
 vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign, version: signer.version }) }))
 const { WeightedProposalWindow } = await import("./WeightedProposal")
-const { readWeightedBallot, readWeightedSnapshot } = await import("../../lib/dao/weighted")
+const { readWeightedBallot, readWeightedBallots, readWeightedSnapshot } = await import("../../lib/dao/weighted")
 
 const MEMBA_DAO = "gno.land/r/samcrew/memba_dao"
 const r = v12Native.records
@@ -39,6 +39,7 @@ beforeEach(() => {
     localStorage.clear()
     vi.mocked(readWeightedSnapshot).mockImplementation(async (_ctx, before = "0") => v12(before === "0" ? "proposals_page_1" : "proposals_page_2"))
     vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ballot({ proposalId, voter }))
+    vi.mocked(readWeightedBallots).mockImplementation(async (_ctx, proposalId, voters) => voters.map((voter) => ballot({ proposalId, voter })))
 })
 
 describe("a weighted DAO proposal window", () => {
@@ -62,6 +63,62 @@ describe("a weighted DAO proposal window", () => {
         const frozen = screen.getByText("State frozen at proposal time").closest("details")!
         expect(within(frozen).getByText("Treasury").nextElementSibling!).toHaveTextContent("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf")
         expect(pagesRead()).toEqual(["0"])
+    })
+
+    it("lists every seat's ballot with its points, for a guest too", async () => {
+        const ZXXMA = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+        vi.mocked(readWeightedBallots).mockImplementation(async (_ctx, proposalId, voters) => voters.map((voter) =>
+            ballot({ proposalId, voter, ...(voter === ZXXMA ? { choice: "yes", votedAtHeight: "280" } : voter === MIKAEL ? { choice: "no", votedAtHeight: "281" } : {}) })))
+        show("17")
+        const votes = (await screen.findByRole("heading", { name: "Votes" })).closest("section")!
+        const row = async (name: string) => (await within(votes).findByText(name)).closest("li")!
+        expect(await row("zxxma")).toHaveTextContent(`zxxma${ZXXMA}Yes2 points`)
+        expect(await row("mikael")).toHaveTextContent(`mikael${MIKAEL}No1 point`)
+        expect(within(votes).getAllByText("Not voted")).toHaveLength(5)
+        expect(readWeightedBallots).toHaveBeenCalledWith(expect.objectContaining({ realmPath: MEMBA_DAO }), "17", v12().members.map((m) => m.address), expect.anything())
+        expect(within(votes).queryByText(/key changed after/)).toBeNull()
+    })
+
+    it("says a seat's key changed since the proposal opened rather than that it did not vote, and that the vote is over", async () => {
+        const data = v12()
+        const at = data.page.proposals.findIndex((p) => p.id === "26")
+        data.page.proposals[at] = { ...data.page.proposals[at], votingClosed: true } as typeof data.page.proposals[number]
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+        vi.mocked(readWeightedBallots).mockImplementation(async (_ctx, proposalId, voters) => voters.map((voter) => ballot({ proposalId, voter, eligible: voter !== MIKAEL })))
+        show("26")
+        const votes = (await screen.findByRole("heading", { name: "Votes" })).closest("section")!
+        expect((await within(votes).findByText("mikael")).closest("li")!).toHaveTextContent("Key changed")
+        expect(within(votes).getAllByText("Did not vote")).toHaveLength(6)
+        expect(within(votes).getByText("A seat whose key changed after this proposal opened votes on it with its earlier address, which this list does not read.")).toBeInTheDocument()
+    })
+
+    it("says a seat did not vote once the proposal is executed, even before its voting deadline", async () => {
+        const data = v12()
+        const at = data.page.proposals.findIndex((p) => p.id === "13")
+        data.page.proposals[at] = { ...data.page.proposals[at], votingClosed: false } as typeof data.page.proposals[number]
+        vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+        show("13")
+        const votes = (await screen.findByRole("heading", { name: "Votes" })).closest("section")!
+        expect(await within(votes).findAllByText("Did not vote")).toHaveLength(7)
+        expect(within(votes).queryByText("Not voted")).toBeNull()
+    })
+
+    it("keeps the last list of votes when a re-read fails, and says so", async () => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}><WeightedProposalWindow dao="memba_dao" realmPath={MEMBA_DAO} id="17" session={guest} /></QueryClientProvider>)
+        const votes = (await screen.findByRole("heading", { name: "Votes" })).closest("section")!
+        expect(await within(votes).findAllByText("Not voted")).toHaveLength(7)
+        vi.mocked(readWeightedBallots).mockRejectedValue(new Error("DAO read failed"))
+        await act(async () => { await client.refetchQueries({ queryKey: ["dao", "weighted"] }) })
+        expect(await within(votes).findByText("Showing the last read: the votes couldn't be read again just now.")).toBeInTheDocument()
+        expect(within(votes).getAllByText("Not voted")).toHaveLength(7)
+    })
+
+    it("says the votes could not be read instead of listing no one", async () => {
+        vi.mocked(readWeightedBallots).mockRejectedValue(new Error("DAO read failed"))
+        show("17")
+        expect(await screen.findByText("Who voted couldn't be read right now.")).toBeInTheDocument()
+        expect(screen.queryByText("Not voted")).toBeNull()
     })
 
     it("lets a guest read everything and asks to connect only to act", async () => {
@@ -249,6 +306,9 @@ describe("a weighted DAO proposal window", () => {
         // An older version at the released DAO's address is not the release: it stays held.
         expect(screen.getByText(/^This DAO is read-only in Memba on gnoland-1/)).toBeInTheDocument()
         expect(readWeightedBallot).not.toHaveBeenCalled()
+        // Nor a list of votes it could not read.
+        expect(readWeightedBallots).not.toHaveBeenCalled()
+        expect(screen.queryByRole("heading", { name: "Votes" })).toBeNull()
         expect(screen.queryByText(/^You /)).toBeNull()
     })
 
