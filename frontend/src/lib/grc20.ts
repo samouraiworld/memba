@@ -60,6 +60,9 @@ export interface AminoMsg {
  *   in the one shape Adena accepts: string addresses and ONE coin string
  *   ("<n>ugnot"). The old Amino spelling `bank/MsgSend` with an array amount
  *   is what Adena rejected in #1078; it still throws here.
+ * - /auth.m_create_session and /auth.m_revoke_session (Quick play) pass
+ *   through after validation; a create must be limited to one vm/exec realm
+ *   path, a real expiry, and a ugnot spend limit and period.
  * - Anything else throws: an unknown type must never reach the wallet.
  *
  * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
@@ -92,6 +95,30 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
                 throw new Error("toAdenaMessages: a bank send needs two g1 addresses and one positive ugnot amount")
             }
             return { type: "/bank.MsgSend", value: { from_address, to_address, amount } }
+        }
+        if (m.type === "/auth.m_create_session" || m.type === "/auth.m_revoke_session") {
+            const v = m.value
+            const sk = v.session_key as { type_url?: unknown; value?: unknown } | undefined
+            // 35-byte secp256k1 PubKey proto = exactly 48 base64 chars (one "=" pad).
+            if (typeof v.creator !== "string" || !/^g1[02-9ac-hj-np-z]{38}$/.test(v.creator)
+                || !sk || sk.type_url !== "/tm.PubKeySecp256k1" || typeof sk.value !== "string" || !/^[A-Za-z0-9+/]{47}=$/.test(sk.value)) {
+                throw new Error("toAdenaMessages: a session message needs a g1 creator and a secp256k1 session key")
+            }
+            const session_key = { type_url: sk.type_url, value: sk.value }
+            if (m.type === "/auth.m_revoke_session") {
+                return { type: m.type, value: { creator: v.creator, session_key } }
+            }
+            // Never sign an unrestricted or never-expiring session: one realm path, a bounded expiry, a daily coin cap.
+            const { allow_paths: paths, expires_at, spend_limit, spend_period } = v
+            const now = Date.now() / 1000
+            if (!Array.isArray(paths) || paths.length !== 1 || typeof paths[0] !== "string"
+                || !/^vm\/exec:gno\.land\/r\/[a-z0-9_-]+(\/[a-z0-9_-]+)+$/.test(paths[0])
+                || typeof expires_at !== "string" || !/^[1-9][0-9]{9}$/.test(expires_at) || Number(expires_at) <= now || Number(expires_at) > now + 86400 + 300
+                || typeof spend_limit !== "string" || !/^[1-9][0-9]{0,18}ugnot$/.test(spend_limit) || parseInt(spend_limit, 10) > 10_000_000
+                || spend_period !== "86400") {
+                throw new Error("toAdenaMessages: a session must be limited to one realm, expire within 24h, and cap daily spending")
+            }
+            return { type: m.type, value: { creator: v.creator, session_key, expires_at, allow_paths: [paths[0]], spend_limit, spend_period } }
         }
         throw new Error(`toAdenaMessages: unsupported message type: ${m.type}`)
     })

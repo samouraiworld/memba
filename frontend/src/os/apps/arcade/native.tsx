@@ -1,6 +1,6 @@
 /** Arcade lobby. The games themselves remain the existing classic game pages. */
 import type { NativeViewProps } from "../../native/types"
-import { isBarricadeEnabled, isGameEnabled, isSpaceInvadersEnabled } from "../../../lib/config"
+import { isBarricadeEnabled, isConnect4Live, isGameEnabled, isSpaceInvadersEnabled } from "../../../lib/config"
 import { AppShell, Card, CardGrid, Pill } from "../../kit"
 import { Icon } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
@@ -15,6 +15,7 @@ const games = [
     { name: "Block Party", section: "game", detail: "A chain-seeded daily block puzzle", enabled: isGameEnabled },
     { name: "Space Invaders", section: "space-invaders", detail: "Daily arcade waves and free play", enabled: isSpaceInvadersEnabled },
     { name: "BARRICADE", section: "barricade", detail: "Defend the lanes in a daily run", enabled: isBarricadeEnabled },
+    { name: "Connect 4", section: "connect4", detail: "Staked two-player — winner takes the pot", enabled: isConnect4Live },
 ] as const
 
 export default function ArcadeWindow({ section, open, fallback }: NativeViewProps) {
@@ -26,7 +27,7 @@ export default function ArcadeWindow({ section, open, fallback }: NativeViewProp
         {current === "games" && <div className="os-stack">
             <div>
                 <h2>Games</h2>
-                <p className="os-sub">Choose a game. Playing needs no wallet. Posting a Block Party Daily score requires sign-in; its leaderboard is server-verified when Daily is live. A combined Arcade board and on-chain attestation are unavailable.</p>
+                <p className="os-sub">Choose a game. Playing needs no wallet, except Connect 4, which is staked. Posting a Block Party Daily score requires sign-in; its leaderboard is server-verified when Daily is live. A combined Arcade board and on-chain attestation are unavailable.</p>
             </div>
             <CardGrid min={200}>
                 {games.map((game) => <Card key={game.section} onClick={() => go(game.section)}>

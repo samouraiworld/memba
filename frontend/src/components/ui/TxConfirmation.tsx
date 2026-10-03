@@ -104,9 +104,21 @@ function TxConfirmationModal({
 }) {
     const { messages, memo, feeUgnot } = summary
 
+    // Revokes inside a create are Start's cleanup of expired sessions; alone they are End.
+    const withCreate = messages.some((m) => m.type === "/auth.m_create_session")
     // Parse transaction effects from messages
     const effects = messages.map((msg, i) => {
         const v = msg.value as Record<string, unknown>
+        if (msg.type === "/auth.m_create_session") {
+            const realm = String((v.allow_paths as string[] | undefined)?.[0] ?? "").replace(/^vm\/exec:/, "")
+            const endMs = Number(v.expires_at) * 1000
+            const ends = Number.isFinite(endMs) ? new Date(endMs).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "at an invalid time" // pure: no Date.now() in render
+            const gnot = Number(String(v.spend_limit).replace(/ugnot$/, "")) / 1_000_000
+            return { index: i, func: "Create Quick play session", caller: String(v.creator ?? ""), send: "", args: [`${realm.split("/").pop()} only · up to ${gnot} GNOT/day for gas and storage · ends ${ends}`], pkgPath: realm, depositCap: "" }
+        }
+        if (msg.type === "/auth.m_revoke_session") {
+            return { index: i, func: withCreate ? "Remove expired Quick play session" : "End Quick play session", caller: String(v.creator ?? ""), send: "", args: [] as string[], pkgPath: "", depositCap: "" }
+        }
         if (msg.type === "/bank.MsgSend") {
             const amount = String(v.amount ?? "")
             const ugnot = /^(\d+)ugnot$/.exec(amount)

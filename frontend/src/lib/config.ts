@@ -1420,6 +1420,16 @@ export function appStorePathFor(networkKey: string): string {
     return import.meta.env.VITE_APPSTORE_REALM_PATH
         || (networkKey === "mainnet" ? "gno.land/r/samcrew/memba_appstore_v3" : "gno.land/r/samcrew/memba_appstore_v2")
 }
+/** The Connect 4 realm on a network, or null where it is not deployed. Testnets
+ * only — the env override is ignored on mainnet so a stray variable cannot open
+ * a money path there. */
+export function connect4PathFor(networkKey: string): string | null {
+    if (!NETWORKS[networkKey]?.isTestnet) return null
+    return import.meta.env.VITE_CONNECT4_REALM_PATH
+        || (networkKey === "onyx" ? "gno.land/r/nym-mikecito001/connect4_v2" : null)
+}
+export const isConnect4Live = (): boolean =>
+    isConnect4Enabled() && connect4PathFor(ACTIVE_NETWORK_KEY) !== null
 
 /** The escrow realm Memba signs for, and the only other one an override may select. */
 export const ESCROW_REALM_PATH_DEFAULT = "gno.land/r/samcrew/escrow_v4"
@@ -1612,6 +1622,11 @@ export const isSpaceInvadersEnabled = (): boolean =>
  * wallet, no money path. Off by default; owner flips at reveal time. */
 export const isBarricadeEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_BARRICADE === "true"
+/** Connect 4 (staked, testnet demo). Real ugnot stakes move, but only on a
+ * testnet: connect4PathFor returns null on every non-testnet, which is the
+ * structural lock (a SAFETY_GATED flag would fail every build that enables it). */
+export const isConnect4Enabled = (): boolean =>
+  import.meta.env.VITE_ENABLE_CONNECT4 === "true"
 /** BARRICADE on-chain certify (G3). Read-only/opt-in surface: the certify action
  * re-submits a re-simulated run to the backend and reads the leaderboard realm —
  * no funds move, so NOT safety-gated (same rationale as isPointsEnabled). Off by

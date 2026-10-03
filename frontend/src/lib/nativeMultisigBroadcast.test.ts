@@ -65,4 +65,9 @@ describe("native binary broadcast boundary", () => {
         fetchMock.mockResolvedValueOnce(respond(status())).mockResolvedValueOnce(respond(r))
         await expect(broadcastNativeTransaction("native-local", bytes)).rejects.toThrow("different transaction hash")
     })
+    it("reports a failed check_tx with a null deliver_tx as a failed execution", async () => {
+        const r = { result: { hash, height: "1", check_tx: { ResponseBase: { Error: { message: "bad" } } }, deliver_tx: null } }
+        fetchMock.mockResolvedValueOnce(respond(status())).mockResolvedValueOnce(respond(r))
+        await expect(broadcastNativeTransaction("native-local", bytes)).rejects.toThrow("CheckTx or DeliverTx")
+    })
 })

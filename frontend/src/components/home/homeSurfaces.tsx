@@ -26,10 +26,14 @@ import {
     Briefcase,
     PuzzlePiece,
     Medal,
+    Circle,
 } from "@phosphor-icons/react"
 import {
     isSpaceInvadersEnabled,
     isBarricadeEnabled,
+    isConnect4Live,
+    connect4PathFor,
+    ACTIVE_NETWORK_KEY,
     isFeedEnabled,
     isGameEnabled,
     isServicesEnabled,
@@ -64,6 +68,10 @@ export const HOME_SURFACES: HomeSurface[] = [
     { key: "blog", route: "blog", label: "Blog", sub: "news & deep dives", Icon: Article, live: always },
     { key: "space-invaders", route: "game/space-invaders", label: "Space Invaders", sub: "daily arcade run", Icon: Alien, live: isSpaceInvadersEnabled },
     { key: "barricade", route: "game/barricade", label: "Barricade", sub: "daily lane defense", Icon: Barricade, live: isBarricadeEnabled },
+    // Only on networks that have the realm: elsewhere it is neither live nor "soon".
+    ...(connect4PathFor(ACTIVE_NETWORK_KEY) !== null
+        ? [{ key: "connect4", route: "game/connect4", label: "Connect 4", sub: "staked two-player", Icon: Circle, live: isConnect4Live }]
+        : []),
     { key: "feed", route: "feed", label: "Social feed", sub: "posts, on-chain", Icon: ChatCircleText, live: isFeedEnabled },
     { key: "game", route: "game", label: "Block Party", sub: "chain-seeded daily puzzle", Icon: GridFour, live: isGameEnabled },
     { key: "services", route: "marketplace/services", label: "Services", sub: "freelance marketplace", Icon: Briefcase, live: isServicesEnabled },

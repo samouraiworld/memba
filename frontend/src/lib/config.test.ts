@@ -31,6 +31,9 @@ import {
     isRealmValid,
     ACTIVE_NETWORK_KEY,
     MEMBA_DAO,
+    isConnect4Enabled,
+    connect4PathFor,
+    isConnect4Live,
 } from './config'
 import { SITEMAP_NETWORK } from './sitemap'
 import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
@@ -1405,5 +1408,37 @@ describe("candidature realm gate", () => {
 
     it("is open where the realm is published", () => {
         expect(isRealmValidOn("test13", MEMBA_DAO.candidaturePath)).toBe(true)
+    })
+})
+
+describe("connect4 realm path", () => {
+    afterEach(() => vi.unstubAllEnvs())
+
+    it("is set on onyx only, never on mainnet", () => {
+        expect(connect4PathFor("onyx")).toBe("gno.land/r/nym-mikecito001/connect4_v2")
+        expect(connect4PathFor("mainnet")).toBeNull()
+        expect(connect4PathFor("gnoland1")).toBeNull()
+        expect(connect4PathFor("nope")).toBeNull()
+    })
+
+    it("honours the env override on testnets only", () => {
+        vi.stubEnv("VITE_CONNECT4_REALM_PATH", "gno.land/r/x/c4")
+        expect(connect4PathFor("onyx")).toBe("gno.land/r/x/c4")
+        expect(connect4PathFor("sapphire")).toBe("gno.land/r/x/c4")
+        expect(connect4PathFor("mainnet")).toBeNull()
+    })
+
+    it("is off unless the flag is exactly true", () => {
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "1")
+        expect(isConnect4Enabled()).toBe(false)
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "true")
+        expect(isConnect4Enabled()).toBe(true)
+    })
+
+    it("isConnect4Live follows the flag and the active network's realm", () => {
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "true")
+        expect(isConnect4Live()).toBe(connect4PathFor(ACTIVE_NETWORK_KEY) !== null)
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "")
+        expect(isConnect4Live()).toBe(false)
     })
 })

@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Arcade: Connect 4, staked two-player on testnet, with Quick play (2026-10-02)
+- A fourth Arcade game: staked Connect 4 against another wallet. Both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT fee; every move has 90 seconds of chain time. The lobby lists open offers and live games as cards (anyone can open one to watch), and offers are posted with stake and duration presets. The board drops discs with a bounce, shows whose turn it is with a move-clock ring, and highlights the winning line.
+- Testnet only: the game appears only where its realm is configured (Onyx today) and behind its own flag. Every move is signed in the wallet; the creator's first-mover reveal is sent automatically from this browser.
+- Quick play: one wallet approval starts a session (1h, 4h or 24h) limited to Connect 4 and 1 GNOT a day of gas and storage. Moves then sign without a wallet popup, while stakes still ask the wallet. If the session can't sign a move, the move goes to the wallet at once — straight away when less than 15 seconds are left — and ending Quick play revokes the session on chain.
+- The transaction confirmation window stays readable in light themes and in Memba OS.
+
 ### Memba OS: execute DAO proposals (2026-10-02)
 - Members can execute an accepted proposal of a DAO made from Memba's template from its Memba OS window, through the review sheet: Memba checks membership, the execution window, the action and the fee before Adena opens, and confirms the member's own transaction on chain. The link to the classic page is gone.
 

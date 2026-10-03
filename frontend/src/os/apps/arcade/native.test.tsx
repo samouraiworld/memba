@@ -2,12 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import ArcadeWindow from "./native"
 
-const flags = vi.hoisted(() => ({ block: true, space: false, barricade: true }))
+const flags = vi.hoisted(() => ({ block: true, space: false, barricade: true, connect4: true }))
 vi.mock("../../../lib/config", async (original) => ({
     ...(await original<typeof import("../../../lib/config")>()),
     isGameEnabled: () => flags.block,
     isSpaceInvadersEnabled: () => flags.space,
     isBarricadeEnabled: () => flags.barricade,
+    isConnect4Live: () => flags.connect4,
 }))
 const base = { query: undefined, close: () => {}, toast: () => {}, fallback: <p>existing game</p>, session: {} as never, openApp: () => {} }
 
@@ -22,6 +23,9 @@ describe("Arcade lobby", () => {
         expect(screen.getByRole("button", { name: /BARRICADE/ })).toHaveTextContent("Play")
         fireEvent.click(screen.getByRole("button", { name: /BARRICADE/ }))
         expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "game:barricade", target: expect.objectContaining({ section: "barricade" }) }))
+        expect(screen.getByRole("button", { name: /Connect 4/ })).toHaveTextContent("Play")
+        fireEvent.click(screen.getByRole("button", { name: /Connect 4/ }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:connect4", title: "Connect 4 · Arcade", target: expect.objectContaining({ section: "connect4" }) }))
     })
 
     it("states the limits of runs and the daily board", () => {

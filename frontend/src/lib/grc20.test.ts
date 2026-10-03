@@ -369,6 +369,36 @@ describe('MAX_INT64 / maxWholeTokens', () => {
 // ── Adena Message Conversion ────────────────────────────────────
 
 describe('toAdenaMessages', () => {
+
+    const sk = { type_url: "/tm.PubKeySecp256k1", value: "CiEDXfaR2nuZGxKWWW3wcJe9zaX9aSkUWGB9jB703kvKqC4=" }
+    it("passes a valid create/revoke session through", () => {
+        const create = { type: "/auth.m_create_session", value: { creator: "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew", session_key: sk, expires_at: String(Math.floor(Date.now() / 1000) + 14400), allow_paths: ["vm/exec:gno.land/r/nym-mikecito001/connect4_v2"], spend_limit: "1000000ugnot", spend_period: "86400" } }
+        expect(toAdenaMessages([create])).toEqual([create])
+        const revoke = { type: "/auth.m_revoke_session", value: { creator: create.value.creator, session_key: sk } }
+        expect(toAdenaMessages([revoke])).toEqual([revoke])
+    })
+    it("rejects a malformed or unrestricted session", () => {
+        const now = Math.floor(Date.now() / 1000)
+        const v = { creator: "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew", session_key: sk, expires_at: String(now + 14400), allow_paths: ["vm/exec:gno.land/r/x/y"], spend_limit: "1000000ugnot", spend_period: "86400" }
+        const bad = (o: object) => expect(() => toAdenaMessages([{ type: "/auth.m_create_session", value: { ...v, ...o } }])).toThrow()
+        expect(toAdenaMessages([{ type: "/auth.m_create_session", value: v }])).toHaveLength(1)
+        bad({ allow_paths: ["*"] })
+        bad({ allow_paths: ["vm/exec:gno.land/r/"] })
+        bad({ allow_paths: ["vm/exec:gno.land/r/x"] })
+        bad({ allow_paths: ["vm/exec:gno.land/r/x/*"] })
+        bad({ expires_at: "0" })
+        bad({ expires_at: String(now - 100) })
+        bad({ expires_at: String(now + 2 * 86400) })
+        bad({ spend_period: "3600" })
+        bad({ spend_limit: "10000001ugnot" })
+        bad({ session_key: { ...sk, value: "AAAA" } })
+        expect(() => toAdenaMessages([{ type: "/auth.m_revoke_all_sessions", value: { creator: v.creator } }])).toThrow()
+    })
+    it("drops extra keys from a session message", () => {
+        const creator = "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew"
+        const out = toAdenaMessages([{ type: "/auth.m_revoke_session", value: { creator, session_key: sk, extra: "x" } }])
+        expect(out).toEqual([{ type: "/auth.m_revoke_session", value: { creator, session_key: sk } }])
+    })
     it('converts Amino MsgCall to Adena /vm.m_call format', () => {
         const aminoMsgs = [{
             type: 'vm/MsgCall',
