@@ -304,3 +304,35 @@ groups:
             {{ $value | printf "%.0f" }} render(s) suppressed in 15m because the
             blocklist lookup failed. Posts are being withheld — fix the DB path.
           runbook: "docs/FEED_MODERATION_RUNBOOK.md"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.launchpad
+    interval: 60s
+    rules:
+      - alert: MembaLaunchpadBooksAlert
+        # The watcher already paged its webhook; this is the same signal for an
+        # Alertmanager route. rule = view | deficit | surplus_fell.
+        expr: memba_launchpad_alert == 1
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Launchpad books rule {{ $labels.rule }} holds for {{ $labels.realm }}"
+          description: >-
+            A stable reading of {{ $labels.realm }} broke rule {{ $labels.rule }}.
+            The pauser pauses the lane (config/v1.Pause: fairsale for sales,
+            nft_market for the market); exits keep working.
+          runbook: "docs/OPS_RUNBOOK.md"
+      - alert: MembaLaunchpadBooksUnread
+        # No stable reading for 15 minutes: busy blocks are normal for a few,
+        # not for this long. A warning, never a page.
+        expr: time() - memba_launchpad_last_stable_reading_timestamp_seconds > 900
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "No stable Launchpad books reading for {{ $labels.realm }} in 15m"
+          description: >-
+            The watcher's node is down, serves another chain, or the books moved
+            under every attempt. Solvency is unwatched until it reads again.
+          runbook: "docs/OPS_RUNBOOK.md"

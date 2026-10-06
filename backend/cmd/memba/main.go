@@ -29,6 +29,7 @@ import (
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
 	"github.com/samouraiworld/memba/backend/internal/indexer"
+	"github.com/samouraiworld/memba/backend/internal/launchpadwatch"
 	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 	"github.com/samouraiworld/memba/backend/internal/service"
@@ -600,6 +601,25 @@ func main() {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
+	}
+
+	// Launchpad solvency watcher (OPS-1): off unless LAUNCHPAD_WATCH_ENABLED=1. It
+	// reads one node (ours by default, never a pool) and pages the webhook in
+	// LAUNCHPAD_WATCH_WEBHOOK_URL (a secret); without one it does not start.
+	if os.Getenv("LAUNCHPAD_WATCH_ENABLED") == "1" {
+		offset, err := strconv.ParseInt(envOr("LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET", "0"), 10, 64)
+		if err != nil {
+			slog.Error("launchpad watcher not started: LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET is not an integer", "error", err)
+		} else if w, err := launchpadwatch.New(database, launchpadwatch.Config{
+			RPCURL:              envOr("LAUNCHPAD_WATCH_RPC_URL", defaultNFTRPCURL),
+			ChainID:             os.Getenv("GNO_CHAIN_ID"),
+			WebhookURL:          os.Getenv("LAUNCHPAD_WATCH_WEBHOOK_URL"),
+			InjectBalanceOffset: offset,
+		}); err != nil {
+			slog.Error("launchpad watcher not started", "error", err)
+		} else {
+			go w.Run(ctx)
+		}
 	}
 
 	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash

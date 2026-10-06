@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Launchpad solvency watcher (2026-10-07)
+- A solvency watcher in the backend reads the Launchpad sales and market books every minute and pages the pauser on a deficit, a fallen surplus or an unexpected view (off unless LAUNCHPAD_WATCH_ENABLED=1)
+
 ### Retired chains cleanup (2026-10-07)
 - The analyst accepts only mainnet, Onyx and the test fixture network; the template compile gate runs on mainnet and onyx-1 (Pearl lane removed); the docs describe mainnet and Onyx as the chains in use
 

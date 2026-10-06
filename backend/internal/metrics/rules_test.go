@@ -45,6 +45,10 @@ var intentionallyUncovered = map[string]string{
 		"review, not paged on.",
 	"memba_feed_posting_authors_per_hour": "Growth/engagement metric, not an operational signal.",
 	"memba_feed_unique_flaggers_per_day":  "Moderation product analytics, as above.",
+	"memba_launchpad_balance_ugnot":       "Launchpad books for dashboards; the rules page on memba_launchpad_alert.",
+	"memba_launchpad_owed_ugnot":          "Launchpad books for dashboards, as above.",
+	"memba_launchpad_surplus_ugnot":       "Launchpad books for dashboards, as above.",
+	"memba_launchpad_reading_stable":      "Per-attempt state; staleness is alerted on the last stable reading's timestamp.",
 }
 
 // Prometheus exposes a histogram as _bucket/_count/_sum and a summary as

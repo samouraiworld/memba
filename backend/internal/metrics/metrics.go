@@ -179,3 +179,33 @@ var QuestAttestationSignerState = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "memba_quest_attestation_signer_state",
 	Help: "Quest voucher signer state resolved at boot (1 = current); disabled_* means a seed is set but refused (chain binding).",
 }, []string{"state"})
+
+// Launchpad solvency watcher (internal/launchpadwatch), labelled by realm path.
+// The watcher pages on its own webhook; memba_launchpad_alert is what an
+// Alertmanager rule would page on once one is wired.
+var (
+	LaunchpadBalance = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "memba_launchpad_balance_ugnot",
+		Help: "The realm's ugnot bank balance at its last stable reading.",
+	}, []string{"realm"})
+	LaunchpadOwed = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "memba_launchpad_owed_ugnot",
+		Help: "What the realm owes in ugnot at its last stable reading, by liability.",
+	}, []string{"realm", "liability"})
+	LaunchpadSurplus = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "memba_launchpad_surplus_ugnot",
+		Help: "Balance minus owed at the last stable reading; it only ever rises.",
+	}, []string{"realm"})
+	LaunchpadReadingStable = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "memba_launchpad_reading_stable",
+		Help: "1 when the realm's last reading attempt was stable, 0 when its books were unreadable or the node served another chain.",
+	}, []string{"realm"})
+	LaunchpadLastStableReading = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "memba_launchpad_last_stable_reading_timestamp_seconds",
+		Help: "Unix time of the realm's last stable reading; set to the watcher's start until the first one.",
+	}, []string{"realm"})
+	LaunchpadAlert = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "memba_launchpad_alert",
+		Help: "1 while a paging rule holds for the realm (rule = view, deficit or surplus_fell; surplus_fell holds from the fall until its page is delivered).",
+	}, []string{"realm", "rule"})
+)
