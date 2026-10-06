@@ -40,7 +40,7 @@ export interface StageTerms {
     /** Zero: no cap beyond the collection's. */
     supplyCap: bigint
     perWallet: bigint
-    /** Holder only: the collection whose tokens each allow one mint. */
+    /** Holder only: the collection whose tokens, those minted when the stage is scheduled, each allow one mint. */
     gate: string
 }
 

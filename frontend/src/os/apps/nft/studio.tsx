@@ -174,7 +174,7 @@ function AddStage({ screen, session, collection, stages }: { screen: NftScreen; 
             {form.kind === "dutch" && input("Floor price in GNOT", "floor")}
             {input("Per wallet", "perWallet")}
             {input("Stage cap", "supplyCap", "text", "Empty for no cap beyond the collection's.")}
-            {form.kind === "holder" && input("Gate collection", "gate", "text", "Each token of this collection allows one mint, such as C1.")}
+            {form.kind === "holder" && input("Gate collection", "gate", "text", "Each token this collection has minted when the stage is scheduled allows one mint; tokens minted later do not. Such as C1.")}
             <div className="os-row"><button type="button" className="os-btn" disabled={action.busy} onClick={submit}>{action.busy ? "Checking…" : "Review the stage"}</button></div>
             {action.error && <p className="os-note os-warn" role="alert">{action.error}</p>}
         </section>
