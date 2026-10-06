@@ -12,7 +12,32 @@
 /**
  * The printable code points as ranges, generated from Go's unicode.IsPrint
  * (Unicode 15.0.0): each is "gap.length" in base 36, the gap counted from the
- * end of the previous range and the length less one.
+ * end of the previous range and the length less one. When the chain moves to
+ * another Unicode version, run this with a Go whose unicode.Version matches
+ * the chain's tables, paste its second line here, and update the count the
+ * test pins:
+ *
+ *     package main
+ *
+ *     import ("fmt"; "strconv"; "strings"; "unicode")
+ *
+ *     func main() {
+ *         var out []string
+ *         end := -1
+ *         for r := 0; r <= unicode.MaxRune; r++ {
+ *             if !unicode.IsPrint(rune(r)) {
+ *                 continue
+ *             }
+ *             start := r
+ *             for r < unicode.MaxRune && unicode.IsPrint(rune(r+1)) {
+ *                 r++
+ *             }
+ *             out = append(out, strconv.FormatInt(int64(start-end-1), 36)+"."+strconv.FormatInt(int64(r-start), 36))
+ *             end = r
+ *         }
+ *         fmt.Println(unicode.Version, len(out))
+ *         fmt.Println(strings.Join(out, ","))
+ *     }
  */
 const RANGES =
     "w.2m,y.b,1.jt,2.5,4.6,1.0,1.j,1.b0,1.11,2.1d,2.2,1.1i,8.q,4.5,h.l,1.5b,1.1b,2.1m,2.2s,e.1m,2.1c,2.e,1.r,2.0," +
