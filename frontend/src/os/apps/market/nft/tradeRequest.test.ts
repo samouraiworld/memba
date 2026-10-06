@@ -78,10 +78,10 @@ describe("buying a listing", () => {
         const request = buyRequest(draft())
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Price", "2 GNOT"], ["To the seller", "1.89 GNOT"], ["Protocol fee (0.5%)", "0.01 GNOT"], [`Royalty to ${ROYALTY}`, "0.1 GNOT"],
-            ["Network fee", "0.06 GNOT"],
+            ["Network fee", "0.0732 GNOT"],
         ]))
         expect(await run(request)).toEqual({ outcome: "sent", hash: HASH, result: undefined })
-        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Buy C1 #5", expect.objectContaining({ gasWanted: 50_000_000, gasFee: 60_000 }))
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Buy C1 #5", expect.objectContaining({ gasWanted: 61_000_000, gasFee: 73_200 }))
         expect(mocks.lane).toHaveBeenCalledWith("mainnet", "nft_market", "ugnot")
         expect(await request.verify!(undefined, HASH, undefined)).toBe(true)
     })
@@ -123,7 +123,7 @@ describe("cancelling a listing", () => {
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ caller: SELLER, func: "Cancel", args: ["L12"], send: "" })
         expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
         expect(mocks.lane).not.toHaveBeenCalled()
-        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(expect.anything(), "Cancel listing L12", expect.objectContaining({ gasWanted: 25_000_000 }))
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(expect.anything(), "Cancel listing L12", expect.objectContaining({ gasWanted: 26_000_000 }))
     })
 
     it("is the seller's alone, and stops when the listing already closed", async () => {
@@ -154,7 +154,7 @@ describe("listing a token", () => {
         expect(msgs.map((msg) => msg.value.func)).toEqual(["Approve", "List"])
         expect(msgs[1].value.args).toEqual(["C1", "5", "2000000", "4102444800", "ugnot", "50"])
         expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
-        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(msgs, "List C1 #5", expect.objectContaining({ gasWanted: 50_000_000 }))
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(msgs, "List C1 #5", expect.objectContaining({ gasWanted: 61_000_000 }))
         expect(mocks.getMarketTerms).toHaveBeenCalledWith("C1", 2_000_000n)
         expect(mocks.getTokenListing).toHaveBeenCalledWith("C1", 5n)
     })
