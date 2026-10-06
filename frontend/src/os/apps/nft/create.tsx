@@ -48,12 +48,15 @@ export function CreateCollection({ screen, session, back }: { screen: NftScreen;
         enabled: available,
         staleTime: 30_000, retry: false,
     })
-    const [form, setForm] = useState({
+    const empty = {
         name: "", symbol: "", description: "", image: "", banner: "", website: "",
         mode: "open" as NftMode, revocable: false, maxSupply: "", metadataMode: "static" as "static" | "mutable", baseURI: "",
-    })
+    }
+    const [form, setForm] = useState(empty)
     const [rows, setRows] = useState<RoyaltyRow[]>([])
     const [busy, setBusy] = useState(false)
+    // From the moment a creation is sent until its outcome is known: the ledger takes the same terms twice, and charges the fee twice.
+    const [pending, setPending] = useState(false)
     const [error, setError] = useState("")
     const [created, setCreated] = useState(false)
     const alive = useRef(true)
@@ -94,12 +97,26 @@ export function CreateCollection({ screen, session, back }: { screen: NftScreen;
         try {
             const [gas] = await Promise.all([networkGasPriceFresh(), assertCreatable(screen.network, built, fee)])
             if (!alive.current) return
-            signer.sign(createCollectionRequest({
+            const request = createCollectionRequest({
                 terms: built, fee, caller: session.address, networkKey: screen.network, chainId: screen.chainId, gas,
-                onSettled: (outcome) => { if (alive.current && (outcome === "confirmed" || outcome === "submitted")) setCreated(true) },
-            }))
+                onSettled: (outcome) => {
+                    if (!alive.current) return
+                    setPending(false)
+                    if (outcome !== "confirmed" && outcome !== "submitted") return
+                    // Sent: the form starts over, so the same collection is never created twice by a second click.
+                    setForm(empty)
+                    setRows([])
+                    setCreated(true)
+                },
+            })
+            signer.sign({
+                ...request,
+                send: (choice, beforeSign) => { setPending(true); return request.send(choice, beforeSign) },
+                // The fee or another term changed after the review: read the fee again for the next one.
+                onNothingSent: () => { if (alive.current) { setPending(false); void terms.refetch() } request.onNothingSent?.() },
+            })
         } catch (err) {
-            if (alive.current) setError(reason(err))
+            if (alive.current) { setError(reason(err)); void terms.refetch() }
         } finally {
             if (alive.current) setBusy(false)
         }
@@ -159,7 +176,7 @@ export function CreateCollection({ screen, session, back }: { screen: NftScreen;
                     </fieldset>
                 )}
             </div>
-            <div className="os-row"><button type="button" className="os-btn" disabled={busy || fee === null} onClick={() => void create()}>{busy ? "Checking…" : session.status === "member" ? "Review and create" : "Connect to create"}</button></div>
+            <div className="os-row"><button type="button" className="os-btn" disabled={busy || pending || fee === null} onClick={() => void create()}>{busy ? "Checking…" : pending ? "Creating…" : session.status === "member" ? "Review and create" : "Connect to create"}</button></div>
             {error && <p className="os-note os-warn" role="alert">{error}</p>}
         </div>
     )

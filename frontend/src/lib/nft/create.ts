@@ -4,13 +4,14 @@
  * name, symbol, description and links; a content-addressed base URI; the
  * royalty list), so a call the chain would refuse is stopped before any
  * wallet: a refused transaction still costs its network fee. The collection
- * fee is paid in GNOT, up to the fee the creator read. Collections with a
+ * fee is paid in GNOT: exactly the fee the creator read. Collections with a
  * hidden "reveal" need a secret salt kept safe until the reveal: Memba does
  * not create them yet.
  *
  * @module lib/nft/create
  */
 import { depositCapUgnot } from "../dao/v2Budget"
+import { isGnoPrintable } from "../gnoPrintable"
 import type { AminoMsg } from "../grc20"
 import { TOKEN_LAUNCHPAD_CONFIG_PATH } from "../tokenLaunchpadConfigClient"
 import { NFT_DROPS_PATH } from "./drops"
@@ -18,9 +19,9 @@ import type { NftMode } from "./ledger"
 import { INT64_MAX, address } from "./parse"
 import { readBool } from "./read"
 
-/** Measured 18.5 to 19M gas and 8.8 to 9.8 KB for a creation; the limit is about twice the gas, the cap twice the bytes. */
+/** Measured 18.5 to 19M gas and 8.9 to 11.9 KB for a creation; the limit is about twice the gas, the cap twice the bytes. */
 export const CREATE_COLLECTION_GAS_WANTED = 40_000_000
-export const CREATE_COLLECTION_STORAGE_BYTES = 10_000
+export const CREATE_COLLECTION_STORAGE_BYTES = 12_000
 
 export interface NftRoyaltyShare {
     account: string
@@ -49,8 +50,6 @@ const MAX_ROYALTY_RECEIVERS = 10
 const MAX_ROYALTY_BPS = 1000n
 
 const bytes = (s: string) => new TextEncoder().encode(s).length
-/** Go's unicode.IsPrint: letters, marks, numbers, punctuation, symbols and the ASCII space. */
-const printable = (s: string) => /^[\p{L}\p{M}\p{N}\p{P}\p{S} ]*$/u.test(s)
 
 /** The ledger's safe URI: one of the schemes and more, at most 200 bytes, printable ASCII without quotes, brackets or markup. */
 function safeURI(s: string, schemes: string[]): boolean {
@@ -77,16 +76,16 @@ export function encodeRoyalties(royalties: readonly NftRoyaltyShare[]): string {
 
 /** The first rule the ledger would refuse these terms by, in words; empty when it would take them. */
 export function termsProblem(t: CollectionTerms): string {
-    if (bytes(t.name) < 1 || bytes(t.name) > 32 || !printable(t.name) || /[[\]()*#<>`|\\]/.test(t.name) || t.name.trim() !== t.name) {
+    if (bytes(t.name) < 1 || bytes(t.name) > 32 || !isGnoPrintable(t.name) || /[[\]()*#<>`|\\]/.test(t.name) || t.name.trim() !== t.name) {
         return "The name is 1 to 32 bytes of plain text, without brackets, *, #, <, >, `, | or \\, and no space at either end."
     }
     if (!/^[A-Z0-9]{1,10}$/.test(t.symbol)) return "The symbol is 1 to 10 capital letters or digits."
-    if (bytes(t.description) > 280 || !printable(t.description) || /[[\]()<>]/.test(t.description)) {
+    if (bytes(t.description) > 280 || !isGnoPrintable(t.description) || /[[\]()<>]/.test(t.description)) {
         return "The description is at most 280 bytes of plain text, without brackets, < or >."
     }
     // The ledger takes an https image or banner; Memba loads only IPFS ones (see mediaUrl), and the form says so.
-    if (t.image !== "" && !safeURI(t.image, ["ipfs://", "https://"])) return "The image is an ipfs:// or https:// link of at most 200 characters."
-    if (t.banner !== "" && !safeURI(t.banner, ["ipfs://", "https://"])) return "The banner is an ipfs:// or https:// link of at most 200 characters."
+    if (t.image !== "" && !safeURI(t.image, ["ipfs://", "https://"])) return "The image is an ipfs:// link of at most 200 characters, without quotes, brackets or spaces."
+    if (t.banner !== "" && !safeURI(t.banner, ["ipfs://", "https://"])) return "The banner is an ipfs:// link of at most 200 characters, without quotes, brackets or spaces."
     if (t.website !== "" && !safeURI(t.website, ["https://"])) return "The website is an https:// link of at most 200 characters."
     if (t.revocable && t.mode !== "soulbound") return "Only soulbound tokens can be revocable."
     if (t.maxSupply < 0n || t.maxSupply > INT64_MAX) return "The maximum supply is a whole number, 0 for an open edition."
@@ -130,12 +129,6 @@ export function buildCreateCollectionMsg(caller: string, t: CollectionTerms, fee
             max_deposit: `${depositCapUgnot(CREATE_COLLECTION_STORAGE_BYTES)}ugnot`,
         },
     }
-}
-
-/** Whether config keeps this symbol for someone else. */
-export async function isReservedSymbol(symbol: string): Promise<boolean> {
-    if (!/^[A-Z0-9]{1,10}$/.test(symbol)) throw new Error("Invalid symbol")
-    return readBool(TOKEN_LAUNCHPAD_CONFIG_PATH, `IsReserved("${symbol}")`, "reserved symbol")
 }
 
 /** Whether config refuses this account as a receiver of payments: a Launchpad realm, for one. */

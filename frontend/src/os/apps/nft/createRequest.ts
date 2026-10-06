@@ -9,13 +9,14 @@
 import { isNftEnabled, isRealmValidOn } from "../../../lib/config"
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
 import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../lib/dao/v2Budget"
+import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
 import {
-    CREATE_COLLECTION_GAS_WANTED, CREATE_COLLECTION_STORAGE_BYTES, buildCreateCollectionMsg, isReservedSymbol, isUnspendable, type CollectionTerms,
+    CREATE_COLLECTION_GAS_WANTED, CREATE_COLLECTION_STORAGE_BYTES, buildCreateCollectionMsg, isUnspendable, type CollectionTerms,
 } from "../../../lib/nft/create"
 import { NFT_DROPS_PATH, getDropTerms } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
-import { laneClosedReason, readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
+import { laneClosedReason, readActionStatus, readReserved } from "../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
 
@@ -41,7 +42,7 @@ export async function assertCreatable(networkKey: string, terms: CollectionTerms
     const [lane, drop, reserved, refused] = await Promise.all([
         readActionStatus(networkKey, "collection", "ugnot"),
         getDropTerms("ugnot"),
-        isReservedSymbol(terms.symbol),
+        readReserved(networkKey, terms.symbol),
         Promise.all(terms.royalties.map((royalty) => isUnspendable(royalty.account))),
     ])
     if (!lane.open) throw new Error(laneClosedReason(lane, "Creating a collection"))
@@ -59,15 +60,22 @@ export function createCollectionRequest(draft: CreateDraft): SignRequest {
     const msg = buildCreateCollectionMsg(draft.caller, terms, draft.fee)
     const fee = feeForGasWanted(CREATE_COLLECTION_GAS_WANTED, draft.gas)
     const label = `Create ${terms.symbol}`
+    // Memba loads collection art from IPFS only: an https link is signed as it is, but never shown.
+    const link = (value: string) => value === "" ? "None"
+        : value.startsWith("https://") ? `${value} (Memba will not load this image; use ipfs://)` : value
     const royalties = terms.royalties.length === 0 ? "None"
         : terms.royalties.map((royalty) => `${formatBPS(royalty.bps)} to ${royalty.account}`).join("; ")
     return {
         title: "Create collection",
-        summary: `Create ${terms.name} (${terms.symbol})`,
+        summary: `Create ${revealInvisibleFormatting(terms.name)} (${terms.symbol})`,
         sub: "A new collection on the Launchpad NFT ledger",
         lines: () => [
             ["Creator", draft.caller],
-            ["Name and symbol", `${terms.name} · ${terms.symbol}`],
+            ["Name and symbol", `${revealInvisibleFormatting(terms.name)} · ${terms.symbol}`],
+            ["Description", terms.description === "" ? "None" : revealInvisibleFormatting(terms.description)],
+            ["Image", link(terms.image)],
+            ["Banner", link(terms.banner)],
+            ["Website", terms.website === "" ? "None" : terms.website],
             ["Mode", MODE[terms.mode]],
             ...(terms.mode === "soulbound" ? [["Revocable", terms.revocable ? "Yes: you may revoke a token" : "No"] as [string, string]] : []),
             ["Supply", terms.maxSupply === 0n ? "Open edition: no maximum" : `At most ${terms.maxSupply} tokens`],

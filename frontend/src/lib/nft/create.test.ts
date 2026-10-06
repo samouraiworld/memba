@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const reads = vi.hoisted(() => ({ queryEval: vi.fn() }))
 vi.mock("../dao/shared", async (original) => ({ ...(await original<object>()), queryEval: reads.queryEval }))
 
-import { buildCreateCollectionMsg, encodeRoyalties, isReservedSymbol, isUnspendable, percentToBPS, termsProblem, validBaseURI, type CollectionTerms } from "./create"
+import { buildCreateCollectionMsg, encodeRoyalties, isUnspendable, percentToBPS, termsProblem, validBaseURI, type CollectionTerms } from "./create"
 import { TOKEN_LAUNCHPAD_CONFIG_PATH } from "../tokenLaunchpadConfigClient"
 import { NFT_DROPS_PATH } from "./drops"
 
@@ -34,7 +34,10 @@ describe("collection terms", () => {
         ["a name with a backslash", { name: "a\\b" }, /^The name/],
         ["a name with a space at an end", { name: "Relevés " }, /^The name/],
         ["a name with a control character", { name: "a\u0007b" }, /^The name/],
-        ["a name with a non-breaking space", { name: "a b" }, /^The name/],
+        ["a name with a non-breaking space", { name: "a\u00a0b" }, /^The name/],
+        // Printable in a browser on Unicode 17, not in the chain's Unicode 15 tables.
+        ["a name with a character newer than the chain's Unicode", { name: "a\u1C89b" }, /^The name/],
+        ["a description with a character newer than the chain's Unicode", { description: "a\u2FFC b \u31EF" }, /^The description/],
         ["a lowercase symbol", { symbol: "rel" }, /^The symbol/],
         ["a symbol over 10 characters", { symbol: "ABCDEFGHIJK" }, /^The symbol/],
         ["a description over 280 bytes", { description: "é".repeat(141) }, /^The description/],
@@ -46,6 +49,7 @@ describe("collection terms", () => {
         ["an ipfs website", { website: "ipfs://bafyabc" }, /^The website/],
         ["a revocable transferable collection", { revocable: true }, /revocable/],
         ["a negative supply", { maxSupply: -1n }, /maximum supply/],
+        ["a supply past the int64 limit", { maxSupply: 2n ** 63n }, /maximum supply/],
         ["an https base URI", { baseURI: "https://x.org/meta/" }, /^The base URI/],
         ["a base URI that is not a folder", { baseURI: `ipfs://bafy${"b".repeat(55)}` }, /^The base URI/],
         ["a base URI with a dot segment", { baseURI: `ipfs://bafy${"b".repeat(55)}/../` }, /^The base URI/],
@@ -87,7 +91,7 @@ describe("creation call", () => {
             value: {
                 caller: CREATOR, send: "1000000ugnot", pkg_path: NFT_DROPS_PATH, func: "CreateCollection",
                 args: ["Relevés", "REL", "Field drawings.", `ipfs://bafy${"i".repeat(55)}`, "", "https://relev.es", "open", "false", "100", "static", BASE, "", "", "", `${A}:100;${B}:250`, "ugnot", "1000000"],
-                max_deposit: "2000000ugnot",
+                max_deposit: "2400000ugnot",
             },
         })
     })
@@ -103,15 +107,13 @@ describe("creation call", () => {
 describe("config reads", () => {
     beforeEach(() => reads.queryEval.mockReset())
 
-    it("asks config whether a symbol is reserved and whether a receiver can be paid", async () => {
-        reads.queryEval.mockResolvedValueOnce("(true bool)").mockResolvedValueOnce("(false bool)")
-        expect(await isReservedSymbol("GNOT")).toBe(true)
+    it("asks config whether a receiver can be paid", async () => {
+        reads.queryEval.mockResolvedValueOnce("(false bool)")
         expect(await isUnspendable(A)).toBe(false)
-        expect(reads.queryEval.mock.calls.map((call) => call.slice(1, 3))).toEqual([[TOKEN_LAUNCHPAD_CONFIG_PATH, `IsReserved("GNOT")`], [TOKEN_LAUNCHPAD_CONFIG_PATH, `IsUnspendable("${A}")`]])
+        expect(reads.queryEval.mock.calls.map((call) => call.slice(1, 3))).toEqual([[TOKEN_LAUNCHPAD_CONFIG_PATH, `IsUnspendable("${A}")`]])
     })
 
     it("puts nothing unchecked into the query", async () => {
-        await expect(isReservedSymbol(`A")`)).rejects.toThrow("Invalid symbol")
         await expect(isUnspendable(`${A}")`)).rejects.toThrow("Invalid account")
         expect(reads.queryEval).not.toHaveBeenCalled()
     })

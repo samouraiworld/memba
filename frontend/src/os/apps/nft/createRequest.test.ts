@@ -17,8 +17,8 @@ vi.mock("../../../lib/config", async (importActual) => ({
     isRealmValidOn: mocks.available,
 }))
 vi.mock("../../../lib/nft/drops", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/drops")>(), getDropTerms: mocks.terms }))
-vi.mock("../../../lib/tokenLaunchpadConfigClient", async (importActual) => ({ ...await importActual<typeof import("../../../lib/tokenLaunchpadConfigClient")>(), readActionStatus: mocks.lane }))
-vi.mock("../../../lib/nft/create", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/create")>(), isReservedSymbol: mocks.reserved, isUnspendable: mocks.unspendable }))
+vi.mock("../../../lib/tokenLaunchpadConfigClient", async (importActual) => ({ ...await importActual<typeof import("../../../lib/tokenLaunchpadConfigClient")>(), readActionStatus: mocks.lane, readReserved: mocks.reserved }))
+vi.mock("../../../lib/nft/create", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/create")>(), isUnspendable: mocks.unspendable }))
 vi.mock("../../../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../../../lib/grc20")>()
     return {
@@ -83,7 +83,7 @@ describe("creating a collection", () => {
             ["Metadata", `${BASE}, changeable until you freeze it`],
             ["Royalties", `2.5% to ${B}; 1% to ${A}`],
             ["Collection fee", "1 GNOT to the Launchpad treasury"],
-            ["Storage deposit", "Up to 2 GNOT, locked with the collection"],
+            ["Storage deposit", "Up to 2.4 GNOT, locked with the collection"],
             ["Network fee", "0.048 GNOT"],
         ]))
         expect(request.acks).toEqual(["I understand that the name, symbol, mode, maximum supply and royalties can never change."])
@@ -91,9 +91,24 @@ describe("creating a collection", () => {
         expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
         expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Create REL", expect.objectContaining({ gasWanted: 40_000_000, gasFee: 48_000 }))
         expect(mocks.lane).toHaveBeenCalledWith("mainnet", "collection", "ugnot")
-        expect(mocks.reserved).toHaveBeenCalledWith("REL")
+        expect(mocks.reserved).toHaveBeenCalledWith("mainnet", "REL")
         expect(mocks.unspendable.mock.calls).toEqual([[B], [A]])
         expect(await request.verify!(undefined, HASH, undefined)).toBe(true)
+    })
+
+    it("shows every term it signs, and that Memba will not load an https image", () => {
+        const request = createCollectionRequest(draft({ terms: {
+            ...terms, description: "Official drop", image: "https://tracker.example/a.png", banner: `ipfs://bafy${"b".repeat(55)}`, website: "https://phish.example",
+        } }))
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([
+            ["Description", "Official drop"],
+            ["Image", "https://tracker.example/a.png (Memba will not load this image; use ipfs://)"],
+            ["Banner", `ipfs://bafy${"b".repeat(55)}`],
+            ["Website", "https://phish.example"],
+        ]))
+        expect(createCollectionRequest(draft()).lines(undefined)).toEqual(expect.arrayContaining([
+            ["Description", "None"], ["Image", "None"], ["Banner", "None"], ["Website", "None"],
+        ]))
     })
 
     it("says a soulbound collection's revocability and a capped supply", () => {
@@ -113,6 +128,7 @@ describe("creating a collection", () => {
     it.each([
         ["the lane was paused", () => mocks.lane.mockResolvedValue({ ...open, paused: true, open: false }), "Creating a collection is paused on this network for now. Nothing was sent."],
         ["the fee changed", () => mocks.terms.mockResolvedValue({ currency: "ugnot", collectionFee: 2_000_000n, primaryFeeBPS: 200n, maxPrimaryFeeBPS: 500n, treasury: A }), "The collection fee is now 2 GNOT. Nothing was sent."],
+        ["the fee was lowered", () => mocks.terms.mockResolvedValue({ currency: "ugnot", collectionFee: 500_000n, primaryFeeBPS: 200n, maxPrimaryFeeBPS: 500n, treasury: A }), "The collection fee is now 0.5 GNOT. Nothing was sent."],
         ["creation closed in GNOT", () => mocks.terms.mockResolvedValue({ currency: "ugnot", collectionFee: null, primaryFeeBPS: 200n, maxPrimaryFeeBPS: 500n, treasury: A }), "not open on this network. Nothing was sent."],
         ["the symbol is reserved", () => mocks.reserved.mockResolvedValue(true), "The symbol REL is reserved on this network. Nothing was sent."],
         ["a receiver cannot be paid", () => mocks.unspendable.mockImplementation(async (account: string) => account === A), `${A} cannot receive royalties`],

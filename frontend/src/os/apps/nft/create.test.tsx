@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NFT_DROPS_PATH } from "../../../lib/nft/drops"
 import { ReadError } from "../../../lib/nft/read"
@@ -14,8 +14,8 @@ vi.mock("../../../lib/config", async (original) => ({
     isRealmValidOn: (_network: string, path: string) => (path === NFT_DROPS_PATH ? realms.drops : true),
 }))
 vi.mock("../../../lib/nft/drops", async (original) => ({ ...(await original<object>()), getDropTerms: mocks.terms }))
-vi.mock("../../../lib/tokenLaunchpadConfigClient", async (original) => ({ ...(await original<object>()), readActionStatus: mocks.lane }))
-vi.mock("../../../lib/nft/create", async (original) => ({ ...(await original<object>()), isReservedSymbol: mocks.reserved, isUnspendable: mocks.unspendable }))
+vi.mock("../../../lib/tokenLaunchpadConfigClient", async (original) => ({ ...(await original<object>()), readActionStatus: mocks.lane, readReserved: mocks.reserved }))
+vi.mock("../../../lib/nft/create", async (original) => ({ ...(await original<object>()), isUnspendable: mocks.unspendable }))
 vi.mock("../../../lib/grc20", async (original) => ({ ...(await original<object>()), networkGasPriceFresh: mocks.price }))
 vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign: mocks.sign }) }))
 
@@ -60,7 +60,46 @@ describe("Create a collection", () => {
         await vi.waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
         const args = mocks.sign.mock.calls[0][0].prepare().msgs[0].value.args
         expect(args).toEqual(["Relevés", "REL", "", "", "", "", "open", "false", "0", "static", BASE, "", "", "", "", "ugnot", "1000000"])
-        expect(mocks.reserved).toHaveBeenCalledWith("REL")
+        expect(mocks.reserved).toHaveBeenCalledWith("testnet12", "REL")
+    })
+
+    it("keeps Create off while a creation is on its way, then starts the form over so it is never sent twice", async () => {
+        show()
+        await screen.findByText(/Creating a collection costs/)
+        fill()
+        fireEvent.click(screen.getByRole("button", { name: "Review and create" }))
+        await vi.waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+        const request = mocks.sign.mock.calls[0][0]
+        void request.send(undefined, async () => {}).catch(() => {})
+        expect(await screen.findByRole("button", { name: "Creating…" })).toBeDisabled()
+        act(() => request.onSettled("submitted"))
+        expect(await screen.findByRole("status")).toHaveTextContent("Your collection was sent.")
+        expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("")
+        expect(screen.getByRole("textbox", { name: "Base URI" })).toHaveValue("")
+        expect(screen.getByRole("button", { name: "Review and create" })).toBeEnabled()
+    })
+
+    it("gives Create back with the new fee when the fee changed before the wallet", async () => {
+        mocks.terms.mockResolvedValueOnce({ currency: "ugnot", collectionFee: 1_000_000n, primaryFeeBPS: 200n, maxPrimaryFeeBPS: 500n, treasury: A })
+            .mockResolvedValue({ currency: "ugnot", collectionFee: 2_000_000n, primaryFeeBPS: 200n, maxPrimaryFeeBPS: 500n, treasury: A })
+        show()
+        expect(await screen.findByText(/Creating a collection costs 1 GNOT/)).toBeInTheDocument()
+        fill()
+        fireEvent.click(screen.getByRole("button", { name: "Review and create" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent("The collection fee is now 2 GNOT.")
+        // The next click reviews the new fee instead of failing again.
+        expect(await screen.findByText(/Creating a collection costs 2 GNOT/)).toBeInTheDocument()
+        expect(mocks.sign).not.toHaveBeenCalled()
+    })
+
+    it("refuses a name with a space at an end instead of trimming it", async () => {
+        show()
+        await screen.findByText(/Creating a collection costs/)
+        fill()
+        type("Name", " Relevés")
+        fireEvent.click(screen.getByRole("button", { name: "Review and create" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent(/^The name is 1 to 32 bytes/)
+        expect(mocks.sign).not.toHaveBeenCalled()
     })
 
     it("asks for IPFS images, saying why an https one is not loaded, and still sends one", async () => {
