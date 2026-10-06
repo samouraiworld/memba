@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend dependency security fix (2026-10-06)
+- Updated the backend's OpenTelemetry libraries to 1.45.0, which fixes vulnerability GO-2026-6505 reported by govulncheck
+
 ### Memba OS: execute DAO proposals (2026-10-02)
 - Members can execute an accepted proposal of a DAO made from Memba's template from its Memba OS window, through the review sheet: Memba checks membership, the execution window, the action and the fee before Adena opens, and confirms the member's own transaction on chain. The link to the classic page is gone.
 
