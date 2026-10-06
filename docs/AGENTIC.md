@@ -2,7 +2,7 @@
 
 > How to use Memba with AI agents, MCP servers, and CI/CD automation.
 
-**Discovery:** agents can find these resources via the [llms.txt](https://memba.samourai.app/llms.txt) file served at the app root (`frontend/public/llms.txt`), which links the SKILL guide, MCP servers, API reference, and RPC endpoints.
+**Discovery:** agents can find these resources via the [llms.txt](https://memba.club/llms.txt) file served at the app root (`frontend/public/llms.txt`), which links the SKILL guide, MCP servers, API reference, and RPC endpoints.
 
 ## Overview
 

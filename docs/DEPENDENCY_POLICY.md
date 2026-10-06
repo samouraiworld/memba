@@ -39,7 +39,7 @@
 | **MODERATE** | 30 days | 60 days |
 | **LOW** | Quarterly review | Next release |
 
-"PR opened" = a fix PR exists, CI is running, and the operator has acknowledged it. "Deployed to prod" = the fix is live on `memba.samourai.app` (or `memba-backend.fly.dev`).
+"PR opened" = a fix PR exists, CI is running, and the operator has acknowledged it. "Deployed to prod" = the fix is live on `memba.club` (or `memba-backend.fly.dev`).
 
 If the upstream fix is **not yet available** when the SLA clock starts, the operator MUST:
 

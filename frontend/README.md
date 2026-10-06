@@ -2,7 +2,7 @@
 
 > React + Vite + Vanilla CSS. The classic application and gated Memba OS beta share this frontend.
 
-The default build serves the classic site at [memba.samourai.app](https://memba.samourai.app). The separate [memba.club](https://memba.club) production build includes Memba OS at `/os` with `VITE_MEMBA_OS=true` and `MEMBA_OS_BETA_SITE=true`; the latter is a build-only site marker. The enforced build gate rejects an OS-enabled build without that marker. Development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. OS source and artwork live under `src/os/`, and the flag-off artifact check guards classic isolation. Feature routes have additional flags and mainnet realm checks; see the [repository status](../README.md) and [config](src/lib/config.ts).
+The default build is the classic site (memba.samourai.app, which now redirects to memba.club). The [memba.club](https://memba.club) production build includes Memba OS at `/os` with `VITE_MEMBA_OS=true` and `MEMBA_OS_BETA_SITE=true`; the latter is a build-only site marker. The enforced build gate rejects an OS-enabled build without that marker. Development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. OS source and artwork live under `src/os/`, and the flag-off artifact check guards classic isolation. Feature routes have additional flags and mainnet realm checks; see the [repository status](../README.md) and [config](src/lib/config.ts).
 
 ## Stack
 

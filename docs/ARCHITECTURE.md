@@ -2,7 +2,7 @@
 
 > System overview for the classic application and Memba OS public beta. The component inventory below documents architecture; feature availability is governed by build flags and the active network's realm checks.
 
-The classic site is [memba.samourai.app](https://memba.samourai.app). The separate [memba.club](https://memba.club) build enables the OS desktop at `/os`; its windows reuse classic pages where no native app exists. `App.tsx` lazily imports the OS root when `VITE_MEMBA_OS` is on. `osBuildGate.ts` also requires the beta-site marker for enforced builds, and the flag-off artifact check protects the classic build. Each site's `build-info.json` reports its current deployed version and commit. See the [status table](../README.md) before treating a component below as a live mainnet feature.
+The production site is [memba.club](https://memba.club) (the classic site, memba.samourai.app, redirects there). Its build enables the OS desktop at `/os`; its windows reuse classic pages where no native app exists. `App.tsx` lazily imports the OS root when `VITE_MEMBA_OS` is on. `osBuildGate.ts` also requires the beta-site marker for enforced builds, and the flag-off artifact check protects the classic build. Each site's `build-info.json` reports its current deployed version and commit. See the [status table](../README.md) before treating a component below as a live mainnet feature.
 
 ## System Overview
 

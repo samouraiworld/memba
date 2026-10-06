@@ -1,6 +1,7 @@
 /**
- * memba.samourai.app is being retired in favour of memba.club. These are the
- * hosts that serve the retired classic site: the domain and its Netlify canary.
+ * memba.samourai.app is retired in favour of memba.club, where netlify.toml
+ * redirects every path. These are the hosts of the retired classic site: the
+ * domain and its Netlify canary.
  *
  * @module lib/retiredSite
  */

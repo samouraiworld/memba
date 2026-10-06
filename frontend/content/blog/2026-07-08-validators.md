@@ -37,4 +37,4 @@ stake behind.
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). See the
-[validators on mainnet](https://memba.samourai.app/mainnet/validators).
+[validators on mainnet](https://memba.club/mainnet/validators).

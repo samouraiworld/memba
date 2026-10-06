@@ -60,7 +60,7 @@ buf generate
 
 ### Frontends — Netlify
 
-[memba.club](https://memba.club/) is Memba's canonical origin: the Memba OS public beta, opening at `/os`. A classic page URL there (`/mainnet/...`, or a bare legacy path) opens the Memba OS window for that page, fragment kept; a page with no window (the GitHub callback) or on a network hidden from the selector (a testnet, a retired chain) stays a classic page. [memba.samourai.app](https://memba.samourai.app/) still serves the classic application from the same commit and is being retired: it will redirect every path to memba.club (host-qualified rules in `netlify.toml`, first `302`, later `301`). Each site's public `build-info.json` reports its deployed version and commit. That build record does not establish that all feature flags or on-chain realms are available.
+[memba.club](https://memba.club/) is Memba's canonical origin: the Memba OS public beta, opening at `/os`. A classic page URL there (`/mainnet/...`, or a bare legacy path) opens the Memba OS window for that page, fragment kept; a page with no window (the GitHub callback) or on a network hidden from the selector (a testnet, a retired chain) stays a classic page. [memba.samourai.app](https://memba.samourai.app/) redirects every path to memba.club (host-qualified rules at the top of `netlify.toml`, `302` until the move is confirmed, then `301`; the canary host `memba-multisig.netlify.app` carries the same rules). Each site's public `build-info.json` reports its deployed version and commit. That build record does not establish that all feature flags or on-chain realms are available.
 
 **Retiring memba.samourai.app.** Returning visitors' service workers answer navigations from cache and would never see a redirect. The redirect therefore serves `frontend/public/sw-retire.js` in place of `/sw.js` on the retired host (and its canary host `memba-multisig.netlify.app`): the old worker updates to it, clears its caches, unregisters itself and reloads the tab, which then reaches the redirect. Local data of the old origin (saved DAOs, drafts, settings, the sign-in) does not move to memba.club. Keep the domain and its DNS for at least 12 months after the `301`, so the redirect and the kill switch stay reachable.
 
@@ -71,7 +71,7 @@ The production beta build sets `VITE_MEMBA_OS=true` and `MEMBA_OS_BETA_SITE=true
 | Build directory | `frontend` |
 | Build command | `npm run build` |
 | Publish directory | `frontend/dist` |
-| Custom domains | `memba.club` (canonical, OS build); `memba.samourai.app` (classic build, being retired; site `memba-multisig`) |
+| Custom domains | `memba.club` (canonical, OS build); `memba.samourai.app` (site `memba-multisig`; redirects to memba.club) |
 
 **Netlify environment variables:**
 ```
@@ -87,7 +87,7 @@ VITE_CLERK_PUBLISHABLE_KEY = <Clerk publishable key (pk_live_)>
 > **Note**: `VITE_GNOLOVE_API_URL` must point to the gnolove Go API server, not a Next.js frontend.
 > The former gnolove domain lapsed in 2026-09; both services now live on Samourai hosts under
 > `samourai.live`, and `config.ts` ignores an override naming any host outside its allowlists.
-> Each API's CORS must allow every Memba origin (`memba.club`, and `memba.samourai.app` until it redirects).
+> Each API's CORS must allow every Memba origin: `memba.club`, and `memba.samourai.app` until the `301`, so that rolling the `302` back keeps the classic site working.
 > `VITE_CLERK_PUBLISHABLE_KEY` is the production Clerk instance's key. It names the instance's frontend
 > host (`clerk.<primary domain>`): the CSP in `netlify.toml` and `index.html` must allow that host and
 > `accounts.<primary domain>`. gnomonitoring checks the tokens; the Memba backend holds no Clerk secret.
@@ -135,7 +135,7 @@ flyctl secrets set GITHUB_OAUTH_CLIENT_SECRET=<from GitHub OAuth App>
 ## Deployment Checklist
 
 - [x] Frontend deployed to Netlify
-- [x] Custom domain `memba.samourai.app` configured
+- [x] Custom domain `memba.club` configured
 - [x] Backend deployed to Fly.io (`memba-backend.fly.dev`)
 - [x] `ED25519_SEED` secret set
 - [x] `CORS_ORIGINS` secret verified

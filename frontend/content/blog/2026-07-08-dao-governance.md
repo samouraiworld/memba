@@ -37,4 +37,4 @@ failed at its one job.
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). Browse
-DAOs in the [mainnet Directory](https://memba.samourai.app/mainnet/directory).
+DAOs in the [mainnet Directory](https://memba.club/mainnet/directory).

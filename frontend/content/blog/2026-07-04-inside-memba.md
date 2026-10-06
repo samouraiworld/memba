@@ -55,5 +55,5 @@ leaderboard.
 
 Memba is built by [Samourai Coop](https://samourai.world) and developed in the
 open at [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba).
-New here? Start at the [mainnet directory](https://memba.samourai.app/mainnet/directory)
+New here? Start at the [mainnet directory](https://memba.club/mainnet/directory)
 and read some source.

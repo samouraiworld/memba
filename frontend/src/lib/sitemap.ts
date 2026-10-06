@@ -13,8 +13,8 @@
  * decision if entity-page indexing proves weak.
  */
 
-/** Canonical public origin (matches index.html og:url). memba.samourai.app is
- *  being retired and redirected here (docs/DEPLOYMENT.md). */
+/** Canonical public origin (matches index.html og:url). memba.samourai.app
+ *  redirects here (docs/DEPLOYMENT.md). */
 export const SITE_ORIGIN = "https://memba.club"
 
 /** Network prefix baked into public URLs. Bump on default-network change

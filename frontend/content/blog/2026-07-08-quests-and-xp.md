@@ -37,4 +37,4 @@ dress up an optimistic counter as a settled one.
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). Start a
-[quest on mainnet](https://memba.samourai.app/mainnet/quests).
+[quest on mainnet](https://memba.club/mainnet/quests).

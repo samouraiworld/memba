@@ -218,7 +218,7 @@ gnokey query vm/qeval \
 
 ### Frontend smoke test
 
-1. Open `memba.samourai.app` (or local dev)
+1. Open `memba.club` (or local dev)
 2. Switch to the deployed network in the network selector
 3. Verify: DAO loads, proposals visible, candidature page renders, channels accessible
 

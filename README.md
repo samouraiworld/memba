@@ -4,10 +4,10 @@ Memba is a Gno application for multisig coordination, DAO governance and communi
 
 | Site | Current role |
 | --- | --- |
-| [memba.samourai.app](https://memba.samourai.app) | Classic application on gno.land mainnet. |
 | [memba.club](https://memba.club) | Memba OS public beta, with a desktop and app windows at `/os`. Some windows still contain the classic pages. |
+| memba.samourai.app | Retired: every path redirects to memba.club. |
 
-Each site's public `build-info.json` identifies its deployed frontend version and commit; it does not establish the availability of every feature or its backing realm. Both sites served version 7.7.0 on 2026-09-26. The production beta build sets `VITE_MEMBA_OS` and the build-only `MEMBA_OS_BETA_SITE` marker; local development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. The classic production build excludes OS assets. The beta keeps the existing install ID `/` and starts at `/os`.
+Each site's public `build-info.json` identifies its deployed frontend version and commit; it does not establish the availability of every feature or its backing realm. The production beta build sets `VITE_MEMBA_OS` and the build-only `MEMBA_OS_BETA_SITE` marker; local development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. The classic production build excludes OS assets. The beta keeps the existing install ID `/` and starts at `/os`.
 
 ## Network and availability
 

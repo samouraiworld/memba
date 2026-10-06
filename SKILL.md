@@ -8,7 +8,7 @@
 Memba is a web application for managing multisig wallets, DAOs, tokens, and validator
 monitoring on the [Gno](https://gno.land) blockchain. Built by [Samourai.world](https://www.samourai.world).
 
-- **Live:** https://memba.samourai.app
+- **Live:** https://memba.club
 - **Repo:** https://github.com/samouraiworld/memba
 - **Chain:** gno.land mainnet (chain id `gnoland-1`, gno-core's official endpoints). Pearl (`pearl-1`) was retired on 2026-09-23 (old `/pearl/` links redirect to mainnet); Sapphire (`sapphire-1`) sunset 2026-09-09; Topaz (`topaz-1`) was decommissioned 2026-08-12 and Testnet 13 on 2026-07-26. Betanet (`gnoland1`, no hyphen), a different chain from mainnet, halted on 2026-09-14 and was removed from Memba on 2026-10-06.
 

@@ -53,5 +53,5 @@ and "what the viewer expects."
 
 Built by [Samourai Coop](https://samourai.world), in the open at
 [github.com/samouraiworld/memba](https://github.com/samouraiworld/memba). Start
-at the [mainnet Directory](https://memba.samourai.app/mainnet/directory) and
+at the [mainnet Directory](https://memba.club/mainnet/directory) and
 read some source.

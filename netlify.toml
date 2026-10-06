@@ -135,6 +135,121 @@
   status = 302
   force = true
 
+# The classic site's domain.
+[[redirects]]
+  from = "https://memba.samourai.app/sw.js"
+  to = "/sw-retire.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/"
+  to = "https://memba.club/os"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/"
+  to = "https://memba.club/os"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/dao"
+  to = "https://memba.club/os/daos"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/tokens"
+  to = "https://memba.club/os/tokens"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/directory"
+  to = "https://memba.club/os/explorer"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/validators"
+  to = "https://memba.club/os/validators"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/validators/hacker"
+  to = "https://memba.club/os/validators/hacker"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/marketplace"
+  to = "https://memba.club/os/market"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/quests"
+  to = "https://memba.club/os/quests"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/feed"
+  to = "https://memba.club/os/feed"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/leaderboard"
+  to = "https://memba.club/os/quests/leaderboard"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/gnolove"
+  to = "https://memba.club/os/dev-report"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/changelogs"
+  to = "https://memba.club/os/news/changelogs"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/extensions"
+  to = "https://memba.club/os/store/extensions"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/blog"
+  to = "https://memba.club/os/news"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/feedback"
+  to = "https://memba.club/os/feedback"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/mainnet/blog/:slug"
+  to = "https://memba.club/os/news/:slug"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/*"
+  to = "https://memba.club/:splat"
+  status = 302
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
