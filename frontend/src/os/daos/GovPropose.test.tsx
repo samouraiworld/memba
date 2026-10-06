@@ -88,4 +88,73 @@ describe("proposing on Memba DAO", () => {
         fireEvent.click(screen.getByRole("button", { name: "Review" }))
         await waitFor(() => expect(readBridgeApproval).toHaveBeenCalledWith(expect.anything(), "s:18:SetRegistrationFee|i:1500000"))
     })
+
+    it("encodes an unticked box as false", async () => {
+        vi.mocked(readBridgeApproval).mockRejectedValue(new Error("stop"))
+        show(<ProposeForm session={me} onClose={vi.fn()} />)
+        choose("About", "escrow_v4")
+        choose("Action", "ResolveDispute")
+        type("Contract", "0")
+        type("Milestone (from 0)", "0")
+        fireEvent.click(screen.getByRole("button", { name: "Review" }))
+        await waitFor(() => expect(readBridgeApproval).toHaveBeenCalledWith(expect.anything(), "s:14:ResolveDispute|s:1:0|i:0|b:0"))
+    })
+
+    it("refuses, at Review, a note or a person id the realm would refuse", async () => {
+        const view = show(<ProposeForm session={me} onClose={vi.fn()} />)
+        choose("About", "roster")
+        choose("Action", "RemoveMember")
+        type("Person id", "lours")
+        type("Your note (optional, shown labelled as yours)", "it\u2019s time")
+        fireEvent.click(screen.getByRole("button", { name: "Review" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent("no curly quotes")
+        expect(screen.queryByRole("button", { name: "Propose…" })).toBeNull()
+        view.unmount()
+        show(<ProposeForm session={me} onClose={vi.fn()} />)
+        choose("About", "roster")
+        choose("Action", "RemoveMember")
+        type("Person id", "Nina Z")
+        fireEvent.click(screen.getByRole("button", { name: "Review" }))
+        expect(await screen.findByRole("alert")).toHaveTextContent("A person id is 1 to 32")
+    })
+
+    it("never offers a class below the bridge's answer", async () => {
+        vi.mocked(readBridgeApproval).mockResolvedValue({ ...native.approval, class: 3 } as never)
+        show(<ProposeForm session={me} onClose={vi.fn()} />)
+        choose("About", "memba_market_config")
+        choose("Action", "SetFee")
+        type("Lane", "service")
+        type("New fee", "300")
+        fireEvent.click(screen.getByRole("button", { name: "Review" }))
+        await screen.findByLabelText("Class")
+        expect([...screen.getByLabelText<HTMLSelectElement>("Class").options].map((o) => o.text)).toEqual(["Critical"])
+    })
+})
+
+describe("the propose request", () => {
+    const draft = { target: "gno.land/r/samcrew/memba_gov", action: "RemoveMember", args: "s:5:lours", scope: "", class: 3, note: "bye" }
+    const page = (proposals: object[], total: string) => ({ roster: native.roster, page: { total, proposals }, constants: native.const }) as never
+    const filed = (id: string, over: object = {}) => ({ ...native.one, id, proposer: "zxxma", target: draft.target, action: draft.action, args: draft.args, scope: "", note: draft.note, ...over })
+
+    it("refuses a caller who no longer holds a seat", async () => {
+        const { govProposeRequest } = await import("./govRequests")
+        vi.mocked(readGovSnapshot).mockResolvedValue({ ...page([], "4"), roster: { ...native.roster, members: native.roster.members.filter((m) => m.address !== ZX) } } as never)
+        await expect(govProposeRequest({ caller: ZX, gasPrice: { gas: 1000, ugnot: 1 } }, draft, null).recheck!(undefined)).rejects.toThrow("no longer holds a seat")
+    })
+
+    it("counts as landed only a proposal of this caller, filed after signing, with this exact action and note", async () => {
+        const { govProposeRequest } = await import("./govRequests")
+        const req = govProposeRequest({ caller: ZX, gasPrice: { gas: 1000, ugnot: 1 } }, draft, null)
+        vi.mocked(readGovSnapshot).mockResolvedValue(page([filed("4")], "4"))
+        await req.recheck!(undefined)
+        expect(await req.verify!(undefined, "TX", undefined)).toBe(false) // #4 is an older identical proposal
+        vi.mocked(readGovSnapshot).mockResolvedValue(page([filed("5", { note: "other" }), filed("4")], "5"))
+        expect(await req.verify!(undefined, "TX", undefined)).toBe(false)
+        vi.mocked(readGovSnapshot).mockResolvedValue(page([filed("5", { action: "Uninvite" }), filed("4")], "5"))
+        expect(await req.verify!(undefined, "TX", undefined)).toBe(false)
+        vi.mocked(readGovSnapshot).mockResolvedValue(page([filed("5", { proposer: "david" }), filed("4")], "5"))
+        expect(await req.verify!(undefined, "TX", undefined)).toBe(false)
+        vi.mocked(readGovSnapshot).mockResolvedValue(page([filed("5"), filed("4")], "5"))
+        expect(await req.verify!(undefined, "TX", undefined)).toBe(true)
+    })
 })

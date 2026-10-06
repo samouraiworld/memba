@@ -144,12 +144,16 @@ export function govPauseRequest(s: GovSigner, app: string, expire: boolean): Sig
  */
 export function govProposeRequest(s: GovSigner, draft: GovDraft, call: string | null): SignRequest {
     const decoded = decodeGovAction(draft.target, draft.action, draft.args)
+    // The newest id before signing: only a proposal above it can be this one.
+    let lastBefore: bigint | null = null
     return request(s, { type: "propose", draft }, {
         title: "Propose", summary: `Propose: ${decoded?.title ?? draft.action}`,
         lines: [["Action", decoded?.title ?? draft.action], ["Class", CLASS_NAMES[draft.class]], ...(draft.note ? [["Your note", draft.note] as [string, string]] : [])],
         operation: `propose:${draft.action}`,
         recheck: async () => {
-            await seated(s.caller)
+            const { roster, page } = await readGovSnapshot(ctx())
+            if (!roster.members.some((m) => m.address === s.caller)) throw new Error("This address no longer holds a seat. Nothing was sent.")
+            lastBefore = BigInt(page.total)
             if (isBridgeDraft(draft)) {
                 const fresh = await readBridgeApproval(ctx(), call ?? "")
                 if (fresh.action !== draft.action || fresh.args !== draft.args || fresh.scope !== draft.scope) {
@@ -158,9 +162,11 @@ export function govProposeRequest(s: GovSigner, draft: GovDraft, call: string | 
             }
         },
         verify: async () => {
+            if (lastBefore === null) return false
             const me = await seated(s.caller)
-            return (await readGovSnapshot(ctx())).page.proposals.some((p) =>
-                p.proposer === me.id && p.action === draft.action && p.args === draft.args && p.note === draft.note)
+            const filed = lastBefore
+            return (await readGovSnapshot(ctx())).page.proposals.some((p) => BigInt(p.id) > filed &&
+                p.proposer === me.id && p.target === draft.target && p.action === draft.action && p.args === draft.args && p.scope === draft.scope && p.note === draft.note)
         },
     })
 }

@@ -22,16 +22,23 @@ export function useGovSign(session: OsSession) {
     const alive = useAlive()
     const queryClient = useQueryClient()
     const [quoting, setQuoting] = useState(false)
+    const [failure, setFailure] = useState<string | null>(null)
     const [, rerender] = useState(0)
     useEffect(() => {
         if (signer.version > 0) void queryClient.invalidateQueries({ queryKey: ["dao", "gov"] })
     }, [signer.version, queryClient])
+    /** A request that cannot be built is reported, never left as an unhandled rejection. */
     const start = (build: (s: GovSigner) => SignRequest) => {
         setQuoting(true)
+        setFailure(null)
         void quoteSheetGasPrice().then((gasPrice) => {
             if (!alive.current) return
             setQuoting(false)
-            signer.sign(build({ caller: session.address, gasPrice }))
+            try {
+                signer.sign(build({ caller: session.address, gasPrice }))
+            } catch (e) {
+                setFailure(e instanceof Error ? e.message : "This action cannot be built.")
+            }
         })
     }
     /** The lock of an attempt whose outcome is unknown, if one is saved. */
@@ -39,5 +46,6 @@ export function useGovSign(session: OsSession) {
         const receipt = readGovernanceReceipt(scope)
         return receipt && <UnknownOutcome key={JSON.stringify(scope)} scope={scope} receipt={receipt} attempt={attempt} onCleared={() => rerender((x) => x + 1)} />
     }
-    return { quoting, start, lock }
+    const failed = failure && <p className="os-note os-err" role="alert">{failure} Nothing was sent.</p>
+    return { quoting, start, lock, failed }
 }

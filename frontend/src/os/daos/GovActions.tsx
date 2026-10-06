@@ -19,7 +19,7 @@ import { useBridgePauses } from "./useGovDao"
 const OPEN = new Set<GovProposal["status"]>(["voting", "timelocked", "ready"])
 
 export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; roster: GovRoster; session: OsSession; raw: boolean }) {
-    const { quoting, start, lock } = useGovSign(session)
+    const { quoting, start, lock, failed } = useGovSign(session)
     const [readCode, setReadCode] = useState(false)
     const now = useNowSeconds()
     if (!OPEN.has(p.status)) return null
@@ -37,6 +37,7 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
     return (
         <section className="os-stack os-tight">
             <h3 className="os-h">Your vote</h3>
+            {failed}
             {mine && <p className="os-note">You voted <b>{mine.vote.toUpperCase()}</b>{mine.vote === "yes" ? ` (since ${formatChainTime(Number(mine.since))})` : ""}.</p>}
             {voteLock || (closed
                 // After the deadline a YES can still be withdrawn, to stop an approval before it runs.
@@ -65,13 +66,13 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
 
 /** An invited key seats itself. */
 export function JoinAction({ roster, session }: { roster: GovRoster; session: OsSession }) {
-    const { quoting, start, lock } = useGovSign(session)
+    const { quoting, start, lock, failed } = useGovSign(session)
     const invite = session.status === "member" ? roster.invitations.find((i) => i.address === session.address) : undefined
     if (!invite) return null
     return lock(govScope(session.address, "join"), "join") || (
-        <button type="button" className="os-btn" disabled={quoting} onClick={() => start((s) => govJoinRequest(s, invite.id))}>
+        <>{failed}<button type="button" className="os-btn" disabled={quoting} onClick={() => start((s) => govJoinRequest(s, invite.id))}>
             {quoting ? "Reading the fee…" : `Join as ${invite.id}…`}
-        </button>
+        </button></>
     )
 }
 
@@ -79,7 +80,7 @@ export function JoinAction({ roster, session }: { roster: GovRoster; session: Os
 export function EmergencyPauses({ roster, session }: { roster: GovRoster; session: OsSession }) {
     const enabled = bridgePublished()
     const pauses = useBridgePauses(enabled)
-    const { quoting, start, lock } = useGovSign(session)
+    const { quoting, start, lock, failed } = useGovSign(session)
     const now = useNowSeconds()
     if (!enabled) return null
     const seated = session.status === "member" && roster.members.some((m) => m.address === session.address)
@@ -88,6 +89,7 @@ export function EmergencyPauses({ roster, session }: { roster: GovRoster; sessio
             <h3 className="os-h">Emergency pause</h3>
             <p className="os-sub">A seated member can pause an app the DAO governs for 7 days without a vote, once every 30 days. A vote ends or extends it; anyone ends it once it is over.</p>
             {pauses.isError && <p className="os-note os-err">Couldn't read the pauses.</p>}
+            {failed}
             <ul className="os-list">{PAUSABLE_APPS.map((app) => {
                 const { until, governed } = pauses.data?.[app] ?? { until: 0, governed: false }
                 const over = until > 0 && until <= now

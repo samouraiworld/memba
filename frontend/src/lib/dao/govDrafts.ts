@@ -66,6 +66,8 @@ export type GovDraft = { target: string; action: string; args: string; scope: st
 export function rosterDraft(action: string, values: readonly string[], note: string): GovDraft {
     const spec = ROSTER_INPUTS[action]
     if (!spec) throw new Error("Unknown roster action")
+    // Every roster action names its person first: memba_gov's id rule.
+    if (!/^[a-z0-9_-]{1,32}$/.test(values[0] ?? "")) throw new Error("A person id is 1 to 32 of a-z, 0-9, _ or -.")
     return { target: GOV_PATH, action, args: encodeArgs(spec.inputs.map((input, i) => ({ tag: input.tag, value: values[i] ?? "" }))), scope: "", class: spec.class, note }
 }
 

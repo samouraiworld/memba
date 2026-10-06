@@ -10,7 +10,9 @@ import { useState } from "react"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { BRIDGE_APPS, BRIDGE_PATH, CLASS_NAMES, decodeGovAction, govNeverRuns } from "../../lib/dao/govActions"
 import { BRIDGE_INPUTS, bridgeDraftCall, opsFor, ROSTER_INPUTS, rosterDraft, type GovDraft, type GovInput } from "../../lib/dao/govDrafts"
+import { validText } from "../../lib/dao/daoauth"
 import { valueText } from "../../lib/dao/govView"
+import { MAX_NOTE } from "../../lib/dao/govTx"
 import { bridgePublished, readBridgeApproval } from "../../lib/dao/membaGov"
 import type { OsSession } from "../shell/useOsSession"
 import { useAlive } from "../shell/useAlive"
@@ -44,28 +46,36 @@ function Field({ input, value, set, id }: { input: GovInput; value: string; set:
 }
 
 export function ProposeForm({ session, onClose }: { session: OsSession; onClose: () => void }) {
-    const { quoting, start, lock } = useGovSign(session)
+    const { quoting, start, lock, failed } = useGovSign(session)
     const alive = useAlive()
     const [what, setWhat] = useState("")
     const [op, setOp] = useState("")
     const [values, setValues] = useState<string[]>([])
     const [note, setNote] = useState("")
-    const [review, setReview] = useState<{ draft: GovDraft; call: string | null } | null>(null)
+    // floor: the lowest class the action allows (the larger of the decoder's and the bridge's answer).
+    const [review, setReview] = useState<{ draft: GovDraft; call: string | null; floor: number } | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
     const ops = what === ROSTER ? Object.keys(ROSTER_INPUTS) : what ? opsFor(what) : []
     const inputs = !op ? [] : what === ROSTER ? ROSTER_INPUTS[op].inputs : BRIDGE_INPUTS[op].inputs
     const reset = (next: () => void) => { next(); setReview(null); setError(null) }
-    const value = (i: number) => (inputs[i].kind === "ugnot" ? ugnot(values[i] ?? "") : values[i] ?? "")
+    // An unticked box is false: b:0, never an empty value.
+    const value = (i: number) => (inputs[i].tag === "b" ? values[i] || "0" : inputs[i].kind === "ugnot" ? ugnot(values[i] ?? "") : values[i] ?? "")
 
     const check = async () => {
         setBusy(true); setError(null); setReview(null)
         try {
+            if (!validText(note) || note.length > MAX_NOTE) throw new Error(`A note is at most ${MAX_NOTE} printable ASCII characters: no curly quotes, accents or line breaks.`)
             const vals = inputs.map((_, i) => value(i))
-            if (what === ROSTER) { if (alive.current) setReview({ draft: rosterDraft(op, vals, note), call: null }); return }
+            if (what === ROSTER) {
+                const draft = rosterDraft(op, vals, note)
+                if (alive.current) setReview({ draft, call: null, floor: draft.class })
+                return
+            }
             const call = bridgeDraftCall(op, what, vals)
             const a = await readBridgeApproval({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID }, call)
-            if (alive.current) setReview({ draft: { target: BRIDGE_PATH, action: a.action, args: a.args, scope: a.scope, class: a.class, note }, call })
+            const minClass = decodeGovAction(BRIDGE_PATH, a.action, a.args)?.minClass ?? a.class
+            if (alive.current) setReview({ draft: { target: BRIDGE_PATH, action: a.action, args: a.args, scope: a.scope, class: Math.max(minClass, a.class), note }, call, floor: Math.max(minClass, a.class) })
         } catch (e) {
             if (alive.current) setError(e instanceof Error ? e.message : "This proposal cannot be built.")
         } finally {
@@ -107,6 +117,7 @@ export function ProposeForm({ session, onClose }: { session: OsSession; onClose:
                 </div>
             )}
             {error && <p className="os-note os-err" role="alert">{error}</p>}
+            {failed}
             {review && decoded && (
                 <div className="os-stack os-tight">
                     <b>{decoded.title}</b>
@@ -117,7 +128,7 @@ export function ProposeForm({ session, onClose }: { session: OsSession; onClose:
                                 <span className="os-sub">Class</span>
                                 {review.draft.target === BRIDGE_PATH
                                     ? <select aria-label="Class" className="os-in" value={review.draft.class} onChange={(e) => setReview({ ...review, draft: { ...review.draft, class: Number(e.target.value) } })}>
-                                        {[1, 2, 3].filter((c) => c >= decoded.minClass).map((c) => <option key={c} value={c}>{CLASS_NAMES[c]}</option>)}
+                                        {[1, 2, 3].filter((c) => c >= review.floor).map((c) => <option key={c} value={c}>{CLASS_NAMES[c]}</option>)}
                                     </select>
                                     : <b>{CLASS_NAMES[review.draft.class]} (fixed for roster changes)</b>}
                             </div>

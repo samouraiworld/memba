@@ -27,6 +27,9 @@ export const GOV_BUDGETS = {
     propose: { gasWanted: 80_000_000, maxDepositUgnot: 1_000_000 },
 } as const
 
+/** The longest proposer's note memba_gov accepts. */
+export const MAX_NOTE = 280
+
 export type GovVote = "yes" | "no" | "abstain"
 export type GovCall =
     | { type: "vote"; id: string; vote: GovVote }
@@ -55,7 +58,7 @@ export function planGovCall(caller: string, call: GovCall): DaoTxPlan {
         case "join": func = "Join"; args = []; budget = GOV_BUDGETS.join; break
         case "propose": {
             const d = call.draft
-            if (!validText(d.note) || d.note.length > 280) throw new Error("A note is at most 280 printable ASCII characters")
+            if (!validText(d.note) || d.note.length > MAX_NOTE) throw new Error(`A note is at most ${MAX_NOTE} printable ASCII characters`)
             func = "Propose"; args = [d.target, d.action, d.args, d.scope, String(d.class), d.note]; budget = GOV_BUDGETS.propose; break
         }
         case "execute":
