@@ -54,7 +54,7 @@ const capabilities = {
 const curation = (marks: Partial<Record<"verified" | "featured" | "hidden", boolean>> = {}) => ({ collection: "C1", verified: false, featured: false, hidden: false, ...marks })
 const stage = (index: number, kind: string, more: object = {}) => ({
     index, kind, start: 1_790_000_000n, end: 1_790_086_400n, open: false, price: 1_500_000n, floor: 0n, currentPrice: 1_500_000n, currency: "ugnot",
-    feeBPS: 250n, supplyCap: 0n, perWallet: 2n, root: "", gate: "", minted: 0n, ...more,
+    feeBPS: 250n, supplyCap: 0n, perWallet: 2n, root: "", gate: "", gateLimit: 0n, minted: 0n, ...more,
 })
 const token = (number: number) => ({ collection: "C1", number: BigInt(number), owner: CREATOR, status: "active", uri: `${IMAGE}/${number}.json` })
 
@@ -209,7 +209,7 @@ describe("NFT collection profile", () => {
         reads.listStages.mockResolvedValue([
             stage(0, "fixed", { supplyCap: 50n, minted: 12n }),
             stage(1, "dutch", { start: 1_790_100_000n, end: 1_790_200_000n, open: true, price: 10_000_000n, floor: 1_000_000n, currentPrice: 4_000_000n, feeBPS: 0n }),
-            stage(2, "holder", { start: 1_790_300_000n, end: 1_790_400_000n, gate: "C2" }),
+            stage(2, "holder", { start: 1_790_300_000n, end: 1_790_400_000n, gate: "C2", gateLimit: 40n }),
             stage(3, "allowlist", { start: 1_790_500_000n, end: 1_790_600_000n, perWallet: 0n, root: ROOT, currency: "gno.land/r/demo/foo20", price: 1500n }),
         ])
         const push = show()
@@ -224,7 +224,7 @@ describe("NFT collection profile", () => {
         expect(dutch).toHaveTextContent("Stage 2 · Dutch auctionOpen now")
         expect(dutch).toHaveTextContent("Price10 GNOT, falling to 1 GNOTPrice now4 GNOT")
         expect(dutch).toHaveTextContent("The creator receives the whole price.")
-        expect(holder).toHaveTextContent("Minted0, no stage capGateEach token of C2 allows one mint")
+        expect(holder).toHaveTextContent("Minted0, no stage capGateEach token of C2 numbered up to #40 allows one mint")
         expect(allowlist).toHaveTextContent("Price1,500 foo20Currencygno.land/r/demo/foo20Per walletEach allowed address has its own allowance")
         expect(within(allowlist).getByText(ROOT)).toBeVisible()
         for (const closed of [fixed, holder, allowlist]) expect(within(closed).queryByRole("button", { name: /mint/i })).toBeNull()
@@ -331,7 +331,7 @@ describe("NFT collection profile", () => {
     })
 
     it("asks for a gate token the member holds and has not used in a holder stage", async () => {
-        reads.listStages.mockResolvedValue([stage(0, "holder", { open: true, gate: "C2", price: 0n, currentPrice: 0n })])
+        reads.listStages.mockResolvedValue([stage(0, "holder", { open: true, gate: "C2", gateLimit: 40n, price: 0n, currentPrice: 0n })])
         minting.getToken.mockResolvedValue({ collection: "C2", number: 7n, owner: CREATOR, status: "active", uri: "" })
         show(vi.fn(), member)
         const mint = await screen.findByRole("button", { name: "Mint" })

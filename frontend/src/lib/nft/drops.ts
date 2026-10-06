@@ -46,6 +46,8 @@ export interface NftStage {
     root: string
     /** Holder only: the collection whose tokens each allow one mint. */
     gate: string
+    /** Holder only: only the gate tokens numbered up to this one, all minted when the stage was scheduled, allow a mint. */
+    gateLimit: bigint
     minted: bigint
 }
 
@@ -62,7 +64,7 @@ export interface NftDropTerms {
 
 const STAGE_KEYS = [
     "index", "kind", "start", "end", "open", "price", "floor", "currentPrice", "currency", "feeBPS", "supplyCap", "perWallet",
-    "root", "gate", "minted",
+    "root", "gate", "gateLimit", "minted",
 ] as const
 const TERMS_KEYS = ["currency", "collectionFee", "primaryFeeBPS", "maxPrimaryFeeBPS", "treasury"] as const
 
@@ -82,6 +84,8 @@ function parseStage(value: unknown, position: number): NftStage {
     const perWallet = decimal(row.perWallet, "wallet limit")
     const root = text(row.root, "allowlist root")
     const gate = kind === "holder" ? collectionId(row.gate) : text(row.gate, "gate collection")
+    const gateLimit = decimal(row.gateLimit, "gate limit")
+    if (kind !== "holder" && gateLimit !== 0n) throw new Error("Inconsistent stage terms")
     // A field a kind does not use is zero or empty, so a stage reads the same to everyone.
     const walletLimited = perWallet > 0n && root === ""
     const consistent = kind === "fixed"
@@ -101,7 +105,7 @@ function parseStage(value: unknown, position: number): NftStage {
     const minted = decimal(row.minted, "stage minted count")
     if (supplyCap > 0n && minted > supplyCap) throw new Error("Inconsistent stage supply")
 
-    return { index: position, kind, start, end, open, price, floor, currentPrice, currency: currencyKey(row.currency), feeBPS, supplyCap, perWallet, root, gate, minted }
+    return { index: position, kind, start, end, open, price, floor, currentPrice, currency: currencyKey(row.currency), feeBPS, supplyCap, perWallet, root, gate, gateLimit, minted }
 }
 
 /** A collection's mint stages in index order; none yet is an empty list. */

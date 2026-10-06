@@ -137,7 +137,9 @@ function Stage({ screen, session, target, stage, readAt }: { screen: NftScreen; 
                 <div className="os-kv-row"><dt>Minted</dt><dd>{stage.supplyCap === 0n ? `${stage.minted}, no stage cap` : `${stage.minted} / ${stage.supplyCap}`}</dd></div>
                 {stage.kind === "holder" && (
                     <div className="os-kv-row"><dt>Gate</dt><dd>
-                        Each token of <button type="button" className="os-btn os-quiet os-inline" onClick={() => screen.go({ kind: "collection", collection: stage.gate })}>{stage.gate}</button> allows one mint
+                        {stage.gateLimit === 0n ? "No token of " : "Each token of "}
+                        <button type="button" className="os-btn os-quiet os-inline" onClick={() => screen.go({ kind: "collection", collection: stage.gate })}>{stage.gate}</button>
+                        {stage.gateLimit === 0n ? " allows a mint: it had none when this stage was scheduled" : ` numbered up to #${stage.gateLimit} allows one mint`}
                     </dd></div>
                 )}
                 {stage.kind === "allowlist" && <div className="os-kv-row"><dt>Allowlist root</dt><dd className="os-mono os-break">{stage.root}</dd></div>}
