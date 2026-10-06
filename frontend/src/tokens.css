@@ -120,7 +120,7 @@
     --color-accent-blue-bright: #4a9eff;
     --color-accent-blue-link: #58a6ff;
     --color-accent-blue-sky: #4dc9f6;
-    --color-accent-blue-info: #0088cc;
+    --color-accent-blue-info: #006699; /* white text on it: 6.2:1 */
     --color-accent-purple: #7b61ff;
     --color-accent-purple-alt: #8b5cf6;
     --color-accent-purple-deep: #7c3aed;

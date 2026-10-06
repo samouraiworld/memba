@@ -19,26 +19,12 @@ import type { ReactNode } from "react"
 
 interface Props {
     children: ReactNode
+    /** Shown instead when this build has no Clerk key (nobody can sign in). */
+    fallback?: ReactNode
 }
 
-export default function ClerkProvider({ children }: Props) {
-    if (!CLERK_PUBLISHABLE_KEY) {
-        return (
-            <div style={{
-                padding: 24, borderRadius: 12,
-                background: "rgba(255,165,0,0.06)",
-                border: "1px solid rgba(255,165,0,0.15)",
-                color: "var(--color-warning)", fontSize: "var(--pro-small, 12px)",
-                fontFamily: "JetBrains Mono, monospace",
-                textAlign: "center",
-            }}>
-                <p style={{ fontWeight: 600, marginBottom: 4 }}>⚠️ Alerting auth not configured</p>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)" }}>
-                    Set <code>VITE_CLERK_PUBLISHABLE_KEY</code> to enable alerting features.
-                </p>
-            </div>
-        )
-    }
+export default function ClerkProvider({ children, fallback = null }: Props) {
+    if (!CLERK_PUBLISHABLE_KEY) return fallback
 
     return (
         <ClerkReactProvider

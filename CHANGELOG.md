@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Alerts: a true sentence without sign-in (2026-10-06)
+- Alerts: when sign-in for alerts isn't set up on a site, the page now says so plainly and still lists the Telegram bots, instead of showing a configuration instruction; the Profile page no longer shows that instruction. The Telegram bot buttons are easier to read
+
 ### memba.samourai.app: Memba moved (2026-10-06)
 - memba.samourai.app now shows that Memba has moved to memba.club, with a link to the same page there and a note on what this browser saved that does not move (saved DAOs, drafts, settings)
 

@@ -29,7 +29,7 @@ export default function AlertsPage() {
     return (
         <AlertErrorBoundary>
             <Suspense fallback={<PageLoader />}>
-                <ClerkAuthProvider>
+                <ClerkAuthProvider fallback={<SignInUnavailable />}>
                     <AlertsContent />
                 </ClerkAuthProvider>
             </Suspense>
@@ -262,6 +262,47 @@ function WebhookSection({ kind, label, token, onChanged }: {
 }
 
 // ── Main content (requires auth) ─────────────────────────────
+/** The page header, the alerts card (its action below the pitch) and the public Telegram bots. */
+function AlertsGate({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="alerts-page">
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <Bell size={22} /> Alerts
+            </h2>
+
+            <div className="alerts-auth-gate">
+                <div className="alerts-auth-card">
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+                        Professional Blockchain Alerts
+                    </h3>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+                        Configure GovDAO & validator monitoring alerts.
+                        Receive notifications on Discord, Slack, or Telegram.
+                    </p>
+                    {children}
+                </div>
+            </div>
+
+            {/* Telegram section is always visible */}
+            <Section title="Telegram Bots" icon={<span>✈️</span>} defaultOpen>
+                <TelegramBotCards />
+            </Section>
+        </div>
+    )
+}
+
+/** This build has no Clerk key: nobody can sign in, so alerts can't be set up here. */
+function SignInUnavailable() {
+    return (
+        <AlertsGate>
+            <p role="status" style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text)", fontWeight: 600, margin: 0 }}>
+                Sign-in for alerts isn't available on this site yet, so alerts can't be set up here.
+            </p>
+        </AlertsGate>
+    )
+}
+
 function AlertsContent() {
     const auth = useClerkAuth()
     const [contacts, setContacts] = useState<api.AlertContact[]>([])
@@ -299,44 +340,23 @@ function AlertsContent() {
 
     if (!auth.isSignedIn) {
         return (
-            <div className="alerts-page">
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                    <Bell size={22} /> Alerts
-                </h2>
-
-                <div className="alerts-auth-gate">
-                    <div className="alerts-auth-card">
-                        <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-                            Professional Blockchain Alerts
-                        </h3>
-                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
-                            Configure GovDAO & validator monitoring alerts.
-                            Receive notifications on Discord, Slack, or Telegram.
-                        </p>
-                        <SignInButton mode="modal">
-                            <button style={{
-                                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                height: 40, padding: "0 24px", borderRadius: 8,
-                                background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: "var(--pro-small, 13px)",
-                                fontWeight: 600, border: "none", cursor: "pointer",
-                                boxShadow: "0 0 24px rgba(0,212,170,0.2)",
-                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                            }}>
-                                Sign in to configure alerts
-                            </button>
-                        </SignInButton>
-                        <p style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 12 }}>
-                            ℹ️ Alerting auth is independent from your Gno wallet
-                        </p>
-                    </div>
-                </div>
-
-                {/* Telegram section is always visible */}
-                <Section title="Telegram Bots" icon={<span>✈️</span>} defaultOpen>
-                    <TelegramBotCards />
-                </Section>
-            </div>
+            <AlertsGate>
+                <SignInButton mode="modal">
+                    <button style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        height: 40, padding: "0 24px", borderRadius: 8,
+                        background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: "var(--pro-small, 13px)",
+                        fontWeight: 600, border: "none", cursor: "pointer",
+                        boxShadow: "0 0 24px rgba(0,212,170,0.2)",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
+                    }}>
+                        Sign in to configure alerts
+                    </button>
+                </SignInButton>
+                <p style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 12 }}>
+                    ℹ️ Alerting auth is independent from your Gno wallet
+                </p>
+            </AlertsGate>
         )
     }
 
