@@ -63,7 +63,7 @@ export function optionalAddress(value: unknown, what: string): string {
     return value === "" ? "" : address(value, what)
 }
 
-/** A ledger sequence number: at most the 20 digits of a uint64. */
+/** `C<n>` as the ledger accepts it: no leading zero, at most 21 characters. */
 export function collectionId(value: unknown): string {
     if (typeof value !== "string" || !/^C[1-9]\d{0,19}$/.test(value)) throw new Error("Invalid collection ID")
     return value
@@ -78,4 +78,19 @@ export function currencyKey(value: unknown): string {
 export function oneOf<T extends string>(value: unknown, what: string, allowed: readonly T[]): T {
     if (!allowed.includes(value as T)) throw new Error(`Invalid ${what}`)
     return value as T
+}
+
+export function hash(value: unknown, what: string): string {
+    if (typeof value !== "string" || !HASH.test(value)) throw new Error(`Invalid ${what}`)
+    return value
+}
+
+/**
+ * An IPFS CID as the curation realm accepts it: CIDv1 `bafy…` (dag-pb) or
+ * `bafk…` (raw, the usual codec of a small text file) in base32, 59 to 90
+ * characters, or CIDv0 `Qm…` in base58 (46).
+ */
+export function cid(value: unknown, what: string): string {
+    if (typeof value !== "string" || !/^(baf[yk][a-z2-7]{55,86}|Qm[1-9A-HJ-NP-Za-km-z]{44})$/.test(value)) throw new Error(`Invalid ${what}`)
+    return value
 }
