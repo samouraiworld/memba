@@ -47,7 +47,7 @@ export function buildMintMsg(caller: string, collection: string, stage: NftStage
     natural(offered, "amount offered")
     natural(gateNumber, "gate token number")
     if (offered < stage.currentPrice) throw new Error("The amount offered is below the stage's price.")
-    if ((stage.kind === "holder") !== (gateNumber > 0n)) throw new Error(stage.kind === "holder" ? "Choose the gate token that pays for this mint." : "This stage takes no gate token.")
+    if ((stage.kind === "holder") !== (gateNumber > 0n)) throw new Error(stage.kind === "holder" ? "Choose the gate token that allows this mint." : "This stage takes no gate token.")
     return {
         type: "vm/MsgCall",
         value: {

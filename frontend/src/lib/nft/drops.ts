@@ -44,7 +44,7 @@ export interface NftStage {
     perWallet: bigint
     /** Allowlist only: the Merkle root of the allowed addresses. */
     root: string
-    /** Holder only: the collection whose tokens each pay for one mint. */
+    /** Holder only: the collection whose tokens each allow one mint. */
     gate: string
     minted: bigint
 }

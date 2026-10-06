@@ -27,7 +27,7 @@ describe("mint call", () => {
 
     it("refuses what the realm would refuse, before any wallet", () => {
         expect(() => buildMintMsg(BUYER, "C1", stage(), 1_499_999n, 0n)).toThrow("below the stage's price")
-        expect(() => buildMintMsg(BUYER, "C1", stage({ kind: "holder", gate: "C2" }), 1_500_000n, 0n)).toThrow("Choose the gate token")
+        expect(() => buildMintMsg(BUYER, "C1", stage({ kind: "holder", gate: "C2" }), 1_500_000n, 0n)).toThrow("Choose the gate token that allows this mint.")
         expect(() => buildMintMsg(BUYER, "C1", stage(), 1_500_000n, 3n)).toThrow("takes no gate token")
         expect(() => buildMintMsg(BUYER, "C1", stage(), -1n, 0n)).toThrow("Invalid amount offered")
         expect(() => buildMintMsg(BUYER.toUpperCase(), "C1", stage(), 1_500_000n, 0n)).toThrow("Invalid minter")

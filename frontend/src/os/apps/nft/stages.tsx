@@ -64,7 +64,7 @@ function MintAction({ screen, session, target, stage }: { screen: NftScreen; ses
         if (session.status !== "member") { session.openConnect(); return }
         setError("")
         const gateNumber = holder ? (/^[1-9]\d{0,18}$/.test(gate.trim()) ? BigInt(gate.trim()) : 0n) : 0n
-        if (holder && gateNumber === 0n) { setError(`Enter the number of the ${stage.gate} token that pays for this mint.`); return }
+        if (holder && gateNumber === 0n) { setError(`Enter the number of the ${stage.gate} token that allows this mint.`); return }
         setBusy(true)
         try {
             const caller = session.address
@@ -96,7 +96,7 @@ function MintAction({ screen, session, target, stage }: { screen: NftScreen; ses
                 {holder && (
                     <label className="os-row os-tight-row os-nft-gate">
                         <span>{stage.gate} token #</span>
-                        <input inputMode="numeric" size={8} value={gate} onChange={(event) => setGate(event.target.value)} aria-label={`Number of the ${stage.gate} token that pays for this mint`} />
+                        <input inputMode="numeric" size={8} value={gate} onChange={(event) => setGate(event.target.value)} aria-label={`Number of the ${stage.gate} token that allows this mint`} />
                     </label>
                 )}
                 <button type="button" className="os-btn" disabled={busy} onClick={() => void mint()}>
