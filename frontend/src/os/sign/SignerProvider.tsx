@@ -131,7 +131,13 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
             onSettling: () => { if (sameOwner()) setReview((r) => r && { ...r, stage: "settling" }) },
         })
         busy.current = false
-        if (!sameOwner()) return
+        // The session ended or changed account while the wallet had the request:
+        // its sheet is gone, but the request still learns how it ended, so
+        // nothing that waits on it waits forever. A sent one is not verified.
+        if (!sameOwner()) {
+            settle(req, choice, res.outcome === "sent" ? "submitted" : res.outcome === "refused" ? "failed" : res.outcome)
+            return
+        }
         if (res.outcome === "failed" || res.outcome === "cancelled") {
             if (res.outcome === "cancelled") { closeReview(); toast(res.error); settle(req, choice, "cancelled"); return }
             setReview((r) => r && { ...r, stage: "review", error: res.error })
@@ -159,8 +165,11 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         closeReview()
         // A wallet return alone is submission, not chain confirmation.
         const ok = req.verify ? await verifyWithRetries(() => req.verify!(choice, hash, res.result), req.verifyAttempts) : null
-        if (!sameOwner()) return
         setPending((p) => p.filter((x) => x.id !== id))
+        if (!sameOwner()) {
+            settle(req, choice, ok === true ? "confirmed" : ok === "failed" ? "failed" : "submitted")
+            return
+        }
         // Votes can release their lock after verification. A proposal's
         // confirmed ID must survive reload until the member starts another.
         if (ok === true && req.receipt && !req.retainConfirmedReceipt) {
