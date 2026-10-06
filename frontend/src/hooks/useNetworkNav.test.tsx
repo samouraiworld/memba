@@ -32,6 +32,12 @@ describe("useNetworkKey", () => {
         expect(keyAt("/mainnet/")).toBe("mainnet")
     })
 
+    it("never takes an Object.prototype member in the URL for a network", () => {
+        for (const segment of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+            expect(keyAt(`/${segment}/directory`), segment).toBe(DEFAULT_NETWORK)
+        }
+    })
+
     it("ignores a stale URL echo naming a retired or hidden network", () => {
         for (const echo of ["onyx", "test13"]) {
             expect(NETWORKS[echo]?.hidden, echo).toBe(true)

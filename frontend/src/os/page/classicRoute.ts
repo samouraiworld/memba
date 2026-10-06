@@ -6,7 +6,7 @@
  *
  * @module os/page/classicRoute
  */
-import { isNetworkKey } from "../../lib/config"
+import { NETWORKS, isNetworkKey } from "../../lib/config"
 import { parseDaoSplat } from "../../lib/daoSlug"
 import { getApp, OS_APPS, type OsApp, type OsAppId } from "../apps"
 import { nameForRealm } from "../daos/daoNames"
@@ -122,7 +122,7 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
  * would not stay on it). `network` is the network the page loaded with.
  */
 export function osUrlForClassic(pathname: string, network: string): string | null {
-    if (!NETWORKS[network] || NETWORKS[network].hidden) return null
+    if (!isNetworkKey(network) || NETWORKS[network].hidden) return null
     // The classic home is the Wallet window inside Memba OS; an address of its own opens the desktop.
     if (/^\/[^/?#]+\/*(?:[?#]|$)/.test(pathname) && pathname.split(/[/?#]/)[1] === network) return "/os"
     const target = osTargetForClassic(pathname, network)
