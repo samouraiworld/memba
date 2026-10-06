@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS Tokens: open a fair sale (2026-10-06)
+- Memba OS Tokens: open a fair sale for a new token (lots, a fixed or falling price, soft cap and window), checked against the Launchpad's rules and live terms before signing, with what a fair sale does and does not do stated before you sign (hidden until the Launchpad is published)
+
 ### Memba OS: short and zoomed screens (2026-10-06)
 - Memba OS: menus, dialogs, review sheets and window buttons stay usable on short or zoomed screens
 

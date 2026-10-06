@@ -99,8 +99,8 @@ export function formatUgnot(ugnot: number): string {
 }
 
 /** Exact "10.000001 GNOT" style amount for a ugnot value: no rounding, trailing zeros trimmed. */
-export function formatUgnotExact(ugnot: number): string {
-    const units = BigInt(Math.trunc(ugnot))
+export function formatUgnotExact(ugnot: number | bigint): string {
+    const units = typeof ugnot === "bigint" ? ugnot : BigInt(Math.trunc(ugnot))
     const whole = units / 1_000_000n
     const fraction = (units % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "")
     return `${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""} GNOT`

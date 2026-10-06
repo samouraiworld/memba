@@ -25,6 +25,7 @@ import type { OsSession } from "../../shell/useOsSession"
 import type { SignRequest } from "../../sign/signer"
 import { useSigner } from "../../sign/signerContext"
 import { airdropClaimRequest, claimableNow, vestingClaimRequest } from "./claims"
+import CreateFairSale from "./CreateFairSale"
 import CreateToken from "./CreateToken"
 import { canSettle, CLOCK_MARGIN, holdingGates, priceAt, PROOF_FORMAT, saleActionRequest, takingOrders, type SaleAction } from "./saleActions"
 import "./native.css"
@@ -85,7 +86,7 @@ export default function TokensWindow({ session, fallback }: NativeViewProps) {
 function Launchpad({ network, session }: { network: string; session: OsSession }) {
     const [page, setPage] = useState(0)
     const [selected, setSelected] = useState<LaunchpadToken | null>(null)
-    const [creating, setCreating] = useState(false)
+    const [creating, setCreating] = useState<"token" | "sale" | null>(null)
     const queries = useQueryClient()
     const tokens = useQuery({
         queryKey: ["token-launchpad", network, "page", page],
@@ -93,15 +94,15 @@ function Launchpad({ network, session }: { network: string; session: OsSession }
         staleTime: 30_000, retry: false,
     })
     const turn = (next: number) => { setPage(next); setSelected(null) }
-    if (creating) {
-        return <CreateToken network={network} session={session} onClose={() => setCreating(false)}
-            onCreated={() => void queries.invalidateQueries({ queryKey: ["token-launchpad", network] })} />
-    }
+    const onCreated = () => void queries.invalidateQueries({ queryKey: ["token-launchpad", network] })
+    if (creating === "token") return <CreateToken network={network} session={session} onClose={() => setCreating(null)} onCreated={onCreated} />
+    if (creating === "sale") return <CreateFairSale network={network} session={session} onClose={() => setCreating(null)} onCreated={onCreated} />
 
     return (
         <div className="os-stack os-tokens">
             {isRealmValidOn(network, TOKEN_LAUNCHPAD_SALES_PATH) && isRealmValidOn(network, TOKEN_LAUNCHPAD_CONFIG_PATH) && <div className="os-row">
-                <button type="button" className="os-btn" onClick={() => setCreating(true)}>Create a token</button>
+                <button type="button" className="os-btn" onClick={() => setCreating("token")}>Create a token</button>
+                <button type="button" className="os-btn os-quiet" onClick={() => setCreating("sale")}>Open a fair sale</button>
             </div>}
             <section aria-labelledby="tokens-list" className="os-stack os-tight">
                 <h3 className="os-h" id="tokens-list">Launchpad tokens</h3>

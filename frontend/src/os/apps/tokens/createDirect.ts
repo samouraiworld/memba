@@ -17,7 +17,7 @@ import { TOKEN_LAUNCHPAD_SALES_ADDRESS, TOKEN_LAUNCHPAD_SALES_PATH, TokenLaunchp
 import type { SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
 
-const MAX_INT64 = 9223372036854775807n
+export const MAX_INT64 = 9223372036854775807n
 const DAY = 86_400n
 /** The ledger refuses these tickers whatever config says. */
 const PROTECTED_TICKERS = new Set(["MEMBA", "GNOT", "UGNOT", "WUGNOT", "GNS", "USDC", "USDT", "ATOM", "BTC", "ETH", "SAMCREW"])
@@ -87,23 +87,31 @@ export function parseAirdrop(text: string, decimals: number): AirdropEntry[] | s
 export type LaunchPart = "token" | "distribution" | "airdrop"
 export interface LaunchProblem { part: LaunchPart; message: string }
 
+/** The token ledger's rules for any new token, worded for its creator, or null. */
+export function tokenProblem(t: { name: string; ticker: string; decimals: number; initialSupply: bigint; description: string }): string | null {
+    const { name, ticker, decimals, initialSupply, description } = t
+    if (encoder.encode(name).length < 1 || encoder.encode(name).length > 32 || !printable(name) || /[[\]()*#<>`|\\]/.test(name) || name.trim() !== name) {
+        return "The name needs 1 to 32 bytes, no surrounding spaces, and none of [ ] ( ) * # < > ` | \\."
+    }
+    if (!/^[A-Z0-9]{1,10}$/.test(ticker)) return "The ticker needs 1 to 10 capital letters or digits."
+    if (PROTECTED_TICKERS.has(ticker)) return `${ticker} is reserved.`
+    if (!Number.isInteger(decimals) || decimals < 0 || decimals > 12) return "Decimals must be 0 to 12."
+    if (initialSupply <= 0n || initialSupply > MAX_INT64) return "The supply must be above zero and fit in 64 bits."
+    if (encoder.encode(description).length > 280 || !printable(description) || /[[\]()<>]/.test(description)) {
+        return "The description needs at most 280 bytes and none of [ ] ( ) < >."
+    }
+    return null
+}
+
 /** The first rule the launch breaks, worded for its creator, or null. */
 export function directLaunchProblem(launch: DirectLaunch): LaunchProblem | null {
-    const { name, ticker, decimals, initialSupply, maxSupply, description, allocations } = launch
+    const { initialSupply, maxSupply, allocations } = launch
     const token = (message: string): LaunchProblem => ({ part: "token", message })
     const distribution = (message: string): LaunchProblem => ({ part: "distribution", message })
-    if (encoder.encode(name).length < 1 || encoder.encode(name).length > 32 || !printable(name) || /[[\]()*#<>`|\\]/.test(name) || name.trim() !== name) {
-        return token("The name needs 1 to 32 bytes, no surrounding spaces, and none of [ ] ( ) * # < > ` | \\.")
-    }
-    if (!/^[A-Z0-9]{1,10}$/.test(ticker)) return token("The ticker needs 1 to 10 capital letters or digits.")
-    if (PROTECTED_TICKERS.has(ticker)) return token(`${ticker} is reserved.`)
-    if (!Number.isInteger(decimals) || decimals < 0 || decimals > 12) return token("Decimals must be 0 to 12.")
-    if (initialSupply <= 0n || initialSupply > MAX_INT64) return token("The supply must be above zero and fit in 64 bits.")
+    const tokenRule = tokenProblem(launch)
+    if (tokenRule) return token(tokenRule)
     if (launch.mode === "direct_fixed" ? maxSupply !== initialSupply : maxSupply <= initialSupply || maxSupply > MAX_INT64) {
         return token("A capped token's maximum supply must be above its initial supply.")
-    }
-    if (encoder.encode(description).length > 280 || !printable(description) || /[[\]()<>]/.test(description)) {
-        return token("The description needs at most 280 bytes and none of [ ] ( ) < >.")
     }
     if (allocations.length > 50) return distribution("At most 50 allocations.")
     const seen = new Set<string>()
