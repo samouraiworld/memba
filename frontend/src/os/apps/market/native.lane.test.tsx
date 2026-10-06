@@ -3,7 +3,8 @@
  * native registry, lane registry (the Services build flag stubbed on, the
  * escrow realm from the real allowlist), section routing, window reducer and
  * classic Marketplace page. Only the wallet (a guest) and the Services lane's
- * chain reads are stubbed.
+ * chain reads are stubbed, and the lane flags are set here, whatever the
+ * checkout's .env says.
  */
 import { fireEvent, render, screen, within } from "@testing-library/react"
 import { useReducer } from "react"
@@ -16,6 +17,9 @@ import type { OsSession } from "../../shell/useOsSession"
 import { WindowBody } from "../../shell/WindowFrame"
 import { appSpec, EMPTY_WINDOWS, windowsReducer, type WindowSpec } from "../../shell/windows"
 
+// The escrow realm is allowlisted on mainnet only. The network in the address comes before
+// the one the checkout's .env pins, so config loads on mainnet in every checkout.
+vi.hoisted(() => window.history.replaceState(null, "", "/mainnet/os/market"))
 vi.mock("../../../hooks/useAdena", () => ({ useAdena: () => ({ address: "", connected: false, connect: vi.fn() }) }))
 vi.mock("../../../lib/marketplace/escrowState", async (original) => ({
     ...(await original<typeof import("../../../lib/marketplace/escrowState")>()),
@@ -42,11 +46,13 @@ describe("Market window with the Services lane live", () => {
     beforeAll(async () => {
         await Promise.all([import("./native"), import("../../page/ClassicPage"), import("../../../pages/UnifiedMarketplace"), import("../../../components/marketplace/ServiceLane")])
     }, 120_000)
-    beforeEach(() => { vi.stubEnv("VITE_ENABLE_SERVICES", "true") })
+    beforeEach(() => {
+        vi.stubEnv("VITE_ENABLE_SERVICES", "true")
+        for (const flag of ["VITE_ENABLE_NFT", "VITE_ENABLE_TOKENS", "VITE_ENABLE_AGENTS"]) vi.stubEnv(flag, "false")
+    })
     afterEach(() => { vi.unstubAllEnvs() })
 
     it("opens the classic Services lane from its card, and returns to the home from the lane", async () => {
-        // The escrow realm is allowlisted on mainnet only: this needs the default network.
         expect(ACTIVE_NETWORK_KEY).toBe("mainnet")
         const { container } = render(<MemoryRouter><MarketOnDesk /></MemoryRouter>)
         const classic = () => container.querySelector<HTMLElement>(".os-classic")
