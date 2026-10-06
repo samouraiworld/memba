@@ -5,6 +5,7 @@
  *
  * @module os/apps/market/nft/lane
  */
+import { useEffect, useRef } from "react"
 import type { NativeViewProps } from "../../../native/types"
 import { Segmented } from "../../../kit"
 import { marketNftSection, nftSection, type MarketNftRoute } from "../../../nft/routes"
@@ -23,8 +24,19 @@ export default function NftLane({ route, session, open, push }: { route: MarketN
         go: (to) => push(specForTarget({ kind: "app", app: "market", section: marketNftSection(to) })!),
         openNft: (to) => open(specForTarget({ kind: "app", app: "nft", section: nftSection(to) })!),
     }
+    // Moving within the lane takes focus to the new view's first heading; the first view keeps the focus the window gave it.
+    const view = useRef<HTMLDivElement>(null)
+    const section = marketNftSection(route)
+    const first = useRef(true)
+    useEffect(() => {
+        if (first.current) { first.current = false; return }
+        const heading = view.current?.querySelector<HTMLElement>("h3")
+        if (!heading) return
+        heading.tabIndex = -1
+        heading.focus()
+    }, [section])
     return (
-        <div className="os-stack">
+        <div className="os-stack" ref={view}>
             <Segmented label="NFT lane" options={VIEWS} value={route.kind === "mine" ? "mine" : "explore"} onChange={(kind) => lane.go({ kind })} />
             {route.kind === "explore" ? <Explore lane={lane} />
                 : route.kind === "mine" ? <MyTrading lane={lane} address={session.address} connect={session.openConnect} />

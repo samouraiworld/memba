@@ -79,7 +79,7 @@ describe("Market NFT lane", () => {
             expect(trait).toHaveTextContent("Trait offer")
             expect(trait).toHaveTextContent("Tokens carrying Background=Blue")
             expect(trait).toHaveTextContent("Expired: waiting for its refund")
-            expect(whole).toHaveTextContent("Collection offer Founders[U+200B]Any token of the collection1 GNOTExpires 2100-01-01 00:00 UTC")
+            expect(whole).toHaveTextContent("Collection offer Founders[U+200B]Any token of the collection1 GNOTHolds a deposit (about 0.78 GNOT) paid to whoever closes it: the seller who accepts, or the buyer who cancels.Expires 2100-01-01 00:00 UTC")
 
             fireEvent.click(first)
             expect(sectionOf(push.mock.lastCall![0])).toBe("market:nfts/c/C1/7")
@@ -202,8 +202,13 @@ describe("Market NFT lane", () => {
             expect(offers.getByText("If this token carries Background=Blue")).toBeInTheDocument()
             expect(offers.queryAllByRole("button")).toEqual([])
 
-            expect(screen.getByRole("note")).toHaveTextContent("storage deposit of about 0.47 GNOT, paid to whoever closes it: the buyer at a sale")
-            expect(screen.getByRole("note")).toHaveTextContent("For a week after an order expires only its owner can close it")
+            expect(screen.getByRole("note")).toHaveTextContent("holds a storage deposit (about 0.78 GNOT), and the chain pays it to whoever closes the order: the buyer at a sale, the seller who accepts an offer, the owner who cancels")
+            expect(screen.getByRole("note")).toHaveTextContent("For a week after an order expires only its owner can close it; after that anyone can. Anyone can clear at once a listing whose seller no longer holds the token.")
+            // An offer that applies shows how its price would be paid out.
+            const collectionOffer = offers.getByText("Any token of the collection").closest(".os-stack") as HTMLElement
+            expect(within(collectionOffer).getAllByRole("row").slice(1).map((row) => row.textContent)).toEqual([
+                "SellerThe holder who accepts0.975 GNOT", "Protocol fee (2.5%)Treasury0.025 GNOT",
+            ])
             fireEvent.click(screen.getByRole("button", { name: "Item page" }))
             expect(sectionOf(open.mock.lastCall![0])).toBe("nft:c/C1/2")
         })
@@ -213,7 +218,7 @@ describe("Market NFT lane", () => {
             market.listCollectionOffers.mockResolvedValue([])
             show({ kind: "token", collection: "C1", number: 2n })
             expect(await screen.findByText("This token is not listed.")).toBeInTheDocument()
-            expect(await screen.findByText("No offer applies to this token.")).toBeInTheDocument()
+            expect(await screen.findByText("No open offer applies to this token.")).toBeInTheDocument()
         })
 
         it("shows an unreadable listing as an error with a retry", async () => {
@@ -235,6 +240,28 @@ describe("Market NFT lane", () => {
             expect(await panel.findByRole("alert")).toHaveTextContent("This network's realm refused to read the listing.")
             expect(panel.queryByRole("button", { name: "Retry" })).toBeNull()
             expect(panel.queryByText("This token is not listed.")).toBeNull()
+        })
+
+        it("lists expired offers apart, never as applying, and calls a listing past its expiry not buyable", async () => {
+            market.getTokenListing.mockResolvedValue(listing(4, 2n, { expiresAt: PAST }))
+            market.listCollectionOffers.mockResolvedValue([offer(1, "collection", { expiresAt: PAST })])
+            show({ kind: "token", collection: "C1", number: 2n })
+            expect(await region("Listing").findByText("Not buyable now")).toBeInTheDocument()
+            const offers = region("Offers for this token")
+            expect(await offers.findByText("No open offer applies to this token.")).toBeInTheDocument()
+            expect(offers.getByRole("heading", { name: "Expired" })).toBeInTheDocument()
+            expect(offers.getByText("Expired: waiting for its refund")).toBeInTheDocument()
+            expect(offers.queryAllByRole("table")).toEqual([])
+        })
+
+        it("names a registry token's key with its payouts, and never as GNOT", async () => {
+            const token = "gno.land/r/evil/ugnot"
+            market.getTokenListing.mockResolvedValue(listing(4, 2n, { currency: token }))
+            market.listCollectionOffers.mockResolvedValue([])
+            show({ kind: "token", collection: "C1", number: 2n })
+            const panel = region("Listing")
+            expect(await panel.findByText(/a registry token, not GNOT/)).toBeInTheDocument()
+            expect(panel.queryByText(/GNOT$/, { selector: "td" })).toBeNull()
         })
 
         it("keeps reading while every offer read so far is for other tokens", async () => {
@@ -280,6 +307,29 @@ describe("Market NFT lane", () => {
             expect(await region("My listings").findByRole("alert")).toHaveTextContent("The listings could not be read from this network.")
             expect(await region("My offers").findByText("You have no open offer.")).toBeInTheDocument()
         })
+    })
+
+    it("puts the deposit rule next to every price", async () => {
+        market.listListings.mockResolvedValue([listing(1, 1n)])
+        market.listOffers.mockResolvedValue([offer(2, "collection")])
+        show({ kind: "explore" })
+        expect(await region("Open listings").findByText(/paid to whoever closes it: the buyer, or the seller who cancels/)).toBeInTheDocument()
+        expect(await region("Open offers").findByText(/paid to whoever closes it: the seller who accepts, or the buyer who cancels/)).toBeInTheDocument()
+    })
+
+    it("moves focus to the new view's heading when the lane changes view, and not when it first opens", async () => {
+        market.listCollectionListings.mockResolvedValue([])
+        market.listCollectionOffers.mockResolvedValue([])
+        market.listListings.mockResolvedValue([])
+        market.listOffers.mockResolvedValue([])
+        const session = { status: "guest", address: "", openConnect: vi.fn(), network: { key: "mainnet", chainId: "chain-a" } } as never
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const view = (route: MarketNftRoute) => <QueryClientProvider client={client}><NftLane route={route} session={session} open={vi.fn()} push={vi.fn()} /></QueryClientProvider>
+        const { rerender } = render(view({ kind: "explore" }))
+        expect(document.activeElement).toBe(document.body)
+        rerender(view({ kind: "collection", collection: "C1" }))
+        expect(document.activeElement?.tagName).toBe("H3")
+        expect(document.activeElement).toHaveAttribute("tabindex", "-1")
     })
 
     it("switches between Explore and My trading as links", () => {

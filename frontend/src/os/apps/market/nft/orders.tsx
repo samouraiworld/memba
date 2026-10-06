@@ -10,14 +10,14 @@ import { useQuery, type InfiniteData, type UseInfiniteQueryResult } from "@tanst
 import type { ReactNode } from "react"
 import { useNow } from "../../../../hooks/home/useNow"
 import { revealInvisibleFormatting } from "../../../../lib/dao/v2Text"
-import { formatAmount } from "../../../../lib/nft/format"
+import { formatAmount, formatBPS } from "../../../../lib/nft/format"
 import { getToken } from "../../../../lib/nft/ledger"
 import type { NftListing, NftOffer, NftOfferKind } from "../../../../lib/nft/market"
 import { fetchTokenMetadata } from "../../../../lib/nft/metadata"
 import { ReadError, RealmRefusedError } from "../../../../lib/nft/read"
-import { Card, CardGrid, Empty, ErrorState, Loading, Pill } from "../../../kit"
+import { Card, CardGrid, Empty, ErrorState, Loading, Pill, Table } from "../../../kit"
 import { TokenMedia } from "../../../nft/TokenMedia"
-import { isExpired, useCollection, utc, type LaneProps } from "./reads"
+import { ORDER_DEPOSIT, isExpired, useCollection, utc, type LaneProps } from "./reads"
 
 /**
  * A read that failed, as the NFT app shows one: a read that reached no answer
@@ -70,6 +70,43 @@ export function Price({ order }: { order: NftListing | NftOffer }) {
     )
 }
 
+/** Who closing an order pays its deposit to, in one line under its price. */
+export function DepositRule({ order }: { order: "listing" | "offer" }) {
+    return <span className="os-sub">{order === "listing"
+        ? `Holds a deposit (${ORDER_DEPOSIT}) paid to whoever closes it: the buyer, or the seller who cancels.`
+        : `Holds a deposit (${ORDER_DEPOSIT}) paid to whoever closes it: the seller who accepts, or the buyer who cancels.`}</span>
+}
+
+interface Payout {
+    to: string
+    account: string
+    amount: bigint
+}
+
+/** How the price is paid out, as the realm computed it. `seller` is the account paid the rest; empty for an offer, whose seller is whoever accepts. */
+export function Payouts({ order, seller }: { order: NftListing | NftOffer; seller: string }) {
+    const rows: Payout[] = [
+        { to: "Seller", account: seller, amount: order.split.seller },
+        { to: `Protocol fee (${formatBPS(order.feeBPS)})`, account: "", amount: order.split.fee },
+        ...order.split.royalties.map((royalty) => ({ to: "Royalty", account: royalty.account, amount: royalty.amount })),
+    ]
+    return (
+        <div className="os-stack os-tight">
+            {order.currency !== "ugnot" && <span className="os-sub">Amounts in <span className="os-mono">{order.currency}</span>, a registry token, not GNOT.</span>}
+            <Table<Payout>
+                columns={[
+                    { key: "to", label: "Paid to", render: (row) => row.to },
+                    { key: "account", label: "Account", render: (row) => <span className="os-mono" style={{ overflowWrap: "anywhere" }}>{row.account || (row.to === "Seller" ? "The holder who accepts" : "Treasury")}</span> },
+                    { key: "amount", label: "Amount", align: "end", render: (row) => formatAmount(row.amount, order.currency) },
+                ]}
+                rows={rows}
+                rowKey={(row) => `${row.to}:${row.account}`}
+                empty={null}
+            />
+        </div>
+    )
+}
+
 export function CollectionName({ chainId, id }: { chainId: string; id: string }) {
     const collection = useCollection(chainId, id)
     return <>{collection.data ? revealInvisibleFormatting(collection.data.name) || id : id}</>
@@ -101,8 +138,9 @@ export function ListingCard({ listing, lane, mine = false }: { listing: NftListi
                 <TokenArt chainId={lane.chainId} collection={listing.collection} number={listing.number} alt="" />
                 <span><CollectionName chainId={lane.chainId} id={listing.collection} /> #{listing.number.toString()}</span>
                 <Price order={listing} />
+                <DepositRule order="listing" />
                 <span className="os-sub">{expired ? "Expired" : "Expires"} {utc(listing.expiresAt)}</span>
-                {mine && expired ? <Pill tone="warn">Expired: yours to close</Pill> : !listing.buyable && <Pill tone="warn">Not buyable now</Pill>}
+                {mine && expired ? <Pill tone="warn">Expired: yours to close</Pill> : (!listing.buyable || expired) && <Pill tone="warn">Not buyable now</Pill>}
             </span>
         </Card>
     )
@@ -127,8 +165,10 @@ export function OfferCard({ offer, lane, mine = false, forToken = false }: { off
             <span><Pill tone="neutral">{KIND[offer.kind]}</Pill> {!forToken && <CollectionName chainId={lane.chainId} id={offer.collection} />}</span>
             <span>{target}</span>
             <Price order={offer} />
+            <DepositRule order="offer" />
             <span className="os-sub">{expired ? "Expired" : "Expires"} {utc(offer.expiresAt)}</span>
             {expired && <Pill tone="warn">{mine ? "Expired: yours to close" : "Expired: waiting for its refund"}</Pill>}
+            {forToken && !expired && <Payouts order={offer} seller="" />}
         </span>
     )
     if (forToken) return <Card>{body}</Card>

@@ -8,42 +8,23 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { useNow } from "../../../../hooks/home/useNow"
-import { formatAmount, formatBPS } from "../../../../lib/nft/format"
-import { getTokenListing, type NftListing } from "../../../../lib/nft/market"
-import { Empty, Loading, Pill, Table } from "../../../kit"
-import { CollectionName, OfferCard, OrderList, Price, ReadFailure, TokenArt } from "./orders"
-import { isExpired, useCollectionOffers, utc, type LaneProps } from "./reads"
-
-interface Payout {
-    to: string
-    account: string
-    amount: bigint
-}
+import { getTokenListing, type NftListing, type NftOffer } from "../../../../lib/nft/market"
+import { CardGrid, Empty, Loading, Pill } from "../../../kit"
+import { CollectionName, DepositRule, OfferCard, OrderList, Payouts, Price, ReadFailure, TokenArt } from "./orders"
+import { ORDER_DEPOSIT, isExpired, useCollectionOffers, utc, type LaneProps } from "./reads"
 
 function Listing({ listing }: { listing: NftListing }) {
     const now = useNow(60_000)
-    const payouts: Payout[] = [
-        { to: "Seller", account: listing.seller, amount: listing.split.seller },
-        { to: `Protocol fee (${formatBPS(listing.feeBPS)})`, account: "", amount: listing.split.fee },
-        ...listing.split.royalties.map((royalty) => ({ to: "Royalty", account: royalty.account, amount: royalty.amount })),
-    ]
+    const expired = isExpired(listing, now)
     return (
         <div className="os-stack os-tight">
             <div className="os-row">
                 <Price order={listing} />
-                {listing.buyable ? <Pill tone="ok">Buyable now</Pill> : <Pill tone="warn">Not buyable now</Pill>}
+                {listing.buyable && !expired ? <Pill tone="ok">Buyable now</Pill> : <Pill tone="warn">Not buyable now</Pill>}
             </div>
-            <span className="os-sub">Listed {utc(listing.createdAt)} · {isExpired(listing, now) ? "expired" : "expires"} {utc(listing.expiresAt)}</span>
-            <Table<Payout>
-                columns={[
-                    { key: "to", label: "Paid to", render: (row) => row.to },
-                    { key: "account", label: "Account", render: (row) => <span className="os-mono" style={{ overflowWrap: "anywhere" }}>{row.account || "Treasury"}</span> },
-                    { key: "amount", label: "Amount", align: "end", render: (row) => formatAmount(row.amount, listing.currency) },
-                ]}
-                rows={payouts}
-                rowKey={(row) => `${row.to}:${row.account}`}
-                empty={null}
-            />
+            <DepositRule order="listing" />
+            <span className="os-sub">Listed {utc(listing.createdAt)} · {expired ? "expired" : "expires"} {utc(listing.expiresAt)}</span>
+            <Payouts order={listing} seller={listing.seller} />
         </div>
     )
 }
@@ -55,6 +36,10 @@ export function ItemTrade({ lane, collection, number }: { lane: LaneProps; colle
         staleTime: 30_000, retry: false,
     })
     const offers = useCollectionOffers(lane.chainId, collection)
+    const now = useNow(60_000)
+    const applies = (offer: NftOffer) => offer.kind !== "token" || offer.number === number
+    // Expired offers wait for their refund: listed apart, among those read so far, and never as applying.
+    const expired = (offers.data?.pages ?? []).flat().filter((offer) => applies(offer) && isExpired(offer, now))
     return (
         <>
             <div className="os-row">
@@ -71,13 +56,17 @@ export function ItemTrade({ lane, collection, number }: { lane: LaneProps; colle
             </section>
             <section aria-label="Offers for this token">
                 <h4 className="os-h">Offers</h4>
-                <OrderList orders={offers} what="offers" empty="No offer applies to this token." keep={(offer) => offer.kind !== "token" || offer.number === number}>
+                <OrderList orders={offers} what="offers" empty="No open offer applies to this token." keep={(offer) => applies(offer) && !isExpired(offer, now)}>
                     {(offer) => <OfferCard key={offer.id} offer={offer} lane={lane} forToken />}
                 </OrderList>
+                {expired.length > 0 && <>
+                    <h5 className="os-h">Expired</h5>
+                    <CardGrid>{expired.map((offer) => <OfferCard key={offer.id} offer={offer} lane={lane} forToken />)}</CardGrid>
+                </>}
             </section>
             <p className="os-note" role="note">
-                An open listing holds a storage deposit of about 0.47 GNOT, paid to whoever closes it: the buyer at a sale, the seller who cancels.
-                For a week after an order expires only its owner can close it; after that anyone can, and an expired offer's escrow always goes back to its buyer.
+                An open listing or offer holds a storage deposit ({ORDER_DEPOSIT}), and the chain pays it to whoever closes the order: the buyer at a sale, the seller who accepts an offer, the owner who cancels.
+                For a week after an order expires only its owner can close it; after that anyone can. Anyone can clear at once a listing whose seller no longer holds the token. An expired offer's escrow always goes back to its buyer.
             </p>
         </>
     )
