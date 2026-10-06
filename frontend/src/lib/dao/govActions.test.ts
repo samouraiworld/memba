@@ -79,7 +79,7 @@ describe("decodeGovAction", () => {
         expect(decodeGovAction(BRIDGE_PATH, "memba_dao_channels_v2.CreateChannel", "s:4:news|s:4:News|s:5:forum|i:6|u:1")!.refused).toMatch(/channel type/)
         expect(decodeGovAction(BRIDGE_PATH, "memba_quest_attestation_v1.SetSigner", "s:4:ABCD|s:0:|u:1")!.refused).toMatch(/64 lowercase hex/)
         expect(decodeGovAction(BRIDGE_PATH, "escrow_v4.ResolveDispute", "s:1:7|i:2|b:1|s:8:disputed|s:6:funded|i:5|i:9|u:1")!.scope).toBe("escrow_v4/c/7/m/2")
-        expect(decodeGovAction(BRIDGE_PATH, "memba_reviews_v2.Unhide", `u:4|b:1|b:1|b:0|s:64:${"a".repeat(64)}|i:0|u:1`)!.scope).toBe("memba_reviews_v2/i/4")
+        expect(decodeGovAction(BRIDGE_PATH, "memba_reviews_v2.Unhide", `u:4|b:1|b:1|b:0|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|i:7|s:64:${"a".repeat(64)}|i:0|b:1|u:1`)!.scope).toBe("memba_reviews_v2/i/4")
         expect(decodeGovAction(GOV_PATH, "Uninvite", "s:6:mikael")!.scope).toBe("")
     })
 })

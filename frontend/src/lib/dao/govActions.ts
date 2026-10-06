@@ -117,7 +117,8 @@ const membership: Spec[] = [["Member", "a", "address"], ["Roles", "s", "text"], 
 
 function moderation(_: DaoauthField[], unhide: boolean): Spec[] {
     return [["Item", "u", "id"], ["Is a review", "b", "yesno"], ["Hidden when voted", "b", "yesno"], ["Deleted", "b", "yesno"],
-        ...(unhide ? [["Text hash", "s", "hash"], ["Edited at block", "i", "height"]] as Spec[] : []), tenure]
+        ["Author", "a", "address"], ["Posted at block", "i", "height"],
+        ...(unhide ? [["Text hash", "s", "hash"], ["Edited at block", "i", "height"], ["Flagged when voted (unhide dismisses flags)", "b", "yesno"]] as Spec[] : []), tenure]
 }
 
 /** memba_gov's own roster actions; the core fixes their class. */

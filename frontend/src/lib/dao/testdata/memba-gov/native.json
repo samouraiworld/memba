@@ -1,13 +1,6 @@
 {
  "_comment": "Answers of memba_gov and memba_bridge_v1 in their own unit tests at gno e75fef82 (written by a generator kept outside this repository): every bridge action the node fixtures propose, four roster actions, one action no decoder knows, and one Approval answer.",
  "gnoRef": "e75fef82c02876a4df92ad6e325c5479b9532168",
- "approval": {
-  "target": "gno.land/r/samcrew/memba_bridge_v1",
-  "action": "memba_market_config.SetFee",
-  "args": "s:7:service|i:300|i:200|u:1",
-  "scope": "memba_market_config",
-  "class": 2
- },
  "roster": {
   "weight": 5,
   "persons": 4,
@@ -140,7 +133,7 @@
     "id": "37",
     "target": "gno.land/r/samcrew/memba_bridge_v1",
     "action": "memba_reviews_v2.HideComment",
-    "args": "u:2|b:0|b:0|b:0|u:1",
+    "args": "u:2|b:0|b:0|b:0|a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4|i:6|u:1",
     "scope": "memba_reviews_v2/i/2",
     "class": 1,
     "proposer": "zxxma",
@@ -385,7 +378,7 @@
     "id": "20",
     "target": "gno.land/r/samcrew/memba_bridge_v1",
     "action": "memba_reviews_v2.Unhide",
-    "args": "u:1|b:1|b:1|b:0|s:64:87765da6ccf0668238c1d27c35692e11b4cee9c0e5cd5713a3f6e462d48e9730|i:0|u:1",
+    "args": "u:1|b:1|b:1|b:0|a:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z|i:5|s:64:87765da6ccf0668238c1d27c35692e11b4cee9c0e5cd5713a3f6e462d48e9730|i:0|b:0|u:1",
     "scope": "memba_reviews_v2/i/1",
     "class": 1,
     "proposer": "zxxma",
@@ -400,7 +393,7 @@
     "id": "19",
     "target": "gno.land/r/samcrew/memba_bridge_v1",
     "action": "memba_reviews_v2.HideReview",
-    "args": "u:1|b:1|b:0|b:0|u:1",
+    "args": "u:1|b:1|b:0|b:0|a:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z|i:5|u:1",
     "scope": "memba_reviews_v2/i/1",
     "class": 1,
     "proposer": "zxxma",
@@ -721,5 +714,12 @@
     "since": "1234567890"
    }
   ]
+ },
+ "approval": {
+  "target": "gno.land/r/samcrew/memba_bridge_v1",
+  "action": "memba_market_config.SetFee",
+  "args": "s:7:service|i:300|i:200|u:1",
+  "scope": "memba_market_config",
+  "class": 2
  }
 }
