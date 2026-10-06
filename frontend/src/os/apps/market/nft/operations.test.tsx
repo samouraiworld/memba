@@ -94,6 +94,7 @@ describe("Operations", () => {
     })
 
     it("lets the creator pin a statement and opens the review of exactly that filing", async () => {
+        curation.getCurationAccess.mockResolvedValue(access({ account: FOUNDER, founder: true, manager: false, conflicted: true }))
         evidence.pinEvidence.mockResolvedValue(pinned)
         show({ kind: "application", collection: "C3" }, FOUNDER)
         const desk = await screen.findByRole("region", { name: "Apply for review" })
@@ -106,6 +107,7 @@ describe("Operations", () => {
     })
 
     it("says why a pin failed, and opens no review", async () => {
+        curation.getCurationAccess.mockResolvedValue(access({ account: FOUNDER, founder: true, manager: false, conflicted: true }))
         evidence.pinEvidence.mockRejectedValue(new Error("Sign in again to pin the text."))
         show({ kind: "application", collection: "C3" }, FOUNDER)
         const desk = await screen.findByRole("region", { name: "Apply for review" })
@@ -116,6 +118,7 @@ describe("Operations", () => {
     })
 
     it("offers a recommended collection's creator no new filing", async () => {
+        curation.getCurationAccess.mockResolvedValue(access({ account: FOUNDER, founder: true, manager: false, conflicted: true }))
         curation.getApplication.mockResolvedValue({ ...filing, status: "recommended" })
         show({ kind: "application", collection: "C3" }, FOUNDER)
         expect(await screen.findByText(/Your collection is recommended/)).toBeInTheDocument()
@@ -140,6 +143,20 @@ describe("Operations", () => {
         expect(screen.queryByRole("region", { name: "Review this application" })).toBeNull()
     })
 
+    it("says when the role could not be read, instead of hiding what the account may do", async () => {
+        curation.getCurationAccess.mockRejectedValue(new ReadError("offline"))
+        show({ kind: "application", collection: "C3" }, FOUNDER)
+        expect(await screen.findByText("The curation role could not be read from this network.")).toBeInTheDocument()
+        expect(screen.queryByRole("textbox")).toBeNull()
+    })
+
+    it("shows the creator form from the chain's own answer, not from the ledger record", async () => {
+        ledger.getCollection.mockResolvedValue({ id: "C3", name: "Relevés", creator: STRANGER })
+        curation.getCurationAccess.mockResolvedValue(access({ account: FOUNDER, founder: true, manager: false, conflicted: true }))
+        show({ kind: "application", collection: "C3" }, FOUNDER)
+        expect(await screen.findByRole("region", { name: "Apply for review" })).toBeInTheDocument()
+    })
+
     it("shows a member with no role nothing to sign", async () => {
         curation.getCurationAccess.mockResolvedValue(access({ account: STRANGER, manager: false }))
         show({ kind: "application", collection: "C3" }, STRANGER)
@@ -149,6 +166,7 @@ describe("Operations", () => {
     })
 
     it("says when a collection has not applied, and offers its creator the first filing", async () => {
+        curation.getCurationAccess.mockResolvedValue(access({ account: FOUNDER, founder: true, manager: false, conflicted: true }))
         curation.getApplication.mockResolvedValue(null)
         show({ kind: "application", collection: "C3" }, FOUNDER)
         expect(await screen.findByText("This collection has not applied for review.")).toBeInTheDocument()

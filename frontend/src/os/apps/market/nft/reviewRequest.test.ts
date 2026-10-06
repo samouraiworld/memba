@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
     available: vi.fn(() => true),
-    getCollection: vi.fn(),
     getApplication: vi.fn(),
     getCurationAccess: vi.fn(),
     wallet: vi.fn(),
@@ -15,7 +14,6 @@ vi.mock("../../../../lib/config", async (importActual) => ({
     isNftEnabled: mocks.available,
     isRealmValidOn: mocks.available,
 }))
-vi.mock("../../../../lib/nft/ledger", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/ledger")>(), getCollection: mocks.getCollection }))
 vi.mock("../../../../lib/nft/curation", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/curation")>(), getApplication: mocks.getApplication, getCurationAccess: mocks.getCurationAccess }))
 vi.mock("../../../../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../../../../lib/grc20")>()
@@ -54,7 +52,7 @@ const filing: CurationApplication = {
     reviewer: MANAGER, reasonHash: "e".repeat(64), reasonCID: `bafy${"b".repeat(55)}`, updatedAt: 1n,
 }
 const common = { networkKey: "mainnet", chainId: "gnoland-1", gas: { gas: 1000, ugnot: 1 }, text: "Original drawings, signed.", commitment: text }
-const access = { chainId: "gnoland-1", height: 9n, time: 9n, collection: "C3", account: MANAGER, founder: false, manager: true, conflicted: false }
+const access = { chainId: "gnoland-1", height: 9n, time: 9n, collection: "C3", account: MANAGER, founder: true, manager: true, conflicted: false }
 const run = (request: ReturnType<typeof applyRequest>) => executeSignature(request, undefined, request.prepare(undefined).msgs, () => {})
 const failed = async (request: ReturnType<typeof applyRequest>, message: string) => {
     const result = await run(request)
@@ -65,7 +63,6 @@ const failed = async (request: ReturnType<typeof applyRequest>, message: string)
 
 beforeEach(() => {
     mocks.available.mockReset().mockReturnValue(true)
-    mocks.getCollection.mockReset().mockResolvedValue({ id: "C3", creator: FOUNDER })
     mocks.getApplication.mockReset().mockResolvedValue(filing)
     mocks.getCurationAccess.mockReset().mockResolvedValue(access)
     mocks.wallet.mockReset().mockResolvedValue({ hash: HASH })
@@ -87,6 +84,7 @@ describe("applying for review", () => {
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: "Apply", args: ["C3", text.hash, text.cid], send: "" })
         expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
         expect(mocks.getApplication).toHaveBeenCalledWith("C3")
+        expect(mocks.getCurationAccess).toHaveBeenCalledWith("C3", FOUNDER, "gnoland-1")
     })
 
     it("files a first application when there was none, and none appeared since", async () => {
@@ -97,7 +95,7 @@ describe("applying for review", () => {
     })
 
     it.each([
-        ["the creator role moved", () => mocks.getCollection.mockResolvedValue({ id: "C3", creator: MANAGER }), "no longer is"],
+        ["the creator role moved", () => mocks.getCurationAccess.mockResolvedValue({ ...access, account: FOUNDER, founder: false }), "no longer is"],
         ["a manager decided since", () => mocks.getApplication.mockResolvedValue({ ...filing, status: "recommended" }), "changed after your review"],
         ["another filing was made since", () => mocks.getApplication.mockResolvedValue({ ...filing, revision: 3n }), "changed after your review"],
         ["the network fee rose", () => mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 }), "fee"],

@@ -13,7 +13,6 @@ import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../../lib/
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../../lib/grc20"
 import { NFT_CURATION_PATH, getApplication, getCurationAccess, type CurationApplication } from "../../../../lib/nft/curation"
 import type { Commitment } from "../../../../lib/nft/evidence"
-import { getCollection } from "../../../../lib/nft/ledger"
 import {
     APPLY_GAS_WANTED, APPLY_STORAGE_BYTES, DECISION_LABEL, REVIEW_GAS_WANTED, REVIEW_STORAGE_BYTES, buildApplyMsg, buildReviewMsg, type ReviewDecision,
 } from "../../../../lib/nft/review"
@@ -83,8 +82,8 @@ export function applyRequest(draft: ApplyDraft): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             available(draft)
-            const collection = await getCollection(draft.collection)
-            if (collection.creator !== draft.caller) throw new Error("Only the collection's creator can apply, and this account no longer is. Nothing was sent.")
+            const access = await getCurationAccess(draft.collection, draft.caller, draft.chainId)
+            if (!access.founder) throw new Error("Only the collection's creator can apply, and this account no longer is. Nothing was sent.")
             const read = await assertSameApplication(draft.collection, draft.application)
             if (read?.status === "recommended") throw new Error("This collection is already recommended. Nothing was sent.")
             await assertFeeStillCovers(fee, () => freshFeeForGasWanted(APPLY_GAS_WANTED))

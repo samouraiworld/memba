@@ -21,7 +21,7 @@ import { Empty, ErrorState, Loading, Pill } from "../../../kit"
 import type { OsSession } from "../../../shell/useOsSession"
 import { ActionError } from "./actions"
 import { CollectionName, ReadFailure } from "./orders"
-import { useCollection, utc, type LaneProps } from "./reads"
+import { utc, type LaneProps } from "./reads"
 import { applyRequest, reviewRequest } from "./reviewRequest"
 import { useSignAction } from "./signing"
 
@@ -31,7 +31,7 @@ const TONE = { submitted: "neutral", changes_requested: "warn", recommended: "ok
 const useCurationState = (chainId: string) => useQuery({ queryKey: ["nft", "curation", chainId, "state"], queryFn: getCurationState, staleTime: 60_000, retry: false })
 const useManagers = (chainId: string) => useQuery({ queryKey: ["nft", "curation", chainId, "managers"], queryFn: getCurationManagers, staleTime: 60_000, retry: false })
 
-/** The seats, the managers, and every application, newest filing first as the realm lists them. */
+/** The seats, the managers, and every application, in the order collections first filed, as the realm lists them. */
 export function Operations({ lane }: { lane: LaneProps }) {
     const state = useCurationState(lane.chainId)
     const managers = useManagers(lane.chainId)
@@ -146,10 +146,13 @@ function ReviewForm({ lane, session, application }: { lane: LaneProps; session: 
     )
 }
 
-/** What the connected account may do on this application: apply as its creator, or review as an unconflicted manager. */
+/**
+ * What the connected account may do on this application: apply as its creator,
+ * or review as an unconflicted manager. Both roles come from one curation read,
+ * answered for this chain.
+ */
 function Desk({ lane, session, collection, application }: { lane: LaneProps; session: OsSession; collection: string; application: CurationApplication | null }) {
     const address = session.status === "member" ? session.address : ""
-    const profile = useCollection(lane.chainId, collection)
     const access = useQuery({
         queryKey: ["nft", "curation", lane.chainId, "access", collection, address],
         queryFn: () => getCurationAccess(collection, address, lane.chainId),
@@ -163,13 +166,14 @@ function Desk({ lane, session, collection, application }: { lane: LaneProps; ses
             </div>
         )
     }
-    if (profile.data?.creator === address) {
+    if (access.isPending) return <Loading label="Reading your curation role…" />
+    if (access.isError) return <ReadFailure error={access.error} what="curation role" retry={() => void access.refetch()} />
+    if (access.data.founder) {
         return application?.status === "recommended"
             ? <p className="os-sub">Your collection is recommended. A new filing is possible only after a manager decides otherwise.</p>
             : <section aria-label="Apply for review"><h4 className="os-h">{application ? "File again" : "Apply for review"}</h4><ApplyForm lane={lane} session={session} collection={collection} application={application} /></section>
     }
-    if (access.isError) return <ReadFailure error={access.error} what="curation role" retry={() => void access.refetch()} />
-    if (!access.data?.manager || application === null) return null
+    if (!access.data.manager || application === null) return null
     if (access.data.conflicted) return <p className="os-sub">You are conflicted on this collection, so you cannot review it.</p>
     return <section aria-label="Review this application"><h4 className="os-h">Review</h4><ReviewForm lane={lane} session={session} application={application} /></section>
 }
