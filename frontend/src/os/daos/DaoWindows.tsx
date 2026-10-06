@@ -5,7 +5,7 @@
  *
  * @module os/daos/DaoWindows
  */
-import { lazy, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react"
+import { lazy, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { readGovernanceReceipt } from "../../lib/dao/governanceRecovery"
@@ -13,6 +13,8 @@ import { invalidateProposalCache } from "../../lib/dao/proposals"
 import { hasInvisibleFormatting, revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { canVoteNow, formatChainTime, relativeTime, V2_STATUS_EXPLANATIONS } from "../../lib/dao/v2Lifecycle"
 import { DAO_REALM_PATH } from "../../lib/config"
+import { GOV_PATH } from "../../lib/dao/govActions"
+import { govPublished } from "../../lib/dao/membaGov"
 import { shortAddr } from "../shell/format"
 import { ThingTile } from "../shell/icons"
 import type { DaoSection } from "../shell/osPath"
@@ -31,6 +33,9 @@ import { useAlive } from "../shell/useAlive"
 import { JoinMembaDao } from "./JoinMembaDao"
 import { ParkedDaos } from "./ParkedDaos"
 import { UnknownOutcome } from "./UnknownOutcome"
+import { FolderTabs } from "./FolderTabs"
+import { GovFolder, GovNotPublished } from "./GovFolder"
+import { GovProposalWindow } from "./GovProposal"
 import { WeightedDaoFolder } from "./WeightedDaoFolder"
 import { WeightedProposalWindow } from "./WeightedProposal"
 
@@ -107,7 +112,8 @@ export function DaosApp({ open }: { open: (spec: WindowSpec) => void }) {
     const [err, setErr] = useState<string | null>(null)
     const featured = [
         { realmPath: FEATURED_DAO.realmPath, name: FEATURED_DAO.name },
-        { realmPath: DAO_REALM_PATH, name: "Memba DAO" },
+        // Memba DAO moves to memba_gov once its publication is recorded on this network.
+        { realmPath: govPublished() ? GOV_PATH : DAO_REALM_PATH, name: "Memba DAO" },
     ]
     const saved = getSavedDAOsForOrg(null).filter((d) => !featured.some((f) => f.realmPath === d.realmPath))
     const openRealm = (realmPath: string) => {
@@ -169,6 +175,8 @@ interface DaoFolderProps { name: string; section: DaoSection; open: (spec: Windo
 export function DaoFolder(props: DaoFolderProps) {
     const realmPath = realmForName(props.name)
     if (!realmPath) return <NotADao name={props.name} />
+    // memba_gov is known by its address: no contract probe.
+    if (realmPath === GOV_PATH) return govPublished() ? <GovFolder {...props} /> : <GovNotPublished />
     return <DaoFolderBody {...props} realmPath={realmPath} />
 }
 
@@ -179,20 +187,6 @@ function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderPro
     const config = useDaoConfig(realmPath, standard)
     const proposals = useDaoProposals(realmPath, standard && (section === "proposals" || section === "overview"))
     const members = useDaoMembers(realmPath, config.data?.memberstorePath, standard && section === "members" && !config.isPending)
-    const tabs = useRef<Partial<Record<DaoSection, HTMLButtonElement | null>>>({})
-    const tabId = (id: DaoSection) => `os-dao-${name}-${id}`
-    const panelId = `os-dao-${name}-panel`
-    const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, id: DaoSection) => {
-        const index = TABS.findIndex((tab) => tab.id === id)
-        const next = event.key === "Home" ? 0 : event.key === "End" ? TABS.length - 1
-            : event.key === "ArrowRight" ? (index + 1) % TABS.length
-                : event.key === "ArrowLeft" ? (index + TABS.length - 1) % TABS.length : -1
-        if (next < 0) return
-        event.preventDefault()
-        const target = TABS[next].id
-        open(daoSpec(name, target))
-        requestAnimationFrame(() => tabs.current[target]?.focus())
-    }
     // Which contract this is decides everything below, so nothing else shows until it is known.
     if (kind.loading) return <Loading what="the DAO contract" />
     const join = name === "memba_dao" && <JoinMembaDao open={open} />
@@ -275,18 +269,9 @@ function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderPro
         )
     }
     return (
-        <div className="os-folder">
-            <div className="os-tabs" role="tablist" aria-label="DAO sections">
-                {TABS.map((t) => (
-                    <button key={t.id} ref={(node) => { tabs.current[t.id] = node }} id={tabId(t.id)} type="button" role="tab" aria-selected={section === t.id}
-                        aria-controls={panelId} tabIndex={section === t.id ? 0 : -1} className="os-tab" onKeyDown={(event) => onTabKey(event, t.id)}
-                        onClick={() => open(daoSpec(name, t.id))}>{t.label}</button>
-                ))}
-            </div>
-            <div id={panelId} className="os-folder-body" role="tabpanel" aria-labelledby={tabId(section)} tabIndex={0}>
-                {join && section === "overview" ? <div className="os-stack">{body}{join}</div> : body}
-            </div>
-        </div>
+        <FolderTabs name={name} tabs={TABS} section={section} open={open}>
+            {join && section === "overview" ? <div className="os-stack">{body}{join}</div> : body}
+        </FolderTabs>
     )
 }
 
@@ -295,6 +280,7 @@ function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderPro
 export function ProposalWindow({ dao, n, session, open }: { dao: string; n: number; session: OsSession; open: (spec: WindowSpec) => void }) {
     const realmPath = realmForName(dao)
     if (!realmPath) return <NotADao name={dao} />
+    if (realmPath === GOV_PATH) return govPublished() ? <GovProposalWindow id={String(n)} /> : <GovNotPublished />
     return (
         <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} id={String(n)} session={session} />}>
             <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} open={open} />
