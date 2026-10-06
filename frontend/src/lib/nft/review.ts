@@ -17,7 +17,7 @@ import { address, cid, collectionId, hash } from "./parse"
 /** About twice the measured gas (apply and review 18 to 19M on pinned Gno e75fef8). */
 export const APPLY_GAS_WANTED = 40_000_000
 export const REVIEW_GAS_WANTED = 40_000_000
-/** A first filing stores about 3.5 KB and a review about 0.2 KB; the caps leave room for a longer collection ID and a re-filing. */
+/** A filing stores up to 4.5 KB and a review about 0.2 KB (measured); the caps leave room for a longer collection ID and a re-filing. */
 export const APPLY_STORAGE_BYTES = 5_000
 export const REVIEW_STORAGE_BYTES = 1_000
 
