@@ -1,7 +1,8 @@
 /**
  * What the NFT window's screens share: the network they read, how they move
  * between sections, the queries for a collection and a token's metadata file,
- * a curation hide, and how a retired token is written.
+ * a curation hide, how a retired token is written, and why a Launchpad config
+ * read failed.
  *
  * @module os/apps/nft/screen
  */
@@ -11,6 +12,7 @@ import { isRealmValidOn } from "../../../lib/config"
 import { NFT_CURATION_PATH, getCurationRecord } from "../../../lib/nft/curation"
 import { getCollection, type NftTokenStatus } from "../../../lib/nft/ledger"
 import { fetchTokenMetadata } from "../../../lib/nft/metadata"
+import type { TokenLaunchpadReadError } from "../../../lib/tokenLaunchpadClient"
 import type { MarketNftRoute, NftRoute } from "../../nft/routes"
 
 export const PAGE_SIZE = 20
@@ -75,3 +77,14 @@ export function useCurationHide(screen: NftScreen, collection: string) {
 }
 
 export type CurationHide = ReturnType<typeof useCurationHide>
+
+/** A Launchpad config read that failed (a lane's status, for one), in words a member can act on. */
+export function launchpadReadFailure(error: TokenLaunchpadReadError): string {
+    switch (error.code) {
+        case "realm_error": return "The network refused to read the Launchpad config. Try again later."
+        case "invalid_response": return "What this network's Launchpad config sent does not follow its rules, so nothing was checked against it."
+        case "unavailable": return "The Launchpad config cannot be read on this network."
+        case "network_changed": return "The network changed during the check. Try again."
+        default: return "The network could not be read. Try again in a moment."
+    }
+}

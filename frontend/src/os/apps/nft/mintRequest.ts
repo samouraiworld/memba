@@ -12,9 +12,9 @@ import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../lib/dao
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
 import { NFT_DROPS_PATH, gateUsed, listStages, mintedBy, type NftStage } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
-import { getLaneStatus, laneClosedReason } from "../../../lib/nft/lane"
 import { getToken } from "../../../lib/nft/ledger"
 import { MINT_GAS_WANTED, MINT_STORAGE_BYTES, NATIVE_CURRENCY, buildMintMsg, mintBlocker } from "../../../lib/nft/mint"
+import { laneClosedReason, readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
 
@@ -95,7 +95,7 @@ export function mintRequest(input: MintDraft): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(draft)
-            const lane = await getLaneStatus("nft_drops", NATIVE_CURRENCY)
+            const lane = await readActionStatus(draft.networkKey, "nft_drops", NATIVE_CURRENCY)
             if (!lane.open) throw new Error(`${laneClosedReason(lane, "Minting")} Nothing was sent.`)
             const stages = await listStages(draft.collection)
             assertSameStage(stages[stage.index], stage, offered)

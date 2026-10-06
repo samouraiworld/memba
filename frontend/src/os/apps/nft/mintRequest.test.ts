@@ -22,7 +22,7 @@ vi.mock("../../../lib/nft/drops", async (importActual) => ({
     listStages: mocks.listStages, mintedBy: mocks.mintedBy, gateUsed: mocks.gateUsed,
 }))
 vi.mock("../../../lib/nft/ledger", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/ledger")>(), getToken: mocks.getToken }))
-vi.mock("../../../lib/nft/lane", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/lane")>(), getLaneStatus: mocks.lane }))
+vi.mock("../../../lib/tokenLaunchpadConfigClient", async (importActual) => ({ ...await importActual<typeof import("../../../lib/tokenLaunchpadConfigClient")>(), readActionStatus: mocks.lane }))
 vi.mock("../../../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../../../lib/grc20")>()
     return {
@@ -64,7 +64,7 @@ const draft = (more: Partial<MintDraft> = {}): MintDraft => ({
     networkKey: "mainnet", chainId: "gnoland-1", price: { gas: 1000, ugnot: 1 }, ...more,
 })
 const run = (request: ReturnType<typeof mintRequest>) => executeSignature(request, undefined, request.prepare(undefined).msgs, () => {})
-const open = { lane: "nft_drops", currency: "ugnot", paused: false, allowlisted: true, laneReady: true, open: true }
+const open = { lane: "nft_drops", currency: "ugnot", version: 1n, paused: false, allowlisted: true, laneReady: true, open: true }
 
 beforeEach(() => {
     mocks.available.mockReset().mockReturnValue(true)
@@ -89,6 +89,7 @@ describe("NFT mint signing", () => {
         expect(lines["Network fee"]).toBe("0.06 GNOT")
         expect(await run(request)).toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Mint from C1", expect.objectContaining({ gasWanted: 50_000_000, gasFee: 60_000 }))
+        expect(mocks.lane).toHaveBeenCalledWith("mainnet", "nft_drops", "ugnot")
         expect(mocks.mintedBy).toHaveBeenCalledWith("C1", 0, BUYER)
         expect(await request.verify!(undefined, HASH, undefined)).toBe(true)
     })

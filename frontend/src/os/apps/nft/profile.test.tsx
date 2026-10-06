@@ -7,6 +7,7 @@ import { getIpfsGatewayUrl } from "../../../lib/ipfs"
 import { derivePkgBech32Addr } from "../../../lib/dao/realmAddress"
 import { NFT_MARKET_PATH } from "../../../lib/nft/market"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
+import { TokenLaunchpadReadError } from "../../../lib/tokenLaunchpadClient"
 import NftWindow from "./native"
 
 const realms = vi.hoisted(() => ({ drops: true, curation: true }))
@@ -15,10 +16,10 @@ const reads = vi.hoisted(() => ({
 }))
 vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), getCollection: reads.getCollection, getCapabilities: reads.getCapabilities, listTokens: reads.listTokens, getToken: (...args: unknown[]) => minting.getToken(...args) }))
 const minting = vi.hoisted(() => ({
-    sign: vi.fn(), mintedBy: vi.fn(), gateUsed: vi.fn(), getToken: vi.fn(), getLaneStatus: vi.fn(), price: vi.fn(),
+    sign: vi.fn(), mintedBy: vi.fn(), gateUsed: vi.fn(), getToken: vi.fn(), readActionStatus: vi.fn(), price: vi.fn(),
 }))
 vi.mock("../../../lib/nft/drops", async (original) => ({ ...(await original<object>()), listStages: reads.listStages, mintedBy: minting.mintedBy, gateUsed: minting.gateUsed }))
-vi.mock("../../../lib/nft/lane", async (original) => ({ ...(await original<object>()), getLaneStatus: minting.getLaneStatus }))
+vi.mock("../../../lib/tokenLaunchpadConfigClient", async (original) => ({ ...(await original<object>()), readActionStatus: minting.readActionStatus }))
 vi.mock("../../../lib/grc20", async (original) => ({ ...(await original<object>()), networkGasPriceFresh: minting.price }))
 vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign: minting.sign }) }))
 vi.mock("../../../lib/nft/curation", async (original) => ({ ...(await original<object>()), getCurationRecord: reads.getCurationRecord }))
@@ -85,7 +86,7 @@ describe("NFT collection profile", () => {
         reads.fetchTokenMetadata.mockResolvedValue({ name: "Relevé", description: null, image: null, attributes: [] })
         for (const mock of Object.values(minting)) mock.mockReset()
         guest.openConnect.mockReset()
-        minting.getLaneStatus.mockResolvedValue({ lane: "nft_drops", currency: "ugnot", paused: false, allowlisted: true, laneReady: true, open: true })
+        minting.readActionStatus.mockResolvedValue({ lane: "nft_drops", currency: "ugnot", version: 1n, paused: false, allowlisted: true, laneReady: true, open: true })
         minting.mintedBy.mockResolvedValue(0n)
         minting.gateUsed.mockResolvedValue(false)
         minting.price.mockResolvedValue({ gas: 1000, ugnot: 1 })
@@ -256,7 +257,7 @@ describe("NFT collection profile", () => {
         show(vi.fn(), member)
         fireEvent.click(await screen.findByRole("button", { name: "Mint" }))
         await vi.waitFor(() => expect(minting.sign).toHaveBeenCalledOnce())
-        expect(minting.getLaneStatus).toHaveBeenCalledWith("nft_drops", "ugnot")
+        expect(minting.readActionStatus).toHaveBeenCalledWith("testnet12", "nft_drops", "ugnot")
         expect(minting.mintedBy).toHaveBeenCalledWith("C1", 0, MEMBER)
         const request = minting.sign.mock.calls[0][0]
         expect(request.prepare().msgs[0].value).toMatchObject({ caller: MEMBER, send: "4000000ugnot", func: "Mint", args: ["C1", "0", "ugnot", "4000000", "0", "", "0"] })
@@ -265,7 +266,7 @@ describe("NFT collection profile", () => {
 
     it("stops before the review when the lane is paused, the wallet limit is reached or a read fails", async () => {
         reads.listStages.mockResolvedValue([stage(0, "fixed", { open: true })])
-        minting.getLaneStatus.mockResolvedValueOnce({ lane: "nft_drops", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false })
+        minting.readActionStatus.mockResolvedValueOnce({ lane: "nft_drops", currency: "ugnot", version: 1n, paused: true, allowlisted: true, laneReady: true, open: false })
         show(vi.fn(), member)
         const mint = await screen.findByRole("button", { name: "Mint" })
         fireEvent.click(mint)
@@ -276,6 +277,18 @@ describe("NFT collection profile", () => {
         minting.price.mockRejectedValueOnce(new ReadError("Could not read the gas price"))
         fireEvent.click(mint)
         await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("The network could not be read. Try again in a moment."))
+        // Each failed lane read differs from the one before it, so a stale alert never passes.
+        for (const [code, said] of [
+            ["realm_error", "The network refused to read the Launchpad config. Try again later."],
+            ["rpc_error", "The network could not be read. Try again in a moment."],
+            ["invalid_response", "What this network's Launchpad config sent does not follow its rules, so nothing was checked against it."],
+            ["unavailable", "The Launchpad config cannot be read on this network."],
+            ["network_changed", "The network changed during the check. Try again."],
+        ] as const) {
+            minting.readActionStatus.mockRejectedValueOnce(new TokenLaunchpadReadError(code, "gno.land/r/samcrew/launchpad/config/v1 rejected the read"))
+            fireEvent.click(mint)
+            await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(said))
+        }
         expect(minting.sign).not.toHaveBeenCalled()
     })
 

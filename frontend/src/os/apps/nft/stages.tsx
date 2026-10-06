@@ -13,15 +13,16 @@ import { isRealmValidOn } from "../../../lib/config"
 import { networkGasPriceFresh } from "../../../lib/grc20"
 import { NFT_DROPS_PATH, listStages, mintedBy, type NftStage, type NftStageKind } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
-import { getLaneStatus, laneClosedReason } from "../../../lib/nft/lane"
 import { NATIVE_CURRENCY, mintBlocker } from "../../../lib/nft/mint"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
+import { laneClosedReason, readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
+import { TokenLaunchpadReadError } from "../../../lib/tokenLaunchpadClient"
 import { useSigner } from "../../sign/signerContext"
 import type { OsSession } from "../../shell/useOsSession"
 import { Empty, Loading, Pill } from "../../kit"
 import { assertGateToken, mintRequest } from "./mintRequest"
 import { ReadFailure } from "./parts"
-import type { NftScreen } from "./screen"
+import { launchpadReadFailure, type NftScreen } from "./screen"
 
 const KIND: Record<NftStageKind, string> = { fixed: "Fixed price", allowlist: "Allowlist", holder: "Holders", dutch: "Dutch auction" }
 
@@ -38,6 +39,7 @@ function when(seconds: bigint): string {
 function reason(err: unknown): string {
     if (err instanceof ReadError) return "The network could not be read. Try again in a moment."
     if (err instanceof RealmRefusedError) return "The network refused this read. Refresh the collection."
+    if (err instanceof TokenLaunchpadReadError) return launchpadReadFailure(err)
     return err instanceof Error ? err.message : String(err)
 }
 
@@ -69,7 +71,7 @@ function MintAction({ screen, session, target, stage }: { screen: NftScreen; ses
         try {
             const caller = session.address
             const [price, lane, minted] = await Promise.all([
-                networkGasPriceFresh(), getLaneStatus("nft_drops", NATIVE_CURRENCY), mintedBy(target.collection, stage.index, caller),
+                networkGasPriceFresh(), readActionStatus(screen.network, "nft_drops", NATIVE_CURRENCY), mintedBy(target.collection, stage.index, caller),
             ])
             if (!lane.open) throw new Error(laneClosedReason(lane, "Minting"))
             // mintRequest refuses a member at the stage's wallet limit, with its reason.

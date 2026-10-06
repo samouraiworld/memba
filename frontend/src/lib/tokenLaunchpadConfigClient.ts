@@ -50,6 +50,14 @@ export async function readActionStatus(networkKey: string, lane: LaunchpadLane, 
     return parseActionStatus(value, lane, currency)
 }
 
+/** Why a Launchpad lane takes no new action now (config's ActionStatusJSON), in one sentence; empty when it is open. */
+export function laneClosedReason(status: Pick<LaunchpadActionStatus, "open" | "paused" | "allowlisted">, action: string): string {
+    if (status.open) return ""
+    if (status.paused) return `${action} is paused on this network for now.`
+    if (!status.allowlisted) return `${action} in this currency is not allowed on this network.`
+    return `${action} is not set up on this network yet.`
+}
+
 /** Whether config reserves a ticker: the ledger refuses a token that takes one. */
 export async function readReserved(networkKey: string, ticker: string): Promise<boolean> {
     if (!/^[A-Z0-9]{1,10}$/.test(ticker)) invalid("invalid ticker")
