@@ -24,7 +24,7 @@ describe("QuestCard — network availability", () => {
     })
 
     it("keeps the quest available where its realm is deployed", () => {
-        renderCard("pearl", "join-dao")
+        renderCard("test13", "join-dao")
         expect(screen.getByText("Available")).toBeInTheDocument()
     })
 

@@ -25,7 +25,7 @@ vi.mock("react-router-dom", async (orig) => ({
 vi.mock("../hooks/useDaoKind", async () => {
     const { capabilitiesFor } = await import("../lib/dao/kind")
     const { NETWORKS } = await import("../lib/config")
-    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.pearl), loading: false, error: null }) }
+    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.mainnet), loading: false, error: null }) }
 })
 vi.mock("../lib/grc20", async (orig) => ({ ...(await orig<typeof import("../lib/grc20")>()), doContractBroadcast: state.broadcast }))
 vi.mock("../lib/dao/membaV2", async (orig) => ({ ...(await orig<typeof import("../lib/dao/membaV2")>()), readV2Proposals: state.proposals }))
@@ -60,7 +60,7 @@ function Where() {
     return <div data-testid="location">{useLocation().pathname}</div>
 }
 
-function mount(url = `/pearl/dao/${REALM}/propose`) {
+function mount(url = `/mainnet/dao/${REALM}/propose`) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     return render(
         <QueryClientProvider client={client}>
@@ -113,7 +113,7 @@ describe("version-2 propose form", () => {
         expect(screen.getByText(/Requested cap 1\.6\d? GNOT/)).toBeInTheDocument()
 
         fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
-        await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/pearl/dao/${REALM}/proposal/6`))
+        await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/mainnet/dao/${REALM}/proposal/6`))
         expect(state.broadcast).toHaveBeenCalledTimes(1)
         const [msgs, memo, opts] = state.broadcast.mock.calls[0]
         expect(msgs).toEqual([preview])
@@ -207,7 +207,7 @@ describe("version-2 propose form", () => {
     })
 
     it("opens prefilled from the members page", async () => {
-        mount(`/pearl/dao/${REALM}/propose?type=change_role&target=${BOB}`)
+        mount(`/mainnet/dao/${REALM}/propose?type=change_role&target=${BOB}`)
         const types = await screen.findByRole("group", { name: "Proposal type" })
         expect(within(types).getByRole("button", { name: "Change roles" })).toHaveAttribute("aria-pressed", "true")
         expect(screen.getByLabelText("Member address")).toHaveValue(BOB)
@@ -219,7 +219,7 @@ describe("version-2 propose form", () => {
     })
 
     it("refuses a removal that would leave no voting power, and warns before archiving", async () => {
-        mount(`/pearl/dao/${REALM}/propose?type=remove_member&target=${NEW}`)
+        mount(`/mainnet/dao/${REALM}/propose?type=remove_member&target=${NEW}`)
         expect(await screen.findByText("This address is not a member of the DAO.")).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Archive DAO" }))
         expect(screen.getByText("Archiving is permanent.")).toBeInTheDocument()
@@ -262,7 +262,7 @@ describe("version-2 propose form", () => {
         const first = mount()
         fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Unfinished text" } })
         first.unmount()
-        const linked = mount(`/pearl/dao/${REALM}/propose?type=add_member&target=${NEW}`)
+        const linked = mount(`/mainnet/dao/${REALM}/propose?type=add_member&target=${NEW}`)
         expect(await screen.findByLabelText("New member address")).toHaveValue(NEW)
         expect(screen.getByLabelText("Title")).toHaveValue("")
         linked.unmount()

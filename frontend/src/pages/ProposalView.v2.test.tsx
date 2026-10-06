@@ -31,7 +31,7 @@ vi.mock("react-router-dom", async (orig) => ({
 vi.mock("../hooks/useDaoKind", async () => {
     const { capabilitiesFor } = await import("../lib/dao/kind")
     const { NETWORKS } = await import("../lib/config")
-    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.pearl), loading: false, error: null }) }
+    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.mainnet), loading: false, error: null }) }
 })
 vi.mock("../lib/grc20", async (orig) => ({ ...(await orig<typeof import("../lib/grc20")>()), doContractBroadcast: state.broadcast }))
 vi.mock("../lib/errorLog", () => ({ logChainError: vi.fn() }))
@@ -82,7 +82,7 @@ function mount() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     return render(
         <QueryClientProvider client={client}>
-            <MemoryRouter initialEntries={[`/pearl/dao/${REALM}/proposal/2`]}>
+            <MemoryRouter initialEntries={[`/mainnet/dao/${REALM}/proposal/2`]}>
                 <Routes>
                     <Route path="/:network/dao/*" element={<ProposalView />} />
                 </Routes>

@@ -34,7 +34,7 @@ function chain(answers: Answers) {
     })
 }
 
-const ctx = (realmPath: string, chainId = "pearl-1") => ({ rpcUrl: "https://rpc.example", chainId, realmPath })
+const ctx = (realmPath: string, chainId = "test-13") => ({ rpcUrl: "https://rpc.example", chainId, realmPath })
 
 const ALL_KINDS: DaoKind[] = ["govdao", "memba-v2", "memba-v1", "daokit", "weighted", "unknown"]
 
@@ -62,25 +62,25 @@ describe("DAO kind", () => {
         expect(govdao.execute).toBe(true)
         for (const kind of ALL_KINDS) {
             expect(capabilitiesFor(kind, NETWORKS.mainnet).treasury).toBe(false)
-            expect(capabilitiesFor(kind, NETWORKS.pearl).treasury).toBe(false)
+            expect(capabilitiesFor(kind, NETWORKS.test13).treasury).toBe(false)
         }
     })
 
     it("gives unknown contracts no write capability", () => {
-        const c = capabilitiesFor("unknown", NETWORKS.pearl)
+        const c = capabilitiesFor("unknown", NETWORKS.test13)
         expect(c.propose).toEqual([]); expect(c.vote).toBe(false); expect(c.execute).toBe(false)
     })
 
     it("keeps daokit and weighted DAOs read-only in the shell", () => {
         for (const kind of ["daokit", "weighted"] as const) {
-            const c = capabilitiesFor(kind, NETWORKS.pearl)
+            const c = capabilitiesFor(kind, NETWORKS.test13)
             expect(c.propose).toEqual([]); expect(c.vote).toBe(false); expect(c.execute).toBe(false)
         }
     })
 
     it("offers text proposals only on v1 and all five kinds on v2", () => {
-        expect(capabilitiesFor("memba-v1", NETWORKS.pearl).propose).toEqual(["text"])
-        expect(capabilitiesFor("memba-v2", NETWORKS.pearl).propose).toEqual(["text", "add_member", "remove_member", "change_role", "archive"])
+        expect(capabilitiesFor("memba-v1", NETWORKS.test13).propose).toEqual(["text"])
+        expect(capabilitiesFor("memba-v2", NETWORKS.test13).propose).toEqual(["text", "add_member", "remove_member", "change_role", "archive"])
     })
 
     it("never offers channels on mainnet", () => {
@@ -147,7 +147,7 @@ describe("DAO kind", () => {
         expect(evalMock.mock.calls.map(c => c[2])).toEqual(["GetConfigJSON()"])
         expect(evalMock.mock.calls[0][3]).toBe(true)
         expect(renderMock).not.toHaveBeenCalled()
-        for (const network of [NETWORKS.mainnet, NETWORKS.pearl]) {
+        for (const network of [NETWORKS.mainnet, NETWORKS.test13]) {
             const c = capabilitiesFor("weighted", network)
             expect([c.propose, c.vote, c.execute, c.channels, c.settings, c.treasury]).toEqual([[], false, false, false, false, false])
         }
@@ -177,11 +177,11 @@ describe("DAO kind", () => {
 
     it("keys the cache by chain id as well as realm path", async () => {
         chain({ api: qstr("1.0") })
-        expect(await resolveDaoKind(ctx("gno.land/r/alice/team", "pearl-1"))).toBe("memba-v1")
+        expect(await resolveDaoKind(ctx("gno.land/r/alice/team", "test-13"))).toBe("memba-v1")
         chain({ template: qstr("memba-dao/2") })
         // Same path, same chain → cached answer, no new probe.
         const calls = evalMock.mock.calls.length
-        expect(await resolveDaoKind(ctx("gno.land/r/alice/team", "pearl-1"))).toBe("memba-v1")
+        expect(await resolveDaoKind(ctx("gno.land/r/alice/team", "test-13"))).toBe("memba-v1")
         expect(evalMock.mock.calls.length).toBe(calls)
         // Same path, different chain → probed again.
         expect(await resolveDaoKind(ctx("gno.land/r/alice/team", "gnoland-1"))).toBe("memba-v2")

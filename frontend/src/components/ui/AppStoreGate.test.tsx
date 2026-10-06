@@ -10,7 +10,7 @@ function mount(route: string) {
 }
 
 describe("App Store directory and registry boundary", () => {
-    it.each(["/mainnet/apps", "/pearl/apps/"])("keeps ecosystem links available with the registry off at %s", route => {
+    it.each(["/mainnet/apps", "/test13/apps/"])("keeps ecosystem links available with the registry off at %s", route => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "false")
         mount(route)
         for (const name of ["Adena", "GnoSwap", "Boards", "Akkadia", "Bubble Rumble", "Kourt", "GnoScan", "Gno Playground", "mygnoscan"]) {
@@ -23,11 +23,11 @@ describe("App Store directory and registry boundary", () => {
     })
     it.each(["submit", "review", "my-submissions", "r/demo/app"])("keeps %s gated when the registry is disabled", path => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "false")
-        mount(`/pearl/apps/${path}`)
+        mount(`/test13/apps/${path}`)
         expect(screen.getByTestId("coming-soon-gate")).toBeInTheDocument()
         expect(screen.queryByText("REGISTRY_CONTENT")).not.toBeInTheDocument()
         expect(screen.queryByRole("button")).not.toBeInTheDocument()
-        expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/pearl/")
+        expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/test13/")
     })
     it.each(["", "/submit", "/review", "/my-submissions", "/r/demo/app"])("mounts the mainnet registry (v3) with the flag on: %s", suffix => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
@@ -41,8 +41,19 @@ describe("App Store directory and registry boundary", () => {
     })
     it("mounts the real registry only when enabled and eligible", () => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
-        mount("/pearl/apps")
+        const eligible = mount("/mainnet/apps")
         expect(screen.getByText("REGISTRY_CONTENT")).toBeInTheDocument()
         expect(screen.queryByTestId("coming-soon-gate")).not.toBeInTheDocument()
+        eligible.unmount()
+        // Enabled but not eligible: test13's App Store realm (v2) is not allowlisted there.
+        const ineligible = mount("/test13/apps/submit")
+        expect(screen.queryByText("REGISTRY_CONTENT")).not.toBeInTheDocument()
+        expect(screen.getByTestId("coming-soon-gate")).toBeInTheDocument()
+        ineligible.unmount()
+        // Eligible but not enabled.
+        vi.stubEnv("VITE_ENABLE_APPSTORE", "false")
+        mount("/mainnet/apps/submit")
+        expect(screen.queryByText("REGISTRY_CONTENT")).not.toBeInTheDocument()
+        expect(screen.getByTestId("coming-soon-gate")).toBeInTheDocument()
     })
 })

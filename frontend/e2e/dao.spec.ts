@@ -21,7 +21,7 @@ import AxeBuilder from '@axe-core/playwright'
  * The proposal-conditional probes (pagination, EXECUTE badge)
  * see the fixture's 0-proposal chain and skip deterministically — the same
  * outcome they had on the then-default topaz, which had no GovDAO proposals.
- * (Pearl, today's default, DOES carry GovDAO proposals — the offline fixture,
+ * (Mainnet, today's default, DOES carry GovDAO proposals — the offline fixture,
  * not the chain, is what keeps these skips deterministic.)
  * The live-resolution smoke stays in directory-live.spec.ts, alone by design.
  */

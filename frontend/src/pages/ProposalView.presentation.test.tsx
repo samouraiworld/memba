@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
 }))
 vi.mock('../lib/proGovernance', () => ({ isProGovernanceRoute: () => state.professional }))
 vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal<typeof import('react-router-dom')>(), useOutletContext: () => ({ auth: { isAuthenticated: state.authenticated }, adena: { address: state.authenticated ? state.address : '' } }) }))
-vi.mock('../hooks/useDaoKind', async () => { const { capabilitiesFor } = await import('../lib/dao/kind'); const { NETWORKS } = await import('../lib/config'); return { useDaoKind: (path: string) => { const kind = path === 'gno.land/r/gov/dao' ? 'govdao' as const : 'memba-v1' as const; return { kind, capabilities: capabilitiesFor(kind, NETWORKS.pearl), loading: false, error: null } } } })
+vi.mock('../hooks/useDaoKind', async () => { const { capabilitiesFor } = await import('../lib/dao/kind'); const { NETWORKS } = await import('../lib/config'); return { useDaoKind: (path: string) => { const kind = path === 'gno.land/r/gov/dao' ? 'govdao' as const : 'memba-v1' as const; return { kind, capabilities: capabilitiesFor(kind, NETWORKS.mainnet), loading: false, error: null } } } })
 vi.mock('../hooks/useDaoRoute', () => ({ useDaoRoute: () => ({ realmPath: 'gno.land/r/team/dao', encodedSlug: 'gno.land/r/team/dao', proposalId: '4' }) }))
 vi.mock('../hooks/useNetworkNav', () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock('../hooks/useProposalDate', () => ({ useProposalDate: () => ({ timestamp: null }) }))

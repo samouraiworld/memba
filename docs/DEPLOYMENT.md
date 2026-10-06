@@ -40,7 +40,7 @@ npm run dev
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
-| `VITE_MAINNET_RPC_URL` | `https://rpc.gno.land:443` | Override mainnet's (`gnoland-1`) RPC (same `VITE_<NETWORK>_RPC_URL` pattern per network; retired Pearl keeps `VITE_PEARL_RPC_URL`). Optional — the endpoint is baked into `config.ts`. (There is no `VITE_GNO_RPC_URL`: no code reads it.) |
+| `VITE_MAINNET_RPC_URL` | `https://rpc.gno.land:443` | Override mainnet's (`gnoland-1`) RPC (same `VITE_<NETWORK>_RPC_URL` pattern per network). Optional — the endpoint is baked into `config.ts`. (There is no `VITE_GNO_RPC_URL`: no code reads it.) |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/memba_dao` | Canonical Memba dApp DAO realm path on-chain |
 | `VITE_GNOLOVE_API_URL` | `https://gnolove-api.samourai.live` | Gnolove Go API (scoreboard, reports, analytics). Hosts outside `TRUSTED_GNOLOVE_API_DOMAINS` are ignored |
 | `VITE_GNO_MONITORING_API_URL` | `https://gnomonitoring.samourai.live` | gnomonitoring API (validator monikers, uptime). Hosts outside `TRUSTED_MONITORING_DOMAINS` are ignored |

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import handler from '../../netlify/edge-functions/design-og'
-const html = '<html><head><meta property="og:title" content="Memba"><meta property="og:description" content="Original"><meta property="og:image" content="/brand/folded-m/share.png"><meta name="twitter:image" content="/brand/folded-m/share.png"><meta property="og:url" content="/pearl"></head><body>Application</body></html>'
+const html = '<html><head><meta property="og:title" content="Memba"><meta property="og:description" content="Original"><meta property="og:image" content="/brand/folded-m/share.png"><meta name="twitter:image" content="/brand/folded-m/share.png"><meta property="og:url" content="/mainnet"></head><body>Application</body></html>'
 const response = (body = html) => new Response(body, { headers: { 'content-type': 'text/html', etag: 'original' } })
 describe('professional crawler cards', () => {
     it.each(['/api/query', '/assets/app.js', '/brand/folded-m/share.png', '/feed/post/1'])('preserves downstream responses for %s', async path => {
@@ -27,7 +27,9 @@ describe('professional crawler cards', () => {
         const result = await handler(new Request(`https://example.com/${path}?private-query=removed`, { headers: { 'user-agent': 'Twitterbot/1.0' } }), { next: async () => response() })
         const text = await result.text()
         expect(text).toContain('https://example.com/brand/folded-m/share.png')
-        expect(text).toContain(path.startsWith('mainnet') ? '· gno.land' : '· Pearl')
+        // Only live networks are named; a retired one (pearl) gets no network suffix.
+        if (path.startsWith('mainnet')) expect(text).toContain('· gno.land')
+        else expect(text).not.toMatch(/· (Pearl|gno\.land)/)
         expect(text).not.toContain('private-query')
         expect(result.headers.get('etag')).toBeNull()
         expect(result.headers.get('vary')).toContain('User-Agent')

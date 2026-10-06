@@ -91,11 +91,8 @@ test.describe('v1.4.0 — CreateToken Placeholders', () => {
     // Deliberate retired-chain fixture: /test13 is hidden but still deep-link
     // resolvable, and its factory realm has long been allowlist-valid, so the
     // real form renders statically (no chain read gates it). The default
-    // network serves the factory too — D3(b) was ruled 2026-08-16 and
-    // tokenfactory_v2 went live on pearl with the 2026-08-31 ceremony (see
-    // token.spec.ts) — but the pin is kept so this placeholder check never
-    // depends on the default allowlist. Comment-only truth; the pin is
-    // follow-up cleanup.
+    // network (mainnet) does not publish the factory and honestly gates the
+    // page (see token.spec.ts), so this placeholder check needs the pin.
     test('neutral placeholders used', async ({ page }) => {
         await page.goto('/test13/create-token')
         // Check that new placeholders are present

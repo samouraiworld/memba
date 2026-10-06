@@ -1,19 +1,10 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from "vitest"
-// Pin the module-load ACTIVE network to pearl — the chain Memba's realms are
-// actually deployed on. `config.ts` resolves it from the URL/localStorage
-// BEFORE any import runs, so this must be hoisted above the imports; a jsdom
-// test has no URL network segment, which left it falling through to
-// DEFAULT_NETWORK. That was invisible while the default was a realm-backed
-// testnet, and became load-bearing at the 2026-09-17 mainnet flip: on a
-// realm-free default this file's subject changes behaviour for reasons that
-// have nothing to do with what it asserts.
-// Mainnet cutover (2026-09-23): pearl is RETIRED (hidden), and a hidden
-// network is never restored from storage — only honoured when it is IN THE
-// URL. So the pin moved from localStorage to the jsdom URL: pearl keeps its
-// full realm allowlist, which is what this file needs.
-// Pearl links redirect to mainnet since the same day (RETIRED_NETWORKS), so a
-// /pearl/ URL now initialises on mainnet; the pin moved to /test13/, a hidden
-// but NOT retired network that still resolves by URL with its realm allowlist.
+// Pin the module-load ACTIVE network to /test13/ through the jsdom URL. `config.ts`
+// resolves it from the URL BEFORE any import runs, so this must be hoisted above the
+// imports; without it the file runs on DEFAULT_NETWORK (mainnet), whose realm set
+// changes this file's subject for reasons that have nothing to do with what it
+// asserts. test13 is hidden but not retired: it resolves by URL (never from storage)
+// with its realm allowlist.
 vi.hoisted(() => {
     window.history.replaceState(null, "", "/test13/")
 })

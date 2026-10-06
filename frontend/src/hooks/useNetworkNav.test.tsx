@@ -32,14 +32,20 @@ describe("useNetworkKey", () => {
         expect(keyAt("/mainnet/")).toBe("mainnet")
     })
 
+    it("never takes an Object.prototype member in the URL for a network", () => {
+        for (const segment of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+            expect(keyAt(`/${segment}/directory`), segment).toBe(DEFAULT_NETWORK)
+        }
+    })
+
     it("ignores a stale URL echo naming a retired or hidden network", () => {
-        for (const echo of ["pearl", "test13"]) {
+        for (const echo of ["onyx", "test13"]) {
             expect(NETWORKS[echo]?.hidden, echo).toBe(true)
             localStorage.setItem("memba_network", echo)
             expect(keyAt("/no-network-here"), echo).toBe(DEFAULT_NETWORK)
         }
         // …and one that has left the registry altogether.
-        for (const echo of ["topaz", "sapphire", "gnoland1"]) {
+        for (const echo of ["pearl", "topaz", "sapphire", "gnoland1"]) {
             expect(NETWORKS[echo], echo).toBeUndefined()
             localStorage.setItem("memba_network", echo)
             expect(keyAt("/no-network-here"), echo).toBe(DEFAULT_NETWORK)
@@ -47,6 +53,9 @@ describe("useNetworkKey", () => {
     })
 
     it("ignores a stored explicit choice of a hidden network, and honours a visible one", () => {
+        localStorage.setItem("memba_network_pref", "onyx")
+        expect(keyAt("/no-network-here")).toBe(DEFAULT_NETWORK)
+        // A retired network (pearl) is no network at all.
         localStorage.setItem("memba_network_pref", "pearl")
         expect(keyAt("/no-network-here")).toBe(DEFAULT_NETWORK)
         localStorage.setItem("memba_network_pref", "mainnet")

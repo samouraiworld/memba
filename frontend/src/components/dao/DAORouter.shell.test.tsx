@@ -68,12 +68,12 @@ beforeEach(() => {
 
 describe("DAO shell sections", () => {
     it("a version-2 DAO has Overview, Proposals, Members and Settings sections", async () => {
-        mount("/pearl/dao/gno.land/r/alice/team")
+        mount("/mainnet/dao/gno.land/r/alice/team")
         const nav = await screen.findByRole("navigation", { name: "DAO sections" })
         const links = within(nav).getAllByRole("link").map((l) => l.textContent)
         expect(links).toEqual(["Overview", "Proposals", "Members", "Settings"])
         expect(within(nav).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page")
-        expect(within(nav).getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/pearl/dao/gno.land/r/alice/team/settings")
+        expect(within(nav).getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/mainnet/dao/gno.land/r/alice/team/settings")
     })
 
     it("GovDAO has no Settings section and its settings URL is unavailable", async () => {
@@ -85,7 +85,7 @@ describe("DAO shell sections", () => {
     })
 
     it("the Proposals section lists proposals without the overview card", async () => {
-        mount("/pearl/dao/gno.land/r/alice/team/proposals")
+        mount("/mainnet/dao/gno.land/r/alice/team/proposals")
         const nav = await screen.findByRole("navigation", { name: "DAO sections" })
         expect(within(nav).getByRole("link", { name: "Proposals" })).toHaveAttribute("aria-current", "page")
         expect((await screen.findAllByText(/Active Proposals/i)).length).toBeGreaterThan(0)
@@ -93,7 +93,7 @@ describe("DAO shell sections", () => {
     })
 
     it("the Settings section shows the version-2 rules read-only", async () => {
-        mount("/pearl/dao/gno.land/r/alice/team/settings")
+        mount("/mainnet/dao/gno.land/r/alice/team/settings")
         expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument()
         expect(screen.getByText("memba-dao/2")).toBeInTheDocument()
         expect(screen.getByText("60% of all voting power")).toBeInTheDocument()
@@ -111,25 +111,25 @@ describe("DAO shell sections", () => {
 
     it("an archived DAO says so in Settings", async () => {
         state.archived = true
-        mount("/pearl/dao/gno.land/r/alice/team/settings")
+        mount("/mainnet/dao/gno.land/r/alice/team/settings")
         expect(await screen.findByText(/This DAO is archived/)).toBeInTheDocument()
     })
 
     it("version-1 DAOs carry a neutral notice about their older contract", async () => {
         state.kind = "memba-v1"
-        mount("/pearl/dao/gno.land/r/alice/team/members")
+        mount("/mainnet/dao/gno.land/r/alice/team/members")
         expect(await screen.findByRole("note")).toHaveTextContent("This DAO uses an older contract with known limitations (a single admin can change roles). Consider creating a new DAO.")
         state.kind = "memba-v2"
     })
 
     it("version-2 DAOs carry no such notice", async () => {
-        mount("/pearl/dao/gno.land/r/alice/team")
+        mount("/mainnet/dao/gno.land/r/alice/team")
         await screen.findByRole("navigation", { name: "DAO sections" })
         expect(screen.queryByText(/older contract/)).not.toBeInTheDocument()
     })
 
     it("proposal pages keep the section navigation", async () => {
-        mount("/pearl/dao/gno.land/r/alice/team/proposal/3")
+        mount("/mainnet/dao/gno.land/r/alice/team/proposal/3")
         expect(await screen.findByText("Proposal reader")).toBeInTheDocument()
         expect(screen.getByRole("navigation", { name: "DAO sections" })).toBeInTheDocument()
     })

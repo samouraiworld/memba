@@ -13,15 +13,17 @@ describe("network-scoped discovery", () => {
         expect(main.packages).toEqual([])
         expect(main.realms.map(r => r.path)).toEqual(["gno.land/r/gnoland/boards2/v0", "gno.land/r/gov/dao", "gno.land/r/gnoland/blog"])
         expect(main.realms.every(r => r.networkKey === "mainnet" && r.provenance === "editorial" && r.checkedAt === "2026-09-22")).toBe(true)
-        const testnet = directorySeeds("pearl")
+        const testnet = directorySeeds("test13")
         expect(testnet.packages).toHaveLength(SEED_PACKAGES.length)
-        expect([...testnet.realms, ...testnet.packages].every(r => r.networkKey === "pearl" && r.provenance === "reference" && !r.checkedAt)).toBe(true)
+        expect([...testnet.realms, ...testnet.packages].every(r => r.networkKey === "test13" && r.provenance === "reference" && !r.checkedAt)).toBe(true)
         expect(directorySeedData("unknown", [])).toEqual({ packages: [], realms: [], status: "unavailable", realmStatus: "unavailable" })
+        // A retired network (pearl) has no registry entry, so no seeds either.
+        expect(directorySeedData("pearl", [])).toEqual({ packages: [], realms: [], status: "unavailable", realmStatus: "unavailable" })
     })
     it("does not relabel the loaded chain's saved paths for another network", () => {
         localStorage.setItem("memba_saved_daos", JSON.stringify([{ realmPath: "gno.land/r/custom/saved", name: "Saved", addedAt: Date.now(), network: ACTIVE_NETWORK_KEY, chainId: NETWORKS[ACTIVE_NETWORK_KEY].chainId }]))
         expect(fetchRealms(ACTIVE_NETWORK_KEY).find(r => r.path.endsWith("/custom/saved"))?.provenance).toBe("saved")
-        const other = ACTIVE_NETWORK_KEY === "pearl" ? "mainnet" : "pearl"
+        const other = ACTIVE_NETWORK_KEY === "test13" ? "mainnet" : "test13"
         expect(fetchRealms(other).some(r => r.path.endsWith("/custom/saved"))).toBe(false)
     })
     it("retains editorial data on partial failure and only merges identified listings", async () => {
@@ -47,11 +49,11 @@ describe("network-scoped discovery", () => {
     })
     it("distinguishes successful empty discovery from failure without mutating seeds", async () => {
         vi.mocked(fetchNamespaceListing).mockResolvedValue({ status: "ready", items: [] })
-        const result = await fetchDirectoryDiscovery("pearl", [])
+        const result = await fetchDirectoryDiscovery("test13", [])
         expect(result.status).toBe("ready")
         result.packages[0].description = "mutated"
-        expect(directorySeeds("pearl").packages[0].description).not.toBe("mutated")
+        expect(directorySeeds("test13").packages[0].description).not.toBe("mutated")
         vi.mocked(fetchNamespaceListing).mockResolvedValue({ status: "unavailable", items: [] })
-        expect(await fetchDirectoryDiscovery("pearl", [])).toMatchObject({ status: "partial", realmStatus: "unavailable" })
+        expect(await fetchDirectoryDiscovery("test13", [])).toMatchObject({ status: "partial", realmStatus: "unavailable" })
     })
 })

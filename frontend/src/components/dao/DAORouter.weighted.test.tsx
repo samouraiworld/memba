@@ -34,8 +34,8 @@ describe("weighted DAO routing", () => {
 
     it("redirects shell sub-routes too, keeping the network", async () => {
         state.kind = "weighted"
-        mount("/pearl/dao/gno.land/r/samcrew/memba_dao/members")
-        expect(await screen.findByText("Weighted workspace at /pearl/weighted-dao/gno.land/r/samcrew/memba_dao")).toBeInTheDocument()
+        mount("/test13/dao/gno.land/r/samcrew/memba_dao/members")
+        expect(await screen.findByText("Weighted workspace at /test13/weighted-dao/gno.land/r/samcrew/memba_dao")).toBeInTheDocument()
     })
 
     it("keeps other kinds, and unresolved kinds, in the shell", async () => {

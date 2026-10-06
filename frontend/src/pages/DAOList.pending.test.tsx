@@ -45,7 +45,7 @@ function mount() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     return render(
         <QueryClientProvider client={client}>
-            <MemoryRouter initialEntries={["/pearl/dao"]}>
+            <MemoryRouter initialEntries={["/mainnet/dao"]}>
                 <Routes><Route path="/:network/dao" element={<DAOList />} /></Routes>
             </MemoryRouter>
         </QueryClientProvider>,
@@ -69,7 +69,7 @@ describe("My DAOs: deploys waiting for the network", () => {
         expect(within(section).getByText("a".repeat(64))).toBeInTheDocument()
         expect(listPendingDAOs(GNO_CHAIN_ID).map((p) => p.path)).toEqual([PARKED])
         expect(getSavedDAOs().map((d) => d.realmPath)).toContain(ENABLED)
-        expect(await screen.findByRole("link", { name: "enabled_dao" })).toHaveAttribute("href", `/pearl/dao/${ENABLED}`)
+        expect(await screen.findByRole("link", { name: "enabled_dao" })).toHaveAttribute("href", `/mainnet/dao/${ENABLED}`)
     })
 
     it("retains a live receipt when the real bookmark storage write fails", async () => {

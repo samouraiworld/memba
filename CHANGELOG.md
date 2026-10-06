@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Retired network: Pearl (2026-10-07)
+- Pearl's network entry is gone from Memba; old Pearl links still open the same page on mainnet
+
 ### Retired network: Betanet (2026-10-06)
 - Old Betanet links now open the same page on mainnet; the retired Betanet is gone from Memba's network list
 

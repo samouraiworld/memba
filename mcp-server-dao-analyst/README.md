@@ -2,7 +2,7 @@
 
 Multi-model AI governance analyst for Gno DAOs. Analyzes proposals from legal, technical, and financial perspectives using free-tier LLM consensus.
 
-Registers on-chain in [`gno.land/r/samcrew/agent_registry_v2`](https://gno.land/r/samcrew/agent_registry_v2:agent/dao-analyst) — run `register-agent.sh` to register. The script still defaults to the Pearl testnet (chain-id `pearl-1`), where `agent_registry_v2` was deployed; Pearl was retired on 2026-09-23 and the registry is not deployed on gno.land mainnet, so there is currently no live registry to register on. `REMOTE`/`CHAIN` target another network.
+Registers on-chain in `gno.land/r/samcrew/agent_registry_v2` — run `register-agent.sh` to register. `agent_registry_v2` was deployed on the Pearl testnet, retired on 2026-09-23, and is not deployed on gno.land mainnet, so there is currently no live registry to register on; the script requires `REMOTE` and `CHAIN` to name a target.
 
 ## Tools
 

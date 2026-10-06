@@ -63,7 +63,7 @@ describe("QuestDetail — quest realm not on this network", () => {
     )
 
     it("join-dao on a network with memba_dao offers the verify action", () => {
-        renderQuest("/pearl/quests/join-dao")
+        renderQuest("/test13/quests/join-dao")
         expect(screen.getByRole("button", { name: /verify on-chain/i })).toBeInTheDocument()
         expect(screen.queryByText("Not available on this network yet")).toBeNull()
     })
@@ -72,7 +72,7 @@ describe("QuestDetail — quest realm not on this network", () => {
         completeQuestVerified.mockRejectedValue(
             new Error("[failed_precondition] not available on this network yet: gno.land/r/samcrew/memba_dao is not deployed"),
         )
-        renderQuest("/pearl/quests/join-dao")
+        renderQuest("/test13/quests/join-dao")
         fireEvent.click(screen.getByRole("button", { name: /verify on-chain/i }))
         await waitFor(() =>
             expect(screen.getByText("Not available on this network yet: gno.land/r/samcrew/memba_dao is not deployed.")).toBeInTheDocument(),
@@ -82,14 +82,14 @@ describe("QuestDetail — quest realm not on this network", () => {
 
     it("still reads as 'not met yet' for any other rejection", async () => {
         completeQuestVerified.mockRejectedValue(new Error("[failed_precondition] quest requirements not met on-chain"))
-        renderQuest("/pearl/quests/join-dao")
+        renderQuest("/test13/quests/join-dao")
         fireEvent.click(screen.getByRole("button", { name: /verify on-chain/i }))
         await waitFor(() => expect(screen.getByText(/complete the action, then try again/i)).toBeInTheDocument())
     })
 
     it("waits for the server before completing a creator-only team quest", async () => {
         completeQuestVerified.mockRejectedValue(new Error("team creator requirement not met"))
-        renderQuest("/pearl/quests/create-team")
+        renderQuest("/mainnet/quests/create-team")
         fireEvent.click(screen.getByRole("button", { name: "Verify with Memba" }))
         await waitFor(() => expect(screen.getByText(/Couldn't verify this action yet/)).toBeInTheDocument())
         expect(screen.queryByText("Completed")).toBeNull()
@@ -98,7 +98,7 @@ describe("QuestDetail — quest realm not on this network", () => {
 
     it("blocks generic completion while auth still belongs to the previous wallet", () => {
         tokenWallet.address = "g1previouswallet"
-        renderQuest("/pearl/quests/connect-wallet")
+        renderQuest("/mainnet/quests/connect-wallet")
         fireEvent.click(screen.getByRole("button", { name: "Check Completion" }))
         expect(screen.getByText("Sign in with this wallet to verify.")).toBeInTheDocument()
         expect(screen.queryByText("Completed")).toBeNull()

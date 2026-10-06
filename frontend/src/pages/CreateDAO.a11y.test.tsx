@@ -8,7 +8,7 @@ vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: { address
 vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
 vi.mock("../lib/config", async (original) => {
     const actual = await original<typeof import("../lib/config")>()
-    return { ...actual, ACTIVE_NETWORK_KEY: "pearl", GNO_CHAIN_ID: "pearl-1" }
+    return { ...actual, ACTIVE_NETWORK_KEY: "mainnet", GNO_CHAIN_ID: "gnoland-1" }
 })
 
 import { CreateDAO } from "./CreateDAO"

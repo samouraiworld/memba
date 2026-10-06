@@ -8,7 +8,7 @@ import { abortOnchainReads, isOnchainRead, GNO_MONITORING_HOST } from '../helper
  * dedicated :5176 server (`vite --mode e2e-marketplace-v1`), whose committed env
  * pins test13 + the two live v1 lanes and explicitly keeps v2 OFF. It therefore
  * exercises the legacy v1 component tree regardless of an arbitrary local .env or
- * CI's pearl fallback. The flag-gated v2 tree lives on :5174 and is covered by
+ * CI's default network. The flag-gated v2 tree lives on :5174 and is covered by
  * marketplace-v2.spec.ts.
  *
  * Pins the phone-width invariants the 2c QA pass fixes:

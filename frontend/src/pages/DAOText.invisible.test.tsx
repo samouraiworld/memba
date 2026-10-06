@@ -23,7 +23,7 @@ vi.mock("react-router-dom", async (orig) => ({
 vi.mock("../hooks/useDaoKind", async () => {
     const { capabilitiesFor } = await import("../lib/dao/kind")
     const { NETWORKS } = await import("../lib/config")
-    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.pearl), loading: false, error: null }) }
+    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.mainnet), loading: false, error: null }) }
 })
 vi.mock("../hooks/useUnvotedProposals", () => ({ useUnvotedProposals: () => ({ proposals: [] }) }))
 vi.mock("../hooks/useNotifications", () => ({ useNotifications: () => ({ getDAOUnreadCount: () => 0 }) }))
@@ -62,7 +62,7 @@ const RAW = /[\u202E\u200B\u2066\u200D]/
 
 describe("invisible formatting characters on DAO pages", () => {
     it("reveals them in the settings name, description, roles and categories", async () => {
-        const { container } = mount(`/pearl/dao/${REALM}/settings`, "/:network/dao/*", <DAOSettings />)
+        const { container } = mount(`/mainnet/dao/${REALM}/settings`, "/:network/dao/*", <DAOSettings />)
         expect((await screen.findAllByText("Te[U+202E]am")).length).toBeGreaterThan(0)
         expect(screen.getByText("Pay[U+200B]outs DAO")).toBeInTheDocument()
         expect(screen.getByText("le[U+2066]ad")).toBeInTheDocument()
@@ -71,7 +71,7 @@ describe("invisible formatting characters on DAO pages", () => {
     })
 
     it("reveals them in the members page DAO name, usernames and roles", async () => {
-        const { container } = mount(`/pearl/dao/${REALM}/members`, "/:network/dao/*", <DAOMembers />)
+        const { container } = mount(`/mainnet/dao/${REALM}/members`, "/:network/dao/*", <DAOMembers />)
         expect(await screen.findByText(/Te\[U\+202E\]am/)).toBeInTheDocument()
         expect(screen.getByText("@al[U+200D]ice")).toBeInTheDocument()
         expect(screen.getAllByText("le[U+2066]ad").length).toBeGreaterThan(0)
@@ -79,7 +79,7 @@ describe("invisible formatting characters on DAO pages", () => {
     })
 
     it("reveals them in the DAO list names and descriptions", async () => {
-        const { container } = mount("/pearl/dao", "/:network/dao", <DAOList />)
+        const { container } = mount("/mainnet/dao", "/:network/dao", <DAOList />)
         expect((await screen.findAllByText("Te[U+202E]am")).length).toBeGreaterThan(0)
         expect(screen.getAllByText("Pay[U+200B]outs DAO").length).toBeGreaterThan(0)
         expect(container.textContent).not.toMatch(RAW)
