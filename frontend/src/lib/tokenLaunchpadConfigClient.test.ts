@@ -13,7 +13,7 @@ vi.mock("./config", async (load) => ({
     isRealmValidOn: () => true,
 }))
 
-import { parseActionStatus, readActionStatus, readReserved, TOKEN_LAUNCHPAD_CONFIG_PATH } from "./tokenLaunchpadConfigClient"
+import { laneClosedReason, parseActionStatus, readActionStatus, readReserved, TOKEN_LAUNCHPAD_CONFIG_PATH } from "./tokenLaunchpadConfigClient"
 
 const status = { schema: "launchpad-config-action-v1", lane: "fairsale", currency: "ugnot", version: "4", paused: false, allowlisted: true, laneReady: true, configGateOpen: true }
 const qjson = (value: unknown) => `(${JSON.stringify(JSON.stringify(value))} string)`
@@ -50,5 +50,15 @@ describe("Token Launchpad config gate reader", () => {
         expect(queryEval).toHaveBeenCalledWith("https://rpc.example", TOKEN_LAUNCHPAD_CONFIG_PATH, 'IsReserved("MEMBA")', true)
         await expect(readReserved("mainnet", 'X")')).rejects.toMatchObject({ code: "invalid_response" })
         expect(queryEval).toHaveBeenCalledTimes(3)
+    })
+})
+
+describe("a closed lane", () => {
+    it("says why, in one sentence, and nothing when it is open", () => {
+        const status = { open: false, paused: false, allowlisted: true }
+        expect(laneClosedReason({ ...status, paused: true }, "Trading")).toBe("Trading is paused on this network for now.")
+        expect(laneClosedReason({ ...status, allowlisted: false }, "Trading")).toBe("Trading in this currency is not allowed on this network.")
+        expect(laneClosedReason(status, "Trading")).toBe("Trading is not set up on this network yet.")
+        expect(laneClosedReason({ open: true, paused: false, allowlisted: true }, "Trading")).toBe("")
     })
 })
