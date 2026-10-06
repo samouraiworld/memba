@@ -81,6 +81,15 @@ test.describe('Memba OS pages in windows', () => {
         await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/os/explorer')
     })
 
+    test('a deep link into the NFT window gets the same unavailable notice, never the classic page', async ({ page }) => {
+        for (const section of ['c/C1', 'c/C1/7', 'mine', 'create']) {
+            await page.goto(`${OS_ON}/os/nft/${section}`)
+            const nft = win(page, 'NFT')
+            await expect(nft.getByRole('note')).toContainText('NFT ledger is not deployed')
+            await expect(nft.locator('.os-classic')).toHaveCount(0)
+        }
+    })
+
     test("a window's own query (the Validators list) sits beside the other windows' key, and survives reload and a shared link", async ({ page }) => {
         // A served roster (registered after the chain-read abort, so it wins): the lists render with data.
         await fulfillProValidatorRoster(page)

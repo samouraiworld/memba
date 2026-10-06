@@ -1,5 +1,5 @@
 /*
- * What the NFT and Market windows share. Tokens only.
+ * What the NFT and Market windows share, then the NFT window's own screens.
  */
 /* The ratio is the box's own, not the file's: the image is cropped to it, and
    the space is held from the first paint. */
@@ -9,3 +9,15 @@
 /* An image on a creator's own host is not loaded: the generated art says why. */
 .memba-os .os-nft-outside { position: relative; display: block; }
 .memba-os .os-nft-outside-note { position: absolute; inset: auto 0 0 0; padding: 4px 6px; font-size: 11px; line-height: 1.3; color: var(--os-ink); background: var(--os-opaque); border-radius: 0 0 var(--os-radius-ctl) var(--os-radius-ctl); }
+
+/* NFT window: token cards, the collection header, lists of statements, the item page. */
+.memba-os .os-nft-card { display: grid; gap: 4px; width: 100%; min-width: 0; justify-items: start; }
+.memba-os .os-nft-head { flex-wrap: nowrap; }
+.memba-os .os-nft-avatar { width: 64px; flex: none; }
+.memba-os .os-nft-title { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.memba-os .os-nft-lines { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; }
+.memba-os .os-nft-item { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+@container os-window (max-width: 560px) {
+  .memba-os .os-nft-item { grid-template-columns: minmax(0, 1fr); }
+  .memba-os .os-nft-head { flex-wrap: wrap; }
+}

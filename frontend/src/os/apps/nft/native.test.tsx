@@ -30,11 +30,11 @@ const session = (isTestnet: boolean) => {
 const item = (id: string, name: string, symbol: string, mode: string, minted: bigint, maxSupply: bigint, sealed = false) => ({ id, name, symbol, mode, minted, maxSupply, sealed })
 const founders = item("C1", "Founders", "FND", "open", 2n, 7n)
 
-function show({ section = null, testnet = true, openApp = vi.fn() }: { section?: string | null; testnet?: boolean; openApp?: () => void } = {}) {
+function show({ section = null, testnet = true, openApp = vi.fn(), push = vi.fn() }: { section?: string | null; testnet?: boolean; openApp?: () => void; push?: () => void } = {}) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
         <QueryClientProvider client={client}>
-            <NftWindow section={section} query={undefined} session={session(testnet)} open={vi.fn()} openApp={openApp} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
+            <NftWindow section={section} query={undefined} session={session(testnet)} active open={vi.fn()} push={push} openApp={openApp} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
         </QueryClientProvider>,
     )
 }
@@ -78,7 +78,8 @@ describe("NFT window", () => {
         let resolve!: (newest: unknown) => void
         listNewestCollections.mockReturnValue(new Promise((done) => { resolve = done }))
         const openApp = vi.fn()
-        show({ openApp })
+        const push = vi.fn()
+        show({ openApp, push })
         const rail = screen.getByRole("region", { name: "Collections" })
         expect(rail).toHaveTextContent("Reading collections…")
         expect(screen.queryByText("No collections have been created yet.")).toBeNull()
@@ -102,7 +103,10 @@ describe("NFT window", () => {
         expect(screen.queryByRole("note")).toBeNull()
         expect(screen.queryByText(/connect/i)).toBeNull()
         for (const legacy of [/Create a collection/, /Your studio/, /Browse NFTs/]) expect(screen.queryByRole("button", { name: legacy })).toBeNull()
-        expect(screen.getAllByRole("button")).toHaveLength(1)
+        expect(screen.getAllByRole("button")).toHaveLength(7)
+        fireEvent.click(screen.getByRole("button", { name: /Founders/ }))
+        fireEvent.click(screen.getByRole("button", { name: /My collectibles/ }))
+        expect(push.mock.calls.map(([spec]) => spec.target)).toEqual([{ kind: "app", app: "nft", section: "c/C1" }, { kind: "app", app: "nft", section: "mine" }])
         fireEvent.click(screen.getByRole("button", { name: /Open Market/ }))
         expect(openApp).toHaveBeenCalledWith("market")
     })
@@ -173,11 +177,73 @@ describe("NFT window", () => {
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
-    it("renders the fallback for every section other than the home, without reading the chain", () => {
+    it("carries focus into the view a card or a control back opens, instead of dropping it on the page", async () => {
         availability.enabled = true
         availability.ledger = true
-        show({ section: "create", testnet: false })
+        listNewestCollections.mockResolvedValue({ total: 1n, collections: [founders] })
+        const push = vi.fn()
+        const view = (section: string | null) => (
+            <NftWindow section={section} query={undefined} session={session(true)} active open={vi.fn()} push={push} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
+        )
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const { rerender } = render(<QueryClientProvider client={client}>{view(null)}</QueryClientProvider>)
+        const card = await screen.findByRole("button", { name: /Founders/ })
+        card.focus()
+        fireEvent.click(card)
+        rerender(<QueryClientProvider client={client}>{view(push.mock.lastCall![0].target.section)}</QueryClientProvider>)
+        const back = screen.getByRole("button", { name: "Collections" })
+        expect(back).toHaveFocus()
+
+        fireEvent.click(back)
+        rerender(<QueryClientProvider client={client}>{view(push.mock.lastCall![0].target.section)}</QueryClientProvider>)
+        expect(screen.getByRole("heading", { name: "Collections" })).toHaveFocus()
+
+        fireEvent.click(screen.getByRole("button", { name: /My collectibles/ }))
+        rerender(<QueryClientProvider client={client}>{view(push.mock.lastCall![0].target.section)}</QueryClientProvider>)
+        expect(screen.getByRole("button", { name: "Collections" })).toHaveFocus()
+    })
+
+    it("takes no focus when the window opens straight on a section or on the home", () => {
+        availability.enabled = true
+        availability.ledger = true
+        listNewestCollections.mockResolvedValue({ total: 0n, collections: [] })
+        const { rerender } = show({ section: "mine" })
+        expect(document.body).toHaveFocus()
+        rerender(
+            <QueryClientProvider client={new QueryClient()}>
+                <NftWindow section={null} query={undefined} session={session(true)} active open={vi.fn()} push={vi.fn()} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
+            </QueryClientProvider>,
+        )
+        expect(document.body).toHaveFocus()
+    })
+
+    it.each(["c/C1", "c/C1/7", "mine", "create", "studio/C1"])("shows the unavailable notice, not the fallback, on a deep link to %s", (section) => {
+        show({ section, testnet: false })
+        expect(screen.getByRole("note")).toHaveTextContent("The NFT ledger is not deployed on")
+        expect(screen.queryByText("classic page")).toBeNull()
+    })
+
+    it.each([
+        ["create", "Creating a collection arrives in a later version of Memba OS."],
+        ["studio", "The creator studio arrives in a later version of Memba OS."],
+        ["studio/C1", "The creator studio arrives in a later version of Memba OS."],
+    ])("answers the %s section natively, never with the classic page", (section, text) => {
+        availability.enabled = true
+        availability.ledger = true
+        const push = vi.fn()
+        show({ section, push })
+        expect(screen.getByRole("note")).toHaveTextContent(text)
+        expect(screen.queryByText("classic page")).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "Browse collections" }))
+        expect(push.mock.calls[0][0].target).toEqual({ kind: "app", app: "nft", section: null })
+    })
+
+    it.each(["collection/g1abc/foo", "c/C01", "c/C1/0", "mine/"])("hands a section it does not serve (%s) to the fallback, without reading the chain", (section) => {
+        availability.enabled = true
+        availability.ledger = true
+        show({ section })
         expect(screen.getByText("classic page")).toBeInTheDocument()
+        expect(screen.queryByRole("note")).toBeNull()
         expect(screen.queryByRole("region", { name: "Collections" })).toBeNull()
         expect(listNewestCollections).not.toHaveBeenCalled()
     })
