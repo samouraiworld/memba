@@ -103,7 +103,7 @@ describe("scheduling a stage", () => {
 
     it("names a holder stage's gate and checks the gate collection exists", async () => {
         const request = addStageRequest(draft({ terms: terms({ kind: "holder", price: 0n, floor: 0n, gate: "C2" }) }))
-        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Price", "Free"], ["Gate", "Each token of C2 pays for one mint"]]))
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Price", "Free"], ["Gate", "Each token of C2 allows one mint"]]))
         mocks.collection.mockImplementation(async (id: string) => {
             if (id === "C2") throw new RealmRefusedError("unknown collection")
             return { id, creator: CREATOR }

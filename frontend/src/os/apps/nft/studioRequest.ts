@@ -74,7 +74,7 @@ export function addStageRequest(draft: AddStageDraft): SignRequest {
             ["Price", terms.kind === "dutch" ? `${amount(terms.price)}, falling to ${amount(terms.floor)}` : amount(terms.price)],
             ["Per wallet", terms.perWallet.toString()],
             ["Stage cap", terms.supplyCap === 0n ? "None beyond the collection's" : terms.supplyCap.toString()],
-            ...(terms.kind === "holder" ? [["Gate", `Each token of ${terms.gate} pays for one mint`] as [string, string]] : []),
+            ...(terms.kind === "holder" ? [["Gate", `Each token of ${terms.gate} allows one mint`] as [string, string]] : []),
             ["Split of each mint", draft.feeBPS === 0n ? "The whole price to you" : `${formatBPS(draft.feeBPS)} to the Launchpad treasury, the rest to you`],
             ["Drops realm", NFT_DROPS_PATH],
             ["Network", draft.chainId],
