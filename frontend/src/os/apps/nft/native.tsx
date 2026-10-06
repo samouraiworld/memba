@@ -5,17 +5,18 @@
  * network, which it is on none until the realm is published; otherwise the
  * home says which of the two is missing. When available it lists the newest
  * collections, read strictly: a failed read is shown as an error with a retry,
- * data the network sent that breaks the ledger's rules as unusable, and
- * neither as an empty ledger. Guests browse freely. Every other section is
+ * a list the ledger refused and data that breaks its rules as errors without
+ * one, and none as an empty ledger. Guests browse freely. Every other section is
  * still the classic page, handed through as `fallback`.
  *
  * @module os/apps/nft/native
  */
 import { useQuery } from "@tanstack/react-query"
 import type { NativeViewProps } from "../../native/types"
-import { GNO_RPC_URL, isNftEnabled, isRealmValidOn } from "../../../lib/config"
+import { isNftEnabled, isRealmValidOn } from "../../../lib/config"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
-import { LedgerReadError, NFT_LEDGER_PATH, listNewestCollections, type NftMode } from "../../../lib/nft/ledger"
+import { NFT_LEDGER_PATH, listNewestCollections, type NftMode } from "../../../lib/nft/ledger"
+import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import { Card, CardGrid, Empty, ErrorState, Loading, Pill } from "../../kit"
 import { Icon } from "../../shell/icons"
 
@@ -23,19 +24,21 @@ const SHOWN = 20
 const MODE_LABEL: Record<NftMode, string> = { open: "Transferable", royalty_protected: "Royalty-protected", soulbound: "Soulbound" }
 
 function Collections({ chainId }: { chainId: string }) {
-    // The session network is the one the config was loaded with, so its RPC is GNO_RPC_URL.
+    // The session network is the one the config was loaded with, which is the network the readers query.
     const collections = useQuery({
         queryKey: ["nft", "ledger", NFT_LEDGER_PATH, "newest", chainId],
-        queryFn: () => listNewestCollections(GNO_RPC_URL, SHOWN),
+        queryFn: () => listNewestCollections(SHOWN),
         staleTime: 60_000, retry: false,
     })
     return (
         <section aria-labelledby="nft-collections">
             <h3 className="os-h" id="nft-collections">Collections</h3>
             {collections.isPending ? <Loading label="Reading collections…" />
-                : collections.isError ? (collections.error instanceof LedgerReadError
+                : collections.isError ? (collections.error instanceof ReadError
                     ? <ErrorState message="Collections could not be read from this network." onRetry={() => void collections.refetch()} />
-                    : <ErrorState message="This network's collection data does not follow the ledger's rules, so it is not shown." />)
+                    : collections.error instanceof RealmRefusedError
+                        ? <ErrorState message="This network's NFT ledger refused to list its collections." />
+                        : <ErrorState message="This network's collection data does not follow the ledger's rules, so it is not shown." />)
                 : collections.data.total === 0n ? <Empty title="No collections have been created yet." />
                 : <div className="os-stack os-tight">
                     {collections.data.total > BigInt(SHOWN) && <p className="os-sub">The {SHOWN} newest of {collections.data.total.toString()} collections, newest first.</p>}
