@@ -16,7 +16,7 @@ export default async function handler(request: Request, context: EdgeContext): P
     // Only full-design builds carry this marker; legacy responses are preserved.
     if (!html.includes('/brand/folded-m/share.png')) return response
     const key = url.pathname.split('/')[1]
-    const networks: Record<string, string> = { mainnet: 'gno.land', pearl: 'Pearl', gnoland1: 'Betanet' }
+    const networks: Record<string, string> = { mainnet: 'gno.land', pearl: 'Pearl' }
     const meta = matchRouteMeta(url.pathname, key in networks ? key : '')
     const title = `${meta.title}${networks[key] ? ` · ${networks[key]}` : ''}`
     const replacements: Record<string, string> = { 'og:title': title, 'twitter:title': title, 'og:description': meta.description, 'twitter:description': meta.description,

@@ -9,6 +9,7 @@ import {
     resolveDefaultNetwork,
     resolveNetworkKey,
     retiredNetworkSuccessor,
+    RETIRED_NETWORKS,
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
@@ -44,8 +45,8 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has exactly test13 and gnoland1', () => {
-        expect(Object.keys(NETWORKS)).toContain('gnoland1')
+    it('NETWORKS keeps test13 and has no retired Betanet entry', () => {
+        expect(Object.keys(NETWORKS)).not.toContain('gnoland1')
         expect(Object.keys(NETWORKS)).toContain('test13')
         expect(Object.keys(NETWORKS)).not.toContain('test12')
         expect(Object.keys(NETWORKS)).not.toContain('staging')
@@ -274,17 +275,8 @@ describe('config constants', () => {
         expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(false)
     })
 
-    it('test13 and gnoland1 use r/sys/users registry', () => {
+    it('test13 uses r/sys/users registry', () => {
         expect(NETWORKS.test13.userRegistryPath).toBe('gno.land/r/sys/users')
-        expect(NETWORKS.gnoland1.userRegistryPath).toBe('gno.land/r/sys/users')
-    })
-
-    it('gnoland1 has correct chain config', () => {
-        const g1 = NETWORKS.gnoland1
-        expect(g1.chainId).toBe('gnoland1')
-        expect(g1.rpcUrl).toBe('https://rpc.gnoland1.samourai.live:443')
-        expect(g1.label).toBe('Betanet (gnoland1)')
-        expect(g1.faucetUrl).toBe('')
     })
 
     it('DEFAULT_NETWORK is mainnet (2026-09-17 flip; env-less builds use the fallback)', () => {
@@ -583,15 +575,15 @@ describe('getTelemetryRpcUrls', () => {
     })
 })
 
-describe('network reduction — test13 + gnoland1 + pearl + mainnet + onyx only', () => {
-    it('exposes only test13, gnoland1, pearl, mainnet and onyx', () => {
+describe('network reduction — test13 + pearl + mainnet + onyx only', () => {
+    it('exposes only test13, pearl, mainnet and onyx', () => {
         const keys = Object.keys(NETWORKS).sort()
         // mainnet (`gnoland-1`) is the default and only visible network since
         // 2026-09-23. onyx (`onyx-1`) is the testnet, hidden until Memba
-        // publishes there. pearl (retired that day, see RETIRED_NETWORKS),
-        // test13 and gnoland1 (BETANET) stay as hidden entries so old links
-        // and stored keys resolve. See the live/dark contract blocks below.
-        expect(keys).toEqual(['gnoland1', 'mainnet', 'onyx', 'pearl', 'test13'])
+        // publishes there. pearl (retired that day, see RETIRED_NETWORKS) and
+        // test13 stay as hidden entries so old links and stored keys resolve;
+        // Betanet (`gnoland1`) has no entry: it is retired to mainnet.
+        expect(keys).toEqual(['mainnet', 'onyx', 'pearl', 'test13'])
     })
 
     it('topaz and sapphire have no registry entry: their old links resolve to mainnet', () => {
@@ -658,13 +650,12 @@ describe('network reduction — test13 + gnoland1 + pearl + mainnet + onyx only'
         }
     })
 
-    it('mainnet `gnoland-1` is NOT betanet `gnoland1` — distinct chain ids', () => {
-        // One hyphen apart, and MEMBA_ACCEPTED_CHAIN_IDS already lists
-        // `gnoland1`, so "we already have gnoland1" reads as covered when it
-        // is not. This is the hyphen trap, pinned.
+    it('mainnet `gnoland-1` is NOT betanet `gnoland1`: the retired key is not the chain id', () => {
+        // One hyphen apart: the hyphen trap, pinned. `gnoland1` is a retired
+        // URL key that redirects to mainnet, never mainnet's chain id.
         expect(NETWORKS.mainnet.chainId).toBe('gnoland-1')
-        expect(NETWORKS.gnoland1.chainId).toBe('gnoland1')
-        expect(NETWORKS.mainnet.chainId).not.toBe(NETWORKS.gnoland1.chainId)
+        expect(RETIRED_NETWORKS.gnoland1).toEqual({ to: 'mainnet', name: 'Betanet' })
+        expect(Object.values(NETWORKS).map((n) => n.chainId)).not.toContain('gnoland1')
     })
 
     it('mainnet gates every realm outside wave 1 — memba_dao and the custody lanes', () => {
@@ -724,8 +715,10 @@ describe('network reduction — test13 + gnoland1 + pearl + mainnet + onyx only'
         // hidden entries (test13 here) pass through too: pinning a hidden
         // network as the default is how the :5174/:5175 e2e servers run
         // (.env.e2e → test13). See resolveDefaultNetwork's doc before "fixing".
-        expect(resolveDefaultNetwork('gnoland1')).toBe('gnoland1')
+        expect(resolveDefaultNetwork('onyx')).toBe('onyx')
         expect(resolveDefaultNetwork('test13')).toBe('test13')
+        // A retired key is not a network: it falls back.
+        expect(resolveDefaultNetwork('gnoland1')).toBe('mainnet')
         expect(resolveDefaultNetwork(undefined)).toBe('mainnet')
         expect(resolveDefaultNetwork('')).toBe('mainnet')
     })
@@ -768,16 +761,13 @@ describe('hidden networks stay DARK but resolvable (test13 2026-07-26, gnoland1 
         expect(networkHasRealms('pearl')).toBe(true)
     })
 
-    it('gnoland1 is hidden after its 2026-09-17 retirement, but still resolves', () => {
-        // Every PUBLIC Betanet endpoint measured dead on 2026-09-17 (primary
-        // rpc.gnoland1.samourai.live, the aeddi + testnets.gno.land
-        // fallbacks, and the betanet.testnets.gno.land explorer); only one
-        // community node still answers. Same treatment as test13 — hidden
-        // from the selector, kept in NETWORKS so deep links and stored
-        // selections resolve instead of crash-looping.
-        expect(NETWORKS.gnoland1.hidden).toBe(true)
+    it('Betanet (gnoland1) is retired: its links resolve to mainnet', () => {
+        // Its last node stopped at height 3,796,411 on 2026-09-14; the other
+        // public endpoints are gone. Like pearl, its URL key redirects.
+        expect(NETWORKS.gnoland1).toBeUndefined()
         expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('gnoland1')
-        expect(NETWORKS.gnoland1).toBeDefined()
+        expect(retiredNetworkSuccessor('gnoland1')).toBe('mainnet')
+        expect(resolveNetworkKey({ pathname: '/gnoland1/dao' })).toBe('mainnet')
     })
 
     it('mainnet now carries the realms-free VISIBLE shape (the F-28 machinery)', () => {
@@ -790,9 +780,7 @@ describe('hidden networks stay DARK but resolvable (test13 2026-07-26, gnoland1 
         expect(NETWORKS.mainnet.hidden).toBe(false)
         expect(networkHasRealms('mainnet')).toBe(false)
         expect(isRealmValidOn('mainnet', 'gno.land/r/samcrew/memba_dao')).toBe(false)
-        // gnoland1 keeps the gating while hidden — a hidden network is still
-        // reachable by deep link, so its gates must not relax.
-        expect(networkHasRealms('gnoland1')).toBe(false)
+        // A key with no entry gates every realm (F-28: fail closed).
         expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/memba_dao')).toBe(false)
     })
 })
@@ -971,16 +959,13 @@ describe('isTestnetNetwork — drives the Team Hub mainnet-data disclosure', () 
     })
 })
 
-describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
-    it('gnoland1 left the selector (2026-09-17: every public endpoint dead) but still resolves', async () => {
-        const { VISIBLE_NETWORKS, NETWORKS } = await import('./config')
-        expect(NETWORKS.gnoland1).toBeDefined() // deep links + stored keys resolve
-        expect(VISIBLE_NETWORKS.gnoland1).toBeUndefined() // not offered any more
-    })
-
-    it('gnoland1 declares its realms are NOT deployed, so the banner fires', async () => {
-        const { networkHasRealms } = await import('./config')
-        expect(networkHasRealms('gnoland1')).toBe(false)
+describe('retired and unknown keys gate everything — fail CLOSED, not open (F-28)', () => {
+    it('a retired key (Betanet) has no entry', async () => {
+        const { VISIBLE_NETWORKS, NETWORKS, networkHasRealms } = await import('./config')
+        expect(NETWORKS.gnoland1).toBeUndefined()
+        expect(VISIBLE_NETWORKS.gnoland1).toBeUndefined()
+        // Its links redirect before any page asks whether realms are here.
+        expect(networkHasRealms('mainnet')).toBe(false)
     })
 
     it('gates every commerce realm on gnoland1', async () => {

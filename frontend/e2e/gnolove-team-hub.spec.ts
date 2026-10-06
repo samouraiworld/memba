@@ -19,8 +19,8 @@ test.describe.configure({ mode: 'serial' })
  */
 
 const TEAM_SLUG = "samouraiworld"
-const HUB_PATH = `/gnoland1/gnolove/teams/${TEAM_SLUG}`
-const ANALYTICS_PATH = "/gnoland1/gnolove/analytics"
+const HUB_PATH = `/mainnet/gnolove/teams/${TEAM_SLUG}`
+const ANALYTICS_PATH = "/mainnet/gnolove/analytics"
 
 test.describe("Gnolove Team Hub canary", () => {
     test("hub renders for a known team", async ({ page }) => {
@@ -75,9 +75,9 @@ test.describe("Gnolove Team Hub canary", () => {
         await expect(page).toHaveURL(/(time|period)=weekly/i, { timeout: 5_000 })
     })
 
-    test("network chip is hidden on gnoland1 and shown on test13", async ({ page }) => {
-        // gnoland1 = real chain → no "Data: mainnet" chip. The chip is gated on
-        // NETWORKS[key].isTestnet (lib/config), which gnoland1 does not set.
+    test("network chip is hidden on mainnet and shown on test13", async ({ page }) => {
+        // mainnet = real chain → no "Data: mainnet" chip. The chip is gated on
+        // NETWORKS[key].isTestnet (lib/config), which mainnet does not set.
         await page.goto(HUB_PATH)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
         // Wait for the header to actually exist first. `toHaveCount(0)` is

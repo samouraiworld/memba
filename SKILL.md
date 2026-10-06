@@ -212,7 +212,6 @@ cd backend && go test -race ./...    # Backend tests
 | Sapphire (SUNSET 2026-09-09) | sapphire-1 | — |
 | Topaz (RETIRED 2026-08-12 — endpoints refuse connections) | topaz-1 | — |
 | Testnet 13 (RETIRED 2026-07-26 — endpoints refuse connections) | test-13 | — |
-| Betanet | gnoland1 | https://rpc.gnoland1.samourai.live:443 |
-| **MAINNET (launches Fri 2026-09-11; ugnot transferable Mon 2026-09-14; pre-registered HIDDEN, no Memba realms)** | **gnoland-1** | https://rpc.gno.land:443 *(unverified)* |
+| Betanet (RETIRED — halted 2026-09-14; `/gnoland1/` links redirect to mainnet) | gnoland1 | — |
 
 ⚠️ `gnoland-1` (mainnet) ≠ `gnoland1` (betanet) — different chains, one hyphen apart.

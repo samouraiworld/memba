@@ -4,22 +4,16 @@ import { checkChainHealth, getSuggestedFallback } from "./chainHealth"
 // Mock NETWORKS used by chainHealth
 //
 // DELIBERATE DIVERGENCE FROM REALITY: no entry carries `hidden`, even though the
-// real gnoland1, test13 and pearl all do. getSuggestedFallback
-// filters on BOTH `!net.hidden` AND `networkHasRealms(key)`; if the mock's
-// gnoland1 were also hidden, deleting either clause would still leave it
-// filtered by the other and the suite would pass with half the fix gone.
-// Keeping the mock's gnoland1 realm-less-but-visible isolates the
-// `networkHasRealms` clause, and the "hidden networks are never suggested" case
-// below isolates `!net.hidden` by hiding mainnet for the duration of one test.
+// real test13 and pearl do. getSuggestedFallback filters on `!net.hidden` AND
+// on Memba having realms there; each clause is isolated by one test below
+// (hiding mainnet, or emptying its allowlist), so neither can go unnoticed.
+const realms = vi.hoisted(() => ({ mainnetAllowlisted: true }))
 vi.mock("./config", () => ({
-    // getSuggestedFallback now refuses to steer users to a chain with no Memba
-    // realms (its comment always said so; the code did not). Mirror the real
-    // predicate: realmsDeployed !== false.
-    // Mainnet mirrors reality too: `realmsDeployed: false` (partial wave 1)
-    // but a non-empty REALM_ALLOWLIST — so it is suggestable ONLY through the
-    // allowlist clause, which this mock therefore isolates.
-    networkHasRealms: (k: string) => ({ test13: true, pearl: true, mainnet: false, gnoland1: false })[k] ?? true,
-    networkHasAllowlistedRealms: (k: string) => ({ mainnet: true })[k] ?? false,
+    // Mirror the real predicates. Mainnet's wave 1 is partial: `realmsDeployed:
+    // false` with a non-empty REALM_ALLOWLIST, so it is suggestable ONLY
+    // through the allowlist clause.
+    networkHasRealms: (k: string) => ({ test13: true, pearl: true, mainnet: false })[k] ?? true,
+    networkHasAllowlistedRealms: (k: string) => (k === "mainnet" ? realms.mainnetAllowlisted : false),
     NETWORKS: {
         mainnet: {
             chainId: "gnoland-1",
@@ -41,15 +35,6 @@ vi.mock("./config", () => ({
                 "https://rpc.test-13-aeddi-1.gnoland.network:443",
             ],
             label: "Testnet 13",
-        },
-        gnoland1: {
-            chainId: "gnoland1",
-            rpcUrl: "https://rpc.gnoland1.samourai.live:443",
-            fallbackRpcUrls: [
-                "https://rpc.gnoland1.moul.p2p.team",
-                "https://rpc.gnoland1.aeddi.org",
-            ],
-            label: "Betanet (gnoland1)",
         },
     },
 }))
@@ -89,16 +74,16 @@ describe("chainHealth", () => {
         it("returns reachable=false when all RPCs fail", async () => {
             vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network error"))
 
-            const result = await checkChainHealth("gnoland1", 500)
+            const result = await checkChainHealth("test13", 500)
             expect(result.reachable).toBe(false)
             expect(result.respondingRpc).toBeNull()
-            expect(result.chainId).toBe("gnoland1")
+            expect(result.chainId).toBe("test-13")
         })
 
-        it("queries all fallback RPCs for gnoland1", async () => {
+        it("queries all fallback RPCs", async () => {
             const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("timeout"))
 
-            await checkChainHealth("gnoland1", 500)
+            await checkChainHealth("test13", 500)
 
             // Should have called fetch for primary + 2 fallbacks = 3 URLs
             expect(fetchSpy.mock.calls.length).toBe(3)
@@ -114,29 +99,22 @@ describe("chainHealth", () => {
                     ok: true,
                     json: () => Promise.resolve({
                         result: {
-                            node_info: { network: "gnoland1" },
+                            node_info: { network: "test-13" },
                             sync_info: { latest_block_height: "500" },
                         },
                     }),
                 } as Response)
             })
 
-            const result = await checkChainHealth("gnoland1", 2000)
+            const result = await checkChainHealth("test13", 2000)
             expect(result.reachable).toBe(true)
             expect(result.blockHeight).toBe(500)
         })
     })
 
     describe("getSuggestedFallback", () => {
-        it("suggests mainnet for gnoland1", () => {
-            expect(getSuggestedFallback("gnoland1")).toBe("mainnet")
-        })
-
-        it("suggests mainnet (Memba realms live) for test13, not Betanet", () => {
-            // mainnet carries Memba's wave-1 realms since the 2026-09-23
-            // cutover; gnoland1 (Betanet) has no Memba realms and must never be
-            // the first suggestion. Retired test13 and pearl are no longer in
-            // the fallback order at all.
+        it("suggests mainnet (Memba realms live) from test13", () => {
+            // Retired test13 and pearl are not in the fallback order at all.
             expect(getSuggestedFallback("test13")).toBe("mainnet")
         })
 
@@ -145,7 +123,7 @@ describe("chainHealth", () => {
         })
 
         it("never suggests the retired or outgoing chains", () => {
-            for (const from of ["mainnet", "pearl", "unknown", "gnoland1"]) {
+            for (const from of ["mainnet", "pearl", "unknown", "test13"]) {
                 expect(getSuggestedFallback(from)).not.toBe("test13")
                 // pearl left the order at the 2026-09-23 mainnet cutover — a
                 // shut-down chain must never be offered as an escape.
@@ -156,28 +134,24 @@ describe("chainHealth", () => {
         it("suggests mainnet for unknown network", () => {
             expect(getSuggestedFallback("unknown")).toBe("mainnet")
         })
-
-        it("does not suggest self", () => {
-            const fallback = getSuggestedFallback("gnoland1")
-            expect(fallback).not.toBe("gnoland1")
-        })
     })
 })
 
-describe("getSuggestedFallback never steers into a realm-less chain", () => {
-    it("returns null rather than suggesting Betanet when mainnet is the degraded one", () => {
-        // The regression this guards: when the FIRST entry is itself the
-        // degraded network, the walk must not fall through to a chain with no Memba
-        // realms — ChainHaltedBanner would render a one-click switch into a
-        // dead end. Combined with hiding Betanet, that click used to be
-        // unrecoverable. Since the mainnet cutover the order is
-        // ["mainnet", "gnoland1"], so a degraded mainnet leaves NO eligible
-        // suggestion at all.
+describe("getSuggestedFallback never steers into a dead end", () => {
+    it("returns null when mainnet itself is the degraded one: never suggests self", () => {
         expect(getSuggestedFallback("mainnet")).toBeNull()
     })
 
-    it("still suggests mainnet from the realm-less chain itself", () => {
-        expect(getSuggestedFallback("gnoland1")).toBe("mainnet")
+    it("never suggests a network where Memba has no realms", () => {
+        // Isolates the realm half of the filter: mainnet is visible and not the
+        // current network, so only the realm check can reject it.
+        realms.mainnetAllowlisted = false
+        try {
+            expect(getSuggestedFallback("test13")).toBeNull()
+        } finally {
+            realms.mainnetAllowlisted = true
+        }
+        expect(getSuggestedFallback("test13")).toBe("mainnet")
     })
 
     it("never suggests a HIDDEN network, even one whose realms are deployed", async () => {
@@ -189,11 +163,11 @@ describe("getSuggestedFallback never steers into a realm-less chain", () => {
         const { NETWORKS } = await import("./config") as { NETWORKS: Record<string, { hidden?: boolean }> }
         NETWORKS.mainnet.hidden = true
         try {
-            expect(getSuggestedFallback("gnoland1")).toBeNull()
+            expect(getSuggestedFallback("test13")).toBeNull()
         } finally {
             delete NETWORKS.mainnet.hidden
         }
         // …and the suggestion comes back once it is visible again.
-        expect(getSuggestedFallback("gnoland1")).toBe("mainnet")
+        expect(getSuggestedFallback("test13")).toBe("mainnet")
     })
 })

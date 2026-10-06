@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Retired network: Betanet (2026-10-06)
+- Old Betanet links now open the same page on mainnet; the retired Betanet is gone from Memba's network list
+
 ### Retired testnets: Topaz and Sapphire (2026-10-06)
 - Old Topaz and Sapphire testnet links now open the same page on mainnet; the two retired testnets are gone from Memba's network list
 

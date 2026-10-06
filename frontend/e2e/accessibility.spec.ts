@@ -13,11 +13,11 @@ import AxeBuilder from '@axe-core/playwright'
 
 // Key routes to audit — the 5 most-visited pages.
 const ROUTES = [
-    { name: 'Home', path: '/gnoland1' },
-    { name: 'DAOs', path: '/gnoland1/dao' },
-    { name: 'Validators', path: '/gnoland1/validators' },
-    { name: 'Directory', path: '/gnoland1/directory' },
-    { name: 'NFT Marketplace', path: '/gnoland1/nft' },
+    { name: 'Home', path: '/mainnet' },
+    { name: 'DAOs', path: '/mainnet/dao' },
+    { name: 'Validators', path: '/mainnet/validators' },
+    { name: 'Directory', path: '/mainnet/directory' },
+    { name: 'NFT Marketplace', path: '/mainnet/nft' },
 ]
 
 // Impact levels that should fail the test. 'minor' and 'moderate' are warned.
@@ -27,7 +27,7 @@ for (const route of ROUTES) {
     test(`a11y: ${route.name} (${route.path}) has no critical/serious violations`, async ({ page }) => {
         await page.goto(route.path, { waitUntil: 'domcontentloaded' })
 
-        // SPA redirects (e.g. / → /gnoland1 → home) can trigger after initial
+        // SPA redirects (e.g. / → /mainnet → home) can trigger after initial
         // load. Wait for the URL to stabilize and main content to render.
         await page.waitForLoadState('networkidle')
         // Give React a tick to finish any redirects/lazy-loads

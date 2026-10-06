@@ -25,7 +25,7 @@ import { NETWORKS } from "../../lib/config"
 export const PROBE_RETRY_DELAY_MS = 2500
 
 interface ChainHaltedBannerProps {
-    /** Active network key (e.g. "gnoland1", "test13") */
+    /** Active network key (e.g. "mainnet", "test13") */
     networkKey: string
     /** Callback to switch network */
     onSwitchNetwork: (key: string) => void

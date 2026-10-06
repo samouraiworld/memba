@@ -1,7 +1,7 @@
 /**
  * chainHealth — Network health detection with timeout-based circuit breaker.
  *
- * C-02 fix: When a user switches to a halted/unreachable chain (e.g. gnoland1),
+ * C-02 fix: When a user switches to a halted/unreachable chain,
  * this module probes the primary RPC + all fallbacks in parallel with a configurable
  * timeout. If ALL endpoints fail, the chain is considered "halted" and the UI can
  * display a banner suggesting a switch to a working network.
@@ -29,7 +29,7 @@ export interface ChainHealthResult {
  * All RPCs are tested in parallel; returns as soon as the first one responds.
  * If all fail within the timeout, returns { reachable: false }.
  *
- * @param networkKey - Key into NETWORKS config (e.g. "gnoland1", "test13")
+ * @param networkKey - Key into NETWORKS config (e.g. "mainnet", "test13")
  * @param timeoutMs - Max time to wait for any RPC response (default 5000ms)
  */
 export async function checkChainHealth(
@@ -107,27 +107,16 @@ export async function checkChainHealth(
  */
 export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // Priority order for fallback suggestion. Only networks where Memba's realms
-    // are actually deployed belong here — steering a user to a chain with no
-    // Memba realms (e.g. Betanet/gnoland1) is worse than no suggestion. test13
-    // was retired 2026-07-26 (RPCs dead) so it no longer belongs in the list;
-    // gnoland1 is a last resort only.
-    // The comment above was the intent; the code did not implement it — this
-    // returned "gnoland1" whenever the first entry was itself the degraded
-    // network, so ChainHaltedBanner offered a one-click switch to a chain with
-    // no Memba realms. Now filtered on the same signal the banner uses, and
-    // hidden networks are never suggested.
+    // are actually deployed belong here: steering a user to a chain with no
+    // Memba realms is worse than no suggestion, and so is a hidden network or
+    // the degraded network itself (the banner's own signal filters them).
     // A chain leaves this list when it retires, and an OUTGOING chain leaves
     // at its cutover: suggesting it as an escape contradicts the migration
     // (the networkPins tooth demands exactly one active-realms network per
-    // pin file). gnoland1 stays last (realm-free, filtered anyway).
-    // Mainnet cutover (2026-09-23): pearl left the list — it is shut down, and
-    // a dead chain must never be offered as an escape. mainnet leads: it is
-    // where Memba's realms live now. Its wave 1 is PARTIAL (`realmsDeployed`
-    // stays false while REALM_ALLOWLIST lists the live realms), so "has Memba
-    // realms" also accepts a non-empty allowlist — otherwise a dead /pearl/
-    // deep link would get no escape at all. gnoland1's explicit empty list
-    // still keeps it out.
-    const fallbackOrder = ["mainnet", "gnoland1"]
+    // pin file). Mainnet's wave 1 is PARTIAL (`realmsDeployed` stays false
+    // while REALM_ALLOWLIST lists the live realms), so "has Memba realms" also
+    // accepts a non-empty allowlist.
+    const fallbackOrder = ["mainnet"]
     for (const key of fallbackOrder) {
         const net = NETWORKS[key]
         const hasMembaRealms = networkHasRealms(key) || networkHasAllowlistedRealms(key)

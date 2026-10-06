@@ -33,13 +33,13 @@ describe("useNetworkKey", () => {
     })
 
     it("ignores a stale URL echo naming a retired or hidden network", () => {
-        for (const echo of ["pearl", "test13", "gnoland1"]) {
+        for (const echo of ["pearl", "test13"]) {
             expect(NETWORKS[echo]?.hidden, echo).toBe(true)
             localStorage.setItem("memba_network", echo)
             expect(keyAt("/no-network-here"), echo).toBe(DEFAULT_NETWORK)
         }
         // …and one that has left the registry altogether.
-        for (const echo of ["topaz", "sapphire"]) {
+        for (const echo of ["topaz", "sapphire", "gnoland1"]) {
             expect(NETWORKS[echo], echo).toBeUndefined()
             localStorage.setItem("memba_network", echo)
             expect(keyAt("/no-network-here"), echo).toBe(DEFAULT_NETWORK)

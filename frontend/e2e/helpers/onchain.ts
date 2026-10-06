@@ -28,7 +28,7 @@ import type { Page } from '@playwright/test'
  * exactly the shared-infra race this helper exists to kill (found via a CI
  * flake on a cutover PR; the suffix-matched host list has covered every
  * default since, unchanged). Still RPC-only and not a blanket stub: it does
- * NOT cover p2p.team / aeddi.org (gnoland1 telemetry) or the browser-proxied
+ * NOT cover telemetry hosts or the browser-proxied
  * indexer (config.ts getIndexerUrl routes through
  * `${API_BASE_URL}/api/indexer`, never these hosts).
  * EXTEND this list before reusing abortOnchainReads on a spec that reads a

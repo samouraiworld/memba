@@ -119,9 +119,9 @@ describe("useNetwork.switchNetwork — an explicit choice is recorded apart from
 
     it("records the switch as the user's preference, and keeps the echo in step", () => {
         const { result } = renderHook(() => useNetwork(), { wrapper })
-        result.current.switchNetwork("gnoland1")
-        expect(localStorage.getItem("memba_network_pref")).toBe("gnoland1")
-        expect(localStorage.getItem("memba_network")).toBe("gnoland1")
+        result.current.switchNetwork("test13")
+        expect(localStorage.getItem("memba_network_pref")).toBe("test13")
+        expect(localStorage.getItem("memba_network")).toBe("test13")
     })
 
     it("records no preference when 'switching' to the network already active", () => {

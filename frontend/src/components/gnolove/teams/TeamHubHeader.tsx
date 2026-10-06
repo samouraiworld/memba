@@ -10,7 +10,7 @@
  *   - "Data: mainnet" discloses that the roster and its metrics come from
  *     gnolove's mainnet-backed source, not from the chain the app is pointed
  *     at — a discrepancy worth surfacing on a test chain, which is why
- *     `gnolove-team-hub` e2e asserts it is absent on gnoland1 ("real chain")
+ *     `gnolove-team-hub` e2e asserts it is absent on mainnet ("real chain")
  *     and present on test13. It was gated on the `test13` KEY, so the next
  *     testnet silently dropped it; it now keys off `NETWORKS[...].isTestnet`,
  *     which covers any test chain without another literal.
