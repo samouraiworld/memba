@@ -14,7 +14,8 @@ jobs:
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # A go.sum change misses the module/build cache; a cold lint then needs more than 10 minutes.
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
