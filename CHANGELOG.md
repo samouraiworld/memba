@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: short and zoomed screens (2026-10-06)
+- Memba OS: menus, dialogs, review sheets and window buttons stay usable on short or zoomed screens
+
 ### Memba OS: Market and Tokens described truthfully (2026-10-06)
 - Memba OS no longer describes Market and Tokens as places to trade NFTs and tokens, which mainnet does not offer; Market is described as hiring with milestone escrow
 

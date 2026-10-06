@@ -72,9 +72,9 @@
 
 /* panels and menus */
 .memba-os .os-panel {
-  position: absolute; top: 34px; z-index: 940; border-radius: 14px; overflow: hidden; min-width: 220px;
+  position: absolute; top: 34px; z-index: 940; border-radius: 14px; overflow: hidden auto; min-width: 220px;
   box-shadow: 0 30px 60px -20px var(--os-shadow), 0 0 0 .5px var(--os-line); animation: os-pop .16s;
-  font-weight: 600; max-width: calc(100vw - 20px);
+  font-weight: 600; max-width: calc(100vw - 20px); max-height: calc(100dvh - 44px);
 }
 .memba-os .os-menu { padding: 6px; display: grid; }
 .memba-os .os-menu-top { border-top: 1px solid var(--os-line); }
@@ -126,8 +126,9 @@
 .memba-os .os-lock-hint { font-size: 11.5px; opacity: .65; margin-top: 14px; padding: 0 16px; }
 
 /* modal */
-.memba-os .os-scrim { position: absolute; inset: 0; z-index: 950; background: var(--os-scrim); display: grid; justify-items: center; align-content: start; padding-top: 12%; }
-.memba-os .os-scrim-center { align-content: center; padding: 16px; }
+.memba-os .os-scrim { position: absolute; inset: 0; z-index: 950; background: var(--os-scrim); display: grid; justify-items: center; align-content: start; padding-top: 12%; overflow-y: auto; }
+/* safe: a dialog taller than the screen starts at its top, where scrolling reaches all of it. Plain center serves browsers without the keyword. */
+.memba-os .os-scrim-center { align-content: center; align-content: safe center; padding: 16px; }
 /* A live meeting keeps a 36 px bar 8 px below the top safe area while a dialog is open (meet.css): dialogs start below it. */
 .memba-os:has(.meet-stage-pip) .os-scrim { padding-top: max(12%, calc(52px + env(safe-area-inset-top, 0px))); }
 .memba-os:has(.meet-stage-pip) .os-scrim-center { padding-top: calc(52px + env(safe-area-inset-top, 0px)); }
@@ -171,9 +172,13 @@
 .memba-os .os-win.os-max .os-tb { cursor: default; }
 .memba-os .os-lights { display: flex; gap: 8px; position: relative; z-index: 1; }
 .memba-os .os-lights > button {
-  width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center;
+  width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; position: relative;
   cursor: pointer; color: rgba(0, 0, 0, .55); font-size: 9px; line-height: 1; font-weight: 800;
 }
+/* 24 px hit areas side by side; the dots stay 12 px wide, 8 px apart. */
+.memba-os .os-lights > button::before { content: ""; position: absolute; inset: -6px; }
+.memba-os .os-lights > .os-light-close::before { left: -10px; right: -2px; }
+.memba-os .os-lights > .os-light-max::before { left: -2px; right: -10px; }
 .memba-os .os-lights > button span { opacity: 0; }
 .memba-os .os-lights:hover > button span, .memba-os .os-lights > button:focus-visible span { opacity: 1; }
 .memba-os .os-light-close { background: #FF5F57; }
@@ -401,13 +406,13 @@
 .memba-os .os-pipe li.os-done::before { content: "✓"; background: var(--os-ok-bg); color: var(--os-ok); }
 .memba-os .os-pipe li.os-cur { color: var(--os-ink); }
 .memba-os .os-pipe li.os-cur::before { box-shadow: inset 0 0 0 2px var(--os-acc); }
-/* ⌘K launcher (mockup .launch .res) */
+/* ⌘K launcher (mockup .launch .res). The dialog clips, so its two stops draw the focus ring inside, along its corners. */
 .memba-os .os-launch { width: min(580px, 92vw); border-radius: 18px; overflow: hidden; display: grid; }
 .memba-os .os-launch-in {
   width: 100%; border: 0; background: transparent; font: 500 18px var(--os-font); padding: 18px 20px; color: var(--os-ink);
-  outline: none; border-bottom: 1px solid var(--os-line);
+  border-bottom: 1px solid var(--os-line); border-radius: 18px 18px 0 0; outline-offset: -2px;
 }
-.memba-os .os-launch-res { list-style: none; margin: 0; padding: 6px; max-height: 340px; overflow: auto; }
+.memba-os .os-launch-res { list-style: none; margin: 0; padding: 6px; max-height: 340px; overflow: auto; border-radius: 0 0 18px 18px; outline-offset: -2px; }
 .memba-os .os-launch-r { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
 .memba-os .os-launch-r[aria-selected="true"] { background: var(--os-hover); }
 .memba-os .os-launch-empty { padding: 12px; }
@@ -446,7 +451,7 @@
   position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px;
   background: var(--os-err); color: var(--os-solid-ink); font-size: 10px; font-weight: 800; display: grid; place-items: center;
 }
-.memba-os .os-ph-home { flex: 1; overflow-y: auto; padding: 14px 16px calc(104px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; align-content: start; }
+.memba-os .os-ph-home { flex: 1; overflow-y: auto; padding: 14px 16px calc(104px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; align-content: start; }
 .memba-os .os-ph-chip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; }
 .memba-os .os-ph-widget { display: grid; gap: 6px; justify-items: start; padding: 14px; border-radius: 18px; }
 .memba-os .os-ph-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 8px; }
@@ -476,7 +481,7 @@
 @keyframes os-sheet { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .memba-os .os-ph-sheet-h { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; }
 .memba-os .os-ph-title { margin: 6px 16px 8px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }
-.memba-os .os-ph-sheet-b { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px calc(104px + env(safe-area-inset-bottom, 0px)); }
+.memba-os .os-ph-sheet-b { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px calc(104px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
 .memba-os .os-ph-body { padding: 0; }
 /* keyboard focus on windows and sheets (day 7) */
 .memba-os .os-win:focus, .memba-os .os-ph-title:focus { outline: none; }

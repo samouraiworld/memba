@@ -120,7 +120,8 @@
   background: var(--os-bar);
   -webkit-backdrop-filter: blur(22px);
   backdrop-filter: blur(22px);
-  z-index: 900;
+  /* One above the dock (900): an open menu panel reaches it on a short screen. */
+  z-index: 901;
 }
 
 .memba-os .os-mark {
