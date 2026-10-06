@@ -30,6 +30,8 @@ Full changelogs are split by version range for easier navigation:
 - Memba OS no longer describes Market and Tokens as places to trade NFTs and tokens, which mainnet does not offer; Market is described as hiring with milestone escrow
 ### memba.club is the canonical address (2026-10-06)
 - memba.club is now Memba's canonical address. On memba.club, an old classic link (for example /mainnet/dao/…, /mainnet/feed/post/12) opens the matching Memba OS window; pages without a window, and links to testnets or retired networks, stay as they were. Prepares the retirement of memba.samourai.app: the content security policy allows Clerk on memba.club, and a service-worker kill switch is in place for the coming redirect
+### Backend: unused Launchpad index removed (2026-10-06)
+- Backend: remove the unused Token Launchpad index package; an indexer will return with the first feature that reads it
 
 ### Alerts: a true sentence without sign-in (2026-10-06)
 - Alerts: when sign-in for alerts isn't set up on a site, the page now says so plainly and still lists the Telegram bots, instead of showing a configuration instruction; the Profile page no longer shows that instruction. The Telegram bot buttons are easier to read
