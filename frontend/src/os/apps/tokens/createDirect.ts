@@ -189,7 +189,7 @@ export function createDirectRequest(ctx: DirectContext): SignRequest {
             ["Allocations", launch.allocations.length === 0 ? "None" : `${launch.allocations.length}, ${vested} of them vesting`],
             ["Airdrop", airdrop ? `${units(launch.airdropTotal)} ${launch.ticker} to ${airdrop.claims.length} addresses, for token ${airdrop.tokenId}` : "None"],
             ["Creation fee", fee === 0n ? "Free" : formatUgnotExact(Number(fee))],
-            ["Storage deposit", `Up to ${formatUgnotExact(depositCap)}; bytes freed later, as vesting is claimed, return their share`],
+            ["Storage deposit", `Up to ${formatUgnotExact(depositCap)}; when a vesting claim later frees bytes, their deposit goes to whoever sends that claim, which anyone may do`],
             ["Network fee", formatUgnotExact(gasFee)],
             ["Launch terms", `Config version ${terms.version}`],
         ],
