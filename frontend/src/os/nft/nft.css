@@ -23,3 +23,5 @@
   .memba-os .os-nft-item { grid-template-columns: minmax(0, 1fr); }
   .memba-os .os-nft-head { flex-wrap: wrap; }
 }
+.memba-os .os-nft-field :is(input, select) { min-height: 44px; box-sizing: border-box; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--os-line); background: var(--os-hover); color: var(--os-ink); font: 600 13px var(--os-mono); }
+.memba-os .os-nft-field :is(input, select):focus-visible { outline: 2px solid var(--os-acc); outline-offset: 0; }

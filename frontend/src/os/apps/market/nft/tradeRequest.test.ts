@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
     available: vi.fn(() => true),
     getListing: vi.fn(),
+    getTokenListing: vi.fn(),
+    getToken: vi.fn(),
+    getMarketTerms: vi.fn(),
     lane: vi.fn(),
     wallet: vi.fn(),
     readTx: vi.fn(),
@@ -14,7 +17,8 @@ vi.mock("../../../../lib/config", async (importActual) => ({
     isNftEnabled: mocks.available,
     isRealmValidOn: mocks.available,
 }))
-vi.mock("../../../../lib/nft/market", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/market")>(), getListing: mocks.getListing }))
+vi.mock("../../../../lib/nft/market", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/market")>(), getListing: mocks.getListing, getTokenListing: mocks.getTokenListing, getMarketTerms: mocks.getMarketTerms }))
+vi.mock("../../../../lib/nft/ledger", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/ledger")>(), getToken: mocks.getToken }))
 vi.mock("../../../../lib/tokenLaunchpadConfigClient", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/tokenLaunchpadConfigClient")>(), readActionStatus: mocks.lane }))
 vi.mock("../../../../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../../../../lib/grc20")>()
@@ -42,7 +46,7 @@ vi.mock("../../../../lib/dao/chainIdentity", () => ({ assertRpcChain: async () =
 import { doContractBroadcast, setTxConfirmationCallback } from "../../../../lib/grc20"
 import type { NftListing } from "../../../../lib/nft/market"
 import { executeSignature } from "../../../sign/signer"
-import { buyRequest, cancelListingRequest, type ListingDraft } from "./tradeRequest"
+import { buyRequest, cancelListingRequest, listRequest, type ListDraft, type ListingDraft } from "./tradeRequest"
 
 const HASH = "b".repeat(64)
 const BUYER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
@@ -59,6 +63,9 @@ const open = { lane: "nft_market", currency: "ugnot", paused: false, allowlisted
 beforeEach(() => {
     mocks.available.mockReset().mockReturnValue(true)
     mocks.getListing.mockReset().mockResolvedValue(listing)
+    mocks.getTokenListing.mockReset().mockResolvedValue(null)
+    mocks.getToken.mockReset().mockResolvedValue({ collection: "C1", number: 5n, owner: SELLER, status: "active", uri: "" })
+    mocks.getMarketTerms.mockReset().mockResolvedValue({ feeBPS: 50n, maxFeeBPS: 200n, treasury: ROYALTY, split: listing.split })
     mocks.lane.mockReset().mockResolvedValue(open)
     mocks.wallet.mockReset().mockResolvedValue({ hash: HASH })
     mocks.readTx.mockReset().mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: null } } })
@@ -125,6 +132,52 @@ describe("cancelling a listing", () => {
         expect(await run(cancelListingRequest(draft({ caller: SELLER })))).toEqual({ outcome: "failed", error: "This listing has already closed. Nothing was sent." })
         mocks.getListing.mockResolvedValueOnce({ ...listing, seller: BUYER })
         expect(await run(cancelListingRequest(draft({ caller: SELLER })))).toEqual({ outcome: "failed", error: "Only the seller can cancel this listing now. Nothing was sent." })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+    })
+})
+
+describe("listing a token", () => {
+    const listDraft = (more: Partial<ListDraft> = {}): ListDraft => ({
+        collection: "C1", number: 5n, price: 2_000_000n, expiresAt: 4_102_444_800n, feeBPS: 50n, split: listing.split, replaces: null,
+        caller: SELLER, networkKey: "mainnet", chainId: "gnoland-1", gas: { gas: 1000, ugnot: 1 }, ...more,
+    })
+
+    it("reviews the price, where it would go at a sale and the expiry, then sends the approval and the listing together", async () => {
+        mocks.getTokenListing.mockResolvedValue({ ...listing, id: "L9" })
+        const request = listRequest(listDraft({ replaces: "L9" }))
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([
+            ["Price", "2 GNOT"], ["At a sale: to the seller", "1.89 GNOT"], ["At a sale: protocol fee (0.5%)", "0.01 GNOT"],
+            [`At a sale: royalty to ${ROYALTY}`, "0.1 GNOT"], ["Expires", "2100-01-01 00:00 UTC"], ["Replaces", "Listing L9, closed by this one"],
+            ["Storage deposit", "Up to 1.86 GNOT; the listing's part (about 0.78 GNOT) goes to whoever closes it"],
+        ]))
+        const msgs = request.prepare(undefined).msgs
+        expect(msgs.map((msg) => msg.value.func)).toEqual(["Approve", "List"])
+        expect(msgs[1].value.args).toEqual(["C1", "5", "2000000", "4102444800", "ugnot", "50"])
+        expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(msgs, "List C1 #5", expect.objectContaining({ gasWanted: 50_000_000 }))
+        expect(mocks.getMarketTerms).toHaveBeenCalledWith("C1", 2_000_000n)
+        expect(mocks.getTokenListing).toHaveBeenCalledWith("C1", 5n)
+    })
+
+    it.each([
+        ["the expiry has passed", () => ({ expiresAt: BigInt(Math.floor(Date.now() / 1000)) }), () => {}, "expiry has passed"],
+        ["the market was paused", () => ({}), () => mocks.lane.mockResolvedValue({ ...open, paused: true, open: false }), "Trading is paused on this network for now."],
+        ["the token moved", () => ({}), () => mocks.getToken.mockResolvedValue({ collection: "C1", number: 5n, owner: BUYER, status: "active", uri: "" }), "no longer holds C1 #5"],
+        ["the token was burned", () => ({}), () => mocks.getToken.mockResolvedValue({ collection: "C1", number: 5n, owner: SELLER, status: "burned", uri: "" }), "no longer holds C1 #5"],
+        ["the protocol fee changed", () => ({}), () => mocks.getMarketTerms.mockResolvedValue({ feeBPS: 100n, maxFeeBPS: 200n, treasury: ROYALTY, split: { seller: 1_880_000n, fee: 20_000n, royalties: listing.split.royalties } }), "terms changed"],
+        // At a tiny price both fees round to nothing and the split stays the same: the fee itself is compared.
+        ["the protocol fee changed under an unchanged split", () => ({}), () => mocks.getMarketTerms.mockResolvedValue({ feeBPS: 60n, maxFeeBPS: 200n, treasury: ROYALTY, split: listing.split }), "terms changed"],
+        ["the market stopped quoting", () => ({}), () => mocks.getMarketTerms.mockResolvedValue({ feeBPS: 50n, maxFeeBPS: 200n, treasury: ROYALTY, split: null }), "terms changed"],
+        ["the royalties changed", () => ({}), () => mocks.getMarketTerms.mockResolvedValue({ feeBPS: 50n, maxFeeBPS: 200n, treasury: ROYALTY, split: { seller: 1_990_000n, fee: 10_000n, royalties: [] } }), "terms changed"],
+        // The market keeps one listing per token and List closes it: the sheet must name the one the chain holds now.
+        ["the listing it replaces closed", () => ({ replaces: "L9" }), () => mocks.getTokenListing.mockResolvedValue(null), "open listing of C1 #5 changed"],
+        ["another listing took the place of the one it replaces", () => ({ replaces: "L9" }), () => mocks.getTokenListing.mockResolvedValue({ ...listing, id: "L10" }), "open listing of C1 #5 changed"],
+        ["a listing appeared after the read", () => ({}), () => mocks.getTokenListing.mockResolvedValue({ ...listing, id: "L9" }), "open listing of C1 #5 changed"],
+    ])("stops before the wallet when %s", async (_, more, change, message) => {
+        change()
+        const result = await run(listRequest(listDraft(more())))
+        expect(result.outcome).toBe("failed")
+        expect((result as { error: string }).error).toContain(message)
         expect(mocks.wallet).not.toHaveBeenCalled()
     })
 })

@@ -2,8 +2,9 @@
  * Market NFT lane, one token's trade panel (`nfts/c/<id>/<number>`): its open
  * listing with the split the realm computed for it, the offers that can apply
  * to it, and the rule for who closes an order, with a link to the token's
- * page in the NFT app. A member buys a listing priced in GNOT here, and its
- * seller cancels it; a guest is asked to connect only when buying.
+ * page in the NFT app. A member buys a listing priced in GNOT here, its
+ * seller cancels it, and the token's holder lists it for sale (or replaces
+ * its listing); a guest is asked to connect only when buying.
  *
  * @module os/apps/market/nft/item
  */
@@ -12,17 +13,19 @@ import { useEffect, useRef, useState } from "react"
 import { useNow } from "../../../../hooks/home/useNow"
 import { networkGasPriceFresh } from "../../../../lib/grc20"
 import { formatAmount } from "../../../../lib/nft/format"
-import { getTokenListing, type NftListing, type NftOffer } from "../../../../lib/nft/market"
+import { getToken } from "../../../../lib/nft/ledger"
+import { getMarketTerms, getTokenListing, type NftListing, type NftOffer } from "../../../../lib/nft/market"
 import { ReadError, RealmRefusedError } from "../../../../lib/nft/read"
-import { buyBlocker } from "../../../../lib/nft/trade"
+import { LISTING_DAYS, NFT_MARKET_ADDRESS, buyBlocker, listingExpiry, type ListingDays } from "../../../../lib/nft/trade"
 import { TokenLaunchpadReadError } from "../../../../lib/tokenLaunchpadClient"
 import { laneClosedReason, readActionStatus } from "../../../../lib/tokenLaunchpadConfigClient"
+import { parseGnot } from "../../../wallet/send"
 import { useSigner } from "../../../sign/signerContext"
 import type { OsSession } from "../../../shell/useOsSession"
 import { CardGrid, Empty, Loading, Pill } from "../../../kit"
 import { CollectionName, DepositRule, OfferCard, OrderList, Payouts, Price, ReadFailure, TokenArt } from "./orders"
-import { ORDER_DEPOSIT, isExpired, useCollectionOffers, utc, type LaneProps } from "./reads"
-import { buyRequest, cancelListingRequest } from "./tradeRequest"
+import { ORDER_DEPOSIT, isExpired, useCollection, useCollectionOffers, utc, type LaneProps } from "./reads"
+import { buyRequest, cancelListingRequest, listRequest } from "./tradeRequest"
 
 /** A failed check before the review, in words a member can act on. */
 function reason(err: unknown): string {
@@ -43,7 +46,7 @@ function reason(err: unknown): string {
  */
 function ListingAction({ lane, session, listing }: { lane: LaneProps; session: OsSession; listing: NftListing }) {
     const signer = useSigner()
-    const client = useQueryClient()
+    const afterTrade = useAfterTrade()
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState("")
     const alive = useRef(true)
@@ -69,12 +72,7 @@ function ListingAction({ lane, session, listing }: { lane: LaneProps; session: O
             if (!alive.current) return
             const request = mine ? cancelListingRequest : buyRequest
             signer.sign(request({
-                listing, caller: session.address, networkKey: session.network.key, chainId: lane.chainId, price,
-                onSettled: (outcome) => {
-                    if (outcome !== "confirmed" && outcome !== "submitted") return
-                    void client.invalidateQueries({ queryKey: ["nft", "market"] })
-                    void client.invalidateQueries({ queryKey: ["nft", "ledger"] })
-                },
+                listing, caller: session.address, networkKey: session.network.key, chainId: lane.chainId, price, onSettled: afterTrade,
             }))
         } catch (err) {
             if (alive.current) setError(reason(err))
@@ -88,6 +86,86 @@ function ListingAction({ lane, session, listing }: { lane: LaneProps; session: O
             <div className="os-row"><button type="button" className={mine ? "os-btn os-quiet" : "os-btn"} disabled={busy} onClick={() => void act()}>{busy ? "Checking…" : label}</button></div>
             {error && <p className="os-note os-warn" role="alert">{error}</p>}
         </div>
+    )
+}
+
+/** What a fresh order's sheet needs refreshed when the chain has it. */
+function useAfterTrade() {
+    const client = useQueryClient()
+    return (outcome: string) => {
+        if (outcome !== "confirmed" && outcome !== "submitted") return
+        void client.invalidateQueries({ queryKey: ["nft", "market"] })
+        void client.invalidateQueries({ queryKey: ["nft", "ledger"] })
+    }
+}
+
+/**
+ * List the token for sale, shown to its holder only. The fee, the market
+ * lane and the market's terms for this price are read at this click; the
+ * sheet shows where the price would go at a sale.
+ */
+function SellForm({ lane, session, collection, number, listing }: { lane: LaneProps; session: OsSession; collection: string; number: bigint; listing: NftListing | null }) {
+    const signer = useSigner()
+    const afterTrade = useAfterTrade()
+    const [price, setPrice] = useState("")
+    const [days, setDays] = useState<ListingDays>(7)
+    const [busy, setBusy] = useState(false)
+    const [error, setError] = useState("")
+    const alive = useRef(true)
+    useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+    const viewer = session.status === "member" ? session.address : ""
+    const token = useQuery({
+        queryKey: ["nft", "ledger", "token", lane.chainId, collection, number.toString()],
+        queryFn: () => getToken(collection, number),
+        staleTime: 60_000, retry: false,
+    })
+    const info = useCollection(lane.chainId, collection)
+    if (viewer === "" || token.data?.status !== "active" || token.data.owner !== viewer || !info.data) return null
+
+    const sellable = info.data.mode === "soulbound" ? "Soulbound tokens are never sold."
+        : info.data.mode === "royalty_protected" && !info.data.markets.includes(NFT_MARKET_ADDRESS)
+            ? "This collection's creator has not allowed this market, so its tokens cannot be sold here."
+            : ""
+    const replaces = listing?.id ?? null
+    const list = async () => {
+        setError("")
+        const amount = parseGnot(price)
+        if (amount === null) { setError("Enter a price in GNOT, such as 12.5."); return }
+        setBusy(true)
+        try {
+            const [gas, status, terms] = await Promise.all([networkGasPriceFresh(), readActionStatus(session.network.key, "nft_market", "ugnot"), getMarketTerms(collection, amount)])
+            if (!status.open) throw new Error(laneClosedReason(status, "Trading"))
+            if (terms.feeBPS === null || terms.split === null) throw new Error("The market takes no new listing on this network: its protocol fee is not set.")
+            if (!alive.current) return
+            signer.sign(listRequest({
+                collection, number, price: amount, expiresAt: listingExpiry(Date.now() / 1000, days), feeBPS: terms.feeBPS, split: terms.split, replaces,
+                caller: viewer, networkKey: session.network.key, chainId: lane.chainId, gas, onSettled: afterTrade,
+            }))
+        } catch (err) {
+            if (alive.current) setError(reason(err))
+        } finally {
+            if (alive.current) setBusy(false)
+        }
+    }
+    return (
+        <section aria-label="Sell this token">
+            <h4 className="os-h">Sell</h4>
+            {sellable ? <p className="os-sub">{sellable}</p> : (
+                <div className="os-stack os-tight">
+                    <div className="os-row os-nft-field">
+                        <label className="os-row os-tight-row"><span>Price in GNOT</span><input inputMode="decimal" size={10} value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+                        <label className="os-row os-tight-row"><span>Open for</span>
+                            <select value={days} onChange={(event) => setDays(Number(event.target.value) as ListingDays)}>
+                                {LISTING_DAYS.map((option) => <option key={option} value={option}>{option === 1 ? "1 day" : `${option} days`}</option>)}
+                            </select>
+                        </label>
+                        <button type="button" className="os-btn" disabled={busy} onClick={() => void list()}>{busy ? "Checking…" : replaces ? "Replace listing" : "List for sale"}</button>
+                    </div>
+                    {replaces && <p className="os-sub">A new listing closes the token's open listing {replaces}.</p>}
+                    {error && <p className="os-note os-warn" role="alert">{error}</p>}
+                </div>
+            )}
+        </section>
     )
 }
 
@@ -133,6 +211,7 @@ export function ItemTrade({ lane, session, collection, number }: { lane: LanePro
                     : listing.data === null ? <Empty title="This token is not listed." />
                     : <Listing lane={lane} session={session} listing={listing.data} />}
             </section>
+            {listing.isSuccess && <SellForm lane={lane} session={session} collection={collection} number={number} listing={listing.data} />}
             <section aria-label="Offers for this token">
                 <h4 className="os-h">Offers</h4>
                 <OrderList orders={offers} what="offers" empty="No open offer applies to this token." keep={(offer) => applies(offer) && !isExpired(offer, now)}>
