@@ -61,7 +61,7 @@ describe("ChainMismatchBanner — test13 chainId/key resolution", () => {
  */
 describe("ChainMismatchBanner — never offers to follow the wallet onto a HIDDEN network", () => {
     const withHidden = {
-        topaz: { label: "Topaz", chainId: "topaz-1", rpcUrl: "https://rpc.topaz.samourai.live:443" },
+        mainnet: { label: "gno.land", chainId: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" },
         gnoland1: { label: "Betanet (gnoland1)", chainId: "gnoland1", rpcUrl: "https://rpc.gnoland1.samourai.live:443", hidden: true },
     }
 
@@ -70,7 +70,7 @@ describe("ChainMismatchBanner — never offers to follow the wallet onto a HIDDE
         render(
             <ChainMismatchBanner
                 walletChainId="gnoland1"
-                membaChainId="topaz-1"
+                membaChainId="gnoland-1"
                 networks={withHidden}
                 switchMembaNetwork={switchMembaNetwork}
             />,
@@ -83,7 +83,7 @@ describe("ChainMismatchBanner — never offers to follow the wallet onto a HIDDE
         render(
             <ChainMismatchBanner
                 walletChainId="gnoland1"
-                membaChainId="topaz-1"
+                membaChainId="gnoland-1"
                 networks={withHidden}
                 switchMembaNetwork={vi.fn()}
             />,
@@ -98,7 +98,7 @@ describe("ChainMismatchBanner — never offers to follow the wallet onto a HIDDE
         render(
             <ChainMismatchBanner
                 walletChainId="gnoland1"
-                membaChainId="topaz-1"
+                membaChainId="gnoland-1"
                 networks={withHidden}
                 switchMembaNetwork={vi.fn()}
                 addAndSwitchWallet={addAndSwitchWallet}
@@ -113,13 +113,13 @@ describe("ChainMismatchBanner — never offers to follow the wallet onto a HIDDE
         const switchMembaNetwork = vi.fn()
         render(
             <ChainMismatchBanner
-                walletChainId="topaz-1"
+                walletChainId="gnoland-1"
                 membaChainId="gnoland1"
                 networks={withHidden}
                 switchMembaNetwork={switchMembaNetwork}
             />,
         )
         fireEvent.click(screen.getByRole("button", { name: /switch memba to/i }))
-        expect(switchMembaNetwork).toHaveBeenCalledWith("topaz")
+        expect(switchMembaNetwork).toHaveBeenCalledWith("mainnet")
     })
 })

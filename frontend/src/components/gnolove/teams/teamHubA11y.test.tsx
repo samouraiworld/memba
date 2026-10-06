@@ -171,21 +171,21 @@ describe("Skeleton fidelity (P1 — Plan §7)", () => {
 })
 
 describe('TeamHubHeader "Data: mainnet" disclosure', () => {
-    // The chip was gated on `useNetworkKey() === "test13"`, so the topaz cutover
-    // silently dropped the disclosure. It now keys off NETWORKS[...].isTestnet,
-    // which covers topaz. The rule it must NOT break: gnolove-team-hub e2e
+    // The chip was gated on `useNetworkKey() === "test13"`, so every other
+    // testnet silently dropped the disclosure. It now keys off
+    // NETWORKS[...].isTestnet. The rule it must NOT break: gnolove-team-hub e2e
     // asserts the chip is ABSENT on gnoland1 ("real chain") — see the third case.
-    it("renders on topaz, the network the test13 literal missed", () => {
+    it("renders on onyx, a testnet the test13 literal missed", () => {
         // The <Routes> wrapper is load-bearing, exactly as the control case
         // below spells out: a bare <MemoryRouter> binds NO :network param, so
         // useParams() returns {} and the chip condition reads DEFAULT_NETWORK
-        // instead of topaz. This case was written without it and therefore
-        // never tested topaz at all — it passed only because every default
+        // instead of onyx. This case was written without it and therefore
+        // never tested its network at all — it passed only because every default
         // this app has had was a testnet. The 2026-09-17 mainnet flip
         // (isTestnet: false) turned that silent vacuity into a red test, which
         // is the useful outcome. Now it binds the param it claims to.
         render(
-            <MemoryRouter initialEntries={["/topaz/gnolove/teams/onbloc"]}>
+            <MemoryRouter initialEntries={["/onyx/gnolove/teams/onbloc"]}>
                 <Routes>
                     <Route
                         path="/:network/gnolove/teams/:slug"
@@ -195,7 +195,7 @@ describe('TeamHubHeader "Data: mainnet" disclosure', () => {
                                 period="monthly"
                                 onPeriodChange={() => {}}
                                 lastSyncedAt="2026-05-19T10:00:00Z"
-                                backToTeamsHref="/topaz/gnolove/teams"
+                                backToTeamsHref="/onyx/gnolove/teams"
                             />
                         }
                     />

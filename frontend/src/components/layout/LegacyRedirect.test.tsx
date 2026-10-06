@@ -10,7 +10,7 @@ import { NETWORKS, DEFAULT_NETWORK, resolveStoredNetworkKey } from "../../lib/co
  * to". NetworkGate routes every legacy / bookmarked URL through it (any /:network
  * segment that isn't a known key lands here), so when it inlined its own
  * `(stored && NETWORKS[stored]) ? stored : DEFAULT_NETWORK` — with no `hidden`
- * check — `/` healed to `/topaz/` while `/directory` still went to
+ * check — `/` healed to the default while `/directory` still went to
  * `/gnoland1/directory`. Bookmarks stayed pinned to a network the switcher no
  * longer offers.
  *
@@ -124,12 +124,14 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
         expect(networkOf(renderLegacy("/directory"))).not.toBe("pearl")
     })
 
-    it("heals a stored sapphire selection off the sunset network (2026-09-09)", () => {
-        // Sapphire joined the hidden set at its sunset: a returning pre-sunset
-        // user's bookmark must land on a network the switcher actually offers.
-        localStorage.setItem("memba_network_pref", "sapphire")
-        expect(networkOf(renderLegacy("/directory"))).toBe(resolveStoredNetworkKey("sapphire"))
-        expect(networkOf(renderLegacy("/directory"))).not.toBe("sapphire")
+    it("heals a stored selection of a network that has left the registry (topaz, sapphire)", () => {
+        // A returning user still carries the key: their bookmark must land on
+        // a network the switcher actually offers.
+        for (const stored of ["topaz", "sapphire"]) {
+            localStorage.setItem("memba_network_pref", stored)
+            expect(networkOf(renderLegacy("/directory")), stored).toBe(DEFAULT_NETWORK)
+            expect(networkOf(renderRoot()), stored).toBe(DEFAULT_NETWORK)
+        }
     })
 
     it("falls back to the default when nothing is stored", () => {
@@ -185,7 +187,7 @@ describe("Redirects — only an explicit choice is restored, never the URL echo"
     it("never restores a chosen network that has since been hidden — and does not fall back to the echo", () => {
         withPearlVisible(() => {
             localStorage.setItem("memba_network", "pearl")
-            localStorage.setItem("memba_network_pref", "sapphire")
+            localStorage.setItem("memba_network_pref", "test13")
             expect(networkOf(renderRoot())).toBe(DEFAULT_NETWORK)
             expect(networkOf(renderLegacy("/directory"))).toBe(DEFAULT_NETWORK)
         })
@@ -199,7 +201,7 @@ describe("Redirects — only an explicit choice is restored, never the URL echo"
 
     it("/ and a bookmark agree for every stored choice", () => {
         withPearlVisible(() => {
-            for (const pref of ["gnoland1", "test13", "sapphire", "no-such-network"]) {
+            for (const pref of ["gnoland1", "test13", "onyx", "sapphire", "no-such-network"]) {
                 localStorage.setItem("memba_network", "pearl")
                 localStorage.setItem("memba_network_pref", pref)
                 expect(networkOf(renderLegacy("/directory")), `pref=${pref}`).toBe(networkOf(renderRoot()))

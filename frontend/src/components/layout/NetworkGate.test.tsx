@@ -92,9 +92,18 @@ describe("NetworkGate — retired networks redirect to their successor", () => {
         expect(notice()).toBeNull()
     })
 
-    it("leaves hidden-but-not-retired deep links alone (test13, sapphire)", () => {
+    it.each([
+        ["topaz", "The Topaz testnet has been retired — you're now on gno.land mainnet."],
+        ["sapphire", "The Sapphire testnet has been retired — you're now on gno.land mainnet."],
+    ])("sends /%s/<route> to /mainnet/<route> and names it in the notice", (key, text) => {
+        expect(renderAt(`/${key}`)).toBe("/mainnet/")
+        expect(renderAt(`/${key}/dao/gno.land~r~gov~dao?tab=votes#top`)).toBe("/mainnet/dao/gno.land~r~gov~dao?tab=votes#top")
+        expect(notice()?.textContent).toContain(text)
+    })
+
+    it("leaves hidden-but-not-retired deep links alone (test13, onyx)", () => {
         expect(renderAt("/test13/create-token")).toBe("/test13/create-token")
-        expect(renderAt("/sapphire/directory")).toBe("/sapphire/directory")
+        expect(renderAt("/onyx/directory")).toBe("/onyx/directory")
         expect(notice()).toBeNull()
     })
 

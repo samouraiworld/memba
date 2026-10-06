@@ -148,7 +148,7 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
             expect(
                 LEGACY_TWO_VALUE_GET.test(code),
                 `${name} emits the two-value \`Get\` removed by gnolang/gno#5314 — the realm it generates ` +
-                    `cannot type-check on topaz-1 or sapphire-1, so it cannot be deployed`,
+                    `cannot type-check on a post-#5314 chain, so it cannot be deployed`,
             ).toBe(false)
             expect(
                 COMMA_OK_GET.test(code) || /\.Has\(/.test(code),

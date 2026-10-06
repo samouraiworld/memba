@@ -433,8 +433,8 @@ interface MonitoringInfo {
  *
  * This — NOT Memba's NETWORKS map — is the authoritative set of values a
  * webhook's chain_id may take. The two are different namespaces and have
- * already drifted: gnomonitoring serves `sapphire-1`, which Memba does not
- * model at all, and knows Betanet as `gnoland1`. Deriving the options from
+ * already drifted: gnomonitoring has served chains Memba does not model at
+ * all, and knows Betanet as `gnoland1`. Deriving the options from
  * NETWORKS would offer ids the service rejects while hiding ids it accepts.
  *
  * Returns [] on any failure — the caller degrades to a visible warning rather

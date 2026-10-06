@@ -8,7 +8,8 @@
  * exemption suppressed a real, useful signal.
  *
  * checkChainHealth (the network probe) is mocked; getSuggestedFallback stays
- * REAL so the fallback-ordering fix (prefer topaz over Betanet) is exercised.
+ * REAL so the fallback-ordering fix (prefer a network with Memba realms over
+ * Betanet) is exercised.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render as rtlRender, screen, waitFor } from "@testing-library/react"

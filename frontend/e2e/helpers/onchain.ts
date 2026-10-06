@@ -25,12 +25,12 @@ import type { Page } from '@playwright/test'
  * the list because the samourai sentry serves the default network
  * (rpc.pearl.samourai.live is in pearl's fallback set): aborting only the
  * primary made the app fail over to a LIVE samourai read and reintroduced
- * exactly the shared-infra race this helper exists to kill (found via CI flake
- * on the topaz cutover PR; the suffix-matched host list has covered every
- * default since — topaz, sapphire, pearl — unchanged). Still RPC-only and not
- * a blanket stub: it does NOT cover p2p.team /
- * aeddi.org (gnoland1 telemetry) or the browser-proxied indexer (config.ts
- * getIndexerUrl routes through `${API_BASE_URL}/api/indexer`, never these hosts).
+ * exactly the shared-infra race this helper exists to kill (found via a CI
+ * flake on a cutover PR; the suffix-matched host list has covered every
+ * default since, unchanged). Still RPC-only and not a blanket stub: it does
+ * NOT cover p2p.team / aeddi.org (gnoland1 telemetry) or the browser-proxied
+ * indexer (config.ts getIndexerUrl routes through
+ * `${API_BASE_URL}/api/indexer`, never these hosts).
  * EXTEND this list before reusing abortOnchainReads on a spec that reads a
  * surface backed by hosts outside it. That advice is even sharper for
  * fulfillOnchainReads: an out-of-list host isn't merely left flaky — it

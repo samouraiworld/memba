@@ -104,8 +104,8 @@ export function Settings() {
     const [gasConflict, setGasConflict] = useState({ gasWanted: false, gasFee: false })
     // The THIRD network picker (after TopBar and MobileTabBar). It listed the full
     // NETWORKS map, so it kept offering Betanet after `hidden` landed — and it
-    // compared a network KEY against GNO_CHAIN_ID (a chain ID: "topaz" vs
-    // "topaz-1"), so no button ever rendered as active. Both now go through the
+    // compared a network KEY against GNO_CHAIN_ID (a chain ID: "onyx" vs
+    // "onyx-1"), so no button ever rendered as active. Both now go through the
     // same helpers as the switcher.
     const { networkKey, switchNetwork } = useNetwork()
     const [saved, setSaved] = useState(false)

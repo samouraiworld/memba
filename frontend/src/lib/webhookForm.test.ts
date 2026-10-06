@@ -11,10 +11,10 @@ import { describe, it, expect } from "vitest"
 import { chainOptionsFor, validateWebhookUrl } from "./webhookForm"
 
 describe("chainOptionsFor", () => {
-    const enabled = ["gnoland1", "sapphire-1", "topaz-1"]
+    const enabled = ["gnoland1", "gnoland-1", "onyx-1"]
 
     it("offers exactly the enabled chains when the current value is among them", () => {
-        const options = chainOptionsFor(enabled, "topaz-1")
+        const options = chainOptionsFor(enabled, "onyx-1")
         expect(options.map(o => o.value)).toEqual(enabled)
     })
 
@@ -30,16 +30,16 @@ describe("chainOptionsFor", () => {
     })
 
     it("labels a chain Memba models with its network name", () => {
-        const option = chainOptionsFor(enabled, "topaz-1").find(o => o.value === "topaz-1")!
-        expect(option.label).toContain("Topaz")
-        expect(option.label).toContain("topaz-1")
+        const option = chainOptionsFor(enabled, "onyx-1").find(o => o.value === "onyx-1")!
+        expect(option.label).toContain("Onyx")
+        expect(option.label).toContain("onyx-1")
     })
 
     it("labels a chain Memba does not model with the raw id", () => {
         // Deliberately a chain id Memba will never model, NOT one merely absent
-        // from NETWORKS today. This assertion used to use "sapphire-1", which
-        // stopped being unmodelled the moment a hidden `sapphire` entry landed
-        // — the label became "Sapphire (sapphire-1)" and this went red for a
+        // from NETWORKS today. This assertion used to use a real chain id, which
+        // stopped being unmodelled the moment a hidden entry for it landed —
+        // the label gained the network name and this went red for a
         // BEHAVIOUR IMPROVEMENT. gnomonitoring's registry and Memba's NETWORKS
         // drift independently in both directions, so pinning the case to a real
         // id guarantees a recurrence every time either side grows.
@@ -49,16 +49,16 @@ describe("chainOptionsFor", () => {
     })
 
     it("never duplicates the current value", () => {
-        const values = chainOptionsFor(enabled, "topaz-1").map(o => o.value)
-        expect(values.filter(v => v === "topaz-1")).toHaveLength(1)
+        const values = chainOptionsFor(enabled, "onyx-1").map(o => o.value)
+        expect(values.filter(v => v === "onyx-1")).toHaveLength(1)
     })
 
     it("does not label the current chain as retired when the registry is empty", () => {
         // An empty `enabled` list means the /info fetch hasn't resolved (or
         // failed) — it must not be read as "the service dropped this chain".
-        const option = chainOptionsFor([], "topaz-1")[0]
-        expect(option.value).toBe("topaz-1")
-        expect(option.label).toBe("topaz-1")
+        const option = chainOptionsFor([], "onyx-1")[0]
+        expect(option.value).toBe("onyx-1")
+        expect(option.label).toBe("onyx-1")
         expect(option.label).not.toContain("no longer offered")
     })
 })

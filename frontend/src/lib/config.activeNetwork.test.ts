@@ -23,7 +23,7 @@ import {
 
 // Fixture networks, by the visibility config.test.ts already pins: mainnet
 // (the default since 2026-09-17) is the ONLY visible network since pearl's
-// 2026-09-23 retirement; pearl, test13, sapphire, topaz and gnoland1 are
+// 2026-09-23 retirement; pearl, test13, onyx and gnoland1 are
 // hidden. VISIBLE_B was `gnoland1` until Betanet was retired to hidden. The
 // pure-resolver block needs TWO visible networks to tell "the choice wins"
 // apart from "the default answered", so it un-hides pearl for its duration
@@ -32,7 +32,7 @@ import {
 // used as a stored choice, never as a URL, in that block.
 const VISIBLE_A = "pearl"
 const VISIBLE_B = "mainnet"
-const HIDDEN = "sapphire"
+const HIDDEN = "onyx"
 const HIDDEN_DEEP_LINK = "test13"
 const RETIRED = "pearl"
 
@@ -120,6 +120,12 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
         // would load a dead chain's RPC and then cost a reload on arrival.
         expect(await loadAt(`/${RETIRED}/validators`)).toBe(retiredNetworkSuccessor(RETIRED))
         expect(await loadAt(`/${RETIRED}/validators`)).toBe("mainnet")
+        // The same holds for a retired network with no registry entry. The
+        // default is stubbed to a hidden network so only the redirect rule,
+        // not "unknown key → default", can yield mainnet.
+        vi.stubEnv("VITE_GNO_CHAIN_ID", HIDDEN_DEEP_LINK)
+        expect(await loadAt("/topaz/validators")).toBe("mainnet")
+        expect(await loadAt("/sapphire/dao/create")).toBe("mainnet")
     })
 
     it("a deep link to a hidden network still loads that network", async () => {
@@ -145,12 +151,35 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
         expect(await loadAt("/", { pref: RETIRED, echo: RETIRED })).toBe(DEFAULT_NETWORK)
         expect(await loadAt("/directory", { pref: RETIRED })).toBe(DEFAULT_NETWORK)
     })
+
+    it("a stored choice of a retired network with no registry entry loads the default", async () => {
+        for (const key of ["topaz", "sapphire"]) {
+            localStorage.clear()
+            expect(await loadAt("/", { pref: key, echo: key }), key).toBe(DEFAULT_NETWORK)
+            expect(await loadAt("/directory", { pref: key }), key).toBe(DEFAULT_NETWORK)
+        }
+    })
 })
 
 describe("retiredNetworkSuccessor — which networks redirect, and where", () => {
     it("pearl is retired to mainnet (owner ruling 2026-09-23)", () => {
         expect(RETIRED_NETWORKS.pearl).toEqual({ to: "mainnet", name: "Pearl testnet" })
         expect(retiredNetworkSuccessor("pearl")).toBe("mainnet")
+    })
+
+    it("topaz and sapphire are retired to mainnet, with no registry entry", () => {
+        expect(RETIRED_NETWORKS.topaz).toEqual({ to: "mainnet", name: "Topaz testnet" })
+        expect(RETIRED_NETWORKS.sapphire).toEqual({ to: "mainnet", name: "Sapphire testnet" })
+        for (const key of ["topaz", "sapphire"]) {
+            expect(NETWORKS[key], key).toBeUndefined()
+            expect(retiredNetworkSuccessor(key), key).toBe("mainnet")
+            expect(resolveNetworkKey({ pathname: `/${key}/x` }), key).toBe("mainnet")
+            expect(resolveNetworkKey({ pathname: `/${key}` }), key).toBe("mainnet")
+            // The URL wins over a stored choice, as for any network in the URL.
+            expect(resolveNetworkKey({ pathname: `/${key}/x`, pref: "mainnet" }), key).toBe("mainnet")
+            // Only a URL redirects: a stored key is just an unknown value.
+            expect(resolveNetworkKey({ pref: key }), key).toBe(DEFAULT_NETWORK)
+        }
     })
 
     it("a retired network needs no registry entry: its URL resolves to the successor, even one that is not the default", () => {
@@ -197,7 +226,7 @@ describe("retiredNetworkSuccessor — which networks redirect, and where", () =>
     })
 
     it("non-retired networks, unknown keys and empty input have no successor", () => {
-        for (const key of ["mainnet", "test13", "sapphire", "topaz", "gnoland1", "no-such-network", "", null, undefined]) {
+        for (const key of ["mainnet", "test13", "onyx", "gnoland1", "no-such-network", "", null, undefined]) {
             expect(retiredNetworkSuccessor(key), String(key)).toBeNull()
         }
     })
@@ -228,6 +257,8 @@ describe("currentNetworkKey — the rule evaluated now, for code outside the rou
         window.history.replaceState({}, "", "/test13/directory")
         expect(currentNetworkKey()).toBe("test13")
         window.history.replaceState({}, "", "/pearl/directory")
+        expect(currentNetworkKey()).toBe("mainnet")
+        window.history.replaceState({}, "", "/sapphire/directory")
         expect(currentNetworkKey()).toBe("mainnet")
     })
 

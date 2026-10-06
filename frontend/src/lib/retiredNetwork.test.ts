@@ -23,6 +23,8 @@ describe("retiredNetworkTarget", () => {
 describe("retiredNetworkMessage", () => {
     it("names the retired testnet and the mainnet it moved to", () => {
         expect(retiredNetworkMessage("pearl")).toBe("The Pearl testnet has been retired — you're now on gno.land mainnet.")
+        expect(retiredNetworkMessage("topaz")).toBe("The Topaz testnet has been retired — you're now on gno.land mainnet.")
+        expect(retiredNetworkMessage("sapphire")).toBe("The Sapphire testnet has been retired — you're now on gno.land mainnet.")
     })
 
     it("is null for a network that is not retired", () => {

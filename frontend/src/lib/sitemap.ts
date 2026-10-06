@@ -22,9 +22,8 @@ export const SITE_ORIGIN = "https://memba.club"
  *
  *  ⚠️ Keep this equal to netlify.toml's VITE_GNO_CHAIN_ID. It is NOT derived
  *  from it, so a default-network change that misses this file silently
- *  publishes a sitemap + RSS feed pointing at the OLD network — which is
- *  exactly what happened across the topaz cutover (27 indexed URLs left
- *  pointing at retired test13). */
+ *  publishes a sitemap + RSS feed pointing at the OLD network — which has
+ *  happened (27 indexed URLs left pointing at retired test13). */
 // Pearl cutover (§6 completion): moved with VITE_GNO_CHAIN_ID — the default
 //  network became pearl on 2026-08-27 (#1117) and the ceremony made its realm
 //  pages real, so the published sitemap/RSS follow.

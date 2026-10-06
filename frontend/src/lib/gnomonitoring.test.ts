@@ -14,8 +14,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 // ── Mock config before importing the module ──────────────────
 // GNO_MONITORING_CHAIN is deliberately DIFFERENT from GNO_CHAIN_ID here. They
-// coincide for every network Memba currently ships (test-13, gnoland1, and
-// topaz-1 as of 2026-07-23 — see config.ts's monitoringChain doc-comment: this
+// coincide for every network Memba currently ships (no entry sets a
+// monitoringChain override — see config.ts's monitoringChain doc-comment: this
 // key is admin-editable on gnomonitoring's side and has already flipped twice
 // in 24h, so no network's override is a safe long-term assumption). Mocking
 // them apart here is what makes the assertion below able to tell the two apart
@@ -361,7 +361,7 @@ describe("moniker resilience", () => {
 
 // ── Rejection observability (2026-07-23 fast-follow) ──────────────────────
 //
-// The topaz monitoring-key flip (fixed in #989) broke silently twice in 24h —
+// A monitoring-key flip (fixed in #989) broke silently twice in 24h —
 // caught only by a human noticing blank monikers, because a 4xx here is
 // indistinguishable from any other graceful-degradation path. A 4xx from
 // gnomonitoring is a deterministic misconfiguration (our configured chain key
@@ -471,13 +471,13 @@ describe("fetchEnabledChains", () => {
 
     it("returns the enabled_chains list", async () => {
         vi.mocked(fetch).mockResolvedValue(infoResponse({
-            enabled_chains: ["gnoland1", "sapphire-1", "topaz-1"],
+            enabled_chains: ["gnoland1", "gnoland-1", "onyx-1"],
             chains: {},
         }))
 
         const { fetchEnabledChains } = await import("./gnomonitoring")
         await expect(fetchEnabledChains()).resolves.toEqual([
-            "gnoland1", "sapphire-1", "topaz-1",
+            "gnoland1", "gnoland-1", "onyx-1",
         ])
     })
 

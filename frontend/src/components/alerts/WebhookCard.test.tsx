@@ -23,9 +23,9 @@ describe("WebhookCard chain badge", () => {
     afterEach(cleanup)
 
     it("shows the chain the webhook is scoped to", () => {
-        render(<WebhookCard webhook={webhook("topaz-1")} kind="validator"
+        render(<WebhookCard webhook={webhook("onyx-1")} kind="validator"
             onEdit={vi.fn()} onDelete={vi.fn()} />)
-        expect(screen.getByText("topaz-1")).toBeInTheDocument()
+        expect(screen.getByText("onyx-1")).toBeInTheDocument()
         expect(screen.queryByTestId("chain-badge")).not.toBeNull()
     })
 

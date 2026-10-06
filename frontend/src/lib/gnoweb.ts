@@ -25,13 +25,13 @@ export interface NamespaceItem {
 // ── Configuration ────────────────────────────────────────────
 
 /**
- * Get the gnoweb base URL for a network KEY (e.g. "topaz" — NOT a chain id
- * like "topaz-1"). Returns undefined when the key is unknown; every caller
+ * Get the gnoweb base URL for a network KEY (e.g. "onyx" — NOT a chain id
+ * like "onyx-1"). Returns undefined when the key is unknown; every caller
  * already treats that as "skip namespace discovery".
  *
  * Reads `NETWORKS[key].explorerUrl` rather than keeping a second map. There
  * used to be a local `GNOWEB_URLS` here holding only `test13` and `gnoland1`,
- * so after the topaz cutover `getGnowebUrl("topaz")` returned undefined: the
+ * so the next network's key returned undefined after its cutover: the
  * directory drawers fell back to `https://gno.land` (MAINNET, where our realms
  * 404) and `lib/directory`'s namespace discovery silently stopped marking
  * anything `deploymentStatus: "live"`. That is the exact regression the old

@@ -59,7 +59,7 @@ describe("getGnowebUrl", () => {
         expect(getGnowebUrl("unknown-chain")).toBeUndefined()
     })
 
-    // ── Regression: the topaz cutover reintroduced the exact bug the test13
+    // ── Regression: a later cutover reintroduced the exact bug the test13
     // entry above was added to prevent, and nothing here caught it because the
     // suite only ever tested the two networks that already worked.
     it("resolves the ACTIVE default network — not just the legacy ones", () => {
@@ -76,11 +76,11 @@ describe("getGnowebUrl", () => {
         expect(missing, `networks with no gnoweb URL: ${missing.join(", ")}`).toEqual([])
     })
 
-    it("is keyed by network KEY, not chain id — the distinction that broke topaz", () => {
-        // "topaz" is the key; "topaz-1" is the chain id. Passing the chain id
+    it("is keyed by network KEY, not chain id", () => {
+        // "onyx" is the key; "onyx-1" is the chain id. Passing the chain id
         // must NOT resolve, or callers can be wrong and still look right.
-        expect(getGnowebUrl("topaz")).toBe("https://topaz.testnets.gno.land")
-        expect(getGnowebUrl("topaz-1")).toBeUndefined()
+        expect(getGnowebUrl("onyx")).toBe("https://onyx.testnets.gno.land")
+        expect(getGnowebUrl("onyx-1")).toBeUndefined()
     })
 
     it("agrees with getExplorerBaseUrlFor — one source of truth, not two maps", () => {

@@ -1,7 +1,7 @@
 /**
  * gnodaokit/basedao render-contract parsing (the deployed memba_dao realm).
  *
- * The sapphire `gno.land/r/samcrew/memba_dao` realm is gnodaokit basedao: its
+ * The deployed `gno.land/r/samcrew/memba_dao` realm is gnodaokit basedao: its
  * Render("") is a LANDING page, and the actual data lives on sub-routes —
  * `:proposals` / `:history` (markdown tables), `:members` (markdown table),
  * `proposal/{id}` (detail). Its mux router also answers every unknown route

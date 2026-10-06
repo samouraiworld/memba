@@ -62,7 +62,7 @@ beforeEach(() => {
 
 describe("QuestHub — category tablist keyboard (APG)", () => {
     it("gives the category tabs a roving tabindex (single tab stop)", () => {
-        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        renderWithProviders(<QuestHub />, { route: "/mainnet/quests" })
 
         expect(tab(/^All/)).toHaveAttribute("aria-selected", "true")
         expect(tab(/^All/)).toHaveAttribute("tabindex", "0")
@@ -72,7 +72,7 @@ describe("QuestHub — category tablist keyboard (APG)", () => {
     })
 
     it("ArrowRight moves selection to the next category", () => {
-        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        renderWithProviders(<QuestHub />, { route: "/mainnet/quests" })
 
         fireEvent.keyDown(tab(/^All/), { key: "ArrowRight" })
         expect(tab(/^Developers/)).toHaveAttribute("aria-selected", "true")
@@ -81,7 +81,7 @@ describe("QuestHub — category tablist keyboard (APG)", () => {
     })
 
     it("End jumps to the last category and wraps forward to the first", () => {
-        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        renderWithProviders(<QuestHub />, { route: "/mainnet/quests" })
 
         fireEvent.keyDown(tab(/^All/), { key: "End" })
         expect(tab(/^Champion/)).toHaveAttribute("aria-selected", "true")
@@ -93,7 +93,7 @@ describe("QuestHub — category tablist keyboard (APG)", () => {
 
 describe("QuestHub — URL and wallet state", () => {
     it("restores filters from the URL and passes them to detail links", () => {
-        renderWithProviders(<><QuestHub /><LocationProbe /></>, { route: "/sapphire/quests?category=developer&difficulty=beginner&status=available&q=deploy" })
+        renderWithProviders(<><QuestHub /><LocationProbe /></>, { route: "/mainnet/quests?category=developer&difficulty=beginner&status=available&q=deploy" })
         expect(tab(/^Developers/)).toHaveAttribute("aria-selected", "true")
         expect(screen.getByLabelText("Search quests")).toHaveValue("deploy")
         expect(screen.getByLabelText("Filter by difficulty")).toHaveValue("beginner")
@@ -104,7 +104,7 @@ describe("QuestHub — URL and wallet state", () => {
     })
 
     it("updates and clears shareable filters", () => {
-        renderWithProviders(<><QuestHub /><LocationProbe /></>, { route: "/sapphire/quests" })
+        renderWithProviders(<><QuestHub /><LocationProbe /></>, { route: "/mainnet/quests" })
         fireEvent.click(tab(/^Developers/))
         fireEvent.change(screen.getByLabelText("Search quests"), { target: { value: "wallet" } })
         expect(screen.getByTestId("location").textContent).toContain("category=developer")
@@ -122,7 +122,7 @@ describe("QuestHub — URL and wallet state", () => {
         fetchUserQuestsMock.mockImplementation((address: string) => Promise.resolve(address === alice
             ? { completed: [{ questId: "connect-wallet", completedAt: 1 }], totalXP: 100 }
             : null))
-        renderWithProviders(<HubHarness />, { route: "/sapphire/quests" })
+        renderWithProviders(<HubHarness />, { route: "/mainnet/quests" })
         await screen.findByText("100 XP")
 
         mockWallet.address = bob
@@ -143,7 +143,7 @@ describe("QuestHub — URL and wallet state", () => {
             .mockResolvedValueOnce(null)
             .mockResolvedValueOnce({ completed: [], totalXP: 120 })
 
-        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        renderWithProviders(<QuestHub />, { route: "/mainnet/quests" })
         await screen.findByText("100 XP")
 
         fireEvent(window, new Event("quest-completed"))
@@ -162,7 +162,7 @@ describe("QuestHub — URL and wallet state", () => {
         mockWallet.address = address
         setQuestWalletAddress(address)
         fetchUserQuestsMock.mockResolvedValue({ completed: [], totalXP: 0 })
-        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        renderWithProviders(<QuestHub />, { route: "/mainnet/quests" })
         await waitFor(() => expect(fetchUserQuestsMock).toHaveBeenCalledWith(address))
         expect(await screen.findByText("0 XP")).toBeInTheDocument()
         expect(screen.queryByText("syncing…")).toBeNull()
@@ -176,7 +176,7 @@ describe("QuestHub — URL and wallet state", () => {
         mockWallet.address = address
         setQuestWalletAddress(address)
         fetchUserQuestsMock.mockResolvedValue({ completed: [], totalXP: 0 })
-        renderWithProviders(<QuestHub />, { route: "/sapphire/quests" })
+        renderWithProviders(<QuestHub />, { route: "/mainnet/quests" })
         await waitFor(() => expect(fetchUserQuestsMock).toHaveBeenCalledWith(address))
         expect(await screen.findByText("syncing…")).toBeInTheDocument()
     })
