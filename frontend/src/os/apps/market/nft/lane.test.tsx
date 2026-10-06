@@ -312,7 +312,7 @@ describe("Market NFT lane", () => {
                 await vi.waitFor(() => expect(region("Listing").getByRole("alert")).toHaveTextContent("The network could not be read. Try again in a moment."))
                 trading.lane.mockRejectedValueOnce(new TokenLaunchpadReadError("realm_error", "refused"))
                 fireEvent.click(buy)
-                await vi.waitFor(() => expect(region("Listing").getByRole("alert")).toHaveTextContent("The market's configuration refused this read. Refresh the listing."))
+                await vi.waitFor(() => expect(region("Listing").getByRole("alert")).toHaveTextContent("The market's configuration refused this read. Refresh the page."))
                 expect(trading.sign).not.toHaveBeenCalled()
             })
 

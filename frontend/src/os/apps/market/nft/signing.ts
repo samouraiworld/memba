@@ -24,7 +24,7 @@ function reason(err: unknown): string {
     if (err instanceof ReadError) return "The network could not be read. Try again in a moment."
     if (err instanceof RealmRefusedError) return "The network refused this read. Refresh the page."
     if (err instanceof TokenLaunchpadReadError) {
-        if (err.code === "realm_error") return "The market's configuration refused this read. Refresh the listing."
+        if (err.code === "realm_error") return "The market's configuration refused this read. Refresh the page."
         if (err.code === "invalid_response") return "The market's configuration answered in a form this version does not read."
         return "The network could not be read. Try again in a moment."
     }
