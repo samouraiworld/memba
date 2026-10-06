@@ -62,7 +62,7 @@ describe('transaction controls using the real proposal parser', () => {
         expect(state.broadcast).not.toHaveBeenCalled()
         fireEvent.click(vote)
         fireEvent.click(screen.getByRole('button', { name: 'Confirm YES', exact: true }))
-        await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'vote', id: 4, vote: 'YES' }, state.address)], 'Vote YES on Proposal #4'))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'vote', id: 4, vote: 'YES' }, state.address)], 'Vote YES on Proposal #4', {}))
     })
     it('retains non-member restrictions', async () => {
         state.member = false; mount()
@@ -82,7 +82,7 @@ describe('transaction controls using the real proposal parser', () => {
         expect(screen.queryByRole('button', { name: 'Vote Yes on this proposal' })).not.toBeInTheDocument()
         expect(state.broadcast).not.toHaveBeenCalled()
         fireEvent.click(execute)
-        await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'execute', id: 4 }, state.address)], 'Execute Proposal #4'))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'execute', id: 4 }, state.address)], 'Execute Proposal #4', {}))
     })
     it('offers no repeat execution or voting for the accepted mainnet GovDAO proposal', async () => {
         state.realm = 'gno.land/r/gov/dao'; state.status = 'passed'; mount()

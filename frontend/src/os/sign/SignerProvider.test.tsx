@@ -110,6 +110,25 @@ describe("OS signing session boundary", () => {
         expect(toast).toHaveBeenCalledWith("Refused by the network: Vote. It did not take effect; the network fee was still charged.")
     })
 
+    it("names what refused it when the transaction went through but its purpose didn't", async () => {
+        const onSettled = vi.fn()
+        const denied = {
+            ...request, send: vi.fn(async () => ({ hash: "DENIED_HASH" })), verify: vi.fn(async () => "failed" as const), onSettled,
+            failedTitle: () => "Denied by GovDAO", failedNote: () => "the proposal's action failed.",
+        }
+        function Denied() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(denied)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.title} | {n.sub}</li>)}</ul></>
+        }
+        const toast = vi.fn()
+        render(<SignerProvider session={session("member")} toast={toast}><Denied /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("failed", undefined))
+        expect(screen.getByText("fail | Denied by GovDAO · Vote | gnoland-1 · DENIED_HAS…: the proposal's action failed.")).toBeInTheDocument()
+        expect(toast).toHaveBeenCalledWith("Denied by GovDAO: Vote. Your transaction went through; the details are in Notifications.")
+    })
+
     it("says why the chain refused it when the request knows", async () => {
         const onSettled = vi.fn()
         const lostRace = { ...request, send: vi.fn(async () => ({ hash: "RACE_HASH" })), verify: vi.fn(async () => "failed" as const), failedNote: () => "another member did it first.", onSettled }

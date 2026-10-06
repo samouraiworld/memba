@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: execute GovDAO proposals (2026-10-06)
+- Memba OS: a GovDAO proposal that reaches GovDAO's supermajority can now be executed (or, when No reaches it, closed as rejected) from its proposal window by any connected account, with a review of what it does and a check of the outcome on chain; GovDAO proposal windows show GovDAO's own voting-power shares. GovDAO votes and executions from Memba now carry a measured gas limit and a 1 GNOT storage-deposit cap, so votes no longer run out of gas and an execution can't charge its caller more than the review states
+
 ### Memba OS Tokens: open a fair sale (2026-10-06)
 - Memba OS Tokens: open a fair sale for a new token (lots, a fixed or falling price, soft cap and window), checked against the Launchpad's rules and live terms before signing, with what a fair sale does and does not do stated before you sign (hidden until the Launchpad is published)
 

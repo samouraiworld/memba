@@ -15,10 +15,9 @@ import {
     getProposalVotes,
     getDAOMembers,
     getDAOConfig,
-    buildDaoMsg,
     PROPOSAL_STATUS_COLORS,
 } from "../lib/dao"
-import { doContractBroadcast } from "../lib/grc20"
+import { broadcastDaoTx, planDaoTx } from "../lib/dao/daoTx"
 import { clearVoteCache, voterMatchesUser } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
 import { useDaoRoute } from "../hooks/useDaoRoute"
@@ -182,8 +181,7 @@ function LegacyProposalView() {
         setSuccess(null)
         try {
             if (!daoKind) throw new Error("This DAO contract could not be identified yet")
-            const msg = buildDaoMsg(daoKind, realmPath, { type: "vote", id: proposalId, vote }, adena.address)
-            await doContractBroadcast([msg], `Vote ${vote} on Proposal #${proposalId}`)
+            await broadcastDaoTx(planDaoTx(daoKind, realmPath, { type: "vote", id: proposalId, vote }, adena.address), `Vote ${vote} on Proposal #${proposalId}`)
             clearVoteCache() // Invalidate notification dot cache immediately
             setSuccess(`Voted ${vote} on Proposal #${proposalId}`)
             await proposalQuery.refetch()
@@ -211,10 +209,7 @@ function LegacyProposalView() {
         setSuccess(null)
         try {
             if (!daoKind) throw new Error("This DAO contract could not be identified yet")
-            const msg = buildDaoMsg(daoKind, realmPath, { type: "execute", id: proposalId }, adena.address)
-            await doContractBroadcast([msg], `Execute Proposal #${proposalId}`)
-            // With ExecuteOrRejectProposal (gno#5261), the tx succeeds but the
-            // proposal may be rejected if execution errored. Reload to get final status.
+            await broadcastDaoTx(planDaoTx(daoKind, realmPath, { type: "execute", id: proposalId }, adena.address), `Execute Proposal #${proposalId}`)
             setSuccess(`Proposal #${proposalId} processed — reloading status...`)
             await proposalQuery.refetch()
         } catch (err) {
@@ -528,13 +523,14 @@ function LegacyProposalView() {
                         </>
                     )}
 
-                    {proposal.status === "passed" && isMember && capabilities.execute && (
+                    {/* Version 1 only: GovDAO is never "passed"; Memba OS resolves it at its supermajority. */}
+                    {proposal.status === "passed" && isMember && daoKind === "memba-v1" && (
                         <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} aria-label={`Execute proposal ${proposalId}`} style={{ width: "100%", background: "var(--color-k-accent)", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "Execute proposal"}
                         </button>
                     )}
 
-                    {proposal.status === "passed" && isMember === false && capabilities.execute && (
+                    {proposal.status === "passed" && isMember === false && daoKind === "memba-v1" && (
                         <div className="proposal-warning">
                             ⚠ Only DAO members can execute passed proposals.
                         </div>

@@ -61,6 +61,9 @@ export interface SignRequest<C extends string = string> {
     pendingNote?: () => string | undefined
     /** What the tray says when `verify` answers `"failed"`, when the request knows why. */
     failedNote?: () => string | undefined
+    /** The tray's and toast's heading for a `"failed"` answer when the transaction itself went through
+     *  but its purpose didn't (default "Refused by the network"). */
+    failedTitle?: () => string | undefined
     /** Nothing took effect (stopped before the wallet, rejected in it, or refused by the node): drop what `send` saved. */
     onNothingSent?: () => void
     onSettled?: (outcome: SettledOutcome, choice: C | undefined) => void

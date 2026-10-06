@@ -61,7 +61,7 @@ export function ActionInbox() {
         try {
             const kind = await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath })
             const action = { type: "vote" as const, id: proposalId, vote }
-            // Version-2 DAOs get a sized gas limit and storage deposit cap.
+            // Version-2 DAOs and GovDAO get a sized gas limit and storage deposit cap.
             const plan = budgetDaoMsg(kind, buildDaoMsg(kind, realmPath, action, userAddress), action)
             await doContractBroadcast([plan.msg], `Vote ${vote} on proposal #${proposalId}`, daoBroadcastOptions(plan))
             setRecorded(prev => ({ scope, ids: new Set(prev.scope === scope ? prev.ids : []).add(key) }))

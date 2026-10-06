@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { doContractBroadcast } from "../grc20"
-import { broadcastDaoTx, daoBroadcastOptions, planDaoTx, planNeedsDepositOverride, proposalIdFromTxResult, type DaoTxPlan } from "./daoTx"
+import { broadcastDaoTx, daoBroadcastOptions, planDaoTx, planNeedsDepositOverride, proposalIdFromTxResult, signedDepositUgnot, type DaoTxPlan } from "./daoTx"
 
 vi.mock("../grc20", async (orig) => ({ ...(await orig<typeof import("../grc20")>()), doContractBroadcast: vi.fn(async () => ({ hash: "h" })) }))
 
@@ -29,9 +29,17 @@ describe("DAO transaction plans", () => {
     })
 
     it("leaves other contracts on the default budget without a deposit cap", () => {
-        const plan = planDaoTx("govdao", "gno.land/r/gov/dao", { type: "vote", id: 1, vote: "YES" }, CALLER)
+        const plan = planDaoTx("memba-v1", REALM, { type: "vote", id: 1, vote: "YES" }, CALLER)
         expect(plan.gasWanted).toBeUndefined()
         expect(plan.msg.value).not.toHaveProperty("max_deposit")
+    })
+
+    it("sends GovDAO votes and executions with their measured gas limit and a 1 GNOT deposit cap", () => {
+        const vote = planDaoTx("govdao", "gno.land/r/gov/dao", { type: "vote", id: 1, vote: "YES" }, CALLER)
+        expect(vote).toMatchObject({ gasWanted: 28_000_000, maxDepositUgnot: 1_000_000, msg: { value: { max_deposit: "1000000ugnot" } } })
+        const execute = planDaoTx("govdao", "gno.land/r/gov/dao", { type: "execute", id: 1 }, CALLER)
+        expect(execute).toMatchObject({ gasWanted: 36_000_000, maxDepositUgnot: 1_000_000, msg: { value: { func: "ExecuteOrRejectProposal", max_deposit: "1000000ugnot" } } })
+        expect(signedDepositUgnot(execute)).toBe(1_000_000)
     })
 
     it("sends a version-2 call with the planned gas limit", async () => {
@@ -51,7 +59,7 @@ describe("DAO transaction plans", () => {
 
     it("sends a vote on another contract with the default budget", async () => {
         const vote = { type: "vote" as const, id: 2, vote: "NO" as const }
-        const plan = planDaoTx("govdao", "gno.land/r/gov/dao", vote, CALLER)
+        const plan = planDaoTx("memba-v1", REALM, vote, CALLER)
         await broadcastDaoTx(plan, "Vote NO")
         expect(doContractBroadcast).toHaveBeenLastCalledWith([plan.msg], "Vote NO", {})
     })

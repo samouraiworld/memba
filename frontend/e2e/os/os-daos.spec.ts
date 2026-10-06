@@ -36,6 +36,41 @@ async function member(page: Page, mode: WalletMode) {
 }
 
 const win = (page: Page, name: string) => page.getByRole('region', { name, exact: true })
+
+/** A GovDAO proposal page as gnoland-1's impl/v0 renders it (r/gov/dao/impl/v0 types.gno). */
+const govdaoV0 = (id: number, title: string, yes: string, no: string) => `## Prop #${id} - ${title}
+Author: [@alice](/u/alice)
+
+Upsert operator g1manfred47kzduec920z88wfr64ylksmdcedlf5 to voting power 1.
+
+Executor created in: \`gno.land/r/sys/validators/v0\`
+
+---
+
+### Stats
+- **Proposal is open for votes**
+- Tiers eligible to vote: T1, T2, T3
+- YES PERCENT: ${yes}%
+- NO PERCENT: ${no}%
+- ABSTAIN PERCENT: 0%
+
+[Detailed voting list](/r/gov/dao:${id}/votes)
+
+---
+
+### Actions
+`
+/** gnoland-1's GovDAO law and implementation, as qeval answers them. */
+const GOVDAO_LAW = {
+    'gno.land/r/gov/dao.AllowedDAOs()': '(slice[("gno.land/r/gov/dao/impl/v0" string)] []string)',
+    'gno.land/r/gov/dao.dao': '(&(struct{} gno.land/r/gov/dao/impl/v0.GovDAO) *gno.land/r/gov/dao/impl/v0.GovDAO)',
+    'gno.land/r/gov/dao/impl/v0.law.Supermajority': '(66.66 float64)',
+}
+const GOVDAO_V0 = {
+    'gno.land/r/gov/dao:5': govdaoV0(5, 'Set validator moul to voting power 1', '75', '0'),
+    'gno.land/r/gov/dao:6': govdaoV0(6, 'Remove validator moul', '0', '80'),
+    'gno.land/r/gov/dao:7': govdaoV0(7, 'Add valoper moul to the valset', '40', '20'),
+}
 const sheet = (page: Page) => page.getByRole('dialog', { name: 'Review · Vote' })
 
 test.describe('Memba OS DAOs', () => {
@@ -63,14 +98,47 @@ test.describe('Memba OS DAOs', () => {
         await expect(folder.getByText('Target · contract v3')).toBeVisible()
     })
 
-    test('a passed GovDAO proposal opens its execution page in a DAOs window', async ({ page }) => {
+    // gnoland-1's GovDAO (impl/v0) has no "passed" state: once one side has the 66.66% supermajority, any account resolves it.
+    test('a guest sees that a GovDAO proposal past the supermajority can be executed, and why a wallet is needed', async ({ page }) => {
+        await fulfillGovernance(page, { renders: GOVDAO_V0, evals: GOVDAO_LAW })
         await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
-        await page.goto(`${OS_ON}/os/dao/govdao/proposals/3`)
-        const prop = win(page, 'govdao · Proposal #3')
-        await prop.getByRole('button', { name: 'Open the DAO proposal page' }).click()
-        await expect(page).toHaveURL(/\/os\/daos\/dao\/gno\.land\/r\/gov\/dao\/proposal\/3(\?|$)/)
-        await expect(win(page, 'Proposal #3 · govdao')).toBeVisible()
-        await expect(prop).toBeVisible()
+        await page.goto(`${OS_ON}/os/dao/govdao/proposals/5`)
+        const prop = win(page, 'govdao · Proposal #5')
+        // The tally is GovDAO's own: shares of tier-weighted voting power, not a head count.
+        await expect(prop.getByText(/^Shares of GovDAO's voting power, weighted by tier/)).toBeVisible()
+        await expect(prop.locator('.os-tally').first()).toContainText('75%')
+        await expect(prop.getByText("Yes has 75%, past GovDAO's 66.66% supermajority. Any account can now execute it: its action runs with GovDAO's authority.")).toBeVisible()
+        await expect(prop.getByRole('button', { name: 'Connect to execute' })).toBeVisible()
+    })
+
+    test('a member executes a GovDAO proposal through the Memba review, and Adena gets ExecuteOrRejectProposal', async ({ page }) => {
+        await fulfillGovernance(page, { renders: GOVDAO_V0, evals: GOVDAO_LAW })
+        await member(page, 'ok')
+        await page.goto(`${OS_ON}/os/dao/govdao/proposals/5`)
+        await win(page, 'govdao · Proposal #5').getByRole('button', { name: 'Execute…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Execute' })
+        await expect(review.getByText('Runs the proposal\'s action with GovDAO\'s authority')).toBeVisible()
+        await expect(review.getByText('75% (needs 66.66%)')).toBeVisible()
+        await expect(review.getByText("up to 1 GNOT, paid by you for what the proposal's action stores")).toBeVisible()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review).toHaveCount(0)
+        const calls = await page.evaluate(() => (window as unknown as { __adenaCalls: { messages: { value: { func: string; args: string[]; pkg_path: string; max_deposit: string } }[] }[] }).__adenaCalls)
+        expect(calls).toHaveLength(1)
+        expect(calls[0].messages[0].value).toMatchObject({ pkg_path: 'gno.land/r/gov/dao', func: 'ExecuteOrRejectProposal', args: ['5'], max_deposit: '1000000ugnot' })
+    })
+
+    test('a GovDAO proposal past the supermajority against it can be closed as rejected; one below it offers nothing', async ({ page }) => {
+        await fulfillGovernance(page, { renders: GOVDAO_V0, evals: GOVDAO_LAW })
+        await member(page, 'ok')
+        await page.goto(`${OS_ON}/os/dao/govdao/proposals/6`)
+        const closing = win(page, 'govdao · Proposal #6')
+        await expect(closing.getByText("No has 80%, past GovDAO's 66.66% supermajority. Any account can now close it as rejected: its action never runs.")).toBeVisible()
+        await closing.getByRole('button', { name: 'Close as rejected…' }).click()
+        await expect(page.getByRole('dialog', { name: 'Review · Close as rejected' }).getByText('Marks the proposal denied; its action never runs')).toBeVisible()
+        await page.goto(`${OS_ON}/os/dao/govdao/proposals/7`)
+        const open = win(page, 'govdao · Proposal #7')
+        await expect(open.getByRole('button', { name: 'Vote…' })).toBeVisible()
+        await expect(open.getByRole('button', { name: /Execute|Close as rejected/ })).toHaveCount(0)
     })
 
     test('the classic GovDAO proposal form opens the DAO window that says it takes no proposals through Memba', async ({ page }) => {

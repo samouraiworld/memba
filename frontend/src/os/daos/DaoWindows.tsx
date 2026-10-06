@@ -21,10 +21,11 @@ import { appSpec, daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "..
 import { useSigner } from "../sign/signerContext"
 import { daoKindKey, useDaoKind } from "../../hooks/useDaoKind"
 import { nameForRealm, realmForName } from "./daoNames"
-import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal, useV2Votes } from "./useOsDao"
+import { useDaoConfig, useDaoMembers, useDaoProposals, useGovDaoSupermajority, useGovDaoTally, useMyVote, useProposal, useV2Votes } from "./useOsDao"
 import { Voters } from "./Voters"
 import { voteRequest, voteScope } from "./voteRequest"
 import { executeRequest, executeScope, executeWindow } from "./executeRequest"
+import { formatPercent, GOVDAO_REALM, govDaoExecuteRequest, govDaoResolution } from "./govdaoExecute"
 import { quoteSheetGasPrice } from "./sheetFee"
 import { useAlive } from "../shell/useAlive"
 import { JoinMembaDao } from "./JoinMembaDao"
@@ -330,6 +331,16 @@ function Bar({ label, value, whole }: { label: string; value: number; whole: num
     )
 }
 
+/** A share of GovDAO's tier-weighted voting power, as the contract computes it. */
+function Share({ label, percent }: { label: string; percent: number }) {
+    return (
+        <div className="os-tally">
+            <div className="os-row os-between"><span>{label}</span><span className="os-sub">{formatPercent(percent)}</span></div>
+            <div className="os-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, percent)}%` }} /></div>
+        </div>
+    )
+}
+
 function ProposalBody({ dao, realmPath, n, session, open }: { dao: string; realmPath: string; n: number; session: OsSession; open: (spec: WindowSpec) => void }) {
     const signer = useSigner()
     const alive = useAlive()
@@ -343,6 +354,9 @@ function ProposalBody({ dao, realmPath, n, session, open }: { dao: string; realm
     const members = useDaoMembers(realmPath, config.data?.memberstorePath, member && !config.isPending)
     const myVote = useMyVote(realmPath, n, session.address, v2)
     const votes = useV2Votes(realmPath, n, v2)
+    const govdao = kind.kind === "govdao" && realmPath === GOVDAO_REALM
+    const tally = useGovDaoTally(n, govdao)
+    const law = useGovDaoSupermajority(govdao && tally.data?.state === "open")
     const [, rerender] = useState(0)
     const now = useNowSeconds()
 
@@ -439,6 +453,50 @@ function ProposalBody({ dao, realmPath, n, session, open }: { dao: string; realm
         }
     }
 
+    // GovDAO has no "passed" state: once one side has the supermajority, any account resolves it.
+    const govState = tally.data && law.data !== undefined ? { tally: tally.data, supermajority: law.data } : null
+    const resolution = govState ? govDaoResolution(govState) : null
+    if (govdao && p.open && tally.isError) execute = <p className="os-note os-err" role="alert">GovDAO's tally couldn't be read; Execute is unavailable right now.</p>
+    else if (govdao && p.open && law.isError) execute = <p className="os-note os-err" role="alert">{law.error instanceof Error ? law.error.message : "GovDAO's rules couldn't be read."} Execute is unavailable right now.</p>
+    else if (govdao && p.open && govState && resolution) {
+        const t = govState.tally
+        const execScope = member ? executeScope(GOVDAO_REALM, session.address, n) : null
+        const execReceipt = execScope ? readGovernanceReceipt(execScope) : null
+        const label = resolution === "execute" ? "Execute…" : "Close as rejected…"
+        let control: ReactNode
+        if (!member) control = <button type="button" className="os-btn" onClick={session.openConnect}>{resolution === "execute" ? "Connect to execute" : "Connect to close it"}</button>
+        else if (execReceipt) control = <UnknownOutcome key={JSON.stringify(execScope)} scope={execScope!} receipt={execReceipt} attempt="execution" onCleared={() => { rerender((x) => x + 1); void refreshDaoState(queryClient) }} />
+        else {
+            control = (
+                <button type="button" className="os-btn" disabled={quoting} onClick={() => {
+                    setQuoting(true)
+                    setExecError(null)
+                    void quoteSheetGasPrice().then((gasPrice) => {
+                        if (!alive.current) return
+                        setQuoting(false)
+                        try {
+                            signer.sign(govDaoExecuteRequest({
+                                id: n, title: p.title, state: govState, caller: session.address, gasPrice,
+                                refresh: () => { invalidateProposalCache(realmPath); void refreshDaoState(queryClient) },
+                            }))
+                        } catch (err) {
+                            setExecError(`Couldn't prepare this: ${err instanceof Error ? err.message : String(err)}`)
+                        }
+                    })
+                }}>{quoting ? "Reading the fee…" : label}</button>
+            )
+        }
+        execute = (
+            <>
+                <p className="os-note">{resolution === "execute"
+                    ? `Yes has ${formatPercent(t.yes)}, past GovDAO's ${govState.supermajority}% supermajority. Any account can now execute it: its action runs with GovDAO's authority.`
+                    : `No has ${formatPercent(t.no)}, past GovDAO's ${govState.supermajority}% supermajority. Any account can now close it as rejected: its action never runs.`}</p>
+                {control}
+                {execError && <p className="os-note os-err" role="alert">{execError}</p>}
+            </>
+        )
+    }
+
     return (
         <div className="os-stack">
             <div>
@@ -448,7 +506,14 @@ function ProposalBody({ dao, realmPath, n, session, open }: { dao: string; realm
                 {p.v2 && !openNow && <p className="os-sub">{p.v2.status === "ACTIVE" ? "The voting deadline has passed. Refresh for the chain's final status." : V2_STATUS_EXPLANATIONS[p.v2.status]}</p>}
             </div>
             {invisible && <p className="os-note os-warn" role="alert">This proposal contains invisible formatting characters, shown as [U+XXXX]. They can make text read differently from what it says.</p>}
-            {p.tallyKnown ? (
+            {tally.data ? (
+                <div className="os-stack os-tight">
+                    <Share label="Yes" percent={tally.data.yes} />
+                    <Share label="No" percent={tally.data.no} />
+                    <Share label="Abstain" percent={tally.data.abstain} />
+                    <span className="os-sub">Shares of GovDAO's voting power, weighted by tier{p.tallyKnown ? ` · ${p.whole} member${p.whole === 1 ? "" : "s"} voted so far` : ""}</span>
+                </div>
+            ) : p.tallyKnown ? (
                 <div className="os-stack os-tight">
                     <Bar label="Yes" value={p.yes} whole={p.whole} />
                     <Bar label="No" value={p.no} whole={p.whole} />
@@ -466,7 +531,7 @@ function ProposalBody({ dao, realmPath, n, session, open }: { dao: string; realm
                 }))} />
             )}
             {execute && <div className="os-vote">{execute}</div>}
-            {!p.v2 && p.statusLabel === "Passed" && kind.capabilities.execute && (
+            {kind.kind === "memba-v1" && p.statusLabel === "Passed" && (
                 <div className="os-row">
                     <p className="os-note os-grow">This proposal passed. A DAO member can execute it on the DAO proposal page.</p>
                     <button type="button" className="os-btn os-quiet" onClick={() => open(appSpec("daos", `dao/${realmPath}/proposal/${n}`))}>Open the DAO proposal page</button>

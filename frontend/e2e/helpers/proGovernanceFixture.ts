@@ -6,8 +6,11 @@ export const proposalRows = [
     { id: 2, title: 'Publish the quarterly treasury report', status: 'executed', author: '@charlie', yes_votes: 9 },
     { id: 1, title: 'Adjust the proposal review window', status: 'rejected', author: '@alice', yes_votes: 1, no_votes: 8 },
 ]
-export async function fulfillGovernance(page: Page, options: { empty?: boolean; missing?: boolean } = {}) {
+/** `renders` / `evals`: extra Render pages and qeval answers by query ("gno.land/r/gov/dao:5"), served before the fixture's own. */
+export async function fulfillGovernance(page: Page, options: { empty?: boolean; missing?: boolean; renders?: Record<string, string>; evals?: Record<string, string> } = {}) {
     await fulfillOnchainReads(page, ({ path, arg, method }) => {
+        if (path === 'vm/qrender' && options.renders && Object.hasOwn(options.renders, arg)) return options.renders[arg]
+        if (path === 'vm/qeval' && options.evals && Object.hasOwn(options.evals, arg)) return options.evals[arg]
         // The network price, which signing sheets read for their fee (1 ugnot per 1,000 gas, as gnoland-1 answers).
         if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
         // Both consumers (governance-pro, complete-design) drive `/mainnet/...`.

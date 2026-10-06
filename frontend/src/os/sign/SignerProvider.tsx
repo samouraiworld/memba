@@ -168,15 +168,16 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         }
         const where = `${session.network.chainId} · ${hash.slice(0, 10)}…`
         const pendingNote = ok === false ? req.pendingNote?.() : undefined
+        const failedTitle = ok === "failed" ? req.failedTitle?.() : undefined
         notify(ok === true
             ? { kind: "ok", title: `Confirmed · ${label}`, sub: where }
             : ok === "failed"
-                ? { kind: "fail", title: `Refused by the network · ${label}`, sub: `${where}: ${req.failedNote?.() ?? "the chain ran it and refused it. It did not take effect; the network fee was still charged."}` }
+                ? { kind: "fail", title: `${failedTitle ?? "Refused by the network"} · ${label}`, sub: `${where}: ${req.failedNote?.() ?? "the chain ran it and refused it. It did not take effect; the network fee was still charged."}` }
                 : ok === null
                     ? { kind: "ok", title: `Submitted · ${label}`, sub: where }
                     : { kind: "warn", title: `Submitted · ${label}`, sub: pendingNote ?? "The chain hasn't shown it yet. Don't send it again." })
         if (ok === false) toast(`Submitted: ${label}. ${pendingNote ?? "Not visible on chain yet."}`)
-        if (ok === "failed") toast(`Refused by the network: ${label}. It did not take effect; the network fee was still charged.`)
+        if (ok === "failed") toast(failedTitle ? `${failedTitle}: ${label}. Your transaction went through; the details are in Notifications.` : `Refused by the network: ${label}. It did not take effect; the network fee was still charged.`)
         settle(req, choice, ok === true ? "confirmed" : ok === "failed" ? "failed" : "submitted")
     }, [review, notify, toast, settle, session.network.chainId, session.walletChainId, session.status, session.address, owner, closeReview])
 

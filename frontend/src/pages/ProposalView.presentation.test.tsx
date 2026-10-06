@@ -44,7 +44,7 @@ for (const professional of [false, true]) {
             expect(state.broadcast).not.toHaveBeenCalled()
             fireEvent.click(vote)
             fireEvent.click(screen.getByRole('button', { name: 'Confirm YES', exact: true }))
-            await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'vote', id: 4, vote: 'YES' }, state.address)], 'Vote YES on Proposal #4'))
+            await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'vote', id: 4, vote: 'YES' }, state.address)], 'Vote YES on Proposal #4', {}))
         })
         it('retains non-member restrictions', async () => {
             state.professional = professional; state.member = false; mount()
@@ -60,7 +60,7 @@ for (const professional of [false, true]) {
         it('preserves execution payload and eligibility', async () => {
             state.professional = professional; state.status = 'passed'; mount()
             fireEvent.click(await screen.findByRole('button', { name: 'Execute proposal 4' }))
-            await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'execute', id: 4 }, state.address)], 'Execute Proposal #4'))
+            await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildDaoMsg('memba-v1', 'gno.land/r/team/dao', { type: 'execute', id: 4 }, state.address)], 'Execute Proposal #4', {}))
         })
         it('does not expose transaction actions to a disconnected reader', async () => {
             state.professional = professional; state.authenticated = false; mount()

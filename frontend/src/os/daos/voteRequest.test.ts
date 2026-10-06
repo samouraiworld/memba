@@ -154,7 +154,7 @@ describe("voteRequest · the network fee", () => {
 
     it("checks a fee set in Settings against what the chain charges, without Memba's headroom, and says to raise it there", async () => {
         localStorage.setItem("memba_settings", JSON.stringify({ gasFee: 10_000, gasWanted: 10_000_000 }))
-        const req = voteRequest(ctx({ kind: "govdao", realmPath: "gno.land/r/gov/dao", electorateVersion: null, power: null }))
+        const req = voteRequest(ctx({ kind: "memba-v1", realmPath: "gno.land/r/team/dao", electorateVersion: null, power: null }))
         expect(new Map(req.lines("Yes")).get("Network fee (set in Settings)")).toBe("0.01 GNOT")
         // 10,000,000 gas at 1 ugnot per 1,000 needs exactly 10,000: enough.
         await expect(req.recheck!("Yes")).resolves.toBeUndefined()
@@ -163,8 +163,15 @@ describe("voteRequest · the network fee", () => {
     })
 
     it("shows the fee set in Settings for a DAO without a measured budget", () => {
-        const lines = new Map(voteRequest(ctx({ kind: "govdao", realmPath: "gno.land/r/gov/dao", electorateVersion: null, power: null })).lines("Yes"))
+        const lines = new Map(voteRequest(ctx({ kind: "memba-v1", realmPath: "gno.land/r/team/dao", electorateVersion: null, power: null })).lines("Yes"))
         expect(lines.get("Network fee (set in Settings)")).toBe("1 GNOT")
+    })
+
+    it("prices a GovDAO vote from its measured gas limit and caps its storage deposit", () => {
+        const lines = new Map(voteRequest(ctx({ kind: "govdao", realmPath: "gno.land/r/gov/dao", electorateVersion: null, power: null })).lines("Yes"))
+        // 28M gas at 1 ugnot per 1,000, with 20% headroom.
+        expect(lines.get("Network fee")).toBe("0.0336 GNOT")
+        expect(lines.get("Storage deposit")).toBe("up to 1 GNOT")
     })
 
     it("stops before the wallet when a fresh quote no longer covers the fee shown", async () => {

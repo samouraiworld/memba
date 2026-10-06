@@ -20,15 +20,32 @@ export function planDaoTx(kind: DaoKind, realmPath: string, action: DaoAction, c
     return budgetDaoMsg(kind, buildDaoMsg(kind, realmPath, action, caller), action, executes)
 }
 
-/** Attach the gas limit and deposit cap to a message built for `action`. */
-export function budgetDaoMsg(kind: DaoKind, msg: AminoMsg, action: DaoAction, executes?: V2ExecuteTarget): DaoTxPlan {
-    if (kind !== "memba-v2") return { msg }
-    const budget = v2CallBudget(action, executes)
+/**
+ * GovDAO calls (gno.land/r/gov/dao), measured on gnoland-1 from every vote and
+ * execution to 2026-10-06 (tx indexer, heights 37,412 to 495,705): votes used
+ * 16.9M to 18.8M gas and stored about 1,270 bytes (0.127 GNOT); executions used
+ * 18.0M to 23.7M gas and stored at most 1,183 bytes. An execution runs the
+ * proposal's own code, so the cap bounds what its caller can be charged: a
+ * proposal that needs more is refused by the chain.
+ */
+export const GOVDAO_BUDGETS = {
+    vote: { gasWanted: 28_000_000, maxDepositUgnot: 1_000_000 },
+    execute: { gasWanted: 36_000_000, maxDepositUgnot: 1_000_000 },
+} as const
+
+function capped(msg: AminoMsg, budget: { gasWanted: number; maxDepositUgnot: number }): DaoTxPlan {
     return {
         msg: { ...msg, value: { ...msg.value, max_deposit: `${budget.maxDepositUgnot}ugnot` } },
         gasWanted: budget.gasWanted,
         maxDepositUgnot: budget.maxDepositUgnot,
     }
+}
+
+/** Attach the gas limit and deposit cap to a message built for `action`. */
+export function budgetDaoMsg(kind: DaoKind, msg: AminoMsg, action: DaoAction, executes?: V2ExecuteTarget): DaoTxPlan {
+    if (kind === "govdao" && (action.type === "vote" || action.type === "execute")) return capped(msg, GOVDAO_BUDGETS[action.type])
+    if (kind !== "memba-v2") return { msg }
+    return capped(msg, v2CallBudget(action, executes))
 }
 
 /**

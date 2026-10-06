@@ -12,6 +12,7 @@ import { readV2Proposal, type MembaV2Proposal } from "../../lib/dao/membaV2"
 import { hasVotedOnV2, readV2Voters, v2Context } from "../../lib/dao/membaV2Shell"
 import { canVoteNow, V2_STATUS_LABELS } from "../../lib/dao/v2Lifecycle"
 import { useDaoKind } from "../../hooks/useDaoKind"
+import { readGovDaoSupermajority, readGovDaoTally } from "./govdaoExecute"
 
 export function useDaoConfig(realmPath: string, enabled = true) {
     return useQuery({ queryKey: ["dao", "config", realmPath, "full"], queryFn: () => getDAOConfig(GNO_RPC_URL, realmPath, true), enabled, staleTime: 30_000 })
@@ -77,6 +78,16 @@ export function fromLegacy(p: DAOProposal, records: VoteRecord[] | null): Propos
         yes, no, abstain, whole: yes + no + abstain, unit: "voters", tallyKnown: records !== null,
         author: p.author || p.proposer, endsAt: null, electorateVersion: null, v2: null,
     }
+}
+
+/** GovDAO's own tally of a proposal, in full precision (null: its page isn't the shape Memba knows). */
+export function useGovDaoTally(id: number, enabled: boolean) {
+    return useQuery({ queryKey: ["dao", "govdao-tally", GNO_CHAIN_ID, id], queryFn: () => readGovDaoTally(id), enabled, staleTime: 15_000 })
+}
+
+/** GovDAO's supermajority, read live from its law. */
+export function useGovDaoSupermajority(enabled: boolean) {
+    return useQuery({ queryKey: ["dao", "govdao-law", GNO_CHAIN_ID], queryFn: readGovDaoSupermajority, enabled, staleTime: 60_000 })
 }
 
 export function useProposal(realmPath: string, id: number) {
