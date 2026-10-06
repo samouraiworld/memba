@@ -366,29 +366,15 @@ describe('isTrustedRpcDomain', () => {
         expect(isTrustedRpcDomain('https://samourai.live.evil.com')).toBe(false)
     })
 
-    it('trusts gnoland.network subdomains (test-13 indexer/gnoweb + gnoland1 fallbacks)', () => {
-        expect(isTrustedRpcDomain('https://rpc.test-13-aeddi-1.gnoland.network')).toBe(true)
-        expect(isTrustedRpcDomain('https://gnoland.network')).toBe(true)
-    })
-
-    it('rejects gnoland.network lookalikes', () => {
-        expect(isTrustedRpcDomain('https://fakegnoland.network')).toBe(false)
-        expect(isTrustedRpcDomain('https://gnoland.network.evil.com')).toBe(false)
-    })
-
-    it('trusts onbloc.xyz subdomains (test-13 canonical RPC — Adena v1.19.5 #856)', () => {
-        expect(isTrustedRpcDomain('https://test13.rpc.onbloc.xyz:443')).toBe(true)
-        expect(isTrustedRpcDomain('https://onbloc.xyz')).toBe(true)
-    })
-
-    it('rejects onbloc.xyz lookalikes', () => {
-        expect(isTrustedRpcDomain('https://fakeonbloc.xyz')).toBe(false)
-        expect(isTrustedRpcDomain('https://onbloc.xyz.evil.com')).toBe(false)
+    it('no longer trusts the hosts only the retired test13 fixture used', () => {
+        for (const url of ['https://rpc.test-13-aeddi-1.gnoland.network', 'https://gnoland.network', 'https://test13.rpc.onbloc.xyz:443', 'https://onbloc.xyz']) {
+            expect(isTrustedRpcDomain(url), url).toBe(false)
+        }
     })
 
     // D8.a-lite: every configured NETWORKS RPC + fallback URL must be trusted, so the
     // wallet-RPC trust gate never blocks a network we ship. Catches the exact drift
-    // that broke test-13 when Adena moved its RPC to onbloc.xyz (#856).
+    // that once broke test-13 when Adena moved its RPC to another host (#856).
     it('trusts every configured NETWORKS rpcUrl and fallbackRpcUrls', () => {
         for (const [key, net] of Object.entries(NETWORKS)) {
             expect(isTrustedRpcDomain(net.rpcUrl), `${key} rpcUrl ${net.rpcUrl} must be trusted`).toBe(true)
@@ -449,14 +435,9 @@ describe('isTrustedRpcDomain', () => {
 })
 
 describe('getTelemetryRpcUrl', () => {
-    it('returns the network telemetry node when no sentry is configured', () => {
-        // No VITE_SAMOURAI_SENTRY_RPC_URL in tests. The default network (test13)
-        // defines telemetryRpcUrls, so getTelemetryRpcUrl() returns the first one
-        // (networks without telemetryRpcUrls fall back to GNO_RPC_URL instead).
-        const url = getTelemetryRpcUrl()
-        expect(url).toBe(getTelemetryRpcUrls()[0])
-        expect(url).toBeTruthy()
-        expect(isTrustedRpcDomain(url)).toBe(true)
+    it('returns the primary RPC when no sentry is configured', () => {
+        // No VITE_SAMOURAI_SENTRY_RPC_URL in tests.
+        expect(getTelemetryRpcUrl()).toBe(GNO_RPC_URL)
     })
 
     it('GNO_RPC_URL is always a trusted domain', () => {
@@ -484,15 +465,6 @@ describe('getTelemetryRpcUrls', () => {
 
     it('getTelemetryRpcUrl() returns the first telemetry node', () => {
         expect(getTelemetryRpcUrl()).toBe(getTelemetryRpcUrls()[0])
-    })
-
-    it('test13 config declares well-connected telemetry nodes covering aeddi-1', () => {
-        // The fix: test13's primary RPC sits behind sentries and sees a partial
-        // peer set; aeddi-1 (gno-core) sees the full topology. It must be in the
-        // declared telemetry set so getAggregatedNetPeers can reach it.
-        const t13 = NETWORKS.test13.telemetryRpcUrls || []
-        expect(t13.some((u) => u.includes('aeddi-1'))).toBe(true)
-        for (const u of t13) expect(isTrustedRpcDomain(u)).toBe(true)
     })
 })
 

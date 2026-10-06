@@ -37,7 +37,7 @@ import type { Page } from '@playwright/test'
  * silently escapes the fixture and is served LIVE (extend the list, or layer
  * a dedicated route the way validators.spec.ts does for GNO_MONITORING_HOST).
  */
-export const GNO_RPC_HOSTS = [/\.gno\.land/, /testnets\.gno\.land/, /gnoland\.network/, /\.onbloc\.xyz/, /\.samourai\.live/]
+export const GNO_RPC_HOSTS = [/\.gno\.land/, /testnets\.gno\.land/, /\.samourai\.live/]
 
 /**
  * The gnomonitoring REST API (config.ts DEFAULT_GNO_MONITORING_API_URL). It sits

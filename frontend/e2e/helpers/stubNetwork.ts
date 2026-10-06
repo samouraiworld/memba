@@ -43,8 +43,6 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1', '0.0.0.0'
 const REMOTE = [
     /\.gno\.land/,
     /testnets\.gno\.land/,
-    /gnoland\.network/,
-    /\.onbloc\.xyz/,
     /api\.github\.com/,
     /lighthouse\.storage/,
     /samourai\.live/,

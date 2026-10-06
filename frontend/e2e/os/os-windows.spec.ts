@@ -5,7 +5,7 @@ import { OS_ON } from '../../playwright.os.config'
 // desktop items. Guest sessions past the lock screen; no chain involved.
 
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|onbloc\.xyz|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
+    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
         const url = route.request().url()
         const host = new URL(url).hostname
         if ((host === '127.0.0.1' || host === 'localhost') && !/memba\.v1\./.test(url)) return route.continue()

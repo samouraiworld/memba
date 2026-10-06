@@ -5,7 +5,7 @@ import { findHorizontalClipping } from '../helpers/overflow'
 import { settleAnimations } from './settle'
 
 async function guest(page: Page, width: number, height: number) {
-    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|onbloc\.xyz|gnolove|plausible\.io|sentry\.|clerk[.-]/, route => route.abort())
+    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|gnolove|plausible\.io|sentry\.|clerk[.-]/, route => route.abort())
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
     await page.setViewportSize({ width, height })
 }

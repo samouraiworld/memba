@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Narrower content security policy (2026-10-07)
+- Security: the content-security policy and the trusted RPC list no longer allow the third-party hosts only the retired test13 network used
+
 ### Memba OS: link GitHub from your Profile (2026-10-07)
 - Memba OS: link or unlink your GitHub account from your own Profile window
 

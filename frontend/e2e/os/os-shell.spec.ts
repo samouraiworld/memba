@@ -12,7 +12,7 @@ const PUBKEY = 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE'
 
 /** Abort egress (RPC, indexer, backend) unless a test routes it first. */
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|onbloc\.xyz|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
+    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
         const host = new URL(route.request().url()).hostname
         if ((host === '127.0.0.1' || host === 'localhost') && !/memba\.v1\./.test(route.request().url())) return route.continue()
         return route.abort()

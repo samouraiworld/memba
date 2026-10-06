@@ -61,12 +61,6 @@ interface NetworkConfig {
     chainId: string
     rpcUrl: string
     fallbackRpcUrls: string[]
-    /** Well-connected nodes to poll for network telemetry (peer topology via
-     *  /net_info, consensus state). `/net_info` is node-local, so the primary
-     *  RPC — often behind sentries — sees only a partial peer set; these nodes
-     *  see more and are unioned by getAggregatedNetPeers. Must be trusted
-     *  domains. Optional; falls back to rpcUrl + fallbackRpcUrls. */
-    telemetryRpcUrls?: string[]
     /** Official tx-indexer GraphQL endpoint for recent on-chain activity. Optional —
      *  when absent (e.g. networks without a public indexer) the activity feed hides. */
     indexerUrl?: string
@@ -143,13 +137,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         hidden: true,
         isTestnet: true,
         rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-        fallbackRpcUrls: [
-            "https://test13.rpc.onbloc.xyz:443",
-        ],
-        telemetryRpcUrls: [
-            "https://rpc.test-13-aeddi-1.gnoland.network:443",
-            "https://rpc.testnet13.samourai.live:443",
-        ],
+        fallbackRpcUrls: [],
         indexerUrl: "https://indexer.test13.testnets.gno.land/graphql/query",
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
@@ -210,7 +198,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         fallbackRpcUrls: [
             "https://rpc.mainnet.samourai.live:443",
         ],
-        telemetryRpcUrls: [],
         // gno.land mainnet tx-indexer (verified 2026-09-23: it serves
         // gnoland-1, latestBlockHeight tracking the RPC). The browser never
         // calls it directly — getIndexerUrl() returns the backend proxy
@@ -256,7 +243,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         rpcUrl: "https://rpc.onyx.testnets.gno.land:443",
         // No second node verified: onbloc and Samourai serve none yet.
         fallbackRpcUrls: [],
-        telemetryRpcUrls: [],
         indexerUrl: "https://indexer.onyx.testnets.gno.land/graphql/query",
         label: "Onyx",
         userRegistryPath: "gno.land/r/sys/users",
@@ -725,27 +711,22 @@ export function getTelemetryRpcUrl(): string {
             "Falling back to GNO_RPC_URL. Add the domain to TRUSTED_RPC_DOMAINS in config.ts if intentional."
         )
     }
-    // Prefer the best-connected telemetry node (fresher consensus state) over the
-    // sentry-fronted primary; falls back to GNO_RPC_URL if none configured.
-    return getTelemetryRpcUrls()[0] || GNO_RPC_URL
+    return GNO_RPC_URL
 }
 
 /**
  * Ordered, deduped list of TRUSTED RPC nodes to poll for network telemetry.
  *
  * `/net_info` is node-local, so a single RPC gives a partial peer view. This
- * unions the env sentry override, the network's dedicated telemetry nodes, the
- * primary RPC, and the fallbacks — letting getAggregatedNetPeers reconstruct the
- * full topology. Untrusted entries are dropped (the env override warns).
+ * unions the env sentry override, the primary RPC and the fallbacks — letting
+ * getAggregatedNetPeers reconstruct more of the topology. Untrusted entries are
+ * dropped (the env override warns).
  *
- * Priority: VITE_SAMOURAI_SENTRY_RPC_URL → network.telemetryRpcUrls →
- *           GNO_RPC_URL → GNO_FALLBACK_RPC_URLS
+ * Priority: VITE_SAMOURAI_SENTRY_RPC_URL → GNO_RPC_URL → GNO_FALLBACK_RPC_URLS
  */
 export function getTelemetryRpcUrls(): string[] {
-    const net = NETWORKS[_activeNetwork]
     const candidates = [
         SAMOURAI_SENTRY_RPC_URL,
-        ...(net?.telemetryRpcUrls || []),
         GNO_RPC_URL,
         ...GNO_FALLBACK_RPC_URLS,
     ]
@@ -939,8 +920,6 @@ export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
     "testnets.gno.land", // covers rpc.test13.testnets.gno.land (official test13) + others
     "rpc.gno.land",
-    "gnoland.network", // test-13 indexer/gnoweb, suffix-matched
-    "onbloc.xyz",      // test-13 canonical RPC (test13.rpc.onbloc.xyz) — Adena moved here in v1.19.5 (#856)
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
     // Convention: https://rpc.{chain}.samourai.live (e.g. rpc.mainnet.samourai.live)
     "samourai.live",
