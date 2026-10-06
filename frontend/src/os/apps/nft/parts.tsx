@@ -5,14 +5,14 @@
  * @module os/apps/nft/parts
  */
 import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
-import type { ReactNode } from "react"
+import type { ReactNode, Ref } from "react"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import { CardGrid, Empty, ErrorState, Loading } from "../../kit"
 
-export function Back({ label, onClick }: { label: string; onClick: () => void }) {
+export function Back({ label, onClick, ref }: { label: string; onClick: () => void; ref?: Ref<HTMLButtonElement> }) {
     return (
         <div className="os-row os-tight-row">
-            <button type="button" className="os-btn os-quiet" onClick={onClick}><span aria-hidden="true">←</span> {label}</button>
+            <button ref={ref} type="button" className="os-btn os-quiet" onClick={onClick}><span aria-hidden="true">←</span> {label}</button>
         </div>
     )
 }

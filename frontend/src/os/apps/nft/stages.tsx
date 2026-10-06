@@ -12,17 +12,28 @@ import { NFT_DROPS_PATH, listStages, type NftStage, type NftStageKind } from "..
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
 import { Empty, Loading, Pill } from "../../kit"
 import { ReadFailure } from "./parts"
-import { when, type NftScreen } from "./screen"
+import type { NftScreen } from "./screen"
 
 const KIND: Record<NftStageKind, string> = { fixed: "Fixed price", allowlist: "Allowlist", holder: "Holders", dutch: "Dutch auction" }
+
+/** The first second of the year 10000: past it, a date no longer has the fixed form below. */
+const YEAR_10000 = 253_402_300_800n
+
+/** Unix seconds as a fixed UTC time, the same for every reader: "2026-10-01 14:00 UTC". */
+function when(seconds: bigint): string {
+    if (seconds >= YEAR_10000) return "after the year 9999"
+    return `${new Date(Number(seconds) * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`
+}
 
 /** `readAt` is when the stages were read (ms): a closed stage starting after it had not opened yet. */
 function Stage({ screen, stage, readAt }: { screen: NftScreen; stage: NftStage; readAt: number }) {
     const amount = (value: bigint) => formatAmount(value, stage.currency)
-    const status = stage.open ? "Open now" : stage.start * 1000n > BigInt(readAt) ? "Upcoming" : "Ended"
+    const upcoming = !stage.open && stage.start * 1000n > BigInt(readAt)
+    const status = stage.open ? "Open now" : upcoming ? "Upcoming" : "Ended"
+    const soldOut = stage.supplyCap > 0n && stage.minted >= stage.supplyCap
     return (
         <li className="os-card os-stack os-tight">
-            <div className="os-row"><b>Stage {stage.index + 1} · {KIND[stage.kind]}</b><Pill tone={stage.open ? "ok" : "neutral"}>{status}</Pill></div>
+            <div className="os-row"><b>Stage {stage.index + 1} · {KIND[stage.kind]}</b><Pill tone={stage.open ? "ok" : "neutral"}>{status}</Pill>{soldOut && <Pill tone="neutral">Sold out</Pill>}</div>
             <dl className="os-kv">
                 <div className="os-kv-row"><dt>Window</dt><dd>{when(stage.start)} to {when(stage.end)}</dd></div>
                 <div className="os-kv-row"><dt>Price</dt><dd>{stage.kind === "dutch" ? `${amount(stage.price)}, falling to ${amount(stage.floor)}` : amount(stage.price)}</dd></div>
@@ -32,14 +43,15 @@ function Stage({ screen, stage, readAt }: { screen: NftScreen; stage: NftStage; 
                 <div className="os-kv-row"><dt>Minted</dt><dd>{stage.supplyCap === 0n ? `${stage.minted}, no stage cap` : `${stage.minted} / ${stage.supplyCap}`}</dd></div>
                 {stage.kind === "holder" && (
                     <div className="os-kv-row"><dt>Gate</dt><dd>
-                        Each token of <button type="button" className="os-btn os-quiet os-inline" onClick={() => screen.go({ kind: "collection", collection: stage.gate })}>{stage.gate}</button> pays for one mint
+                        Each token of <button type="button" className="os-btn os-quiet os-inline" onClick={() => screen.go({ kind: "collection", collection: stage.gate })}>{stage.gate}</button> allows one mint
                     </dd></div>
                 )}
-                {stage.kind === "allowlist" && <div className="os-kv-row"><dt>Allowlist root</dt><dd className="os-mono" title={stage.root}>{stage.root.slice(0, 12)}…</dd></div>}
+                {stage.kind === "allowlist" && <div className="os-kv-row"><dt>Allowlist root</dt><dd className="os-mono os-break">{stage.root}</dd></div>}
             </dl>
             <p className="os-sub">
                 {stage.feeBPS === 0n ? "The creator receives the whole price." : `The treasury receives ${formatBPS(stage.feeBPS)} of each mint, the creator the rest.`}
-                {" "}This split is fixed for the stage.
+                {/* EditStage replaces a stage only before it starts. */}
+                {upcoming ? " The creator can still change this stage, this split included, until it starts." : " This split is fixed for the stage."}
             </p>
         </li>
     )

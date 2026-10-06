@@ -5,10 +5,13 @@
  * shown the page says why instead of leaving a blank. While curators hide the
  * collection (or its record is unknown), the file is not read and the page
  * shows the ledger's facts only, until the viewer asks (see useCurationHide).
+ * The way to Market shows only once the collection is read and is not
+ * soulbound: a soulbound token is never sold.
  *
  * @module os/apps/nft/item
  */
 import { useQuery, type UseQueryResult } from "@tanstack/react-query"
+import type { Ref } from "react"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import { getToken, type NftToken } from "../../../lib/nft/ledger"
 import { TokenMetadataError, type NftTokenMetadata } from "../../../lib/nft/metadata"
@@ -16,7 +19,7 @@ import { TokenMedia } from "../../nft/TokenMedia"
 import { ErrorState, Loading, Pill } from "../../kit"
 import { Curation } from "./curation"
 import { Back, ReadFailure } from "./parts"
-import { RETIRED, metadataQuery, useCurationHide, type NftScreen } from "./screen"
+import { RETIRED, collectionQuery, metadataQuery, useCurationHide, type NftScreen } from "./screen"
 
 const NOT_SHOWN: Record<Exclude<TokenMetadataError["reason"], "unavailable">, string> = {
     too_large: "The token's metadata file is larger than this app reads, so it is not shown.",
@@ -36,6 +39,8 @@ function MetadataState({ uri, metadata }: { uri: string; metadata: UseQueryResul
 
 function Token({ screen, token }: { screen: NftScreen; token: NftToken }) {
     const hide = useCurationHide(screen, token.collection)
+    const collection = useQuery(collectionQuery(screen.chainId, token.collection))
+    const tradable = token.status === "active" && collection.data !== undefined && collection.data.mode !== "soulbound"
     const metadata = useQuery({ ...metadataQuery(screen.chainId, token.uri), enabled: hide.shown && token.uri !== "" })
     const data = hide.shown ? metadata.data : undefined
     const label = `${token.collection} #${token.number}`
@@ -64,7 +69,7 @@ function Token({ screen, token }: { screen: NftScreen; token: NftToken }) {
                     <div className="os-kv-row"><dt>Owner</dt><dd className="os-mono os-break">{token.owner || "None: the token no longer exists"}</dd></div>
                     <div className="os-kv-row"><dt>Token URI</dt><dd className="os-mono os-break">{token.uri || "None"}</dd></div>
                 </dl>
-                {token.status === "active" && (
+                {tradable && (
                     <div className="os-row">
                         <button type="button" className="os-btn" onClick={() => screen.trade({ kind: "token", collection: token.collection, number: token.number })}>Trade on Market</button>
                     </div>
@@ -74,7 +79,8 @@ function Token({ screen, token }: { screen: NftScreen; token: NftToken }) {
     )
 }
 
-export function TokenItem({ screen, collection, number }: { screen: NftScreen; collection: string; number: bigint }) {
+/** `back` goes on the control back to the collection, which takes focus when this screen is opened from another. */
+export function TokenItem({ screen, collection, number, back }: { screen: NftScreen; collection: string; number: bigint; back: Ref<HTMLButtonElement> }) {
     const token = useQuery({
         queryKey: ["nft", "ledger", "token", screen.chainId, collection, number.toString()],
         queryFn: () => getToken(collection, number),
@@ -82,7 +88,7 @@ export function TokenItem({ screen, collection, number }: { screen: NftScreen; c
     })
     return (
         <div className="os-stack">
-            <Back label={`Collection ${collection}`} onClick={() => screen.go({ kind: "collection", collection })} />
+            <Back ref={back} label={`Collection ${collection}`} onClick={() => screen.go({ kind: "collection", collection })} />
             {token.isPending ? <Loading label="Reading the token…" />
                 : token.isError ? <ReadFailure error={token.error} what="token" refused={`Collection ${collection} has no token #${number} on this network.`} retry={() => void token.refetch()} />
                 : <Token screen={screen} token={token.data} />}

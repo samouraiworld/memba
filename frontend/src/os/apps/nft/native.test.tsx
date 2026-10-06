@@ -177,6 +177,46 @@ describe("NFT window", () => {
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
+    it("carries focus into the view a card or a control back opens, instead of dropping it on the page", async () => {
+        availability.enabled = true
+        availability.ledger = true
+        listNewestCollections.mockResolvedValue({ total: 1n, collections: [founders] })
+        const push = vi.fn()
+        const view = (section: string | null) => (
+            <NftWindow section={section} query={undefined} session={session(true)} active open={vi.fn()} push={push} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
+        )
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const { rerender } = render(<QueryClientProvider client={client}>{view(null)}</QueryClientProvider>)
+        const card = await screen.findByRole("button", { name: /Founders/ })
+        card.focus()
+        fireEvent.click(card)
+        rerender(<QueryClientProvider client={client}>{view(push.mock.lastCall![0].target.section)}</QueryClientProvider>)
+        const back = screen.getByRole("button", { name: "Collections" })
+        expect(back).toHaveFocus()
+
+        fireEvent.click(back)
+        rerender(<QueryClientProvider client={client}>{view(push.mock.lastCall![0].target.section)}</QueryClientProvider>)
+        expect(screen.getByRole("heading", { name: "Collections" })).toHaveFocus()
+
+        fireEvent.click(screen.getByRole("button", { name: /My collectibles/ }))
+        rerender(<QueryClientProvider client={client}>{view(push.mock.lastCall![0].target.section)}</QueryClientProvider>)
+        expect(screen.getByRole("button", { name: "Collections" })).toHaveFocus()
+    })
+
+    it("takes no focus when the window opens straight on a section or on the home", () => {
+        availability.enabled = true
+        availability.ledger = true
+        listNewestCollections.mockResolvedValue({ total: 0n, collections: [] })
+        const { rerender } = show({ section: "mine" })
+        expect(document.body).toHaveFocus()
+        rerender(
+            <QueryClientProvider client={new QueryClient()}>
+                <NftWindow section={null} query={undefined} session={session(true)} active open={vi.fn()} push={vi.fn()} openApp={vi.fn()} close={() => {}} toast={() => {}} fallback={<p>classic page</p>} />
+            </QueryClientProvider>,
+        )
+        expect(document.body).toHaveFocus()
+    })
+
     it.each(["c/C1", "c/C1/7", "mine", "create", "studio/C1"])("shows the unavailable notice, not the fallback, on a deep link to %s", (section) => {
         show({ section, testnet: false })
         expect(screen.getByRole("note")).toHaveTextContent("The NFT ledger is not deployed on")

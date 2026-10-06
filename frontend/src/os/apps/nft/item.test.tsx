@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { TokenMetadataError } from "../../../lib/nft/metadata"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import NftWindow from "./native"
 
-const reads = vi.hoisted(() => ({ getToken: vi.fn(), fetchTokenMetadata: vi.fn(), getCurationRecord: vi.fn() }))
-vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), getToken: reads.getToken }))
+const reads = vi.hoisted(() => ({ getToken: vi.fn(), getCollection: vi.fn(), fetchTokenMetadata: vi.fn(), getCurationRecord: vi.fn() }))
+vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), getToken: reads.getToken, getCollection: reads.getCollection }))
 vi.mock("../../../lib/nft/curation", async (original) => ({ ...(await original<object>()), getCurationRecord: reads.getCurationRecord }))
 vi.mock("../../../lib/nft/metadata", async (original) => ({ ...(await original<object>()), fetchTokenMetadata: reads.fetchTokenMetadata }))
 vi.mock("../../../lib/config", async (original) => ({ ...(await original<typeof import("../../../lib/config")>()), isNftEnabled: () => true, isRealmValidOn: () => true }))
@@ -32,6 +32,8 @@ const pushed = (push: ReturnType<typeof vi.fn>) => push.mock.calls.map(([spec]) 
 describe("NFT item page", () => {
     beforeEach(() => {
         reads.getToken.mockReset().mockResolvedValue(token)
+        // Only the mode is read from the collection on this page.
+        reads.getCollection.mockReset().mockResolvedValue({ id: "C1", mode: "royalty_protected" })
         reads.fetchTokenMetadata.mockReset()
         reads.getCurationRecord.mockReset().mockResolvedValue(curation(false))
     })
@@ -51,7 +53,7 @@ describe("NFT item page", () => {
         expect(screen.getByText("Token URI").nextSibling).toHaveTextContent(URI)
         expect(screen.getByText("Status").nextSibling).toHaveTextContent("Active")
         expect(reads.getToken).toHaveBeenCalledWith("C1", 7n)
-        fireEvent.click(screen.getByRole("button", { name: "Trade on Market" }))
+        fireEvent.click(await screen.findByRole("button", { name: "Trade on Market" }))
         fireEvent.click(screen.getByRole("button", { name: /Collection C1/ }))
         expect(pushed(push)).toEqual(["market/nfts/c/C1/7", "nft/c/C1"])
     })
@@ -86,6 +88,19 @@ describe("NFT item page", () => {
         expect(reads.fetchTokenMetadata).not.toHaveBeenCalled()
     })
 
+    it("offers no way to Market for a soulbound token, nor before its collection is read", async () => {
+        let resolve!: (collection: unknown) => void
+        reads.getCollection.mockReturnValue(new Promise((done) => { resolve = done }))
+        reads.fetchTokenMetadata.mockResolvedValue({ name: null, description: null, image: null, attributes: [] })
+        show()
+        expect(await screen.findByRole("heading", { name: "C1 #7" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Trade on Market" })).toBeNull()
+        await act(async () => resolve({ id: "C1", mode: "soulbound" }))
+        expect(reads.getCollection).toHaveBeenCalledWith("C1")
+        expect(screen.getByText("Status").nextSibling).toHaveTextContent("Active")
+        expect(screen.queryByRole("button", { name: "Trade on Market" })).toBeNull()
+    })
+
     it("shows an unreadable token as an error with a retry", async () => {
         reads.getToken.mockRejectedValueOnce(new ReadError("Could not read token")).mockResolvedValueOnce(token)
         reads.fetchTokenMetadata.mockResolvedValue({ name: null, description: null, image: null, attributes: [] })
@@ -117,7 +132,7 @@ describe("NFT item page", () => {
         expect(screen.getByRole("heading", { name: "C1 #7" })).toBeInTheDocument()
         expect(screen.getByRole("img", { name: "C1 #7" }).getAttribute("src")).toMatch(/^data:image\/svg/)
         expect(screen.getByText("Owner").nextSibling).toHaveTextContent(OWNER)
-        expect(screen.getByRole("button", { name: "Trade on Market" })).toBeInTheDocument()
+        expect(await screen.findByRole("button", { name: "Trade on Market" })).toBeInTheDocument()
         expect(reads.fetchTokenMetadata).not.toHaveBeenCalled()
         fireEvent.click(screen.getByRole("button", { name: "Show anyway" }))
         expect(await screen.findByRole("heading", { name: "Relevé #7" })).toBeInTheDocument()

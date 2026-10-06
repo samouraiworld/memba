@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NFT_CURATION_PATH } from "../../../lib/nft/curation"
 import { NFT_DROPS_PATH } from "../../../lib/nft/drops"
 import { getIpfsGatewayUrl } from "../../../lib/ipfs"
+import { derivePkgBech32Addr } from "../../../lib/dao/realmAddress"
+import { NFT_MARKET_PATH } from "../../../lib/nft/market"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import NftWindow from "./native"
 
@@ -25,19 +27,21 @@ const CREATOR = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 const FIRST = "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"
 const NEXT = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 const MARKET = "g1mxl8rd36lgkxv855kcjdxn2s9jvtymjvplve5r"
+const LAUNCHPAD_MARKET = "g1nn54k5fmly8agexe3ll4t6clqmcefsn7nr9ee3"
+const ISSUER = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 const IMAGE = `ipfs://bafy${"i".repeat(55)}`
 const ROOT = "ab".repeat(32)
 
 const collection = {
-    id: "C1", grc721Id: "C1", issuer: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", creator: CREATOR, originator: FIRST, pendingCreator: NEXT,
+    id: "C1", grc721Id: "C1", issuer: ISSUER, creator: CREATOR, originator: FIRST, pendingCreator: NEXT,
     name: "Relevés", symbol: "REL", description: "Field drawings​", image: IMAGE, banner: "", website: "https://relev.es",
     mode: "royalty_protected", revocable: false, maxSupply: 100n, sealed: false, minted: 21n, totalSupply: 21n, profileFrozen: false,
     metadataMode: "mutable", metadataFrozen: false, metadataRevision: 2n, baseURI: IMAGE + "/", placeholderURI: "", baseURICommitment: "", committer: "",
-    provenanceHash: "", traitsRoot: "", royaltyBPS: 500n, royalties: [{ account: CREATOR, bps: 300n }, { account: FIRST, bps: 200n }], markets: [MARKET],
+    provenanceHash: "", traitsRoot: "", royaltyBPS: 500n, royalties: [{ account: CREATOR, bps: 300n }, { account: FIRST, bps: 200n }], markets: [LAUNCHPAD_MARKET, MARKET],
 }
 const capabilities = {
     schema: "launchpad-nft-capabilities/v1", collection: "C1", standard: "grc721", mode: "royalty_protected", holderTransfer: false, marketSale: true,
-    markets: [MARKET], holderBurn: true, creatorRevoke: false, maxSupply: 100n, metadataMode: "mutable", metadataFrozen: false, traitsCommitted: false,
+    markets: [LAUNCHPAD_MARKET, MARKET], holderBurn: true, creatorRevoke: false, maxSupply: 100n, metadataMode: "mutable", metadataFrozen: false, traitsCommitted: false,
     royaltyBPS: 500n, royaltyEnforcement: "listed_markets",
 }
 const curation = (marks: Partial<Record<"verified" | "featured" | "hidden", boolean>> = {}) => ({ collection: "C1", verified: false, featured: false, hidden: false, ...marks })
@@ -86,14 +90,45 @@ describe("NFT collection profile", () => {
         expect(pushed(push)).toEqual(["market/nfts/c/C1", "nft/null"])
     })
 
-    it("words the Passport as what the ledger enforces, and a listed market's payment as the creator's word", async () => {
+    it("words the Passport as what the ledger enforces, and an added market's payment as the creator's word", async () => {
         show()
         const passport = await screen.findByRole("region", { name: "Collection Passport" })
         expect(await within(passport).findByText("Holders cannot transfer tokens directly.")).toBeInTheDocument()
-        expect(passport).toHaveTextContent(`Tokens move only through the 1 market the creator listed:${MARKET}`)
-        expect(passport).toHaveTextContent(`A royalty of 5% is set, to:${CREATOR} · 3%${FIRST} · 2%That a listed market pays it is the creator's word: the ledger cannot check it.`)
+        expect(passport).toHaveTextContent(
+            `Tokens move only through these markets: the Launchpad market, plus any the creator adds (at most 5 in all).${LAUNCHPAD_MARKET} · the Launchpad market${MARKET}`)
+        expect(passport).toHaveTextContent(`A royalty of 5% is set, to:${CREATOR} · 3%${FIRST} · 2%That a market the creator adds pays it is the creator's word: the ledger cannot check it.`)
+        expect(passport).toHaveTextContent(`Only the issuer realm mints: ${ISSUER}. The creator can move minting to another allowed realm with SetIssuer.`)
+        expect(passport).toHaveTextContent(`Token n's metadata file is ${IMAGE}/<n>.json.`)
         for (const line of ["A holder can burn their token.", "The creator cannot revoke tokens.", "At most 100 tokens can ever be minted (21 so far).",
             "The creator can still change token metadata (revision 2).", "No token traits are committed on chain."]) expect(within(passport).getByText(line)).toBeInTheDocument()
+    })
+
+    it("names the Launchpad market by the address its package path derives", async () => {
+        expect(await derivePkgBech32Addr(NFT_MARKET_PATH)).toBe(LAUNCHPAD_MARKET)
+    })
+
+    it("says an uncapped supply ends only when the creator seals it, and a placeholder serves every token until the reveal", async () => {
+        const placeholder = `ipfs://bafy${"p".repeat(55)}/hidden.json`
+        reads.getCollection.mockResolvedValue({
+            ...collection, maxSupply: 0n, metadataMode: "reveal", metadataRevision: 0n, baseURI: "", placeholderURI: placeholder,
+            baseURICommitment: "cd".repeat(32), committer: CREATOR, provenanceHash: "ef".repeat(32),
+        })
+        reads.getCapabilities.mockResolvedValue({ ...capabilities, maxSupply: 0n, metadataMode: "reveal" })
+        show()
+        const passport = await screen.findByRole("region", { name: "Collection Passport" })
+        expect(await within(passport).findByText("No supply cap: tokens can be minted until the creator seals the supply (21 so far).")).toBeInTheDocument()
+        expect(passport).toHaveTextContent(`Until the reveal, every token's metadata file is ${placeholder}.`)
+        expect(passport).toHaveTextContent("The creator can move minting to another allowed realm with SetIssuer.")
+    })
+
+    it("offers no way to Market for a soulbound collection, whose tokens are never sold", async () => {
+        reads.getCollection.mockResolvedValue({ ...collection, mode: "soulbound", royaltyBPS: 0n, royalties: [], markets: [] })
+        reads.getCapabilities.mockResolvedValue({ ...capabilities, mode: "soulbound", marketSale: false, markets: [], royaltyBPS: 0n, royaltyEnforcement: "none" })
+        show()
+        const passport = await screen.findByRole("region", { name: "Collection Passport" })
+        expect(await within(passport).findByText("Tokens cannot be sold on a market.")).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "Relevés" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Trade on Market" })).toBeNull()
     })
 
     it("says an open collection's royalty does not bind a direct transfer", async () => {
@@ -103,8 +138,9 @@ describe("NFT collection profile", () => {
         const passport = await screen.findByRole("region", { name: "Collection Passport" })
         expect(await within(passport).findByText("Holders can transfer their tokens directly.")).toBeInTheDocument()
         expect(passport).toHaveTextContent("A holder can approve any market to sell a token.")
-        expect(passport).toHaveTextContent("The ledger states it for markets to pay on a sale. A direct transfer between holders pays none.")
-        expect(passport).toHaveTextContent("Minting has ended for good, at 21 tokens.")
+        expect(passport).toHaveTextContent("Markets that honour royalties pay it on a sale; the ledger enforces nothing, and a direct transfer pays none.")
+        expect(passport).toHaveTextContent("The supply is sealed: minting has ended for good, at 21 tokens.")
+        expect(passport).not.toHaveTextContent("issuer")
         expect(passport).toHaveTextContent("Token metadata is fixed on IPFS.")
     })
 
@@ -113,8 +149,9 @@ describe("NFT collection profile", () => {
         reads.listTokens.mockResolvedValue([token(1)])
         const push = show()
         const note = await screen.findByText(/Curators have hidden this collection for now/)
-        expect(note).toHaveTextContent("Its image, banner, description and token art are collapsed.")
+        expect(note).toHaveTextContent("Its image, banner, description, website and token art are collapsed.")
         expect(screen.queryByText("Field drawings[U+200B]")).toBeNull()
+        expect(screen.queryByText(/relev\.es/)).toBeNull()
         for (const image of document.querySelectorAll("img")) expect(image.getAttribute("src")).not.toContain(getIpfsGatewayUrl(`bafy${"i".repeat(55)}`))
         const card = await screen.findByRole("button", { name: "C1 #1" })
         expect(reads.fetchTokenMetadata).not.toHaveBeenCalled()
@@ -124,6 +161,7 @@ describe("NFT collection profile", () => {
 
         fireEvent.click(screen.getByRole("button", { name: "Show anyway" }))
         expect(screen.getByText("Field drawings[U+200B]")).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "https://relev.es" })).toBeInTheDocument()
         expect(note).toHaveTextContent("You chose to show it.")
         expect(await screen.findByRole("button", { name: /Relevé.*C1 #1/ })).toBeInTheDocument()
         expect(reads.fetchTokenMetadata).toHaveBeenCalledWith(`${IMAGE}/1.json`, expect.anything())
@@ -165,16 +203,38 @@ describe("NFT collection profile", () => {
         expect(fixed).toHaveTextContent("Price1.5 GNOT")
         expect(fixed).toHaveTextContent("Per wallet2Minted12 / 50")
         expect(fixed).toHaveTextContent("The treasury receives 2.5% of each mint, the creator the rest. This split is fixed for the stage.")
+        expect(fixed).not.toHaveTextContent("Sold out")
         expect(dutch).toHaveTextContent("Stage 2 · Dutch auctionOpen now")
         expect(dutch).toHaveTextContent("Price10 GNOT, falling to 1 GNOTPrice now4 GNOT")
         expect(dutch).toHaveTextContent("The creator receives the whole price.")
-        expect(holder).toHaveTextContent("Minted0, no stage cap")
+        expect(holder).toHaveTextContent("Minted0, no stage capGateEach token of C2 allows one mint")
         expect(allowlist).toHaveTextContent("Price1,500 foo20Currencygno.land/r/demo/foo20Per walletEach allowed address has its own allowance")
-        expect(allowlist).toHaveTextContent(`Allowlist root${ROOT.slice(0, 12)}…`)
+        expect(within(allowlist).getByText(ROOT)).toBeVisible()
         expect(stages).toHaveTextContent("Minting arrives in a later version of Memba OS.")
         expect(within(stages).queryByRole("button", { name: /mint/i })).toBeNull()
         fireEvent.click(within(holder).getByRole("button", { name: "C2" }))
         expect(pushed(push)).toEqual(["nft/c/C2"])
+    })
+
+    it("words an upcoming stage as still editable, a full stage as sold out, and a time past the year 9999 without failing", async () => {
+        reads.listStages.mockResolvedValue([
+            stage(0, "fixed", { supplyCap: 5n, minted: 5n }),
+            stage(1, "fixed", { start: 4_000_000_000n, end: 4_000_086_400n }),
+            stage(2, "fixed", { start: 9_000_000_000_000n, end: 9_000_000_086_400n }),
+        ])
+        show()
+        const stages = await screen.findByRole("region", { name: "Mint stages" })
+        const [full, upcoming, far] = await within(stages).findAllByRole("listitem")
+        expect(full).toHaveTextContent("Stage 1 · Fixed priceEndedSold out")
+        expect(full).toHaveTextContent("Minted5 / 5")
+        expect(full).toHaveTextContent("This split is fixed for the stage.")
+        expect(upcoming).toHaveTextContent("Stage 2 · Fixed priceUpcoming")
+        expect(upcoming).toHaveTextContent("Window2096-10-02 07:06 UTC to 2096-10-03 07:06 UTC")
+        expect(upcoming).toHaveTextContent("The creator can still change this stage, this split included, until it starts.")
+        expect(upcoming).not.toHaveTextContent("fixed for the stage")
+        expect(upcoming).not.toHaveTextContent("Sold out")
+        expect(far).toHaveTextContent("Windowafter the year 9999 to after the year 9999")
+        expect(screen.getByRole("heading", { name: "Relevés" })).toBeInTheDocument()
     })
 
     it("shows unreadable stages as an error and no stage as empty", async () => {

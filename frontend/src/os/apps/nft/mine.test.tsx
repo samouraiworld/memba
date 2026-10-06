@@ -1,16 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ReadError } from "../../../lib/nft/read"
 import NftWindow from "./native"
 
-const reads = vi.hoisted(() => ({ listHoldings: vi.fn(), fetchTokenMetadata: vi.fn() }))
+const reads = vi.hoisted(() => ({ listHoldings: vi.fn(), fetchTokenMetadata: vi.fn(), getCurationRecord: vi.fn() }))
 vi.mock("../../../lib/nft/ledger", async (original) => ({ ...(await original<object>()), listHoldings: reads.listHoldings }))
+vi.mock("../../../lib/nft/curation", async (original) => ({ ...(await original<object>()), getCurationRecord: reads.getCurationRecord }))
 vi.mock("../../../lib/nft/metadata", async (original) => ({ ...(await original<object>()), fetchTokenMetadata: reads.fetchTokenMetadata }))
 vi.mock("../../../lib/config", async (original) => ({ ...(await original<typeof import("../../../lib/config")>()), isNftEnabled: () => true, isRealmValidOn: () => true }))
 
 const MEMBER = "g1den8gttgdakxgetjta047h6lta047h6l30gcaz"
-const holding = (collection: string, number: number) => ({ collection, number: BigInt(number), uri: `ipfs://bafy${"h".repeat(55)}/${number}.json` })
+const holding = (collection: string, number: number) => ({ collection, number: BigInt(number), uri: `ipfs://bafy${collection.toLowerCase()}${"h".repeat(53)}/${number}.json` })
 
 function show(status: "guest" | "member" | "resuming") {
     const push = vi.fn()
@@ -29,6 +30,7 @@ describe("NFT My collectibles", () => {
     beforeEach(() => {
         reads.listHoldings.mockReset()
         reads.fetchTokenMetadata.mockReset().mockResolvedValue({ name: null, description: null, image: null, attributes: [] })
+        reads.getCurationRecord.mockReset().mockImplementation(async (collection: string) => ({ collection, verified: false, featured: false, hidden: false }))
     })
 
     it("asks a guest to connect, without reading the chain", () => {
@@ -59,6 +61,28 @@ describe("NFT My collectibles", () => {
         expect(reads.listHoldings).toHaveBeenLastCalledWith(MEMBER, 1, 20)
         expect(push.mock.calls.map(([spec]) => spec.target.section)).toEqual(["c/C4/2"])
         expect(screen.queryByRole("button", { name: "Load more" })).toBeNull()
+    })
+
+    it("keeps a hidden collection's art collapsed, and any collection's until its curation is read, reading each record once", async () => {
+        let release!: () => void
+        const held = new Promise<void>((done) => { release = done })
+        reads.getCurationRecord.mockImplementation(async (collection: string) => {
+            if (collection === "C3") await held
+            return { collection, verified: false, featured: false, hidden: collection === "C1" }
+        })
+        reads.fetchTokenMetadata.mockImplementation(async (uri: string) => ({ name: `Art ${uri.slice(11, 13)}`, description: null, image: null, attributes: [] }))
+        reads.listHoldings.mockResolvedValueOnce([holding("C1", 1), holding("C1", 2), holding("C3", 1), holding("C3", 2), holding("C4", 1)])
+        show("member")
+        expect(await screen.findByRole("button", { name: /Art c4/ })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "C1 #1" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "C3 #1" })).toBeInTheDocument()
+        expect(reads.fetchTokenMetadata.mock.calls.map(([uri]) => uri.slice(11, 13))).toEqual(["c4"])
+
+        await act(async () => release())
+        await waitFor(() => expect(screen.getAllByRole("button", { name: /Art c3/ })).toHaveLength(2))
+        expect(screen.getByRole("button", { name: "C1 #2" })).toBeInTheDocument()
+        expect(reads.fetchTokenMetadata.mock.calls.map(([uri]) => uri.slice(11, 13)).sort()).toEqual(["c3", "c3", "c4"])
+        expect(reads.getCurationRecord.mock.calls.map(([collection]) => collection)).toEqual(["C1", "C3", "C4"])
     })
 
     it("shows an unreadable wallet as an error, and an empty one as empty", async () => {
