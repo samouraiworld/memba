@@ -15,7 +15,7 @@ vi.mock("../../../../lib/config", async (importActual) => ({
     isRealmValidOn: mocks.available,
 }))
 vi.mock("../../../../lib/nft/market", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/market")>(), getListing: mocks.getListing }))
-vi.mock("../../../../lib/nft/lane", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/nft/lane")>(), getLaneStatus: mocks.lane }))
+vi.mock("../../../../lib/tokenLaunchpadConfigClient", async (importActual) => ({ ...await importActual<typeof import("../../../../lib/tokenLaunchpadConfigClient")>(), readActionStatus: mocks.lane }))
 vi.mock("../../../../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../../../../lib/grc20")>()
     return {
@@ -75,7 +75,7 @@ describe("buying a listing", () => {
         ]))
         expect(await run(request)).toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Buy C1 #5", expect.objectContaining({ gasWanted: 50_000_000, gasFee: 60_000 }))
-        expect(mocks.lane).toHaveBeenCalledWith("nft_market", "ugnot")
+        expect(mocks.lane).toHaveBeenCalledWith("mainnet", "nft_market", "ugnot")
         expect(await request.verify!(undefined, HASH, undefined)).toBe(true)
     })
 

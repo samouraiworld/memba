@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { NftListing, NftOffer, NftOfferKind } from "../../../../lib/nft/market"
 import { ReadError, RealmRefusedError } from "../../../../lib/nft/read"
+import { TokenLaunchpadReadError } from "../../../../lib/tokenLaunchpadClient"
 import type { MarketNftRoute } from "../../../nft/routes"
 import type { WindowSpec } from "../../../shell/windows"
 import NftLane from "./lane"
@@ -16,7 +17,7 @@ const ledger = vi.hoisted(() => ({ getCollection: vi.fn(), getToken: vi.fn() }))
 vi.mock("../../../../lib/nft/market", async (original) => ({ ...(await original<typeof import("../../../../lib/nft/market")>()), ...market }))
 vi.mock("../../../../lib/nft/ledger", async (original) => ({ ...(await original<typeof import("../../../../lib/nft/ledger")>()), ...ledger }))
 const trading = vi.hoisted(() => ({ sign: vi.fn(), lane: vi.fn(), price: vi.fn() }))
-vi.mock("../../../../lib/nft/lane", async (original) => ({ ...(await original<object>()), getLaneStatus: trading.lane }))
+vi.mock("../../../../lib/tokenLaunchpadConfigClient", async (original) => ({ ...(await original<object>()), readActionStatus: trading.lane }))
 vi.mock("../../../../lib/grc20", async (original) => ({ ...(await original<object>()), networkGasPriceFresh: trading.price }))
 vi.mock("../../../sign/signerContext", () => ({ useSigner: () => ({ sign: trading.sign }) }))
 vi.mock("../../../../lib/config", async (original) => ({ ...(await original<typeof import("../../../../lib/config")>()), isNftEnabled: () => true, isRealmValidOn: () => true }))
@@ -293,7 +294,7 @@ describe("Market NFT lane", () => {
                 show(item(), BUYER)
                 fireEvent.click(await region("Listing").findByRole("button", { name: "Buy for 1.5 GNOT" }))
                 await vi.waitFor(() => expect(trading.sign).toHaveBeenCalledOnce())
-                expect(trading.lane).toHaveBeenCalledWith("nft_market", "ugnot")
+                expect(trading.lane).toHaveBeenCalledWith("mainnet", "nft_market", "ugnot")
                 const request = trading.sign.mock.calls[0][0]
                 expect(request.prepare().msgs[0].value).toMatchObject({ caller: BUYER, send: "1500000ugnot", func: "Buy", args: ["L4", "ugnot", "1500000"] })
                 expect(Object.fromEntries(request.lines())).toMatchObject({ "To the seller": "1.3125 GNOT", [`Royalty to ${ROYALTY}`]: "0.15 GNOT" })
@@ -309,6 +310,9 @@ describe("Market NFT lane", () => {
                 trading.price.mockRejectedValueOnce(new ReadError("offline"))
                 fireEvent.click(buy)
                 await vi.waitFor(() => expect(region("Listing").getByRole("alert")).toHaveTextContent("The network could not be read. Try again in a moment."))
+                trading.lane.mockRejectedValueOnce(new TokenLaunchpadReadError("realm_error", "refused"))
+                fireEvent.click(buy)
+                await vi.waitFor(() => expect(region("Listing").getByRole("alert")).toHaveTextContent("The market's configuration refused this read. Refresh the listing."))
                 expect(trading.sign).not.toHaveBeenCalled()
             })
 

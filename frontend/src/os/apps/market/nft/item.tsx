@@ -12,10 +12,11 @@ import { useEffect, useRef, useState } from "react"
 import { useNow } from "../../../../hooks/home/useNow"
 import { networkGasPriceFresh } from "../../../../lib/grc20"
 import { formatAmount } from "../../../../lib/nft/format"
-import { getLaneStatus, laneClosedReason } from "../../../../lib/nft/lane"
 import { getTokenListing, type NftListing, type NftOffer } from "../../../../lib/nft/market"
 import { ReadError, RealmRefusedError } from "../../../../lib/nft/read"
-import { buyBlocker } from "../../../../lib/nft/trade"
+import { buyBlocker, laneClosedReason } from "../../../../lib/nft/trade"
+import { TokenLaunchpadReadError } from "../../../../lib/tokenLaunchpadClient"
+import { readActionStatus } from "../../../../lib/tokenLaunchpadConfigClient"
 import { useSigner } from "../../../sign/signerContext"
 import type { OsSession } from "../../../shell/useOsSession"
 import { CardGrid, Empty, Loading, Pill } from "../../../kit"
@@ -27,6 +28,11 @@ import { buyRequest, cancelListingRequest } from "./tradeRequest"
 function reason(err: unknown): string {
     if (err instanceof ReadError) return "The network could not be read. Try again in a moment."
     if (err instanceof RealmRefusedError) return "The network refused this read. Refresh the listing."
+    if (err instanceof TokenLaunchpadReadError) {
+        if (err.code === "realm_error") return "The market's configuration refused this read. Refresh the listing."
+        if (err.code === "invalid_response") return "The market's configuration answered in a form this version does not read."
+        return "The network could not be read. Try again in a moment."
+    }
     return err instanceof Error ? err.message : String(err)
 }
 
@@ -57,7 +63,7 @@ function ListingAction({ lane, session, listing }: { lane: LaneProps; session: O
         try {
             const price = await networkGasPriceFresh()
             if (!mine) {
-                const status = await getLaneStatus("nft_market", listing.currency)
+                const status = await readActionStatus(session.network.key, "nft_market", listing.currency)
                 if (!status.open) throw new Error(laneClosedReason(status, "Trading"))
             }
             if (!alive.current) return

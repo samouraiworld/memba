@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { NFT_MARKET_PATH, type NftListing } from "./market"
-import { buildBuyMsg, buildCancelListingMsg, buyBlocker } from "./trade"
+import { buildBuyMsg, buildCancelListingMsg, buyBlocker, laneClosedReason } from "./trade"
 
 const BUYER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const SELLER = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
@@ -35,5 +35,15 @@ describe("listing calls", () => {
     it("lets a guest see a listing as buyable: it is asked to connect", () => {
         expect(buyBlocker(listing(), "")).toBe("")
         expect(buyBlocker(listing({ seller: BUYER }), BUYER)).toBe("This is your listing.")
+    })
+})
+
+describe("a closed lane", () => {
+    it("says why, in one sentence, and nothing when it is open", () => {
+        const status = { open: false, paused: false, allowlisted: true }
+        expect(laneClosedReason({ ...status, paused: true }, "Trading")).toBe("Trading is paused on this network for now.")
+        expect(laneClosedReason({ ...status, allowlisted: false }, "Trading")).toBe("Trading in this currency is not allowed on this network.")
+        expect(laneClosedReason(status, "Trading")).toBe("Trading is not set up on this network yet.")
+        expect(laneClosedReason({ open: true, paused: false, allowlisted: true }, "Trading")).toBe("")
     })
 })

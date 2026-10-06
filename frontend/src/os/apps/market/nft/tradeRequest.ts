@@ -12,11 +12,11 @@ import { isValidGnoAddressChecksum } from "../../../../lib/dao/address"
 import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../../lib/dao/v2Budget"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../../lib/grc20"
 import { formatAmount, formatBPS } from "../../../../lib/nft/format"
-import { getLaneStatus, laneClosedReason } from "../../../../lib/nft/lane"
 import { NFT_MARKET_PATH, getListing, type NftListing, type NftSplit } from "../../../../lib/nft/market"
 import {
-    BUY_GAS_WANTED, BUY_STORAGE_BYTES, CANCEL_LISTING_GAS_WANTED, buildBuyMsg, buildCancelListingMsg, buyBlocker,
+    BUY_GAS_WANTED, BUY_STORAGE_BYTES, CANCEL_LISTING_GAS_WANTED, buildBuyMsg, buildCancelListingMsg, buyBlocker, laneClosedReason,
 } from "../../../../lib/nft/trade"
+import { readActionStatus } from "../../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../../sign/signer"
 import { verifySendTx } from "../../../wallet/sendRequest"
 
@@ -86,7 +86,7 @@ export function buyRequest(draft: ListingDraft): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             available(draft)
-            const lane = await getLaneStatus("nft_market", listing.currency)
+            const lane = await readActionStatus(draft.networkKey, "nft_market", listing.currency)
             if (!lane.open) throw new Error(`${laneClosedReason(lane, "Trading")} Nothing was sent.`)
             const read = await assertSameListing(listing)
             const blocker = buyBlocker(read, draft.caller)
