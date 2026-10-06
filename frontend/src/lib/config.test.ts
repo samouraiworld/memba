@@ -1005,12 +1005,12 @@ describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
     })
 })
 
-describe('commerce allowlist — held-back realms stay gated on the live networks', () => {
+describe('commerce allowlist — held-back realms stay gated on the current networks', () => {
     // Adding a path to REALM_ALLOWLIST DE-GATES its lane (isRealmValidOn is the
     // only gate most of them have). This pins the held-back set recorded in
     // config.ts's allowlist header, so a fund-custody realm cannot be slipped
-    // onto a live network without a failing test.
-    const LIVE_NETWORKS = ['mainnet', 'onyx']
+    // onto mainnet or the Onyx testnet without a failing test.
+    const CURRENT_NETWORKS = ['mainnet', 'onyx']
 
     it('keeps every HELD-BACK commerce realm gated on mainnet and onyx', async () => {
         const { isRealmValidOn, MEMBA_DAO } = await import('./config')
@@ -1060,7 +1060,7 @@ describe('commerce allowlist — held-back realms stay gated on the live network
             // `src/**/*.test.ts`, so `npm run build` never typechecks this file.
             expect(path, `${name}: must be a real realm path, not undefined`).toMatch(/^gno\.land\/r\/samcrew\/[a-z0-9_]+$/)
 
-            for (const network of LIVE_NETWORKS) {
+            for (const network of CURRENT_NETWORKS) {
                 expect(isRealmValidOn(network, path), `${name} (${path}) must stay gated on ${network}`).toBe(false)
             }
 

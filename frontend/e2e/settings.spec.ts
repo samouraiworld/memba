@@ -28,7 +28,7 @@ test.describe('Settings Page', () => {
         await expect(active.first()).toBeVisible()
         await expect(page.locator('#network-pearl')).toHaveCount(0)
         await expect(page.locator('#network-gnoland1')).toHaveCount(0)
-        await expect(page.locator('#network-topaz')).toHaveCount(0)
+        await expect(page.locator('#network-onyx')).toHaveCount(0)
         await expect(page.locator('#network-test13')).toHaveCount(0)
         const network = new URL(page.url()).pathname.split('/')[1]
         await expect(page.locator(`#network-${network}`)).toBeVisible()
