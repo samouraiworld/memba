@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -88,9 +89,25 @@ func TestCurationEvidence_PinsTheExactTextAndAnswersItsHash(t *testing.T) {
 	}
 }
 
+func TestCurationEvidence_RawCIDIsTheHashOfTheBytes(t *testing.T) {
+	// The well-known CID of zero bytes stored as one raw block.
+	if got := rawCID(nil); got != "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku" {
+		t.Fatalf("rawCID(empty) = %s", got)
+	}
+}
+
+func TestCurationEvidence_RefusesARawCIDOfAnotherText(t *testing.T) {
+	t.Setenv("LIGHTHOUSE_API_KEY", "secret")
+	opts, _ := fakeLighthouse(t, http.StatusOK, `{"Hash":"`+rawCID([]byte("Another reason."))+`"}`)
+	rec := postEvidence(t, HandleCurationEvidenceUpload(opts), "text/plain", []byte("A reason."))
+	if rec.Code != http.StatusBadGateway || !strings.Contains(errorOf(t, rec), "not the text's") {
+		t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
+	}
+}
+
 func TestCurationEvidence_AcceptsARawCIDv1AndACIDv0(t *testing.T) {
 	t.Setenv("LIGHTHOUSE_API_KEY", "secret")
-	for _, cid := range []string{"bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy", "Qm" + strings.Repeat("a", 44)} {
+	for _, cid := range []string{rawCID([]byte("A reason.")), "Qm" + strings.Repeat("a", 44)} {
 		opts, _ := fakeLighthouse(t, http.StatusOK, `{"cid":"`+cid+`"}`)
 		rec := postEvidence(t, HandleCurationEvidenceUpload(opts), "text/plain", []byte("A reason."))
 		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), cid) {
@@ -173,5 +190,17 @@ func TestCurationEvidence_MethodAndConfiguration(t *testing.T) {
 	t.Setenv("LIGHTHOUSE_API_KEY", "")
 	if rec := postEvidence(t, HandleCurationEvidenceUpload(), "text/plain", []byte("x")); rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("no key: status %d", rec.Code)
+	}
+}
+
+func TestLighthouseAdd_QuotesTheFilename(t *testing.T) {
+	opts, got := fakeLighthouse(t, http.StatusOK, `{"Hash":"`+evidenceCID+`"}`)
+	name := `a"b\c.txt`
+	if _, status, failure := lighthouseAdd(context.Background(), opts, "secret", name, "", strings.NewReader("x")); status != 0 {
+		t.Fatalf("status %d: %s", status, failure)
+	}
+	// A quote or a backslash in the name cannot end the parameter early: the part keeps the whole name.
+	if got.filename != name {
+		t.Fatalf("upstream saw filename %q", got.filename)
 	}
 }

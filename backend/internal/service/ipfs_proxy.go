@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -163,6 +164,8 @@ func ipfsUploadHandler(maxBytes int64, sanitizedName string, opts ...ipfsUploadO
 	})
 }
 
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
 // lighthouseAdd streams content to Lighthouse as one file part named filename
 // (application/octet-stream unless contentType is set), with the server-side
 // bearer, and returns the CID it answered. On failure it returns the HTTP
@@ -173,7 +176,8 @@ func lighthouseAdd(ctx context.Context, o ipfsUploadOptions, apiKey, filename, c
 	go func() {
 		defer func() { _ = pw.Close() }()
 		h := make(textproto.MIMEHeader)
-		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+		// Quoted as the multipart package quotes it, so no name can end the parameter early.
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, quoteEscaper.Replace(filename)))
 		if contentType == "" {
 			contentType = "application/octet-stream"
 		}

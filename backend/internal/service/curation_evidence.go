@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,14 @@ const curationEvidenceMaxBytes = 16 * 1024
 // CIDv0 in base58 (Qm…). A pin that answers anything else could not be
 // committed, so it is reported as a failure here.
 var curationEvidenceCID = regexp.MustCompile(`^(baf[yk][a-z2-7]{55,86}|Qm[1-9A-HJ-NP-Za-km-z]{44})$`)
+
+// rawCID is the CIDv1 of content stored as one raw block (multibase "b",
+// base32 lower, of version 1, the raw codec 0x55 and the sha2-256 multihash),
+// which is what Lighthouse answers (bafkrei…) for a small file.
+func rawCID(content []byte) string {
+	sum := sha256.Sum256(content)
+	return "b" + strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(append([]byte{0x01, 0x55, 0x12, 0x20}, sum[:]...)))
+}
 
 // HandleCurationEvidenceUpload handles POST /api/upload/curation-evidence: the
 // body is the evidence itself, UTF-8 plain text of at most 16 KB, pinned as is
@@ -90,6 +99,15 @@ func HandleCurationEvidenceUpload(opts ...ipfsUploadOptions) http.Handler {
 		if !curationEvidenceCID.MatchString(cid) {
 			slog.Error("lighthouse returned a CID the curation realm refuses", "cid", cid)
 			fail(http.StatusBadGateway, "IPFS upload returned an unusable CID")
+			return
+		}
+		// A raw-block CID is a hash of the bytes, so it is checked against
+		// them. A dag-pb (bafy…) or CIDv0 (Qm…) CID hashes a UnixFS node whose
+		// layout is the pinning service's choice, so it is only format-checked;
+		// the client still hashes what it fetches before showing it.
+		if strings.HasPrefix(cid, "bafk") && cid != rawCID(text) {
+			slog.Error("lighthouse returned a raw CID that is not the text's", "cid", cid)
+			fail(http.StatusBadGateway, "IPFS upload answered a CID that is not the text's")
 			return
 		}
 		sum := sha256.Sum256(text)
