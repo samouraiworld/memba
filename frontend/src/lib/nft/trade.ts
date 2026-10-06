@@ -8,7 +8,6 @@
  * @module lib/nft/trade
  */
 import { depositCapUgnot } from "../dao/v2Budget"
-import type { LaunchpadActionStatus } from "../tokenLaunchpadConfigClient"
 import type { AminoMsg } from "../grc20"
 import { NFT_MARKET_PATH, type NftListing } from "./market"
 import { address } from "./parse"
@@ -26,14 +25,6 @@ export const CANCEL_LISTING_GAS_WANTED = 25_000_000
  */
 export const BUY_STORAGE_BYTES = 4_000
 export const CANCEL_LISTING_STORAGE_BYTES = 500
-
-/** Why a Launchpad lane takes no new action now (config's ActionStatusJSON), in one sentence; empty when it is open. */
-export function laneClosedReason(status: Pick<LaunchpadActionStatus, "open" | "paused" | "allowlisted">, action: string): string {
-    if (status.open) return ""
-    if (status.paused) return `${action} is paused on this network for now.`
-    if (!status.allowlisted) return `${action} in this currency is not allowed on this network.`
-    return `${action} is not set up on this network yet.`
-}
 
 /** Why `viewer` cannot buy this listing in Memba now; empty when it can. A guest can: it is asked to connect. */
 export function buyBlocker(listing: NftListing, viewer: string): string {
