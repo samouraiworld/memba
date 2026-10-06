@@ -12,8 +12,8 @@ import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../lib/dao
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
 import { NFT_DROPS_PATH, gateUsed, listStages, mintedBy, type NftStage } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
-import { getToken } from "../../../lib/nft/ledger"
-import { MINT_GAS_WANTED, MINT_STORAGE_BYTES, NATIVE_CURRENCY, buildMintMsg, mintBlocker } from "../../../lib/nft/mint"
+import { getCollection, getToken } from "../../../lib/nft/ledger"
+import { MINT_GAS_WANTED, MINT_STORAGE_BYTES, NATIVE_CURRENCY, buildMintMsg, mintBlocker, supplyBlocker, type MintSupply } from "../../../lib/nft/mint"
 import { laneClosedReason, readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
@@ -21,6 +21,8 @@ import { verifySendTx } from "../../wallet/sendRequest"
 export interface MintDraft {
     collection: string
     collectionName: string
+    /** The collection's supply as read when the member asked: a sealed or full collection mints nothing. */
+    supply: MintSupply
     /** The stage as read when the member asked to mint. */
     stage: NftStage
     /** The gate token of a holder stage; 0 elsewhere. */
@@ -39,7 +41,7 @@ export interface MintDraft {
 function validated(draft: MintDraft): MintDraft {
     if (!isNftEnabled() || !isRealmValidOn(draft.networkKey, NFT_DROPS_PATH)) throw new Error("Minting is not available on this network.")
     if (!isValidGnoAddressChecksum(draft.caller)) throw new Error("Connect your wallet before minting.")
-    const blocker = mintBlocker(draft.stage)
+    const blocker = supplyBlocker(draft.supply) || mintBlocker(draft.stage)
     if (blocker) throw new Error(blocker)
     if (draft.mintedSoFar >= draft.stage.perWallet) throw new Error("This account has minted as many tokens as this stage allows per wallet.")
     return draft
@@ -49,7 +51,7 @@ function validated(draft: MintDraft): MintDraft {
 export async function assertGateToken(collection: string, stage: NftStage, gateNumber: bigint, owner: string): Promise<void> {
     const [token, used] = await Promise.all([getToken(stage.gate, gateNumber), gateUsed(collection, stage.index, gateNumber)])
     if (token.status !== "active" || token.owner !== owner) throw new Error(`This account does not hold ${stage.gate} #${gateNumber}.`)
-    if (used) throw new Error(`${stage.gate} #${gateNumber} has already paid for a mint in this stage.`)
+    if (used) throw new Error(`${stage.gate} #${gateNumber} has already been used for a mint in this stage.`)
 }
 
 /** The fresh stage still has the terms the member reviewed, and is still open for one more token. */
@@ -90,17 +92,23 @@ export function mintRequest(input: MintDraft): SignRequest {
             ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(MINT_STORAGE_BYTES))}, locked with the new token`],
             ["Network fee", formatUgnotExact(fee)],
         ],
-        note: "A mint is a sale: the price goes to the creator and the treasury in the same transaction and is not refunded. The token is yours once the transaction is in a block.",
+        note: offered === 0n ? "A free mint: nothing is paid but the network fee and the storage deposit. The token is yours once the transaction is in a block."
+            : stage.feeBPS === 0n ? "A mint is a sale: the price goes to the creator in the same transaction and is not refunded. The token is yours once the transaction is in a block."
+            : "A mint is a sale: the price goes to the creator and the treasury in the same transaction and is not refunded. The token is yours once the transaction is in a block.",
         label: () => label,
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(draft)
-            const lane = await readActionStatus(draft.networkKey, "nft_drops", NATIVE_CURRENCY)
+            const [lane, collection, stages, minted] = await Promise.all([
+                readActionStatus(draft.networkKey, "nft_drops", NATIVE_CURRENCY), getCollection(draft.collection),
+                listStages(draft.collection), mintedBy(draft.collection, stage.index, draft.caller),
+                stage.kind === "holder" ? assertGateToken(draft.collection, stage, draft.gateNumber, draft.caller) : undefined,
+            ])
             if (!lane.open) throw new Error(`${laneClosedReason(lane, "Minting")} Nothing was sent.`)
-            const stages = await listStages(draft.collection)
+            const full = supplyBlocker(collection)
+            if (full) throw new Error(`${full} Nothing was sent.`)
             assertSameStage(stages[stage.index], stage, offered)
-            if (await mintedBy(draft.collection, stage.index, draft.caller) >= stage.perWallet) throw new Error("This account has minted as many tokens as this stage allows per wallet. Nothing was sent.")
-            if (stage.kind === "holder") await assertGateToken(draft.collection, stage, draft.gateNumber, draft.caller)
+            if (minted >= stage.perWallet) throw new Error("This account has minted as many tokens as this stage allows per wallet. Nothing was sent.")
             await assertFeeStillCovers(fee, () => freshFeeForGasWanted(MINT_GAS_WANTED))
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], label, { gasWanted: MINT_GAS_WANTED, gasFee: fee, beforeSign }),

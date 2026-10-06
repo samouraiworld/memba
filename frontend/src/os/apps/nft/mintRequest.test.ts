@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     mintedBy: vi.fn(),
     gateUsed: vi.fn(),
     getToken: vi.fn(),
+    getCollection: vi.fn(),
     lane: vi.fn(),
     wallet: vi.fn(),
     readTx: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock("../../../lib/nft/drops", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/nft/drops")>(),
     listStages: mocks.listStages, mintedBy: mocks.mintedBy, gateUsed: mocks.gateUsed,
 }))
-vi.mock("../../../lib/nft/ledger", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/ledger")>(), getToken: mocks.getToken }))
+vi.mock("../../../lib/nft/ledger", async (importActual) => ({ ...await importActual<typeof import("../../../lib/nft/ledger")>(), getToken: mocks.getToken, getCollection: mocks.getCollection }))
 vi.mock("../../../lib/tokenLaunchpadConfigClient", async (importActual) => ({ ...await importActual<typeof import("../../../lib/tokenLaunchpadConfigClient")>(), readActionStatus: mocks.lane }))
 vi.mock("../../../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../../../lib/grc20")>()
@@ -60,7 +61,7 @@ const dutch: NftStage = {
 }
 const holder: NftStage = { ...dutch, kind: "holder", floor: 0n, price: 0n, currentPrice: 0n, gate: "C2" }
 const draft = (more: Partial<MintDraft> = {}): MintDraft => ({
-    collection: "C1", collectionName: "Relevés", stage: dutch, gateNumber: 0n, mintedSoFar: 0n, caller: BUYER,
+    collection: "C1", collectionName: "Relevés", supply: { sealed: false, maxSupply: 0n, minted: 3n }, stage: dutch, gateNumber: 0n, mintedSoFar: 0n, caller: BUYER,
     networkKey: "mainnet", chainId: "gnoland-1", price: { gas: 1000, ugnot: 1 }, ...more,
 })
 const run = (request: ReturnType<typeof mintRequest>) => executeSignature(request, undefined, request.prepare(undefined).msgs, () => {})
@@ -73,6 +74,7 @@ beforeEach(() => {
     mocks.gateUsed.mockReset().mockResolvedValue(false)
     mocks.getToken.mockReset().mockResolvedValue({ collection: "C2", number: 7n, owner: BUYER, status: "active", uri: "" })
     mocks.lane.mockReset().mockResolvedValue(open)
+    mocks.getCollection.mockReset().mockResolvedValue({ id: "C1", sealed: false, maxSupply: 0n, minted: 3n })
     mocks.wallet.mockReset().mockResolvedValue({ hash: HASH })
     mocks.readTx.mockReset().mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: null } } })
     mocks.freshPrice.mockReset().mockResolvedValue({ gas: 1000, ugnot: 1 })
@@ -97,6 +99,8 @@ describe("NFT mint signing", () => {
     it("refuses a draft Memba must not sign", () => {
         expect(() => mintRequest(draft({ mintedSoFar: 2n }))).toThrow("as many tokens as this stage allows")
         expect(() => mintRequest(draft({ caller: "g1nope" }))).toThrow("Connect your wallet")
+        expect(() => mintRequest(draft({ supply: { sealed: true, maxSupply: 0n, minted: 3n } }))).toThrow("the creator sealed the supply")
+        expect(() => mintRequest(draft({ supply: { sealed: false, maxSupply: 3n, minted: 3n } }))).toThrow("maximum supply")
         expect(() => mintRequest(draft({ stage: { ...dutch, kind: "allowlist", perWallet: 0n, floor: 0n, root: "ab".repeat(32) } }))).toThrow("allowlist")
         mocks.available.mockReturnValue(false)
         expect(() => mintRequest(draft())).toThrow("Minting is not available on this network.")
@@ -110,6 +114,8 @@ describe("NFT mint signing", () => {
         ["the stage closed", () => mocks.listStages.mockResolvedValue([{ ...dutch, open: false, currentPrice: dutch.price }]), "This stage is not open. Nothing was sent."],
         ["the member reached the limit", () => mocks.mintedBy.mockResolvedValue(2n), "as many tokens as this stage allows per wallet. Nothing was sent."],
         ["the fee rose", () => mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 }), "fee"],
+        ["the creator sealed the supply", () => mocks.getCollection.mockResolvedValue({ id: "C1", sealed: true, maxSupply: 0n, minted: 3n }), "Minting has ended for good: the creator sealed the supply. Nothing was sent."],
+        ["the collection reached its maximum supply", () => mocks.getCollection.mockResolvedValue({ id: "C1", sealed: false, maxSupply: 3n, minted: 3n }), "The collection has reached its maximum supply. Nothing was sent."],
     ])("stops before the wallet when %s", async (_, change, message) => {
         change()
         const result = await run(mintRequest(draft()))
@@ -130,12 +136,20 @@ describe("NFT mint signing", () => {
         const request = mintRequest(draft({ stage: holder, gateNumber: 7n }))
         expect(Object.fromEntries(request.lines(undefined))).toMatchObject({ Price: "Free", "Gate token": "C2 #7, used up for this stage by this mint" })
         mocks.gateUsed.mockResolvedValueOnce(true)
-        expect(await run(request)).toEqual({ outcome: "failed", error: "C2 #7 has already paid for a mint in this stage." })
+        expect(await run(request)).toEqual({ outcome: "failed", error: "C2 #7 has already been used for a mint in this stage." })
         mocks.getToken.mockResolvedValueOnce({ collection: "C2", number: 7n, owner: OTHER, status: "active", uri: "" })
         expect(await run(request)).toEqual({ outcome: "failed", error: "This account does not hold C2 #7." })
         mocks.getToken.mockResolvedValueOnce({ collection: "C2", number: 7n, owner: "", status: "burned", uri: "" })
         expect(await run(request)).toEqual({ outcome: "failed", error: "This account does not hold C2 #7." })
         expect(await run(request)).toMatchObject({ outcome: "sent" })
         expect(mocks.gateUsed).toHaveBeenLastCalledWith("C1", 0, 7n)
+    })
+})
+
+describe("the review note", () => {
+    it("names who is paid: creator and treasury, the creator alone at no fee, or nobody for a free mint", () => {
+        expect(mintRequest(draft()).note).toContain("goes to the creator and the treasury")
+        expect(mintRequest(draft({ stage: { ...dutch, feeBPS: 0n } })).note).toContain("the price goes to the creator in the same transaction")
+        expect(mintRequest(draft({ stage: { ...dutch, kind: "fixed", price: 0n, floor: 0n, currentPrice: 0n } })).note).toContain("A free mint")
     })
 })

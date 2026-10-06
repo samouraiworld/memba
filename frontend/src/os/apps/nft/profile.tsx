@@ -60,7 +60,7 @@ function Profile({ screen, session, collection }: { screen: NftScreen; session: 
                 {hide.curated ? <Curation hide={hide} collapsed="Its image, banner, description, website and token art" /> : <p className="os-sub">Curation is not available on this network.</p>}
             </section>
             <Passport screen={screen} collection={collection} />
-            <Stages screen={screen} session={session} collection={collection.id} collectionName={name} />
+            <Stages screen={screen} session={session} collection={collection.id} collectionName={name} supply={collection} />
             <TokenGrid screen={screen} collection={collection.id} showMedia={shown} />
         </div>
     )

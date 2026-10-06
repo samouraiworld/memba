@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NFT_CURATION_PATH } from "../../../lib/nft/curation"
 import { NFT_DROPS_PATH } from "../../../lib/nft/drops"
@@ -251,6 +251,28 @@ describe("NFT collection profile", () => {
         expect(screen.queryByRole("button", { name: /mint/i })).toBeNull()
     })
 
+    it("offers no mint once the supply is sealed or full, and says why on the open stage", async () => {
+        reads.listStages.mockResolvedValue([stage(0, "fixed", { open: true })])
+        reads.getCollection.mockResolvedValue({ ...collection, sealed: true })
+        show(vi.fn(), member)
+        const [open] = await within(await screen.findByRole("region", { name: "Mint stages" })).findAllByRole("listitem")
+        expect(open).toHaveTextContent("Minting has ended for good: the creator sealed the supply.")
+        expect(screen.queryByRole("button", { name: /mint/i })).toBeNull()
+    })
+
+    it("keeps Mint off while a mint from the stage is on its way, and gives it back once its outcome is known", async () => {
+        reads.listStages.mockResolvedValue([stage(0, "fixed", { open: true })])
+        show(vi.fn(), member)
+        fireEvent.click(await screen.findByRole("button", { name: "Mint" }))
+        await vi.waitFor(() => expect(minting.sign).toHaveBeenCalledOnce())
+        const request = minting.sign.mock.calls[0][0]
+        // The member signs: the sheet sends, and the outcome is still to come.
+        void request.send(undefined, async () => {}).catch(() => {})
+        expect(await screen.findByRole("button", { name: "Minting…" })).toBeDisabled()
+        act(() => request.onSettled("submitted"))
+        expect(await screen.findByRole("button", { name: "Mint" })).toBeEnabled()
+    })
+
     it("opens the review with the exact Mint call after reading the lane, the fee and the member's count", async () => {
         reads.listStages.mockResolvedValue([stage(0, "dutch", { open: true, price: 10_000_000n, floor: 1_000_000n, currentPrice: 4_000_000n })])
         minting.mintedBy.mockResolvedValue(1n)
@@ -305,7 +327,7 @@ describe("NFT collection profile", () => {
         minting.getToken.mockResolvedValue({ collection: "C2", number: 7n, owner: MEMBER, status: "active", uri: "" })
         minting.gateUsed.mockResolvedValueOnce(true)
         fireEvent.click(mint)
-        await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("C2 #7 has already paid for a mint in this stage."))
+        await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("C2 #7 has already been used for a mint in this stage."))
         fireEvent.click(mint)
         await vi.waitFor(() => expect(minting.sign).toHaveBeenCalledOnce())
         expect(minting.gateUsed).toHaveBeenLastCalledWith("C1", 0, 7n)

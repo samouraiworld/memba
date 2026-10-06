@@ -28,6 +28,21 @@ export const MINT_GAS_WANTED = 50_000_000
 export const MINT_STORAGE_BYTES = 10_000
 
 /** Why Memba cannot mint in this stage now; empty when it can. */
+/** A collection's supply as the ledger states it. */
+export interface MintSupply {
+    sealed: boolean
+    /** 0 when there is no cap. */
+    maxSupply: bigint
+    minted: bigint
+}
+
+/** Why the ledger refuses every mint of the collection now, whatever the stage; empty when it does not. */
+export function supplyBlocker(supply: MintSupply): string {
+    if (supply.sealed) return "Minting has ended for good: the creator sealed the supply."
+    if (supply.maxSupply > 0n && supply.minted >= supply.maxSupply) return "The collection has reached its maximum supply."
+    return ""
+}
+
 export function mintBlocker(stage: NftStage): string {
     if (!stage.open) return "This stage is not open."
     if (stage.supplyCap > 0n && stage.minted >= stage.supplyCap) return "This stage is sold out."

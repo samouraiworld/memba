@@ -141,7 +141,7 @@ export async function mintedBy(collection: string, index: number, who: string): 
     return readInt(NFT_DROPS_PATH, `MintedBy(${stageArgs(collection, index)}, "${address(who, "minter")}")`, "minted count")
 }
 
-/** Whether a gate token has already paid for a mint in a holder stage. */
+/** Whether a gate token has already been used for a mint in a holder stage. */
 export async function gateUsed(collection: string, index: number, gateNumber: bigint): Promise<boolean> {
     return readBool(NFT_DROPS_PATH, `GateUsed(${stageArgs(collection, index)}, ${natural(gateNumber, "gate token number")})`, "gate token use")
 }
