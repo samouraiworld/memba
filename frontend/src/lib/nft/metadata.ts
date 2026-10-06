@@ -26,11 +26,10 @@ const MAX_ATTRIBUTES = 100
 const GATEWAY = getIpfsGatewayUrl("")
 
 /**
- * `ipfs://<CID>` and an optional path. A CIDv0, or any CIDv1 in base32: a
- * single image is often a raw block (`bafk…`), which the curation realm's
- * `bafy…` rule for committed texts would refuse.
+ * `ipfs://<CID>` and an optional path, the CID as the NFT realms write one
+ * (lib/nft/parse `cid`): CIDv1 `bafy…` or `bafk…` in base32, or CIDv0 `Qm…`.
  */
-const IPFS = /^ipfs:\/\/(?:ipfs\/)?(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{58,98})(\/.*)?$/
+const IPFS = /^ipfs:\/\/(?:ipfs\/)?(baf[yk][a-z2-7]{55,86}|Qm[1-9A-HJ-NP-Za-km-z]{44})(\/.*)?$/
 
 export interface NftAttribute {
     trait_type: string
@@ -85,6 +84,8 @@ export function mediaUrl(uri: string): string | null {
     if (ipfs) {
         const root = getIpfsGatewayUrl(ipfs[1])
         const url = parseUrl(root + (ipfs[2] ?? ""))
+        // A query or a fragment is not part of a file's address in the CID's directory.
+        if (url !== null) { url.search = ""; url.hash = "" }
         // Dot segments, encoded or not, must not climb out of the CID's own directory.
         return url !== null && (url.href === root || url.href.startsWith(`${root}/`)) ? url.href : null
     }
@@ -115,7 +116,8 @@ async function download(url: string, signal?: AbortSignal): Promise<Uint8Array> 
     const timer = setTimeout(stop, TIMEOUT_MS)
     signal?.addEventListener("abort", stop)
     try {
-        const response = await transport(fetch(url, { signal: controller.signal }), signal)
+        // No redirect away from the gateway, and no cookie or credential sent with the request.
+        const response = await transport(fetch(url, { signal: controller.signal, redirect: "error", credentials: "omit" }), signal)
         // Whatever the gateway refuses, a file it cannot find included, it may serve later.
         if (!response.ok) throw new TokenMetadataError("unavailable")
         if (response.body === null) return new Uint8Array(0)
@@ -137,18 +139,30 @@ async function download(url: string, signal?: AbortSignal): Promise<Uint8Array> 
     }
 }
 
-function bounded(value: unknown, max: number): string | null {
-    return typeof value === "string" && value.length <= max ? value : null
+/**
+ * Control characters and the bidi overrides and isolates that could reorder
+ * what a screen shows around a creator's text. A description keeps its line breaks.
+ */
+const UNSAFE = /(?!\n)[\p{Cc}\u202a-\u202e\u2066-\u2069]/gu
+const UNSAFE_INLINE = /[\p{Cc}\u202a-\u202e\u2066-\u2069]/gu
+
+function bounded(value: unknown, max: number, lines = false): string | null {
+    return typeof value === "string" && value.length <= max ? value.replace(lines ? UNSAFE : UNSAFE_INLINE, "") : null
 }
 
 /** One trait, rebuilt from its two checked fields, or nothing: an entry that does not fit is dropped. */
 function attribute(entry: unknown): NftAttribute[] {
     if (entry === null || typeof entry !== "object") return []
     const { trait_type, value } = entry as Record<string, unknown>
-    if (typeof trait_type !== "string" || trait_type.length > MAX_NAME) return []
-    // JSON has no NaN, but a number too large for a double parses to Infinity.
-    const fits = (typeof value === "string" && value.length <= MAX_NAME) || (typeof value === "number" && Number.isFinite(value))
-    return fits ? [{ trait_type, value }] : []
+    const type = bounded(trait_type, MAX_NAME)
+    if (type === null) return []
+    if (typeof value === "string") {
+        const text = bounded(value, MAX_NAME)
+        return text === null ? [] : [{ trait_type: type, value: text }]
+    }
+    // JSON has no NaN, but a number too large for a double parses to Infinity, and a whole number past 2^53 is not the one written.
+    const fits = typeof value === "number" && Number.isFinite(value) && (!Number.isInteger(value) || Number.isSafeInteger(value))
+    return fits ? [{ trait_type: type, value }] : []
 }
 
 function parse(bytes: Uint8Array): NftTokenMetadata {
@@ -163,7 +177,7 @@ function parse(bytes: Uint8Array): NftTokenMetadata {
     const { name, description, image, attributes } = file as Record<string, unknown>
     return {
         name: bounded(name, MAX_NAME),
-        description: bounded(description, MAX_DESCRIPTION),
+        description: bounded(description, MAX_DESCRIPTION, true),
         image: typeof image === "string" ? mediaUrl(image) : null,
         attributes: Array.isArray(attributes) ? attributes.flatMap(attribute).slice(0, MAX_ATTRIBUTES) : [],
     }

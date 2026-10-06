@@ -23,11 +23,20 @@ describe("amount", () => {
         ["a key with no path", 0n, "foo20", "0 foo20"],
         ["a key that ends with a slash", 7n, "gno.land/r/demo/", "7 gno.land/r/demo/"],
         ["an amount above 2^53", 9_007_199_254_740_993n, "gno.land/r/demo/foo20", "9,007,199,254,740,993 foo20"],
-        // Only the exact native key is GNOT: nothing that resembles it is given its decimals.
-        ["a token that is named like the native coin", 1_500_000n, "gno.land/r/evil/ugnot", "1,500,000 ugnot"],
+        // Only the exact native key is GNOT: nothing that resembles it is given its decimals, or its name.
+        ["a token that is named like the native coin", 1_500_000n, "gno.land/r/evil/ugnot", "1,500,000 gno.land/r/evil/ugnot"],
+        ["a token named GNOT", 3n, "gno.land/r/evil/GNOT", "3 gno.land/r/evil/GNOT"],
         ["the native key in another case", 1_500_000n, "UGNOT", "1,500,000 UGNOT"],
     ])("writes %s as the integer the realm stated", (_name, amount, currency, text) => {
         expect(formatAmount(amount, currency)).toBe(text)
+    })
+})
+
+describe("negative values", () => {
+    it("refuses a negative amount and negative basis points", () => {
+        expect(() => formatAmount(-1n, "ugnot")).toThrow(/^Invalid amount$/)
+        expect(() => formatAmount(-1n, "gno.land/r/demo/foo20")).toThrow(/^Invalid amount$/)
+        expect(() => formatBPS(-1n)).toThrow(/^Invalid basis points$/)
     })
 })
 

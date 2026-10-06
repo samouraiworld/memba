@@ -35,6 +35,7 @@ describe("media URL", () => {
         ["a raw block", `ipfs://${RAW_CID}`, getIpfsGatewayUrl(RAW_CID)],
         ["the older ipfs://ipfs/ form", `ipfs://ipfs/${CID}/7.png`, `${getIpfsGatewayUrl(CID)}/7.png`],
         ["dot segments that stay inside the CID", `ipfs://${CID}/a/../7.png`, `${getIpfsGatewayUrl(CID)}/7.png`],
+        ["a file with a query and a fragment, both dropped", `ipfs://${CID}/7.png?download=1#top`, `${getIpfsGatewayUrl(CID)}/7.png`],
     ])("sends %s through the gateway", (_name, uri, url) => {
         expect(mediaUrl(uri)).toBe(url)
         expect(url).toMatch(/^https:\/\/[^/]+\/ipfs\//)
@@ -82,6 +83,8 @@ describe("media URL", () => {
         ["ipfs with a name in place of a CID", "ipfs://bafyrevealed/7.png"],
         ["a CIDv0 outside base58", `ipfs://Qm${"0".repeat(44)}`],
         ["a CIDv1 outside base32", `ipfs://bafy${"B".repeat(55)}`],
+        ["a CIDv1 of a codec the NFT realms do not write", `ipfs://bafz${"b".repeat(55)}`],
+        ["a CIDv1 that is too short", `ipfs://bafy${"b".repeat(54)}`],
         ["a CID followed by a query", `ipfs://${CID}?filename=x`],
         ["an upper-case ipfs scheme", `IPFS://${CID}`],
         ["a path that climbs out of the CID", `ipfs://${CID}/../../api`],
@@ -180,6 +183,7 @@ describe("token metadata", () => {
             {"trait_type":"Signed","value":{"by":"artist"}},
             {"trait_type":"Signed","value":["artist"]},
             {"trait_type":"Weight","value":1e999},
+            {"trait_type":"Serial","value":9007199254740993},
             {"trait_type":"${"t".repeat(201)}","value":"Laid"},
             {"trait_type":"Paper","value":"${"v".repeat(201)}"},
             {"trait_type":"Paper","value":"Laid"},
@@ -195,6 +199,25 @@ describe("token metadata", () => {
                 { trait_type: "Ratio", value: -1.5 },
             ],
         })
+    })
+
+    it("strips control characters and bidi overrides from every text, keeping a description's line breaks", async () => {
+        serveJson({
+            name: "Rel\u202eevé\u0007",
+            description: "Line one\nLine\u2066 two\u2069\r",
+            attributes: [{ trait_type: "Pa\u0000per", value: "La\u202aid" }],
+        })
+        await expect(fetchTokenMetadata(TOKEN_URI)).resolves.toMatchObject({
+            name: "Relevé",
+            description: "Line one\nLine two",
+            attributes: [{ trait_type: "Paper", value: "Laid" }],
+        })
+    })
+
+    it("asks the gateway with no redirect allowed and no credential sent", async () => {
+        serveJson({ name: "Seven" })
+        await fetchTokenMetadata(TOKEN_URI)
+        expect(fetchMock.mock.calls[0][1]).toMatchObject({ redirect: "error", credentials: "omit" })
     })
 
     it("keeps the first 100 traits that fit", async () => {
