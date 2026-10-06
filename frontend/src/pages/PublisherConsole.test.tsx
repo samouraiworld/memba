@@ -101,6 +101,34 @@ describe("PublisherConsole — inline edit", () => {
         expect(msgs[0].value.args[6]).toBe("s1,s2")
     })
 
+    it("resubmits what the form shows even when the click lands before React's effects of that render", async () => {
+        fetchByPublisher.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })])
+        loadEditForm.mockResolvedValue({
+            pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", tagline: "", descr: "D",
+            category: "", iconCID: "", screenshotsCSV: "", appURL: "",
+        })
+        fetchAppStrict.mockResolvedValue(listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected", descr: "D", resubmitCount: 1 }))
+        renderWithProviders(<PublisherConsole />, { route: "/test13/apps/my-submissions" })
+        await screen.findByText("Bad App")
+        // Click in the microtask right after the form renders, before React runs that render's passive
+        // effects, as a busy machine can: the mutation must not depend on them.
+        const clicked = new Promise<void>((resolve) => {
+            const observer = new MutationObserver(() => {
+                const submit = screen.queryByRole("button", { name: /resubmit for review/i })
+                if (!submit) return
+                observer.disconnect()
+                fireEvent.click(submit)
+                resolve()
+            })
+            observer.observe(document.body, { childList: true, subtree: true })
+        })
+        fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
+        await clicked
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
+        expect(doContractBroadcast.mock.calls[0][0][0].value.func).toBe("EditListing")
+        expect(screen.queryByRole("alert")).toBeNull()
+    })
+
     it("shows an error and does NOT open the edit form when full detail can't be loaded", async () => {
         fetchByPublisher.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })])
         loadEditForm.mockResolvedValue(null)

@@ -58,11 +58,11 @@ export function PublisherConsole() {
         retry: 1,
     })
 
+    // A mutation's options reach it in an effect after each render, so a click landing before that
+    // effect would run an earlier render's mutationFn: everything a call needs travels as its variables.
     const delist = useMutation({
-        mutationFn: async (pkgPath: string) => {
-            return submitDelistApp(address, pkgPath)
-        },
-        onSuccess: (_res, pkgPath) => {
+        mutationFn: ({ caller, pkgPath }: { caller: string; pkgPath: string }) => submitDelistApp(caller, pkgPath),
+        onSuccess: (_res, { pkgPath }) => {
             // Optimistic flip — the chain read lags the broadcast, so don't invalidate "mine" (a
             // refetch would resurrect the old status); the next natural refetch reconciles.
             qc.setQueryData<AppListing[]>(queryKey, (prev) =>
@@ -79,11 +79,8 @@ export function PublisherConsole() {
     // EditListing — resubmit of the edited listing, no listing fee. Optimistically flip the row back to pending
     // (with the edited fields) and close the inline form; the next refetch reconciles with the chain.
     const resubmit = useMutation({
-        mutationFn: async (form: AppSubmission) => {
-            if (!editWas) throw new Error("This listing changed since it was loaded. Load it again, then edit it.")
-            return submitEditListing(address, form, editWas)
-        },
-        onSuccess: (_res, form) => {
+        mutationFn: ({ caller, form, was }: { caller: string; form: AppSubmission; was: AppSubmission }) => submitEditListing(caller, form, was),
+        onSuccess: (_res, { form }) => {
             qc.setQueryData<AppListing[]>(queryKey, (prev) =>
                 (prev ?? []).map((l) => (l.pkgPath === form.pkgPath
                     ? {
@@ -166,7 +163,7 @@ export function PublisherConsole() {
     const items = listings ?? []
     const hasNext = items.length === PAGE_SIZE
     const editErrors = editForm ? validateSubmission(editForm) : {}
-    const canResubmit = !!editForm && editForm.pkgPath !== "" && editForm.name !== ""
+    const canResubmit = !!editForm && !!editWas && editForm.pkgPath !== "" && editForm.name !== ""
         && Object.keys(editErrors).length === 0 && !resubmit.isPending
 
     return (
@@ -186,7 +183,7 @@ export function PublisherConsole() {
                 <form
                     className="appsubmit__form"
                     data-testid="console-editform"
-                    onSubmit={(e) => { e.preventDefault(); if (canResubmit) resubmit.mutate(editForm) }}
+                    onSubmit={(e) => { e.preventDefault(); if (canResubmit && editWas) resubmit.mutate({ caller: address, form: editForm, was: editWas }) }}
                 >
                     <div className="appsubmit__editnote" role="note">
                         Fixing <code className="apppath">{editForm.pkgPath}</code> — resubmitting costs no
@@ -229,7 +226,7 @@ export function PublisherConsole() {
                         delistArm={delistArm}
                         delistError={delistError}
                         onArmDelist={(p) => { setDelistArm(p); setDelistError(null) }}
-                        onConfirmDelist={(pkgPath) => delist.mutate(pkgPath)}
+                        onConfirmDelist={(pkgPath) => delist.mutate({ caller: address, pkgPath })}
                         delisting={delist.isPending}
                     />
                     {(page > 0 || hasNext) && (
