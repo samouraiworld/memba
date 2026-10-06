@@ -1,0 +1,28 @@
+/**
+ * How the NFT screens write a price and a rate. Both are exact: they are cut
+ * from the bigint the realm stated, never passed through a float.
+ *
+ * @module lib/nft/format
+ */
+import { formatUgnot } from "../../os/wallet/send"
+
+/**
+ * 1500000n ugnot → "1.5 GNOT". Any other currency is a GRC20 registry key,
+ * whose decimals this client does not know: its amount stays the integer the
+ * realm stated, named by the key's last path segment ("gno.land/r/demo/foo20"
+ * → "1,500 foo20"). A token whose segment reads like GNOT is named by its full
+ * key, so it never passes for the coin. An amount is never negative.
+ */
+export function formatAmount(amount: bigint, currency: string): string {
+    if (amount < 0n) throw new Error("Invalid amount")
+    if (currency === "ugnot") return formatUgnot(amount)
+    const segment = currency.slice(currency.lastIndexOf("/") + 1)
+    return `${amount.toLocaleString("en-US")} ${segment === "" || /^u?gnot$/i.test(segment) ? currency : segment}`
+}
+
+/** Basis points as a percentage: 250n → "2.5%". Never negative. */
+export function formatBPS(bps: bigint): string {
+    if (bps < 0n) throw new Error("Invalid basis points")
+    const fraction = (bps % 100n).toString().padStart(2, "0").replace(/0+$/, "")
+    return `${bps / 100n}${fraction ? `.${fraction}` : ""}%`
+}
