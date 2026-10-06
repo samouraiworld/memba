@@ -786,7 +786,7 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         await expect(assertFeeStillCovers(16_800, async () => 16_801)).rejects.toThrow('fee increased')
         await expect(assertFeeStillCovers(16_800, async () => { throw new Error('offline') })).rejects.toThrow('Nothing was sent')
         // Where the fee is shown in place, the surface says what to do next.
-        await expect(assertFeeStillCovers(16_800, async () => 16_801, 'Check the new fee, then deploy again.')).rejects.toThrow('The network fee increased since review. Check the new fee, then deploy again.')
+        await expect(assertFeeStillCovers(16_800, async () => 16_801, 'Check the new fee, then deploy again.')).rejects.toThrow('The network fee increased since review. Nothing was sent. Check the new fee, then deploy again.')
     })
 
     it('ignores a reported price above ten times the default and uses the default', async () => {

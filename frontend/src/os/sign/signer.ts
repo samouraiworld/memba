@@ -106,6 +106,13 @@ const FIRST_READ_MS = 3000
 const REJECTED_IN_WALLET = /user (rejected|denied|cancelled|canceled)|rejected by (the )?user|^(transaction )?cancelled by (the )?user$/i
 let signingActive = false
 
+/** A request that stopped before anything reached the chain: the reason, and that nothing was sent (a failed read says only the first). */
+function nothingSentFailure(err: unknown): SignResult {
+    const said = friendlyDaoError(err)
+    if (/nothing was sent/i.test(said)) return { outcome: "failed", error: said }
+    return { outcome: "failed", error: `${/[.!?]$/.test(said) ? said : `${said}.`} Nothing was sent.` }
+}
+
 /** Review → wallet → result. `onWallet` fires when the rechecks passed and Adena is about to open. */
 export async function executeSignature<C extends string>(
     req: SignRequest<C>,
@@ -122,7 +129,7 @@ export async function executeSignature<C extends string>(
     let label: string
     try { label = req.label(choice) } catch (err) {
         signingActive = false
-        return { outcome: "failed", error: friendlyDaoError(err) }
+        return nothingSentFailure(err)
     }
     let walletStarted = false
     let markBefore: string | null = null
@@ -190,7 +197,7 @@ export async function executeSignature<C extends string>(
             // After the wallet opened, only what was observed is said: an accepted transaction has no deadline to be included.
             if (walletStarted && rejected) return { outcome: "cancelled", error: "Cancelled in Adena. Your account shows no change three blocks later." }
             if (/cancelled/i.test(raw) || rejected) return { outcome: "cancelled", error: "Cancelled. Nothing was sent." }
-            return { outcome: "failed", error: friendlyDaoError(err) }
+            return nothingSentFailure(err)
         }
         return { outcome: "unknown", error: friendlyDaoError(err), hash }
     } finally {

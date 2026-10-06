@@ -200,6 +200,18 @@ describe("executeSignature", () => {
         expect(sent.after).not.toHaveBeenCalled()
     })
 
+    it("says nothing was sent for every stop before the wallet, once, whatever the reason's own words", async () => {
+        // A read that fails in a recheck keeps only the friendly reason for the failure, which says nothing about the transaction.
+        const timedOut = await executeSignature(request({ recheck: async () => { throw new Error("request timeout") } }), "YES", [msg], () => {})
+        expect(timedOut).toEqual({ outcome: "failed", error: "The request timed out. The chain may be congested. Try again in a few seconds. Nothing was sent." })
+        const bare = await executeSignature(request({ recheck: async () => { throw new Error("The token moved") } }), "YES", [msg], () => {})
+        expect(bare).toEqual({ outcome: "failed", error: "The token moved. Nothing was sent." })
+        const said = await executeSignature(request({ recheck: async () => { throw new Error("This offer has closed. Nothing was sent.") } }), "YES", [msg], () => {})
+        expect(said).toEqual({ outcome: "failed", error: "This offer has closed. Nothing was sent." })
+        const unlabelled = await executeSignature({ ...request({}), label: () => { throw new Error("The draft is incomplete.") } }, "YES", [msg], () => {})
+        expect(unlabelled).toEqual({ outcome: "failed", error: "The draft is incomplete. Nothing was sent." })
+    })
+
     it("calls onNothingSent when the request stopped before the wallet, and not for an unknown or sent outcome", async () => {
         const refused = vi.fn()
         await executeSignature({ ...request({ recheck: async () => { throw new Error("path taken") } }), onNothingSent: refused }, "YES", [msg], () => {})
