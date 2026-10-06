@@ -55,8 +55,9 @@ export function utc(seconds: bigint): string {
 export const isExpired = (order: { expiresAt: bigint }, now: number) => order.expiresAt * 1000n <= BigInt(now)
 
 /**
- * The storage deposit an open order holds, measured on a committed node at the
- * mainnet Gno pin: 7,751 bytes for a listing, 7,813 for an offer, at 100 ugnot
- * a byte. The chain pays it to whoever's call closes the order.
+ * The storage deposit an open order holds, measured at the mainnet Gno pin:
+ * 4.8 to 7.8 KB for a listing or an offer (7,790 and 7,813 bytes for direct
+ * calls on a node), at 100 ugnot a byte. The chain pays it to whoever's call
+ * closes the order.
  */
-export const ORDER_DEPOSIT = "about 0.78 GNOT"
+export const ORDER_DEPOSIT = "about 0.48 to 0.78 GNOT"

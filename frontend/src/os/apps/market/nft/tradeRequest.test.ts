@@ -79,6 +79,8 @@ describe("buying a listing", () => {
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Price", "2 GNOT"], ["To the seller", "1.89 GNOT"], ["Protocol fee (0.5%)", "0.01 GNOT"], [`Royalty to ${ROYALTY}`, "0.1 GNOT"],
             ["Network fee", "0.06 GNOT"],
+            // The seller paid the listing's deposit; the chain pays it to the buyer whose call frees it.
+            ["Storage deposit", "Up to 0.8 GNOT for the token in your holdings; the listing's own deposit is paid to you"],
         ]))
         expect(await run(request)).toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Buy C1 #5", expect.objectContaining({ gasWanted: 50_000_000, gasFee: 60_000 }))
@@ -148,7 +150,7 @@ describe("listing a token", () => {
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Price", "2 GNOT"], ["At a sale: to the seller", "1.89 GNOT"], ["At a sale: protocol fee (0.5%)", "0.01 GNOT"],
             [`At a sale: royalty to ${ROYALTY}`, "0.1 GNOT"], ["Expires", "2100-01-01 00:00 UTC"], ["Replaces", "Listing L9, closed by this one"],
-            ["Storage deposit", "Up to 2 GNOT; the listing's part (about 0.78 GNOT) goes to whoever closes it"],
+            ["Storage deposit", "Up to 2 GNOT; the listing's part (about 0.48 to 0.78 GNOT) goes to whoever closes it"],
         ]))
         const msgs = request.prepare(undefined).msgs
         expect(msgs.map((msg) => msg.value.func)).toEqual(["Approve", "List"])

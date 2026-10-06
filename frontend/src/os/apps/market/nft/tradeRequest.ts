@@ -21,7 +21,7 @@ import {
 import { laneClosedReason, readActionStatus } from "../../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../../sign/signer"
 import { verifySendTx } from "../../../wallet/sendRequest"
-import { utc } from "./reads"
+import { ORDER_DEPOSIT, utc } from "./reads"
 
 export interface ListingDraft {
     /** The listing as read when the member asked. */
@@ -101,7 +101,7 @@ export function listRequest(draft: ListDraft): SignRequest {
             ["Approval", `The market may move this one token, through a sale only; it lapses when the token moves`],
             ["Realms", `${NFT_LEDGER_PATH}, then ${NFT_MARKET_PATH}`],
             ["Network", draft.chainId],
-            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(APPROVE_STORAGE_BYTES) + depositCapUgnot(LIST_STORAGE_BYTES))}; the listing's part (about 0.78 GNOT) goes to whoever closes it`],
+            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(APPROVE_STORAGE_BYTES) + depositCapUgnot(LIST_STORAGE_BYTES))}; the listing's part (${ORDER_DEPOSIT}) goes to whoever closes it`],
             ["Network fee", formatUgnotExact(fee)],
         ],
         note: "The token stays in your account until someone buys it. You can cancel the listing at any time, paused market or not. A listing does not move the token by itself: if you transfer it, the listing can no longer be bought.",
@@ -144,7 +144,7 @@ export function buyRequest(draft: ListingDraft): SignRequest {
             ["Seller", listing.seller],
             ["Market realm", NFT_MARKET_PATH],
             ["Network", draft.chainId],
-            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(BUY_STORAGE_BYTES))} for the token in your holdings; the listing's own deposit comes back to you`],
+            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(BUY_STORAGE_BYTES))} for the token in your holdings; the listing's own deposit is paid to you`],
             ["Network fee", formatUgnotExact(fee)],
         ],
         note: "The token and the payment move in the same transaction: either both happen or neither does. The price is not refunded.",
@@ -181,7 +181,7 @@ export function cancelListingRequest(draft: ListingDraft): SignRequest {
             ["Listing", `${listing.id}, ${formatAmount(listing.price, listing.currency)}`],
             ["Market realm", NFT_MARKET_PATH],
             ["Network", draft.chainId],
-            ["Storage deposit", "The listing's deposit (about 0.78 GNOT) comes back to you"],
+            ["Storage deposit", `The listing's deposit (${ORDER_DEPOSIT}) comes back to you`],
             ["Network fee", formatUgnotExact(fee)],
         ],
         note: "The token never left your account. After this it can no longer be bought through this listing.",

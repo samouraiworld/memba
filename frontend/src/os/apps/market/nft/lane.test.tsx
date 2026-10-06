@@ -88,7 +88,7 @@ describe("Market NFT lane", () => {
             expect(trait).toHaveTextContent("Trait offer")
             expect(trait).toHaveTextContent("Tokens carrying Background=Blue")
             expect(trait).toHaveTextContent("Expired: waiting for its refund")
-            expect(whole).toHaveTextContent("Collection offer Founders[U+200B]Any token of the collection1 GNOTHolds a deposit (about 0.78 GNOT) paid to whoever closes it: the seller who accepts, or the buyer who cancels.Expires 2100-01-01 00:00 UTC")
+            expect(whole).toHaveTextContent("Collection offer Founders[U+200B]Any token of the collection1 GNOTHolds a deposit (about 0.48 to 0.78 GNOT) paid to whoever closes it: the seller who accepts, or the buyer who cancels.Expires 2100-01-01 00:00 UTC")
 
             fireEvent.click(first)
             expect(sectionOf(push.mock.lastCall![0])).toBe("market:nfts/c/C1/7")
@@ -211,7 +211,7 @@ describe("Market NFT lane", () => {
             expect(offers.getByText("If this token carries Background=Blue")).toBeInTheDocument()
             expect(offers.queryAllByRole("button")).toEqual([])
 
-            expect(screen.getByRole("note")).toHaveTextContent("holds a storage deposit (about 0.78 GNOT), and the chain pays it to whoever closes the order: the buyer at a sale, the seller who accepts an offer, the owner who cancels")
+            expect(screen.getByRole("note")).toHaveTextContent("holds a storage deposit (about 0.48 to 0.78 GNOT), and the chain pays it to whoever closes the order: the buyer at a sale, the seller who accepts an offer, the owner who cancels")
             expect(screen.getByRole("note")).toHaveTextContent("For a week after an order expires only its owner can close it; after that anyone can. Anyone can clear at once a listing whose seller no longer holds the token.")
             // An offer that applies shows how its price would be paid out.
             const collectionOffer = offers.getByText("Any token of the collection").closest(".os-stack") as HTMLElement
