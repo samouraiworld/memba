@@ -88,13 +88,14 @@ func TestCurationEvidence_PinsTheExactTextAndAnswersItsHash(t *testing.T) {
 	}
 }
 
-func TestCurationEvidence_AcceptsACIDv0(t *testing.T) {
+func TestCurationEvidence_AcceptsARawCIDv1AndACIDv0(t *testing.T) {
 	t.Setenv("LIGHTHOUSE_API_KEY", "secret")
-	cid := "Qm" + strings.Repeat("a", 44)
-	opts, _ := fakeLighthouse(t, http.StatusOK, `{"cid":"`+cid+`"}`)
-	rec := postEvidence(t, HandleCurationEvidenceUpload(opts), "text/plain", []byte("A reason."))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), cid) {
-		t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
+	for _, cid := range []string{"bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy", "Qm" + strings.Repeat("a", 44)} {
+		opts, _ := fakeLighthouse(t, http.StatusOK, `{"cid":"`+cid+`"}`)
+		rec := postEvidence(t, HandleCurationEvidenceUpload(opts), "text/plain", []byte("A reason."))
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), cid) {
+			t.Fatalf("%s: status %d, body %q", cid, rec.Code, rec.Body.String())
+		}
 	}
 }
 
@@ -147,8 +148,8 @@ func TestCurationEvidence_ReportsAPinThatFailedOrAnsweredAnUnusableCID(t *testin
 		{"no CID", `{}`, http.StatusOK, "returned no CID"},
 		{"not JSON", `nope`, http.StatusOK, "failed to parse"},
 		{"a CID the realm refuses", `{"Hash":"bafyTOOSHORT"}`, http.StatusOK, "unusable CID"},
-		// A raw-leaves CIDv1: a valid CID, but not one the curation realm takes.
-		{"a raw CIDv1", `{"Hash":"bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy"}`, http.StatusOK, "unusable CID"},
+		// A CIDv1 of a codec prefix the curation realm does not take.
+		{"another CIDv1 prefix", `{"Hash":"bafzreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy"}`, http.StatusOK, "unusable CID"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opts, _ := fakeLighthouse(t, tc.status, tc.answer)

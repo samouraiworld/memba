@@ -21,10 +21,11 @@ import (
 // shows it only when its SHA-256 matches the hash on chain.
 const curationEvidenceMaxBytes = 16 * 1024
 
-// curationEvidenceCID is what the curation realm accepts as a CID: CIDv1
-// base32 (bafy…) or CIDv0 base58 (Qm…). A pin that answers anything else could
-// not be committed, so it is reported as a failure here.
-var curationEvidenceCID = regexp.MustCompile(`^(bafy[a-z2-7]{55,86}|Qm[1-9A-HJ-NP-Za-km-z]{44})$`)
+// curationEvidenceCID is what the curation realm accepts as a CID: CIDv1 in
+// base32, dag-pb (bafy…) or raw (bafk…, the usual CID of a small file), or
+// CIDv0 in base58 (Qm…). A pin that answers anything else could not be
+// committed, so it is reported as a failure here.
+var curationEvidenceCID = regexp.MustCompile(`^(baf[yk][a-z2-7]{55,86}|Qm[1-9A-HJ-NP-Za-km-z]{44})$`)
 
 // HandleCurationEvidenceUpload handles POST /api/upload/curation-evidence: the
 // body is the evidence itself, UTF-8 plain text of at most 16 KB, pinned as is
