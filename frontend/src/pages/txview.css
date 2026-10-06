@@ -285,6 +285,3 @@
     text-align: left;
   }
 }
-
-.k-txview__shared { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; text-align: left; }
-.k-txview__shared li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }

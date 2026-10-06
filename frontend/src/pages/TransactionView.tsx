@@ -3,8 +3,6 @@ import { useParams, useOutletContext } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Code, ConnectError } from "@connectrpc/connect"
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useJoinMultisig } from "../hooks/useJoinMultisig"
-import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee, type ParsedField } from "../lib/parseMsgs"
@@ -135,16 +133,6 @@ export function TransactionView() {
         },
     })
     const tx = txQuery.data?.transaction ?? null
-    // A member another member registered sees none of that account's
-    // transactions until they add it to their accounts: when this one cannot be
-    // read, offer the accounts shared with them that they have not added yet.
-    const sharedQuery = useQuery({
-        queryKey: ["multisig", "tx-shared", GNO_CHAIN_ID, token?.userAddress ?? ""],
-        enabled: !!token && txQuery.isError,
-        queryFn: async () => (await api.multisigs({ authToken: token!, chainId: GNO_CHAIN_ID, limit: 50 })).multisigs.filter((m) => !m.joined),
-    })
-    const adding = useJoinMultisig(token)
-    const shared = sharedQuery.data ?? []
     const loading = txQuery.isPending
     const native = !!tx && isNativeMultisig(tx.multisigPubkeyJson)
     const receiptKey = tx && native ? nativeReceiptKey(tx, token?.userAddress ?? adena.address ?? "", API_BASE_URL) : ""
@@ -398,21 +386,8 @@ export function TransactionView() {
                     <span className="k-txview__not-found-icon"><MagnifyingGlass size={32} /></span>
                     <h3 className="k-txview__not-found-title">Transaction not found</h3>
                     <p className="k-txview__not-found-desc">
-                        {!auth.isAuthenticated ? "Connect your wallet to view transaction details."
-                            : shared.length ? `TX #${id} may belong to a multisig shared with you that you have not added yet. Add it to your account to see and sign its transactions.`
-                            : `TX #${id} not found or you're not a member of its multisig.`}
+                        {auth.isAuthenticated ? `TX #${id} not found or you're not a member of its multisig.` : "Connect your wallet to view transaction details."}
                     </p>
-                    {auth.isAuthenticated && shared.length > 0 && (
-                        <ul className="k-txview__shared" aria-label="Multisigs shared with you">
-                            {shared.map((m) => (
-                                <li key={m.address}>
-                                    <span>{revealInvisibleFormatting(m.name || "Multisig")} · {m.threshold} of {m.membersCount} · <code>{m.address.slice(0, 10)}…{m.address.slice(-4)}</code></span>
-                                    <button type="button" className="k-btn-primary" disabled={adding.joining !== null || !m.pubkeyJson} aria-label={`Add ${revealInvisibleFormatting(m.name || m.address)} to my accounts`} onClick={() => { void adding.join(m) }}>{adding.joining === m.address ? "Adding…" : "Add to my accounts"}</button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    {adding.error && <p className="k-txview__not-found-desc" role="alert">{adding.error}</p>}
                 </div>
                 <ErrorToast message={error} onDismiss={dismissError} />
             </div>

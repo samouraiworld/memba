@@ -155,7 +155,7 @@ export function MultisigView() {
                             </div>
                         ) : (
                             <div className="k-msview__title-row">
-                                <h2 className="k-msview__title">{revealInvisibleFormatting(multisig.name || "Multisig Wallet")}</h2>
+                                <h2 className="k-msview__title">{revealInvisibleFormatting(multisig.name || (multisig.joined ? "Multisig Wallet" : "Multisig shared with you"))}</h2>
                                 <button type="button" className="k-msview__title-edit" aria-label="Rename multisig" onClick={() => { setEditName(multisig.name || ""); setEditing(true) }}>Rename</button>
                             </div>
                         )}
@@ -181,7 +181,7 @@ export function MultisigView() {
                         </button>
                     </div>
                     <div className="k-msview__actions">
-                        <button className="k-btn-primary" disabled={!nativeEnabled || !multisig.joined} onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
+                        <button className="k-btn-primary" disabled={!nativeEnabled} onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
                             Propose Transaction
                         </button>
                         {multisig && (
@@ -280,15 +280,17 @@ export function MultisigView() {
                 </div>
             </div>
 
-            {/* Transactions — Tabbed. A member another member registered sees
-                none until they add the account (the backend keeps them back). */}
-            {!multisig.joined ? (
+            {/* A member another member registered reads and signs without joining;
+                joining only keeps the account in their list. */}
+            {!multisig.joined && (
                 <div className="k-card k-msview__empty" role="status">
-                    <p>Add this multisig to your account to see and sign its transactions.</p>
-                    <button type="button" className="k-btn-primary" disabled={adding.joining !== null || !multisig.pubkeyJson} onClick={() => { void adding.join(multisig) }}>{adding.joining ? "Adding…" : "Add to my accounts"}</button>
+                    <p>Shared with you: your key is a member, so you can see and sign its transactions.</p>
+                    <button type="button" className="k-btn-secondary" disabled={adding.joining !== null || !multisig.pubkeyJson} onClick={() => { void adding.join(multisig) }}>{adding.joining ? "Joining…" : "Join to keep it in your accounts"}</button>
                     {adding.error && <p role="alert">{adding.error}</p>}
                 </div>
-            ) : (
+            )}
+
+            {/* Transactions — Tabbed */}
             <div>
                 <div className="k-msview__tabs" role="tablist" aria-label="Transaction status">
                     <button
@@ -314,7 +316,6 @@ export function MultisigView() {
                     return <>{query.isError && <p className="k-msview__history-note" role="alert">Could not refresh {txTab} transactions. Showing the last loaded list. <button type="button" className="k-btn-secondary" onClick={() => void query.refetch()}>Retry</button></p>}{txs.length >= TX_PAGE_LIMIT && <p className="k-msview__history-note" role="status">Showing the newest {TX_PAGE_LIMIT} {txTab} transactions. Older transactions may be hidden.</p>}{renderTxList(txs, txTab === "pending" ? "No pending transactions" : "No completed transactions")}</>
                 })()}
             </div>
-            )}
 
             <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
         </div>

@@ -28,7 +28,7 @@ import { shortAddr } from "../shell/format"
 import type { OsSession } from "../shell/useOsSession"
 import { specForTarget, type WindowSpec } from "../shell/windows"
 import { formatUgnot } from "../wallet/send"
-import { useChainAccountKind, useMultisigDetail, useMyMultisigs } from "./useOsMultisig"
+import { awaitingText, useAwaitingSignature, useChainAccountKind, useMultisigDetail, useMyMultisigs } from "./useOsMultisig"
 
 /** Where a guest's own data would be: why it is not shown, and the way to show it. */
 function ConnectHere({ session, text }: { session: OsSession; text: string }) {
@@ -47,11 +47,17 @@ function Loading({ what }: { what: string }) {
 /** What a multisig is, for a guest and for a member with none yet. */
 const ABOUT = "A multisig is a shared account: a transaction leaves it only when enough of its members sign, for example 2 of 3. Memba keeps the members' public keys and their signatures until the transaction is sent."
 
+/** Never "Unnamed": an account shared with you says so; its address is always shown beside it. */
+function multisigTitle(m: Multisig): string {
+    return m.name ? revealInvisibleFormatting(m.name) : m.joined ? "Multisig" : "Multisig shared with you"
+}
+
 const page = (section: string): WindowSpec => specForTarget({ kind: "app", app: "multisig", section })!
 const accountSpec = (address: string): WindowSpec => specForTarget({ kind: "multisig", address })!
 
 export function MultisigApp({ session, open }: { session: OsSession; open: (spec: WindowSpec) => void }) {
     const list = useMyMultisigs(session.layout.auth)
+    const awaiting = useAwaitingSignature(session.layout.auth, session.address)
     const { join, joining, error } = useJoinMultisig(session.layout.auth.token)
 
     const all = list.data ?? []
@@ -61,7 +67,7 @@ export function MultisigApp({ session, open }: { session: OsSession; open: (spec
         <li key={m.address} className="os-row os-nowrap">
             <button type="button" className="os-it os-click os-grow" onClick={() => open(accountSpec(m.address))}>
                 <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
-                <span className="os-grow"><b>{revealInvisibleFormatting(m.name || "Unnamed")}</b><span className="os-sub os-block os-mono">{shortAddr(m.address)} · Requires {m.threshold} of {m.membersCount} members</span></span>
+                <span className="os-grow"><b>{multisigTitle(m)}</b><span className="os-sub os-block os-mono">{shortAddr(m.address)} · Requires {m.threshold} of {m.membersCount} members</span>{(awaiting.data?.get(m.address) ?? 0) > 0 && <span className="os-sub os-block os-strong">{awaitingText(awaiting.data!.get(m.address)!)}</span>}</span>
             </button>
             {action}
         </li>
@@ -84,9 +90,10 @@ export function MultisigApp({ session, open }: { session: OsSession; open: (spec
                     {all.length === 50 && <p className="os-sub" role="status">Showing the newest 50 accounts. Older accounts may not appear here.</p>}
                     {invited.length > 0 && (
                         <section>
-                            <h3 className="os-h">Accounts shared with you</h3>
+                            <h3 className="os-h">Shared with you</h3>
+                            <p className="os-sub">Your key is a member of these accounts: open them to see and sign their transactions. Join to keep one in your accounts.</p>
                             <ul className="os-list">{invited.map((m) => row(m, (
-                                <button type="button" className="os-btn os-quiet" aria-label={`Add ${revealInvisibleFormatting(m.name || m.address)} to my Memba accounts`} disabled={joining !== null || !m.pubkeyJson} onClick={() => { void join(m) }}>{joining === m.address ? "Adding…" : "Add account"}</button>
+                                <button type="button" className="os-btn os-quiet" title="Join to keep it in your accounts" aria-label={`Join ${shortAddr(m.address)} to keep it in your accounts`} disabled={joining !== null || !m.pubkeyJson} onClick={() => { void join(m) }}>{joining === m.address ? "Joining…" : "Join"}</button>
                             )))}</ul>
                         </section>
                     )}
@@ -185,27 +192,6 @@ export function MultisigWindow({ address, session, open }: { address: string; se
     if (!detail.data.multisig) return null
     const m = detail.data.multisig
     const nativeEnabled = ENABLE_NATIVE_GNO_MULTISIG && isNativeMultisig(m.pubkeyJson)
-    // Another member registered this account with you in it: Memba keeps its
-    // transactions from you until you add it to your accounts.
-    if (!m.joined) return (
-        <div className="os-stack os-msig">
-            <div className="os-row os-nowrap os-msig-head">
-                <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
-                <div className="os-grow">
-                    <b>{revealInvisibleFormatting(m.name || "Multisig shared with you")}</b>
-                    <div className="os-sub">Requires {m.threshold} of {m.membersCount} members · <span className="os-mono">{shortAddr(address)}</span></div>
-                </div>
-                {funds}
-            </div>
-            <p className="os-sub" role="status">Add this multisig to your account to see and sign its transactions.</p>
-            <div className="os-row">
-                <button type="button" className="os-btn" disabled={adding.joining !== null || !m.pubkeyJson} onClick={() => { void adding.join(m) }}>{adding.joining ? "Adding…" : "Add account"}</button>
-                {copyButton}
-            </div>
-            {adding.error && <p className="os-note os-err" role="alert">{adding.error}</p>}
-            <Transfers address={address} open={open} />
-        </div>
-    )
     const me = session.address
     const txs = [...detail.data.pending, ...detail.data.executed].sort((a, b) => b.id - a.id)
     return (
@@ -213,11 +199,16 @@ export function MultisigWindow({ address, session, open }: { address: string; se
             <div className="os-row os-nowrap os-msig-head">
                 <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
                 <div className="os-grow">
-                    <b>{revealInvisibleFormatting(m.name || "Unnamed multisig")}</b>
+                    <b>{multisigTitle(m)}</b>
                     <div className="os-sub">Requires {m.threshold} of {m.membersCount} members · <span className="os-mono">{shortAddr(address)}</span></div>
                 </div>
                 {funds}
             </div>
+            {!m.joined && <div className="os-row os-note" role="status">
+                <span className="os-grow">Shared with you: your key is a member, so you can see and sign its transactions.</span>
+                <button type="button" className="os-btn os-quiet" disabled={adding.joining !== null || !m.pubkeyJson} onClick={() => { void adding.join(m) }}>{adding.joining ? "Joining…" : "Join to keep it in your accounts"}</button>
+            </div>}
+            {adding.error && <p className="os-note os-err" role="alert">{adding.error}</p>}
             <div className="os-chipset" aria-label="Members">{m.usersAddresses.map((a) => <span key={a} className="os-pill os-mono" title={a}>{a === me ? "You" : shortAddr(a)}</span>)}</div>
             <div className="os-row">
                 <button type="button" className="os-btn" disabled={!nativeEnabled} onClick={() => open(page(`${address}/propose`))}>Propose transaction</button>

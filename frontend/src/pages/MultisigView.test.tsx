@@ -213,22 +213,22 @@ describe("MultisigView", () => {
     })
 })
 
-describe("MultisigView for a member who has not added the account", () => {
-    it("says so instead of empty lists, adds it, then shows its transactions", async () => {
+describe("MultisigView for a member another member registered", () => {
+    it("shows its transactions at once, says it is shared, and joins in one click", async () => {
         let joined = false
-        vi.mocked(api.multisigInfo).mockImplementation(() => Promise.resolve({ multisig: makeMultisig(joined) } as never))
-        // The backend keeps a non-joined member's transactions back (an empty list).
+        vi.mocked(api.multisigInfo).mockImplementation(() => Promise.resolve({ multisig: { ...makeMultisig(joined), name: joined ? "Treasury Ops" : "" } } as never))
+        // A member reads the transactions whether or not they joined.
         vi.mocked(api.transactions).mockImplementation((req: { executionState?: number }) =>
-            Promise.resolve({ transactions: joined && req.executionState === 1 ? [makeListedTx(2)] : [] } as never))
+            Promise.resolve({ transactions: req.executionState === 1 ? [makeListedTx(2)] : [] } as never))
         vi.mocked(api.createOrJoinMultisig).mockImplementation(() => { joined = true; return Promise.resolve({ joined: true } as never) })
         render(<MultisigView />)
-        expect(await screen.findByText("Add this multisig to your account to see and sign its transactions.")).toBeInTheDocument()
-        expect(screen.queryByRole("tab", { name: /Pending/ })).toBeNull()
-        expect(screen.queryByText("No pending transactions")).toBeNull()
-        expect(screen.getByRole("button", { name: "Propose a new transaction" })).toBeDisabled()
-
-        fireEvent.click(screen.getByRole("button", { name: "Add to my accounts" }))
+        expect(await screen.findByText("Multisig shared with you")).toBeInTheDocument()
         expect(await screen.findByRole("tab", { name: /Pending \(1\)/ })).toBeInTheDocument()
+        expect(screen.getByText("Shared with you: your key is a member, so you can see and sign its transactions.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Propose a new transaction" })).toBeEnabled()
+
+        fireEvent.click(screen.getByRole("button", { name: "Join to keep it in your accounts" }))
+        await waitFor(() => expect(screen.queryByText(/Shared with you: your key is a member/)).toBeNull())
         expect(api.createOrJoinMultisig).toHaveBeenCalledWith(expect.objectContaining({ expectedMultisigAddress: MULTISIG, multisigPubkeyJson: makeMultisig().pubkeyJson }))
     })
 })

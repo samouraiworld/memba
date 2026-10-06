@@ -86,3 +86,46 @@ export function useChainAccountKind(address: string, enabled: boolean) {
         },
     })
 }
+
+/**
+ * The pending proposals that wait for this member's signature, per multisig
+ * address: unsent, and not yet signed by them. Shared multisigs count too: a
+ * member reads and signs without joining.
+ */
+export function awaitingSignature(txs: readonly Transaction[], me: string): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const tx of txs) {
+        if (tx.finalHash || tx.signatures.some((s) => s.userAddress === me)) continue
+        counts.set(tx.multisigAddress, (counts.get(tx.multisigAddress) ?? 0) + 1)
+    }
+    return counts
+}
+
+export function useAwaitingSignature(auth: Auth, me: string) {
+    const token = auth.token
+    return useQuery({
+        queryKey: ["multisig", "os-awaiting", GNO_CHAIN_ID, token?.userAddress ?? ""],
+        enabled: !!token && auth.isAuthenticated && !!me,
+        refetchInterval: 60_000,
+        queryFn: async () => awaitingSignature((await api.transactions({ authToken: token!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 })).transactions, me),
+    })
+}
+
+/** "1 proposal waits" / "2 proposals wait" for your signature. */
+export function awaitingText(n: number): string {
+    return `${n} proposal${n === 1 ? " waits" : "s wait"} for your signature`
+}
+
+/** How many proposals wait for this member's signature, across every account they are a member of ("" = no member). */
+export function useAwaitingTotal(auth: Auth, me: string): number {
+    const awaiting = useAwaitingSignature(auth, me)
+    let total = 0
+    for (const n of awaiting.data?.values() ?? []) total += n
+    return total
+}
+
+/** The bell's label: new signing notices, and proposals waiting for a signature. */
+export function notificationsLabel(unread: number, awaiting: number): string {
+    const parts = [unread ? `${unread} new` : "", awaiting ? awaitingText(awaiting) : ""].filter(Boolean)
+    return parts.length ? `Notifications, ${parts.join(", ")}` : "Notifications"
+}
