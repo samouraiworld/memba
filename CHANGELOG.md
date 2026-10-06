@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: link GitHub from your Profile (2026-10-07)
+- Memba OS: link or unlink your GitHub account from your own Profile window
+
 ### Launchpad fee keeper (2026-10-07)
 - A fee keeper command sweeps the Launchpad sales fees to the treasury daily (or at 10 GNOT) through a gnokey key referenced by name, and pages when the sweep differs from what was owed
 

@@ -7,11 +7,11 @@ import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
-import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl, isReviewsAvailable } from "../lib/config"
+import { GNOLOVE_API_URL, getExplorerBaseUrl, isReviewsAvailable } from "../lib/config"
+import { githubLinkAvailable, startGithubLink } from "../lib/githubLink"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
-import { walletBearer } from "../lib/walletBearer"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
 // Lazy — AdminPanelLink pulls in the Clerk SDK (~72KB gz via useClerkAuth). It
 // only renders on your OWN authenticated profile, and this page is prefetched on
@@ -323,7 +323,7 @@ export function ProfilePage() {
                             )}
 
                             {/* Link GitHub CTA */}
-                            {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (
+                            {isOwnProfile && profile && githubLinkAvailable() && !profile.githubLogin && !profile.socialLinks.github && (
                                 <div className="k-card profile-github-cta">
                                     <div className="profile-github-cta-row">
                                         <div className="profile-github-icon-box">
@@ -339,15 +339,8 @@ export function ProfilePage() {
                                                 // session, so a link can only complete for the wallet
                                                 // that started it. No session → no state → no redirect.
                                                 if (!auth.token) { setActionError("Sign in with your wallet to link GitHub."); return }
-                                                if (adena.address) sessionStorage.setItem("returnToProfile", adena.address)
                                                 try {
-                                                    const res = await fetch(`${API_BASE_URL}/github/oauth/state`, {
-                                                        headers: { Authorization: walletBearer(auth.token) },
-                                                    })
-                                                    const data = await res.json()
-                                                    if (!res.ok || !data.state) throw new Error(data.error || `HTTP ${res.status}`)
-                                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
-                                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user&state=${encodeURIComponent(data.state)}`
+                                                    await startGithubLink(auth.token, adena.address)
                                                 } catch {
                                                     setActionError("Could not start the GitHub link. Please try again.")
                                                 }

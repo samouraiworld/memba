@@ -28,6 +28,7 @@ vi.mock("../../../components/profile/AvatarUploader", async () => {
 const signerState = { version: 0 }
 vi.mock("../../sign/signerContext", () => ({ useSigner: () => ({ sign, version: signerState.version }) }))
 // Shows what the canvas was given, so a test can read the name and the bio a view or a preview would show.
+vi.mock("./GithubLink", () => ({ GithubLink: ({ address }: { address: string }) => <div data-testid="github-card">{address}</div> }))
 vi.mock("../../profile/ProfileCanvas", () => ({ ProfileCanvas: ({ profile }: { profile: ShownProfile }) => <div data-testid="canvas">{profile.displayName} / {profile.bio.value} / {profile.bio.source} / {profile.location.value} / {profile.location.source}</div> }))
 vi.mock("../../profile/profilePublish", async (original) => ({ ...(await original<typeof import("../../profile/profilePublish")>()), get profilePublishEnabled() { return mocks.publishOn } }))
 vi.mock("../../profile/profileData", async (original) => ({ ...(await original<typeof import("../../profile/profileData")>()), readProfileOnChain: mocks.read }))
@@ -492,5 +493,17 @@ describe("Profile window: an empty Bio", () => {
         fireEvent.click(await screen.findByRole("button", { name: "Edit profile" }))
         await waitFor(() => expect(preview()).toHaveTextContent("Alice / Backend bio / Memba legacy"))
         expect(screen.getByRole("button", { name: "Review & publish 0 changes" })).toBeDisabled()
+    })
+})
+
+describe("Profile window: the GitHub card", () => {
+    const OTHER = "g1nn54k5fmly8agexe3ll4t6clqmcefsn7nr9ee3"
+    it("is the owner's, on their own profile only", async () => {
+        mocks.legacy.mockResolvedValue(legacyProfile())
+        const own = mounted()
+        expect(await screen.findByTestId("github-card")).toHaveTextContent(OWNER)
+        own.show(OTHER) // a signed-in visitor on someone else's profile
+        expect(await screen.findByTestId("canvas")).toBeInTheDocument()
+        expect(screen.queryByTestId("github-card")).toBeNull()
     })
 })

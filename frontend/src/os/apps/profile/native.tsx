@@ -6,6 +6,7 @@ import { networkGasPriceFresh } from "../../../lib/grc20"
 import { resolveUsernameToAddress } from "../../../lib/dao/shared"
 import { fetchUserProfile } from "../../../lib/profile"
 import { AvatarUploader } from "../../../components/profile/AvatarUploader"
+import { GithubLink } from "./GithubLink"
 import { AppShell, ErrorState, Loading } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { useSigner } from "../../sign/signerContext"
@@ -129,7 +130,7 @@ export default function ProfileWindow({ section, session, open, toast }: NativeV
                     <span>{isOwn ? "Your public profile" : "Public profile"} · {session.network.label}</span>
                     <div><button type="button" className="os-btn os-quiet" onClick={() => void copyLink()}>Copy share link</button>{isOwn && <button type="button" className="os-btn" onClick={() => setMode(mode === "edit" ? "view" : "edit")}>{mode === "edit" ? "View published" : "Edit profile"}</button>}</div>
                 </div>
-                {mode === "try" && !isOwn ? <ProfileEditor key="demo" address={SAMPLE_ADDRESS} base={sampleChain} demo legacy={null} onPublished={() => {}} onConnect={session.openConnect} /> : mode === "edit" && isOwn && chain.data ? <ProfileEditor key={address} address={address} base={chain.data} legacy={legacy.data ?? null} onPublished={() => { void chain.refetch(); void legacy.refetch(); setMode("view") }} onConnect={session.openConnect} /> : reading ? <Loading label="Reading profile from Gno…" /> : chain.isError && !legacy.data ? <ErrorState message="The profile could not be loaded." onRetry={() => { void chain.refetch(); void legacy.refetch() }} /> : shown && <>{isOwn && !shown.username && <UsernameRegistration address={address} onRegistered={() => { void legacy.refetch() }} />}<ProfileCanvas key={address} profile={shown} /></>}
+                {mode === "try" && !isOwn ? <ProfileEditor key="demo" address={SAMPLE_ADDRESS} base={sampleChain} demo legacy={null} onPublished={() => {}} onConnect={session.openConnect} /> : mode === "edit" && isOwn && chain.data ? <ProfileEditor key={address} address={address} base={chain.data} legacy={legacy.data ?? null} onPublished={() => { void chain.refetch(); void legacy.refetch(); setMode("view") }} onConnect={session.openConnect} /> : reading ? <Loading label="Reading profile from Gno…" /> : chain.isError && !legacy.data ? <ErrorState message="The profile could not be loaded." onRetry={() => { void chain.refetch(); void legacy.refetch() }} /> : shown && <>{isOwn && !shown.username && <UsernameRegistration address={address} onRegistered={() => { void legacy.refetch() }} />}<ProfileCanvas key={address} profile={shown} />{isOwn && legacy.data && <GithubLink address={address} legacy={legacy.data} session={session} onChanged={() => { void legacy.refetch() }} />}</>}
             </>}
         </div>
     </AppShell>

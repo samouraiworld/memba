@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Memba OS e2e. The standard OS servers prove the on/off gate; a third server
 // turns on flag-gated features (Feed, the App Store registry, listing submissions, app
-// reviews and profile publishing) so their flows run without changing what the other OS
+// reviews, profile publishing and a GitHub OAuth client id) so their flows run without changing what the other OS
 // tests see, and a fourth runs native multisig broadcast (off by default).
 const ON_PORT = Number(process.env.MEMBA_OS_ON_TEST_PORT) || 5193
 const OFF_PORT = Number(process.env.MEMBA_OS_OFF_TEST_PORT) || 5194
@@ -38,7 +38,7 @@ export default defineConfig({
         },
         {
             command: `npm run dev -- --host 127.0.0.1 --port ${FLAGS_PORT} --strictPort`,
-            env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_FEED: 'true', VITE_ENABLE_APPSTORE: 'true', VITE_ENABLE_APPSTORE_SUBMIT: 'true', VITE_ENABLE_APP_REVIEWS: 'true', VITE_ENABLE_OS_PROFILE_PUBLISH: 'true' },
+            env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_FEED: 'true', VITE_ENABLE_APPSTORE: 'true', VITE_ENABLE_APPSTORE_SUBMIT: 'true', VITE_ENABLE_APP_REVIEWS: 'true', VITE_ENABLE_OS_PROFILE_PUBLISH: 'true', VITE_GITHUB_CLIENT_ID: 'e2e-client' },
             url: OS_FLAGS_ON, reuseExistingServer: false, timeout: 120_000,
         },
         {

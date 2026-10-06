@@ -44,6 +44,9 @@ export interface UserProfile {
     githubBio: string
     githubLocation: string
     githubFollowers: number
+    /** The GitHub link the Memba backend verified for this wallet (empty when none);
+     *  socialLinks.github shows it over Gnolove's. */
+    membaGithub: string
     socialLinks: SocialLinks
     // Gnolove contribution stats (read-only)
     totalCommits: number
@@ -78,6 +81,7 @@ export async function fetchUserProfile(
         githubAvatar: "",
         githubBio: "",
         githubLocation: "",
+        membaGithub: "",
         githubFollowers: 0,
         socialLinks: { twitter: "", github: "", website: "" },
         totalCommits: 0,
@@ -162,7 +166,7 @@ export async function fetchUserProfile(
         if (b.avatarUrl) profile.avatarUrl = b.avatarUrl
         // Backend socials override gnolove socials when set
         if (b.twitter) profile.socialLinks.twitter = b.twitter
-        if (b.github) profile.socialLinks.github = b.github
+        if (b.github) profile.socialLinks.github = profile.membaGithub = b.github
         if (b.website) profile.socialLinks.website = b.website
     }
 

@@ -80,7 +80,7 @@ export const OS_SYSTEM_ROUTES: readonly { route: string; handling: string }[] = 
     { route: "/", handling: "The desktop" },
     { route: "/:network", handling: "The desktop, on that network" },
     { route: "dashboard", handling: "The desktop (dashboard cards become widgets)" },
-    { route: "github/callback", handling: "Sign-in callback, no window" },
+    { route: "github/callback", handling: "GitHub link callback: a page with no window, which returns to the Profile window" },
     { route: "feedback", handling: "The Send feedback window (/os/feedback), from the start menu" },
     { route: "weighted-dao/*", handling: "The weighted DAO's folder window (/os/dao/<name>), never a page in the DAOs app" },
     { route: "marketplace-v2-preview", handling: "Dropped: preview route, not carried over" },
