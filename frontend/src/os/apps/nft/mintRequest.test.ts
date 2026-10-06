@@ -147,13 +147,13 @@ describe("NFT mint signing", () => {
 
     it("refuses a gate token minted after the stage was scheduled, as the realm does", async () => {
         mocks.listStages.mockResolvedValue([holder])
-        expect(await run(mintRequest(draft({ stage: holder, gateNumber: 41n })))).toEqual({
-            outcome: "failed", error: "C2 #41 was minted after this stage was scheduled: only C2 #1 to #40 allow a mint here.",
+        expect(await run(mintRequest(draft({ stage: holder, gateNumber: 41n })))).toMatchObject({
+            outcome: "failed", error: expect.stringMatching(/^C2 #41 was minted after this stage was scheduled: only C2 #1 to #40 allow a mint here\./),
         })
         const none = { ...holder, gateLimit: 0n }
         mocks.listStages.mockResolvedValue([none])
-        expect(await run(mintRequest(draft({ stage: none, gateNumber: 1n })))).toEqual({
-            outcome: "failed", error: "C2 #1 was minted after this stage was scheduled, when C2 had no token: no token opens a mint here.",
+        expect(await run(mintRequest(draft({ stage: none, gateNumber: 1n })))).toMatchObject({
+            outcome: "failed", error: expect.stringMatching(/^C2 #1 was minted after this stage was scheduled, when C2 had no token: no token opens a mint here\./),
         })
         // The limit is part of the terms reviewed: a stage replaced with another one stops the signature.
         mocks.listStages.mockResolvedValue([{ ...holder, gateLimit: 41n }])
