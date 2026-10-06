@@ -48,6 +48,8 @@ vi.mock("../lib/api", () => ({
         getTransaction: vi.fn(),
         signTransaction: vi.fn(),
         completeTransaction: vi.fn(),
+        multisigs: vi.fn(),
+        createOrJoinMultisig: vi.fn(),
     },
 }))
 
@@ -66,6 +68,7 @@ vi.mock("../lib/config", () => ({
     API_BASE_URL: "https://memba-api.test",
     GNO_RPC_URL: "https://rpc.test13.testnets.gno.land:443",
     GNO_BECH32_HRP: "g",
+    GNO_BECH32_PREFIX: "g",
     GNO_CHAIN_ID: "test-13",
     ENABLE_NATIVE_GNO_MULTISIG: true,
 }))
@@ -882,5 +885,33 @@ describe("TransactionView — what a co-signer reads", () => {
             expect(memo).toHaveClass("signing-text")
         }
         expect(document.body.textContent).not.toMatch(/[\u202E\u200B]/)
+    })
+})
+
+describe("a transaction of a multisig the member has not added", () => {
+    const SHARED = { address: "g1shared00000000000000000000000000000000", chainId: "test-13", name: "", threshold: 4, membersCount: 7, joined: false, pubkeyJson: "{\"@type\":\"/tm.PubKeyMultisig\"}" }
+
+    it("offers to add the account, then shows the transaction", async () => {
+        let joined = false
+        vi.mocked(api.getTransaction).mockImplementation(() => joined
+            ? Promise.resolve({ transaction: makeTx() } as never)
+            : Promise.reject(new ConnectError("not found", Code.NotFound)))
+        vi.mocked(api.multisigs).mockResolvedValue({ multisigs: [SHARED, { ...SHARED, address: "g1mine", joined: true }] } as never)
+        vi.mocked(api.createOrJoinMultisig).mockImplementation(() => { joined = true; return Promise.resolve({ joined: true } as never) })
+        render(<TransactionView />)
+        expect(await screen.findByText(/TX #7 may belong to a multisig shared with you that you have not added yet/)).toBeInTheDocument()
+        const offers = screen.getByRole("list", { name: "Multisigs shared with you" })
+        expect(within(offers).getAllByRole("listitem")).toHaveLength(1) // the joined one is not offered
+        fireEvent.click(within(offers).getByRole("button", { name: /to my accounts/ }))
+        await waitFor(() => expect(screen.queryByText("Transaction not found")).toBeNull())
+        expect(api.createOrJoinMultisig).toHaveBeenCalledWith(expect.objectContaining({ expectedMultisigAddress: SHARED.address }))
+    })
+
+    it("keeps the plain not-found text when nothing is waiting to be added", async () => {
+        vi.mocked(api.getTransaction).mockRejectedValue(new ConnectError("not found", Code.NotFound))
+        vi.mocked(api.multisigs).mockResolvedValue({ multisigs: [] } as never)
+        render(<TransactionView />)
+        expect(await screen.findByText("TX #7 not found or you're not a member of its multisig.")).toBeInTheDocument()
+        expect(screen.queryByRole("list", { name: "Multisigs shared with you" })).toBeNull()
     })
 })

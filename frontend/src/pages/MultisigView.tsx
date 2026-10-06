@@ -6,6 +6,7 @@ import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { api } from "../lib/api"
 import { isNativeMultisig } from "../lib/nativeMultisig"
 import { useBalance } from "../hooks/useBalance"
+import { useJoinMultisig } from "../hooks/useJoinMultisig"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getMultisigStatus } from "../components/ui/txStatus"
@@ -65,6 +66,7 @@ export function MultisigView() {
         queryFn: async () => (await api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: TX_PAGE_LIMIT })).transactions,
     })
     const multisig = infoQuery.data ?? null
+    const adding = useJoinMultisig(token)
     const pendingTxs = pendingQuery.data ?? []
     const executedTxs = executedQuery.data ?? []
     const nativeEnabled = !!multisig && ENABLE_NATIVE_GNO_MULTISIG && isNativeMultisig(multisig.pubkeyJson)
@@ -179,7 +181,7 @@ export function MultisigView() {
                         </button>
                     </div>
                     <div className="k-msview__actions">
-                        <button className="k-btn-primary" disabled={!nativeEnabled} onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
+                        <button className="k-btn-primary" disabled={!nativeEnabled || !multisig.joined} onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
                             Propose Transaction
                         </button>
                         {multisig && (
@@ -278,7 +280,15 @@ export function MultisigView() {
                 </div>
             </div>
 
-            {/* Transactions — Tabbed */}
+            {/* Transactions — Tabbed. A member another member registered sees
+                none until they add the account (the backend keeps them back). */}
+            {!multisig.joined ? (
+                <div className="k-card k-msview__empty" role="status">
+                    <p>Add this multisig to your account to see and sign its transactions.</p>
+                    <button type="button" className="k-btn-primary" disabled={adding.joining !== null || !multisig.pubkeyJson} onClick={() => { void adding.join(multisig) }}>{adding.joining ? "Adding…" : "Add to my accounts"}</button>
+                    {adding.error && <p role="alert">{adding.error}</p>}
+                </div>
+            ) : (
             <div>
                 <div className="k-msview__tabs" role="tablist" aria-label="Transaction status">
                     <button
@@ -304,6 +314,7 @@ export function MultisigView() {
                     return <>{query.isError && <p className="k-msview__history-note" role="alert">Could not refresh {txTab} transactions. Showing the last loaded list. <button type="button" className="k-btn-secondary" onClick={() => void query.refetch()}>Retry</button></p>}{txs.length >= TX_PAGE_LIMIT && <p className="k-msview__history-note" role="status">Showing the newest {TX_PAGE_LIMIT} {txTab} transactions. Older transactions may be hidden.</p>}{renderTxList(txs, txTab === "pending" ? "No pending transactions" : "No completed transactions")}</>
                 })()}
             </div>
+            )}
 
             <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
         </div>

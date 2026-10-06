@@ -182,6 +182,33 @@ test.describe('Memba OS multisig', () => {
         await expect(page.getByRole('dialog', { name: 'Connect a wallet' })).toBeVisible()
     })
 
+    test('a member another member registered is told to add the account, adds it, and then sees its proposals', async ({ page }) => {
+        await setup(page)
+        // The backend lists the account for every member but keeps its transactions from those who have not joined.
+        let joined = false
+        const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill(json({ multisig: { ...team, name: joined ? team.name : '', joined } })))
+        await page.route('**/memba.v1.MultisigService/Transactions', (route) =>
+            route.fulfill(json({ transactions: !joined ? [] : /EXECUTED/.test(route.request().postData() ?? '') ? [done] : [pending, ready] })))
+        const joins: string[] = []
+        await page.route('**/memba.v1.MultisigService/CreateOrJoinMultisig', (route) => {
+            joins.push(route.request().postData() ?? '')
+            joined = true
+            return route.fulfill(json({ joined: true }))
+        })
+        await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
+        const account = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`)
+        await expect(account.getByText('Add this multisig to your account to see and sign its transactions.')).toBeVisible()
+        await expect(account.getByText(/No proposals yet/)).toHaveCount(0)
+        await expect(account.getByRole('button', { name: 'Propose transaction' })).toHaveCount(0)
+
+        await account.getByRole('button', { name: 'Add account' }).click()
+        await expect(account.getByText('Team treasury')).toBeVisible()
+        await expect(account.getByText(/#9/)).toBeVisible()
+        expect(joins).toHaveLength(1)
+        expect(JSON.parse(joins[0]).expectedMultisigAddress).toBe(MSIG)
+    })
+
     test('a connected member of other multisigs sees this account’s public face and is told they are not a member', async ({ page }) => {
         await setup(page)
         await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'permission_denied', message: 'not a member' }) }))

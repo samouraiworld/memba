@@ -56,8 +56,9 @@ import { api } from "../lib/api"
 const MEMBER_A = "g1alice00000000000000000000000000000000"
 const MEMBER_B = "g1bob0000000000000000000000000000000000"
 
-function makeMultisig() {
+function makeMultisig(joined = true) {
     return {
+        joined,
         address: MULTISIG,
         chainId: "test-13",
         name: "Treasury Ops",
@@ -209,5 +210,25 @@ describe("MultisigView", () => {
         await screen.findByText("Could not load this multisig.")
         fireEvent.click(screen.getByRole("button", { name: "Retry account details" }))
         await screen.findByText("Treasury Ops")
+    })
+})
+
+describe("MultisigView for a member who has not added the account", () => {
+    it("says so instead of empty lists, adds it, then shows its transactions", async () => {
+        let joined = false
+        vi.mocked(api.multisigInfo).mockImplementation(() => Promise.resolve({ multisig: makeMultisig(joined) } as never))
+        // The backend keeps a non-joined member's transactions back (an empty list).
+        vi.mocked(api.transactions).mockImplementation((req: { executionState?: number }) =>
+            Promise.resolve({ transactions: joined && req.executionState === 1 ? [makeListedTx(2)] : [] } as never))
+        vi.mocked(api.createOrJoinMultisig).mockImplementation(() => { joined = true; return Promise.resolve({ joined: true } as never) })
+        render(<MultisigView />)
+        expect(await screen.findByText("Add this multisig to your account to see and sign its transactions.")).toBeInTheDocument()
+        expect(screen.queryByRole("tab", { name: /Pending/ })).toBeNull()
+        expect(screen.queryByText("No pending transactions")).toBeNull()
+        expect(screen.getByRole("button", { name: "Propose a new transaction" })).toBeDisabled()
+
+        fireEvent.click(screen.getByRole("button", { name: "Add to my accounts" }))
+        expect(await screen.findByRole("tab", { name: /Pending \(1\)/ })).toBeInTheDocument()
+        expect(api.createOrJoinMultisig).toHaveBeenCalledWith(expect.objectContaining({ expectedMultisigAddress: MULTISIG, multisigPubkeyJson: makeMultisig().pubkeyJson }))
     })
 })

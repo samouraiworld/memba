@@ -10,12 +10,11 @@
  * @module os/multisig/MultisigWindows
  */
 import { useState, type ReactNode } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { Code, ConnectError } from "@connectrpc/connect"
-import { api } from "../../lib/api"
-import { GNO_BECH32_PREFIX, GNO_CHAIN_ID } from "../../lib/config"
+import { GNO_CHAIN_ID } from "../../lib/config"
 import { parseMsgs } from "../../lib/parseMsgs"
 import { useBalance } from "../../hooks/useBalance"
+import { useJoinMultisig } from "../../hooks/useJoinMultisig"
 import { ADDRESS_ACTIVITY_LIMIT, useAddressActivity } from "../../hooks/useAddressActivity"
 import { ADDRESS_WINDOW_BLOCKS, formatActivityTime } from "../../lib/activity"
 import { normalizeTxHashHex, txExplorerUrl } from "../../lib/txExplorerUrl"
@@ -53,24 +52,7 @@ const accountSpec = (address: string): WindowSpec => specForTarget({ kind: "mult
 
 export function MultisigApp({ session, open }: { session: OsSession; open: (spec: WindowSpec) => void }) {
     const list = useMyMultisigs(session.layout.auth)
-    const queryClient = useQueryClient()
-    const [joining, setJoining] = useState<string | null>(null)
-    const [error, setError] = useState<string | null>(null)
-    const join = async (ms: Multisig) => {
-        const token = session.layout.auth.token
-        if (!token) return
-        if (!ms.pubkeyJson) { setError(`Cannot add ${revealInvisibleFormatting(ms.name || ms.address)}: its public-key configuration is unavailable.`); return }
-        setJoining(ms.address)
-        setError(null)
-        try {
-            await api.createOrJoinMultisig({ authToken: token, chainId: ms.chainId || GNO_CHAIN_ID, multisigPubkeyJson: ms.pubkeyJson, expectedMultisigAddress: ms.address, name: ms.name || "", bech32Prefix: GNO_BECH32_PREFIX })
-            await queryClient.invalidateQueries({ queryKey: ["multisig"] })
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Couldn't join this multisig.")
-        } finally {
-            setJoining(null)
-        }
-    }
+    const { join, joining, error } = useJoinMultisig(session.layout.auth.token)
 
     const all = list.data ?? []
     const joined = all.filter((m) => m.joined)
@@ -165,6 +147,7 @@ function Transfers({ address, executed = [], open }: { address: string; executed
 
 export function MultisigWindow({ address, session, open }: { address: string; session: OsSession; open: (spec: WindowSpec) => void }) {
     const detail = useMultisigDetail(session.layout.auth, address)
+    const adding = useJoinMultisig(session.layout.auth.token)
     const balance = useBalance(address)
     const [copied, setCopied] = useState(false)
     const copy = async () => {
@@ -202,6 +185,27 @@ export function MultisigWindow({ address, session, open }: { address: string; se
     if (!detail.data.multisig) return null
     const m = detail.data.multisig
     const nativeEnabled = ENABLE_NATIVE_GNO_MULTISIG && isNativeMultisig(m.pubkeyJson)
+    // Another member registered this account with you in it: Memba keeps its
+    // transactions from you until you add it to your accounts.
+    if (!m.joined) return (
+        <div className="os-stack os-msig">
+            <div className="os-row os-nowrap os-msig-head">
+                <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
+                <div className="os-grow">
+                    <b>{revealInvisibleFormatting(m.name || "Multisig shared with you")}</b>
+                    <div className="os-sub">Requires {m.threshold} of {m.membersCount} members · <span className="os-mono">{shortAddr(address)}</span></div>
+                </div>
+                {funds}
+            </div>
+            <p className="os-sub" role="status">Add this multisig to your account to see and sign its transactions.</p>
+            <div className="os-row">
+                <button type="button" className="os-btn" disabled={adding.joining !== null || !m.pubkeyJson} onClick={() => { void adding.join(m) }}>{adding.joining ? "Adding…" : "Add account"}</button>
+                {copyButton}
+            </div>
+            {adding.error && <p className="os-note os-err" role="alert">{adding.error}</p>}
+            <Transfers address={address} open={open} />
+        </div>
+    )
     const me = session.address
     const txs = [...detail.data.pending, ...detail.data.executed].sort((a, b) => b.id - a.id)
     return (
