@@ -20,8 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Backend dependency security fix (2026-10-06)
+### Dependency security fixes (2026-10-06)
 - Updated the backend's OpenTelemetry libraries to 1.45.0, which fixes vulnerability GO-2026-6505 reported by govulncheck
+- Raised the floors of `source-map-js` (1.2.2, GHSA-68fv-2mgg-jv7q) in the frontend and the workspace packages, and `proxy-addr` (2.0.8, GHSA-jqcg-44mw-7w3h) in the workspace packages
 
 ### Memba OS: execute DAO proposals (2026-10-02)
 - Members can execute an accepted proposal of a DAO made from Memba's template from its Memba OS window, through the review sheet: Memba checks membership, the execution window, the action and the fee before Adena opens, and confirms the member's own transaction on chain. The link to the classic page is gone.
