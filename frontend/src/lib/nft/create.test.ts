@@ -22,6 +22,8 @@ describe("collection terms", () => {
         expect(termsProblem(terms({ mode: "royalty_protected", royalties: [{ account: A, bps: 500n }, { account: B, bps: 500n }] }))).toBe("")
         expect(termsProblem(terms({ mode: "soulbound", revocable: true, maxSupply: 0n, metadataMode: "mutable", image: "", website: "" }))).toBe("")
         expect(termsProblem(terms({ name: "a".repeat(32), symbol: "ABCDEFGH12", description: "é".repeat(140) }))).toBe("")
+        // An https image or banner is the ledger's to take, even though Memba shows only IPFS ones.
+        expect(termsProblem(terms({ image: "https://relev.es/a.png", banner: "https://relev.es/b.png" }))).toBe("")
     })
 
     it.each<[string, Partial<CollectionTerms>, RegExp]>([

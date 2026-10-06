@@ -84,6 +84,7 @@ export function termsProblem(t: CollectionTerms): string {
     if (bytes(t.description) > 280 || !printable(t.description) || /[[\]()<>]/.test(t.description)) {
         return "The description is at most 280 bytes of plain text, without brackets, < or >."
     }
+    // The ledger takes an https image or banner; Memba loads only IPFS ones (see mediaUrl), and the form says so.
     if (t.image !== "" && !safeURI(t.image, ["ipfs://", "https://"])) return "The image is an ipfs:// or https:// link of at most 200 characters."
     if (t.banner !== "" && !safeURI(t.banner, ["ipfs://", "https://"])) return "The banner is an ipfs:// or https:// link of at most 200 characters."
     if (t.website !== "" && !safeURI(t.website, ["https://"])) return "The website is an https:// link of at most 200 characters."

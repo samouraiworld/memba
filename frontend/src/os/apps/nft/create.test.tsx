@@ -63,6 +63,19 @@ describe("Create a collection", () => {
         expect(mocks.reserved).toHaveBeenCalledWith("REL")
     })
 
+    it("asks for IPFS images, saying why an https one is not loaded, and still sends one", async () => {
+        show()
+        await screen.findByText(/Creating a collection costs/)
+        expect(screen.getByRole("textbox", { name: "Image" })).toHaveAccessibleDescription(/^An ipfs:\/\/ link, or empty\. Memba loads images through IPFS only, so no other host learns who views them: an https:\/\/ image is accepted but not loaded/)
+        expect(screen.getByRole("textbox", { name: "Banner" })).toHaveAccessibleDescription("An ipfs:// link, or empty. Like the image, an https:// banner is accepted but not loaded, for viewers' privacy.")
+        fill()
+        type("Image", "https://relev.es/a.png")
+        type("Banner", "https://relev.es/b.png")
+        fireEvent.click(screen.getByRole("button", { name: "Review and create" }))
+        await vi.waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+        expect(mocks.sign.mock.calls[0][0].prepare().msgs[0].value.args.slice(3, 5)).toEqual(["https://relev.es/a.png", "https://relev.es/b.png"])
+    })
+
     it("says the first rule a term breaks, before reading anything", async () => {
         show()
         await screen.findByText(/Creating a collection costs/)

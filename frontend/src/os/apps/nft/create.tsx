@@ -127,8 +127,8 @@ export function CreateCollection({ screen, session, back }: { screen: NftScreen;
                 {field("Name", "name", "1 to 32 characters. It can never change.")}
                 {field("Symbol", "symbol", "1 to 10 capital letters or digits. It can never change.")}
                 <label className="os-stack os-tight"><span>Description</span><textarea rows={3} value={form.description} onChange={(event) => set("description", event.target.value)} /></label>
-                {field("Image", "image", "An ipfs:// or https:// link, or empty.")}
-                {field("Banner", "banner", "An ipfs:// or https:// link, or empty.")}
+                {field("Image", "image", "An ipfs:// link, or empty. Memba loads images through IPFS only, so no other host learns who views them: an https:// image is accepted but not loaded, and viewers see generated art instead.")}
+                {field("Banner", "banner", "An ipfs:// link, or empty. Like the image, an https:// banner is accepted but not loaded, for viewers' privacy.")}
                 {field("Website", "website", "An https:// link, or empty.")}
                 <label className="os-stack os-tight"><span>Mode</span>
                     <select value={form.mode} onChange={(event) => set("mode", event.target.value as NftMode)}>
