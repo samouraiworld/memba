@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { Ref } from "react"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import type { NftCollection } from "../../../lib/nft/ledger"
-import { mediaUrl } from "../../../lib/nft/metadata"
+import { webUrl } from "../../../lib/nft/metadata"
 import { TokenMedia } from "../../nft/TokenMedia"
 import { Loading } from "../../kit"
 import { Curation } from "./curation"
@@ -36,7 +36,7 @@ function Profile({ screen, collection }: { screen: NftScreen; collection: NftCol
     const hide = useCurationHide(screen, collection.id)
     const { shown } = hide
     const name = revealInvisibleFormatting(collection.name)
-    const website = collection.website.startsWith("https://") ? mediaUrl(collection.website) : null
+    const website = webUrl(collection.website)
     return (
         <div className="os-stack">
             {shown && collection.banner !== "" && <TokenMedia uri={collection.banner} seed={collection.id} alt="" shape="banner" />}

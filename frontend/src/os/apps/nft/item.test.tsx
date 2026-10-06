@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, fireEvent, render, screen } from "@testing-library/react"
+import { getIpfsGatewayUrl } from "../../../lib/ipfs"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { TokenMetadataError } from "../../../lib/nft/metadata"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
@@ -15,7 +16,9 @@ const OWNER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const URI = `ipfs://bafy${"m".repeat(55)}/7.json`
 const token = { collection: "C1", number: 7n, owner: OWNER, status: "active", uri: URI }
 const curation = (hidden: boolean) => ({ collection: "C1", verified: false, featured: false, hidden })
-const drawing = { name: "Relevé #7", description: "A drawing", image: "https://example.org/7.png", attributes: [] }
+// Metadata images arrive resolved to the gateway: Memba loads images through IPFS only.
+const IMAGE = `${getIpfsGatewayUrl(`bafy${"b".repeat(55)}`)}/7.png`
+const drawing = { name: "Relevé #7", description: "A drawing", image: IMAGE, attributes: [] }
 
 function show() {
     const push = vi.fn()
@@ -40,13 +43,13 @@ describe("NFT item page", () => {
 
     it("shows the token's metadata and what the ledger says about it", async () => {
         reads.fetchTokenMetadata.mockResolvedValue({
-            name: "Relevé​ #7", description: "A drawing", image: "https://example.org/7.png",
+            name: "Relevé​ #7", description: "A drawing", image: IMAGE,
             attributes: [{ trait_type: "Ink", value: "Sepia" }, { trait_type: "Sheet", value: 3 }],
         })
         const push = show()
         expect(screen.getByRole("status")).toHaveTextContent("Reading the token…")
         expect(await screen.findByRole("heading", { name: "Relevé[U+200B] #7" })).toBeInTheDocument()
-        expect(screen.getByRole("img", { name: "Relevé[U+200B] #7" })).toHaveAttribute("src", "https://example.org/7.png")
+        expect(screen.getByRole("img", { name: "Relevé[U+200B] #7" })).toHaveAttribute("src", IMAGE)
         expect(screen.getByText("A drawing")).toBeInTheDocument()
         expect(screen.getByLabelText("Attributes")).toHaveTextContent("InkSepiaSheet3")
         expect(screen.getByText("Owner").nextSibling).toHaveTextContent(OWNER)
