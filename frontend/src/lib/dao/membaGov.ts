@@ -174,3 +174,13 @@ export async function readBridgePauses(ctx: GovContext, signal?: AbortSignal): P
         return [app, { until: Number(until[1]), governed: admin === bridge }]
     }))
 }
+
+export const BRIDGE_ESCROW = "gno.land/r/samcrew/escrow_v4"
+
+/** Whether Memba DAO, through the bridge, is the escrow's admin and so decides its disputes. */
+export async function readEscrowDecidedByDao(ctx: GovContext, escrowPath: string, signal?: AbortSignal): Promise<boolean> {
+    if (escrowPath !== BRIDGE_ESCROW || !bridgePublished()) return false
+    await assertWeightedChain(ctx, signal)
+    const admin = (await qevalText(ctx.rpcUrl, escrowPath, "GetAdmin()", signal)).match(/^\("(g1[0-9a-z]{38})" string\)\s*$/)?.[1]
+    return admin === packageAddress(BRIDGE_PATH)
+}

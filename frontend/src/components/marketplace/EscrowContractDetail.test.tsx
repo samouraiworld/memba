@@ -42,6 +42,8 @@ vi.mock("../../lib/marketplace/escrowState", async (importOriginal) => ({
     readEscrowContract,
     readEscrowPauseState,
 }))
+const daoDecides = vi.hoisted(() => vi.fn(async (): Promise<boolean> => false))
+vi.mock("../../lib/dao/membaGov", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/dao/membaGov")>()), readEscrowDecidedByDao: daoDecides }))
 vi.mock("../../lib/dao/proposalDates", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/dao/proposalDates")>()),
     getCurrentBlock: async () => chain.height,
@@ -77,6 +79,29 @@ beforeEach(() => {
     doContractBroadcast.mockImplementation(async () => ({ hash: "TX" }))
     readEscrowContract.mockClear()
     readEscrowPauseState.mockClear()
+    daoDecides.mockReset()
+    daoDecides.mockResolvedValue(false)
+})
+
+describe("EscrowContractDetail — who decides disputes", () => {
+    it("states Memba DAO's dispute rules only while the DAO is the escrow's admin", async () => {
+        await show(CLIENT)
+        expect(screen.queryByTestId("escrow-dao-disputes")).toBeNull()
+        expect(daoDecides).toHaveBeenCalledWith(expect.objectContaining({ rpcUrl: expect.any(String) }), ESCROW)
+    })
+
+    it("tells the parties how the DAO decides, within about 14 days, with no split", async () => {
+        daoDecides.mockResolvedValue(true)
+        await show(CLIENT)
+        expect(screen.getByTestId("escrow-dao-disputes")).toHaveTextContent(/Memba DAO members then vote on it and decide within about 14 days.*There is no split\..*about 31 days/)
+    })
+
+    it("says nothing about the DAO when that cannot be read, and still shows the contract", async () => {
+        daoDecides.mockRejectedValue(new Error("rpc down"))
+        await show(CLIENT)
+        expect(screen.getByTestId("escrow-contract-details")).toBeInTheDocument()
+        expect(screen.queryByTestId("escrow-dao-disputes")).toBeNull()
+    })
 })
 
 describe("EscrowContractDetail — what it shows", () => {

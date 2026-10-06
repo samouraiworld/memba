@@ -15,6 +15,8 @@ vi.mock("../../lib/dao/membaGov", async (original) => ({
     bridgePublished: vi.fn(() => true), readGovProposal: vi.fn(), readGovSnapshot: vi.fn(), readBridgeApproval: vi.fn(), readBridgePauses: vi.fn(),
 }))
 vi.mock("../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../lib/grc20")>()), assertFeeStillCovers: vi.fn(async () => {}) }))
+const readEscrowContract = vi.hoisted(() => vi.fn())
+vi.mock("../../lib/marketplace/escrowState", async (original) => ({ ...(await original<typeof import("../../lib/marketplace/escrowState")>()), readEscrowContract }))
 const { EmergencyPauses, JoinAction, ProposalActions } = await import("./GovActions")
 const { readBridgeApproval, readBridgePauses, readGovProposal, readGovSnapshot } = await import("../../lib/dao/membaGov")
 
@@ -160,5 +162,20 @@ describe("rechecks before the wallet opens", () => {
         expect(withdraw.summary).toBe(`Withdraw your YES on #${closed.id}`)
         await expect(withdraw.recheck!(undefined)).resolves.toBeUndefined()
         await expect(govVoteRequest(s, closed, "yes", false).recheck!(undefined)).rejects.toThrow("has closed")
+    })
+})
+
+describe("a dispute vote", () => {
+    it("warns a member who is a party to the contract, and nobody else", async () => {
+        const dispute = live(proposals.find((p) => p.action === "escrow_v4.ResolveDispute")!)
+        readEscrowContract.mockResolvedValue({ client: ZX, freelancer: "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4" })
+        const view = show(<ProposalActions p={dispute} roster={roster} session={member(ZX)} raw={false} />)
+        expect(await screen.findByRole("alert")).toHaveTextContent("You are the client of this contract. Members agreed that a party to a dispute does not vote on it")
+        expect(readEscrowContract).toHaveBeenCalledWith("gno.land/r/samcrew/escrow_v4", "0")
+        view.unmount()
+        readEscrowContract.mockResolvedValue({ client: "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", freelancer: MIKAEL })
+        show(<ProposalActions p={dispute} roster={roster} session={member(ZX)} raw={false} />)
+        await waitFor(() => expect(readEscrowContract).toHaveBeenCalledTimes(2))
+        expect(screen.queryByRole("alert")).toBeNull()
     })
 })

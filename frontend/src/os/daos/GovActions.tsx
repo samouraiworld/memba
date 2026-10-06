@@ -7,14 +7,14 @@
  * @module os/daos/GovActions
  */
 import { useState } from "react"
-import { BRIDGE_APPS, GOV_PATH, bridgeCall, decodeGovAction, govNeverRuns } from "../../lib/dao/govActions"
+import { BRIDGE_APPS, BRIDGE_PATH, GOV_PATH, bridgeCall, decodeGovAction, govNeverRuns } from "../../lib/dao/govActions"
 import { bridgePublished, PAUSABLE_APPS, type GovProposal, type GovRoster } from "../../lib/dao/membaGov"
 import { formatChainTime } from "../../lib/dao/v2Lifecycle"
 import type { OsSession } from "../shell/useOsSession"
 import { useNowSeconds } from "../shell/useNowSeconds"
 import { govExecuteRequest, govJoinRequest, govPauseRequest, govScope, govVoteRequest } from "./govRequests"
 import { useGovSign } from "./useGovSign"
-import { useBridgePauses } from "./useGovDao"
+import { useBridgePauses, useDisputeParties } from "./useGovDao"
 
 const OPEN = new Set<GovProposal["status"]>(["voting", "timelocked", "ready"])
 
@@ -22,6 +22,8 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
     const { quoting, start, lock, failed } = useGovSign(session)
     const [readCode, setReadCode] = useState(false)
     const now = useNowSeconds()
+    const dispute = p.target === BRIDGE_PATH && p.action === "escrow_v4.ResolveDispute" ? decodeGovAction(p.target, p.action, p.args)?.rows[0].value ?? null : null
+    const parties = useDisputeParties(session.status === "member" ? dispute : null)
     if (!OPEN.has(p.status)) return null
     if (session.status !== "member") return <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
     const me = roster.members.find((m) => m.address === session.address)
@@ -38,6 +40,12 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
         <section className="os-stack os-tight">
             <h3 className="os-h">Your vote</h3>
             {failed}
+            {parties.data && (parties.data.client === session.address || parties.data.freelancer === session.address) && (
+                <p className="os-note os-warn" role="alert">
+                    You are the {parties.data.client === session.address ? "client" : "freelancer"} of this contract. Members agreed that a party to a dispute
+                    does not vote on it, and does not pause escrow while it is open.
+                </p>
+            )}
             {mine && <p className="os-note">You voted <b>{mine.vote.toUpperCase()}</b>{mine.vote === "yes" ? ` (since ${formatChainTime(Number(mine.since))})` : ""}.</p>}
             {voteLock || (closed
                 // After the deadline a YES can still be withdrawn, to stop an approval before it runs.

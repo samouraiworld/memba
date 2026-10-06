@@ -7,7 +7,8 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
-import { readBridgePauses, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
+import { BRIDGE_ESCROW, readBridgePauses, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
+import { readEscrowContract } from "../../lib/marketplace/escrowState"
 
 const ctx = () => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID })
 const key = (...rest: string[]) => ["dao", "gov", GNO_CHAIN_ID, ...rest]
@@ -53,5 +54,17 @@ export function useBridgePauses(enabled: boolean) {
         queryKey: key("pauses"),
         queryFn: ({ signal }) => readBridgePauses(ctx(), signal),
         enabled, staleTime: 15_000, refetchInterval: REREAD_MS, retry: false,
+    })
+}
+
+/** The parties of an escrow contract a dispute proposal settles. */
+export function useDisputeParties(contractId: string | null) {
+    return useQuery({
+        queryKey: key("escrow", contractId ?? ""),
+        queryFn: async () => {
+            const c = await readEscrowContract(BRIDGE_ESCROW, contractId!)
+            return c && { client: c.client, freelancer: c.freelancer }
+        },
+        enabled: contractId !== null, staleTime: REREAD_MS, retry: false,
     })
 }
