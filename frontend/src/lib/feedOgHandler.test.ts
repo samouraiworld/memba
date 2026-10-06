@@ -16,8 +16,8 @@ const BOT = "Twitterbot/1.0"
 const HUMAN =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
-function req(path: string, ua: string): Request {
-    return new Request(`https://memba.samourai.app${path}`, { headers: { "user-agent": ua } })
+function req(path: string, ua: string, origin = "https://memba.club"): Request {
+    return new Request(`${origin}${path}`, { headers: { "user-agent": ua } })
 }
 
 function ctx() {
@@ -41,6 +41,17 @@ describe("feed-og handler routing", () => {
         expect(config.path).toBe("/feed/post/:id")
     })
 
+    it("stands aside on the retired classic hosts, whose redirect must answer the crawler", async () => {
+        for (const origin of ["https://memba.samourai.app", "https://memba-multisig.netlify.app"]) {
+            const f = stubFetch({ root: { id: "1", author: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", body: "Hello" } })
+            const c = ctx()
+            await handler(req("/feed/post/1", BOT, origin), c)
+            expect(c.next).toHaveBeenCalledOnce()
+            expect(f).not.toHaveBeenCalled()
+            f.mockRestore()
+        }
+    })
+
     it("passes humans straight through to the SPA (never fetches the backend)", async () => {
         const f = stubFetch({})
         const c = ctx()
@@ -62,7 +73,7 @@ describe("feed-og handler routing", () => {
         const html = await res.text()
         expect(html).toContain(`content="Hello world!"`)
         expect(html).toContain("/feed/post/1")
-        expect(html).toContain("https://memba.samourai.app/og-image.jpg")
+        expect(html).toContain("https://memba.club/og-image.jpg")
     })
 
     it("still serves a card when the permalink has a trailing slash", async () => {

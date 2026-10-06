@@ -20,6 +20,7 @@
  * See docs/features/FEED_OG_RUNBOOK.md.
  */
 import { isBotUserAgent, renderOgPage, type OgPost } from "../../src/lib/feedOg.ts"
+import { RETIRED_HOSTS } from "../../src/lib/retiredSite.ts"
 
 // Same prod backend the frontend + netlify.toml CSP already point at.
 const BACKEND = "https://memba-backend.fly.dev"
@@ -36,12 +37,15 @@ interface ThreadResponse {
 }
 
 export default async function handler(request: Request, context: EdgeContext): Promise<Response> {
+    const url = new URL(request.url)
+    // The retired classic site redirects every page (netlify.toml): a card there
+    // would answer crawlers before the redirect does.
+    if (RETIRED_HOSTS.has(url.hostname)) return context.next()
     // Only positively-identified crawlers get a card; everyone else gets the SPA.
     if (!isBotUserAgent(request.headers.get("user-agent"))) {
         return context.next()
     }
 
-    const url = new URL(request.url)
     // filter(Boolean) so a trailing slash (/feed/post/123/) still yields "123".
     const id = url.pathname.split("/").filter(Boolean).pop() ?? ""
     if (!/^\d+$/.test(id)) {

@@ -7,6 +7,134 @@
 [context.deploy-preview.environment]
   VITE_ENABLE_PRO_APP = "true"
 
+# Retiring the classic site (ALP-4). These rules match its hosts only, so the
+# memba.club site, which deploys this same file, never redirects to itself.
+# They come first and every one is forced: without force, Netlify serves the
+# real files (/sw.js, /, the static blog pages) and nothing below would fire.
+#   - /sw.js serves the kill switch, which unregisters a returning visitor's
+#     old service worker (that worker would otherwise answer from its cache);
+#   - the sitemap pages go straight to their Memba OS window (each target is
+#     what the app's own classic-to-OS table gives; frontend/src/lib/retiredSite
+#     .test.ts checks them against it);
+#   - everything else goes to the same path on memba.club, query kept, where
+#     the app opens its window or keeps the page.
+# 302 while the move is checked; 301 later (ALP-5).
+
+# Canary: the Netlify host of the classic site.
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/sw.js"
+  to = "/sw-retire.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/"
+  to = "https://memba.club/os"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/"
+  to = "https://memba.club/os"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/dao"
+  to = "https://memba.club/os/daos"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/tokens"
+  to = "https://memba.club/os/tokens"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/directory"
+  to = "https://memba.club/os/explorer"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/validators"
+  to = "https://memba.club/os/validators"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/validators/hacker"
+  to = "https://memba.club/os/validators/hacker"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/marketplace"
+  to = "https://memba.club/os/market"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/quests"
+  to = "https://memba.club/os/quests"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/feed"
+  to = "https://memba.club/os/feed"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/leaderboard"
+  to = "https://memba.club/os/quests/leaderboard"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/gnolove"
+  to = "https://memba.club/os/dev-report"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/changelogs"
+  to = "https://memba.club/os/news/changelogs"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/extensions"
+  to = "https://memba.club/os/store/extensions"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/blog"
+  to = "https://memba.club/os/news"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/feedback"
+  to = "https://memba.club/os/feedback"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/mainnet/blog/:slug"
+  to = "https://memba.club/os/news/:slug"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/*"
+  to = "https://memba.club/:splat"
+  status = 302
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
