@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
-import { readGovProposal, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
+import { readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
 
 const ctx = () => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID })
 const key = (...rest: string[]) => ["dao", "gov", GNO_CHAIN_ID, ...rest]
@@ -18,6 +18,14 @@ export function useGovSnapshot(before = "0") {
     return useQuery({
         queryKey: key("snapshot", before),
         queryFn: ({ signal }) => readGovSnapshot(ctx(), before, signal),
+        staleTime: 15_000, refetchInterval: REREAD_MS, retry: false,
+    })
+}
+
+export function useGovRoster() {
+    return useQuery({
+        queryKey: key("roster"),
+        queryFn: ({ signal }) => readGovRoster(ctx(), signal),
         staleTime: 15_000, refetchInterval: REREAD_MS, retry: false,
     })
 }

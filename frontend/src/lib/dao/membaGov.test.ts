@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/memba-gov/native.json"
 import { qevalWire } from "./testdata/weighted"
 import { directRpcCall } from "../rpcFallback"
-import { readGovProposal, readGovSnapshot, readTargetManifest } from "./membaGov"
+import { GovNotFound, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
 
 const ctx = { rpcUrl: "https://selected.invalid", chainId: "onyx-1" }
@@ -25,6 +25,7 @@ beforeEach(() => {
         "gno.land/r/samcrew/memba_gov.ProposalsJSON(22, 20)": structuredClone(native.page22),
         "gno.land/r/samcrew/memba_gov.ConstantsJSON()": structuredClone(native.const),
         "gno.land/r/samcrew/memba_gov.ProposalJSON(1)": structuredClone(native.one),
+        "gno.land/r/samcrew/memba_gov.ProposalJSON(99)": null,
     }
     vi.mocked(directRpcCall).mockImplementation(async (_url, method, params) => {
         if (method === "status") return { node_info: { network } }
@@ -32,7 +33,8 @@ beforeEach(() => {
         asked.push(expr)
         if (params!.path === '"vm/qfile"') {
             const manifest = manifests[expr]
-            return { response: { ResponseBase: manifest === undefined ? { Data: null, Error: { msg: "not found" }, Log: "package not found" } : { Data: btoa(manifest), Error: null } } }
+            if (expr.includes("busy")) return { response: { ResponseBase: { Data: null, Error: { msg: "x" }, Log: "rate limited" } } }
+            return { response: { ResponseBase: manifest === undefined ? { Data: null, Error: { msg: "x" }, Log: `file "${expr}" is not available` } : { Data: btoa(manifest), Error: null } } }
         }
         if (!(expr in answers)) throw new Error(`unexpected read ${expr}`)
         return wire(answers[expr])
@@ -49,6 +51,10 @@ describe("memba_gov reads", () => {
         expect(s.constants.maxSeats).toBe(25)
         const next = await readGovSnapshot(ctx, "22")
         expect(next.page.proposals.map(p => p.id)).toEqual(Array.from({ length: 20 }, (_, i) => String(21 - i)))
+        expect((await readGovRoster(ctx)).persons).toBe(4)
+        await expect(readGovProposal(ctx, "99")).rejects.toBeInstanceOf(GovNotFound)
+        answers["gno.land/r/samcrew/memba_gov.ConstantsJSON()"] = { ...native.const, seedInviteTTL: 7776000 }
+        expect((await readGovSnapshot(ctx)).constants.maxSeats).toBe(25) // a new constant does not hide the DAO
         const one = await readGovProposal(ctx, "1")
         expect(one.ballots.map(b => b.vote)).toEqual(["yes", "yes", "yes"])
     })
@@ -71,6 +77,7 @@ describe("memba_gov reads", () => {
         expect(await readTargetManifest(ctx, "gno.land/r/samcrew/memba_bridge_v1")).toBe("public")
         expect(await readTargetManifest(ctx, "gno.land/r/alice/app")).toBe("private")
         expect(await readTargetManifest(ctx, "gno.land/r/nobody/here")).toBe("absent")
+        await expect(readTargetManifest(ctx, "gno.land/r/busy/node")).rejects.toThrow("Chain read failed") // not proof of absence
         await expect(readTargetManifest(ctx, "gno.land/r/x/../y\"")).rejects.toThrow("Invalid target")
     })
 })

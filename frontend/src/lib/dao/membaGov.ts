@@ -40,8 +40,8 @@ const proposalSchema = z.strictObject({
 const pageSchema = z.strictObject({ total: uint64, proposals: z.array(proposalSchema).max(20) })
 
 const count = z.number().int().min(0)
-/** Durations in seconds, roster bounds, page size. */
-const constantsSchema = z.strictObject({
+/** Durations in seconds, roster bounds, page size. Unknown keys are ignored: a new constant must not hide the DAO. */
+const constantsSchema = z.object({
     votingPeriod: count, executionWindow: count, criticalWeightDelay: count, criticalHeadcountDelay: count, rosterDelay: count,
     inactiveDelay: count, inactiveAfter: count, minSeats: count, maxSeats: count, maxListed: count,
 })
@@ -55,6 +55,17 @@ async function read(ctx: GovContext, path: string, expression: string, signal?: 
 }
 
 const GOV_PAGE = 20
+
+/** The realm has no proposal with this id. */
+export class GovNotFound extends Error {
+    constructor(id: string) { super(`Memba DAO has no proposal #${id}.`) }
+}
+
+/** The roster alone. */
+export async function readGovRoster(ctx: GovContext, signal?: AbortSignal): Promise<GovRoster> {
+    await assertWeightedChain(ctx, signal)
+    return rosterSchema.parse(await read(ctx, GOV_PATH, "RosterJSON()", signal))
+}
 
 /** Roster, the page of proposals below `before` (0 = newest) and the fixed policy. */
 export async function readGovSnapshot(ctx: GovContext, before = "0", signal?: AbortSignal) {
@@ -76,21 +87,27 @@ export type GovSnapshot = Awaited<ReturnType<typeof readGovSnapshot>>
 export async function readGovProposal(ctx: GovContext, proposalId: string, signal?: AbortSignal): Promise<GovProposal> {
     id.parse(proposalId)
     await assertWeightedChain(ctx, signal)
-    const p = proposalSchema.parse(await read(ctx, GOV_PATH, `ProposalJSON(${proposalId})`, signal))
+    const raw = await read(ctx, GOV_PATH, `ProposalJSON(${proposalId})`, signal)
+    if (raw === null) throw new GovNotFound(proposalId)
+    const p = proposalSchema.parse(raw)
     if (p.id !== proposalId) throw new Error("Unexpected proposal ID")
     return p
 }
 
 /**
- * Whether a proposal's target realm exists on this chain, and whether it is
- * private: its creator can redeploy a private realm, so its code can change
- * after the vote.
+ * Whether a proposal's target realm is published on this chain now, and
+ * whether it is private: its creator can redeploy a private realm, so its code
+ * can change after the vote. Only the chain's "not available" answer means
+ * absent; any other failure is an error.
  */
 export async function readTargetManifest(ctx: GovContext, target: string, signal?: AbortSignal): Promise<"absent" | "private" | "public"> {
     if (!/^gno\.land\/r\/[a-z0-9_/.]{1,245}$/.test(target)) throw new Error("Invalid target")
     await assertWeightedChain(ctx, signal)
     const answer = await abciQuery(ctx, "vm/qfile", `${target}/gnomod.toml`, signal)
-    if (answer.failed) return "absent"
+    if (answer.failed) {
+        if (/file "[^"]*" is not available/.test(answer.log)) return "absent"
+        throw new Error("Chain read failed")
+    }
     return /^\s*private\s*=\s*true\s*$/m.test(answer.text) ? "private" : "public"
 }
 

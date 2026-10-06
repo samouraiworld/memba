@@ -4,7 +4,7 @@
  */
 import { formatChainTime } from "./v2Lifecycle"
 import { decodeGovAction, type GovValueKind } from "./govActions"
-import type { GovConstants, GovProposal } from "./membaGov"
+import { GovNotFound, type GovConstants, type GovProposal } from "./membaGov"
 
 export const GOV_STATUS_TEXT: Record<GovProposal["status"], string> = {
     voting: "Voting", timelocked: "Passed, waiting out its delay", ready: "Ready to execute",
@@ -61,6 +61,7 @@ export function valueText(kind: GovValueKind, value: string): string {
 }
 
 export function govReadError(error: unknown): string {
+    if (error instanceof GovNotFound) return error.message
     return error instanceof Error && error.message.includes("network does not match")
         ? "The RPC answered for another chain, so nothing it said is shown."
         : "Couldn't read Memba DAO. The network may be busy."

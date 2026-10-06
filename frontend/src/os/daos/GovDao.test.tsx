@@ -9,10 +9,10 @@ import type { OsSession } from "../shell/useOsSession"
 
 vi.mock("../../lib/dao/membaGov", async original => ({
     ...(await original<typeof import("../../lib/dao/membaGov")>()),
-    govPublished: vi.fn(() => true), readGovSnapshot: vi.fn(), readGovProposal: vi.fn(), readTargetManifest: vi.fn(),
+    govPublished: vi.fn(() => true), readGovSnapshot: vi.fn(), readGovRoster: vi.fn(), readGovProposal: vi.fn(), readTargetManifest: vi.fn(),
 }))
 const { DaoFolder, DaosApp, ProposalWindow } = await import("./DaoWindows")
-const { govPublished, readGovProposal, readGovSnapshot, readTargetManifest } = await import("../../lib/dao/membaGov")
+const { GovNotFound, govPublished, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } = await import("../../lib/dao/membaGov")
 
 const NAME = "samcrew.memba_gov"
 const proposals = [...native.page0.proposals, ...native.page22.proposals] as GovProposal[]
@@ -40,6 +40,7 @@ beforeEach(() => {
     vi.mocked(govPublished).mockReturnValue(true)
     vi.mocked(readGovSnapshot).mockImplementation(async (_ctx, before = "0") => snapshot(before))
     vi.mocked(readTargetManifest).mockResolvedValue("public")
+    vi.mocked(readGovRoster).mockImplementation(async () => snapshot().roster)
 })
 
 describe("Memba DAO on memba_gov", () => {
@@ -110,7 +111,19 @@ describe("a memba_gov proposal", () => {
 
     it("says a proposal filed below its action's class can never execute", async () => {
         proposal({ ...byAction("memba_market_config.SetFee"), class: 1 })
-        expect(await screen.findByRole("alert")).toHaveTextContent("below the Financial class this action needs")
+        expect(await screen.findByRole("alert")).toHaveTextContent("This proposal can never execute. It is filed as Routine, below the Financial class this action needs.")
+    })
+
+    it("shows a decoded proposal's scope, and says it can never execute when the scope is not the bridge's", async () => {
+        proposal({ ...byAction("memba_market_config.SetFee"), scope: "memba_market_config/bogus" })
+        expect(await screen.findByRole("alert")).toHaveTextContent('Its scope "memba_market_config/bogus" is not the "memba_market_config" the bridge checks.')
+        expect(screen.getByText("memba_market_config/bogus")).toBeInTheDocument()
+    })
+
+    it("says there is no such proposal", async () => {
+        vi.mocked(readGovProposal).mockRejectedValue(new GovNotFound("99"))
+        show(<ProposalWindow dao={NAME} n={99} session={guest} open={open} />)
+        expect(await screen.findByText("Memba DAO has no proposal #99.")).toBeInTheDocument()
     })
 
     it("shows an unknown action raw, with the proposer's note apart, and flags a private or missing target", async () => {
@@ -125,7 +138,7 @@ describe("a memba_gov proposal", () => {
         view.unmount()
         vi.mocked(readTargetManifest).mockResolvedValue("absent")
         proposal(raw)
-        expect(await screen.findByText(/No realm exists at this address/)).toBeInTheDocument()
+        expect(await screen.findByText(/No realm is published at this address on .* now\. One could be published there later/)).toBeInTheDocument()
     })
 
     it("counts YES by people and weight", async () => {

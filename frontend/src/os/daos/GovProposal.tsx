@@ -7,13 +7,13 @@
  */
 import type { ReactNode } from "react"
 import { GNO_CHAIN_ID } from "../../lib/config"
-import { BRIDGE_PATH, CLASS_NAMES, GOV_PATH, decodeGovAction } from "../../lib/dao/govActions"
+import { BRIDGE_PATH, CLASS_NAMES, GOV_PATH, decodeGovAction, govNeverRuns } from "../../lib/dao/govActions"
 import { govProposalTitle, govReadError, valueText } from "../../lib/dao/govView"
 import type { GovProposal, GovRoster } from "../../lib/dao/membaGov"
 import { formatChainTime } from "../../lib/dao/v2Lifecycle"
 import { ErrorState, Loading } from "../kit"
 import { GovStatusPill } from "./GovFolder"
-import { useGovProposal, useGovSnapshot, useTargetManifest } from "./useGovDao"
+import { useGovProposal, useGovRoster, useTargetManifest } from "./useGovDao"
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
     return <dl className="os-kv">{rows.map(([label, value]) => <div key={label} className="os-kv-row"><dt>{label}</dt><dd className="os-break">{value}</dd></div>)}</dl>
@@ -23,10 +23,10 @@ const mono = (text: string) => <span className="os-mono">{text}</span>
 
 export function GovProposalWindow({ id }: { id: string }) {
     const proposal = useGovProposal(id)
-    const snapshot = useGovSnapshot()
-    const p = proposal.data, roster = snapshot.data?.roster
+    const rosterRead = useGovRoster()
+    const p = proposal.data, roster = rosterRead.data
     if (!p || !roster) {
-        const failed = proposal.isError ? proposal : snapshot.isError ? snapshot : null
+        const failed = proposal.isError ? proposal : rosterRead.isError ? rosterRead : null
         return failed ? <ErrorState message={govReadError(failed.error)} onRetry={() => void failed.refetch()} /> : <Loading label={`Reading proposal #${id}…`} />
     }
     return (
@@ -57,13 +57,15 @@ export function GovProposalWindow({ id }: { id: string }) {
 function Action({ p }: { p: GovProposal }) {
     const decoded = decodeGovAction(p.target, p.action, p.args)
     if (decoded) {
+        const never = govNeverRuns(p, decoded)
         return (
             <section>
                 <h3 className="os-h">What executes</h3>
-                {p.class < decoded.minClass && <p className="os-note os-err" role="alert">Filed as {CLASS_NAMES[p.class]}, below the {CLASS_NAMES[decoded.minClass]} class this action needs: it can never execute.</p>}
+                {never && <p className="os-note os-err" role="alert">This proposal can never execute. {never}</p>}
                 <Facts rows={[
                     ["Through", mono(p.target === BRIDGE_PATH ? `${BRIDGE_PATH} (the bridge that governs the Memba apps)` : `${GOV_PATH} (the roster)`)],
                     ...decoded.rows.map((r) => [r.label, r.kind === "address" || r.kind === "hash" ? mono(r.value) : valueText(r.kind, r.value)] as [string, ReactNode]),
+                    ...(p.target === BRIDGE_PATH ? [["Scope (what one execution invalidates)", mono(p.scope)] as [string, ReactNode]] : []),
                 ]} />
                 <p className="os-sub">The values marked "now" or "when voted" are the app's state this approval is bound to: if it changes before execution, the approval no longer matches and cannot run.</p>
             </section>
@@ -81,7 +83,7 @@ function RawAction({ p }: { p: GovProposal }) {
                 Memba cannot read this action. If it passes, the realm below may run exactly this action with these arguments, once.
                 Read that realm's code before voting yes.
             </p>
-            {manifest.data === "absent" && <p className="os-note os-err">No realm exists at this address on {GNO_CHAIN_ID}: nothing can execute it here today.</p>}
+            {manifest.data === "absent" && <p className="os-note os-err">No realm is published at this address on {GNO_CHAIN_ID} now. One could be published there later and run it.</p>}
             {manifest.data === "private" && <p className="os-note os-err">This realm is private: its creator can replace its code after the vote.</p>}
             <Facts rows={[["Target realm", mono(p.target)], ["Action", mono(p.action)], ["Arguments", mono(p.args || "(none)")], ["Scope", mono(p.scope || "(none)")]]} />
         </section>

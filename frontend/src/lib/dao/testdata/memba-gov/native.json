@@ -1,6 +1,13 @@
 {
- "_comment": "Answers of memba_gov read in its unit tests at gno e75fef82: every bridge action the node fixtures propose, four roster actions and one action no decoder knows.",
+ "_comment": "Answers of memba_gov and memba_bridge_v1 in their own unit tests at gno e75fef82 (written by a generator kept outside this repository): every bridge action the node fixtures propose, four roster actions, one action no decoder knows, and one Approval answer.",
  "gnoRef": "e75fef82c02876a4df92ad6e325c5479b9532168",
+ "approval": {
+  "target": "gno.land/r/samcrew/memba_bridge_v1",
+  "action": "memba_market_config.SetFee",
+  "args": "s:7:service|i:300|i:200|u:1",
+  "scope": "memba_market_config",
+  "class": 2
+ },
  "roster": {
   "weight": 5,
   "persons": 4,
