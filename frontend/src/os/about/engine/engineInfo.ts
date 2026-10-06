@@ -42,8 +42,7 @@ const appInfo: Record<OsAppId, { layer: Layer; detail: string; realm?: string; a
 
 export const FEATURES: readonly Brick[] = OS_APPS.map(app => ({
     id: app.id, name: app.id === "multisig" ? "Shared wallets" : app.name,
-    summary: app.id === "tokens" ? "Create tokens and fund projects" : app.id === "nft" ? "Create, collect and curate NFTs"
-        : app.id === "market" ? "Hire with escrow; trading to come" : app.summary,
+    summary: app.id === "tokens" ? "Create tokens and fund projects" : app.id === "nft" ? "Create, collect and curate NFTs" : app.summary,
     ...appInfo[app.id], code: REPO + (app.id === "devreport" ? "frontend/src/pages/gnolove"
         : app.id === "daos" || app.id === "wallet" || app.id === "multisig" ? `frontend/src/os/${app.id}` : `frontend/src/os/apps/${app.id}`),
 }))

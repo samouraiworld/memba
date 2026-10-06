@@ -59,3 +59,12 @@ describe("Memba OS app registry", () => {
         expect(getApp("market").slug).toBe("market")
     })
 })
+
+describe("app summaries", () => {
+    // Launcher, search and the App Store show these on every network: they name what the app does there,
+    // and the Market window lists a trading lane only where one is live.
+    it("never promise NFT or token trading", () => {
+        for (const app of OS_APPS) expect(app.summary, app.id).not.toMatch(/\btrad(e|ing)\b/i)
+        expect(getApp("market").summary).toBe("Hire with milestone escrow")
+    })
+})

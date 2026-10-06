@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Market and Tokens described truthfully (2026-10-06)
+- Memba OS no longer describes Market and Tokens as places to trade NFTs and tokens, which mainnet does not offer; Market is described as hiring with milestone escrow
+
 ### Alerts: a true sentence without sign-in (2026-10-06)
 - Alerts: when sign-in for alerts isn't set up on a site, the page now says so plainly and still lists the Telegram bots, instead of showing a configuration instruction; the Profile page no longer shows that instruction. The Telegram bot buttons are easier to read
 
