@@ -11,10 +11,9 @@ Memba runs on **gno.land mainnet** (chain id `gnoland-1`, live since 2026-09-12)
 - [API reference](https://github.com/samouraiworld/memba/blob/main/docs/API.md): ConnectRPC backend API
 - [Architecture](https://github.com/samouraiworld/memba/blob/main/docs/ARCHITECTURE.md): system overview
 
-## MCP servers
+## MCP server
 
 - [mcp-server](https://github.com/samouraiworld/memba/tree/main/mcp-server): core Memba MCP tools
-- [mcp-server-dao-analyst](https://github.com/samouraiworld/memba/tree/main/mcp-server-dao-analyst): DAO-governance analyst MCP
 
 ## Endpoints
 

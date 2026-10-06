@@ -342,12 +342,12 @@ jobs:
         run: npm run test:e2e:guardrails
 
   workspaces:
-    # The pnpm workspaces (packages/gno-rpc, mcp-server, mcp-server-dao-analyst)
-    # were never compiled or tested in CI — main stayed green for months while
-    # mcp-server-dao-analyst had a TS build break and a failing vitest test.
+    # The pnpm workspaces (packages/gno-rpc, mcp-server) were once never
+    # compiled or tested in CI, and main stayed green for months over a TS
+    # build break and a failing vitest test in one of them.
     # NOT a required check: main's branch protection lists exact check names,
     # so this job reports on PRs without blocking merges until it's added there.
-    name: pnpm workspaces (gno-rpc · MCP servers)
+    name: pnpm workspaces (gno-rpc · MCP server)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

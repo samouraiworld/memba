@@ -1,8 +1,8 @@
 # Memba Agentic Integration
 
-> How to use Memba with AI agents, MCP servers, and CI/CD automation.
+> How to use Memba with AI agents, its MCP server, and CI/CD automation.
 
-**Discovery:** agents can find these resources via the [llms.txt](https://memba.samourai.app/llms.txt) file served at the app root (`frontend/public/llms.txt`), which links the SKILL guide, MCP servers, API reference, and RPC endpoints.
+**Discovery:** agents can find these resources via the [llms.txt](https://memba.samourai.app/llms.txt) file served at the app root (`frontend/public/llms.txt`), which links the SKILL guide, the MCP server, API reference, and RPC endpoints.
 
 ## Overview
 
@@ -44,9 +44,9 @@ curl -s 'https://gnolove-api.samourai.live/stats?time_filter=all'
 curl -s 'https://gnomonitoring.samourai.live/uptime?chain=gnoland-1'
 ```
 
-## MCP Servers
+## MCP Server
 
-Memba ships two MCP servers, both pnpm workspace packages at the repo root.
+Memba ships one MCP server, a pnpm workspace package at the repo root.
 
 ### Memba MCP Server (`mcp-server/`)
 
@@ -80,50 +80,6 @@ Add the server to your MCP client's configuration file:
 ```
 
 See `mcp-server/README.md` for full configuration details.
-
-### DAO Governance Analyst MCP Server (`mcp-server-dao-analyst/`)
-
-`@samouraiworld/dao-analyst-mcp` is a multi-model AI governance analyst for Gno DAOs:
-it analyzes proposals from legal, technical, and financial perspectives using free-tier
-LLM consensus (models routed through the Memba backend / OpenRouter). It is registered
-on-chain as an agent in `gno.land/r/samcrew/agent_registry` (`register-agent.sh`).
-
-It exposes 6 tools:
-
-| Tool | Description |
-|------|-------------|
-| `dao_analyze_proposal` | Multi-perspective proposal analysis with consensus verdict |
-| `dao_audit_treasury` | Treasury health assessment |
-| `dao_governance_health` | Governance health score and recommendations |
-| `dao_compare_proposals` | Side-by-side proposal comparison (free: 2, PRO: 5) |
-| `dao_risk_assessment` | Focused risk analysis — what could go wrong |
-| `dao_set_network` | Switch Gno network mid-conversation |
-
-> **Not available today.** The package is not published on npm, and the hosted
-> Memba backend no longer serves the analysis endpoint this server calls (the
-> backend analyst is off unless an operator enables it). The configuration below
-> is for local development from source only.
-
-Add a local build to your MCP client's configuration file:
-
-```json
-{
-  "mcpServers": {
-    "dao-analyst": {
-      "command": "node",
-      "args": ["/path/to/memba/mcp-server-dao-analyst/build/index.js"],
-      "env": {
-        "GNO_RPC_URL": "https://rpc.gno.land:443",
-        "MEMBA_BACKEND_URL": "https://memba-backend.fly.dev"
-      }
-    }
-  }
-}
-```
-
-The free and PRO tiers this server describes were enforced by a backend route that
-has been removed; do not deposit analyst credits for them. See
-`mcp-server-dao-analyst/README.md` for env vars.
 
 ## CI/CD Integration
 

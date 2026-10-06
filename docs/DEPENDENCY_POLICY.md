@@ -2,7 +2,7 @@
 
 > **Owner**: zxxma (sole maintainer at v7.1)
 > **Last updated**: 2026-08-10 (added the pnpm workspaces to scope and gated them in CI)
-> **Scope**: every direct and transitive dependency of `frontend/`, `backend/`, the pnpm workspaces (`packages/*`, `mcp-server/`, `mcp-server-dao-analyst/` — resolved through the root `pnpm-lock.yaml`), `.github/workflows/`, `backend/Dockerfile`, `frontend/Dockerfile`. Also covers GitHub Actions used in CI.
+> **Scope**: every direct and transitive dependency of `frontend/`, `backend/`, the pnpm workspaces (`packages/*`, `mcp-server/` — resolved through the root `pnpm-lock.yaml`), `.github/workflows/`, `backend/Dockerfile`, `frontend/Dockerfile`. Also covers GitHub Actions used in CI.
 > **Audit trail**: see the internal planning archive (private) (live plan) and the internal planning archive (private) (Phase 0 expert reviews) for the threat model that motivated this policy.
 >
 > The pnpm workspaces were **out of scope until 2026-08-10**, and no CI job audited `pnpm-lock.yaml` — every audit gate pointed at `frontend/package-lock.json`. Eight advisories accumulated there unreported, two of them HIGH (`GHSA-mwp4-54f8-5fhr` in `ip-address`, `GHSA-2v37-7h3g-55p8` in `nanoid`, the latter never surfaced by Dependabot). Closed by `scripts/pnpm-audit-ci.mjs` (§2).

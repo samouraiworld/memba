@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * pnpm-audit-ci — `pnpm audit` gate for the pnpm workspaces (packages/gno-rpc,
- * mcp-server, mcp-server-dao-analyst), with an explicit, documented allowlist.
+ * mcp-server), with an explicit, documented allowlist.
  *
  * Why this exists: nothing in CI ever audited pnpm-lock.yaml. Every audit gate
  * in the repo (ci.yml, security.yml, deploy-frontend.yml) points at

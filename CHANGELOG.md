@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### DAO analyst MCP server removed (2026-10-07)
+- Removed the DAO analyst MCP server, whose analysis tools called a backend endpoint that does not exist
+
 ### Narrower content security policy (2026-10-07)
 - Security: the content-security policy and the trusted RPC list no longer allow the third-party hosts only the retired test13 network used
 

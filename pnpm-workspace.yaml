@@ -1,4 +1,3 @@
 packages:
   - "packages/*"
   - "mcp-server"
-  - "mcp-server-dao-analyst"
