@@ -63,10 +63,12 @@ describe("parseBlogArticles", () => {
 describe("buildRssXml", () => {
     it("emits valid RSS with escaped fields and permalink guids", () => {
         const a = parseBlogArticle("2026-07-04-x.md", RAW.replace("Hello Gno", "A <b> & title"))!
-        const xml = buildRssXml("https://x.test", "net", [a])
+        const xml = buildRssXml("https://x.test/net/blog", [a])
         expect(xml).toContain("<rss version=\"2.0\">")
         expect(xml).toContain("<title>A &lt;b&gt; &amp; title</title>")
+        expect(xml).toContain("<link>https://x.test/net/blog</link>")
         expect(xml).toContain("<link>https://x.test/net/blog/x</link>")
+        expect(xml).toContain('<guid isPermaLink="true">https://x.test/net/blog/x</guid>')
         expect(xml).toContain("<pubDate>Sat, 04 Jul 2026 00:00:00 GMT</pubDate>")
     })
 })

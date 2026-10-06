@@ -4,7 +4,8 @@
  * This component is ONLY dynamically imported by AlertsPage.tsx via React.lazy().
  * The ~45KB @clerk/clerk-react bundle is tree-shaken from the main chunk.
  *
- * Primary domain: memba.samourai.app (v2.19.0 — unified, no satellite mode).
+ * One production instance, no satellite mode. Its frontend host (clerk.<primary
+ * domain>) and accounts host must be in the CSP (netlify.toml, index.html).
  *
  * Security: Clerk publishable key is public by design. JWTs are validated
  * server-side by gnomonitoring's clerk-sdk-go middleware.

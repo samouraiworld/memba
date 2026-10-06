@@ -63,11 +63,21 @@ test.describe('Memba OS DAOs', () => {
         await expect(folder.getByText('Target · contract v3')).toBeVisible()
     })
 
-    test('a passed GovDAO proposal links to its execution page', async ({ page }) => {
+    test('a passed GovDAO proposal opens its execution page in a DAOs window', async ({ page }) => {
         await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
         await page.goto(`${OS_ON}/os/dao/govdao/proposals/3`)
         const prop = win(page, 'govdao · Proposal #3')
-        await expect(prop.getByRole('link', { name: 'DAO proposal page' })).toHaveAttribute('href', '/mainnet/dao/gno.land/r/gov/dao/proposal/3')
+        await prop.getByRole('button', { name: 'Open the DAO proposal page' }).click()
+        await expect(page).toHaveURL(/\/os\/daos\/dao\/gno\.land\/r\/gov\/dao\/proposal\/3(\?|$)/)
+        await expect(win(page, 'Proposal #3 · govdao')).toBeVisible()
+        await expect(prop).toBeVisible()
+    })
+
+    test('the classic GovDAO proposal form opens the DAO window that says it takes no proposals through Memba', async ({ page }) => {
+        await member(page, 'ok')
+        await page.goto(`${OS_ON}/mainnet/dao/gno.land/r/gov/dao/propose`)
+        await expect(page).toHaveURL(/\/os\/dao\/govdao\/proposals\/new(\?|$)/)
+        await expect(win(page, 'New proposal · govdao').getByText("This DAO's contract does not accept new proposals through Memba.")).toBeVisible()
     })
 
     test('DAO sections support arrow and Home keyboard navigation', async ({ page }) => {

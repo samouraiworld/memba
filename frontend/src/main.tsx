@@ -39,6 +39,7 @@ if (sentryDsn) {
     tracesSampleRate: import.meta.env.PROD ? 0.2 : 1.0,
     tracePropagationTargets: [
       "localhost",
+      /^https:\/\/memba\.club/,
       /^https:\/\/memba\.samourai\.app/,
       /^https:\/\/.*memba-multisig\.netlify\.app/,
     ],

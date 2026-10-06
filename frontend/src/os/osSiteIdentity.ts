@@ -1,5 +1,7 @@
 /** Build-only beta identity. Never imported by the classic runtime. */
-export const OS_ORIGIN = 'https://memba.club'
+import { SITE_ORIGIN } from '../lib/sitemap'
+
+export const OS_ORIGIN = SITE_ORIGIN
 export const OS_BRAND_PATH = '/brand/os/'
 export const OS_BRAND_FILES = [
     'favicon.svg', 'favicon-16.png', 'favicon-32.png', 'apple-touch-icon-180.png',

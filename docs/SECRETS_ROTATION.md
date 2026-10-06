@@ -69,30 +69,30 @@ flyctl secrets set GROQ_API_KEY=<new> GOOGLE_AI_KEY=<new> --app memba-backend
 
 ---
 
-## CLERK_SECRET_KEY (Alerts Section Auth)
+## Clerk keys (Alerts sign-in)
 
-**Impact of compromise:** Attacker can forge Clerk sessions for the /alerts section.
-**Impact of rotation:** Users on /alerts must re-authenticate.
+The Memba backend holds no Clerk secret. The Alerts page signs in with Clerk in the browser, and gnomonitoring checks the session token with its own Clerk secret key (`clerk_secret_key` in its server config).
+
+**Impact of compromise:** Attacker can forge Clerk sessions for the Alerts page (gnomonitoring webhooks).
+**Impact of rotation:** Users on the Alerts page must sign in again.
 
 ```bash
-# 1. Rotate in Clerk dashboard: https://dashboard.clerk.com
-# 2. Update Fly.io secret
-flyctl secrets set CLERK_SECRET_KEY=<new> --app memba-backend
-# 3. Update frontend publishable key if changed
-# (stored in VITE_CLERK_PUBLISHABLE_KEY on Netlify)
+# 1. Rotate in the Clerk dashboard: https://dashboard.clerk.com
+# 2. Put the new secret key in gnomonitoring's server config and restart it
+# 3. If the publishable key changed, update VITE_CLERK_PUBLISHABLE_KEY on Netlify and redeploy
 ```
 
 ---
 
-## GITHUB_CLIENT_SECRET (OAuth Identity Verification)
+## GITHUB_OAUTH_CLIENT_SECRET (OAuth Identity Verification)
 
 **Impact of compromise:** Attacker can exchange OAuth codes for GitHub access tokens.
-**Impact of rotation:** Users must re-link their GitHub identity.
+**Impact of rotation:** Linking a GitHub account fails until the new secret is set. Accounts already linked stay linked (the backend keeps no GitHub token).
 
 ```bash
 # 1. Rotate in GitHub OAuth App settings
 # 2. Update Fly.io secret
-flyctl secrets set GITHUB_CLIENT_SECRET=<new> --app memba-backend
+flyctl secrets set GITHUB_OAUTH_CLIENT_SECRET=<new> --app memba-backend
 ```
 
 ---
@@ -135,8 +135,8 @@ unset KEY
 | ED25519_SEED | On compromise only | Key leak, suspicious auth activity |
 | LIGHTHOUSE_API_KEY | Annually or on compromise | Quota abuse, key exposure |
 | LLM API Keys | Annually or on compromise | Quota abuse, key exposure |
-| CLERK_SECRET_KEY | Annually or on compromise | Per Clerk recommendation |
-| GITHUB_CLIENT_SECRET | Annually or on compromise | Per GitHub recommendation |
+| Clerk secret key (gnomonitoring) | Annually or on compromise | Per Clerk recommendation |
+| GITHUB_OAUTH_CLIENT_SECRET | Annually or on compromise | Per GitHub recommendation |
 | MEMBA_CURATION_INBOX_KEY | Never (stored messages become unreadable) | On compromise: unset to turn the inbox off |
 
 ---

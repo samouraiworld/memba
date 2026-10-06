@@ -153,7 +153,7 @@ function sitemapPlugin(mode: string): PluginOption {
             articles.map(a => ({ path: `/blog/${a.slug}`, lastmod: a.updated ?? a.date })))
       writeFileSync(`${outDir}/sitemap.xml`, sitemap)
       if (osBuild) writeFileSync(`${outDir}/robots.txt`, `# Memba OS — ${OS_ORIGIN}\nUser-agent: *\nAllow: /\n\nSitemap: ${OS_ORIGIN}/sitemap.xml\n`)
-      writeFileSync(`${outDir}/blog.rss`, buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, articles))
+      writeFileSync(`${outDir}/blog.rss`, buildRssXml(osBuild ? `${OS_ORIGIN}/os/news` : `${SITE_ORIGIN}/${SITEMAP_NETWORK}/blog`, articles))
       // Netlify serves committed article shells before its SPA catch-all. The
       // React app still renders their bodies, while no-JS crawlers receive the
       // article identity directly in the HTTP response.
@@ -161,8 +161,9 @@ function sitemapPlugin(mode: string): PluginOption {
       for (const article of articles) {
         const classicDir = resolve(outDir, SITEMAP_NETWORK, 'blog', article.slug)
         mkdirSync(classicDir, { recursive: true })
+        // On Memba OS builds the classic address opens the News window: that page is the canonical one.
         writeFileSync(resolve(classicDir, 'index.html'), staticBlogArticleHtml(index, article,
-          `${SITE_ORIGIN}/${SITEMAP_NETWORK}/blog/${article.slug}`))
+          osBuild ? `${OS_ORIGIN}/os/news/${article.slug}` : `${SITE_ORIGIN}/${SITEMAP_NETWORK}/blog/${article.slug}`))
         if (osBuild) {
           const osDir = resolve(outDir, 'os/news', article.slug)
           mkdirSync(osDir, { recursive: true })
@@ -255,7 +256,8 @@ export default defineConfig(({ mode }) => ({
         // Wired ahead of the renderer: the vendor-three chunk itself is created when
         // the 3D renderer lands and lazily imports three.
         // Review-only brand specimens should not enter the production offline precache.
-        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**'],
+        // sw-retire.js is the retired classic host's service-worker kill switch, never part of this app.
+        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [

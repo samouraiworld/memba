@@ -23,7 +23,7 @@
   -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.samourai.app https://plausible.io blob:;
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.memba.club https://clerk.samourai.app https://plausible.io blob:;
     worker-src 'self' blob:;
     style-src 'self' 'unsafe-inline';
     font-src 'self';
@@ -31,8 +31,8 @@
     media-src 'self' data: blob:;
     object-src 'none';
     base-uri 'self';
-    connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.samourai.live https://*.sentry.io https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land https://*.gnoland.network wss://*.gnoland.network https://*.onbloc.xyz wss://*.onbloc.xyz https://clerk.samourai.app https://accounts.samourai.app https://plausible.io;
-    frame-src https://meet.jit.si https://8x8.vc https://accounts.samourai.app https://www.youtube-nocookie.com https://visio.samourai.app;
+    connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.samourai.live https://*.sentry.io https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land https://*.gnoland.network wss://*.gnoland.network https://*.onbloc.xyz wss://*.onbloc.xyz https://clerk.memba.club https://accounts.memba.club https://clerk.samourai.app https://accounts.samourai.app https://plausible.io;
+    frame-src https://meet.jit.si https://8x8.vc https://accounts.memba.club https://accounts.samourai.app https://www.youtube-nocookie.com https://visio.samourai.app;
   " />
 
   <!-- Open Graph / Facebook -->
@@ -42,7 +42,7 @@
     content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
   <meta property="og:image" content="/og-image.jpg" />
   <meta property="og:image:type" content="image/jpeg" />
-  <meta property="og:url" content="https://memba.samourai.app" />
+  <meta property="og:url" content="https://memba.club" />
   <meta property="og:site_name" content="Memba" />
 
   <!-- RSS autodiscovery (feed emitted at build by the sitemap plugin) -->
@@ -64,22 +64,22 @@
     "@graph": [
       {
         "@type": "Organization",
-        "@id": "https://memba.samourai.app/#org",
+        "@id": "https://memba.club/#org",
         "name": "Samourai Coop",
         "url": "https://samourai.world",
-        "logo": "https://memba.samourai.app/memba-icon.png",
+        "logo": "https://memba.club/memba-icon.png",
         "sameAs": ["https://github.com/samouraiworld", "https://x.com/samouraicoop"]
       },
       {
         "@type": "WebApplication",
-        "@id": "https://memba.samourai.app/#app",
+        "@id": "https://memba.club/#app",
         "name": "Memba",
-        "url": "https://memba.samourai.app",
+        "url": "https://memba.club",
         "description": "Memba is a standalone Gno-native multisig wallet and DAO governance application.",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "publisher": { "@id": "https://memba.samourai.app/#org" }
+        "publisher": { "@id": "https://memba.club/#org" }
       }
     ]
   }

@@ -1,13 +1,19 @@
 import { test, expect, devices, type Page } from '@playwright/test'
 
-async function ready(page: Page) {
-    await page.goto('/mainnet')
-    await expect(page.getByTestId('home-spine-visitor')).toBeVisible()
+// The fixtures are Memba OS builds, where a classic URL on the default network opens its OS
+// window. A page that must stay classic is reached on a network hidden from the selector.
+const OS_PAGE = '/os/news'
+const CLASSIC_PAGE = '/test13'
+const shown = (page: Page, path: string) => path === CLASSIC_PAGE ? page.getByTestId('home-spine-visitor') : page.getByTestId('memba-os')
+
+async function ready(page: Page, path = OS_PAGE) {
+    await page.goto(path)
+    await expect(shown(page, path)).toBeVisible()
     await page.waitForLoadState('networkidle')
     await page.evaluate(async () => { await navigator.serviceWorker.ready })
     // Prompt mode does not claim the first open tab until it navigates again.
     if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) await page.reload()
-    await expect(page.getByTestId('home-spine-visitor')).toBeVisible()
+    await expect(shown(page, path)).toBeVisible()
 }
 test.beforeEach(async ({ page, request }) => {
     await request.post('/__release?build=a')
@@ -23,12 +29,12 @@ test('a tab opened by a hard reload, which no worker controls, still updates to 
     await ready(page)
     // Another Memba tab, still on build A's worker, keeps build B's worker waiting.
     const other = await context.newPage()
-    await other.goto('/mainnet')
+    await other.goto(OS_PAGE)
     await expect.poll(() => other.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
     // What Cmd/Ctrl+Shift+R does: the page loads around the service worker and is left uncontrolled.
     const cdp = await context.newCDPSession(page)
     await cdp.send('Page.reload', { ignoreCache: true })
-    await expect(page.getByTestId('home-spine-visitor')).toBeVisible()
+    await expect(page.getByTestId('memba-os')).toBeVisible()
     expect(await page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(false)
     await request.post('/__release?build=b')
     const newEntry = '/' + (await (await request.get('/build-info.json')).json()).entry
@@ -62,16 +68,17 @@ test('an old tab offers build B without reloading, then boots B offline after a 
     expect(await page.locator('script[type=module]').getAttribute('src')).toBe('/' + a.entry)
     await page.getByRole('button', { name: 'Reload to update' }).click()
     await expect(page.locator('script[type=module]')).toHaveAttribute('src', '/' + b.entry)
-    await expect(page.locator('#main-content')).toBeVisible()
+    await expect(page.getByTestId('memba-os')).toBeVisible()
     await context.setOffline(true)
     await page.reload()
-    await expect(page.locator('#main-content')).toBeVisible()
+    await expect(page.getByTestId('memba-os')).toBeVisible()
     await expect(page.locator('script[type=module]')).toHaveAttribute('src', '/' + b.entry)
     expect(await page.evaluate(keys => Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])), Object.keys(records))).toEqual(records)
 })
 
 test('a persistently missing lazy route reloads at most once across successful boots', async ({ page, request }) => {
-    await ready(page)
+    // The guard belongs to the classic routes: a hidden network keeps them classic on this build.
+    await ready(page, CLASSIC_PAGE)
     // Evict the specific precached lazy module, then fail it at the origin.
     const evicted = await page.evaluate(async () => {
         let count = 0
@@ -85,7 +92,7 @@ test('a persistently missing lazy route reloads at most once across successful b
     await request.post('/__release?break=Blog-')
     let navigations = 0
     page.on('request', req => { if (req.isNavigationRequest() && req.frame() === page.mainFrame()) navigations++ })
-    await page.locator('a[href="/mainnet/blog"]:visible').first().click()
+    await page.locator(`a[href="${CLASSIC_PAGE}/blog"]:visible`).first().click()
     await expect(page.getByRole('heading', { name: 'Page could not load' })).toBeVisible()
     expect(navigations).toBeLessThanOrEqual(1)
     expect(await page.evaluate(() => sessionStorage.getItem('memba_chunk_reload'))).toBe('1')
@@ -102,7 +109,7 @@ test('blocked session storage does not prevent the shell or cause automatic relo
     const suppressed = await page.evaluate(() => !window.dispatchEvent(new Event('vite:preloadError', { cancelable: true })))
     expect(suppressed).toBe(false)
     expect(navigations).toBe(0)
-    await expect(page.locator('#main-content')).toBeVisible()
+    await expect(page.getByTestId('memba-os')).toBeVisible()
 })
 
 for (const [name, device] of [['desktop', devices['Desktop Chrome']], ['phone', devices['Pixel 7']]] as const) {

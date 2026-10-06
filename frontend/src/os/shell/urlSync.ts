@@ -1,6 +1,7 @@
 /**
  * Windows ⇄ URL. The path is the front window (plan rev 4 URL scheme); the
  * other open windows ride in `?w=`, one token each: app.feed, news.<slug>, dao.memba_dao,
+ * daopage.<realm>/<page> (a classic DAO page in a DAOs window),
  * prop.memba_dao.12, msig.g1…. A token is read back through parseOsPath, so
  * it gets exactly the same validation as a typed link.
  *
@@ -31,6 +32,7 @@ export function windowToken(t: OsTarget | null): string | null {
             // Meet room codes grant access: never put them in URLs or saved windows.
             if (t.app === "meet") return "app.meet"
             if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
+            if (t.app === "daos" && t.section?.startsWith("dao/")) return `daopage.${t.section.slice(4)}`
             return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
         case "proposal": return `prop.${t.dao}.${t.n}`
@@ -58,6 +60,7 @@ export function tokenToTarget(token: string): OsTarget | null {
     else if (kind === "news" && newsArticle(rest)) path = `/os/news/${rest}`
     else if (kind === "arcade" && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
+    else if (kind === "daopage") path = `/os/daos/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`
     else if (kind === "newprop") path = `/os/dao/${rest}/proposals/new`
     else if (kind === "prop") {

@@ -7,7 +7,9 @@
  * @module os/shell/windows
  */
 import { useCallback, useReducer } from "react"
+import { parseDaoSplat } from "../../lib/daoSlug"
 import { getApp, type OsAppId } from "../apps"
+import { nameForRealm } from "../daos/daoNames"
 import type { DaoSection, OsTarget } from "./osPath"
 
 export interface OsWindow {
@@ -58,13 +60,25 @@ export function welcomeSpec(): WindowSpec {
     return { key: "welcome", title: "Welcome to Memba", app: null, width: 560, height: 360, target: null }
 }
 
+const DAO_PAGES: Record<string, string> = { settings: "Settings", channels: "Channels", plugin: "Extension", propose: "Proposal form", treasury: "Treasury" }
+
+/** "Settings · alice.team": the classic DAO page a DAOs window shows, and its DAO. */
+function daoPageTitle(splat: string): string {
+    const { realmPath, subRoute } = parseDaoSplat(splat)
+    const [sub, n] = subRoute.split("/")
+    const page = sub === "proposal" && n ? `Proposal #${n}` : DAO_PAGES[sub] ?? "DAO page"
+    return `${page} · ${(realmPath && nameForRealm(realmPath)) || "DAO"}`
+}
+
 export function appSpec(app: OsAppId, section: string | null = null, query?: string): WindowSpec {
     // Games open beside the lobby. BARRICADE's stage and side panel need the
     // desk's available space rather than the standard 960 px page window.
     const game = app === "arcade" && ["game", "space-invaders", "barricade"].includes(section ?? "")
-    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "meet" ? [1040, 720] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
+    // A DAO page the DAO windows don't have (a classic form, settings, channels) opens beside them at page size.
+    const daoPage = app === "daos" && section?.startsWith("dao/") ? daoPageTitle(section.slice(4)) : null
+    const [width, height] = app === "daos" && !daoPage ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "meet" ? [1040, 720] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
     const storeDetail = app === "store" && !!section && (section.startsWith("apps/") || section.startsWith("project/"))
-    return { key: game ? `game:${section}` : storeDetail ? `store:${section}` : `app:${app}`, title: game ? `${section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : storeDetail ? "App details · App Store" : getApp(app).name, app, width: storeDetail ? 720 : width, height: storeDetail ? 640 : height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
+    return { key: game ? `game:${section}` : storeDetail ? `store:${section}` : daoPage ? `daos:${section}` : `app:${app}`, title: game ? `${section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : storeDetail ? "App details · App Store" : daoPage ?? getApp(app).name, app, width: storeDetail ? 720 : width, height: storeDetail ? 640 : height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 
 /** Distinguish an Apply window from the ordinary Feed window in URL/session state. */
@@ -237,9 +251,15 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
         case "close": return { ...s, wins: s.wins.filter((w) => w.id !== a.id) }
         case "closeKey": return { ...s, wins: s.wins.filter((w) => w.key !== a.key) }
         case "closeAll": return { ...s, wins: [] }
-        case "retarget": return { ...s, wins: s.wins.map((w) => w.id === a.id
-            ? { ...w, key: a.spec.key, title: a.spec.title, app: a.spec.app, target: a.spec.target }
-            : w) }
+        case "retarget": {
+            // Onto a view another window already shows: that window takes it, and this one goes,
+            // leaving the other in its place in the stack (in front when it was the front one).
+            const self = s.wins.find((w) => w.id === a.id)
+            const other = s.wins.find((w) => w.key === a.spec.key && w.id !== a.id)
+            const to = (w: OsWindow) => ({ ...w, key: a.spec.key, title: a.spec.title, app: a.spec.app, target: a.spec.target })
+            if (self && other) return { ...s, wins: s.wins.filter((w) => w.id !== a.id).map((w) => (w.id === other.id ? { ...to(w), z: self.z, min: self.min } : w)) }
+            return { ...s, wins: s.wins.map((w) => (w.id === a.id ? to(w) : w)) }
+        }
         case "minimiseAll": return { ...s, wins: s.wins.map((w) => ({ ...w, min: true })) }
         case "tile": {
             const two = visibleWindows(s.wins).sort((a, b) => b.z - a.z).slice(0, 2)

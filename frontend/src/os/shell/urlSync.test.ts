@@ -11,7 +11,7 @@ afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
     it("round-trip every linkable window", () => {
-        for (const url of ["/os/feed", "/os/feed/post/12", "/os/news", "/os/news/why-memba", "/os/meet", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
+        for (const url of ["/os/feed", "/os/feed/post/12", "/os/news", "/os/news/why-memba", "/os/meet", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/daos/dao/gno.land/r/alice/team/settings", "/os/daos/dao/gno.land/r/gov/dao/proposal/3", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)
             expect(tokenToTarget(windowToken(t)!), url).toEqual(t)
         }
@@ -31,6 +31,11 @@ describe("?w= tokens", () => {
         for (const bad of ["news.", "news.Why-Memba", "news.why_memba", "news.why--memba", "news.why-memba/extra", "news.changelogs", "news.blog", "news.%2e%2e"]) {
             expect(tokenToTarget(bad), bad).toBeNull()
         }
+    })
+
+    it("keep a classic DAO page apart from the DAOs window it opened beside", () => {
+        expect(windowToken(parseOsPath("/os/daos/dao/gno.land/r/alice/team/settings"))).toBe("daopage.gno.land/r/alice/team/settings")
+        expect(windowToken(parseOsPath("/os/daos"))).toBe("app.daos")
     })
 
     it("aren't made for Welcome or not-found windows", () => {

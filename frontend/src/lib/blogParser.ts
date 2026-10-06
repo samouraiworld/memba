@@ -79,18 +79,18 @@ export function parseBlogArticles(files: Record<string, string>): BlogArticle[] 
         .sort((a, b) => b.date.localeCompare(a.date) || a.slug.localeCompare(b.slug))
 }
 
-/** RSS 2.0 feed (used by the vite build plugin). */
+/** RSS 2.0 feed (used by the vite build plugin). `blogUrl` is the blog's index
+ *  page (e.g. https://memba.club/os/news); an article is `${blogUrl}/<slug>`. */
 export function buildRssXml(
-    origin: string,
-    network: string,
+    blogUrl: string,
     articles: readonly BlogArticle[],
 ): string {
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     const items = articles.map(a => [
         "    <item>",
         `      <title>${esc(a.title)}</title>`,
-        `      <link>${origin}/${network}/blog/${esc(a.slug)}</link>`,
-        `      <guid isPermaLink="true">${origin}/${network}/blog/${esc(a.slug)}</guid>`,
+        `      <link>${blogUrl}/${esc(a.slug)}</link>`,
+        `      <guid isPermaLink="true">${blogUrl}/${esc(a.slug)}</guid>`,
         `      <pubDate>${new Date(`${a.date}T00:00:00Z`).toUTCString()}</pubDate>`,
         `      <description>${esc(a.description)}</description>`,
         "    </item>",
@@ -100,7 +100,7 @@ export function buildRssXml(
         '<rss version="2.0">',
         "  <channel>",
         "    <title>Memba Blog</title>",
-        `    <link>${origin}/${network}/blog</link>`,
+        `    <link>${blogUrl}</link>`,
         "    <description>Memba and gno.land ecosystem updates from the Samourai Coop.</description>",
         ...items,
         "  </channel>",

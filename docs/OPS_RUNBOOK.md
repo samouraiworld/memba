@@ -1,6 +1,6 @@
 # Memba Operational Runbook
 
-> **Scope**: day-to-day operational procedures, recurring tasks, and incident playbooks for `memba.samourai.app` (frontend) and `memba-backend.fly.dev` (backend).
+> **Scope**: day-to-day operational procedures, recurring tasks, and incident playbooks for `memba.club` (frontend; `memba.samourai.app` is being retired, see `docs/DEPLOYMENT.md`) and `memba-backend.fly.dev` (backend).
 > **Owner**: zxxma (currently sole code owner — see v7.1 plan §1.8 for the planned reviewer-recruitment follow-up).
 > **Audit trail**: see the internal planning archive (private) (live plan) and the internal planning archive (private) (Phase 0 expert reviews + PR triage) for the rationale behind the procedures below.
 
@@ -13,8 +13,8 @@
 | Weekly | Dependabot triage — review the grouped PRs (see `.github/dependabot.yml`), merge patch/minor groups, file v7.2 spike issues for any majors. | `docs/DEPENDENCY_POLICY.md` (Phase 0b deliverable) |
 | Weekly | Read the latest `govulncheck.yml` cron output. If any new CVE landed, file an issue and PR a bump within the SLA (HIGH = 5 BD, CRITICAL = 48h). | Phase 0a |
 | Monthly | Sentry release health review — verify source maps present for the last 4 releases; confirm error rate is within SLO (§3.2). | Phase 0a |
-| Quarterly | Domain renewal check: `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
-| Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk pair, GPG signing keys, admin multisig keys. | Phase 1.12 |
+| Quarterly | Domain renewal check: `memba.club` (Gandi), `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
+| Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk keys, GPG signing keys, admin multisig keys. | Phase 1.12 |
 | Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_APP_HARDENING.md` §Custody (renamed from MAINNET_PREPARATION.md, #1129). | Phase 1.11 |
 | Annual | Rollback drill — see §4 below; record results in the internal planning archive (private). | Phase 5 prereq |
 
@@ -24,7 +24,7 @@
 
 | Surface | URL | Tech | Deploy target |
 |---------|-----|------|---------------|
-| Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
+| Frontend | `memba.club` (OS build); `memba.samourai.app` (classic build, being retired) | React + Vite SPA | Netlify (memba.club site; `memba-multisig` site for the classic host) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
 | Chain | `gnoland-1` — gno.land mainnet, the default since the 2026-09-23 mainnet cutover (`MEMBA_ACCEPTED_CHAIN_IDS=gnoland-1`; realms in realm-versions.json `mainnet`). pearl-1 retired 2026-09-23 (shut down; hidden-but-resolvable in the frontend); sapphire-1 retired (sentry dead since 2026-09-02, sunset 2026-09-09); topaz-1 decommissioned 2026-08-12 | Gno | Official RPC: `rpc.gno.land`; Samouraï mainnet node: `rpc.mainnet.samourai.live`; tx-indexer: `indexer.gno.land/graphql/query`. ⚠️ nothing pearl- or sapphire-named is a valid target; never trust hostname or HTTP 200, the only identity test is `node_info.network` |
 
@@ -74,7 +74,7 @@
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions (legacy) | Netlify deploy | Consumed only by the Actions deploy job removed 2026-07-11; `deploy-frontend.yml` has no Netlify step today. Production deploys are Netlify-native (§3.1). Candidate for removal at the next rotation drill. |
 | `SENTRY_AUTH_TOKEN` | Netlify env | source-map upload | Read by `@sentry/vite-plugin` during the Netlify-native build (no-op when unset); was unwired before `v6.0.2`. `deploy-frontend.yml` carries no Sentry step since 2026-07-11. Frontend only — the backend has no Sentry (§3.3). |
-| `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Netlify + backend | Clerk auth (alerts) | Must be the *same* environment (test/live). |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Netlify | Clerk sign-in (Alerts page) | The production Clerk instance's publishable key. Its secret key lives in gnomonitoring's server config, which checks the tokens; the Memba backend holds no Clerk secret. Both come from the same instance and environment (test/live). |
 | `OPENROUTER_API_KEY` | Fly | AI analyst | Rate-limited; not on the critical path. |
 | `ANALYST_ENABLED` | Fly (backend) | AI analyst kill switch | **Unset / anything but `true` or `1` = off**: `/api/analyst/consensus` answers 503 before any auth. Independent of the frontend `VITE_ENABLE_ANALYST` build flag. |
 | `ANALYST_ADMIN_BEARER` | Fly secret | AI analyst operator | Random value, 32+ bytes. A request with `Authorization: Bearer <value>` may force a report refresh (`?force=1`) and is not capped. Unset = no operator access; wallets can never force a refresh. |
@@ -141,7 +141,7 @@ deliberately carries no game flags).
 ### 3.1 Deploy pipeline
 
 * **Backend**: push to `main` triggers `.github/workflows/deploy-backend.yml` (path-filtered on `backend/**`). The workflow gates on `ci-backend` (build + race-test + govulncheck), then `flyctl deploy --remote-only` with `[deploy] strategy = "rolling"` (per `fly.toml`). After deploy, the Fly image is mirrored to `ghcr.io/samouraiworld/memba-backend:<git-describe>` as a rollback insurance copy (see §4.1).
-* **Frontend**: production deploys are **Netlify-native** (Git integration; `netlify.toml` → `npm run build`, publish `frontend/dist` — this is what applies the SPA fallback, the CSP/security headers, and the Clerk proxy). A push to `main` touching `frontend/**` additionally triggers `.github/workflows/deploy-frontend.yml` as a **CI gate only** (typecheck + lint + safety-gate + build + test + bundle-size + `npm audit --omit=dev` — **no `|| true`**); its Actions deploy job (`nwtgck/actions-netlify`) was hard-disabled 2026-06-25 and **removed 2026-07-11** — it bypassed `netlify.toml`. Sentry source-map upload rides the Netlify production build via the Vite plugin when `SENTRY_AUTH_TOKEN` is set in the Netlify env (the plugin no-ops gracefully when unset).
+* **Frontend**: production deploys are **Netlify-native** (Git integration; `netlify.toml` → `npm run build`, publish `frontend/dist` — this is what applies the SPA fallback and the CSP/security headers). A push to `main` touching `frontend/**` additionally triggers `.github/workflows/deploy-frontend.yml` as a **CI gate only** (typecheck + lint + safety-gate + build + test + bundle-size + `npm audit --omit=dev` — **no `|| true`**); its Actions deploy job (`nwtgck/actions-netlify`) was hard-disabled 2026-06-25 and **removed 2026-07-11** — it bypassed `netlify.toml`. Sentry source-map upload rides the Netlify production build via the Vite plugin when `SENTRY_AUTH_TOKEN` is set in the Netlify env (the plugin no-ops gracefully when unset).
 * **Concurrency**: deploy-backend uses `cancel-in-progress: false` — rapid second pushes **queue** rather than canceling an in-flight deploy mid-traffic-flip. Frontend build serialization is Netlify's own deploy queue.
 
 ### 3.2 SLO (operational definition of "broken")

@@ -13,8 +13,9 @@
  * decision if entity-page indexing proves weak.
  */
 
-/** Canonical public origin (matches index.html og:url + netlify.toml). */
-export const SITE_ORIGIN = "https://memba.samourai.app"
+/** Canonical public origin (matches index.html og:url). memba.samourai.app is
+ *  being retired and redirected here (docs/DEPLOYMENT.md). */
+export const SITE_ORIGIN = "https://memba.club"
 
 /** Network prefix baked into public URLs. Bump on default-network change
  *  (single source for the sitemap AND blog.rss; runtime code derives its own).

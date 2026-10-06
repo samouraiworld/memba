@@ -28,9 +28,20 @@ test.describe('Memba OS foundations', () => {
         await expect(os).toHaveAttribute('data-os-theme', 'dark')
     })
 
-    test('leaves the current app untouched when the flag is on', async ({ page }) => {
+    test('opens a classic URL in its window when the flag is on, query included', async ({ page }) => {
         await page.goto(`${OS_ON}/mainnet/settings`)
-        await expect(page.getByTestId('memba-os')).toHaveCount(0)
+        await expect(page).toHaveURL(new RegExp(`^${OS_ON}/os/settings(\\?|$)`))
+        await expect(page.getByTestId('memba-os')).toBeVisible()
+        await page.goto(`${OS_ON}/mainnet/validators?q=Northstar`)
+        await expect(page).toHaveURL(/\/os\/validators\?q=Northstar/)
+    })
+
+    test('keeps a classic page with no window, or on a hidden network, classic when the flag is on', async ({ page }) => {
+        for (const path of ['/mainnet/marketplace-v2-preview', '/test13/dao']) {
+            await page.goto(`${OS_ON}${path}`)
+            await expect(page).toHaveURL(`${OS_ON}${path}`)
+            await expect(page.getByTestId('memba-os')).toHaveCount(0)
+        }
     })
 
     test('keeps /os unreachable when the flag is off', async ({ page }) => {

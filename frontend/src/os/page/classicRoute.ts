@@ -11,6 +11,7 @@ import { parseDaoSplat } from "../../lib/daoSlug"
 import { getApp, OS_APPS, type OsApp, type OsAppId } from "../apps"
 import { nameForRealm } from "../daos/daoNames"
 import type { OsTarget } from "../shell/osPath"
+import { urlForWindow } from "../shell/windows"
 
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/
 
@@ -66,7 +67,12 @@ export function sectionForClassic(app: OsAppId, classic: string): string | null 
     return clean
 }
 
-function daoTarget(splat: string): OsTarget | null {
+/**
+ * The window for a classic DAO page. A page the DAO windows don't have (settings,
+ * channels, …) opens as itself in a DAOs window, at the normalised realm path
+ * (a legacy "~" link included); a weighted DAO's classic pages are all its folder.
+ */
+function daoTarget(splat: string, weighted = false): OsTarget | null {
     const { realmPath, subRoute } = parseDaoSplat(splat)
     const name = realmPath ? nameForRealm(realmPath) : null
     if (!name) return null
@@ -74,7 +80,8 @@ function daoTarget(splat: string): OsTarget | null {
     if ((sub === "proposal" || sub === "proposals") && n && /^\d{1,9}$/.test(n)) return { kind: "proposal", dao: name, n: Number(n) }
     if (sub === "propose") return { kind: "new-proposal", dao: name }
     if (sub === "proposals" || sub === "members" || sub === "treasury") return { kind: "dao", name, section: sub }
-    return { kind: "dao", name, section: "overview" }
+    if (weighted || sub === "" || sub === "proposal") return { kind: "dao", name, section: "overview" }
+    return { kind: "app", app: "daos", section: `dao/${realmPath}/${subRoute}` }
 }
 
 /**
@@ -96,7 +103,7 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
     if (rest === "dao/create") return { kind: "app", app: "daos", section: "new" }
     if (rest.startsWith("dao/")) return daoTarget(rest.slice(4))
     // A weighted DAO's classic page is its DAO folder here.
-    if (rest.startsWith("weighted-dao/")) return daoTarget(rest.slice("weighted-dao/".length))
+    if (rest.startsWith("weighted-dao/")) return daoTarget(rest.slice("weighted-dao/".length), true)
     const ms = /^multisig\/([^/]+)$/.exec(rest)
     if (ms && ADDRESS.test(ms[1])) return { kind: "multisig", address: ms[1] }
     const app = OS_APPS.find((a) => owns(a, rest))
@@ -106,6 +113,20 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
     const params = new URLSearchParams(search?.[1] ?? "")
     params.delete("w")
     return { kind: "app", app: app.id, section: sectionForClassic(app.id, rest), ...(search ? { query: params.toString() } : {}) }
+}
+
+/**
+ * The /os URL a classic URL opens on a Memba OS build, or null when it stays a
+ * classic page: no window for it, or a network hidden from the selector (a
+ * testnet or a dead chain is reached by explicit link only, and Memba OS
+ * would not stay on it). `network` is the network the page loaded with.
+ */
+export function osUrlForClassic(pathname: string, network: string): string | null {
+    if (!NETWORKS[network] || NETWORKS[network].hidden) return null
+    // The classic home is the Wallet window inside Memba OS; an address of its own opens the desktop.
+    if (/^\/[^/?#]+\/*(?:[?#]|$)/.test(pathname) && pathname.split(/[/?#]/)[1] === network) return "/os"
+    const target = osTargetForClassic(pathname, network)
+    return target ? urlForWindow({ target }) : null
 }
 
 /** Pages that send a guest away in the classic app (they need a signed-in wallet): the window asks to connect instead.

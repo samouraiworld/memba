@@ -38,7 +38,7 @@ function WindowOutlet({ layout }: { layout: LayoutContext }) {
 
 const pathOf = (to: To) => (typeof to === "string" ? to : createPath(to))
 
-export function ClassicPage({ network, page, query, layout, onGameExit, active = true, onBackgroundReplace }: {
+export function ClassicPage({ network, page, query, layout, onGameExit, active = true, onReplace }: {
     network: string
     /** The classic page, relative to /:network ("" is the home page). */
     page: string
@@ -47,7 +47,8 @@ export function ClassicPage({ network, page, query, layout, onGameExit, active =
     layout: LayoutContext
     onGameExit?: () => void
     active?: boolean
-    onBackgroundReplace?: (spec: NonNullable<ReturnType<typeof specForTarget>>) => void
+    /** Retargets this page's window: a replace navigation swaps the window's own page. */
+    onReplace?: (spec: NonNullable<ReturnType<typeof specForTarget>>) => void
 }) {
     const parent = useContext(UNSAFE_NavigationContext)
     const nav = useMemo(() => {
@@ -81,11 +82,13 @@ export function ClassicPage({ network, page, query, layout, onGameExit, active =
             }
             const spec = specFor(to)
             if (!spec) { window.location.assign(pathOf(to)); return }
-            if (replace && !active && onBackgroundReplace) {
-                // A classic app may canonicalise its root on mount. Doing that
-                // from a background window must not steal the front URL/focus.
-                onBackgroundReplace(spec)
-                return
+            if (replace && onReplace) {
+                // A replace swaps this window's own page (a page canonicalising its
+                // address, a DAO page that turns out to be weighted): the window
+                // follows it, so the old page never stays open as a window of its own.
+                onReplace(spec)
+                // From a background window it must not steal the front URL/focus.
+                if (!active) return
             }
             if (replace) parent.navigator.replace(urlForWindow(spec), state)
             else parent.navigator.push(urlForWindow(spec), state)
@@ -105,7 +108,7 @@ export function ClassicPage({ network, page, query, layout, onGameExit, active =
                 go: (n: number) => window.history.go(n),
             },
         }
-    }, [parent, network, page, onGameExit, active, onBackgroundReplace])
+    }, [parent, network, page, onGameExit, active, onReplace])
 
     return (
         <div className="os-classic">

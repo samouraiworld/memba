@@ -1,5 +1,5 @@
-# Memba — https://memba.samourai.app
+# Memba — https://memba.club
 User-agent: *
 Allow: /
 
-Sitemap: https://memba.samourai.app/sitemap.xml
+Sitemap: https://memba.club/sitemap.xml

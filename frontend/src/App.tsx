@@ -10,6 +10,7 @@ import { networkRouteChildren } from "./routes/networkRoutes"
 // The import sits behind the flag so a flag-off build drops the chunk entirely:
 // otherwise it would still be emitted and precached by the service worker.
 const OsRoot = OS_ENABLED ? lazy(() => import("./os/OsRoot")) : null
+const ClassicToOs = OS_ENABLED ? lazy(() => import("./os/page/ClassicToOs")) : null
 
 /** Every /os URL belongs to Memba OS. Decided before route matching: as an
  *  "/os/*" route, deeper classic routes outrank it (/:network/dao/*
@@ -17,11 +18,13 @@ const OsRoot = OS_ENABLED ? lazy(() => import("./os/OsRoot")) : null
  *  routes as network "os". With the flag off, /os stays a network path as before. */
 function OsOrClassic({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  // Builds with Memba OS on (the memba.club beta site only) open it at the root too.
+  // Builds with Memba OS on (memba.club only) open it at the root too,
+  // and open a classic URL in its window when it has one.
   if (OsRoot && pathname === "/") return <Navigate to="/os" replace />
   if (OsRoot && (pathname === "/os" || pathname.startsWith("/os/"))) {
     return <Suspense fallback={null}><OsRoot /></Suspense>
   }
+  if (ClassicToOs) return <Suspense fallback={null}><ClassicToOs>{children}</ClassicToOs></Suspense>
   return children
 }
 

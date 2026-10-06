@@ -12,12 +12,12 @@ import { readGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import { invalidateProposalCache } from "../../lib/dao/proposals"
 import { hasInvisibleFormatting, revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { canVoteNow, formatChainTime, relativeTime, V2_STATUS_EXPLANATIONS } from "../../lib/dao/v2Lifecycle"
-import { ACTIVE_NETWORK_KEY, DAO_REALM_PATH } from "../../lib/config"
+import { DAO_REALM_PATH } from "../../lib/config"
 import { shortAddr } from "../shell/format"
 import { ThingTile } from "../shell/icons"
 import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
-import { daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "../shell/windows"
+import { appSpec, daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { daoKindKey, useDaoKind } from "../../hooks/useDaoKind"
 import { nameForRealm, realmForName } from "./daoNames"
@@ -241,7 +241,10 @@ function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderPro
                 <button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "new-proposal", dao: name })!)}>New proposal</button>
             </div>
         ) : kind.capabilities.propose.length > 0
-            ? <p className="os-sub">New proposals for this DAO contract use the <a href={`/${ACTIVE_NETWORK_KEY}/dao/${realmPath}/propose`}>classic proposal form</a>.</p>
+            ? <div className="os-row">
+                <p className="os-sub os-grow">New proposals for this DAO contract use the classic proposal form.</p>
+                <button type="button" className="os-btn os-quiet" onClick={() => open(appSpec("daos", `dao/${realmPath}/propose`))}>Open the proposal form</button>
+            </div>
             : <p className="os-sub">This DAO contract does not accept new proposals through Memba.</p>
         const list = proposals.isPending ? <Loading what="proposals" /> : proposals.isError ? <Failed what="proposals" retry={() => void proposals.refetch()} /> : (proposals.data ?? []).length === 0
             ? <p className="os-sub">No proposals yet.</p>
@@ -293,7 +296,7 @@ export function ProposalWindow({ dao, n, session, open }: { dao: string; n: numb
     if (!realmPath) return <NotADao name={dao} />
     return (
         <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} id={String(n)} session={session} />}>
-            <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} />
+            <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} open={open} />
         </StandardDaoOnly>
     )
 }
@@ -327,7 +330,7 @@ function Bar({ label, value, whole }: { label: string; value: number; whole: num
     )
 }
 
-function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: string; n: number; session: OsSession }) {
+function ProposalBody({ dao, realmPath, n, session, open }: { dao: string; realmPath: string; n: number; session: OsSession; open: (spec: WindowSpec) => void }) {
     const signer = useSigner()
     const alive = useAlive()
     const [quoting, setQuoting] = useState(false)
@@ -464,7 +467,10 @@ function ProposalBody({ dao, realmPath, n, session }: { dao: string; realmPath: 
             )}
             {execute && <div className="os-vote">{execute}</div>}
             {!p.v2 && p.statusLabel === "Passed" && kind.capabilities.execute && (
-                <p className="os-note">This proposal passed. A DAO member can execute it on the <a href={`/${ACTIVE_NETWORK_KEY}/dao/${realmPath}/proposal/${n}`}>DAO proposal page</a>.</p>
+                <div className="os-row">
+                    <p className="os-note os-grow">This proposal passed. A DAO member can execute it on the DAO proposal page.</p>
+                    <button type="button" className="os-btn os-quiet" onClick={() => open(appSpec("daos", `dao/${realmPath}/proposal/${n}`))}>Open the DAO proposal page</button>
+                </div>
             )}
             {p.description && (
                 <section>

@@ -2,7 +2,7 @@
 
 > Gno-native multisig wallet and DAO governance app on gno.land. Operate multisig wallets, launch and govern DAOs, launch tokens, run an on-chain AI-agent marketplace, and analyze contributors — all backed by on-chain Gno realms.
 
-Memba runs on **gno.land mainnet** (chain id `gnoland-1`, live since 2026-09-12). The Pearl testnet (`pearl-1`) was retired on 2026-09-23; old `/pearl/…` links redirect to the same page on mainnet. On-chain realm source lives in the `samcrew-deployer` repo; the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
+Memba runs on **gno.land mainnet** (chain id `gnoland-1`, live since 2026-09-12). The Pearl testnet (`pearl-1`) was retired on 2026-09-23; old `/pearl/…` links redirect to the same page on mainnet. On-chain realm source is readable on gno.land (for example https://gno.land/r/samcrew/memba_dao$source); the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
 
 ## Docs
 
@@ -18,7 +18,7 @@ Memba runs on **gno.land mainnet** (chain id `gnoland-1`, live since 2026-09-12)
 
 ## Endpoints
 
-- App: https://memba.samourai.app
+- App: https://memba.club (Memba OS; classic page URLs open their Memba OS window)
 - Backend API: https://memba-backend.fly.dev
 - RPC (mainnet): https://rpc.gno.land:443 (fallback: https://rpc.mainnet.samourai.live:443)
 - gnoweb (mainnet): https://gno.land
@@ -27,4 +27,4 @@ Memba runs on **gno.land mainnet** (chain id `gnoland-1`, live since 2026-09-12)
 ## Source
 
 - [Repository](https://github.com/samouraiworld/memba)
-- [Realm source — samcrew-deployer](https://github.com/samouraiworld/samcrew-deployer)
+- [Realm source on gno.land](https://gno.land/r/samcrew)

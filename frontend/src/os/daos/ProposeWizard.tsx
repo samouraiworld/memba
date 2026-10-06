@@ -13,7 +13,7 @@ import { revealInvisibleFormatting, v2CharCount, V2_MAX_DESCRIPTION_CHARS, V2_MA
 import { useDaoKind } from "../../hooks/useDaoKind"
 import { ThingTile } from "../shell/icons"
 import type { OsSession } from "../shell/useOsSession"
-import { specForTarget, type WindowSpec } from "../shell/windows"
+import { appSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { Field, WizardFrame } from "../wizard/WizardFrame"
 import { realmForName } from "./daoNames"
@@ -75,8 +75,11 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
 
     if (kind.loading || config.isPending || members.isPending) return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading the DAO's settings…</span></div>
     const v2 = config.data?.v2
-    if (kind.kind !== "memba-v2" || !v2) {
-        return <Gate><b>Memba OS makes proposals for version-2 DAOs.</b><span className="os-sub">This DAO uses another contract. Its proposals are listed in its folder.</span></Gate>
+    if (kind.kind === "memba-v2" && !v2) return <Gate><b>The DAO's settings couldn't be read.</b><button type="button" className="os-btn os-quiet" onClick={() => void config.refetch()}>Try again</button></Gate>
+    if (!v2) {
+        return kind.capabilities.propose.length > 0
+            ? <Gate><b>This DAO's contract takes new proposals on its own form.</b><button type="button" className="os-btn" onClick={() => open(appSpec("daos", `dao/${realmPath}/propose`))}>Open the proposal form</button></Gate>
+            : <Gate><b>This DAO's contract does not accept new proposals through Memba.</b><span className="os-sub">Its proposals are listed in its folder.</span></Gate>
     }
     if (!members.data) return <Gate><b>The DAO's members couldn't be read.</b><button type="button" className="os-btn os-quiet" onClick={() => void members.refetch()}>Try again</button></Gate>
     if (v2.archived) return <Gate><b>{revealInvisibleFormatting(v2.name)} is archived.</b><span className="os-sub">It no longer accepts proposals.</span></Gate>

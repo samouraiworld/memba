@@ -288,3 +288,38 @@ describe("page query strings", () => {
         expect(urlForWindow({ target: { kind: "app", app: "validators", section: null, query: "" } })).toBe("/os/validators")
     })
 })
+
+describe("appSpec for a DAO page the DAO windows don't have", () => {
+    it("opens beside the DAOs window at page size, one window per page", () => {
+        const form = appSpec("daos", "dao/gno.land/r/alice/team/propose")
+        expect(form).toMatchObject({ key: "daos:dao/gno.land/r/alice/team/propose", title: "Proposal form · alice.team", width: 960, height: 660 })
+        expect(appSpec("daos", "dao/gno.land/r/alice/team/settings").title).toBe("Settings · alice.team")
+        expect(appSpec("daos", "dao/gno.land/r/gov/dao/proposal/3").title).toBe("Proposal #3 · govdao")
+        expect(appSpec("daos")).toMatchObject({ key: "app:daos", width: 480, height: 400 })
+        const s = windowsReducer(windowsReducer(EMPTY_WINDOWS, open(appSpec("daos"))), open(form))
+        expect(s.wins.map((w) => w.key)).toEqual(["app:daos", "daos:dao/gno.land/r/alice/team/propose"])
+        expect(urlForWindow(form)).toBe("/os/daos/dao/gno.land/r/alice/team/propose")
+    })
+})
+
+describe("retarget", () => {
+    it("folds a window into one that already shows the new view, never two windows with one key", () => {
+        const folder = { ...daoSpec("alice.team", "overview") }
+        let s = windowsReducer(EMPTY_WINDOWS, open(folder))
+        s = windowsReducer(s, open(appSpec("daos", "dao/gno.land/r/alice/team/settings")))
+        const page = s.wins.find((w) => w.key.startsWith("daos:"))!
+        s = windowsReducer(s, { type: "retarget", id: page.id, spec: daoSpec("alice.team", "members") })
+        expect(s.wins.map((w) => w.key)).toEqual(["dao:alice.team"])
+        expect(s.wins[0].target).toEqual({ kind: "dao", name: "alice.team", section: "members" })
+    })
+
+    it("leaves the window it folds into where the retargeted one was: in front when that one was", () => {
+        let s = windowsReducer(EMPTY_WINDOWS, open(daoSpec("alice.team")))
+        s = windowsReducer(s, open(appSpec("feed")))
+        s = windowsReducer(s, open(appSpec("daos", "dao/gno.land/r/alice/team/settings")))
+        const page = frontWindow(s.wins)!
+        s = windowsReducer(s, { type: "retarget", id: page.id, spec: daoSpec("alice.team") })
+        expect(frontWindow(s.wins)!.key).toBe("dao:alice.team")
+        expect(s.wins.map((w) => w.key).sort()).toEqual(["app:feed", "dao:alice.team"])
+    })
+})

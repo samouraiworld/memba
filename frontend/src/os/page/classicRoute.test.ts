@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
+import { resolveNetworkKey, retiredNetworkSuccessor } from "../../lib/config"
 import { OS_APPS } from "../apps"
 import { parseOsPath } from "../shell/osPath"
 import { specForTarget, urlForWindow } from "../shell/windows"
-import { classicForSection, classicHome, matchRoute, osTargetForClassic, pageNeedsWallet, sectionForClassic } from "./classicRoute"
+import { classicForSection, classicHome, matchRoute, osTargetForClassic, osUrlForClassic, pageNeedsWallet, sectionForClassic } from "./classicRoute"
 
 const ADDR = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
@@ -120,5 +121,105 @@ describe("pageNeedsWallet", () => {
 
     it("lets a guest open the multisig forms, which carry their own connect prompt and a disabled submit", () => {
         expect(["create", "import", `multisig/${ADDR}`, `multisig/${ADDR}/propose`].some(pageNeedsWallet)).toBe(false)
+    })
+})
+
+// The redirect map of memba.samourai.app's retirement: a classic URL on memba.club opens its window.
+// Each row resolves the network as a cold page load does (the URL first, a retired one to its successor).
+describe("osUrlForClassic", () => {
+    const table: [string, string | null][] = [
+        ["/mainnet", "/os"],
+        ["/mainnet/", "/os"],
+        ["/mainnet//", "/os"],
+        ["/mainnet/?ref=x", "/os"],
+        ["/mainnet/dashboard", "/os"],
+        ["/mainnet/dao", "/os/daos"],
+        ["/mainnet/dao/create", "/os/daos/new"],
+        ["/mainnet/dao/gno.land/r/alice/team", "/os/dao/alice.team"],
+        ["/mainnet/dao/gno.land/r/alice/team/members", "/os/dao/alice.team/members"],
+        ["/mainnet/dao/gno.land/r/alice/team/treasury", "/os/dao/alice.team/treasury"],
+        ["/mainnet/dao/gno.land/r/alice/team/proposals", "/os/dao/alice.team/proposals"],
+        ["/mainnet/dao/gno.land/r/samcrew/memba_dao/proposals/3", "/os/dao/memba_dao/proposals/3"],
+        ["/mainnet/dao/gno.land/r/gov/dao/proposal/3", "/os/dao/govdao/proposals/3"],
+        ["/mainnet/dao/gno.land/r/alice/team/propose", "/os/dao/alice.team/proposals/new"],
+        // Pages the DAO windows don't have open as themselves in a DAOs window.
+        ["/mainnet/dao/gno.land/r/alice/team/settings", "/os/daos/dao/gno.land/r/alice/team/settings"],
+        ["/mainnet/dao/gno.land/r/alice/team/channels", "/os/daos/dao/gno.land/r/alice/team/channels"],
+        ["/mainnet/dao/gno.land/r/alice/team/plugin/board", "/os/daos/dao/gno.land/r/alice/team/plugin/board"],
+        ["/mainnet/dao/gno.land~r~alice~team/settings", "/os/daos/dao/gno.land/r/alice/team/settings"],
+        ["/mainnet/weighted-dao/gno.land/r/alice/team/proposals", "/os/dao/alice.team/proposals"],
+        // A weighted DAO's other classic pages are its folder.
+        ["/mainnet/weighted-dao/gno.land/r/alice/team/settings", "/os/dao/alice.team"],
+        ["/mainnet/organizations", "/os/daos/organizations"],
+        ["/mainnet/candidature", "/os/daos/candidature"],
+        ["/mainnet/multisig", "/os/multisig"],
+        ["/mainnet/create", "/os/multisig/create"],
+        ["/mainnet/import", "/os/multisig/import"],
+        [`/mainnet/multisig/${ADDR}`, `/os/multisig/${ADDR}`],
+        [`/mainnet/multisig/${ADDR}/propose`, `/os/multisig/${ADDR}/propose`],
+        ["/mainnet/tx/42", "/os/wallet/tx/42"],
+        ["/mainnet/feed", "/os/feed"],
+        ["/mainnet/feed/post/12?x=1", "/os/feed/post/12?x=1"],
+        [`/mainnet/feed/user/${ADDR}`, `/os/feed/user/${ADDR}`],
+        ["/mainnet/apps", "/os/store"],
+        ["/mainnet/apps/submit", "/os/store/submit"],
+        ["/mainnet/extensions", "/os/store/extensions"],
+        ["/mainnet/game", "/os/arcade"],
+        ["/mainnet/game/barricade", "/os/arcade/barricade"],
+        ["/mainnet/validators", "/os/validators"],
+        ["/mainnet/validators/hacker", "/os/validators/hacker"],
+        [`/mainnet/validators/${ADDR}`, `/os/validators/${ADDR}`],
+        ["/mainnet/alerts", "/os/validators/alerts"],
+        ["/mainnet/settings", "/os/settings"],
+        ["/mainnet/tokens", "/os/tokens"],
+        ["/mainnet/tokens/ABC", "/os/tokens/ABC"],
+        ["/mainnet/create-token", "/os/tokens/create-token"],
+        ["/mainnet/nft", "/os/nft"],
+        ["/mainnet/marketplace", "/os/market"],
+        ["/mainnet/services", "/os/market/services"],
+        ["/mainnet/quests", "/os/quests"],
+        ["/mainnet/leaderboard", "/os/quests/leaderboard"],
+        ["/mainnet/directory", "/os/explorer"],
+        [`/mainnet/profile/${ADDR}`, `/os/profile/${ADDR}`],
+        ["/mainnet/u/alice", "/os/profile/u/alice"],
+        ["/mainnet/blog", "/os/news"],
+        ["/mainnet/blog/why-memba", "/os/news/why-memba"],
+        ["/mainnet/changelogs", "/os/news/changelogs"],
+        ["/mainnet/gnolove", "/os/dev-report"],
+        ["/mainnet/feedback", "/os/feedback"],
+        // A bare legacy path gets the current network.
+        ["/feed/post/12", "/os/feed/post/12"],
+        // A retired network: the classic page redirects to its successor first, then that URL opens its window.
+        ["/pearl/dao", null],
+        ["/pearl/feed/post/12", null],
+        // No window: the classic page stays.
+        ["/github/callback?code=a&state=b", null],
+        ["/mainnet/github/callback?code=a&state=b", null],
+        ["/mainnet/marketplace-v2-preview", null],
+        ["/mainnet/dao/not-a-realm", null],
+        ["/mainnet/no-such-page", null],
+        // Networks hidden from the selector stay classic: Memba OS would not stay on them.
+        ["/test13/dao", null],
+        ["/topaz/dao", null],
+        ["/sapphire/feed", null],
+        ["/gnoland1/validators", null],
+        ["/onyx/feed", null],
+    ]
+    const resolve = (classic: string) => osUrlForClassic(classic, resolveNetworkKey({ pathname: classic }))
+
+    it.each(table)("%s → %s", (classic, os) => {
+        expect(resolve(classic)).toBe(os)
+    })
+
+    it("opens a URL the OS reads back as the same window", () => {
+        for (const [classic, os] of table) {
+            if (!os) continue
+            expect(urlForWindow({ target: parseOsPath(os.split("?")[0]) }), classic).toBe(os.split("?")[0])
+        }
+    })
+
+    it("follows a retired network's redirect in two hops", () => {
+        expect(resolve("/pearl/feed/post/12")).toBeNull()
+        expect(resolve(`/${retiredNetworkSuccessor("pearl")}/feed/post/12`)).toBe("/os/feed/post/12")
     })
 })
