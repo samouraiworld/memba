@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Launchpad fee keeper (2026-10-07)
+- A fee keeper command sweeps the Launchpad sales fees to the treasury daily (or at 10 GNOT) through a gnokey key referenced by name, and pages when the sweep differs from what was owed
+
 ### Launchpad solvency watcher (2026-10-07)
 - A solvency watcher in the backend reads the Launchpad sales and market books every minute and pages the pauser on a deficit, a fallen surplus or an unexpected view (off unless LAUNCHPAD_WATCH_ENABLED=1)
 

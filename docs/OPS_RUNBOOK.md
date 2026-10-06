@@ -10,6 +10,7 @@
 
 | Cadence | Task | Reference |
 |---------|------|-----------|
+| Hourly (scheduler) | Launchpad fee keeper, once the Launchpad is live: `backend/cmd/launchpad-keeper` sweeps the sales fees to the treasury once a day, or as soon as they reach 10 GNOT, and does nothing otherwise. It signs through `gnokey` with a dedicated hot key referenced by name (a few GNOT for gas, no role; never a multisig or a seat). Dry run first, then `-broadcast -key <name> -password-stdin < <password file>`. `-broadcast` refuses to run without `LAUNCHPAD_WATCH_WEBHOOK_URL`. A sweep whose `LaunchpadFeesSwept` event or bank transfer differs from the fees and treasury read before it pages that webhook and exits non-zero. Every other failure (node, gas price, broadcast, timeout, a run still holding the lock) only exits non-zero, so the scheduler must alert on the exit status. A broadcast that errors but lands is not checked: look it up in the explorer; the watcher pages any overpayment as `surplus_fell`. | The command's doc comment |
 | Weekly | Dependabot triage — review the grouped PRs (see `.github/dependabot.yml`), merge patch/minor groups, file v7.2 spike issues for any majors. | `docs/DEPENDENCY_POLICY.md` (Phase 0b deliverable) |
 | Weekly | Read the latest `govulncheck.yml` cron output. If any new CVE landed, file an issue and PR a bump within the SLA (HIGH = 5 BD, CRITICAL = 48h). | Phase 0a |
 | Monthly | Sentry release health review — verify source maps present for the last 4 releases; confirm error rate is within SLO (§3.2). | Phase 0a |
