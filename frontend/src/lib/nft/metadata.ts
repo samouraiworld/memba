@@ -71,15 +71,28 @@ function parseUrl(text: string): URL | null {
     }
 }
 
+/** Printable ASCII only, as the realm requires of an image: the URL parser would strip or re-encode anything else. */
+const printable = (uri: string) => uri.length <= MAX_URI && /^[\x21-\x7e]+$/.test(uri)
+
+/**
+ * An https link a creator wrote (a website), in the form the browser will
+ * open, or null. Every other scheme, and credentials in the URL, are refused.
+ */
+export function webUrl(uri: string): string | null {
+    if (!printable(uri) || !uri.startsWith("https://")) return null
+    const url = parseUrl(uri)
+    return url !== null && url.protocol === "https:" && url.username === "" && url.password === "" ? url.href : null
+}
+
 /**
  * The URL the browser may load for a collection image, a banner or a token
- * image, or null when the URI is not one this client renders. The answer is
- * always https: `ipfs://` goes through the gateway, and every other scheme
- * (`javascript:`, `data:`, `http:`…) is refused.
+ * image, or null when the URI is not one this client renders. Only IPFS is
+ * loaded: `ipfs://` goes through the gateway, an https URL only when it is
+ * already the gateway's, and anything else (a creator's own host, `data:`,
+ * `javascript:`…) is refused, so no host learns who views a token.
  */
 export function mediaUrl(uri: string): string | null {
-    // Printable ASCII only, as the realm requires of an image: the URL parser would strip or re-encode anything else.
-    if (uri.length > MAX_URI || !/^[\x21-\x7e]+$/.test(uri)) return null
+    if (!printable(uri)) return null
     const ipfs = IPFS.exec(uri)
     if (ipfs) {
         const root = getIpfsGatewayUrl(ipfs[1])
@@ -89,10 +102,8 @@ export function mediaUrl(uri: string): string | null {
         // Dot segments, encoded or not, must not climb out of the CID's own directory.
         return url !== null && (url.href === root || url.href.startsWith(`${root}/`)) ? url.href : null
     }
-    if (!uri.startsWith("https://")) return null
-    const url = parseUrl(uri)
-    // Credentials in a URL are never part of an image's address.
-    return url !== null && url.protocol === "https:" && url.username === "" && url.password === "" ? url.href : null
+    const url = webUrl(uri)
+    return url !== null && url.startsWith(GATEWAY) ? url : null
 }
 
 /**

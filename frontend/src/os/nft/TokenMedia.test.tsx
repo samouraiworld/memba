@@ -16,11 +16,19 @@ describe("token media", () => {
         expect(image).toHaveClass("os-nft-media", "os-nft-square")
     })
 
-    it("shows an https image as it is, in the banner shape when asked", () => {
+    it("never loads an image on a creator's own host: it shows the generated art and says why", () => {
         render(<TokenMedia uri="https://example.org/banner.png" seed="C1" alt="Banner" shape="banner" />)
         const image = screen.getByRole("img", { name: "Banner" })
-        expect(image).toHaveAttribute("src", "https://example.org/banner.png")
+        expect(image).toHaveAttribute("src", nftFallbackUri("C1"))
+        expect(document.querySelector('img[src^="https://example.org"]')).toBeNull()
         expect(image).toHaveClass("os-nft-media", "os-nft-banner")
+        expect(screen.getByText("Image hosted outside IPFS, not loaded for your privacy.")).toBeInTheDocument()
+    })
+
+    it("loads an image already resolved to the gateway, and says nothing more", () => {
+        render(<TokenMedia uri={`${getIpfsGatewayUrl(CID)}/7.png`} seed="C1/7" alt="Seven" />)
+        expect(screen.getByRole("img", { name: "Seven" })).toHaveAttribute("src", `${getIpfsGatewayUrl(CID)}/7.png`)
+        expect(screen.queryByText(/outside IPFS/)).toBeNull()
     })
 
     it.each([

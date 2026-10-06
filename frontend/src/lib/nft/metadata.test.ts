@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getIpfsGatewayUrl } from "../ipfs"
-import { TokenMetadataError, fetchTokenMetadata, mediaUrl } from "./metadata"
+import { TokenMetadataError, fetchTokenMetadata, mediaUrl, webUrl } from "./metadata"
 
 const CID = `bafy${"b".repeat(55)}`
 const RAW_CID = `bafk${"c".repeat(55)}`
@@ -41,10 +41,15 @@ describe("media URL", () => {
         expect(url).toMatch(/^https:\/\/[^/]+\/ipfs\//)
     })
 
-    it("keeps an https URL, in the form the browser will request", () => {
-        expect(mediaUrl("https://example.org/art/7.png?size=l#top")).toBe("https://example.org/art/7.png?size=l#top")
-        expect(mediaUrl("https://EXAMPLE.org")).toBe("https://example.org/")
-        expect(mediaUrl("https://example.org:8443/a'b.png")).toBe("https://example.org:8443/a'b.png")
+    it("loads no image from a creator's own host, but keeps it as a link in the form the browser will open", () => {
+        for (const uri of ["https://example.org/art/7.png?size=l#top", "https://EXAMPLE.org", "https://example.org:8443/a'b.png"]) {
+            expect(mediaUrl(uri)).toBeNull()
+        }
+        expect(webUrl("https://example.org/art/7.png?size=l#top")).toBe("https://example.org/art/7.png?size=l#top")
+        expect(webUrl("https://EXAMPLE.org")).toBe("https://example.org/")
+        expect(webUrl("https://example.org:8443/a'b.png")).toBe("https://example.org:8443/a'b.png")
+        expect(webUrl("https://user:pass@example.org/")).toBeNull()
+        expect(webUrl(`ipfs://${CID}`)).toBeNull()
     })
 
     it("answers the same for a URL it has already resolved", () => {
@@ -95,7 +100,7 @@ describe("media URL", () => {
     })
 
     it("accepts a URL of exactly 2,048 characters", () => {
-        expect(mediaUrl(`https://example.org/${"a".repeat(2_028)}`)).toHaveLength(2_048)
+        expect(webUrl(`https://example.org/${"a".repeat(2_028)}`)).toHaveLength(2_048)
     })
 })
 
@@ -117,9 +122,9 @@ describe("token metadata", () => {
         expect(fetchMock.mock.calls[0][0]).toBe(`${getIpfsGatewayUrl(CID)}/7.json`)
     })
 
-    it("fetches a gateway URL as it is, and keeps an https image on the creator's own host", async () => {
+    it("fetches a gateway URL as it is, and drops an image on the creator's own host", async () => {
         serveJson({ image: "https://example.org/7.png" })
-        await expect(fetchTokenMetadata(`${getIpfsGatewayUrl(CID)}/7.json`)).resolves.toMatchObject({ image: "https://example.org/7.png" })
+        await expect(fetchTokenMetadata(`${getIpfsGatewayUrl(CID)}/7.json`)).resolves.toMatchObject({ image: null })
         expect(fetchMock.mock.calls[0][0]).toBe(`${getIpfsGatewayUrl(CID)}/7.json`)
     })
 
