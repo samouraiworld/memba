@@ -30,7 +30,7 @@
     "directory": "mcp-server-dao-analyst"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@samouraiworld/gno-rpc": "workspace:*",
     "zod": "^3.24.4"
   },
