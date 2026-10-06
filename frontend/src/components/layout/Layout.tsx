@@ -32,6 +32,7 @@ import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 import { RealmsNotDeployedBanner } from "../ui/RealmsNotDeployedBanner"
+import { MovedNotice } from "../ui/MovedNotice"
 import { RetiredNetworkNotice } from "../ui/RetiredNetworkNotice"
 import { ActivationModal } from "../ui/ActivationModal"
 import { networkHasRealms, GNO_FAUCET_URL } from "../../lib/config"
@@ -324,6 +325,9 @@ export function Layout() {
                 networkKey={network.networkKey}
                 onSwitchNetwork={network.switchNetwork}
             />
+
+            {/* ── memba.samourai.app only: Memba moved to memba.club ── */}
+            <MovedNotice />
 
             {/* ── A /<retired-network>/ link was redirected here (pearl → mainnet) ── */}
             <RetiredNetworkNotice />

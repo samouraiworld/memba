@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### memba.samourai.app: Memba moved (2026-10-06)
+- memba.samourai.app now shows that Memba has moved to memba.club, with a link to the same page there and a note on what this browser saved that does not move (saved DAOs, drafts, settings)
+
 ### Memba DAO: read-only while governance moves (2026-10-06)
 - Memba DAO (v12) is read-only in Memba while it moves to a new governance contract: Memba OS and the classic DAO page show its seats, rules, proposals, votes and fees, but offer no proposal, vote or execution, say why, and no longer count its proposals as votes waiting for you
 
