@@ -188,6 +188,31 @@ describe("AppSubmit — my submissions (B5 lite)", () => {
         expect(msgs[0].value.args[0]).toBe("gno.land/r/samcrew/bad_v1")
     })
 
+    it("resubmits as an edit even when the click lands before React's effects of the render that opened it", async () => {
+        const row = mine({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected", rejectReason: "broken link" })
+        fetchByPublisher.mockResolvedValue([row])
+        fetchApp.mockResolvedValue({ ...row, descr: "Full description.", screenshotCIDs: [] })
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByText("Bad App")
+        // Click in the microtask right after the edit form renders, before React runs that render's
+        // passive effects, as a busy machine can: the call must not be the register path of the render before.
+        const clicked = new Promise<void>((resolve) => {
+            const observer = new MutationObserver(() => {
+                const submit = screen.queryByTestId("appsubmit-submit")
+                if (!submit || (submit as HTMLButtonElement).disabled || !screen.queryByText(/^Fixing/)) return
+                observer.disconnect()
+                fireEvent.click(submit)
+                resolve()
+            })
+            observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+        })
+        fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
+        await clicked
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
+        expect(doContractBroadcast.mock.calls[0][0][0].value.func).toBe("EditListing")
+        expect(doContractBroadcast.mock.calls[0][0][0].value.send).toBe("")
+    })
+
     it("seeds the resubmit form from full on-chain detail so EditListing can't wipe descr + screenshots", async () => {
         // ListByPublisherJSON (the My-Submissions list window) omits descr + screenshots, but
         // EditListing overwrites EVERY field. Seeding the form from the list row would blank the

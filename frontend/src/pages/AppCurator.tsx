@@ -154,12 +154,13 @@ function QueueItem({ listing, networkKey, address }: {
         void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
     }
 
+    // A mutation's options reach it in an effect after each render, so a click landing before that
+    // effect would run an earlier render's mutationFn (a reason without its last keystroke): the
+    // verdict, the account, the listing and the reason travel with the call.
     const act = useMutation({
-        mutationFn: async (kind: "approve" | "reject") => {
+        mutationFn: async ({ kind, caller, pkgPath, reason }: { kind: "approve" | "reject"; caller: string; pkgPath: string; reason: string }) => {
             const { doContractBroadcast } = await import("../lib/grc20")
-            const msg = kind === "approve"
-                ? buildApproveAppMsg(address, listing.pkgPath)
-                : buildRejectAppMsg(address, listing.pkgPath, reason.trim())
+            const msg = kind === "approve" ? buildApproveAppMsg(caller, pkgPath) : buildRejectAppMsg(caller, pkgPath, reason)
             return doContractBroadcast([msg], kind === "approve" ? "Approve app" : "Reject app")
         },
         onSuccess: removeFromQueue,
@@ -198,7 +199,7 @@ function QueueItem({ listing, networkKey, address }: {
                     Preview listing
                 </Link>
                 <button type="button" className="appbtn appbtn--primary" disabled={act.isPending}
-                    onClick={() => { setError(null); act.mutate("approve") }}>
+                    onClick={() => { setError(null); act.mutate({ kind: "approve", caller: address, pkgPath: listing.pkgPath, reason: "" }) }}>
                     {act.isPending ? "Waiting for wallet…" : "Approve"}
                 </button>
                 {!rejecting && (
@@ -221,7 +222,7 @@ function QueueItem({ listing, networkKey, address }: {
                         <button type="button" className="appbtn appbtn--primary"
                             data-testid="appcurator-reject-confirm"
                             disabled={act.isPending || reason.trim() === ""}
-                            onClick={() => { setError(null); act.mutate("reject") }}>
+                            onClick={() => { setError(null); act.mutate({ kind: "reject", caller: address, pkgPath: listing.pkgPath, reason: reason.trim() }) }}>
                             {act.isPending ? "Waiting for wallet…" : "Reject with reason"}
                         </button>
                         <button type="button" className="appbtn appbtn--ghost" disabled={act.isPending}

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { screen, waitFor, fireEvent } from "@testing-library/react"
 import { renderWithProviders } from "../../test/test-utils"
@@ -82,5 +83,34 @@ describe("FeedModQueue", () => {
         renderWithProviders(<FeedModQueue bearer="wrong" />)
 
         await waitFor(() => expect(screen.getByText(/couldn.t load|bearer|rejected|unauthenticated/i)).toBeInTheDocument())
+    })
+
+    it("sends the bearer the page holds now, even when the click lands before React's effects of the render that set it", async () => {
+        vi.mocked(mod.fetchFlaggedPosts).mockResolvedValue({ posts: [FLAGGED_POST], nextCursor: 0n } as never)
+        vi.mocked(mod.postModeration).mockResolvedValue(undefined as never)
+        const { default: FeedModQueue } = await import("./FeedModQueue")
+        // A page whose bearer changes outside a user event (as a token refresh would), shown on a marker.
+        let replaceBearer: (bearer: string) => void = () => {}
+        function Page() {
+            const [bearer, setBearer] = useState("old-bearer")
+            useEffect(() => { replaceBearer = setBearer }, [])
+            return <><span data-testid="bearer" data-bearer={bearer} /><FeedModQueue bearer={bearer} by="mod" /></>
+        }
+        renderWithProviders(<Page />)
+        const restore = await screen.findByRole("button", { name: /^Restore post/i })
+        // Click in the microtask right after the new bearer renders, before React runs that render's effects.
+        const clicked = new Promise<void>((resolve) => {
+            const observer = new MutationObserver(() => {
+                if (screen.getByTestId("bearer").getAttribute("data-bearer") !== "new-bearer") return
+                observer.disconnect()
+                fireEvent.click(restore)
+                resolve()
+            })
+            observer.observe(document.body, { attributes: true, subtree: true })
+        })
+        void Promise.resolve().then(() => replaceBearer("new-bearer"))
+        await clicked
+        await waitFor(() => expect(mod.postModeration).toHaveBeenCalledOnce())
+        expect(mod.postModeration).toHaveBeenCalledWith(expect.objectContaining({ postId: 42n, action: "override_serve", by: "mod" }), "new-bearer")
     })
 })

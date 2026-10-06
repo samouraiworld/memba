@@ -80,20 +80,16 @@ export function AppSubmit() {
         retry: 1,
     })
 
+    // A mutation's options reach it in an effect after each render (react-query's setOptions), so a
+    // click landing before that effect would run an earlier render's mutationFn: the form, the mode,
+    // the account and the fee travel with each call as its variables, evaluated in the submit
+    // handler of the committed render, and nothing here reads render state.
     const broadcast = useMutation({
-        // The submission is passed as the mutation VARIABLE (not closed over): `mutate(form)` is
-        // evaluated in the submit handler's committed-fiber closure, so the broadcast always signs
-        // the latest committed form. Closing over `form` here could read a stale render (react-query
-        // holds the mutationFn from whichever render last ran setOptions), which rarely dropped a
-        // just-uploaded iconCID/screenshot from the wire args.
-        mutationFn: async (submission: AppSubmission) => {
-            return mode.kind === "edit"
-                ? submitEditListing(address, submission, mode.was)
-                : submitRegisterApp(address, submission, fee ?? Number.NaN)
-        },
-        onSuccess: () => {
+        mutationFn: ({ caller, submission, mode, fee }: { caller: string; submission: AppSubmission; mode: Mode; fee: number }) =>
+            mode.kind === "edit" ? submitEditListing(caller, submission, mode.was) : submitRegisterApp(caller, submission, fee),
+        onSuccess: (_res, { caller, mode }) => {
             // Sent, not yet seen on chain: the list is read again rather than shown as if it were.
-            void qc.invalidateQueries({ queryKey: ["appStore", "mine", address] })
+            void qc.invalidateQueries({ queryKey: ["appStore", "mine", caller] })
             void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
             setDone(mode.kind)
             setTxError(null)
@@ -109,15 +105,13 @@ export function AppSubmit() {
     const [delistArm, setDelistArm] = useState<string | null>(null)
     const [delistError, setDelistError] = useState<string | null>(null)
     const delist = useMutation({
-        mutationFn: async (pkgPath: string) => {
-            return submitDelistApp(address, pkgPath)
-        },
-        onSuccess: (_res, pkgPath) => {
+        mutationFn: ({ caller, pkgPath }: { caller: string; pkgPath: string }) => submitDelistApp(caller, pkgPath),
+        onSuccess: (_res, { caller, pkgPath }) => {
             // Optimistic flip — the chain read lags the broadcast, so do NOT
             // invalidate "mine" here (a refetch would resurrect the old status);
             // the next natural refetch reconciles. Pending is invalidated so a
             // delisted pending app leaves the curator queue promptly.
-            qc.setQueryData<AppListing[]>(["appStore", "mine", address], (prev) =>
+            qc.setQueryData<AppListing[]>(["appStore", "mine", caller], (prev) =>
                 (prev ?? []).map((l) => (l.pkgPath === pkgPath ? { ...l, status: "delisted" } : l)),
             )
             void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
@@ -226,7 +220,7 @@ export function AppSubmit() {
                     className="appsubmit__form"
                     onSubmit={(e) => {
                         e.preventDefault()
-                        if (canSubmit) broadcast.mutate(form)
+                        if (canSubmit) broadcast.mutate({ caller: address, submission: form, mode, fee: fee ?? Number.NaN })
                     }}
                 >
                     {mode.kind === "edit" && (
@@ -293,7 +287,7 @@ export function AppSubmit() {
                         delistArm={delistArm}
                         delistError={delistError}
                         onArmDelist={(p) => { setDelistArm(p); setDelistError(null) }}
-                        onConfirmDelist={(pkgPath) => delist.mutate(pkgPath)}
+                        onConfirmDelist={(pkgPath) => delist.mutate({ caller: address, pkgPath })}
                         delisting={delist.isPending}
                     />
                 </section>
