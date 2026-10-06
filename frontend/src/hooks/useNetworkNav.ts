@@ -1,6 +1,6 @@
 import { useCallback } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { NETWORKS, storedNetworkKey } from "../lib/config"
+import { isNetworkKey, storedNetworkKey } from "../lib/config"
 
 /**
  * Returns the current network key from the URL /:network param.
@@ -11,7 +11,7 @@ import { NETWORKS, storedNetworkKey } from "../lib/config"
  */
 export function useNetworkKey(): string {
     const { network } = useParams<{ network: string }>()
-    if (network && NETWORKS[network]) return network
+    if (isNetworkKey(network)) return network
     return storedNetworkKey()
 }
 

@@ -12,7 +12,7 @@
  */
 import { useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { ACTIVE_NETWORK_KEY, NETWORKS } from "../../lib/config"
+import { ACTIVE_NETWORK_KEY, isNetworkKey } from "../../lib/config"
 
 const STORAGE_KEY = "memba_network"
 
@@ -20,7 +20,7 @@ export function NetworkSync() {
     const { network } = useParams<{ network: string }>()
 
     useEffect(() => {
-        if (!network || !NETWORKS[network]) return
+        if (!isNetworkKey(network)) return
 
         if (localStorage.getItem(STORAGE_KEY) !== network) {
             localStorage.setItem(STORAGE_KEY, network)

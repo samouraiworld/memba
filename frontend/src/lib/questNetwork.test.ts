@@ -16,9 +16,9 @@ describe("isQuestAvailableOnNetwork", () => {
     )
 
     it.each(["join-dao", "submit-candidature", "create-token"])(
-        "%s is available on a network with its realm (pearl)",
+        "%s is available on a network with its realm (test13)",
         (id) => {
-            expect(isQuestAvailableOnNetwork(id, "pearl")).toBe(true)
+            expect(isQuestAvailableOnNetwork(id, "test13")).toBe(true)
         },
     )
 

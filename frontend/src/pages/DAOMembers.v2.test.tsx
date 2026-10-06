@@ -12,7 +12,7 @@ vi.mock("react-router-dom", async (orig) => ({ ...(await orig<typeof import("rea
 vi.mock("../hooks/useDaoKind", async () => {
     const { capabilitiesFor } = await import("../lib/dao/kind")
     const { NETWORKS } = await import("../lib/config")
-    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.pearl), loading: false, error: null }) }
+    return { useDaoKind: () => ({ kind: "memba-v2", capabilities: capabilitiesFor("memba-v2", NETWORKS.mainnet), loading: false, error: null }) }
 })
 vi.mock("../components/ui/CopyableAddress", () => ({ CopyableAddress: ({ address }: { address: string }) => <span>{address}</span> }))
 vi.mock("../lib/dao", async (orig) => ({
@@ -30,7 +30,7 @@ function mount() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     return render(
         <QueryClientProvider client={client}>
-            <MemoryRouter initialEntries={[`/pearl/dao/${REALM}/members`]}>
+            <MemoryRouter initialEntries={[`/mainnet/dao/${REALM}/members`]}>
                 <Routes><Route path="/:network/dao/*" element={<DAOMembers />} /></Routes>
             </MemoryRouter>
         </QueryClientProvider>,
@@ -50,9 +50,9 @@ describe("version-2 DAO members page", () => {
         expect(screen.getByRole("heading", { name: "Members" })).toBeInTheDocument()
         expect(screen.getByText("Voting power")).toBeInTheDocument()
         expect(screen.getByLabelText("Voting power 2,000")).toBeInTheDocument()
-        expect(within(row).getByRole("link", { name: "Propose role change" })).toHaveAttribute("href", `/pearl/dao/${REALM}/propose?type=change_role&target=${BOB}`)
-        expect(within(row).getByRole("link", { name: "Propose removal" })).toHaveAttribute("href", `/pearl/dao/${REALM}/propose?type=remove_member&target=${BOB}`)
-        expect(screen.getByRole("link", { name: "Propose a new member" })).toHaveAttribute("href", `/pearl/dao/${REALM}/propose?type=add_member`)
+        expect(within(row).getByRole("link", { name: "Propose role change" })).toHaveAttribute("href", `/mainnet/dao/${REALM}/propose?type=change_role&target=${BOB}`)
+        expect(within(row).getByRole("link", { name: "Propose removal" })).toHaveAttribute("href", `/mainnet/dao/${REALM}/propose?type=remove_member&target=${BOB}`)
+        expect(screen.getByRole("link", { name: "Propose a new member" })).toHaveAttribute("href", `/mainnet/dao/${REALM}/propose?type=add_member`)
         expect(screen.queryByRole("button", { name: /assign|remove role|manage/i })).not.toBeInTheDocument()
     })
 

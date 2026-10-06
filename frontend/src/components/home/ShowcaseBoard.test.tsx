@@ -82,7 +82,7 @@ describe("ShowcaseBoard — GovDAO-first", () => {
 
 describe("ShowcaseBoard — MembaDAO demoted to a credit", () => {
     it("renders a MembaDAO credit line (not a hero) linking to the memba_dao page", () => {
-        renderWithProviders(<ShowcaseBoard networkKey="pearl" />)
+        renderWithProviders(<ShowcaseBoard networkKey="test13" />)
         const credit = screen.getByTestId("showcase-board-credit")
         expect(credit).toHaveTextContent(/built on memba/i)
         const link = screen.getByRole("link", { name: /membadao/i })

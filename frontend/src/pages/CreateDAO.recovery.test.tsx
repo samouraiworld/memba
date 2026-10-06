@@ -7,9 +7,15 @@ vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: { address
 vi.mock("../lib/grc20", async (original) => ({ ...await original<typeof import("../lib/grc20")>(), doContractBroadcast: mocks.broadcast, networkGasPrice: async () => ({ gas: 1000, ugnot: 1 }), networkGasPriceFresh: async () => ({ gas: 1000, ugnot: 1 }) }))
 vi.mock("../lib/daoSlug", () => ({ saveDAOForRecovery: (_org: unknown, path: string, name: string) => mocks.save(path, name), encodeSlug: () => "saved-dao" }))
 vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
-// Pearl: user DAO creation and the channels companion are available; chain
-// checks are covered by lib/dao/packageStatus.test.ts.
-vi.mock("../lib/config", async (original) => ({ ...await original<typeof import("../lib/config")>(), ACTIVE_NETWORK_KEY: "pearl", GNO_CHAIN_ID: "pearl-1" }))
+// A network offering user DAO creation AND the channels companion. No registry
+// network offers the companion today (Pearl, the last one, is retired), so the
+// fixture turns both on for test13, the network with the channels realm
+// allowlisted. Chain checks are covered by lib/dao/packageStatus.test.ts.
+vi.mock("../lib/config", async (original) => {
+    const actual = await original<typeof import("../lib/config")>()
+    const test13 = { ...actual.NETWORKS.test13, userDaos: { create: true, channelsCompanion: true } }
+    return { ...actual, NETWORKS: { ...actual.NETWORKS, test13 }, ACTIVE_NETWORK_KEY: "test13", GNO_CHAIN_ID: "test-13" }
+})
 vi.mock("../lib/dao/namespace", () => ({ assertCanDeployTo: vi.fn(async () => {}) }))
 vi.mock("../lib/dao/packageStatus", () => ({ listPendingDAOs: () => [], hasVolatilePendingDAO: () => false, assertPathAvailable: vi.fn(async () => ({ replacesParked: false })), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn(), removePendingDAO: vi.fn() }))
 import { draftKey, loadDraft, saveDraft, clearDraftMemory } from "../lib/dao/drafts"
@@ -49,24 +55,24 @@ describe("DAO creation recovery", () => {
         mocks.address = "g1anotherwallet"
         view.rerender(<CreateDAO />)
         expect(screen.getByPlaceholderText("My DAO")).toHaveValue("")
-        expect(loadDraft({ chainId: "pearl-1", wallet: alice })?.data.name).toBe("Alice draft")
+        expect(loadDraft({ chainId: "test-13", wallet: alice })?.data.name).toBe("Alice draft")
         fireEvent.change(screen.getByPlaceholderText("My DAO"), { target: { value: "Bob draft" } })
-        expect(loadDraft({ chainId: "pearl-1", wallet: alice })?.data.name).toBe("Alice draft")
-        expect(loadDraft({ chainId: "pearl-1", wallet: mocks.address })?.data.name).toBe("Bob draft")
+        expect(loadDraft({ chainId: "test-13", wallet: alice })?.data.name).toBe("Alice draft")
+        expect(loadDraft({ chainId: "test-13", wallet: mocks.address })?.data.name).toBe("Bob draft")
     })
     it("requires confirmation before resetting a resumed draft", () => {
         resume()
         fireEvent.click(screen.getByRole("button", { name: "Reset draft" }))
         expect(screen.getByRole("alertdialog")).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Keep draft" }))
-        expect(loadDraft({ chainId: "pearl-1", wallet: mocks.address })).not.toBeNull()
+        expect(loadDraft({ chainId: "test-13", wallet: mocks.address })).not.toBeNull()
         fireEvent.click(screen.getByRole("button", { name: "Reset draft" }))
         fireEvent.click(screen.getByRole("button", { name: "Confirm discard" }))
-        expect(loadDraft({ chainId: "pearl-1", wallet: mocks.address })).toBeNull()
+        expect(loadDraft({ chainId: "test-13", wallet: mocks.address })).toBeNull()
         expect(screen.getByPlaceholderText("My DAO")).toHaveValue("")
     })
     it("resumes a readable scoped draft even when autosave is unavailable", async () => {
-        saveDraft({ chainId: "pearl-1", wallet: mocks.address }, draft())
+        saveDraft({ chainId: "test-13", wallet: mocks.address }, draft())
         const write = vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
         render(<CreateDAO />)
         fireEvent.click(screen.getByRole("button", { name: "Resume" }))
@@ -133,7 +139,7 @@ describe("DAO creation recovery", () => {
         expect(await screen.findByTestId("deploy-error")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         expect(mocks.save).not.toHaveBeenCalled()
-        expect(localStorage.getItem(draftKey({ chainId: "pearl-1", wallet: mocks.address }))).not.toBeNull()
+        expect(localStorage.getItem(draftKey({ chainId: "test-13", wallet: mocks.address }))).not.toBeNull()
     })
     it("treats a wallet-network refusal after the rechecks as nothing sent", async () => {
         mocks.broadcast.mockImplementationOnce(async (_msgs: unknown, _memo: unknown, opts: { beforeSign: () => void }) => {
@@ -144,7 +150,7 @@ describe("DAO creation recovery", () => {
         await deploy()
         expect(await screen.findByTestId("deploy-error")).toHaveTextContent("Adena is locked")
         expect(screen.queryByText(/wallet outcome could not be confirmed/)).not.toBeInTheDocument()
-        expect(removePendingDAO).toHaveBeenCalledWith("pearl-1", "gno.land/r/test/recovery")
+        expect(removePendingDAO).toHaveBeenCalledWith("test-13", "gno.land/r/test/recovery")
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
     })
     it("reports a local bookmark failure without losing the confirmed DAO", async () => {

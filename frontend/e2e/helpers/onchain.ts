@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test'
  * E2E on-chain network determinism — the "deterministic by default" primitive.
  *
  * Memba's on-chain-backed pages (treasury, DAO, validators, directory, …) render
- * a loading shell until a live read against the public default-network (pearl)
+ * a loading shell until a live read against the public default-network (mainnet)
  * RPC settles. In CI
  * that RPC is slow/variable, so any spec that asserts on post-load content races
  * the read against its timeout and flakes — and because it's shared-infra
@@ -23,7 +23,7 @@ import type { Page } from '@playwright/test'
  * The default-network primary + fallback gno RPC hosts — i.e. GNO_RPC_URL
  * and GNO_FALLBACK_RPC_URLS in frontend/src/lib/config.ts. samourai.live is in
  * the list because the samourai sentry serves the default network
- * (rpc.pearl.samourai.live is in pearl's fallback set): aborting only the
+ * (rpc.mainnet.samourai.live is in mainnet's fallback set): aborting only the
  * primary made the app fail over to a LIVE samourai read and reintroduced
  * exactly the shared-infra race this helper exists to kill (found via a CI
  * flake on a cutover PR; the suffix-matched host list has covered every
@@ -173,7 +173,7 @@ export async function fulfillOnchainReads(
 /**
  * A /status result naming the chain the app under test is configured for.
  * Strict DAO reads verify `node_info.network` before trusting any answer, so
- * DAO fixtures must report the app's chain (the default network, pearl-1,
+ * DAO fixtures must report the app's chain (the default network, gnoland-1,
  * unless E2E_CHAIN_ID says otherwise).
  */
 /**

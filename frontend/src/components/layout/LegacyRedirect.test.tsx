@@ -59,17 +59,17 @@ function renderRoot() {
 const networkOf = (path: string) => path.match(/^\/([^/]+)\//)?.[1]
 
 /** Since pearl's 2026-09-23 retirement mainnet is the ONLY visible network, so
- *  a case that needs a visible NON-default network un-hides pearl for its
- *  duration (the resolver reads `hidden` at call time). Without a second
- *  visible network such a case could not tell "kept the stored key" from
- *  "fell back to the default". */
-function withPearlVisible(fn: () => void) {
-    const was = NETWORKS.pearl.hidden
-    NETWORKS.pearl.hidden = false
+ *  a case that needs a visible NON-default network un-hides onyx (hidden, in the
+ *  registry) for its duration (the resolver reads `hidden` at call time).
+ *  Without a second visible network such a case could not tell "kept the stored
+ *  key" from "fell back to the default". */
+function withOnyxVisible(fn: () => void) {
+    const was = NETWORKS.onyx.hidden
+    NETWORKS.onyx.hidden = false
     try {
         fn()
     } finally {
-        NETWORKS.pearl.hidden = was
+        NETWORKS.onyx.hidden = was
     }
 }
 
@@ -112,9 +112,9 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
     })
 
     it("keeps a stored VISIBLE network", () => {
-        withPearlVisible(() => {
-            localStorage.setItem("memba_network_pref", "pearl")
-            expect(renderLegacy("/directory")).toBe("/pearl/directory")
+        withOnyxVisible(() => {
+            localStorage.setItem("memba_network_pref", "onyx")
+            expect(renderLegacy("/directory")).toBe("/onyx/directory")
         })
     })
 
@@ -139,10 +139,10 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
     })
 
     it("preserves path, search and hash", () => {
-        withPearlVisible(() => {
-            localStorage.setItem("memba_network_pref", "pearl")
+        withOnyxVisible(() => {
+            localStorage.setItem("memba_network_pref", "onyx")
             expect(renderLegacy("/dao/gno.land~r~gov~dao?tab=votes#top"))
-                .toBe("/pearl/dao/gno.land~r~gov~dao?tab=votes#top")
+                .toBe("/onyx/dao/gno.land~r~gov~dao?tab=votes#top")
         })
     })
 })
@@ -150,7 +150,7 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
 /**
  * `memba_network` is an echo of the last /:network URL visited (NetworkSync);
  * `memba_network_pref` is written only when the user explicitly switches. A
- * visit to a /pearl/... link must not count as choosing pearl — otherwise a
+ * visit to a /test13/... link must not count as choosing test13 — otherwise a
  * change of default network could never move anyone. Since pearl's retirement
  * (2026-09-23) the echo is not read by the redirects at all.
  */
@@ -162,31 +162,32 @@ describe("Redirects — only an explicit choice is restored, never the URL echo"
 
     it("sends / and a bookmark to the chosen network, not the last one visited", () => {
         // Both values must name VISIBLE networks or the case proves nothing.
-        // Pearl is hidden since 2026-09-23, so it is un-hidden for the case.
-        withPearlVisible(() => {
+        // Onyx is hidden, so it is un-hidden for the case.
+        withOnyxVisible(() => {
             localStorage.setItem("memba_network", "mainnet")
-            localStorage.setItem("memba_network_pref", "pearl")
-            expect(networkOf(renderRoot())).toBe("pearl")
-            expect(networkOf(renderLegacy("/directory"))).toBe("pearl")
+            localStorage.setItem("memba_network_pref", "onyx")
+            expect(networkOf(renderRoot())).toBe("onyx")
+            expect(networkOf(renderLegacy("/directory"))).toBe("onyx")
         })
     })
 
     it("a stale echo no longer steers / or a bookmark, even to a visible network", () => {
-        // Every pre-retirement visitor carries `memba_network=pearl`. With the
-        // echo step dropped they land on the default, whatever the echo says.
-        withPearlVisible(() => {
-            localStorage.setItem("memba_network", "pearl")
+        // With the echo step dropped visitors land on the default, whatever
+        // the echo says — even when it names a visible network…
+        withOnyxVisible(() => {
+            localStorage.setItem("memba_network", "onyx")
             expect(networkOf(renderRoot())).toBe(DEFAULT_NETWORK)
             expect(networkOf(renderLegacy("/directory"))).toBe(DEFAULT_NETWORK)
         })
+        // …and every pre-retirement visitor carries `memba_network=pearl`.
         localStorage.setItem("memba_network", "pearl")
         expect(networkOf(renderRoot())).toBe(DEFAULT_NETWORK)
         expect(networkOf(renderLegacy("/directory"))).toBe(DEFAULT_NETWORK)
     })
 
     it("never restores a chosen network that has since been hidden — and does not fall back to the echo", () => {
-        withPearlVisible(() => {
-            localStorage.setItem("memba_network", "pearl")
+        withOnyxVisible(() => {
+            localStorage.setItem("memba_network", "onyx")
             localStorage.setItem("memba_network_pref", "test13")
             expect(networkOf(renderRoot())).toBe(DEFAULT_NETWORK)
             expect(networkOf(renderLegacy("/directory"))).toBe(DEFAULT_NETWORK)
@@ -200,15 +201,15 @@ describe("Redirects — only an explicit choice is restored, never the URL echo"
     })
 
     it("/ and a bookmark agree for every stored choice", () => {
-        withPearlVisible(() => {
-            for (const pref of ["gnoland1", "test13", "onyx", "sapphire", "no-such-network"]) {
-                localStorage.setItem("memba_network", "pearl")
+        withOnyxVisible(() => {
+            for (const pref of ["gnoland1", "test13", "onyx", "pearl", "sapphire", "no-such-network"]) {
+                localStorage.setItem("memba_network", "onyx")
                 localStorage.setItem("memba_network_pref", pref)
                 expect(networkOf(renderLegacy("/directory")), `pref=${pref}`).toBe(networkOf(renderRoot()))
             }
         })
-        // …and with pearl hidden (reality since 2026-09-23) as well.
-        for (const pref of ["gnoland1", "pearl", "no-such-network"]) {
+        // …and with onyx hidden (reality) and a retired echo as well.
+        for (const pref of ["gnoland1", "pearl", "onyx", "no-such-network"]) {
             localStorage.setItem("memba_network", "pearl")
             localStorage.setItem("memba_network_pref", pref)
             expect(networkOf(renderLegacy("/directory")), `pref=${pref}`).toBe(networkOf(renderRoot()))

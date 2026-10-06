@@ -5,7 +5,10 @@ import { MemoryRouter, Route, Routes } from "react-router-dom"
 import type { DaoKind } from "../../lib/dao/kind"
 
 const MEMBER = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
-const state = vi.hoisted(() => ({ kind: "govdao" as DaoKind, members: [] as string[] }))
+// `companion` grants the active network the user-DAO channels companion. No
+// registry network offers it since Pearl's retirement, so the one test that needs
+// a channels-capable version-2 DAO turns it on for test13 (realms deployed).
+const state = vi.hoisted(() => ({ kind: "govdao" as DaoKind, members: [] as string[], companion: false }))
 
 vi.mock("react-router-dom", async (orig) => ({
     ...(await orig<typeof import("react-router-dom")>()),
@@ -17,7 +20,8 @@ vi.mock("../../hooks/useDaoKind", async () => {
     const { useNetworkKey } = await import("../../hooks/useNetworkNav")
     return {
         useDaoKind: () => {
-            const network = NETWORKS[useNetworkKey()]
+            const base = NETWORKS[useNetworkKey()]
+            const network = state.companion ? { ...base, userDaos: { create: true, channelsCompanion: true } } : base
             return { kind: state.kind, capabilities: capabilitiesFor(state.kind, network), loading: false, error: null }
         },
     }
@@ -59,6 +63,7 @@ function mount(url: string) {
 beforeEach(() => {
     state.kind = "govdao"
     state.members = []
+    state.companion = false
 })
 
 describe("capability-driven DAO shell", () => {
@@ -75,10 +80,10 @@ describe("capability-driven DAO shell", () => {
         expect(screen.queryByText(/Extensions/)).not.toBeInTheDocument()
     })
 
-    it("version-2 DAO on pearl: a non-member is not offered a new proposal", async () => {
+    it("version-2 DAO on mainnet: a non-member is not offered a new proposal", async () => {
         state.kind = "memba-v2"
         state.members = ["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"]
-        mount("/pearl/dao/gno.land/r/alice/team")
+        mount("/mainnet/dao/gno.land/r/alice/team")
         await screen.findByText("gno.land/r/alice/team", {}, { timeout: 10_000 })
         await waitFor(() => expect(screen.getAllByText(/Active Proposals/i).length).toBeGreaterThan(0))
         // Let the member list settle before asserting on membership-gated controls.
@@ -86,17 +91,18 @@ describe("capability-driven DAO shell", () => {
         expect(screen.queryByRole("button", { name: /new proposal/i })).not.toBeInTheDocument()
     })
 
-    it("version-2 DAO on pearl: a member is offered a new proposal", async () => {
+    it("version-2 DAO on mainnet: a member is offered a new proposal", async () => {
         state.kind = "memba-v2"
         state.members = [MEMBER]
-        mount("/pearl/dao/gno.land/r/alice/team")
+        mount("/mainnet/dao/gno.land/r/alice/team")
         expect(await screen.findByRole("button", { name: /new proposal/i })).toBeInTheDocument()
     })
 
     it("DAO pages carry no voice rooms, AI panels, health score or deposit address", async () => {
         state.kind = "memba-v2"
         state.members = [MEMBER]
-        mount("/pearl/dao/gno.land/r/alice/team")
+        state.companion = true
+        mount("/test13/dao/gno.land/r/alice/team")
         await screen.findByRole("button", { name: /new proposal/i })
         expect(screen.queryByRole("button", { name: /public room|members room/i })).not.toBeInTheDocument()
         expect(screen.queryByText(/Voice Rooms/)).not.toBeInTheDocument()
@@ -120,20 +126,23 @@ describe("capability-driven DAO shell", () => {
         expect(screen.queryByText("Create DAO form")).not.toBeInTheDocument()
     })
 
-    it("pearl DAO creation stays available", async () => {
-        mount("/pearl/dao/create")
+    it("pearl is retired: no registry entry, and DAO creation is offered on its successor", async () => {
+        const { NETWORKS, RETIRED_NETWORKS } = await import("../../lib/config")
+        expect(Object.hasOwn(NETWORKS, "pearl")).toBe(false)
+        expect(RETIRED_NETWORKS.pearl.to).toBe("mainnet")
+        mount(`/${RETIRED_NETWORKS.pearl.to}/dao/create`)
         expect(await screen.findByText("Create DAO form")).toBeInTheDocument()
     })
 
     it("treasury is unavailable for every DAO", async () => {
         state.kind = "memba-v2"
-        mount("/pearl/dao/gno.land/r/alice/team/treasury")
+        mount("/mainnet/dao/gno.land/r/alice/team/treasury")
         expect(await screen.findByRole("heading", { name: /not available/i })).toBeInTheDocument()
     })
 
     it("plugin routes are unavailable", async () => {
         state.kind = "memba-v2"
-        mount("/pearl/dao/gno.land/r/alice/team/plugin/board")
+        mount("/mainnet/dao/gno.land/r/alice/team/plugin/board")
         expect(await screen.findByRole("heading", { name: /not available/i })).toBeInTheDocument()
     })
 

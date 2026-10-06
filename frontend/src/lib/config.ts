@@ -181,74 +181,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // another chain. Env override retained.
         explorerUrl: import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land",
     },
-    pearl: {
-        // Pearl — the next testnet, released as an RC, launching
-        // 2026-08-26 14:00 UTC; it SUPERSEDES sapphire-1. Pre-registered
-        // 2026-08-23 so the cutover is a flag flip, not a new block: see
-        // docs/PEARL_CUTOVER_PLAN.md.
-        //
-        // chainId is CONFIRMED, not conventional: pearl's genesis is generated
-        // with CHAIN_ID=pearl-1 (gnolang/gno branch chain/pearl,
-        // misc/deployments/pearl.gno.land/gen-genesis.sh:52, corroborated by
-        // that directory's VALIDATOR.md and govdao-exec.sh). Re-asserted at
-        // the UN-HIDE flip (owner directive 2026-08-27): both the official
-        // node and rpc.pearl.samourai.live report node_info.network ==
-        // "pearl-1" with heights advancing, and the tx-indexer's height
-        // matches the RPC (it served the frozen sapphire height for ~4h after
-        // launch — identity-check indexers like RPCs).
-        //
-        // Visible 2026-08-27 → 2026-09-23, and the DEFAULT network 2026-08-27 →
-        // 2026-09-17 (mainnet took over — see the `mainnet` entry).
-        // RETIRED 2026-09-23. Hidden, and listed in RETIRED_NETWORKS (owner
-        // ruling): an old /pearl/… link redirects to the same route under
-        // /mainnet/ with a one-time notice, and a stored pearl choice resolves
-        // to the default. The entry, realmsDeployed and its REALM_ALLOWLIST
-        // stay in code — a mainnet-state testnet is expected to follow and
-        // may reuse them. SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK,
-        // SITEMAP_NETWORK and FEED_INDEXED_NETWORK all moved to mainnet the
-        // same day. Historical note from the launch window: realm-dependent
-        // surfaces stay behind `realmsDeployed: false` (honest
-        // RealmsNotDeployedBanner) until the combined ceremony. Auth is
-        // fail-closed regardless: a pearl-1 token is refused until the owner
-        // adds pearl-1 to the backend's MEMBA_ACCEPTED_CHAIN_IDS
-        // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
-        chainId: "pearl-1",
-        userDaos: { create: true, channelsCompanion: true },
-        // Retired 2026-09-23 — see the header above.
-        hidden: true,
-        // Flipped by the §6 completion PR: the combined Pearl ceremony (core
-        // set + commerce set) records per-artifact vm/qfile evidence in
-        // realm-versions.json's `pearl` section — same rule as sapphire's
-        // flip. The allowlist merge-blocker below enforces the backing.
-        realmsDeployed: true,
-        isTestnet: true,
-        // ⚠️ Liveness lesson from the launch window: from 2026-08-24 until the
-        // 2026-08-27 genesis this hostname resolved, answered 200, and served
-        // a FROZEN sapphire-1 (pre-provisioned infra waiting for pearl) — so
-        // DNS resolution and an HTTP 200 are BOTH false positives for
-        // "Pearl is up"; the only valid liveness test is
-        // node_info.network == "pearl-1" (passing here since the 08-27 launch).
-        // Env overrides exist so a preview can point at whatever the launch
-        // actually exposes without a code change.
-        rpcUrl: import.meta.env.VITE_PEARL_RPC_URL || "https://rpc.pearl.testnets.gno.land:443",
-        // rpc.pearl.samourai.live provisioned 2026-08-27 ~16:20 UTC and
-        // IDENTITY-VERIFIED the same hour (pearl-1, heights advancing, own
-        // cert). pearl.rpc.onbloc.xyz is still NXDOMAIN — add it when it
-        // exists. The backend two-node rule (feed tailer must not share the
-        // app's endpoint) is satisfied by these two.
-        fallbackRpcUrls: [
-            "https://rpc.pearl.samourai.live:443",
-        ],
-        telemetryRpcUrls: [],
-        indexerUrl: import.meta.env.VITE_PEARL_INDEXER_URL || "https://indexer.pearl.testnets.gno.land/graphql/query",
-        label: "Pearl",
-        userRegistryPath: "gno.land/r/sys/users",
-        // Hub, not the per-chain subdomain (API-only — browser GET → 405, the
-        // sapphire lesson): activation needs gas, so verify Pearl is listed on
-        // the hub before the flag flip.
-        faucetUrl: "https://faucet.gno.land",
-        explorerUrl: import.meta.env.VITE_PEARL_EXPLORER_URL || "https://pearl.testnets.gno.land",
-    },
     // gno.land MAINNET — chain id `gnoland-1` (HYPHEN). Live since 2026-09-12;
     // the DEFAULT network since 2026-09-17 (netlify.toml VITE_GNO_CHAIN_ID +
     // the `resolveDefaultNetwork` hard fallback), and the only visible network
@@ -487,8 +419,8 @@ export function retiredNetworkSuccessor(key: string | null | undefined): string 
  * Why stored keys must be visible: a hidden network has no option in the
  * switcher, and when only one network is visible a single-option <select> cannot
  * fire `onChange` at all — a restored hidden key would pin the user to it on
- * every visit. A stored retired key (pearl) is hidden, so it resolves to the
- * default. That does NOT guarantee a visible result: DEFAULT_NETWORK is visible
+ * every visit. A stored retired key (pearl) is not a network any more, so it
+ * resolves to the default. That does NOT guarantee a visible result: DEFAULT_NETWORK is visible
  * in every shipped build but deliberately hidden on the pinned-flag e2e servers
  * (`.env.e2e` sets test13; see `resolveDefaultNetwork`). Nobody is stranded
  * because `selectableNetworksFor` always offers the active network.
@@ -650,7 +582,7 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // same key, bound to gnoland-1 (docs/QUEST_ATTESTATION_RUNBOOK.md). Every
     // entry needs a realm-versions.json `mainnet` record (keyed by NETWORK
     // KEY, not chain id).
-    // Onyx: nothing of Memba's is published there yet. Explicit, like Betanet.
+    // Onyx: nothing of Memba's is published there yet. An explicit empty list states that.
     onyx: [],
     mainnet: [
         "gno.land/r/samcrew/memba_appstore_v3",
@@ -667,42 +599,6 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // owner-controlled), and the hire dialog refuses to sign while
         // GetPauseStateJSON reports paused. Canary: docs/ESCROW_MAINNET_CANARY.md.
         "gno.land/r/samcrew/escrow_v4",
-    ],
-    // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
-    // the default core lane + the commerce set in one window. Entry list =
-    // exactly the deployer's dry-run walk on the [pearl] lane (verified
-    // 2026-08-27 against the live chain): default lane (9) + gnobuilders/
-    // feedback (commerce head) + the NFT stack as one unit + the p0-guards
-    // pair. p/ packages (grc721, memba_market_core_v2) are deploy artifacts,
-    // not frontend targets — never allowlisted (same as test13). The
-    // legacy NFT v2 pair and v3_1 are NOT deployed on pearl, so never listed.
-    // Every entry must be backed by a realm-versions.json `pearl` record
-    // (merge-blocking rule above) — the record set lands with the ceremony,
-    // and this PR stays red until it does. Chain RETIRED 2026-09-23; the list
-    // stays truthful about what is published on the (dead) chain for as long
-    // as the hidden entry resolves.
-    pearl: [
-        "gno.land/r/samcrew/memba_dao",
-        "gno.land/r/samcrew/memba_dao_candidature_v3",
-        "gno.land/r/samcrew/memba_dao_channels_v2",
-        "gno.land/r/samcrew/agent_registry_v2",
-        "gno.land/r/samcrew/memba_reviews_v1",
-        "gno.land/r/samcrew/memba_quest_attestation_v1",
-        "gno.land/r/samcrew/memba_feed_v1",
-        "gno.land/r/samcrew/memba_appstore_v1",
-        "gno.land/r/samcrew/memba_appstore_v2",
-        "gno.land/r/samcrew/gnobuilders_badges_v2",
-        "gno.land/r/samcrew/memba_feedback_v2",
-        // Commerce set — funds-custody realms included: on pearl the whole
-        // stack ships in the ONE combined ceremony (decision 2026-08-23),
-        // unlike topaz's funds-free-only staging.
-        "gno.land/r/samcrew/tokenfactory_v2",
-        "gno.land/r/samcrew/memba_collections",
-        "gno.land/r/samcrew/memba_market_config",
-        "gno.land/r/samcrew/memba_nft_market_v3_2",
-        // p0-guards pair (separate later invocation per §4.3 — same window).
-        "gno.land/r/samcrew/escrow_v3",
-        "gno.land/r/samcrew/memba_token_otc_v2",
     ],
     test13: [
         "gno.land/r/samcrew/memba_dao",
@@ -1141,7 +1037,7 @@ export const MEMBA_TOKEN = import.meta.env.PROD
 
 /**
  * Realm generations differ per network: mainnet ships memba_reviews_v2 (same public API as v1)
- * and only the v3 App Store, while pearl and older testnets carry reviews v1 and App Store v2.
+ * and only the v3 App Store, while older testnets (test13) carry reviews v1 and App Store v2.
  * An env override wins everywhere (deploy previews). Callers that know the URL network (route
  * gates) pass it explicitly; MEMBA_DAO resolves them for the active network.
  */

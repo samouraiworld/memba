@@ -12,6 +12,7 @@ import {
     NETWORK_ECHO_STORAGE_KEY,
     NETWORK_PREF_STORAGE_KEY,
     NETWORKS,
+    isNetworkKey,
     selectableNetworksFor,
 } from "../../lib/config"
 import { OS_NET_SWITCHED_KEY } from "../../lib/networkSwitch"
@@ -53,7 +54,7 @@ export function selectableOsNetworks(): OsNetwork[] {
 export { OS_NET_SWITCHED_KEY }
 
 export function switchOsNetwork(key: string): void {
-    if (!NETWORKS[key] || key === ACTIVE_NETWORK_KEY) return
+    if (!isNetworkKey(key) || key === ACTIVE_NETWORK_KEY) return
     let oldPreference: string | null | undefined
     let oldEcho: string | null | undefined
     try {

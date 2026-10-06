@@ -16,7 +16,7 @@ const { LaunchpadDoor } = await import("./LaunchpadDoor")
 
 const launch = (over: Partial<TokenLaunch> = {}): TokenLaunch =>
     ({ slug: "HOT", name: "Canicule", symbol: "HOT", path: "gno.land/r/x/factory:HOT", ...over })
-const renderIt = (networkKey = "pearl") => render(<MemoryRouter><LaunchpadDoor networkKey={networkKey} /></MemoryRouter>)
+const renderIt = (networkKey = "test13") => render(<MemoryRouter><LaunchpadDoor networkKey={networkKey} /></MemoryRouter>)
 
 beforeEach(() => vi.clearAllMocks())
 

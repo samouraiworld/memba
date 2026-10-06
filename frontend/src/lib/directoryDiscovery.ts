@@ -1,4 +1,4 @@
-import { NETWORKS } from "./config"
+import { NETWORKS, isNetworkKey } from "./config"
 import { directorySeeds } from "./directorySeeds"
 import { fetchNamespaceListing } from "./gnoweb"
 import type { DirectoryDAO, DirectoryPackage, DirectoryRealm, DiscoveryProvenance } from "./directory"
@@ -13,7 +13,7 @@ export interface DirectoryDiscovery {
 }
 export function directorySeedData(networkKey: string, daos: DirectoryDAO[]): DirectoryDiscovery {
     const { packages, realms } = directorySeeds(networkKey)
-    if (!NETWORKS[networkKey]) return { packages, realms, status: "unavailable", realmStatus: "unavailable" }
+    if (!isNetworkKey(networkKey)) return { packages, realms, status: "unavailable", realmStatus: "unavailable" }
     const paths = new Set(realms.map(item => item.path))
     for (const dao of daos) {
         if (dao.isSaved && !paths.has(dao.path)) {

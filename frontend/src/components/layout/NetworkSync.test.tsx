@@ -21,15 +21,14 @@ vi.mock("react-router-dom", async (importOriginal) => ({
 }))
 
 // importOriginal spread — narrow config mocks break transitive importers.
+// The registry stays real: NetworkSync recognises a network through
+// isNetworkKey, which reads the real NETWORKS, so the "other" network below is
+// a real registry key (mainnet), not a fixture.
 vi.mock("../../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/config")>()),
     // The network config.ts "loaded with" in these tests, regardless of what
     // jsdom's localStorage held when the real module evaluated.
     ACTIVE_NETWORK_KEY: "test13",
-    NETWORKS: {
-        test13: { chainId: "test-13" },
-        betanet: { chainId: "beta-1" },
-    },
 }))
 
 describe("NetworkSync", () => {
@@ -61,8 +60,8 @@ describe("NetworkSync", () => {
     })
 
     it("first visit on a DIFFERENT network than config loaded with: persists and reloads", () => {
-        renderWithNetwork("betanet")
-        expect(localStorage.getItem("memba_network")).toBe("betanet")
+        renderWithNetwork("mainnet")
+        expect(localStorage.getItem("memba_network")).toBe("mainnet")
         expect(reload).toHaveBeenCalledTimes(1)
     })
 
@@ -74,20 +73,26 @@ describe("NetworkSync", () => {
 
     it("real network switch (stored and config differ from URL): reloads", () => {
         localStorage.setItem("memba_network", "test13")
-        renderWithNetwork("betanet")
-        expect(localStorage.getItem("memba_network")).toBe("betanet")
+        renderWithNetwork("mainnet")
+        expect(localStorage.getItem("memba_network")).toBe("mainnet")
         expect(reload).toHaveBeenCalledTimes(1)
     })
 
     it("another tab already wrote the URL network: still reloads when the loaded config differs", () => {
         // The echo already equals the URL, but this tab's config was loaded for test13.
-        localStorage.setItem("memba_network", "betanet")
-        renderWithNetwork("betanet")
+        localStorage.setItem("memba_network", "mainnet")
+        renderWithNetwork("mainnet")
         expect(reload).toHaveBeenCalledTimes(1)
     })
 
     it("unknown network param: inert (no persist, no reload)", () => {
         renderWithNetwork("nonsense")
+        expect(localStorage.getItem("memba_network")).toBeNull()
+        expect(reload).not.toHaveBeenCalled()
+    })
+
+    it("retired network param (pearl): inert — NetworkGate redirects it, NetworkSync never echoes it", () => {
+        renderWithNetwork("pearl")
         expect(localStorage.getItem("memba_network")).toBeNull()
         expect(reload).not.toHaveBeenCalled()
     })

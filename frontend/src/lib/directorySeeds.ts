@@ -1,4 +1,4 @@
-import { NETWORKS } from "./config"
+import { NETWORKS, isNetworkKey } from "./config"
 import type { DirectoryPackage, DirectoryRealm } from "./directory"
 
 // Historical references. They are not evidence of deployment on any current chain.
@@ -46,7 +46,7 @@ const MAINNET_REALMS: DirectoryRealm[] = [
 ]
 
 export function directorySeeds(networkKey: string): { packages: DirectoryPackage[]; realms: DirectoryRealm[] } {
-    if (!NETWORKS[networkKey]) return { packages: [], realms: [] }
+    if (!isNetworkKey(networkKey)) return { packages: [], realms: [] }
     const mainnet = networkKey === "mainnet"
     const metadata = { networkKey, provenance: mainnet ? "editorial" as const : "reference" as const, checkedAt: mainnet ? "2026-09-22" : undefined }
     return {

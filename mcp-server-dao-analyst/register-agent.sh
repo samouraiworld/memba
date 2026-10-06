@@ -1,21 +1,18 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
 # register-agent.sh — Register dao-analyst agent via 2-of-2 multisig
-# Registers in the on-chain agent_registry_v2. Defaults to pearl (chain-id
-# pearl-1, the current Memba chain) on the Pearl canonical node; override the
-# REMOTE/CHAIN env vars to target another network. The chain-id is
-# signature-bound, so CHAIN MUST match the target chain exactly.
-#   REMOTE=https://rpc.gno.land CHAIN=portal-loop ./register-agent.sh
+# Registers in the on-chain agent_registry_v2. There is no default network:
+# the registry is not published on gno.land mainnet (gnoland-1) yet, and the
+# chain it ran on (Pearl) is retired. Name the target explicitly. The chain-id
+# is signature-bound, so CHAIN MUST match the target chain exactly.
+#   REMOTE=https://rpc.example.network:443 CHAIN=<chain-id> ./register-agent.sh
 # ─────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# `${VAR-default}` (no colon): an UNSET var takes the default, an explicitly
-# empty one stays empty and trips the guard — an empty REMOTE/CHAIN is a
-# mistake, not a request for the default.
-REMOTE="${REMOTE-https://rpc.pearl.samourai.live:443}"
-CHAIN="${CHAIN-pearl-1}"
+REMOTE="${REMOTE-}"
+CHAIN="${CHAIN-}"
 if [[ -z "$REMOTE" || -z "$CHAIN" ]]; then
-  echo "usage: [REMOTE=<rpc-url>] [CHAIN=<chain-id>] $0   (defaults: Pearl canonical node / pearl-1; neither may be empty)" >&2
+  echo "usage: REMOTE=<rpc-url> CHAIN=<chain-id> $0   (both required: agent_registry_v2 is not published on gnoland-1)" >&2
   exit 2
 fi
 MULTISIG_KEY="samcrew-core-test1"

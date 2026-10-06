@@ -23,18 +23,25 @@ import {
 
 // Fixture networks, by the visibility config.test.ts already pins: mainnet
 // (the default since 2026-09-17) is the ONLY visible network since pearl's
-// 2026-09-23 retirement; pearl, test13, onyx and gnoland1 are
-// hidden. VISIBLE_B was `gnoland1` until Betanet was retired to hidden. The
-// pure-resolver block needs TWO visible networks to tell "the choice wins"
-// apart from "the default answered", so it un-hides pearl for its duration
-// (resolveNetworkKey reads `hidden` at call time). Pearl is also RETIRED
-// (RETIRED_NETWORKS), which only affects the URL step — so VISIBLE_A is
-// used as a stored choice, never as a URL, in that block.
-const VISIBLE_A = "pearl"
+// 2026-09-23 retirement; test13 and onyx are hidden, and pearl has left the
+// registry (RETIRED_NETWORKS only). VISIBLE_B was `gnoland1` until Betanet was
+// retired. The pure-resolver block needs TWO visible networks to tell "the
+// choice wins" apart from "the default answered", so it un-hides onyx (as
+// VISIBLE_A) for its duration (resolveNetworkKey reads `hidden` at call time);
+// everywhere else onyx is the HIDDEN fixture.
+const VISIBLE_A = "onyx"
 const VISIBLE_B = "mainnet"
 const HIDDEN = "onyx"
 const HIDDEN_DEEP_LINK = "test13"
 const RETIRED = "pearl"
+
+describe("resolveNetworkKey — a stored choice of a hidden network", () => {
+    it("never restores a hidden network", () => {
+        expect(NETWORKS[HIDDEN]?.hidden).toBe(true)
+        expect(resolveNetworkKey({ pref: HIDDEN })).toBe(DEFAULT_NETWORK)
+        expect(resolveNetworkKey({ pref: HIDDEN_DEEP_LINK })).toBe(DEFAULT_NETWORK)
+    })
+})
 
 describe("resolveNetworkKey — the one ordering rule", () => {
     let wasHidden: boolean | undefined
@@ -49,7 +56,6 @@ describe("resolveNetworkKey — the one ordering rule", () => {
     it("fixtures are what they claim to be", () => {
         expect(NETWORKS[VISIBLE_A]?.hidden).toBeFalsy()
         expect(NETWORKS[VISIBLE_B]?.hidden).toBeFalsy()
-        expect(NETWORKS[HIDDEN]?.hidden).toBe(true)
         expect(NETWORKS[HIDDEN_DEEP_LINK]?.hidden).toBe(true)
     })
 
@@ -78,7 +84,8 @@ describe("resolveNetworkKey — the one ordering rule", () => {
     })
 
     it("a stored choice never restores a hidden network", () => {
-        expect(resolveNetworkKey({ pref: HIDDEN })).toBe(DEFAULT_NETWORK)
+        // VISIBLE_A (onyx) is un-hidden in this block; the hidden-onyx case is
+        // pinned in the block above.
         expect(resolveNetworkKey({ pref: HIDDEN_DEEP_LINK })).toBe(DEFAULT_NETWORK)
     })
 
@@ -167,10 +174,11 @@ describe("retiredNetworkSuccessor — which networks redirect, and where", () =>
         expect(retiredNetworkSuccessor("pearl")).toBe("mainnet")
     })
 
-    it("topaz and sapphire are retired to mainnet, with no registry entry", () => {
+    it("pearl, topaz and sapphire are retired to mainnet, with no registry entry", () => {
         expect(RETIRED_NETWORKS.topaz).toEqual({ to: "mainnet", name: "Topaz testnet" })
         expect(RETIRED_NETWORKS.sapphire).toEqual({ to: "mainnet", name: "Sapphire testnet" })
-        for (const key of ["topaz", "sapphire"]) {
+        for (const key of ["pearl", "topaz", "sapphire"]) {
+            expect(isNetworkKey(key), key).toBe(false)
             expect(NETWORKS[key], key).toBeUndefined()
             expect(retiredNetworkSuccessor(key), key).toBe("mainnet")
             expect(resolveNetworkKey({ pathname: `/${key}/x` }), key).toBe("mainnet")
@@ -185,18 +193,16 @@ describe("retiredNetworkSuccessor — which networks redirect, and where", () =>
     it("a retired network needs no registry entry: its URL resolves to the successor, even one that is not the default", () => {
         // Pointed at onyx here: with the default as successor, a resolver that skipped
         // the retired step would reach the same answer by falling through to the default.
-        const pearl = NETWORKS.pearl
         const entry = RETIRED_NETWORKS.pearl
         const successor = entry.to
-        delete NETWORKS.pearl
         entry.to = "onyx"
         try {
+            expect(Object.hasOwn(NETWORKS, "pearl")).toBe(false)
             expect(DEFAULT_NETWORK).not.toBe("onyx")
             expect(retiredNetworkSuccessor("pearl")).toBe("onyx")
             expect(resolveNetworkKey({ pathname: "/pearl/dao/create" })).toBe("onyx")
         } finally {
             entry.to = successor
-            NETWORKS.pearl = pearl
         }
     })
 

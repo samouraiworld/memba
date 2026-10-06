@@ -194,7 +194,7 @@ test.describe('Network-Scoped Routing (/:network prefix)', () => {
 
     test('/ redirects to /:network/', async ({ page }) => {
         await page.goto('/')
-        // Should redirect to a network-prefixed URL (e.g., /pearl/)
+        // Should redirect to a network-prefixed URL (e.g., /mainnet/)
         await page.waitForURL(/\/\w+\//, { timeout: 5000 })
         const url = page.url()
         expect(url).toMatch(/\/\w+\/$/)

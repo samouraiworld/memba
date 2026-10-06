@@ -17,7 +17,7 @@ import { test, expect, type Page } from '@playwright/test'
  * Env contract — this spec runs against the DEDICATED dev server on :5174
  * (playwright.config webServer → `npm run dev:e2e` → `vite --mode e2e`), which reads
  * the COMMITTED root .env.e2e. That file pins VITE_GNO_CHAIN_ID=test13 (retired 2026-07-26,
- * kept ON PURPOSE as a deterministic offline fixture — not the app default, which is pearl) and every lane
+ * kept ON PURPOSE as a deterministic offline fixture — not the app default, which is mainnet) and every lane
  * flag explicitly (NFT/Services true, Tokens/Agents false), overriding the gitignored
  * .env — so the live-vs-gated expectations below are identical on any dev machine and
  * in CI (where no .env exists), and stay green when someone flips a flag in .env or

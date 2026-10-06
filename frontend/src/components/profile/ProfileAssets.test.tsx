@@ -25,8 +25,8 @@ describe("ProfileAssets native balance label", () => {
     })
 
     it("marks a test chain as a testnet", () => {
-        renderOn("pearl")
-        expect(screen.getByTestId("asset-native-network").textContent).toBe("Pearl testnet")
+        renderOn("onyx")
+        expect(screen.getByTestId("asset-native-network").textContent).toBe("Onyx testnet")
     })
 
     it("does not repeat 'testnet' when the label already says it", () => {

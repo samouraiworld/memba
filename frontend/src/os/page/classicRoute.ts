@@ -6,7 +6,7 @@
  *
  * @module os/page/classicRoute
  */
-import { NETWORKS } from "../../lib/config"
+import { isNetworkKey } from "../../lib/config"
 import { parseDaoSplat } from "../../lib/daoSlug"
 import { getApp, OS_APPS, type OsApp, type OsAppId } from "../apps"
 import { nameForRealm } from "../daos/daoNames"
@@ -91,9 +91,9 @@ function daoTarget(splat: string, weighted = false): OsTarget | null {
 export function osTargetForClassic(pathname: string, network: string): OsTarget | null {
     if (pathname === "/" || pathname === "") return { kind: "desktop" }
     const m = /^\/([^/?#]+)\/?([^?#]*)/.exec(pathname)
-    if (!m || !NETWORKS[network]) return null
+    if (!m || !isNetworkKey(network)) return null
     // A bare legacy path (/validators/hacker) gets the current network, as LegacyRedirect does.
-    if (!NETWORKS[m[1]]) return pathname.startsWith("/os/") || pathname === "/os" ? null : osTargetForClassic(`/${network}${pathname}`, network)
+    if (!isNetworkKey(m[1])) return pathname.startsWith("/os/") || pathname === "/os" ? null : osTargetForClassic(`/${network}${pathname}`, network)
     if (m[1] !== network) return null
     const rest = m[2].replace(/\/+$/, "")
     if (rest === "dashboard") return { kind: "desktop" }

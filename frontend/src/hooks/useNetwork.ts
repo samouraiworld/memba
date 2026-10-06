@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react"
 import { useParams } from "react-router-dom"
 import {
-    NETWORKS,
     DEFAULT_NETWORK,
     NETWORK_ECHO_STORAGE_KEY,
     NETWORK_PREF_STORAGE_KEY,
+    NETWORKS,
+    isNetworkKey,
     storedNetworkKey,
 } from "../lib/config"
 import { OS_NET_SWITCHED_KEY } from "../lib/networkSwitch"
@@ -18,13 +19,13 @@ import { trackNetworkVisit } from "../lib/questVerifier"
  */
 export function useNetwork() {
     const { network: urlNetwork } = useParams<{ network: string }>()
-    const resolvedKey = (urlNetwork && NETWORKS[urlNetwork]) ? urlNetwork : storedNetworkKey()
+    const resolvedKey = isNetworkKey(urlNetwork) ? urlNetwork : storedNetworkKey()
     const [networkKey] = useState(resolvedKey)
 
     const network = NETWORKS[networkKey] || NETWORKS[DEFAULT_NETWORK]
 
     const switchNetwork = useCallback((key: string) => {
-        if (!NETWORKS[key]) return
+        if (!isNetworkKey(key)) return
         // "Switching" to the network you are already on is not a switch: it would
         // award the quest and trigger a full page load to the same URL. This guard
         // used to live at the CALL SITES — five of them, each enforcing it a
@@ -65,7 +66,7 @@ export function useNetwork() {
         // Strip current network prefix if present
         const segments = currentPath.split("/").filter(Boolean)
         const firstSegment = segments[0]
-        const restPath = (firstSegment && NETWORKS[firstSegment])
+        const restPath = isNetworkKey(firstSegment)
             ? "/" + segments.slice(1).join("/")
             : currentPath
         // Directory uses URL-backed tab, search and detail state. Keep it when

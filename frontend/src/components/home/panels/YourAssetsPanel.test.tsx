@@ -41,8 +41,8 @@ describe("YourAssetsPanel", () => {
     })
 
     it("marks a test chain as a testnet", () => {
-        renderOn("pearl")
-        expect(screen.getByTestId("your-assets-network").textContent).toBe("Pearl testnet")
+        renderOn("onyx")
+        expect(screen.getByTestId("your-assets-network").textContent).toBe("Onyx testnet")
     })
 
     it("offers no faucet link on a network without a faucet", () => {
@@ -55,7 +55,7 @@ describe("YourAssetsPanel", () => {
     it("links the network's own faucet where there is one", () => {
         state.ugnot = 0n
         state.faucet = "https://faucet.example"
-        renderOn("pearl")
+        renderOn("onyx")
         expect(screen.getByText("Get testnet GNOT").closest("a")).toHaveAttribute("href", "https://faucet.example")
     })
 })

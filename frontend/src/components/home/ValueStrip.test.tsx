@@ -7,14 +7,14 @@ import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { ValueStrip } from "./ValueStrip"
 
-const renderIt = (networkKey = "pearl") => render(<MemoryRouter><ValueStrip networkKey={networkKey} /></MemoryRouter>)
+const renderIt = (networkKey = "test13") => render(<MemoryRouter><ValueStrip networkKey={networkKey} /></MemoryRouter>)
 
 describe("ValueStrip", () => {
     it("renders three human-verb cards linking to the right destinations", () => {
         renderIt()
-        expect(screen.getByRole("link", { name: /explore daos/i })).toHaveAttribute("href", "/pearl/dao")
-        expect(screen.getByRole("link", { name: /launch a token/i })).toHaveAttribute("href", "/pearl/tokens")
-        expect(screen.getByRole("link", { name: /track the network/i })).toHaveAttribute("href", "/pearl/validators")
+        expect(screen.getByRole("link", { name: /explore daos/i })).toHaveAttribute("href", "/test13/dao")
+        expect(screen.getByRole("link", { name: /launch a token/i })).toHaveAttribute("href", "/test13/tokens")
+        expect(screen.getByRole("link", { name: /track the network/i })).toHaveAttribute("href", "/test13/validators")
     })
 
     it("labels the unavailable token launchpad on mainnet", () => {
