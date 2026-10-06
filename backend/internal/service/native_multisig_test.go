@@ -15,6 +15,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -426,12 +427,27 @@ func TestNativeProposalSignExport(t *testing.T) {
 	// or unreachable hands over to the fallback, which may confirm a receipt
 	// (here: one refused before execution, which says so) but never answer
 	// "absent": a pool's next request can reach another node.
-	primary := ctypes.ResultStatus{}
-	primary.NodeInfo.Network = h.svc.chainID
-	primaryDelay := time.Duration(0)
-	// How the primary answers /tx: "absent", or a node error, after primaryTxDelay.
-	primaryTx, primaryTxDelay := "absent", time.Duration(0)
+	// The primary's behaviour, behind a lock: a request from an earlier case can
+	// outlive its 200 ms timeout and still be reading while the next case sets
+	// it, so each request copies it once.
+	type fakePrimary struct {
+		status ctypes.ResultStatus
+		delay  time.Duration
+		// How it answers /tx: "absent", or a node error, after txDelay.
+		tx      string
+		txDelay time.Duration
+	}
+	var primaryMu sync.Mutex
+	var primary fakePrimary
+	setPrimary := func(change func(*fakePrimary)) {
+		primaryMu.Lock()
+		defer primaryMu.Unlock()
+		change(&primary)
+	}
 	primaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		primaryMu.Lock()
+		p := primary
+		primaryMu.Unlock()
 		var request struct {
 			Method string          `json:"method"`
 			ID     json.RawMessage `json:"id"`
@@ -443,14 +459,14 @@ func TestNativeProposalSignExport(t *testing.T) {
 		reply := map[string]any{"jsonrpc": "2.0", "id": request.ID}
 		switch {
 		case request.Method == "status":
-			time.Sleep(primaryDelay)
-			encoded, _ := amino.MarshalJSON(primary)
+			time.Sleep(p.delay)
+			encoded, _ := amino.MarshalJSON(p.status)
 			reply["result"] = json.RawMessage(encoded)
-		case primaryTx == "absent":
-			time.Sleep(primaryTxDelay)
+		case p.tx == "absent":
+			time.Sleep(p.txDelay)
 			reply["error"] = map[string]any{"code": -32603, "message": "Internal error", "data": "Could not find tx result for hash #" + fmtHash(hash[:])}
 		default:
-			time.Sleep(primaryTxDelay)
+			time.Sleep(p.txDelay)
 			reply["error"] = map[string]any{"code": -32603, "message": "Internal error", "data": "block not found for height 12"}
 		}
 		_ = json.NewEncoder(w).Encode(reply)
@@ -462,25 +478,26 @@ func TestNativeProposalSignExport(t *testing.T) {
 	receipt.TxResult.Error = abci.StringError("insufficient fee")
 	accountSequence = "3"
 	healthy := func() {
-		primary = ctypes.ResultStatus{}
-		primary.NodeInfo.Network = h.svc.chainID
-		primary.SyncInfo.LatestBlockTime = time.Now()
-		primaryDelay, primaryTx, primaryTxDelay = 0, "absent", 0
+		setPrimary(func(p *fakePrimary) {
+			*p = fakePrimary{tx: "absent"}
+			p.status.NodeInfo.Network = h.svc.chainID
+			p.status.SyncInfo.LatestBlockTime = time.Now()
+		})
 	}
 	for _, c := range []struct {
 		name string
-		bad  func()
+		bad  func(*fakePrimary)
 	}{
-		{"on another chain", func() { primary.NodeInfo.Network = "wrong-chain" }},
-		{"still syncing", func() { primary.SyncInfo.CatchingUp = true }},
-		{"behind", func() { primary.SyncInfo.LatestBlockTime = time.Now().Add(-time.Minute) }},
-		{"dated in the future", func() { primary.SyncInfo.LatestBlockTime = time.Now().Add(time.Minute) }},
-		{"slow to give its status", func() { primaryDelay = time.Second }},
-		{"failing its /tx lookup", func() { primaryTx = "node error" }},
-		{"slow to answer /tx", func() { primaryTxDelay = time.Second }},
+		{"on another chain", func(p *fakePrimary) { p.status.NodeInfo.Network = "wrong-chain" }},
+		{"still syncing", func(p *fakePrimary) { p.status.SyncInfo.CatchingUp = true }},
+		{"behind", func(p *fakePrimary) { p.status.SyncInfo.LatestBlockTime = time.Now().Add(-time.Minute) }},
+		{"dated in the future", func(p *fakePrimary) { p.status.SyncInfo.LatestBlockTime = time.Now().Add(time.Minute) }},
+		{"slow to give its status", func(p *fakePrimary) { p.delay = time.Second }},
+		{"failing its /tx lookup", func(p *fakePrimary) { p.tx = "node error" }},
+		{"slow to answer /tx", func(p *fakePrimary) { p.txDelay = time.Second }},
 	} {
 		healthy()
-		c.bad()
+		setPrimary(c.bad)
 		if err := complete(); connect.CodeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "refused this transaction before executing it") {
 			t.Fatalf("primary %s: the fallback's receipt was not used: %v", c.name, err)
 		}
