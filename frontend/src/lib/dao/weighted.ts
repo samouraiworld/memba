@@ -3,8 +3,7 @@ import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 import type { AminoMsg } from "./shared"
 import { address, id, personID, realm, role, time, uint64 } from "./weightedPrimitives"
-import { ACCEPT_FUNCS, APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, type ApplicationPolicyKey, OPERATION_WORDS, type WeightedApplicationAction, TREASURY_FUNCS, type TreasuryPolicyKey } from "./weightedApplications"
-import { v12BudgetWithinCeiling, v12CallBudget, v12ExecuteBudget } from "./weightedBudget"
+import { APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, OPERATION_WORDS, type WeightedApplicationAction } from "./weightedApplications"
 
 export const WEIGHTED_SCHEMA = "memba-weighted-host/v1"
 export const WEIGHTED_RECOVERY_SCHEMA = "memba-weighted-host/v2"
@@ -122,7 +121,7 @@ export function isUnreadableProposal(p: WeightedPageEntry): p is UnreadableWeigh
 export type WeightedMember = z.infer<typeof member>
 export type WeightedPage = Omit<z.infer<typeof weightedPageSchema>, "proposals"> & { proposals: WeightedPageEntry[] }
 export type WeightedContext = { rpcUrl: string; chainId: string; realmPath: string }
-export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string } | { type: "accept"; adapter: ApplicationPolicyKey } | { type: "treasury"; adapter: TreasuryPolicyKey }
+export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string }
 
 /** Decode the Go string literal, including non-JSON \x, \U and octal escapes. */
 export function parseWeightedQeval(raw: string): unknown {
@@ -261,8 +260,6 @@ export const weightedBallotSchema = z.strictObject({
     eligible: z.boolean(), choice: choice.nullable(), votedAtHeight: uint64.nullable(),
 }).refine(b => (b.choice === null) === (b.votedAtHeight === null) && (b.eligible || b.choice === null), "Inconsistent ballot")
 export type WeightedBallot = z.infer<typeof weightedBallotSchema>
-const pendingEnvelopeSchema = z.strictObject({ schema: z.literal(WEIGHTED_APPLICATIONS_SCHEMA), voter: address, items: z.array(z.unknown()).max(50), next: id.nullable() })
-export type WeightedPendingVotes = { voter: string; items: WeightedPageEntry[]; next: string | null }
 
 /** Refuse an RPC that answers for another chain than the selected one. */
 export async function assertWeightedChain(ctx: Pick<WeightedContext, "rpcUrl" | "chainId">, signal?: AbortSignal) {
@@ -290,36 +287,6 @@ export async function readWeightedBallot(ctx: WeightedContext, proposalId: strin
     return (await readWeightedBallots(ctx, proposalId, [voter], signal))[0]
 }
 
-/**
- * Open proposals where `voter` is eligible and has not voted, newest first.
- * The host examines at most 200 proposals per call, so `next` can be set on
- * a page with no items. Items it cannot validate are listed by ID only.
- */
-export async function readWeightedPendingVotes(ctx: WeightedContext, voter: string, before = "0", limit = 20, signal?: AbortSignal): Promise<WeightedPendingVotes> {
-    address.parse(voter); uint64.parse(before)
-    if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("Invalid pending-vote page size")
-    await assertWeightedChain(ctx, signal)
-    const envelope = pendingEnvelopeSchema.parse(await read(ctx, `GetPendingVotesJSON("${voter}", "${before}", ${limit})`, signal))
-    if (envelope.voter !== voter) throw new Error("Pending votes do not match the request")
-    if (envelope.items.length > limit) throw new Error("Invalid pending-vote page")
-    let previous = before === "0" ? null : BigInt(before)
-    const items: WeightedPageEntry[] = []
-    for (const raw of envelope.items) {
-        const parsed = v12Proposal.safeParse(raw)
-        const rawID = typeof raw === "object" && raw !== null && "id" in raw ? raw.id : undefined
-        const itemID = parsed.success ? parsed.data.id : id.parse(rawID)
-        if (previous !== null && BigInt(itemID) >= previous) throw new Error("Invalid pending-vote page")
-        previous = BigInt(itemID)
-        if (!parsed.success) { items.push({ id: itemID, unreadable: true }); continue }
-        const p = parsed.data
-        if (p.votingClosed || !["VOTING", "TIMELOCKED", "READY"].includes(p.status)) throw new Error("Pending votes include a closed proposal")
-        items.push(p)
-    }
-    if (envelope.next !== null && previous !== null && BigInt(envelope.next) > previous) throw new Error("Invalid pending-vote cursor")
-    if (envelope.next !== null && before !== "0" && BigInt(envelope.next) >= BigInt(before)) throw new Error("Invalid pending-vote cursor")
-    return { voter, items, next: envelope.next }
-}
-
 /** What an application action does, in words: "Market config · Set a fee". */
 export function applicationActionTitle(a: { type: WeightedApplicationAction["type"]; operation: string }): string {
     return `${APPLICATION_LABELS[a.type]} · ${OPERATION_WORDS[a.operation]?.title ?? a.operation}`
@@ -337,106 +304,48 @@ export function weightedProposalTitle(p: WeightedPageEntry): string {
 /** Which calls Memba builds for a contract version on a chain. */
 export type WeightedWriteKind = WeightedAction["type"]
 const NO_WRITES: ReadonlySet<WeightedWriteKind> = new Set()
-const WRITE_KINDS: Record<WeightedSchemaVersion, ReadonlySet<WeightedWriteKind>> = {
+/**
+ * v12 (the mainnet governing DAO) has no entry: Memba DAO is moving to a new
+ * governance contract, and v12 has no migration, so Memba builds no v12 call.
+ */
+const WRITE_KINDS: Readonly<Record<string, ReadonlySet<WeightedWriteKind>>> = {
     [WEIGHTED_SCHEMA]: new Set(["propose", "vote", "execute"]),
     [WEIGHTED_RECOVERY_SCHEMA]: new Set(["propose", "recover", "vote", "execute"]),
-    // v12 (the mainnet governing DAO): adapter acceptance, the Market and App
-    // Store treasury proposals, ballots and execution. Role and key-recovery
-    // proposals arrive in a later slice.
-    [WEIGHTED_APPLICATIONS_SCHEMA]: new Set(["accept", "treasury", "vote", "execute"]),
 }
 
-/** The gnoland-1 governance write hold: no weighted DAO call is built there unless released below. */
-export const WEIGHTED_WRITE_HOLD_CHAINS: readonly string[] = ["gnoland-1"]
+/** The gnoland-1 governance write hold: no weighted DAO call is built there. */
+const WEIGHTED_WRITE_HOLD_CHAINS: readonly string[] = ["gnoland-1"]
 
-/**
- * Exact (chain, version, realm) releases from the hold, each an owner-gated
- * change. Released: the mainnet governing DAO (v12 at r/samcrew/memba_dao,
- * published h315078). Any other weighted DAO on gnoland-1 stays read-only.
- */
-export const WEIGHTED_WRITE_RELEASES: readonly Readonly<{ chainId: string; schema: string; realmPath: string }>[] = Object.freeze([
-    Object.freeze({ chainId: "gnoland-1", schema: WEIGHTED_APPLICATIONS_SCHEMA, realmPath: "gno.land/r/samcrew/memba_dao" }),
-])
-
-/** True when governance writes stay on hold for this DAO on this chain. */
-export function weightedWritesHeld(chainId: string, schema: string, realmPath: string): boolean {
+/** True when governance writes stay on hold on this chain. */
+export function weightedWritesHeld(chainId: string): boolean {
     return WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)
-        && !WEIGHTED_WRITE_RELEASES.some(r => r.chainId === chainId && r.schema === schema && r.realmPath === realmPath)
 }
 
-/**
- * Calls Memba may build for `schema` at `realmPath` on `chainId`: none while
- * the hold applies or for an unknown version.
- */
-export function weightedWriteKinds(schema: string, chainId: string, realmPath: string): ReadonlySet<WeightedWriteKind> {
-    if (weightedWritesHeld(chainId, schema, realmPath) || !Object.hasOwn(WRITE_KINDS, schema)) return NO_WRITES
-    return WRITE_KINDS[schema as WeightedSchemaVersion]
+/** Calls Memba may build for `schema` on `chainId`: none while the hold applies or for a read-only version. */
+export function weightedWriteKinds(schema: string, chainId: string): ReadonlySet<WeightedWriteKind> {
+    if (weightedWritesHeld(chainId) || !Object.hasOwn(WRITE_KINDS, schema)) return NO_WRITES
+    return WRITE_KINDS[schema]
 }
 /** True when some write exists for this version off the held chains. */
 export function weightedWritesSupported(schema: string): boolean { return Object.hasOwn(WRITE_KINDS, schema) }
 
-/** A signable call: the exact message, and for v12 the gas limit and deposit cap it is sent with. */
-export interface WeightedTxPlan {
-    msg: AminoMsg
-    gasWanted?: number
-    /** Storage deposit cap in ugnot, also carried in `msg.value.max_deposit` (v12). */
-    maxDepositUgnot?: number
-}
-
-/**
- * Build the one realm call for `action`. While the hold applies nothing is built.
- * v12 calls carry their measured `max_deposit`; an Execute needs the stored
- * action it runs (`executes`) to size it.
- */
-export function planWeightedTx(caller: string, realmPath: string, action: WeightedAction, schema: string, chainId: string, executes?: { type: string; operation?: string; grant?: boolean }): WeightedTxPlan {
-    if (weightedWritesHeld(chainId, schema, realmPath)) throw new Error("Mainnet governance writes remain on hold")
-    if (!weightedWriteKinds(schema, chainId, realmPath).has(action.type)) throw new Error("This DAO version is read-only in Memba for this action")
+/** Build the one realm call for `action`. Nothing is built while the hold applies or for a read-only version. */
+export function buildWeightedMessage(caller: string, realmPath: string, action: WeightedAction, schema: string, chainId: string): AminoMsg {
+    if (weightedWritesHeld(chainId)) throw new Error("Mainnet governance writes remain on hold")
+    if (!weightedWriteKinds(schema, chainId).has(action.type)) throw new Error("This DAO version is read-only in Memba for this action")
     address.parse(caller); realm.parse(realmPath)
     let func: string, args: string[]
     if (action.type === "recover") { func = "ProposeRecovery"; args = [personID.parse(action.personId), address.parse(action.oldAddress), address.parse(action.newAddress)]; if (action.oldAddress === action.newAddress) throw new Error("Recovery must change the address") }
     else if (action.type === "propose") { func = "ProposeRole"; args = [address.parse(action.target), role.parse(action.role), String(z.boolean().parse(action.grant))] }
     else if (action.type === "vote") { func = "Vote"; args = [id.parse(action.id), z.enum(["yes", "no", "abstain"]).parse(action.vote)] }
     else if (action.type === "execute") { func = "Execute"; args = [id.parse(action.id)] }
-    else if (action.type === "accept") {
-        if (!Object.hasOwn(ACCEPT_FUNCS, action.adapter)) throw new Error("Unknown application adapter")
-        func = ACCEPT_FUNCS[action.adapter]; args = []
-    }
-    else if (action.type === "treasury") {
-        if (!Object.hasOwn(TREASURY_FUNCS, action.adapter)) throw new Error("This application has no treasury")
-        func = TREASURY_FUNCS[action.adapter]; args = []
-    }
     else throw new Error("Unsupported weighted action")
-    const value = { caller, send: "", pkg_path: realmPath, func, args }
-    if (schema !== WEIGHTED_APPLICATIONS_SCHEMA) return { msg: { type: "vm/MsgCall", value } }
-    if (action.type === "execute" && !executes) throw new Error("Execute needs the proposal's action to size its budget")
-    const budget = action.type === "execute" ? v12ExecuteBudget(executes!) : v12CallBudget(func)
-    if (!v12BudgetWithinCeiling(budget)) throw new Error("Call budget is above the storage-deposit ceiling")
-    return {
-        msg: { type: "vm/MsgCall", value: { ...value, max_deposit: `${budget.maxDepositUgnot}ugnot` } },
-        gasWanted: budget.gasWanted, maxDepositUgnot: budget.maxDepositUgnot,
-    }
+    return { type: "vm/MsgCall", value: { caller, send: "", pkg_path: realmPath, func, args } }
 }
 
-export function buildWeightedMessage(caller: string, realmPath: string, action: WeightedAction, schema: string, chainId: string, executes?: { type: string; operation?: string; grant?: boolean }): AminoMsg {
-    return planWeightedTx(caller, realmPath, action, schema, chainId, executes).msg
-}
-
-/**
- * Re-check a v12 plan right before signing: the message carries exactly the
- * reviewed cap, in canonical form, and it stays under the 10 GNOT ceiling.
- */
-export function assertWeightedPlanSignable(plan: WeightedTxPlan): void {
-    const raw = (plan.msg.value as Record<string, unknown>).max_deposit
-    if (plan.maxDepositUgnot === undefined) { if (raw !== undefined) throw new Error("Unexpected storage-deposit cap"); return }
-    const m = typeof raw === "string" ? /^(\d{1,15})ugnot$/.exec(raw) : null
-    if (!m || Number(m[1]) !== plan.maxDepositUgnot) throw new Error("The transaction's storage-deposit cap differs from the one reviewed. Review it again.")
-    if (!v12BudgetWithinCeiling({ gasWanted: plan.gasWanted ?? 0, maxDepositUgnot: plan.maxDepositUgnot })) throw new Error("The storage-deposit cap is above the 10 GNOT ceiling")
-    if (!Number.isSafeInteger(plan.gasWanted) || plan.gasWanted! <= 0) throw new Error("Invalid gas limit")
-}
-
-export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string, realmPath: string, kind?: WeightedWriteKind) {
-    if (weightedWritesHeld(chainId, schema, realmPath)) throw new Error("Mainnet governance writes remain on hold")
-    const kinds = weightedWriteKinds(schema, chainId, realmPath)
+export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string, kind?: WeightedWriteKind) {
+    if (weightedWritesHeld(chainId)) throw new Error("Mainnet governance writes remain on hold")
+    const kinds = weightedWriteKinds(schema, chainId)
     if (kinds.size === 0 || (kind !== undefined && !kinds.has(kind))) throw new Error("This DAO version is read-only in Memba")
     if (chainId !== activeChain || chainId !== walletChain) throw new Error("Wallet or selected network changed")
 }
@@ -451,42 +360,4 @@ export function validateWeightedRecovery(snapshot: Awaited<ReturnType<typeof rea
     address.parse(action.newAddress)
     if (!snapshot.members.some(m => m.personId === action.personId && m.address === action.oldAddress)) throw new Error("Recovery seat changed; refresh before preparing again")
     if (snapshot.members.some(m => m.address === action.newAddress)) throw new Error("Replacement address already belongs to a DAO member")
-}
-
-export type WeightedVoteChoice = "yes" | "no" | "abstain"
-/**
- * Ballots the realm would record for this voter (v12). The policy accepts a
- * vote from an eligible member while the proposal is active and before its
- * deadline, in VOTING, TIMELOCKED or READY alike; a change of choice is
- * allowed until then, and the same choice again is a no-op. Nothing is
- * offered until the voter's ballot has been read.
- */
-export function weightedVoteChoices(p: Pick<WeightedProposal, "status" | "votingClosed">, ballot: WeightedBallot | "error" | undefined): ReadonlySet<WeightedVoteChoice> {
-    if (!ballot || ballot === "error" || !ballot.eligible) return new Set()
-    if (p.votingClosed || !["VOTING", "TIMELOCKED", "READY"].includes(p.status)) return new Set()
-    return new Set((["yes", "no", "abstain"] as const).filter(choice => choice !== ballot.choice))
-}
-
-/**
- * Every open (VOTING, TIMELOCKED or READY) proposal, newest first, paging the
- * whole history up to `maxPages` pages of 20. A qualified proposal stays open
- * past its voting deadline until it executes or is invalidated, so no page
- * can be skipped by date. Each page is read through the chain check and must
- * carry the same contract, roster and roles; more pages than the bound, or
- * an unreadable proposal, refuse rather than report a partial answer.
- */
-export async function readOpenWeightedProposals(ctx: WeightedContext, maxPages = 25, signal?: AbortSignal): Promise<WeightedProposal[]> {
-    const first = await readWeightedSnapshot(ctx, "0", signal)
-    const open: WeightedProposal[] = []
-    let page = first
-    for (let n = 1; ; n++) {
-        for (const p of page.page.proposals) {
-            if (isUnreadableProposal(p)) throw new Error(`Proposal #${p.id} could not be validated, so open proposals cannot be listed completely`)
-            if (["VOTING", "TIMELOCKED", "READY"].includes(p.status)) open.push(p)
-        }
-        if (page.page.nextBefore === null) return open
-        if (n >= maxPages) throw new Error("Too many proposals to check every open one; refresh and try again later")
-        page = await readWeightedSnapshot(ctx, page.page.nextBefore, signal)
-        if (weightedAuthority(page) !== weightedAuthority(first)) throw new Error("DAO roster or roles changed while reading proposals; refresh and review again")
-    }
 }

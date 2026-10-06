@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
-import { assertWeightedWrites, buildWeightedMessage, readOpenWeightedProposals, isUnreadableProposal, readWeightedBallot, readWeightedBallots, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
+import { assertWeightedWrites, buildWeightedMessage, isUnreadableProposal, readWeightedBallot, readWeightedBallots, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, weightedWriteKinds, weightedWritesSupported, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
 import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, packageAddress, applicationDetails, expectedCategory, factLabel, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
@@ -265,41 +265,26 @@ describe("every operation the host can encode", () => {
         expect(mutate(a => { a.contractId = "" })).toBe(false)
     })
 
-    it("lists every open proposal across pages, bounded, and refuses a partial answer", async () => {
-        const open = await readOpenWeightedProposals(ctx)
-        const expected = [...(replies.pages["0"] as { proposals: Json[] }).proposals, ...(replies.pages["7"] as { proposals: Json[] }).proposals]
-            .filter(p => ["VOTING", "TIMELOCKED", "READY"].includes(p.status as string)).map(p => p.id)
-        expect(open.map(p => p.id)).toEqual(expected)
-        expect(expected.length).toBeGreaterThan(0)
-        await expect(readOpenWeightedProposals(ctx, 1)).rejects.toThrow("Too many proposals")
-        const older = replies.pages["7"] as { proposals: Json[] }
-        older.proposals[0] = { ...older.proposals[0], category: "routine" }
-        await expect(readOpenWeightedProposals(ctx)).rejects.toThrow("could not be validated")
-    })
-
-    it("builds v12 calls on gnoland-1 only for the released DAO, and no role or recovery proposal anywhere yet", async () => {
+    it("builds no v12 call on any chain: Memba DAO v12 is read-only in Memba", async () => {
         const snapshot = await readWeightedSnapshot(ctx)
         const caller = snapshot.members[1].address, schema = snapshot.config.schema
-        const executes = snapshot.page.proposals.find(p => !isUnreadableProposal(p) && p.id === "17")
-        if (!executes || isUnreadableProposal(executes)) throw new Error("fixture")
-        const writes = [{ type: "vote", id: "17", vote: "yes" }, { type: "execute", id: "17" }, { type: "accept", adapter: "marketPolicy" }] as const
-        const later = [
+        const actions = [
+            { type: "vote", id: "17", vote: "yes" }, { type: "execute", id: "17" },
             { type: "propose", target: snapshot.members[2].address, role: "admin", grant: true },
             { type: "recover", personId: "dadidou", oldAddress: snapshot.members[6].address, newAddress: "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje" },
         ] as const
-        // Any other realm path, even a v12 one, stays on hold on gnoland-1.
-        const other = "gno.land/r/samcrew/memba_dao_v2"
-        for (const action of [...writes, ...later]) expect(() => buildWeightedMessage(caller, other, action, schema, "gnoland-1", executes.action)).toThrow("on hold")
-        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", schema, other)).toThrow("on hold")
-        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", "memba-weighted-host/v2", realmPath)).toThrow("on hold")
+        expect(weightedWritesSupported(schema)).toBe(false)
         for (const chain of ["gnoland-1", "pearl-1", "test-13", "dev"]) {
-            for (const action of writes) expect(buildWeightedMessage(caller, realmPath, action, schema, chain, executes.action).value.pkg_path).toBe(realmPath)
-            for (const action of later) expect(() => buildWeightedMessage(caller, realmPath, action, schema, chain)).toThrow("read-only")
-            expect(() => assertWeightedWrites(chain, chain, chain, schema, realmPath, "vote")).not.toThrow()
-            expect(() => assertWeightedWrites(chain, chain, chain, schema, realmPath, "propose")).toThrow("read-only")
+            expect(weightedWriteKinds(schema, chain).size).toBe(0)
+            for (const path of [realmPath, "gno.land/r/samcrew/memba_dao_v2"]) {
+                for (const action of actions) expect(() => buildWeightedMessage(caller, path, action, schema, chain)).toThrow(chain === "gnoland-1" ? "on hold" : "read-only")
+            }
+            for (const kind of [undefined, ...actions.map(a => a.type)]) expect(() => assertWeightedWrites(chain, chain, chain, schema, kind)).toThrow(chain === "gnoland-1" ? "on hold" : "read-only")
         }
-        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2", realmPath)).not.toThrow()
-        expect(() => validateWeightedRecovery(snapshot, later[1])).toThrow("does not support")
+        // Versions 1 and 2 keep their writes off the held chains, and stay held on gnoland-1.
+        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2", "vote")).not.toThrow()
+        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", "memba-weighted-host/v2")).toThrow("on hold")
+        expect(() => validateWeightedRecovery(snapshot, actions[3])).toThrow("does not support")
     })
 
     it("reads the escrow_v4 re-point: fee recipient rotation, pause fields and index-numbered milestones", () => {
@@ -449,7 +434,7 @@ describe("config category fields", () => {
     })
 })
 
-describe("ballots and pending votes", () => {
+describe("ballots", () => {
     const ballotKeys = Object.keys(records).filter(k => k.startsWith("ballot_"))
     it("accepts every native ballot, and each case reads as recorded", () => {
         expect(ballotKeys.length).toBeGreaterThanOrEqual(12)
@@ -471,45 +456,9 @@ describe("ballots and pending votes", () => {
         }
     })
 
-    const pendingRoute = (payload: unknown) => vi.mocked(directRpcCall).mockImplementation(async (_url, method) => {
+    const replyWith = (payload: unknown) => vi.mocked(directRpcCall).mockImplementation(async (_url, method) => {
         if (method === "status") return { node_info: { network: ctx.chainId } }
         return { response: { ResponseBase: { Data: btoa(String.fromCharCode(...new TextEncoder().encode(qevalWire(payload)))), Error: null } } }
-    })
-
-    it("reads native pending pages, including a scan-capped page with no items", async () => {
-        const voter = (records.pending_page as Json).voter as string
-        pendingRoute(records.pending_page)
-        const page = await readWeightedPendingVotes(ctx, voter, "0", 20)
-        expect([page.items.length, page.next]).toEqual([20, (records.pending_page as Json).next])
-        pendingRoute(records.pending_scan_cap)
-        const capped = await readWeightedPendingVotes(ctx, (records.pending_scan_cap as Json).voter as string, "0", 50)
-        expect(capped.items).toEqual([]); expect(capped.next).toMatch(/^\d+$/)
-        pendingRoute(records.pending_after_cap)
-        const after = await readWeightedPendingVotes(ctx, (records.pending_after_cap as Json).voter as string, capped.next!, 50)
-        expect(after.items.length).toBeGreaterThan(0); expect(after.next).toBeNull()
-        for (const key of Object.keys(records).filter(k => k.startsWith("pending_"))) {
-            const r = records[key] as { voter: string; items: Json[]; next: string | null }
-            pendingRoute(r)
-            await expect(readWeightedPendingVotes(ctx, r.voter, "0", 50), key).resolves.toBeTruthy()
-        }
-    })
-
-    it("refuses mismatched voters, closed or out-of-order items, and bad cursors", async () => {
-        const r = records.pending_page as { voter: string; items: Json[]; next: string }
-        pendingRoute({ ...r, voter: (records.members as { members: Json[] }).members[0].address })
-        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow("do not match")
-        pendingRoute({ ...r, items: [r.items[1], r.items[0]] })
-        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow("Invalid pending-vote page")
-        pendingRoute({ ...r, items: [records.proposal_2.proposal, ...r.items.slice(1)] })
-        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow()
-        pendingRoute({ ...r, next: "999" })
-        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow("cursor")
-        pendingRoute({ ...r, extra: 1 })
-        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow()
-        await expect(readWeightedPendingVotes(ctx, r.voter, "0", 51)).rejects.toThrow("page size")
-        const mis = structuredClone(r); (mis.items[2].action as Json).operation = "grant-everything"
-        pendingRoute(mis)
-        expect((await readWeightedPendingVotes(ctx, r.voter)).items.filter(isUnreadableProposal)).toHaveLength(1)
     })
 
     it("reads every seat's ballot in the order asked, after one check of the RPC's chain", async () => {
@@ -531,13 +480,13 @@ describe("ballots and pending votes", () => {
         await expect(readWeightedBallots(ctx, b.proposalId, voters)).rejects.toThrow("network")
         expect(vi.mocked(directRpcCall).mock.calls.filter(c => c[1] === "abci_query")).toHaveLength(0)
         // A reply about another address is refused.
-        pendingRoute(b)
+        replyWith(b)
         await expect(readWeightedBallots(ctx, b.proposalId, [b.voter, voters.find(v => v !== b.voter)!])).rejects.toThrow("does not match")
     })
 
     it("reads one ballot and checks it answers the question asked", async () => {
         const b = records.ballot_not_voted as { proposalId: string; voter: string }
-        pendingRoute(b)
+        replyWith(b)
         expect((await readWeightedBallot(ctx, b.proposalId, b.voter)).choice).toBeNull()
         await expect(readWeightedBallot(ctx, "1", b.voter)).rejects.toThrow("does not match")
         expect(vi.mocked(directRpcCall).mock.calls.some(c => new TextDecoder().decode(Uint8Array.from(String(c[2]?.data).slice(2).match(/../g)!, h => parseInt(h, 16))).endsWith(`GetBallotJSON("${b.proposalId}", "${b.voter}")`))).toBe(true)

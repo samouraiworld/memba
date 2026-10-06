@@ -8,6 +8,8 @@ import { qevalWire, weightedRealm } from '../../src/lib/dao/testdata/weighted'
 export const v12 = JSON.parse(readFileSync(new URL('../../src/lib/dao/testdata/weighted-v12/native.json', import.meta.url), 'utf8')).records as Record<string, unknown>
 // A DAO's own package address, and each adapter target's authority getters (see weightedAcceptance.ts).
 const daoAddress = (realmPath: string) => bech32Encode('g', new Uint8Array(createHash('sha256').update(`pkgPath:${realmPath}`).digest().subarray(0, 20)))
+/** What Memba says wherever v12 actions used to be (weightedView's V12_READ_ONLY, spelled out: that module reads the app config). */
+export const V12_READ_ONLY = 'Memba DAO is moving to a new governance contract. This version is read-only in Memba; no proposal, vote or execution can be made here.'
 export const PUBLISHER = (v12.config as { marketPolicy: { successor: string } }).marketPolicy.successor
 /** The treasury the DAO's policies name; on the fake chain, as on mainnet today, the fee-collecting targets still pay the publisher. */
 export const RESERVE = (v12.config as { marketPolicy: { treasury: string } }).marketPolicy.treasury
@@ -36,8 +38,6 @@ function targetRead(expression: string, realmPath: string): string | undefined {
     if (value === undefined) return undefined
     return type === 'string' ? `(${JSON.stringify(value)} string)` : value ? `(${JSON.stringify(value)} .uverse.address)` : '( .uverse.address)'
 }
-/** Ballots the fake chain has recorded, by `<proposal>:<voter>`; a spec sets one when its wallet signs a vote, and clears them before each test. */
-export const castBallots = new Map<string, 'yes' | 'no' | 'abstain'>()
 /** The fake chain's `vm/qeval` answer for `expression` (the DAO at `realmPath` and its adapter targets), or undefined when it has none. */
 export function v12Read(expression: string, realmPath = weightedRealm): string | undefined {
     const target = targetRead(expression, realmPath)
@@ -47,7 +47,7 @@ export function v12Read(expression: string, realmPath = weightedRealm): string |
     const ballot = call.match(/^GetBallotJSON\("(\d+)", "(g1[0-9a-z]{38})"\)$/)
     const value = call === 'GetConfigJSON()' ? { ...(v12.config as object), realmPath } : call === 'GetMembersJSON()' ? v12.members
         : call === 'GetProposalsJSON(0, 20)' ? v12.proposals_page_1 : call === 'GetProposalsJSON(7, 20)' ? v12.proposals_page_2
-        : ballot ? { schema: 'memba-weighted-host/v12', proposalId: ballot[1], voter: ballot[2], eligible: true, choice: castBallots.get(`${ballot[1]}:${ballot[2]}`) ?? null, votedAtHeight: castBallots.has(`${ballot[1]}:${ballot[2]}`) ? '450001' : null }
+        : ballot ? { schema: 'memba-weighted-host/v12', proposalId: ballot[1], voter: ballot[2], eligible: true, choice: null, votedAtHeight: null }
         : v12[`proposal_${call.match(/^GetProposalJSON\((\d+)\)$/)?.[1]}`]
     return value === undefined ? undefined : qevalWire(value)
 }

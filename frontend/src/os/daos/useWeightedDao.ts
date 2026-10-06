@@ -6,8 +6,7 @@
  *
  * @module os/daos/useWeightedDao
  */
-import { useCallback } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { readWeightedBallot, readWeightedBallots, readWeightedSnapshot, weightedApplicationPolicies, type WeightedContext, type WeightedV12Config } from "../../lib/dao/weighted"
 import { readAcceptanceStates } from "../../lib/dao/weightedAcceptance"
@@ -25,12 +24,6 @@ const key = (realmPath: string, ...rest: string[]) => ["dao", "weighted", GNO_CH
  * read, which the window then says it is.
  */
 const REREAD_MS = 60_000
-
-/** Read this DAO again from the chain, now: after a signature settles in one of its windows. */
-export function useRefreshWeightedDao(realmPath: string) {
-    const queryClient = useQueryClient()
-    return useCallback(() => queryClient.invalidateQueries({ queryKey: key(realmPath) }), [queryClient, realmPath])
-}
 
 /** Config, the seven seats and one page of proposals (newest first; `before` is the cursor of an older page). */
 export function useWeightedSnapshot(realmPath: string, before = "0", enabled = true) {
@@ -64,11 +57,11 @@ export function useWeightedProposalEntry(realmPath: string, id: string) {
 }
 
 /** Who controls each application the DAO governs. */
-export function useAcceptanceStates(realmPath: string, config: WeightedV12Config, enabled = true) {
+export function useAcceptanceStates(realmPath: string, config: WeightedV12Config) {
     return useQuery({
         queryKey: key(realmPath, "acceptance"),
         queryFn: ({ signal }) => readAcceptanceStates(contextOf(realmPath), weightedApplicationPolicies(config), signal),
-        staleTime: 30_000, refetchInterval: REREAD_MS, retry: false, enabled,
+        staleTime: 30_000, refetchInterval: REREAD_MS, retry: false,
     })
 }
 

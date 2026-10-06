@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { applicationActionTitle, weightedPageSchema, weightedConfigSchema, type WeightedBallot } from "./weighted"
+import { applicationActionTitle, weightedConfigSchema, type WeightedBallot } from "./weighted"
 import { weightedFixture } from "./testdata/weighted"
 import v12Native from "./testdata/weighted-v12/native.json"
 import { APPLICATION_POLICY_KEYS, applicationActions, type WeightedApplicationAction } from "./weightedApplications"
-import { STATUS_TEXT, applicationRules, executionWarning, openProposalsOf, ballotText, chainTimeText, decisionRules, durationText, isOpenProposal, isVoteOpen, proposalTimes, roleText, seatText, statusNote, tallyText, weightedReadError } from "./weightedView"
+import { STATUS_TEXT, applicationRules, ballotText, chainTimeText, decisionRules, durationText, isOpenProposal, isVoteOpen, proposalTimes, roleText, seatText, statusNote, tallyText, weightedReadError } from "./weightedView"
 
 const ballot = (over: Partial<WeightedBallot>): WeightedBallot => ({ schema: "memba-weighted-host/v12", proposalId: "1", voter: "g1voter", eligible: true, choice: null, votedAtHeight: null, ...over })
 
@@ -67,19 +67,6 @@ describe("weighted DAO display text", () => {
         expect(proposalTimes({ ...at, status: "TIMELOCKED", votingClosed: true, weightedAfter: "2026-11-22T00:00:00Z", developerAfter: "2026-11-24T00:00:00Z" }).map((t) => t.label))
             .toEqual(["Voting closed", "Executable from (points vote)", "Executable from (developers' vote)"])
         expect(chainTimeText("2026-11-21T03:56:00Z")).toMatch(/2026, \d{2}:\d{2} \S+$/)
-    })
-
-    it("claims the open proposals complete only for the whole history, every entry read", () => {
-        const page = weightedPageSchema.parse(v12Native.records.proposals_page_2)
-        expect(openProposalsOf(page).complete).toBe(true)
-        expect(openProposalsOf({ ...page, proposals: [...page.proposals, { id: "0", unreadable: true }] }).complete).toBe(false)
-        expect(openProposalsOf(weightedPageSchema.parse(v12Native.records.proposals_page_1))).toMatchObject({ complete: false, open: expect.arrayContaining([expect.objectContaining({ id: "26" })]) })
-    })
-
-    it("names the open proposals an execution invalidates, and claims a complete list only when all were read", () => {
-        expect(executionWarning("17", [], true)).toBe("Executing #17 invalidates every other open proposal.")
-        expect(executionWarning("17", ["26"], true)).toBe("Executing #17 invalidates open proposal #26. They cannot be revived; their proposers would need to propose again.")
-        expect(executionWarning("17", ["26", "25"], false)).toBe("Executing #17 invalidates 2 open proposals #26, #25 and any other open proposal. They cannot be revived; their proposers would need to propose again.")
     })
 
     it("states the voting period in days, and route delays in hours", () => {

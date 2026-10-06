@@ -107,7 +107,7 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
         eyebrow: `vote · ${p.daoName}`,
         title: p.proposalTitle,
         meta: p.proposalStatus,
-        href: p.href ?? `/dao/${p.daoSlug}/proposal/${p.proposalId}`,
+        href: `/dao/${p.daoSlug}/proposal/${p.proposalId}`,
     }))
 
     const signActions: HomeAction[] = unsignedTxs.map(tx => ({

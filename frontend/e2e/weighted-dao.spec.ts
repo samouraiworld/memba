@@ -1,9 +1,9 @@
 import { bech32Encode } from '../src/lib/dao/realmAddress'
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { stubNetwork } from './helpers/stubNetwork'
 import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
-import { MAINNET, MEMBER, TEST13, memberWallet, routeV12, v12 } from './helpers/weightedV12Fixture'
+import { MAINNET, TEST13, V12_READ_ONLY, memberWallet, routeV12, v12 } from './helpers/weightedV12Fixture'
 import { qevalWire, weightedFixture, weightedRealm } from '../src/lib/dao/testdata/weighted'
 
 for (const version of [1, 2] as const) for (const width of [1280, 390]) {
@@ -59,13 +59,12 @@ for (const width of [1280, 390]) {
         const workspace = page.locator('.weighted-dao')
         await expect(workspace.getByRole('heading', { name: 'Application adapters' })).toBeVisible()
         await expect(workspace.getByRole('listitem', { name: /adapter$/ })).toHaveCount(10)
-        // memba_dao is released from the gnoland-1 hold: what disables the controls is the missing member wallet.
+        // Memba DAO v12 is read-only in Memba: one sentence says so, in place of the network hold.
+        await expect(workspace.getByText(V12_READ_ONLY)).toBeVisible()
         await expect(workspace.getByText(/Memba builds no governance transaction/)).toHaveCount(0)
-        await expect(workspace.getByText('Memba builds no acceptance proposal for this DAO here while it is read-only.')).toHaveCount(0)
         const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
         await expect(market.getByText('Ready to accept')).toBeVisible()
-        await expect(market.getByText('Proposing requires a connected, authenticated member on the selected network.')).toBeVisible()
-        await expect(market.getByRole('button', { name: 'Propose acceptance' })).toBeDisabled()
+        await expect(market.getByRole('button')).toHaveCount(0)
         await expect(workspace.getByRole('listitem', { name: 'escrowPolicy adapter' }).getByText('DAO controls', { exact: true })).toBeVisible()
         const fee = workspace.getByRole('article', { name: 'Proposal 17' })
         await expect(fee.getByRole('heading', { name: 'Market config · Set a fee' })).toBeVisible()
@@ -74,7 +73,7 @@ for (const width of [1280, 390]) {
         await fee.getByText('State frozen at proposal time').click()
         await expect(fee.getByText('Pending admin')).toBeVisible()
         await expect(workspace.getByRole('article', { name: 'Proposal 18' }).getByText('Routine', { exact: true })).toBeVisible()
-        for (const button of await workspace.getByRole('button', { name: /^(Vote .*|Execute proposal|Propose acceptance)$/ }).all()) await expect(button).toBeDisabled()
+        await expect(workspace.getByRole('button', { name: /^(Vote .*|Execute proposal|Propose acceptance|Review .*)$/ })).toHaveCount(0)
         expect(await workspace.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
         expect((await new AxeBuilder({ page }).include('.weighted-dao').analyze()).violations).toEqual([])
         await expect(workspace.getByText('Reading governance state…')).toHaveCount(0)
@@ -116,125 +115,24 @@ test('one mis-encoded weighted proposal is listed as unreadable without hiding t
     await expect(workspace.getByRole('heading', { name: 'Market config · Set a fee' })).toBeVisible()
 })
 
-test('weighted DAO v12 on a test network proposes an adapter acceptance with its exact deposit cap', async ({ page }, info) => {
-    await stubNetwork(page)
-    await routeV12(page, 'test-13')
-    await memberWallet(page)
-    await suppressReleaseAnnouncement(page)
-    await page.goto(`/test13/weighted-dao/${weightedRealm}`)
-    const workspace = page.locator('.weighted-dao')
-    await expect(workspace.getByText(/Memba builds no governance transaction/)).toHaveCount(0)
-    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
-    await expect(market.getByText('Ready to accept')).toBeVisible()
-    await expect(market.getByText('The proposal locks up to 2.13 GNOT of storage deposit from the proposer.')).toBeVisible()
-    // Handoff order: market config is number 1 and, the others being DAO-controlled here, the next one.
-    await expect(market.getByText(/^Handoff 1 of 10/)).toBeVisible()
-    await expect(workspace.getByText('Next recommended')).toHaveCount(1)
-    await expect(market.getByText('Next recommended')).toBeVisible()
-    await expect(workspace.getByRole('listitem', { name: /adapter$/ }).last()).toHaveAttribute('aria-label', 'escrowPolicy adapter')
-    await expect(workspace.getByText('It passes with 6 points and at least 4 people, then 24 hours, or 5 developers, then 72 hours.')).toBeVisible()
-    await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByText('DAO controls', { exact: true })).toBeVisible()
-    await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByRole('button')).toHaveCount(0)
-    // Role and recovery proposals stay unavailable for this contract version.
-    await expect(workspace.getByRole('button', { name: 'Review role proposal' })).toBeDisabled()
-    const propose = market.getByRole('button', { name: 'Propose acceptance' })
-    await expect(propose).toBeEnabled()
-    expect((await new AxeBuilder({ page }).include('.weighted-dao').analyze()).violations).toEqual([])
-    expect(await workspace.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
-    await market.screenshot({ path: info.outputPath('weighted-dao-v12-acceptance.png'), animations: 'disabled' })
-    await propose.click()
-    const dialog = page.getByRole('dialog', { name: 'Confirm transaction' })
-    await expect(dialog.getByText('ProposeMarketAccept', { exact: true })).toBeVisible()
-    await expect(dialog.getByText('Storage deposit cap')).toBeVisible()
-    await expect(dialog.getByText('2.13 GNOT', { exact: true })).toBeVisible()
-    await page.screenshot({ path: info.outputPath('weighted-dao-v12-acceptance-confirm.png'), animations: 'disabled' })
-    await dialog.getByRole('button', { name: 'Confirm & Broadcast' }).click()
-    await expect(workspace.getByText(/^Transaction submitted: (ab){32}\./)).toBeVisible()
-    const requests = await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)
-    expect(requests).toHaveLength(1)
-    expect(requests[0]).toMatchObject({ gasWanted: 24_000_000, messages: [{ type: '/vm.m_call', value: { caller: MEMBER, send: '', pkg_path: weightedRealm, func: 'ProposeMarketAccept', args: [], max_deposit: '2130000ugnot' } }] })
-})
-test('weighted DAO v12 on a test network warns before an execution invalidates open proposals', async ({ page }, info) => {
-    await stubNetwork(page)
-    await routeV12(page, 'test-13')
-    await memberWallet(page)
-    await suppressReleaseAnnouncement(page)
-    await page.goto(`/test13/weighted-dao/${weightedRealm}`)
-    const fee = page.locator('.weighted-dao').getByRole('article', { name: 'Proposal 17' })
-    await expect(fee.getByRole('button', { name: 'Vote yes' })).toBeEnabled()
-    await fee.getByRole('button', { name: 'Execute proposal' }).click()
-    const confirm = fee.getByRole('group', { name: 'Confirm execution of proposal 17' })
-    // The fixture has older proposals than the page read, so the list is not claimed complete.
-    await expect(confirm.getByText(/^Executing #17 invalidates \d+ open proposals #\d+(, #\d+)* and any other open proposal\./)).toBeVisible()
-    await fee.screenshot({ path: info.outputPath('weighted-dao-v12-execute-warning.png'), animations: 'disabled' })
-    await confirm.getByRole('button', { name: 'Keep proposals open' }).click()
-    await expect(confirm).toHaveCount(0)
-    expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
-})
-/** Every write control is disabled (the same set as on the released DAO) and nothing reached the wallet. */
-async function expectEveryControlDisabled(page: Page, workspace: ReturnType<Page['locator']>) {
-    const controls = workspace.getByRole('button', { name: /^(Propose acceptance|Vote .*|Execute proposal|Review role proposal)$/ })
-    await expect(controls).toHaveCount(CONTROL_COUNT)
-    for (const button of await controls.all()) await expect(button).toBeDisabled()
-    expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
+for (const [where, wallet] of [['a test network', TEST13], ['mainnet', MAINNET]] as const) {
+    test(`weighted DAO v12 on ${where} offers a connected member nothing to sign`, async ({ page }, info) => {
+        await stubNetwork(page)
+        await routeV12(page, wallet.chainId)
+        await memberWallet(page, wallet)
+        await suppressReleaseAnnouncement(page)
+        await page.goto(`/${wallet.network}/weighted-dao/${weightedRealm}`)
+        const workspace = page.locator('.weighted-dao')
+        const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
+        await expect(market.getByText('Ready to accept')).toBeVisible()
+        // The member is recognised (their ballots are read) and is still offered no proposal, vote or execution.
+        await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByText('You have not voted.')).toBeVisible()
+        await expect(workspace.getByText(V12_READ_ONLY)).toBeVisible()
+        await expect(workspace.getByRole('button', { name: /^(Propose acceptance|Vote .*|Execute proposal|Review .*)$/ })).toHaveCount(0)
+        await expect(workspace.getByRole('combobox')).toHaveCount(0)
+        expect((await new AxeBuilder({ page }).include('.weighted-dao').analyze()).violations).toEqual([])
+        expect(await workspace.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+        await page.screenshot({ path: info.outputPath(`weighted-dao-v12-read-only-${wallet.network}.png`), animations: 'disabled' })
+        expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
+    })
 }
-// Write controls the v12 fixture renders for a recognised member, acceptance buttons included.
-const CONTROL_COUNT = 82
-test('weighted DAO v12 on mainnet lets a member of the released governing DAO propose an acceptance with its exact deposit cap', async ({ page }) => {
-    await stubNetwork(page)
-    await routeV12(page, 'gnoland-1')
-    await memberWallet(page, MAINNET)
-    await suppressReleaseAnnouncement(page)
-    await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
-    const workspace = page.locator('.weighted-dao')
-    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
-    await expect(market.getByText('Ready to accept')).toBeVisible()
-    await expect(workspace.getByText(/Memba builds no governance transaction/)).toHaveCount(0)
-    await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByRole('button', { name: 'Vote yes' })).toBeEnabled()
-    // Role and recovery proposals stay unavailable for this contract version, released or not.
-    await expect(workspace.getByRole('button', { name: 'Review role proposal' })).toBeDisabled()
-    const propose = market.getByRole('button', { name: 'Propose acceptance' })
-    await expect(propose).toBeEnabled()
-    await propose.click()
-    const dialog = page.getByRole('dialog', { name: 'Confirm transaction' })
-    await expect(dialog.getByText('ProposeMarketAccept', { exact: true })).toBeVisible()
-    await expect(dialog.getByText('2.13 GNOT', { exact: true })).toBeVisible()
-    await dialog.getByRole('button', { name: 'Confirm & Broadcast' }).click()
-    await expect(workspace.getByText(/^Transaction submitted: (ab){32}\./)).toBeVisible()
-    const requests = await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)
-    expect(requests).toHaveLength(1)
-    expect(requests[0]).toMatchObject({ gasWanted: 24_000_000, messages: [{ type: '/vm.m_call', value: { caller: MEMBER, send: '', pkg_path: 'gno.land/r/samcrew/memba_dao', func: 'ProposeMarketAccept', args: [], max_deposit: '2130000ugnot' } }] })
-})
-test('weighted DAO v12 on mainnet keeps every control of an unreleased DAO disabled for a connected, authenticated member', async ({ page }) => {
-    const unreleased = 'gno.land/r/samcrew/memba_dao_v2'
-    await stubNetwork(page)
-    await routeV12(page, 'gnoland-1', unreleased)
-    await memberWallet(page, MAINNET)
-    await suppressReleaseAnnouncement(page)
-    await page.goto(`/mainnet/weighted-dao/${unreleased}`)
-    const workspace = page.locator('.weighted-dao')
-    await expect(workspace.getByText(/Memba builds no governance transaction/)).toBeVisible()
-    await expect(workspace.getByText('Memba builds no acceptance proposal for this DAO here while it is read-only.')).toBeVisible()
-    // The nomination to this DAO is readable, so the acceptance path is on the page, and held.
-    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
-    await expect(market.getByText('Ready to accept')).toBeVisible()
-    await expect(market.getByRole('button', { name: 'Propose acceptance' })).toBeDisabled()
-    // The member is recognised (ballots are read) and still cannot act.
-    await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByText('You have not voted.')).toBeVisible()
-    await expectEveryControlDisabled(page, workspace)
-    expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
-})
-test('weighted DAO v12 on mainnet keeps the released governing DAO disabled for a member whose wallet is on another chain', async ({ page }) => {
-    await stubNetwork(page)
-    await routeV12(page, 'gnoland-1')
-    await memberWallet(page, { network: 'mainnet', chainId: TEST13.chainId, rpcUrl: TEST13.rpcUrl })
-    await suppressReleaseAnnouncement(page)
-    await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
-    const workspace = page.locator('.weighted-dao')
-    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
-    await expect(market.getByText('Ready to accept')).toBeVisible()
-    await expect(workspace.getByText(/Memba builds no governance transaction/)).toHaveCount(0)
-    await expect(market.getByRole('button', { name: 'Propose acceptance' })).toBeDisabled()
-    await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByRole('button', { name: 'Vote yes' })).toBeDisabled()
-    await expectEveryControlDisabled(page, workspace)
-})

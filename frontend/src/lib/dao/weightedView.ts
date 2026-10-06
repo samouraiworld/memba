@@ -80,13 +80,18 @@ export function seatsSummary(config: WeightedConfig): string {
     return `${config.rosterSize} seats · ${config.totalPoints} voting points`
 }
 
-/** Older contract versions (no measured budgets, no published ballots) are read-only in Memba OS. */
-export const CURRENT_VERSION_ONLY = "Memba OS acts only on the current version of this DAO's contract; Memba's classic DAO page still acts on this one."
+/** Memba OS builds no weighted DAO call; off the held chains, the classic page acts on versions 1 and 2. */
+export const OS_READS_ONLY = "Memba OS only reads this version of the DAO's contract; Memba's classic DAO page acts on it."
+
+/** Said wherever v12 actions used to be, in Memba OS and on the classic page: Memba DAO's own move, or the plain rule for any other v12 realm. */
+export const V12_READ_ONLY = "Memba DAO is moving to a new governance contract. This version is read-only in Memba; no proposal, vote or execution can be made here."
+export const V12_READ_ONLY_OTHER = "This DAO version is read-only in Memba; no proposal, vote or execution can be made here."
+export function v12ReadOnlyText(realmPath: string): string { return realmPath === DAO_REALM_PATH ? V12_READ_ONLY : V12_READ_ONLY_OTHER }
 
 /** What a role does not give. */
 export const ROLES_ADD_NOTHING = "Admin and finance roles add no voting power and no exclusive right to execute."
 
-/** The governance write hold: no call is built for a weighted DAO that is not released on this network. */
+/** The governance write hold: no call is built for a weighted DAO on this network. */
 export function writesHeldText(chainId: string): string {
     return `This DAO is read-only in Memba on ${chainId}: Memba builds no governance transaction for it here.`
 }
@@ -146,25 +151,6 @@ export const UNREADABLE_PROPOSAL = "Memba could not validate this proposal again
 
 /** Shown on every open proposal: one execution voids all the others. */
 export const EXECUTION_INVALIDATES = "Executing this proposal invalidates every other outstanding proposal."
-
-/**
- * The open proposals on a page, and whether they are all of them: only when
- * the page is the whole history and every entry on it could be read.
- */
-export function openProposalsOf(page: { proposals: readonly (WeightedProposal | { id: string; unreadable: true })[]; nextBefore: string | null }): { open: WeightedProposal[]; complete: boolean } {
-    const readable = page.proposals.filter((p): p is WeightedProposal => !("unreadable" in p))
-    return { open: readable.filter(isOpenProposal), complete: page.nextBefore === null && readable.length === page.proposals.length }
-}
-
-/**
- * What executing proposal `id` costs the others: the open ones known, by
- * number; `complete` is false when only part of the history was read, so
- * others may exist.
- */
-export function executionWarning(id: string, otherOpen: readonly string[], complete: boolean): string {
-    if (!otherOpen.length) return `Executing #${id} invalidates every other open proposal.`
-    return `Executing #${id} invalidates ${otherOpen.length === 1 ? "open proposal" : `${otherOpen.length} open proposals`} ${otherOpen.map(o => `#${o}`).join(", ")}${complete ? "" : " and any other open proposal"}. They cannot be revived; their proposers would need to propose again.`
-}
 
 /** Why a proposal stands where it does, when its status alone does not say. */
 export function statusNote(p: Pick<WeightedProposal, "status" | "category" | "invalidation">): string | null {

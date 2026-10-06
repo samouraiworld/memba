@@ -4,7 +4,7 @@
  * A target changes hands in two steps: its publisher nominates the DAO as
  * pending owner (admin for market-config and escrow, moderator for reviews),
  * then the DAO votes `Propose<Adapter>Accept`. The realm refuses the proposal
- * unless the DAO is the pending authority, so Memba offers it only then.
+ * unless the DAO is the pending authority. Memba only reads this state.
  *
  * The getters below are the ones the generated DAO's `<adapter>State` readers
  * call (the host freezes their values into the proposal), with the return
@@ -16,7 +16,6 @@ import { z } from "zod"
 import type { WeightedContext } from "./weighted"
 import { assertWeightedChain, qevalText } from "./weighted"
 import { APPLICATION_TARGETS, packageAddress, type ApplicationPolicyKey } from "./weightedApplications"
-export { ACCEPT_ACTIONS, ACCEPT_FUNCS, acceptAdapterFor } from "./weightedApplications"
 import { address } from "./weightedPrimitives"
 
 type ValueType = "address" | "string"
@@ -109,14 +108,9 @@ const targetPath = z.enum(Object.values(APPLICATION_TARGETS) as [string, ...stri
 
 /**
  * Read one target's authority and, once the DAO is pending, the extra accept
- * preconditions, after checking the RPC serves the selected chain.
+ * preconditions. The caller checks the RPC's chain (readAcceptanceStates does).
  */
 export async function readTargetAuthority(ctx: WeightedContext, key: ApplicationPolicyKey, target: string, successor: string, signal?: AbortSignal): Promise<AuthorityRead> {
-    await assertWeightedChain(ctx, signal)
-    return readTargetAuthorityUnchecked(ctx, key, target, successor, signal)
-}
-
-async function readTargetAuthorityUnchecked(ctx: WeightedContext, key: ApplicationPolicyKey, target: string, successor: string, signal?: AbortSignal): Promise<AuthorityRead> {
     targetPath.parse(target); address.parse(successor)
     const dao = weightedDaoAddress(ctx.realmPath)
     const getters = AUTHORITY_GETTERS[key]
@@ -142,47 +136,18 @@ async function readTargetAuthorityUnchecked(ctx: WeightedContext, key: Applicati
 export async function readAcceptanceStates(ctx: WeightedContext, policies: { key: ApplicationPolicyKey; policy: { target: string; successor: string } }[], signal?: AbortSignal) {
     await assertWeightedChain(ctx, signal)
     const dao = weightedDaoAddress(ctx.realmPath)
-    const entries = await Promise.all(policies.map(({ key, policy }) => readTargetAuthorityUnchecked(ctx, key, policy.target, policy.successor, signal)
+    const entries = await Promise.all(policies.map(({ key, policy }) => readTargetAuthority(ctx, key, policy.target, policy.successor, signal)
         .then(read => [key, acceptanceState(read, dao)] as const, () => [key, "error"] as const)))
     return Object.fromEntries(entries) as Partial<Record<ApplicationPolicyKey, AcceptanceState | "error">>
 }
 
-// ── Recommended handoff order ────────────────────────────────────────────────
+// ── Handoff order ────────────────────────────────────────────────
 
 /**
- * The order in which the DAO should accept the ten targets (mainnet handoff
- * plan, step B): the simplest target first to prove the pipeline, escrow
- * (the only real-money path) last. Acceptances run strictly one at a time.
+ * The order of the ten targets in the mainnet handoff plan (step B): the
+ * simplest target first, escrow (the only real-money path) last.
  */
 export const ACCEPTANCE_ORDER: readonly ApplicationPolicyKey[] = [
     "marketPolicy", "badgesPolicy", "feedPolicy", "feedbackPolicy", "channelsPolicy",
     "reviewsPolicy", "arcadePolicy", "questPolicy", "appstorePolicy", "escrowPolicy",
 ]
-
-/** What changes on each target once the DAO has accepted it. */
-export const ACCEPTANCE_CONSEQUENCES: Record<ApplicationPolicyKey, string> = {
-    marketPolicy: "The simplest target: accept it first to prove the handoff. Fees and the treasury then need financial votes.",
-    badgesPolicy: "Acceptance retires the publisher's admin grant. Appoint an operational admin by a critical vote if badges must keep being minted.",
-    feedPolicy: "Afterwards, content moderation needs moderators appointed by a critical vote.",
-    feedbackPolicy: "The outgoing owner's admin role and membership are retired on acceptance.",
-    channelsPolicy: "The outgoing owner's admin role and membership are retired on acceptance.",
-    reviewsPolicy: "Routine moderation (hide and unhide) becomes a DAO vote.",
-    arcadePolicy: "Accept only once the publisher has appointed the score attester; later appointments need a critical vote.",
-    questPolicy: "Accept only once the publisher has set the voucher signer; later rotations need a critical vote.",
-    appstorePolicy: "Acceptance makes the DAO the curator and removes the publisher's curator grant. Listing approvals then need routine votes.",
-    escrowPolicy: "The only real-money path: accept it last. Dispute resolution then becomes a financial DAO vote.",
-}
-
-/**
- * The first target in the recommended order that the DAO does not control
- * yet, or null when all ten are handed over. Unknown until every earlier
- * target's state has been read: a failed or pending read returns null.
- */
-export function nextRecommendedAcceptance(states: Partial<Record<ApplicationPolicyKey, AcceptanceState | "error">>): ApplicationPolicyKey | null {
-    for (const key of ACCEPTANCE_ORDER) {
-        const state = states[key]
-        if (state === undefined || state === "error") return null
-        if (state.kind !== "dao") return key
-    }
-    return null
-}

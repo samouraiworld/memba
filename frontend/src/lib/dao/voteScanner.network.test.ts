@@ -34,7 +34,7 @@ afterEach(() => { vi.useRealTimers(); vi.doUnmock("../config") })
 
 const scans = [
     ["scanUnvotedProposals", "memba_unvoted_cache"],
-    ["scanUnvotedProposalDetails", "memba_unvoted_details_cache"],
+    ["scanUnvotedProposalDetails", "memba_unvoted_details_cache_v2"],
     ["scanMyVotes", "memba_myvotes_cache"],
 ] as const
 

@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba DAO: read-only while governance moves (2026-10-06)
+- Memba DAO (v12) is read-only in Memba while it moves to a new governance contract: Memba OS and the classic DAO page show its seats, rules, proposals, votes and fees, but offer no proposal, vote or execution, say why, and no longer count its proposals as votes waiting for you
+
 ### Dependency security fixes (2026-10-06)
 - Updated the backend's OpenTelemetry libraries to 1.45.0, which fixes vulnerability GO-2026-6505 reported by govulncheck
 - Raised the floors of `source-map-js` (1.2.2, GHSA-68fv-2mgg-jv7q) in the frontend and the workspace packages, and `proxy-addr` (2.0.8, GHSA-jqcg-44mw-7w3h) in the workspace packages

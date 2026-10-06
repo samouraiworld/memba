@@ -292,7 +292,7 @@ export function ProposalWindow({ dao, n, session, open }: { dao: string; n: numb
     const realmPath = realmForName(dao)
     if (!realmPath) return <NotADao name={dao} />
     return (
-        <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} dao={dao} id={String(n)} session={session} />}>
+        <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} id={String(n)} session={session} />}>
             <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} />
         </StandardDaoOnly>
     )

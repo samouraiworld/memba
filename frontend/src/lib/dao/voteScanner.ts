@@ -9,7 +9,6 @@ import { getDAOProposals, getProposalVotes } from "./proposals"
 import { getDAOConfig } from "./config"
 import { GNO_CHAIN_ID, GNO_RPC_URL, networkScopedKey } from "../config"
 import { kindSupportsVoting, resolveDaoKind, type DaoKind } from "./kind"
-import { isUnreadableProposal, readWeightedPendingVotes, weightedProposalTitle } from "./weighted"
 import { getSavedDAOs, FEATURED_DAO, encodeSlug } from "../daoSlug"
 import { resolveOnChainUsername } from "../profile"
 import { sameFullAddress } from "../addressMatch"
@@ -25,23 +24,15 @@ export interface MyVoteEntry {
     proposalStatus: string
 }
 
-interface UnvotedProposalBase {
+/** A proposal awaiting the user's vote, in a DAO whose contract accepts votes from Memba. */
+export interface UnvotedProposal {
     daoName: string
     daoSlug: string
     realmPath: string
+    proposalId: number
     proposalTitle: string
     proposalStatus: string
 }
-
-/**
- * A proposal awaiting the user's vote. Votable rows keep the legacy numeric
- * ID. Weighted rows are read-only indicators: Memba builds no vote for them,
- * their uint64 ID stays a decimal string (never a lossy Number) and `href`
- * points at the weighted workspace.
- */
-export type UnvotedProposal =
-    | (UnvotedProposalBase & { proposalId: number; readOnly?: false; href?: undefined })
-    | (UnvotedProposalBase & { proposalId: string; readOnly: true; href: string })
 
 // ── Cache ─────────────────────────────────────────────────────
 // Module configuration is fixed until a network reload. Session storage
@@ -50,7 +41,7 @@ export type UnvotedProposal =
 // Results depend on the wallet too, so every entry is also keyed by address.
 
 const UNVOTED_CACHE_KEY = networkScopedKey("memba_unvoted_cache")
-const UNVOTED_DETAILS_CACHE_KEY = networkScopedKey("memba_unvoted_details_cache")
+const UNVOTED_DETAILS_CACHE_KEY = networkScopedKey("memba_unvoted_details_cache_v2")
 const MYVOTES_CACHE_KEY = networkScopedKey("memba_myvotes_cache")
 const UNVOTED_TTL = 2 * 60 * 1000 // 2 minutes
 const MYVOTES_TTL = 5 * 60 * 1000 // 5 minutes
@@ -133,37 +124,6 @@ async function daoKind(realmPath: string): Promise<DaoKind | null> {
     }
 }
 
-const MAX_WEIGHTED_PENDING_READS = 3
-
-/**
- * Weighted DAOs report the voter's own pending proposals directly (frozen
- * electorate, no ballot yet), never inferred from tallies. They are read-only
- * indicators: Memba builds no vote for them while their write slices are
- * pending. A contract without this read (older versions) contributes nothing.
- * The host scans at most 200 proposals per call, so a page can carry a
- * cursor and no items.
- */
-async function weightedPending(address: string, dao: { path: string; name: string }, limit: number): Promise<UnvotedProposal[]> {
-    const ctx = { rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath: dao.path }
-    const out: UnvotedProposal[] = []
-    let before = "0"
-    for (let i = 0; i < MAX_WEIGHTED_PENDING_READS && out.length < limit; i++) {
-        const page = await readWeightedPendingVotes(ctx, address, before, limit)
-        for (const item of page.items) {
-            if (out.length >= limit) break
-            out.push({
-                daoName: dao.name, daoSlug: encodeSlug(dao.path), realmPath: dao.path,
-                proposalId: item.id, proposalTitle: weightedProposalTitle(item),
-                proposalStatus: isUnreadableProposal(item) ? "unreadable" : item.status.toLowerCase(),
-                readOnly: true, href: `/weighted-dao/${dao.path}#proposal-${item.id}`,
-            })
-        }
-        if (page.next === null) break
-        before = page.next
-    }
-    return out
-}
-
 /**
  * Does one rendered voter entry identify the connected user?
  *
@@ -226,14 +186,8 @@ export async function scanUnvotedProposals(address: string): Promise<number> {
 
     for (const dao of daos) {
         try {
-            // Weighted DAOs count their read-only pending indicators; otherwise
-            // only DAOs whose contract accepts votes from Memba are offered.
+            // Only DAOs whose contract accepts votes from Memba are counted.
             const kind = await daoKind(dao.path)
-            if (kind === "weighted") {
-                try { unvotedCount += (await weightedPending(address, dao, MAX_PROPOSALS)).length } catch { /* no ballot reads here */ }
-                await delay(100)
-                continue
-            }
             if (!kind || !kindSupportsVoting(kind)) { await delay(100); continue }
             // Get config for memberstore path
             let memberstorePath: string | undefined
@@ -302,14 +256,8 @@ export async function scanUnvotedProposalDetails(address: string): Promise<Unvot
     for (const dao of daos) {
         if (results.length >= MAX_UNVOTED_DETAILS) break
         try {
-            // Weighted DAOs are listed read-only from their own pending-vote read;
-            // otherwise only DAOs whose contract accepts votes from Memba are offered.
+            // Only DAOs whose contract accepts votes from Memba are offered.
             const kind = await daoKind(dao.path)
-            if (kind === "weighted") {
-                try { results.push(...await weightedPending(address, dao, MAX_UNVOTED_DETAILS - results.length)) } catch { /* no ballot reads here */ }
-                await delay(100)
-                continue
-            }
             if (!kind || !kindSupportsVoting(kind)) { await delay(100); continue }
             // Get config for memberstore path
             let memberstorePath: string | undefined

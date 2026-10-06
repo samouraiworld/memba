@@ -1,15 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
 import gettersText from "./testdata/weighted-v12/target-getters.txt?raw"
-import exportsText from "./testdata/weighted-v12/realm-exports.txt?raw"
-import { ACCEPT_ACTIONS, ACCEPT_FUNCS, ACCEPT_PROBES, ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, acceptAdapterFor, acceptanceState, parseQevalAddress, parseQevalBool, parseQevalString, readAcceptanceStates, readTargetAuthority, weightedDaoAddress } from "./weightedAcceptance"
+import { ACCEPT_PROBES, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, acceptanceState, parseQevalAddress, parseQevalBool, parseQevalString, readAcceptanceStates, readTargetAuthority, weightedDaoAddress } from "./weightedAcceptance"
 import { APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, type ApplicationPolicyKey } from "./weightedApplications"
 import { weightedApplicationPolicies, weightedConfigSchema } from "./weighted"
 import { directRpcCall } from "../rpcFallback"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
 
-const hostSources = Object.fromEntries(Object.entries(import.meta.glob("./testdata/weighted-v12/host/*_actions.gno.txt", { query: "?raw", import: "default", eager: true }) as Record<string, string>)
-    .map(([path, text]) => [path.split("/").pop()!.replace(/_actions\.gno\.txt$/, ""), text]))
 const lines = (text: string) => text.split("\n").filter(l => l && !l.startsWith("#"))
 /** `<realm> <name>(<params>) <result>` → realm → name → { params, result }. */
 const targetGetters = new Map<string, Map<string, { params: string; result: string }>>()
@@ -18,7 +15,6 @@ for (const line of lines(gettersText)) {
     if (!targetGetters.has(m[1])) targetGetters.set(m[1], new Map())
     targetGetters.get(m[1])!.set(m[2], { params: m[3], result: m[4] })
 }
-const realmExports = new Map(lines(exportsText).map(l => { const m = l.match(/^\S+ (\w+)\(([^)]*)\)\s*(\w*)$/)!; return [m[1], { params: m[2], result: m[3] }] }))
 
 const realmPath = "gno.land/r/samcrew/memba_dao"
 const ctx = { realmPath, rpcUrl: "https://selected.invalid", chainId: "test-chain" }
@@ -28,10 +24,6 @@ const DAO = weightedDaoAddress(realmPath)
 const members = native.records.members.members
 const PUBLISHER = config.marketPolicy.successor
 const OTHER = members[3].address
-const HOST_FILE: Record<ApplicationPolicyKey, string> = {
-    marketPolicy: "market", reviewsPolicy: "reviews", questPolicy: "quest", arcadePolicy: "arcade", appstorePolicy: "appstore",
-    escrowPolicy: "escrow", badgesPolicy: "badges", feedPolicy: "feed", channelsPolicy: "channels", feedbackPolicy: "feedback",
-}
 
 /** A fake chain: realm → expression → typed qeval text. */
 let chain: Record<string, Record<string, string>>
@@ -66,25 +58,7 @@ beforeEach(() => {
 })
 const read = (key: ApplicationPolicyKey) => readTargetAuthority(ctx, key, config[key].target, config[key].successor)
 
-describe("adapter acceptance: realm entry points and target getters", () => {
-    it("proposes each acceptance through the realm's exported, argument-free entry point", () => {
-        expect(Object.keys(ACCEPT_FUNCS)).toEqual(APPLICATION_POLICY_KEYS)
-        for (const key of APPLICATION_POLICY_KEYS) {
-            expect(realmExports.get(ACCEPT_FUNCS[key]), key).toEqual({ params: "cur realm", result: "uint64" })
-            // The host encoder of the same adapter takes no argument either and records this operation.
-            const source = hostSources[HOST_FILE[key]]
-            expect(source, key).toMatch(/func (\(p \w+Policy\) Accept|MarketAccept)\(\) \w+Action/)
-            expect(source).toContain(`= "${ACCEPT_ACTIONS[key].operation}"`)
-        }
-    })
-
-    it("recognises the ten executed acceptances of the native scenario, one per adapter", () => {
-        const accepted = Array.from({ length: 10 }, (_, i) => acceptAdapterFor((native.records as unknown as Record<string, { proposal: { action: { type: string; operation: string } } }>)[`proposal_${i + 4}`].proposal.action))
-        expect(new Set(accepted)).toEqual(new Set(APPLICATION_POLICY_KEYS))
-        expect(acceptAdapterFor({ type: "market-config", operation: "set-fee" })).toBeNull()
-        expect(acceptAdapterFor({ type: "reviews", operation: "accept-owner" })).toBeNull()
-    })
-
+describe("adapter acceptance: target getters", () => {
     it("reads each target through getters that exist there, with their exact return types", () => {
         for (const key of APPLICATION_POLICY_KEYS) {
             const g = AUTHORITY_GETTERS[key]
@@ -191,31 +165,16 @@ describe("acceptance state machine", () => {
         expect(Object.keys(states)).toHaveLength(10)
         network = "gnoland-1"
         await expect(readAcceptanceStates(ctx, weightedApplicationPolicies(config))).rejects.toThrow("RPC network does not match")
-        // A single re-read (before signing, after executing) checks the chain too.
-        await expect(read("marketPolicy")).rejects.toThrow("RPC network does not match")
     })
 })
 
-describe("recommended handoff order", () => {
+describe("handoff order", () => {
     it("orders all ten targets as the handoff plan does, market config first and escrow last", () => {
         expect(ACCEPTANCE_ORDER.map(k => config[k].target.replace("gno.land/r/samcrew/", ""))).toEqual([
             "memba_market_config", "gnobuilders_badges_v2", "memba_feed_v1", "memba_feedback_v2", "memba_dao_channels_v2",
             "memba_reviews_v2", "memba_arcade_leaderboard_v1", "memba_quest_attestation_v1", "memba_appstore_v3", "escrow_v4",
         ])
         expect(new Set(ACCEPTANCE_ORDER)).toEqual(new Set(APPLICATION_POLICY_KEYS))
-        expect(Object.keys(ACCEPTANCE_CONSEQUENCES).sort()).toEqual([...APPLICATION_POLICY_KEYS].sort())
-        expect(ACCEPTANCE_CONSEQUENCES.escrowPolicy).toMatch(/real-money path: accept it last/)
-    })
-
-    it("recommends the first target the DAO does not control yet, only once every earlier state is known", () => {
-        const dao = { kind: "dao", pending: "" } as const, ready = { kind: "ready", current: PUBLISHER } as const
-        const all = (state: typeof dao | typeof ready) => Object.fromEntries(APPLICATION_POLICY_KEYS.map(k => [k, state]))
-        expect(nextRecommendedAcceptance(all(ready))).toBe("marketPolicy")
-        expect(nextRecommendedAcceptance({ ...all(dao), feedPolicy: ready, escrowPolicy: ready })).toBe("feedPolicy")
-        expect(nextRecommendedAcceptance({ ...all(dao), feedbackPolicy: { kind: "awaiting", current: PUBLISHER, pending: "" } })).toBe("feedbackPolicy")
-        expect(nextRecommendedAcceptance(all(dao))).toBeNull()
-        expect(nextRecommendedAcceptance({ ...all(ready), marketPolicy: "error" })).toBeNull()
-        expect(nextRecommendedAcceptance({ ...all(dao), badgesPolicy: undefined, escrowPolicy: ready })).toBeNull()
     })
 
     it("hands over to the live mainnet DAO's own package address", () => {
