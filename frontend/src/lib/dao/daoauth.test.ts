@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseArgs } from "./daoauth"
+import { encodeArgs, parseArgs } from "./daoauth"
 
 const ADDR = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
@@ -8,6 +8,7 @@ describe("daoauth", () => {
         const s = `u:0|u:18446744073709551615|i:-9223372036854775808|i:7|b:1|b:0|a:${ADDR}|s:0:|s:10:a|b:c d"\\\\`
         const fields = parseArgs(s)
         expect(fields.map(f => f.tag).join("")).toBe("uuiibbass")
+        expect(encodeArgs(fields)).toBe(s)
         expect(fields[8].value).toBe('a|b:c d"\\\\')
         expect(parseArgs("")).toEqual([])
     })
@@ -18,5 +19,11 @@ describe("daoauth", () => {
             `s:513:${"a".repeat(513)}`, `s:512:${"a".repeat(512)}|s:512:${"a".repeat(512)}`]) {
             expect(() => parseArgs(bad), bad).toThrow()
         }
+    })
+
+    it("refuses to encode a value with no canonical form", () => {
+        expect(() => encodeArgs([{ tag: "a", value: ADDR.toUpperCase() }])).toThrow("lowercase bech32")
+        expect(() => encodeArgs([{ tag: "s", value: "tab\there" }])).toThrow("printable ASCII")
+        expect(() => encodeArgs([{ tag: "u", value: "007" }])).toThrow()
     })
 })

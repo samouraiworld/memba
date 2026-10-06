@@ -60,3 +60,17 @@ export function parseArgs(s: string): DaoauthField[] {
     }
     return out
 }
+
+/** Encodes fields, refusing any value without a canonical form. */
+export function encodeArgs(fields: readonly DaoauthField[]): string {
+    const s = fields.map(({ tag, value }) => {
+        if (tag === "s") {
+            if (!validText(value)) throw new Error("Text must be printable ASCII of at most 512 characters")
+            return `s:${value.length}:${value}`
+        }
+        if (!scalarOK(tag, value)) throw new Error(tag === "a" ? "Address must be lowercase bech32" : "Invalid value")
+        return `${tag}:${value}`
+    }).join("|")
+    if (s.length > MAX_ARGS) throw new Error("Arguments exceed 1024 characters")
+    return s
+}

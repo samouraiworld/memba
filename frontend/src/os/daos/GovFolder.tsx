@@ -17,6 +17,7 @@ import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { FolderTabs } from "./FolderTabs"
+import { EmergencyPauses, JoinAction } from "./GovActions"
 import { useGovSnapshot } from "./useGovDao"
 
 const TABS: { id: DaoSection; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "proposals", label: "Proposals" }, { id: "members", label: "Members" }]
@@ -92,6 +93,7 @@ function Overview({ data, name, open, session }: { data: GovSnapshot; name: stri
                 <p className="os-sub os-flush">{data.roster.persons} seated, total weight {data.roster.weight} · {GNO_CHAIN_ID}</p>
             </div>
             <Seat data={data} session={session} />
+            <JoinAction roster={data.roster} session={session} />
             <section>
                 <h3 className="os-h">How decisions pass</h3>
                 <ul className="os-list">{classRules(data.constants).map((c) => (
@@ -106,6 +108,7 @@ function Overview({ data, name, open, session }: { data: GovSnapshot; name: stri
                 {openNow.length > 0 && <ul className="os-list">{openNow.slice(0, 3).map((p) => <li key={p.id}><Row p={p} name={name} open={open} /></li>)}</ul>}
                 {data.page.total !== "0" && <button type="button" className="os-btn os-quiet" onClick={() => open(daoSpec(name, "proposals"))}>All proposals</button>}
             </section>
+            <EmergencyPauses roster={data.roster} session={session} />
         </div>
     )
 }

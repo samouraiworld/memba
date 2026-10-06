@@ -12,6 +12,8 @@ import { govProposalTitle, govReadError, valueText } from "../../lib/dao/govView
 import type { GovProposal, GovRoster } from "../../lib/dao/membaGov"
 import { formatChainTime } from "../../lib/dao/v2Lifecycle"
 import { ErrorState, Loading } from "../kit"
+import type { OsSession } from "../shell/useOsSession"
+import { ProposalActions } from "./GovActions"
 import { GovStatusPill } from "./GovFolder"
 import { useGovProposal, useGovRoster, useTargetManifest } from "./useGovDao"
 
@@ -21,7 +23,7 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
 
 const mono = (text: string) => <span className="os-mono">{text}</span>
 
-export function GovProposalWindow({ id }: { id: string }) {
+export function GovProposalWindow({ id, session }: { id: string; session: OsSession }) {
     const proposal = useGovProposal(id)
     const rosterRead = useGovRoster()
     const p = proposal.data, roster = rosterRead.data
@@ -37,6 +39,7 @@ export function GovProposalWindow({ id }: { id: string }) {
                 <div className="os-row"><GovStatusPill status={p.status} /><span className="os-sub">{CLASS_NAMES[p.class]} · proposed by {p.proposer}</span></div>
             </div>
             <Action p={p} />
+            <ProposalActions p={p} roster={roster} session={session} raw={decodeGovAction(p.target, p.action, p.args) === null} />
             {p.note && (
                 <section>
                     <h3 className="os-h">Proposer's note</h3>
