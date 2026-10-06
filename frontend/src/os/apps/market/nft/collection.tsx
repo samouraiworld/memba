@@ -22,6 +22,7 @@ export function CollectionTrade({ lane, session, collection }: { lane: LaneProps
         <>
             <div className="os-row">
                 <h3 className="os-h os-flush os-grow" style={{ overflowWrap: "anywhere" }}><CollectionName chainId={lane.chainId} id={collection} /></h3>
+                <button type="button" className="os-btn os-quiet" onClick={() => lane.go({ kind: "application", collection })}>Curation</button>
                 <button type="button" className="os-btn os-quiet" onClick={() => lane.openNft({ kind: "collection", collection })}>Collection profile</button>
             </div>
             {profile.isError && <ReadFailure error={profile.error} what="collection" refused={`There is no collection ${collection} on this network.`} retry={() => void profile.refetch()} />}

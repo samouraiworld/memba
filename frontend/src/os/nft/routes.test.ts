@@ -29,6 +29,9 @@ const MARKET_ROUTES: [string, MarketNftRoute][] = [
     ["nfts/c/C12/7", { kind: "token", collection: "C12", number: 7n }],
     [`nfts/c/C1/${LARGEST_NUMBER}`, { kind: "token", collection: "C1", number: LARGEST_NUMBER }],
     ["nfts/mine", { kind: "mine" }],
+    ["nfts/ops", { kind: "operations" }],
+    ["nfts/ops/c/C1", { kind: "application", collection: "C1" }],
+    [`nfts/ops/c/${LONGEST_ID}`, { kind: "application", collection: LONGEST_ID }],
 ]
 
 /** What follows `c/` is read by one rule in both apps, so both refuse the same things. */
@@ -82,7 +85,7 @@ describe("Market NFT-lane sections", () => {
             expect(marketNftSection(parsed as MarketNftRoute)).toBe(section)
             expect(parseMarketNftSection(marketNftSection(route))).toEqual(route)
         }
-        expect(new Set(MARKET_ROUTES.map(([, route]) => route.kind))).toEqual(new Set(["explore", "collection", "token", "mine"]))
+        expect(new Set(MARKET_ROUTES.map(([, route]) => route.kind))).toEqual(new Set(["explore", "collection", "token", "mine", "operations", "application"]))
     })
 
     it("is not Market's home, which lists the lanes", () => {
@@ -93,6 +96,7 @@ describe("Market NFT-lane sections", () => {
         ...MALFORMED_COLLECTION_PATHS.map((path) => `nfts/${path}`),
         "", "/", "NFTS", "Nfts", "nft", "nfts/", "/nfts", "nfts ", "nfts//c/C1",
         "nfts/Mine", "nfts/mine/", "nfts/mine/C1", "nfts/create", "nfts/studio", "nfts/studio/C1",
+        "nfts/ops/", "nfts/Ops", "nfts/ops/c", "nfts/ops/c/", "nfts/ops/c/c1", "nfts/ops/c/C01", "nfts/ops/c/C1/7", "nfts/ops/c/C1/", "nfts/ops/C1",
         "c/C1", "c/C1/7", "mine", "create", "studio",
         "services", "marketplace/services", "marketplace/nfts", "tokens", "agents", "my-listings",
     ])("leaves %j to the fallback", (section) => {
@@ -114,8 +118,9 @@ describe("a route that could not have been read", () => {
         expect(() => marketNftSection(route)).toThrow(/^Invalid (collection ID|token number)$/)
     })
 
-    it("is never built into a studio section either", () => {
+    it("is never built into a studio or an application section either", () => {
         expect(() => nftSection({ kind: "studio-collection", collection: "C1/7" })).toThrow(/^Invalid collection ID$/)
+        expect(() => marketNftSection({ kind: "application", collection: "C1/7" })).toThrow(/^Invalid collection ID$/)
     })
 })
 

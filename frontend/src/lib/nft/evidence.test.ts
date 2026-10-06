@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getIpfsGatewayUrl } from "../ipfs"
-import { EvidenceError, fetchCommitted } from "./evidence"
+import { EvidenceError, MAX_EVIDENCE_BYTES, fetchCommitted, pinEvidence } from "./evidence"
 
 const CID = `bafy${"b".repeat(55)}`
 const TEXT = "Vérifié : l'artiste a signé ce relevé — 確認済み"
@@ -198,6 +198,52 @@ describe("defects and malformed commitments", () => {
 
     it.each(["", HASH.toUpperCase(), HASH.slice(1), `${HASH}0`, `0x${HASH.slice(2)}`])("never fetches for the malformed hash %j", async (hash) => {
         await expect(fetchCommitted(CID, hash)).rejects.toThrow(/^Invalid hash$/)
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+})
+
+describe("pinning a text", () => {
+    const answer = (cid: unknown, hash: unknown, status = 200) => fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ cid, sha256: hash }), { status }))
+
+    beforeEach(() => { localStorage.setItem("memba_auth_token", "token-1") })
+    afterEach(() => { localStorage.removeItem("memba_auth_token") })
+
+    it("sends the exact UTF-8 bytes, signed in, and returns the pair the call commits", async () => {
+        answer(CID, HASH)
+        await expect(pinEvidence(TEXT)).resolves.toEqual({ cid: CID, hash: HASH })
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(url).toMatch(/\/api\/upload\/curation-evidence$/)
+        expect(init).toMatchObject({ method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8", Authorization: "Bearer token-1" } })
+        expect(Array.from(init.body as Uint8Array)).toEqual(Array.from(utf8(TEXT)))
+    })
+
+    it("accepts a raw-codec CID, as the curation realm does", async () => {
+        const raw = `bafkrei${"a".repeat(52)}`
+        answer(raw, HASH)
+        await expect(pinEvidence(TEXT)).resolves.toEqual({ cid: raw, hash: HASH })
+    })
+
+    it("refuses an answer whose hash is not the text's, or whose CID the realm would refuse", async () => {
+        answer(CID, sha256("another text"))
+        await expect(pinEvidence(TEXT)).rejects.toThrow("The pinned text's hash does not match the text sent.")
+        answer("https://example.org/x", HASH)
+        await expect(pinEvidence(TEXT)).rejects.toThrow(/^Invalid pinned CID$/)
+        answer(CID, "A".repeat(64))
+        await expect(pinEvidence(TEXT)).rejects.toThrow(/^Invalid pinned hash$/)
+    })
+
+    it("says what failed: no answer, a signed-out account, or a refused upload", async () => {
+        fetchMock.mockRejectedValueOnce(new TypeError("offline"))
+        await expect(pinEvidence(TEXT)).rejects.toThrow("the server did not answer")
+        answer(CID, HASH, 401)
+        await expect(pinEvidence(TEXT)).rejects.toThrow("Sign in again to pin the text.")
+        answer(CID, HASH, 502)
+        await expect(pinEvidence(TEXT)).rejects.toThrow("The text could not be pinned (502). Try again.")
+    })
+
+    it("sends nothing blank, and nothing over the server's 16 KB", async () => {
+        await expect(pinEvidence(" \n\t")).rejects.toThrow("Write the text first.")
+        await expect(pinEvidence("é".repeat(MAX_EVIDENCE_BYTES / 2 + 1))).rejects.toThrow("The text is longer than 16 KB.")
         expect(fetchMock).not.toHaveBeenCalled()
     })
 })

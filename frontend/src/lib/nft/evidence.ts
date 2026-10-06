@@ -1,5 +1,5 @@
 /**
- * The public text behind an on-chain commitment. The curation realm records a
+ * The public text behind an on-chain commitment, and pinning a new one. The curation realm records a
  * (hash, CID) pair for every statement and reason; the text itself is on IPFS.
  * Nothing fetched is returned unless the SHA-256 of the exact bytes received
  * equals the hash on chain, so a gateway cannot put words in anyone's mouth.
@@ -11,6 +11,7 @@
  *
  * @module lib/nft/evidence
  */
+import { API_BASE_URL } from "../config"
 import { getIpfsGatewayUrl } from "../ipfs"
 import { sha256Hex } from "./hash"
 import { cid as parseCid, hash as parseHash } from "./parse"
@@ -95,4 +96,44 @@ export async function fetchCommitted(cid: string, hash: string): Promise<string>
     const bytes = await download(url)
     if (await sha256Hex(bytes) !== expected) throw new EvidenceError("mismatch")
     return decode(bytes)
+}
+
+/** What a curation call commits for a text: where it is pinned, and the SHA-256 of its exact UTF-8 bytes. */
+export interface Commitment {
+    cid: string
+    hash: string
+}
+
+/** The backend's limit for one statement or reason. */
+export const MAX_EVIDENCE_BYTES = 16 * 1024
+
+/**
+ * Pins a statement or a reason as UTF-8 text through the backend's
+ * authenticated proxy and returns the pair a curation call commits. Pinned
+ * text is public. The answer is checked before anything is signed with it:
+ * the hash must be the SHA-256 of the bytes sent, and the CID one the realm
+ * accepts.
+ */
+export async function pinEvidence(text: string): Promise<Commitment> {
+    const bytes = new TextEncoder().encode(text)
+    if (text.trim() === "") throw new Error("Write the text first.")
+    if (bytes.length > MAX_EVIDENCE_BYTES) throw new Error("The text is longer than 16 KB.")
+    const token = localStorage.getItem("memba_auth_token")
+    let response: Response
+    try {
+        response = await fetch(`${API_BASE_URL || ""}/api/upload/curation-evidence`, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain; charset=utf-8", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: bytes,
+        })
+    } catch (cause) {
+        throw new Error("The text could not be pinned: the server did not answer. Try again.", { cause })
+    }
+    if (response.status === 401) throw new Error("Sign in again to pin the text.")
+    if (!response.ok) throw new Error(`The text could not be pinned (${response.status}). Try again.`)
+    const answer: unknown = await response.json().catch(() => null)
+    const fields = (answer ?? {}) as { cid?: unknown; sha256?: unknown }
+    const commitment = { cid: parseCid(fields.cid, "pinned CID"), hash: parseHash(fields.sha256, "pinned hash") }
+    if (commitment.hash !== await sha256Hex(bytes)) throw new Error("The pinned text's hash does not match the text sent.")
+    return commitment
 }

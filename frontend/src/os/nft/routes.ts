@@ -23,11 +23,13 @@ export type NftRoute =
     | { kind: "studio" }
     | { kind: "studio-collection"; collection: string }
 
-/** Market app, NFT lane: `nfts`, `nfts/c/<id>`, `nfts/c/<id>/<number>`, `nfts/mine`. */
+/** Market app, NFT lane: `nfts`, `nfts/c/<id>`, `nfts/c/<id>/<number>`, `nfts/mine`, `nfts/ops`, `nfts/ops/c/<id>`. */
 export type MarketNftRoute =
     | { kind: "explore" }
     | CollectionRoute
     | { kind: "mine" }
+    | { kind: "operations" }
+    | { kind: "application"; collection: string }
 
 /** The strict readers throw on a value that does not fit, and on nothing else: here that is a section nobody serves. */
 function read<T>(parse: () => T): T | null {
@@ -71,10 +73,14 @@ export function nftSection(route: NftRoute): string | null {
 export function parseMarketNftSection(section: string | null): MarketNftRoute | null {
     if (section === "nfts") return { kind: "explore" }
     if (section === "nfts/mine") return { kind: "mine" }
+    if (section === "nfts/ops") return { kind: "operations" }
+    if (section?.startsWith("nfts/ops/c/")) return read<MarketNftRoute>(() => ({ kind: "application", collection: collectionId(section.slice(11)) }))
     return section?.startsWith("nfts/") ? parseCollectionPath(section.slice(5)) : null
 }
 
 export function marketNftSection(route: MarketNftRoute): string {
     if (route.kind === "explore") return "nfts"
-    return route.kind === "mine" ? "nfts/mine" : `nfts/${collectionPath(route)}`
+    if (route.kind === "mine") return "nfts/mine"
+    if (route.kind === "operations") return "nfts/ops"
+    return route.kind === "application" ? `nfts/ops/c/${collectionId(route.collection)}` : `nfts/${collectionPath(route)}`
 }
