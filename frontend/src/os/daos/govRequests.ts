@@ -10,7 +10,8 @@
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { broadcastDaoTx } from "../../lib/dao/daoTx"
 import type { GovernanceScope } from "../../lib/dao/governanceRecovery"
-import { BRIDGE_APPS, GOV_PATH } from "../../lib/dao/govActions"
+import { BRIDGE_APPS, CLASS_NAMES, GOV_PATH, decodeGovAction } from "../../lib/dao/govActions"
+import { isBridgeDraft, type GovDraft } from "../../lib/dao/govDrafts"
 import { approvalMatches, bridgeExecution, planGovCall, type GovCall, type GovVote } from "../../lib/dao/govTx"
 import { govProposalTitle } from "../../lib/dao/govView"
 import { readBridgeApproval, readBridgePauses, readGovProposal, readGovSnapshot, type GovProposal } from "../../lib/dao/membaGov"
@@ -132,6 +133,34 @@ export function govPauseRequest(s: GovSigner, app: string, expire: boolean): Sig
         verify: async () => {
             const { until } = (await readBridgePauses(ctx()))[app]
             return expire ? until === 0 : until > now()
+        },
+    })
+}
+
+/**
+ * Files a proposal. An app action's draft is the bridge's own answer to
+ * `call`; it is asked again right before signing, so an app that changed
+ * meanwhile is caught before the proposal costs a deposit.
+ */
+export function govProposeRequest(s: GovSigner, draft: GovDraft, call: string | null): SignRequest {
+    const decoded = decodeGovAction(draft.target, draft.action, draft.args)
+    return request(s, { type: "propose", draft }, {
+        title: "Propose", summary: `Propose: ${decoded?.title ?? draft.action}`,
+        lines: [["Action", decoded?.title ?? draft.action], ["Class", CLASS_NAMES[draft.class]], ...(draft.note ? [["Your note", draft.note] as [string, string]] : [])],
+        operation: `propose:${draft.action}`,
+        recheck: async () => {
+            await seated(s.caller)
+            if (isBridgeDraft(draft)) {
+                const fresh = await readBridgeApproval(ctx(), call ?? "")
+                if (fresh.action !== draft.action || fresh.args !== draft.args || fresh.scope !== draft.scope) {
+                    throw new Error("The app changed while you reviewed this proposal. Check it again. Nothing was sent.")
+                }
+            }
+        },
+        verify: async () => {
+            const me = await seated(s.caller)
+            return (await readGovSnapshot(ctx())).page.proposals.some((p) =>
+                p.proposer === me.id && p.action === draft.action && p.args === draft.args && p.note === draft.note)
         },
     })
 }

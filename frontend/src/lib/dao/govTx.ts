@@ -3,7 +3,8 @@
  * limit and a storage-deposit cap, so what a member reviews is what signs.
  */
 import type { DaoTxPlan } from "./daoTx"
-import { encodeArgs, type DaoauthField } from "./daoauth"
+import { encodeArgs, validText, type DaoauthField } from "./daoauth"
+import type { GovDraft } from "./govDrafts"
 import { BRIDGE_APPS, BRIDGE_PATH, GOV_PATH, bridgeCall } from "./govActions"
 import type { GovApproval, GovProposal } from "./membaGov"
 import { address, id } from "./weightedPrimitives"
@@ -22,6 +23,8 @@ export const GOV_BUDGETS = {
     execute: { gasWanted: 40_000_000, maxDepositUgnot: 1_000_000 },
     bridge: { gasWanted: 50_000_000, maxDepositUgnot: 2_000_000 },
     pause: { gasWanted: 30_000_000, maxDepositUgnot: 500_000 },
+    // A Propose with a 256-character target used 55.6M gas (AVL rebalance) and stored about 3.7 KB.
+    propose: { gasWanted: 80_000_000, maxDepositUgnot: 1_000_000 },
 } as const
 
 export type GovVote = "yes" | "no" | "abstain"
@@ -30,6 +33,7 @@ export type GovCall =
     | { type: "execute"; proposal: GovProposal }
     | { type: "join" }
     | { type: "pause" | "expire-pause"; app: string }
+    | { type: "propose"; draft: GovDraft }
 
 const argText = (f: DaoauthField) => (f.tag === "b" ? (f.value === "1" ? "true" : "false") : f.value)
 
@@ -49,6 +53,11 @@ export function planGovCall(caller: string, call: GovCall): DaoTxPlan {
     switch (call.type) {
         case "vote": func = "Vote"; args = [id.parse(call.id), call.vote]; budget = GOV_BUDGETS.vote; break
         case "join": func = "Join"; args = []; budget = GOV_BUDGETS.join; break
+        case "propose": {
+            const d = call.draft
+            if (!validText(d.note) || d.note.length > 280) throw new Error("A note is at most 280 printable ASCII characters")
+            func = "Propose"; args = [d.target, d.action, d.args, d.scope, String(d.class), d.note]; budget = GOV_BUDGETS.propose; break
+        }
         case "execute":
             if (call.proposal.target === GOV_PATH) { func = "Execute"; args = [id.parse(call.proposal.id)]; budget = GOV_BUDGETS.execute; break }
             ({ func, args } = bridgeExecution(call.proposal)); pkg = BRIDGE_PATH; budget = GOV_BUDGETS.bridge; break
