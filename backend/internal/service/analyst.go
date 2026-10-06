@@ -187,7 +187,7 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 
 	// OpenRouter requires additional headers
 	if strings.HasPrefix(provider.Name, "openrouter-") {
-		req.Header.Set("HTTP-Referer", "https://memba.samourai.app")
+		req.Header.Set("HTTP-Referer", "https://memba.club")
 		req.Header.Set("X-Title", "Memba DAO Analyst")
 	}
 

@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	linkPreviewUA       = "MembaLinkPreview/1.0 (+https://memba.samourai.app)"
+	linkPreviewUA       = "MembaLinkPreview/1.0 (+https://memba.club)"
 	linkPreviewTimeout  = 5 * time.Second
 	maxLinkPreviewBytes = 512 << 10 // 512 KB of HTML (metadata lives in <head>)
 	maxLinkImageBytes   = 2 << 20   // 2 MB image cap on the proxy
