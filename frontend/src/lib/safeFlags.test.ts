@@ -46,7 +46,7 @@ describe("VITE_ENABLE_APPSTORE_SUBMIT (de-gated 2026-07-10 — v3 seeded+sealed,
 })
 
 describe("VITE_ENABLE_NFT (DE-GATED by the pearl §6 completion — the condition its re-gate named)", () => {
-    // The sapphire-era re-gate said the flag leaves the list "only in the PR
+    // The earlier re-gate said the flag leaves the list "only in the PR
     // that allowlists the NFT stack after its own ceremony + live fee-path
     // verification" — this is that PR: the pearl combined ceremony ships the
     // whole stack and §4.4's fee-path verification is a merge precondition.

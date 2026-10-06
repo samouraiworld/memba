@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, fireEvent } from "@testing-library/react"
 
 vi.mock("../../../hooks/useNetwork", () => ({
-    useNetwork: () => ({ networkKey: "sapphire" }),
+    useNetwork: () => ({ networkKey: "mainnet" }),
 }))
 
 vi.mock("../../../lib/dao/shared", () => ({

@@ -11,9 +11,9 @@
  *     gnolove's mainnet-backed source, not from the chain the app is pointed
  *     at — a discrepancy worth surfacing on a test chain, which is why
  *     `gnolove-team-hub` e2e asserts it is absent on gnoland1 ("real chain")
- *     and present on test13. It was gated on the `test13` KEY, so the topaz
- *     cutover silently dropped it; it now keys off `NETWORKS[...].isTestnet`,
- *     which covers topaz and any future test chain without another literal.
+ *     and present on test13. It was gated on the `test13` KEY, so the next
+ *     testnet silently dropped it; it now keys off `NETWORKS[...].isTestnet`,
+ *     which covers any test chain without another literal.
  *
  * @module components/gnolove/teams/TeamHubHeader
  */

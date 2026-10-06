@@ -192,6 +192,8 @@ describe("osUrlForClassic", () => {
         // A retired network: the classic page redirects to its successor first, then that URL opens its window.
         ["/pearl/dao", null],
         ["/pearl/feed/post/12", null],
+        ["/topaz/dao", null],
+        ["/sapphire/feed", null],
         // No window: the classic page stays.
         ["/github/callback?code=a&state=b", null],
         ["/mainnet/github/callback?code=a&state=b", null],
@@ -200,8 +202,6 @@ describe("osUrlForClassic", () => {
         ["/mainnet/no-such-page", null],
         // Networks hidden from the selector stay classic: Memba OS would not stay on them.
         ["/test13/dao", null],
-        ["/topaz/dao", null],
-        ["/sapphire/feed", null],
         ["/gnoland1/validators", null],
         ["/onyx/feed", null],
     ]
@@ -219,7 +219,9 @@ describe("osUrlForClassic", () => {
     })
 
     it("follows a retired network's redirect in two hops", () => {
-        expect(resolve("/pearl/feed/post/12")).toBeNull()
-        expect(resolve(`/${retiredNetworkSuccessor("pearl")}/feed/post/12`)).toBe("/os/feed/post/12")
+        for (const retired of ["pearl", "topaz", "sapphire"]) {
+            expect(resolve(`/${retired}/feed/post/12`), retired).toBeNull()
+            expect(resolve(`/${retiredNetworkSuccessor(retired)}/feed/post/12`), retired).toBe("/os/feed/post/12")
+        }
     })
 })

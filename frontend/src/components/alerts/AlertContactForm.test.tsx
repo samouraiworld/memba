@@ -14,7 +14,7 @@ const webhook = (id: number): MonitoringWebhook => ({
     URL: "https://discord.com/api/webhooks/abc",
     Type: "discord",
     Description: `hook-${id}`,
-    ChainID: "topaz-1",
+    ChainID: "onyx-1",
 })
 
 const contact = (): AlertContact => ({

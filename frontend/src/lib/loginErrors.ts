@@ -44,7 +44,7 @@ export const CHAIN_MISMATCH_LOGIN_MSG =
  * auth is enforced (AUTH-UNSIGNED-01): the wallet has never transacted on this
  * network, so no on-chain pubkey exists and Adena (#800) will neither reveal
  * nor sign for one. Third use of the bare-code exception. After a chain reset
- * (the sapphire cutover) EVERY wallet's first sign-in lands here, so this is
+ * or cutover EVERY wallet's first sign-in lands here, so this is
  * the difference between "the whole userbase dead-ends on a generic banner"
  * and "the whole userbase is walked through activation".
  */

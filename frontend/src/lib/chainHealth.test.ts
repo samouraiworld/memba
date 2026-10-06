@@ -4,13 +4,13 @@ import { checkChainHealth, getSuggestedFallback } from "./chainHealth"
 // Mock NETWORKS used by chainHealth
 //
 // DELIBERATE DIVERGENCE FROM REALITY: no entry carries `hidden`, even though the
-// real gnoland1, test13 and (since 2026-08-12) topaz all do. getSuggestedFallback
+// real gnoland1, test13 and pearl all do. getSuggestedFallback
 // filters on BOTH `!net.hidden` AND `networkHasRealms(key)`; if the mock's
 // gnoland1 were also hidden, deleting either clause would still leave it
 // filtered by the other and the suite would pass with half the fix gone.
 // Keeping the mock's gnoland1 realm-less-but-visible isolates the
 // `networkHasRealms` clause, and the "hidden networks are never suggested" case
-// below isolates `!net.hidden` by hiding sapphire for the duration of one test.
+// below isolates `!net.hidden` by hiding mainnet for the duration of one test.
 vi.mock("./config", () => ({
     // getSuggestedFallback now refuses to steer users to a chain with no Memba
     // realms (its comment always said so; the code did not). Mirror the real
@@ -18,7 +18,7 @@ vi.mock("./config", () => ({
     // Mainnet mirrors reality too: `realmsDeployed: false` (partial wave 1)
     // but a non-empty REALM_ALLOWLIST — so it is suggestable ONLY through the
     // allowlist clause, which this mock therefore isolates.
-    networkHasRealms: (k: string) => ({ test13: true, topaz: true, sapphire: true, pearl: true, mainnet: false, gnoland1: false })[k] ?? true,
+    networkHasRealms: (k: string) => ({ test13: true, pearl: true, mainnet: false, gnoland1: false })[k] ?? true,
     networkHasAllowlistedRealms: (k: string) => ({ mainnet: true })[k] ?? false,
     NETWORKS: {
         mainnet: {
@@ -33,12 +33,6 @@ vi.mock("./config", () => ({
             fallbackRpcUrls: ["https://rpc.pearl.samourai.live:443"],
             label: "Pearl",
         },
-        sapphire: {
-            chainId: "sapphire-1",
-            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
-            fallbackRpcUrls: ["https://sapphire.rpc.onbloc.xyz:443"],
-            label: "Sapphire",
-        },
         test13: {
             chainId: "test-13",
             rpcUrl: "https://rpc.test13.testnets.gno.land:443",
@@ -47,12 +41,6 @@ vi.mock("./config", () => ({
                 "https://rpc.test-13-aeddi-1.gnoland.network:443",
             ],
             label: "Testnet 13",
-        },
-        topaz: {
-            chainId: "topaz-1",
-            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
-            fallbackRpcUrls: ["https://topaz.rpc.onbloc.xyz:443"],
-            label: "Topaz",
         },
         gnoland1: {
             chainId: "gnoland1",
@@ -147,8 +135,8 @@ describe("chainHealth", () => {
         it("suggests mainnet (Memba realms live) for test13, not Betanet", () => {
             // mainnet carries Memba's wave-1 realms since the 2026-09-23
             // cutover; gnoland1 (Betanet) has no Memba realms and must never be
-            // the first suggestion. Retired test13/topaz/sapphire/pearl are no
-            // longer in the fallback order at all.
+            // the first suggestion. Retired test13 and pearl are no longer in
+            // the fallback order at all.
             expect(getSuggestedFallback("test13")).toBe("mainnet")
         })
 
@@ -159,8 +147,6 @@ describe("chainHealth", () => {
         it("never suggests the retired or outgoing chains", () => {
             for (const from of ["mainnet", "pearl", "unknown", "gnoland1"]) {
                 expect(getSuggestedFallback(from)).not.toBe("test13")
-                expect(getSuggestedFallback(from)).not.toBe("topaz")
-                expect(getSuggestedFallback(from)).not.toBe("sapphire")
                 // pearl left the order at the 2026-09-23 mainnet cutover — a
                 // shut-down chain must never be offered as an escape.
                 expect(getSuggestedFallback(from)).not.toBe("pearl")
@@ -180,9 +166,8 @@ describe("chainHealth", () => {
 
 describe("getSuggestedFallback never steers into a realm-less chain", () => {
     it("returns null rather than suggesting Betanet when mainnet is the degraded one", () => {
-        // The regression this guards (born as fallbackOrder=["topaz","gnoland1"]
-        // in the topaz era): when the FIRST entry is itself the degraded
-        // network, the walk must not fall through to a chain with no Memba
+        // The regression this guards: when the FIRST entry is itself the
+        // degraded network, the walk must not fall through to a chain with no Memba
         // realms — ChainHaltedBanner would render a one-click switch into a
         // dead end. Combined with hiding Betanet, that click used to be
         // unrecoverable. Since the mainnet cutover the order is

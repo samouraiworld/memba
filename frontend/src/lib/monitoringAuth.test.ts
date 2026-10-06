@@ -46,11 +46,11 @@ describe("webhook wire format", () => {
             URL: "https://discord.com/api/webhooks/abc",
             Type: "discord",
             Description: "test",
-            ChainID: "topaz-1",
+            ChainID: "onyx-1",
         })
 
         const body = bodyOf(fetchMock)
-        expect(body.chain_id).toBe("topaz-1")
+        expect(body.chain_id).toBe("onyx-1")
         expect(body).not.toHaveProperty("ChainID")
     })
 
@@ -62,7 +62,7 @@ describe("webhook wire format", () => {
             URL: "https://discord.com/api/webhooks/abc",
             Type: "discord",
             Description: "test",
-            ChainID: "topaz-1",
+            ChainID: "onyx-1",
         })
 
         const body = bodyOf(fetchMock)
@@ -98,12 +98,12 @@ describe("webhook wire format", () => {
                 URL: "https://discord.com/api/webhooks/a",
                 Type: "discord",
                 Description: "d",
-                chain_id: "topaz-1",
+                chain_id: "onyx-1",
             },
         ])))
 
         const list = await listWebhooks("tok", "validator")
-        expect(list[0].ChainID).toBe("topaz-1")
+        expect(list[0].ChainID).toBe("onyx-1")
     })
 })
 
@@ -146,7 +146,7 @@ describe("endpoint routing per kind", () => {
         URL: "https://discord.com/api/webhooks/abc",
         Type: "discord" as const,
         Description: "test",
-        ChainID: "topaz-1",
+        ChainID: "onyx-1",
     }
 
     function urlOf(fetchMock: ReturnType<typeof vi.fn>): string {
@@ -183,7 +183,7 @@ describe("webhook mutation errors", () => {
         URL: "https://discord.com/api/webhooks/abc",
         Type: "discord" as const,
         Description: "test",
-        ChainID: "topaz-1",
+        ChainID: "onyx-1",
     }
 
     it("surfaces the server's plain-text refusal", async () => {

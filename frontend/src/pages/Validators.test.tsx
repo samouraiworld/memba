@@ -137,7 +137,7 @@ describe("Validators page — tablist keyboard (APG)", () => {
     })
 
     it("gives the segments a roving tabindex (single tab stop)", async () => {
-        renderWithProviders(<Validators />, { route: "/sapphire/validators" })
+        renderWithProviders(<Validators />, { route: "/mainnet/validators" })
         await screen.findByTestId("validator-table")
         expect(screen.getByTestId("seg-validators")).toHaveAttribute("tabindex", "0")
         expect(screen.getByTestId("seg-candidates")).toHaveAttribute("tabindex", "-1")
@@ -145,7 +145,7 @@ describe("Validators page — tablist keyboard (APG)", () => {
     })
 
     it("ArrowRight moves selection to the next segment", async () => {
-        renderWithProviders(<Validators />, { route: "/sapphire/validators" })
+        renderWithProviders(<Validators />, { route: "/mainnet/validators" })
         await screen.findByTestId("validator-table")
         fireEvent.keyDown(screen.getByTestId("seg-validators"), { key: "ArrowRight" })
         expect(await screen.findByTestId("valoper-panel")).toBeInTheDocument()

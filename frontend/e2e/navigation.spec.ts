@@ -104,17 +104,15 @@ test.describe('TopBar (Desktop)', () => {
         await page.goto('/')
         const selector = page.getByTestId('topbar').getByRole('combobox', { name: 'Switch network', exact: true })
         await expect(selector).toBeVisible()
-        // 2026-09-17 contract: gno.land (mainnet, `gnoland-1`) is the default.
-        // Betanet joined Sapphire/Topaz/test13 in the retired set — every
-        // public gnoland1 endpoint stopped answering — and Pearl followed at
-        // the 2026-09-23 mainnet cutover (chain shut down): hidden from the
-        // selector, still resolvable by deep link so stored selections heal
-        // instead of stranding.
+        // 2026-09-17 contract: gno.land (mainnet, `gnoland-1`) is the default and
+        // the only offered network. Networks kept in code are hidden from the
+        // selector (Pearl and Betanet, retired; test13; the Onyx testnet) and
+        // stay reachable by deep link, so stored selections heal instead of stranding.
         await expect(selector).toContainText(/gno\.land/)
         await expect(selector.locator('option', { hasText: /Pearl/ })).toHaveCount(0)
         await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(0)
-        await expect(selector.locator('option', { hasText: /Sapphire/ })).toHaveCount(0)
-        await expect(selector.locator('option', { hasText: /Topaz/ })).toHaveCount(0)
+        await expect(selector.locator('option', { hasText: /Testnet 13/ })).toHaveCount(0)
+        await expect(selector.locator('option', { hasText: /Onyx/ })).toHaveCount(0)
     })
 
     test('connect wallet button visible when disconnected', async ({ page }) => {

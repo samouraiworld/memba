@@ -63,8 +63,8 @@ function mockRenderResponse(markdown: string) {
 // The wrong-chain guard compares the wallet's chainId against config's
 // GNO_CHAIN_ID, which follows VITE_GNO_CHAIN_ID — and the repo-root .env is
 // untracked, so a dev machine pinning e.g. test13 resolves a different chain
-// than CI's sapphire default. Guard assertions must derive BOTH sides from
-// GNO_CHAIN_ID: hardcoding "sapphire-1" failed 5 tests locally while CI stayed
+// than CI's default. Guard assertions must derive BOTH sides from
+// GNO_CHAIN_ID: hardcoding a chain id failed 5 tests locally while CI stayed
 // green. WRONG_CHAIN mismatches by construction under any pin — a realistic
 // name can't be used, because every real chain (even gnoland1) is a valid
 // VITE_GNO_CHAIN_ID and would collide on the machine that pins it.
@@ -487,7 +487,7 @@ describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
 
     it('passes the chain guard when the wallet chainId matches (proceeds to wallet check)', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
         await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
     })
@@ -609,7 +609,7 @@ describe('assertWalletBroadcastSafe — shared guard for non-DoContract transpor
     })
 
     it('passes on a trusted RPC with a matching chain', () => {
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         expect(() => assertWalletBroadcastSafe()).not.toThrow()
     })
 })
@@ -618,7 +618,7 @@ describe('doContractBroadcast — one wallet request per call', () => {
     const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
     function wallet(reply: unknown) {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         const doContract = typeof reply === 'function' ? vi.fn(reply as () => Promise<unknown>) : vi.fn().mockResolvedValue(reply)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
@@ -704,7 +704,7 @@ describe('doContractBroadcast — one wallet request per call', () => {
 describe('doContractBroadcast — broadcast result', () => {
     it('returns the wallet result beside the hash, so callers can read return data', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         const data = { hash: 'h', deliver_tx: { ResponseBase: { Data: btoa('(3 uint64)') } } }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { ...liveWallet(), DoContract: vi.fn().mockResolvedValue({ status: 'success', data }) }
@@ -716,7 +716,7 @@ describe('doContractBroadcast — broadcast result', () => {
 describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
     it('uses the elevated deploy budget for { gas: "deploy" } and the normal one otherwise', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         const calls: Array<{ gasWanted: number }> = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = {
@@ -738,7 +738,7 @@ describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
 describe('doContractBroadcast — explicit gasWanted', () => {
     function capture() {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         const calls: Array<{ gasWanted: number; gasFee: number }> = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = {

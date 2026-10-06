@@ -93,9 +93,9 @@ func Caller(cur realm) address {
  * nothing. Migrating the templates without this file does not fix the gate, it
  * silences it.
  *
- * Verified on-chain 2026-08-11 (`vm/qfile gno.land/p/nt/avl/v0/tree.gno`): both
- * topaz-1 and sapphire-1 serve `Get(key string) any` and `Has(key string) bool`,
- * so this is the shape generated realms must use on either target.
+ * Verified on-chain 2026-10-06 on gnoland-1 (`vm/qfile gno.land/p/nt/avl/v0/tree.gno`,
+ * height 603,382): it serves `Get(key string) any` and `Has(key string) bool`,
+ * so this is the shape generated realms must use.
  *
  * Exercises BOTH halves of what the generators now emit — `Has` for existence
  * and a comma-ok type assertion for a value read — so a GNOROOT that provides

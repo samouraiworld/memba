@@ -59,7 +59,7 @@ afterEach(async () => {
 })
 
 describe("ReactionBar", () => {
-    it("renders nothing off the feed's home network (pearl default, feed on sapphire)", () => {
+    it("renders nothing off the feed's home network", () => {
         vi.stubEnv("VITE_ENABLE_REACTIONS", "true")
         vi.mocked(isFeedWritable).mockReturnValueOnce(false)
         mockFetch.mockResolvedValue(reactions([{ emoji: "👍", count: 3, viewerReacted: false }]))

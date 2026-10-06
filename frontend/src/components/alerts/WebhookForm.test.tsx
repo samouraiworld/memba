@@ -15,7 +15,7 @@ vi.mock("../../lib/gnomonitoring", () => ({
 
 import { WebhookForm } from "./WebhookForm"
 
-const ENABLED = ["gnoland1", "sapphire-1", "topaz-1"]
+const ENABLED = ["gnoland1", "gnoland-1", "onyx-1"]
 
 const webhook = (chainID: string | null): MonitoringWebhook => ({
     ID: 1,
@@ -72,27 +72,27 @@ describe("WebhookForm", () => {
 
     it("submits chain_id-ready ChainID from the stored webhook", async () => {
         const onSubmit = vi.fn().mockResolvedValue({ ok: true })
-        render(<WebhookForm initial={webhook("topaz-1")} onSubmit={onSubmit} />)
+        render(<WebhookForm initial={webhook("onyx-1")} onSubmit={onSubmit} />)
         await chainsRendered()
 
         fireEvent.submit(document.querySelector("form")!)
         await waitFor(() => expect(onSubmit).toHaveBeenCalled())
         expect(onSubmit).toHaveBeenCalledWith(
-            expect.objectContaining({ ChainID: "topaz-1" }),
+            expect.objectContaining({ ChainID: "onyx-1" }),
         )
     })
 
     it("submits a chain the user changes it to", async () => {
         const onSubmit = vi.fn().mockResolvedValue({ ok: true })
-        render(<WebhookForm initial={webhook("topaz-1")} onSubmit={onSubmit} />)
+        render(<WebhookForm initial={webhook("onyx-1")} onSubmit={onSubmit} />)
         await chainsRendered()
 
-        fireEvent.change(chainSelect(), { target: { value: "sapphire-1" } })
+        fireEvent.change(chainSelect(), { target: { value: "gnoland-1" } })
         fireEvent.submit(document.querySelector("form")!)
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalled())
         expect(onSubmit).toHaveBeenCalledWith(
-            expect.objectContaining({ ChainID: "sapphire-1" }),
+            expect.objectContaining({ ChainID: "gnoland-1" }),
         )
     })
 
@@ -159,7 +159,7 @@ describe("WebhookForm", () => {
             ok: false,
             error: "chain_id is required",
         })
-        render(<WebhookForm initial={webhook("topaz-1")} onSubmit={onSubmit} />)
+        render(<WebhookForm initial={webhook("onyx-1")} onSubmit={onSubmit} />)
         await chainsRendered()
 
         fireEvent.submit(document.querySelector("form")!)

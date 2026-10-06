@@ -112,18 +112,14 @@ export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // was retired 2026-07-26 (RPCs dead) so it no longer belongs in the list;
     // gnoland1 is a last resort only.
     // The comment above was the intent; the code did not implement it — this
-    // returned "gnoland1" whenever topaz was the degraded network, so
-    // ChainHaltedBanner offered a one-click switch to a chain with no Memba
-    // realms. Now filtered on the same signal the banner uses, and hidden
-    // networks are never suggested.
-    // topaz left this list at its 2026-08-12 retirement (also now hidden, so
-    // the filter below would drop it anyway — belt and braces, like test13).
-    // pearl leads since the §6 completion (realms deployed). sapphire left
-    // the list in the same PR: post-cutover, suggesting the OUTGOING chain as
-    // an escape contradicts the migration (and its 09-09 sunset would force
-    // the removal days later anyway — the networkPins tooth demands exactly
-    // one active-realms network per pin file). gnoland1 stays last
-    // (realm-free, filtered anyway).
+    // returned "gnoland1" whenever the first entry was itself the degraded
+    // network, so ChainHaltedBanner offered a one-click switch to a chain with
+    // no Memba realms. Now filtered on the same signal the banner uses, and
+    // hidden networks are never suggested.
+    // A chain leaves this list when it retires, and an OUTGOING chain leaves
+    // at its cutover: suggesting it as an escape contradicts the migration
+    // (the networkPins tooth demands exactly one active-realms network per
+    // pin file). gnoland1 stays last (realm-free, filtered anyway).
     // Mainnet cutover (2026-09-23): pearl left the list — it is shut down, and
     // a dead chain must never be offered as an escape. mainnet leads: it is
     // where Memba's realms live now. Its wave 1 is PARTIAL (`realmsDeployed`

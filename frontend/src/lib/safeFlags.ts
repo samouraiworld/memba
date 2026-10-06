@@ -15,7 +15,7 @@ export const SAFETY_GATED_FLAGS = [
     // pearl ceremony deploys + registers the whole NFT stack (grc721 →
     // collections → market_core → config → v3_2) and §4.4's live fee-path
     // verification is a merge precondition of this PR — the condition its
-    // sapphire-era re-gating comment named. The realm allowlist remains the
+    // earlier re-gating comment named. The realm allowlist remains the
     // first lock; the Netlify env value stays OFF until the owner's 2-wallet
     // live-money test (§6), so de-gating here changes no deployed behavior.
     "VITE_ENABLE_TREASURY_SPEND",
