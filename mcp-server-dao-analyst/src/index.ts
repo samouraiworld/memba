@@ -459,7 +459,7 @@ server.registerTool(
       network: z
         .string()
         .describe(
-          'Network name ("mainnet", "test5") or a full RPC URL (e.g., "https://rpc.gno.land")'
+          'Network name ("mainnet", "onyx") or a full RPC URL (e.g., "https://rpc.gno.land")'
         ),
     },
   },

@@ -78,19 +78,12 @@ var validRealmPath = regexp.MustCompile(`^gno\.land/[rp]/[\w/]+$`)
 // canonical chain ID used for cache scoping and chain context. Anything else is
 // rejected, so arbitrary strings never reach the cache key or the prompt.
 var analystChainIDs = map[string]string{
-	"mainnet":     "gnoland-1",
-	"gnoland-1":   "gnoland-1",
-	"gnoland1":    "gnoland1",
-	"pearl":       "pearl-1",
-	"pearl-1":     "pearl-1",
-	"sapphire":    "sapphire-1",
-	"sapphire-1":  "sapphire-1",
-	"topaz":       "topaz-1",
-	"topaz-1":     "topaz-1",
-	"test13":      "test-13",
-	"test-13":     "test-13",
-	"portal-loop": "portal-loop",
-	"staging":     "staging",
+	"mainnet":   "gnoland-1",
+	"gnoland-1": "gnoland-1",
+	"onyx":      "onyx-1",
+	"onyx-1":    "onyx-1",
+	"test13":    "test-13",
+	"test-13":   "test-13",
 }
 
 // resolveAnalystChainID returns the canonical chain ID for a network key or chain ID.
@@ -636,18 +629,8 @@ func buildChainContext(chainID string) string {
 			maturity: "MAINNET — production chain, tokens carry real value, governance decisions are binding",
 			note:     "Governance outcomes here have real and lasting impact on members and funds.",
 		},
-		"pearl-1": {
-			name:     "gno.land Pearl Testnet",
-			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
-			note:     "Governance decisions here are for testing and community coordination, not financial value.",
-		},
-		"sapphire-1": {
-			name:     "gno.land Sapphire Testnet (retired 2026-09-09)",
-			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
-			note:     "Governance decisions here are for testing and community coordination, not financial value.",
-		},
-		"topaz-1": {
-			name:     "gno.land Topaz Testnet (retired 2026-08-12)",
+		"onyx-1": {
+			name:     "gno.land Onyx Testnet (onyx-1)",
 			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
 			note:     "Governance decisions here are for testing and community coordination, not financial value.",
 		},
@@ -655,21 +638,6 @@ func buildChainContext(chainID string) string {
 			name:     "gno.land Testnet 13 (retired 2026-07-26)",
 			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
 			note:     "Governance decisions here are for testing and community coordination, not financial value.",
-		},
-		"gnoland1": {
-			name:     "gno.land Betanet (gnoland1)",
-			maturity: "BETANET — pre-production, tokens have emerging value, governance decisions carry weight",
-			note:     "This chain may experience consensus bugs. Governance impact is real but limited.",
-		},
-		"portal-loop": {
-			name:     "gno.land Portal Loop",
-			maturity: "DEVELOPMENT — rolling testnet, auto-reset, used for rapid iteration",
-			note:     "Governance here is purely experimental. No persistence guarantees.",
-		},
-		"staging": {
-			name:     "gno.land Staging",
-			maturity: "STAGING — internal testing environment",
-			note:     "Not public-facing. Governance is for internal validation only.",
 		},
 	}
 

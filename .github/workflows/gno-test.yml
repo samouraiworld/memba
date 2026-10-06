@@ -68,20 +68,16 @@ env:
   # interrealm-v2, and equally if the stdlib it resolves no longer provides what
   # the templates target.
   #
-  # THE PIN MUST TRACK THE CHAIN WE DEPLOY TO. A pin no live chain runs makes
+  # THE PINS MUST TRACK THE CHAINS WE DEPLOY TO. A pin no live chain runs makes
   # this gate green against an ABI that does not exist on-chain — which is
-  # exactly how the two breaks below stayed hidden. Bumped 7b2888c3 (2026-07-02)
-  # → 1c6ac026, the sapphire RC, because #1057 retired the topaz node the app
-  # used to point at. (The intermediate topaz RC 697011c4 also passes; sapphire
-  # is chosen so the toolchain matches the chain the frontend targets.)
+  # exactly how the two breaks below once stayed hidden. One lane per chain:
+  # gnoland-1 (mainnet) and onyx-1 (the testnet). The onyx pin is 21 commits
+  # ahead of mainnet's, so a green lane says nothing about the other chain.
   #
-  # Two BREAKING toolchain changes the old pin hid, both now satisfied:
+  # Two BREAKING toolchain changes a stale pin once hid, both satisfied:
   #   1. `avl.Tree.Get` returns a SINGLE value (was `(any, bool)`) —
   #      gnolang/gno#5314. Presence checks moved to `Has`, value reads to a
-  #      comma-ok type assertion. VERIFIED ON-CHAIN 2026-08-11: `vm/qfile
-  #      gno.land/p/nt/avl/v0/tree.gno` returns `Get(key string) any` and
-  #      `Has(key string) bool` on BOTH topaz-1 and sapphire-1, so the migrated
-  #      form is correct for either target and only this pin differs.
+  #      comma-ok type assertion.
   #   2. gnovm enforces package name == last path element
   #      (ValidatePkgNameMatchesPath, gnolang/gno#5048) — candidatureTemplate
   #      hardcoded `package candidature`, which cannot deploy at its real path
@@ -90,12 +86,12 @@ env:
   # Both are the same failure class: generated code that only type-checks
   # against a stale pin. Re-run the gate locally before the next bump.
   #
-  # This value is parsed by frontend/src/test/gnoToolchain.ts (`declaredGnoPin`)
-  # so the drift message can quote the real SHA. Keep it a plain hex literal.
-  GNO_PIN: c4c72fdd288c757e8da0d93aae867fa479b1b15c
-  # The gnoland-1 (mainnet) app pin. c4c72fdd is NOT an ancestor of it, so a
-  # green pearl lane says nothing about mainnet: every gate runs on both.
-  GNO_PIN_GNOLAND1: 31b6650a100d9baf14e7669f8f0df924f1f841e0
+  # GNO_PIN is the gnoland-1 (mainnet) pin. It is parsed by
+  # frontend/src/test/gnoToolchain.ts (`declaredGnoPin`) so the drift message
+  # can quote the real SHA. Keep it a plain hex literal.
+  GNO_PIN: 31b6650a100d9baf14e7669f8f0df924f1f841e0
+  # The onyx-1 pin: tag chain/onyx, the testnet's genesis commit.
+  GNO_PIN_ONYX: 5cdbc25fcde0b7569911a4e308ae5d2f6e96c399
 
 jobs:
   gno-test:
@@ -105,17 +101,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [pearl, gnoland-1]
+        lane: [gnoland-1, onyx-1]
     steps:
       - name: Select the gno pin for this lane
         env:
           LANE: ${{ matrix.lane }}
         run: |
-          if [ "$LANE" = "gnoland-1" ]; then
-            echo "GNO_LANE_PIN=${GNO_PIN_GNOLAND1}" >> "$GITHUB_ENV"
-          else
-            echo "GNO_LANE_PIN=${GNO_PIN}" >> "$GITHUB_ENV"
-          fi
+          case "$LANE" in
+            gnoland-1) echo "GNO_LANE_PIN=${GNO_PIN}" >> "$GITHUB_ENV" ;;
+            onyx-1) echo "GNO_LANE_PIN=${GNO_PIN_ONYX}" >> "$GITHUB_ENV" ;;
+            *) echo "unknown lane: $LANE" >&2; exit 1 ;;
+          esac
 
       - uses: actions/checkout@v7
 

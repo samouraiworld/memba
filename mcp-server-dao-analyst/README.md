@@ -90,9 +90,9 @@ Built-in network aliases:
 | Name | Chain id | RPC |
 |------|----------|-----|
 | `mainnet` | `gnoland-1` | `https://rpc.gno.land` |
-| `test5` | — | `https://rpc.test5.gno.land` |
+| `onyx` | `onyx-1` | `https://rpc.onyx.testnets.gno.land` |
 
-`mainnet` is the current Memba chain; its node is the default when `GNO_RPC_URL` is unset. Any full RPC URL is also accepted; retired chains (pearl, test13, topaz, sapphire) have no alias.
+`mainnet` is the current Memba chain; its node is the default when `GNO_RPC_URL` is unset. Any full RPC URL is also accepted; retired chains (pearl, test13, topaz, sapphire, test5) have no alias.
 
 Switch mid-conversation: use the `dao_set_network` tool.
 

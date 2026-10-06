@@ -198,7 +198,7 @@ func TestHandleAnalystConsensus_ProposalZeroValidation(t *testing.T) {
 		ProposalID:   0,
 		ProposalData: "test proposal data",
 		DAOContext:   "test context",
-		ChainID:      "pearl-1",
+		ChainID:      "onyx-1",
 	}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", bytes.NewReader(body))

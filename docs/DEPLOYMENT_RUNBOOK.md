@@ -1,7 +1,7 @@
 # Memba — On-Chain Deployment Runbook
 
 > **Status:** COMPLETE — Full procedures for all samcrew on-chain deployments.
-> **Current network (2026-09-23):** **gno.land mainnet (chain id `gnoland-1`)**. Wave 1 was published there on 2026-09-23 by the samcrew namespace multisig — `realm-versions.json` `mainnet` is the ledger. **Pearl (`pearl-1`) was retired the same day.** Sections below that call pearl current are Pearl-era procedure, kept for reference; a mainnet procedure is pending.
+> **Current network (2026-09-23):** **gno.land mainnet (chain id `gnoland-1`)**. Wave 1 was published there on 2026-09-23 by the samcrew namespace multisig — `realm-versions.json` `mainnet` is the ledger. **Pearl (`pearl-1`) was retired the same day.** Mainnet publication uses the deployer's `tools/mainnet-manual` flow (see [Multi-Network Deployment Order](#multi-network-deployment-order)); the generic `samcrew-deploy.sh` procedure below applies to testnets.
 >
 > **Last updated (Pearl era):** 2026-09-01 — pearl (chain id `pearl-1`) was then the current live network (combined ceremony 2026-08-31; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, hidden and off the accepted-chain list, formal sunset 2026-09-09; topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — retired RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live paths/blocks per chain).
 > **Deployer tool:** [`samcrew-deployer`](https://github.com/samouraiworld/samcrew-deployer)
@@ -26,23 +26,23 @@
 
 ## Realm Inventory
 
-> **Mainnet (`gnoland-1`) is the current network since 2026-09-23** (wave 1 in `realm-versions.json` `mainnet`); pearl is retired. The rest of this note is the Pearl-era record: the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and is retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. Betanet (`gnoland1`, no hyphen) stays empty — Memba deploys nothing there; mainnet is the separate chain `gnoland-1`.
+> **Mainnet (`gnoland-1`) is the current network since 2026-09-23** (wave 1 in `realm-versions.json` `mainnet`); pearl is retired. The rest of this note is the Pearl-era record: the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and is retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. Memba deployed nothing to Betanet (`gnoland1`, no hyphen, retired 2026-10-06), a different chain from mainnet `gnoland-1`.
 
-**Original test12 deployment (historical)** — these paths and blocks are the 2026-03/04 test12 record, not what Pearl serves; Pearl's live generations (`agent_registry_v2`, `escrow_v3`, `memba_nft_market_v3_2`, `tokenfactory_v2`, …) are in `realm-versions.json`.
+**Original test12 deployment (historical)** — these paths and blocks are the 2026-03/04 test12 record; later generations and what each chain serves are in `realm-versions.json`.
 
-| # | Realm | Module Path (test12) | test12 | gnoland1 | Source |
-|---|-------|----------------------|--------|----------|--------|
-| 1 | **gnodaokit** (basedao, daocond, daokit, realmid) | `gno.land/p/samcrew/{basedao,daocond,daokit,realmid}` | ✅ | ⏳ Phase 5 | `samcrew-deployer/projects/gnodaokit/` |
-| 2 | **tokenfactory** | `gno.land/r/samcrew/tokenfactory` | ✅ | ⏳ Phase 5 | Deployed externally (realm code not in repo) |
-| 3 | **memba_dao** | `gno.land/r/samcrew/memba_dao` | ✅ (block 150069, 2026-03-29) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
-| 4 | **memba_dao_candidature_v2** | `gno.land/r/samcrew/memba_dao_candidature_v2` | ✅ (block 237938, 2026-04-09) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
-| 5 | **memba_dao_channels_v2** | `gno.land/r/samcrew/memba_dao_channels_v2` | ✅ (block 237939, 2026-04-09) — *v3 ACL fix pending* | ⏳ Phase 5 (v3 only) | `samcrew-deployer/projects/memba/realms/` |
-| 6 | **agent_registry** | `gno.land/r/samcrew/agent_registry` | ✅ (block 231189, 2026-04-03) — *UseCredit ACL fix pending v2* | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
-| 7 | **escrow** | `gno.land/r/samcrew/escrow` | ✅ (block 232733, 2026-04-03) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
-| 8 | **nft_market** | `gno.land/r/samcrew/nft_market` | ✅ (block 237929, 2026-04-09) — *BuyNFT TransferFrom feature-gated* | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
-| 9 | **gnobuilders_badges** | `gno.land/r/samcrew/gnobuilders_badges` | ✅ (block 237936, 2026-04-09) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+| # | Realm | Module Path (test12) | test12 | Source |
+|---|-------|----------------------|--------|--------|
+| 1 | **gnodaokit** (basedao, daocond, daokit, realmid) | `gno.land/p/samcrew/{basedao,daocond,daokit,realmid}` | ✅ | `samcrew-deployer/projects/gnodaokit/` |
+| 2 | **tokenfactory** | `gno.land/r/samcrew/tokenfactory` | ✅ | Deployed externally (realm code not in repo) |
+| 3 | **memba_dao** | `gno.land/r/samcrew/memba_dao` | ✅ (block 150069, 2026-03-29) | `samcrew-deployer/projects/memba/realms/` |
+| 4 | **memba_dao_candidature_v2** | `gno.land/r/samcrew/memba_dao_candidature_v2` | ✅ (block 237938, 2026-04-09) | `samcrew-deployer/projects/memba/realms/` |
+| 5 | **memba_dao_channels_v2** | `gno.land/r/samcrew/memba_dao_channels_v2` | ✅ (block 237939, 2026-04-09) — *v3 ACL fix pending* | `samcrew-deployer/projects/memba/realms/` |
+| 6 | **agent_registry** | `gno.land/r/samcrew/agent_registry` | ✅ (block 231189, 2026-04-03) — *UseCredit ACL fix pending v2* | `samcrew-deployer/projects/memba/realms/` |
+| 7 | **escrow** | `gno.land/r/samcrew/escrow` | ✅ (block 232733, 2026-04-03) | `samcrew-deployer/projects/memba/realms/` |
+| 8 | **nft_market** | `gno.land/r/samcrew/nft_market` | ✅ (block 237929, 2026-04-09) — *BuyNFT TransferFrom feature-gated* | `samcrew-deployer/projects/memba/realms/` |
+| 9 | **gnobuilders_badges** | `gno.land/r/samcrew/gnobuilders_badges` | ✅ (block 237936, 2026-04-09) | `samcrew-deployer/projects/memba/realms/` |
 
-**Original test12 deployment:** 9 realms (all in `gno.land/r/samcrew/`). **Current network is pearl** — query the live set with `./samcrew-status.sh pearl` from the deployer repo; `realm-versions.json` is the authoritative ledger.
+**Original test12 deployment:** 9 realms (all in `gno.land/r/samcrew/`). **Current network is mainnet** — query the live set with `./samcrew-status.sh mainnet` from the deployer repo; `realm-versions.json` is the authoritative ledger.
 **Outstanding v3 work** (tracked under v7.1 Phase 2): `memba_dao_channels` two-tier pause + ACL hardening; `agent_registry` UseCredit ACL.
 
 ---
@@ -169,50 +169,13 @@ Passwords are prompted once per session, held in memory, cleared on exit. Accoun
 
 ## Multi-Network Deployment Order
 
-When deploying to a new or restarted network, follow this order:
+### Mainnet (`gnoland-1`)
 
-### Priority 1 — pearl (RETIRED 2026-09-23 — Pearl-era procedure)
+Mainnet is the only network Memba serves. The deployer's `mainnet` entry sets `operator_write = false`, so `samcrew-deploy.sh` refuses to write there; mainnet publication goes through the samcrew namespace multisig with the deployer's `tools/mainnet-manual` flow (see its README). Check the live set with `./samcrew-status.sh mainnet`; `realm-versions.json` `mainnet` is the ledger.
 
-pearl was the primary network from the 2026-08-31 combined ceremony until its 2026-09-23 retirement; mainnet (`gnoland-1`) replaced it.
+### Testnet — onyx (`onyx-1`)
 
-```bash
-./samcrew-deploy.sh pearl all   # NOTE: `all` excludes memba — deploy memba explicitly
-```
-
-### Priority 2 — gnoland1 (betanet / production)
-
-⚠️ Pre-launch text: betanet (`gnoland1`, no hyphen) is NOT mainnet — mainnet is the separate chain `gnoland-1`. Memba deploys nothing to betanet.
-
-```bash
-# Pre-flight is critical for production
-./samcrew-verify.sh betanet
-
-# Dry run first
-./samcrew-deploy.sh betanet all --dry-run
-
-# Deploy
-DEPLOY_KEY=samcrew-core-test1 MULTISIG_SIGNERS=zooma,adena-zxxma \
-  ./samcrew-deploy.sh betanet all
-```
-
-### Priority 3 — portal-loop (community)
-
-Optional. Portal-loop resets periodically, so deployments are ephemeral.
-
-```bash
-./samcrew-deploy.sh portal-loop all
-```
-
-### After gnoland1 restart
-
-When gnoland1 restarts (chain reset), all state is wiped. Full redeploy required:
-
-1. Fund deploy key on new chain: request GNOT from faucet or multisig transfer
-2. Run pre-flight: `./samcrew-verify.sh betanet`
-3. Deploy all: `./samcrew-deploy.sh betanet all`
-4. Verify all 34 artifacts: `./samcrew-status.sh betanet`
-5. Update Memba frontend config if RPC or chain ID changed
-6. Smoke test Memba app against gnoland1
+The current gno.land testnet. Memba has published nothing there yet (`REALM_ALLOWLIST.onyx` is empty in `frontend/src/lib/config.ts`), and the deployer has no `onyx` entry yet.
 
 ---
 
@@ -263,7 +226,7 @@ gnokey query vm/qeval \
 
 ## New Network Checklist
 
-When a new Gno network launches (e.g., pearl, mainnet):
+When a new Gno network launches (e.g., a testnet such as onyx):
 
 | Step | Action | Command / Location |
 |------|--------|--------------------|
@@ -388,20 +351,18 @@ npm run build              # verify build succeeds
 
 | Network | Chain ID | RPC | Gas Fee | Gas Wanted | Deposit |
 |---------|----------|-----|---------|------------|---------|
-| **mainnet** | `gnoland-1` | `rpc.gno.land` (fallback `rpc.mainnet.samourai.live`) | see deployer | see deployer | see deployer |
-| pearl *(retired 2026-09-23)* | `pearl-1` | `rpc.pearl.testnets.gno.land` (fallback `rpc.pearl.samourai.live`) | 10M ugnot | 150M | 100M ugnot |
-| sapphire *(retired 2026-09-02; formal sunset 2026-09-09)* | `sapphire-1` | `rpc.sapphire.testnets.gno.land` (official node; app no longer targets it) | 10M ugnot | 150M | 100M ugnot |
-| topaz (RETIRED 2026-08-12) | `topaz-1` | — | — | — | — |
-| test13 *(retired)* | `test-13` | `rpc.test13.testnets.gno.land` *(dead)* | — | — | — |
-| betanet | `gnoland1` | `rpc.gnoland1.samourai.live` | 10M ugnot | 80M | 1M ugnot |
-| portal-loop *(historical — `rpc.gno.land` now serves mainnet `gnoland-1`)* | `portal-loop` | `rpc.gno.land` | 10M ugnot | 80M | 1 ugnot |
+| **mainnet** | `gnoland-1` | `rpc.gno.land` (no deployer fallback; the frontend also uses `rpc.mainnet.samourai.live`) | see deployer | see deployer | see deployer |
 | local | `dev` | `127.0.0.1:26657` | 1M ugnot | 10M | 1 ugnot |
+
+The deployer's `networks.toml` still holds entries for retired chains (test11–test14, pearl, betanet) and for portal-loop, whose `rpc.gno.land` now serves mainnet. None of them is a deploy target.
 
 ### Deploy key
 
 | Key | Type | Address | Signers |
 |-----|------|---------|---------|
 | `samcrew-core-test1` | 2-of-2 multisig | `g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0` | zooma, adena-zxxma |
+
+> This is the testnet deploy key. Mainnet publication uses the samcrew namespace 2-of-3 multisig `g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf` (`realm-versions.json` `mainnet`).
 
 > `g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh` is a **different** key — `samourai-crew`,
 > the 7-signer fee-spine/treasury multisig. Do not use it as the deploy key.
@@ -447,9 +408,9 @@ Frontend feature flags are configured as **Netlify environment variables** (NOT 
 | Flag | Default | Status | Notes |
 |------|---------|--------|-------|
 | `VITE_ENABLE_TEAMS` | `false` | ✅ Ready to enable | Backend + frontend shipped in v2.28. Set to `true` via Netlify UI. |
-| `VITE_ENABLE_MARKETPLACE` | `false` | 🔒 Gated | `agent_registry_v2` is live on Pearl (2026-08-31 ceremony); the flag stays off pending the two-wallet live-money test, not because a realm is missing. |
-| `VITE_ENABLE_NFT` | `false` | 🔒 Gated (`SAFETY_GATED_FLAGS`) | NFT/market v3.2 set is live on Pearl (2026-08-31); stays off pending the two-wallet live-money test and the NFT indexer re-enable (observability wiring first). |
-| `VITE_ENABLE_SERVICES` | `false` | 🔒 Gated | `escrow_v3` is live on Pearl (2026-08-31); stays off pending the two-wallet live-money test. |
+| `VITE_ENABLE_MARKETPLACE` | `false` | 🔒 Gated | `agent_registry_v2` is not deployed on mainnet (`realm-versions.json` `mainnet`), so the flag stays off. |
+| `VITE_ENABLE_NFT` | `false` | Ordinary flag (de-gated at the Pearl cutover) | The NFT/collections/market realms are not deployed on mainnet (`realm-versions.json` `mainnet`), so the NFT views have no ledger to read yet. |
+| `VITE_ENABLE_SERVICES` | `false` | Ordinary flag | `escrow_v4` is live and allowlisted on mainnet; the Services lane also needs this flag. Canary: [`ESCROW_MAINNET_CANARY.md`](ESCROW_MAINNET_CANARY.md). |
 
 **Where to set:** Netlify Dashboard → Site → Build & Deploy → Environment Variables.
 **NOT in:** `netlify.toml`, `.env`, or any committed file.

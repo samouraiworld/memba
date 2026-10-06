@@ -4,17 +4,17 @@
 
 This document tracks items to be addressed before the mainnet release.
 
-## Chain Status (2026-09-23)
+## Chain Status (2026-10-06)
 
 | Chain | Status | Notes |
 |-------|--------|-------|
-| **mainnet** | ✅ Active — default | Chain id `gnoland-1` (hyphen), live since 2026-09-12, the app's default since 2026-09-17 and its only offered network since 2026-09-23. Wave 1 published 2026-09-23 (`realm-versions.json` `mainnet`); the app exposes exactly `REALM_ALLOWLIST.mainnet` in `frontend/src/lib/config.ts` (`memba_appstore_v3`, `memba_reviews_v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`, `memba_feed_v1`). `memba_dao` and the commerce set are not deployed there. Official RPC: `rpc.gno.land`; Samouraï node: `rpc.mainnet.samourai.live`. |
-| **pearl** | ⚰️ Retired 2026-09-23 | Primary 2026-08-31 → 2026-09-17 (chain id `pearl-1`); `/pearl/...` links now redirect to the same page on mainnet, and a remembered pearl selection resolves to mainnet. Its network entry was removed on 2026-10-06. Pearl-era notes: the combined ceremony deployed the core set **and** the fund-custody commerce set (32 artifacts, per-height records in `realm-versions.json`); commerce stays **feature-gated** pending the 2-wallet live-money test. Official RPC: `rpc.pearl.testnets.gno.land`; Samouraï sentry: `rpc.pearl.samourai.live`. |
-| **sapphire** | ⚰️ Retired 2026-09-02 | Primary 2026-08-15 → 2026-08-31 (chain id `sapphire-1`); phase-1 funds-free set (24 artifacts) was published there. Hidden from the selector 2026-09-01 (#1126), off the accepted-chain allowlist and out of every backend RPC default 2026-09-02 (#1139, #1138) after the Samouraï sapphire sentry (`rpc.sapphire.samourai.live`) went dark (HTTP 000). The formal 2026-09-09 sunset is paperwork. `/sapphire/...` links redirect to the same page on mainnet; a remembered selection resolves to mainnet. Never trust a hostname or HTTP 200 — the only identity test is `node_info.network`. |
+| **mainnet** | ✅ Active — default | Chain id `gnoland-1` (hyphen), live since 2026-09-12, the app's default since 2026-09-17 and its only offered network since 2026-09-23. Wave 1 published 2026-09-23 (`realm-versions.json` `mainnet`); the app exposes exactly `REALM_ALLOWLIST.mainnet` in `frontend/src/lib/config.ts`. Official RPC: `rpc.gno.land`; Samouraï node: `rpc.mainnet.samourai.live`. |
+| **pearl** | ⚰️ Retired 2026-09-23 | Primary 2026-08-31 → 2026-09-17 (chain id `pearl-1`); `/pearl/...` links redirect to the same page on mainnet, and a remembered pearl selection resolves to mainnet. Its network entry was removed on 2026-10-06. |
+| **sapphire** | ⚰️ Sunset 2026-09-09 (hosts dead 2026-09-02) | Primary 2026-08-15 → 2026-08-31 (chain id `sapphire-1`); phase-1 funds-free set (24 artifacts) was published there. Hidden from the selector 2026-09-01 (#1126), off the accepted-chain allowlist and out of every backend RPC default 2026-09-02 (#1139, #1138) after the Samouraï sapphire sentry (`rpc.sapphire.samourai.live`) went dark (HTTP 000). The formal 2026-09-09 sunset is paperwork. `/sapphire/...` links redirect to the same page on mainnet; a remembered selection resolves to mainnet. Never trust a hostname or HTTP 200 — the only identity test is `node_info.network`. |
 | **topaz** | ⚰️ Retired 2026-08-12 | Full realm set (32 artifacts) remains published on the dead chain; Adena dropped `topaz-1` in v1.20.3. `/topaz/...` links redirect to the same page on mainnet; a remembered selection resolves to mainnet. |
 | **testnet13** | ⚰️ Retired 2026-07-26 | Historical primary; carried `memba_appstore_v3`, NFT engine v3.2, and the commerce stack (2026-07-10 ceremony). |
 | **testnet12** | 🔴 Retired | Migration complete. See `TEST12_WINDDOWN_RUNBOOK.md`. |
-| **gnoland1 (betanet)** | 🟡 Hidden | A different chain from mainnet `gnoland-1` (one hyphen apart). Hidden from the selector since 2026-09-17; Memba deploys nothing there. |
+| **gnoland1 (betanet)** | ⚰️ Halted 2026-09-14; removed from Memba 2026-10-06 | A different chain from mainnet `gnoland-1` (one hyphen apart); Memba deployed nothing there. `/gnoland1/...` links redirect to the same page on mainnet. |
 | **portal-loop** | Historical | `rpc.gno.land` now serves mainnet `gnoland-1`. |
 
 ## v7.1 progress
@@ -23,7 +23,7 @@ This document tracks items to be addressed before the mainnet release.
 |-------|--------|--------|
 | Phase 0 — Audit unblock + AUTH-CHAINID-01 | ✅ Closed 2026-05-11 | [the internal planning archive (private)](reports/archive/v7.1-phase0-signoff.md) |
 | Phase 1 — Auth hardening + Custody spec + stale-doc refresh | 🚧 In progress | [the internal planning archive (private)](planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §5 |
-| Phases 2–6 — Channels v3, RQ migration, betanet activation, release polish | ⏳ Pending Phase 1 close | Plan §§6-10 |
+| Phases 2–6 — Channels v3, RQ migration, release polish | ⏳ Pending Phase 1 close | Plan §§6-10 |
 
 ### Phase 1 deliverables touching this doc
 - ✅ **AUTH-SESSION-REJECT-01** — defensive rejection of Adena 1.20+ session subaccounts shipped in `backend/internal/auth/crypto.go` (`MakeToken` now uses strict `protojson.UnmarshalOptions{DiscardUnknown: false}` against `TokenRequestInfo`, so a payload carrying a future `session_*`/`parent_*` field trips a tagged error and an `slog.Warn` line operators can monitor). Kill-switch env var `MEMBA_ACCEPT_SESSION_PUBKEYS=1` opts back into lenient unmarshal once Memba grows explicit session support (v8). Regression tests: `TestSessionRejectStrictByDefault`, `TestSessionRejectOptInRelaxes`, `TestSessionRejectLegacyClientUnaffected` in `crypto_test.go`.
@@ -91,7 +91,7 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 
 ## 🔮 GnoSwap Slippage Tolerance (DEFERRED)
 
-> Spec exists in [`GNOSWAP_SLIPPAGE.md`](planning/GNOSWAP_SLIPPAGE.md). UI partially implemented. Deferred to post-betanet.
+> Spec exists in [`GNOSWAP_SLIPPAGE.md`](planning/GNOSWAP_SLIPPAGE.md). UI partially implemented. Deferred.
 
 ## 🟡 Staging Environment (Medium Priority)
 
@@ -104,11 +104,9 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 
 | Blocker | Status | Notes |
 |---------|--------|-------|
-| **Betanet network config** | Pending upstream ([gno#5250](https://github.com/gnolang/gno/pull/5250)) | Chain IDs, RPC URLs, trusted domains |
 | **ADR-036 signature verification** | Blocked | Re-enable when Adena supports it |
 | **boards2 safe functions** | Monitor ([gno#5037](https://github.com/gnolang/gno/pull/5037)) | V2 parser skeleton ready (v2.21.0) |
 | **govdao T1 multisig** | Monitor ([gno#5222](https://github.com/gnolang/gno/pull/5222)) | Vote function name configurable (v2.21.0) |
-| **gnoland1 transfer-lock lift** | Pending upstream (params/bank) | Chain is live but transfers are restricted via `params/bank:p:restricted_denoms` (gno #5629). Memba activates gnoland1 in v7.1 Phase 5 after the lift, after Custody section is signed, and after testnet12 channels_v3 burn-in. |
 
 ## 🟡 Deferred Security Items
 
@@ -141,5 +139,5 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | NavManifest Completeness | post-v6.3.1 | 5 tests prevent hidden-page drift (#646) |
 
 ---
-*Updated 2026-09-23: mainnet active and default, pearl retired. Previous: 2026-09-07: sapphire marked retired (sentry dead 09-02; hidden 09-01, off allowlist 09-02). Previous: 2026-09-01 at the pearl cutover (renamed from `MAINNET_PREPARATION.md`; chain table: pearl primary, sapphire slated to sunset 09-09) · 2026-08-15 sapphire cutover (sapphire primary; topaz + test13 retired) · 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired) · 2026-05-11 during v7.1 Phase 1.*
+*Updated 2026-10-06: Betanet (halted 2026-09-14) removed. Previous: 2026-09-23: mainnet active and default, pearl retired. Previous: 2026-09-07: sapphire marked retired (sentry dead 09-02; hidden 09-01, off allowlist 09-02). Previous: 2026-09-01 at the pearl cutover (renamed from `MAINNET_PREPARATION.md`; chain table: pearl primary, sapphire slated to sunset 09-09) · 2026-08-15 sapphire cutover (sapphire primary; topaz + test13 retired) · 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired) · 2026-05-11 during v7.1 Phase 1.*
 

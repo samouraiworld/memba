@@ -2,8 +2,8 @@
  * Board Parser V1 — regex-based parser for current Render() format.
  *
  * Handles both v1 (_board) and v2.1a (_channels) realm output.
- * This is the production parser for test12/betanet until boards2 hub
- * (gno#5037) changes the Render() format.
+ * This is the production parser until the boards2 hub (gno#5037) changes the
+ * Render() format.
  *
  * @module plugins/board/parserV1
  */

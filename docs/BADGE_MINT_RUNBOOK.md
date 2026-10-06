@@ -1,6 +1,6 @@
 # Badge Mint Runbook (Phase 2 / D2c — manual multisig batch-mint)
 
-> **⚠️ HISTORICAL (test13-era).** The chain references below (test13 endpoints, heights, "on test13" wording) are historical — test13 is retired and the prod chain is **pearl-1** (live realm records: `realm-versions.json`). The multisig **batch-mint design itself is still the current mechanism**; substitute the current chain/RPC when executing.
+> **⚠️ HISTORICAL (test13-era).** The chain references below (test13 endpoints, heights, "on test13" wording) are historical — test13 is retired and the prod chain is gno.land mainnet **`gnoland-1`** (live realm records: `realm-versions.json`). The multisig **batch-mint design itself is still the current mechanism**; substitute the current chain/RPC when executing.
 
 > GnoBuilders badges are minted by the `samcrew-core-test1` **multisig** (the
 > realm owner/admin). The backend has no transaction signer by design, so badges

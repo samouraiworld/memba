@@ -37,27 +37,10 @@
   # MUST land in the same window, or auth/feed/home break. See
   # docs/OPS_RUNBOOK.md.
   #
-  # 2026-08-27 pearl flip was ADDITIVE (sapphire stayed selectable while
-  # pearl became default); the 08-31 ceremony deployed the realms, 09-01 hid
-  # sapphire from the selector (#1126), and the sunset dropped sapphire-1 from
-  # MEMBA_ACCEPTED_CHAIN_IDS (hosts dead 2026-09-02, formal sunset 09-09).
-  # History of the rule: AUTH-CHAINID-MISMATCH-01 — a chain missing from that
-  # allowlist fails auth closed, so a selector change and the backend
-  # allowlist must move together.
-  #
-  # 2026-09-17 mainnet flip — ADDITIVE, and NOT a chain cut. Pearl stays
-  # selectable, keeps its realms, and keeps every backend-pinned constant
-  # (SNAPSHOT_NETWORK / FEED_INDEXED_NETWORK / INDEXER_PROXIED_NETWORK,
-  # FEED_RPC_URL, the snapshot RPC). Nothing about the backend's CHAIN moves
-  # here, so no feed reset and no RPC-secret window.
-  #
-  # ⛔ ONE owner action IS required before merging, and it is the
-  # AUTH-CHAINID-MISMATCH-01 rule above applied to the LANDING network:
-  # `gnoland-1` must be in the backend's MEMBA_ACCEPTED_CHAIN_IDS (a Fly
-  # SECRET that shadows fly.toml). Until it is, every visitor lands on a
-  # network where sign-in fails closed. Reading — GovDAO, member-deployed
-  # DAOs, validators, chain health, the directory — needs no auth and works
-  # either way. Never blank that key to "disable" the check: an empty set
+  # AUTH-CHAINID-MISMATCH-01: a landing network whose chain id is missing
+  # from the backend's MEMBA_ACCEPTED_CHAIN_IDS (a Fly SECRET that shadows
+  # fly.toml) fails sign-in closed for every visitor, so the two move
+  # together. Never blank that key to "disable" the check: an empty set
   # accepts EVERY chain (F-29b fails open).
   VITE_GNO_CHAIN_ID = "mainnet"
 

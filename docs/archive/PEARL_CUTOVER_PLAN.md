@@ -5,7 +5,7 @@
 > **Status:** executed — drafted 2026-08-23 (Sunday) from the 2026-08-20 contributors sync as the plan of record; run to completion 2026-08-31 (see banner above).
 > **Trigger:** the next gno testnet **Pearl** (released as an **RC**) launches **Wed 2026-08-26**, superseding `sapphire-1` ten days after Memba cut over to it. Memba's 4th chain migration in five weeks (test13 → topaz → sapphire → pearl).
 > **Decision already taken (2026-08-23):** the commerce ceremony does **NOT** run on sapphire. Prep is merged and chain-agnostic (Memba #1082, deployer #138); Pearl gets **one combined ceremony** — the phase-1 core set + the commerce set — once the chain is stable.
-> **Mechanics reference:** `docs/SAPPHIRE_COMMERCE_CEREMONY.md` (rulings + sequence; every step applies to Pearl verbatim, only the chain name and heights change) · `docs/OPS_RUNBOOK.md` §2 chain-cutover invariants · `MILESTONES.md` (memba-internal): chain resets re-open status, never definitions — M1 and M2 both re-flip on `pearl`.
+> **Mechanics reference:** `docs/archive/SAPPHIRE_COMMERCE_CEREMONY.md` (rulings + sequence; every step applies to Pearl verbatim, only the chain name and heights change) · `docs/OPS_RUNBOOK.md` §2 chain-cutover invariants · `MILESTONES.md` (memba-internal): chain resets re-open status, never definitions — M1 and M2 both re-flip on `pearl`.
 
 ---
 

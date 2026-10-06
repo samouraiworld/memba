@@ -1,6 +1,6 @@
 # Progressive Decentralization Plan
 
-> **Status (2026-09-07): historical.** Long-horizon decentralization plan written in the test12 era. test12 and test13 are retired; production has run on `pearl-1` since the 2026-08-31 combined ceremony, so read "test12" in the phase steps below as "the chain of the day", not as a deploy target. Current procedure: [`OPS_RUNBOOK.md`](OPS_RUNBOOK.md) and [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md).
+> **Status (2026-09-07): historical.** Long-horizon decentralization plan written in the test12 era. test12 and test13 are retired; production runs on gno.land mainnet (`gnoland-1`), so read "test12" in the phase steps below as "the chain of the day", not as a deploy target. Current procedure: [`OPS_RUNBOOK.md`](OPS_RUNBOOK.md) and [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md).
 
 > How Memba will reduce its reliance on centralized infrastructure over time.
 

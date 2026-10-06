@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Retired chains cleanup (2026-10-07)
+- The analyst accepts only mainnet, Onyx and the test fixture network; the template compile gate runs on mainnet and onyx-1 (Pearl lane removed); the docs describe mainnet and Onyx as the chains in use
+
 ### Retired network: Pearl (2026-10-07)
 - Pearl's network entry is gone from Memba; old Pearl links still open the same page on mainnet
 

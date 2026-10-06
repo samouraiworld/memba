@@ -8,4 +8,4 @@ Finished, dated records kept for reference. Nothing in this folder describes the
 - `features/`: finished game audits, designs and plans (Block Party, Space Invaders).
 - `gno-core/`: upstream compatibility playbook and breaking-change board, written against chains that are now retired.
 - `design/`: the App Store mainnet listing snapshot of 28 September 2026.
-- Single files: `ROADMAP_PRE_V2.14.md` (roadmap before v2.14), `E2E_TEST.md` (manual test checklist from the test11 era).
+- Single files: `ROADMAP_PRE_V2.14.md` (roadmap before v2.14), `E2E_TEST.md` (manual test checklist from the test11 era), `PEARL_CUTOVER_PLAN.md` (the Pearl cutover and the 2026-08-31 combined ceremony), `SAPPHIRE_COMMERCE_CEREMONY.md` (the commerce-realm ceremony mechanics, executed on `pearl-1` within that ceremony).

@@ -5,7 +5,7 @@ Scope: daily challenge derivation, public reads, score delivery, local recovery,
 
 ## Current production truth
 
-The public Pearl frontend and backend are independently gated. On 2026-09-04 the frontend route was visible, while the backend returned Connect `unimplemented` / HTTP 501 because `BLOCKPARTY_ENABLED` was off. That is a configuration mismatch, not a not-ready challenge and not an empty leaderboard. Changing production flags remains an owner action.
+The public frontend and backend are independently gated. On 2026-09-04 the frontend route was visible, while the backend returned Connect `unimplemented` / HTTP 501 because `BLOCKPARTY_ENABLED` was off. That is a configuration mismatch, not a not-ready challenge and not an empty leaderboard. Changing production flags remains an owner action.
 
 The backend has four distinct outcomes that must not be collapsed:
 
@@ -52,7 +52,7 @@ Do not use `SubmitScore` as a synthetic probe. It authenticates, consumes per-wa
 
 The backend intentionally uses one configured node and verifies its chain identity on `/status` and every `/block` response. It does not fail over because caching a seed from another chain would permanently falsify the daily proof.
 
-Run the public verifier against an independent Pearl node:
+Run the public verifier against an independent mainnet (`gnoland-1`) node; its defaults are `https://rpc.gno.land` and `gnoland-1`:
 
 ```sh
 node scripts/verify-blockparty-seed.mjs --selftest
@@ -64,8 +64,8 @@ Interpretation:
 - Verifier exit 0 and matching API fields: provenance is consistent.
 - Verifier exit 2: the selected node has not produced the qualifying block yet.
 - Chain mismatch, missing hash, malformed block time, or unreachable RPC: dependency failure; do not substitute a different chain or manually create a challenge row.
-- API `ready: false` while the independent Pearl node has a qualifying block: inspect the configured seed RPC's health and chain identity.
-- API provenance differs from two agreeing independent Pearl nodes: disable Block Party and investigate before accepting submissions. Never rewrite an existing day's challenge in place.
+- API `ready: false` while the independent mainnet node has a qualifying block: inspect the configured seed RPC's health and chain identity.
+- API provenance differs from two agreeing independent mainnet nodes: disable Block Party and investigate before accepting submissions. Never rewrite an existing day's challenge in place.
 
 The selected frontend navigation network is not authoritative seed provenance. Until the API carries a dedicated provenance field, UI copy must not claim that the selected frontend chain produced the seed. The server's configured and verified seed chain is the source of truth.
 

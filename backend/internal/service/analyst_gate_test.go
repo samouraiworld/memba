@@ -112,7 +112,7 @@ func consensusReq(n int) ConsensusRequest {
 		RealmPath:    "gno.land/r/samcrew/memba_dao",
 		ProposalID:   n,
 		AnalysisType: "proposal",
-		ChainID:      "pearl-1",
+		ChainID:      "onyx-1",
 		ProposalData: "proposal text",
 		DAOContext:   "dao context",
 	}
@@ -252,7 +252,7 @@ func TestPurgeAnalystRows(t *testing.T) {
 	insert := func(proposal int, expires time.Time) {
 		t.Helper()
 		if _, err := database.Exec(`INSERT INTO analyst_reports (realm_path, analysis_type, proposal_id, chain_id, input_digest, consensus, expires_at)
-			VALUES ('gno.land/r/x', 'proposal', ?, 'pearl-1', 'd', '{}', ?)`, proposal, expires); err != nil {
+			VALUES ('gno.land/r/x', 'proposal', ?, 'onyx-1', 'd', '{}', ?)`, proposal, expires); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -283,7 +283,7 @@ func TestBuildConsensusUserPrompt_DataCannotCloseItsBlock(t *testing.T) {
 	for _, typ := range []string{"proposal", "dao"} {
 		req := ConsensusRequest{
 			AnalysisType:    typ,
-			ChainID:         "pearl-1",
+			ChainID:         "onyx-1",
 			ProposalData:    tagged,
 			DAOContext:      tagged,
 			TreasuryContext: tagged,
@@ -335,7 +335,7 @@ func TestHandleAnalystConsensus_ModelErrorTextNotStored(t *testing.T) {
 func TestStartAnalystPurge_FirstRunIsEarlyThenStopsOnCancel(t *testing.T) {
 	database := newAnalystTestDB(t)
 	if _, err := database.Exec(`INSERT INTO analyst_reports (realm_path, analysis_type, proposal_id, chain_id, input_digest, consensus, expires_at)
-		VALUES ('gno.land/r/x', 'proposal', 1, 'pearl-1', 'd', '{}', ?)`, time.Now().Add(-time.Minute).UTC()); err != nil {
+		VALUES ('gno.land/r/x', 'proposal', 1, 'onyx-1', 'd', '{}', ?)`, time.Now().Add(-time.Minute).UTC()); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

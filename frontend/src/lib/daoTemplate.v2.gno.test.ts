@@ -89,7 +89,7 @@ function toolchainCommit(): string {
     return /-([0-9a-f]{12})(?:\/|$)/.exec(root)?.[1] ?? root
 }
 
-// CI sets GNO_REQUIRED_PIN per lane (pearl, gnoland-1).
+// CI sets GNO_REQUIRED_PIN per lane (gnoland-1, onyx-1).
 it("runs on the gno pin the CI lane requires", () => {
     const required = process.env.GNO_REQUIRED_PIN
     if (!required) return

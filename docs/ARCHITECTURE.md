@@ -274,7 +274,7 @@ These features **require** the Go backend for off-chain coordination:
 ```
 ┌─────────────┐     JSON-RPC POST      ┌──────────────────────┐
 │   Frontend   │ ──────────────────────► │  gno.land RPC        │
-│   lib/dao.ts │                         │ (pearl / gnoland1)   │
+│   lib/dao.ts │                         │ (mainnet gnoland-1)  │
 │              │ ◄────────────────────── │                      │
 │  queryRender │     base64 response     │  vm/qrender          │
 │  queryEval   │                         │  vm/qeval             │

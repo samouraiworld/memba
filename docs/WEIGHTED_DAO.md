@@ -12,7 +12,7 @@ The page shows seven identities with 2/1 points and current roles, exact grant/r
 
 Reads check the selected RPC's chain ID and validate versioned data. They do not consult the legacy realm's Render text or global DAO caches. A failed response is an error, not an empty roster or zero votes. Wallet/chain/realm transitions discard old reads and invalidate prepared actions. The shared broadcast helper retains existing defaults for other callers; weighted actions opt out of retries and run an additional context check after the confirmation dialog. A wallet hash is reported as submitted, not proof that governance execution succeeded; chain state is refreshed independently.
 
-`gnoland-1` writes are blocked for every weighted DAO, and v12 is read-only on every chain (see "v12 is read-only" below). The testnet wallet controls require matching authenticated/current-member and wallet/active-chain state. No new mainnet feature flag, funding, signing or deployment is performed by this change. The existing published Pearl DAO does not implement the new weighted contract, so this route's tests use deterministic RPC fixtures until an isolated generated-realm rehearsal is approved and available.
+`gnoland-1` writes are blocked for every weighted DAO, and v12 is read-only on every chain (see "v12 is read-only" below). The testnet wallet controls require matching authenticated/current-member and wallet/active-chain state. No new mainnet feature flag, funding, signing or deployment is performed by this change. The DAO published on Pearl (now retired) did not implement the new weighted contract, so this route's tests use deterministic RPC fixtures until an isolated generated-realm rehearsal is approved and available.
 
 ## In Memba OS
 

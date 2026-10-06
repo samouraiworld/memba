@@ -5,7 +5,7 @@
  * Uses the same ABCI query pattern as the DAO module (queryRender).
  *
  * Architecture: Strategy pattern with V1/V2 parser versions.
- * - V1 (parserV1.ts): Current regex-based parser for test12/betanet.
+ * - V1 (parserV1.ts): Current regex-based parser.
  * - V2: not implemented — add a parser module when the boards2 hub (gno#5037) changes the Render() format.
  * - getActiveBoardParser(): Returns the active parser version.
  *

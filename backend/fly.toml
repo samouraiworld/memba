@@ -34,60 +34,25 @@ primary_region = 'cdg'
   CORS_ORIGINS = 'https://memba.club,https://www.memba.club,https://memba.samourai.app,https://*--memba-multisig.netlify.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
   GNO_CHAIN_ID = 'gnoland-1'
-  # Token chain-id allowlist (validation). Comma-separated → parseAcceptedChainIDs
-  # (service.go) splits it into a set; ValidateToken 401s any token whose chain
-  # isn't listed. Topaz cutover PHASE B (2026-07-26) kept 'test-13' here so
-  # already-issued test-13 tokens stayed valid until expiry.
+  # Token chain-id allowlist. Comma-separated → parseAcceptedChainIDs
+  # (service.go). ValidateToken 401s any token whose chain isn't listed, and
+  # MakeToken refuses to mint for one (AUTH-CHAINID-MISMATCH-01, rendered as
+  # "switch networks"); the frontend transport clears a session the server
+  # answers Unauthenticated, so a token from a dropped chain costs one clean
+  # re-login.
   #
-  # PHASE C (2026-07-31): dropped — and the failure mode documented here is now
-  # FIXED (F-29), so read this list differently than before.
-  #
-  # It used to govern VALIDATION only. MakeToken took the chain id from the
-  # CLIENT and never consulted this list, so a visitor on a chain we do not
-  # serve authenticated fine and then 401'd on every call, permanently, with no
-  # self-heal (useAuth cleared only on natural expiry; there was no global 401
-  # interceptor).
-  #
-  # Both halves are closed. MakeToken now checks the effective chain id against
-  # this list at MINT time and refuses with AUTH-CHAINID-MISMATCH-01, which the
-  # UI renders as "switch networks"; and the frontend transport clears the
-  # session when the server answers Unauthenticated, so an already-issued bad
-  # token no longer strands the app until expiry.
-  #
-  # ⚠️ THIS VALUE IS A LOCKOUT SWITCH, not merely an allowlist. A chain absent
-  # here can no longer log in AT ALL.
-  #
-  # SAPPHIRE CUTOVER (2026-08-15): flipped STRAIGHT to 'sapphire-1', no
-  # dual-accept window — a deliberate departure from the earlier plan recorded
-  # here, because by cutover day topaz-1 was already decommissioned (both
-  # public RPCs dead) and Adena v1.20.3 had wiped topaz-scoped wallet state, so
-  # a lingering topaz session had nothing left it could do. F-29's two fixes
-  # make the straight cut clean: a /topaz/ bookmark now gets the mint-time
-  # refusal with a "switch networks" UI, and any already-issued topaz token is
-  # cleared by the transport interceptor → one clean re-login on sapphire.
+  # ⚠️ THIS VALUE IS A LOCKOUT SWITCH, not merely an allowlist: a chain absent
+  # here cannot log in at all. Keep it in step with the owner's
+  # `fly secrets set`. Chain cuts so far were straight cuts (the old chain was
+  # already dead); a dual-accept window is only needed while both chains live.
   #
   # ⚠️ Never blank this AND GNO_CHAIN_ID to "disable" the check: an empty set
   # means accept EVERY chain (F-29b), so it fails open at exactly the moment you
-  # believe you are tightening it. The server now logs a WARN in that state.
+  # believe you are tightening it. The server logs a WARN in that state.
   #
-  # Watch after deploying: `auth: token chain mismatch` (validation, existing)
-  # and `AUTH-CHAINID-MISMATCH-01` (mint-time refusal, new). The new one also
-  # increments AuthLoginTotal{result="chain_mismatch"}, so unlike validation
-  # rejects it has a metric and can be alerted on.
-  #
-  # PEARL CUTOVER (2026-08-28→31): dual-accept ON PURPOSE this time — pearl-1
-  # was added ahead of the ceremony (owner-approved 08-28) so pearl logins
-  # worked from the un-hide. sapphire-1 stayed accepted through the transition
-  # and was DROPPED at the sunset (chain hosts dead from 2026-09-02, formal
-  # sunset 2026-09-09): a sapphire-issued token now 401s and the client's
-  # transport interceptor forces one clean re-login on pearl. Mirrors the
-  # owner's `fly secrets set` of the same date — keep the two in step.
-  #
-  # MAINNET CUTOVER (2026-09-23): straight cut to 'gnoland-1' — pearl-1 is shut
-  # down, so a pearl session has nothing left to do (same reasoning as the
-  # sapphire cut); a pearl-issued token 401s and the transport interceptor
-  # forces one clean re-login on mainnet. The legacy 'gnoland1' spelling is
-  # dropped with it. Never blank (see above).
+  # Watch after changing it: `auth: token chain mismatch` (validation) and
+  # `AUTH-CHAINID-MISMATCH-01` (mint-time refusal, also counted in
+  # AuthLoginTotal{result="chain_mismatch"}, so it can be alerted on).
   MEMBA_ACCEPTED_CHAIN_IDS = 'gnoland-1'
   # Generic low-volume reads → the public mainnet canonical. The feed tailer
   # polls a DIFFERENT node (FEED_RPC_URL → rpc.mainnet.samourai.live).
@@ -108,10 +73,10 @@ primary_region = 'cdg'
   # first — it wipes nft_indexer_state + the eight event/projection tables in
   # one transaction (NFT_SEED_REALM_CURSOR is INSERT OR IGNORE — it will NOT
   # rewind retained pre-pearl rows, and the projection keys collide across
-  # chains like the feed's did) — then setting NFT_START_BLOCK to the pearl
-  # deploy height (realm-versions.json `pearl` records; the code default is a
-  # test13-era height; never rely on it). Mechanics-of-record:
-  # docs/SAPPHIRE_COMMERCE_CEREMONY.md §4 (executed on pearl 2026-08-31).
+  # chains like the feed's did) — then setting NFT_START_BLOCK to the market
+  # realm's mainnet deploy height (realm-versions.json `mainnet`; the code
+  # default is a test13-era height; never rely on it). Mechanics-of-record:
+  # docs/archive/SAPPHIRE_COMMERCE_CEREMONY.md §4 (executed on pearl 2026-08-31).
   NFT_INDEXER_DISABLED = '1'
   # NFT indexer RPC. Dormant as an indexer source while NFT_INDEXER_DISABLED=1,
   # but also the fallback for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it

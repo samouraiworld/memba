@@ -131,55 +131,30 @@ interface NetworkConfig {
 
 /** Available Gno networks for the chain selector. */
 export const NETWORKS: Record<string, NetworkConfig> = {
-    // Testnet 13 — the official Gno testnet (gno v0.9 / pre-interrealm-v2).
-    // On-wire chainId is "test-13" (HYPHEN) — it is embedded in the ADR-036 sign
-    // doc, so it MUST match the chain exactly or every login fails "invalid user
-    // signature". The map KEY ("test13") stays identifier-safe.
-    //
-    // Canonical RPC is gno-core's official node (rpc.test13.testnets.gno.land,
-    // verified live). Kept env-overridable (VITE_TEST13_RPC_URL); onbloc's node
-    // (Adena's GetNetwork() default since v1.19.5 #856) remains the fallback — both
-    // CSP- and TRUSTED_RPC_DOMAINS-covered. (aeddi's rpc.test-13-aeddi-1 node is on
-    // the deprecating *.test-13.gnoland.network family per gno core (2026-06-24) —
-    // dropped as a generic fallback; kept below only as a telemetry full-topology
-    // source until gno core names a replacement.)
-    //
-    // RETIRED (2026-07-26): test13 was wound down by gno core — its RPCs and
-    // indexer refuse connections. Kept in NETWORKS (hidden) so deep links and
-    // stored selections resolve instead of crash-looping the /:network
-    // redirects; remove the entry once nothing references it.
+    // Testnet 13 (chain id "test-13", HYPHEN) — RETIRED 2026-07-26: gno core wound
+    // it down and none of the hosts below answer. E2E AND UNIT-TEST FIXTURE: the
+    // entry stays, hidden, because tests and the e2e builds pin `/test13/` as a
+    // network that resolves by URL with a full realm allowlist (a hidden network is
+    // never restored from storage). Its fields are asserted by tests; it is not a
+    // network anyone can use.
     test13: {
         chainId: "test-13",
         userDaos: { create: false, channelsCompanion: false },
         hidden: true,
         isTestnet: true,
-        rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
+        rpcUrl: "https://rpc.test13.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://test13.rpc.onbloc.xyz:443",
         ],
-        // Telemetry sources for the Validators monitoring view. The canonical RPC
-        // and onbloc sit behind sentries and each see only ~5 /net_info peers
-        // (not even the validator nodes). aeddi-1 (gno-core, what gnockpit uses)
-        // sees the full ~13-node topology; samourai-dev-sentry-1 is our own
-        // well-connected node. Unioned by getAggregatedNetPeers so the peer list
-        // matches the real network. Both are TRUSTED_RPC_DOMAINS-covered.
-        // NOTE: aeddi-1 is on the deprecating *.test-13.gnoland.network family
-        // (gno core, 2026-06-24) with no official full-topology replacement yet, so
-        // it is kept here (it degrades gracefully when retired — getAggregatedNetPeers
-        // simply unions whatever responds). Revisit when gno core names the successor.
         telemetryRpcUrls: [
             "https://rpc.test-13-aeddi-1.gnoland.network:443",
             "https://rpc.testnet13.samourai.live:443",
         ],
-        // Official test13 tx-indexer (gno-core, 2026-06-24). Env-overridable.
-        indexerUrl: import.meta.env.VITE_TEST13_INDEXER_URL || "https://indexer.test13.testnets.gno.land/graphql/query",
+        indexerUrl: "https://indexer.test13.testnets.gno.land/graphql/query",
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
-        // Retired with the rest of test13 (host no longer resolves). Kept so an
-        // old deep link renders a dead link rather than a wrong one pointing at
-        // another chain. Env override retained.
-        explorerUrl: import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land",
+        explorerUrl: "https://test13.testnets.gno.land",
     },
     // gno.land MAINNET — chain id `gnoland-1` (HYPHEN). Live since 2026-09-12;
     // the DEFAULT network since 2026-09-17 (netlify.toml VITE_GNO_CHAIN_ID +
@@ -493,8 +468,8 @@ const _activeNetwork = getActiveNetworkKey()
 export const ACTIVE_NETWORK_KEY = _activeNetwork
 
 /**
- * Returns the user registry realm path for the active network.
- * On test13/betanet this is `gno.land/r/sys/users` (upstream migration).
+ * Returns the user registry realm path for the active network
+ * (`gno.land/r/sys/users` unless the network names another).
  */
 export function getUserRegistryPath(): string {
     return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/sys/users"
@@ -1021,7 +996,7 @@ export const MEMBA_TOKEN_DEV = {
     factoryPath: GRC20_FACTORY_PATH,
 } as const
 
-/** Memba token config for production (betanet/mainnet). */
+/** Memba token config for production (mainnet). */
 export const MEMBA_TOKEN_PROD = {
     symbol: "MEMBA",
     name: "Memba Governance Token",

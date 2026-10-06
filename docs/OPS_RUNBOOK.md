@@ -26,7 +26,7 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.club` (OS build); `memba.samourai.app` (classic build, being retired) | React + Vite SPA | Netlify (memba.club site; `memba-multisig` site for the classic host) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `gnoland-1` — gno.land mainnet, the default since the 2026-09-23 mainnet cutover (`MEMBA_ACCEPTED_CHAIN_IDS=gnoland-1`; realms in realm-versions.json `mainnet`). pearl-1 retired 2026-09-23 (shut down; no network entry in the frontend, `/pearl/...` links redirect to mainnet); sapphire-1 retired (sentry dead since 2026-09-02, sunset 2026-09-09); topaz-1 decommissioned 2026-08-12 | Gno | Official RPC: `rpc.gno.land`; Samouraï mainnet node: `rpc.mainnet.samourai.live`; tx-indexer: `indexer.gno.land/graphql/query`. ⚠️ nothing pearl- or sapphire-named is a valid target; never trust hostname or HTTP 200, the only identity test is `node_info.network` |
+| Chain | `gnoland-1` — gno.land mainnet, the default since the 2026-09-23 mainnet cutover (`MEMBA_ACCEPTED_CHAIN_IDS=gnoland-1`; realms in realm-versions.json `mainnet`). pearl-1 retired 2026-09-23 (shut down; no network entry in the frontend, `/pearl/...` links redirect to mainnet); sapphire-1 retired (sentry dead since 2026-09-02, sunset 2026-09-09); topaz-1 decommissioned 2026-08-12; Betanet `gnoland1` (a different chain) halted 2026-09-14, removed from Memba 2026-10-06 | Gno | Official RPC: `rpc.gno.land`; Samouraï mainnet node: `rpc.mainnet.samourai.live`; tx-indexer: `indexer.gno.land/graphql/query`. ⚠️ nothing pearl-, sapphire-, topaz- or gnoland1-named is a valid target; never trust hostname or HTTP 200, the only identity test is `node_info.network` |
 
 > **Chain-cutover invariants (learned test13→topaz→sapphire→pearl).** A default-network change is
 > ONE coordinated window: frontend constants (config.ts + sitemap.ts + chainHealth.ts + netlify.toml),
@@ -399,7 +399,6 @@ fly logs -a memba-backend | grep "integrity check"   # expect "Database passes i
 
 Per the v7.1 plan §9.0 / §10.1:
 
-* 24 h before/after any **Phase 5 betanet** chain-mutating TX.
 * 24 h before/after a **v7.1.0 (or future major) release tag**.
 
 During a freeze: only hotfix branches accepted to `main`. Document the freeze period at the top of `#memba` Discord and as a pinned PR comment.
@@ -410,7 +409,7 @@ During a freeze: only hotfix branches accepted to `main`. Document the freeze pe
 
 Until a secondary owner is recruited (v7.1 plan §1.8 / R-12):
 
-* **No merges Friday 15:00 local → Monday 09:00 local** for risky phases (Phase 0, Phase 2 cutover, Phase 5 betanet activation, release windows). Dependency-only PRs may merge with explicit operator review.
+* **No merges Friday 15:00 local → Monday 09:00 local** for risky phases (Phase 0, Phase 2 cutover, release windows). Dependency-only PRs may merge with explicit operator review.
 * Alerts route to Slack `#memba-alerts`. zxxma is the on-call.
 * Backup contact for production incidents: TBD (Phase 1 follow-up).
 

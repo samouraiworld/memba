@@ -1,13 +1,14 @@
 # NFT v3 Trading — Go-Live & Rollback Runbook
 
-> **Status (2026-09-07): historical.** test13-era go-live runbook for the v3 trading engine. The banner below still names `SAPPHIRE_COMMERCE_CEREMONY.md` as the current procedure; that ceremony did not run on sapphire (retired) — the commerce set (`memba_collections`, `memba_market_config`, `tokenfactory_v2`, `memba_nft_market_v3_2`) shipped to `pearl-1` in the 2026-08-31 combined ceremony (heights 100489–100497). Current procedure: [`PEARL_CUTOVER_PLAN.md`](../PEARL_CUTOVER_PLAN.md) and [`realm-versions.json`](../../realm-versions.json) (`pearl` block).
-
-> **⚠️ HISTORICAL (test13-era).** The realm names, allowlist keys, and heights here
-> are test13's; test13 and topaz are dead. The CURRENT activation procedure —
-> sapphire, v3.2 engine, `memba nft-reset`, fee-spine tokenfactory — is
-> `docs/SAPPHIRE_COMMERCE_CEREMONY.md`. The strict-order rules here (indexer tails
-> BEFORE RegisterMarket; pre-staged abort txs; 2-wallet live-money E2E) remain the
-> canonical pattern and are carried into that doc.
+> **⚠️ HISTORICAL (test13-era).** The realm names, allowlist keys and heights
+> here are test13's; test13, topaz, sapphire and pearl are all retired. The
+> commerce set (`memba_collections`, `memba_market_config`, `tokenfactory_v2`,
+> `memba_nft_market_v3_2`) shipped to `pearl-1` in the 2026-08-31 combined
+> ceremony; records: [`PEARL_CUTOVER_PLAN.md`](../archive/PEARL_CUTOVER_PLAN.md),
+> [`SAPPHIRE_COMMERCE_CEREMONY.md`](../archive/SAPPHIRE_COMMERCE_CEREMONY.md) and
+> [`realm-versions.json`](../../realm-versions.json). The strict-order rules here
+> (indexer tails BEFORE RegisterMarket; pre-staged abort txs; 2-wallet
+> live-money E2E) remain the canonical pattern.
 >
 > **Scope:** activating the **v3 trading engine** (`memba_nft_market_v3` + `memba_collections`) on test13.
 > **Status:** v3 deployed but **NOT `RegisterMarket`-ed and NOT frontend-wired** (by design).

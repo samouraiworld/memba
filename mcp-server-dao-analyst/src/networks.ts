@@ -2,8 +2,9 @@
  * Network aliases accepted by `dao_set_network`.
  *
  * Keyed by network NAME, not on-wire chain-id: `mainnet` is chain-id
- * `gnoland-1`, the current Memba chain (the default when GNO_RPC_URL is unset).
- * Retired chains (pearl, test13, topaz, sapphire) have no alias on purpose —
+ * `gnoland-1`, the current Memba chain (the default when GNO_RPC_URL is unset);
+ * `onyx` is chain-id `onyx-1`, the gno.land testnet.
+ * Retired chains (pearl, test13, topaz, sapphire, test5) have no alias on purpose —
  * Memba no longer runs on them, so an alias would only point the caller at a
  * dead or abandoned chain. A full RPC URL still works for any of them.
  */
@@ -11,7 +12,7 @@
 /** Static aliases. */
 export const KNOWN_NETWORKS: Record<string, string> = {
   mainnet: "https://rpc.gno.land",
-  test5: "https://rpc.test5.gno.land",
+  onyx: "https://rpc.onyx.testnets.gno.land",
 };
 
 export const KNOWN_NETWORK_NAMES = Object.keys(KNOWN_NETWORKS);

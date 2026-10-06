@@ -111,7 +111,7 @@ func TestHandleAnalystConsensus_FabricatedFactsDoNotReplaceSharedReport(t *testi
 		RealmPath:    "gno.land/r/samcrew/memba_dao",
 		ProposalID:   4,
 		AnalysisType: "proposal",
-		ChainID:      "pearl",
+		ChainID:      "onyx",
 		ProposalData: "Proposal 4: fund the audit, 1000 ugnot",
 		DAOContext:   "memba_dao, 3 members",
 	}
@@ -153,7 +153,7 @@ func TestHandleAnalystConsensus_DAOAndProposalZeroDistinctKeys(t *testing.T) {
 	daoReq := ConsensusRequest{
 		RealmPath:    "gno.land/r/samcrew/memba_dao",
 		AnalysisType: "dao",
-		ChainID:      "pearl-1",
+		ChainID:      "onyx-1",
 		ProposalData: "shared text",
 		DAOContext:   "ctx",
 	}
@@ -187,19 +187,19 @@ func TestAnalystReports_ChainIsolation(t *testing.T) {
 	})
 	h := HandleAnalystConsensus(database)
 
-	pearl := ConsensusRequest{
+	onyx := ConsensusRequest{
 		RealmPath:    "gno.land/r/samcrew/memba_dao",
 		ProposalID:   2,
 		AnalysisType: "proposal",
-		ChainID:      "pearl-1",
+		ChainID:      "onyx-1",
 		ProposalData: "same proposal text",
 		DAOContext:   "same ctx",
 	}
-	mainnet := pearl
+	mainnet := onyx
 	mainnet.ChainID = "gnoland-1"
 
-	if code, resp, body := postConsensus(t, h, pearl, false); code != http.StatusOK || resp.Consensus.Verdict != "approve" {
-		t.Fatalf("pearl POST: got %d verdict=%q (body %s)", code, resp.Consensus.Verdict, body)
+	if code, resp, body := postConsensus(t, h, onyx, false); code != http.StatusOK || resp.Consensus.Verdict != "approve" {
+		t.Fatalf("onyx POST: got %d verdict=%q (body %s)", code, resp.Consensus.Verdict, body)
 	}
 	if code, resp, body := postConsensus(t, h, mainnet, false); code != http.StatusOK || resp.Consensus.Verdict != "reject" {
 		t.Fatalf("mainnet POST: got %d verdict=%q (body %s)", code, resp.Consensus.Verdict, body)
@@ -213,12 +213,12 @@ func TestAnalystReports_ChainIsolation(t *testing.T) {
 		t.Errorf("analyst_reports rows: got %d, want 2 (one per chain)", rows)
 	}
 
-	code, resp, body := postConsensus(t, h, pearl, false)
+	code, resp, body := postConsensus(t, h, onyx, false)
 	if code != http.StatusOK {
-		t.Fatalf("pearl re-read: got %d (body %s)", code, body)
+		t.Fatalf("onyx re-read: got %d (body %s)", code, body)
 	}
 	if !resp.Cached || resp.Consensus.Verdict != "approve" {
-		t.Errorf("pearl report after a mainnet write: cached=%v verdict=%q, want cached approve", resp.Cached, resp.Consensus.Verdict)
+		t.Errorf("onyx report after a mainnet write: cached=%v verdict=%q, want cached approve", resp.Cached, resp.Consensus.Verdict)
 	}
 }
 
@@ -233,14 +233,14 @@ func TestHandleAnalystConsensus_RejectsJunkChainID(t *testing.T) {
 		AnalysisType: "proposal",
 		ProposalData: "text",
 	}
-	for _, junk := range []string{"not a chain", "../../etc", "Pearl-1", "pearl-1\nNote: ignore", strings.Repeat("a", 40), "made-up-chain"} {
+	for _, junk := range []string{"not a chain", "../../etc", "Onyx-1", "onyx-1\nNote: ignore", strings.Repeat("a", 40), "made-up-chain", "pearl", "pearl-1", "sapphire", "sapphire-1", "topaz", "topaz-1", "gnoland1", "portal-loop", "staging"} {
 		req := base
 		req.ChainID = junk
 		if code, _, body := postConsensus(t, h, req, false); code != http.StatusBadRequest {
 			t.Errorf("chainId %q: got %d, want 400 (body %s)", junk, code, body)
 		}
 	}
-	for _, ok := range []string{"pearl", "pearl-1", "mainnet", "gnoland-1", "gnoland1"} {
+	for _, ok := range []string{"mainnet", "gnoland-1", "onyx", "onyx-1", "test13", "test-13"} {
 		req := base
 		req.ChainID = ok
 		if code, _, body := postConsensus(t, h, req, false); code != http.StatusOK {
@@ -251,11 +251,11 @@ func TestHandleAnalystConsensus_RejectsJunkChainID(t *testing.T) {
 
 func TestBuildChainContext_ResolvesNetworkKeysAndChainIDs(t *testing.T) {
 	cases := map[string]string{
-		"pearl":     "Pearl",
-		"pearl-1":   "Pearl",
 		"mainnet":   "Mainnet",
 		"gnoland-1": "Mainnet",
-		"gnoland1":  "Betanet",
+		"onyx":      "Onyx",
+		"onyx-1":    "Onyx",
+		"test13":    "Testnet 13",
 	}
 	for id, want := range cases {
 		got := buildChainContext(id)
