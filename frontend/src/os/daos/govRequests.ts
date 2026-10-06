@@ -55,18 +55,25 @@ async function seated(caller: string) {
 
 const OPEN = new Set(["voting", "timelocked", "ready"])
 
-/** `raw`: Memba cannot decode the action, so a YES needs the member's own acknowledgement. */
-export function govVoteRequest(s: GovSigner, p: GovProposal, vote: GovVote, raw: boolean): SignRequest {
+/**
+ * `raw`: Memba cannot decode the action, so a YES needs the member's own
+ * acknowledgement. `withdraw`: after the deadline, a YES is withdrawn by
+ * recording NO, which is the only vote the realm still takes.
+ */
+export function govVoteRequest(s: GovSigner, p: GovProposal, vote: GovVote, raw: boolean, withdraw = false): SignRequest {
     const title = govProposalTitle(p)
     return request(s, { type: "vote", id: p.id, vote }, {
-        title: "Vote", summary: `Vote ${vote.toUpperCase()} on #${p.id}`,
-        lines: [["Proposal", `#${p.id} ${title}`], ["Your vote", vote.toUpperCase()]],
+        title: withdraw ? "Withdraw your YES" : "Vote", summary: withdraw ? `Withdraw your YES on #${p.id}` : `Vote ${vote.toUpperCase()} on #${p.id}`,
+        lines: [["Proposal", `#${p.id} ${title}`], ["Your vote", withdraw ? "YES withdrawn (recorded as NO)" : vote.toUpperCase()]],
         acks: raw && vote === "yes" ? [`I have read the code of ${p.target}. Memba cannot read this action; if it passes, it runs exactly as shown.`] : [],
         operation: `vote:${p.id}`,
         recheck: async () => {
-            const [fresh] = await Promise.all([readGovProposal(ctx(), p.id), seated(s.caller)])
+            const [fresh, me] = await Promise.all([readGovProposal(ctx(), p.id), seated(s.caller)])
             if (!OPEN.has(fresh.status)) throw new Error(`This proposal is now ${fresh.status}. Nothing was sent.`)
             if (fresh.action !== p.action || fresh.args !== p.args || fresh.target !== p.target) throw new Error("This proposal reads differently now. Review it again.")
+            // Voting closes just before the deadline second; after it, only a YES can still be withdrawn.
+            const withdrawing = vote !== "yes" && fresh.ballots.some((b) => b.person === me.id && b.vote === "yes")
+            if (now() >= Number(fresh.deadline) && !withdrawing) throw new Error(`Voting on #${p.id} has closed. Nothing was sent.`)
         },
         verify: async () => {
             const me = await seated(s.caller)
@@ -115,14 +122,15 @@ export function govPauseRequest(s: GovSigner, app: string, expire: boolean): Sig
         title: expire ? "End a pause" : "Emergency pause",
         summary: expire ? `End ${label}'s expired pause` : `Pause ${label} for 7 days`,
         lines: [["App", label]],
-        warns: expire ? undefined : ["Each member may pause once every 30 days, across all apps. A vote can end or extend it."],
+        warns: expire ? undefined : ["Each member may pause once every 30 days, across all apps. Memba cannot read your last pause: if you paused an app in the last 30 days, the network refuses this one. A vote can end or extend a pause."],
         operation: `${expire ? "expire" : "pause"}:${app}`,
         recheck: async () => {
-            const [until] = await Promise.all([readBridgePauses(ctx()).then((p) => p[app]), expire ? null : seated(s.caller)])
+            const [{ until, governed }] = await Promise.all([readBridgePauses(ctx()).then((p) => p[app]), expire ? null : seated(s.caller)])
+            if (!governed) throw new Error("Memba DAO does not govern this app now. Nothing was sent.")
             if (expire ? until === 0 || until > now() : until > now()) throw new Error(expire ? "This pause is not over. Nothing was sent." : "This app is already paused. Nothing was sent.")
         },
         verify: async () => {
-            const until = (await readBridgePauses(ctx()))[app]
+            const { until } = (await readBridgePauses(ctx()))[app]
             return expire ? until === 0 : until > now()
         },
     })

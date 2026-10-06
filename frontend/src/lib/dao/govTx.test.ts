@@ -43,3 +43,24 @@ describe("memba_gov transactions", () => {
         expect(approvalMatches({ ...fee, class: 1 }, native.approval)).toBe(false)
     })
 })
+
+describe("the bridge entrypoint table", () => {
+    it("calls each op exactly as the bridge's node fixtures do, entrypoint, order and values", async () => {
+        const { calls } = (await import("./testdata/memba-gov/calls.json")).default as { calls: { action: string; args: string | null; call: string }[] }
+        const as = (action: string, args: string) => ({ ...find("memba_market_config.SetFee"), action, args })
+        const pinned = new Set<string>()
+        for (const c of calls) {
+            if (c.args !== null) {
+                expect(bridgeExecution(as(c.action, c.args)).approval, `${c.action} ${c.args}`).toBe(c.call)
+                pinned.add(c.action.split(".")[1])
+            } else if (proposals.some((p) => p.action === c.action && bridgeExecution(p).approval === c.call)) {
+                // Arguments read at run time: a testdata proposal of that action maps to exactly this fixture call.
+                pinned.add(c.action.split(".")[1])
+            }
+        }
+        expect(pinned.size).toBe(20) // every op of the bridge, by at least one exact call
+        // The parameters a call carries are the voted values, as typed strings for the wallet.
+        const pay = find("escrow_v4.ResolveDispute", "|b:0|")
+        expect(bridgeExecution(pay).args).toEqual([pay.id, "0", "0", "false"])
+    })
+})

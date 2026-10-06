@@ -72,7 +72,7 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
             {mine && <p className="os-note">You voted <b>{mine.vote.toUpperCase()}</b>{mine.vote === "yes" ? ` (since ${formatChainTime(Number(mine.since))})` : ""}.</p>}
             {voteLock || (closed
                 // After the deadline a YES can still be withdrawn, to stop an approval before it runs.
-                ? mine?.vote === "yes" && <button type="button" className="os-btn" disabled={quoting} onClick={() => vote("no")}>{quoting ? "Reading the fee…" : "Withdraw your YES…"}</button>
+                ? mine?.vote === "yes" && <button type="button" className="os-btn" disabled={quoting} onClick={() => start((s) => govVoteRequest(s, p, "no", raw, true))}>{quoting ? "Reading the fee…" : "Withdraw your YES…"}</button>
                 : <>
                     {raw && (
                         <label className="os-row">
@@ -121,17 +121,17 @@ export function EmergencyPauses({ roster, session }: { roster: GovRoster; sessio
             <p className="os-sub">A seated member can pause an app the DAO governs for 7 days without a vote, once every 30 days. A vote ends or extends it; anyone ends it once it is over.</p>
             {pauses.isError && <p className="os-note os-err">Couldn't read the pauses.</p>}
             <ul className="os-list">{PAUSABLE_APPS.map((app) => {
-                const until = pauses.data?.[app] ?? 0
+                const { until, governed } = pauses.data?.[app] ?? { until: 0, governed: false }
                 const over = until > 0 && until <= now
-                // No control until the pause is known.
-                const control = session.status !== "member" || !pauses.data ? null
+                // No control until the pause is known, nor for an app the bridge does not govern.
+                const control = session.status !== "member" || !pauses.data || !governed ? null
                     : lock(govScope(session.address, `${over ? "expire" : "pause"}:${app}`), "pause")
                     || (over ? <button type="button" className="os-btn os-quiet" disabled={quoting} onClick={() => start((s) => govPauseRequest(s, app, true))}>End the pause…</button>
                         : seated && until === 0 ? <button type="button" className="os-btn os-quiet" disabled={quoting} onClick={() => start((s) => govPauseRequest(s, app, false))}>Pause…</button> : null)
                 return (
                     <li key={app} className="os-it">
                         <span className="os-grow"><b>{BRIDGE_APPS[app].label}</b>
-                            <span className="os-sub os-block">{!pauses.data ? "…" : until === 0 ? "Not paused by the DAO" : over ? "Pause over" : `Paused until ${formatChainTime(until)}`}</span></span>
+                            <span className="os-sub os-block">{!pauses.data ? "…" : !governed ? "Not governed by Memba DAO" : until === 0 ? "Not paused by the DAO" : over ? "Pause over" : `Paused until ${formatChainTime(until)}`}</span></span>
                         {control}
                     </li>
                 )

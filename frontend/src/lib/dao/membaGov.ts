@@ -10,6 +10,7 @@ import { MAX_ARGS } from "./daoauth"
 import { BRIDGE_APPS, BRIDGE_PATH, GOV_PATH } from "./govActions"
 import { directRpcCall, abciErrorPresent } from "../rpcFallback"
 import { assertWeightedChain, parseWeightedQeval, qevalText } from "./weighted"
+import { packageAddress } from "./weightedApplications"
 import { address, id, uint64 } from "./weightedPrimitives"
 
 export type GovContext = { rpcUrl: string; chainId: string }
@@ -147,13 +148,29 @@ async function abciQuery(ctx: GovContext, path: string, query: string, signal?: 
     return { failed: false as const, text: new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(base.Data ?? ""), c => c.charCodeAt(0))) }
 }
 
-/** When each pausable app's bridge pause ends (unix seconds), or 0 where the bridge holds none. */
-export async function readBridgePauses(ctx: GovContext, signal?: AbortSignal): Promise<Record<string, number>> {
+/** The getter of each pausable app's current admin: the bridge pauses only an app it governs. */
+const ADMIN_GETTER: Record<string, string> = {
+    escrow_v4: "GetAdmin()", memba_appstore_v3: "GetOwner()", memba_arcade_leaderboard_v1: "GetOwner()", gnobuilders_badges_v2: "GetOwner()",
+    memba_feed_v1: "GetOwner()", memba_dao_channels_v2: "GetOwner()", memba_feedback_v2: "GetOwner()",
+}
+
+export type BridgePause = { until: number; governed: boolean }
+
+/**
+ * For each pausable app: when the bridge's pause ends (unix seconds, 0 for
+ * none) and whether the bridge governs the app now (is its admin).
+ */
+export async function readBridgePauses(ctx: GovContext, signal?: AbortSignal): Promise<Record<string, BridgePause>> {
     await assertWeightedChain(ctx, signal)
-    const raw = await Promise.all(PAUSABLE_APPS.map((app) => qevalText(ctx.rpcUrl, BRIDGE_PATH, `PausedUntil("${app}")`, signal)))
+    const bridge = packageAddress(BRIDGE_PATH)
+    const raw = await Promise.all(PAUSABLE_APPS.flatMap((app) => [
+        qevalText(ctx.rpcUrl, BRIDGE_PATH, `PausedUntil("${app}")`, signal),
+        qevalText(ctx.rpcUrl, `gno.land/r/samcrew/${app}`, ADMIN_GETTER[app], signal),
+    ]))
     return Object.fromEntries(PAUSABLE_APPS.map((app, i) => {
-        const m = raw[i].match(/^\((0|[1-9][0-9]{0,11}) int64\)\s*$/)
-        if (!m) throw new Error("Invalid pause read")
-        return [app, Number(m[1])]
+        const until = raw[2 * i].match(/^\((0|[1-9][0-9]{0,11}) int64\)\s*$/)
+        if (!until) throw new Error("Invalid pause read")
+        const admin = raw[2 * i + 1].match(/^\("(g1[0-9a-z]{38})" (?:string|\.uverse\.address)\)\s*$/)?.[1]
+        return [app, { until: Number(until[1]), governed: admin === bridge }]
     }))
 }

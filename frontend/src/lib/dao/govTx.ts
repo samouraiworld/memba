@@ -18,6 +18,7 @@ import { address, id } from "./weightedPrimitives"
 export const GOV_BUDGETS = {
     vote: { gasWanted: 30_000_000, maxDepositUgnot: 500_000 },
     join: { gasWanted: 30_000_000, maxDepositUgnot: 500_000 },
+    // A roster Execute with 25 seats used about 20.1M (unit-test measure: the core's checkRoster walks them all).
     execute: { gasWanted: 40_000_000, maxDepositUgnot: 1_000_000 },
     bridge: { gasWanted: 50_000_000, maxDepositUgnot: 2_000_000 },
     pause: { gasWanted: 30_000_000, maxDepositUgnot: 500_000 },

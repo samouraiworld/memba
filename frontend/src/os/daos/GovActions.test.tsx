@@ -121,9 +121,12 @@ describe("joining and pausing", () => {
 
     it("lets a seated member pause an app, and anyone connected end a pause that is over", async () => {
         const now = Math.floor(Date.now() / 1000)
-        vi.mocked(readBridgePauses).mockResolvedValue({ escrow_v4: 0, memba_appstore_v3: now + 3600, memba_arcade_leaderboard_v1: 1, gnobuilders_badges_v2: 0, memba_feed_v1: 0, memba_dao_channels_v2: 0, memba_feedback_v2: 0 })
+        const g = (until: number, governed = true) => ({ until, governed })
+        vi.mocked(readBridgePauses).mockResolvedValue({ escrow_v4: g(0, false), memba_appstore_v3: g(now + 3600), memba_arcade_leaderboard_v1: g(1), gnobuilders_badges_v2: g(0), memba_feed_v1: g(0), memba_dao_channels_v2: g(0), memba_feedback_v2: g(0) })
         const view = show(<EmergencyPauses roster={roster} session={member(ZX)} />)
-        expect(await screen.findAllByRole("button", { name: "Pause…" })).toHaveLength(5)
+        // Escrow is not governed by the DAO: no control for it.
+        expect(await screen.findAllByRole("button", { name: "Pause…" })).toHaveLength(4)
+        expect(screen.getByText("Not governed by Memba DAO")).toBeInTheDocument()
         expect(screen.getByText(/Paused until/)).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "End the pause…" }))
         await waitFor(() => expect(sign).toHaveBeenCalled())
@@ -132,5 +135,30 @@ describe("joining and pausing", () => {
         show(<EmergencyPauses roster={roster} session={member(MIKAEL)} />)
         expect(await screen.findByRole("button", { name: "End the pause…" })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Pause…" })).toBeNull()
+    })
+})
+
+describe("rechecks before the wallet opens", () => {
+    it("refuses an emergency pause of an app the DAO no longer governs, and says the 30-day rule is the network's", async () => {
+        const { govPauseRequest } = await import("./govRequests")
+        const req = govPauseRequest({ caller: ZX, gasPrice: { gas: 1000, ugnot: 1 } }, "escrow_v4", false)
+        expect(req.warns?.[0]).toMatch(/Memba cannot read your last pause/)
+        vi.mocked(readBridgePauses).mockResolvedValue({ escrow_v4: { until: 0, governed: false } } as never)
+        await expect(req.recheck!(undefined)).rejects.toThrow("does not govern this app now")
+        vi.mocked(readBridgePauses).mockResolvedValue({ escrow_v4: { until: 0, governed: true } } as never)
+        await expect(req.recheck!(undefined)).resolves.toBeUndefined()
+    })
+
+    it("refuses a vote after the deadline, except a YES being withdrawn", async () => {
+        const { govVoteRequest } = await import("./govRequests")
+        const s = { caller: ZX, gasPrice: { gas: 1000, ugnot: 1 } }
+        const closed = { ...find("memba_market_config.SetFee"), deadline: "1", status: "timelocked" as const }
+        vi.mocked(readGovProposal).mockResolvedValue(closed)
+        await expect(govVoteRequest(s, closed, "abstain", false).recheck!(undefined)).rejects.toThrow("has closed")
+        vi.mocked(readGovProposal).mockResolvedValue({ ...closed, ballots: [{ person: "zxxma", vote: "yes", since: "1" }] })
+        const withdraw = govVoteRequest(s, closed, "no", false, true)
+        expect(withdraw.summary).toBe(`Withdraw your YES on #${closed.id}`)
+        await expect(withdraw.recheck!(undefined)).resolves.toBeUndefined()
+        await expect(govVoteRequest(s, closed, "yes", false).recheck!(undefined)).rejects.toThrow("has closed")
     })
 })
