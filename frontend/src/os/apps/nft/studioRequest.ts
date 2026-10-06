@@ -14,8 +14,9 @@ import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeFor
 import { NFT_DROPS_PATH, getDropTerms, listStages, type NftStage } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS, formatTime } from "../../../lib/nft/format"
 import { getCollection } from "../../../lib/nft/ledger"
+import { RealmRefusedError } from "../../../lib/nft/read"
 import {
-    ADD_STAGE_GAS_WANTED, ADD_STAGE_STORAGE_BYTES, END_STAGE_GAS_WANTED, buildAddStageMsg, buildEndStageMsg, stageProblem, type StageTerms,
+    ADD_STAGE_GAS_WANTED, ADD_STAGE_STORAGE_BYTES, END_STAGE_GAS_WANTED, END_STAGE_STORAGE_BYTES, buildAddStageMsg, buildEndStageMsg, stageProblem, type StageTerms,
 } from "../../../lib/nft/studio"
 import { laneClosedReason, readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
@@ -54,6 +55,13 @@ async function assertCreator(draft: Common): Promise<void> {
     if ((await getCollection(draft.collection)).creator !== draft.caller) throw new Error(`This account is not the creator of ${draft.collection}. Nothing was sent.`)
 }
 
+/** The same instant on this device's clock, as the form took it. */
+function yourTime(seconds: bigint): string {
+    const date = new Date(Number(seconds) * 1000)
+    const two = (n: number) => String(n).padStart(2, "0")
+    return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}`
+}
+
 const KIND: Record<StageTerms["kind"], string> = { fixed: "Fixed price", dutch: "Dutch auction", holder: "Holders" }
 
 export function addStageRequest(draft: AddStageDraft): SignRequest {
@@ -71,6 +79,7 @@ export function addStageRequest(draft: AddStageDraft): SignRequest {
         lines: () => [
             ["Creator", draft.caller],
             ["Window", `${formatTime(terms.start)} to ${formatTime(terms.end)}`],
+            ["Your time", `${yourTime(terms.start)} to ${yourTime(terms.end)}`],
             ["Price", terms.kind === "dutch" ? `${amount(terms.price)}, falling to ${amount(terms.floor)}` : amount(terms.price)],
             ["Per wallet", terms.perWallet.toString()],
             ["Stage cap", terms.supplyCap === 0n ? "None beyond the collection's" : terms.supplyCap.toString()],
@@ -91,9 +100,13 @@ export function addStageRequest(draft: AddStageDraft): SignRequest {
             if (!lane.open) throw new Error(`${laneClosedReason(lane, "Minting")} Nothing was sent.`)
             if (drop.primaryFeeBPS !== draft.feeBPS) throw new Error("The protocol fee for new stages changed after your review. Nothing was sent. Close the review and read it again.")
             if (stages.length !== draft.existing.length) throw new Error("The collection's stages changed after your review. Nothing was sent. Close the review and read them again.")
-            const problem = stageProblem(terms, nowSeconds(), stages)
+            const problem = stageProblem(draft.collection, terms, nowSeconds(), stages)
             if (problem) throw new Error(`${problem} Nothing was sent.`)
-            if (terms.kind === "holder") await getCollection(terms.gate).catch(() => { throw new Error(`There is no collection ${terms.gate} to gate this stage. Nothing was sent.`) })
+            if (terms.kind === "holder") {
+                await getCollection(terms.gate).catch((err: unknown) => {
+                    throw err instanceof RealmRefusedError ? new Error(`There is no collection ${terms.gate} to gate this stage. Nothing was sent.`) : err
+                })
+            }
             await assertFeeStillCovers(fee, () => freshFeeForGasWanted(ADD_STAGE_GAS_WANTED))
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], label, { gasWanted: ADD_STAGE_GAS_WANTED, gasFee: fee, beforeSign }),
@@ -117,6 +130,7 @@ export function endStageRequest(draft: EndStageDraft): SignRequest {
             ["Stage", `${stage.index + 1}, open until ${formatTime(stage.end)}`],
             ["Drops realm", NFT_DROPS_PATH],
             ["Network", draft.chainId],
+            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(END_STAGE_STORAGE_BYTES))}`],
             ["Network fee", formatUgnotExact(fee)],
         ],
         acks: ["I understand that an ended stage never opens again."],
@@ -127,7 +141,7 @@ export function endStageRequest(draft: EndStageDraft): SignRequest {
             available(draft)
             await assertCreator(draft)
             const read = (await listStages(draft.collection))[stage.index]
-            if (!read || read.start !== stage.start || !read.open) throw new Error("This stage is no longer open. Nothing was sent.")
+            if (!read?.open) throw new Error("This stage is no longer open. Nothing was sent.")
             await assertFeeStillCovers(fee, () => freshFeeForGasWanted(END_STAGE_GAS_WANTED))
         },
         send: (_choice, beforeSign) => doContractBroadcast([msg], label, { gasWanted: END_STAGE_GAS_WANTED, gasFee: fee, beforeSign }),

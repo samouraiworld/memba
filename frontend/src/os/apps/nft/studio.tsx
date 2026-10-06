@@ -2,8 +2,10 @@
  * The creator studio. `studio` lists the collections the connected account
  * created, read from the ledger newest first a page at a time (it keeps no
  * index by creator). `studio/<id>` is one collection's stages: the creator
- * schedules a fixed-price, dutch or holder stage and ends an open one; anyone
- * else reads the stages and is told only the creator manages them.
+ * schedules a fixed-price, dutch or holder stage and ends an open one. A guest
+ * sees the same controls and connects at the review, which the creator alone
+ * can sign; another account reads the stages and is told only the creator
+ * manages them.
  *
  * @module os/apps/nft/studio
  */
@@ -140,7 +142,7 @@ function AddStage({ screen, session, collection, stages }: { screen: NftScreen; 
         const perWallet = whole(form.perWallet, 0n), supplyCap = whole(form.supplyCap, 0n)
         if (perWallet === null || supplyCap === null) return "The wallet limit and the stage cap are whole numbers."
         const terms: StageTerms = { kind: form.kind, start, end, price, floor, perWallet, supplyCap, gate: form.kind === "holder" ? form.gate.trim() : "" }
-        return stageProblem(terms, BigInt(Math.floor(Date.now() / 1000)), stages) || terms
+        return stageProblem(collection, terms, BigInt(Math.floor(Date.now() / 1000)), stages) || terms
     }
     const submit = () => {
         const terms = build()
@@ -194,7 +196,9 @@ function EndStage({ screen, session, collection, stage }: { screen: NftScreen; s
 export function CollectionStudio({ screen, session, id, back }: { screen: NftScreen; session: OsSession; id: string; back: Ref<HTMLButtonElement> }) {
     const collection = useQuery(collectionQuery(screen.chainId, id))
     const stages = useQuery({ queryKey: ["nft", "drops", "stages", screen.chainId, id], queryFn: () => listStages(id), staleTime: 30_000, retry: false })
-    const creator = session.status === "member" && collection.data?.creator === session.address
+    const member = session.status === "member"
+    // A guest may be the creator: it sees what a creator sees and connects at the review.
+    const acts = member ? collection.data?.creator === session.address : true
     return (
         <div className="os-stack">
             <Back ref={back} label="Studio" onClick={() => screen.go({ kind: "studio" })} />
@@ -206,7 +210,8 @@ export function CollectionStudio({ screen, session, id, back }: { screen: NftScr
                             <h2 className="os-h os-flush os-grow">{revealInvisibleFormatting(collection.data.name)} · {id}</h2>
                             <button type="button" className="os-btn os-quiet" onClick={() => screen.go({ kind: "collection", collection: id })}>Collection profile</button>
                         </div>
-                        {!creator && <p className="os-note" role="note">Only the collection's creator schedules and ends its stages.</p>}
+                        {!acts && <p className="os-note" role="note">Only the collection's creator schedules and ends its stages.</p>}
+                        {!member && <p className="os-note" role="note">Connect as the collection's creator to schedule or end its stages.</p>}
                         <section aria-label="Stages">
                             <h3 className="os-h">Stages</h3>
                             {stages.isPending ? <Loading label="Reading the stages…" />
@@ -216,11 +221,11 @@ export function CollectionStudio({ screen, session, id, back }: { screen: NftScr
                                     <li key={stage.index} className="os-card os-stack os-tight">
                                         <b>Stage {stage.index + 1} · {stage.kind} · {stage.open ? "open now" : stage.start * 1000n > BigInt(stages.dataUpdatedAt) ? "upcoming" : "ended"}</b>
                                         <span className="os-sub">{formatTime(stage.start)} to {formatTime(stage.end)} · {stage.minted.toString()} minted</span>
-                                        {creator && stage.open && <EndStage screen={screen} session={session} collection={id} stage={stage} />}
+                                        {acts && stage.open && <EndStage screen={screen} session={session} collection={id} stage={stage} />}
                                     </li>
                                 ))}</ul>}
                         </section>
-                        {creator && stages.isSuccess && (stages.data.length < 10
+                        {acts && stages.isSuccess && (stages.data.length < 10
                             ? <AddStage screen={screen} session={session} collection={id} stages={stages.data} />
                             : <p className="os-sub">This collection has used its 10 stages.</p>)}
                     </>

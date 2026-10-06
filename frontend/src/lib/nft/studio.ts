@@ -49,7 +49,7 @@ export interface StageTerms {
  * it would take it. `now` is Unix seconds: a start must still be ahead when
  * the transaction lands, so one less than a minute away is refused here.
  */
-export function stageProblem(t: StageTerms, now: bigint, existing: readonly NftStage[] = []): string {
+export function stageProblem(collection: string, t: StageTerms, now: bigint, existing: readonly NftStage[] = []): string {
     if (existing.length >= MAX_STAGES) return "A collection has 10 stages for its whole life, and this one has used them all."
     if (t.start < now + 60n) return "The stage must start at least a minute from now."
     if (t.end <= t.start) return "The stage must end after it starts."
@@ -60,6 +60,7 @@ export function stageProblem(t: StageTerms, now: bigint, existing: readonly NftS
     if (t.kind === "dutch" ? !(t.floor >= 0n && t.floor < t.price) : t.floor !== 0n) return "A dutch stage falls to a floor below its starting price."
     if (t.kind === "holder") {
         try { collectionId(t.gate) } catch { return "Name the collection whose tokens give access, such as C1." }
+        if (t.gate === collection) return "A holder stage is gated on another collection: each token of its own would open one more mint."
     } else if (t.gate !== "") return "Only a holder stage names a gate collection."
     const clash = existing.find((other) => t.start < other.end && other.start < t.end)
     if (clash) return `The window overlaps stage ${clash.index + 1}.`
@@ -68,7 +69,7 @@ export function stageProblem(t: StageTerms, now: bigint, existing: readonly NftS
 
 /** AddStage(id, kind, start, end, price, floor, supplyCap, perWallet, "", gate, "ugnot", maxFeeBPS). */
 export function buildAddStageMsg(caller: string, collection: string, t: StageTerms, maxFeeBPS: bigint, now: bigint, existing: readonly NftStage[]): AminoMsg {
-    const problem = stageProblem(t, now, existing)
+    const problem = stageProblem(collection, t, now, existing)
     if (problem) throw new Error(problem)
     return {
         type: "vm/MsgCall",

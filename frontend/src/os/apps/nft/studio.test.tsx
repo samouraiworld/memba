@@ -92,6 +92,18 @@ describe("Creator studio", () => {
         expect(screen.queryByRole("region", { name: "Schedule a stage" })).toBeNull()
     })
 
+    it("shows a guest the creator's controls and asks it to connect at the review", async () => {
+        mocks.stages.mockResolvedValue([stage(0, { open: true })])
+        const guest = { status: "guest", network, openConnect: vi.fn() }
+        show("studio/C7", guest)
+        expect(await screen.findByText("Connect as the collection's creator to schedule or end its stages.")).toBeInTheDocument()
+        expect(screen.queryByText("Only the collection's creator schedules and ends its stages.")).toBeNull()
+        expect(await screen.findByRole("region", { name: "Schedule a stage" })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "End this stage now" }))
+        expect(guest.openConnect).toHaveBeenCalledOnce()
+        expect(mocks.sign).not.toHaveBeenCalled()
+    })
+
     it("lets the creator schedule a stage after reading the lane and the fee", async () => {
         show("studio/C7", member())
         const form = within(await screen.findByRole("region", { name: "Schedule a stage" }))

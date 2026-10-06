@@ -20,12 +20,12 @@ const stage = (index: number, start: bigint, end: bigint, more: Partial<NftStage
 
 describe("stage terms", () => {
     it("takes the stages the realm takes", () => {
-        expect(stageProblem(terms(), NOW)).toBe("")
-        expect(stageProblem(terms({ kind: "dutch", price: 10n, floor: 0n }), NOW)).toBe("")
-        expect(stageProblem(terms({ kind: "holder", price: 0n, gate: "C2" }), NOW)).toBe("")
-        expect(stageProblem(terms({ start: NOW + 60n, end: NOW + 60n + 365n * DAY, perWallet: 1_000_000n }), NOW)).toBe("")
+        expect(stageProblem("C1", terms(), NOW)).toBe("")
+        expect(stageProblem("C1", terms({ kind: "dutch", price: 10n, floor: 0n }), NOW)).toBe("")
+        expect(stageProblem("C1", terms({ kind: "holder", price: 0n, gate: "C2" }), NOW)).toBe("")
+        expect(stageProblem("C1", terms({ start: NOW + 60n, end: NOW + 60n + 365n * DAY, perWallet: 1_000_000n }), NOW)).toBe("")
         // Windows that touch do not overlap: [start, end).
-        expect(stageProblem(terms(), NOW, [stage(0, NOW - DAY, NOW + 3_600n)])).toBe("")
+        expect(stageProblem("C1", terms(), NOW, [stage(0, NOW - DAY, NOW + 3_600n)])).toBe("")
     })
 
     it.each<[string, Partial<StageTerms>, RegExp]>([
@@ -41,13 +41,14 @@ describe("stage terms", () => {
         ["a holder stage without a gate", { kind: "holder", gate: "" }, /Name the collection/],
         ["a malformed gate", { kind: "holder", gate: "C01" }, /Name the collection/],
         ["a gate on a fixed stage", { gate: "C2" }, /Only a holder stage/],
+        ["a holder stage gated on its own collection", { kind: "holder", gate: "C1" }, /gated on another collection/],
     ])("refuses %s", (_, more, problem) => {
-        expect(stageProblem(terms(more), NOW)).toMatch(problem)
+        expect(stageProblem("C1", terms(more), NOW)).toMatch(problem)
     })
 
     it("refuses an overlapping window and an eleventh stage", () => {
-        expect(stageProblem(terms(), NOW, [stage(0, NOW, NOW + 3_601n)])).toBe("The window overlaps stage 1.")
-        expect(stageProblem(terms(), NOW, Array.from({ length: 10 }, (_, i) => stage(i, BigInt(i), BigInt(i) + 1n)))).toMatch(/used them all/)
+        expect(stageProblem("C1", terms(), NOW, [stage(0, NOW, NOW + 3_601n)])).toBe("The window overlaps stage 1.")
+        expect(stageProblem("C1", terms(), NOW, Array.from({ length: 10 }, (_, i) => stage(i, BigInt(i), BigInt(i) + 1n)))).toMatch(/used them all/)
     })
 })
 

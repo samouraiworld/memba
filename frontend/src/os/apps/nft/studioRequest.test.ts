@@ -44,7 +44,7 @@ vi.mock("../../../lib/dao/chainIdentity", () => ({ assertRpcChain: async () => {
 
 import { doContractBroadcast, setTxConfirmationCallback } from "../../../lib/grc20"
 import type { NftStage } from "../../../lib/nft/drops"
-import { RealmRefusedError } from "../../../lib/nft/read"
+import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import type { StageTerms } from "../../../lib/nft/studio"
 import { executeSignature } from "../../sign/signer"
 import { addStageRequest, endStageRequest, type AddStageDraft, type EndStageDraft } from "./studioRequest"
@@ -109,6 +109,33 @@ describe("scheduling a stage", () => {
             return { id, creator: CREATOR }
         })
         await failed(request, "There is no collection C2 to gate this stage.")
+        // A read that fails says so, not that the collection is missing.
+        mocks.collection.mockImplementation(async (id: string) => {
+            if (id === "C2") throw new ReadError("timeout")
+            return { id, creator: CREATOR }
+        })
+        const result = await run(addStageRequest(draft({ terms: terms({ kind: "holder", price: 0n, floor: 0n, gate: "C2" }) })))
+        expect(result.outcome).toBe("failed")
+        expect((result as { error: string }).error).not.toContain("There is no collection")
+    })
+
+    it("checks the window against the stages read at signing, not those of the review", async () => {
+        const upcoming = stage(1, now() + 10n * DAY, now() + 11n * DAY)
+        // Same count, but stage 2 was moved onto this window after the review.
+        mocks.stages.mockResolvedValue([past, { ...upcoming, start: now() + 1_800n, end: now() + 7_200n }])
+        await failed(addStageRequest(draft({ existing: [past, upcoming] })), "The window overlaps stage 2. Nothing was sent.")
+    })
+
+    it("shows the window in the creator's own time beside UTC", () => {
+        const zone = process.env.TZ
+        process.env.TZ = "America/New_York"
+        try {
+            const start = 1_796_147_100n // 2026-12-01 17:45 UTC
+            const request = addStageRequest(draft({ terms: terms({ start, end: start + DAY }) }))
+            expect(request.lines(undefined)).toEqual(expect.arrayContaining([
+                ["Window", "2026-12-01 17:45 UTC to 2026-12-02 17:45 UTC"], ["Your time", "2026-12-01 12:45 to 2026-12-02 12:45"],
+            ]))
+        } finally { process.env.TZ = zone }
     })
 
     it.each([
@@ -130,6 +157,7 @@ describe("scheduling a stage", () => {
 
     it("refuses a draft Memba must not sign", () => {
         expect(() => addStageRequest(draft({ terms: terms({ floor: 10_000_000n }) }))).toThrow(/floor below/)
+        expect(() => addStageRequest(draft({ terms: terms({ kind: "holder", price: 0n, floor: 0n, gate: "C1" }) }))).toThrow(/gated on another collection/)
         expect(() => addStageRequest(draft({ caller: "g1nope" }))).toThrow("Connect your wallet")
         mocks.available.mockReturnValue(false)
         expect(() => addStageRequest(draft())).toThrow("Mint stages are not available on this network.")
@@ -146,7 +174,8 @@ describe("ending a stage", () => {
         mocks.stages.mockResolvedValue([past, s])
         const request = endStageRequest(draft({ stage: s }))
         expect(request.acks).toEqual(["I understand that an ended stage never opens again."])
-        expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: "EndStage", args: ["C1", "1"] })
+        expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: "EndStage", args: ["C1", "1"], max_deposit: "100000ugnot" })
+        expect(request.lines(undefined)).toContainEqual(["Storage deposit", "Up to 0.1 GNOT"])
         expect(await run(request)).toMatchObject({ outcome: "sent" })
         expect(mocks.lane).not.toHaveBeenCalled()
     })
