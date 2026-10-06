@@ -226,7 +226,7 @@ describe("retiredNetworkSuccessor — which networks redirect, and where", () =>
     })
 
     it("non-retired networks, unknown keys and empty input have no successor", () => {
-        for (const key of ["mainnet", "test13", "onyx", "gnoland1", "no-such-network", "", null, undefined]) {
+        for (const key of ["mainnet", "test13", "onyx", "no-such-network", "", null, undefined]) {
             expect(retiredNetworkSuccessor(key), String(key)).toBeNull()
         }
     })

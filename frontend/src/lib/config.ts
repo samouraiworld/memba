@@ -119,9 +119,7 @@ interface NetworkConfig {
     /** True for experimental test chains. Drives disclosures that only make sense
      *  off a production chain — e.g. Team Hub's "Data: mainnet" note, which says
      *  the gnolove roster comes from a mainnet-backed source rather than the chain
-     *  you are on. Betanet is deliberately NOT a testnet here: `gnolove-team-hub`
-     *  e2e encodes "gnoland1 = real chain → no chip", and that product decision is
-     *  preserved. This replaces a `networkKey === "test13"` literal that silently
+     *  you are on. This replaces a `networkKey === "test13"` literal that silently
      *  dropped the disclosure on every other testnet. */
     isTestnet?: boolean
     /** When false, Memba's realms are NOT deployed on this network — the app shows
@@ -251,81 +249,14 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         faucetUrl: "https://faucet.gno.land",
         explorerUrl: import.meta.env.VITE_PEARL_EXPLORER_URL || "https://pearl.testnets.gno.land",
     },
-    gnoland1: {
-        chainId: "gnoland1",
-        userDaos: { create: false, channelsCompanion: false },
-        rpcUrl: "https://rpc.gnoland1.samourai.live:443",
-        fallbackRpcUrls: [
-            "https://rpc.gnoland1.moul.p2p.team",
-            "https://rpc.gnoland1.aeddi.org",
-            "https://rpc.betanet.testnets.gno.land",
-        ],
-        label: "Betanet (gnoland1)",
-        userRegistryPath: "gno.land/r/sys/users",
-        faucetUrl: "",
-        // ⛔ RETIRED to HIDDEN (2026-09-17): every PUBLIC Betanet endpoint in
-        // this entry is dead. Measured the same day, all four:
-        //     rpc.gnoland1.samourai.live      → connection refused
-        //     rpc.gnoland1.aeddi.org          → empty response
-        //     rpc.betanet.testnets.gno.land   → connection refused
-        //     betanet.testnets.gno.land       → connection refused (explorer)
-        // Only `rpc.gnoland1.moul.p2p.team` still answers (node_info.network
-        // "gnoland1", height 3796411, catching_up false) — one community node
-        // is not an offer this app should make in the selector, and the
-        // PRIMARY being dead means a Betanet visitor lands on a failover, not
-        // on the endpoint the app advertises. Same treatment as test13: the
-        // entry STAYS in NETWORKS so deep links and stored selections resolve
-        // instead of crash-looping the /:network redirects, and
-        // `selectableNetworksFor` keeps the escape hatch.
-        // Re-verify with `node_info.network == "gnoland1"` before un-hiding;
-        // DNS and a 200 prove nothing (the pearl/rpc.gno.land lesson).
-        //
-        // SELECTABLE 2026-08-27 → 2026-09-17 (owner directive: keep Betanet
-        // offered alongside Pearl).
-        //
-        // ⛔ RETRACTED 2026-09-10 — the original directive called gnoland1 "the
-        // future-mainnet track — testnet upgrades merge here progressively".
-        // That premise is FALSE. gnolang/gno#6154 builds mainnet as a FRESH
-        // chain with a different chain id (`gnoland-1`, HYPHEN — see the
-        // `mainnet` entry below) whose balances come from the audited
-        // gnolang/independence-day allocation. Betanet is not becoming
-        // mainnet and is not a staging ground for it.
-        //
-        // The two hazards that had this chain hidden are both closed and
-        // test-pinned:
-        // - F-28: `realmsDeployed: false` + the explicit empty REALM_ALLOWLIST
-        //   entry below give the honest RealmsNotDeployedBanner instead of the
-        //   fake-live marketplace this chain once rendered. (This note used to
-        //   say isRealmValidOn "fails OPEN on a MISSING entry"; it no longer
-        //   does — F-28's fix made it fail CLOSED, so an unlisted network
-        //   gates everything. Keep the explicit entry anyway: it states the
-        //   intent rather than relying on the default.)
-        // - F-29: the 401-no-self-heal loop is fixed (api.ts drops
-        //   server-rejected tokens; authSession is the durable half). Until
-        //   the owner adds "gnoland1" to MEMBA_ACCEPTED_CHAIN_IDS, a login
-        //   attempt here gets a clean surfaced refusal, not a dead session.
-        // Memba still deploys NOTHING to Betanet; realm-dependent surfaces stay
-        // honestly gated.
-        hidden: true,
-        realmsDeployed: false,
-        // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
-        // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
-        // different directions — `getExplorerBaseUrl` returned `betanet.gno.land`
-        // (does not resolve) and `lib/gnoweb` returned `gno.land` (which answers
-        // 200 for shared paths like `/u/<name>` and would show a different
-        // chain's data with no visible failure). ⚠️ That note called `gno.land`
-        // "MAINNET"; measured 2026-09-10 it serves `chainid` "gnoland1" — it is
-        // a BETANET host that #6154 repoints to mainnet at the 09-11 launch, so
-        // what it shows depends on when you ask. Identity-check, never assume.
-        explorerUrl: "https://betanet.testnets.gno.land",
-    },
     // gno.land MAINNET — chain id `gnoland-1` (HYPHEN). Live since 2026-09-12;
     // the DEFAULT network since 2026-09-17 (netlify.toml VITE_GNO_CHAIN_ID +
     // the `resolveDefaultNetwork` hard fallback), and the only visible network
     // since pearl's retirement on 2026-09-23 (/pearl/ links redirect here).
     //
-    // ⚠️ `gnoland-1` IS NOT `gnoland1`. The entry above (`gnoland1`, no hyphen)
-    // is BETANET — a different chain, one hyphen apart. Mainnet was built as a
+    // ⚠️ `gnoland-1` IS NOT `gnoland1`. `gnoland1` (no hyphen) was BETANET — a
+    // different chain, one hyphen apart, retired 2026-10-06 (its old links
+    // redirect here; its last node stopped at height 3,796,411). Mainnet was built as a
     // FRESH chain (gnolang/gno#6154) whose balances come from the audited
     // independence-day allocation; Betanet did not become mainnet.
     //
@@ -523,6 +454,7 @@ export const RETIRED_NETWORKS: Readonly<Record<string, { to: string; name: strin
     pearl: { to: "mainnet", name: "Pearl testnet" },
     topaz: { to: "mainnet", name: "Topaz testnet" },
     sapphire: { to: "mainnet", name: "Sapphire testnet" },
+    gnoland1: { to: "mainnet", name: "Betanet" },
 })
 
 /** The successor of a RETIRED network, or null when `key` is not retired.
@@ -654,8 +586,7 @@ export function getUsernameRegistrarPath(): string | null {
  * decides whether to show "realms not deployed here", and defaulting it closed
  * would put that banner on every network we forgot to enumerate. The per-realm
  * predicate is the one that gates fund-custody UI, and that is the one that must
- * fail closed. Betanet is covered by BOTH (`realmsDeployed: false` + an explicit
- * empty allowlist) — it does not rely on either default.
+ * fail closed.
  */
 export function networkHasRealms(networkKey: string): boolean {
     return NETWORKS[networkKey]?.realmsDeployed !== false
@@ -701,10 +632,6 @@ export function areRealmsDeployed(): boolean {
  *     custodial).
  */
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
-    // Betanet: Memba deploys nothing here. An EXPLICIT empty list, not an
-    // absent key — absent means "no allowlist", which isRealmValidOn used to
-    // read as "everything is valid" (F-28).
-    gnoland1: [],
     // Mainnet (`gnoland-1`): wave 1 was published 2026-09-23 by the samcrew
     // namespace multisig (realm-versions.json `mainnet`). Only realms whose
     // Memba surface is safe to expose are listed: escrow_v3 (custodies funds;
@@ -849,7 +776,7 @@ export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
 /** Whether Memba has at least one realm allowlisted (verified live) on a
  *  network. Finer than `networkHasRealms` for a partially-deployed chain —
  *  mainnet wave 1 keeps `realmsDeployed: false` while its REALM_ALLOWLIST is
- *  non-empty. An explicit empty list (gnoland1) or an absent key is false. */
+ *  non-empty. An explicit empty list or an absent key is false. */
 export function networkHasAllowlistedRealms(networkKey: string): boolean {
     return (realmAllowlist(networkKey)?.length ?? 0) > 0
 }
@@ -874,8 +801,8 @@ export function isRealmValid(realmPath: string): boolean {
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || NETWORKS[DEFAULT_NETWORK].chainId
 
 /** The key gnomonitoring knows the active network by — NOT the on-chain chain id.
- *  Defaults to chainId, which is right wherever the two coincide (test-13,
- *  gnoland1). Use this for gnomonitoring API calls ONLY; anything that reaches
+ *  Defaults to chainId, which is right wherever the two coincide (test-13).
+ *  Use this for gnomonitoring API calls ONLY; anything that reaches
  *  the chain or the wallet must keep using GNO_CHAIN_ID. */
 export const GNO_MONITORING_CHAIN =
     NETWORKS[_activeNetwork]?.monitoringChain || GNO_CHAIN_ID
@@ -903,7 +830,7 @@ export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbac
 /**
  * Samourai Sentry RPC URL (Dual-RPC Strategy).
  * Used optionally by Hacker Mode for direct, high-frequency, uncached consensus telemetry
- * (e.g. /net_info, /dump_consensus_state) when available on gnoland1.
+ * (e.g. /net_info, /dump_consensus_state) when one is configured.
  */
 export const SAMOURAI_SENTRY_RPC_URL = import.meta.env.VITE_SAMOURAI_SENTRY_RPC_URL || ""
 
@@ -1141,16 +1068,11 @@ export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
     "testnets.gno.land", // covers rpc.test13.testnets.gno.land (official test13) + others
     "rpc.gno.land",
-    "gnoland.network", // test-13 indexer/gnoweb + gnoland1 fallbacks, suffix-matched
+    "gnoland.network", // test-13 indexer/gnoweb, suffix-matched
     "onbloc.xyz",      // test-13 canonical RPC (test13.rpc.onbloc.xyz) — Adena moved here in v1.19.5 (#856)
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
-    // Convention: https://rpc.{chain}.samourai.live
-    //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)
-    //   - testnet13: https://rpc.testnet13.samourai.live (live)
+    // Convention: https://rpc.{chain}.samourai.live (e.g. rpc.mainnet.samourai.live)
     "samourai.live",
-    "p2p.team",       // moul's infra + team nodes (gnoland1.moul.p2p.team etc.)
-    "aeddi.org",      // aeddi's gnoland1 validator node
-    "gnoland1.io",    // gnoland1 betanet official
     "163.172.33.181", // gno core team bare-metal node
     "localhost",      // local devnet
 ]

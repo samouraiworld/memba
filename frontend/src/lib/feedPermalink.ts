@@ -17,7 +17,7 @@ export function feedPostPermalink(
 ): string {
     const origin = loc?.origin ?? (typeof window !== "undefined" ? window.location.origin : "")
     const pathname = loc?.pathname ?? (typeof window !== "undefined" ? window.location.pathname : "")
-    // First path segment is the network key (/test13/…, /gnoland1/…).
+    // First path segment is the network key (/mainnet/…, /onyx/…).
     const net = /^\/([^/]+)(?:\/|$)/.exec(pathname)?.[1] ?? ""
     const prefix = net ? `/${net}` : ""
     return `${origin}${prefix}/feed/post/${id.toString()}`
