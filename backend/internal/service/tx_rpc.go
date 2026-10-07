@@ -18,6 +18,12 @@ import (
 
 // ─── Transaction RPCs ─────────────────────────────────────────────
 
+// Membership, for every RPC below, is a user_multisigs row. CreateOrJoinMultisig
+// writes one for each key of the multisig, derived from its public keys, so the
+// row's holder is a signer by construction; `joined` only records whether they
+// listed the account (and its name) in their own Memba accounts. A member who
+// has not listed it reads, proposes and signs like any other.
+
 func (s *MultisigService) CreateTransaction(
 	ctx context.Context,
 	req *connect.Request[membav1.CreateTransactionRequest],
@@ -59,7 +65,7 @@ func (s *MultisigService) CreateTransaction(
 	// Verify user is a member of this multisig.
 	var exists int
 	err = s.db.QueryRowContext(ctx,
-		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ? AND joined = TRUE",
+		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
 		chainID, userAddress, multisigAddr,
 	).Scan(&exists)
 	if err != nil {
@@ -137,7 +143,7 @@ func (s *MultisigService) GetTransaction(
 		FROM transactions t
 		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
 		JOIN user_multisigs um ON um.chain_id = t.chain_id AND um.multisig_address = t.multisig_address AND um.user_address = ?
-		WHERE t.id = ? AND um.joined = TRUE
+		WHERE t.id = ?
 	`, userAddress, txID).Scan(
 		&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
 		&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
@@ -218,8 +224,8 @@ func (s *MultisigService) Transactions(
 		       m.threshold, m.members_count, m.pubkey_json
 		FROM transactions t
 		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
-		JOIN user_multisigs um ON um.chain_id = t.chain_id AND um.multisig_address = t.multisig_address AND um.user_address = ?
-		WHERE um.joined = TRUE
+		JOIN user_multisigs um ON um.chain_id = t.chain_id AND um.multisig_address = t.multisig_address
+		WHERE um.user_address = ?
 	`
 	args := []interface{}{userAddress}
 
@@ -368,7 +374,7 @@ func (s *MultisigService) SignTransaction(
 
 	var memberExists int
 	err = s.db.QueryRowContext(ctx,
-		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ? AND joined = TRUE",
+		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
 		chainID, userAddress, multisigAddr,
 	).Scan(&memberExists)
 	if err != nil {
@@ -464,7 +470,7 @@ func (s *MultisigService) CompleteTransaction(
 
 	var memberExists int
 	err = s.db.QueryRowContext(ctx,
-		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ? AND joined = TRUE",
+		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
 		chainID, userAddress, multisigAddr,
 	).Scan(&memberExists)
 	if err != nil {
