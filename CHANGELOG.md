@@ -25,6 +25,8 @@ Full changelogs are split by version range for easier navigation:
 - An old classic link such as /onyx/game/connect4 now opens the Connect 4 window in Memba OS instead of the classic page, and keeps Onyx as your network, so a reload stays there.
 - The wallet-mismatch banner no longer offers to move Memba onto a testnet the wallet was left on; it asks to switch the wallet instead.
 - The Connect 4 card on other networks says to choose Onyx in the network menu.
+### Signing no longer waits forever on Adena (2026-10-08)
+- Fixed: signing (including address activation) no longer waits forever when Adena never answers. After 45 seconds of silence Memba checks your account and, if it sent a transaction, says so and tells you to check its result; after 3 minutes it says what to check
 
 ### Arcade: Connect 4, staked two-player on testnet, with Quick play (2026-10-07)
 - A fourth Arcade game: staked Connect 4 against another wallet. Both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT fee; every move has 90 seconds of chain time. The lobby lists open offers and live games as cards (anyone can open one to watch), and offers are posted with stake and duration presets. The board drops discs with a bounce, shows whose turn it is with a move-clock ring, and highlights the winning line.

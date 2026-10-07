@@ -129,13 +129,14 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
             before: () => accountMark(signerAddress),
             after: () => accountMarkAfterBlocks(signerAddress, gone.current?.signal),
             onSettling: () => { if (sameOwner()) setReview((r) => r && { ...r, stage: "settling" }) },
+            stop: gone.current?.signal,
         })
         busy.current = false
         // The session ended or changed account while the wallet had the request:
         // its sheet is gone, but the request still learns how it ended, so
         // nothing that waits on it waits forever. A sent one is not verified.
         if (!sameOwner()) {
-            settle(req, choice, res.outcome === "sent" ? "submitted" : res.outcome === "refused" ? "failed" : res.outcome)
+            settle(req, choice, res.outcome === "sent" ? (res.seenOnChain ? "unknown" : "submitted") : res.outcome === "refused" ? "failed" : res.outcome)
             return
         }
         if (res.outcome === "failed" || res.outcome === "cancelled") {
@@ -159,6 +160,15 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
             return
         }
         if (res.outcome !== "sent") { closeReview(); return }
+        if (res.seenOnChain) {
+            // Adena never answered, but the account sent a transaction meanwhile. Which one is not
+            // known (no hash to verify by), so the request learns an unknown outcome, never "done".
+            closeReview()
+            notify({ kind: "warn", title: `Your account sent a transaction · ${label}`, sub: "Adena did not answer, but your account sent a transaction while it was open. Check its result in your account's history before doing this again." })
+            toast(`Your account sent a transaction: ${label}. Adena did not answer; check the result in your account's history.`)
+            settle(req, choice, "unknown")
+            return
+        }
         const hash = res.hash
         const id = ++seq
         setPending((p) => [...p, { id, label }])
