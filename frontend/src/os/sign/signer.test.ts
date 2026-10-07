@@ -257,6 +257,8 @@ describe("executeSignature", () => {
             ["only the coins moved (an incoming transfer or a session key)", ["7 6000000ugnot"], UNCHANGED],
             ["the last read failed", [MARK, "offline"], UNREAD],
             ["every read failed", ["offline"], UNREAD],
+            // A sequence never goes down: that read is not this account on this chain.
+            ["the last read had a lower sequence", ["6 5000000ugnot"], UNREAD],
             // The deadline's own read is the first to see it move: read, and not yet confirmed by a second.
             ["the sequence first moved on the last read", [...Array<string>((WALLET_SILENT_MS - WALLET_QUIET_MS) / WATCH_MS).fill(MARK), "8 4990000ugnot"], MOVED],
         ])("is an unknown outcome after the whole wait when %s, saying what is known", (_why, reads, says) => fake(async () => {
