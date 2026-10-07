@@ -72,8 +72,9 @@
   display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--os-line); background: var(--os-card); border-radius: 14px;
   padding: 10px 12px; font: inherit; color: inherit; min-width: 0; text-align: left;
 }
-.memba-os button.os-scard { cursor: pointer; }
-.memba-os button.os-scard:hover { border-color: var(--os-acc); }
+.memba-os :is(button, a).os-scard { cursor: pointer; }
+.memba-os a.os-scard { text-decoration: none; }
+.memba-os :is(button, a).os-scard:hover { border-color: var(--os-acc); }
 .memba-os .os-scard > svg { width: 20px; height: 20px; flex: none; color: var(--os-mut); }
 
 /* Warning copy uses body ink for contrast on the tinted warning surface. */

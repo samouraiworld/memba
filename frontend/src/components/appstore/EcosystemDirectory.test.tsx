@@ -14,7 +14,7 @@ describe("ecosystem discovery controls", () => {
         renderWithProviders(<Harness />, { route: "/pearl/apps?q=missing&availability=mainnet" })
         expect(screen.getByRole("status")).toHaveTextContent("0 projects found")
         fireEvent.click(screen.getByRole("button", { name: "Reset filters" }))
-        expect(screen.getByRole("status")).toHaveTextContent("9 projects found")
+        expect(screen.getByRole("status")).toHaveTextContent("10 projects found")
         fireEvent.change(screen.getByRole("searchbox", { name: "Search projects" }), { target: { value: "boards" } })
         fireEvent.change(screen.getByLabelText("Availability"), { target: { value: "unknown" } })
         expect(screen.getByRole("status")).toHaveTextContent("0 projects found")
@@ -53,7 +53,7 @@ describe("ecosystem discovery controls", () => {
             { pkgPath: "gno.land/r/gnoland/boards2/v0", appURL: "https://gno.land/r/gnoland/boards2/v0" },
         ]} />)
         expect(screen.getByRole("heading", { level: 2, name: "More from the Gno ecosystem" })).toBeInTheDocument()
-        expect(screen.getByRole("status")).toHaveTextContent("7 projects found")
+        expect(screen.getByRole("status")).toHaveTextContent("8 projects found")
         expect(screen.queryByRole("heading", { name: "GnoSwap" })).not.toBeInTheDocument()
         expect(screen.queryByRole("heading", { name: "Boards" })).not.toBeInTheDocument()
         expect(screen.getByRole("link", { name: "Visit Bubble Rumble (opens in a new tab)" })).toHaveAttribute("href", "https://bubblerumble.net/")

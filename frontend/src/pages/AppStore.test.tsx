@@ -268,7 +268,7 @@ describe("AppGrid — one catalogue", () => {
         expect(screen.getAllByRole("heading", { name: "GnoSwap" })).toHaveLength(1)
         expect(screen.getAllByRole("button", { name: "Boards" })).toHaveLength(1)
         expect(screen.queryByRole("heading", { name: "Boards" })).not.toBeInTheDocument()
-        expect(screen.getByRole("status")).toHaveTextContent("7 projects found")
+        expect(screen.getByRole("status")).toHaveTextContent("8 projects found")
         const headings = screen.getAllByRole("heading").map((heading) => heading.textContent)
         expect(headings.indexOf("GnoSwap")).toBeLessThan(headings.indexOf("More from the Gno ecosystem"))
         expect(screen.getByRole("link", { name: "Visit Bubble Rumble (opens in a new tab)" })).toBeInTheDocument()

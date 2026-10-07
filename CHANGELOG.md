@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### gnofly listed, and community games in the Arcade (2026-10-07)
+- App Store: gnofly, a multiplayer plane game on gno.land, joins the ecosystem directory with its checked mainnet realm and plane NFT pricing (777 planes, 77 GNOT each at launch)
+- Memba OS: the Arcade shows independent mainnet games under From the community as external links, with a note that Memba has not reviewed them and that some charge GNOT
+
 ### Guest banner wording (2026-10-08)
 - Memba OS: the guest banner says Connect to sign instead of Connect to vote, which only made sense over a DAO
 
