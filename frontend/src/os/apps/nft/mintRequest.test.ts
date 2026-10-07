@@ -87,7 +87,7 @@ describe("NFT mint signing", () => {
         const lines = Object.fromEntries(request.lines(undefined))
         expect(lines.Price).toBe("At most 4 GNOT. The price at the block is charged; the rest comes back in the same transaction.")
         expect(lines.Split).toBe("2% to the Launchpad treasury, the rest to the creator")
-        expect(lines["Storage deposit"]).toBe("Up to 2 GNOT, locked with the new token")
+        expect(lines["Storage deposit"]).toBe("Up to 2.1 GNOT, locked with the new token")
         expect(lines["Network fee"]).toBe("0.0636 GNOT")
         expect(await run(request)).toEqual({ outcome: "sent", hash: HASH, result: undefined })
         expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Mint from C1", expect.objectContaining({ gasWanted: 53_000_000, gasFee: 63_600 }))

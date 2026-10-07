@@ -15,7 +15,7 @@ describe("mint call", () => {
             type: "vm/MsgCall",
             value: {
                 caller: BUYER, send: "1500000ugnot", pkg_path: NFT_DROPS_PATH, func: "Mint",
-                args: ["C1", "2", "ugnot", "1500000", "0", "", "0"], max_deposit: "2000000ugnot",
+                args: ["C1", "2", "ugnot", "1500000", "0", "", "0"], max_deposit: "2100000ugnot",
             },
         })
     })

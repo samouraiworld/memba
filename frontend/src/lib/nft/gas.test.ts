@@ -32,7 +32,8 @@ const MEASURED: [string, number, number][] = [
     ["Review", REVIEW_GAS_WANTED, 19],
     // Fixed, dutch and holder stages (Memba schedules no allowlist stage), the tenth of a collection the worst.
     ["AddStage", ADD_STAGE_GAS_WANTED, 14.47],
-    ["EndStage", END_STAGE_GAS_WANTED, 10.18],
+    // Measured on onyx-1 at the published bytes, above the test node's 10.18M.
+    ["EndStage", END_STAGE_GAS_WANTED, 10.78],
 ]
 
 /* A creation's gas grows with its terms; measured at the pin by direct calls. */

@@ -23,13 +23,14 @@ const MEASURED: [string, number, number][] = [
     // A purchase or an acceptance moves the token: a transfer to a new holder stores up to 3,887 bytes.
     ["Buy", BUY_STORAGE_BYTES, 3_887],
     ["AcceptOffer", ACCEPT_OFFER_STORAGE_BYTES, 3_887],
-    ["Mint", MINT_STORAGE_BYTES, 9_967],
+    // A dutch mint on onyx-1 at the published bytes; the fixtures measured up to 9,967.
+    ["Mint", MINT_STORAGE_BYTES, 9_991],
     ["Apply", APPLY_STORAGE_BYTES, 4_535],
     ["Review", REVIEW_STORAGE_BYTES, 164],
     ["CreateCollection", CREATE_COLLECTION_STORAGE_BYTES, 16_969],
     // The first stage of a collection stores the most.
     ["AddStage", ADD_STAGE_STORAGE_BYTES, 3_285],
-    ["EndStage", END_STAGE_STORAGE_BYTES, 12],
+    ["EndStage", END_STAGE_STORAGE_BYTES, 20],
 ]
 
 describe("storage deposit caps", () => {

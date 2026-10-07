@@ -175,9 +175,9 @@ describe("ending a stage", () => {
         const request = endStageRequest(draft({ stage: s }))
         expect(request.acks).toEqual(["I understand that an ended stage never opens again."])
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: "EndStage", args: ["C1", "1"], max_deposit: "100000ugnot" })
-        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Storage deposit", "Up to 0.1 GNOT"], ["Network fee", "0.0252 GNOT"]]))
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Storage deposit", "Up to 0.1 GNOT"], ["Network fee", "0.0264 GNOT"]]))
         expect(await run(request)).toMatchObject({ outcome: "sent" })
-        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, expect.any(String), expect.objectContaining({ gasWanted: 21_000_000, gasFee: 25_200 }))
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, expect.any(String), expect.objectContaining({ gasWanted: 22_000_000, gasFee: 26_400 }))
         expect(mocks.lane).not.toHaveBeenCalled()
     })
 

@@ -24,8 +24,8 @@ export const NATIVE_CURRENCY = "ugnot"
  */
 export const MINT_GAS_WANTED = 53_000_000
 
-/** Measured 4.1 to 10 KB of new storage for one mint; the deposit cap is twice the highest. */
-export const MINT_STORAGE_BYTES = 10_000
+/** Measured 4.1 to 10.0 KB of new storage for one mint (9,991 B on onyx-1); the deposit cap is twice the estimate. */
+export const MINT_STORAGE_BYTES = 10_500
 
 /** A collection's supply as the ledger states it. */
 export interface MintSupply {
