@@ -191,7 +191,11 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
   },
   // EVM dev servers pre-bundle the adapter's libraries at start: discovered on first use
   // instead, they make Vite reload the page mid-test (the cold-start flake of e2e/os/os-evm).
+  // They keep that pre-bundle in a cache of their own: the e2e servers run side by side, and
+  // a different pre-bundle written to the shared node_modules/.vite replaced the dependency
+  // files the flag-off servers were serving, so their pages broke mid-test.
   optimizeDeps: evmBuild ? { include: ['viem', 'viem/chains', '@wagmi/core'] } : undefined,
+  cacheDir: evmBuild ? 'node_modules/.vite-evm' : undefined,
   build: {
     sourcemap: true, // Required for Sentry source map uploads
     assetsInlineLimit: osEnabledFor(mode) ? undefined : (filePath: string) => /manrope-latin-\d+-normal\.woff2$/.test(filePath) || undefined,
