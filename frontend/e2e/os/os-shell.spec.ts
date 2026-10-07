@@ -349,6 +349,33 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeEnabled()
     })
 
+    test('activation that Adena never answers moves on once the account shows it sent', async ({ page }) => {
+        await newWallet(page)
+        // As on gnoland-1 (h633360): the activation landed, and Adena's promise never settled.
+        let landed = false
+        await page.exposeFunction('__land', () => { landed = true })
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            if (path.startsWith('auth/accounts/')) return JSON.stringify({ BaseAccount: { address: ADDR, coins: landed ? '997599ugnot' : '1000000ugnot', public_key: null, account_number: '9', sequence: landed ? '1' : '0' } })
+            return null
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>>; __land: () => Promise<void> }
+            w.adena.DoContract = async () => { await w.__land(); return new Promise(() => {}) }
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
+        await expect(modal.getByText('Your address is active. Sign the login message to finish.')).toBeVisible({ timeout: 15_000 })
+        expect(landed).toBe(true)
+    })
+
     test('activation waits for a balance that holds its network fee, and says how much', async ({ page }) => {
         await newWallet(page)
         await fulfillOnchainReads(page, ({ method, path }) => {

@@ -159,6 +159,14 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
             return
         }
         if (res.outcome !== "sent") { closeReview(); return }
+        if (res.seenOnChain) {
+            // Adena never answered, but the account sent a transaction meanwhile: no hash to verify by.
+            closeReview()
+            notify({ kind: "warn", title: `Sent · ${label}`, sub: "Adena did not answer, but your account sent a transaction while it was open. Check its result in your account's history before doing this again." })
+            toast(`Sent: ${label}. Adena did not answer; check the result in your account's history.`)
+            settle(req, choice, "submitted")
+            return
+        }
         const hash = res.hash
         const id = ++seq
         setPending((p) => [...p, { id, label }])

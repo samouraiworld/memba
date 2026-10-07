@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { clearGovernanceMemory, readGovernanceReceipt, type GovernanceScope } from "../../lib/dao/governanceRecovery"
 import { ChainRejectedError, doContractBroadcast, setTxConfirmationCallback, type AminoMsg } from "../../lib/grc20"
-import { executeSignature, verifyWithRetries, type SignRequest } from "./signer"
+import { executeSignature, verifyWithRetries, WALLET_SILENT_MS, WATCH_MS, type SignRequest } from "./signer"
 
 const msg: AminoMsg = { type: "vm/MsgCall", value: { caller: "g1x", send: "", pkg_path: "gno.land/r/alice/team", func: "Vote", args: ["1", "YES"] } }
 const scope: GovernanceScope = { chainId: "gnoland-1", realmPath: "gno.land/r/alice/team", caller: "g1x", operation: "vote:1" }
@@ -189,6 +189,103 @@ describe("executeSignature", () => {
         } finally {
             vi.useRealTimers()
         }
+    })
+
+    describe("a wallet that never answers", () => {
+        const silent = () => request({ wallet: () => new Promise<{ hash: string }>(() => {}) })
+        /** An account read that answers MARK first (before the wallet opens), then `later`. */
+        const account = (later: string) => {
+            let reads = 0
+            return { before: vi.fn(async () => (reads++ === 0 ? MARK : later)), after: vi.fn(async () => MARK) }
+        }
+
+        it("is sent once the account's sequence moves, and leaves no timer", async () => {
+            vi.useFakeTimers()
+            try {
+                const sent = account("8 4990000ugnot")
+                const pending = executeSignature(silent(), "YES", [msg], () => {}, () => true, sent)
+                await vi.advanceTimersByTimeAsync(WATCH_MS)
+                expect(await pending).toEqual({ outcome: "sent", hash: "", seenOnChain: true })
+                expect(readGovernanceReceipt(scope)).toMatchObject({ phase: "submitted", hash: "", label: "Vote on #1" })
+                expect(sent.after).not.toHaveBeenCalled()
+                expect(vi.getTimerCount()).toBe(0)
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+
+        it.each([
+            ["the account is unchanged", MARK],
+            ["only the coins moved (an incoming transfer or a session key)", "7 6000000ugnot"],
+            ["the account cannot be read", "offline"],
+        ])("is an unknown outcome after %s for the whole wait, saying what to check", async (_why, later) => {
+            vi.useFakeTimers()
+            try {
+                const sent = later === "offline"
+                    ? { before: vi.fn().mockResolvedValueOnce(MARK).mockRejectedValue(new Error("offline")), after: vi.fn(async () => MARK) }
+                    : account(later)
+                const onNothingSent = vi.fn()
+                const pending = executeSignature({ ...silent(), onNothingSent }, "YES", [msg], () => {}, () => true, sent)
+                let settled = false
+                void pending.then(() => { settled = true })
+                await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS - WATCH_MS)
+                expect(settled).toBe(false)
+                expect(sent.before.mock.calls.length).toBeGreaterThan(2) // it kept looking
+                await vi.advanceTimersByTimeAsync(WATCH_MS)
+                expect(await pending).toMatchObject({ outcome: "unknown", error: expect.stringMatching(/^Adena has not answered for 3 minutes, and your account shows no new transaction\..*check your account/) })
+                // Nothing is known to be unsent: the lock stays.
+                expect(readGovernanceReceipt(scope)).toMatchObject({ phase: "intent" })
+                expect(onNothingSent).not.toHaveBeenCalled()
+                expect(vi.getTimerCount()).toBe(0)
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+
+        it("still stops waiting without an account check", async () => {
+            vi.useFakeTimers()
+            try {
+                const pending = executeSignature(silent(), "YES", [msg], () => {})
+                await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS)
+                expect((await pending).outcome).toBe("unknown")
+                expect(vi.getTimerCount()).toBe(0)
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+
+        it("a wallet that answers while the account is watched decides, and the watch stops", async () => {
+            vi.useFakeTimers()
+            try {
+                let answer!: (v: { hash: string }) => void
+                const sent = account(MARK)
+                const pending = executeSignature(request({ wallet: () => new Promise((r) => { answer = r }) }), "YES", [msg], () => {}, () => true, sent)
+                await vi.advanceTimersByTimeAsync(WATCH_MS * 3)
+                answer({ hash: "LATE" })
+                expect(await pending).toEqual({ outcome: "sent", hash: "LATE", result: undefined })
+                expect(vi.getTimerCount()).toBe(0)
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+
+        it("a wallet answer after the chain decided is ignored", async () => {
+            vi.useFakeTimers()
+            const unhandled = vi.fn()
+            process.on("unhandledRejection", unhandled)
+            try {
+                let fail!: (e: Error) => void
+                const res = executeSignature(request({ wallet: () => new Promise((_r, reject) => { fail = reject }) }), "YES", [msg], () => {}, () => true, account("8 4990000ugnot"))
+                await vi.advanceTimersByTimeAsync(WATCH_MS)
+                expect(await res).toMatchObject({ outcome: "sent", seenOnChain: true })
+                fail(new Error(REJECTED))
+                await vi.advanceTimersByTimeAsync(0)
+                expect(unhandled).not.toHaveBeenCalled()
+            } finally {
+                process.off("unhandledRejection", unhandled)
+                vi.useRealTimers()
+            }
+        })
     })
 
     it("a cancellation before the wallet opened needs no check: there, nothing was sent is a fact", async () => {

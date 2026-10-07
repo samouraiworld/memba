@@ -70,7 +70,8 @@ export interface SignRequest<C extends string = string> {
 }
 
 export type SignResult =
-    | { outcome: "sent"; hash: string; result?: unknown }
+    /** `seenOnChain`: the wallet never answered, but the account sent a transaction while it was open (`hash` is then ""). */
+    | { outcome: "sent"; hash: string; result?: unknown; seenOnChain?: true }
     | { outcome: "failed" | "cancelled"; error: string }
     /** Signed, sent, and refused by the node: final. `error` carries the node's reason. */
     | { outcome: "refused"; error: string }
@@ -103,6 +104,17 @@ export interface SentCheck {
 
 /** A slow node must not hold the wallet back: past this the first read counts as missing. */
 const FIRST_READ_MS = 3000
+/** While the wallet has the request, how often the account is read to see whether it sent a transaction. */
+export const WATCH_MS = 3000
+/** How long a wallet may stay silent, with the account unchanged, before Memba stops waiting and says what to check. */
+export const WALLET_SILENT_MS = 3 * 60_000
+const SILENT = "Adena has not answered for 3 minutes, and your account shows no new transaction. If Adena is still open, finish or close the request there, then check your account before trying again."
+
+/** The account's sequence in a mark ("<sequence> <coins>"): it moves only when the account itself signs a transaction. */
+function sequenceOf(mark: string): bigint | null {
+    const s = mark.split(" ")[0]
+    return /^\d+$/.test(s) ? BigInt(s) : null
+}
 
 const REJECTED_IN_WALLET = /user (rejected|denied|cancelled|canceled)|rejected by (the )?user|^(transaction )?cancelled by (the )?user$/i
 let signingActive = false
@@ -138,6 +150,31 @@ export async function executeSignature<C extends string>(
     let mismatch = false
     let restored = false
     let finish = () => {}
+    // Once the wallet has the request, its answer races the chain: a wallet that never
+    // answers (Adena's promise left pending) must not hold the flow when the account
+    // has already sent the transaction, nor forever when nothing happened.
+    let stopWatch = () => {}
+    let startWatch = () => {}
+    const chainWatch = new Promise<"landed" | "silent">((resolve) => {
+        startWatch = () => {
+            const opened = Date.now()
+            let timer: ReturnType<typeof setTimeout> | undefined
+            let stopped = false
+            stopWatch = () => { stopped = true; clearTimeout(timer) }
+            const tick = async () => {
+                if (stopped) return
+                const before = markBefore === null ? null : sequenceOf(markBefore)
+                if (sent && before !== null) {
+                    const now = await sent.before().then(sequenceOf, () => null)
+                    if (stopped) return
+                    if (now !== null && now > before) { resolve("landed"); return }
+                }
+                if (Date.now() - opened >= WALLET_SILENT_MS) { resolve("silent"); return }
+                timer = setTimeout(() => { void tick() }, WATCH_MS)
+            }
+            timer = setTimeout(() => { void tick() }, WATCH_MS)
+        }
+    })
     const confirm = async (msgs: AminoMsg[]) => {
         replaceTxConfirmationCallback(confirm, previous)
         restored = true
@@ -152,7 +189,7 @@ export async function executeSignature<C extends string>(
             // Durable before the wallet opens, as on the classic pages.
             saveGovernanceReceipt(req.receipt, { phase: "intent", hash: "", label })
         }
-        const res = await req.send(choice, async () => {
+        const sending = req.send(choice, async () => {
             // Without this read a later "rejected" reply cannot be confirmed, and is reported as unknown.
             // It runs alongside the request's rechecks: one wait before the wallet opens, not two.
             const marking = (async () => {
@@ -169,8 +206,19 @@ export async function executeSignature<C extends string>(
             if (!restored) throw new Error("Signature review expired. Try again.")
             walletStarted = true
             onWallet()
+            startWatch()
             return canOpenWallet
         })
+        const answer = await Promise.race([sending.then((r) => ({ wallet: r })), chainWatch.then((c) => ({ chain: c }))])
+        if ("chain" in answer) {
+            sending.catch(() => { /* the wallet may still answer: it no longer decides */ })
+            if (answer.chain === "silent") return { outcome: "unknown", error: SILENT, hash }
+            if (req.receipt) {
+                try { saveGovernanceReceipt(req.receipt, { phase: "submitted", hash: "", label }) } catch { /* kept in memory by governanceRecovery */ }
+            }
+            return { outcome: "sent", hash: "", seenOnChain: true }
+        }
+        const res = answer.wallet
         hash = res.hash
         if (req.receipt) {
             try { saveGovernanceReceipt(req.receipt, { phase: "submitted", hash, label }) } catch { /* kept in memory by governanceRecovery */ }
@@ -202,6 +250,7 @@ export async function executeSignature<C extends string>(
         }
         return { outcome: "unknown", error: friendlyDaoError(err), hash }
     } finally {
+        stopWatch()
         if (!restored) replaceTxConfirmationCallback(confirm, previous)
         finish()
         signingActive = false

@@ -331,6 +331,43 @@ describe("OS signing session boundary", () => {
         expect(toast).toHaveBeenCalledWith("Submitted: Vote. Waiting for network approval.")
     })
 
+    it("closes the review when Adena never answers but the account sent a transaction, and says what to check", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        try {
+            vi.clearAllMocks()
+            vi.mocked(accountMark).mockResolvedValueOnce("7 5000000ugnot").mockResolvedValue("8 4990000ugnot")
+            const onSettled = vi.fn()
+            const verify = vi.fn(async () => true)
+            const silent = {
+                ...request, verify, onSettled,
+                send: vi.fn(async (_c: unknown, beforeSign: () => Promise<unknown>) => {
+                    const confirm = setTxConfirmationCallback(null) ?? (async () => true)
+                    setTxConfirmationCallback(confirm)
+                    await confirm([], "")
+                    await beforeSign()
+                    return new Promise<never>(() => {}) // Adena's promise, left pending
+                }),
+            }
+            function Silent() {
+                const signer = useSigner()
+                return <><button type="button" onClick={() => signer.sign(silent)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.title} | {n.sub}</li>)}</ul></>
+            }
+            const toast = vi.fn()
+            render(<SignerProvider session={session("member")} toast={toast}><Silent /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+            await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+            await waitFor(() => expect(onSettled).toHaveBeenCalledWith("submitted", undefined))
+            expect(screen.queryByRole("dialog")).toBeNull()
+            expect(screen.getByText("warn | Sent · Vote | Adena did not answer, but your account sent a transaction while it was open. Check its result in your account's history before doing this again.")).toBeInTheDocument()
+            expect(toast).toHaveBeenCalledWith("Sent: Vote. Adena did not answer; check the result in your account's history.")
+            expect(verify).not.toHaveBeenCalled() // there is no hash to verify by
+        } finally {
+            vi.mocked(accountMark).mockReset().mockImplementation(async () => "7 5000000ugnot")
+            vi.useRealTimers()
+        }
+    })
+
     describe("a 'rejected' reply from Adena after its window opened", () => {
         const onSettled = vi.fn()
         const rejected = {
