@@ -100,15 +100,25 @@ export interface SentCheck {
     after: () => Promise<string>
     /** The wallet answered "rejected" and the account is being checked. */
     onSettling?: () => void
+    /** Aborted when nobody waits for the answer any more: the watch on a silent wallet stops. */
+    stop?: AbortSignal
 }
 
 /** A slow node must not hold the wallet back: past this the first read counts as missing. */
 const FIRST_READ_MS = 3000
-/** While the wallet has the request, how often the account is read to see whether it sent a transaction. */
+/**
+ * How long the wallet must stay silent before the account may answer for it. While the
+ * person reads Adena's window, the sequence can move for another transaction (another tab,
+ * a previous one still landing): a wallet that answers inside this time always decides.
+ */
+export const WALLET_QUIET_MS = 45_000
+/** After that, how often the account is read to see whether it sent a transaction. */
 export const WATCH_MS = 3000
-/** How long a wallet may stay silent, with the account unchanged, before Memba stops waiting and says what to check. */
+/** How long a wallet may stay silent before Memba stops waiting and says what to check. */
 export const WALLET_SILENT_MS = 3 * 60_000
-const SILENT = "Adena has not answered for 3 minutes, and your account shows no new transaction. If Adena is still open, finish or close the request there, then check your account before trying again."
+const SILENT_UNCHANGED = "Adena has not answered for 3 minutes, and your account shows no new transaction. If Adena is still open, finish or close the request there, then check your account before trying again."
+const SILENT_UNREAD = "Adena has not answered for 3 minutes, and Memba could not read your account to tell whether it sent a transaction. If Adena is still open, finish or close the request there, then check your account before trying again."
+const STOPPED = "Memba stopped waiting for Adena. Check your account before trying again."
 
 /** The account's sequence in a mark ("<sequence> <coins>"): it moves only when the account itself signs a transaction. */
 function sequenceOf(mark: string): bigint | null {
@@ -155,24 +165,33 @@ export async function executeSignature<C extends string>(
     // has already sent the transaction, nor forever when nothing happened.
     let stopWatch = () => {}
     let startWatch = () => {}
-    const chainWatch = new Promise<"landed" | "silent">((resolve) => {
+    // The last read of the account, and whether it showed no change (for the timeout's wording).
+    let unchanged = false
+    const chainWatch = new Promise<"landed" | "silent" | "stopped">((resolve) => {
         startWatch = () => {
             const opened = Date.now()
             let timer: ReturnType<typeof setTimeout> | undefined
             let stopped = false
-            stopWatch = () => { stopped = true; clearTimeout(timer) }
+            // A moved sequence counts only when the next read agrees: one node's answer is not enough.
+            let moved: bigint | null = null
+            const halt = () => { stopped = true; clearTimeout(timer); resolve("stopped") }
+            stopWatch = () => { stopped = true; clearTimeout(timer); sent?.stop?.removeEventListener("abort", halt) }
+            if (sent?.stop?.aborted) { halt(); return }
+            sent?.stop?.addEventListener("abort", halt, { once: true })
             const tick = async () => {
                 if (stopped) return
                 const before = markBefore === null ? null : sequenceOf(markBefore)
                 if (sent && before !== null) {
                     const now = await sent.before().then(sequenceOf, () => null)
                     if (stopped) return
-                    if (now !== null && now > before) { resolve("landed"); return }
+                    unchanged = now !== null && now === before
+                    if (now !== null && now > before && now === moved) { resolve("landed"); return }
+                    moved = now !== null && now > before ? now : null
                 }
                 if (Date.now() - opened >= WALLET_SILENT_MS) { resolve("silent"); return }
                 timer = setTimeout(() => { void tick() }, WATCH_MS)
             }
-            timer = setTimeout(() => { void tick() }, WATCH_MS)
+            timer = setTimeout(() => { void tick() }, WALLET_QUIET_MS)
         }
     })
     const confirm = async (msgs: AminoMsg[]) => {
@@ -211,7 +230,8 @@ export async function executeSignature<C extends string>(
         })
         const answer = await Promise.race([sending.then((r) => ({ wallet: r })), chainWatch.then((c) => ({ chain: c }))])
         if ("chain" in answer) { // a later wallet answer no longer decides; the race keeps it handled
-            if (answer.chain === "silent") return { outcome: "unknown", error: SILENT, hash }
+            if (answer.chain === "stopped") return { outcome: "unknown", error: STOPPED, hash }
+            if (answer.chain === "silent") return { outcome: "unknown", error: unchanged ? SILENT_UNCHANGED : SILENT_UNREAD, hash }
             if (req.receipt) {
                 try { saveGovernanceReceipt(req.receipt, { phase: "submitted", hash: "", label }) } catch { /* kept in memory by governanceRecovery */ }
             }

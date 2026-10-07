@@ -69,13 +69,15 @@ async function chainHead(): Promise<number> {
 
 /**
  * Sequence and coins of `address` as one comparable value, after block
- * `height` (the latest block when omitted). Rejects while the node does not
- * have that block, and for an account it does not know: a missing account is
- * not something to compare.
+ * `height` (when omitted, the head of a node that is on this network and
+ * recent: an RPC pool can hand the read to another chain). Rejects while the
+ * node does not have that block, and for an account it does not know: a
+ * missing account is not something to compare.
  */
 export async function accountMark(address: string, height?: number): Promise<string> {
     if (!/^g1[a-z0-9]{38}$/.test(address)) throw new Error("Not a gno.land address")
-    const result = await rpc("abci_query", { path: `auth/accounts/${address}`, data: "", ...(height ? { height: String(height) } : {}) })
+    const at = height ?? await chainHead()
+    const result = await rpc("abci_query", { path: `auth/accounts/${address}`, data: "", height: String(at) })
     const base = record(record(result.response).ResponseBase)
     if (base.Error || typeof base.Data !== "string" || !base.Data) throw new Error("The account could not be read")
     const account = record(record(JSON.parse(atob(base.Data))).BaseAccount)
