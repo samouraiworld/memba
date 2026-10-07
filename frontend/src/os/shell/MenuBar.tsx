@@ -18,6 +18,8 @@ import { useSigner } from "../sign/signerContext"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { newRoomId } from "../apps/meet/rooms"
 import { appSpec } from "./windows"
+import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
+import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
@@ -74,6 +76,8 @@ export function MenuBar(p: MenuBarProps) {
     const guest = session.status !== "member"
     const net = session.network
     const signer = useSigner()
+    const awaiting = useAwaiting(session.layout.auth, session.status === "member" ? session.address : "")
+    const waiting = awaiting.mine + awaiting.shared
 
     // "Add an app…" on the desktop menu opens the start menu (state adjusted
     // while rendering when the request changes, React's pattern for this).
@@ -240,6 +244,7 @@ export function MenuBar(p: MenuBarProps) {
                 <div className="os-panel-list">
                     <div className="os-nh"><b>Notifications</b></div>
                     <div className="os-nl">
+                        <AwaitingSignatures awaiting={awaiting} onOpen={run(() => p.openApp("multisig"))} />
                         {signer.notices.map((n) => (
                             <div key={n.id} className={`os-nc os-nc-${n.kind}`}>
                                 <span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span>
@@ -247,7 +252,7 @@ export function MenuBar(p: MenuBarProps) {
                         ))}
                         {guest
                             ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
-                            : signer.notices.length === 0 && <p className="os-sub os-pad">No signing activity in this session.</p>}
+                            : signer.notices.length === 0 && waiting === 0 && <p className="os-sub os-pad">No signing activity in this session.</p>}
                     </div>
                 </div>
             )
@@ -288,9 +293,9 @@ export function MenuBar(p: MenuBarProps) {
                 <span className="os-mb" role="status" title="Waiting for the chain"><span className="os-spin" aria-hidden="true" />{signer.pending.length} pending</span>
             )}
             <button type="button" className="os-mb" aria-label="Search (⌘K)" onClick={() => { setPanel(null); p.openSearch() }}>⌕</button>
-            <button type="button" className="os-mb" aria-label={signer.unread ? `Notifications, ${signer.unread} new` : "Notifications"} {...mb("notif")}
+            <button type="button" className="os-mb" aria-label={notificationsLabel(signer.unread, awaiting)} {...mb("notif")}
                 onClick={(e) => { toggle("notif")(e); signer.markRead() }}>
-                🔔{signer.unread > 0 && <span className="os-badge" aria-hidden="true">{signer.unread}</span>}
+                🔔{signer.unread + waiting > 0 && <span className="os-badge" aria-hidden="true">{signer.unread + waiting}</span>}
             </button>
             {session.status === "member"
                 ? <button type="button" className="os-mb os-acct" aria-label={`Account ${session.address}`} {...mb("acct")}>

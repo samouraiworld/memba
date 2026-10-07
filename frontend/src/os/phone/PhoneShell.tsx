@@ -17,6 +17,8 @@ import type { OsSession } from "../shell/useOsSession"
 import { WindowBody } from "../shell/WindowFrame"
 import { sendSpec, specForTarget, type OsWindow, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
+import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
+import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
 import { formatUgnot } from "../wallet/send"
 
 const PHONE_DOCK: readonly OsAppId[] = ["daos", "wallet", "feed"]
@@ -44,6 +46,8 @@ type SystemSheet = "apps" | "notif" | null
 export function PhoneShell(p: PhoneShellProps) {
     const { session, front } = p
     const signer = useSigner()
+    const awaiting = useAwaiting(session.layout.auth, session.status === "member" ? session.address : "")
+    const waiting = awaiting.mine + awaiting.shared
     const [time] = useClock()
     const [sheet, setSheet] = useState<SystemSheet>(null)
     // State adjusted while rendering when the request changes, as the menu bar does for its start menu.
@@ -74,12 +78,13 @@ export function PhoneShell(p: PhoneShellProps) {
         content = (
             <Sheet title="Notifications" onHome={() => setSheet(null)}>
                 <div className="os-stack os-tight">
+                    <AwaitingSignatures awaiting={awaiting} onOpen={go(() => p.openApp("multisig"))} />
                     {signer.notices.map((n) => (
                         <div key={n.id} className={`os-nc os-nc-${n.kind}`}><span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span></div>
                     ))}
                     {!member
                         ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={session.openConnect}>Connect</button></div>
-                        : signer.notices.length === 0 && <p className="os-sub">No signing activity in this session.</p>}
+                        : signer.notices.length === 0 && waiting === 0 && <p className="os-sub">No signing activity in this session.</p>}
                 </div>
             </Sheet>
         )
@@ -131,8 +136,8 @@ export function PhoneShell(p: PhoneShellProps) {
                 <span className="os-grow" />
                 {signer.pending.length > 0 && <span className="os-spin" role="status" aria-label={`${signer.pending.length} pending`} />}
                 <span className="os-row os-tight"><span className={`os-ph-dot${net.isTestnet ? " os-ph-dot-test" : ""}`} aria-hidden="true" />{net.isTestnet && <span className="os-pill">TEST</span>}</span>
-                <button type="button" className="os-ph-bell" aria-label={signer.unread ? `Notifications, ${signer.unread} new` : "Notifications"}
-                    onClick={() => { signer.markRead(); setSheet("notif") }}>🔔{signer.unread > 0 && <span className="os-ph-badge">{signer.unread}</span>}</button>
+                <button type="button" className="os-ph-bell" aria-label={notificationsLabel(signer.unread, awaiting)}
+                    onClick={() => { signer.markRead(); setSheet("notif") }}>🔔{signer.unread + waiting > 0 && <span className="os-ph-badge">{signer.unread + waiting}</span>}</button>
             </header>
             {content}
             {(p.wins ?? (front ? [front] : [])).filter((w) => w.key.startsWith("game:")).map((w) => {

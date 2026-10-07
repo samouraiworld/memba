@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MeetStage } from "./MeetStage"
 import MeetWindow from "./native"
 import { newRoomId, normaliseRoomId, roomUrl } from "./rooms"
@@ -219,12 +220,13 @@ describe("Meet window", () => {
 
     it("closes the phone's Notifications sheet when the player's Restore asks for the room", () => {
         const signer: SignerApi = { sign: vi.fn(), pending: [], notices: [], unread: 0, markRead: vi.fn(), version: 0 }
-        const session = { status: "guest", network: { chainId: "gnoland-1", isTestnet: false }, openConnect: vi.fn() } as unknown as OsSession
+        const session = { status: "guest", network: { chainId: "gnoland-1", isTestnet: false }, openConnect: vi.fn(), layout: { auth: { token: null, isAuthenticated: false } } } as unknown as OsSession
+        const client = new QueryClient()
         const phone = (sheetReset: number) => (
-            <SignerContext.Provider value={signer}>
+            <QueryClientProvider client={client}><SignerContext.Provider value={signer}>
                 <PhoneShell locked={false} session={session} front={null} items={[]} open={vi.fn()} openApp={vi.fn()} openItem={vi.fn()}
                     close={vi.fn()} home={vi.fn()} toast={vi.fn()} openSearch={vi.fn()} sheetReset={sheetReset} />
-            </SignerContext.Provider>
+            </SignerContext.Provider></QueryClientProvider>
         )
         const { rerender } = render(phone(0))
         fireEvent.click(screen.getByRole("button", { name: "Notifications" }))

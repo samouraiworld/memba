@@ -7,8 +7,9 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
+import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { abciQueryText, ChainAnswerError } from "../../lib/dao/packageStatus"
+import { awaitingText, countAwaiting, sharedAwaitingText } from "../../lib/multisigAwaiting"
 import { NATIVE_MULTISIG_TYPE } from "../../lib/nativeMultisig"
 import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
 import { ExecutionState, type Multisig, type Transaction } from "../../gen/memba/v1/memba_pb"
@@ -85,4 +86,46 @@ export function useChainAccountKind(address: string, enabled: boolean) {
             return type === NATIVE_MULTISIG_TYPE ? "multisig" : type ? "single" : "unused"
         },
     })
+}
+
+export interface Awaiting {
+    /** Per multisig address. */
+    counts: Map<string, number>
+    /** In accounts the member joined (or created). */
+    mine: number
+    /** In accounts shared with them and not joined, or whose join state is unknown: shown only as a count. */
+    shared: number
+}
+
+const NONE: Awaiting = { counts: new Map(), mine: 0, shared: 0 }
+
+/**
+ * The proposals waiting for this member's signature (lib/multisigAwaiting),
+ * split by whether they joined the account. Nothing for "" (no member), and
+ * the key carries the member so a guest never reads a member's cached count.
+ */
+export function useAwaiting(auth: Auth, me: string): Awaiting {
+    const token = auth.token
+    const enabled = ENABLE_NATIVE_GNO_MULTISIG && !!token && auth.isAuthenticated && !!me
+    const pending = useQuery({
+        queryKey: ["multisig", "os-awaiting", GNO_CHAIN_ID, token?.userAddress ?? "", me],
+        enabled,
+        refetchInterval: 60_000,
+        queryFn: async () => countAwaiting((await api.transactions({ authToken: token!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 })).transactions, me),
+    })
+    const list = useMyMultisigs(auth)
+    if (!enabled || !pending.data) return NONE
+    const joined = new Set((list.data ?? []).filter((m) => m.joined).map((m) => m.address))
+    let mine = 0, shared = 0
+    for (const [address, n] of pending.data) {
+        if (joined.has(address)) mine += n
+        else shared += n
+    }
+    return { counts: pending.data, mine, shared }
+}
+
+/** The bell's label: new signing notices, and proposals waiting for a signature. */
+export function notificationsLabel(unread: number, awaiting: Pick<Awaiting, "mine" | "shared">): string {
+    const parts = [unread ? `${unread} new` : "", awaiting.mine ? awaitingText(awaiting.mine) : "", awaiting.shared ? sharedAwaitingText(awaiting.shared) : ""].filter(Boolean)
+    return parts.length ? `Notifications, ${parts.join(", ")}` : "Notifications"
 }

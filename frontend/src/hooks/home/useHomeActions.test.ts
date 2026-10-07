@@ -25,6 +25,7 @@ vi.mock("../../lib/questNetwork", () => ({ isQuestAvailableOnNetwork: () => cand
 vi.mock("../../lib/api", () => ({
     api: {
         transactions: vi.fn().mockResolvedValue({ transactions: [] }),
+        multisigs: vi.fn(),
     },
 }))
 
@@ -128,6 +129,7 @@ describe("useHomeActions — with actions", () => {
             ],
         })
 
+        vi.mocked(apiMod.api.multisigs).mockResolvedValue({ multisigs: [{ address: "g1multisigaddr", joined: true }] } as never)
         vi.mocked(questsMod.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
     })
 
@@ -158,6 +160,19 @@ describe("useHomeActions — with actions", () => {
         expect(signActions).toHaveLength(1)
         expect(signActions[0].accent).toBe("amber")
         expect(signActions[0].href).toContain("tx/99")
+    })
+
+    it("shows a multisig the member has not joined only as a count, never with the proposer's memo", async () => {
+        const answers = [async () => ({ multisigs: [{ address: "g1multisigaddr", joined: false }] }), async () => { throw new Error("down") }]
+        for (const answer of answers) {
+            vi.mocked(apiMod.api.multisigs).mockImplementation(answer as never)
+            const { result, unmount } = renderHook(() => useHomeActions(makeAuth()), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.loading).toBe(false))
+            const sign = result.current.actions.filter(a => a.kind === "sign")
+            expect(sign).toEqual([expect.objectContaining({ title: "1 proposal waits in a multisig shared with you", href: "/multisig/g1multisigaddr" })])
+            expect(JSON.stringify(result.current.actions)).not.toContain("Pay the team")
+            unmount()
+        }
     })
 
     it("does not offer signing for legacy read-only history", async () => {

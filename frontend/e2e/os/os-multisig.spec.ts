@@ -73,7 +73,7 @@ test.describe('Memba OS multisig', () => {
         await page.goto(`${OS_ON}/os/multisig`)
         const app = win(page, 'Multisig')
         await expect(app.getByText('Team treasury')).toBeVisible()
-        await expect(app.getByRole('button', { name: 'Add Ops to my Memba accounts' })).toBeVisible()
+        await expect(app.getByRole('button', { name: 'Join Ops to keep it in your accounts' })).toBeVisible()
         await expect(app.getByRole('button', { name: 'New multisig' })).toBeDisabled()
         await app.getByRole('button', { name: /Team treasury/ }).click()
         await expect.poll(() => new URL(page.url()).pathname).toBe(`/os/multisig/${MSIG}`)
@@ -180,6 +180,50 @@ test.describe('Memba OS multisig', () => {
         await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
         await win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`).getByRole('button', { name: 'Connect' }).click()
         await expect(page.getByRole('dialog', { name: 'Connect a wallet' })).toBeVisible()
+    })
+
+    test('a member another member registered sees and signs its proposals at once, is counted in the list and the bell without the proposer\'s memo, and may join to keep it', async ({ page }) => {
+        await setup(page)
+        const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        // Waiting proposals are native ones, counted where native signing is on (production).
+        const native = { multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}' }
+        await page.route('**/memba.v1.MultisigService/Transactions', (route) =>
+            route.fulfill(json({ transactions: /EXECUTED/.test(route.request().postData() ?? '') ? [done] : [{ ...pending, ...native }, { ...ready, ...native }] })))
+        // The backend serves every member its transactions; `joined` only lists the account among the member's own.
+        let joined = false
+        const shared = () => ({ ...team, name: joined ? team.name : '', joined })
+        await page.route('**/memba.v1.MultisigService/Multisigs', (route) => route.fulfill(json({ multisigs: [shared()] })))
+        await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill(json({ multisig: shared() })))
+        const joins: string[] = []
+        await page.route('**/memba.v1.MultisigService/CreateOrJoinMultisig', (route) => {
+            joins.push(route.request().postData() ?? '')
+            joined = true
+            return route.fulfill(json({ joined: true }))
+        })
+        await page.goto(`${OS_NATIVE_MSIG}/os/multisig`)
+        const app = win(page, 'Multisig')
+        // #7 lacks Alice's signature; #9 already has its two.
+        const row = app.getByRole('listitem').filter({ hasText: 'Multisig shared with you' })
+        await expect(row.getByText('1 proposal waits for your signature')).toBeVisible()
+        await expect(row.getByRole('button', { name: `Join ${MSIG.slice(0, 8)}…${MSIG.slice(-4)} to keep it in your accounts` })).toBeVisible()
+        await expect(app.getByText('Unnamed')).toHaveCount(0)
+        // Anyone holding a member's key can register a multisig with it: outside the account page, only a neutral count.
+        await expect(page.getByRole('button', { name: 'Notifications, 1 proposal waits in a multisig shared with you' })).toBeVisible()
+        await expect(page.getByText('rent')).toHaveCount(0)
+
+        await row.getByRole('button', { name: /Multisig shared with you/ }).click()
+        const account = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`)
+        await expect(account.getByText('Shared with you: your key is a member, so you can see and sign its transactions.')).toBeVisible()
+        await expect(account.getByRole('button', { name: /View transaction #7/ })).toBeVisible()
+        await expect(account.getByText('rent')).toBeVisible()
+        await expect(account.getByRole('button', { name: 'Propose transaction' })).toBeVisible()
+
+        await account.getByRole('button', { name: 'Join to keep it in your accounts' }).click()
+        await expect(account.getByText('Team treasury')).toBeVisible()
+        await expect(account.getByText(/Shared with you:/)).toHaveCount(0)
+        await expect(page.getByRole('button', { name: 'Notifications, 1 proposal waits for your signature' })).toBeVisible()
+        expect(joins).toHaveLength(1)
+        expect(JSON.parse(joins[0]).expectedMultisigAddress).toBe(MSIG)
     })
 
     test('a connected member of other multisigs sees this account’s public face and is told they are not a member', async ({ page }) => {

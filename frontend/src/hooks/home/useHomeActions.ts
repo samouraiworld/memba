@@ -4,7 +4,8 @@
  *
  * Sources:
  *   - VOTES: useUnvotedProposals (on-chain scan of saved DAOs)
- *   - SIGNATURES: api.transactions PENDING, filtered to unsigned by this user
+ *   - SIGNATURES: api.transactions PENDING waiting for this user (lib/multisigAwaiting);
+ *     a multisig they have not joined shows only a count, never the proposer's memo
  *   - CANDIDATURE: backend verified quest XP gate
  *
  * Returns actions sorted votes/signatures first, candidature last.
@@ -20,7 +21,7 @@ import { resolveCandidatureEligibility } from "../../lib/quests"
 import { isQuestAvailableOnNetwork } from "../../lib/questNetwork"
 import { useNetworkKey } from "../useNetworkNav"
 import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID } from "../../lib/config"
-import { isNativeMultisig } from "../../lib/nativeMultisig"
+import { countAwaiting, sharedAwaitingText, waitsForSignature } from "../../lib/multisigAwaiting"
 import type { LayoutContext } from "../../types/layout"
 import type { ActionAccent } from "../../components/home/ActionCard"
 
@@ -74,6 +75,15 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
 
     const pendingTxs = pendingTxData?.transactions ?? []
 
+    // Which accounts the member joined; until known, every account counts as shared (memo hidden).
+    const { data: joinedMultisigs, isLoading: joinedLoading } = useQuery({
+        queryKey: ["home", "joined-multisigs", address],
+        queryFn: async () => new Set((await api.multisigs({ authToken: token!, chainId: GNO_CHAIN_ID, limit: 50 })).multisigs.filter((m) => m.joined).map((m) => m.address)),
+        enabled: !!token && ENABLE_NATIVE_GNO_MULTISIG,
+        retry: false,
+        staleTime: 60_000,
+    })
+
     const { data: candidatureEligibility } = useQuery({
         queryKey: ["home", "candidature-eligibility", address],
         queryFn: () => resolveCandidatureEligibility(address),
@@ -93,10 +103,8 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
         }
     }, [address, candidatureAvailable, queryClient])
 
-    // Filter to txs this user has not signed yet (mirrors Dashboard.tsx line 191-193)
-    const unsignedTxs = pendingTxs.filter(
-        tx => isNativeMultisig(tx.multisigPubkeyJson) && !tx.signatures.some(s => s.userAddress === address)
-    )
+    const waiting = pendingTxs.filter(tx => waitsForSignature(tx, address ?? ""))
+    const isJoined = (multisig: string) => joinedMultisigs?.has(multisig) ?? false
 
     // ── BUILD ACTIONS ─────────────────────────────────────────
 
@@ -110,15 +118,26 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
         href: `/dao/${p.daoSlug}/proposal/${p.proposalId}`,
     }))
 
-    const signActions: HomeAction[] = unsignedTxs.map(tx => ({
-        id: `sign:${tx.id}`,
-        kind: "sign" as const,
-        accent: "amber" as const,
-        eyebrow: "sign · multisig",
-        title: tx.memo || tx.type || `Transaction #${tx.id}`,
-        meta: tx.multisigAddress ? `${tx.multisigAddress.slice(0, 12)}…` : undefined,
-        href: `/tx/${tx.id}`,
-    }))
+    const signActions: HomeAction[] = [
+        ...waiting.filter(tx => isJoined(tx.multisigAddress)).map(tx => ({
+            id: `sign:${tx.id}`,
+            kind: "sign" as const,
+            accent: "amber" as const,
+            eyebrow: "sign · multisig",
+            title: tx.memo || tx.type || `Transaction #${tx.id}`,
+            meta: tx.multisigAddress ? `${tx.multisigAddress.slice(0, 12)}…` : undefined,
+            href: `/tx/${tx.id}`,
+        })),
+        ...[...countAwaiting(waiting.filter(tx => !isJoined(tx.multisigAddress)), address ?? "")].map(([multisig, n]) => ({
+            id: `sign-shared:${multisig}`,
+            kind: "sign" as const,
+            accent: "amber" as const,
+            eyebrow: "sign · multisig",
+            title: sharedAwaitingText(n),
+            meta: `${multisig.slice(0, 12)}…`,
+            href: `/multisig/${multisig}`,
+        })),
+    ]
 
     const candidatureActions: HomeAction[] = auth.isAuthenticated && candidatureAvailable && candidatureEligibility?.eligible
         ? [{
@@ -138,7 +157,7 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
         ...candidatureActions,
     ]
 
-    const loading = votesLoading || (!!token && txLoading)
+    const loading = votesLoading || (!!token && (txLoading || joinedLoading))
     const allCaughtUp = !loading && actions.length === 0
 
     return { actions, loading, allCaughtUp, unvotedProposals }

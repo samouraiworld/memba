@@ -56,8 +56,9 @@ import { api } from "../lib/api"
 const MEMBER_A = "g1alice00000000000000000000000000000000"
 const MEMBER_B = "g1bob0000000000000000000000000000000000"
 
-function makeMultisig() {
+function makeMultisig(joined = true) {
     return {
+        joined,
         address: MULTISIG,
         chainId: "test-13",
         name: "Treasury Ops",
@@ -209,5 +210,25 @@ describe("MultisigView", () => {
         await screen.findByText("Could not load this multisig.")
         fireEvent.click(screen.getByRole("button", { name: "Retry account details" }))
         await screen.findByText("Treasury Ops")
+    })
+})
+
+describe("MultisigView for a member another member registered", () => {
+    it("shows its transactions at once, says it is shared, and joins in one click", async () => {
+        let joined = false
+        vi.mocked(api.multisigInfo).mockImplementation(() => Promise.resolve({ multisig: { ...makeMultisig(joined), name: joined ? "Treasury Ops" : "" } } as never))
+        // A member reads the transactions whether or not they joined.
+        vi.mocked(api.transactions).mockImplementation((req: { executionState?: number }) =>
+            Promise.resolve({ transactions: req.executionState === 1 ? [makeListedTx(2)] : [] } as never))
+        vi.mocked(api.createOrJoinMultisig).mockImplementation(() => { joined = true; return Promise.resolve({ joined: true } as never) })
+        render(<MultisigView />)
+        expect(await screen.findByText("Multisig shared with you")).toBeInTheDocument()
+        expect(await screen.findByRole("tab", { name: /Pending \(1\)/ })).toBeInTheDocument()
+        expect(screen.getByText("Shared with you: your key is a member, so you can see and sign its transactions.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Propose a new transaction" })).toBeEnabled()
+
+        fireEvent.click(screen.getByRole("button", { name: "Join to keep it in your accounts" }))
+        await waitFor(() => expect(screen.queryByText(/Shared with you: your key is a member/)).toBeNull())
+        expect(api.createOrJoinMultisig).toHaveBeenCalledWith(expect.objectContaining({ expectedMultisigAddress: MULTISIG, multisigPubkeyJson: makeMultisig().pubkeyJson }))
     })
 })

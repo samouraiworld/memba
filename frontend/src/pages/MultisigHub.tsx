@@ -10,26 +10,23 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { LockKey, Plus, MagnifyingGlass, Wallet, Users } from "@phosphor-icons/react"
 import { api } from "../lib/api"
-import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
+import { GNO_CHAIN_ID, ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
+import { useJoinMultisig } from "../hooks/useJoinMultisig"
 import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import type { Multisig } from "../gen/memba/v1/memba_pb"
 import type { LayoutContext } from "../types/layout"
-import { logChainError } from "../lib/errorLog"
 import "./multisig-hub.css"
 
 export default function MultisigHub() {
     const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const token = auth.token
-
-    const [joiningAddr, setJoiningAddr] = useState<string | null>(null)
 
     // Server state lives in React Query, keyed by the auth identity so a
     // wallet switch refetches instead of serving the previous wallet's list.
@@ -48,7 +45,7 @@ export default function MultisigHub() {
     // still-loading here (isPending alone would deadlock the redirect).
     const loading = enabled ? msQuery.isPending : false
 
-    const [actionError, setActionError] = useState<string | null>(null)
+    const adding = useJoinMultisig(token)
 
     const joined = multisigs.filter(m => m.joined)
     const discoverable = multisigs.filter(m => !m.joined)
@@ -58,28 +55,6 @@ export default function MultisigHub() {
     useEffect(() => {
         if (!auth.isAuthenticated && !loading) navigate("/", { replace: true })
     }, [auth.isAuthenticated, loading, navigate])
-
-    const handleJoin = async (ms: Multisig) => {
-        if (!token) return
-        if (!ms.pubkeyJson) { setActionError("This account cannot be added because its public-key configuration is unavailable."); return }
-        setJoiningAddr(ms.address)
-        try {
-            await api.createOrJoinMultisig({
-                authToken: token,
-                chainId: ms.chainId || GNO_CHAIN_ID,
-                multisigPubkeyJson: ms.pubkeyJson,
-                expectedMultisigAddress: ms.address,
-                name: ms.name || "",
-                bech32Prefix: GNO_BECH32_PREFIX,
-            })
-            void msQuery.refetch()
-        } catch (err) {
-            logChainError("multisigHub:join", err, "error", (auth as { address?: string }).address || undefined)
-            setActionError(err instanceof Error ? err.message : "Failed to join")
-        } finally {
-            setJoiningAddr(null)
-        }
-    }
 
     if (!auth.isAuthenticated) return null
 
@@ -140,7 +115,7 @@ export default function MultisigHub() {
                                     data-testid={`multisig-card-${ms.address}`}
                                 >
                                     <div className="msh-card-top">
-                                        <button type="button" className="msh-card-name" aria-label={`View ${revealInvisibleFormatting(ms.name || "Unnamed")} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Unnamed")}</button>
+                                        <button type="button" className="msh-card-name" aria-label={`View ${ms.name ? revealInvisibleFormatting(ms.name) : ms.address} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Multisig")}</button>
                                         <span className="msh-threshold">{ms.threshold}/{ms.membersCount}</span>
                                     </div>
                                     <div className="msh-card-addr">
@@ -165,18 +140,18 @@ export default function MultisigHub() {
                 <section className="msh-section">
                     <div className="msh-section-header">
                         <MagnifyingGlass size={16} />
-                        <h2>Accounts shared with you</h2>
+                        <h2>Shared with you</h2>
                         <span className="k-label">{discoverable.length} found</span>
                     </div>
                     <p className="msh-discover-hint">
-                        These accounts include your address as a member. Add one to your account list to view its history.
+                        Your key is a member of these accounts: open one to see and sign its transactions. Join to keep it in your accounts.
                     </p>
 
                     <div className="msh-grid">
                         {discoverable.map(ms => (
                             <div key={ms.address} className="msh-card msh-card-discover" data-testid={`multisig-discover-${ms.address}`}>
                                 <div className="msh-card-top">
-                                    <button type="button" className="msh-card-name" aria-label={`View ${revealInvisibleFormatting(ms.name || "Unnamed")} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Unnamed")}</button>
+                                    <button type="button" className="msh-card-name" aria-label={`View ${ms.name ? revealInvisibleFormatting(ms.name) : ms.address} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Multisig shared with you")}</button>
                                     <span className="msh-threshold msh-threshold-warn">{ms.threshold}/{ms.membersCount}</span>
                                 </div>
                                 <div className="msh-card-addr">
@@ -184,11 +159,11 @@ export default function MultisigHub() {
                                 </div>
                                 <button
                                     className="k-btn-primary msh-join-btn"
-                                    disabled={joiningAddr === ms.address || !ms.pubkeyJson}
-                                    title={!ms.pubkeyJson ? "Public-key configuration unavailable" : undefined}
-                                    onClick={() => { void handleJoin(ms) }}
+                                    disabled={adding.joining !== null || !ms.pubkeyJson}
+                                    title={!ms.pubkeyJson ? "Public-key configuration unavailable" : "Join to keep it in your accounts"}
+                                    onClick={() => { void adding.join(ms) }}
                                 >
-                                    {joiningAddr === ms.address ? "Adding..." : "Add account"}
+                                    {adding.joining === ms.address ? "Joining…" : "Join"}
                                 </button>
                             </div>
                         ))}
@@ -196,7 +171,7 @@ export default function MultisigHub() {
                 </section>
             )}
 
-            <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
+            <ErrorToast message={adding.error} onDismiss={adding.dismiss} />
         </div>
     )
 }
