@@ -71,10 +71,12 @@ export function parseOsPath(pathname: string): OsTarget {
     if (first === "multisig" && second !== undefined) {
         if (ADDRESS.test(second) && third === undefined) return { kind: "multisig", address: second }
         if (EVM_ENABLED && EVM_ADDRESS.test(second) && third === undefined) return { kind: "multisig", address: second.toLowerCase() }
-        const section = [second, third, fourth, ...rest].filter(Boolean).join("/")
+        // An EVM address (a Safe) is kept lowercase in its pages too (…/propose).
+        const evm = EVM_ENABLED && EVM_ADDRESS.test(second)
+        const section = [evm ? second.toLowerCase() : second, third, fourth, ...rest].filter(Boolean).join("/")
         const page = classicForSection("multisig", section)
         // multisig/<x>/… pages need x to be an address.
-        const ok = page !== null && (!page.startsWith("multisig/") || ADDRESS.test(second))
+        const ok = page !== null && (!page.startsWith("multisig/") || ADDRESS.test(second) || evm)
         return ok ? { kind: "app", app: "multisig", section } : { kind: "unknown", path: pathname }
     }
 

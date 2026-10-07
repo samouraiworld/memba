@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { getAddress } from "viem"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 import type { OsSession } from "../../shell/useOsSession"
 import type { SafeInspection } from "../../../lib/chain/evm/safe/inspect"
 import type { Read } from "../../../lib/chain/types"
+import { SafeActionError } from "../../../lib/chain/evm/safe/create"
 import { SafeApp, SafeWindow } from "./SafeWindows"
 
 vi.mock("../../../lib/chain/flag", () => ({ EVM_ENABLED: true }))
@@ -22,6 +23,9 @@ const sdk = {
     inspect: vi.fn<(key: string, address: string) => Promise<Read<SafeInspection>>>(),
     readBalance: vi.fn(async () => ({ kind: "ok", value: 1_500_000_000_000_000_000n }) as Read<bigint>),
     toChecksum: (a: string) => getAddress(a),
+    confirmSafeTx: vi.fn(async () => undefined),
+    executeSafeTx: vi.fn(async () => `0x${"ee".repeat(32)}`),
+    SafeActionError,
     checkQueuedTx: vi.fn(async (_chain: number, _owners: readonly string[], tx: { safeTxHash: string; confirmations?: { owner: string }[] }) => ({
         hashMatches: !tx.safeTxHash.endsWith("bad"),
         submitted: new Set((tx.confirmations ?? []).map((c) => c.owner)),
@@ -128,7 +132,7 @@ describe("a Safe window", () => {
         kit.getMultisigTransactions.mockResolvedValue({ count: 1, results: [
             { ...pending(3, `0x${"12".repeat(32)}`), isExecuted: true, isSuccessful: false, transactionHash: `0x${"34".repeat(32)}`, executionDate: "2026-10-06T10:00:00Z" },
         ] })
-        wrap(<SafeWindow address={SAFE} session={member} />)
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
 
         expect(await screen.findByText(/v1\.5\.0 · Requires 2 of 2 owners · nonce 4/)).toBeInTheDocument()
         expect(screen.getByLabelText(getAddress(SAFE))).toHaveTextContent(`0x ${getAddress(SAFE).slice(2).match(/.{4}/g)!.join(" ")}`)
@@ -152,32 +156,81 @@ describe("a Safe window", () => {
     })
 
     it("asks a guest to connect, and tells a member who isn't an owner", async () => {
-        const { unmount } = wrap(<SafeWindow address={SAFE} session={guest} />)
+        const { unmount } = wrap(<SafeWindow address={SAFE} session={guest} open={vi.fn()} />)
         expect(await screen.findByText(/Connect a wallet to see what waits for you/)).toBeInTheDocument()
         unmount()
         sdk.inspect.mockResolvedValue(safeFacts({ owners: [BOB], threshold: 1 }))
-        wrap(<SafeWindow address={SAFE} session={member} />)
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
         expect(await screen.findByText("This wallet is not an owner of this Safe.")).toBeInTheDocument()
     })
 
     it("says what an address is when it isn't a Safe, and never reads a queue for it", async () => {
         sdk.inspect.mockResolvedValue({ kind: "ok", value: { kind: "not-a-safe", address: SAFE, reason: "unknown-proxy" } })
-        wrap(<SafeWindow address={SAFE} session={member} />)
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
         expect(await screen.findByText("This contract is not a Safe proxy Memba recognises.")).toBeInTheDocument()
         expect(kit.getPendingTransactions).not.toHaveBeenCalled()
     })
 
     it("shows nothing as a Safe while the chain can't be read, with the reason and a retry", async () => {
         sdk.inspect.mockResolvedValue({ kind: "unavailable", reason: "the RPC answered as chain 1, not 84532" })
-        wrap(<SafeWindow address={SAFE} session={member} />)
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
         expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't check this address on Base Sepolia: the RPC answered as chain 1, not 84532.")
         expect(screen.queryByLabelText("Members")).toBeNull()
     })
 
     it("keeps the chain's facts on screen when the Transaction Service fails", async () => {
         kit.getPendingTransactions.mockRejectedValue(new Error("502"))
-        wrap(<SafeWindow address={SAFE} session={member} />)
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
         expect(await screen.findByText("Couldn't read this Safe's queue from the Safe Transaction Service.", { exact: false })).toBeInTheDocument()
         expect(screen.getByLabelText("Members")).toBeInTheDocument()
+    })
+})
+
+describe("acting on the queue", () => {
+    it("lets an owner sign what they haven't, and execute the next nonce once enough owners signed", async () => {
+        kit.getPendingTransactions.mockResolvedValue({ count: 2, results: [
+            pending(4, TX_HASH, { confirmations: [{ owner: BOB }] }),
+            pending(5, `0x${"cd".repeat(32)}`, { confirmations: [{ owner: BOB }] }),
+        ] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        const queue = within(await screen.findByRole("region", { name: "Waiting to execute" }))
+        await queue.findAllByText(/#4 Send 1 ETH|#5 Send 1 ETH/)
+        // #4: next nonce, Bob signed, I'm an owner who hasn't: sign, or sign and execute (1 + me = 2 of 2).
+        // #5: not the next nonce: sign only.
+        expect(queue.getAllByRole("button", { name: "Sign" })).toHaveLength(2)
+        expect(queue.getAllByRole("button", { name: "Sign and execute" })).toHaveLength(1)
+
+        await act(async () => { fireEvent.click(queue.getAllByRole("button", { name: "Sign" })[0]) })
+        expect(sdk.confirmSafeTx).toHaveBeenCalledWith("base-sepolia", expect.any(String), SAFE, [ME, BOB], TX_HASH)
+        await act(async () => { fireEvent.click(queue.getByRole("button", { name: "Sign and execute" })) })
+        expect(sdk.executeSafeTx).toHaveBeenCalledWith("base-sepolia", expect.any(String), SAFE, expect.objectContaining({ threshold: 2, nonce: 4n }), TX_HASH, expect.any(Function))
+    })
+
+    it("offers nothing on a hash mismatch, nothing to a guest, and asks for a check before a danger transaction", async () => {
+        kit.getPendingTransactions.mockResolvedValue({ count: 2, results: [
+            pending(4, `0x${"cd".repeat(31)}bad`, { confirmations: [] }),
+            pending(5, `0x${"ef".repeat(32)}`, { to: SAFE, value: "0", data: "0x694e80c30000000000000000000000000000000000000000000000000000000000000001", confirmations: [] }),
+        ] })
+        const { unmount } = wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        const queue = within(await screen.findByRole("region", { name: "Waiting to execute" }))
+        await queue.findByText("#5 Change the threshold")
+        const signs = queue.getAllByRole("button", { name: "Sign" })
+        expect(signs).toHaveLength(1)
+        expect(signs[0]).toBeDisabled()
+        fireEvent.click(queue.getByRole("checkbox", { name: "I checked this transaction with the other owners." }))
+        expect(signs[0]).toBeEnabled()
+        unmount()
+        wrap(<SafeWindow address={SAFE} session={guest} open={vi.fn()} />)
+        await screen.findByText("#5 Change the threshold")
+        expect(screen.queryByRole("button", { name: "Sign" })).toBeNull()
+    })
+
+    it("says why an action stopped", async () => {
+        sdk.confirmSafeTx.mockRejectedValueOnce(new SafeActionError({ code: "declined" }))
+        kit.getPendingTransactions.mockResolvedValue({ count: 1, results: [pending(5, TX_HASH, { confirmations: [] })] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        const sign = await screen.findByRole("button", { name: "Sign" })
+        await act(async () => { fireEvent.click(sign) })
+        expect(await screen.findByText("You declined in your wallet. Nothing was sent.")).toBeInTheDocument()
     })
 })

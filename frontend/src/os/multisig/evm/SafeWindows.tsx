@@ -23,9 +23,10 @@ import { shortAddr } from "../../shell/format"
 import type { OsSession } from "../../shell/useOsSession"
 import { specForTarget, type WindowSpec } from "../../shell/windows"
 import { ConnectHere, CopyAddressButton, Loading, MemberChips, SigDots, ThresholdAvatar } from "../MultisigParts"
-import { describeTx, formatEth } from "./describe"
+import { API_BASE_URL } from "../../../lib/config"
+import { actionErrorText, describeTx, formatEth } from "./describe"
 import { registerErrorText, safeLabel, useMySafes, useRegisterSafe, useSafeToken } from "./useMySafes"
-import { HISTORY_LIMIT, safeNetworkOf, sameNonce, useSafeAwaiting, useSafeBalance, useSafeFacts, useSafeHistory, useSafeQueue, useSafesListing } from "./useSafes"
+import { HISTORY_LIMIT, safeNetworkOf, sameNonce, useSafeAwaiting, useSafeBalance, useSafeFacts, useSafeHistory, useSafeQueue, useSafesListing, type QueuedTx } from "./useSafes"
 
 const ABOUT = "A Safe is a shared account on this network: a transaction leaves it only when enough of its owners sign, for example 2 of 3. Owners sign without paying gas; whoever executes the transaction pays it."
 
@@ -181,7 +182,53 @@ function FullAddress({ display }: { display: string }) {
     return <div className="os-sub os-mono os-break" aria-label={display}>{addressGroups(display).join(" ")}</div>
 }
 
-export function SafeWindow({ address, session }: { address: string; session: OsSession }) {
+/**
+ * Sign or execute a queued transaction from the connected wallet. Signing is
+ * offered to an owner who hasn't signed; executing once it is the Safe's next
+ * nonce and enough owners signed (the executor counts when it is an owner).
+ * Nothing is offered for a transaction whose hash doesn't match or that
+ * Memba can't read; a "danger" one asks for a confirmation first.
+ */
+function QueueActions({ address, tx, safe, me, networkKey, network, refresh }: { address: Hex; tx: QueuedTx; safe: { owners: string[]; threshold: number; nonce: bigint }; me: string; networkKey: string; network: string; refresh: () => void }) {
+    const [checked, setChecked] = useState(false)
+    const [busy, setBusy] = useState<"" | "sign" | "execute">("")
+    const [note, setNote] = useState<{ error: boolean; text: string } | null>(null)
+    if (!tx.hashMatches || tx.decoded.kind === "undecodable" || !me) return null
+    const owner = safe.owners.includes(me)
+    const canSign = owner && !tx.submitted.has(me)
+    const executorCounts = owner && !tx.submitted.has(me) ? 1 : 0
+    const canExecute = tx.nonce === safe.nonce && tx.verified.size + executorCounts >= safe.threshold
+    if (!canSign && !canExecute) return null
+    const danger = tx.decoded.severity === "danger"
+    const act = async (what: "sign" | "execute") => {
+        setBusy(what)
+        setNote(null)
+        const sdk = await loadSafeSdk()
+        try {
+            if (what === "sign") await sdk.confirmSafeTx(networkKey, API_BASE_URL, address, safe.owners, tx.safeTxHash as Hex)
+            else await sdk.executeSafeTx(networkKey, API_BASE_URL, address, safe, tx.safeTxHash as Hex, () => setNote({ error: false, text: "Executing…" }))
+            setNote({ error: false, text: what === "sign" ? "Signed." : "Executed." })
+            refresh()
+        } catch (err) {
+            setNote({ error: true, text: err instanceof sdk.SafeActionError ? actionErrorText(err.reason, network) : "It didn't go through. Try again." })
+        } finally {
+            setBusy("")
+        }
+    }
+    return (
+        <div className="os-stack os-tight">
+            {danger && <label className="os-row"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> <span className="os-sub">I checked this transaction with the other owners.</span></label>}
+            <div className="os-row">
+                {canSign && <button type="button" className="os-btn" disabled={busy !== "" || (danger && !checked)} onClick={() => { void act("sign") }}>{busy === "sign" ? "Sign in your wallet…" : "Sign"}</button>}
+                {canExecute && <button type="button" className={canSign ? "os-btn os-quiet" : "os-btn"} disabled={busy !== "" || (danger && !checked)} onClick={() => { void act("execute") }}>{busy === "execute" ? "Confirm in your wallet…" : canSign ? "Sign and execute" : "Execute"}</button>}
+            </div>
+            {canExecute && <p className="os-sub">Executing sends a transaction from your wallet, which pays its gas.</p>}
+            {note && <p className={note.error ? "os-note os-err" : "os-sub"} role={note.error ? "alert" : "status"}>{note.text}</p>}
+        </div>
+    )
+}
+
+export function SafeWindow({ address, session, open }: { address: string; session: OsSession; open: (spec: WindowSpec) => void }) {
     const net = safeNetworkOf(session)
     const canonical = address.toLowerCase() as Hex
     const facts = useSafeFacts(net, canonical)
@@ -237,7 +284,10 @@ export function SafeWindow({ address, session }: { address: string; session: OsS
             ))}
             <SafeNameBar session={session} address={canonical} owner={s.owners.includes(me as Hex)} />
             <MemberChips members={s.owners.map(display)} me={me ? display(me) : ""} />
-            <div className="os-row"><CopyAddressButton address={display(canonical)} label={`Copy ${label} address`} /></div>
+            <div className="os-row">
+                {s.owners.some((o) => o === me) && <button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "app", app: "multisig", section: `${canonical}/propose` })!)}>New payment</button>}
+                <CopyAddressButton address={display(canonical)} label={`Copy ${label} address`} />
+            </div>
             {!me
                 ? <ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="Owners propose and sign this Safe's transactions here. Connect a wallet to see what waits for you." />
                 : !s.owners.some((o) => o === me) && <p className="os-sub" role="status">This wallet is not an owner of this Safe.</p>}
@@ -258,6 +308,7 @@ export function SafeWindow({ address, session }: { address: string; session: OsS
                                     {tx.decoded.severity === "danger" && tx.hashMatches && <p className="os-note os-err">Check this transaction with the other owners before anyone signs: it can change who controls the Safe or what it runs.</p>}
                                     {clash && <p className="os-note os-warn">{clash} proposals use nonce {tx.nonce.toString()}: only one of them can execute.</p>}
                                     <SigDots members={s.owners} signed={tx.submitted} verified={tx.verified} threshold={tx.threshold} />
+                                    <QueueActions address={canonical} tx={tx} safe={s} me={me} networkKey={session.network.key} network={label} refresh={() => { void facts.refetch(); void queue.refetch(); void history.refetch(); void balance.refetch() }} />
                                 </div>
                                 <span className="os-pill">{tx.verified.size >= tx.threshold && tx.hashMatches ? "Ready to execute" : `${tx.verified.size} of ${tx.threshold}`}</span>
                             </li>

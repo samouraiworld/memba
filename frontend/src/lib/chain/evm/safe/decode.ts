@@ -152,6 +152,21 @@ function decodeFields(safe: Hex, tx: SafeTxFields, inBatch: boolean): DecodedTx 
     return { kind: "batch", via: multiSend.kind, calls, severity: worst(calls.map((c) => c.severity)) }
 }
 
+/** `transfer(to, amount)` calldata for an ERC-20, built by hand (no EVM library). */
+export function erc20TransferData(to: string, amount: bigint): Hex {
+    const recipient = body(to)
+    if (recipient.length !== 40) throw new AbiError("not an address")
+    if (amount < 0n || amount > MAX_UINT256) throw new AbiError("amount out of range")
+    return `0x${TRANSFER}${recipient.padStart(64, "0")}${amount.toString(16).padStart(64, "0")}`
+}
+
+/** The calls inside a `multiSend(bytes)` call's data, in order. Throws on anything malformed. */
+export function multiSendCalls(data: string): SafeTxFields[] {
+    const hex = body(data)
+    if (hex.slice(0, 8) !== MULTI_SEND) throw new AbiError("not a multiSend call")
+    return unpackMultiSend(readBytes(hex.slice(8), 0))
+}
+
 /** Decode one Safe transaction proposed for `safeAddress`. Never throws: malformed input is "undecodable" (danger). */
 export function decodeSafeTx(safeAddress: string, tx: SafeTxFields): DecodedTx {
     try {

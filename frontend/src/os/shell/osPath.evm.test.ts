@@ -10,8 +10,10 @@ describe("parseOsPath in an EVM build", () => {
         expect(parseOsPath(`/os/multisig/${SAFE}`)).toEqual({ kind: "multisig", address: SAFE.toLowerCase() })
     })
 
-    it("refuses a partial EVM address or one with more after it", () => {
+    it("refuses a partial EVM address, and reads a Safe's propose page as a Multisig section", () => {
         expect(parseOsPath(`/os/multisig/${SAFE.slice(0, 20)}`).kind).toBe("unknown")
-        expect(parseOsPath(`/os/multisig/${SAFE}/propose`).kind).not.toBe("multisig")
+        expect(parseOsPath(`/os/multisig/${SAFE.slice(0, 20)}/propose`).kind).toBe("unknown")
+        expect(parseOsPath(`/os/multisig/${SAFE}/propose`)).toEqual({ kind: "app", app: "multisig", section: `${SAFE.toLowerCase()}/propose` })
+        expect(parseOsPath(`/os/multisig/${SAFE}/nonsense`).kind).toBe("unknown")
     })
 })
