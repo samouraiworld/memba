@@ -328,4 +328,35 @@ describe("sendEvmWriteWith: the one send path for EVM writes", () => {
         const asSign: SignResult = r
         expect(asSign.outcome).toBe("unknown")
     })
+
+    describe("onSent: the hash, as soon as the wallet gives it", () => {
+        it("is called once with the hash, before the receipt is awaited", async () => {
+            const config = await setup()
+            const order: string[] = []
+            receiptWait.fake = async () => { order.push("receipt"); return { transactionHash: HASH, status: "success" } }
+            const onSent = vi.fn((h: string) => { order.push(`sent ${h}`) })
+            expect(await sendEvmWriteWith(config, SEPOLIA, { chainId: SEPOLIA, from: FROM, to: CONTRACT, data: "0x1234" }, { onSent })).toMatchObject({ outcome: "sent", hash: HASH })
+            expect(onSent).toHaveBeenCalledTimes(1)
+            expect(order).toEqual([`sent ${HASH}`, "receipt"])
+        })
+
+        it("is not called when nothing was sent, nor when the wallet's answer is not a hash", async () => {
+            const onSent = vi.fn()
+            const config = await setup({ walletChain: base.id })
+            expect((await sendEvmWriteWith(config, SEPOLIA, { chainId: SEPOLIA, from: FROM, to: CONTRACT, data: "0x1234" }, { onSent })).outcome).toBe("failed")
+            const rejecting = await setup()
+            sendRpcError = { code: 4001, message: "User rejected the request." }
+            expect((await sendEvmWriteWith(rejecting, SEPOLIA, { chainId: SEPOLIA, from: FROM, to: CONTRACT, data: "0x1234" }, { onSent })).outcome).toBe("cancelled")
+            wagmiSend.fake = async () => "0x1234"
+            expect((await sendEvmWriteWith(rejecting, SEPOLIA, { chainId: SEPOLIA, from: FROM, to: EOA, value: 1n }, { onSent })).outcome).toBe("unknown")
+            expect(onSent).not.toHaveBeenCalled()
+        })
+
+        it("cannot change the outcome by throwing", async () => {
+            const config = await setup()
+            const onSent = vi.fn(() => { throw new Error("storage full") })
+            expect(await sendEvmWriteWith(config, SEPOLIA, { chainId: SEPOLIA, from: FROM, to: CONTRACT, data: "0x1234" }, { onSent })).toMatchObject({ outcome: "sent", hash: HASH })
+            expect(onSent).toHaveBeenCalledTimes(1)
+        })
+    })
 })
