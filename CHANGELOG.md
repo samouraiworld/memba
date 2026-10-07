@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### NFT collections: network fee sized to the terms (2026-10-08)
+- Creating an NFT collection asks a network fee sized to its terms, so collections with long links, symbols or many royalty receivers no longer fail for lack of gas
+
 ### Escrow: who decides disputes (2026-10-08)
 - Once Memba DAO is escrow's admin, a contract's page states how members decide a dispute: within about 14 days, either a full refund to the client or payment to the freelancer minus the platform fee, otherwise the 31-day default applies
 - A member voting on a dispute they are party to sees a warning

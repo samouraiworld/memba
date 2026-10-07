@@ -19,9 +19,8 @@ import type { NftMode } from "./ledger"
 import { INT64_MAX, address } from "./parse"
 import { readBool } from "./read"
 
-/** Measured 18.5 to 19M gas and 8.9 to 11.9 KB for a creation; the limit is about twice the gas, the cap twice the bytes. */
-export const CREATE_COLLECTION_GAS_WANTED = 40_000_000
-export const CREATE_COLLECTION_STORAGE_BYTES = 12_000
+/** Measured 8.9 to 17.0 KB for a creation, the most with the longest terms; the cap is twice the bytes. */
+export const CREATE_COLLECTION_STORAGE_BYTES = 17_000
 
 export interface NftRoyaltyShare {
     account: string
@@ -61,6 +60,22 @@ function safeURI(s: string, schemes: string[]): boolean {
 export function validBaseURI(s: string): boolean {
     return s.startsWith("ipfs://") && s.length > 7 && s[7] !== "/" && !s.includes("/.") && !/[%?#]/.test(s) &&
         safeURI(s, ["ipfs://", "https://"]) && s.endsWith("/")
+}
+
+/**
+ * The ledger checks a creation's text and links character by character and each royalty receiver
+ * against config, so the gas grows with the terms: measured 19 to 21M for the shortest, plus
+ * about 1.3M per royalty receiver, 77k to 88k per byte of image, banner, website and base URI,
+ * and for the name and description 20k per ASCII byte but up to 180k per byte of other text (a
+ * symbol outside Latin-1 is looked up in every Unicode table: 144.6M for the costliest terms the
+ * ledger takes). The limit is twice this estimate, rounded up to a million, so a creation with
+ * short terms pays a small fee.
+ */
+export function createCollectionGasWanted(t: CollectionTerms): number {
+    const linkBytes = bytes(t.image) + bytes(t.banner) + bytes(t.website) + bytes(t.baseURI)
+    let estimate = 21_000_000 + 1_300_000 * t.royalties.length + 90_000 * linkBytes
+    for (const c of t.name + t.description) estimate += c < "\u0080" ? 20_000 : 200_000 * bytes(c)
+    return Math.ceil(2 * estimate / 1_000_000) * 1_000_000
 }
 
 /** "2.5" → 250n basis points; null unless a percentage with at most two decimals. */

@@ -83,13 +83,14 @@ describe("creating a collection", () => {
             ["Metadata", `${BASE}, changeable until you freeze it`],
             ["Royalties", `2.5% to ${B}; 1% to ${A}`],
             ["Collection fee", "1 GNOT to the Launchpad treasury"],
-            ["Storage deposit", "Up to 2.4 GNOT, locked with the collection"],
-            ["Network fee", "0.048 GNOT"],
+            ["Storage deposit", "Up to 3.4 GNOT, locked with the collection"],
+            // Twice 21M + 1.3M per royalty receiver + 90k per byte of the 67-byte base URI + 20k per ASCII byte and 200k per other byte of the name, rounded up: 61M.
+            ["Network fee", "0.0732 GNOT"],
         ]))
         expect(request.acks).toEqual(["I understand that the name, symbol, mode, maximum supply and royalties can never change."])
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ send: "1000000ugnot", func: "CreateCollection" })
         expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
-        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Create REL", expect.objectContaining({ gasWanted: 40_000_000, gasFee: 48_000 }))
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(request.prepare(undefined).msgs, "Create REL", expect.objectContaining({ gasWanted: 61_000_000, gasFee: 73_200 }))
         expect(mocks.lane).toHaveBeenCalledWith("mainnet", "collection", "ugnot")
         expect(mocks.reserved).toHaveBeenCalledWith("mainnet", "REL")
         expect(mocks.unspendable.mock.calls).toEqual([[B], [A]])

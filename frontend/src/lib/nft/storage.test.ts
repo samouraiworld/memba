@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import { depositCapUgnot } from "../dao/v2Budget"
+import { CREATE_COLLECTION_STORAGE_BYTES } from "./create"
 import { MINT_STORAGE_BYTES } from "./mint"
 import { APPLY_STORAGE_BYTES, REVIEW_STORAGE_BYTES } from "./review"
 import { ACCEPT_OFFER_STORAGE_BYTES, APPROVE_STORAGE_BYTES, BUY_STORAGE_BYTES, LIST_STORAGE_BYTES, OFFER_STORAGE_BYTES } from "./trade"
+import { ADD_STAGE_STORAGE_BYTES, END_STAGE_STORAGE_BYTES } from "./studio"
 
 /*
  * The most new storage each signed message was measured to take, in bytes, on
@@ -24,6 +26,10 @@ const MEASURED: [string, number, number][] = [
     ["Mint", MINT_STORAGE_BYTES, 9_967],
     ["Apply", APPLY_STORAGE_BYTES, 4_535],
     ["Review", REVIEW_STORAGE_BYTES, 164],
+    ["CreateCollection", CREATE_COLLECTION_STORAGE_BYTES, 16_969],
+    // The first stage of a collection stores the most.
+    ["AddStage", ADD_STAGE_STORAGE_BYTES, 3_285],
+    ["EndStage", END_STAGE_STORAGE_BYTES, 12],
 ]
 
 describe("storage deposit caps", () => {

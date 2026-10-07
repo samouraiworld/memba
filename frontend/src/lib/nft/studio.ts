@@ -15,10 +15,15 @@ import { NFT_DROPS_PATH, type NftStage } from "./drops"
 import { INT64_MAX, address, collectionId } from "./parse"
 import { natural } from "./read"
 
-/** Measured 12 to 15M gas and 0.9 to 3.3 KB for a new stage, 9.8M and nothing for ending one; about twice each. */
+/**
+ * Measured 12.3 to 14.5M gas and 0.9 to 3.3 KB for a new fixed, dutch or holder stage (the first of
+ * a collection stores the most), 10.2M and 12 bytes for ending one; at least twice each. An
+ * allowlist stage costs more (up to 15.3M, its root is checked byte by byte): measure again
+ * before Memba schedules one.
+ */
 export const ADD_STAGE_GAS_WANTED = 30_000_000
 export const ADD_STAGE_STORAGE_BYTES = 3_500
-export const END_STAGE_GAS_WANTED = 20_000_000
+export const END_STAGE_GAS_WANTED = 21_000_000
 export const END_STAGE_STORAGE_BYTES = 500
 
 /** The realm's hard limits. */

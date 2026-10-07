@@ -12,7 +12,7 @@ import { depositCapUgnot, formatUgnot, formatUgnotExact } from "../../../lib/dao
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
 import {
-    CREATE_COLLECTION_GAS_WANTED, CREATE_COLLECTION_STORAGE_BYTES, buildCreateCollectionMsg, isUnspendable, type CollectionTerms,
+    CREATE_COLLECTION_STORAGE_BYTES, buildCreateCollectionMsg, createCollectionGasWanted, isUnspendable, type CollectionTerms,
 } from "../../../lib/nft/create"
 import { NFT_DROPS_PATH, getDropTerms } from "../../../lib/nft/drops"
 import { formatAmount, formatBPS } from "../../../lib/nft/format"
@@ -58,7 +58,8 @@ export function createCollectionRequest(draft: CreateDraft): SignRequest {
     if (!isValidGnoAddressChecksum(draft.caller)) throw new Error("Connect your wallet before creating a collection.")
     const { terms } = draft
     const msg = buildCreateCollectionMsg(draft.caller, terms, draft.fee)
-    const fee = feeForGasWanted(CREATE_COLLECTION_GAS_WANTED, draft.gas)
+    const gasWanted = createCollectionGasWanted(terms)
+    const fee = feeForGasWanted(gasWanted, draft.gas)
     const label = `Create ${terms.symbol}`
     // Memba loads collection art from IPFS only: an https link is signed as it is, but never shown.
     const link = (value: string) => value === "" ? "None"
@@ -96,9 +97,9 @@ export function createCollectionRequest(draft: CreateDraft): SignRequest {
                 const message = err instanceof Error ? err.message : String(err)
                 throw new Error(`${message.replace(/\.?$/, ".")} Nothing was sent.`)
             })
-            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(CREATE_COLLECTION_GAS_WANTED))
+            await assertFeeStillCovers(fee, () => freshFeeForGasWanted(gasWanted))
         },
-        send: (_choice, beforeSign) => doContractBroadcast([msg], label, { gasWanted: CREATE_COLLECTION_GAS_WANTED, gasFee: fee, beforeSign }),
+        send: (_choice, beforeSign) => doContractBroadcast([msg], label, { gasWanted, gasFee: fee, beforeSign }),
         verify: (_choice, hash) => verifySendTx(hash),
         onSettled: draft.onSettled,
     }
