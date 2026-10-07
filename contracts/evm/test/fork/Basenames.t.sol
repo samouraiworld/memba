@@ -57,6 +57,7 @@ interface IBnRegistry {
 
 interface IBnL2ReverseRegistrar {
     function nameForAddr(address addr) external view returns (string memory);
+    function setName(string calldata name) external;
 }
 
 /// Profile row: a Basename registered through the controller that is live today, with a text record.
@@ -171,6 +172,56 @@ abstract contract BasenamesTest is ForkBase {
     }
 
     function _registry() internal pure virtual returns (address);
+    function _l2Reverse() internal pure virtual returns (address);
+
+    function _register(address payer, address owner, string memory label, bool reverse)
+        internal
+        returns (uint256 price)
+    {
+        IBnController c = IBnController(_controller());
+        price = c.registerPrice(label, 365 days);
+        vm.deal(payer, 1 ether);
+        vm.prank(payer);
+        c.register{value: price * 105 / 100}(
+            BnRegisterRequest(label, owner, 365 days, _resolver(), new bytes[](0), reverse, new uint256[](0), 0, "")
+        );
+    }
+
+    /// The controller's reverse record and refund go to msg.sender, not to the request's owner: paying for a
+    /// name owned by someone else makes it the PAYER's primary name. The app therefore registers for the
+    /// sending account only (owner = account).
+    function test_reverse_record_and_refund_go_to_the_payer() public {
+        string memory label = "membapayerowner";
+        uint256 price = _register(alice, bob, label, true);
+        assertEq(alice.balance, 1 ether - price, "refund to the payer");
+        assertEq(IBnRegistrar(_registrar()).ownerOf(uint256(keccak256(bytes(label)))), bob);
+        bytes32 rnode = _legacyReverseNode(alice);
+        assertEq(IBnResolver(IBnRegistry(_registry()).resolver(rnode)).name(rnode), string.concat(label, _suffix()));
+    }
+
+    /// register(reverseRecord: true) with no coin types and no signature sets only the LEGACY reverse record. An
+    /// account that already has an ENSIP-19 primary name keeps it until it calls setName on the L2ReverseRegistrar
+    /// itself: the app's follow-up step (planPrimaryName).
+    function test_ensip19_primary_name_needs_set_name() public {
+        IBnL2ReverseRegistrar rr = IBnL2ReverseRegistrar(_l2Reverse());
+        string memory old = string.concat("membaoldname", _suffix());
+        vm.prank(alice);
+        rr.setName(old);
+        assertEq(rr.nameForAddr(alice), old);
+
+        string memory label = "membanewprimary";
+        string memory name = string.concat(label, _suffix());
+        _register(alice, alice, label, true);
+        assertEq(rr.nameForAddr(alice), old, "register leaves the ENSIP-19 name");
+        bytes32 rnode = _legacyReverseNode(alice);
+        assertEq(IBnResolver(IBnRegistry(_registry()).resolver(rnode)).name(rnode), name, "legacy record updated");
+
+        vm.prank(alice);
+        uint256 g = gasleft();
+        rr.setName(name);
+        _gas("ENSIP-19 setName (primary name)", g - gasleft());
+        assertEq(rr.nameForAddr(alice), name);
+    }
 
     /// Which controller the registrar accepts today (README lists both).
     function test_basename_legacy_controller_status() public {
@@ -208,6 +259,10 @@ contract BasenamesBaseSepoliaTest is BasenamesTest {
     function _registry() internal pure override returns (address) {
         return Addr.BASENAMES_REGISTRY_BASE_SEPOLIA;
     }
+
+    function _l2Reverse() internal pure override returns (address) {
+        return Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE_SEPOLIA;
+    }
 }
 
 contract BasenamesBaseTest is BasenamesTest {
@@ -237,6 +292,10 @@ contract BasenamesBaseTest is BasenamesTest {
 
     function _registry() internal pure override returns (address) {
         return Addr.BASENAMES_REGISTRY_BASE;
+    }
+
+    function _l2Reverse() internal pure override returns (address) {
+        return Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE;
     }
 
     /// Names registered before the upgrade keep the legacy L2Resolver; their owner can still edit records there.

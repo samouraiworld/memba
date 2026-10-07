@@ -14,10 +14,12 @@ remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
 ]
 
-# The manifest tests read deployments/evm; .canary holds the CI canaries' corrupted copies.
+# The manifest tests read deployments/evm; .canary holds the CI canaries' corrupted copies; test/fixtures holds
+# calldata the frontend encodes and the fork tests execute.
 fs_permissions = [
   { access = "read", path = "../../deployments/evm" },
   { access = "read", path = "./.canary" },
+  { access = "read", path = "./test/fixtures" },
 ]
 
 # Public defaults. CI and local runs override them with BASE_RPC_URL / BASE_SEPOLIA_RPC_URL (test/RpcUrl.sol).

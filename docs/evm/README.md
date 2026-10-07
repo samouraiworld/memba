@@ -87,13 +87,13 @@ An RPC failure throws; "no name" is only what the chain answered. `frontend/src/
 
 ## Profile on Basenames (write)
 
-`frontend/src/lib/chain/evm/basenamesWrite.ts` (a payable path: the owner gives a go per PR):
+`frontend/src/lib/chain/evm/basenamesWrite.ts` is a payable path, so the owner gives a go per PR.
 
-- **Register** (`quoteBasename`, then `planBasenameRegistration`): one payable `register` on the manifest's UpgradeableRegistrarController, never the legacy one. The request points the name at the UpgradeableL2Resolver, sets `addr` to the owner and the given text records through its resolver data, and sets the primary name (`reverseRecord: true`, no ENSIP-19 signature). It sends the quoted price + 5%, and the controller refunds the difference.
-- **Edit** (`planBasenameTextUpdate`): one `multicall` of `setText` on the name's own resolver (the upgradeable or the legacy one; any other is refused), owner only, no value.
-- `prepareBasenameWrite` adds a gas limit from a successful estimate; a reverting estimate throws.
-
-Evidence, on both forks: `test_register_with_records_and_primary_name_in_one_tx` (378k gas on Base: name, addr, 2 records and primary name; the overpayment is refunded; the reverse record names it), `test_owner_updates_texts_in_one_multicall` (77k gas for 2 records; another account is refused), and on Base `test_owner_edits_texts_on_legacy_resolver`.
+- **Quote** (`quoteBasename`): availability, price and the account's current ENSIP-19 primary name. The plan takes the quote object (chain, label, years, price), so a price cannot be paired with another duration. Re-quote right before sending.
+- **Register** (`planBasenameRegistration`): one payable `register` on the manifest's UpgradeableRegistrarController (never the legacy one), **for the sending account only**. The controller refunds overpayment and writes the reverse record for `msg.sender` whatever the request's owner says (fork test `test_reverse_record_and_refund_go_to_the_payer`). The request points the name at the UpgradeableL2Resolver and sets `addr` and the text records. With `makePrimary` (default true) it sets `reverseRecord: true`; with no coin types and no signature that writes **only the legacy reverse record**, which ENSIP-19 readers do not see. When the account already has a different ENSIP-19 primary name, the plan adds a second, free step: `setName` on the L2ReverseRegistrar (`test_ensip19_primary_name_needs_set_name`). `makePrimary: false` keeps the current primary name. Labels need at least 3 characters, and the price + 5% is sent.
+- **Edit** (`planBasenameTextUpdate`): one `multicall` of `setText` on the name's own resolver (the upgradeable or the legacy one; any other is refused; the node must be the name's). Owner only, no value; `""` clears a record.
+- **Chain binding** (`prepareBasenameWrite`): every write carries its `chainId` and sender. It is refused when the sender is another account, the RPC serves another chain, or the target has no code: the other chain's controller has no code, and a call there would keep the ETH. The gas limit comes from a successful estimate. The sender must also pass the chain to the wallet (`sendTransaction({ chain })`).
+- **Golden calldata:** `basenamesWrite.fixture.test.ts` writes and checks `contracts/evm/test/fixtures/basenames-<chainId>.json`, and `BasenamesFixture.t.sol` executes those exact bytes on both forks (register, setName, update, a stranger's edit refused).
 
 ## Contracts CI
 
