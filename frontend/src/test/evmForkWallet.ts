@@ -28,7 +28,7 @@ const forkChain: Chain = { ...baseSepolia, rpcUrls: { default: { http: [FORK] } 
 let current: Config | null = null
 
 /** Makes `account` the connected wallet. */
-export async function useWallet(account: Hex): Promise<void> {
+export async function connectWallet(account: Hex): Promise<void> {
     current = createConfig({
         chains: [forkChain as typeof baseSepolia],
         connectors: [mock({ accounts: [account] })],
@@ -42,7 +42,7 @@ export async function useWallet(account: Hex): Promise<void> {
 export const forkAdapter = {
     chainFor: () => forkChain,
     get evmConfig() {
-        if (!current) throw new Error("call useWallet() first")
+        if (!current) throw new Error("call connectWallet() first")
         return current
     },
 }

@@ -10,14 +10,14 @@
 import { describe, expect, it, vi } from "vitest"
 import type { Hex } from "viem"
 import { deployNewSafe, planNewSafe } from "./create"
-import { ANVIL, FORK, useWallet } from "../../../../test/evmForkWallet"
+import { ANVIL, FORK, connectWallet } from "../../../../test/evmForkWallet"
 
 vi.mock("../adapter", async () => (await import("../../../../test/evmForkWallet")).forkAdapter)
 
 describe.skipIf(!FORK)("creating a Safe on a Base Sepolia fork", () => {
     it("plans, deploys and confirms exactly the SafeL2 1.5.0 asked for, at the predicted address", async () => {
         const deployer = ANVIL[4]
-        await useWallet(deployer)
+        await connectWallet(deployer)
         const owners: Hex[] = [ANVIL[4], "0xb0b0000000000000000000000000000000000002", "0xca1e000000000000000000000000000000000003"]
         const plan = await planNewSafe("base-sepolia", owners, 2)
         expect(plan.chainId).toBe(84532)
