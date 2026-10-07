@@ -2,9 +2,10 @@
 /**
  * Bundle CI gate for heavy vendor stacks that must stay in a lazy async chunk.
  *
- * Usage: node scripts/check-lazy-chunk.mjs <three|evm> [distDir] [--expect-present]
+ * Usage: node scripts/check-lazy-chunk.mjs <three|evm|safe> [distDir] [--expect-present]
  *   three  BARRICADE 3D renderer (three / react-three-fiber / postprocessing)
  *   evm    EVM network adapter (viem / wagmi), behind VITE_ENABLE_EVM
+ *   safe   Safe{Core} SDK (protocol-kit / api-kit), behind VITE_ENABLE_EVM
  *   distDir          the build to check (default: dist)
  *   --expect-present positive control: also FAIL when the chunk is missing, for a
  *                    build with the flag on (proves the gate still sees the chunk)
@@ -31,6 +32,9 @@ const GATES = {
   // viem's and wagmi's own names (a flag-off build has no vendor-evm chunk to find them by), the
   // Base Sepolia RPC host (lib/chain/evm/networks.ts) and the adapter's storage key (adapter.ts).
   evm: { chunk: "vendor-evm-", flag: "VITE_ENABLE_EVM", markers: ["viem@", "wagmi", "sepolia.base.org", "memba.evm"] },
+  // The Safe{Core} SDK's own strings (api-kit's default host, protocol-kit's contract keys) and
+  // Memba's Transaction Service proxy route (lib/chain/evm/safe/sdk.ts).
+  safe: { chunk: "vendor-safe-", flag: "VITE_ENABLE_EVM", markers: ["api.safe.global", "safeSingletonL2Version", "/api/safe-tx/"] },
 }
 const args = process.argv.slice(2)
 const expectPresent = args.includes("--expect-present")

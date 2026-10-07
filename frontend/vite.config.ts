@@ -186,6 +186,9 @@ const evmEnabledFor = (mode: string) => ({ ...loadEnv(mode, '..', 'VITE_'), ...p
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode); return {
   envDir: '..', // Load .env from repo root (where all VITE_* vars live)
+  // EVM builds only: api-kit's Node-only `import("node-fetch")` resolves to the browser's fetch,
+  // so node-fetch and its Node HTTP stack never ship (lib/chain/evm/safe/nodeFetch.browser.ts).
+  resolve: evmBuild ? { alias: [{ find: /^node-fetch$/, replacement: fileURLToPath(new URL('./src/lib/chain/evm/safe/nodeFetch.browser.ts', import.meta.url)) }] } : undefined,
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
@@ -212,6 +215,10 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
           if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
           // EVM network adapter (VITE_ENABLE_EVM): lazy-only, same firewall as three (check:bundle:evm).
           if (evmBuild && /[\\/]node_modules[\\/](viem|wagmi|@wagmi|ox|abitype|mipd|isows)[\\/]/.test(id)) return 'vendor-evm'
+          // Safe{Core} SDK (lib/chain/evm/safe/sdk.ts), loaded when a Safe screen first needs it:
+          // its own lazy chunk so connecting a wallet never downloads it (check:bundle:safe). The
+          // asn1 / @peculiar modules are protocol-kit's passkey support, used by nothing else.
+          if (evmBuild && /[\\/]node_modules[\\/](@safe-global|@peculiar|asn1js|pvtsutils|pvutils)[\\/]/.test(id)) return 'vendor-safe'
           if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
           if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
           if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
@@ -267,7 +274,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
         // the 3D renderer lands and lazily imports three.
         // Review-only brand specimens should not enter the production offline precache.
         // sw-retire.js is the retired classic host's service-worker kill switch, never part of this app.
-        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js'],
+        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js', '**/vendor-safe-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [

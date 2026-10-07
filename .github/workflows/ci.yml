@@ -217,6 +217,11 @@ jobs:
         # ships it must stay out of the eager graph and the precache manifest.
         run: npm run check:bundle:evm
 
+      - name: "Bundle gate: no Safe SDK in the flag-off build"
+        # protocol-kit / api-kit live only in the lazy vendor-safe chunk behind VITE_ENABLE_EVM,
+        # loaded when a Safe screen first needs them (never on wallet connect).
+        run: npm run check:bundle:safe
+
       - name: "Bundle gate: EVM adapter in the Memba OS builds (flag off, then on)"
         # The build above has no Memba OS, so it cannot see EVM code that stopped
         # folding away inside the OS chunk. Build the OS beta site twice. Flag off:
@@ -232,6 +237,9 @@ jobs:
           node scripts/check-lazy-chunk.mjs evm dist-os
           CONTEXT=deploy-preview VITE_ENABLE_EVM=true node ./node_modules/.bin/vite build --logLevel warn --outDir dist-os-evm --emptyOutDir
           VITE_ENABLE_EVM=true node scripts/check-lazy-chunk.mjs evm dist-os-evm --expect-present
+          node scripts/check-lazy-chunk.mjs safe dist-os
+          # No screen loads the Safe SDK yet: add --expect-present with its first consumer.
+          VITE_ENABLE_EVM=true node scripts/check-lazy-chunk.mjs safe dist-os-evm
 
       - name: "Bundle gate: no Memba OS code in the flag-off build"
         # Memba OS ships only on the beta site (VITE_MEMBA_OS + MEMBA_OS_BETA_SITE).
