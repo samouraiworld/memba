@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/samouraiworld/memba/backend/internal/address"
+	"github.com/samouraiworld/memba/backend/internal/evmauth"
 )
 
 // Sign-In with Ethereum switches. All default off: with MEMBA_ENABLE_SIWE
@@ -27,6 +29,16 @@ const (
 	// anchored pattern with a single "<n>" standing for a decimal number
 	// ("deploy-preview-<n>--membaos.netlify.app"). No other wildcard exists.
 	SiweDomainsEnv = "MEMBA_SIWE_DOMAINS"
+	// SiweContractSignersEnv additionally lets contract accounts (Safes,
+	// smart wallets, including not-yet-deployed ones through ERC-6492) sign
+	// in, verified by EIP-1271 over EVMRPCURLsEnv ("1" or "true"). Off by
+	// default; without it a contract-account signature is refused.
+	SiweContractSignersEnv = "MEMBA_SIWE_CONTRACT_SIGNERS"
+	// EVMRPCURLsEnv maps each chain to the JSON-RPC endpoint contract
+	// signatures are checked against: "84532=https://…,8453=https://…". https
+	// only (http only on loopback). It may carry a provider key: keep it a
+	// secret; it is never logged.
+	EVMRPCURLsEnv = "MEMBA_EVM_RPC_URLS"
 )
 
 // siweKnownChains are the chains the backend knows how to serve: Base and
@@ -37,6 +49,14 @@ const (
 	siweChallengeTTL = 10 * time.Minute
 	siweClockSkew    = time.Minute
 	siweStatement    = "Sign in to Memba."
+	// siweContractSessionTTL is the session lifetime of a contract account.
+	// Its owners can change on chain at any time; a short session makes the
+	// next sign-in re-check them soon.
+	siweContractSessionTTL = time.Hour
+	// siweRPCTimeout bounds one JSON-RPC request, siweVerifyBudget one whole
+	// contract-signature check (identity check, code, call).
+	siweRPCTimeout   = 5 * time.Second
+	siweVerifyBudget = 8 * time.Second
 	// siweNumberMax bounds the "<n>" of a domain pattern (a PR number).
 	siweNumberMaxDigits = 6
 )
@@ -50,6 +70,10 @@ type siweConfig struct {
 	exact    map[string]bool // host[:port], lower case
 	patterns []siweHostPattern
 	now      func() time.Time
+	// verifiers holds the contract-signature verifier of each served chain
+	// for which SiweContractSignersEnv is on and an endpoint is configured.
+	// Empty: contract accounts cannot sign in.
+	verifiers map[uint64]*evmauth.Verifier
 }
 
 func (c siweConfig) clock() time.Time {
@@ -65,14 +89,87 @@ func (c siweConfig) clock() time.Time {
 func (s *MultisigService) ConfigureSiwe(getenv func(string) string) {
 	cfg, problems := parseSiweConfig(getenv)
 	for _, p := range problems {
+		if cfg.enabled {
+			slog.Error("siwe: contract-signer path off for a chain; key-holder sign-in unaffected", "problem", p)
+			continue
+		}
 		slog.Error("siwe: configuration refused, Sign-In with Ethereum stays off", "problem", p)
 	}
 	if cfg.enabled {
+		var contract []string
+		for id := range cfg.verifiers {
+			contract = append(contract, strconv.FormatUint(id, 10))
+		}
 		slog.Info("siwe: Sign-In with Ethereum enabled",
 			"chains", strings.TrimSpace(getenv(SiweChainIDsEnv)),
-			"domains", strings.TrimSpace(getenv(SiweDomainsEnv)))
+			"domains", strings.TrimSpace(getenv(SiweDomainsEnv)),
+			"contract_signer_chains", strings.Join(contract, ","))
 	}
 	s.siwe = cfg
+}
+
+// CheckSiweRPCs asks each contract-signature endpoint which chain it serves
+// and logs the answer. Boot-time visibility only: a wrong or dead endpoint
+// fails the affected sign-ins (Unavailable) whatever this finds, because every
+// verification re-checks the identity itself.
+func (s *MultisigService) CheckSiweRPCs(ctx context.Context) {
+	for id, v := range s.siwe.verifiers {
+		cctx, cancel := context.WithTimeout(ctx, siweVerifyBudget)
+		err := v.CheckChain(cctx)
+		cancel()
+		if err != nil {
+			slog.Error("siwe: contract-signer endpoint failed its chain identity check", "chain_id", id, "error", err)
+			continue
+		}
+		slog.Info("siwe: contract-signer endpoint serves the expected chain", "chain_id", id)
+	}
+}
+
+// parseContractSigners builds the verifiers for the served chains. Problems
+// only switch the contract path off for the chain concerned; key-holder
+// sign-in is unaffected. Messages never contain an endpoint URL.
+func parseContractSigners(getenv func(string) string, chains map[uint64]bool) (map[uint64]*evmauth.Verifier, []string) {
+	switch strings.TrimSpace(getenv(SiweContractSignersEnv)) {
+	case "1", "true":
+	default:
+		return nil, nil
+	}
+	urls := map[uint64]string{}
+	var problems []string
+	for _, entry := range splitList(getenv(EVMRPCURLsEnv)) {
+		ref, rawURL, ok := strings.Cut(entry, "=")
+		id, err := address.ParseCAIP2("eip155:" + strings.TrimSpace(ref))
+		switch {
+		case !ok || err != nil:
+			problems = append(problems, EVMRPCURLsEnv+": an entry is not <chain id>=<url>")
+			continue
+		case !chains[id]:
+			problems = append(problems, EVMRPCURLsEnv+": chain "+strconv.FormatUint(id, 10)+" is not served")
+			continue
+		case urls[id] != "":
+			problems = append(problems, EVMRPCURLsEnv+": chain "+strconv.FormatUint(id, 10)+" listed twice")
+			urls[id] = "-" // refuse the chain rather than pick one
+			continue
+		}
+		urls[id] = strings.TrimSpace(rawURL)
+	}
+	verifiers := map[uint64]*evmauth.Verifier{}
+	for id := range chains {
+		raw := urls[id]
+		if raw == "" || raw == "-" {
+			if raw == "" {
+				problems = append(problems, EVMRPCURLsEnv+": no endpoint for chain "+strconv.FormatUint(id, 10))
+			}
+			continue
+		}
+		c, err := evmauth.NewClient(raw, siweRPCTimeout)
+		if err != nil {
+			problems = append(problems, EVMRPCURLsEnv+": invalid endpoint for chain "+strconv.FormatUint(id, 10))
+			continue
+		}
+		verifiers[id] = evmauth.NewVerifier(id, c)
+	}
+	return verifiers, problems
 }
 
 func parseSiweConfig(getenv func(string) string) (siweConfig, []string) {
@@ -121,7 +218,12 @@ func parseSiweConfig(getenv func(string) string) (siweConfig, []string) {
 	if len(problems) > 0 {
 		return siweConfig{}, problems
 	}
-	return cfg, nil
+	verifiers, contractProblems := parseContractSigners(getenv, cfg.chains)
+	for _, p := range contractProblems {
+		problems = append(problems, "contract signers: "+p)
+	}
+	cfg.verifiers = verifiers
+	return cfg, problems
 }
 
 func splitList(v string) []string {

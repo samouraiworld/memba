@@ -309,6 +309,7 @@ func main() {
 	svc.ConfigureSiwe(os.Getenv)
 	if svc.SiweEnabled() {
 		go pruneSiweNonces(ctx, svc)
+		go svc.CheckSiweRPCs(ctx)
 	}
 
 	// W2.3 (NEW-INF-2): the same-volume `VACUUM INTO` backup scheduler is
