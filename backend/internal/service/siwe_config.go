@@ -35,10 +35,9 @@ const (
 	// default; without it a contract-account signature is refused.
 	SiweContractSignersEnv = "MEMBA_SIWE_CONTRACT_SIGNERS"
 	// EVMRPCURLsEnv maps each chain to the JSON-RPC endpoint contract
-	// signatures are checked against: "84532=https://…,8453=https://…". https
-	// only (http only on loopback). It may carry a provider key: keep it a
-	// secret; it is never logged.
-	EVMRPCURLsEnv = "MEMBA_EVM_RPC_URLS"
+	// signatures are checked against (evmauth.RPCURLsEnv, shared with the
+	// Safe registry).
+	EVMRPCURLsEnv = evmauth.RPCURLsEnv
 )
 
 // siweKnownChains are the chains the backend knows how to serve: Base and
@@ -134,30 +133,17 @@ func parseContractSigners(getenv func(string) string, chains map[uint64]bool) (m
 	default:
 		return nil, nil
 	}
-	urls := map[uint64]string{}
-	var problems []string
-	for _, entry := range splitList(getenv(EVMRPCURLsEnv)) {
-		ref, rawURL, ok := strings.Cut(entry, "=")
-		id, err := address.ParseCAIP2("eip155:" + strings.TrimSpace(ref))
-		switch {
-		case !ok || err != nil:
-			problems = append(problems, EVMRPCURLsEnv+": an entry is not <chain id>=<url>")
-			continue
-		case !chains[id]:
+	urls, problems := evmauth.ParseRPCURLs(getenv(EVMRPCURLsEnv))
+	for _, id := range urls.Chains() {
+		if !chains[id] {
 			problems = append(problems, EVMRPCURLsEnv+": chain "+strconv.FormatUint(id, 10)+" is not served")
-			continue
-		case urls[id] != "":
-			problems = append(problems, EVMRPCURLsEnv+": chain "+strconv.FormatUint(id, 10)+" listed twice")
-			urls[id] = "-" // refuse the chain rather than pick one
-			continue
 		}
-		urls[id] = strings.TrimSpace(rawURL)
 	}
 	verifiers := map[uint64]*evmauth.Verifier{}
 	for id := range chains {
-		raw := urls[id]
-		if raw == "" || raw == "-" {
-			if raw == "" {
+		raw, ok := urls.For(id)
+		if !ok {
+			if !urls.Duplicated(id) {
 				problems = append(problems, EVMRPCURLsEnv+": no endpoint for chain "+strconv.FormatUint(id, 10))
 			}
 			continue

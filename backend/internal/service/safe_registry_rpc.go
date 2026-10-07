@@ -32,13 +32,6 @@ import (
 // proxy's switch): both RPCs then answer Unimplemented. Callers sign in with
 // Ethereum (authenticateAccount), so nothing is served while SIWE is off.
 
-// safeRPCURLsEnv maps each chain to the JSON-RPC endpoint the server reads
-// Safes from: "84532=https://…,8453=https://…" (the same variable and format
-// as contract-account sign-in). https only (http on loopback). It may carry a
-// provider key: it is never logged. A chain without an entry uses its public
-// endpoint.
-const safeRPCURLsEnv = "MEMBA_EVM_RPC_URLS"
-
 // publicEVMRPCs are the chains' public endpoints (frontend/src/lib/chain/evm/networks.ts).
 var publicEVMRPCs = map[uint64]string{
 	8453:  "https://mainnet.base.org",
@@ -61,37 +54,29 @@ type safeRegistry struct {
 
 func (r safeRegistry) enabled() bool { return len(r.readers) > 0 }
 
-// ConfigureSafeRegistry reads MEMBA_EVM_SAFE_CHAINS and MEMBA_EVM_RPC_URLS and
+// ConfigureSafeRegistry reads MEMBA_EVM_SAFE_CHAINS and MEMBA_EVM_RPC_URLS
+// (evmauth.ParseRPCURLs; a chain without an entry uses its public endpoint) and
 // returns what it refused, for the boot log (never an endpoint, which may
 // carry a key). A chain whose endpoint is invalid is not served.
 func (s *MultisigService) ConfigureSafeRegistry(getenv func(string) string) (chains []uint64, problems []string) {
 	cfg, _ := SafeTxProxyConfigFromEnv(getenv)
-	urls := map[uint64]string{}
-	for entry := range strings.SplitSeq(getenv(safeRPCURLsEnv), ",") {
-		entry = strings.TrimSpace(entry)
-		if entry == "" {
-			continue
-		}
-		ref, raw, ok := strings.Cut(entry, "=")
-		id, err := address.ParseCAIP2(address.EIP155Namespace + ":" + strings.TrimSpace(ref))
-		if !ok || err != nil {
-			problems = append(problems, safeRPCURLsEnv+": an entry is not <chain id>=<url>")
-			continue
-		}
-		urls[id] = strings.TrimSpace(raw)
-	}
+	urls, problems := evmauth.ParseRPCURLs(getenv(evmauth.RPCURLsEnv))
 	readers := map[uint64]evmsafe.Reader{}
 	for _, id := range cfg.ChainIDs() {
 		if !evmsafe.Chains[id] {
 			continue
 		}
-		raw := urls[id]
-		if raw == "" {
+		// A chain listed twice is refused, not given its public endpoint.
+		if urls.Duplicated(id) {
+			continue
+		}
+		raw, ok := urls.For(id)
+		if !ok {
 			raw = publicEVMRPCs[id]
 		}
 		c, err := evmauth.NewClient(raw, safeRPCTimeout)
 		if err != nil {
-			problems = append(problems, safeRPCURLsEnv+": invalid endpoint for chain "+strconv.FormatUint(id, 10))
+			problems = append(problems, evmauth.RPCURLsEnv+": invalid endpoint for chain "+strconv.FormatUint(id, 10))
 			continue
 		}
 		readers[id] = c

@@ -99,6 +99,14 @@ func TestSafeRegistryConfig(t *testing.T) {
 	if !strings.Contains(joined, "invalid endpoint for chain 84532") || !strings.Contains(joined, "not <chain id>=<url>") || strings.Contains(joined, "evil.example") {
 		t.Fatalf("problems = %q", joined)
 	}
+	// A chain listed twice is refused, never given its public endpoint.
+	chains, problems = h.svc.ConfigureSafeRegistry(envMap(map[string]string{
+		"MEMBA_EVM_SAFE_CHAINS": "84532",
+		"MEMBA_EVM_RPC_URLS":    "84532=https://a.example,84532=https://b.example",
+	}))
+	if len(chains) != 0 || !strings.Contains(strings.Join(problems, " | "), "chain 84532 listed twice") {
+		t.Fatalf("duplicated chain: chains %v, problems %v", chains, problems)
+	}
 }
 
 func TestRegisterSafeChecksOwnershipOnChain(t *testing.T) {
