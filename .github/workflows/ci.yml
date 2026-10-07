@@ -108,6 +108,12 @@ jobs:
           fi
           echo "✅ verify-worker.cjs matches its source"
 
+      - name: "Determinism gate: EVM manifest module matches deployments/evm"
+        # lib/chain/evm/manifest.generated.ts is generated from deployments/evm/<chainId>.json (checked
+        # against the chains by the EVM Contracts workflow). Regenerate locally with:
+        #   node scripts/gen-evm-manifest.mjs   (in frontend/)
+        run: node scripts/gen-evm-manifest.mjs --check
+
       - name: Type check
         # `tsc --noEmit` checks nothing here: the root tsconfig only references the two projects.
         run: npx tsc -b

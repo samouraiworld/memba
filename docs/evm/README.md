@@ -45,6 +45,8 @@ forge test --match-path 'test/manifest/*' -vv
 
 To add a contract: add the key to both files with the codehash read on chain (`cast keccak $(cast code <addr> --rpc-url base)`), the implementation for a proxy (EIP-1967 slot `0x3608…2bbc`), and the source; run the checks above.
 
+The app reads the manifest only through `frontend/src/lib/chain/evm/manifest.ts`: `evmContract(chainId, key)` returns the address for a manifest key (any other key does not type-check), `evmContractEntry` adds codehash, version, build and proxy, and `deniedReason(chainId, address)` flags the look-alikes. The data is generated into `manifest.generated.ts`; after editing a JSON file, run `node scripts/gen-evm-manifest.mjs` in `frontend/` (CI fails when the module is stale). Import it only from EVM code so a flag-off build drops it.
+
 ### RPC endpoints and pinned fork blocks
 
 Fork tests use `BASE_RPC_URL` / `BASE_SEPOLIA_RPC_URL` when set (an archive endpoint; never commit or print it), else the public endpoints in `foundry.toml`. The public Base Sepolia endpoint prunes history (on 2026-10-07 the earliest block it served was 46,000,000), so without an archive endpoint the pinned blocks must stay inside its window. To bump them:
