@@ -7,8 +7,9 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import type { Token } from "../../gen/memba/v1/memba_pb"
+import { EVM_TOKEN_KEY, onSessionInvalidated } from "../../lib/authSession"
 
-export const EVM_TOKEN_KEY = "memba_evm_auth_token"
+export { EVM_TOKEN_KEY }
 
 /** The stored token, unless missing, malformed or expired. */
 export function loadEvmToken(): Token | null {
@@ -39,6 +40,8 @@ function store(token: Token | null): void {
 /** The EVM session token: kept, dropped, and dropped again when it expires. */
 export function useEvmToken() {
     const [token, setToken] = useState<Token | null>(loadEvmToken)
+    // The server rejected the EVM token (lib/api.ts authSelfHeal): this session ends, the gno.land one does not.
+    useEffect(() => onSessionInvalidated(() => setToken(null), "evm"), [])
     useEffect(() => {
         if (!token) return
         const t = setInterval(() => { if (!loadEvmToken()) setToken(null) }, 60_000)

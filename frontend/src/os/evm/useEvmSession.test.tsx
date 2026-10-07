@@ -2,6 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { EvmWalletSnapshot, WalletOutcome } from "../../lib/chain/evm/wallet"
+import { invalidateSession } from "../../lib/authSession"
 import { EVM_TOKEN_KEY } from "./evmToken"
 import { useEvmSession } from "./useEvmSession"
 
@@ -126,6 +127,18 @@ describe("useEvmSession", () => {
             const { result } = await restored()
             await waitFor(() => expect(storedEvmToken()).toBeNull())
             expect(result.current.status).toBe("guest")
+        })
+
+        it("signs out when the server rejects its token, leaving the gno.land session alone", async () => {
+            const gno = JSON.stringify({ chainId: "gnoland-1", userAddress: "g1abc" })
+            localStorage.setItem(GNO_TOKEN_KEY, gno)
+            connectedHere()
+            localStorage.setItem(EVM_TOKEN_KEY, JSON.stringify(TOKEN))
+            const { result } = await restored()
+            expect(result.current.status).toBe("member")
+            act(() => invalidateSession("rejected", "evm"))
+            expect(result.current.status).toBe("guest")
+            expect(localStorage.getItem(GNO_TOKEN_KEY)).toBe(gno)
         })
 
         it("drops it on Disconnect at once", async () => {
