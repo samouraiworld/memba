@@ -85,6 +85,16 @@ forge test --match-path 'test/unit/*'
 
 An RPC failure throws; "no name" is only what the chain answered. `frontend/src/os/profile/evm/basenameProfile.ts` maps the result onto the Profile app's `ProfileChainRead`. Evidence: `contracts/evm/test/fork/Basenames.t.sol` `test_primary_name_read_path` (jesse.base.eth at the pinned block) and `ManifestLive` `test_reverse_registrar_serves_this_chain`.
 
+## Profile on Basenames (write)
+
+`frontend/src/lib/chain/evm/basenamesWrite.ts` (a payable path: the owner gives a go per PR):
+
+- **Register** (`quoteBasename`, then `planBasenameRegistration`): one payable `register` on the manifest's UpgradeableRegistrarController, never the legacy one. The request points the name at the UpgradeableL2Resolver, sets `addr` to the owner and the given text records through its resolver data, and sets the primary name (`reverseRecord: true`, no ENSIP-19 signature). It sends the quoted price + 5%, and the controller refunds the difference.
+- **Edit** (`planBasenameTextUpdate`): one `multicall` of `setText` on the name's own resolver (the upgradeable or the legacy one; any other is refused), owner only, no value.
+- `prepareBasenameWrite` adds a gas limit from a successful estimate; a reverting estimate throws.
+
+Evidence, on both forks: `test_register_with_records_and_primary_name_in_one_tx` (378k gas on Base: name, addr, 2 records and primary name; the overpayment is refunded; the reverse record names it), `test_owner_updates_texts_in_one_multicall` (77k gas for 2 records; another account is refused), and on Base `test_owner_edits_texts_on_legacy_resolver`.
+
 ## Contracts CI
 
 `.github/workflows/contracts-evm.yml`; the required check is the aggregate job **`Contracts (EVM)`** (it always reports; jobs a PR does not need are skipped and count as passed).
