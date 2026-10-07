@@ -152,6 +152,8 @@ describe("accepting an offer", () => {
         const request = acceptOfferRequest(draft({ listing: "L3" }))
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Token", "C1 #5"], ["Price", "3 GNOT"], ["To the seller", "2.835 GNOT"], ["Buyer", BUYER], ["Listing", "L3 closes with this sale"],
+            // The buyer paid the offer's deposit; the chain pays it to the seller whose call frees it.
+            ["Storage deposit", expect.stringMatching(/; the offer's own deposit is paid to you$/)],
         ]))
         const msgs = request.prepare(undefined).msgs
         expect(msgs.map((msg) => msg.value.func)).toEqual(["Approve", "AcceptOffer"])

@@ -18,7 +18,7 @@ import {
 import { laneClosedReason, readActionStatus } from "../../../../lib/tokenLaunchpadConfigClient"
 import type { SettledOutcome, SignRequest } from "../../../sign/signer"
 import { verifySendTx } from "../../../wallet/sendRequest"
-import { utc } from "./reads"
+import { ORDER_DEPOSIT, utc } from "./reads"
 import { available, payouts, sameSplit } from "./tradeRequest"
 
 interface Common {
@@ -113,7 +113,7 @@ export function cancelOfferRequest(draft: OfferDraft): SignRequest {
             ["Comes back to you", formatAmount(offer.price, offer.currency)],
             ["Market realm", NFT_MARKET_PATH],
             ["Network", draft.chainId],
-            ["Storage deposit", "The offer's deposit (about 0.78 GNOT) comes back to you"],
+            ["Storage deposit", `The offer's deposit (${ORDER_DEPOSIT}) comes back to you`],
             ["Network fee", formatUgnotExact(fee)],
         ],
         note: "The offer closes and can no longer be accepted.",
@@ -159,7 +159,7 @@ export function acceptOfferRequest(draft: AcceptDraft): SignRequest {
             ["Approval", "The market may move this one token, for this sale"],
             ["Realms", `${NFT_LEDGER_PATH}, then ${NFT_MARKET_PATH}`],
             ["Network", draft.chainId],
-            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(APPROVE_STORAGE_BYTES) + depositCapUgnot(ACCEPT_OFFER_STORAGE_BYTES))}; the offer's own deposit comes back to you`],
+            ["Storage deposit", `Up to ${formatUgnot(depositCapUgnot(APPROVE_STORAGE_BYTES) + depositCapUgnot(ACCEPT_OFFER_STORAGE_BYTES))}; the offer's own deposit is paid to you`],
             ["Network fee", formatUgnotExact(fee)],
         ],
         note: "The token and the payment move in the same transaction: either both happen or neither does.",
