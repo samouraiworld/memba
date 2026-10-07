@@ -9,6 +9,7 @@
 import { OS_APPS } from "../apps"
 import { DEFAULT_NETWORK } from "../../lib/config"
 import { isVisibleEvmNetworkKey } from "../../lib/chain/evm/networks"
+import { EVM_ENABLED } from "../../lib/chain/flag"
 import { parseOsPath, type OsTarget } from "./osPath"
 
 export type DeskItemType = "app" | "dao" | "prop" | "msig"
@@ -141,7 +142,7 @@ const TYPES: readonly DeskItemType[] = ["app", "dao", "prop", "msig"]
 
 /** A guest's desk before any change: the featured gno.land items, none on an EVM network. */
 function guestDesk(networkKey: string): DeskItem[] {
-    return isVisibleEvmNetworkKey(networkKey) ? [] : FEATURED_DESK.map((i) => ({ ...i }))
+    return EVM_ENABLED && isVisibleEvmNetworkKey(networkKey) ? [] : FEATURED_DESK.map((i) => ({ ...i }))
 }
 
 export function loadDesk(address: string | null, networkKey = DEFAULT_NETWORK): DeskItem[] {
