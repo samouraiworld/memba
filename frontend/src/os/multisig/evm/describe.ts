@@ -8,15 +8,30 @@
 import type { DecodedTx, SafeSetting } from "../../../lib/chain/evm/safe/decode"
 import type { SafeActionReason } from "../../../lib/chain/evm/safe/create"
 
-const WEI_PER_ETH = 10n ** 18n
+/** A base-unit amount with `decimals`, exactly: no rounding, trailing zeros dropped. */
+export function formatUnits(value: bigint, decimals: number): string {
+    const unit = 10n ** BigInt(decimals)
+    const sign = value < 0n ? "-" : ""
+    const abs = value < 0n ? -value : value
+    const fraction = decimals > 0 ? (abs % unit).toString().padStart(decimals, "0").replace(/0+$/, "") : ""
+    return `${sign}${(abs / unit).toLocaleString("en-US")}${fraction ? `.${fraction}` : ""}`
+}
+
+/** A typed amount in base units, exactly, or why it can't be one. Never floating point. */
+export function parseAmount(input: string, decimals: number): { ok: true; value: bigint } | { ok: false; error: string } {
+    const m = /^(\d+)(?:\.(\d+))?$/.exec(input.trim())
+    if (!m) return { ok: false, error: "Enter a plain number, like 0.5, without signs or separators." }
+    const fraction = m[2] ?? ""
+    if (fraction.length > decimals) return { ok: false, error: decimals === 0 ? "This token has no decimals." : `At most ${decimals} decimal places.` }
+    const value = BigInt(m[1]) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, "0") || "0")
+    if (value === 0n) return { ok: false, error: "Enter an amount above zero." }
+    if (value >= 2n ** 256n) return { ok: false, error: "This amount is too large." }
+    return { ok: true, value }
+}
 
 /** Wei as ETH, exactly: no rounding, trailing zeros dropped. */
 export function formatEth(wei: bigint): string {
-    const sign = wei < 0n ? "-" : ""
-    const abs = wei < 0n ? -wei : wei
-    const whole = abs / WEI_PER_ETH
-    const fraction = (abs % WEI_PER_ETH).toString().padStart(18, "0").replace(/0+$/, "")
-    return `${sign}${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""} ETH`
+    return `${formatUnits(wei, 18)} ETH`
 }
 
 const SETTING_TEXT: Readonly<Record<SafeSetting, string>> = {
@@ -30,6 +45,11 @@ const SETTING_TEXT: Readonly<Record<SafeSetting, string>> = {
     setModuleGuard: "Set a module guard",
     setFallbackHandler: "Set the fallback handler",
     changeMasterCopy: "Change the Safe's code",
+}
+
+/** What a Safe setting change does, in words. */
+export function settingText(setting: SafeSetting): string {
+    return SETTING_TEXT[setting]
 }
 
 export interface TxText {
@@ -78,5 +98,11 @@ export function actionErrorText(reason: SafeActionReason, network: string, actio
         case "unconfirmed": return reason.detail ?? `Sent, but ${network} hasn't confirmed it yet. Don't send it again: check again in a moment.`
         case "unverified": return `Confirmed, but Memba couldn't read ${network} to check the result yet. Check again in a moment.`
         case "failed": return `Couldn't ${ACTION_NAME[action]}: ${reason.detail}`
+        case "unexpected-transaction": return `Memba won't ${ACTION_NAME[action]}: ${reason.detail}. ${action === "execute" || action === "create" ? "Nothing was sent." : "Nothing was signed."}`
+        case "hash-mismatch": return "This transaction's hash doesn't match its contents. Nothing was signed: don't sign it elsewhere either."
+        case "not-owner": return "This wallet is not an owner of this Safe."
+        case "not-ready": return `It can't run yet: ${reason.detail}.`
+        case "contract-signer": return "This wallet is a smart account (a contract). In this version, Safe owners sign with a key-holder wallet such as MetaMask or Rabby."
+        case "service": return `The Safe Transaction Service refused it: ${reason.detail}`
     }
 }

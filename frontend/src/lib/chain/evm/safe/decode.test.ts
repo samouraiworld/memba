@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { encodeFunctionData, encodePacked, erc20Abi, maxUint256, parseAbi, size, type Hex } from "viem"
-import { decodeSafeTx, type SafeTxFields } from "./decode"
+import { decodeSafeTx, gasRefund, refusedToRun, type SafeTxFields } from "./decode"
 
 const SAFE: Hex = "0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe"
 const ALICE: Hex = "0xa11ce00000000000000000000000000000000001"
@@ -128,5 +128,30 @@ describe("decoding a Safe transaction", () => {
             expect(decodeSafeTx(SAFE, tx)).toMatchObject({ kind: "undecodable", severity: "danger" })
         }
         expect(decodeSafeTx(SAFE, { to: ALICE, value: "0", data: "0xzz", operation: 0 })).toMatchObject({ to: ALICE, data: "0x" })
+    })
+})
+
+describe("refusing what Memba won't sign or execute", () => {
+    const none = { safeTxGas: "0", baseGas: "0", gasPrice: "0", gasToken: "0x0000000000000000000000000000000000000000", refundReceiver: null }
+
+    it("names every gas-refund field, and nothing when none is set", () => {
+        expect(gasRefund(none)).toBeNull()
+        expect(gasRefund({ ...none, refundReceiver: "0x0000000000000000000000000000000000000000" })).toBeNull()
+        const drain = gasRefund({ ...none, baseGas: "3900000", gasPrice: "1000000000000", refundReceiver: BOB })
+        expect(drain).toMatch(/a gas price of 1000000000000 per unit, 3900000 units of base gas, payment to 0xb0b0/)
+        expect(gasRefund({ ...none, safeTxGas: 1n })).toBe("it sets a gas limit of 1 for its call, which lets the call fail without the transaction reverting")
+        expect(gasRefund({ ...none, safeTxGas: 1n, gasPrice: 2n })).toBe("it pays for gas from the Safe: a gas price of 2 per unit; it sets a gas limit of 1 for its call, which lets the call fail without the transaction reverting")
+        expect(gasRefund({ ...none, gasToken: TOKEN })).toMatch(/payment in token 0x7070/)
+        expect(gasRefund({ ...none, gasPrice: "x" })).toBe("its gas fields can't be read")
+    })
+
+    it("refuses delegatecalls, unreadable calls, and a batch holding either; accepts plain calls and call batches", () => {
+        expect(refusedToRun(decodeSafeTx(SAFE, call(ALICE, "0x", "1")))).toBeNull()
+        expect(refusedToRun(decodeSafeTx(SAFE, { to: BOB, value: "0", data: "0x12345678", operation: 1 }))).toMatch(/another contract's code/)
+        expect(refusedToRun(decodeSafeTx(SAFE, { to: ALICE, value: "0", data: "0xzz", operation: 0 }))).toMatch(/can't read it/)
+        const callsOnly = multiSend([{ operation: 0, to: ALICE, value: 1n, data: "0x" }])
+        expect(refusedToRun(decodeSafeTx(SAFE, { to: MULTISEND_150, value: "0", data: callsOnly, operation: 1 }))).toBeNull()
+        const withDelegate = multiSend([{ operation: 0, to: ALICE, value: 1n, data: "0x" }, { operation: 1, to: BOB, value: 0n, data: "0xdeadbeef" }])
+        expect(refusedToRun(decodeSafeTx(SAFE, { to: MULTISEND_150, value: "0", data: withDelegate, operation: 1 }))).toMatch(/^a call in its batch: it runs another contract's code/)
     })
 })

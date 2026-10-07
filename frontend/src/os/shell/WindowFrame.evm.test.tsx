@@ -20,6 +20,7 @@ vi.mock("../multisig/evm/SafeWindows", () => ({
 }))
 vi.mock("../multisig/evm/ImportSafe", () => ({ ImportSafe: () => <div>import safe</div> }))
 vi.mock("../multisig/evm/CreateSafe", () => ({ CreateSafe: () => <div>create safe</div> }))
+vi.mock("../multisig/evm/ProposeSafe", () => ({ ProposeSafe: ({ address }: { address: string }) => <div>propose for {address}</div> }))
 vi.mock("../multisig/MultisigWindows", () => ({ MultisigApp: () => <div>gno multisig app</div>, MultisigWindow: () => <div>gno multisig window</div> }))
 
 afterEach(() => vi.clearAllMocks())
@@ -93,8 +94,13 @@ describe("WindowBody on an EVM network", () => {
         expect(screen.queryByText("classic page")).toBeNull()
     })
 
-    it("holds the Multisig pages not built for Safes yet, never their gno.land page", () => {
+    it("opens the Safe payment window for a Safe's propose page", async () => {
         show({ kind: "app", app: "multisig", section: "0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe/propose" }, onBase)
+        expect(await screen.findByText("propose for 0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe")).toBeInTheDocument()
+    })
+
+    it("holds the Multisig pages not built for Safes yet, never their gno.land page", () => {
+        show({ kind: "app", app: "multisig", section: "settings" }, onBase)
         expect(screen.getByText("Coming next")).toBeInTheDocument()
         expect(screen.queryByText("classic page")).toBeNull()
     })

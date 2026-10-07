@@ -16,7 +16,7 @@ import { API_BASE_URL } from "../../../lib/config"
 import { EVM_ENABLED } from "../../../lib/chain/flag"
 import { loadSafeSdk } from "../../../lib/chain/evm/safe/load"
 import type { SafeInspection } from "../../../lib/chain/evm/safe/inspect"
-import { decodeSafeTx, type DecodedTx } from "../../../lib/chain/evm/safe/decode"
+import { decodeSafeTx, gasRefund, refusedToRun, type DecodedTx } from "../../../lib/chain/evm/safe/decode"
 import type { Read } from "../../../lib/chain/types"
 import type { Awaiting } from "../useOsMultisig"
 
@@ -78,6 +78,10 @@ export interface QueuedTx {
     safeTxHash: string
     nonce: bigint
     decoded: DecodedTx
+    /** Why Memba won't sign or execute it (a gas refund, a delegatecall, an unreadable call), or null. */
+    blocked: string | null
+    /** How many other listings the service gave with the same hash (dropped: at most one entry per hash is shown). */
+    duplicates?: number
     submitted: Set<string>
     verified: Set<string>
     hashMatches: boolean
@@ -96,13 +100,30 @@ export function useSafeQueue(net: SafeNetwork, address: string, safe: { owners: 
                 .getPendingTransactions(address, { currentNonce: Number(safe!.nonce), ordering: "nonce", limit: 50 })
             const queued = await Promise.all(results.filter((tx) => tx.safe.toLowerCase() === address).map(async (tx) => {
                 const check = await sdk.checkQueuedTx(net.chainId, safe!.owners, tx)
+                const decoded = decodeSafeTx(address, { ...tx, data: tx.data ?? null })
+                // A gas refund or a call Memba can't run: shown, never signed or executed here.
+                const blocked = gasRefund(tx) ?? refusedToRun(decoded)
                 return {
-                    safeTxHash: tx.safeTxHash.toLowerCase(), nonce: BigInt(tx.nonce), decoded: decodeSafeTx(address, { ...tx, data: tx.data ?? null }),
+                    safeTxHash: tx.safeTxHash.toLowerCase(), nonce: BigInt(tx.nonce), decoded, blocked,
                     ...check, threshold: safe!.threshold, submissionDate: tx.submissionDate,
                 }
             }))
-            return queued.filter((tx) => tx.nonce >= safe!.nonce).sort((a, b) => (a.nonce === b.nonce ? 0 : a.nonce < b.nonce ? -1 : 1))
+            return dedupeByHash(queued).filter((tx) => tx.nonce >= safe!.nonce).sort((a, b) => (a.nonce === b.nonce ? 0 : a.nonce < b.nonce ? -1 : 1))
         },
+    })
+}
+
+/**
+ * One entry per safeTxHash. A listing can repeat a hash with other contents
+ * (a decoy listed before the real one): only an entry whose contents match its
+ * hash is kept, or the first if none does (shown as a mismatch, never acted on).
+ */
+export function dedupeByHash<T extends { safeTxHash: string; hashMatches: boolean }>(txs: readonly T[]): (T & { duplicates?: number })[] {
+    const groups = new Map<string, T[]>()
+    for (const tx of txs) groups.set(tx.safeTxHash, [...(groups.get(tx.safeTxHash) ?? []), tx])
+    return [...groups.values()].map((group) => {
+        const kept = group.find((tx) => tx.hashMatches) ?? group[0]
+        return group.length > 1 ? { ...kept, duplicates: group.length - 1 } : kept
     })
 }
 

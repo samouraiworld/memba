@@ -66,6 +66,13 @@ export type SafeActionReason =
     | { code: "unconfirmed"; hash: Hex; detail?: string }
     // Confirmed, but the chain couldn't be read to check the result: check again.
     | { code: "unverified"; hash: Hex }
+    // Proposing, signing and executing (./transact.ts)
+    | { code: "unexpected-transaction"; detail: string }
+    | { code: "hash-mismatch" }
+    | { code: "not-owner" }
+    | { code: "not-ready"; detail: string }
+    | { code: "contract-signer" }
+    | { code: "service"; detail: string }
     | { code: "failed"; detail: string }
 
 /** Why creating a Safe or acting on one stopped. */

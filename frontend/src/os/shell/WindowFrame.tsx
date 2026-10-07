@@ -29,6 +29,7 @@ const SafeApp = EVM_ENABLED ? lazy(() => import("../multisig/evm/SafeWindows").t
 const SafeWindow = EVM_ENABLED ? lazy(() => import("../multisig/evm/SafeWindows").then((m) => ({ default: m.SafeWindow }))) : null
 const ImportSafe = EVM_ENABLED ? lazy(() => import("../multisig/evm/ImportSafe").then((m) => ({ default: m.ImportSafe }))) : null
 const CreateSafe = EVM_ENABLED ? lazy(() => import("../multisig/evm/CreateSafe").then((m) => ({ default: m.CreateSafe }))) : null
+const ProposeSafe = EVM_ENABLED ? lazy(() => import("../multisig/evm/ProposeSafe").then((m) => ({ default: m.ProposeSafe }))) : null
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { nativeView } from "../native/registry"
 import type { OsTarget } from "./osPath"
@@ -161,12 +162,14 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "app" && t.app === "wallet" && t.section === "send") return <SendWindow session={a.session} close={a.close} />
     if (onEvm && SafeApp && SafeWindow && (t.kind === "multisig" || (t.kind === "app" && t.app === "multisig"))) {
         if (t.kind === "multisig") return /^0x[0-9a-f]{40}$/.test(t.address)
-            ? <SafeWindow address={t.address} session={a.session} />
+            ? <SafeWindow address={t.address} session={a.session} open={a.open} />
             : <GnoOnly title="This is a gno.land multisig" text={`Its address is a gno.land one: it doesn't exist on ${here}.`} />
         if (t.section === null) return <SafeApp session={a.session} open={a.open} />
         if (t.section === "import" && ImportSafe) return <ImportSafe session={a.session} open={a.open} />
         if (t.section === "create" && CreateSafe) return <CreateSafe session={a.session} open={a.open} />
-        return <Holding tile={<AppTile app="multisig" size={44} />} title="Coming next" text={`Proposing for Safes on ${here} comes to Memba next. Open a Safe by its address from the Multisig app.`} />
+        const propose = /^(0x[0-9a-f]{40})\/propose$/.exec(t.section)
+        if (propose && ProposeSafe) return <ProposeSafe address={propose[1]} session={a.session} open={a.open} />
+        return <Holding tile={<AppTile app="multisig" size={44} />} title="Coming next" text={`This Multisig page isn't built for Safes on ${here} yet. Open a Safe by its address from the Multisig app.`} />
     }
     if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
     if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />

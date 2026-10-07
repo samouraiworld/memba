@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { countSafeAwaiting, sameNonce, type QueuedTx } from "./useSafes"
+import { countSafeAwaiting, dedupeByHash, sameNonce, type QueuedTx } from "./useSafes"
 
 const ME = "0xa11ce00000000000000000000000000000000001"
 const tx = (nonce: bigint, hash: string) => ({ nonce, safeTxHash: hash }) as QueuedTx
@@ -16,5 +16,16 @@ describe("Safe queue helpers", () => {
             { address: "0xs2", pending: [{ confirmations: [{ owner: ME }] }] },
         ], ME)
         expect(counts).toEqual(new Map([["0xs1", 2]]))
+    })
+})
+
+describe("one queue entry per hash", () => {
+    it("keeps the entry whose contents match its hash, else the first, and counts the dropped ones", () => {
+        const e = (id: string, hash: string, hashMatches: boolean) => ({ id, safeTxHash: hash, hashMatches })
+        expect(dedupeByHash([e("decoy", "h1", false), e("real", "h1", true), e("other", "h2", true)])).toEqual([
+            { id: "real", safeTxHash: "h1", hashMatches: true, duplicates: 1 },
+            { id: "other", safeTxHash: "h2", hashMatches: true },
+        ])
+        expect(dedupeByHash([e("a", "h", false), e("b", "h", false)])).toEqual([{ id: "a", safeTxHash: "h", hashMatches: false, duplicates: 1 }])
     })
 })
