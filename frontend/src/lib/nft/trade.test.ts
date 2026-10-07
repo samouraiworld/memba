@@ -48,7 +48,7 @@ describe("listing a token", () => {
     it("approves the market for this one token, then lists it, in one transaction", () => {
         expect(buildListMsgs(SELLER, terms)).toEqual([
             { type: "vm/MsgCall", value: { caller: SELLER, send: "", pkg_path: NFT_LEDGER_PATH, func: "Approve", args: ["C1", NFT_MARKET_ADDRESS, "5"], max_deposit: "440000ugnot" } },
-            { type: "vm/MsgCall", value: { caller: SELLER, send: "", pkg_path: NFT_MARKET_PATH, func: "List", args: ["C1", "5", "2000000", "1800000000", "ugnot", "50"], max_deposit: "1560000ugnot" } },
+            { type: "vm/MsgCall", value: { caller: SELLER, send: "", pkg_path: NFT_MARKET_PATH, func: "List", args: ["C1", "5", "2000000", "1800000000", "ugnot", "50"], max_deposit: "1660000ugnot" } },
         ])
     })
 
@@ -81,7 +81,7 @@ describe("offers", () => {
     it("escrows exactly the price for a token offer or a collection offer", () => {
         expect(buildMakeOfferMsg(BUYER, terms)).toEqual({
             type: "vm/MsgCall",
-            value: { caller: BUYER, send: "3000000ugnot", pkg_path: NFT_MARKET_PATH, func: "MakeOffer", args: ["token", "C1", "5", "", "3000000", "1800000000", "ugnot", "50"], max_deposit: "1580000ugnot" },
+            value: { caller: BUYER, send: "3000000ugnot", pkg_path: NFT_MARKET_PATH, func: "MakeOffer", args: ["token", "C1", "5", "", "3000000", "1800000000", "ugnot", "50"], max_deposit: "1660000ugnot" },
         })
         expect(buildMakeOfferMsg(BUYER, { ...terms, kind: "collection", number: 0n }).value.args).toEqual(["collection", "C1", "0", "", "3000000", "1800000000", "ugnot", "50"])
     })

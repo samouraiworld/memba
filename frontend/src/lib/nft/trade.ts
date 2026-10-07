@@ -22,14 +22,14 @@ const NATIVE = "ugnot"
 /*
  * Gas limits: at least twice the most each transaction was measured to use, as for every
  * Launchpad call, since a live chain's trees and keys differ from a test node's (gas.test.ts
- * lists the measurements: Buy 33.2M, Cancel 12.5M, Approve 13.0M + List 17.5M, MakeOffer up
+ * lists the measurements: Buy 33.2M, Cancel 14.4M, Approve 14.6M + List 18.8M, MakeOffer up
  * to 18.1M, CancelOffer 10.5M, Approve 13.0M + AcceptOffer 33.1M; a sale pays up to ten
- * royalty receivers).
+ * royalty receivers; Cancel and Approve + List as measured on onyx-1).
  */
 export const BUY_GAS_WANTED = 67_000_000
-export const CANCEL_LISTING_GAS_WANTED = 26_000_000
+export const CANCEL_LISTING_GAS_WANTED = 29_000_000
 /** Approve and List in one transaction. */
-export const LIST_GAS_WANTED = 62_000_000
+export const LIST_GAS_WANTED = 67_000_000
 export const MAKE_OFFER_GAS_WANTED = 37_000_000
 export const CANCEL_OFFER_GAS_WANTED = 21_000_000
 /** Approve and AcceptOffer in one transaction. */
@@ -58,11 +58,15 @@ export function listingExpiry(nowSeconds: number, days: ListingDays): bigint {
  */
 export const BUY_STORAGE_BYTES = 4_000
 export const CANCEL_LISTING_STORAGE_BYTES = 500
-/** Each message has its own cap, twice its bytes: the approval (up to 2,118 bytes measured) and the listing (7,790 bytes measured, all freed when it closes). */
+/**
+ * Each message has its own cap, twice its estimate: the approval (up to 2,118 bytes measured) and the
+ * listing (up to 7,790 bytes measured, all freed when it closes). A deeper ledger stores a little more,
+ * so an order's estimate keeps about 6% above the most measured.
+ */
 export const APPROVE_STORAGE_BYTES = 2_200
-export const LIST_STORAGE_BYTES = 7_800
-/** An open offer holds 7,813 bytes (measured), all freed when it closes; an accepted one adds the token to the buyer's holdings. */
-export const OFFER_STORAGE_BYTES = 7_900
+export const LIST_STORAGE_BYTES = 8_300
+/** An open offer holds up to 7,813 bytes (measured), all freed when it closes; an accepted one adds the token to the buyer's holdings. */
+export const OFFER_STORAGE_BYTES = 8_300
 export const CANCEL_OFFER_STORAGE_BYTES = 500
 export const ACCEPT_OFFER_STORAGE_BYTES = 4_000
 
