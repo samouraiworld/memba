@@ -210,8 +210,7 @@ export async function executeSignature<C extends string>(
             return canOpenWallet
         })
         const answer = await Promise.race([sending.then((r) => ({ wallet: r })), chainWatch.then((c) => ({ chain: c }))])
-        if ("chain" in answer) {
-            sending.catch(() => { /* the wallet may still answer: it no longer decides */ })
+        if ("chain" in answer) { // a later wallet answer no longer decides; the race keeps it handled
             if (answer.chain === "silent") return { outcome: "unknown", error: SILENT, hash }
             if (req.receipt) {
                 try { saveGovernanceReceipt(req.receipt, { phase: "submitted", hash: "", label }) } catch { /* kept in memory by governanceRecovery */ }
