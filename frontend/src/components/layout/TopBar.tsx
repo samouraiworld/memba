@@ -130,7 +130,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                         </span>
                     ) : (
                         adena.installed ? (
-                            <button className="k-btn-wallet" onClick={adena.connect} disabled={isLoggingIn}>
+                            <button className="k-btn-wallet" onClick={() => { void adena.connect() }} disabled={isLoggingIn}>
                                 <span className="k-status-dot k-status-dot--ok" />
                                 Connect Wallet
                             </button>

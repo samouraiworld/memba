@@ -39,6 +39,23 @@ export function Waiting({ label }: { label: string }) {
     return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">{label}</span></div>
 }
 
+const reloadTab = () => window.location.reload()
+
+/** While Adena's window is awaited: where it may be after 3 s, and a way out when it never seems to open. */
+function AdenaHints({ session }: { session: OsSession }) {
+    if (session.noPopup) {
+        return <div className="os-note os-warn" role="alert">
+            <b>Adena hasn’t answered</b>
+            <p className="os-flush">If Adena was updated or reloaded since this tab opened, the tab can’t reach it until it reloads.</p>
+            <div className="os-row os-end"><button type="button" className="os-btn" onClick={reloadTab}>Reload tab</button></div>
+        </div>
+    }
+    if (session.slow) {
+        return <p className="os-note" role="status">The Adena window may be behind this one or on another screen — click the Adena icon in your toolbar.</p>
+    }
+    return null
+}
+
 /**
  * The connect flow (mockup v4 modalHTML): pick a wallet → Adena not installed
  * / approve in Adena → sign the login message → activate an untransacted
@@ -90,10 +107,18 @@ export function ConnectModal({ session }: { session: OsSession }) {
                 </div>
             </>
             break
+        case "waking":
+            body = <>
+                <Head title="Opening Adena…" sub="Checking whether Memba is already approved." />
+                <Waiting label="Waiting for Adena…" />
+                <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button></div>
+            </>
+            break
         case "approve":
             body = <>
-                <Head title="Approve in Adena" sub="Adena asks whether Memba may see your address." />
+                <Head title="Approve in Adena" sub="Adena asks whether Memba may see your address. If Adena is locked, it asks for your password first." />
                 <Waiting label="Waiting for Adena…" />
+                <AdenaHints session={session} />
                 <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button></div>
             </>
             break
@@ -128,6 +153,7 @@ export function ConnectModal({ session }: { session: OsSession }) {
             body = <>
                 <Head title="Confirm in Adena" sub="Sign the login message." />
                 <Waiting label="Waiting for Adena…" />
+                <AdenaHints session={session} />
                 <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button></div>
             </>
             break
@@ -167,6 +193,9 @@ export function ConnectModal({ session }: { session: OsSession }) {
                 {body}
                 {/* The network note replaces an error from a sign-in it explains. */}
                 {error && !otherChain && <p className="os-note os-err" role="alert">{error}</p>}
+                {error && !otherChain && session.errorKind === "no-answer" && (
+                    <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={reloadTab}>Reload tab</button></div>
+                )}
             </div>
         </div>
     )

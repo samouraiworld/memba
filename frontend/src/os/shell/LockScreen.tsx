@@ -2,17 +2,12 @@ import { useRef, type KeyboardEvent } from "react"
 import { useClock } from "./clock"
 
 /** Visit choice. Also shown after "Lock screen" / "Disconnect & lock". */
-export function LockScreen({ onConnect, onGuest, resuming = false }: { onConnect: () => void; onGuest: () => void; resuming?: boolean }) {
+export function LockScreen({ onConnect, onGuest, onWake, resuming = false }: { onConnect: () => void; onGuest: () => void; onWake?: () => void; resuming?: boolean }) {
     const [time, date] = useClock()
     const connect = useRef<HTMLButtonElement>(null)
     const guest = useRef<HTMLButtonElement>(null)
     const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key !== "Tab") return
-        if (resuming && document.activeElement === guest.current) {
-            // The guest action is the only enabled control until reconnect settles.
-            e.preventDefault()
-            return
-        }
         if (e.shiftKey && document.activeElement === connect.current) {
             e.preventDefault()
             guest.current?.focus()
@@ -29,9 +24,11 @@ export function LockScreen({ onConnect, onGuest, resuming = false }: { onConnect
                 <div className="os-lock-tag">Memba — your desk on gno.land</div>
                 <div className="os-lock-date">{date}</div>
                 <div className="os-lock-acts">
-                    <button ref={connect} type="button" className="os-lock-primary" onClick={onConnect} disabled={resuming} autoFocus={!resuming}>{resuming ? "Resuming wallet…" : "Connect wallet"}</button>
-                    <button ref={guest} type="button" className="os-lock-secondary" onClick={onGuest} autoFocus={resuming}>Continue as guest</button>
+                    {/* Usable while the wallet resumes: a connect waits for the resume, and goes on only if it fails. */}
+                    <button ref={connect} type="button" className="os-lock-primary" onClick={onConnect} onMouseEnter={onWake} onFocus={onWake} autoFocus>Connect wallet</button>
+                    <button ref={guest} type="button" className="os-lock-secondary" onClick={onGuest}>Continue as guest</button>
                 </div>
+                {resuming && <div className="os-lock-status" role="status"><span className="os-spin" aria-hidden="true" />Resuming…</div>}
                 <div className="os-lock-hint">Guests can explore public apps, DAOs and posts. Connect for private accounts or on-chain actions. You can skip this screen in Settings or return here from the Memba menu.</div>
             </div>
         </div>

@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Adena connects faster and says when it's stuck (2026-10-07)
+- Connecting asks Adena for the account and the network at the same time, and wakes Adena while you open the connect window, so an approved, unlocked wallet skips the approval request entirely
+- The sign-in challenge is fetched while the wallet is checked, not after it
+- After 3 seconds the connect window says Adena's window may be behind this one or on another screen; when Adena never answers (a tab opened before an Adena update), it says so and offers to reload the tab instead of waiting forever
+- When Adena closes its window because another tab asked it something, Memba says that instead of a generic failure
+- Memba OS: Connect stays usable while a previous session resumes; a connect waits for the resume instead of opening a second request
+- Classic top bar: the Connect button no longer passes the click event to the wallet as options
+
 ### Guest banner wording (2026-10-08)
 - Memba OS: the guest banner says Connect to sign instead of Connect to vote, which only made sense over a DAO
 
