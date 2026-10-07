@@ -26,6 +26,7 @@ func DefaultConfigs() map[string]Config {
 		"tx":                 {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
 		"siwe":               {MaxRequests: 10, Window: time.Minute},  // Sign-In with Ethereum challenge/token — stricter, on top of "rpc"
 		"oauth":              {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
+		"account":            {MaxRequests: 30, Window: time.Minute},  // optional account: read, export, delete
 		"analyst":            {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
 		"upload":             {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict (single downscaled avatar)
 		"upload_image":       {MaxRequests: 20, Window: time.Minute},  // App Store media — one listing is up to 7 files (icon + 6 screenshots), so > the strict avatar bucket, plus retries
