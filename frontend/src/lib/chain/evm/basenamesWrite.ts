@@ -28,6 +28,7 @@ import { decodeFunctionData, encodeFunctionData, isAddressEqual, parseAbi, zeroA
 import { namehash } from "viem/ens"
 import { BASENAME_TEXT_KEYS, basenameSuffix, isAcceptableBasename, isKnownResolver, type BasenameTextKey, type PrimaryBasename } from "./basenames"
 import { evmContract } from "./manifest"
+import type { EvmWrite } from "./send"
 
 /** One Basenames year, as the controller counts it. */
 export const BASENAME_YEAR_SECONDS = 365n * 24n * 60n * 60n
@@ -61,9 +62,8 @@ export const reverseRegistrarAbi = parseAbi([
 /** Record values to set; "" clears a record (ENS has no delete). */
 export type BasenameTextChanges = Partial<Record<BasenameTextKey, string>>
 
-/** A transaction bound to its chain and its sender; a valid input of `sendEvmWrite`. */
-export interface BasenameWrite {
-    chainId: number
+/** A transaction bound to its chain and its sender: an `EvmWrite` (the input of `sendEvmWrite`) with calldata and value always set. */
+export interface BasenameWrite extends EvmWrite {
     from: Address
     to: Address
     data: Hex

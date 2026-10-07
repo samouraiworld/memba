@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { decodeFunctionData, type Address, type Hex } from "viem"
 import { evmContract } from "./manifest"
+import type { EvmWrite } from "./send"
 import {
     BASENAME_YEAR_SECONDS,
     basenameFor,
@@ -153,6 +154,18 @@ describe("Basename record update", () => {
     it("refuses an unknown resolver and an empty change set", () => {
         expect(() => planBasenameTextUpdate(8453, ALICE, { ...primary, resolver: "0x000000000000000000000000000000000000dEaD" }, { url: "x" })).toThrow(/resolver/)
         expect(() => planBasenameTextUpdate(8453, ALICE, primary, {})).toThrow(/Nothing changed/)
+    })
+})
+
+describe("send path", () => {
+    it("every planned write is an EvmWrite, sender included (sendEvmWrite refuses a wallet on another account)", () => {
+        const plan = planBasenameRegistration({ account: ALICE, quote: QUOTE })
+        const writes: EvmWrite[] = [
+            plan.steps[0].write satisfies EvmWrite,
+            plan.steps[1]!.write satisfies EvmWrite,
+            planPrimaryName(8453, ALICE, "membaprofilewrite.base.eth") satisfies EvmWrite,
+        ]
+        for (const w of writes) expect(w.from).toBe(ALICE)
     })
 })
 
