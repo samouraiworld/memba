@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -53,7 +54,7 @@ func (f *fakeSafeTxService) calls() []seenRequest {
 func newTestSafeTxProxy(t *testing.T, chains, key string) (*safeTxProxy, *fakeSafeTxService) {
 	t.Helper()
 	fake := &fakeSafeTxService{}
-	srv := httptest.NewServer(fake)
+	srv := httptest.NewTLSServer(fake)
 	t.Cleanup(srv.Close)
 	cfg, _ := newSafeTxProxyConfig(srv.URL, chains, key)
 	return newSafeTxProxy(cfg, srv.Client()), fake
@@ -84,8 +85,11 @@ func TestSafeTxProxyConfig(t *testing.T) {
 	if !slices.Equal(skipped, []string{"1", "abc"}) {
 		t.Fatalf("skipped = %v", skipped)
 	}
-	if cfg.chains[84532] != "https://up.example/tx-service/basesep/api" || cfg.chains[8453] != "https://up.example/tx-service/base/api" {
-		t.Fatalf("upstream bases = %v", cfg.chains)
+	if got := cfg.chainURL(cfg.chains[84532], "v1/about", "").String(); got != "https://up.example/tx-service/basesep/api/v1/about" {
+		t.Fatalf("Base Sepolia URL = %q", got)
+	}
+	if got := cfg.chainURL(cfg.chains[8453], "v1/about", "limit=1").String(); got != "https://up.example/tx-service/base/api/v1/about?limit=1" {
+		t.Fatalf("Base URL = %q", got)
 	}
 	if !cfg.HasAPIKey() || cfg.apiKey != "k" {
 		t.Fatalf("key not trimmed")
@@ -93,6 +97,33 @@ func TestSafeTxProxyConfig(t *testing.T) {
 	off, _ := SafeTxProxyConfigFromEnv(func(string) string { return "" })
 	if off.Enabled() || off.HasAPIKey() {
 		t.Fatalf("unset env must be off")
+	}
+	prod, _ := SafeTxProxyConfigFromEnv(func(k string) string { return map[string]string{SafeTxChainsEnv: "84532"}[k] })
+	if got := prod.chainURL("basesep", "v1/about", "").String(); got != "https://api.safe.global/tx-service/basesep/api/v1/about" {
+		t.Fatalf("production URL = %q", got)
+	}
+	// Anything but a plain https upstream leaves the proxy off.
+	for _, up := range []string{"http://up.example", "https://user:pw@up.example", "https://up.example?x=1", "ftp://up.example", "https://", "::"} {
+		if cfg, skipped := newSafeTxProxyConfig(up, "84532", "k"); cfg.Enabled() || !slices.Equal(skipped, []string{"upstream"}) {
+			t.Fatalf("upstream %q: enabled=%v skipped=%v, want off", up, cfg.Enabled(), skipped)
+		}
+	}
+}
+
+// The request is only ever sent to the configured https host.
+func TestSafeTxProxy_FetchRefusesAnotherHost(t *testing.T) {
+	p, fake := newTestSafeTxProxy(t, "84532", testSafeAPIKey)
+	for _, target := range []*url.URL{
+		{Scheme: "https", Host: "evil.example", Path: "/basesep/api/v1/about"},
+		{Scheme: "http", Host: p.cfg.upstream.Host, Path: "/basesep/api/v1/about"},
+		{Scheme: "https", Host: p.cfg.upstream.Host, User: url.User("x"), Path: "/basesep/api/v1/about"},
+	} {
+		if _, err := p.fetch(t.Context(), http.MethodGet, target, nil); err != errSafeTxHost {
+			t.Fatalf("%s: err = %v, want errSafeTxHost", target, err)
+		}
+	}
+	if n := len(fake.calls()); n != 0 {
+		t.Fatalf("upstream reached %d times", n)
 	}
 }
 
