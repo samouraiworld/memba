@@ -22,7 +22,7 @@ const snapshot = (before = "0"): GovSnapshot => ({
     roster: structuredClone(native.roster) as GovSnapshot["roster"], constants: native.const,
     page: { total: native.page0.total, proposals: (before === "0" ? native.page0 : native.page22).proposals as GovProposal[] },
 })
-const guest = { status: "guest", address: "", network: { key: "onyx" } } as unknown as OsSession
+const guest = { status: "guest", address: "", network: { key: "onyx" }, openConnect: vi.fn() } as unknown as OsSession
 const as = (address: string) => ({ ...guest, status: "member", address }) as unknown as OsSession
 const open = vi.fn()
 
@@ -89,6 +89,19 @@ describe("Memba DAO on memba_gov", () => {
         expect(readGovSnapshot).toHaveBeenLastCalledWith(expect.anything(), "23", expect.anything())
         fireEvent.click(screen.getByRole("button", { name: "Newest" }))
         expect(await screen.findByRole("button", { name: /#42 / })).toBeInTheDocument()
+    })
+
+    it("offers proposing to seated members only, and Connect to a guest", async () => {
+        const view = folder("proposals")
+        fireEvent.click(await screen.findByRole("button", { name: "Connect to propose" }))
+        expect(guest.openConnect).toHaveBeenCalled()
+        view.unmount()
+        const seated = folder("proposals", as("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"))
+        expect(await screen.findByRole("button", { name: "New proposal…" })).toBeInTheDocument()
+        seated.unmount()
+        folder("proposals", as("g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z")) // invited, not seated
+        expect(await screen.findByText("Only seated members propose.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "New proposal…" })).toBeNull()
     })
 
     it("lists seats with their weight and the open invitations", async () => {

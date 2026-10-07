@@ -207,3 +207,10 @@ export function bridgeCall(action: string, args: string): { func: string; params
     const app = decoded.app, op = action.slice(action.indexOf(".") + 1), fields = parseArgs(args), call = CALLS[op]
     return { func: call.func ?? op, params: call.params.map((p) => (p === "app" ? { tag: "s" as const, value: app } : fields[p])) }
 }
+
+/** Whether the bridge applies op to app. */
+export const bridgeOpApplies = (op: string, app: string) =>
+    Object.hasOwn(BRIDGE, op) && Object.hasOwn(BRIDGE_APPS, app) && BRIDGE[op].apps(app)
+
+/** The bridge entrypoint that runs op, and whether it takes the app as its first parameter. */
+export const bridgeEntrypoint = (op: string) => ({ func: CALLS[op].func ?? op, takesApp: CALLS[op].params[0] === "app" })

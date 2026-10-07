@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Propose on Memba DAO's new governance (2026-10-08)
+- Members file roster changes and app actions from the OS, reviewed decoded before signing; Memba refuses at review what the contract would refuse
+
 ### Vote, execute, join and pause on Memba DAO's new governance (2026-10-08)
 - Once memba_gov and its bridge are published, members vote, execute an approved action, accept their seat invitation and pause an app for up to seven days from the OS
 - An action Memba cannot read is shown raw, with no one-click YES; an app action runs only while the app still matches what was voted

@@ -18,6 +18,7 @@ import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { FolderTabs } from "./FolderTabs"
 import { EmergencyPauses, JoinAction } from "./GovActions"
+import { ProposeForm } from "./GovPropose"
 import { useGovSnapshot } from "./useGovDao"
 
 const TABS: { id: DaoSection; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "proposals", label: "Proposals" }, { id: "members", label: "Members" }]
@@ -54,7 +55,7 @@ export function GovFolder({ name, section, open, session }: Props) {
                 <>
                     {/* A later read that fails leaves the previous one on screen, and says so. */}
                     {snapshot.isError && <ErrorState message={`${govReadError(snapshot.error)} This is the previous read.`} onRetry={() => void snapshot.refetch()} />}
-                    {tab === "proposals" ? <Proposals data={data} name={name} open={open} older={(id) => setBefore(id)} newest={() => setBefore("0")} />
+                    {tab === "proposals" ? <Proposals data={data} name={name} open={open} session={session} older={(id) => setBefore(id)} newest={() => setBefore("0")} />
                         : tab === "members" ? <Members data={data} />
                             : <Overview data={data} name={name} open={open} session={session} />}
                 </>
@@ -113,11 +114,17 @@ function Overview({ data, name, open, session }: { data: GovSnapshot; name: stri
     )
 }
 
-function Proposals({ data, name, open, older, newest }: { data: GovSnapshot; name: string; open: (spec: WindowSpec) => void; older: (before: string) => void; newest: () => void }) {
+function Proposals({ data, name, open, session, older, newest }: { data: GovSnapshot; name: string; open: (spec: WindowSpec) => void; session: OsSession; older: (before: string) => void; newest: () => void }) {
+    const [composing, setComposing] = useState(false)
     const list = data.page.proposals
     const last = list.at(-1)
+    const seated = session.status === "member" && data.roster.members.some((m) => m.address === session.address)
     return (
         <div className="os-stack os-tight">
+            {composing ? <ProposeForm session={session} onClose={() => setComposing(false)} />
+                : session.status !== "member" ? <button type="button" className="os-btn" onClick={session.openConnect}>Connect to propose</button>
+                    : seated ? <button type="button" className="os-btn" onClick={() => setComposing(true)}>New proposal…</button>
+                        : <p className="os-sub">Only seated members propose.</p>}
             {list.length === 0 ? <p className="os-sub">No proposals yet.</p> : <ul className="os-list">{list.map((p) => <li key={p.id}><Row p={p} name={name} open={open} /></li>)}</ul>}
             <div className="os-row">
                 {list[0] && list[0].id !== data.page.total && <button type="button" className="os-btn os-quiet" onClick={newest}>Newest</button>}
