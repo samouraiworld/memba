@@ -45,6 +45,16 @@ interface IBnRegistrar {
 interface IBnResolver {
     function setText(bytes32 node, string calldata key, string calldata value) external;
     function text(bytes32 node, string calldata key) external view returns (string memory);
+    function addr(bytes32 node) external view returns (address);
+    function name(bytes32 node) external view returns (string memory);
+}
+
+interface IBnRegistry {
+    function resolver(bytes32 node) external view returns (address);
+}
+
+interface IBnL2ReverseRegistrar {
+    function nameForAddr(address addr) external view returns (string memory);
 }
 
 /// Profile row: a Basename registered through the controller that is live today, with a text record.
@@ -135,6 +145,43 @@ contract BasenamesBaseTest is BasenamesTest {
 
     function _resolver() internal pure override returns (address) {
         return Addr.BASENAMES_UPGRADEABLE_L2_RESOLVER_BASE;
+    }
+
+    /// The read path of the Profile app (frontend lib/chain/evm/basenames.ts) on a long-standing primary name:
+    /// the ENSIP-19 reverse registrar and the legacy reverse node (`<addr>.80002105.reverse`) both name it, and
+    /// the forward record resolves back to the address (the check that makes a primary name trustworthy).
+    function test_primary_name_read_path() public view {
+        address jesse = 0x2211d1D0020DAEA8039E46Cf1367962070d77DA9;
+        assertEq(IBnL2ReverseRegistrar(Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE).nameForAddr(jesse), "jesse.base.eth");
+
+        bytes32 reverseNode = keccak256(
+            abi.encodePacked(
+                keccak256(
+                    abi.encodePacked(
+                        keccak256(abi.encodePacked(bytes32(0), keccak256("reverse"))), keccak256("80002105")
+                    )
+                ),
+                keccak256(bytes(_hexLower(jesse)))
+            )
+        );
+        address reverseResolver = IBnRegistry(Addr.BASENAMES_REGISTRY_BASE).resolver(reverseNode);
+        assertEq(reverseResolver, Addr.BASENAMES_L2_RESOLVER_BASE);
+        assertEq(IBnResolver(reverseResolver).name(reverseNode), "jesse.base.eth");
+
+        bytes32 node = keccak256(abi.encodePacked(IBnRegistrar(_registrar()).baseNode(), keccak256("jesse")));
+        address resolver = IBnRegistry(Addr.BASENAMES_REGISTRY_BASE).resolver(node);
+        assertEq(IBnResolver(resolver).addr(node), jesse);
+    }
+
+    function _hexLower(address a) internal pure returns (string memory) {
+        bytes memory out = new bytes(40);
+        bytes16 digits = "0123456789abcdef";
+        for (uint256 i; i < 20; i++) {
+            uint8 b = uint8(uint160(a) >> (8 * (19 - i)));
+            out[2 * i] = digits[b >> 4];
+            out[2 * i + 1] = digits[b & 0x0f];
+        }
+        return string(out);
     }
 
     /// On Base mainnet the legacy controller is no longer a registrar controller: registering through it fails.

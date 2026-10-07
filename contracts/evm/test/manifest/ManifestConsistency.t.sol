@@ -105,6 +105,7 @@ contract ManifestConsistencyTest is Test {
         assertEq(_a(base, "basenamesRegistrarController"), Addr.BASENAMES_UPGRADEABLE_CONTROLLER_BASE);
         assertEq(_a(base, "basenamesL2Resolver"), Addr.BASENAMES_UPGRADEABLE_L2_RESOLVER_BASE);
         assertEq(_a(base, "basenamesL2ResolverLegacy"), Addr.BASENAMES_L2_RESOLVER_BASE);
+        assertEq(_a(base, "basenamesL2ReverseRegistrar"), Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE);
         assertEq(
             base.readAddress(".deny.basenamesRegistrarControllerLegacy.address"),
             Addr.BASENAMES_REGISTRAR_CONTROLLER_BASE

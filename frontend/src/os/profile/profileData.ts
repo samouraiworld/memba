@@ -84,7 +84,7 @@ export function safeProfileUrl(value: unknown): string | null {
 }
 
 /** The version of a stored layout that parses as one, whatever else it holds; null otherwise. */
-function storedLayoutVersion(raw: string): number | null {
+export function storedLayoutVersion(raw: string): number | null {
     try {
         const value: unknown = JSON.parse(raw)
         return isRecord(value) && typeof value.version === "number" ? value.version : null

@@ -284,6 +284,11 @@
       "address": "0x6533C94869D28fAA8dF77cc63f9e2b2D6Cf77eBA",
       "codehash": "0x5f8138cfb4afbb24152621c1f656f631680d2670dee017eec534b13aec50efc2",
       "source": "S9 base/basenames README (resolver of names registered before the upgrade)"
+    },
+    "basenamesL2ReverseRegistrar": {
+      "address": "0x00000BeEF055f7934784D6d81b6BC86665630dbA",
+      "codehash": "0x42cfa5d08bdb24cf7967c1b6018ceae6995cfebd59680d930977a365b4407606",
+      "source": "ENSIP-19 L2ReverseRegistrar for Base Sepolia (ensdomains/ens-contracts); coinType() = 0x80014a34 checked on chain"
     }
   },
   "deny": {

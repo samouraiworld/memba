@@ -17,6 +17,10 @@ interface IBaseRegistrarLive {
     function controllers(address) external view returns (bool);
 }
 
+interface IL2ReverseRegistrarLive {
+    function coinType() external view returns (uint256);
+}
+
 /// Checks deployments/evm/<chainId>.json against the chain at its latest block: chain id, code at every
 /// address, runtime codehash, EIP-1967 implementation and its codehash for proxies, readable versions and
 /// pinned Aragon builds. A proxy upgrade is a failure on purpose: it is a review event.
@@ -89,6 +93,12 @@ abstract contract ManifestLiveTest is Test {
     function test_basenames_controller_accepted() public view {
         IBaseRegistrarLive r = IBaseRegistrarLive(json.readAddress(".contracts.basenamesBaseRegistrar.address"));
         assertTrue(r.controllers(json.readAddress(".contracts.basenamesRegistrarController.address")));
+    }
+
+    /// The ENSIP-19 reverse registrar Memba reads primary names from serves this chain's coin type.
+    function test_reverse_registrar_serves_this_chain() public view {
+        address rr = json.readAddress(".contracts.basenamesL2ReverseRegistrar.address");
+        assertEq(IL2ReverseRegistrarLive(rr).coinType(), 0x80000000 | block.chainid, "ENSIP-11 coin type");
     }
 }
 

@@ -75,6 +75,16 @@ script/token-artifact.sh --check
 forge test --match-path 'test/unit/*'
 ```
 
+## Profile on Basenames (read)
+
+`frontend/src/lib/chain/evm/basenames.ts` reads a Base account's profile straight from Base, from manifest contracts only:
+
+1. Primary name: the ENSIP-19 reverse registrar (`basenamesL2ReverseRegistrar`, `nameForAddr`), then the legacy reverse node `<addr>.<0x80000000 | chainId>.reverse` on the registry's resolver.
+2. A candidate is shown only when it is one normalized label under `base.eth` (`basetest.eth` on Base Sepolia), its resolver is a Basenames resolver from the manifest, and its forward `addr` is the same address. Anyone can claim any name in reverse.
+3. Text records in one multicall: `description`, `avatar`, `url`, `location`, `com.twitter`, `com.github`, and `memba.profile.v1` (the same layout JSON as the Gno profile field).
+
+An RPC failure throws; "no name" is only what the chain answered. `frontend/src/os/profile/evm/basenameProfile.ts` maps the result onto the Profile app's `ProfileChainRead`. Evidence: `contracts/evm/test/fork/Basenames.t.sol` `test_primary_name_read_path` (jesse.base.eth at the pinned block) and `ManifestLive` `test_reverse_registrar_serves_this_chain`.
+
 ## Contracts CI
 
 `.github/workflows/contracts-evm.yml`; the required check is the aggregate job **`Contracts (EVM)`** (it always reports; jobs a PR does not need are skipped and count as passed).

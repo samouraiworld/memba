@@ -239,6 +239,10 @@ export const EVM_MANIFEST = {
             "basenamesL2ResolverLegacy": {
                 "address": "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
                 "codehash": "0x0b59e4aef257ba45839c5dd63f9c0e67497c74f3b2095b1f65148e80d58bd402"
+            },
+            "basenamesL2ReverseRegistrar": {
+                "address": "0x0000000000D8e504002cC26E3Ec46D81971C1664",
+                "codehash": "0x0630630afe381c07f157fd5272b48b8ca0a57ae94537167a7156267af7ffc84b"
             }
         },
         "deny": {
@@ -484,6 +488,10 @@ export const EVM_MANIFEST = {
             "basenamesL2ResolverLegacy": {
                 "address": "0x6533C94869D28fAA8dF77cc63f9e2b2D6Cf77eBA",
                 "codehash": "0x5f8138cfb4afbb24152621c1f656f631680d2670dee017eec534b13aec50efc2"
+            },
+            "basenamesL2ReverseRegistrar": {
+                "address": "0x00000BeEF055f7934784D6d81b6BC86665630dbA",
+                "codehash": "0x42cfa5d08bdb24cf7967c1b6018ceae6995cfebd59680d930977a365b4407606"
             }
         },
         "deny": {

@@ -284,6 +284,11 @@
       "address": "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD",
       "codehash": "0x0b59e4aef257ba45839c5dd63f9c0e67497c74f3b2095b1f65148e80d58bd402",
       "source": "S9 base/basenames README (resolver of names registered before the upgrade)"
+    },
+    "basenamesL2ReverseRegistrar": {
+      "address": "0x0000000000D8e504002cC26E3Ec46D81971C1664",
+      "codehash": "0x0630630afe381c07f157fd5272b48b8ca0a57ae94537167a7156267af7ffc84b",
+      "source": "ENSIP-19 L2ReverseRegistrar for Base (ensdomains/ens-contracts); coinType() = 0x80002105 checked on chain"
     }
   },
   "deny": {
