@@ -7,15 +7,19 @@
 import { z } from "zod"
 import { isRealmValid } from "../config"
 import { MAX_ARGS } from "./daoauth"
-import { GOV_PATH } from "./govActions"
+import { BRIDGE_APPS, BRIDGE_PATH, GOV_PATH } from "./govActions"
 import { directRpcCall, abciErrorPresent } from "../rpcFallback"
 import { assertWeightedChain, parseWeightedQeval, qevalText } from "./weighted"
+import { packageAddress } from "./weightedApplications"
 import { address, id, uint64 } from "./weightedPrimitives"
 
 export type GovContext = { rpcUrl: string; chainId: string }
 
 /** Memba DAO runs on memba_gov on the active network once its publication is recorded there. */
 export const govPublished = () => isRealmValid(GOV_PATH)
+/** The apps' governed calls also need the bridge's publication recorded. */
+export const bridgePublished = () => govPublished() && isRealmValid(BRIDGE_PATH)
+export const PAUSABLE_APPS = Object.keys(BRIDGE_APPS).filter((app) => BRIDGE_APPS[app].pause)
 
 const unix = uint64
 const ascii = (max: number) => z.string().max(max).regex(/^[\x20-\x7e]*$/)
@@ -46,9 +50,15 @@ const constantsSchema = z.object({
     inactiveDelay: count, inactiveAfter: count, minSeats: count, maxSeats: count, maxListed: count,
 })
 
+const approvalSchema = z.strictObject({
+    target: z.literal(BRIDGE_PATH), action: ascii(64), args: ascii(MAX_ARGS), scope: ascii(160),
+    class: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+})
+
 export type GovRoster = z.infer<typeof rosterSchema>
 export type GovProposal = z.infer<typeof proposalSchema>
 export type GovConstants = z.infer<typeof constantsSchema>
+export type GovApproval = z.infer<typeof approvalSchema>
 
 async function read(ctx: GovContext, path: string, expression: string, signal?: AbortSignal): Promise<unknown> {
     return parseWeightedQeval(await qevalText(ctx.rpcUrl, path, expression, signal))
@@ -95,6 +105,24 @@ export async function readGovProposal(ctx: GovContext, proposalId: string, signa
 }
 
 /**
+ * The exact proposal a bridge entrypoint call needs now, built by the
+ * bridge's own code; `call` is the daoauth encoding of the entrypoint's name
+ * and its arguments after the proposal id. The chain refuses a call the
+ * entrypoint would refuse before a vote.
+ */
+export async function readBridgeApproval(ctx: GovContext, call: string, signal?: AbortSignal): Promise<GovApproval> {
+    if (call.length > MAX_ARGS || !/^[\x20-\x7e]*$/.test(call)) throw new Error("Invalid call") // the bridge parses it as daoauth
+    await assertWeightedChain(ctx, signal)
+    const answer = await abciQuery(ctx, "vm/qeval", `${BRIDGE_PATH}.Approval(${JSON.stringify(call)})`, signal) // printable ASCII: JSON quoting is a valid Gno literal
+    if (answer.failed) {
+        // The bridge's own refusal ("memba_bridge: role already in that state").
+        const reason = answer.log.match(/(?:memba_bridge|daoauth): ([\x20-\x7e]{1,200}?)(?:\\n|\n|"|$)/)?.[1]
+        throw new Error(reason ? `The bridge refuses this call: ${reason}` : "Chain read failed")
+    }
+    return approvalSchema.parse(parseWeightedQeval(answer.text))
+}
+
+/**
  * Whether a proposal's target realm is published on this chain now, and
  * whether it is private: its creator can redeploy a private realm, so its code
  * can change after the vote. Only the chain's "not available" answer means
@@ -118,4 +146,31 @@ async function abciQuery(ctx: GovContext, path: string, query: string, signal?: 
         .parse(result).response.ResponseBase
     if (abciErrorPresent(base.Error)) return { failed: true as const, log: base.Log ?? "" }
     return { failed: false as const, text: new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(base.Data ?? ""), c => c.charCodeAt(0))) }
+}
+
+/** The getter of each pausable app's current admin: the bridge pauses only an app it governs. */
+const ADMIN_GETTER: Record<string, string> = {
+    escrow_v4: "GetAdmin()", memba_appstore_v3: "GetOwner()", memba_arcade_leaderboard_v1: "GetOwner()", gnobuilders_badges_v2: "GetOwner()",
+    memba_feed_v1: "GetOwner()", memba_dao_channels_v2: "GetOwner()", memba_feedback_v2: "GetOwner()",
+}
+
+export type BridgePause = { until: number; governed: boolean }
+
+/**
+ * For each pausable app: when the bridge's pause ends (unix seconds, 0 for
+ * none) and whether the bridge governs the app now (is its admin).
+ */
+export async function readBridgePauses(ctx: GovContext, signal?: AbortSignal): Promise<Record<string, BridgePause>> {
+    await assertWeightedChain(ctx, signal)
+    const bridge = packageAddress(BRIDGE_PATH)
+    const raw = await Promise.all(PAUSABLE_APPS.flatMap((app) => [
+        qevalText(ctx.rpcUrl, BRIDGE_PATH, `PausedUntil("${app}")`, signal),
+        qevalText(ctx.rpcUrl, `gno.land/r/samcrew/${app}`, ADMIN_GETTER[app], signal),
+    ]))
+    return Object.fromEntries(PAUSABLE_APPS.map((app, i) => {
+        const until = raw[2 * i].match(/^\((0|[1-9][0-9]{0,11}) int64\)\s*$/)
+        if (!until) throw new Error("Invalid pause read")
+        const admin = raw[2 * i + 1].match(/^\("(g1[0-9a-z]{38})" (?:string|\.uverse\.address)\)\s*$/)?.[1]
+        return [app, { until: Number(until[1]), governed: admin === bridge }]
+    }))
 }

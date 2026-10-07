@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
-import { readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
+import { readBridgePauses, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
 
 const ctx = () => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID })
 const key = (...rest: string[]) => ["dao", "gov", GNO_CHAIN_ID, ...rest]
@@ -44,5 +44,14 @@ export function useTargetManifest(target: string, enabled: boolean) {
         queryKey: key("manifest", target),
         queryFn: ({ signal }) => readTargetManifest(ctx(), target, signal),
         enabled, staleTime: REREAD_MS, retry: false,
+    })
+}
+
+/** When the bridge's pause of each pausable app ends (0: none). */
+export function useBridgePauses(enabled: boolean) {
+    return useQuery({
+        queryKey: key("pauses"),
+        queryFn: ({ signal }) => readBridgePauses(ctx(), signal),
+        enabled, staleTime: 15_000, refetchInterval: REREAD_MS, retry: false,
     })
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/memba-gov/native.json"
 import { qevalWire } from "./testdata/weighted"
 import { directRpcCall } from "../rpcFallback"
-import { GovNotFound, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
+import { GovNotFound, readBridgeApproval, readBridgePauses, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
 
 const ctx = { rpcUrl: "https://selected.invalid", chainId: "onyx-1" }
@@ -31,6 +31,14 @@ beforeEach(() => {
         if (method === "status") return { node_info: { network } }
         const expr = new TextDecoder().decode(Uint8Array.from(params!.data.slice(2).match(/../g)!, h => parseInt(h, 16)))
         asked.push(expr)
+        if (expr.startsWith("gno.land/r/samcrew/memba_bridge_v1.Approval(")) {
+            if (expr.includes("Grant")) return { response: { ResponseBase: { Data: null, Error: { msg: "x" }, Log: "VM panic: memba_bridge: role already in that state\nstack..." } } }
+            return wire(native.approval)
+        }
+        const goWire = (text: string) => ({ response: { ResponseBase: { Data: btoa(text), Error: null } } })
+        if (expr.startsWith("gno.land/r/samcrew/memba_bridge_v1.PausedUntil(")) return goWire(expr.includes("feed") ? "(1700000000 int64)" : "(0 int64)")
+        if (expr === "gno.land/r/samcrew/escrow_v4.GetAdmin()") return goWire('("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf" string)')
+        if (expr.endsWith(".GetOwner()")) return goWire('("g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp" .uverse.address)')
         if (params!.path === '"vm/qfile"') {
             const manifest = manifests[expr]
             if (expr.includes("busy")) return { response: { ResponseBase: { Data: null, Error: { msg: "x" }, Log: "rate limited" } } }
@@ -79,5 +87,23 @@ describe("memba_gov reads", () => {
         expect(await readTargetManifest(ctx, "gno.land/r/nobody/here")).toBe("absent")
         await expect(readTargetManifest(ctx, "gno.land/r/busy/node")).rejects.toThrow("Chain read failed") // not proof of absence
         await expect(readTargetManifest(ctx, "gno.land/r/x/../y\"")).rejects.toThrow("Invalid target")
+    })
+
+    it("asks the bridge for the exact approval of a call, and says why it refuses one", async () => {
+        const a = await readBridgeApproval(ctx, "s:6:SetFee|s:7:service|i:300")
+        expect(a).toEqual(native.approval)
+        expect(asked).toContain('gno.land/r/samcrew/memba_bridge_v1.Approval("s:6:SetFee|s:7:service|i:300")')
+        await expect(readBridgeApproval(ctx, "s:5:Grant|s:13:memba_feed_v1|a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+            .rejects.toThrow("The bridge refuses this call: role already in that state")
+        await expect(readBridgeApproval(ctx, 's:4:x"); Evil(')).resolves.toBeDefined() // quoted as one string literal
+        expect(asked.at(-1)).toBe('gno.land/r/samcrew/memba_bridge_v1.Approval("s:4:x\\"); Evil(")')
+        await expect(readBridgeApproval(ctx, "s:1:é")).rejects.toThrow("Invalid call")
+    })
+
+    it("reads each pausable app's bridge pause and whether the bridge is its admin", async () => {
+        const pauses = await readBridgePauses(ctx)
+        expect(Object.keys(pauses)).toHaveLength(7)
+        expect(pauses.memba_feed_v1).toEqual({ until: 1700000000, governed: true })
+        expect(pauses.escrow_v4).toEqual({ until: 0, governed: false }) // still the 2-of-3's
     })
 })

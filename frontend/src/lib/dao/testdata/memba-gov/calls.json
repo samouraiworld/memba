@@ -1,0 +1,360 @@
+{
+ "_comment": "The Approval call each node fixture of memba_bridge_v1 makes before a governed call, with the proposal it consumes (args null where the fixture reads them at run time). Written by the generator of those fixtures, kept outside this repository.",
+ "calls": [
+  {
+   "action": "escrow_v4.SetPause",
+   "args": "i:4102444800|b:0|u:0|u:1",
+   "call": "s:8:SetPause|s:9:escrow_v4|i:4102444800"
+  },
+  {
+   "action": "escrow_v4.SetPause",
+   "args": "i:0|b:1|u:1|u:1",
+   "call": "s:8:SetPause|s:9:escrow_v4|i:0"
+  },
+  {
+   "action": "memba_appstore_v3.SetPause",
+   "args": "i:4102444800|b:0|u:0|u:1",
+   "call": "s:8:SetPause|s:17:memba_appstore_v3|i:4102444800"
+  },
+  {
+   "action": "memba_appstore_v3.SetPause",
+   "args": "i:0|b:1|u:1|u:1",
+   "call": "s:8:SetPause|s:17:memba_appstore_v3|i:0"
+  },
+  {
+   "action": "memba_arcade_leaderboard_v1.SetPause",
+   "args": "i:4102444800|b:0|u:0|u:1",
+   "call": "s:8:SetPause|s:27:memba_arcade_leaderboard_v1|i:4102444800"
+  },
+  {
+   "action": "memba_arcade_leaderboard_v1.SetPause",
+   "args": "i:0|b:1|u:1|u:1",
+   "call": "s:8:SetPause|s:27:memba_arcade_leaderboard_v1|i:0"
+  },
+  {
+   "action": "gnobuilders_badges_v2.SetPause",
+   "args": "i:4102444800|b:0|u:0|u:1",
+   "call": "s:8:SetPause|s:21:gnobuilders_badges_v2|i:4102444800"
+  },
+  {
+   "action": "gnobuilders_badges_v2.SetPause",
+   "args": "i:0|b:1|u:1|u:1",
+   "call": "s:8:SetPause|s:21:gnobuilders_badges_v2|i:0"
+  },
+  {
+   "action": "memba_feed_v1.SetPause",
+   "args": "i:4102444800|b:0|u:1|u:1",
+   "call": "s:8:SetPause|s:13:memba_feed_v1|i:4102444800"
+  },
+  {
+   "action": "memba_feed_v1.SetPause",
+   "args": "i:0|b:1|u:2|u:1",
+   "call": "s:8:SetPause|s:13:memba_feed_v1|i:0"
+  },
+  {
+   "action": "memba_dao_channels_v2.SetPause",
+   "args": "i:4102444800|b:0|u:0|u:1",
+   "call": "s:8:SetPause|s:21:memba_dao_channels_v2|i:4102444800"
+  },
+  {
+   "action": "memba_dao_channels_v2.SetPause",
+   "args": "i:0|b:1|u:1|u:1",
+   "call": "s:8:SetPause|s:21:memba_dao_channels_v2|i:0"
+  },
+  {
+   "action": "memba_feedback_v2.SetPause",
+   "args": "i:4102444800|b:0|u:0|u:1",
+   "call": "s:8:SetPause|s:17:memba_feedback_v2|i:4102444800"
+  },
+  {
+   "action": "memba_feedback_v2.SetPause",
+   "args": "i:0|b:1|u:1|u:1",
+   "call": "s:8:SetPause|s:17:memba_feedback_v2|i:0"
+  },
+  {
+   "action": "memba_appstore_v3.TransferAdmin",
+   "args": "a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|s:0:|u:1",
+   "call": "s:13:TransferAdmin|s:17:memba_appstore_v3|a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+  },
+  {
+   "action": "memba_appstore_v3.CancelTransfer",
+   "args": "s:40:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|u:1",
+   "call": "s:14:CancelTransfer|s:17:memba_appstore_v3"
+  },
+  {
+   "action": "memba_arcade_leaderboard_v1.TransferAdmin",
+   "args": "a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|s:0:|u:1",
+   "call": "s:13:TransferAdmin|s:27:memba_arcade_leaderboard_v1|a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+  },
+  {
+   "action": "gnobuilders_badges_v2.SetPause",
+   "args": "i:4102444800|b:0|u:1|u:1",
+   "call": "s:8:SetPause|s:21:gnobuilders_badges_v2|i:4102444800"
+  },
+  {
+   "action": "gnobuilders_badges_v2.TransferAdmin",
+   "args": "a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|s:0:|u:1",
+   "call": "s:13:TransferAdmin|s:21:gnobuilders_badges_v2|a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+  },
+  {
+   "action": "memba_feed_v1.TransferAdmin",
+   "args": "a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|s:0:|u:1",
+   "call": "s:13:TransferAdmin|s:13:memba_feed_v1|a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+  },
+  {
+   "action": "memba_dao_channels_v2.TransferAdmin",
+   "args": "a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|s:0:|u:1",
+   "call": "s:13:TransferAdmin|s:21:memba_dao_channels_v2|a:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+  },
+  {
+   "action": "memba_dao_channels_v2.CancelTransfer",
+   "args": "s:40:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|u:1",
+   "call": "s:14:CancelTransfer|s:21:memba_dao_channels_v2"
+  },
+  {
+   "action": "memba_dao_channels_v2.TransferAdmin",
+   "args": "a:g1v3addmckxxdzjf9mgawecushq7w66pq0lldjgk|s:0:|u:1",
+   "call": "s:13:TransferAdmin|s:21:memba_dao_channels_v2|a:g1v3addmckxxdzjf9mgawecushq7w66pq0lldjgk"
+  },
+  {
+   "action": "memba_appstore_v3.Grant",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|u:1",
+   "call": "s:5:Grant|s:17:memba_appstore_v3|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_appstore_v3.Revoke",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|u:1",
+   "call": "s:6:Revoke|s:17:memba_appstore_v3|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_arcade_leaderboard_v1.Grant",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|u:1",
+   "call": "s:5:Grant|s:27:memba_arcade_leaderboard_v1|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_arcade_leaderboard_v1.Revoke",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|u:1",
+   "call": "s:6:Revoke|s:27:memba_arcade_leaderboard_v1|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_feed_v1.Grant",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|u:1",
+   "call": "s:5:Grant|s:13:memba_feed_v1|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_feed_v1.Revoke",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|u:1",
+   "call": "s:6:Revoke|s:13:memba_feed_v1|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "gnobuilders_badges_v2.Grant",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|i:1|u:1",
+   "call": "s:5:Grant|s:21:gnobuilders_badges_v2|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "gnobuilders_badges_v2.Revoke",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|i:2|u:1",
+   "call": "s:6:Revoke|s:21:gnobuilders_badges_v2|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_appstore_v3.SetRegistrationFee",
+   "args": "i:2000000|i:1000000|u:1",
+   "call": "s:18:SetRegistrationFee|i:2000000"
+  },
+  {
+   "action": "memba_appstore_v3.SetTreasury",
+   "args": "a:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z|s:40:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|u:1",
+   "call": "s:11:SetTreasury|s:17:memba_appstore_v3|a:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z"
+  },
+  {
+   "action": "memba_market_config.SetFee",
+   "args": "s:7:service|i:300|i:200|u:1",
+   "call": "s:6:SetFee|s:7:service|i:300"
+  },
+  {
+   "action": "memba_quest_attestation_v1.SetSigner",
+   "args": "s:64:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff|s:0:|u:1",
+   "call": "s:14:SetQuestSigner|s:64:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+  },
+  {
+   "action": "escrow_v4.ResolveDispute",
+   "args": null,
+   "call": "s:14:ResolveDispute|s:1:0|i:0|b:0"
+  },
+  {
+   "action": "escrow_v4.ResolveDispute",
+   "args": null,
+   "call": "s:14:ResolveDispute|s:1:0|i:1|b:1"
+  },
+  {
+   "action": "escrow_v4.ProposeFeeRecipient",
+   "args": "a:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z|s:40:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5|s:0:|u:1",
+   "call": "s:19:ProposeFeeRecipient|a:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z"
+  },
+  {
+   "action": "escrow_v4.CancelFeeRecipient",
+   "args": "s:40:g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z|u:1",
+   "call": "s:18:CancelFeeRecipient"
+  },
+  {
+   "action": "memba_dao_channels_v2.AddMember",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|s:3:dev|u:1|s:0:|u:1",
+   "call": "s:9:AddMember|s:21:memba_dao_channels_v2|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|s:3:dev"
+  },
+  {
+   "action": "memba_dao_channels_v2.SetRoles",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|s:7:dev,ops|u:2|s:3:dev|u:1",
+   "call": "s:8:SetRoles|s:21:memba_dao_channels_v2|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|s:7:dev,ops"
+  },
+  {
+   "action": "memba_dao_channels_v2.RemoveMember",
+   "args": "a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp|s:0:|u:3|s:7:dev,ops|u:1",
+   "call": "s:12:RemoveMember|s:21:memba_dao_channels_v2|a:g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"
+  },
+  {
+   "action": "memba_dao_channels_v2.CreateChannel",
+   "args": "s:4:news|s:9:Team news|s:4:text|i:6|u:1",
+   "call": "s:13:CreateChannel|s:21:memba_dao_channels_v2|s:4:news|s:9:Team news|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.AddMember",
+   "args": "a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4|s:5:admin|u:1|s:0:|u:1",
+   "call": "s:9:AddMember|s:17:memba_feedback_v2|a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4|s:5:admin"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:5:ideas|s:5:Ideas|s:4:text|i:4|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:5:ideas|s:5:Ideas|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.SetRoles",
+   "args": "a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4|s:9:admin,dev|u:2|s:5:admin|u:1",
+   "call": "s:8:SetRoles|s:17:memba_feedback_v2|a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4|s:9:admin,dev"
+  },
+  {
+   "action": "memba_feedback_v2.RemoveMember",
+   "args": "a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4|s:0:|u:3|s:9:admin,dev|u:1",
+   "call": "s:12:RemoveMember|s:17:memba_feedback_v2|a:g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:2:c5|s:1:x|s:4:text|i:5|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:2:c5|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:2:c6|s:1:x|s:4:text|i:6|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:2:c6|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:2:c7|s:1:x|s:4:text|i:7|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:2:c7|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:2:c8|s:1:x|s:4:text|i:8|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:2:c8|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:2:c9|s:1:x|s:4:text|i:9|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:2:c9|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c10|s:1:x|s:4:text|i:10|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c10|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c11|s:1:x|s:4:text|i:11|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c11|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c12|s:1:x|s:4:text|i:12|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c12|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c13|s:1:x|s:4:text|i:13|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c13|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c14|s:1:x|s:4:text|i:14|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c14|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c15|s:1:x|s:4:text|i:15|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c15|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c16|s:1:x|s:4:text|i:16|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c16|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c17|s:1:x|s:4:text|i:17|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c17|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c18|s:1:x|s:4:text|i:18|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c18|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_feedback_v2.CreateChannel",
+   "args": "s:3:c19|s:1:x|s:4:text|i:19|u:1",
+   "call": "s:13:CreateChannel|s:17:memba_feedback_v2|s:3:c19|s:1:x|s:4:text"
+  },
+  {
+   "action": "memba_reviews_v2.Unhide",
+   "args": null,
+   "call": "s:6:Unhide|u:1"
+  },
+  {
+   "action": "memba_reviews_v2.HideReview",
+   "args": null,
+   "call": "s:10:HideReview|u:1"
+  },
+  {
+   "action": "memba_reviews_v2.HideComment",
+   "args": null,
+   "call": "s:11:HideComment|u:2"
+  },
+  {
+   "action": "memba_reviews_v2.Unhide",
+   "args": null,
+   "call": "s:6:Unhide|u:1"
+  },
+  {
+   "action": "memba_appstore_v3.Curate",
+   "args": null,
+   "call": "s:6:Curate|s:6:reject|s:19:gno.land/r/demo/app|s:4:spam"
+  },
+  {
+   "action": "memba_appstore_v3.Curate",
+   "args": null,
+   "call": "s:6:Curate|s:7:approve|s:19:gno.land/r/demo/app|s:0:"
+  },
+  {
+   "action": "memba_appstore_v3.Curate",
+   "args": null,
+   "call": "s:6:Curate|s:6:delist|s:19:gno.land/r/demo/app|s:0:"
+  },
+  {
+   "action": "memba_appstore_v3.Curate",
+   "args": null,
+   "call": "s:6:Curate|s:7:restore|s:19:gno.land/r/demo/app|s:0:"
+  },
+  {
+   "action": "memba_appstore_v3.Curate",
+   "args": null,
+   "call": "s:6:Curate|s:10:clearflags|s:19:gno.land/r/demo/app|s:0:"
+  }
+ ]
+}

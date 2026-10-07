@@ -30,6 +30,7 @@ import { executeRequest, executeScope, executeWindow } from "./executeRequest"
 import { formatPercent, GOVDAO_REALM, govDaoExecuteRequest, govDaoResolution } from "./govdaoExecute"
 import { quoteSheetGasPrice } from "./sheetFee"
 import { useAlive } from "../shell/useAlive"
+import { useNowSeconds } from "../shell/useNowSeconds"
 import { JoinMembaDao } from "./JoinMembaDao"
 import { ParkedDaos } from "./ParkedDaos"
 import { UnknownOutcome } from "./UnknownOutcome"
@@ -280,7 +281,7 @@ function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderPro
 export function ProposalWindow({ dao, n, session, open }: { dao: string; n: number; session: OsSession; open: (spec: WindowSpec) => void }) {
     const realmPath = realmForName(dao)
     if (!realmPath) return <NotADao name={dao} />
-    if (realmPath === GOV_PATH) return govPublished() ? <GovProposalWindow id={String(n)} /> : <GovNotPublished />
+    if (realmPath === GOV_PATH) return govPublished() ? <GovProposalWindow id={String(n)} session={session} /> : <GovNotPublished />
     return (
         <StandardDaoOnly dao={dao} realmPath={realmPath} what={`proposal #${n}`} open={open} weighted={<WeightedProposalWindow realmPath={realmPath} id={String(n)} session={session} />}>
             <ProposalBody dao={dao} realmPath={realmPath} n={n} session={session} open={open} />
@@ -296,16 +297,6 @@ export function NewProposalWindow({ dao, session, open, close }: { dao: string; 
 }
 
 const CHOICE_WORDS = { YES: "Yes", NO: "No", ABSTAIN: "Abstain" } as const
-
-/** Chain-style seconds, refreshed every 30 s (relative "ends in" times). */
-function useNowSeconds(): number {
-    const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
-    useEffect(() => {
-        const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000)
-        return () => clearInterval(id)
-    }, [])
-    return now
-}
 
 function Bar({ label, value, whole }: { label: string; value: number; whole: number }) {
     const pct = whole > 0 ? Math.min(100, Math.round((value / whole) * 100)) : 0

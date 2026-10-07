@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Vote, execute, join and pause on Memba DAO's new governance (2026-10-08)
+- Once memba_gov and its bridge are published, members vote, execute an approved action, accept their seat invitation and pause an app for up to seven days from the OS
+- An action Memba cannot read is shown raw, with no one-click YES; an app action runs only while the app still matches what was voted
+
 ### Memba DAO's new governance, read-only (2026-10-08)
 - The Memba DAO window shows memba_gov, the contract that replaces the current DAO: its members, pending invitations, the voting rules read from the contract, and each proposal, decoded where Memba knows the action and shown raw otherwise, with its target contract flagged
 - It turns on in a network once memba_gov is published there; until then the window says the contract is not published on that network
