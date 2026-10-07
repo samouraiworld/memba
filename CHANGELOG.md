@@ -20,70 +20,85 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Guest banner wording (2026-10-08)
+## [v7.8.0] — 2026-10-07
+
+### Memba OS at memba.club, hiring with escrow, native multisig and signing you can check (2026-10-07)
+<!-- categories: memba, network -->
+- **memba.club is Memba's canonical address, and it opens Memba OS**: a desktop where DAOs, the wallet, multisigs and every Memba app open as windows, with a review sheet before every signature. memba.samourai.app now tells visitors that Memba moved to memba.club.
+- **Hire with milestone escrow on gno.land mainnet.** The Market hires through `escrow_v4`, by address or from the curated Samourai Coop listing, and every contract has a shareable page showing only the calls your wallet can make.
+- **Native Gno multisig.** Create a multisig from its members' public keys, sign its proposals without joining it, and broadcast with a chain check before any re-send.
+- **Signing you can check.** One wallet request per action, a cancellation checked three blocks later, new addresses activated by a 1 ugnot self-send, and measured gas with capped deposits for profiles, usernames, the App Store and DAO calls.
+- **Retired networks.** Pearl, Betanet, Topaz and Sapphire are gone from Memba; their old links open the same page on gno.land mainnet.
+- This release covers everything merged since v7.7.0, listed below. Some sections describe features that stay off on gno.land mainnet until their contracts are published there; "Not on gno.land mainnet yet" lists them.
+
+### Blog: seven articles on mainnet, Memba OS, escrow, multisig and signing (2026-10-07)
+<!-- categories: memba -->
+- Seven News articles: validator health on mainnet, creating a DAO on gno.land mainnet, Memba's move to mainnet, Memba OS, hiring with milestone escrow, native multisig, and what Memba checks when you sign.
+
+### Guest banner wording (2026-10-07)
 - Memba OS: the guest banner says Connect to sign instead of Connect to vote, which only made sense over a DAO
 
-### Dependencies (2026-10-08)
+### Dependencies (2026-10-07)
 - Security: the HTML sanitiser (`dompurify`) is raised past its latest advisory (GHSA-p98j-92pf-mc4p, GHSA-6688-9rhm-gjv2)
 - React 19.3, react-router 7.18.4, TanStack Query 5.104, Sentry 10.76, protobuf 2.16, zod 4.6 and the backend's SQLite driver 1.60.1 are current
 
-### Alerts in Settings, Notifications (2026-10-08)
+### Alerts in Settings, Notifications (2026-10-07)
 - Memba OS: validator and GovDAO alerts now live in Settings, Notifications. The Validators app's Alerts button and old Alerts links open them there, with your webhooks, contacts and daily report unchanged
 
-### Sign-in loads only when you sign in (2026-10-08)
+### Sign-in loads only when you sign in (2026-10-07)
 - Sign-in (Alerts, admin link) loads Clerk only when you sign in or are already signed in on this device, not for every visitor; if Clerk cannot load, Alerts says sign-in is unavailable and the rest of Memba keeps working
 
-### NFT collections: network fee sized to the terms (2026-10-08)
+### NFT collections: network fee sized to the terms (2026-10-07)
 - Creating an NFT collection asks a network fee sized to its terms, so collections with long links, symbols or many royalty receivers no longer fail for lack of gas
 
-### Escrow: who decides disputes (2026-10-08)
+### Escrow: who decides disputes (2026-10-07)
 - Once Memba DAO is escrow's admin, a contract's page states how members decide a dispute: within about 14 days, either a full refund to the client or payment to the freelancer minus the platform fee, otherwise the 31-day default applies
 - A member voting on a dispute they are party to sees a warning
 
-### Propose on Memba DAO's new governance (2026-10-08)
+### Propose on Memba DAO's new governance (2026-10-07)
 - Members file roster changes and app actions from the OS, reviewed decoded before signing; Memba refuses at review what the contract would refuse
 
-### Vote, execute, join and pause on Memba DAO's new governance (2026-10-08)
+### Vote, execute, join and pause on Memba DAO's new governance (2026-10-07)
 - Once memba_gov and its bridge are published, members vote, execute an approved action, accept their seat invitation and pause an app for up to seven days from the OS
 - An action Memba cannot read is shown raw, with no one-click YES; an app action runs only while the app still matches what was voted
 
-### Memba DAO's new governance, read-only (2026-10-08)
+### Memba DAO's new governance, read-only (2026-10-07)
 - The Memba DAO window shows memba_gov, the contract that replaces the current DAO: its members, pending invitations, the voting rules read from the contract, and each proposal, decoded where Memba knows the action and shown raw otherwise, with its target contract flagged
 - It turns on in a network once memba_gov is published there; until then the window says the contract is not published on that network
 
-### Multisig: shared names (2026-10-08)
+### Multisig: shared names (2026-10-07)
 - A member who has not named a multisig sees the name given by the member who named it first, marked with who that is; their own name still wins, and an account they have not joined keeps a neutral label outside its own page
 
-### Multisig: sign without joining (2026-10-08)
+### Multisig: sign without joining (2026-10-07)
 - Memba OS and Home: a member another member registered sees that account's proposals and can sign them at once; joining only keeps the account in their list (renaming also joins)
 - The Multisig app, the Memba OS bell and Home count the proposals waiting for your signature; for an account you have not joined, they show only the count, and its proposals are read on the account's page
 
-### Moderation and curation actions use current values (2026-10-08)
+### Moderation and curation actions use current values (2026-10-07)
 - Feed moderation and App Store curation: an action clicked right after the page changed now sends the values on screen, never the previous ones
 
-### Signing: "nothing was sent" (2026-10-08)
+### Signing: "nothing was sent" (2026-10-07)
 - Memba OS: when a signature stops before the wallet (a failed read, a risen fee, a refusal), the sheet now says nothing was sent
 - Memba OS: a signature whose wallet session ended or switched account while it was pending now settles, so nothing waits on it forever
 
-### DAO analyst MCP server removed (2026-10-07)
+### DAO analyst MCP server removed (2026-10-06)
 - Removed the DAO analyst MCP server, whose analysis tools called a backend endpoint that does not exist
 
-### Narrower content security policy (2026-10-07)
+### Narrower content security policy (2026-10-06)
 - Security: the content-security policy and the trusted RPC list no longer allow the third-party hosts only the retired test13 network used
 
-### Memba OS: link GitHub from your Profile (2026-10-07)
+### Memba OS: link GitHub from your Profile (2026-10-06)
 - Memba OS: link or unlink your GitHub account from your own Profile window
 
-### Launchpad fee keeper (2026-10-07)
+### Launchpad fee keeper (2026-10-06)
 - A fee keeper command sweeps the Launchpad sales fees to the treasury daily (or at 10 GNOT) through a gnokey key referenced by name, and pages when the sweep differs from what was owed
 
-### Launchpad solvency watcher (2026-10-07)
+### Launchpad solvency watcher (2026-10-06)
 - A solvency watcher in the backend reads the Launchpad sales and market books every minute and pages the pauser on a deficit, a fallen surplus or an unexpected view (off unless LAUNCHPAD_WATCH_ENABLED=1)
 
-### Retired chains cleanup (2026-10-07)
+### Retired chains cleanup (2026-10-06)
 - The analyst accepts only mainnet, Onyx and the test fixture network; the template compile gate runs on mainnet and onyx-1 (Pearl lane removed); the docs describe mainnet and Onyx as the chains in use
 
-### Retired network: Pearl (2026-10-07)
+### Retired network: Pearl (2026-10-06)
 - Pearl's network entry is gone from Memba; old Pearl links still open the same page on mainnet
 
 ### Retired network: Betanet (2026-10-06)
@@ -320,12 +335,12 @@ Full changelogs are split by version range for easier navigation:
 - Remove the unused Remotion video packages and the MSW mock server from the frontend; nothing imported them, and a clean install now pulls in about 200 fewer packages, webpack included.
 - Update Clerk themes, three.js, React Three Fiber and typescript-eslint to newer patch and minor releases (bundles Dependabot #1409–#1411).
 
-### Memba OS: native public Profile and visual editor
+### Memba OS: native public Profile and visual editor (2026-09-29)
 
 - Show public profiles from Gno with source-labelled legacy context, default assets and credentials, responsive layouts, and address-based share links. Feed author names open the same Profile window.
 - Preview identity fields, images, links, templates and section order in a local draft with undo. Mainnet uses the live caller-owned profile realm for a versioned layout document; publishing stays off by default until wallet and gas rehearsal is complete.
 - Lead with an Overview that discovers an address-owned Home realm and links to its original page. Separate checked DAO roles, published packages and linked GitHub activity, and indexed Feed posts and replies into source-labelled tabs with explicit coverage limits.
-### Quests: retire unverified feedback claims
+### Quests: retire unverified feedback claims (2026-09-29)
 
 - Reject new `submit-feedback` quest claims on the server while preserving XP from historically accepted completions.
 ### App Store: shared classic discovery (2026-09-28)
@@ -337,7 +352,7 @@ Full changelogs are split by version range for easier navigation:
 - Keep the Store trust panel content-sized on desktop, keep the review form closed until it is opened or holds a draft, and give rating stars and review controls larger touch targets.
 - Reject listing paths with dot or empty segments. Show a listing that is not live under its own name and status, never as curator approved.
 
-### Memba OS: quieter Live and repeat welcome
+### Memba OS: quieter Live and repeat welcome (2026-09-28)
 
 - Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
 ### Memba OS: native App Store discovery (2026-09-28)
@@ -345,7 +360,7 @@ Full changelogs are split by version range for easier navigation:
 - Browse onchain listings and independent Gno projects in one native OS catalogue, with searchable categories, network status, provenance and app detail windows. The Store remains useful to guests when the registry is unavailable.
 - Read registry pages beyond the first window and show an explicit error or incomplete-results notice when discovery cannot cover the full catalogue. Match editorial projects by verified realm path so a copied website URL cannot hide an independent project.
 
-### Memba OS: classic bundle guard
+### Memba OS: classic bundle guard (2026-09-28)
 
 - Keep the flag-off bundle check strict while allowing the exact classic page CSS selectors used when Arcade and Explorer are embedded in OS. Continue rejecting additional OS styles, chunks, fonts and brand assets.
 ### Memba OS: Learn production QA (2026-09-28)
@@ -405,7 +420,7 @@ Full changelogs are split by version range for easier navigation:
 - Read App Store reviews inside the native detail window when app reviews are enabled and the network's reviews realm is live. Keep wallet authorship distinct from proof of app use.
 - Page through visible reviews after moderation, show the full onchain review count, and calculate decimal ratings from the exact sum. Offer retry when a review read fails.
 
-### Memba OS: native Settings
+### Memba OS: native Settings (2026-09-27)
 
 - Give Settings a native OS window with desktop appearance, wallpaper and icon size controls, honest notification availability, read-only network details, local gas defaults, account status and About access. Reset only disposable local UI data after confirmation, preserving unsent drafts, saved recipients and send locks.
 ### Memba OS: shell production QA follow-up (2026-09-27)
@@ -545,7 +560,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba OS boots like an old computer (2026-09-25)
 <!-- categories: memba -->
-- A first visit to Memba OS opens with a short boot, still behind `VITE_MEMBA_OS`: a power-on self-test types out what this browser knows (the network, whether a wallet is installed, the desktop items, the apps), collapses into a bright line, and that line opens into the lock screen like a warming CRT. It lasts about two seconds, a click or any key skips it (without pressing anything underneath), and it never plays again, on a shared link, or when the device asks for reduced motion.
+- A first visit to Memba OS opens with a short boot: a power-on self-test types out what this browser knows (the network, whether a wallet is installed, the desktop items, the apps), collapses into a bright line, and that line opens into the lock screen like a warming CRT. It lasts about two seconds, a click or any key skips it (without pressing anything underneath), and it never plays again, on a shared link, or when the device asks for reduced motion.
 
 ### A build with an http backend URL now fails (2026-09-25)
 <!-- categories: security, build -->
@@ -733,78 +748,78 @@ Full changelogs are split by version range for easier navigation:
 - **The quest voucher key only signs for the chain it was made for.** The attestation realm's signed message has no chain id, so each chain now gets its own key, and the backend signs only when `QUEST_SIGNER_CHAIN_ID` matches the chain it runs on. Otherwise the signer is turned off: it is logged, shown on `/health` and in a metric, and voucher requests get a clear "unavailable" error. Boot never fails because of it. The Pearl-era key in production is now off, not signing for gno.land mainnet.
 - **Vouchers stay with the key and chain that signed them.** The backend no longer serves a voucher from an older key or another chain, and such a voucher no longer blocks a new one: the next quest sync re-issues it under the current key.
 - **Mainnet runbooks.** `docs/QUEST_ATTESTATION_RUNBOOK.md` covers the steps from the offline key tool (`backend/cmd/quest-signer-keygen`) to `SetSigner` and a smoke test. `backend/docs/ARCADE_CERTIFY_RUNBOOK.md` gains the mainnet attester steps: key, `AddAttester`, Fly and Netlify flags, and checks.
-### Memba OS foundations
+### Memba OS foundations (2026-09-24)
 <!-- categories: memba -->
-- Memba OS, the desktop redesign, starts behind the `VITE_MEMBA_OS` flag at `/os`: an empty Aqua desktop in light and dark, the app registry that gives every Memba page a home, and its own end-to-end suite.
+- Memba OS, the desktop redesign, starts at `/os`, built with `VITE_MEMBA_OS` only for memba.club: an empty Aqua desktop in light and dark, the app registry that gives every Memba page a home, and its own end-to-end suite.
 - A flag-on build fails everywhere except the Memba OS beta site, and a flag-off build ships none of its code.
-### Memba OS DAOs and signing
+### Memba OS DAOs and signing (2026-09-24)
 <!-- categories: memba -->
-- Memba OS reviews every signature before Adena opens, still behind `VITE_MEMBA_OS`. The review sheet shows in plain language what happens, where, and the deposit cap, then the "Adena should show" checklist, decoded from the exact messages that will be signed. Adena opens only when those messages are identical to the reviewed ones; the sheet replaces the classic confirmation instead of adding a second one. A wallet on another network is blocked until you switch it.
+- Memba OS reviews every signature before Adena opens. The review sheet shows in plain language what happens, where, and the deposit cap, then the "Adena should show" checklist, decoded from the exact messages that will be signed. Adena opens only when those messages are identical to the reviewed ones; the sheet replaces the classic confirmation instead of adding a second one. A wallet on another network is blocked until you switch it.
 - A transaction tray shows pending signatures in the menu bar and their results in notifications. When the outcome is unknown, the action locks until you confirm you've checked it. The lock uses the same saved attempt as the classic pages, so it holds in both.
 - DAOs open natively in Memba OS: the DAOs app, a DAO folder with Overview, Proposals, Members and Treasury (a target design for now), and proposal windows where members vote Yes, No or Abstain. The checks the classic proposal page runs just before signing apply here too. DAO links use the realm path with dots, like `/os/dao/alice.team`, plus the short names `govdao` and `memba_dao`.
 - On the beta site, `memba.club/` opens Memba OS.
-### Memba OS wizards
+### Memba OS wizards (2026-09-24)
 <!-- categories: memba -->
-- Memba OS creates proposals and DAOs in wizard windows, still behind `VITE_MEMBA_OS`. Each has steps, a live preview and a draft saved in this browser, and ends in the Memba review before Adena opens.
+- Memba OS creates proposals and DAOs in wizard windows. Each has steps, a live preview and a draft saved in this browser, and ends in the Memba review before Adena opens.
 - New proposal (`/os/dao/<name>/proposals/new`, version-2 DAOs): text, add member, remove member, change roles and archive, with the classic form's rules and its checks just before signing. The draft is the classic one, so either interface can continue it.
 - Create a DAO (`/os/daos/new`): name, preset, members, rules, extras, review. The review checks on-chain that you may publish under the address and that it is free, and shows the deposit estimate and cap and the network fee. The deploy follows the classic pipeline: a record saved before the wallet opens, "live" read from the chain only, "waiting for network approval" on gnoland-1, and an unknown outcome locks that address until it is checked. Treasury shows as a target design.
-### Memba OS pages and search
+### Memba OS pages and search (2026-09-24)
 <!-- categories: memba -->
-- Every Memba page now opens inside a Memba OS window, still behind `VITE_MEMBA_OS`: apps without a native window yet (Feed, App Store, Arcade, Validators, Settings, Tokens, NFT, Quests, Explorer, Profile, News, Dev Report) show their current page in the window instead of an "Open in Memba" link. Links inside a page stay in Memba OS: the same app's pages open in its window as history entries, other apps open their own window, and DAO pages open the native DAO windows.
+- Every Memba page now opens inside a Memba OS window: apps without a native window yet (Feed, App Store, Arcade, Validators, Settings, Tokens, NFT, Quests, Explorer, Profile, News, Dev Report) show their current page in the window instead of an "Open in Memba" link. Links inside a page stay in Memba OS: the same app's pages open in its window as history entries, other apps open their own window, and DAO pages open the native DAO windows.
 - ⌘K (or the ⌕ button in the menu bar) searches apps, DAOs and their sections, Memba's pages and commands; a pasted `g1…` address opens its profile or validator page, and a realm path opens its DAO.
 - Send feedback opens in its own window (`/os/feedback`). Multisig and your own profile ask a guest to connect first.
 - The network route table moves from `App.tsx` to `routes/networkRoutes.tsx`, unchanged, so both interfaces render the same pages.
-### Memba OS pages that redirect, and narrow windows
+### Memba OS pages that redirect, and narrow windows (2026-09-24)
 <!-- categories: memba -->
-- A Memba page that redirects as it opens now follows the redirect inside its Memba OS window, still behind `VITE_MEMBA_OS`. The NFT app (which opens the marketplace), Services and the other redirecting pages showed an empty window, because the window's address was written back over the redirect.
+- A Memba page that redirects as it opens now follows the redirect inside its Memba OS window. The NFT app (which opens the marketplace), Services and the other redirecting pages showed an empty window, because the window's address was written back over the redirect.
 - Feed, App Store, Arcade, Validators and Quests keep their phone layout in a narrow Memba OS window on a desktop screen, instead of spilling sideways out of it. The window body is a named `os-window` container, so a page can mirror its phone rules with `@container os-window (…)`; those rules never apply outside Memba OS.
-### Memba OS wallet and GNOT send
+### Memba OS wallet and GNOT send (2026-09-24)
 <!-- categories: memba, wallet -->
-- Memba OS has a native Wallet window, still behind `VITE_MEMBA_OS`: your GNOT balance, Send, Receive (copies your address), and tokens, shown as "Not on gnoland-1 yet" where the token factory isn't live.
+- Memba OS has a native Wallet window: your GNOT balance, Send, Receive (copies your address), and tokens, shown as "Not on gnoland-1 yet" where the token factory isn't live.
 - Send GNOT from Memba OS (`/os/wallet/send`, or "Send GNOT" in ⌘K). The amount is exact to the ugnot; commas are refused rather than guessed, so "12,5" can never become 125. On mainnet, a first send to an address or a send of 100 GNOT or more needs an explicit "I checked the address" in the review. Recent and saved recipients stay in this browser.
 - The send goes through the Memba review, then Adena shows it as a Transfer: one `/bank.MsgSend` with a single coin amount, the shape Adena accepts (the earlier attempt in #1078 used another spelling). It is never retried automatically, Memba asks Adena which account is active right before signing, and an unknown outcome locks Send until you confirm you checked it.
 - `toAdenaMessages` accepts `/bank.MsgSend` only in that shape: two `g1` addresses and one positive `ugnot` amount. The old `bank/MsgSend` form still throws.
-### Memba OS sends to @names
+### Memba OS sends to @names (2026-09-25)
 <!-- categories: memba, wallet -->
-- Send in Memba OS takes a gno.land username (`@alice`) as well as a g1… address, still behind `VITE_MEMBA_OS` (D16, D23). The name goes through the shared recipient resolver (`resolveRecipient`, #1305: `r/sys/users.ResolveName` on an RPC checked to serve the right chain), and the form shows the address it belongs to.
+- Send in Memba OS takes a gno.land username (`@alice`) as well as a g1… address (D16, D23). The name goes through the shared recipient resolver (`resolveRecipient`, #1305: `r/sys/users.ResolveName` on an RPC checked to serve the right chain), and the form shows the address it belongs to.
 - The Memba review shows the name together with the full address, and that address is the one signed. Just before Adena opens, the name is looked up again: if it now points to another address, or can't be read, nothing is sent. The new-address and 100 GNOT checks apply to the resolved address.
 - A bare word (`alice`) asks for the @; an unregistered name says so. A name with any character outside plain ASCII (an accent, a full-width or invisible character, a look-alike such as the Kelvin sign that lower-cases to `k`) is refused, never folded into a registered name.
-### Memba OS accessibility and speed
+### Memba OS accessibility and speed (2026-09-24)
 <!-- categories: memba, accessibility -->
-- Memba OS meets WCAG 2.1 AA contrast in both themes, still behind `VITE_MEMBA_OS`: the accent for buttons and links is darker, muted text is darker in the light theme, and the dark theme gets its own accent for text on tinted backgrounds and white text on accent-filled controls. The start menu's app list is a proper menu for screen readers.
+- Memba OS meets WCAG 2.1 AA contrast in both themes: the accent for buttons and links is darker, muted text is darker in the light theme, and the dark theme gets its own accent for text on tinted backgrounds and white text on accent-filled controls. The start menu's app list is a proper menu for screen readers.
 - Keyboard focus follows the front window: opening a window (from search, the dock or a link) moves focus into it, and closing it with ⌥W moves focus to the next one. A phone sheet puts focus on its title. Reduced motion turns every Memba OS animation off.
 - Each app's windows load the first time you open them, so Memba OS itself loads about 40% less code. A window that can't load, or whose page breaks, now shows that inside itself (Reload Memba, Try again, Close window) and the other windows keep working, instead of the whole screen being replaced by an error.
 
-### Memba OS on phones
+### Memba OS on phones (2026-09-24)
 <!-- categories: memba, mobile -->
-- On a phone (768 px and narrower), Memba OS becomes a home screen, still behind `VITE_MEMBA_OS`: a status bar with the clock, network and notifications; a space chip; a widget with your balance and Send (or Connect for guests); your desktop items; All apps; and a dock with DAOs, Wallet, Feed and Search.
+- On a phone (768 px and narrower), Memba OS becomes a home screen: a status bar with the clock, network and notifications; a space chip; a widget with your balance and Send (or Connect for guests); your desktop items; All apps; and a dock with DAOs, Wallet, Feed and Search.
 - Every window opens as one full-screen sheet with ‹ Home. Links, shared URLs and Back work as on the desktop: a shared proposal link opens straight as a sheet, and Back after Home reopens the sheet you left. DAO sections show as tabs, and Memba's pages use their own mobile layout inside a sheet.
 
-### Memba OS multisig windows
+### Memba OS multisig windows (2026-09-24)
 <!-- categories: memba -->
-- Memba OS has native Multisig windows, still behind `VITE_MEMBA_OS`: the Multisig app lists your multisigs and the ones you're a member of (with Join), and a multisig window shows its threshold, balance, members and transactions, with a dot per signer.
+- Memba OS has native Multisig windows: the Multisig app lists your multisigs and the ones you're a member of (with Join), and a multisig window shows its threshold, balance, members and transactions, with a dot per signer.
 - Sign, broadcast, new transaction, create and import open Memba's own multisig pages inside the window, unchanged; native wizards come after the multisig signing-path review.
 - ⌥F (or Window → Full screen) shows the front window full screen, for games and anything else (D32).
 
-### Memba OS Dev Report fits narrow windows
+### Memba OS Dev Report fits narrow windows (2026-09-25)
 <!-- categories: memba -->
-- Dev Report keeps its phone layout in a narrow Memba OS window, still behind `VITE_MEMBA_OS`: the section tabs wrap and the time filters scroll instead of being clipped. Its main phone rules are mirrored as `@container os-window` rules, which never apply outside Memba OS.
-### Memba OS page windows keep their query string
+- Dev Report keeps its phone layout in a narrow Memba OS window: the section tabs wrap and the time filters scroll instead of being clipped. Its main phone rules are mirrored as `@container os-window` rules, which never apply outside Memba OS.
+### Memba OS page windows keep their query string (2026-09-25)
 <!-- categories: memba -->
-- A Memba page inside a Memba OS window now gets its own query string, still behind `VITE_MEMBA_OS`. Tabs and filters that live in the address (Validators sections, the App Store directory, the Explorer directory tabs) switch inside the window, and shared import links (`/import?pubkey=…`) carry their data again. Before, the window dropped the query, so those tabs never changed.
+- A Memba page inside a Memba OS window now gets its own query string. Tabs and filters that live in the address (Validators sections, the App Store directory, the Explorer directory tabs) switch inside the window, and shared import links (`/import?pubkey=…`) carry their data again. Before, the window dropped the query, so those tabs never changed.
 - The front window's query sits in the address beside the other windows: `/os/validators?tab=network&w=app.feed`. `w` stays reserved for the other windows. Back, Forward, reload and Copy link keep the query. A window behind the front one keeps its query in this browser's saved session, and reopening it from the dock or `w` keeps it too.
-### Memba OS windows
+### Memba OS windows (2026-09-24)
 <!-- categories: memba -->
-- Memba OS windows now behave like a desktop, still behind `VITE_MEMBA_OS`. You can drag them by the title bar, resize them from the corner, minimise them to the dock, maximise them, and tile the two front ones. ⌥W closes the front window and ⌥` switches to the next one.
+- Memba OS windows now behave like a desktop. You can drag them by the title bar, resize them from the corner, minimise them to the dock, maximise them, and tile the two front ones. ⌥W closes the front window and ⌥` switches to the next one.
 - The address bar follows the windows. Its path is the front window's link, and `?w=` lists the others. Opening a link opens its windows. A plain visit, or a reload, brings back this browser's last windows where they were.
 - Desktop icons: pin apps, DAOs, proposals and multisigs from the start menu or a window's menu, then drag them on a grid or remove them with a right-click. Each wallet keeps its own desk in this browser. Guests start from a few featured items.
 
-### Memba OS guest banner stays clear of windows
+### Memba OS guest banner stays clear of windows (2026-09-24)
 <!-- categories: memba -->
-- When a shared link opens Memba OS as a guest, the windows it opens (and any opened while "Browsing as guest" shows) start below that banner, still behind `VITE_MEMBA_OS`. A large window centred on a short screen used to start under it, with its title bar and close button covered.
-### Memba OS shell
+- When a shared link opens Memba OS as a guest, the windows it opens (and any opened while "Browsing as guest" shows) start below that banner. A large window centred on a short screen used to start under it, with its title bar and close button covered.
+### Memba OS shell (2026-09-24)
 <!-- categories: memba -->
-- Memba OS gets its shell, still behind `VITE_MEMBA_OS`. A lock screen greets first visits only. A wallet session resumes without it, and a shared link opens its content right away as a guest.
+- Memba OS gets its shell. A lock screen greets first visits only. A wallet session resumes without it, and a shared link opens its content right away as a guest.
 - The menu bar has the start menu with every app, the space switcher, the app and Window menus, the network (with a TESTNET warning off mainnet), notifications, the account menu and a clock. There's also a dock and a Welcome window.
 - Connect runs on Memba's existing Adena sign-in: install help, approval, the free login signature, and one-time activation for a new address.
 - Every `/os/...` link now opens in Memba OS. Before, links such as `/os/dao/...` or `/os/feed` fell into the regular pages.
@@ -812,11 +827,12 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba, network -->
 - The Directory reads which samcrew realms and packages are deployed from the chain's RPC (`vm/qpaths`) instead of gnoweb pages, which browsers could never load. On gno.land mainnet it now lists the eleven samcrew realms and four packages; the node's own chain id is checked first.
 
-### Coming next
+### Not on gno.land mainnet yet (2026-10-07)
 <!-- categories: memba, network -->
-- Escrow, marketplace configuration, DAO channels, quest attestation and the arcade leaderboard stay gated on gno.land mainnet until their own setup is complete.
-- The token launchpad, collectibles and the marketplace are not deployed on mainnet yet; Home labels them unavailable there.
-- Space Invaders certification (day-close attestation and the on-chain leaderboard) stays off, and the weighted founding-DAO workspace keeps mainnet writes blocked.
+- The Launchpad, NFT and token factory realms are not deployed on gno.land mainnet, so those features stay unavailable there.
+- Space Invaders certification (day-close attestation and the on-chain leaderboard) stays off.
+- Memba's channels and candidature are not available on gno.land.
+- Memba DAO (v12) is read-only in Memba while its governance moves to a new contract.
 
 ## [v7.7.0] — 2026-09-23
 
