@@ -390,9 +390,8 @@ describe("OS signing session boundary", () => {
             expect(stop.aborted).toBe(false)
             view.unmount()
             expect(stop.aborted).toBe(true)
-            // The signature ends there, as an unknown outcome nobody is left to show: nothing is released.
-            await act(async () => {})
-            expect(onSettled).not.toHaveBeenCalled()
+            // The signature ends there, as an unknown outcome nobody is left to show; the request still learns it.
+            await waitFor(() => expect(onSettled).toHaveBeenCalledWith("unknown", undefined))
         })
 
         it("keeps the explanation in the tray when the account moved", async () => {
@@ -550,8 +549,69 @@ describe("OS signing session boundary", () => {
         await act(async () => { finishRecheck(); await recheck })
         expect(afterPreflight).not.toHaveBeenCalled()
         expect(onNothingSent).toHaveBeenCalledOnce()
-        expect(onSettled).not.toHaveBeenCalled()
+        // Nothing was sent, and the old request still learns it: whatever waits on it is released.
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("failed", undefined))
         expect(screen.queryByRole("dialog", { name: "Review · Vote" })).toBeNull()
+        expect(toast).not.toHaveBeenCalled()
+    })
+
+    it("settles a request the wallet returns after the session ended, without a word to the screen", async () => {
+        let walletReturns!: (value: { hash: string }) => void
+        const wallet = new Promise<{ hash: string }>((resolve) => { walletReturns = resolve })
+        const onSettled = vi.fn()
+        const verify = vi.fn(async () => true)
+        const inWallet = vi.fn()
+        const sent = {
+            ...request,
+            // The broadcaster's order: the review's confirmation, the pre-sign checks, then the wallet.
+            send: vi.fn(async (_choice: string | undefined, beforeSign: () => Promise<void>) => {
+                const confirm = setTxConfirmationCallback(null) ?? (async () => true)
+                setTxConfirmationCallback(confirm)
+                await confirm([], "")
+                await beforeSign()
+                inWallet()
+                return wallet
+            }),
+            verify,
+            onSettled,
+        }
+        function SentReview() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(sent)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.title}</li>)}</ul></>
+        }
+        const toast = vi.fn()
+        const { rerender } = render(<SignerProvider session={session("member")} toast={toast}><SentReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        // The wallet has the request when the session ends.
+        await waitFor(() => expect(inWallet).toHaveBeenCalledOnce())
+        rerender(<SignerProvider session={session("guest")} toast={toast}><SentReview /></SignerProvider>)
+        await act(async () => { walletReturns({ hash: "LATE_HASH" }); await wallet })
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("submitted", undefined))
+        expect(verify).not.toHaveBeenCalled()
+        expect(toast).not.toHaveBeenCalled()
+        expect(screen.queryAllByRole("listitem")).toHaveLength(0)
+    })
+
+    it("settles a request whose verification ends after an account switch, and leaves nothing pending", async () => {
+        let verified!: (value: boolean) => void
+        const verification = new Promise<boolean>((resolve) => { verified = resolve })
+        const onSettled = vi.fn()
+        const sent = { ...request, send: vi.fn(async () => ({ hash: "SENT_HASH" })), verify: vi.fn(() => verification), onSettled }
+        function SentReview() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(sent)}>Open review</button><ul>{signer.pending.map((p) => <li key={p.id}>{p.label}</li>)}</ul></>
+        }
+        const toast = vi.fn()
+        const { rerender } = render(<SignerProvider session={session("member", "g1alpha")} toast={toast}><SentReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(sent.verify).toHaveBeenCalledOnce())
+        expect(screen.getByRole("listitem")).toHaveTextContent("Vote")
+        rerender(<SignerProvider session={session("member", "g1beta")} toast={toast}><SentReview /></SignerProvider>)
+        await act(async () => { verified(true); await verification })
+        await waitFor(() => expect(onSettled).toHaveBeenCalledWith("confirmed", undefined))
+        expect(screen.queryAllByRole("listitem")).toHaveLength(0)
         expect(toast).not.toHaveBeenCalled()
     })
 })
