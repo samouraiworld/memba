@@ -17,7 +17,8 @@
  * shown with the signing components, so invisible characters are revealed.
  */
 import { useCallback, useEffect, useState } from "react"
-import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../../lib/config"
+import { GNO_CHAIN_ID, GNO_RPC_URL, MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../../lib/config"
+import { readEscrowDecidedByDao } from "../../lib/dao/membaGov"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { getCurrentBlock } from "../../lib/dao/proposalDates"
 import { broadcastEscrowTx, escrowFailureMayHaveLanded } from "../../lib/marketplace/escrowTx"
@@ -57,7 +58,10 @@ export interface EscrowContractDetailProps {
     justCreated?: boolean
 }
 
-type Loaded = { contract: EscrowContractView | null; pause: EscrowPauseState; height: number }
+type Loaded = { contract: EscrowContractView | null; pause: EscrowPauseState; height: number; daoDecides: boolean }
+
+/** How Memba DAO decides disputes, said only once the DAO is the escrow's admin. */
+export const DAO_DISPUTES = "If you and the other party disagree, either of you can open a dispute. Memba DAO members then vote on it and decide within about 14 days: either the full amount goes back to the client, or the freelancer is paid minus the platform fee. There is no split. If no decision is made within about 31 days, anyone can settle the dispute by the contract's default: the freelancer is paid if the milestone was marked complete, otherwise the client is refunded."
 
 const STATUS_LABEL: Record<EscrowMilestoneStatus, string> = {
     pending: "Not funded",
@@ -133,12 +137,14 @@ function ContractDetail({ id, caller, onChanged, shareUrl, justCreated }: Escrow
     /** One read of the contract, the pause state and the height. No reads unless the lane is live here: elsewhere the realm may not exist. */
     const read = useCallback(async (): Promise<Loaded> => {
         if (!live) throw new Error(NOT_LIVE)
-        const [contract, pause, height] = await Promise.all([
+        const [contract, pause, height, daoDecides] = await Promise.all([
             readEscrowContract(MEMBA_DAO.escrowPath, id),
             readEscrowPauseState(MEMBA_DAO.escrowPath),
             getCurrentBlock(),
+            // A failed read only leaves this out: the general dispute text stays true.
+            readEscrowDecidedByDao({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID }, MEMBA_DAO.escrowPath).catch(() => false),
         ])
-        return { contract, pause, height }
+        return { contract, pause, height, daoDecides }
     }, [live, id])
 
     const settle = useCallback((result: { ok: true; value: Loaded } | { ok: false; error: unknown }): boolean => {
@@ -284,6 +290,7 @@ function ContractDetail({ id, caller, onChanged, shareUrl, justCreated }: Escrow
                             sets at that moment (at most 5%). If the client cancels, each funded milestone is refunded minus 5%
                             paid to the freelancer.
                         </dd>
+                        {loaded.daoDecides && <><dt>Disputes</dt><dd data-testid="escrow-dao-disputes">{DAO_DISPUTES}</dd></>}
                     </dl>
 
                     {pauseNote && <div className="escrow-notice" role="status" data-testid="escrow-pause-note">{pauseNote}</div>}

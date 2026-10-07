@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Escrow: who decides disputes (2026-10-08)
+- Once Memba DAO is escrow's admin, a contract's page states how members decide a dispute: within about 14 days, either a full refund to the client or payment to the freelancer minus the platform fee, otherwise the 31-day default applies
+- A member voting on a dispute they are party to sees a warning
+
 ### Propose on Memba DAO's new governance (2026-10-08)
 - Members file roster changes and app actions from the OS, reviewed decoded before signing; Memba refuses at review what the contract would refuse
 

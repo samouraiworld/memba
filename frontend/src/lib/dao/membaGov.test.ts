@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/memba-gov/native.json"
 import { qevalWire } from "./testdata/weighted"
 import { directRpcCall } from "../rpcFallback"
-import { GovNotFound, readBridgeApproval, readBridgePauses, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
+import { GovNotFound, readBridgeApproval, readBridgePauses, readEscrowDecidedByDao, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
+vi.mock("../config", async importOriginal => ({ ...await importOriginal<typeof import("../config")>(), isRealmValid: vi.fn(() => true) }))
 
 const ctx = { rpcUrl: "https://selected.invalid", chainId: "onyx-1" }
 const wire = (value: unknown) => ({ response: { ResponseBase: { Data: btoa(qevalWire(value)), Error: null } } })
 let answers: Record<string, unknown>
 let network: string
 const asked: string[] = []
+let escrowAdmin = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf" // the 2-of-3, as on gnoland-1 today
 const manifests: Record<string, string> = {
     "gno.land/r/samcrew/memba_bridge_v1/gnomod.toml": 'module = "gno.land/r/samcrew/memba_bridge_v1"\ngno = "0.9"\n',
     "gno.land/r/alice/app/gnomod.toml": 'module = "gno.land/r/alice/app"\ngno = "0.9"\nprivate = true\n',
@@ -37,7 +39,7 @@ beforeEach(() => {
         }
         const goWire = (text: string) => ({ response: { ResponseBase: { Data: btoa(text), Error: null } } })
         if (expr.startsWith("gno.land/r/samcrew/memba_bridge_v1.PausedUntil(")) return goWire(expr.includes("feed") ? "(1700000000 int64)" : "(0 int64)")
-        if (expr === "gno.land/r/samcrew/escrow_v4.GetAdmin()") return goWire('("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf" string)')
+        if (expr === "gno.land/r/samcrew/escrow_v4.GetAdmin()") return goWire(`("${escrowAdmin}" string)`)
         if (expr.endsWith(".GetOwner()")) return goWire('("g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp" .uverse.address)')
         if (params!.path === '"vm/qfile"') {
             const manifest = manifests[expr]
@@ -105,5 +107,15 @@ describe("memba_gov reads", () => {
         expect(Object.keys(pauses)).toHaveLength(7)
         expect(pauses.memba_feed_v1).toEqual({ until: 1700000000, governed: true })
         expect(pauses.escrow_v4).toEqual({ until: 0, governed: false }) // still the 2-of-3's
+    })
+
+    it("knows Memba DAO decides escrow disputes only once the bridge is escrow's admin", async () => {
+        escrowAdmin = "g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp" // memba_bridge_v1's package address
+        expect(await readEscrowDecidedByDao(ctx, "gno.land/r/samcrew/escrow_v4")).toBe(true)
+        escrowAdmin = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
+        expect(await readEscrowDecidedByDao(ctx, "gno.land/r/samcrew/escrow_v4")).toBe(false)
+        const before = asked.length
+        expect(await readEscrowDecidedByDao(ctx, "gno.land/r/samcrew/escrow_v3")).toBe(false)
+        expect(asked.length).toBe(before) // another escrow is never read
     })
 })
