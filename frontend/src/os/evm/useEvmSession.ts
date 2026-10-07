@@ -39,7 +39,7 @@ export interface EvmConnect {
     wrongChain: boolean
     /** The connected address in its EIP-55 form, for display ("" when none). */
     displayAddress: string
-    /** The EVM session token, for the calls EVM apps make as the signed-in account (null as a guest). */
+    /** The EVM session token (null as a guest). Read it through `evmAuthToken` (os/evm/evmToken.ts), which names the handler. */
     token: Token | null
 }
 
@@ -70,10 +70,12 @@ function challengeFailure(err: unknown, networkLabel: string): string {
 /** What to say when the server refused the signed message (GetSiweToken). */
 function tokenFailure(err: unknown, networkLabel: string, signature: string): string {
     const e = ConnectError.from(err)
-    // 65 bytes is an account key's signature: a longer one comes from a smart wallet (EIP-1271 / ERC-6492).
-    if (e.code === Code.PermissionDenied && signature.length > 2 + 65 * 2) return "Smart-wallet sign-in isn't accepted on this Memba server yet."
-    if (e.code === Code.PermissionDenied) return "Memba couldn't verify this sign-in. Sign in again."
+    // The chain refusal also rides PermissionDenied (with its code as the message): read it first.
     if (e.rawMessage.includes(CHAIN_MISMATCH_CODE)) return `This Memba server doesn't accept ${networkLabel} sign-ins yet.`
+    // 65 bytes is an account key's signature: a longer one comes from a smart wallet (EIP-1271 / ERC-6492).
+    // The server doesn't say whether it checks those at all, so neither does this message.
+    if (e.code === Code.PermissionDenied && signature.length > 2 + 65 * 2) return "Memba couldn't verify this smart-wallet signature, or this server doesn't accept smart-wallet sign-in yet."
+    if (e.code === Code.PermissionDenied) return "Memba couldn't verify this sign-in. Sign in again."
     if (notOffered(e)) return "This Memba server doesn't offer EVM sign-in yet."
     if (busy(e)) return BUSY
     return "Memba couldn't complete the sign-in. Try again in a moment."

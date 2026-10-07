@@ -57,7 +57,9 @@ export { TOKEN_KEY, EVM_TOKEN_KEY }
 export function invalidateSession(reason: string, family: SessionFamily = "gno") {
     const had = hasStoredToken(family)
     clearStoredToken(family)
-    if (!had) return
+    // The EVM session may live in memory only (its storage write failed): its listeners always hear,
+    // and dropping an already-dropped session is harmless. The gno.land session keeps its one-shot rule.
+    if (!had && family === "gno") return
     for (const l of listeners[family]) {
         try {
             l(reason)

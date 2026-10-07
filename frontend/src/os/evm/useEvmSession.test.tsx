@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { EvmWalletSnapshot, WalletOutcome } from "../../lib/chain/evm/wallet"
 import { invalidateSession } from "../../lib/authSession"
-import { EVM_TOKEN_KEY } from "./evmToken"
+import { EVM_TOKEN_KEY, evmAuthToken } from "./evmToken"
 import { useEvmSession } from "./useEvmSession"
 
 const ME = "0xabcdef0123456789abcdef0123456789abcdef01"
@@ -110,6 +110,32 @@ describe("useEvmSession", () => {
             connectedHere()
             localStorage.setItem(EVM_TOKEN_KEY, JSON.stringify({ ...TOKEN, userAddress: `eip155:84532:${ME}` }))
             expect((await restored()).result.current.status).toBe("member")
+        })
+
+        it("refuses a contract account's token whose address names another chain than the token", async () => {
+            connectedHere()
+            localStorage.setItem(EVM_TOKEN_KEY, JSON.stringify({ ...TOKEN, userAddress: `eip155:8453:${ME}` }))
+            const { result } = await restored()
+            expect(result.current.status).toBe("guest")
+            await waitFor(() => expect(storedEvmToken()).toBeNull())
+        })
+
+        it("signs out even when its token was never stored (storage refused the write)", async () => {
+            connectedHere()
+            localStorage.setItem(EVM_TOKEN_KEY, JSON.stringify(TOKEN))
+            const { result } = await restored()
+            localStorage.removeItem(EVM_TOKEN_KEY) // only the in-memory session is left
+            act(() => invalidateSession("rejected", "evm"))
+            expect(result.current.status).toBe("guest")
+        })
+
+        it("hands its token only for handlers that accept an EVM account", async () => {
+            connectedHere()
+            localStorage.setItem(EVM_TOKEN_KEY, JSON.stringify(TOKEN))
+            const { result } = await restored()
+            expect(evmAuthToken("UpdateProfile", result.current)).toMatchObject({ userAddress: ME })
+            // @ts-expect-error a gno.land-only handler would answer 401 and sign the EVM session out
+            evmAuthToken("CreateTransaction", result.current)
         })
 
         it("drops it when the wallet switches account", async () => {
@@ -241,6 +267,31 @@ describe("useEvmSession", () => {
             expect(result.current.error).toMatch(/declined the sign-in message/)
         })
 
+        it("stands down when cancelled, or when the account changes, while the challenge is in flight: the wallet is never asked", async () => {
+            for (const interrupt of ["cancel", "account"] as const) {
+                vi.clearAllMocks()
+                connectedHere()
+                let issue!: (v: unknown) => void
+                api.getSiweChallenge.mockReturnValue(new Promise((r) => { issue = r }))
+                const { result, unmount } = await restored()
+                let attempt!: Promise<void>
+                await act(async () => { attempt = result.current.signIn(); await Promise.resolve() })
+                await waitFor(() => expect(api.getSiweChallenge).toHaveBeenCalled())
+                act(() => { if (interrupt === "cancel") result.current.cancel(); else setWallet({ address: OTHER }) })
+                await act(async () => { issue({ challenge: challenge() }); await attempt })
+                expect(store.signMessage).not.toHaveBeenCalled()
+                unmount()
+            }
+        })
+
+        it("stands down when the wallet switches chain during the sign-in", async () => {
+            store.signMessage.mockImplementation(async () => { setWallet({ chainId: 8453 }); return { ok: true, signature: "0xsig" } })
+            const { result } = await restored()
+            await act(async () => { await result.current.signIn() })
+            expect(api.getSiweToken).not.toHaveBeenCalled()
+            expect(result.current.error).toBe("Your wallet changed account or chain during the sign-in. Sign in again.")
+        })
+
         it("stands down when cancelled while the wallet is open: no token is asked for", async () => {
             let sign!: (s: Signed) => void
             store.signMessage.mockReturnValue(new Promise((r) => { sign = r }))
@@ -305,9 +356,12 @@ describe("useEvmSession", () => {
 
             it("at the token", async () => {
                 expect(await failsWith("token", new ConnectError("", Code.PermissionDenied))).toBe("Memba couldn't verify this sign-in. Sign in again.")
-                expect(await failsWith("token", new ConnectError("", Code.PermissionDenied), `0x${"ab".repeat(66)}`)).toBe("Smart-wallet sign-in isn't accepted on this Memba server yet.")
+                // Exactly 65 bytes is an account key's signature, not a smart wallet's.
+                expect(await failsWith("token", new ConnectError("", Code.PermissionDenied), `0x${"ab".repeat(65)}`)).toBe("Memba couldn't verify this sign-in. Sign in again.")
+                expect(await failsWith("token", new ConnectError("", Code.PermissionDenied), `0x${"ab".repeat(66)}`)).toBe("Memba couldn't verify this smart-wallet signature, or this server doesn't accept smart-wallet sign-in yet.")
                 expect(await failsWith("token", new ConnectError("HTTP 429", Code.Unavailable))).toBe("Too many sign-in attempts, or the server is busy. Wait a moment, then sign in again.")
-                expect(await failsWith("token", new ConnectError("AUTH-CHAINID-MISMATCH-01", Code.FailedPrecondition))).toBe("This Memba server doesn't accept Base Sepolia sign-ins yet.")
+                // The backend sends the chain refusal as PermissionDenied, with its code as the message.
+                expect(await failsWith("token", new ConnectError("AUTH-CHAINID-MISMATCH-01", Code.PermissionDenied), `0x${"ab".repeat(66)}`)).toBe("This Memba server doesn't accept Base Sepolia sign-ins yet.")
             })
         })
     })

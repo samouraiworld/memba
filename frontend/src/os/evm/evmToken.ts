@@ -51,3 +51,17 @@ export function useEvmToken() {
     const clear = useCallback(() => { store(null); setToken(null) }, [])
     return { token, adopt, clear }
 }
+
+/**
+ * The backend handlers that accept an EVM account's token (they authenticate through
+ * `authenticateAccount`). Every other handler refuses it with a 401, and a 401 on a
+ * request that carried the EVM token signs the EVM session out (lib/api.ts): an EVM
+ * app must only send it to these. Add a handler here when the backend opts it in.
+ */
+export type EvmAccountHandler = "GetProfile" | "UpdateProfile" | "RegisterSafe" | "Safes"
+
+/** The session's EVM token, for a call to `handler` (one of those that accept it); null as a guest. */
+export function evmAuthToken(handler: EvmAccountHandler, session: { evm?: { token: Token | null } }): Token | null {
+    void handler // the name is the check: TypeScript accepts only an opted-in handler
+    return session.evm?.token ?? null
+}
