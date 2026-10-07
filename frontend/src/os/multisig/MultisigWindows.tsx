@@ -9,7 +9,7 @@
  *
  * @module os/multisig/MultisigWindows
  */
-import { useState, type ReactNode } from "react"
+import type { ReactNode } from "react"
 import { Code, ConnectError } from "@connectrpc/connect"
 import { GNO_CHAIN_ID } from "../../lib/config"
 import { multisigLabel, namedByText } from "../../lib/multisigName"
@@ -31,20 +31,7 @@ import { specForTarget, type WindowSpec } from "../shell/windows"
 import { formatUgnot } from "../wallet/send"
 import { awaitingText } from "../../lib/multisigAwaiting"
 import { useAwaiting, useChainAccountKind, useMultisigDetail, useMyMultisigs } from "./useOsMultisig"
-
-/** Where a guest's own data would be: why it is not shown, and the way to show it. */
-function ConnectHere({ session, text }: { session: OsSession; text: string }) {
-    if (session.status === "resuming") return <Loading what="your wallet" />
-    return (
-        <p className="os-sub" role="status">
-            {text} <button type="button" className="os-btn os-quiet os-inline" onClick={session.openConnect}>Connect</button>
-        </p>
-    )
-}
-
-function Loading({ what }: { what: string }) {
-    return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading {what}…</span></div>
-}
+import { ConnectHere, CopyAddressButton, Loading, MemberChips, SigDots, ThresholdAvatar } from "./MultisigParts"
 
 /** What a multisig is, for a guest and for a member with none yet. */
 const ABOUT = "A multisig is a shared account: a transaction leaves it only when enough of its members sign, for example 2 of 3. Memba keeps the members' public keys and their signatures until the transaction is sent."
@@ -69,7 +56,7 @@ export function MultisigApp({ session, open }: { session: OsSession; open: (spec
     const row = (m: Multisig, action?: ReactNode) => (
         <li key={m.address} className="os-row os-nowrap">
             <button type="button" className="os-it os-click os-grow" onClick={() => open(accountSpec(m.address))}>
-                <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
+                <ThresholdAvatar threshold={m.threshold} members={m.membersCount} />
                 <span className="os-grow"><MultisigTitle m={m} onPage={false} /><span className="os-sub os-block os-mono">{shortAddr(m.address)} · Requires {m.threshold} of {m.membersCount} members</span>{(awaiting.get(m.address) ?? 0) > 0 && <span className="os-sub os-block os-strong">{awaitingText(awaiting.get(m.address)!)}</span>}</span>
             </button>
             {action}
@@ -82,7 +69,7 @@ export function MultisigApp({ session, open }: { session: OsSession; open: (spec
                 <button type="button" className="os-btn os-quiet" onClick={() => open(page("import"))}>Import</button>
             </div>
             {!ENABLE_NATIVE_GNO_MULTISIG && <p className="os-sub" role="status">Native multisig registration is on hold pending release approval. Existing accounts can still be imported for read-only history.</p>}
-            {session.status !== "member" ? <><p className="os-sub">{ABOUT}</p><ConnectHere session={session} text="Connect a wallet to see the multisigs you sign for." /></> : list.isPending ? <Loading what="your multisigs" /> : list.isError ? (
+            {session.status !== "member" ? <><p className="os-sub">{ABOUT}</p><ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="Connect a wallet to see the multisigs you sign for." /></> : list.isPending ? <Loading what="your multisigs" /> : list.isError ? (
                 <p className="os-note os-err" role="alert">Couldn't load your multisigs. <button type="button" className="os-btn os-quiet os-inline" onClick={() => void list.refetch()}>Try again</button></p>
             ) : (
                 <>
@@ -159,14 +146,10 @@ export function MultisigWindow({ address, session, open }: { address: string; se
     const detail = useMultisigDetail(session.layout.auth, address)
     const adding = useJoinMultisig(session.layout.auth.token)
     const balance = useBalance(address)
-    const [copied, setCopied] = useState(false)
-    const copy = async () => {
-        try { await navigator.clipboard.writeText(address); setCopied(true) } catch { /* the address stays visible */ }
-    }
     const funds = (
         <div className="os-right"><div className="os-big">{balance.error ? "Balance unavailable" : balance.rawUgnot === undefined ? balance.balance : formatUgnot(balance.rawUgnot)}</div>{balance.error && <button type="button" className="os-btn os-quiet" onClick={() => void balance.refetch()}>Retry balance</button>}</div>
     )
-    const copyButton = <button type="button" className="os-btn os-quiet" onClick={() => { void copy() }}>{copied ? "Address copied" : `Copy ${GNO_CHAIN_ID} deposit address`}</button>
+    const copyButton = <CopyAddressButton address={address} label={`Copy ${GNO_CHAIN_ID} deposit address`} />
     // Memba answers for its members only. Anyone else sees the public face, named by the chain alone:
     // a link can carry any address, and only the chain says it is a multisig.
     const notMember = detail.isError && ConnectError.from(detail.error).code === Code.PermissionDenied
@@ -184,7 +167,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
                 : kind.data === "multisig" ? <div className="os-row">{copyButton}</div>
                 : <p className="os-sub" role="status">{kind.data === "unused" ? "Not yet confirmed as a multisig on chain: nothing has been signed from this address." : "This address is a single-key account, not a multisig."}</p>}
             {kind.data === "single" ? null
-                : session.status !== "member" ? <ConnectHere session={session} text="A multisig's members see its members, threshold and transactions here. Connect a wallet to see them." />
+                : session.status !== "member" ? <ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="A multisig's members see its members, threshold and transactions here. Connect a wallet to see them." />
                 : notMember ? <p className="os-sub" role="status">You are not a member of this multisig.</p>
                 : <p className="os-sub" role="status">This multisig is not registered in Memba for your account. <button type="button" className="os-btn os-quiet os-inline" onClick={() => open(page("import"))}>Import it</button></p>}
             {(kind.data === "multisig" || kind.data === "unused") && <Transfers address={address} open={open} />}
@@ -200,7 +183,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
     return (
         <div className="os-stack os-msig">
             <div className="os-row os-nowrap os-msig-head">
-                <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
+                <ThresholdAvatar threshold={m.threshold} members={m.membersCount} />
                 <div className="os-grow">
                     <MultisigTitle m={m} onPage />
                     <div className="os-sub">Requires {m.threshold} of {m.membersCount} members · <span className="os-mono">{shortAddr(address)}</span></div>
@@ -212,7 +195,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
                 <button type="button" className="os-btn os-quiet" disabled={adding.joining !== null || !m.pubkeyJson} onClick={() => { void adding.join(m) }}>{adding.joining ? "Joining…" : "Join to keep it in your accounts"}</button>
             </div>}
             {adding.error && <p className="os-note os-err" role="alert">{adding.error}</p>}
-            <div className="os-chipset" aria-label="Members">{m.usersAddresses.map((a) => <span key={a} className="os-pill os-mono" title={a}>{a === me ? "You" : shortAddr(a)}</span>)}</div>
+            <MemberChips members={m.usersAddresses} me={me} />
             <div className="os-row">
                 <button type="button" className="os-btn" disabled={!nativeEnabled} onClick={() => open(page(`${address}/propose`))}>Propose transaction</button>
                 {copyButton}
@@ -232,12 +215,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
                                 <div className="os-grow">
                                     <b>#{tx.id} {title}</b>
                                     <div className="os-sub os-break">{what}</div>
-                                    <div className="os-row os-tight">
-                                        <span className="os-sigdots" aria-label={`${signed.size} submitted, ${verified.size} verified, threshold ${tx.threshold}`}>
-                                            {m.usersAddresses.map((a) => <span key={a} className={verified.has(a) ? "os-on" : undefined} title={`${a}${signed.has(a) ? verified.has(a) ? ": verified" : ": submitted, unverified" : ": not signed"}`}>{a.slice(2, 3).toUpperCase()}</span>)}
-                                        </span>
-                                        <span className="os-sub">{signed.size} submitted · {verified.size} verified · threshold {tx.threshold}</span>
-                                    </div>
+                                    <SigDots members={m.usersAddresses} signed={signed} verified={verified} threshold={tx.threshold} />
                                 </div>
                                 <div className="os-stack os-tight os-right">
                                     <StatusBadge status={getMultisigStatus(tx)} sigCount={signed.size} threshold={tx.threshold} />
