@@ -15,6 +15,14 @@
  */
 import SafeApiKit from "@safe-global/api-kit"
 import Safe, { type Eip1193Provider, type PredictedSafeProps } from "@safe-global/protocol-kit"
+import { getPublicClient } from "@wagmi/core"
+import { getAddress, keccak256 } from "viem"
+import type { Read } from "../../types"
+import { chainFor, evmConfig } from "../adapter"
+import { inspectSafe, type SafeInspection, type SafeReader } from "./inspect"
+import type { Hex } from "./known"
+
+export { checkQueuedTx, type QueuedSafeTx, type TxCheck } from "./verify"
 
 /** The version Memba creates Safes with (docs/evm/PHASE0.md). */
 export const NEW_SAFE_VERSION = "1.5.0" as const
@@ -48,4 +56,38 @@ export function initNewSafe(provider: Eip1193Provider, signer: string, config: P
 /** protocol-kit for an existing Safe (any version protocol-kit supports; inspect it first). */
 export function initSafe(provider: Eip1193Provider, signer: string, safeAddress: string): Promise<Safe> {
     return Safe.init({ provider, signer, safeAddress })
+}
+
+/** The network's RPC (the adapter's transport) as the reader the Safe checks need. */
+export function safeReader(networkKey: string): SafeReader {
+    const chain = chainFor(networkKey)
+    const client = getPublicClient(evmConfig, { chainId: chain.id as (typeof evmConfig.chains)[number]["id"] })
+    return {
+        getChainId: () => client.getChainId(),
+        getCode: (address) => client.getCode({ address }),
+        getStorageAt: (address, slot) => client.getStorageAt({ address, slot }),
+        call: async (to, data) => (await client.call({ to, data })).data ?? "0x",
+    }
+}
+
+/** What the chain says `address` is on this network (lib/chain/evm/safe/inspect.ts). */
+export function inspect(networkKey: string, address: string): Promise<Read<SafeInspection>> {
+    return inspectSafe(safeReader(networkKey), keccak256, chainFor(networkKey).id, address)
+}
+
+/** The native balance in wei, from a node proven to serve the chain. */
+export async function readBalance(networkKey: string, address: string): Promise<Read<bigint>> {
+    const chain = chainFor(networkKey)
+    const client = getPublicClient(evmConfig, { chainId: chain.id as (typeof evmConfig.chains)[number]["id"] })
+    try {
+        if ((await client.getChainId()) !== chain.id) return { kind: "unavailable", reason: "the RPC answered as another chain" }
+        return { kind: "ok", value: await client.getBalance({ address: address as Hex }) }
+    } catch {
+        return { kind: "unavailable", reason: "the RPC did not answer" }
+    }
+}
+
+/** EIP-55 spelling of an address, for display only (addresses are kept lowercase). */
+export function toChecksum(address: string): Hex {
+    return getAddress(address)
 }

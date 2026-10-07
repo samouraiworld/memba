@@ -14,6 +14,11 @@ vi.mock("../native/registry", () => ({
     nativeView: (app: string) => app === "settings" ? ({ fallback }: NativeViewProps) => <div data-testid="native">{fallback}</div> : undefined,
 }))
 vi.mock("../page/ClassicPage", () => ({ ClassicPage: () => <div>classic page</div> }))
+vi.mock("../multisig/evm/SafeWindows", () => ({
+    SafeApp: () => <div>safe app</div>,
+    SafeWindow: ({ address }: { address: string }) => <div>safe window {address}</div>,
+}))
+vi.mock("../multisig/MultisigWindows", () => ({ MultisigApp: () => <div>gno multisig app</div>, MultisigWindow: () => <div>gno multisig window</div> }))
 
 afterEach(() => vi.clearAllMocks())
 
@@ -56,6 +61,34 @@ describe("WindowBody on an EVM network", () => {
         show({ kind: "app", app: "validators", section: null }, onGno)
         expect(await screen.findByText("classic page")).toBeInTheDocument()
         expect(screen.queryByText(/runs on gno.land/)).toBeNull()
+    })
+
+    it("opens Multisig as the Safe app, and a 0x address as a Safe window", async () => {
+        show({ kind: "app", app: "multisig", section: null }, onBase)
+        expect(await screen.findByText("safe app")).toBeInTheDocument()
+        expect(screen.queryByText("gno multisig app")).toBeNull()
+    })
+
+    it("opens a Safe window for an EVM address, and names a gno.land multisig as such", async () => {
+        show({ kind: "multisig", address: "0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe" }, onBase)
+        expect(await screen.findByText("safe window 0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe")).toBeInTheDocument()
+    })
+
+    it("says a gno.land multisig address doesn't exist on the EVM network", () => {
+        show({ kind: "multisig", address: "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l" }, onBase)
+        expect(screen.getByText("This is a gno.land multisig")).toBeInTheDocument()
+        expect(screen.queryByText(/gno multisig window/)).toBeNull()
+    })
+
+    it("holds the Multisig pages not built for Safes yet, never their gno.land page", () => {
+        show({ kind: "app", app: "multisig", section: "create" }, onBase)
+        expect(screen.getByText("Coming next")).toBeInTheDocument()
+        expect(screen.queryByText("classic page")).toBeNull()
+    })
+
+    it("keeps the gno.land Multisig windows on gno.land", async () => {
+        show({ kind: "app", app: "multisig", section: null }, onGno)
+        expect(await screen.findByText("gno multisig app")).toBeInTheDocument()
     })
 
     it("welcomes a visitor to the EVM network without offering gno.land apps", () => {

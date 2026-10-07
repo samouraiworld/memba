@@ -39,7 +39,7 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "wallet", name: "Wallet", slug: "wallet", summary: "Balances, send, receive, history", tier: "mvp", tint: ["#2FC08E", "#12A07A"], dock: true,
       routes: ["tx/:id"] },
     { id: "multisig", name: "Multisig", slug: "multisig", summary: "Shared accounts that need several signatures", tier: "mvp", tint: ["#9C7CF5", "#7654E8"], dock: true,
-      routes: ["multisig", "create", "import", "multisig/:address", "multisig/:address/propose"] },
+      routes: ["multisig", "create", "import", "multisig/:address", "multisig/:address/propose"], chains: ["gno", "evm"] },
     { id: "feed", name: "Feed", slug: "feed", summary: "Posts, threads and moderation", tier: "mvp", tint: ["#FF9A62", "#F0703F"], dock: true,
       routes: ["feed", "feed/post/:id", "feed/user/:address", "feed/mod", "feed/transparency"] },
     { id: "live", name: "Live", slug: "live", summary: "Recent on-chain activity", tier: "mvp", tint: ["#34BBAA", "#227C9D"], dock: false,

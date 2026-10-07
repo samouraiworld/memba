@@ -10,8 +10,8 @@ describe("Dock per network family", () => {
         expect(screen.getByRole("button", { name: "Validators" })).toBeInTheDocument()
     })
 
-    it("shows only Settings on an EVM network, where no dock app runs yet", () => {
+    it("shows only the dock apps that run on an EVM network: Multisig (Safes) and Settings", () => {
         render(<Dock {...props} family="evm" />)
-        expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Settings"])
+        expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Multisig", "Settings"])
     })
 })

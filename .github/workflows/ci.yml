@@ -238,8 +238,7 @@ jobs:
           CONTEXT=deploy-preview VITE_ENABLE_EVM=true node ./node_modules/.bin/vite build --logLevel warn --outDir dist-os-evm --emptyOutDir
           VITE_ENABLE_EVM=true node scripts/check-lazy-chunk.mjs evm dist-os-evm --expect-present
           node scripts/check-lazy-chunk.mjs safe dist-os
-          # No screen loads the Safe SDK yet: add --expect-present with its first consumer.
-          VITE_ENABLE_EVM=true node scripts/check-lazy-chunk.mjs safe dist-os-evm
+          VITE_ENABLE_EVM=true node scripts/check-lazy-chunk.mjs safe dist-os-evm --expect-present
 
       - name: "Bundle gate: no Memba OS code in the flag-off build"
         # Memba OS ships only on the beta site (VITE_MEMBA_OS + MEMBA_OS_BETA_SITE).
