@@ -24,6 +24,17 @@ contracts/
                              allowlist, not deployable as-is — kept for reference only)
 ```
 
+## `evm/` — Foundry project (EVM port, Phase 0)
+
+`evm/` holds the Foundry project of the EVM port: fork tests against the protocols already
+deployed on Base and Base Sepolia (`evm/test/fork/`) and the unmodified OpenZeppelin Wizard
+token (`evm/src/`). Nothing there is deployed. Findings: [`docs/evm/PHASE0.md`](../docs/evm/PHASE0.md).
+
+```bash
+git submodule update --init contracts/evm/lib/forge-std contracts/evm/lib/openzeppelin-contracts
+cd contracts/evm && forge test -vv   # reads public Base RPCs at pinned blocks
+```
+
 ## Source of truth
 
 The canonical, deployed realm code lives in the **samcrew-deployer** repo:
