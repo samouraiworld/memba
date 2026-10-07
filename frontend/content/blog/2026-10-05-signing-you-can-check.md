@@ -22,7 +22,7 @@ sign, Adena needs an update, or the account must be activated.
 
 Activation itself is a transfer of 1 ugnot from a new address to itself,
 reviewed in its own step, in Memba OS and on the classic page alike. It costs
-only the network fee, about 0.002 GNOT, and locks no storage deposit; a cancel
+only the network fee, about 0.0024 GNOT, and locks no storage deposit; a cancel
 says nothing was sent.
 
 ## Under the hood (engineering scope)

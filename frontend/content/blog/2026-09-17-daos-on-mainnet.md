@@ -24,7 +24,7 @@ the DAO's own categories and roles, and its preview is the transaction the
 wallet signs. Proposal pages say when voting ends, and when an accepted
 proposal can be executed and until when. Buttons appear only for actions Memba
 can build for that contract: GovDAO is vote and execute only,
-and unrecognised contracts are read-only. GovDAO status comes from the realm's
+and unrecognized contracts are read-only. GovDAO status comes from the realm's
 generated fields, not from the first status-like word in a description.
 
 ## Under the hood (engineering scope)

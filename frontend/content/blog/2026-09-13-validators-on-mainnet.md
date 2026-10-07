@@ -45,8 +45,8 @@ The roster no longer re-fetches a hundred immutable blocks every thirty
 seconds: committed blocks are cached and only new heights are requested. The
 Network tab's governance readiness panel computes fault tolerance with tm2's
 integer quorum from the live voting powers, reads GovDAO membership, and offers
-no button to act on either. The page-size control gained a label for screen
-readers.
+no button to act on either. Since 14 September, the page-size control has a
+label for screen readers.
 
 ---
 

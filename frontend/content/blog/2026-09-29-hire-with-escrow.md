@@ -25,19 +25,19 @@ address locked.
 Each contract has its own shareable page. It shows both parties in full, every
 milestone with its status, amount and deadline, and only the calls your wallet
 can make in that state: the client funds, releases, cancels and archives; the
-freelancer marks a milestone delivered. A freelancer also finds the contracts
+freelancer marks a milestone delivered; and past a deadline, anyone can trigger
+the refund or expiry the contract sets. A freelancer also finds the contracts
 that name them, located through the indexer and read back from the realm before
-they are shown. In Memba OS, Market is described for what it is on mainnet:
-hiring with milestone escrow.
+they are shown. Since 6 October, Memba OS describes Market for what it is on
+mainnet: hiring with milestone escrow.
 
 ## Under the hood (engineering scope)
 
 `escrow_v4` refunds the storage deposit when a client archives a completed or
-cancelled contract, caps open contracts at five per client, and has a bounded
-pause. While it is paused, funding is refused and Hire stays disabled, and the
-page states before signing the block at which archive and expiry reopen. Memba
-reads contracts, a client's list and the pause state from the realm's JSON
-views and parses them strictly: an unexpected shape is refused, not shown.
+canceled contract, and has a bounded pause. While it is paused, funding is refused and Hire stays disabled, and the
+page states before signing the block at which its other calls reopen, about seven days into the pause. Memba
+parses the realm's JSON views strictly: an unexpected shape is refused, not
+shown.
 
 Every escrow call carries a storage deposit cap and a gas limit measured
 against the deployed realm: contract creation scales with its text and
