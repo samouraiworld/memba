@@ -15,10 +15,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Only what this job alone proves: the flag-on preview suites in four browsers,
+  # each against its own dev server with the flags set. Lint, the unit suite and
+  # the default production build run in the required Frontend (React · Node 20/22)
+  # jobs; repeating them here took 8 to 11 of this job's minutes and ran it into
+  # its limit. The suites and the install measured 4 to 8 minutes (2026-10-06/07).
   preview:
     name: Professional preview (four browsers)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -30,11 +35,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
-      - name: Frontend unit tests
-        run: npm test -- --maxWorkers=4
-      - name: Default production build
-        run: npm run build
+      # One browser download took 10.8 minutes (2026-10-06): keep them between runs,
+      # keyed on the lockfile that pins Playwright.
+      - name: Cache preview browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
       - name: Install preview browsers
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Flag-on preview tests
