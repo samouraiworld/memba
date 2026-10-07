@@ -226,19 +226,17 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // (v1.0.0-rc.0), the indexer's height matches the RPC, and gnoweb serves
     // `gnoconnect:chainid` "onyx-1".
     //
-    // Hidden, with the Launchpad only: its realms were published there at the
-    // frozen release bytes for the rehearsal before the mainnet ceremony
-    // (REALM_ALLOWLIST.onyx). Nothing else of Memba's is (no DAO factory
-    // dependencies either, hence `userDaos.create: false`), and the backend
-    // refuses an `onyx-1` sign-in until the owner adds it to
-    // MEMBA_ACCEPTED_CHAIN_IDS. It is reachable by URL (`/onyx/…`) and as a
-    // preview default (`VITE_GNO_CHAIN_ID=onyx`). List a realm in
-    // REALM_ALLOWLIST.onyx when it is published there; un-hide once the
-    // network is worth offering in the selector.
+    // In the network menu since Connect 4 went live there (owner, 2026-10-07):
+    // Memba OS only runs on a network the menu offers. The Launchpad realms
+    // (frozen release bytes, rehearsed before the mainnet ceremony) and
+    // gno.land/r/samcrew/connect4 are published there; nothing else of Memba's
+    // is (no DAO factory dependencies either, hence `userDaos.create: false`).
+    // The backend refuses an `onyx-1` sign-in unless the owner lists it in
+    // MEMBA_ACCEPTED_CHAIN_IDS. List a realm in REALM_ALLOWLIST.onyx when it is
+    // published there.
     onyx: {
         chainId: "onyx-1",
         userDaos: { create: false, channelsCompanion: false },
-        hidden: true,
         realmsDeployed: false,
         isTestnet: true,
         rpcUrl: "https://rpc.onyx.testnets.gno.land:443",

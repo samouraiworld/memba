@@ -496,12 +496,13 @@ describe('network reduction — test13 + mainnet + onyx only', () => {
         }
     })
 
-    it('onyx is a hidden testnet that opens only the Launchpad realms and gates every user DAO', () => {
+    it('onyx is an offered testnet that opens only the Launchpad realms and gates every user DAO', () => {
         const onyx = NETWORKS.onyx
-        expect(onyx).toMatchObject({ chainId: 'onyx-1', hidden: true, isTestnet: true, realmsDeployed: false })
+        expect(onyx).toMatchObject({ chainId: 'onyx-1', isTestnet: true, realmsDeployed: false })
+        expect(onyx.hidden).toBeFalsy()
         expect(retiredNetworkSuccessor('onyx')).toBeNull()
         expect(onyx.userDaos).toEqual({ create: false, channelsCompanion: false })
-        expect(VISIBLE_NETWORKS.onyx).toBeUndefined()
+        expect(VISIBLE_NETWORKS.onyx).toBe(onyx) // in the network menu since Connect 4 went live (2026-10-07)
         expect(networkHasRealms('onyx')).toBe(false)
         expect(networkHasAllowlistedRealms('onyx')).toBe(true)
         for (const realm of ['config', 'tokens', 'sales', 'nft', 'drops', 'market', 'curation']) {
@@ -511,11 +512,11 @@ describe('network reduction — test13 + mainnet + onyx only', () => {
         for (const path of ['gno.land/r/samcrew/launchpad/nft/v2', MEMBA_DAO.realmPath, MEMBA_DAO.feedPath, MEMBA_DAO.escrowPath, reviewsPathFor('onyx')]) {
             expect(isRealmValidOn('onyx', path), path).toBe(false)
         }
-        // Reachable by URL and as a build default, like every hidden network.
+        // Reachable by URL and as a build default, and restored from a stored
+        // choice now that it is offered (Memba OS only runs on such a network).
         expect(resolveNetworkKey({ pathname: '/onyx/dao' })).toBe('onyx')
         expect(resolveDefaultNetwork('onyx')).toBe('onyx')
-        // Never restored from a stored choice while hidden.
-        expect(resolveNetworkKey({ pref: 'onyx' })).toBe(DEFAULT_NETWORK)
+        expect(resolveNetworkKey({ pref: 'onyx' })).toBe('onyx')
         expect(isTrustedRpcDomain(onyx.rpcUrl)).toBe(true)
     })
 
@@ -1159,7 +1160,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.
-        for (const k of ['test13', 'onyx']) {
+        for (const k of ['test13']) {
             expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
             expect(NETWORKS[k].hidden).toBe(true)
         }

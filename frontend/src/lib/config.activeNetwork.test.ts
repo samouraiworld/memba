@@ -22,16 +22,15 @@ import {
  */
 
 // Fixture networks, by the visibility config.test.ts already pins: mainnet
-// (the default since 2026-09-17) is the ONLY visible network since pearl's
-// 2026-09-23 retirement; test13 and onyx are hidden, and pearl has left the
-// registry (RETIRED_NETWORKS only). VISIBLE_B was `gnoland1` until Betanet was
-// retired. The pure-resolver block needs TWO visible networks to tell "the
-// choice wins" apart from "the default answered", so it un-hides onyx (as
-// VISIBLE_A) for its duration (resolveNetworkKey reads `hidden` at call time);
-// everywhere else onyx is the HIDDEN fixture.
+// (the default since 2026-09-17) and onyx (offered since 2026-10-07, Connect 4)
+// are the visible networks; test13 is hidden, and pearl has left the registry
+// (RETIRED_NETWORKS only). VISIBLE_B was `gnoland1` until Betanet was retired.
+// The pure-resolver block needs TWO visible networks to tell "the choice wins"
+// apart from "the default answered"; it still un-hides onyx (as VISIBLE_A) for
+// its duration, which is now a no-op kept so the block holds on its own.
 const VISIBLE_A = "onyx"
 const VISIBLE_B = "mainnet"
-const HIDDEN = "onyx"
+const HIDDEN = "test13"
 const HIDDEN_DEEP_LINK = "test13"
 const RETIRED = "pearl"
 
@@ -84,8 +83,7 @@ describe("resolveNetworkKey — the one ordering rule", () => {
     })
 
     it("a stored choice never restores a hidden network", () => {
-        // VISIBLE_A (onyx) is un-hidden in this block; the hidden-onyx case is
-        // pinned in the block above.
+        // The hidden case (test13) is also pinned in the block above.
         expect(resolveNetworkKey({ pref: HIDDEN_DEEP_LINK })).toBe(DEFAULT_NETWORK)
     })
 

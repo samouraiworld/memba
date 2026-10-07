@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Onyx in the network menu, so Connect 4 can be played in Memba OS (2026-10-07)
+- Onyx is offered in the network menu, marked as a testnet. Memba OS only runs on a network the menu offers, so Connect 4 (live on Onyx) could not be reached from the OS before.
+- An old classic link such as /onyx/game/connect4 now opens the Connect 4 window in Memba OS instead of the classic page.
+- The Connect 4 card on other networks says to choose Onyx in the network menu.
+
 ### Arcade: Connect 4, staked two-player on testnet, with Quick play (2026-10-07)
 - A fourth Arcade game: staked Connect 4 against another wallet. Both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT fee; every move has 90 seconds of chain time. The lobby lists open offers and live games as cards (anyone can open one to watch), and offers are posted with stake and duration presets. The board drops discs with a bounce, shows whose turn it is with a move-clock ring, and highlights the winning line.
 - Testnet only: the game appears only where its realm is configured (Onyx today) and behind its own flag. Every move is signed in the wallet. Who moves first is drawn from a secret each player commits to and reveals right after the game starts; both reveals are sent automatically from the player's browser, so both should keep the game open for about three minutes after an offer is accepted.

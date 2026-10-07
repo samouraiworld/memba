@@ -11,9 +11,11 @@ import { OS_NET_SWITCHED_KEY } from "../lib/networkSwitch"
  *  alternative exists. (Today's config ships exactly one visible network, so no
  *  visible alternative exists; the fallback below still exercises a real switch
  *  rather than skip the case.) */
+/** A network to switch to: neither the loaded config's nor the wrapper's (`/onyx/…`), or the switch is a no-op. */
 function pickSwitchTarget(): string {
-    const visible = Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY)).find((k) => k !== ACTIVE_NETWORK_KEY)
-    return visible ?? Object.keys(NETWORKS).find((k) => k !== ACTIVE_NETWORK_KEY)!
+    const other = (k: string) => k !== ACTIVE_NETWORK_KEY && k !== "onyx"
+    const visible = Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY)).find(other)
+    return visible ?? Object.keys(NETWORKS).find(other)!
 }
 
 /**

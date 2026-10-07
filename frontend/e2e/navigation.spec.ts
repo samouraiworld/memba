@@ -100,19 +100,19 @@ test.describe('TopBar (Desktop)', () => {
         await expect(versionBadge).toContainText(/v\d+/)
     })
 
-    test('network selector offers gno.land — retired networks stay out', async ({ page }) => {
+    test('network selector offers gno.land and the Onyx testnet — retired networks stay out', async ({ page }) => {
         await page.goto('/')
         const selector = page.getByTestId('topbar').getByRole('combobox', { name: 'Switch network', exact: true })
         await expect(selector).toBeVisible()
-        // 2026-09-17 contract: gno.land (mainnet, `gnoland-1`) is the default and
-        // the only offered network. Networks kept in code are hidden from the
-        // selector (Pearl and Betanet, retired; test13; the Onyx testnet) and
-        // stay reachable by deep link, so stored selections heal instead of stranding.
+        // gno.land (mainnet, `gnoland-1`) is the default. The Onyx testnet is offered
+        // since Connect 4 went live there (2026-10-07). Networks kept in code are
+        // hidden from the selector (Pearl and Betanet, retired; test13) and stay
+        // reachable by deep link, so stored selections heal instead of stranding.
         await expect(selector).toContainText(/gno\.land/)
         await expect(selector.locator('option', { hasText: /Pearl/ })).toHaveCount(0)
         await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(0)
         await expect(selector.locator('option', { hasText: /Testnet 13/ })).toHaveCount(0)
-        await expect(selector.locator('option', { hasText: /Onyx/ })).toHaveCount(0)
+        await expect(selector.locator('option', { hasText: /Onyx/ })).toHaveCount(1)
     })
 
     test('connect wallet button visible when disconnected', async ({ page }) => {

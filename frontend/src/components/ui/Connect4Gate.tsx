@@ -10,7 +10,7 @@ export function Connect4Gate({ children }: { children: ReactNode }) {
         title="Connect 4"
         icon="🔴"
         description={isConnect4Enabled()
-          ? "Connect 4 runs on the Onyx testnet only. Switch to Onyx to play."
+          ? "Connect 4 runs on the Onyx testnet only. Choose Onyx in the network menu to play."
           : "Staked two-player Connect 4 — both players put in the same GNOT and the winner takes the pot."}
         features={[
           "Post an offer or accept one from the lobby",
