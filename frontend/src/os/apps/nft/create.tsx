@@ -6,6 +6,7 @@
  *
  * @module os/apps/nft/create
  */
+import { EarlyAccess } from "../../account/EarlyAccess"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useId, useRef, useState, type Ref } from "react"
 import { isRealmValidOn } from "../../../lib/config"
@@ -66,7 +67,7 @@ export function CreateCollection({ screen, session, back }: { screen: NftScreen;
     const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((current) => ({ ...current, [key]: value }))
 
     if (!available) {
-        return <div className="os-stack"><Back ref={back} label="Collections" onClick={() => screen.go({ kind: "home" })} /><p className="os-note" role="note">Creating a collection is not available on this network.</p></div>
+        return <div className="os-stack"><Back ref={back} label="Collections" onClick={() => screen.go({ kind: "home" })} /><p className="os-note" role="note">Creating a collection is not available on this network.</p><EarlyAccess app="nft" /></div>
     }
 
     const build = (): CollectionTerms | string => {

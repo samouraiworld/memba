@@ -1,5 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
-import { APP_VERSION } from "../../../lib/config"
+import { ACCOUNT_ENABLED, APP_VERSION } from "../../../lib/config"
+import { AccountCard } from "../../account/AccountCard"
+import { ConfirmView } from "../../account/ConfirmView"
+import { PrivacyView } from "../../account/PrivacyView"
 import { getGasConfig, MAX_DEFAULT_GAS_FEE_UGNOT, MAX_DEFAULT_GAS_WANTED, parseDefaultGasInput } from "../../../lib/gasConfig"
 import { useOsAppearance, type OsIconSize } from "../../appearance"
 import { setLiveWidget, setSkipIntro, useLiveWidget, useSkipIntro } from "../../preferences"
@@ -19,12 +22,14 @@ const sections: readonly ShellSection[] = [
     { id: "transactions", name: "Transactions", icon: "wal" },
     { id: "account", name: "Account", icon: "prof" },
     { id: "about", name: "About", icon: "doc" },
+    // The optional account's privacy page, while the account is on.
+    ...(ACCOUNT_ENABLED ? [{ id: "privacy", name: "Privacy", icon: "doc" } as const] : []),
 ]
 
 /** Validator and GovDAO alerts (gnomonitoring), loaded when Notifications opens. */
 const AlertsPanel = lazy(() => import("../../../components/alerts/AlertsPanel"))
-/** The classic /alerts page opens Notifications, where the alerts live. */
-const SECTION_ALIASES: Readonly<Record<string, string>> = { alerts: "notifications" }
+/** The classic /alerts page opens Notifications, where the alerts live; a confirmation link (/os/confirm) opens Account. */
+const SECTION_ALIASES: Readonly<Record<string, string>> = { alerts: "notifications", ...(ACCOUNT_ENABLED ? { confirm: "account" } : {}) }
 
 function ResetSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
     const dialogRef = useRef<HTMLDialogElement>(null)
@@ -56,12 +61,14 @@ function gasFields() {
     return { wanted: String(config.wanted), fee: String(config.fee) }
 }
 
-export default function SettingsWindow({ section: asked, session, open, openApp, fallback }: NativeViewProps) {
+export default function SettingsWindow({ section: asked, query = "", session, open, openApp, fallback }: NativeViewProps) {
     const section = asked !== null ? SECTION_ALIASES[asked] ?? asked : null
     const current = sections.some(({ id }) => id === section) ? section! : "desktop"
     // A pane is the window's own address (/os/settings/<pane>), so a link that opens
     // a pane (the Validators app's Alerts button) shows it even after the user moved on.
     const setCurrent = (next: string) => open(specForTarget({ kind: "app", app: "settings", section: next })!)
+    // The confirmation page keeps its link's token in memory only (ConfirmView).
+    const forgetConfirmToken = useCallback(() => open(specForTarget({ kind: "app", app: "settings", section: "confirm", query: "" })!), [open])
     const appearance = useOsAppearance()
     const liveWidget = useLiveWidget()
     const skipIntro = useSkipIntro()
@@ -230,7 +237,10 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
                     {session.status === "member" ? <><h3>Connected account</h3><p className="os-mono os-set-address">{session.address}</p></> : <><h3>Browsing as a guest</h3><p>You can read public information without a wallet. Connect when you want to post, vote or sign.</p><button type="button" className="os-btn" onClick={session.openConnect}>Connect wallet</button></>}
                     {session.status === "member" && <button type="button" className="os-btn os-quiet" onClick={() => openApp("profile")}>Open Profile</button>}
                 </div>
+                {asked === "confirm" && <ConfirmView query={query} forget={forgetConfirmToken} />}
+                <AccountCard />
             </>}
+            {current === "privacy" && <PrivacyView />}
             {current === "about" && <>
                 <header><h2>About</h2><p className="os-sub">Memba OS is an experimental public beta.</p></header>
                 <div className="os-set-card"><p>Memba v{APP_VERSION} · {session.network.chainId}</p><button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "about" })!)}>Open About Memba OS</button></div>

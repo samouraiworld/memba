@@ -41,6 +41,9 @@
 .memba-os .os-btn:disabled { opacity: .45; cursor: not-allowed; }
 .memba-os .os-btn.os-ghost { background: var(--os-chip); color: var(--os-acc-ink); }
 .memba-os .os-btn.os-quiet { background: var(--os-hover); color: var(--os-ink); }
+/* A button that reads as a link inside text (the Privacy link of account forms). */
+.memba-os .os-link { padding: 0; border: 0; background: none; color: var(--os-acc-ink); font: inherit; text-decoration: underline; cursor: pointer; }
+.memba-os .os-set-topic { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--os-line); }
 .memba-os .os-spin {
   width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--os-acc); border-right-color: transparent;
   animation: os-rot .8s linear infinite; display: inline-block; flex: none;

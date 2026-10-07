@@ -13,6 +13,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
+import { EarlyAccess } from "../../account/EarlyAccess"
 import { formatTokenAmount as units, networkGasPriceFresh, type GasPrice } from "../../../lib/grc20"
 import { verifyAirdropManifest, type AirdropManifest } from "../../../lib/tokenLaunchpadAirdropManifest"
 import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
@@ -79,6 +80,7 @@ export default function TokensWindow({ session, fallback }: NativeViewProps) {
                 <Pill tone="neutral">Token Launchpad unavailable here</Pill>
                 {network === "mainnet" ? ` The Token Launchpad is not deployed on ${session.network.chainId}.` : " The Token Launchpad is not available on this network."}
             </div>
+            <EarlyAccess app="launchpad" />
         </div>
     )
 }

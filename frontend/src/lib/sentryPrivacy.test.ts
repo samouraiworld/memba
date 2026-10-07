@@ -183,6 +183,20 @@ describe('Sentry outgoing event privacy boundary', () => {
         expect(event.request.url).toContain(room)
     })
 
+    it('removes a consent confirmation token from URLs, transactions and breadcrumbs', () => {
+        const token = '12.Q2xlcmtfX19fX19fX19fX19fX19fX19fX19fX19fXw'
+        const event = {
+            type: 'transaction' as const,
+            transaction: `/os/confirm?t=${token}`,
+            request: { url: `https://memba.club/os/settings/confirm?w=app.daos&t=${token}` },
+            breadcrumbs: [{ category: 'navigation', data: { from: `/os/confirm?t=${token}`, to: '/os/settings/confirm' } }],
+        }
+        const result = redactSentryEvent(event)
+        expect(JSON.stringify(result)).not.toContain(token)
+        expect(result.request?.url).toBe('https://memba.club/os/settings/confirm?w=app.daos&t=[REDACTED_TOKEN]')
+        expect(redactSentryBreadcrumb({ data: { to: `/os/confirm?t=${token}` } })?.data?.to).toBe('/os/confirm?t=[REDACTED_TOKEN]')
+    })
+
     it('keeps existing message/linked-exception redaction and rescrubs late breadcrumbs', () => {
         const event = { message: sensitive, exception: { values: [{ value: sensitive }, { value: jwt }] },
             breadcrumbs: [{ message: sensitive, data: { arguments: [sensitive] } }], tags: { feature: 'points' } }

@@ -121,7 +121,8 @@ type Saved = Pick<OsWindow, "x" | "y" | "width" | "height" | "z" | "min" | "max"
 export function saveWindows(wins: readonly OsWindow[], owner?: string): void {
     const saved: Saved[] = wins.flatMap((w) => {
         const token = windowToken(w.target)
-        const query = w.target?.kind === "app" && w.target.query ? { query: w.target.query } : {}
+        // A confirmation link's token is never saved (it is a one-time credential).
+        const query = w.target?.kind === "app" && w.target.query && !(w.target.app === "settings" && w.target.section === "confirm") ? { query: w.target.query } : {}
         return token ? [{ token, ...query, x: w.x, y: w.y, width: w.width, height: w.height, z: w.z, min: w.min, max: w.max }] : []
     }).sort((a, b) => a.z - b.z).slice(-(MAX_W_TOKENS + 1))
     try {

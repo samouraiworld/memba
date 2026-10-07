@@ -902,10 +902,13 @@ export const GNO_MONITORING_API_URL = resolveTrustedServiceUrl(
     "monitoring API",
 )
 
-/** Clerk publishable key for alerting feature auth.
- *  Shared Clerk app instance for Memba alerting.
- *  Only loaded by the /alerts route (lazy). No impact on other pages. */
+/** Clerk publishable key (validator alerts and the optional account). Clerk
+ *  loads only when someone signs in or a session is remembered (account/AccountProvider). */
 export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ""
+
+/** The optional Memba account's own features (email topics, early access,
+ *  privacy page). Off: nothing of them shows. Alerts sign-in does not depend on it. */
+export const ACCOUNT_ENABLED = import.meta.env.VITE_ENABLE_ACCOUNT === "true"
 
 // ── 7. RPC Domain Security ───────────────────────────────────
 

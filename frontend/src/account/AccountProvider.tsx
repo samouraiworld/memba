@@ -75,6 +75,11 @@ export function AccountProvider({ children, publishableKey = CLERK_PUBLISHABLE_K
         openSignIn: () => { void start().then((c) => c?.openSignIn()) },
         getToken: async () => client.current?.getToken() ?? null,
         signOut: async () => { await client.current?.signOut(); remember(false) },
+        deleteUser: async () => {
+            if (!client.current) throw new Error("Sign-in is not loaded")
+            await client.current.deleteUser()
+            remember(false)
+        },
     }), [publishableKey, status, user, start])
 
     return <AccountContext.Provider value={api}>{children}</AccountContext.Provider>
