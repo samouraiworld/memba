@@ -202,6 +202,8 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (!id.includes('node_modules')) return
           if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
+          // EVM network adapter (VITE_ENABLE_EVM): lazy-only, same firewall as three (check:bundle:evm).
+          if (/[\\/]node_modules[\\/](viem|wagmi|@wagmi|ox|abitype)[\\/]/.test(id)) return 'vendor-evm'
           if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
           if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
           if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
@@ -257,7 +259,7 @@ export default defineConfig(({ mode }) => ({
         // the 3D renderer lands and lazily imports three.
         // Review-only brand specimens should not enter the production offline precache.
         // sw-retire.js is the retired classic host's service-worker kill switch, never part of this app.
-        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js'],
+        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [

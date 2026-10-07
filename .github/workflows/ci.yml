@@ -205,6 +205,12 @@ jobs:
         # Inert-but-passing until the 3D renderer actually imports three (PR-0c).
         run: npm run check:bundle
 
+      - name: "Bundle gate: no EVM adapter in the flag-off build"
+        # viem / wagmi live only in the lazy vendor-evm chunk behind VITE_ENABLE_EVM.
+        # This build has the flag off, so the chunk must not exist; once the flag
+        # ships it must stay out of the eager graph and the precache manifest.
+        run: npm run check:bundle:evm
+
       - name: "Bundle gate: no Memba OS code in the flag-off build"
         # Memba OS ships only on the beta site (VITE_MEMBA_OS + MEMBA_OS_BETA_SITE).
         # This build has the flag off, so any OS chunk or "memba-os" string in

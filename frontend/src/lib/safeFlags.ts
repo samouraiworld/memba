@@ -20,6 +20,9 @@ export const SAFETY_GATED_FLAGS = [
     // live-money test (§6), so de-gating here changes no deployed behavior.
     "VITE_ENABLE_TREASURY_SPEND",
     "VITE_ENABLE_AGENT_CREDITS",
+    // EVM network (Base). Gated until the core-parity launch: the adapter is built
+    // on main in small PRs, testable on deploy-previews, never in a release build.
+    "VITE_ENABLE_EVM",
     // VITE_ENABLE_NATIVE_GNO_MULTISIG de-gated 2026-10-01 (owner): native multisig is released
     // on memba.club after a live rehearsal. The backend keeps its own switch,
     // MEMBA_ENABLE_NATIVE_GNO_MULTISIG, so the frontend flag alone writes nothing.

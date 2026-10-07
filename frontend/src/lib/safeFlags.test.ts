@@ -34,7 +34,12 @@ describe("assertSafeFlags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
+            "VITE_ENABLE_EVM",
         ])
+    })
+
+    it("keeps the EVM network out of release builds until launch", () => {
+        expect(() => assertSafeFlags({ VITE_ENABLE_EVM: "true" })).toThrow(/VITE_ENABLE_EVM/)
     })
 })
 
