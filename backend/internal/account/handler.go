@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -12,30 +14,67 @@ import (
 
 // Export is everything Memba stores for an account ("Download my data").
 type Export struct {
-	Account Account `json:"account"`
+	Account  Account   `json:"account"`
+	Consents []Consent `json:"consents"`
+}
+
+// Config is the account feature's environment.
+type Config struct {
+	Enabled      bool   // MEMBA_ACCOUNT_ENABLED=1
+	JWTKeys      string // CLERK_JWT_KEYS
+	ResendAPIKey string // RESEND_API_KEY
+	LinkSecret   string // MEMBA_EMAIL_LINK_SECRET, at least 32 bytes
+	TopicIDs     string // RESEND_TOPIC_IDS: {"announcements": "<Resend topic id>", …}
 }
 
 type handler struct {
-	db       *sql.DB
-	verifier *Verifier
-	now      func() time.Time
+	db         *sql.DB
+	verifier   *Verifier
+	resend     *resend
+	linkSecret []byte
+	topicIDs   map[string]string
+	now        func() time.Time
 }
 
-// NewHandler serves /api/account*. Off (404) unless enabled; unavailable (503)
-// when enabled without a usable CLERK_JWT_KEYS, so a misconfiguration never
-// accepts a session it cannot check.
-func NewHandler(db *sql.DB, enabled bool, rawKeys string) http.Handler {
-	if !enabled {
+func (c Config) build(db *sql.DB) (*handler, error) {
+	keys, err := ParseKeys(c.JWTKeys)
+	if err != nil {
+		return nil, err
+	}
+	if c.ResendAPIKey == "" {
+		return nil, errors.New("RESEND_API_KEY is required")
+	}
+	if len(c.LinkSecret) < 32 {
+		return nil, errors.New("MEMBA_EMAIL_LINK_SECRET must be at least 32 bytes")
+	}
+	var ids map[string]string
+	if json.Unmarshal([]byte(c.TopicIDs), &ids) != nil {
+		return nil, errors.New("RESEND_TOPIC_IDS is not a JSON object")
+	}
+	for _, t := range topics {
+		if ids[t] == "" {
+			return nil, fmt.Errorf("RESEND_TOPIC_IDS has no id for %q", t)
+		}
+	}
+	return &handler{db: db, verifier: NewVerifier(keys), resend: newResend(c.ResendAPIKey),
+		linkSecret: []byte(c.LinkSecret), topicIDs: ids, now: time.Now}, nil
+}
+
+// NewHandler serves /api/account* and /api/consent/confirm.
+// Off (404) unless enabled; unavailable (503) when enabled with any setting
+// missing or unusable, so a misconfiguration never accepts what it cannot check.
+func NewHandler(db *sql.DB, c Config) http.Handler {
+	if !c.Enabled {
 		return http.NotFoundHandler()
 	}
-	keys, err := ParseKeys(rawKeys)
+	h, err := c.build(db)
 	if err != nil {
-		slog.Error("account routes unavailable: CLERK_JWT_KEYS", "error", err)
+		slog.Error("account routes unavailable", "error", err)
 		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "accounts are unavailable")
 		})
 	}
-	return (&handler{db: db, verifier: NewVerifier(keys), now: time.Now}).routes()
+	return h.routes()
 }
 
 // routes are POST and GET only: the server's CORS allows no other method.
@@ -44,6 +83,9 @@ func (h *handler) routes() http.Handler {
 	mux.Handle("GET /api/account", h.authed(h.get))
 	mux.Handle("GET /api/account/export", h.authed(h.export))
 	mux.Handle("POST /api/account/delete", h.authed(h.delete))
+	mux.Handle("GET /api/account/topics", h.authed(h.getTopics))
+	mux.Handle("POST /api/account/topics", h.authed(h.setTopic))
+	mux.HandleFunc("POST /api/consent/confirm", h.confirm)
 	return mux
 }
 
@@ -63,32 +105,19 @@ func (h *handler) authed(next func(http.ResponseWriter, *http.Request, Account))
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		a, err := Ensure(ctx, h.db, claims, h.now())
+		a, err := Ensure(ctx, h.db, claims.Subject, h.now())
 		if err != nil {
 			slog.Error("account: ensure", "error", err)
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
+		if a, err = h.followEmail(ctx, a, claims); err != nil {
+			slog.Error("account: address change", "error", err)
+			writeError(w, http.StatusBadGateway, "your address changed and the email provider did not answer; try again")
+			return
+		}
 		next(w, r.WithContext(ctx), a)
 	})
-}
-
-func (h *handler) get(w http.ResponseWriter, _ *http.Request, a Account) {
-	writeJSON(w, a)
-}
-
-func (h *handler) export(w http.ResponseWriter, _ *http.Request, a Account) {
-	w.Header().Set("Content-Disposition", `attachment; filename="memba-account.json"`)
-	writeJSON(w, Export{Account: a})
-}
-
-func (h *handler) delete(w http.ResponseWriter, r *http.Request, a Account) {
-	if err := Delete(r.Context(), h.db, a.ID); err != nil {
-		slog.Error("account: delete", "error", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {

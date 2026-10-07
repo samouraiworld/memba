@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,14 +39,30 @@ func serve(t *testing.T, h http.Handler, method, path, token string) *httptest.R
 	return rec
 }
 
-func enabledHandler(t *testing.T, database *sql.DB, k testKey) http.Handler {
+// testConfig is a complete, valid configuration for key k.
+func testConfig(t *testing.T, k testKey) Config {
 	t.Helper()
-	keys, err := ParseKeys(keysJSON(t, k))
+	return Config{Enabled: true, JWTKeys: keysJSON(t, k), ResendAPIKey: "re_test",
+		LinkSecret: strings.Repeat("s", 32), TopicIDs: `{"announcements":"top_ann","newsletter":"top_news","early_access":"top_early"}`}
+}
+
+// testHandler is the account handler on a fake Resend, clocked at `now`.
+func testHandler(t *testing.T, database *sql.DB, k testKey) (*handler, *fakeResend) {
+	t.Helper()
+	h, err := testConfig(t, k).build(database)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &handler{db: database, verifier: NewVerifier(keys), now: func() time.Time { return now }}
+	fake := newFakeResend(t)
+	h.resend.baseURL = fake.srv.URL
+	h.now = func() time.Time { return now }
 	h.verifier.now = h.now
+	return h, fake
+}
+
+func enabledHandler(t *testing.T, database *sql.DB, k testKey) http.Handler {
+	t.Helper()
+	h, _ := testHandler(t, database, k)
 	return h.routes()
 }
 
@@ -60,12 +77,27 @@ func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 
 func TestRoutesAreOffUnlessEnabledAndUnavailableWithoutKeys(t *testing.T) {
 	database := testDB(t)
-	if rec := serve(t, NewHandler(database, false, ""), "GET", "/api/account", ""); rec.Code != http.StatusNotFound {
+	k := newKey(t, "ins_1")
+	if rec := serve(t, NewHandler(database, Config{}), "GET", "/api/account", ""); rec.Code != http.StatusNotFound {
 		t.Errorf("disabled: %d, want 404", rec.Code)
 	}
-	for _, keys := range []string{"", "{}", "not json"} {
-		if rec := serve(t, NewHandler(database, true, keys), "GET", "/api/account", ""); rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Content-Type") != "application/json" {
-			t.Errorf("keys %q: %d %q, want 503 JSON", keys, rec.Code, rec.Header().Get("Content-Type"))
+	broken := map[string]func(*Config){
+		"no keys":            func(c *Config) { c.JWTKeys = "" },
+		"empty keys":         func(c *Config) { c.JWTKeys = "{}" },
+		"keys not JSON":      func(c *Config) { c.JWTKeys = "not json" },
+		"no Resend key":      func(c *Config) { c.ResendAPIKey = "" },
+		"no link secret":     func(c *Config) { c.LinkSecret = "" },
+		"short link secret":  func(c *Config) { c.LinkSecret = strings.Repeat("s", 31) },
+		"no topic ids":       func(c *Config) { c.TopicIDs = "" },
+		"a topic without id": func(c *Config) { c.TopicIDs = `{"announcements":"a","newsletter":"b"}` },
+	}
+	for name, breakIt := range broken {
+		c := testConfig(t, k)
+		breakIt(&c)
+		for _, path := range []string{"/api/account", "/api/consent/confirm"} {
+			if rec := serve(t, NewHandler(database, c), "POST", path, ""); rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Content-Type") != "application/json" {
+				t.Errorf("%s %s: %d %q, want 503 JSON", name, path, rec.Code, rec.Header().Get("Content-Type"))
+			}
 		}
 	}
 }
