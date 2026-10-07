@@ -2,7 +2,7 @@
 /**
  * Bundle CI gate for heavy vendor stacks that must stay in a lazy async chunk.
  *
- * Usage: node scripts/check-lazy-chunk.mjs <name> [FLAG_VAR]
+ * Usage: node scripts/check-lazy-chunk.mjs <three|evm>
  *   three  BARRICADE 3D renderer (three / react-three-fiber / postprocessing)
  *   evm    EVM network adapter (viem / wagmi), behind VITE_ENABLE_EVM
  *
@@ -11,23 +11,30 @@
  *      static import from an eager chunk) — it may only arrive via lazy import();
  *   2) is in the Workbox PRECACHE manifest (globIgnores must strip it), or every
  *      user would download it on service-worker install;
- *   3) exists at all while FLAG_VAR is not "true" (when a flag is given): a
- *      flag-off build must not ship the stack.
+ *   3) exists at all while its flag (if any) is not "true": a flag-off build
+ *      must not ship the stack.
  *
  * Run after `vite build` (needs dist/). Inert-but-passing while no such chunk exists.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs"
 import { join } from "node:path"
 
-const [name, flagVar] = process.argv.slice(2)
-if (!name || !/^[a-z0-9-]+$/.test(name)) {
-  console.error("usage: check-lazy-chunk.mjs <name> [FLAG_VAR]")
+// The command-line argument only SELECTS a gate: every pattern below is built
+// from these constants, never from the argument.
+const GATES = {
+  three: { chunk: "vendor-three-", flag: null },
+  evm: { chunk: "vendor-evm-", flag: "VITE_ENABLE_EVM" },
+}
+const name = process.argv[2]
+const gate = Object.hasOwn(GATES, name) ? GATES[name] : null
+if (!gate) {
+  console.error(`usage: check-lazy-chunk.mjs <${Object.keys(GATES).join("|")}>`)
   process.exit(2)
 }
+const { chunk: CHUNK, flag: flagVar } = gate
 
 const DIST = join(process.cwd(), "dist")
 const ASSETS = join(DIST, "assets")
-const CHUNK = `vendor-${name}-`
 const CHUNK_RE = new RegExp(`${CHUNK}[^"'\\s]*\\.js`)
 
 function fail(msg) {
