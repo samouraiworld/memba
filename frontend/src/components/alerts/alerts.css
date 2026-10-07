@@ -1,5 +1,5 @@
 /**
- * alerts.css — Page-level layout for the Alerts page.
+ * alerts.css — Layout for the Alerts panel (Memba OS Settings → Notifications, and the classic /alerts page).
  *
  * Minimal CSS — form components use inline React.CSSProperties
  * to match Settings.tsx pattern (F9). This file handles only:
@@ -15,6 +15,13 @@
     flex-direction: column;
     gap: 16px;
     max-width: 800px;
+}
+
+/* ── "Alerts moved here" note (Memba OS) ──────────────── */
+.alerts-moved {
+    margin: 0;
+    font-size: var(--pro-small, 12px);
+    color: var(--color-text-secondary);
 }
 
 /* ── Auth gate (not signed in) ─────────────────────────── */

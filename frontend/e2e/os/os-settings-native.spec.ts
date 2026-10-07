@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { OS_ON } from '../../playwright.os.config'
+import { OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { abortOnchainReads } from '../helpers/onchain'
 
 async function guest(page: Page) {
@@ -114,8 +114,9 @@ test.describe('native OS Settings', () => {
         await win.getByRole('button', { name: 'Open About Memba OS' }).click()
         await expect(page.getByRole('region', { name: 'About Memba OS' })).toBeVisible()
         await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Settings' }).click()
-        const savedWindows = await page.evaluate((key) => localStorage.getItem(key), windowsKey)
         await win.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Safety' }).click()
+        // Choosing a pane is a window change of its own (the pane is the window's address): Cancel must change nothing after it.
+        const savedWindows = await page.evaluate((key) => localStorage.getItem(key), windowsKey)
         await win.getByRole('button', { name: 'Reset local app data' }).click()
         const sheet = page.getByRole('dialog', { name: 'Reset local app data' })
         await expect(sheet).toBeVisible()
@@ -160,6 +161,32 @@ test.describe('native OS Settings', () => {
             windows: Object.keys(localStorage).filter((key) => key.startsWith('memba_os_windows:')),
         }))).toEqual({ desk: null, windows: [] })
         await other.close()
+    })
+
+    test('validator alerts live in Notifications: the classic /alerts address, the old OS address and the Validators button all open them', async ({ page }) => {
+        // Remote hosts only: a local module path can contain these words too.
+        await page.route((url) => url.hostname !== '127.0.0.1' && /gnomonitoring|clerk[.-]|challenges\.cloudflare\.com/.test(url.hostname), (r) => r.abort())
+        const notifications = async () => {
+            const win = page.getByRole('region', { name: 'Settings', exact: true })
+            await expect(win.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Notifications' })).toHaveAttribute('aria-current', 'true')
+            await expect(win.getByRole('heading', { name: 'Validators and GovDAO alerts' })).toBeVisible()
+            return win
+        }
+        // This build has a Clerk key (an unreachable test host): a guest is asked to sign in only here.
+        await page.goto(`${OS_FLAGS_ON}/mainnet/alerts`)
+        await expect((await notifications()).getByRole('button', { name: 'Sign in to configure alerts' })).toBeVisible()
+        await page.goto(`${OS_FLAGS_ON}/os/validators`)
+        const validators = page.getByRole('region', { name: 'Validators', exact: true })
+        await validators.getByRole('button', { name: 'Alerts' }).click()
+        const settings = await notifications()
+        // After the user moves to another pane, the same button still lands on Notifications.
+        await settings.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Safety' }).click()
+        await validators.getByRole('button', { name: 'Alerts' }).click()
+        await notifications()
+        // The old address leaves no empty window: Validators shows its home.
+        await page.goto(`${OS_FLAGS_ON}/os/validators/alerts`)
+        await notifications()
+        await expect(page.getByRole('region', { name: 'Validators', exact: true }).getByRole('heading', { name: 'Validators', exact: true })).toBeVisible()
     })
 
     test('account and About remain available to guests', async ({ page }) => {

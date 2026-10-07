@@ -11,7 +11,7 @@
  *
  * @module os/apps/validators/native
  */
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { GNO_RPC_URL } from "../../../lib/config"
 import { ValidatorHealthStatus, healthLabel, type NetworkHealthSummary } from "../../../lib/validatorHealth"
@@ -237,7 +237,7 @@ function Home({ query, session, active, open, push }: Pick<NativeViewProps, "que
                 <div className="os-row">
                     <button type="button" className="os-btn os-quiet" onClick={() => push(spec(null, NETWORK_QUERY))}>Network</button>
                     <button type="button" className="os-btn os-quiet" onClick={() => openClassic("validators/hacker")}>Hacker mode</button>
-                    <button type="button" className="os-btn os-quiet" onClick={() => openClassic("alerts")}>Alerts</button>
+                    <button type="button" className="os-btn os-quiet" onClick={() => open(alerts())}>Alerts</button>
                 </div>
             </header>
             {roster.isPending && <Loading label="Reading the validator set…" />}
@@ -255,7 +255,24 @@ function Home({ query, session, active, open, push }: Pick<NativeViewProps, "que
     )
 }
 
+/** Validator alerts live in Settings → Notifications. */
+const alerts = () => specForTarget({ kind: "app", app: "settings", section: "notifications" })!
+
+/**
+ * An address from before alerts moved (/os/validators/alerts) opens them where
+ * they are now. This window goes back to the Validators home first (it may be
+ * one the user already had open), so no empty window stays behind.
+ */
+function AlertsMoved({ open }: Pick<NativeViewProps, "open">) {
+    useEffect(() => {
+        open(specForTarget({ kind: "app", app: APP, section: null })!)
+        open(alerts())
+    }, [open])
+    return null
+}
+
 export default function ValidatorsWindow({ section, query, session, active, open, push, fallback }: NativeViewProps) {
+    if (section === "alerts") return <AlertsMoved open={open} />
     const home = classicForSection(APP, section) === classicHome(APP)
     if (!home || new URLSearchParams(query).get("tab") === "network") return <>{fallback}</>
     return <Home query={query} session={session} active={active} open={open} push={push} />
