@@ -25,10 +25,10 @@
  */
 import type SafeApiKit from "@safe-global/api-kit"
 import Safe, { type Eip1193Provider } from "@safe-global/protocol-kit"
-import { getConnectorClient, getPublicClient, sendTransaction, signTypedData, waitForTransactionReceipt } from "@wagmi/core"
+import { getConnectorClient, getPublicClient, signTypedData } from "@wagmi/core"
 import { concat, encodeFunctionData, getAddress, keccak256, pad, parseAbi, toBytes, type Hex } from "viem"
-import { chainFor, evmConfig } from "../adapter"
-import { SafeActionError, walletError } from "./create"
+import { chainFor, evmConfig, sendEvmWrite } from "../adapter"
+import { SafeActionError, sentHash, walletError } from "./create"
 import { decodeSafeTx, gasRefund, multiSendCalls, refusedToRun, type SafeTxFields } from "./decode"
 import { inspectSafe, type SafeInspection } from "./inspect"
 import { multiSendAt } from "./known"
@@ -60,6 +60,10 @@ type ChainId = (typeof evmConfig.chains)[number]["id"]
 type SafeFacts = Extract<SafeInspection, { kind: "safe" }>
 
 const ZERO = "0x0000000000000000000000000000000000000000"
+/** How long an execution's receipt is awaited before "unconfirmed" (with its hash). */
+const RECEIPT_TIMEOUT_MS = 120_000
+/** sendEvmWrite waits for the receipt itself: this short wait makes it return the hash first. */
+const HASH_FIRST_MS = 1
 /** How far ahead of the Safe's on-chain nonce a queued proposal may sit. */
 const MAX_NONCE_AHEAD = 50n
 const EXEC_ABI = parseAbi(["function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)"])
@@ -235,11 +239,17 @@ export async function executeSafeTx(networkKey: string, apiBase: string, safe: H
         args: [tx.to as Hex, BigInt(tx.value), (tx.data || "0x") as Hex, tx.operation, BigInt(tx.safeTxGas), BigInt(tx.baseGas), BigInt(tx.gasPrice), tx.gasToken as Hex, (tx.refundReceiver || ZERO) as Hex,
             encodeSignatures(check.signatures, executorApproves ? signer : null)],
     })
-    let sent: Hex
-    try { sent = await sendTransaction(evmConfig, { account: getAddress(signer), chainId: chainId as ChainId, to: safe, data }) } catch (err) { walletError(err) }
+    // The one send path (chain, account and the Safe's code re-checked), returning the hash right away
+    // so it is kept (onSent) before the wait, done here with viem: a revert is a status, a replacement followed.
+    const result = sentHash(await sendEvmWrite({ chainId, from: signer, to: safe, data }, { receiptTimeoutMs: HASH_FIRST_MS }))
+    if (!result.hash) {
+        if (result.declined) throw new SafeActionError({ code: "declined" })
+        throw new SafeActionError({ code: "failed", detail: result.maybeSent ? `${result.error} (it may have been sent: check your wallet before trying again)` : result.error })
+    }
+    const sent = result.hash
     onSent?.(sent)
     let receipt
-    try { receipt = await waitForTransactionReceipt(evmConfig, { chainId: chainId as ChainId, hash: sent }) } catch {
+    try { receipt = await getPublicClient(evmConfig, { chainId: chainId as ChainId }).waitForTransactionReceipt({ hash: sent, timeout: RECEIPT_TIMEOUT_MS }) } catch {
         throw new SafeActionError({ code: "unconfirmed", hash: sent })
     }
     if (receipt.status !== "success") throw new SafeActionError({ code: "reverted", hash: sent })

@@ -34,9 +34,7 @@ const m = vi.hoisted(() => ({
 vi.mock("@wagmi/core", async (orig) => ({
     ...(await orig<typeof import("@wagmi/core")>()),
     getConnectorClient: async () => ({ account: { address: m.me }, request: async () => `0x${m.walletChain.toString(16)}` }),
-    getPublicClient: () => ({ getCode: m.code }),
-    sendTransaction: m.send,
-    waitForTransactionReceipt: m.receipt,
+    getPublicClient: () => ({ getCode: m.code, waitForTransactionReceipt: m.receipt }),
     signTypedData: async (_config: unknown, args: { account: string } & Parameters<typeof A.signTypedData>[0]) => {
         m.signRequests++
         const { account, ...typed } = args
@@ -45,6 +43,7 @@ vi.mock("@wagmi/core", async (orig) => ({
         return m.lowV ? `${sig.slice(0, 130)}${(parseInt(sig.slice(130), 16) - 27).toString(16).padStart(2, "0")}` : sig
     },
 }))
+vi.mock("../adapter", async (orig) => ({ ...(await orig<typeof import("../adapter")>()), sendEvmWrite: m.send }))
 vi.mock("@safe-global/protocol-kit", () => ({ default: { init: async () => m.kit } }))
 vi.mock("./txService", () => ({ safeApiKit: () => m.service }))
 vi.mock("./inspect", () => ({ inspectSafe: m.inspect }))
@@ -82,7 +81,7 @@ beforeEach(() => {
     m.code.mockResolvedValue(undefined)
     m.service.getNextNonce.mockResolvedValue("3")
     m.kit.createTransaction.mockImplementation(async (args: { options: { nonce: number } }) => ({ data: fields({ nonce: args.options.nonce }) }))
-    m.send.mockResolvedValue(SENT)
+    m.send.mockResolvedValue({ outcome: "unknown", hash: SENT, error: "not seen yet" })
 })
 
 describe("checking a built Safe transaction before signing", () => {
@@ -222,7 +221,7 @@ describe("confirming", () => {
 })
 
 describe("executing", () => {
-    const sentSignatures = () => decodeFunctionData({ abi: EXEC_ABI, data: m.send.mock.calls.at(-1)![1].data }).args[9]
+    const sentSignatures = () => decodeFunctionData({ abi: EXEC_ABI, data: m.send.mock.calls.at(-1)![0].data }).args[9]
 
     it("executes at the on-chain nonce with the recovered signatures only, and an owner executor's approval", async () => {
         // B signed; C's listed signature is really A's (does not count); A executes and approves.
@@ -235,7 +234,8 @@ describe("executing", () => {
         expect(size(sigs)).toBe(130)
         expect(sigs).toContain((await signOf(B, f)).slice(2))
         expect(sigs).toContain(`${owners[0].slice(2).padStart(64, "0")}${"00".repeat(32)}01`)
-        expect(m.send.mock.calls[0][1]).toMatchObject({ account: A.address, chainId: CHAIN, to: SAFE })
+        expect(m.send.mock.calls[0][0]).toMatchObject({ from: A.address.toLowerCase(), chainId: CHAIN, to: SAFE })
+        expect(m.send.mock.calls[0][1]).toEqual({ receiptTimeoutMs: 1 })
     })
 
     it("doesn't count an owner executor twice, nor a non-owner executor, nor a misattributed signature", async () => {
@@ -296,6 +296,19 @@ describe("executing", () => {
         const hash = await listed(fields(), [B], { safe: P2 })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("hash-mismatch")
         expect(m.send).not.toHaveBeenCalled()
+    })
+
+    it("maps the send path's outcomes: declined, nothing sent, maybe sent without a hash", async () => {
+        const hash = await listed(fields(), [B])
+        m.send.mockResolvedValueOnce({ outcome: "cancelled", error: "You rejected it. Nothing was sent." })
+        expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("declined")
+        m.send.mockResolvedValueOnce({ outcome: "failed", error: "There is no contract at 0x… on Base Sepolia. Nothing was sent." })
+        const failed = await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)
+        expect(failed.reason).toEqual({ code: "failed", detail: "There is no contract at 0x… on Base Sepolia" })
+        m.send.mockResolvedValueOnce({ outcome: "unknown", error: "Your wallet answered without a hash" })
+        const unknown = await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)
+        expect(unknown.reason.detail).toMatch(/may have been sent: check your wallet/)
+        expect(m.receipt).not.toHaveBeenCalled()
     })
 
     it("keeps the sent hash when the receipt doesn't come, and needs the Safe's ExecutionSuccess for this hash", async () => {
