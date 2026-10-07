@@ -29,4 +29,5 @@ Memba OS is adding Base as a second network next to Gno.land. Same OS, same apps
 
 | Track | Scope | Status |
 |---|---|---|
-| M0 | Flag, bundle gate, Phase 0 fork verification | In progress |
+| M0 | Flag, bundle gate, Phase 0 fork verification | Done |
+| T1a | Frontend network seam (`frontend/src/lib/chain/`), Base Sepolia in the OS network selector, apps per network family, EVM wallet and sign-in | In progress: network selection |

@@ -7,6 +7,7 @@ import { AppShell, type ShellSection } from "../../kit"
 import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
 import { selectableOsNetworks, switchOsNetwork } from "../../shell/network"
+import { EVM_ENABLED } from "../../../lib/chain/flag"
 import { WALLPAPERS } from "../../wallpapers"
 import { resetLocalUiData } from "./localData"
 import "./native.css"
@@ -22,6 +23,9 @@ const sections: readonly ShellSection[] = [
 ]
 
 /** Validator and GovDAO alerts (gnomonitoring), loaded when Notifications opens. */
+/** The wallet the copy names: Adena, unless Base (another wallet) can be selected too. */
+const WALLET = EVM_ENABLED ? "your wallet" : "Adena"
+
 const AlertsPanel = lazy(() => import("../../../components/alerts/AlertsPanel"))
 /** The classic /alerts page opens Notifications, where the alerts live. */
 const SECTION_ALIASES: Readonly<Record<string, string>> = { alerts: "notifications" }
@@ -196,16 +200,16 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
             </>}
             {current === "safety" && <>
                 <header><h2>Safety</h2><p className="os-sub">Local data controls affect only this browser.</p></header>
-                <div className="os-set-card"><h3>Before you sign</h3><p>Check the transaction details Memba shows, then verify the account, network and gas in Adena before approving. Memba never changes on-chain data from Settings.</p></div>
+                <div className="os-set-card"><h3>Before you sign</h3><p>Check the transaction details Memba shows, then verify the account, network and gas in {WALLET} before approving. Memba never changes on-chain data from Settings.</p></div>
                 <div className="os-set-card"><h3>Reset local app data</h3><p>Close other open windows and reset desktop layout, appearance, gas defaults and cached names. Unsent drafts and send locks remain saved.</p>
                     <button ref={resetTrigger} type="button" className="os-btn os-quiet" onClick={() => { setResetStatus(""); setConfirmReset(true) }}>Reset local app data</button>
                     {resetStatus && <p role="status" className="os-note">{resetStatus}</p>}
                 </div>
             </>}
             {current === "network" && <>
-                <header><h2>Network</h2><p className="os-sub">Settings shows the network selected for Memba OS. Switching reloads this page and may require reconnecting Adena.</p></header>
+                <header><h2>Network</h2><p className="os-sub">Settings shows the network selected for Memba OS. Switching reloads this page and may require reconnecting {WALLET}.</p></header>
                 <dl className="os-set-details os-set-card"><dt>Selected network</dt><dd>{session.network.label}</dd><dt>Chain ID</dt><dd className="os-mono">{session.network.chainId}</dd><dt>Configured primary RPC</dt><dd className="os-mono">{session.network.rpcHost}</dd></dl>
-                {networks.length > 1 ? <div className="os-set-card"><h3>Switch network</h3><p className="os-sub">Check the selected chain in Adena before signing after a switch.</p><div className="os-set-choice">{networks.map((network) => <button type="button" key={network.key} className="os-btn os-quiet" disabled={network.key === session.network.key} onClick={() => switchOsNetwork(network.key)}>{network.key === session.network.key ? `${network.label} (selected)` : `Switch to ${network.label}`}</button>)}</div></div>
+                {networks.length > 1 ? <div className="os-set-card"><h3>Switch network</h3><p className="os-sub">Check the selected chain in {WALLET} before signing after a switch.</p><div className="os-set-choice">{networks.map((network) => <button type="button" key={network.key} className="os-btn os-quiet" disabled={network.key === session.network.key} onClick={() => switchOsNetwork(network.key)}>{network.key === session.network.key ? `${network.label} (selected)` : `Switch to ${network.label}`}</button>)}</div></div>
                     : <p className="os-note">Only {session.network.label} is available in this build.</p>}
             </>}
             {current === "transactions" && <>

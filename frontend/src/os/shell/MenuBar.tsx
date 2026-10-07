@@ -10,7 +10,7 @@ import { OS_APPS, type OsAppId } from "../apps"
 import { AppTile } from "./icons"
 import { useClock } from "./clock"
 import { shortAddr } from "./format"
-import { selectableOsNetworks, switchOsNetwork } from "./network"
+import { networkName, selectableOsNetworks, switchOsNetwork } from "./network"
 import type { OsSession } from "./useOsSession"
 import { itemForTarget, type DeskItemType } from "./desk"
 import { specForTarget, urlForWindow, type OsWindow, type WindowSpec } from "./windows"
@@ -230,7 +230,7 @@ export function MenuBar(p: MenuBarProps) {
                     {selectableOsNetworks().map((n) => (
                         <button key={n.key} type="button" role="menuitemradio" aria-checked={n.key === net.key} className="os-mi"
                             onClick={run(() => switchOsNetwork(n.key))}>
-                            <span>{n.key === net.key ? "✓ " : ""}{n.chainId} · {n.isTestnet ? "Testnet (sandbox funds)" : "Mainnet"}</span>
+                            <span>{n.key === net.key ? "✓ " : ""}{networkName(n)} · {n.isTestnet ? "Testnet (sandbox funds)" : "Mainnet"}</span>
                         </button>
                     ))}
                     <div className="os-msep" role="separator" />
@@ -282,8 +282,8 @@ export function MenuBar(p: MenuBarProps) {
             <button type="button" className="os-mb" {...mb("window")}>Window</button>
             <span className="os-sp" />
             <div className="os-net-wrap">
-                <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${net.chainId}`} {...mb("net")}>
-                    <i aria-hidden="true" /><span className="os-mono">{net.chainId}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}
+                <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${networkName(net)}`} {...mb("net")}>
+                    <i aria-hidden="true" /><span className="os-mono">{networkName(net)}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}
                 </button>
                 {!panel && <div className="os-live-popover os-glass" role="group" aria-label="Live activity preview">
                     <LiveTicker onOpen={() => p.openApp("live")} />

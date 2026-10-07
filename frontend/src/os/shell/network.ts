@@ -5,6 +5,10 @@
  * useNetwork().switchNetwork, then reloads the same /os URL: that hook
  * redirects to /<network>/…, which would leave Memba OS.
  *
+ * With VITE_ENABLE_EVM, the preference may also name a visible EVM network
+ * (lib/chain/evm/networks.ts). Gno config ignores such a key and loads on its
+ * default, so only Memba OS runs on Base; with the flag off the key is ignored.
+ *
  * @module os/shell/network
  */
 import {
@@ -15,36 +19,71 @@ import {
     isNetworkKey,
     selectableNetworksFor,
 } from "../../lib/config"
+import { EVM_NETWORKS, isVisibleEvmNetworkKey } from "../../lib/chain/evm/networks"
+import { EVM_ENABLED } from "../../lib/chain/flag"
+import type { ChainFamily } from "../../lib/chain/types"
 import { OS_NET_SWITCHED_KEY } from "../../lib/networkSwitch"
 import { completeQuest, getQuestWalletAddress } from "../../lib/quests"
 import { trackNetworkVisit } from "../../lib/questVerifier"
 
 export interface OsNetwork {
     key: string
+    family: ChainFamily
+    /** The id the wallet knows the chain by: "gnoland-1", or the EIP-155 id as a decimal string. */
     chainId: string
     label: string
     isTestnet: boolean
     rpcHost: string
 }
 
-function describe(key: string): OsNetwork {
-    const n = NETWORKS[key]
-    let rpcHost = ""
+function hostOf(url: string): string {
     try {
-        rpcHost = new URL(n.rpcUrl).host
+        return new URL(url).host
     } catch {
-        rpcHost = n.rpcUrl
+        return url
     }
-    return { key, chainId: n.chainId, label: n.label, isTestnet: !!n.isTestnet, rpcHost }
+}
+
+function describe(key: string): OsNetwork {
+    if (EVM_ENABLED && isVisibleEvmNetworkKey(key)) {
+        const e = EVM_NETWORKS[key]
+        return { key, family: "evm", chainId: String(e.chainId), label: e.label, isTestnet: e.isTestnet, rpcHost: hostOf(e.rpcUrl) }
+    }
+    const n = NETWORKS[key]
+    return { key, family: "gno", chainId: n.chainId, label: n.label, isTestnet: !!n.isTestnet, rpcHost: hostOf(n.rpcUrl) }
+}
+
+/** The stored choice when it names a visible EVM network, else null. */
+function storedEvmNetworkKey(): string | null {
+    try {
+        const pref = localStorage.getItem(NETWORK_PREF_STORAGE_KEY)
+        return isVisibleEvmNetworkKey(pref) ? pref : null
+    } catch {
+        return null
+    }
+}
+
+/** The network this page's Memba OS was loaded on. A switch reloads, so it never changes in a page's life. */
+const OS_NETWORK_KEY: string = (EVM_ENABLED ? storedEvmNetworkKey() : null) ?? ACTIVE_NETWORK_KEY
+
+function isOsNetworkKey(key: string): boolean {
+    return isNetworkKey(key) || (EVM_ENABLED && isVisibleEvmNetworkKey(key))
+}
+
+/** How the menu bar names a network: its chain id on gno.land, its name on EVM (a bare number says nothing). */
+export function networkName(n: OsNetwork): string {
+    return n.family === "evm" ? n.label : n.chainId
 }
 
 export function activeOsNetwork(): OsNetwork {
-    return describe(ACTIVE_NETWORK_KEY)
+    return describe(OS_NETWORK_KEY)
 }
 
 /** What the network menu offers: the visible networks, plus the active one if it's hidden. */
 export function selectableOsNetworks(): OsNetwork[] {
-    return Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY)).map(describe)
+    const gno = Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY))
+    const evm = EVM_ENABLED ? Object.keys(EVM_NETWORKS).filter(isVisibleEvmNetworkKey) : []
+    return [...gno, ...evm].map(describe)
 }
 
 /** Shown once after the reload that a switch triggers. Single source of truth
@@ -54,7 +93,7 @@ export function selectableOsNetworks(): OsNetwork[] {
 export { OS_NET_SWITCHED_KEY }
 
 export function switchOsNetwork(key: string): void {
-    if (!isNetworkKey(key) || key === ACTIVE_NETWORK_KEY) return
+    if (!isOsNetworkKey(key) || key === OS_NETWORK_KEY) return
     let oldPreference: string | null | undefined
     let oldEcho: string | null | undefined
     try {
@@ -78,11 +117,14 @@ export function switchOsNetwork(key: string): void {
     // The notice is optional; private browsers can deny sessionStorage while
     // allowing the local preference needed for the switch itself.
     try { sessionStorage.setItem(OS_NET_SWITCHED_KEY, key) } catch { /* no toast after reload */ }
-    try {
-        completeQuest("switch-network")
-        const questAddr = getQuestWalletAddress()
-        if (questAddr) trackNetworkVisit(questAddr, key)
-    } catch { /* quest tracking cannot prevent an already-persisted switch */ }
+    // The network quests are gno.land's: a switch to an EVM network earns none.
+    if (isNetworkKey(key)) {
+        try {
+            completeQuest("switch-network")
+            const questAddr = getQuestWalletAddress()
+            if (questAddr) trackNetworkVisit(questAddr, key)
+        } catch { /* quest tracking cannot prevent an already-persisted switch */ }
+    }
     // Module-load config (RPC, registry paths) is computed once: reload to apply it.
     window.location.reload()
 }
@@ -93,10 +135,12 @@ export function takeNetworkSwitchNotice(): string | null {
         const key = sessionStorage.getItem(OS_NET_SWITCHED_KEY)
         if (!key) return null
         sessionStorage.removeItem(OS_NET_SWITCHED_KEY)
-        if (key !== ACTIVE_NETWORK_KEY) return null
-        return NETWORKS[key]?.isTestnet
-            ? `Switched to ${NETWORKS[key].chainId} · testnet: sandbox funds, nothing here is real`
-            : `Switched to ${NETWORKS[key]?.chainId ?? key} · mainnet: real funds`
+        if (key !== OS_NETWORK_KEY) return null
+        const n = describe(key)
+        const name = networkName(n)
+        return n.isTestnet
+            ? `Switched to ${name} · testnet: sandbox funds, nothing here is real`
+            : `Switched to ${name} · mainnet: real funds`
     } catch {
         return null
     }

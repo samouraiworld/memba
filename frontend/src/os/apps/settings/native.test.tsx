@@ -36,3 +36,24 @@ describe("Settings · Notifications", () => {
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: { kind: "app", app: "settings", section: "safety" } }))
     })
 })
+
+describe("Settings · Network", () => {
+    it("names Adena while the EVM network is off", () => {
+        show("network")
+        expect(screen.getByText(/may require reconnecting Adena/)).toBeInTheDocument()
+    })
+
+    it("names no wallet brand once Base can be selected", async () => {
+        vi.resetModules()
+        vi.doMock("../../../lib/chain/flag", () => ({ EVM_ENABLED: true }))
+        const { default: EvmSettings } = await import("./native")
+        const { AppearanceContext: Ctx } = await import("../../appearance")
+        const appearance = { themePref: "system", theme: "dark", wallpaper: "aurora", iconSize: "md", setThemePref: vi.fn(), setWallpaper: vi.fn(), setIconSize: vi.fn() } as unknown as OsAppearance
+        render(<Ctx.Provider value={appearance}>
+            <EvmSettings section="network" session={session} active open={vi.fn()} push={vi.fn()} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={<p>classic page</p>} />
+        </Ctx.Provider>)
+        expect(screen.getByText(/may require reconnecting your wallet/)).toBeInTheDocument()
+        expect(screen.queryByText(/Adena/)).toBeNull()
+        vi.doUnmock("../../../lib/chain/flag")
+    })
+})
