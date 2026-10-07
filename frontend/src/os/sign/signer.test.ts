@@ -244,7 +244,7 @@ describe("executeSignature", () => {
         it.each([
             ["a single jump the next read does not repeat", ["40 1ugnot", MARK]],
             ["two reads that disagree on where it moved", ["40 1ugnot", "8 4990000ugnot", "41 1ugnot", "9 1ugnot", MARK]],
-            ["a moved read followed by a failed one", ["8 4990000ugnot", "offline"]],
+            ["two moved reads with a failed one between them", ["8 4990000ugnot", "offline", "8 4990000ugnot", MARK]],
         ])("is never sent on %s", (_why, reads) => fake(async () => {
             const pending = executeSignature(silent(), "YES", [msg], () => {}, () => true, account(...reads))
             await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS)
