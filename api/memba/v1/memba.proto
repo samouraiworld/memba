@@ -165,6 +165,11 @@ message Multisig {
   repeated string users_addresses = 7;
   uint32 threshold = 8;
   uint32 members_count = 9;
+  // When the caller's own name is empty: the current name of the member who
+  // first named the multisig, and that member's address. Read-only labels:
+  // the address stays the identity, and the caller's own rename wins.
+  string shared_name = 10;
+  string named_by = 11;
 }
 
 message CreateOrJoinMultisigRequest {

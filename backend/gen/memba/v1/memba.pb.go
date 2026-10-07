@@ -609,8 +609,13 @@ type Multisig struct {
 	UsersAddresses []string               `protobuf:"bytes,7,rep,name=users_addresses,json=usersAddresses,proto3" json:"users_addresses,omitempty"`
 	Threshold      uint32                 `protobuf:"varint,8,opt,name=threshold,proto3" json:"threshold,omitempty"`
 	MembersCount   uint32                 `protobuf:"varint,9,opt,name=members_count,json=membersCount,proto3" json:"members_count,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// When the caller's own name is empty: the current name of the member who
+	// first named the multisig, and that member's address. Read-only labels:
+	// the address stays the identity, and the caller's own rename wins.
+	SharedName    string `protobuf:"bytes,10,opt,name=shared_name,json=sharedName,proto3" json:"shared_name,omitempty"`
+	NamedBy       string `protobuf:"bytes,11,opt,name=named_by,json=namedBy,proto3" json:"named_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Multisig) Reset() {
@@ -704,6 +709,20 @@ func (x *Multisig) GetMembersCount() uint32 {
 		return x.MembersCount
 	}
 	return 0
+}
+
+func (x *Multisig) GetSharedName() string {
+	if x != nil {
+		return x.SharedName
+	}
+	return ""
+}
+
+func (x *Multisig) GetNamedBy() string {
+	if x != nil {
+		return x.NamedBy
+	}
+	return ""
 }
 
 type CreateOrJoinMultisigRequest struct {
@@ -8372,7 +8391,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0euser_signature\x18\x02 \x01(\tR\ruserSignature\"B\n" +
 	"\x10GetTokenResponse\x12.\n" +
 	"\n" +
-	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\"\x97\x02\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\"\xd3\x02\n" +
 	"\bMultisig\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x01 \x01(\tR\tcreatedAt\x12\x19\n" +
@@ -8384,7 +8403,11 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"pubkeyJson\x12'\n" +
 	"\x0fusers_addresses\x18\a \x03(\tR\x0eusersAddresses\x12\x1c\n" +
 	"\tthreshold\x18\b \x01(\rR\tthreshold\x12#\n" +
-	"\rmembers_count\x18\t \x01(\rR\fmembersCount\"\xb4\x02\n" +
+	"\rmembers_count\x18\t \x01(\rR\fmembersCount\x12\x1f\n" +
+	"\vshared_name\x18\n" +
+	" \x01(\tR\n" +
+	"sharedName\x12\x19\n" +
+	"\bnamed_by\x18\v \x01(\tR\anamedBy\"\xb4\x02\n" +
 	"\x1bCreateOrJoinMultisigRequest\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\x120\n" +
 	"\x14multisig_pubkey_json\x18\x02 \x01(\tR\x12multisigPubkeyJson\x12.\n" +

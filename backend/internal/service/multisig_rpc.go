@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"math"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -148,7 +149,14 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		return nil, internalError("CreateOrJoinMultisig: db", err)
 	}
 
-	// Join: upsert the calling user's membership.
+	// Join: upsert the calling user's membership. The first name a member gives
+	// records when (it orders the fallback other members see) and is never moved
+	// by a rename, so the first namer keeps the slot and the label follows their
+	// current name. No name, no time.
+	var nameSetAt any
+	if name != "" {
+		nameSetAt = time.Now().UTC().Format(nameSetAtLayout)
+	}
 	var existingJoined bool
 	err = tx.QueryRowContext(ctx,
 		"SELECT joined FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
@@ -156,8 +164,8 @@ func (s *MultisigService) CreateOrJoinMultisig(
 	).Scan(&existingJoined)
 	if err == sql.ErrNoRows {
 		_, err = tx.ExecContext(ctx,
-			"INSERT INTO user_multisigs (chain_id, user_address, multisig_address, name, joined, created_at) VALUES (?, ?, ?, ?, TRUE, ?)",
-			chainID, userAddress, multisigAddress, name, now,
+			"INSERT INTO user_multisigs (chain_id, user_address, multisig_address, name, name_set_at, joined, created_at) VALUES (?, ?, ?, ?, ?, TRUE, ?)",
+			chainID, userAddress, multisigAddress, name, nameSetAt, now,
 		)
 		if err != nil {
 			return nil, internalError("CreateOrJoinMultisig: db", err)
@@ -165,8 +173,8 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		joined = true
 	} else if err == nil && !existingJoined {
 		_, err = tx.ExecContext(ctx,
-			"UPDATE user_multisigs SET joined = TRUE, name = ? WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
-			name, chainID, userAddress, multisigAddress,
+			"UPDATE user_multisigs SET joined = TRUE, name = ?, name_set_at = COALESCE(name_set_at, ?) WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
+			name, nameSetAt, chainID, userAddress, multisigAddress,
 		)
 		if err != nil {
 			return nil, internalError("CreateOrJoinMultisig: db", err)
@@ -174,8 +182,8 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		joined = true
 	} else if err == nil && existingJoined && name != "" {
 		_, err = tx.ExecContext(ctx,
-			"UPDATE user_multisigs SET name = ? WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
-			name, chainID, userAddress, multisigAddress,
+			"UPDATE user_multisigs SET name = ?, name_set_at = COALESCE(name_set_at, ?) WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
+			name, nameSetAt, chainID, userAddress, multisigAddress,
 		)
 		if err != nil {
 			return nil, internalError("CreateOrJoinMultisig: db", err)
@@ -197,6 +205,26 @@ func (s *MultisigService) CreateOrJoinMultisig(
 	}), nil
 }
 
+// sharedNameSQL picks, for the member row `um` (used only while its own name
+// is empty, so every name found is another member's), the current name of the
+// member who first named the same multisig, and who that is ($col = name or
+// user_address): ordered by when they first named it (name_set_at; names older
+// than that column by their row's creation, then insertion, i.e. key order). Read-time only; nothing is copied, so
+// the member's own rename always wins.
+const sharedNameSQL = `(SELECT o.$col FROM user_multisigs o
+	WHERE o.chain_id = um.chain_id AND o.multisig_address = um.multisig_address
+	  AND o.name != ''
+	ORDER BY COALESCE(o.name_set_at, o.created_at), o.rowid LIMIT 1)`
+
+// nameSetAtLayout is fixed-width (nanoseconds always written) so the text
+// orders like the time, even for two names given within one second.
+const nameSetAtLayout = "2006-01-02T15:04:05.000000000Z07:00"
+
+var (
+	sharedNameCol = strings.ReplaceAll(sharedNameSQL, "$col", "name")
+	namedByCol    = strings.ReplaceAll(sharedNameSQL, "$col", "user_address")
+)
+
 func (s *MultisigService) MultisigInfo(
 	ctx context.Context,
 	req *connect.Request[membav1.MultisigInfoRequest],
@@ -215,17 +243,20 @@ func (s *MultisigService) MultisigInfo(
 	// Joined or not: CreateOrJoinMultisig only writes rows for addresses in the key
 	// set, and an invited member must read the pubkey to import (join) by address.
 	// The name is the caller's own: each member names the multisig for themselves.
+	// When it is empty, another member's name is offered as a labelled fallback.
 	var ms membav1.Multisig
+	var sharedName, namedBy sql.NullString
 	err = s.db.QueryRowContext(ctx,
-		"SELECT name, joined FROM user_multisigs WHERE chain_id = ? AND multisig_address = ? AND user_address = ?",
+		"SELECT um.name, um.joined, CASE WHEN um.name = '' THEN "+sharedNameCol+" END, CASE WHEN um.name = '' THEN "+namedByCol+" END FROM user_multisigs um WHERE um.chain_id = ? AND um.multisig_address = ? AND um.user_address = ?",
 		chainID, addr, userAddress,
-	).Scan(&ms.Name, &ms.Joined)
+	).Scan(&ms.Name, &ms.Joined, &sharedName, &namedBy)
 	if err == sql.ErrNoRows {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 	if err != nil {
 		return nil, internalError("MultisigInfo: membership check", err)
 	}
+	ms.SharedName, ms.NamedBy = sharedName.String, namedBy.String
 
 	err = s.db.QueryRowContext(ctx,
 		"SELECT chain_id, address, pubkey_json, threshold, members_count, created_at FROM multisigs WHERE chain_id = ? AND address = ?",
@@ -284,7 +315,9 @@ func (s *MultisigService) Multisigs(
 
 	query := `
 		SELECT m.chain_id, m.address, m.pubkey_json, m.threshold, m.members_count, m.created_at,
-		       um.joined, um.name
+		       um.joined, um.name,
+		       CASE WHEN um.name = '' THEN ` + sharedNameCol + ` END,
+		       CASE WHEN um.name = '' THEN ` + namedByCol + ` END
 		FROM multisigs m
 		JOIN user_multisigs um ON um.chain_id = m.chain_id AND um.multisig_address = m.address
 		WHERE um.user_address = ?
@@ -319,9 +352,11 @@ func (s *MultisigService) Multisigs(
 	var multisigs []*membav1.Multisig
 	for rows.Next() {
 		var ms membav1.Multisig
-		if err := rows.Scan(&ms.ChainId, &ms.Address, &ms.PubkeyJson, &ms.Threshold, &ms.MembersCount, &ms.CreatedAt, &ms.Joined, &ms.Name); err != nil {
+		var sharedName, namedBy sql.NullString
+		if err := rows.Scan(&ms.ChainId, &ms.Address, &ms.PubkeyJson, &ms.Threshold, &ms.MembersCount, &ms.CreatedAt, &ms.Joined, &ms.Name, &sharedName, &namedBy); err != nil {
 			continue
 		}
+		ms.SharedName, ms.NamedBy = sharedName.String, namedBy.String
 		multisigs = append(multisigs, &ms)
 	}
 	if err := rows.Err(); err != nil {
