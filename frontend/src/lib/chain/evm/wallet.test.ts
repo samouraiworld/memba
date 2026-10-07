@@ -30,7 +30,7 @@ describe("EVM wallet store", () => {
         const stop = w.subscribe(seen)
         expect(w.getSnapshot()).toBe(before) // nothing changed: same snapshot, as useSyncExternalStore requires
         expect(await w.connect(before.wallets[0].uid)).toEqual({ ok: true })
-        expect(w.getSnapshot()).toMatchObject({ status: "connected", address: ADDR.toLowerCase(), chainId: baseSepolia.id })
+        expect(w.getSnapshot()).toMatchObject({ status: "connected", address: ADDR.toLowerCase(), displayAddress: "0xabCDeF0123456789AbcdEf0123456789aBCDEF01", chainId: baseSepolia.id })
         expect(seen).toHaveBeenCalled()
         await w.disconnect()
         expect(w.getSnapshot()).toMatchObject({ status: "disconnected", address: "" })
@@ -67,5 +67,22 @@ describe("EVM wallet store", () => {
         } finally {
             delete w.ethereum
         }
+    })
+
+    it("returns the wallet's signature as it gives it, and reads a refusal as declined", async () => {
+        // The mock connector forwards signing to the chain's RPC: answer it here with a fixed signature.
+        const sig = `0x${"ab".repeat(65)}`
+        vi.stubGlobal("fetch", vi.fn(async (_url: string, init: { body: string }) =>
+            new Response(JSON.stringify({ jsonrpc: "2.0", id: JSON.parse(init.body).id, result: sig }), { headers: { "content-type": "application/json" } })))
+        try {
+            const w = setup()
+            await w.connect(w.getSnapshot().wallets[0].uid)
+            expect(await w.signMessage("hello", ADDR.toLowerCase())).toEqual({ ok: true, signature: sig })
+        } finally {
+            vi.unstubAllGlobals()
+        }
+        const refusing = setup({ signMessageError: new UserRejectedRequestError(new Error("User rejected the request.")) })
+        await refusing.connect(refusing.getSnapshot().wallets[0].uid)
+        expect(await refusing.signMessage("hello", ADDR.toLowerCase())).toEqual({ ok: false, reason: "declined" })
     })
 })

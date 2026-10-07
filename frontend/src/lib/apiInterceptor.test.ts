@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Code, ConnectError } from '@connectrpc/connect'
 import { authSelfHeal } from './api'
-import { TOKEN_KEY, hasStoredToken } from './authSession'
+import { EVM_TOKEN_KEY, TOKEN_KEY, hasStoredToken, onSessionInvalidated } from './authSession'
 
 // The interceptor's SCOPE is the load-bearing part, and it cuts both ways:
 //  - too narrow and F-29 is not fixed (a dead token strands the user again)
@@ -54,5 +54,41 @@ describe('authSelfHeal interceptor — F-29', () => {
         const next = vi.fn().mockResolvedValue(ok)
         await expect(authSelfHeal(next)(req)).resolves.toBe(ok)
         expect(hasStoredToken()).toBe(true)
+    })
+})
+
+// One session per network family: a rejected token ends only its own family's session.
+describe('authSelfHeal interceptor — scoped to the family of the token the request carried', () => {
+    const GNO = { userAddress: 'g1abc', chainId: 'gnoland-1' }
+    const EVM = { userAddress: '0xabc', chainId: 'eip155:84532' }
+    const carrying = (authToken: object) => ({ message: { authToken } }) as unknown as Parameters<ReturnType<typeof authSelfHeal>>[0]
+    const reject = (r: Parameters<ReturnType<typeof authSelfHeal>>[0]) => authSelfHeal(() => Promise.reject(new ConnectError('', Code.Unauthenticated)))(r)
+
+    beforeEach(() => {
+        localStorage.clear()
+        localStorage.setItem(TOKEN_KEY, JSON.stringify(GNO))
+        localStorage.setItem(EVM_TOKEN_KEY, JSON.stringify(EVM))
+    })
+
+    it('a rejected EVM token ends the EVM session only, never the gno.land one', async () => {
+        const gno = vi.fn(), evm = vi.fn()
+        const stop = [onSessionInvalidated(gno), onSessionInvalidated(evm, 'evm')]
+        await expect(reject(carrying(EVM))).rejects.toBeTruthy()
+        expect(localStorage.getItem(EVM_TOKEN_KEY)).toBeNull()
+        expect(hasStoredToken()).toBe(true)
+        expect(evm).toHaveBeenCalledTimes(1)
+        expect(gno).not.toHaveBeenCalled()
+        stop.forEach((s) => s())
+    })
+
+    it('a rejected gno.land token ends the gno.land session only, never the EVM one', async () => {
+        const gno = vi.fn(), evm = vi.fn()
+        const stop = [onSessionInvalidated(gno), onSessionInvalidated(evm, 'evm')]
+        await expect(reject(carrying(GNO))).rejects.toBeTruthy()
+        expect(hasStoredToken()).toBe(false)
+        expect(localStorage.getItem(EVM_TOKEN_KEY)).not.toBeNull()
+        expect(gno).toHaveBeenCalledTimes(1)
+        expect(evm).not.toHaveBeenCalled()
+        stop.forEach((s) => s())
     })
 })

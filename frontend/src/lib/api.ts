@@ -17,6 +17,10 @@ import { invalidateSession } from "./authSession";
  * nothing. Clearing it drops the app to signed-out, which is honest and offers
  * a working "connect" button.
  *
+ * Scoped to the token the request carried: one session per network family, so a
+ * rejected EVM token (chain `eip155:…`) ends the EVM session only, and a
+ * rejected gno.land token the gno.land one only.
+ *
  * Scoped to `Unauthenticated` on purpose. `GetToken` denials ride
  * `PermissionDenied` (`tokenDenied`), and treating those the same way would
  * mean a failed sign-in attempt logs out a perfectly good existing session.
@@ -26,7 +30,9 @@ export const authSelfHeal: Interceptor = (next) => async (req) => {
         return await next(req);
     } catch (err) {
         if (ConnectError.from(err).code === Code.Unauthenticated) {
-            invalidateSession("Your session is no longer valid — please sign in again.");
+            const carried = (req.message as { authToken?: { chainId?: unknown } } | undefined)?.authToken;
+            const family = typeof carried?.chainId === "string" && carried.chainId.startsWith("eip155:") ? "evm" : "gno";
+            invalidateSession("Your session is no longer valid — please sign in again.", family);
         }
         throw err;
     }

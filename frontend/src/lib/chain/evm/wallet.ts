@@ -8,7 +8,7 @@
  *
  * @module lib/chain/evm/wallet
  */
-import { connect, disconnect, getConnection, reconnect, switchChain, watchConnection, watchConnectors, type Config } from "@wagmi/core"
+import { connect, disconnect, getConnection, reconnect, signMessage, switchChain, watchConnection, watchConnectors, type Config } from "@wagmi/core"
 
 export interface EvmWalletOption {
     uid: string
@@ -21,6 +21,8 @@ export interface EvmWalletSnapshot {
     status: "connected" | "connecting" | "reconnecting" | "disconnected"
     /** Lowercase `0x…`, or "" when no account is connected. */
     address: string
+    /** The same address in its EIP-55 form, for display and messages only. */
+    displayAddress: string
     /** The chain the wallet is on, or null when not connected. */
     chainId: number | null
     wallets: readonly EvmWalletOption[]
@@ -60,7 +62,7 @@ function walletOptions(config: Config): EvmWalletOption[] {
 }
 
 function sameSnapshot(a: EvmWalletSnapshot, b: EvmWalletSnapshot): boolean {
-    return a.status === b.status && a.address === b.address && a.chainId === b.chainId
+    return a.status === b.status && a.address === b.address && a.displayAddress === b.displayAddress && a.chainId === b.chainId
         && a.wallets.length === b.wallets.length && a.wallets.every((w, i) => w.uid === b.wallets[i].uid && w.name === b.wallets[i].name && w.icon === b.wallets[i].icon)
 }
 
@@ -70,6 +72,8 @@ export function createEvmWallet(config: Config) {
         return {
             status: c.status,
             address: c.address ? c.address.toLowerCase() : "",
+            // wagmi hands addresses over in their EIP-55 form already.
+            displayAddress: c.address ?? "",
             chainId: c.status === "connected" ? c.chainId : null,
             wallets: walletOptions(config),
         }
@@ -111,6 +115,18 @@ export function createEvmWallet(config: Config) {
         },
         switchChain(chainId: number): Promise<WalletOutcome> {
             return outcome(async () => { await switchChain(config, { chainId: chainId as Config["chains"][number]["id"] }); refresh() })
+        },
+        /**
+         * Asks the wallet to sign `message` (personal_sign). The signature is returned
+         * exactly as the wallet gives it: a smart wallet's EIP-1271 / ERC-6492 form included.
+         */
+        /** `account`: the address that must sign; wagmi refuses if the wallet no longer connects it. */
+        async signMessage(message: string, account: string): Promise<{ ok: true; signature: string } | { ok: false; reason: "declined" | "failed" }> {
+            try {
+                return { ok: true, signature: await signMessage(config, { message, account: account as `0x${string}` }) }
+            } catch (err) {
+                return { ok: false, reason: declinedInWallet(err) ? "declined" : "failed" }
+            }
         },
         /** Silent reconnect of the wallet used last, on load. */
         async reconnect(): Promise<void> {

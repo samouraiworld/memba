@@ -67,7 +67,8 @@ function knownResolvers(chainId: number): Address[] {
     return [evmContract(chainId, "basenamesL2Resolver"), evmContract(chainId, "basenamesL2ResolverLegacy")]
 }
 
-function isKnownResolver(chainId: number, resolver: Address): boolean {
+/** Whether `resolver` is one of the Basenames resolvers in the manifest (the only ones Memba reads or writes). */
+export function isKnownResolver(chainId: number, resolver: Address): boolean {
     return knownResolvers(chainId).some((r) => isAddressEqual(r, resolver))
 }
 
