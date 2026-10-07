@@ -12,17 +12,17 @@ export function PrivacyView() {
             <ul>
                 <li>Your sign-in identity and your verified email address, to know it is you and where to write.</li>
                 <li>The emails you chose (announcements, newsletter, early access and its apps), each with when you asked, the wording you saw and when you confirmed: proof that you asked.</li>
-                <li>For validator alerts: your name, email, webhooks, alert contacts and daily report time, kept by gnomonitoring, Samourai's validator monitoring service.</li>
+                <li>For validator alerts: your name, email, webhooks, alert contacts and daily report time, kept by our validator-monitoring server.</li>
             </ul>
             <p>Nothing is sold or shared for advertising. Emails carry no open or click tracking.</p>
-            <p>Like every Memba page, these pages report the page address to Plausible (anonymous page views, no cookies) and to Sentry (error reports), with confirmation-link tokens and meeting codes removed first.</p>
+            <p>Like every Memba page, these pages report the page address to Plausible (anonymous page views, no cookies) and to our error-reporting service, with confirmation-link tokens and meeting codes removed first.</p>
         </div>
         <div className="os-set-card"><h3>Where</h3>
             <ul>
-                <li>Memba's backend, hosted by Fly.io in Paris, with its database backups in an S3-compatible bucket.</li>
-                <li>Clerk, the sign-in service, which stores your sign-in identity in the United States.</li>
-                <li>Resend, which sends Memba's emails and stores your address and chosen emails in the United States, under a data processing agreement with standard contractual clauses.</li>
-                <li>gnomonitoring, for validator alerts only.</li>
+                <li>Memba's backend, hosted by Fly.io in Paris, with its database backups in an S3-compatible storage bucket.</li>
+                <li>Clerk, which runs sign-in and processes your sign-in identity on Memba's behalf.</li>
+                <li>Resend, which sends Memba's emails and processes your address and chosen emails on Memba's behalf.</li>
+                <li>Our validator-monitoring server, for validator alerts only.</li>
             </ul>
         </div>
         <div className="os-set-card"><h3>How long</h3>
