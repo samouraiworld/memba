@@ -6,6 +6,7 @@
  * @module os/multisig/evm/describe
  */
 import type { DecodedTx, SafeSetting } from "../../../lib/chain/evm/safe/decode"
+import type { CreateError } from "../../../lib/chain/evm/safe/create"
 
 const WEI_PER_ETH = 10n ** 18n
 
@@ -57,3 +58,18 @@ export function describeTx(tx: DecodedTx): TxText {
         case "undecodable": return { title: "Unreadable transaction", detail: `Memba can't read it (${tx.reason}). Don't sign what you can't read.` }
     }
 }
+
+/** Why creating a Safe stopped, and what to do. */
+export function createErrorText(reason: CreateError, network: string): string {
+    switch (reason.code) {
+        case "not-connected": return "Connect a wallet to create a Safe."
+        case "wrong-chain": return `Your wallet is on another network. Switch it to ${network} and try again.`
+        case "declined": return "You declined in your wallet. Nothing was sent."
+        case "address-taken": return "A contract already exists at the address this Safe would have. Review again for a new address."
+        case "unexpected-deployment": return `The deployment Memba built is not the Safe you asked for (${reason.detail}). Nothing was sent.`
+        case "reverted": return "The creation transaction failed on chain. No Safe was created; only its gas was spent."
+        case "not-the-safe": return "The transaction went through, but the address does not hold the Safe you asked for. Don't send funds to it."
+        case "failed": return `Couldn't create the Safe: ${reason.detail}`
+    }
+}
+
