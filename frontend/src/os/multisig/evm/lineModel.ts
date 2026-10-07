@@ -87,10 +87,21 @@ async function lineFor(sdk: Sdk, networkKey: string, safe: string, known: readon
 }
 
 /** The lines of a decoded transaction, each call of a batch on its own. */
-export function useTxLines(net: SafeNetwork, safe: string, owners: readonly string[], key: string, decoded: DecodedTx) {
+/** A decoded transaction as a stable text (bigints as decimal strings), for cache keys. */
+function bodyKey(decoded: DecodedTx): string {
+    return JSON.stringify(decoded, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v))
+}
+
+/**
+ * The lines of a queued transaction, drawn only when its contents match its
+ * hash, and cached by hash and contents together: two listings with the same
+ * hash and other contents never share lines.
+ */
+export function useTxLines(net: SafeNetwork, safe: string, owners: readonly string[], tx: { safeTxHash: string; hashMatches: boolean; decoded: DecodedTx }) {
+    const decoded = tx.decoded
     return useQuery({
-        queryKey: ["safe", "lines", net.chainId, safe, key, owners.join(",")],
-        enabled: EVM_ENABLED,
+        queryKey: ["safe", "lines", net.chainId, safe, tx.safeTxHash, bodyKey(decoded), owners.join(",")],
+        enabled: EVM_ENABLED && tx.hashMatches,
         staleTime: Infinity,
         queryFn: async (): Promise<LineView[]> => {
             const sdk = await loadSafeSdk()

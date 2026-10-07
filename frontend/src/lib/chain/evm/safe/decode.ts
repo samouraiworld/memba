@@ -207,15 +207,18 @@ export function gasRefund(tx: SafeGasFields): string | null {
     } catch {
         return "its gas fields can't be read"
     }
-    const parts: string[] = []
-    if (gasPrice !== 0n) parts.push(`a gas price of ${gasPrice} per unit`)
-    if (baseGas !== 0n) parts.push(`${baseGas} units of base gas`)
-    if (safeTxGas !== 0n) parts.push(`a gas limit of ${safeTxGas} for the call, which lets the call fail without reverting`)
+    const pays: string[] = []
+    if (gasPrice !== 0n) pays.push(`a gas price of ${gasPrice} per unit`)
+    if (baseGas !== 0n) pays.push(`${baseGas} units of base gas`)
     const token = (tx.gasToken || ZERO_ADDRESS).toLowerCase()
-    if (token !== ZERO_ADDRESS) parts.push(`payment in token ${token}`)
+    if (token !== ZERO_ADDRESS) pays.push(`payment in token ${token}`)
     const receiver = (tx.refundReceiver || ZERO_ADDRESS).toLowerCase()
-    if (receiver !== ZERO_ADDRESS) parts.push(`payment to ${receiver}`)
-    return parts.length ? `it pays its executor for gas from the Safe: ${parts.join(", ")}` : null
+    if (receiver !== ZERO_ADDRESS) pays.push(`payment to ${receiver}`)
+    const reasons = [
+        ...(pays.length ? [`it pays for gas from the Safe: ${pays.join(", ")}`] : []),
+        ...(safeTxGas !== 0n ? [`it sets a gas limit of ${safeTxGas} for its call, which lets the call fail without the transaction reverting`] : []),
+    ]
+    return reasons.length ? reasons.join("; ") : null
 }
 
 /**

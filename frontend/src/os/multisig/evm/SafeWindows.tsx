@@ -195,12 +195,13 @@ function FullAddress({ display }: { display: string }) {
  * allowance needs a confirmation first.
  */
 function QueueItem({ net, address, tx, safe, me, network, clash, refresh }: { net: SafeNetwork; address: Hex; tx: QueuedTx; safe: { owners: string[]; threshold: number; nonce: bigint }; me: string; network: string; clash: number | undefined; refresh: () => void }) {
-    const lines = useTxLines(net, address, safe.owners, tx.safeTxHash, tx.decoded)
+    const lines = useTxLines(net, address, safe.owners, tx)
     const [checked, setChecked] = useState(false)
     const [busy, setBusy] = useState<"" | "sign" | "execute">("")
     const [note, setNote] = useState<{ error: boolean; text: string; hash?: string } | null>(null)
     const owner = safe.owners.includes(me)
-    const canSign = !!me && owner && !tx.submitted.has(me)
+    // Only a signature recovered to you counts: a listed one that doesn't recover doesn't hide Sign.
+    const canSign = !!me && owner && !tx.verified.has(me)
     const executorApproves = owner && !tx.verified.has(me)
     const canExecute = !!me && tx.nonce === safe.nonce && tx.verified.size + (executorApproves ? 1 : 0) >= safe.threshold
     const offered = tx.hashMatches && !tx.blocked && (canSign || canExecute)
@@ -231,12 +232,13 @@ function QueueItem({ net, address, tx, safe, me, network, clash, refresh }: { ne
         <li className="os-it os-top">
             <div className="os-grow os-stack os-tight">
                 <b>#{tx.nonce.toString()} {describeTx(tx.decoded).title}</b>
-                {lines.isPending ? <Loading what="what this transaction does" />
+                {!tx.hashMatches ? null : lines.isPending ? <Loading what="what this transaction does" />
                     : lines.isError ? <p className="os-note os-err" role="alert">Couldn't read every call of this transaction. <button type="button" className="os-btn os-quiet os-inline" onClick={() => void lines.refetch()}>Try again</button></p>
                     : <TxLinesView lines={lines.data} batch={tx.decoded.kind === "batch"} />}
                 {!tx.hashMatches && <p className="os-note os-err" role="alert">This proposal's hash doesn't match its contents. Don't sign it.</p>}
                 {tx.hashMatches && tx.blocked && <p className="os-note os-err" role="alert">Memba won't sign or execute this transaction: {tx.blocked}. Don't sign it elsewhere unless every owner agreed to that.</p>}
                 {clash && <p className="os-note os-warn">{clash} proposals use nonce {tx.nonce.toString()}: only one of them can execute.</p>}
+                {tx.duplicates && <p className="os-note os-warn">The Safe Transaction Service listed {tx.duplicates + 1} entries with this hash: Memba shows only {tx.hashMatches ? "the one whose contents match it" : "one, and none matches it"}.</p>}
                 <SigDots members={safe.owners} signed={tx.submitted} verified={tx.verified} threshold={tx.threshold} />
                 {offered && lines.data && <>
                     {needsAck && <label className="os-row"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> <span className="os-sub">I checked every line above with the other owners.</span></label>}

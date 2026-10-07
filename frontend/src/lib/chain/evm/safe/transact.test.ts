@@ -26,7 +26,7 @@ const EXEC_ABI = parseAbi(["function execTransaction(address to, uint256 value, 
 const EXECUTION_SUCCESS = keccak256(toBytes("ExecutionSuccess(bytes32,uint256)"))
 
 const m = vi.hoisted(() => ({
-    me: "", walletChain: 84532, code: vi.fn(), send: vi.fn(), receipt: vi.fn(), signRequests: 0, signAs: "" as string,
+    me: "", walletChain: 84532, code: vi.fn(), send: vi.fn(), receipt: vi.fn(), signRequests: 0, signAs: "" as string, lowV: false,
     facts: { owners: [] as string[], threshold: 2, nonce: 3n }, inspect: vi.fn(),
     kit: { createTransaction: vi.fn() },
     service: { getNextNonce: vi.fn(), proposeTransaction: vi.fn(), getTransaction: vi.fn(), confirmTransaction: vi.fn() },
@@ -40,7 +40,9 @@ vi.mock("@wagmi/core", async (orig) => ({
     signTypedData: async (_config: unknown, args: { account: string } & Parameters<typeof A.signTypedData>[0]) => {
         m.signRequests++
         const { account, ...typed } = args
-        return byAddress.get((m.signAs || account).toLowerCase())!.signTypedData(typed)
+        const sig = await byAddress.get((m.signAs || account).toLowerCase())!.signTypedData(typed)
+        // Some wallets answer v as 0/1.
+        return m.lowV ? `${sig.slice(0, 130)}${(parseInt(sig.slice(130), 16) - 27).toString(16).padStart(2, "0")}` : sig
     },
 }))
 vi.mock("@safe-global/protocol-kit", () => ({ default: { init: async () => m.kit } }))
@@ -74,6 +76,7 @@ beforeEach(() => {
     m.walletChain = CHAIN
     m.signRequests = 0
     m.signAs = ""
+    m.lowV = false
     m.facts = { owners, threshold: 2, nonce: 3n }
     m.inspect.mockImplementation(async () => ({ kind: "ok", value: { kind: "safe", ...m.facts } }))
     m.code.mockResolvedValue(undefined)
@@ -99,7 +102,7 @@ describe("checking a built Safe transaction before signing", () => {
         expect(refusal(fields({ to: P2 }), [pay(P1, 5n)])).toBe("not the call asked for")
         expect(refusal(fields({ operation: 1 }), [pay(P1, 5n)])).toBe("not the call asked for")
         expect(refusal(fields({ data: "0x12" }), [pay(P1, 5n)])).toBe("not the call asked for")
-        for (const over of [{ gasPrice: "1" }, { safeTxGas: "1" }, { baseGas: "1" }, { gasToken: P2 }, { refundReceiver: P2 }]) expect(refusal(fields(over), [pay(P1, 5n)])).toMatch(/^it pays its executor for gas/)
+        for (const over of [{ gasPrice: "1" }, { safeTxGas: "1" }, { baseGas: "1" }, { gasToken: P2 }, { refundReceiver: P2 }]) expect(refusal(fields(over), [pay(P1, 5n)])).toMatch(/^it (pays for gas|sets a gas limit)/)
         const calls = [pay(P1, 1n), pay(P2, 2n)]
         expect(refusal(fields({ to: FULL_MULTISEND, value: "0", operation: 1, data: batch(calls) }), calls)).toBe("not a call-only batch")
         expect(refusal(fields({ to: CALL_ONLY, value: "0", operation: 1, data: batch([calls[1], calls[0]]) }), calls)).toBe("not the calls asked for")
@@ -168,6 +171,24 @@ describe("proposing", () => {
         expect(m.service.proposeTransaction).toHaveBeenCalledTimes(1)
     })
 
+    it("accepts a typed-data signature with v as 0/1, normalised to 27/28, and still checks it is the owner's", async () => {
+        m.lowV = true
+        expect(await code(proposeSafeTx("base-sepolia", "https://api.test", SAFE, [pay(P1, 5n)]))).toBe("ok")
+        const sig: string = m.service.proposeTransaction.mock.calls[0][0].senderSignature
+        expect(["1b", "1c"]).toContain(sig.slice(130))
+        expect(sig).toBe(await signOf(A, fields()))
+        m.signAs = B.address
+        expect(await code(proposeSafeTx("base-sepolia", "https://api.test", SAFE, [pay(P1, 5n)]))).toBe("failed")
+    })
+
+    it("refuses a service nonce far ahead of the Safe's on-chain nonce", async () => {
+        m.service.getNextNonce.mockResolvedValue("54")
+        expect(await code(proposeSafeTx("base-sepolia", "https://api.test", SAFE, [pay(P1, 5n)]))).toBe("service")
+        m.service.getNextNonce.mockResolvedValue("53")
+        expect(await code(proposeSafeTx("base-sepolia", "https://api.test", SAFE, [pay(P1, 5n)]))).toBe("ok")
+        expect(m.service.proposeTransaction).toHaveBeenCalledTimes(1)
+    })
+
     it("says what the Transaction Service refused", async () => {
         m.service.proposeTransaction.mockRejectedValue(new Error("Signer=0x… is not an owner or delegate"))
         const err = await proposeSafeTx("base-sepolia", "https://api.test", SAFE, [pay(P1, 5n)]).catch((e) => e)
@@ -182,6 +203,9 @@ describe("confirming", () => {
         expect(m.service.confirmTransaction).toHaveBeenCalledWith(hash, await signOf(A, fields()))
         await listed(fields(), [A])
         expect(await code(confirmSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("not-ready")
+        // A listed "A" signature that is really C's doesn't count as A's: A can still sign.
+        m.service.getTransaction.mockResolvedValue({ ...fields(), safe: SAFE, safeTxHash: hash, confirmations: [{ owner: A.address, signature: await signOf(C, fields()) }] })
+        expect(await code(confirmSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("ok")
         await listed(fields(), [B], { safe: P2 })
         expect(await code(confirmSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("hash-mismatch")
         m.service.getTransaction.mockResolvedValue({ ...fields({ value: "999" }), safe: SAFE, safeTxHash: hash, confirmations: [] })
@@ -192,8 +216,8 @@ describe("confirming", () => {
         m.me = "0x9999999999999999999999999999999999999999"
         await listed(fields(), [B])
         expect(await code(confirmSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("not-owner")
-        expect(m.service.confirmTransaction).toHaveBeenCalledTimes(1)
-        expect(m.signRequests).toBe(1)
+        expect(m.service.confirmTransaction).toHaveBeenCalledTimes(2)
+        expect(m.signRequests).toBe(2)
     })
 })
 
@@ -211,7 +235,7 @@ describe("executing", () => {
         expect(size(sigs)).toBe(130)
         expect(sigs).toContain((await signOf(B, f)).slice(2))
         expect(sigs).toContain(`${owners[0].slice(2).padStart(64, "0")}${"00".repeat(32)}01`)
-        expect(m.send.mock.calls[0][1]).toMatchObject({ chainId: CHAIN, to: SAFE })
+        expect(m.send.mock.calls[0][1]).toMatchObject({ account: A.address, chainId: CHAIN, to: SAFE })
     })
 
     it("doesn't count an owner executor twice, nor a non-owner executor, nor a misattributed signature", async () => {
@@ -286,6 +310,9 @@ describe("executing", () => {
         m.receipt.mockResolvedValueOnce({ status: "success", logs: [] })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
         m.receipt.mockResolvedValueOnce(successReceipt(`0x${"12".repeat(32)}`))
+        expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
+        // An ExecutionSuccess for this hash from another contract doesn't count.
+        m.receipt.mockResolvedValueOnce({ status: "success", logs: [{ address: P2, topics: [EXECUTION_SUCCESS, hash], data: `0x${"00".repeat(32)}` }] })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
         m.receipt.mockResolvedValueOnce({ status: "success", logs: [{ address: SAFE, topics: [EXECUTION_SUCCESS], data: `${hash}${"00".repeat(32)}` }] })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("ok")

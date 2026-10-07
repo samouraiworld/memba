@@ -98,7 +98,7 @@ export function actionErrorText(reason: SafeActionReason, network: string, actio
         case "unconfirmed": return reason.detail ?? `Sent, but ${network} hasn't confirmed it yet. Don't send it again: check again in a moment.`
         case "unverified": return `Confirmed, but Memba couldn't read ${network} to check the result yet. Check again in a moment.`
         case "failed": return `Couldn't ${ACTION_NAME[action]}: ${reason.detail}`
-        case "unexpected-transaction": return `Memba won't ${ACTION_NAME[action]}: ${reason.detail}. Nothing was signed.`
+        case "unexpected-transaction": return `Memba won't ${ACTION_NAME[action]}: ${reason.detail}. ${action === "execute" || action === "create" ? "Nothing was sent." : "Nothing was signed."}`
         case "hash-mismatch": return "This transaction's hash doesn't match its contents. Nothing was signed: don't sign it elsewhere either."
         case "not-owner": return "This wallet is not an owner of this Safe."
         case "not-ready": return `It can't run yet: ${reason.detail}.`

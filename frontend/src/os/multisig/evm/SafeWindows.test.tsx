@@ -18,6 +18,13 @@ const MODULE = "0xd0d0000000000000000000000000000000000003"
 const TX_HASH = `0x${"ab".repeat(32)}`
 
 const kit = { getSafesByOwner: vi.fn(), getPendingTransactions: vi.fn(), getMultisigTransactions: vi.fn(), getSafeInfo: vi.fn() }
+async function defaultCheck(_chain: number, _owners: readonly string[], tx: { safeTxHash: string; confirmations?: { owner: string }[] }) {
+    return {
+        hashMatches: !tx.safeTxHash.endsWith("bad"),
+        submitted: new Set((tx.confirmations ?? []).map((c) => c.owner)),
+        verified: new Set((tx.confirmations ?? []).map((c) => c.owner)),
+    }
+}
 const sdk = {
     safeApiKit: vi.fn(() => kit),
     inspect: vi.fn<(key: string, address: string) => Promise<Read<SafeInspection>>>(),
@@ -28,11 +35,7 @@ const sdk = {
     confirmSafeTx: vi.fn(async () => undefined),
     executeSafeTx: vi.fn(async () => `0x${"ee".repeat(32)}`),
     SafeActionError,
-    checkQueuedTx: vi.fn(async (_chain: number, _owners: readonly string[], tx: { safeTxHash: string; confirmations?: { owner: string }[] }) => ({
-        hashMatches: !tx.safeTxHash.endsWith("bad"),
-        submitted: new Set((tx.confirmations ?? []).map((c) => c.owner)),
-        verified: new Set((tx.confirmations ?? []).map((c) => c.owner)),
-    })),
+    checkQueuedTx: vi.fn(defaultCheck),
 }
 vi.mock("../../../lib/chain/evm/safe/load", () => ({ loadSafeSdk: async () => sdk }))
 
@@ -244,7 +247,7 @@ describe("acting on the queue", () => {
         ] })
         const { unmount } = wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
         const queue = within(await screen.findByRole("region", { name: "Waiting to execute" }))
-        expect(await queue.findByText(/Memba won't sign or execute this transaction: it pays its executor for gas from the Safe/)).toBeInTheDocument()
+        expect(await queue.findByText(/Memba won't sign or execute this transaction: it pays for gas from the Safe/)).toBeInTheDocument()
         expect(queue.getByText(/Memba won't sign or execute this transaction: it runs another contract's code/)).toBeInTheDocument()
         expect(queue.getByText("This proposal's hash doesn't match its contents. Don't sign it.")).toBeInTheDocument()
         await screen.findAllByText(/Send 0.000000000000000001 ETH|Send 1 ETH/)
@@ -271,6 +274,60 @@ describe("acting on the queue", () => {
         fireEvent.click(boxes[0])
         expect(signs[0]).toBeEnabled()
         expect(signs[1]).toBeDisabled()
+    })
+
+    it("offers nothing while the lines can't be drawn", async () => {
+        sdk.isContract.mockRejectedValue(new Error("rpc down"))
+        kit.getPendingTransactions.mockResolvedValue({ count: 1, results: [pending(4, TX_HASH, { confirmations: [{ owner: BOB }] })] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        expect(await screen.findByText(/Couldn't read every call of this transaction/)).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Sign|Execute/ })).toBeNull()
+        sdk.isContract.mockResolvedValue({ kind: "ok", value: false })
+    })
+
+    it("shows one entry per hash, the one whose contents match, and draws no lines for a mismatch", async () => {
+        // A decoy listed first with the real entry's hash and other contents ("bad" makes checkQueuedTx say mismatch).
+        const decoy = { ...pending(4, TX_HASH, { confirmations: [] }), to: "0xbad0000000000000000000000000000000000004", value: "999000000000000000000" }
+        sdk.checkQueuedTx.mockImplementation(async (_c: number, _o: readonly string[], tx: { to: string; safeTxHash: string; confirmations?: { owner: string }[] }) => ({
+            hashMatches: !tx.to.startsWith("0xbad"),
+            submitted: new Set((tx.confirmations ?? []).map((c) => c.owner)),
+            verified: new Set((tx.confirmations ?? []).map((c) => c.owner)),
+        }))
+        kit.getPendingTransactions.mockResolvedValue({ count: 2, results: [decoy, pending(4, TX_HASH, { confirmations: [{ owner: BOB }] })] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        const queue = within(await screen.findByRole("region", { name: "Waiting to execute" }))
+        expect(await queue.findByText(/listed 2 entries with this hash: Memba shows only the one whose contents match it/)).toBeInTheDocument()
+        expect(await queue.findByText("Send 1 ETH")).toBeInTheDocument()
+        expect(queue.queryByText(/999/)).toBeNull()
+        expect(queue.getAllByRole("listitem").filter((li) => li.querySelector(".os-pill"))).toHaveLength(1)
+        sdk.checkQueuedTx.mockImplementation(defaultCheck)
+    })
+
+    it("draws no lines for a transaction whose contents don't match its hash", async () => {
+        kit.getPendingTransactions.mockResolvedValue({ count: 1, results: [pending(4, `0x${"cd".repeat(31)}bad`, { confirmations: [] })] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        expect(await screen.findByText("This proposal's hash doesn't match its contents. Don't sign it.")).toBeInTheDocument()
+        expect(screen.queryByText("To")).toBeNull()
+        expect(screen.queryByText(/Loading what this transaction does/)).toBeNull()
+        expect(sdk.isContract).not.toHaveBeenCalled()
+    })
+
+    it("never shows lines drawn for other contents under the same hash", async () => {
+        const CAROL = "0xca201e0000000000000000000000000000000005"
+        kit.getPendingTransactions.mockResolvedValueOnce({ count: 1, results: [pending(5, TX_HASH, { confirmations: [] })] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        expect(await screen.findByLabelText(getAddress(BOB))).toBeInTheDocument()
+        kit.getPendingTransactions.mockResolvedValue({ count: 1, results: [pending(5, TX_HASH, { to: CAROL, confirmations: [] })] })
+        fireEvent.click(screen.getByRole("button", { name: "Refresh" }))
+        expect(await screen.findByLabelText(getAddress(CAROL))).toBeInTheDocument()
+        expect(screen.queryByLabelText(getAddress(BOB))).toBeNull()
+    })
+
+    it("offers Sign to an owner whose listed signature doesn't recover to them", async () => {
+        sdk.checkQueuedTx.mockImplementationOnce(async () => ({ hashMatches: true, submitted: new Set([ME]), verified: new Set<string>() }))
+        kit.getPendingTransactions.mockResolvedValue({ count: 1, results: [pending(5, TX_HASH, { confirmations: [{ owner: ME }] })] })
+        wrap(<SafeWindow address={SAFE} session={member} open={vi.fn()} />)
+        expect(await screen.findByRole("button", { name: "Sign" })).toBeInTheDocument()
     })
 
     it("says why an action stopped, and keeps a sent transaction's link", async () => {

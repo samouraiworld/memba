@@ -60,6 +60,8 @@ type ChainId = (typeof evmConfig.chains)[number]["id"]
 type SafeFacts = Extract<SafeInspection, { kind: "safe" }>
 
 const ZERO = "0x0000000000000000000000000000000000000000"
+/** How far ahead of the Safe's on-chain nonce a queued proposal may sit. */
+const MAX_NONCE_AHEAD = 50n
 const EXEC_ABI = parseAbi(["function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)"])
 const EXECUTION_SUCCESS = keccak256(toBytes("ExecutionSuccess(bytes32,uint256)"))
 /** EIP-7702: an EOA delegating to code still signs with its own key. */
@@ -139,6 +141,9 @@ async function sign(chainId: number, safe: Hex, tx: SafeTxData, signer: Hex): Pr
     } catch (err) {
         walletError(err)
     }
+    // Some wallets return v as 0/1 for typed data: Safe reads 27/28 (protocol-kit normalises the same way).
+    const v = parseInt(signature.slice(130, 132), 16)
+    if (signature.length === 132 && (v === 0 || v === 1)) signature = `${signature.slice(0, 130)}${(v + 27).toString(16)}` as Hex
     if ((await confirmationSigner(hash, signature)) !== signer) throw new SafeActionError({ code: "failed", detail: "the wallet's signature is not this account's" })
     return { hash, signature }
 }
@@ -156,6 +161,10 @@ export async function proposeSafeTx(networkKey: string, apiBase: string, safe: H
     const service_ = safeApiKit(apiBase, chainId)
     let serviceNonce: bigint
     try { serviceNonce = BigInt(await service_.getNextNonce(safe)) } catch (err) { service(err) }
+    // The service's next nonce is used only when it is plausible: past the chain's, by at most MAX_NONCE_AHEAD.
+    if (serviceNonce > facts.nonce + MAX_NONCE_AHEAD) {
+        throw new SafeActionError({ code: "service", detail: `its next nonce (${serviceNonce}) is far ahead of the Safe's on-chain nonce (${facts.nonce})` })
+    }
     const nonce = serviceNonce > facts.nonce ? serviceNonce : facts.nonce
     const kit = await Safe.init({ provider: client as unknown as Eip1193Provider, signer, safeAddress: safe })
     const safeTx = await kit.createTransaction({
@@ -190,7 +199,8 @@ export async function confirmSafeTx(networkKey: string, apiBase: string, safe: H
     await assertKeyHolder(chainId, signer)
     const service_ = safeApiKit(apiBase, chainId)
     const { tx, check } = await queued(service_, chainId, safe, facts.owners, hash)
-    if (check.submitted.has(signer)) throw new SafeActionError({ code: "not-ready", detail: "you already signed it" })
+    // Only a signature recovered to you counts as yours: a listed one that doesn't recover doesn't stop you signing.
+    if (check.verified.has(signer)) throw new SafeActionError({ code: "not-ready", detail: "you already signed it" })
     // queued() proved the listing's hash is this Safe's hash of these fields: sign() signs exactly that.
     const signed = await sign(chainId, safe, tx, signer)
     try { await service_.confirmTransaction(hash, signed.signature) } catch (err) { service(err) }
@@ -226,7 +236,7 @@ export async function executeSafeTx(networkKey: string, apiBase: string, safe: H
             encodeSignatures(check.signatures, executorApproves ? signer : null)],
     })
     let sent: Hex
-    try { sent = await sendTransaction(evmConfig, { chainId: chainId as ChainId, to: safe, data }) } catch (err) { walletError(err) }
+    try { sent = await sendTransaction(evmConfig, { account: getAddress(signer), chainId: chainId as ChainId, to: safe, data }) } catch (err) { walletError(err) }
     onSent?.(sent)
     let receipt
     try { receipt = await waitForTransactionReceipt(evmConfig, { chainId: chainId as ChainId, hash: sent }) } catch {
