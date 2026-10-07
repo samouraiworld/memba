@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { decodeFunctionData, encodeFunctionData, encodePacked, keccak256, parseAbi, size, toBytes, type Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
+import type { SendOptions } from "../send"
 import { SafeActionError } from "./create"
 import { assertBuilt, assertRunnable, confirmSafeTx, encodeSignatures, executeSafeTx, proposeSafeTx, type SafeCall } from "./transact"
 import { safeTxHash, safeTxTypedData } from "./verify"
@@ -22,6 +23,7 @@ const ZERO: Hex = "0x0000000000000000000000000000000000000000"
 const P1: Hex = "0x1111111111111111111111111111111111111111"
 const P2: Hex = "0x2222222222222222222222222222222222222222"
 const SENT: Hex = `0x${"ee".repeat(32)}`
+const OTHER: Hex = `0x${"dd".repeat(32)}`
 const EXEC_ABI = parseAbi(["function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)"])
 const EXECUTION_SUCCESS = keccak256(toBytes("ExecutionSuccess(bytes32,uint256)"))
 
@@ -68,6 +70,13 @@ function code(p: Promise<unknown>): Promise<unknown> {
     return p.then(() => "ok", (err) => (err instanceof SafeActionError ? err.reason.code : `other: ${String(err)}`))
 }
 const successReceipt = (hash: Hex) => ({ status: "success", logs: [{ address: SAFE, topics: [EXECUTION_SUCCESS, hash], data: `0x${"00".repeat(32)}` }] })
+/** sendEvmWrite as it behaves: it hands the wallet's hash over (onSent) before it awaits the receipt and reports. */
+const sends = (result: Record<string, unknown>, handed: Hex | null = SENT) => m.send.mockImplementationOnce(async (_write: unknown, opts?: SendOptions) => {
+    if (handed) opts?.onSent?.(handed)
+    return result
+})
+/** A send the send path saw mined and successful, with this receipt. */
+const mined = (receipt: unknown) => sends({ outcome: "sent", hash: SENT, result: receipt })
 
 beforeEach(() => {
     vi.clearAllMocks()
@@ -81,7 +90,10 @@ beforeEach(() => {
     m.code.mockResolvedValue(undefined)
     m.service.getNextNonce.mockResolvedValue("3")
     m.kit.createTransaction.mockImplementation(async (args: { options: { nonce: number } }) => ({ data: fields({ nonce: args.options.nonce }) }))
-    m.send.mockResolvedValue({ outcome: "unknown", hash: SENT, error: "not seen yet" })
+    m.send.mockImplementation(async (_write: unknown, opts?: SendOptions) => {
+        opts?.onSent?.(SENT)
+        return { outcome: "unknown", hash: SENT, error: "not seen yet" }
+    })
 })
 
 describe("checking a built Safe transaction before signing", () => {
@@ -228,14 +240,16 @@ describe("executing", () => {
         const f = fields()
         const hash = hashOf(f)
         m.service.getTransaction.mockResolvedValue({ ...f, safe: SAFE, safeTxHash: hash, confirmations: [{ owner: B.address, signature: await signOf(B, f) }, { owner: C.address, signature: await signOf(A, f) }] })
-        m.receipt.mockResolvedValue(successReceipt(hash))
+        mined(successReceipt(hash))
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("ok")
         const sigs = sentSignatures()
         expect(size(sigs)).toBe(130)
         expect(sigs).toContain((await signOf(B, f)).slice(2))
         expect(sigs).toContain(`${owners[0].slice(2).padStart(64, "0")}${"00".repeat(32)}01`)
         expect(m.send.mock.calls[0][0]).toMatchObject({ from: A.address.toLowerCase(), chainId: CHAIN, to: SAFE })
-        expect(m.send.mock.calls[0][1]).toEqual({ receiptTimeoutMs: 1 })
+        // sendEvmWrite's own receipt wait (no shortened one), and no second wait here.
+        expect(m.send.mock.calls[0][1]).toEqual({ onSent: expect.any(Function) })
+        expect(m.receipt).not.toHaveBeenCalled()
     })
 
     it("doesn't count an owner executor twice, nor a non-owner executor, nor a misattributed signature", async () => {
@@ -255,7 +269,7 @@ describe("executing", () => {
     it("adds no approval for an executor who isn't an owner", async () => {
         const f = fields()
         const hash = await listed(f, [A, B])
-        m.receipt.mockResolvedValue(successReceipt(hash))
+        mined(successReceipt(hash))
         m.me = "0x9999999999999999999999999999999999999999"
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("ok")
         expect(size(sentSignatures())).toBe(130)
@@ -305,29 +319,51 @@ describe("executing", () => {
         m.send.mockResolvedValueOnce({ outcome: "failed", error: "There is no contract at 0x… on Base Sepolia. Nothing was sent." })
         const failed = await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)
         expect(failed.reason).toEqual({ code: "failed", detail: "There is no contract at 0x… on Base Sepolia" })
-        m.send.mockResolvedValueOnce({ outcome: "unknown", error: "Your wallet answered without a hash" })
+        const noHash = "Your wallet answered without a valid transaction hash. Check your wallet's activity before retrying: the transaction may have been sent."
+        sends({ outcome: "unknown", error: noHash }, null)
         const unknown = await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)
-        expect(unknown.reason.detail).toMatch(/may have been sent: check your wallet/)
+        expect(unknown.reason).toEqual({ code: "failed", detail: noHash })
         expect(m.receipt).not.toHaveBeenCalled()
     })
 
-    it("keeps the sent hash when the receipt doesn't come, and needs the Safe's ExecutionSuccess for this hash", async () => {
+    it("keeps the hash handed over before the wait when the send path didn't see it confirmed, or saw it replaced", async () => {
         const hash = await listed(fields(), [B])
-        m.receipt.mockRejectedValueOnce(new Error("timeout"))
         const onSent = vi.fn()
+        const notSeen = "Sent, but Memba couldn't see it confirmed on Base Sepolia yet. Check the transaction before trying again."
+        sends({ outcome: "unknown", hash: SENT, error: notSeen })
         const err = await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash, onSent).catch((e) => e)
         expect(onSent).toHaveBeenCalledWith(SENT)
-        expect(err.reason).toEqual({ code: "unconfirmed", hash: SENT })
-        m.receipt.mockResolvedValueOnce({ status: "reverted", logs: [] })
+        expect(err.reason).toEqual({ code: "unconfirmed", hash: SENT, detail: notSeen })
+        const replaced = "Your wallet replaced this transaction with a different one. Check your wallet's activity before retrying."
+        sends({ outcome: "unknown", hash: OTHER, error: replaced })
+        expect((await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)).reason).toEqual({ code: "unconfirmed", hash: SENT, detail: replaced })
+        expect(m.receipt).not.toHaveBeenCalled()
+    })
+
+    it("says a reverted or cancelled send reverted, in the send path's words", async () => {
+        const hash = await listed(fields(), [B])
+        const reverted = "The transaction was included but reverted: it changed nothing, and the network fee was paid."
+        sends({ outcome: "refused", hash: SENT, error: reverted })
+        expect((await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)).reason).toEqual({ code: "reverted", hash: SENT, detail: reverted })
+    })
+
+    it("needs the Safe's ExecutionSuccess for this hash in the send path's receipt, and returns a repriced send's mined hash", async () => {
+        const hash = await listed(fields(), [B])
+        mined({ status: "success", logs: [] })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
-        m.receipt.mockResolvedValueOnce({ status: "success", logs: [] })
-        expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
-        m.receipt.mockResolvedValueOnce(successReceipt(`0x${"12".repeat(32)}`))
+        mined(successReceipt(`0x${"12".repeat(32)}`))
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
         // An ExecutionSuccess for this hash from another contract doesn't count.
-        m.receipt.mockResolvedValueOnce({ status: "success", logs: [{ address: P2, topics: [EXECUTION_SUCCESS, hash], data: `0x${"00".repeat(32)}` }] })
+        mined({ status: "success", logs: [{ address: P2, topics: [EXECUTION_SUCCESS, hash], data: `0x${"00".repeat(32)}` }] })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("reverted")
-        m.receipt.mockResolvedValueOnce({ status: "success", logs: [{ address: SAFE, topics: [EXECUTION_SUCCESS], data: `${hash}${"00".repeat(32)}` }] })
+        // Safe 1.3.0: the hash is in the data.
+        mined({ status: "success", logs: [{ address: SAFE, topics: [EXECUTION_SUCCESS], data: `${hash}${"00".repeat(32)}` }] })
         expect(await code(executeSafeTx("base-sepolia", "https://api.test", SAFE, hash))).toBe("ok")
+        // A sent outcome without its receipt is not taken as executed.
+        sends({ outcome: "sent", hash: SENT })
+        expect((await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash).catch((e) => e)).reason).toEqual({ code: "unconfirmed", hash: SENT })
+        sends({ outcome: "sent", hash: OTHER, result: successReceipt(hash) })
+        expect(await executeSafeTx("base-sepolia", "https://api.test", SAFE, hash)).toBe(OTHER)
+        expect(m.receipt).not.toHaveBeenCalled()
     })
 })

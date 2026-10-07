@@ -26,9 +26,9 @@
 import type SafeApiKit from "@safe-global/api-kit"
 import Safe, { type Eip1193Provider } from "@safe-global/protocol-kit"
 import { getConnectorClient, getPublicClient, signTypedData } from "@wagmi/core"
-import { concat, encodeFunctionData, getAddress, keccak256, pad, parseAbi, toBytes, type Hex } from "viem"
+import { concat, encodeFunctionData, getAddress, keccak256, pad, parseAbi, toBytes, type Hex, type TransactionReceipt } from "viem"
 import { chainFor, evmConfig, sendEvmWrite } from "../adapter"
-import { SafeActionError, sentHash, walletError } from "./create"
+import { assertSomethingSent, SafeActionError, walletError } from "./create"
 import { decodeSafeTx, gasRefund, multiSendCalls, refusedToRun, type SafeTxFields } from "./decode"
 import { inspectSafe, type SafeInspection } from "./inspect"
 import { multiSendAt } from "./known"
@@ -60,10 +60,6 @@ type ChainId = (typeof evmConfig.chains)[number]["id"]
 type SafeFacts = Extract<SafeInspection, { kind: "safe" }>
 
 const ZERO = "0x0000000000000000000000000000000000000000"
-/** How long an execution's receipt is awaited before "unconfirmed" (with its hash). */
-const RECEIPT_TIMEOUT_MS = 120_000
-/** sendEvmWrite waits for the receipt itself: this short wait makes it return the hash first. */
-const HASH_FIRST_MS = 1
 /** How far ahead of the Safe's on-chain nonce a queued proposal may sit. */
 const MAX_NONCE_AHEAD = 50n
 const EXEC_ABI = parseAbi(["function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)"])
@@ -239,20 +235,19 @@ export async function executeSafeTx(networkKey: string, apiBase: string, safe: H
         args: [tx.to as Hex, BigInt(tx.value), (tx.data || "0x") as Hex, tx.operation, BigInt(tx.safeTxGas), BigInt(tx.baseGas), BigInt(tx.gasPrice), tx.gasToken as Hex, (tx.refundReceiver || ZERO) as Hex,
             encodeSignatures(check.signatures, executorApproves ? signer : null)],
     })
-    // The one send path (chain, account and the Safe's code re-checked), returning the hash right away
-    // so it is kept (onSent) before the wait, done here with viem: a revert is a status, a replacement followed.
-    const result = sentHash(await sendEvmWrite({ chainId, from: signer, to: safe, data }, { receiptTimeoutMs: HASH_FIRST_MS }))
-    if (!result.hash) {
-        if (result.declined) throw new SafeActionError({ code: "declined" })
-        throw new SafeActionError({ code: "failed", detail: result.maybeSent ? `${result.error} (it may have been sent: check your wallet before trying again)` : result.error })
+    // The one send path (chain, account and the Safe's code re-checked). It hands the hash over (onSent)
+    // before it awaits the receipt, follows replacements, and reports a revert as refused.
+    const handed: { hash?: Hex } = {}
+    const result = await sendEvmWrite({ chainId, from: signer, to: safe, data }, { onSent: (h) => { handed.hash = h; onSent?.(h) } })
+    assertSomethingSent(result)
+    if (result.outcome === "refused") throw new SafeActionError({ code: "reverted", hash: result.hash as Hex, detail: result.error })
+    if (result.outcome === "unknown") {
+        const kept = handed.hash ?? (result.hash as Hex | undefined)
+        throw new SafeActionError(kept ? { code: "unconfirmed", hash: kept, detail: result.error } : { code: "failed", detail: result.error })
     }
-    const sent = result.hash
-    onSent?.(sent)
-    let receipt
-    try { receipt = await getPublicClient(evmConfig, { chainId: chainId as ChainId }).waitForTransactionReceipt({ hash: sent, timeout: RECEIPT_TIMEOUT_MS }) } catch {
-        throw new SafeActionError({ code: "unconfirmed", hash: sent })
-    }
-    if (receipt.status !== "success") throw new SafeActionError({ code: "reverted", hash: sent })
+    const sent = result.hash as Hex
+    const receipt = result.result as TransactionReceipt | undefined
+    if (!receipt?.logs) throw new SafeActionError({ code: "unconfirmed", hash: sent })
     // ExecutionSuccess(txHash, payment): txHash is indexed from Safe 1.4.1, in the data on 1.3.0.
     const executed = receipt.logs.some((log) => same(log.address, safe) && log.topics[0] === EXECUTION_SUCCESS
         && (same(log.topics[1] ?? "", hash) || same(log.data.slice(0, 66), hash)))
