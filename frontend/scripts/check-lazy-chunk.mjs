@@ -2,9 +2,12 @@
 /**
  * Bundle CI gate for heavy vendor stacks that must stay in a lazy async chunk.
  *
- * Usage: node scripts/check-lazy-chunk.mjs <three|evm>
+ * Usage: node scripts/check-lazy-chunk.mjs <three|evm> [distDir] [--expect-present]
  *   three  BARRICADE 3D renderer (three / react-three-fiber / postprocessing)
  *   evm    EVM network adapter (viem / wagmi), behind VITE_ENABLE_EVM
+ *   distDir          the build to check (default: dist)
+ *   --expect-present positive control: also FAIL when the chunk is missing, for a
+ *                    build with the flag on (proves the gate still sees the chunk)
  *
  * FAILS the build if the `vendor-<name>` chunk:
  *   1) is loaded by the EAGER entry graph (index.html script/modulepreload, or a
@@ -12,28 +15,34 @@
  *   2) is in the Workbox PRECACHE manifest (globIgnores must strip it), or every
  *      user would download it on service-worker install;
  *   3) exists at all while its flag (if any) is not "true": a flag-off build
- *      must not ship the stack.
+ *      must not ship the stack, nor any JS carrying one of the gate's markers
+ *      (strings only the gated code holds, so app code that stopped folding
+ *      away is caught even when it imports no vendor module).
  *
  * Run after `vite build` (needs dist/). Inert-but-passing while no such chunk exists.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 
 // The command-line argument only SELECTS a gate: every pattern below is built
 // from these constants, never from the argument.
 const GATES = {
-  three: { chunk: "vendor-three-", flag: null },
-  evm: { chunk: "vendor-evm-", flag: "VITE_ENABLE_EVM" },
+  three: { chunk: "vendor-three-", flag: null, markers: [] },
+  // viem's and wagmi's own names (a flag-off build has no vendor-evm chunk to find them by), the
+  // Base Sepolia RPC host (lib/chain/evm/networks.ts) and the adapter's storage key (adapter.ts).
+  evm: { chunk: "vendor-evm-", flag: "VITE_ENABLE_EVM", markers: ["viem@", "wagmi", "sepolia.base.org", "memba.evm"] },
 }
-const name = process.argv[2]
+const args = process.argv.slice(2)
+const expectPresent = args.includes("--expect-present")
+const [name, distArg] = args.filter((a) => a !== "--expect-present")
 const gate = Object.hasOwn(GATES, name) ? GATES[name] : null
 if (!gate) {
-  console.error(`usage: check-lazy-chunk.mjs <${Object.keys(GATES).join("|")}>`)
+  console.error(`usage: check-lazy-chunk.mjs <${Object.keys(GATES).join("|")}> [distDir] [--expect-present]`)
   process.exit(2)
 }
-const { chunk: CHUNK, flag: flagVar } = gate
+const { chunk: CHUNK, flag: flagVar, markers: MARKERS } = gate
 
-const DIST = join(process.cwd(), "dist")
+const DIST = resolve(process.cwd(), distArg || "dist")
 const ASSETS = join(DIST, "assets")
 const CHUNK_RE = new RegExp(`${CHUNK}[^"'\\s]*\\.js`)
 
@@ -47,9 +56,20 @@ if (!existsSync(DIST)) fail("dist/ not found — run `npm run build` first.")
 const jsFiles = existsSync(ASSETS) ? readdirSync(ASSETS).filter((f) => f.endsWith(".js")) : []
 const chunks = jsFiles.filter((f) => f.startsWith(CHUNK))
 
+// ---- Positive control: a flag-on build must contain the chunk -------------
+if (expectPresent && chunks.length === 0) {
+  fail(`--expect-present: ${DIST} has no ${CHUNK}* chunk — the build did not include the gated code, so the checks below prove nothing.`)
+}
+
 // ---- Check 3: a flag-off build must not contain the chunk -----------------
-if (flagVar && process.env[flagVar] !== "true" && chunks.length > 0) {
-  fail(`${flagVar} is off but dist/ contains ${chunks.join(", ")} — the gated import stopped folding away.`)
+if (flagVar && process.env[flagVar] !== "true") {
+  if (chunks.length > 0) fail(`${flagVar} is off but dist/ contains ${chunks.join(", ")} — the gated import stopped folding away.`)
+  // JS only: index.html legitimately names the RPC hosts in its CSP.
+  for (const file of jsFiles) {
+    const code = readFileSync(join(ASSETS, file), "utf8")
+    const marker = MARKERS.find((m) => code.includes(m))
+    if (marker) fail(`${flagVar} is off but ${file} contains "${marker}" — gated code stopped folding away.`)
+  }
 }
 
 // ---- Check 1: the chunk must not be in the EAGER entry graph ---------------

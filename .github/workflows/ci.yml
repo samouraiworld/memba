@@ -217,6 +217,22 @@ jobs:
         # ships it must stay out of the eager graph and the precache manifest.
         run: npm run check:bundle:evm
 
+      - name: "Bundle gate: EVM adapter in the Memba OS builds (flag off, then on)"
+        # The build above has no Memba OS, so it cannot see EVM code that stopped
+        # folding away inside the OS chunk. Build the OS beta site twice. Flag off:
+        # no EVM marker may ship. Flag on (deploy-preview context, where the safety
+        # gate allows it): the vendor-evm chunk must exist (positive control: the
+        # gate still sees it) and stay lazy and precache-excluded.
+        if: matrix.node-version == '22'
+        env:
+          VITE_MEMBA_OS: 'true'
+          MEMBA_OS_BETA_SITE: 'true'
+        run: |
+          node ./node_modules/.bin/vite build --logLevel warn --outDir dist-os --emptyOutDir
+          node scripts/check-lazy-chunk.mjs evm dist-os
+          CONTEXT=deploy-preview VITE_ENABLE_EVM=true node ./node_modules/.bin/vite build --logLevel warn --outDir dist-os-evm --emptyOutDir
+          VITE_ENABLE_EVM=true node scripts/check-lazy-chunk.mjs evm dist-os-evm --expect-present
+
       - name: "Bundle gate: no Memba OS code in the flag-off build"
         # Memba OS ships only on the beta site (VITE_MEMBA_OS + MEMBA_OS_BETA_SITE).
         # This build has the flag off, so any OS chunk or "memba-os" string in

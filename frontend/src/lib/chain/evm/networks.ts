@@ -3,6 +3,11 @@
  * NETWORKS) on purpose: every Gno module-load constant is computed from that
  * registry, and an EVM key must never reach it. Plain data, no EVM library.
  *
+ * The RPCs can be overridden per build (VITE_BASE_SEPOLIA_RPC_URL, VITE_BASE_RPC_URL),
+ * e.g. a keyed provider URL on deploy-previews; its host must be in the CSP
+ * connect-src (netlify.toml, index.html). Whatever the URL, the adapter checks
+ * `eth_chainId` before trusting it (chainCheck.ts).
+ *
  * Identity checked 2026-10-07: `eth_chainId` on sepolia.base.org = 0x14a34
  * (84532) and on mainnet.base.org = 0x2105 (8453). Re-check the chain id, not
  * the reply, before changing an RPC here.
@@ -29,7 +34,7 @@ export const EVM_NETWORKS: Readonly<Record<string, EvmNetwork>> = Object.freeze(
         chainId: 84532,
         label: "Base Sepolia",
         isTestnet: true,
-        rpcUrl: "https://sepolia.base.org",
+        rpcUrl: import.meta.env.VITE_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
         explorerUrl: "https://sepolia.basescan.org",
         hidden: false,
     },
@@ -37,7 +42,7 @@ export const EVM_NETWORKS: Readonly<Record<string, EvmNetwork>> = Object.freeze(
         chainId: 8453,
         label: "Base",
         isTestnet: false,
-        rpcUrl: "https://mainnet.base.org",
+        rpcUrl: import.meta.env.VITE_BASE_RPC_URL || "https://mainnet.base.org",
         explorerUrl: "https://basescan.org",
         hidden: !BASE_MAINNET_VISIBLE,
     },

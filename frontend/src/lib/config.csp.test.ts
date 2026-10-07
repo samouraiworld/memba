@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { NETWORKS } from './config'
+import { EVM_NETWORKS } from './chain/evm/networks'
 
 // The production CSP lives in the repo-root netlify.toml. Every RPC host the app
 // may fetch — primary + fallbacks, across ALL networks (hidden ones are still
@@ -48,5 +49,20 @@ describe('CSP connect-src covers every network RPC host', () => {
                 expect(hostAllowed(host, sources)).toBe(true)
             })
         }
+    }
+})
+
+describe('CSP connect-src covers the EVM network RPCs', () => {
+    const indexHtml = readFileSync(resolve(here, '../../index.html'), 'utf8')
+    const devSources = indexHtml.match(/connect-src\s+('self'[^;]*);/)?.[1].trim().split(/\s+/) ?? []
+    // The public RPCs, and the keyed provider a deploy-preview may set through
+    // VITE_BASE_*_RPC_URL: its host only, never the URL that carries the key.
+    const hosts = [...Object.values(EVM_NETWORKS).map((n) => new URL(n.rpcUrl).hostname), 'base-sepolia.g.alchemy.com', 'base-mainnet.g.alchemy.com']
+
+    for (const host of hosts) {
+        it(`${host} is allowed in production and in dev`, () => {
+            expect(hostAllowed(host, connectSrcSources(netlifyToml))).toBe(true)
+            expect(hostAllowed(host, devSources)).toBe(true)
+        })
     }
 })

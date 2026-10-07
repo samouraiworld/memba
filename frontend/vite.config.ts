@@ -181,9 +181,10 @@ function sitemapPlugin(mode: string): PluginOption {
 // dead OS chunk — so the fonts leak into a flag-off build as unreferenced
 // files. See the assetsInlineLimit override below.
 const osEnabledFor = (mode: string) => ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_MEMBA_OS === 'true'
+const evmEnabledFor = (mode: string) => ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_EVM === 'true'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode); return {
   envDir: '..', // Load .env from repo root (where all VITE_* vars live)
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -200,10 +201,17 @@ export default defineConfig(({ mode }) => ({
         // The Workbox precache-exclusion + bundle CI gate below keep it isolated
         // end-to-end. The other groups replicate the previous long-lived vendor chunks.
         manualChunks(id) {
+          // EVM builds only (VITE_ENABLE_EVM). Vite's preload helper is imported by every module
+          // with a lazy import(), viem's included, and a manual chunk takes its modules'
+          // dependencies with it: without a home of its own the helper followed viem into
+          // vendor-evm, which every eager chunk then imported. It lives with React, loaded first.
+          // A flag-off build names no EVM chunk at all (Rollup would emit it empty), so its
+          // output stays as it was.
+          if (evmBuild && id.includes('vite/preload-helper')) return 'vendor-react'
           if (!id.includes('node_modules')) return
           if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
           // EVM network adapter (VITE_ENABLE_EVM): lazy-only, same firewall as three (check:bundle:evm).
-          if (/[\\/]node_modules[\\/](viem|wagmi|@wagmi|ox|abitype)[\\/]/.test(id)) return 'vendor-evm'
+          if (evmBuild && /[\\/]node_modules[\\/](viem|wagmi|@wagmi|ox|abitype|mipd|isows)[\\/]/.test(id)) return 'vendor-evm'
           if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
           if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
           if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
@@ -330,4 +338,5 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-}))
+}
+})

@@ -57,3 +57,38 @@ describe("Settings · Network", () => {
         vi.doUnmock("../../../lib/chain/flag")
     })
 })
+
+describe("Settings · Network on an EVM network", () => {
+    const onBase = { ...session, network: { key: "base-sepolia", family: "evm", label: "Base Sepolia", chainId: "84532", rpcHost: "sepolia.base.org", isTestnet: true } } as unknown as NativeViewProps["session"]
+
+    async function showEvm(read: () => Promise<unknown>, net = onBase) {
+        vi.resetModules()
+        vi.doMock("../../../lib/chain/flag", () => ({ EVM_ENABLED: true }))
+        vi.doMock("../../../lib/chain/evm/load", () => ({ loadEvmAdapter: async () => ({ readNetworkStatus: read }) }))
+        const { default: EvmSettings } = await import("./native")
+        const { AppearanceContext: Ctx } = await import("../../appearance")
+        const appearance = { themePref: "system", theme: "dark", wallpaper: "aurora", iconSize: "md", setThemePref: vi.fn(), setWallpaper: vi.fn(), setIconSize: vi.fn() } as unknown as OsAppearance
+        render(<Ctx.Provider value={appearance}>
+            <EvmSettings section="network" session={net} active open={vi.fn()} push={vi.fn()} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={<p>classic page</p>} />
+        </Ctx.Provider>)
+        vi.doUnmock("../../../lib/chain/flag")
+        vi.doUnmock("../../../lib/chain/evm/load")
+    }
+
+    it("confirms the RPC serves the selected chain, with its latest block", async () => {
+        await showEvm(async () => ({ kind: "ok", value: { blockNumber: 1234567n } }))
+        expect(await screen.findByText("Chain 84532 confirmed · block 1,234,567")).toBeInTheDocument()
+    })
+
+    it("says the chain is not confirmed when the RPC fails, without implying anything is missing", async () => {
+        await showEvm(async () => ({ kind: "unavailable", reason: "the RPC did not answer" }))
+        expect(await screen.findByText("Not confirmed: the RPC did not answer")).toBeInTheDocument()
+    })
+
+    it("does not check a gno.land network this way", async () => {
+        const read = vi.fn()
+        await showEvm(read, session)
+        expect(screen.queryByText("RPC check")).toBeNull()
+        expect(read).not.toHaveBeenCalled()
+    })
+})

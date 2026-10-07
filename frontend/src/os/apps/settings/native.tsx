@@ -8,6 +8,9 @@ import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
 import { selectableOsNetworks, switchOsNetwork } from "../../shell/network"
 import { EVM_ENABLED } from "../../../lib/chain/flag"
+import { loadEvmAdapter } from "../../../lib/chain/evm/load"
+import type { ChainStatus } from "../../../lib/chain/evm/chainCheck"
+import type { Read } from "../../../lib/chain/types"
 import { WALLPAPERS } from "../../wallpapers"
 import { resetLocalUiData } from "./localData"
 import "./native.css"
@@ -49,6 +52,22 @@ function ResetSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: 
                 <button type="button" className="os-btn" onClick={onConfirm}>Confirm reset</button>
             </div>
     </dialog>
+}
+
+/** EVM networks: whether the RPC really serves the selected chain, read when the pane opens. */
+function RpcCheck({ networkKey, chainId }: { networkKey: string; chainId: string }) {
+    const [status, setStatus] = useState<Read<ChainStatus> | null>(null)
+    useEffect(() => {
+        let alive = true
+        loadEvmAdapter().then((a) => a.readNetworkStatus(networkKey)).then(
+            (s) => { if (alive) setStatus(s) },
+            () => { if (alive) setStatus({ kind: "unavailable", reason: "the network code did not load" }) },
+        )
+        return () => { alive = false }
+    }, [networkKey])
+    return <><dt>RPC check</dt><dd role="status">{status === null ? "Checking…"
+        : status.kind === "ok" ? `Chain ${chainId} confirmed · block ${status.value.blockNumber.toLocaleString("en-US")}`
+            : `Not confirmed: ${status.reason}`}</dd></>
 }
 
 function readRawGas(): string | null {
@@ -208,7 +227,8 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
             </>}
             {current === "network" && <>
                 <header><h2>Network</h2><p className="os-sub">Settings shows the network selected for Memba OS. Switching reloads this page and may require reconnecting {WALLET}.</p></header>
-                <dl className="os-set-details os-set-card"><dt>Selected network</dt><dd>{session.network.label}</dd><dt>Chain ID</dt><dd className="os-mono">{session.network.chainId}</dd><dt>Configured primary RPC</dt><dd className="os-mono">{session.network.rpcHost}</dd></dl>
+                <dl className="os-set-details os-set-card"><dt>Selected network</dt><dd>{session.network.label}</dd><dt>Chain ID</dt><dd className="os-mono">{session.network.chainId}</dd><dt>Configured primary RPC</dt><dd className="os-mono">{session.network.rpcHost}</dd>
+                    {EVM_ENABLED && session.network.family === "evm" && <RpcCheck networkKey={session.network.key} chainId={session.network.chainId} />}</dl>
                 {networks.length > 1 ? <div className="os-set-card"><h3>Switch network</h3><p className="os-sub">Check the selected chain in {WALLET} before signing after a switch.</p><div className="os-set-choice">{networks.map((network) => <button type="button" key={network.key} className="os-btn os-quiet" disabled={network.key === session.network.key} onClick={() => switchOsNetwork(network.key)}>{network.key === session.network.key ? `${network.label} (selected)` : `Switch to ${network.label}`}</button>)}</div></div>
                     : <p className="os-note">Only {session.network.label} is available in this build.</p>}
             </>}
