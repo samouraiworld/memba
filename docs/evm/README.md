@@ -6,7 +6,7 @@ Memba OS is adding Base as a second network next to Gno.land. Same OS, same apps
 
 - **One trunk.** Short `feat/evm-*` branches merge into `main`. No long-lived EVM branch.
 - **Behind `VITE_ENABLE_EVM`.** The flag is safety-gated (`frontend/src/lib/safeFlags.ts`): a release build with it on fails until launch. Deploy-previews may turn it on. With the flag off, the Gno app is unchanged.
-- **Lazy only.** viem / wagmi live in the `vendor-evm` chunk, never in the eager graph or the precache manifest (`npm run check:bundle:evm`).
+- **Lazy only.** viem / wagmi live in the `vendor-evm` chunk, never in the eager graph or the precache manifest (`npm run check:bundle:evm`). viem is imported only by modules under `frontend/src/lib/chain/evm` that are reached exclusively through a lazy loader: the adapter's (`load.ts`), or a feature module's own loader added with its first consumer (the token deploy helper carries ~40 KB of template bytecode and must never be pulled by the adapter).
 - **Standards first.** Use audited protocols that are already deployed, unmodified (Safe, Zodiac Roles v2, Aragon OSx, Snapshot X, EAS, Seaport, Uniswap CCA, Basenames). OpenZeppelin contracts only as unmodified Wizard output. No business-logic Solidity by default.
 - **Exceptions register.** Any custom contract is listed below, specified from its Gno realm, tested (unit, fuzz, invariants) and externally audited before mainnet.
 - **Value parity, not mechanical parity.** Each feature is adapted to what the EVM ecosystem already does well rather than re-creating the Gno realm.

@@ -1,7 +1,11 @@
 /**
- * The EVM adapter: the only module that imports viem and @wagmi/core. It is
+ * The EVM adapter: wallet connection and chain reads (viem + @wagmi/core). It is
  * reached through `loadEvmAdapter()` (./load.ts) alone, so it and the
  * vendor-evm chunk load on first use and never ship in a flag-off build.
+ *
+ * Rule: viem is imported only by modules under lib/chain/evm that are reached
+ * exclusively through a lazy loader (this one, or a feature's own loader such as
+ * the token deploy helper's, so its 40 KB template bytecode never rides here).
  *
  * @module lib/chain/evm/adapter
  */
