@@ -311,6 +311,13 @@ func main() {
 		go pruneSiweNonces(ctx, svc)
 	}
 
+	// Safes (EVM multisig): each account's list and names, checked on chain at
+	// registration. Off unless MEMBA_EVM_SAFE_CHAINS names a chain; callers
+	// sign in with Ethereum, so nothing is served while SIWE is off.
+	if chains, problems := svc.ConfigureSafeRegistry(os.Getenv); len(chains) > 0 || len(problems) > 0 {
+		slog.Info("Safe registry", "chains", chains, "problems", problems)
+	}
+
 	// W2.3 (NEW-INF-2): the same-volume `VACUUM INTO` backup scheduler is
 	// RETIRED. It could not survive the one failure mode that actually
 	// happened (volume loss — see OPS_RUNBOOK §4) and raced Litestream for

@@ -54,6 +54,11 @@ const (
 	// MultisigServiceMultisigsProcedure is the fully-qualified name of the MultisigService's Multisigs
 	// RPC.
 	MultisigServiceMultisigsProcedure = "/memba.v1.MultisigService/Multisigs"
+	// MultisigServiceRegisterSafeProcedure is the fully-qualified name of the MultisigService's
+	// RegisterSafe RPC.
+	MultisigServiceRegisterSafeProcedure = "/memba.v1.MultisigService/RegisterSafe"
+	// MultisigServiceSafesProcedure is the fully-qualified name of the MultisigService's Safes RPC.
+	MultisigServiceSafesProcedure = "/memba.v1.MultisigService/Safes"
 	// MultisigServiceCreateTransactionProcedure is the fully-qualified name of the MultisigService's
 	// CreateTransaction RPC.
 	MultisigServiceCreateTransactionProcedure = "/memba.v1.MultisigService/CreateTransaction"
@@ -206,6 +211,12 @@ type MultisigServiceClient interface {
 	CreateOrJoinMultisig(context.Context, *connect.Request[v1.CreateOrJoinMultisigRequest]) (*connect.Response[v1.CreateOrJoinMultisigResponse], error)
 	MultisigInfo(context.Context, *connect.Request[v1.MultisigInfoRequest]) (*connect.Response[v1.MultisigInfoResponse], error)
 	Multisigs(context.Context, *connect.Request[v1.MultisigsRequest]) (*connect.Response[v1.MultisigsResponse], error)
+	// Safes (EVM multisig): the caller's own list and names, shared with the
+	// Safe's other owners. The chain and the Safe Transaction Service hold
+	// everything else. Off unless the server enables Safe chains; returns
+	// Unimplemented otherwise.
+	RegisterSafe(context.Context, *connect.Request[v1.RegisterSafeRequest]) (*connect.Response[v1.RegisterSafeResponse], error)
+	Safes(context.Context, *connect.Request[v1.SafesRequest]) (*connect.Response[v1.SafesResponse], error)
 	// Transactions — Propose, sign, complete
 	CreateTransaction(context.Context, *connect.Request[v1.CreateTransactionRequest]) (*connect.Response[v1.CreateTransactionResponse], error)
 	GetTransaction(context.Context, *connect.Request[v1.GetTransactionRequest]) (*connect.Response[v1.GetTransactionResponse], error)
@@ -338,6 +349,18 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+MultisigServiceMultisigsProcedure,
 			connect.WithSchema(multisigServiceMethods.ByName("Multisigs")),
+			connect.WithClientOptions(opts...),
+		),
+		registerSafe: connect.NewClient[v1.RegisterSafeRequest, v1.RegisterSafeResponse](
+			httpClient,
+			baseURL+MultisigServiceRegisterSafeProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("RegisterSafe")),
+			connect.WithClientOptions(opts...),
+		),
+		safes: connect.NewClient[v1.SafesRequest, v1.SafesResponse](
+			httpClient,
+			baseURL+MultisigServiceSafesProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("Safes")),
 			connect.WithClientOptions(opts...),
 		),
 		createTransaction: connect.NewClient[v1.CreateTransactionRequest, v1.CreateTransactionResponse](
@@ -628,6 +651,8 @@ type multisigServiceClient struct {
 	createOrJoinMultisig   *connect.Client[v1.CreateOrJoinMultisigRequest, v1.CreateOrJoinMultisigResponse]
 	multisigInfo           *connect.Client[v1.MultisigInfoRequest, v1.MultisigInfoResponse]
 	multisigs              *connect.Client[v1.MultisigsRequest, v1.MultisigsResponse]
+	registerSafe           *connect.Client[v1.RegisterSafeRequest, v1.RegisterSafeResponse]
+	safes                  *connect.Client[v1.SafesRequest, v1.SafesResponse]
 	createTransaction      *connect.Client[v1.CreateTransactionRequest, v1.CreateTransactionResponse]
 	getTransaction         *connect.Client[v1.GetTransactionRequest, v1.GetTransactionResponse]
 	transactions           *connect.Client[v1.TransactionsRequest, v1.TransactionsResponse]
@@ -709,6 +734,16 @@ func (c *multisigServiceClient) MultisigInfo(ctx context.Context, req *connect.R
 // Multisigs calls memba.v1.MultisigService.Multisigs.
 func (c *multisigServiceClient) Multisigs(ctx context.Context, req *connect.Request[v1.MultisigsRequest]) (*connect.Response[v1.MultisigsResponse], error) {
 	return c.multisigs.CallUnary(ctx, req)
+}
+
+// RegisterSafe calls memba.v1.MultisigService.RegisterSafe.
+func (c *multisigServiceClient) RegisterSafe(ctx context.Context, req *connect.Request[v1.RegisterSafeRequest]) (*connect.Response[v1.RegisterSafeResponse], error) {
+	return c.registerSafe.CallUnary(ctx, req)
+}
+
+// Safes calls memba.v1.MultisigService.Safes.
+func (c *multisigServiceClient) Safes(ctx context.Context, req *connect.Request[v1.SafesRequest]) (*connect.Response[v1.SafesResponse], error) {
+	return c.safes.CallUnary(ctx, req)
 }
 
 // CreateTransaction calls memba.v1.MultisigService.CreateTransaction.
@@ -954,6 +989,12 @@ type MultisigServiceHandler interface {
 	CreateOrJoinMultisig(context.Context, *connect.Request[v1.CreateOrJoinMultisigRequest]) (*connect.Response[v1.CreateOrJoinMultisigResponse], error)
 	MultisigInfo(context.Context, *connect.Request[v1.MultisigInfoRequest]) (*connect.Response[v1.MultisigInfoResponse], error)
 	Multisigs(context.Context, *connect.Request[v1.MultisigsRequest]) (*connect.Response[v1.MultisigsResponse], error)
+	// Safes (EVM multisig): the caller's own list and names, shared with the
+	// Safe's other owners. The chain and the Safe Transaction Service hold
+	// everything else. Off unless the server enables Safe chains; returns
+	// Unimplemented otherwise.
+	RegisterSafe(context.Context, *connect.Request[v1.RegisterSafeRequest]) (*connect.Response[v1.RegisterSafeResponse], error)
+	Safes(context.Context, *connect.Request[v1.SafesRequest]) (*connect.Response[v1.SafesResponse], error)
 	// Transactions — Propose, sign, complete
 	CreateTransaction(context.Context, *connect.Request[v1.CreateTransactionRequest]) (*connect.Response[v1.CreateTransactionResponse], error)
 	GetTransaction(context.Context, *connect.Request[v1.GetTransactionRequest]) (*connect.Response[v1.GetTransactionResponse], error)
@@ -1082,6 +1123,18 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		MultisigServiceMultisigsProcedure,
 		svc.Multisigs,
 		connect.WithSchema(multisigServiceMethods.ByName("Multisigs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceRegisterSafeHandler := connect.NewUnaryHandler(
+		MultisigServiceRegisterSafeProcedure,
+		svc.RegisterSafe,
+		connect.WithSchema(multisigServiceMethods.ByName("RegisterSafe")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceSafesHandler := connect.NewUnaryHandler(
+		MultisigServiceSafesProcedure,
+		svc.Safes,
+		connect.WithSchema(multisigServiceMethods.ByName("Safes")),
 		connect.WithHandlerOptions(opts...),
 	)
 	multisigServiceCreateTransactionHandler := connect.NewUnaryHandler(
@@ -1376,6 +1429,10 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceMultisigInfoHandler.ServeHTTP(w, r)
 		case MultisigServiceMultisigsProcedure:
 			multisigServiceMultisigsHandler.ServeHTTP(w, r)
+		case MultisigServiceRegisterSafeProcedure:
+			multisigServiceRegisterSafeHandler.ServeHTTP(w, r)
+		case MultisigServiceSafesProcedure:
+			multisigServiceSafesHandler.ServeHTTP(w, r)
 		case MultisigServiceCreateTransactionProcedure:
 			multisigServiceCreateTransactionHandler.ServeHTTP(w, r)
 		case MultisigServiceGetTransactionProcedure:
@@ -1503,6 +1560,14 @@ func (UnimplementedMultisigServiceHandler) MultisigInfo(context.Context, *connec
 
 func (UnimplementedMultisigServiceHandler) Multisigs(context.Context, *connect.Request[v1.MultisigsRequest]) (*connect.Response[v1.MultisigsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.Multisigs is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) RegisterSafe(context.Context, *connect.Request[v1.RegisterSafeRequest]) (*connect.Response[v1.RegisterSafeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.RegisterSafe is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) Safes(context.Context, *connect.Request[v1.SafesRequest]) (*connect.Response[v1.SafesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.Safes is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) CreateTransaction(context.Context, *connect.Request[v1.CreateTransactionRequest]) (*connect.Response[v1.CreateTransactionResponse], error) {

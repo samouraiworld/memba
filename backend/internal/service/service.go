@@ -99,6 +99,8 @@ type MultisigService struct {
 	// zero value is off: the SIWE RPCs answer Unimplemented and no EVM token
 	// validates.
 	siwe siweConfig
+	// Safes (EVM multisig) lists and names: off unless Safe chains are configured.
+	safes safeRegistry
 
 	// lbRebuilding guards the background user_ranks rebuild (perf W1.3): a
 	// stale-cache leaderboard read serves the current cache and triggers at
