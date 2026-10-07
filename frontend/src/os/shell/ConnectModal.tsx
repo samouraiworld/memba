@@ -26,7 +26,7 @@ function AdenaShows() {
     )
 }
 
-function Head({ title, sub }: { title: string; sub?: string }) {
+export function Head({ title, sub }: { title: string; sub?: string }) {
     return (
         <>
             <h2 className="os-modal-title">{title}</h2>
@@ -35,7 +35,7 @@ function Head({ title, sub }: { title: string; sub?: string }) {
     )
 }
 
-function Waiting({ label }: { label: string }) {
+export function Waiting({ label }: { label: string }) {
     return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">{label}</span></div>
 }
 

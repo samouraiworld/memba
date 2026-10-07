@@ -189,6 +189,9 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // EVM dev servers pre-bundle the adapter's libraries at start: discovered on first use
+  // instead, they make Vite reload the page mid-test (the cold-start flake of e2e/os/os-evm).
+  optimizeDeps: evmBuild ? { include: ['viem', 'viem/chains', '@wagmi/core'] } : undefined,
   build: {
     sourcemap: true, // Required for Sentry source map uploads
     assetsInlineLimit: osEnabledFor(mode) ? undefined : (filePath: string) => /manrope-latin-\d+-normal\.woff2$/.test(filePath) || undefined,

@@ -10,6 +10,7 @@ import { base, baseSepolia, type Chain } from "viem/chains"
 import type { Read } from "../types"
 import { readChainStatus, type ChainStatus } from "./chainCheck"
 import { EVM_NETWORKS } from "./networks"
+import { createEvmWallet } from "./wallet"
 
 const CHAINS: Readonly<Record<string, Chain>> = { "base-sepolia": baseSepolia, base }
 
@@ -41,6 +42,9 @@ export const evmConfig = createConfig({
         [base.id]: http(EVM_NETWORKS.base.rpcUrl),
     },
 })
+
+/** The one EVM wallet source (lib/chain/evm/wallet.ts). */
+export const evmWallet = createEvmWallet(evmConfig)
 
 /** The network's RPC, proven to serve that chain, and its latest block. */
 export function readNetworkStatus(key: string): Promise<Read<ChainStatus>> {

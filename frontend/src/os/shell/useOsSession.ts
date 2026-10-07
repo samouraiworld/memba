@@ -23,6 +23,7 @@ import { accountMark, accountMarkAfterBlocks } from "../sign/accountMark"
 import { executeSignature } from "../sign/signer"
 import { ACTIVATION_SEND_UGNOT, activationCosts } from "../../lib/activation"
 import { activationRequest } from "./activation"
+import type { EvmConnect } from "../evm/useEvmSession"
 
 export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait"
 
@@ -257,4 +258,5 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     }
 }
 
-export type OsSession = ReturnType<typeof useOsSession>
+/** The session the shell runs on. On an EVM network it comes from os/evm/useEvmSession.ts with `evm` set. */
+export type OsSession = ReturnType<typeof useOsSession> & { evm?: EvmConnect }
