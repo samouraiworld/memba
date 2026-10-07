@@ -81,7 +81,7 @@ export function MenuBar(p: MenuBarProps) {
     const onEvm = EVM_ENABLED && net.family === "evm"
     const gnoAwaiting = useAwaiting(session.layout.auth, !onEvm && session.status === "member" ? session.address : "")
     // On an EVM network: queued Safe transactions waiting for this wallet (Safe Transaction Service).
-    const safeAwaiting = useSafeAwaiting(onEvm ? safeNetworkOf(session) : null, onEvm && session.status === "member" ? session.address.toLowerCase() : "")
+    const safeAwaiting = useSafeAwaiting(onEvm ? safeNetworkOf(session) : null, onEvm ? session.walletAddress?.toLowerCase() ?? "" : "")
     const awaiting = onEvm ? safeAwaiting : gnoAwaiting
     const waiting = awaiting.mine + awaiting.shared
 

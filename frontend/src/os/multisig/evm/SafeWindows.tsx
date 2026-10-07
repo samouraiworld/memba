@@ -68,13 +68,14 @@ function OpenByAddress({ open }: { open: (spec: WindowSpec) => void }) {
 
 export function SafeApp({ session, open }: { session: OsSession; open: (spec: WindowSpec) => void }) {
     const net = safeNetworkOf(session)
-    const me = session.status === "member" ? session.address.toLowerCase() : ""
+    // The connected wallet: Safe data is public, and the wallet is what signs (no Memba sign-in needed).
+    const me = session.walletAddress?.toLowerCase() ?? ""
     const listing = useSafesListing(net, me)
     const awaiting = useSafeAwaiting(net, me)
     return (
         <div className="os-stack">
             <OpenByAddress open={open} />
-            {session.status !== "member" ? <><p className="os-sub">{ABOUT}</p><ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="Connect a wallet to see the Safes that list you as an owner." /></>
+            {!me ? <><p className="os-sub">{ABOUT}</p><ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="Connect a wallet to see the Safes that list you as an owner." /></>
                 : listing.isPending ? <Loading what="the Safes that list you" />
                 : listing.isError ? <TxServiceError what="the Safes that list you" retry={() => void listing.refetch()} />
                 : (
@@ -111,7 +112,8 @@ export function SafeWindow({ address, session }: { address: string; session: OsS
     const queue = useSafeQueue(net, canonical, safe)
     const history = useSafeHistory(net, canonical, !!safe)
     const display = (a: string) => facts.data?.display[a] ?? a
-    const me = session.status === "member" ? session.address.toLowerCase() : ""
+    // The connected wallet: Safe data is public, and the wallet is what signs (no Memba sign-in needed).
+    const me = session.walletAddress?.toLowerCase() ?? ""
 
     const funds = (
         <div className="os-right"><div className="os-big">{balance.isPending ? "…" : balance.data?.kind === "ok" ? formatEth(balance.data.value) : "Balance unavailable"}</div>
@@ -156,7 +158,7 @@ export function SafeWindow({ address, session }: { address: string; session: OsS
             ))}
             <MemberChips members={s.owners.map(display)} me={me ? display(me) : ""} />
             <div className="os-row"><CopyAddressButton address={display(canonical)} label={`Copy ${label} address`} /></div>
-            {session.status !== "member"
+            {!me
                 ? <ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="Owners propose and sign this Safe's transactions here. Connect a wallet to see what waits for you." />
                 : !s.owners.some((o) => o === me) && <p className="os-sub" role="status">This wallet is not an owner of this Safe.</p>}
             <section aria-label="Waiting to execute">

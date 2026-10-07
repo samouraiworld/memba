@@ -31,8 +31,10 @@ const sdk = {
 vi.mock("../../../lib/chain/evm/safe/load", () => ({ loadSafeSdk: async () => sdk }))
 
 const base = { network: { key: "base-sepolia", family: "evm", label: "Base Sepolia", chainId: "84532" }, layout: {}, openConnect: vi.fn() }
-const guest = { ...base, status: "guest", address: "" } as unknown as OsSession
-const member = { ...base, status: "member", address: ME } as unknown as OsSession
+const guest = { ...base, status: "guest", address: "", walletAddress: "" } as unknown as OsSession
+// A connected wallet without a Memba sign-in: enough to see and sign for its Safes.
+const walletOnly = { ...base, status: "guest", address: "", walletAddress: ME } as unknown as OsSession
+const member = { ...base, status: "member", address: ME, walletAddress: ME } as unknown as OsSession
 
 function wrap(ui: ReactNode) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -97,6 +99,12 @@ describe("the Multisig app on an EVM network", () => {
         expect(sdk.safeApiKit).toHaveBeenCalledWith(expect.any(String), 84532)
         fireEvent.click(screen.getByRole("button", { name: new RegExp(getAddress(SAFE)) }))
         expect(open.mock.calls[0][0].target).toEqual({ kind: "multisig", address: SAFE })
+    })
+
+    it("lists a connected wallet's Safes without a Memba sign-in", async () => {
+        wrap(<SafeApp session={walletOnly} open={vi.fn()} />)
+        expect(await screen.findByText(getAddress(SAFE))).toBeInTheDocument()
+        expect(kit.getSafesByOwner).toHaveBeenCalledWith(ME)
     })
 
     it("says when the Transaction Service can't be read, with a retry", async () => {
