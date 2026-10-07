@@ -3,7 +3,7 @@ title: Memba OS: a desktop for gno.land
 date: 2026-09-26
 updated: 2026-09-28
 description: Memba OS opens DAOs, the wallet, multisigs and every Memba app as windows on a desktop at memba.club, with a review sheet before each signature.
-tags: memba, memba-os, design, engineering
+tags: memba, os, design, engineering
 ---
 
 Memba OS is a second way to use Memba: a desktop in the browser, where DAOs,
