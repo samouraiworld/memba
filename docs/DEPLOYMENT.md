@@ -89,8 +89,9 @@ VITE_CLERK_PUBLISHABLE_KEY = <Clerk publishable key (pk_live_)>
 > `samourai.live`, and `config.ts` ignores an override naming any host outside its allowlists.
 > Each API's CORS must allow every Memba origin (`memba.club`, and `memba.samourai.app` until it redirects).
 > `VITE_CLERK_PUBLISHABLE_KEY` is the production Clerk instance's key. It names the instance's frontend
-> host (`clerk.<primary domain>`): the CSP in `netlify.toml` and `index.html` must allow that host and
-> `accounts.<primary domain>`. gnomonitoring checks the tokens; the Memba backend holds no Clerk secret.
+> host (`clerk.<primary domain>`): the CSP in `netlify.toml` and `index.html` must allow that host (Memba loads
+> Clerk's scripts from it at sign-in), `accounts.<primary domain>`, and `challenges.cloudflare.com` (Clerk's
+> sign-up bot check). gnomonitoring checks the tokens; the Memba backend holds no Clerk secret.
 
 ### Backend — Fly.io
 

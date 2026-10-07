@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Sign-in loads only when you sign in (2026-10-08)
+- Sign-in (Alerts, admin link) loads Clerk only when you sign in or are already signed in on this device, not for every visitor; if Clerk cannot load, Alerts says sign-in is unavailable and the rest of Memba keeps working
+
 ### NFT collections: network fee sized to the terms (2026-10-08)
 - Creating an NFT collection asks a network fee sized to its terms, so collections with long links, symbols or many royalty receivers no longer fail for lack of gas
 

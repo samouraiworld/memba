@@ -367,3 +367,24 @@ export async function updateReportSchedule(
         return false
     }
 }
+
+/**
+ * Creates the signed-in person's gnomonitoring user (name + email) if it does
+ * not exist yet: 201 created, 409 already there, both fine. Called only when
+ * the alert settings open, so an account made for anything else is never
+ * copied to gnomonitoring. Failure is not fatal: the settings still load.
+ */
+export async function ensureMonitoringUser(token: string, name: string, email: string): Promise<void> {
+    if (!GNO_MONITORING_API_URL) return
+    try {
+        const res = await fetch(`${GNO_MONITORING_API_URL}/users`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ name, email }),
+            signal: AbortSignal.timeout(8000),
+        })
+        if (!res.ok && res.status !== 409) console.warn("[monitoring] user provisioning answered", res.status)
+    } catch (err) {
+        console.warn("[monitoring] user provisioning failed:", err)
+    }
+}
