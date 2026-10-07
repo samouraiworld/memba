@@ -39,6 +39,8 @@ export interface TxCheck {
     submitted: Set<string>
     /** Owners (lowercase) whose signature recovers to them over this hash. */
     verified: Set<string>
+    /** The verified owners' signatures, by owner: the only ones Memba ever executes with. */
+    signatures: Map<string, Hex>
 }
 
 const ZERO = "0x0000000000000000000000000000000000000000"
@@ -58,9 +60,9 @@ const SAFE_TX_TYPES = {
     ],
 } as const
 
-/** The EIP-712 hash a Safe (v1.3.0 and later) owner signs for this transaction. */
-export function safeTxHash(chainId: number, tx: QueuedSafeTx): Hex {
-    return hashTypedData({
+/** The EIP-712 typed data a Safe (v1.3.0 and later) owner signs for this transaction. */
+export function safeTxTypedData(chainId: number, tx: Omit<QueuedSafeTx, "safeTxHash" | "confirmations">) {
+    return {
         domain: { chainId, verifyingContract: tx.safe as Hex },
         types: SAFE_TX_TYPES,
         primaryType: "SafeTx",
@@ -76,7 +78,12 @@ export function safeTxHash(chainId: number, tx: QueuedSafeTx): Hex {
             refundReceiver: (tx.refundReceiver || ZERO) as Hex,
             nonce: BigInt(tx.nonce),
         },
-    })
+    } as const
+}
+
+/** The EIP-712 hash a Safe (v1.3.0 and later) owner signs for this transaction. */
+export function safeTxHash(chainId: number, tx: Omit<QueuedSafeTx, "safeTxHash" | "confirmations">): Hex {
+    return hashTypedData(safeTxTypedData(chainId, tx))
 }
 
 /** The owner an ECDSA confirmation recovers to, or null for one that can't be checked offline. */
@@ -95,11 +102,12 @@ export async function checkQueuedTx(chainId: number, owners: readonly string[], 
     const ownerSet = new Set(owners.map((o) => o.toLowerCase()))
     const submitted = new Set<string>()
     const verified = new Set<string>()
+    const signatures = new Map<string, Hex>()
     let hash: Hex
     try {
         hash = safeTxHash(chainId, tx)
     } catch {
-        return { hashMatches: false, submitted, verified }
+        return { hashMatches: false, submitted, verified, signatures }
     }
     const hashMatches = hash === tx.safeTxHash.toLowerCase()
     for (const c of tx.confirmations ?? []) {
@@ -108,8 +116,11 @@ export async function checkQueuedTx(chainId: number, owners: readonly string[], 
         submitted.add(owner)
         if (!hashMatches) continue
         try {
-            if ((await confirmationSigner(hash, c.signature)) === owner) verified.add(owner)
+            if ((await confirmationSigner(hash, c.signature)) === owner) {
+                verified.add(owner)
+                signatures.set(owner, c.signature.toLowerCase() as Hex)
+            }
         } catch { /* an unreadable signature stays unverified */ }
     }
-    return { hashMatches, submitted, verified }
+    return { hashMatches, submitted, verified, signatures }
 }

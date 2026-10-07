@@ -25,8 +25,10 @@ import { specForTarget, type WindowSpec } from "../../shell/windows"
 import { ConnectHere, CopyAddressButton, Loading, MemberChips, SigDots, ThresholdAvatar } from "../MultisigParts"
 import { API_BASE_URL } from "../../../lib/config"
 import { actionErrorText, describeTx, formatEth } from "./describe"
+import { TxLinesView } from "./TxLines"
+import { useTxLines } from "./lineModel"
 import { registerErrorText, safeLabel, useMySafes, useRegisterSafe, useSafeToken } from "./useMySafes"
-import { HISTORY_LIMIT, safeNetworkOf, sameNonce, useSafeAwaiting, useSafeBalance, useSafeFacts, useSafeHistory, useSafeQueue, useSafesListing, type QueuedTx } from "./useSafes"
+import { HISTORY_LIMIT, safeNetworkOf, sameNonce, useSafeAwaiting, useSafeBalance, useSafeFacts, useSafeHistory, useSafeQueue, useSafesListing, type QueuedTx, type SafeNetwork } from "./useSafes"
 
 const ABOUT = "A Safe is a shared account on this network: a transaction leaves it only when enough of its owners sign, for example 2 of 3. Owners sign without paying gas; whoever executes the transaction pays it."
 
@@ -183,48 +185,71 @@ function FullAddress({ display }: { display: string }) {
 }
 
 /**
- * Sign or execute a queued transaction from the connected wallet. Signing is
- * offered to an owner who hasn't signed; executing once it is the Safe's next
- * nonce and enough owners signed (the executor counts when it is an owner).
- * Nothing is offered for a transaction whose hash doesn't match or that
- * Memba can't read; a "danger" one asks for a confirmation first.
+ * A queued transaction: every call in full (./TxLines.tsx), then Sign or
+ * Execute from the connected wallet. Signing is offered to an owner who
+ * hasn't signed; executing once it is the Safe's next nonce and enough
+ * signatures recover to owners (an owner executor approves by sending).
+ * Nothing is offered until every line is drawn, nor for a transaction whose
+ * hash doesn't match, that pays a gas refund, or that runs a call Memba won't
+ * run; one that changes the Safe, calls an unnamed contract or grants an
+ * allowance needs a confirmation first.
  */
-function QueueActions({ address, tx, safe, me, networkKey, network, refresh }: { address: Hex; tx: QueuedTx; safe: { owners: string[]; threshold: number; nonce: bigint }; me: string; networkKey: string; network: string; refresh: () => void }) {
+function QueueItem({ net, address, tx, safe, me, network, clash, refresh }: { net: SafeNetwork; address: Hex; tx: QueuedTx; safe: { owners: string[]; threshold: number; nonce: bigint }; me: string; network: string; clash: number | undefined; refresh: () => void }) {
+    const lines = useTxLines(net, address, safe.owners, tx.safeTxHash, tx.decoded)
     const [checked, setChecked] = useState(false)
     const [busy, setBusy] = useState<"" | "sign" | "execute">("")
-    const [note, setNote] = useState<{ error: boolean; text: string } | null>(null)
-    if (!tx.hashMatches || tx.decoded.kind === "undecodable" || !me) return null
+    const [note, setNote] = useState<{ error: boolean; text: string; hash?: string } | null>(null)
     const owner = safe.owners.includes(me)
-    const canSign = owner && !tx.submitted.has(me)
-    const executorCounts = owner && !tx.submitted.has(me) ? 1 : 0
-    const canExecute = tx.nonce === safe.nonce && tx.verified.size + executorCounts >= safe.threshold
-    if (!canSign && !canExecute) return null
-    const danger = tx.decoded.severity === "danger"
+    const canSign = !!me && owner && !tx.submitted.has(me)
+    const executorApproves = owner && !tx.verified.has(me)
+    const canExecute = !!me && tx.nonce === safe.nonce && tx.verified.size + (executorApproves ? 1 : 0) >= safe.threshold
+    const offered = tx.hashMatches && !tx.blocked && (canSign || canExecute)
+    const needsAck = !!lines.data?.some((l) => l.needsAck)
     const act = async (what: "sign" | "execute") => {
         setBusy(what)
         setNote(null)
-        const sdk = await loadSafeSdk()
+        let sent: string | undefined
         try {
-            if (what === "sign") await sdk.confirmSafeTx(networkKey, API_BASE_URL, address, safe.owners, tx.safeTxHash as Hex)
-            else await sdk.executeSafeTx(networkKey, API_BASE_URL, address, safe, tx.safeTxHash as Hex, () => setNote({ error: false, text: "Executing…" }))
-            setNote({ error: false, text: what === "sign" ? "Signed." : "Executed." })
-            refresh()
-        } catch (err) {
-            setNote({ error: true, text: err instanceof sdk.SafeActionError ? actionErrorText(err.reason, network) : "It didn't go through. Try again." })
+            const sdk = await loadSafeSdk()
+            try {
+                if (what === "sign") await sdk.confirmSafeTx(net.key, API_BASE_URL, address, tx.safeTxHash as Hex)
+                else await sdk.executeSafeTx(net.key, API_BASE_URL, address, tx.safeTxHash as Hex, (h) => { sent = h; setNote({ error: false, text: "Executing…", hash: h }) })
+                setNote({ error: false, text: what === "sign" ? "Signed." : "Executed.", hash: sent })
+                refresh()
+            } catch (err) {
+                const hash = err instanceof sdk.SafeActionError && "hash" in err.reason ? err.reason.hash : sent
+                setNote({ error: true, text: err instanceof sdk.SafeActionError ? actionErrorText(err.reason, network, what) : "It didn't go through. Try again.", hash })
+            }
+        } catch {
+            setNote({ error: true, text: "Couldn't load what signs Safe transactions. Try again." })
         } finally {
             setBusy("")
         }
     }
+    const link = note?.hash ? explorerTx(net.key, note.hash) : null
     return (
-        <div className="os-stack os-tight">
-            {danger && <label className="os-row"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> <span className="os-sub">I checked this transaction with the other owners.</span></label>}
-            <div className="os-row">
-                {canSign && <button type="button" className="os-btn" disabled={busy !== "" || (danger && !checked)} onClick={() => { void act("sign") }}>{busy === "sign" ? "Sign in your wallet…" : "Sign"}</button>}
-                {canExecute && <button type="button" className={canSign ? "os-btn os-quiet" : "os-btn"} disabled={busy !== "" || (danger && !checked)} onClick={() => { void act("execute") }}>{busy === "execute" ? "Confirm in your wallet…" : canSign ? "Sign and execute" : "Execute"}</button>}
+        <li className="os-it os-top">
+            <div className="os-grow os-stack os-tight">
+                <b>#{tx.nonce.toString()} {describeTx(tx.decoded).title}</b>
+                {lines.isPending ? <Loading what="what this transaction does" />
+                    : lines.isError ? <p className="os-note os-err" role="alert">Couldn't read every call of this transaction. <button type="button" className="os-btn os-quiet os-inline" onClick={() => void lines.refetch()}>Try again</button></p>
+                    : <TxLinesView lines={lines.data} batch={tx.decoded.kind === "batch"} />}
+                {!tx.hashMatches && <p className="os-note os-err" role="alert">This proposal's hash doesn't match its contents. Don't sign it.</p>}
+                {tx.hashMatches && tx.blocked && <p className="os-note os-err" role="alert">Memba won't sign or execute this transaction: {tx.blocked}. Don't sign it elsewhere unless every owner agreed to that.</p>}
+                {clash && <p className="os-note os-warn">{clash} proposals use nonce {tx.nonce.toString()}: only one of them can execute.</p>}
+                <SigDots members={safe.owners} signed={tx.submitted} verified={tx.verified} threshold={tx.threshold} />
+                {offered && lines.data && <>
+                    {needsAck && <label className="os-row"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> <span className="os-sub">I checked every line above with the other owners.</span></label>}
+                    <div className="os-row">
+                        {canSign && <button type="button" className="os-btn" disabled={busy !== "" || (needsAck && !checked)} onClick={() => { void act("sign") }}>{busy === "sign" ? "Sign in your wallet…" : "Sign"}</button>}
+                        {canExecute && <button type="button" className={canSign ? "os-btn os-quiet" : "os-btn"} disabled={busy !== "" || (needsAck && !checked)} onClick={() => { void act("execute") }}>{busy === "execute" ? "Confirm in your wallet…" : executorApproves ? "Sign and execute" : "Execute"}</button>}
+                    </div>
+                    {canExecute && <p className="os-sub">Executing sends a transaction from your wallet, which pays its gas.</p>}
+                </>}
+                {note && <p className={note.error ? "os-note os-err" : "os-sub"} role={note.error ? "alert" : "status"}>{note.text}{link && <> <a href={link} target="_blank" rel="noreferrer">Transaction</a></>}</p>}
             </div>
-            {canExecute && <p className="os-sub">Executing sends a transaction from your wallet, which pays its gas.</p>}
-            {note && <p className={note.error ? "os-note os-err" : "os-sub"} role={note.error ? "alert" : "status"}>{note.text}</p>}
-        </div>
+            <span className="os-pill">{tx.verified.size >= tx.threshold && tx.hashMatches && !tx.blocked ? "Ready to execute" : `${tx.verified.size} of ${tx.threshold}`}</span>
+        </li>
     )
 }
 
@@ -296,24 +321,10 @@ export function SafeWindow({ address, session, open }: { address: string; sessio
                 {queue.isPending ? <Loading what="the queue" />
                     : queue.isError ? <TxServiceError what="this Safe's queue" retry={() => void queue.refetch()} />
                     : queue.data.length === 0 ? <p className="os-sub">Nothing waits to execute.</p>
-                    : <ul className="os-list">{queue.data.map((tx) => {
-                        const text = describeTx(tx.decoded)
-                        const clash = conflicts.get(tx.nonce.toString())
-                        return (
-                            <li key={tx.safeTxHash} className="os-it os-top">
-                                <div className="os-grow">
-                                    <b>#{tx.nonce.toString()} {text.title}</b>
-                                    <div className="os-sub os-mono os-break">{text.detail}</div>
-                                    {!tx.hashMatches && <p className="os-note os-err" role="alert">This proposal's hash doesn't match its contents. Don't sign it.</p>}
-                                    {tx.decoded.severity === "danger" && tx.hashMatches && <p className="os-note os-err">Check this transaction with the other owners before anyone signs: it can change who controls the Safe or what it runs.</p>}
-                                    {clash && <p className="os-note os-warn">{clash} proposals use nonce {tx.nonce.toString()}: only one of them can execute.</p>}
-                                    <SigDots members={s.owners} signed={tx.submitted} verified={tx.verified} threshold={tx.threshold} />
-                                    <QueueActions address={canonical} tx={tx} safe={s} me={me} networkKey={session.network.key} network={label} refresh={() => { void facts.refetch(); void queue.refetch(); void history.refetch(); void balance.refetch() }} />
-                                </div>
-                                <span className="os-pill">{tx.verified.size >= tx.threshold && tx.hashMatches ? "Ready to execute" : `${tx.verified.size} of ${tx.threshold}`}</span>
-                            </li>
-                        )
-                    })}</ul>}
+                    : <ul className="os-list">{queue.data.map((tx) => (
+                        <QueueItem key={tx.safeTxHash} net={net} address={canonical} tx={tx} safe={s} me={me} network={label} clash={conflicts.get(tx.nonce.toString())}
+                            refresh={() => { void facts.refetch(); void queue.refetch(); void history.refetch(); void balance.refetch() }} />
+                    ))}</ul>}
             </section>
             <section aria-label="Executed">
                 <h3 className="os-h">Executed</h3>

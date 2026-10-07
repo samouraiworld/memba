@@ -179,3 +179,56 @@ export function decodeSafeTx(safeAddress: string, tx: SafeTxFields): DecodedTx {
         return { kind: "undecodable", to, data, reason: err instanceof AbiError ? err.message : "unreadable", severity: "danger" }
     }
 }
+
+/** The gas-payment fields every Safe transaction carries next to its call. */
+export interface SafeGasFields {
+    safeTxGas: string | number | bigint
+    baseGas: string | number | bigint
+    gasPrice: string | number | bigint
+    gasToken: string
+    refundReceiver?: string | null
+}
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
+/**
+ * Why a Safe transaction pays someone for its gas, or null when it pays no one.
+ * With any of these set, executing it pays `baseGas` (and the gas used) times
+ * `gasPrice`, in ETH or `gasToken`, from the Safe to `refundReceiver` or the
+ * executor, and a failing call no longer reverts: Memba neither signs nor
+ * executes such a transaction in this version.
+ */
+export function gasRefund(tx: SafeGasFields): string | null {
+    let safeTxGas: bigint, baseGas: bigint, gasPrice: bigint
+    try {
+        safeTxGas = BigInt(tx.safeTxGas)
+        baseGas = BigInt(tx.baseGas)
+        gasPrice = BigInt(tx.gasPrice)
+    } catch {
+        return "its gas fields can't be read"
+    }
+    const parts: string[] = []
+    if (gasPrice !== 0n) parts.push(`a gas price of ${gasPrice} per unit`)
+    if (baseGas !== 0n) parts.push(`${baseGas} units of base gas`)
+    if (safeTxGas !== 0n) parts.push(`a gas limit of ${safeTxGas} for the call, which lets the call fail without reverting`)
+    const token = (tx.gasToken || ZERO_ADDRESS).toLowerCase()
+    if (token !== ZERO_ADDRESS) parts.push(`payment in token ${token}`)
+    const receiver = (tx.refundReceiver || ZERO_ADDRESS).toLowerCase()
+    if (receiver !== ZERO_ADDRESS) parts.push(`payment to ${receiver}`)
+    return parts.length ? `it pays its executor for gas from the Safe: ${parts.join(", ")}` : null
+}
+
+/**
+ * Why Memba won't sign or execute a decoded transaction in this version, or
+ * null: anything it can't read, and any delegatecall except a call-only batch
+ * (a delegatecall runs another contract's code as the Safe).
+ */
+export function refusedToRun(tx: DecodedTx): string | null {
+    if (tx.kind === "undecodable") return `Memba can't read it (${tx.reason})`
+    if (tx.kind === "delegatecall") return "it runs another contract's code as this Safe"
+    if (tx.kind === "batch") {
+        const inner = tx.calls.map(refusedToRun).find((r) => r !== null)
+        if (inner) return `a call in its batch: ${inner}`
+    }
+    return null
+}

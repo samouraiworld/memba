@@ -71,11 +71,12 @@ describe("proposing a payment from a Safe", () => {
         expect(await screen.findByText("Send 0.5 ETH")).toBeInTheDocument()
         expect(screen.getByText(`Send 12.25 USDC (token ${getAddress(TOKEN)})`)).toBeInTheDocument()
         expect(screen.getByText(/These 2 payments run together/)).toBeInTheDocument()
-        // A first-time payee is flagged; an owner isn't.
+        // A first-time payee is flagged; an owner isn't. A token's name is never trusted.
         expect(screen.getAllByText(/has not paid this address before/)).toHaveLength(1)
+        expect(screen.getAllByText(/Any token can take any name/)).toHaveLength(1)
 
         await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Sign and propose" })) })
-        expect(sdk.proposeSafeTx).toHaveBeenCalledWith("base-sepolia", expect.any(String), SAFE, [ME, BOB], [
+        expect(sdk.proposeSafeTx).toHaveBeenCalledWith("base-sepolia", expect.any(String), SAFE, [
             { to: PAYEE, value: 500_000_000_000_000_000n, data: "0x" },
             { to: TOKEN, value: 0n, data: `0xa9059cbb${BOB.slice(2).padStart(64, "0")}${(12_250_000n).toString(16).padStart(64, "0")}` },
         ])

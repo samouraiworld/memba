@@ -19,7 +19,7 @@ import type { OsSession } from "../../shell/useOsSession"
 import { specForTarget, type WindowSpec } from "../../shell/windows"
 import { Loading } from "../MultisigParts"
 import { actionErrorText, formatUnits, parseAmount } from "./describe"
-import { safeNetworkOf, useSafeFacts, useSafeHistory } from "./useSafes"
+import { safeNetworkOf, useSafeFacts } from "./useSafes"
 
 interface Draft {
     recipient: string
@@ -32,7 +32,7 @@ interface Line {
     recipient: Hex
     display: string
     amount: string
-    warnings: RecipientWarning[]
+    warnings: (RecipientWarning | { code: "token-name"; severity: "caution"; text: string })[]
 }
 
 const EMPTY: Draft = { recipient: "", token: "", amount: "" }
@@ -48,7 +48,6 @@ export function ProposeSafe({ address, session, open }: { address: string; sessi
     const facts = useSafeFacts(net, safe)
     const inspection = facts.data?.inspection
     const s = inspection?.kind === "ok" && inspection.value.kind === "safe" ? inspection.value : null
-    const history = useSafeHistory(net, safe, !!s)
     const me = session.walletAddress?.toLowerCase() ?? ""
     const [drafts, setDrafts] = useState<Draft[]>([{ ...EMPTY }])
     const [lines, setLines] = useState<Line[] | null>(null)
@@ -71,8 +70,8 @@ export function ProposeSafe({ address, session, open }: { address: string; sessi
         try {
             const sdk = await loadSafeSdk()
             const checksum = (a: string) => sdk.toChecksum(a)
-            const sentBefore = (history.data ?? []).flatMap((tx) => tx.decoded.kind === "native-transfer" || tx.decoded.kind === "erc20-transfer" ? [tx.decoded.to] : [])
-            const known = knownRecipients({ owners: s.owners, sentBefore })
+            // Only the owners are known recipients: the Transaction Service's history is not proof of who was paid.
+            const known = knownRecipients({ owners: s.owners })
             const out: Line[] = []
             for (const [i, d] of drafts.entries()) {
                 const n = drafts.length > 1 ? `Payment ${i + 1}: ` : ""
@@ -94,7 +93,10 @@ export function ProposeSafe({ address, session, open }: { address: string; sessi
                     recipient: to.address,
                     display: to.display,
                     amount: `${formatUnits(amount.value, token?.decimals ?? 18)} ${token ? `${token.symbol} (token ${checksum(token.address)})` : "ETH"}`,
-                    warnings: recipientWarnings(to.address, { safe, token: token?.address, known, isContract: contract.kind === "ok" ? contract.value : undefined }),
+                    warnings: [
+                        ...recipientWarnings(to.address, { safe, token: token?.address, known, isContract: contract.kind === "ok" ? contract.value : undefined }),
+                        ...(token ? [{ code: "token-name" as const, severity: "caution" as const, text: "Any token can take any name, ETH included: check the token's address." }] : []),
+                    ],
                 })
             }
             setAcknowledged(false)
@@ -110,12 +112,16 @@ export function ProposeSafe({ address, session, open }: { address: string; sessi
         if (!lines) return
         setError(null)
         setBusy("sign")
-        const sdk = await loadSafeSdk()
         try {
-            await sdk.proposeSafeTx(net.key, API_BASE_URL, safe, s.owners, lines.map((l) => l.call))
-            setDone(true)
-        } catch (err) {
-            setError(err instanceof sdk.SafeActionError ? actionErrorText(err.reason, session.network.label) : "Couldn't propose the payment. Try again.")
+            const sdk = await loadSafeSdk()
+            try {
+                await sdk.proposeSafeTx(net.key, API_BASE_URL, safe, lines.map((l) => l.call))
+                setDone(true)
+            } catch (err) {
+                setError(err instanceof sdk.SafeActionError ? actionErrorText(err.reason, session.network.label, "propose") : "Couldn't propose the payment. Try again.")
+            }
+        } catch {
+            setError("Couldn't load what signs Safe transactions. Try again.")
         } finally {
             setBusy("")
         }

@@ -47,6 +47,11 @@ const SETTING_TEXT: Readonly<Record<SafeSetting, string>> = {
     changeMasterCopy: "Change the Safe's code",
 }
 
+/** What a Safe setting change does, in words. */
+export function settingText(setting: SafeSetting): string {
+    return SETTING_TEXT[setting]
+}
+
 export interface TxText {
     title: string
     detail: string
