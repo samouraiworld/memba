@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependencies (2026-10-08)
+- Security: the HTML sanitiser (`dompurify`) is raised past its latest advisory (GHSA-p98j-92pf-mc4p, GHSA-6688-9rhm-gjv2)
+- React 19.3, react-router 7.18.4, TanStack Query 5.104, Sentry 10.76, protobuf 2.16, zod 4.6 and the backend's SQLite driver 1.60.1 are current
+
 ### Alerts in Settings, Notifications (2026-10-08)
 - Memba OS: validator and GovDAO alerts now live in Settings, Notifications. The Validators app's Alerts button and old Alerts links open them there, with your webhooks, contacts and daily report unchanged
 
