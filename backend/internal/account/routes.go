@@ -297,7 +297,17 @@ func (h *handler) followEmail(ctx context.Context, a Account, c Claims) (Account
 		return a, nil
 	}
 	previous := a.Email
+	var live []Consent
 	if previous != "" {
+		all, err := consents(ctx, h.db, a.ID)
+		if err != nil {
+			return a, err
+		}
+		for _, x := range all {
+			if x.Email == previous && x.WithdrawnAt == "" {
+				live = append(live, x)
+			}
+		}
 		if err := h.resend.deleteContact(ctx, previous); err != nil {
 			return a, err
 		}
@@ -310,10 +320,14 @@ func (h *handler) followEmail(ctx context.Context, a Account, c Claims) (Account
 		}
 		return withdraw(ctx, tx, now, "email_changed", "account_id = ? AND email = ?", a.ID, previous)
 	})
-	if err == nil && previous != "" {
+	if err != nil {
+		return a, err
+	}
+	if previous != "" {
 		h.dropContact(ctx, previous)
 	}
-	return a, err
+	h.afterEmailChange(ctx, a, previous, live)
+	return a, nil
 }
 
 func (h *handler) inTx(ctx context.Context, fn func(*sql.Tx) error) error {

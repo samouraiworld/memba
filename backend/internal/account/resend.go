@@ -91,6 +91,21 @@ func (r *resend) setTopic(ctx context.Context, email, topicID string, in bool) e
 	return err
 }
 
+// topics returns the contact's subscription per Resend topic id.
+func (r *resend) topics(ctx context.Context, email string) (map[string]string, error) {
+	var out struct {
+		Data []topicSubscription `json:"data"`
+	}
+	if err := r.do(ctx, "read topics", http.MethodGet, "/contacts/"+url.PathEscape(email)+"/topics", nil, &out); err != nil {
+		return nil, err
+	}
+	subs := make(map[string]string, len(out.Data))
+	for _, t := range out.Data {
+		subs[t.ID] = t.Subscription
+	}
+	return subs, nil
+}
+
 // deleteContact removes the address from Resend; an unknown address is fine.
 func (r *resend) deleteContact(ctx context.Context, email string) error {
 	if err := r.do(ctx, "delete contact", http.MethodDelete, "/contacts/"+url.PathEscape(email), nil, nil); err != nil && !errors.Is(err, errNoContact) {

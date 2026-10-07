@@ -431,7 +431,7 @@ func TestNoAddressReachesTheLogs(t *testing.T) {
 
 // The MAC comparisons stay constant-time.
 func TestMACsAreComparedInConstantTime(t *testing.T) {
-	for _, file := range []string{"link.go"} {
+	for _, file := range []string{"link.go", "svix.go"} {
 		src, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
