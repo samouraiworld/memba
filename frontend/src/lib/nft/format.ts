@@ -1,6 +1,7 @@
 /**
- * How the NFT screens write a price and a rate. Both are exact: they are cut
- * from the bigint the realm stated, never passed through a float.
+ * How the NFT screens write a price, a rate and a time. The price and the
+ * rate are exact: they are cut from the bigint the realm stated, never passed
+ * through a float.
  *
  * @module lib/nft/format
  */
@@ -25,4 +26,13 @@ export function formatBPS(bps: bigint): string {
     if (bps < 0n) throw new Error("Invalid basis points")
     const fraction = (bps % 100n).toString().padStart(2, "0").replace(/0+$/, "")
     return `${bps / 100n}${fraction ? `.${fraction}` : ""}%`
+}
+
+/** The first second of the year 10000: past it, a date no longer has the fixed form below. */
+const YEAR_10000 = 253_402_300_800n
+
+/** Unix seconds as a fixed UTC time, the same for every reader: "2026-10-01 14:00 UTC". */
+export function formatTime(seconds: bigint): string {
+    if (seconds >= YEAR_10000) return "after the year 9999"
+    return `${new Date(Number(seconds) * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`
 }

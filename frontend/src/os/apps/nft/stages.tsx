@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react"
 import { isRealmValidOn } from "../../../lib/config"
 import { networkGasPriceFresh } from "../../../lib/grc20"
 import { NFT_DROPS_PATH, listStages, mintedBy, type NftStage, type NftStageKind } from "../../../lib/nft/drops"
-import { formatAmount, formatBPS } from "../../../lib/nft/format"
+import { formatAmount, formatBPS, formatTime } from "../../../lib/nft/format"
 import { NATIVE_CURRENCY, mintBlocker, supplyBlocker, type MintSupply } from "../../../lib/nft/mint"
 import { ReadError, RealmRefusedError } from "../../../lib/nft/read"
 import { laneClosedReason, readActionStatus } from "../../../lib/tokenLaunchpadConfigClient"
@@ -25,15 +25,6 @@ import { ReadFailure } from "./parts"
 import { launchpadReadFailure, type NftScreen } from "./screen"
 
 const KIND: Record<NftStageKind, string> = { fixed: "Fixed price", allowlist: "Allowlist", holder: "Holders", dutch: "Dutch auction" }
-
-/** The first second of the year 10000: past it, a date no longer has the fixed form below. */
-const YEAR_10000 = 253_402_300_800n
-
-/** Unix seconds as a fixed UTC time, the same for every reader: "2026-10-01 14:00 UTC". */
-function when(seconds: bigint): string {
-    if (seconds >= YEAR_10000) return "after the year 9999"
-    return `${new Date(Number(seconds) * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`
-}
 
 /** A failed check before the review, in words a member can act on. */
 function reason(err: unknown): string {
@@ -129,7 +120,7 @@ function Stage({ screen, session, target, stage, readAt }: { screen: NftScreen; 
         <li className="os-card os-stack os-tight">
             <div className="os-row"><b>Stage {stage.index + 1} · {KIND[stage.kind]}</b><Pill tone={stage.open ? "ok" : "neutral"}>{status}</Pill>{soldOut && <Pill tone="neutral">Sold out</Pill>}</div>
             <dl className="os-kv">
-                <div className="os-kv-row"><dt>Window</dt><dd>{when(stage.start)} to {when(stage.end)}</dd></div>
+                <div className="os-kv-row"><dt>Window</dt><dd>{formatTime(stage.start)} to {formatTime(stage.end)}</dd></div>
                 <div className="os-kv-row"><dt>Price</dt><dd>{stage.kind === "dutch" ? `${amount(stage.price)}, falling to ${amount(stage.floor)}` : amount(stage.price)}</dd></div>
                 {stage.kind === "dutch" && stage.open && <div className="os-kv-row"><dt>Price now</dt><dd>{amount(stage.currentPrice)}</dd></div>}
                 <div className="os-kv-row"><dt>Currency</dt><dd className="os-mono os-break">{stage.currency}</dd></div>

@@ -7,10 +7,10 @@
  * home lists the newest collections, read strictly: a failed read is shown as
  * an error with a retry, a list the ledger refused and data that breaks its
  * rules as errors without one, and none as an empty ledger. Guests browse
- * freely; only My collectibles, minting and creating ask for a wallet. The
- * studio arrives later and says so. A section this window does not serve is
- * handed through as `fallback`. Moving between sections carries focus to the
- * new view's heading or its control back, as Market's window does.
+ * freely; My collectibles, minting, creating and the studio ask for a
+ * wallet. A section this window does not serve is handed through as
+ * `fallback`. Moving between sections carries focus to the new view's heading
+ * or its control back, as Market's window does.
  *
  * @module os/apps/nft/native
  */
@@ -30,6 +30,7 @@ import { TokenItem } from "./item"
 import { MyCollectibles } from "./mine"
 import { CreateCollection } from "./create"
 import { CollectionProfile } from "./profile"
+import { CollectionStudio, Studio } from "./studio"
 
 const SHOWN = 20
 const MODE_LABEL: Record<NftMode, string> = { open: "Transferable", royalty_protected: "Royalty-protected", soulbound: "Soulbound" }
@@ -75,8 +76,6 @@ function Collections({ screen, heading }: { screen: NftScreen; heading: Ref<HTML
         </section>
     )
 }
-
-const LATER = { studio: "The creator studio", "studio-collection": "The creator studio" } as const
 
 export default function NftWindow({ section, session, push, openApp, fallback }: NativeViewProps) {
     // A card or a control unmounts when it is used and would drop focus on the page
@@ -135,13 +134,8 @@ export default function NftWindow({ section, session, push, openApp, fallback }:
         case "token": return <TokenItem key={`${route.collection}/${route.number}`} screen={screen} collection={route.collection} number={route.number} back={back} />
         case "mine": return <MyCollectibles screen={screen} session={session} back={back} />
         case "create": return <CreateCollection screen={screen} session={session} back={back} />
-        case "studio": case "studio-collection":
-            return (
-                <div className="os-stack">
-                    <p className="os-note" role="note">{LATER[route.kind]} arrives in a later version of Memba OS.</p>
-                    <div className="os-row"><button ref={back} type="button" className="os-btn os-quiet" onClick={() => screen.go({ kind: "home" })}>Browse collections</button></div>
-                </div>
-            )
+        case "studio": return <Studio screen={screen} session={session} back={back} />
+        case "studio-collection": return <CollectionStudio key={route.collection} screen={screen} session={session} id={route.collection} back={back} />
         case "home": return (
             <div className="os-stack">
                 <Collections screen={screen} heading={heading} />
