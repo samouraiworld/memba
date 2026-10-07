@@ -21,7 +21,7 @@ reproduced here is marked **UNVERIFIED**.
 
 | Test file | What it proves |
 |---|---|
-| `Availability.t.sol` | Task 1: code + codehash at every canonical address, both chains |
+| `Availability.t.sol` (since replaced by `test/manifest/ManifestLive.t.sol`, which reads `deployments/evm`) | Task 1: code + codehash at every canonical address, both chains |
 | `SafeTreasury.t.sol` | 2a Safe 2-of-3 + EIP-1271; 2b Zodiac Roles v2 and AllowanceModule v1.0.0 monthly budget |
 | `AragonDao.t.sol` | 2c DAOFactory + Multisig (proposal approved and executed) and + TokenVoting |
 | `SnapshotX.t.sol` | 2d + task 3: space → Safe, self-updating whitelist, class escalation, mitigation |

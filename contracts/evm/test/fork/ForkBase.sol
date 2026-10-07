@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {Addr} from "./Addresses.sol";
+import {RpcUrl} from "../RpcUrl.sol";
 import {ISafe, ISafeProxyFactory, Operation} from "./Interfaces.sol";
 
 /// Shared fork setup and Safe helpers. Each concrete suite picks a chain alias from foundry.toml.
@@ -32,8 +33,8 @@ abstract contract ForkBase is Test {
 
     function setUp() public virtual {
         uint256 b = _forkBlock();
-        if (b == 0) vm.createSelectFork(_chain());
-        else vm.createSelectFork(_chain(), b);
+        if (b == 0) vm.createSelectFork(RpcUrl.forAlias(_chain()));
+        else vm.createSelectFork(RpcUrl.forAlias(_chain()), b);
         alice = vm.addr(PK_A);
         bob = vm.addr(PK_B);
         carol = vm.addr(PK_C);

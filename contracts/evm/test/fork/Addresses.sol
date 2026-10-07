@@ -15,16 +15,6 @@ library Addr {
     address internal constant SAFE_FALLBACK_HANDLER = 0x3EfCBb83A4A7AfcB4F68D501E2c2203a38be77f4;
     address internal constant SAFE_MULTISEND = 0x218543288004CD07832472D464648173c77D7eB7;
     address internal constant SAFE_MULTISEND_CALL_ONLY = 0xA83c336B20401Af773B6219BA5027174338D1836;
-    bytes32 internal constant SAFE_CODEHASH = 0xdda019cbd7c867a533a2a86e5c53434fdc50b13122b5a5ddb4a8df61b31c20f2;
-    bytes32 internal constant SAFE_L2_CODEHASH = 0x180193227186ccb85316c94db1f0d156ed932b14712cfaac78901899178572dc;
-    bytes32 internal constant SAFE_PROXY_FACTORY_CODEHASH =
-        0x967dae4cda22b0c9ef7f31b010bdc1ceb0af9904b0c3dc060b5302e4c18a4529;
-    bytes32 internal constant SAFE_FALLBACK_HANDLER_CODEHASH =
-        0x3c6a85bcf7b563daa624b884b4e9a1b9fa5371edde7be945d998071a48f28bbc;
-    bytes32 internal constant SAFE_MULTISEND_CODEHASH =
-        0xca1147a12963172a93910c5cb2bfa5ad0e941c7f03fc7eb017dd06a8ea4e5604;
-    bytes32 internal constant SAFE_MULTISEND_CALL_ONLY_CODEHASH =
-        0xcdbdcec38d2f1c7d961b0029ff8416b7e86e9974d6f0e9c9580c7d17fcfb6663;
 
     // Safe AllowanceModule (safe-fndn/safe-modules modules/allowances CHANGELOG "Expected addresses")
     address internal constant ALLOWANCE_MODULE_V1_0_0 = 0x691f59471Bfd2B7d639DCF74671a2d648ED1E331;

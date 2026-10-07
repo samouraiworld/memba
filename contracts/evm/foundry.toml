@@ -14,6 +14,10 @@ remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
 ]
 
+# The manifest tests read deployments/evm.
+fs_permissions = [{ access = "read", path = "../../deployments/evm" }]
+
+# Public defaults. CI and local runs override them with BASE_RPC_URL / BASE_SEPOLIA_RPC_URL (test/RpcUrl.sol).
 [rpc_endpoints]
 base_sepolia = "https://sepolia.base.org"
 base = "https://mainnet.base.org"

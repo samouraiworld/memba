@@ -1,0 +1,299 @@
+{
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "verified": {
+    "date": "2026-10-07",
+    "block": 47802573
+  },
+  "contracts": {
+    "safeSingleton": {
+      "address": "0xFf51A5898e281Db6DfC7855790607438dF2ca44b",
+      "codehash": "0xdda019cbd7c867a533a2a86e5c53434fdc50b13122b5a5ddb4a8df61b31c20f2",
+      "version": "1.5.0",
+      "versionGetter": "VERSION()",
+      "source": "S1 safe-global/safe-deployments v1.5.0"
+    },
+    "safeL2Singleton": {
+      "address": "0xEdd160fEBBD92E350D4D398fb636302fccd67C7e",
+      "codehash": "0x180193227186ccb85316c94db1f0d156ed932b14712cfaac78901899178572dc",
+      "version": "1.5.0",
+      "versionGetter": "VERSION()",
+      "source": "S1 safe-global/safe-deployments v1.5.0"
+    },
+    "safeProxyFactory": {
+      "address": "0x14F2982D601c9458F93bd70B218933A6f8165e7b",
+      "codehash": "0x967dae4cda22b0c9ef7f31b010bdc1ceb0af9904b0c3dc060b5302e4c18a4529",
+      "version": "1.5.0",
+      "source": "S1 safe-global/safe-deployments v1.5.0"
+    },
+    "safeFallbackHandler": {
+      "address": "0x3EfCBb83A4A7AfcB4F68D501E2c2203a38be77f4",
+      "codehash": "0x3c6a85bcf7b563daa624b884b4e9a1b9fa5371edde7be945d998071a48f28bbc",
+      "version": "1.5.0",
+      "source": "S1 safe-global/safe-deployments v1.5.0"
+    },
+    "safeMultiSend": {
+      "address": "0x218543288004CD07832472D464648173c77D7eB7",
+      "codehash": "0xca1147a12963172a93910c5cb2bfa5ad0e941c7f03fc7eb017dd06a8ea4e5604",
+      "version": "1.5.0",
+      "source": "S1 safe-global/safe-deployments v1.5.0"
+    },
+    "safeMultiSendCallOnly": {
+      "address": "0xA83c336B20401Af773B6219BA5027174338D1836",
+      "codehash": "0xcdbdcec38d2f1c7d961b0029ff8416b7e86e9974d6f0e9c9580c7d17fcfb6663",
+      "version": "1.5.0",
+      "source": "S1 safe-global/safe-deployments v1.5.0"
+    },
+    "safeSingletonFactory": {
+      "address": "0x914d7Fec6aaC8cd542e72Bca78B30650d45643d7",
+      "codehash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "source": "safe-global/safe-singleton-factory"
+    },
+    "allowanceModuleV1": {
+      "address": "0x691f59471Bfd2B7d639DCF74671a2d648ED1E331",
+      "codehash": "0xfafc86ce3000fbdc8ad155875c0b3b5a20d17662e7c2cdbf3e95f15945a46657",
+      "version": "1.0.0",
+      "versionGetter": "VERSION()",
+      "source": "S2 safe-fndn/safe-modules allowances CHANGELOG"
+    },
+    "allowanceModuleV011": {
+      "address": "0xAA46724893dedD72658219405185Fb0Fc91e091C",
+      "codehash": "0x7aa63affdca06fe94576f00077ad61a02ccf203a5da31e1b4ed595df7b65cf3e",
+      "version": "0.1.1",
+      "versionGetter": "VERSION()",
+      "source": "S2 safe-fndn/safe-modules allowances CHANGELOG"
+    },
+    "zodiacRolesV2Mastercopy": {
+      "address": "0xF2964CE6161ce0e75964Fe7927cE114cb0B283D5",
+      "codehash": "0x471d8b3b419f1eb955230c0326c8812176df49bf3c7b414a563fda5a3c6c10b6",
+      "version": "2.1.1",
+      "source": "S3 gnosisguild/zodiac src/contracts.ts"
+    },
+    "zodiacModuleProxyFactory": {
+      "address": "0x000000000000aDdB49795b0f9bA5BC298cDda236",
+      "codehash": "0x01623cbcf010a1c326230f1b2d5f48a66b440232ee49096102bc84967dc5f21e",
+      "version": "1.2.0",
+      "source": "S3 gnosisguild/zodiac src/contracts.ts"
+    },
+    "zodiacRolesIntegrity": {
+      "address": "0x6a6Af4b16458Bc39817e4019fB02BD3b26d41049",
+      "codehash": "0xee8ec55ea4ac609a3fc768eccf3f0479631454fe0a802e4a4b8132102d10d495",
+      "version": "2.1.1",
+      "source": "S3 gnosisguild/zodiac-modifier-roles README"
+    },
+    "zodiacRolesPacker": {
+      "address": "0x869718C939652084BC491fBC5ce0D3C1d5B309F0",
+      "codehash": "0xc28f5fb0c8857669286d01e3df89f310d5ddfbf98205ad46d2f7d28767a76c82",
+      "version": "2.1.1",
+      "source": "S3 gnosisguild/zodiac-modifier-roles README"
+    },
+    "zodiacRolesMultiSendUnwrapper": {
+      "address": "0xB4Cd4bb764C089f20DA18700CE8bc5e49F369efD",
+      "codehash": "0x1f6e088be5e6ef9d0fbe0547d3fa9a9e40d823433fd8a4449215b5663209a1eb",
+      "version": "2.1.1",
+      "source": "S3 gnosisguild/zodiac-modifier-roles README"
+    },
+    "snapshotXProxyFactory": {
+      "address": "0x4B4F7f64Be813Ccc66AEFC3bFCe2baA01188631c",
+      "codehash": "0x9d58d183bb98c199c270f0f2ba7c0abbda1a119caef4c136e137bbacca8c4035",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXSpaceImpl": {
+      "address": "0xC3031A7d3326E47D49BfF9D374d74f364B29CE4D",
+      "codehash": "0x4f2f90c70374b7dcd468d351747e9c865efc0d47e606eb6fdaeb2a842c148d81",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXWhitelistVoting": {
+      "address": "0x3CEE21A33751A2722413fF62dEC3dEc48e7748A4",
+      "codehash": "0x5ac5acac888dd781c9cfe7cdac9182a316560bfc6aa443ee148c0ed090d3d585",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXAvatarExecutionImpl": {
+      "address": "0xecE4f6b01a2d7FF5A9765cA44162D453fC455e42",
+      "codehash": "0xff49b6b368f46437fcdcca49e92468602a8b2d61da76bbcf2f49652f6bcfb28a",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXTimelockExecutionImpl": {
+      "address": "0xf2A1C2f2098161af98b2Cc7E382AB7F3ba86Ebc4",
+      "codehash": "0x3865767ce0d582f31812edde45d3909a333fc04e5a1a6f8e1f686d6023a95eed",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXVanillaAuthenticator": {
+      "address": "0xb9BE0a0093933968E3B4c4fC5d939B6c1Fe45142",
+      "codehash": "0xcc5ac61ffe33da5b76ee182f88f532af0041f693f347341cba4a31732031f108",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXEthTxAuthenticator": {
+      "address": "0xBA06E6cCb877C332181A6867c05c8b746A21Aed1",
+      "codehash": "0xe7a216f07f812245a89909f0eee52435d9892c029d23dde2e7d46f28a1983bdb",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXEthSigAuthenticator": {
+      "address": "0x95CF9B585fDb12DeB78002B5643dFF8fe67a496D",
+      "codehash": "0x908f830614f145bf3820834e16985efffd940dc2d5e285fcc0dfb96ce2aa5d75",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXVanillaProposalValidation": {
+      "address": "0x9A39194F870c410633C170889E9025fba2113c79",
+      "codehash": "0xddd4560ead7f2c3de35f37de8d50c43e57f0173ad3eefd20098c3b6e08cba9d8",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "snapshotXPropositionPowerValidation": {
+      "address": "0x6D9d6D08EF6b26348Bd18F1FC8D953696b7cf311",
+      "codehash": "0x2be4000dde1953be92dff29da1c0b058d736ac3194fc63ac1ec33bfed24675ab",
+      "source": "S5 snapshot-labs/sx-monorepo sx-evm deployments"
+    },
+    "uniswapCcaFactory": {
+      "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+      "codehash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa",
+      "version": "2.1.0",
+      "source": "S6 Uniswap/continuous-clearing-auction README"
+    },
+    "eas": {
+      "address": "0x4200000000000000000000000000000000000021",
+      "codehash": "0xfa8c9db6c6cab7108dea276f4cd09d575674eb0852c0fa3187e59e98ef977998",
+      "version": "1.2.0",
+      "versionGetter": "version()",
+      "proxy": {
+        "implementation": "0xC0D3c0D3C0d3c0D3c0D3C0D3c0D3c0d3c0d30021",
+        "implementationCodehash": "0x703f246f804f8d4b315fd7b5fc504671f726230373571e02b69794d0f2614fd7"
+      },
+      "source": "S7 ethereum-attestation-service/eas-contracts README"
+    },
+    "easSchemaRegistry": {
+      "address": "0x4200000000000000000000000000000000000020",
+      "codehash": "0xfa8c9db6c6cab7108dea276f4cd09d575674eb0852c0fa3187e59e98ef977998",
+      "version": "1.2.0",
+      "versionGetter": "version()",
+      "proxy": {
+        "implementation": "0xc0d3c0d3c0d3C0d3c0d3C0D3C0D3c0d3C0D30020",
+        "implementationCodehash": "0x4f01862031e523fc22a2bbe86c670a2f57f0da57ce1f582b0776042290377672"
+      },
+      "source": "S7 ethereum-attestation-service/eas-contracts README"
+    },
+    "seaport": {
+      "address": "0x0000000000000068F116a894984e2DB1123eB395",
+      "codehash": "0x7912af42062ec0080cde88360c1429d58984ae16eb3f17af505b815bf6ffc745",
+      "version": "1.6",
+      "source": "S8 ProjectOpenSea/seaport README"
+    },
+    "seaportConduitController": {
+      "address": "0x00000000F9490004C11Cef243f5400493c00Ad63",
+      "codehash": "0x880348b652e7cce91216153a4d0107e70c77b92192f3d7a127ff1f1351961948",
+      "source": "S8 ProjectOpenSea/seaport README"
+    },
+    "create2Deployer": {
+      "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+      "codehash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "source": "Arachnid/deterministic-deployment-proxy"
+    },
+    "permit2": {
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "codehash": "0xdcde65555316946c298e4c60c6213eb5c3aeab4354d1f3fac5427236bcbb9ebe",
+      "source": "Uniswap/permit2"
+    },
+    "multicall3": {
+      "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
+      "codehash": "0xd5c15df687b16f2ff992fc8d767b4216323184a2bbc6ee2f9c398c318e770891",
+      "source": "mds1/multicall3"
+    },
+    "aragonDaoFactory": {
+      "address": "0x016CBa9bd729C30b16849b2c52744447767E9dab",
+      "codehash": "0x0df48db198643ea62e7cc254523fd10b45693642cf6aa54d7352dd79d3ef7860",
+      "version": "1.4.0",
+      "source": "S4 aragon/osx-commons baseSepolia.json v1.4.0"
+    },
+    "aragonPluginSetupProcessor": {
+      "address": "0xd97D409Ca645b108468c26d8506f3a4Bf9D0BE81",
+      "codehash": "0xfcb47ca000a871dcafc9c8a8cd6065f9490467c69934c07708880380251d0609",
+      "source": "S4 aragon/osx-commons baseSepolia.json v1.4.0"
+    },
+    "aragonDaoRegistry": {
+      "address": "0xea14d8f9e029f666E247955E0fA25A1a1e236a50",
+      "codehash": "0x08349d5a38235748c9496d25a57f4bc8e6793e452e5f7b10903ec48d1ab8c74c",
+      "proxy": {
+        "implementation": "0xe70a46af77a1d0bc85dC16Adb1Ea1148ce483b06",
+        "implementationCodehash": "0x7765cdfd4806e473960d256d33463be2017e5b001c530446c76fb28a16cc2f32"
+      },
+      "source": "on chain: DAOFactory.daoRegistry()"
+    },
+    "aragonPluginRepoRegistry": {
+      "address": "0xd22e93292A02140957CD0217b317140B1388CE23",
+      "codehash": "0x08349d5a38235748c9496d25a57f4bc8e6793e452e5f7b10903ec48d1ab8c74c",
+      "proxy": {
+        "implementation": "0x5dEf73A4A6d7976A298f3669FA5926BaFc8c18Aa",
+        "implementationCodehash": "0x7ea2220d387732af43bd4a51e9af7e8564c7279d2fd21f4a1ddf21110eb8033c"
+      },
+      "source": "on chain: PluginSetupProcessor.repoRegistry()"
+    },
+    "aragonMultisigRepo": {
+      "address": "0x705596219C1C31dd92E3449c8E04251CcacCb6aB",
+      "codehash": "0x08349d5a38235748c9496d25a57f4bc8e6793e452e5f7b10903ec48d1ab8c74c",
+      "proxy": {
+        "implementation": "0x3BA78469FfD1AB019566EAee768cc99d2a6b6Be7",
+        "implementationCodehash": "0xdbc6ce82ac07736d46972c7f9cfd87d79164732d1def71c2ed01abf057446321"
+      },
+      "build": {
+        "release": 1,
+        "build": 3
+      },
+      "source": "S4 aragon/osx-commons baseSepolia.json v1.4.0"
+    },
+    "aragonTokenVotingRepo": {
+      "address": "0xdEbcF8779495a62156c6d1416628F60525984e9d",
+      "codehash": "0x08349d5a38235748c9496d25a57f4bc8e6793e452e5f7b10903ec48d1ab8c74c",
+      "proxy": {
+        "implementation": "0x3BA78469FfD1AB019566EAee768cc99d2a6b6Be7",
+        "implementationCodehash": "0xdbc6ce82ac07736d46972c7f9cfd87d79164732d1def71c2ed01abf057446321"
+      },
+      "build": {
+        "release": 1,
+        "build": 3
+      },
+      "source": "S4 aragon/osx-commons baseSepolia.json v1.4.0"
+    },
+    "basenamesRegistry": {
+      "address": "0x1493b2567056c2181630115660963E13A8E32735",
+      "codehash": "0x353bc9548a1b34980e89e32fd9efceb369faaf19594792a2e9168f15e7ff9a47",
+      "source": "S9 base/basenames README"
+    },
+    "basenamesBaseRegistrar": {
+      "address": "0xA0c70ec36c010B55E3C434D6c6EbEEC50c705794",
+      "codehash": "0xd34980744a10c7c697040eab4217c4f898eff2e368f5a13a3730c00871d6354d",
+      "source": "S9 base/basenames README"
+    },
+    "basenamesRegistrarController": {
+      "address": "0x82c858CDF64b3D893Fe54962680edFDDC37e94C8",
+      "codehash": "0x59c6d41167b7183daba3411654e04c6a17d9393723464656526df6bc84917de7",
+      "proxy": {
+        "implementation": "0xb53e99F4a96dce67E772038a32aBd1131E216770",
+        "implementationCodehash": "0xa3cb7eae93cd507c191a9d9ae0b9bab8234a7c8e72cb59547987f9a303160052"
+      },
+      "source": "S9 base/basenames README (UpgradeableRegistrarController)"
+    },
+    "basenamesL2Resolver": {
+      "address": "0x85C87e548091f204C2d0350b39ce1874f02197c6",
+      "codehash": "0x519955142f4f6a53016c77bde296ebf6702988de491c85a9c9c1c99a16346ca5",
+      "proxy": {
+        "implementation": "0xC014B9c02b0EDeA17255Ce019e6ab6c24E4AD073",
+        "implementationCodehash": "0xf8023ae402510c6bc569430baf41f9c6a0468fdb2dea97038f24f534087c1a9b"
+      },
+      "source": "S9 base/basenames README (UpgradeableL2Resolver)"
+    },
+    "basenamesL2ResolverLegacy": {
+      "address": "0x6533C94869D28fAA8dF77cc63f9e2b2D6Cf77eBA",
+      "codehash": "0x5f8138cfb4afbb24152621c1f656f631680d2670dee017eec534b13aec50efc2",
+      "source": "S9 base/basenames README (resolver of names registered before the upgrade)"
+    }
+  },
+  "deny": {
+    "basenamesRegistrarControllerLegacy": {
+      "address": "0x49aE3cC2e3AA768B1e5654f5D3C6002144A59581",
+      "reason": "Legacy RegistrarController: still accepted on Base Sepolia only, refused on Base. A testnet-only success trap. Use basenamesRegistrarController."
+    },
+    "aragonTokenVotingRepoNpm": {
+      "address": "0x424F4cA6FA9c24C03f2396DF0E96057eD11CF7dF",
+      "reason": "Stale TokenVoting repo (build 2) listed in the plugin npm addresses.json. Use aragonTokenVotingRepo (osx-commons)."
+    }
+  }
+}
