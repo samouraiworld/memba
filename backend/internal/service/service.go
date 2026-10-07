@@ -6,6 +6,7 @@ import (
 	srand "crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -279,7 +280,17 @@ func (s *MultisigService) rateLimitUser(addr, endpoint string) error {
 // oracle clients don't need, and no frontend parses these messages. If a
 // client ever needs to distinguish a case, use the bare-code pattern
 // (see auth.SessionRejectCode) — never the raw error.
+//
+// It accepts Gno sessions only. A token in the EVM chain namespace (issued by
+// Sign-In with Ethereum) names an EVM identity, which no handler behind
+// authenticate is written for, so it is refused here before any other check,
+// even when no accepted chain set is configured. A handler that serves EVM
+// identities opts in explicitly through its own entry point.
 func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
+	if token != nil && auth.IsEVMChainID(token.ChainId) {
+		slog.Warn("authenticate: EVM-chain token refused by a Gno-only handler", "chain_id", token.ChainId)
+		return "", connect.NewError(connect.CodeUnauthenticated, nil)
+	}
 	if err := auth.ValidateToken(s.publicKey, token, s.acceptedChainIDs...); err != nil {
 		slog.Warn("authenticate: token rejected", "error", err)
 		return "", connect.NewError(connect.CodeUnauthenticated, nil)
@@ -315,6 +326,11 @@ func (s *MultisigService) ValidateRESTTokenIdentity(tokenJSON string) (addr, cha
 	var token membav1.Token
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal([]byte(tokenJSON), &token); err != nil {
 		return "", "", fmt.Errorf("invalid token format: %w", err)
+	}
+	// REST endpoints are Gno-only, like authenticate: an EVM-chain token is
+	// refused before validation.
+	if auth.IsEVMChainID(token.ChainId) {
+		return "", "", errors.New("token is for an EVM chain")
 	}
 	if err := auth.ValidateToken(s.publicKey, &token, s.acceptedChainIDs...); err != nil {
 		return "", "", err

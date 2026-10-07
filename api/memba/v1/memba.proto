@@ -9,6 +9,10 @@ service MultisigService {
   // Auth — Challenge-response authentication (ed25519)
   rpc GetChallenge(GetChallengeRequest) returns (GetChallengeResponse);
   rpc GetToken(GetTokenRequest) returns (GetTokenResponse);
+  // Auth — Sign-In with Ethereum (EIP-4361) for EVM accounts. Off unless the
+  // server enables it; returns Unimplemented otherwise.
+  rpc GetSiweChallenge(GetSiweChallengeRequest) returns (GetSiweChallengeResponse);
+  rpc GetSiweToken(GetSiweTokenRequest) returns (GetSiweTokenResponse);
 
   // Multisig — CRUD
   rpc CreateOrJoinMultisig(CreateOrJoinMultisigRequest) returns (CreateOrJoinMultisigResponse);
@@ -150,6 +154,41 @@ message GetTokenRequest {
 }
 
 message GetTokenResponse {
+  Token auth_token = 1;
+}
+
+// SiweChallenge is the server-signed frame of one EVM sign-in. The client (or
+// the wallet) writes an EIP-4361 message that must match it field by field;
+// the server never needs to keep state between the two calls.
+message SiweChallenge {
+  string nonce = 1; // SIWE nonce: 32 lower-case hex characters (128 bits)
+  string chain_id = 2; // CAIP-2, e.g. "eip155:8453"
+  string domain = 3; // RFC 3986 authority the message must name (the page origin's host)
+  string uri = 4; // URI the message must name (the page origin)
+  string issued_at = 5; // RFC 3339
+  string expiration = 6; // RFC 3339; the message may not outlive it
+  string statement = 7; // suggested statement for a client-built message
+  bytes server_signature = 8; // ed25519 over a SIWE-only prefix and this message with this field empty
+}
+
+message GetSiweChallengeRequest {
+  string chain_id = 1; // CAIP-2 chain the user signs in on, e.g. "eip155:84532"
+}
+
+message GetSiweChallengeResponse {
+  SiweChallenge challenge = 1;
+}
+
+message GetSiweTokenRequest {
+  SiweChallenge challenge = 1; // as returned by GetSiweChallenge
+  string message = 2; // the exact EIP-4361 text that was signed
+  string signature = 3; // 0x-prefixed hex: 65-byte EOA signature, or an EIP-1271 / ERC-6492 signature
+}
+
+// The token is the ordinary session Token: chain_id is the CAIP-2 chain and
+// user_address the EVM identity ("0x…" for a key holder, "eip155:<id>:0x…" for
+// a contract account).
+message GetSiweTokenResponse {
   Token auth_token = 1;
 }
 

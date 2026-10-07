@@ -39,6 +39,12 @@ const (
 	// MultisigServiceGetTokenProcedure is the fully-qualified name of the MultisigService's GetToken
 	// RPC.
 	MultisigServiceGetTokenProcedure = "/memba.v1.MultisigService/GetToken"
+	// MultisigServiceGetSiweChallengeProcedure is the fully-qualified name of the MultisigService's
+	// GetSiweChallenge RPC.
+	MultisigServiceGetSiweChallengeProcedure = "/memba.v1.MultisigService/GetSiweChallenge"
+	// MultisigServiceGetSiweTokenProcedure is the fully-qualified name of the MultisigService's
+	// GetSiweToken RPC.
+	MultisigServiceGetSiweTokenProcedure = "/memba.v1.MultisigService/GetSiweToken"
 	// MultisigServiceCreateOrJoinMultisigProcedure is the fully-qualified name of the MultisigService's
 	// CreateOrJoinMultisig RPC.
 	MultisigServiceCreateOrJoinMultisigProcedure = "/memba.v1.MultisigService/CreateOrJoinMultisig"
@@ -192,6 +198,10 @@ type MultisigServiceClient interface {
 	// Auth — Challenge-response authentication (ed25519)
 	GetChallenge(context.Context, *connect.Request[v1.GetChallengeRequest]) (*connect.Response[v1.GetChallengeResponse], error)
 	GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error)
+	// Auth — Sign-In with Ethereum (EIP-4361) for EVM accounts. Off unless the
+	// server enables it; returns Unimplemented otherwise.
+	GetSiweChallenge(context.Context, *connect.Request[v1.GetSiweChallengeRequest]) (*connect.Response[v1.GetSiweChallengeResponse], error)
+	GetSiweToken(context.Context, *connect.Request[v1.GetSiweTokenRequest]) (*connect.Response[v1.GetSiweTokenResponse], error)
 	// Multisig — CRUD
 	CreateOrJoinMultisig(context.Context, *connect.Request[v1.CreateOrJoinMultisigRequest]) (*connect.Response[v1.CreateOrJoinMultisigResponse], error)
 	MultisigInfo(context.Context, *connect.Request[v1.MultisigInfoRequest]) (*connect.Response[v1.MultisigInfoResponse], error)
@@ -298,6 +308,18 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+MultisigServiceGetTokenProcedure,
 			connect.WithSchema(multisigServiceMethods.ByName("GetToken")),
+			connect.WithClientOptions(opts...),
+		),
+		getSiweChallenge: connect.NewClient[v1.GetSiweChallengeRequest, v1.GetSiweChallengeResponse](
+			httpClient,
+			baseURL+MultisigServiceGetSiweChallengeProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetSiweChallenge")),
+			connect.WithClientOptions(opts...),
+		),
+		getSiweToken: connect.NewClient[v1.GetSiweTokenRequest, v1.GetSiweTokenResponse](
+			httpClient,
+			baseURL+MultisigServiceGetSiweTokenProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetSiweToken")),
 			connect.WithClientOptions(opts...),
 		),
 		createOrJoinMultisig: connect.NewClient[v1.CreateOrJoinMultisigRequest, v1.CreateOrJoinMultisigResponse](
@@ -601,6 +623,8 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type multisigServiceClient struct {
 	getChallenge           *connect.Client[v1.GetChallengeRequest, v1.GetChallengeResponse]
 	getToken               *connect.Client[v1.GetTokenRequest, v1.GetTokenResponse]
+	getSiweChallenge       *connect.Client[v1.GetSiweChallengeRequest, v1.GetSiweChallengeResponse]
+	getSiweToken           *connect.Client[v1.GetSiweTokenRequest, v1.GetSiweTokenResponse]
 	createOrJoinMultisig   *connect.Client[v1.CreateOrJoinMultisigRequest, v1.CreateOrJoinMultisigResponse]
 	multisigInfo           *connect.Client[v1.MultisigInfoRequest, v1.MultisigInfoResponse]
 	multisigs              *connect.Client[v1.MultisigsRequest, v1.MultisigsResponse]
@@ -660,6 +684,16 @@ func (c *multisigServiceClient) GetChallenge(ctx context.Context, req *connect.R
 // GetToken calls memba.v1.MultisigService.GetToken.
 func (c *multisigServiceClient) GetToken(ctx context.Context, req *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error) {
 	return c.getToken.CallUnary(ctx, req)
+}
+
+// GetSiweChallenge calls memba.v1.MultisigService.GetSiweChallenge.
+func (c *multisigServiceClient) GetSiweChallenge(ctx context.Context, req *connect.Request[v1.GetSiweChallengeRequest]) (*connect.Response[v1.GetSiweChallengeResponse], error) {
+	return c.getSiweChallenge.CallUnary(ctx, req)
+}
+
+// GetSiweToken calls memba.v1.MultisigService.GetSiweToken.
+func (c *multisigServiceClient) GetSiweToken(ctx context.Context, req *connect.Request[v1.GetSiweTokenRequest]) (*connect.Response[v1.GetSiweTokenResponse], error) {
+	return c.getSiweToken.CallUnary(ctx, req)
 }
 
 // CreateOrJoinMultisig calls memba.v1.MultisigService.CreateOrJoinMultisig.
@@ -912,6 +946,10 @@ type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
 	GetChallenge(context.Context, *connect.Request[v1.GetChallengeRequest]) (*connect.Response[v1.GetChallengeResponse], error)
 	GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error)
+	// Auth — Sign-In with Ethereum (EIP-4361) for EVM accounts. Off unless the
+	// server enables it; returns Unimplemented otherwise.
+	GetSiweChallenge(context.Context, *connect.Request[v1.GetSiweChallengeRequest]) (*connect.Response[v1.GetSiweChallengeResponse], error)
+	GetSiweToken(context.Context, *connect.Request[v1.GetSiweTokenRequest]) (*connect.Response[v1.GetSiweTokenResponse], error)
 	// Multisig — CRUD
 	CreateOrJoinMultisig(context.Context, *connect.Request[v1.CreateOrJoinMultisigRequest]) (*connect.Response[v1.CreateOrJoinMultisigResponse], error)
 	MultisigInfo(context.Context, *connect.Request[v1.MultisigInfoRequest]) (*connect.Response[v1.MultisigInfoResponse], error)
@@ -1014,6 +1052,18 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		MultisigServiceGetTokenProcedure,
 		svc.GetToken,
 		connect.WithSchema(multisigServiceMethods.ByName("GetToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetSiweChallengeHandler := connect.NewUnaryHandler(
+		MultisigServiceGetSiweChallengeProcedure,
+		svc.GetSiweChallenge,
+		connect.WithSchema(multisigServiceMethods.ByName("GetSiweChallenge")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetSiweTokenHandler := connect.NewUnaryHandler(
+		MultisigServiceGetSiweTokenProcedure,
+		svc.GetSiweToken,
+		connect.WithSchema(multisigServiceMethods.ByName("GetSiweToken")),
 		connect.WithHandlerOptions(opts...),
 	)
 	multisigServiceCreateOrJoinMultisigHandler := connect.NewUnaryHandler(
@@ -1316,6 +1366,10 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetChallengeHandler.ServeHTTP(w, r)
 		case MultisigServiceGetTokenProcedure:
 			multisigServiceGetTokenHandler.ServeHTTP(w, r)
+		case MultisigServiceGetSiweChallengeProcedure:
+			multisigServiceGetSiweChallengeHandler.ServeHTTP(w, r)
+		case MultisigServiceGetSiweTokenProcedure:
+			multisigServiceGetSiweTokenHandler.ServeHTTP(w, r)
 		case MultisigServiceCreateOrJoinMultisigProcedure:
 			multisigServiceCreateOrJoinMultisigHandler.ServeHTTP(w, r)
 		case MultisigServiceMultisigInfoProcedure:
@@ -1429,6 +1483,14 @@ func (UnimplementedMultisigServiceHandler) GetChallenge(context.Context, *connec
 
 func (UnimplementedMultisigServiceHandler) GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetToken is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetSiweChallenge(context.Context, *connect.Request[v1.GetSiweChallengeRequest]) (*connect.Response[v1.GetSiweChallengeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetSiweChallenge is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetSiweToken(context.Context, *connect.Request[v1.GetSiweTokenRequest]) (*connect.Response[v1.GetSiweTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetSiweToken is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) CreateOrJoinMultisig(context.Context, *connect.Request[v1.CreateOrJoinMultisigRequest]) (*connect.Response[v1.CreateOrJoinMultisigResponse], error) {

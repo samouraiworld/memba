@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -233,6 +234,16 @@ const ChainMismatchCode = "AUTH-CHAINID-MISMATCH-01"
 // sign-in of every single user lands exactly here.
 const ActivationRequiredCode = "AUTH-ACTIVATE-01"
 
+// EVMChainIDPrefix is the CAIP-2 namespace of EVM chains. A token whose
+// chain_id carries it was issued by Sign-In with Ethereum, never by the Gno
+// login, and names an EVM identity, not a Gno address.
+const EVMChainIDPrefix = "eip155:"
+
+// IsEVMChainID reports whether chainID is in the EVM namespace. A prefix test
+// on purpose: anything that even claims the namespace is kept out of the Gno
+// paths.
+func IsEVMChainID(chainID string) bool { return strings.HasPrefix(chainID, EVMChainIDPrefix) }
+
 // nonEmpty drops blank entries from a chain-id set.
 //
 // Shared by MakeToken (issue time) and ValidateToken (every call) so the two
@@ -370,6 +381,18 @@ func MakeToken(
 		} else {
 			slog.Info("auth: using server default chain_id", "chain_id", effectiveChainID)
 		}
+	}
+
+	// The Gno login proves a Gno key and yields a Gno address: it never mints
+	// into the EVM chain namespace, whatever the accepted set says (an empty
+	// set accepts any chain). EVM identities come only from Sign-In with
+	// Ethereum, which binds the EVM address it proves.
+	if IsEVMChainID(effectiveChainID) {
+		slog.Warn(ChainMismatchCode+": refusing a Gno login for an EVM chain",
+			"requested_chain_id", effectiveChainID)
+		logAuthLogin("chain_mismatch", "", effectiveChainID)
+		return nil, errors.New("login is for a chain this server does not serve (" +
+			ChainMismatchCode + ")")
 	}
 
 	// F-29: refuse to mint for a chain we will not later validate.
