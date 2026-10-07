@@ -71,10 +71,10 @@ flyctl secrets set GROQ_API_KEY=<new> GOOGLE_AI_KEY=<new> --app memba-backend
 
 ## Clerk keys (Alerts sign-in)
 
-The Memba backend holds no Clerk secret. The Alerts page signs in with Clerk in the browser, and gnomonitoring checks the session token with its own Clerk secret key (`clerk_secret_key` in its server config).
+The Memba backend holds no Clerk secret. Validator alerts (Memba OS Settings → Notifications; the classic `/alerts` page) sign in with Clerk in the browser, and gnomonitoring checks the session token with its own Clerk secret key (`clerk_secret_key` in its server config).
 
-**Impact of compromise:** Attacker can forge Clerk sessions for the Alerts page (gnomonitoring webhooks).
-**Impact of rotation:** Users on the Alerts page must sign in again.
+**Impact of compromise:** Attacker can forge Clerk sessions for validator alerts (gnomonitoring webhooks).
+**Impact of rotation:** Users of validator alerts must sign in again.
 
 ```bash
 # 1. Rotate in the Clerk dashboard: https://dashboard.clerk.com

@@ -64,7 +64,8 @@ function Frame({ section, query, active = true }: { section: string | null; quer
     const [target, setTarget] = useState({ section, query })
     const retarget = (record: (spec: WindowSpec) => void) => (spec: WindowSpec) => {
         record(spec)
-        if (spec.target?.kind === "app") setTarget({ section: spec.target.section, query: spec.target.query })
+        // Another app's address opens that app's own window, not this one.
+        if (spec.target?.kind === "app" && spec.target.app === "validators") setTarget({ section: spec.target.section, query: spec.target.query })
     }
     return <ValidatorsWindow section={target.section} query={target.query} session={session} active={active}
         open={retarget(opened)} push={retarget(pushed)}
@@ -101,7 +102,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 describe("Validators window · which sections it takes", () => {
-    it.each(["hacker", "alerts", BASALT, `valoper/${BASALT}`, "no/such/page"])("leaves %s to what the window showed before, and reads nothing", (section) => {
+    it.each(["hacker", BASALT, `valoper/${BASALT}`, "no/such/page"])("leaves %s to what the window showed before, and reads nothing", (section) => {
         show(section)
         expect(screen.getByText("classic page")).toBeInTheDocument()
         expect(screen.queryByRole("heading", { name: "Validators" })).toBeNull()
@@ -250,7 +251,23 @@ describe("Validators window · the active set", () => {
         expect(lastPushed()).toEqual({ kind: "app", app: "validators", section: NAMELESS, query: "" })
     })
 
-    it.each([["Hacker mode", "hacker", "validators/hacker"], ["Alerts", "alerts", "alerts"]])("%s opens its classic page in this window, as a history entry", (label, section, page) => {
+    it("Alerts opens Settings → Notifications, where validator alerts live", () => {
+        show()
+        fireEvent.click(screen.getByRole("button", { name: "Alerts" }))
+        expect(lastTarget()).toEqual({ kind: "app", app: "settings", section: "notifications" })
+        expect(pushed).not.toHaveBeenCalled()
+    })
+
+    it("an address from before alerts moved (/os/validators/alerts) puts this window back on its home, then opens alerts in Settings", async () => {
+        show("alerts")
+        expect(opened.mock.calls.map(([spec]) => spec.target)).toEqual([
+            { kind: "app", app: "validators", section: null },
+            { kind: "app", app: "settings", section: "notifications" },
+        ])
+        expect(await screen.findByRole("heading", { name: "Validators" })).toBeInTheDocument()
+    })
+
+    it.each([["Hacker mode", "hacker", "validators/hacker"]])("%s opens its classic page in this window, as a history entry", (label, section, page) => {
         show()
         fireEvent.click(screen.getByRole("button", { name: label }))
         expect(lastPushed()).toEqual({ kind: "app", app: "validators", section, query: "" })

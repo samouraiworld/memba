@@ -93,7 +93,7 @@ const QuestAdmin = lazy(() => import("../pages/QuestAdmin"))
 const Leaderboard = lazy(() => import("../pages/Leaderboard"))
 
 // ── Alerts page (lazy — v2.18.0) ──
-const AlertsPage = lazy(() => import("../pages/AlertsPage"))
+const AlertsPanel = lazy(() => import("../components/alerts/AlertsPanel"))
 
 // ── Block Party game (lazy — gated behind VITE_ENABLE_GAME) ──
 const BlockPartyGame = lazy(() => import("../pages/BlockPartyGame"))
@@ -267,7 +267,7 @@ export function networkRouteChildren() {
       <Route path="marketplace-v2-preview" element={<Suspense fallback={<PageLoader />}><MarketplaceV2Preview /></Suspense>} />
 
       {/* Alerts — Professional alerting (v2.18.0) */}
-      <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
+      <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPanel /></Suspense>} />
 
       {/* Organizations — Team management (v2.22.0) */}
       <Route path="organizations" element={<Suspense fallback={<PageLoader />}><OrganizationsPage /></Suspense>} />

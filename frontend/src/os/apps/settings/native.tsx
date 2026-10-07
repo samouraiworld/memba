@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { APP_VERSION } from "../../../lib/config"
 import { getGasConfig, MAX_DEFAULT_GAS_FEE_UGNOT, MAX_DEFAULT_GAS_WANTED, parseDefaultGasInput } from "../../../lib/gasConfig"
 import { useOsAppearance, type OsIconSize } from "../../appearance"
@@ -20,6 +20,11 @@ const sections: readonly ShellSection[] = [
     { id: "account", name: "Account", icon: "prof" },
     { id: "about", name: "About", icon: "doc" },
 ]
+
+/** Validator and GovDAO alerts (gnomonitoring), loaded when Notifications opens. */
+const AlertsPanel = lazy(() => import("../../../components/alerts/AlertsPanel"))
+/** The classic /alerts page opens Notifications, where the alerts live. */
+const SECTION_ALIASES: Readonly<Record<string, string>> = { alerts: "notifications" }
 
 function ResetSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
     const dialogRef = useRef<HTMLDialogElement>(null)
@@ -51,11 +56,12 @@ function gasFields() {
     return { wanted: String(config.wanted), fee: String(config.fee) }
 }
 
-export default function SettingsWindow({ section, session, open, openApp, fallback }: NativeViewProps) {
-    const initial = sections.some(({ id }) => id === section) ? section! : "desktop"
-    const [selection, setSelection] = useState({ section, current: initial })
-    const current = selection.section === section ? selection.current : initial
-    const setCurrent = (next: string) => setSelection({ section, current: next })
+export default function SettingsWindow({ section: asked, session, open, openApp, fallback }: NativeViewProps) {
+    const section = asked !== null ? SECTION_ALIASES[asked] ?? asked : null
+    const current = sections.some(({ id }) => id === section) ? section! : "desktop"
+    // A pane is the window's own address (/os/settings/<pane>), so a link that opens
+    // a pane (the Validators app's Alerts button) shows it even after the user moved on.
+    const setCurrent = (next: string) => open(specForTarget({ kind: "app", app: "settings", section: next })!)
     const appearance = useOsAppearance()
     const liveWidget = useLiveWidget()
     const skipIntro = useSkipIntro()
@@ -184,6 +190,9 @@ export default function SettingsWindow({ section, session, open, openApp, fallba
             {current === "notifications" && <>
                 <header><h2>Notifications</h2><p className="os-sub">Signing and transaction status appears in the menu-bar bell or phone notification sheet while this session is open.</p></header>
                 <div className="os-set-card"><h3>Delivery</h3><p>Feed replies appear in Feed. Browser and email notification controls are not available in this beta.</p></div>
+                <div className="os-set-card"><h3>Validators and GovDAO alerts</h3>
+                    <Suspense fallback={<p className="os-sub" role="status">Loading alerts…</p>}><AlertsPanel embedded /></Suspense>
+                </div>
             </>}
             {current === "safety" && <>
                 <header><h2>Safety</h2><p className="os-sub">Local data controls affect only this browser.</p></header>

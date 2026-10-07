@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Alerts in Settings, Notifications (2026-10-08)
+- Memba OS: validator and GovDAO alerts now live in Settings, Notifications. The Validators app's Alerts button and old Alerts links open them there, with your webhooks, contacts and daily report unchanged
+
 ### Sign-in loads only when you sign in (2026-10-08)
 - Sign-in (Alerts, admin link) loads Clerk only when you sign in or are already signed in on this device, not for every visitor; if Clerk cannot load, Alerts says sign-in is unavailable and the rest of Memba keeps working
 

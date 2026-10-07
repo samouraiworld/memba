@@ -26,7 +26,7 @@ describe("sections", () => {
     })
 
     it("keep the classic path when dropping would land on another page", () => {
-        expect(sectionForClassic("validators", "alerts")).toBe("alerts")
+        expect(sectionForClassic("settings", "alerts")).toBe("alerts")
         expect(sectionForClassic("quests", "quests/points")).toBe("quests/points")
         expect(sectionForClassic("multisig", "create")).toBe("create")
     })
@@ -169,7 +169,8 @@ describe("osUrlForClassic", () => {
         ["/mainnet/validators", "/os/validators"],
         ["/mainnet/validators/hacker", "/os/validators/hacker"],
         [`/mainnet/validators/${ADDR}`, `/os/validators/${ADDR}`],
-        ["/mainnet/alerts", "/os/validators/alerts"],
+        // Alerts live in Settings → Notifications (Settings reads the "alerts" section as Notifications).
+        ["/mainnet/alerts", "/os/settings/alerts"],
         ["/mainnet/settings", "/os/settings"],
         ["/mainnet/tokens", "/os/tokens"],
         ["/mainnet/tokens/ABC", "/os/tokens/ABC"],
