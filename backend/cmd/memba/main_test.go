@@ -271,6 +271,17 @@ func TestValidateProductionConfig(t *testing.T) {
 			t.Fatalf("expected metrics-bearer warning, got %v", warns)
 		}
 	})
+	t.Run("production + Safe proxy on without a key: warned; with a key or off: not", func(t *testing.T) {
+		if warns := productionConfigWarnings(getenv(map[string]string{"MEMBA_EVM_SAFE_CHAINS": "84532"})); !has(warns, "SAFE_TX_SERVICE_API_KEY") {
+			t.Fatalf("expected keyless Safe proxy warning, got %v", warns)
+		}
+		if warns := productionConfigWarnings(getenv(map[string]string{"MEMBA_EVM_SAFE_CHAINS": "84532", "SAFE_TX_SERVICE_API_KEY": "k"})); len(warns) != 0 {
+			t.Fatalf("keyed Safe proxy should not warn, got %v", warns)
+		}
+		if warns := productionConfigWarnings(getenv(map[string]string{"SAFE_TX_SERVICE_API_KEY": ""})); len(warns) != 0 {
+			t.Fatalf("Safe proxy off should not warn, got %v", warns)
+		}
+	})
 }
 
 // Checkpoint ownership: the app self-checkpoints ONLY when Litestream does not

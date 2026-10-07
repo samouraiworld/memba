@@ -64,7 +64,25 @@ func productionConfigWarnings(getenv func(string) string) []string {
 	if strings.TrimSpace(getenv("METRICS_BEARER")) == "" {
 		warns = append(warns, "METRICS_BEARER is unset — /metrics is disabled (fail-closed in prod); set it to enable authenticated Prometheus scrapes.")
 	}
+	if cfg, _ := service.SafeTxProxyConfigFromEnv(getenv); cfg.Enabled() && !cfg.HasAPIKey() {
+		warns = append(warns, service.SafeTxChainsEnv+" is set but "+service.SafeTxAPIKeyEnv+" is empty — the Safe Transaction Service proxy runs keyless (2 requests/s, 5,000 requests per 30 days per IP, shared by every user).")
+	}
 	return warns
+}
+
+// safeTxConfig reads the Safe Transaction Service proxy settings and logs what
+// it serves: the chain ids and whether a key is set, never the key.
+func safeTxConfig(getenv func(string) string) service.SafeTxProxyConfig {
+	cfg, skipped := service.SafeTxProxyConfigFromEnv(getenv)
+	if len(skipped) > 0 {
+		slog.Warn(service.SafeTxChainsEnv+" lists chains the Safe proxy does not support; they are ignored", "skipped", skipped)
+	}
+	if cfg.Enabled() {
+		slog.Info("Safe Transaction Service proxy ON", "chains", cfg.ChainIDs(), "apiKeySet", cfg.HasAPIKey())
+	} else {
+		slog.Info("Safe Transaction Service proxy OFF (" + service.SafeTxChainsEnv + " unset)")
+	}
+	return cfg
 }
 
 // attestationSigner is the slice of the service configureAttestation drives
@@ -427,6 +445,9 @@ func main() {
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.
 	mux.Handle("/api/indexer", rateLimitMiddleware("indexer", service.HandleIndexerProxy()))
+	// Safe Transaction Service for the EVM Multisig app: the API key stays here.
+	// Inert (every request 404) unless MEMBA_EVM_SAFE_CHAINS names a chain.
+	mux.Handle("/api/safe-tx/", rateLimitMiddleware("safe_tx", service.HandleSafeTxProxy(safeTxConfig(os.Getenv))))
 	// Fixed, bounded gnoland-1 package-submission read for the Directory.
 	mux.Handle("/api/directory/recent-submissions", rateLimitMiddleware("recent_submissions", service.HandleRecentSubmissions()))
 	// Token launch dates: server-side cached {symbol: launchedAtISO} map. The
@@ -1059,6 +1080,13 @@ func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 
 		if !limiter.Allow(ip, endpoint) {
 			slog.Warn("rate limited", "ip", ip, "endpoint", endpoint)
+			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+
+		// Proposals and confirmations forwarded to the Safe Transaction Service spend its quota: stricter per IP.
+		if endpoint == "safe_tx" && r.Method == http.MethodPost && !limiter.Allow(ip, "safe_tx_write") {
+			slog.Warn("rate limited", "ip", ip, "endpoint", "safe_tx_write")
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}

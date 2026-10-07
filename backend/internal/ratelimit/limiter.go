@@ -36,6 +36,8 @@ func DefaultConfigs() map[string]Config {
 		"token_launches":     {MaxRequests: 60, Window: time.Minute},  // cached token launch-date map (read)
 		"recent_submissions": {MaxRequests: 30, Window: time.Minute},  // fixed mainnet Directory read
 		"indexer":            {MaxRequests: 90, Window: time.Minute},  // shared subnet: Live (10/min/tab) plus home/profile reads and bursts
+		"safe_tx":            {MaxRequests: 120, Window: time.Minute}, // Safe Transaction Service proxy: list, queue and history reads (cached 10 s)
+		"safe_tx_write":      {MaxRequests: 20, Window: time.Minute},  // Safe proposals and confirmations, layered on safe_tx
 		"default":            {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }
