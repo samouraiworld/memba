@@ -36,8 +36,10 @@ export default function FeedModQueue({ bearer, by }: { bearer: string; by?: stri
         enabled: bearer.length > 0,
     })
 
+    // A mutation's options reach it in an effect after each render, so a click landing before that
+    // effect would run an earlier render's mutationFn: the bearer and the moderator travel with the call.
     const act = useMutation({
-        mutationFn: (v: { postId: bigint; action: ModAction }) => postModeration({ ...v, by }, bearer),
+        mutationFn: ({ bearer, ...v }: { postId: bigint; action: ModAction; by?: string; bearer: string }) => postModeration(v, bearer),
         onSuccess: () => {
             setActionError("")
             void qc.invalidateQueries({ queryKey: ["moderation"] })
@@ -87,7 +89,7 @@ export default function FeedModQueue({ bearer, by }: { bearer: string; by?: stri
                                     type="button"
                                     aria-label={`${label} post #${String(post.id)}`}
                                     disabled={act.isPending}
-                                    onClick={() => act.mutate({ postId: post.id, action })}
+                                    onClick={() => act.mutate({ postId: post.id, action, by, bearer })}
                                 >
                                     {label}
                                 </button>

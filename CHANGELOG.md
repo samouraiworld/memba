@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Moderation and curation actions use current values (2026-10-08)
+- Feed moderation and App Store curation: an action clicked right after the page changed now sends the values on screen, never the previous ones
+
 ### Signing: "nothing was sent" (2026-10-08)
 - Memba OS: when a signature stops before the wallet (a failed read, a risen fee, a refusal), the sheet now says nothing was sent
 - Memba OS: a signature whose wallet session ended or switched account while it was pending now settles, so nothing waits on it forever
