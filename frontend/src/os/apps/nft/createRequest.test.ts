@@ -83,7 +83,7 @@ describe("creating a collection", () => {
             ["Metadata", `${BASE}, changeable until you freeze it`],
             ["Royalties", `2.5% to ${B}; 1% to ${A}`],
             ["Collection fee", "1 GNOT to the Launchpad treasury"],
-            ["Storage deposit", "Up to 3.4 GNOT, locked with the collection"],
+            ["Storage deposit", "Up to 3.6 GNOT, locked with the collection"],
             // Twice 21M + 1.3M per royalty receiver + 90k per byte of the 67-byte base URI + 20k per ASCII byte and 200k per other byte of the name, rounded up: 61M.
             ["Network fee", "0.0732 GNOT"],
         ]))

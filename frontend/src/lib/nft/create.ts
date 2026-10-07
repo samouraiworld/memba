@@ -19,8 +19,8 @@ import type { NftMode } from "./ledger"
 import { INT64_MAX, address } from "./parse"
 import { readBool } from "./read"
 
-/** Measured 8.9 to 17.0 KB for a creation, the most with the longest terms; the cap is twice the bytes. */
-export const CREATE_COLLECTION_STORAGE_BYTES = 17_000
+/** Measured 8.9 to 17.0 KB for a creation, the most with the longest terms; the estimate keeps about 6% above that, and the cap is twice the estimate. */
+export const CREATE_COLLECTION_STORAGE_BYTES = 18_000
 
 export interface NftRoyaltyShare {
     account: string

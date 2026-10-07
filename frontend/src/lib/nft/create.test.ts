@@ -91,7 +91,7 @@ describe("creation call", () => {
             value: {
                 caller: CREATOR, send: "1000000ugnot", pkg_path: NFT_DROPS_PATH, func: "CreateCollection",
                 args: ["Relevés", "REL", "Field drawings.", `ipfs://bafy${"i".repeat(55)}`, "", "https://relev.es", "open", "false", "100", "static", BASE, "", "", "", `${A}:100;${B}:250`, "ugnot", "1000000"],
-                max_deposit: "3400000ugnot",
+                max_deposit: "3600000ugnot",
             },
         })
     })

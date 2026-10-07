@@ -54,9 +54,10 @@ export function listingExpiry(nowSeconds: number, days: ListingDays): bigint {
 /**
  * A sale frees the listing (7,751 bytes measured, its deposit to the buyer) and adds the
  * token to the buyer's holdings (up to 3.9 KB measured for a transfer); the
- * cap is twice that. A cancel only frees bytes.
+ * estimate keeps about 8% above that, and the cap is twice the estimate. A cancel
+ * only frees bytes.
  */
-export const BUY_STORAGE_BYTES = 4_000
+export const BUY_STORAGE_BYTES = 4_200
 export const CANCEL_LISTING_STORAGE_BYTES = 500
 /**
  * Each message has its own cap, twice its estimate: the approval (up to 2,118 bytes measured) and the
@@ -68,7 +69,7 @@ export const LIST_STORAGE_BYTES = 8_300
 /** An open offer holds up to 7,813 bytes (measured), all freed when it closes; an accepted one adds the token to the buyer's holdings. */
 export const OFFER_STORAGE_BYTES = 8_300
 export const CANCEL_OFFER_STORAGE_BYTES = 500
-export const ACCEPT_OFFER_STORAGE_BYTES = 4_000
+export const ACCEPT_OFFER_STORAGE_BYTES = 4_200
 
 /** Why `viewer` cannot buy this listing in Memba now; empty when it can. A guest can: it is asked to connect. */
 export function buyBlocker(listing: NftListing, viewer: string): string {

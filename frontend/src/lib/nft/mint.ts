@@ -20,9 +20,11 @@ export const NATIVE_CURRENCY = "ugnot"
  * Measured up to 26.4M gas for one mint (committed-node fixtures; gas.test.ts
  * has the figures): fixed price at the low end, dutch, holder and allowlist
  * stages at the high end. The limit is at least twice the highest, as for every
- * Launchpad call: a live chain's gas differs from a test node's.
+ * Launchpad call: a live chain's gas differs from a test node's. A mint also
+ * costs more as the ledger fills (onyx-1: 21.3M for its first token, 25.6M
+ * sixteen tokens later), so the limit keeps room above that for a busy ledger.
  */
-export const MINT_GAS_WANTED = 53_000_000
+export const MINT_GAS_WANTED = 60_000_000
 
 /** Measured 4.1 to 10.0 KB of new storage for one mint (9,991 B on onyx-1); the deposit cap is twice the estimate. */
 export const MINT_STORAGE_BYTES = 10_500

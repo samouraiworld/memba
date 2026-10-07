@@ -17,7 +17,7 @@ describe("listing calls", () => {
     it("buys with exactly the price attached, naming the currency and price read", () => {
         expect(buildBuyMsg(BUYER, listing())).toEqual({
             type: "vm/MsgCall",
-            value: { caller: BUYER, send: "2000000ugnot", pkg_path: NFT_MARKET_PATH, func: "Buy", args: ["L12", "ugnot", "2000000"], max_deposit: "800000ugnot" },
+            value: { caller: BUYER, send: "2000000ugnot", pkg_path: NFT_MARKET_PATH, func: "Buy", args: ["L12", "ugnot", "2000000"], max_deposit: "840000ugnot" },
         })
     })
 
@@ -103,7 +103,7 @@ describe("offers", () => {
     it("approves the market for the token sold, then accepts the offer on the terms read, in one transaction", () => {
         expect(buildAcceptOfferMsgs(SELLER, offer(), 5n)).toEqual([
             { type: "vm/MsgCall", value: { caller: SELLER, send: "", pkg_path: NFT_LEDGER_PATH, func: "Approve", args: ["C1", NFT_MARKET_ADDRESS, "5"], max_deposit: "440000ugnot" } },
-            { type: "vm/MsgCall", value: { caller: SELLER, send: "", pkg_path: NFT_MARKET_PATH, func: "AcceptOffer", args: ["O7", "5", "", "ugnot", "3000000"], max_deposit: "800000ugnot" } },
+            { type: "vm/MsgCall", value: { caller: SELLER, send: "", pkg_path: NFT_MARKET_PATH, func: "AcceptOffer", args: ["O7", "5", "", "ugnot", "3000000"], max_deposit: "840000ugnot" } },
         ])
         expect(() => buildAcceptOfferMsgs(SELLER, offer(), 0n)).toThrow("Invalid token number")
     })
