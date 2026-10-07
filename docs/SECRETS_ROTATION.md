@@ -94,14 +94,16 @@ flyctl secrets set CLERK_JWT_KEYS='{"<new kid>":"<new PEM>"}' --app memba-backen
 
 ---
 
-## Resend (optional account email): RESEND_API_KEY, MEMBA_EMAIL_LINK_SECRET
+## Resend (optional account email): RESEND_API_KEY, RESEND_WEBHOOK_SECRET, MEMBA_EMAIL_LINK_SECRET
 
-**Impact of compromise:** `RESEND_API_KEY`: mail can be sent as Memba and contacts read. `MEMBA_EMAIL_LINK_SECRET`: confirmation links can be forged for addresses that asked.
-**Impact of rotation:** a new `MEMBA_EMAIL_LINK_SECRET` voids the links not yet used (people ask again). A new `RESEND_API_KEY` has no user-visible effect.
+**Impact of compromise:** `RESEND_API_KEY`: mail can be sent as Memba and contacts read. `RESEND_WEBHOOK_SECRET`: forged webhooks can withdraw consents or mark addresses undeliverable (never turn anything on). `MEMBA_EMAIL_LINK_SECRET`: confirmation links can be forged for addresses that asked.
+**Impact of rotation:** a new `MEMBA_EMAIL_LINK_SECRET` voids the links not yet used (people ask again). The other two have no user-visible effect.
 
 ```bash
 # RESEND_API_KEY: create a new key in Resend, set it, then revoke the old one
 flyctl secrets set RESEND_API_KEY=<new> --app memba-backend
+# RESEND_WEBHOOK_SECRET: roll the webhook's signing secret in Resend, then set it at once
+flyctl secrets set RESEND_WEBHOOK_SECRET=<whsec_new> --app memba-backend
 # MEMBA_EMAIL_LINK_SECRET: 32 random bytes or more
 flyctl secrets set MEMBA_EMAIL_LINK_SECRET=$(openssl rand -base64 48) --app memba-backend
 ```

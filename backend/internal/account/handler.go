@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,17 +21,19 @@ type Export struct {
 
 // Config is the account feature's environment.
 type Config struct {
-	Enabled      bool   // MEMBA_ACCOUNT_ENABLED=1
-	JWTKeys      string // CLERK_JWT_KEYS
-	ResendAPIKey string // RESEND_API_KEY
-	LinkSecret   string // MEMBA_EMAIL_LINK_SECRET, at least 32 bytes
-	TopicIDs     string // RESEND_TOPIC_IDS: {"announcements": "<Resend topic id>", …}
+	Enabled             bool   // MEMBA_ACCOUNT_ENABLED=1
+	JWTKeys             string // CLERK_JWT_KEYS
+	ResendAPIKey        string // RESEND_API_KEY
+	ResendWebhookSecret string // RESEND_WEBHOOK_SECRET (whsec_…)
+	LinkSecret          string // MEMBA_EMAIL_LINK_SECRET, at least 32 bytes
+	TopicIDs            string // RESEND_TOPIC_IDS: {"announcements": "<Resend topic id>", …}
 }
 
 type handler struct {
 	db         *sql.DB
 	verifier   *Verifier
 	resend     *resend
+	webhookKey []byte
 	linkSecret []byte
 	topicIDs   map[string]string
 	now        func() time.Time
@@ -44,6 +47,10 @@ func (c Config) build(db *sql.DB) (*handler, error) {
 	if c.ResendAPIKey == "" {
 		return nil, errors.New("RESEND_API_KEY is required")
 	}
+	webhookKey, err := base64.StdEncoding.Strict().DecodeString(strings.TrimPrefix(c.ResendWebhookSecret, "whsec_"))
+	if err != nil || len(webhookKey) == 0 || !strings.HasPrefix(c.ResendWebhookSecret, "whsec_") {
+		return nil, errors.New("RESEND_WEBHOOK_SECRET is not whsec_<base64>")
+	}
 	if len(c.LinkSecret) < 32 {
 		return nil, errors.New("MEMBA_EMAIL_LINK_SECRET must be at least 32 bytes")
 	}
@@ -56,11 +63,11 @@ func (c Config) build(db *sql.DB) (*handler, error) {
 			return nil, fmt.Errorf("RESEND_TOPIC_IDS has no id for %q", t)
 		}
 	}
-	return &handler{db: db, verifier: NewVerifier(keys), resend: newResend(c.ResendAPIKey),
+	return &handler{db: db, verifier: NewVerifier(keys), resend: newResend(c.ResendAPIKey), webhookKey: webhookKey,
 		linkSecret: []byte(c.LinkSecret), topicIDs: ids, now: time.Now}, nil
 }
 
-// NewHandler serves /api/account* and /api/consent/confirm.
+// NewHandler serves /api/account*, /api/consent/confirm and /api/webhooks/resend.
 // Off (404) unless enabled; unavailable (503) when enabled with any setting
 // missing or unusable, so a misconfiguration never accepts what it cannot check.
 func NewHandler(db *sql.DB, c Config) http.Handler {
@@ -86,6 +93,7 @@ func (h *handler) routes() http.Handler {
 	mux.Handle("GET /api/account/topics", h.authed(h.getTopics))
 	mux.Handle("POST /api/account/topics", h.authed(h.setTopic))
 	mux.HandleFunc("POST /api/consent/confirm", h.confirm)
+	mux.HandleFunc("POST /api/webhooks/resend", h.webhook)
 	return mux
 }
 

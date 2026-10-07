@@ -111,3 +111,13 @@ func validScope(topic, scope string) bool {
 	}
 	return true
 }
+
+// sweep deletes requests nobody confirmed in time and the webhook replay ledger's old entries.
+func sweep(ctx context.Context, db *sql.DB, now time.Time) error {
+	cutoff := now.Add(-linkTTL).UTC().Format(time.RFC3339)
+	if _, err := db.ExecContext(ctx, "DELETE FROM consents WHERE confirmed_at IS NULL AND withdrawn_at IS NULL AND requested_at < ?", cutoff); err != nil {
+		return err
+	}
+	_, err := db.ExecContext(ctx, "DELETE FROM webhook_events WHERE received_at < ?", cutoff)
+	return err
+}

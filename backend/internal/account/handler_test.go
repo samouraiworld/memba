@@ -2,6 +2,7 @@ package account
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -42,7 +43,7 @@ func serve(t *testing.T, h http.Handler, method, path, token string) *httptest.R
 // testConfig is a complete, valid configuration for key k.
 func testConfig(t *testing.T, k testKey) Config {
 	t.Helper()
-	return Config{Enabled: true, JWTKeys: keysJSON(t, k), ResendAPIKey: "re_test",
+	return Config{Enabled: true, JWTKeys: keysJSON(t, k), ResendAPIKey: "re_test", ResendWebhookSecret: "whsec_" + base64.StdEncoding.EncodeToString([]byte("webhook-secret")),
 		LinkSecret: strings.Repeat("s", 32), TopicIDs: `{"announcements":"top_ann","newsletter":"top_news","early_access":"top_early"}`}
 }
 
@@ -86,15 +87,18 @@ func TestRoutesAreOffUnlessEnabledAndUnavailableWithoutKeys(t *testing.T) {
 		"empty keys":         func(c *Config) { c.JWTKeys = "{}" },
 		"keys not JSON":      func(c *Config) { c.JWTKeys = "not json" },
 		"no Resend key":      func(c *Config) { c.ResendAPIKey = "" },
+		"no webhook secret":  func(c *Config) { c.ResendWebhookSecret = "" },
 		"no link secret":     func(c *Config) { c.LinkSecret = "" },
 		"short link secret":  func(c *Config) { c.LinkSecret = strings.Repeat("s", 31) },
 		"no topic ids":       func(c *Config) { c.TopicIDs = "" },
 		"a topic without id": func(c *Config) { c.TopicIDs = `{"announcements":"a","newsletter":"b"}` },
+		"malformed whsec":    func(c *Config) { c.ResendWebhookSecret = "whsec_not base64!" },
+		"no whsec_ prefix":   func(c *Config) { c.ResendWebhookSecret = base64.StdEncoding.EncodeToString([]byte("k")) },
 	}
 	for name, breakIt := range broken {
 		c := testConfig(t, k)
 		breakIt(&c)
-		for _, path := range []string{"/api/account", "/api/consent/confirm"} {
+		for _, path := range []string{"/api/account", "/api/consent/confirm", "/api/webhooks/resend"} {
 			if rec := serve(t, NewHandler(database, c), "POST", path, ""); rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Content-Type") != "application/json" {
 				t.Errorf("%s %s: %d %q, want 503 JSON", name, path, rec.Code, rec.Header().Get("Content-Type"))
 			}
