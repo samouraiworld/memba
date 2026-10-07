@@ -14,7 +14,7 @@ import { NFT_CURATION_PATH, type CurationApplicationStatus } from "./curation"
 import type { Commitment } from "./evidence"
 import { address, cid, collectionId, hash } from "./parse"
 
-/** About twice the measured gas (apply and review 18 to 19M on pinned Gno e75fef8). */
+/** At least twice the measured gas (apply and review 11.6 to 19M, by fixture; gas.test.ts has the figures). */
 export const APPLY_GAS_WANTED = 40_000_000
 export const REVIEW_GAS_WANTED = 40_000_000
 /** A filing stores up to 4.5 KB and a review about 0.2 KB (measured); the caps leave room for a longer collection ID and a re-filing. */

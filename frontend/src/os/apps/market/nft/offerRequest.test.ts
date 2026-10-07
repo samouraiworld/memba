@@ -90,7 +90,7 @@ describe("making an offer", () => {
         const request = makeOfferRequest(draft())
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["For", "C1 #5"], ["Price", "3 GNOT, held by the market until the offer closes"], ["If accepted: to the seller", "2.835 GNOT"],
-            [`If accepted: royalty to ${ROYALTY}`, "0.15 GNOT"], ["Expires", "2100-01-01 00:00 UTC"], ["Network fee", "0.042 GNOT"],
+            [`If accepted: royalty to ${ROYALTY}`, "0.15 GNOT"], ["Expires", "2100-01-01 00:00 UTC"], ["Network fee", "0.0444 GNOT"],
         ]))
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ send: "3000000ugnot", func: "MakeOffer", args: ["token", "C1", "5", "", "3000000", "4102444800", "ugnot", "50"] })
         expect(await run(request)).toMatchObject({ outcome: "sent", hash: HASH })
@@ -158,7 +158,7 @@ describe("accepting an offer", () => {
         const msgs = request.prepare(undefined).msgs
         expect(msgs.map((msg) => msg.value.func)).toEqual(["Approve", "AcceptOffer"])
         expect(await run(request)).toMatchObject({ outcome: "sent" })
-        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(msgs, "Sell C1 #5", expect.objectContaining({ gasWanted: 70_000_000 }))
+        expect(vi.mocked(doContractBroadcast)).toHaveBeenCalledWith(msgs, "Sell C1 #5", expect.objectContaining({ gasWanted: 93_000_000 }))
         expect(mocks.getToken).toHaveBeenCalledWith("C1", 5n)
         expect(mocks.getTokenListing).toHaveBeenCalledWith("C1", 5n)
     })

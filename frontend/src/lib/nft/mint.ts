@@ -17,12 +17,12 @@ import { natural } from "./read"
 export const NATIVE_CURRENCY = "ugnot"
 
 /**
- * Measured 18 to 25.5M gas for one mint (pinned Gno e75fef8, committed-node
- * fixtures): fixed price at the low end, dutch, holder and allowlist stages at
- * the high end. The limit is about twice the highest, as for every Launchpad
- * call: a live chain's gas differs from a test node's.
+ * Measured up to 26.4M gas for one mint (committed-node fixtures; gas.test.ts
+ * has the figures): fixed price at the low end, dutch, holder and allowlist
+ * stages at the high end. The limit is at least twice the highest, as for every
+ * Launchpad call: a live chain's gas differs from a test node's.
  */
-export const MINT_GAS_WANTED = 50_000_000
+export const MINT_GAS_WANTED = 53_000_000
 
 /** Measured 4.1 to 10 KB of new storage for one mint; the deposit cap is twice the highest. */
 export const MINT_STORAGE_BYTES = 10_000

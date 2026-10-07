@@ -19,15 +19,21 @@ import { natural } from "./read"
 
 const NATIVE = "ugnot"
 
-/** About twice the measured gas (Buy 25.2M, Cancel 12.4M on pinned Gno e75fef8), as for every Launchpad call. */
-export const BUY_GAS_WANTED = 50_000_000
-export const CANCEL_LISTING_GAS_WANTED = 25_000_000
-/** Approve (9.3M) and List (15.7M) in one transaction. */
-export const LIST_GAS_WANTED = 50_000_000
-/** MakeOffer 14.3 to 16.5M, CancelOffer 9.7M, Approve and AcceptOffer 9.3M + 24.9M. */
-export const MAKE_OFFER_GAS_WANTED = 35_000_000
-export const CANCEL_OFFER_GAS_WANTED = 20_000_000
-export const ACCEPT_OFFER_GAS_WANTED = 70_000_000
+/*
+ * Gas limits: at least twice the most each transaction was measured to use, as for every
+ * Launchpad call, since a live chain's trees and keys differ from a test node's (gas.test.ts
+ * lists the measurements: Buy 33.2M, Cancel 12.5M, Approve 13.0M + List 17.5M, MakeOffer up
+ * to 18.1M, CancelOffer 10.5M, Approve 13.0M + AcceptOffer 33.1M; a sale pays up to ten
+ * royalty receivers).
+ */
+export const BUY_GAS_WANTED = 67_000_000
+export const CANCEL_LISTING_GAS_WANTED = 26_000_000
+/** Approve and List in one transaction. */
+export const LIST_GAS_WANTED = 62_000_000
+export const MAKE_OFFER_GAS_WANTED = 37_000_000
+export const CANCEL_OFFER_GAS_WANTED = 21_000_000
+/** Approve and AcceptOffer in one transaction. */
+export const ACCEPT_OFFER_GAS_WANTED = 93_000_000
 
 /** The market realm's address, derived from its path: the account a seller approves for one token. */
 export const NFT_MARKET_ADDRESS = "g1nn54k5fmly8agexe3ll4t6clqmcefsn7nr9ee3"
