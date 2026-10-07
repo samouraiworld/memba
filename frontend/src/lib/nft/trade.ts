@@ -52,8 +52,8 @@ export function listingExpiry(nowSeconds: number, days: ListingDays): bigint {
  */
 export const BUY_STORAGE_BYTES = 4_000
 export const CANCEL_LISTING_STORAGE_BYTES = 500
-/** Each message has its own cap, twice its bytes: the approval (1.1 KB measured) and the listing (7,751 bytes measured, all freed when it closes). */
-export const APPROVE_STORAGE_BYTES = 1_500
+/** Each message has its own cap, twice its bytes: the approval (up to 2,118 bytes measured) and the listing (7,790 bytes measured, all freed when it closes). */
+export const APPROVE_STORAGE_BYTES = 2_200
 export const LIST_STORAGE_BYTES = 7_800
 /** An open offer holds 7,813 bytes (measured), all freed when it closes; an accepted one adds the token to the buyer's holdings. */
 export const OFFER_STORAGE_BYTES = 7_900

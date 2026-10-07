@@ -148,7 +148,7 @@ describe("listing a token", () => {
         expect(request.lines(undefined)).toEqual(expect.arrayContaining([
             ["Price", "2 GNOT"], ["At a sale: to the seller", "1.89 GNOT"], ["At a sale: protocol fee (0.5%)", "0.01 GNOT"],
             [`At a sale: royalty to ${ROYALTY}`, "0.1 GNOT"], ["Expires", "2100-01-01 00:00 UTC"], ["Replaces", "Listing L9, closed by this one"],
-            ["Storage deposit", "Up to 1.86 GNOT; the listing's part (about 0.78 GNOT) goes to whoever closes it"],
+            ["Storage deposit", "Up to 2 GNOT; the listing's part (about 0.78 GNOT) goes to whoever closes it"],
         ]))
         const msgs = request.prepare(undefined).msgs
         expect(msgs.map((msg) => msg.value.func)).toEqual(["Approve", "List"])
