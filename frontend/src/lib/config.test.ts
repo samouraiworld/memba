@@ -493,15 +493,19 @@ describe('network reduction — test13 + mainnet + onyx only', () => {
         }
     })
 
-    it('onyx is a hidden, realm-free testnet that gates every realm and every user DAO', () => {
+    it('onyx is a hidden testnet that opens only the Launchpad realms and gates every user DAO', () => {
         const onyx = NETWORKS.onyx
         expect(onyx).toMatchObject({ chainId: 'onyx-1', hidden: true, isTestnet: true, realmsDeployed: false })
         expect(retiredNetworkSuccessor('onyx')).toBeNull()
         expect(onyx.userDaos).toEqual({ create: false, channelsCompanion: false })
         expect(VISIBLE_NETWORKS.onyx).toBeUndefined()
         expect(networkHasRealms('onyx')).toBe(false)
-        expect(networkHasAllowlistedRealms('onyx')).toBe(false)
-        for (const path of [MEMBA_DAO.realmPath, MEMBA_DAO.feedPath, MEMBA_DAO.escrowPath, reviewsPathFor('onyx')]) {
+        expect(networkHasAllowlistedRealms('onyx')).toBe(true)
+        for (const realm of ['config', 'tokens', 'sales', 'nft', 'drops', 'market', 'curation']) {
+            expect(isRealmValidOn('onyx', `gno.land/r/samcrew/launchpad/${realm}/v1`), realm).toBe(true)
+        }
+        // Another version of a Launchpad realm, and Memba's own realms, are not published there.
+        for (const path of ['gno.land/r/samcrew/launchpad/nft/v2', MEMBA_DAO.realmPath, MEMBA_DAO.feedPath, MEMBA_DAO.escrowPath, reviewsPathFor('onyx')]) {
             expect(isRealmValidOn('onyx', path), path).toBe(false)
         }
         // Reachable by URL and as a build default, like every hidden network.

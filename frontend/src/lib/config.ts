@@ -226,8 +226,9 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // (v1.0.0-rc.0), the indexer's height matches the RPC, and gnoweb serves
     // `gnoconnect:chainid` "onyx-1".
     //
-    // Hidden and realm-free for now: the samcrew namespace holds only genesis
-    // packages there, so nothing Memba needs is published (no DAO factory
+    // Hidden, with the Launchpad only: its realms were published there at the
+    // frozen release bytes for the rehearsal before the mainnet ceremony
+    // (REALM_ALLOWLIST.onyx). Nothing else of Memba's is (no DAO factory
     // dependencies either, hence `userDaos.create: false`), and the backend
     // refuses an `onyx-1` sign-in until the owner adds it to
     // MEMBA_ACCEPTED_CHAIN_IDS. It is reachable by URL (`/onyx/…`) and as a
@@ -543,8 +544,19 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // same key, bound to gnoland-1 (docs/QUEST_ATTESTATION_RUNBOOK.md). Every
     // entry needs a realm-versions.json `mainnet` record (keyed by NETWORK
     // KEY, not chain id).
-    // Onyx: nothing of Memba's is published there yet. An explicit empty list states that.
-    onyx: [],
+    // Onyx (`onyx-1`): the Launchpad realms, published at the frozen release
+    // bytes for the rehearsal before the mainnet ceremony. Its pure packages
+    // are imported by these realms, never called by Memba, so they are not
+    // listed. Each lane keeps its own flag and reads the config realm's pause.
+    onyx: [
+        "gno.land/r/samcrew/launchpad/config/v1",
+        "gno.land/r/samcrew/launchpad/tokens/v1",
+        "gno.land/r/samcrew/launchpad/sales/v1",
+        "gno.land/r/samcrew/launchpad/nft/v1",
+        "gno.land/r/samcrew/launchpad/drops/v1",
+        "gno.land/r/samcrew/launchpad/market/v1",
+        "gno.land/r/samcrew/launchpad/curation/v1",
+    ],
     mainnet: [
         "gno.land/r/samcrew/memba_appstore_v3",
         "gno.land/r/samcrew/memba_reviews_v2",
