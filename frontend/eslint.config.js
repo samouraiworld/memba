@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 // Every EVM write goes through lib/chain/evm/send.ts (sendEvmWrite), which binds it to
-// its chain and account; nothing else in the app may send one.
+// its chain and account; nothing else in the app may send one. These rules guard against
+// mistakes (a forgotten import, a copied snippet), not a security boundary: code that
+// wants to bypass them can.
 const EVM_SEND_PATH = 'EVM writes go through sendEvmWrite (lib/chain/evm/send.ts), which binds them to their chain and account.'
 const EVM_WRITE_ACTIONS = ['sendTransaction', 'sendTransactionSync', 'writeContract', 'writeContractSync', 'deployContract', 'sendCalls', 'sendCallsSync', 'sendRawTransaction', 'sendRawTransactionSync']
 
@@ -64,18 +66,24 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/lib/chain/evm/send.ts', 'src/**/*.test.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: ['src/lib/chain/evm/send.ts', 'src/**/*.test.{ts,tsx,js,jsx}'],
     rules: {
-      'no-restricted-imports': ['error', { paths: [
-        { name: '@wagmi/core', importNames: EVM_WRITE_ACTIONS, message: EVM_SEND_PATH },
-        { name: 'viem/actions', importNames: EVM_WRITE_ACTIONS, message: EVM_SEND_PATH },
-        { name: 'viem', importNames: ['createWalletClient'], message: EVM_SEND_PATH },
-      ] }],
-      'no-restricted-syntax': ['error', {
-        selector: `CallExpression[callee.property.name=/^(${EVM_WRITE_ACTIONS.join('|')})$/]`,
-        message: EVM_SEND_PATH,
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: '@wagmi/core', importNames: EVM_WRITE_ACTIONS, message: EVM_SEND_PATH },
+          { name: '@wagmi/core/actions', importNames: EVM_WRITE_ACTIONS, message: EVM_SEND_PATH },
+          { name: 'viem/actions', importNames: EVM_WRITE_ACTIONS, message: EVM_SEND_PATH },
+          { name: 'viem', importNames: ['createWalletClient', ...EVM_WRITE_ACTIONS], message: EVM_SEND_PATH },
+        ],
+        // Deep paths (e.g. viem/actions/wallet/sendTransaction): no import from them at all.
+        patterns: [{ group: ['@wagmi/core/*/**', 'viem/actions/*', 'viem/**/actions/**', 'viem/_*/**'], message: EVM_SEND_PATH }],
       }],
+      'no-restricted-syntax': ['error',
+        { selector: `CallExpression[callee.property.name=/^(${EVM_WRITE_ACTIONS.join('|')})$/]`, message: EVM_SEND_PATH },
+        // A raw provider request that sends: { method: "eth_sendTransaction", … }.
+        { selector: 'Property[key.name="method"][value.value=/^(eth_sendTransaction|eth_sendRawTransaction|wallet_sendCalls)$/]', message: EVM_SEND_PATH },
+      ],
     },
   },
 ])

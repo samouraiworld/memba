@@ -32,8 +32,8 @@ import { EVM_NETWORKS } from "./networks"
 export interface EvmWrite {
     /** EIP-155 chain id the transaction is for. */
     chainId: number
-    /** The account the write was prepared for (any letter case). The send refuses if the wallet is on another one. */
-    from?: `0x${string}`
+    /** The account the write was prepared for (any letter case): the send refuses if the wallet is on another one. */
+    from: `0x${string}`
     /** Required: a contract is created only through a factory or the CREATE2 deployer, never by a `to`-less transaction. */
     to: `0x${string}`
     /** Calldata; omitted or "0x" for a plain value transfer. */
@@ -88,9 +88,9 @@ export async function sendEvmWriteWith(config: Config, activeChainId: number | n
         return nothingSent(`This transaction is for ${label}, but this page runs on ${here}`)
     }
 
-    if (!isAddress(write.to, { strict: false }) || (write.from !== undefined && !isAddress(write.from, { strict: false }))) return nothingSent("The transaction names an invalid address")
+    if (!isAddress(write.to, { strict: false }) || !isAddress(write.from, { strict: false })) return nothingSent("The transaction names an invalid address")
     if (write.data !== undefined && !isHex(write.data, { strict: true })) return nothingSent("The transaction's data is not valid hex")
-    if (write.value !== undefined && (typeof write.value !== "bigint" || write.value < 0n)) return nothingSent("The transaction's value is not a positive amount")
+    if (write.value !== undefined && (typeof write.value !== "bigint" || write.value < 0n)) return nothingSent("The transaction's value is negative or not an amount")
 
     const isCall = !!write.data && write.data !== "0x"
     if (isCall) {
@@ -103,15 +103,14 @@ export async function sendEvmWriteWith(config: Config, activeChainId: number | n
     let wallet: Awaited<ReturnType<typeof getConnectorClient>>
     try {
         wallet = await getConnectorClient(config, { assertChainId: false })
-    } catch {
+    } catch (err) {
+        if (rejectedInWallet(err)) return { outcome: "cancelled", error: "You rejected the request in your wallet. Nothing was sent." }
         return nothingSent("Connect your wallet first")
     }
     let walletChain = NaN
-    let walletAccount: string | undefined
     try {
         const raw: unknown = await wallet.request({ method: "eth_chainId" })
         if (typeof raw === "string" && /^0x[0-9a-f]{1,13}$/i.test(raw)) walletChain = parseInt(raw, 16)
-        if (write.from) walletAccount = (await wallet.request({ method: "eth_accounts" }))[0]
     } catch (err) {
         if (rejectedInWallet(err)) return { outcome: "cancelled", error: "You rejected the request in your wallet. Nothing was sent." }
     }
@@ -119,7 +118,14 @@ export async function sendEvmWriteWith(config: Config, activeChainId: number | n
     if (walletChain !== write.chainId) {
         return nothingSent(`Your wallet is on chain ${walletChain}, but this transaction is for ${label} (${write.chainId}). Switch the wallet, then try again`)
     }
-    if (write.from && walletAccount?.toLowerCase() !== write.from.toLowerCase()) {
+    let walletAccount: unknown
+    try {
+        walletAccount = (await wallet.request({ method: "eth_accounts" }))[0]
+    } catch (err) {
+        if (rejectedInWallet(err)) return { outcome: "cancelled", error: "You rejected the request in your wallet. Nothing was sent." }
+        return nothingSent("Your wallet didn't say which account it is using")
+    }
+    if (typeof walletAccount !== "string" || walletAccount.toLowerCase() !== write.from.toLowerCase()) {
         return nothingSent("Your wallet switched to another account")
     }
 
@@ -134,6 +140,9 @@ export async function sendEvmWriteWith(config: Config, activeChainId: number | n
         if (refusedBeforeRequest(err)) return nothingSent(`The wallet couldn't be asked: ${shortReason(err)}`)
         // Past this point the wallet had the request: an error does not prove it sent nothing.
         return { outcome: "unknown", error: `Your wallet reported an error (${shortReason(err)}). Check your wallet's activity before retrying: the transaction may have been sent.` }
+    }
+    if (typeof hash !== "string" || !/^0x[0-9a-f]{64}$/i.test(hash)) {
+        return { outcome: "unknown", error: "Your wallet answered without a valid transaction hash. Check your wallet's activity before retrying: the transaction may have been sent." }
     }
 
     const replaced: { reason?: "replaced" | "repriced" | "cancelled" } = {}
