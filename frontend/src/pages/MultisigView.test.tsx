@@ -231,4 +231,15 @@ describe("MultisigView for a member another member registered", () => {
         await waitFor(() => expect(screen.queryByText(/Shared with you: your key is a member/)).toBeNull())
         expect(api.createOrJoinMultisig).toHaveBeenCalledWith(expect.objectContaining({ expectedMultisigAddress: MULTISIG, multisigPubkeyJson: makeMultisig().pubkeyJson }))
     })
+
+    it("shows another member's name, marked with who gave it, until the member names it, and renames from their own empty name", async () => {
+        // Not joined either: on its own page the account still shows the name.
+        vi.mocked(api.multisigInfo).mockResolvedValue({ multisig: { ...makeMultisig(false), name: "", sharedName: "Reserve", namedBy: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" } } as never)
+        vi.mocked(api.transactions).mockResolvedValue({ transactions: [] } as never)
+        render(<MultisigView />)
+        expect(await screen.findByText("Reserve")).toBeInTheDocument()
+        expect(screen.getByText("named by g1747t5m…x59c")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Rename multisig" }))
+        expect(screen.getByRole("textbox", { name: "Multisig name" })).toHaveValue("")
+    })
 })

@@ -144,6 +144,17 @@
     justify-content: space-between;
 }
 
+.msh-card-title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.msh-card-named-by {
+    font-size: var(--pro-small, 12px);
+    color: var(--color-text-muted);
+}
+
 .msh-card-name {
     background: none;
     border: 0;

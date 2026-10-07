@@ -30,6 +30,10 @@
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+.k-msview__named-by {
+  font-size: var(--pro-small, 12px);
+  color: var(--color-text-muted);
+}
 .k-msview__title-row {
   display: inline-flex;
   align-items: center;

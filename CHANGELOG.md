@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Multisig: shared names (2026-10-08)
+- A member who has not named a multisig sees the name given by the member who named it first, marked with who that is; their own name still wins, and an account they have not joined keeps a neutral label outside its own page
+
 ### Multisig: sign without joining (2026-10-08)
 - Memba OS and Home: a member another member registered sees that account's proposals and can sign them at once; joining only keeps the account in their list (renaming also joins)
 - The Multisig app, the Memba OS bell and Home count the proposals waiting for your signature; for an account you have not joined, they show only the count, and its proposals are read on the account's page

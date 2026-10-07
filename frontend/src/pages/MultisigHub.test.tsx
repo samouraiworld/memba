@@ -112,6 +112,18 @@ describe("MultisigHub", () => {
         expect(join).toHaveAttribute("title", "Public-key configuration unavailable")
     })
 
+    it("names a joined account by another member's name, marked, but keeps a shared one neutral", async () => {
+        vi.mocked(api.multisigs).mockResolvedValue({ multisigs: [
+            { ...wallet(1), name: "", sharedName: "Reserve", namedBy: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" },
+            { ...wallet(2, false), name: "", sharedName: "URGENT: sign now", namedBy: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" },
+        ] } as never)
+        renderHub()
+        expect(await screen.findByRole("button", { name: "View Reserve multisig history" })).toBeInTheDocument()
+        expect(screen.getByText("named by g1747t5m…x59c")).toBeInTheDocument()
+        expect(screen.getByText("Multisig shared with you")).toBeInTheDocument()
+        expect(screen.queryByText("URGENT: sign now")).toBeNull()
+    })
+
     it("reveals invisible formatting in account names", async () => {
         vi.mocked(api.multisigs).mockResolvedValue({ multisigs: [{ ...wallet(1), name: "Team\u200Btreasury" }] } as never)
         renderHub()

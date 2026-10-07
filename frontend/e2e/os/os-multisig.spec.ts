@@ -191,7 +191,8 @@ test.describe('Memba OS multisig', () => {
             route.fulfill(json({ transactions: /EXECUTED/.test(route.request().postData() ?? '') ? [done] : [{ ...pending, ...native }, { ...ready, ...native }] })))
         // The backend serves every member its transactions; `joined` only lists the account among the member's own.
         let joined = false
-        const shared = () => ({ ...team, name: joined ? team.name : '', joined })
+        // Bob named it; Alice has not: she sees his name on the account's page only.
+        const shared = () => ({ ...team, name: joined ? team.name : '', sharedName: joined ? '' : 'Bob treasury', namedBy: joined ? '' : BOB, joined })
         await page.route('**/memba.v1.MultisigService/Multisigs', (route) => route.fulfill(json({ multisigs: [shared()] })))
         await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill(json({ multisig: shared() })))
         const joins: string[] = []
@@ -207,6 +208,7 @@ test.describe('Memba OS multisig', () => {
         await expect(row.getByText('1 proposal waits for your signature')).toBeVisible()
         await expect(row.getByRole('button', { name: `Join ${MSIG.slice(0, 8)}…${MSIG.slice(-4)} to keep it in your accounts` })).toBeVisible()
         await expect(app.getByText('Unnamed')).toHaveCount(0)
+        await expect(app.getByText('Bob treasury')).toHaveCount(0)
         // Anyone holding a member's key can register a multisig with it: outside the account page, only a neutral count.
         await expect(page.getByRole('button', { name: 'Notifications, 1 proposal waits in a multisig shared with you' })).toBeVisible()
         await expect(page.getByText('rent')).toHaveCount(0)
@@ -214,6 +216,8 @@ test.describe('Memba OS multisig', () => {
         await row.getByRole('button', { name: /Multisig shared with you/ }).click()
         const account = win(page, `Multisig ${MSIG.slice(0, 8)}…${MSIG.slice(-4)}`)
         await expect(account.getByText('Shared with you: your key is a member, so you can see and sign its transactions.')).toBeVisible()
+        await expect(account.getByText('Bob treasury')).toBeVisible()
+        await expect(account.getByText(`named by ${BOB.slice(0, 8)}…${BOB.slice(-4)}`)).toBeVisible()
         await expect(account.getByRole('button', { name: /View transaction #7/ })).toBeVisible()
         await expect(account.getByText('rent')).toBeVisible()
         await expect(account.getByRole('button', { name: 'Propose transaction' })).toBeVisible()

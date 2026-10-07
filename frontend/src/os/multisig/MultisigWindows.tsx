@@ -12,6 +12,7 @@
 import { useState, type ReactNode } from "react"
 import { Code, ConnectError } from "@connectrpc/connect"
 import { GNO_CHAIN_ID } from "../../lib/config"
+import { multisigLabel, namedByText } from "../../lib/multisigName"
 import { parseMsgs } from "../../lib/parseMsgs"
 import { useBalance } from "../../hooks/useBalance"
 import { useJoinMultisig } from "../../hooks/useJoinMultisig"
@@ -48,9 +49,10 @@ function Loading({ what }: { what: string }) {
 /** What a multisig is, for a guest and for a member with none yet. */
 const ABOUT = "A multisig is a shared account: a transaction leaves it only when enough of its members sign, for example 2 of 3. Memba keeps the members' public keys and their signatures until the transaction is sent."
 
-/** Never "Unnamed": an account shared with you says so; its address is always shown beside it. */
-function multisigTitle(m: Multisig): string {
-    return m.name ? revealInvisibleFormatting(m.name) : m.joined ? "Multisig" : "Multisig shared with you"
+/** Never "Unnamed": an account shared with you says so; another member's name says who gave it; the address is always beside it. */
+function MultisigTitle({ m, onPage }: { m: Multisig; onPage: boolean }) {
+    const label = multisigLabel(m, m.joined ? "Multisig" : "Multisig shared with you", onPage)
+    return <><b>{label.name}</b>{label.namedBy && <span className="os-sub"> · {namedByText(label.namedBy)}</span>}</>
 }
 
 const page = (section: string): WindowSpec => specForTarget({ kind: "app", app: "multisig", section })!
@@ -68,7 +70,7 @@ export function MultisigApp({ session, open }: { session: OsSession; open: (spec
         <li key={m.address} className="os-row os-nowrap">
             <button type="button" className="os-it os-click os-grow" onClick={() => open(accountSpec(m.address))}>
                 <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
-                <span className="os-grow"><b>{multisigTitle(m)}</b><span className="os-sub os-block os-mono">{shortAddr(m.address)} · Requires {m.threshold} of {m.membersCount} members</span>{(awaiting.get(m.address) ?? 0) > 0 && <span className="os-sub os-block os-strong">{awaitingText(awaiting.get(m.address)!)}</span>}</span>
+                <span className="os-grow"><MultisigTitle m={m} onPage={false} /><span className="os-sub os-block os-mono">{shortAddr(m.address)} · Requires {m.threshold} of {m.membersCount} members</span>{(awaiting.get(m.address) ?? 0) > 0 && <span className="os-sub os-block os-strong">{awaitingText(awaiting.get(m.address)!)}</span>}</span>
             </button>
             {action}
         </li>
@@ -200,7 +202,7 @@ export function MultisigWindow({ address, session, open }: { address: string; se
             <div className="os-row os-nowrap os-msig-head">
                 <span className="os-av os-av-lg" aria-hidden="true">{m.threshold}/{m.membersCount}</span>
                 <div className="os-grow">
-                    <b>{multisigTitle(m)}</b>
+                    <MultisigTitle m={m} onPage />
                     <div className="os-sub">Requires {m.threshold} of {m.membersCount} members · <span className="os-mono">{shortAddr(address)}</span></div>
                 </div>
                 {funds}

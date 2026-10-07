@@ -17,11 +17,21 @@ import { LockKey, Plus, MagnifyingGlass, Wallet, Users } from "@phosphor-icons/r
 import { api } from "../lib/api"
 import { GNO_CHAIN_ID, ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
 import { useJoinMultisig } from "../hooks/useJoinMultisig"
-import { revealInvisibleFormatting } from "../lib/dao/v2Text"
+import { multisigLabel, namedByText } from "../lib/multisigName"
+import type { Multisig } from "../gen/memba/v1/memba_pb"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { LayoutContext } from "../types/layout"
 import "./multisig-hub.css"
+
+/** A card's name: the member's own, else another member's (joined accounts only) marked with who gave it, else the neutral word. */
+function CardName({ ms, neutral, onOpen }: { ms: Multisig; neutral: string; onOpen: () => void }) {
+    const label = multisigLabel(ms, neutral, false)
+    return <span className="msh-card-title">
+        <button type="button" className="msh-card-name" aria-label={`View ${label.namedBy || ms.name ? label.name : ms.address} multisig history`} onClick={onOpen}>{label.name}</button>
+        {label.namedBy && <span className="msh-card-named-by">{namedByText(label.namedBy)}</span>}
+    </span>
+}
 
 export default function MultisigHub() {
     const navigate = useNetworkNav()
@@ -115,7 +125,7 @@ export default function MultisigHub() {
                                     data-testid={`multisig-card-${ms.address}`}
                                 >
                                     <div className="msh-card-top">
-                                        <button type="button" className="msh-card-name" aria-label={`View ${ms.name ? revealInvisibleFormatting(ms.name) : ms.address} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Multisig")}</button>
+                                        <CardName ms={ms} neutral="Multisig" onOpen={() => navigate(`/multisig/${ms.address}`)} />
                                         <span className="msh-threshold">{ms.threshold}/{ms.membersCount}</span>
                                     </div>
                                     <div className="msh-card-addr">
@@ -151,7 +161,7 @@ export default function MultisigHub() {
                         {discoverable.map(ms => (
                             <div key={ms.address} className="msh-card msh-card-discover" data-testid={`multisig-discover-${ms.address}`}>
                                 <div className="msh-card-top">
-                                    <button type="button" className="msh-card-name" aria-label={`View ${ms.name ? revealInvisibleFormatting(ms.name) : ms.address} multisig history`} onClick={() => navigate(`/multisig/${ms.address}`)}>{revealInvisibleFormatting(ms.name || "Multisig shared with you")}</button>
+                                    <CardName ms={ms} neutral="Multisig shared with you" onOpen={() => navigate(`/multisig/${ms.address}`)} />
                                     <span className="msh-threshold msh-threshold-warn">{ms.threshold}/{ms.membersCount}</span>
                                 </div>
                                 <div className="msh-card-addr">
