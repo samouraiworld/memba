@@ -22,10 +22,10 @@ const sections: readonly ShellSection[] = [
     { id: "about", name: "About", icon: "doc" },
 ]
 
-/** Validator and GovDAO alerts (gnomonitoring), loaded when Notifications opens. */
 /** The wallet the copy names: Adena, unless Base (another wallet) can be selected too. */
 const WALLET = EVM_ENABLED ? "your wallet" : "Adena"
 
+/** Validator and GovDAO alerts (gnomonitoring), loaded when Notifications opens. */
 const AlertsPanel = lazy(() => import("../../../components/alerts/AlertsPanel"))
 /** The classic /alerts page opens Notifications, where the alerts live. */
 const SECTION_ALIASES: Readonly<Record<string, string>> = { alerts: "notifications" }
