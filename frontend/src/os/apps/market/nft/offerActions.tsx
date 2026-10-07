@@ -13,7 +13,7 @@ import { acceptBlocker, type MadeOfferKind } from "../../../../lib/nft/trade"
 import { laneClosedReason, readActionStatus } from "../../../../lib/tokenLaunchpadConfigClient"
 import type { OsSession } from "../../../shell/useOsSession"
 import { ActionButton, OrderForm } from "./actions"
-import { quoteOrder, useSignAction } from "./signing"
+import { quoteOrder, useSignAction, useTradingClosed } from "./signing"
 import { acceptOfferRequest, cancelOfferRequest, makeOfferRequest } from "./offerRequest"
 import { isExpired, type LaneProps } from "./reads"
 
@@ -47,13 +47,14 @@ export function OfferAction({ lane, session, offer, sell }: {
 }) {
     const action = useSignAction(session)
     const now = useNow(60_000)
+    const closed = useTradingClosed(session.network.key)
     const viewer = session.status === "member" ? session.address : ""
     const common = { offer, networkKey: session.network.key, chainId: lane.chainId, onSettled: action.afterTrade }
     if (viewer !== "" && viewer === offer.buyer) {
         const cancel = () => void action.run(async (caller) => cancelOfferRequest({ ...common, caller, gas: await networkGasPriceFresh() }))
         return <ActionButton label="Cancel offer" quiet action={action} onClick={cancel} />
     }
-    if (sell === null || isExpired(offer, now)) return null
+    if (sell === null || closed || isExpired(offer, now)) return null
     const blocker = acceptBlocker(offer, sell.number, viewer)
     if (blocker) return <p className="os-sub">{blocker}</p>
     const accept = () => void action.run(async (caller) => {

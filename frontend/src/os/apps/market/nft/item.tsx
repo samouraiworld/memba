@@ -19,7 +19,7 @@ import { laneClosedReason, readActionStatus } from "../../../../lib/tokenLaunchp
 import type { OsSession } from "../../../shell/useOsSession"
 import { CardGrid, Empty, Loading, Pill } from "../../../kit"
 import { ActionButton, OrderForm } from "./actions"
-import { quoteOrder, tradeBlocker, useSignAction, useToken } from "./signing"
+import { quoteOrder, tradeBlocker, useSignAction, useToken, useTradingClosed } from "./signing"
 import { MakeOfferForm, OfferAction } from "./offerActions"
 import { CollectionName, DepositRule, OfferCard, OrderList, Payouts, Price, ReadFailure, TokenArt } from "./orders"
 import { ORDER_DEPOSIT, isExpired, useCollection, useCollectionOffers, utc, type LaneProps } from "./reads"
@@ -35,8 +35,9 @@ function ListingAction({ lane, session, listing }: { lane: LaneProps; session: O
     const viewer = session.status === "member" ? session.address : ""
     const mine = viewer !== "" && viewer === listing.seller
     const now = useNow(60_000)
-    // "Not buyable now" is already on the listing; only a reason it does not give is said here.
-    if (!mine && (!listing.buyable || isExpired(listing, now))) return null
+    const closed = useTradingClosed(session.network.key)
+    // "Not buyable now" is already on the listing, and a closed market on the lane; only a reason they do not give is said here.
+    if (!mine && (closed || !listing.buyable || isExpired(listing, now))) return null
     const blocker = mine ? "" : buyBlocker(listing, viewer)
     if (blocker) return <p className="os-sub">{blocker}</p>
     const go = () => void action.run(async (caller) => {
@@ -104,6 +105,7 @@ export function ItemTrade({ lane, session, collection, number }: { lane: LanePro
     const active = token.data?.status === "active"
     const holder = active && viewer !== "" && token.data?.owner === viewer
     const blocker = info.data ? tradeBlocker(info.data) : null
+    const closed = useTradingClosed(session.network.key)
     const now = useNow(60_000)
     const applies = (offer: NftOffer) => offer.kind !== "token" || offer.number === number
     // Expired offers wait for their refund: listed apart, among those read so far, and never as applying.
@@ -123,13 +125,13 @@ export function ItemTrade({ lane, session, collection, number }: { lane: LanePro
                     : listing.data === null ? <Empty title="This token is not listed." />
                     : <Listing lane={lane} session={session} listing={listing.data} />}
             </section>
-            {holder && listing.isSuccess && blocker !== null && (
+            {holder && listing.isSuccess && blocker !== null && !closed && (
                 <section aria-label="Sell this token">
                     <h4 className="os-h">Sell</h4>
                     {blocker ? <p className="os-sub">{blocker}</p> : <SellForm lane={lane} session={session} collection={collection} number={number} listing={listing.data} />}
                 </section>
             )}
-            {active && !holder && blocker !== null && (
+            {active && !holder && blocker !== null && !closed && (
                 <section aria-label="Make an offer for this token">
                     <h4 className="os-h">Make an offer</h4>
                     {blocker ? <p className="os-sub">{blocker}</p> : <MakeOfferForm lane={lane} session={session} kind="token" collection={collection} number={number} />}

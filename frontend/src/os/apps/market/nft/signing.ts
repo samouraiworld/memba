@@ -85,6 +85,20 @@ export async function quoteOrder(networkKey: string, collection: string, price: 
     return { gas, feeBPS: terms.feeBPS, split: terms.split }
 }
 
+/**
+ * Why the market takes no new order now, as its config says (a public read,
+ * shared by every view); empty while it does, and while the read is pending
+ * or failed, since each control checks the lane again at its click.
+ */
+export function useTradingClosed(networkKey: string): string {
+    const status = useQuery({
+        queryKey: ["nft", "market", networkKey, "lane"],
+        queryFn: () => readActionStatus(networkKey, "nft_market", "ugnot"),
+        staleTime: 30_000, retry: false,
+    })
+    return status.data ? laneClosedReason(status.data, "Trading") : ""
+}
+
 /** Why no token of this collection can be sold through this market; empty when they can. */
 export function tradeBlocker(collection: Pick<NftCollection, "mode" | "markets">): string {
     if (collection.mode === "soulbound") return "Soulbound tokens are never sold."

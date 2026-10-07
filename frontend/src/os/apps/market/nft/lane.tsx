@@ -13,6 +13,7 @@ import type { NativeViewProps } from "../../../native/types"
 import { Segmented } from "../../../kit"
 import { marketNftSection, nftSection, type MarketNftRoute } from "../../../nft/routes"
 import { specForTarget } from "../../../shell/windows"
+import { useTradingClosed } from "./signing"
 import { CollectionTrade } from "./collection"
 import { Explore } from "./explore"
 import { ItemTrade } from "./item"
@@ -31,6 +32,8 @@ export default function NftLane({ route, session, open, push }: { route: MarketN
     // Moving within the lane takes focus to the new view's first heading; the first view keeps the focus the window gave it.
     const view = useRef<HTMLDivElement>(null)
     const section = marketNftSection(route)
+    const closed = useTradingClosed(session.network.key)
+    const trading = route.kind !== "operations" && route.kind !== "application"
     const first = useRef(true)
     useEffect(() => {
         if (first.current) { first.current = false; return }
@@ -41,7 +44,8 @@ export default function NftLane({ route, session, open, push }: { route: MarketN
     }, [section])
     return (
         <div className="os-stack" ref={view}>
-            <Segmented label="NFT lane" options={VIEWS} value={route.kind === "mine" ? "mine" : route.kind === "operations" || route.kind === "application" ? "operations" : "explore"} onChange={(kind) => lane.go({ kind })} />
+            <Segmented label="NFT lane" options={VIEWS} value={route.kind === "mine" ? "mine" : trading ? "explore" : "operations"} onChange={(kind) => lane.go({ kind })} />
+            {trading && closed && <p className="os-note os-warn" role="note">{closed} New listings, offers and purchases wait until it reopens; cancelling an order still works.</p>}
             {route.kind === "explore" ? <Explore lane={lane} />
                 : route.kind === "mine" ? <MyTrading lane={lane} session={session} />
                 : route.kind === "operations" ? <Operations lane={lane} />

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { NftListing, NftOffer, NftOfferKind } from "../../../../lib/nft/market"
 import { ReadError, RealmRefusedError } from "../../../../lib/nft/read"
@@ -40,6 +40,9 @@ function offer(id: number, kind: NftOfferKind, extra: Partial<NftOffer> = {}): N
     }
 }
 
+const OPEN = { lane: "nft_market", currency: "ugnot", paused: false, allowlisted: true, laneReady: true, open: true }
+const PAUSED = { lane: "nft_market", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false }
+
 const sectionOf = (spec: WindowSpec) => (spec.target?.kind === "app" ? `${spec.target.app}:${spec.target.section}` : null)
 
 function show(route: MarketNftRoute, address = "") {
@@ -61,7 +64,7 @@ describe("Market NFT lane", () => {
         // No metadata to fetch: every token shows its generated art.
         ledger.getToken.mockResolvedValue({ uri: "" })
         for (const mock of Object.values(trading)) mock.mockReset()
-        trading.lane.mockResolvedValue({ lane: "nft_market", currency: "ugnot", paused: false, allowlisted: true, laneReady: true, open: true })
+        trading.lane.mockResolvedValue(OPEN)
         trading.price.mockResolvedValue({ gas: 1000, ugnot: 1 })
     })
 
@@ -280,12 +283,13 @@ describe("Market NFT lane", () => {
             const item = () => ({ kind: "token", collection: "C1", number: 2n }) as const
             beforeEach(() => { market.listCollectionOffers.mockResolvedValue([]) })
 
-            it("asks a guest to connect only when buying, and reads nothing for it", async () => {
+            it("asks a guest to connect only when buying, and reads nothing more for it", async () => {
                 market.getTokenListing.mockResolvedValue(listing(4, 2n, { seller: OWNER }))
                 const { openConnect } = show(item())
                 fireEvent.click(await region("Listing").findByRole("button", { name: "Connect to buy" }))
                 expect(openConnect).toHaveBeenCalledOnce()
-                expect(trading.lane).not.toHaveBeenCalled()
+                // The market's status, read once for the lane; nothing at the click.
+                expect(trading.lane).toHaveBeenCalledOnce()
                 expect(trading.sign).not.toHaveBeenCalled()
             })
 
@@ -300,9 +304,9 @@ describe("Market NFT lane", () => {
                 expect(Object.fromEntries(request.lines())).toMatchObject({ "To the seller": "1.3125 GNOT", [`Royalty to ${ROYALTY}`]: "0.15 GNOT" })
             })
 
-            it("says a paused market or an unreadable network before any review", async () => {
+            it("says a market paused since the page read it, or an unreadable network, before any review", async () => {
                 market.getTokenListing.mockResolvedValue(listing(4, 2n, { seller: OWNER }))
-                trading.lane.mockResolvedValueOnce({ lane: "nft_market", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false })
+                trading.lane.mockResolvedValueOnce(OPEN).mockResolvedValueOnce(PAUSED)
                 show(item(), BUYER)
                 const buy = await region("Listing").findByRole("button", { name: "Buy for 1.5 GNOT" })
                 fireEvent.click(buy)
@@ -318,11 +322,11 @@ describe("Market NFT lane", () => {
 
             it("lets the seller cancel, even while its listing cannot be bought and the market is paused", async () => {
                 market.getTokenListing.mockResolvedValue(listing(4, 2n, { seller: OWNER, buyable: false }))
-                trading.lane.mockResolvedValue({ lane: "nft_market", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false })
+                trading.lane.mockResolvedValue(PAUSED)
                 show(item(), OWNER)
                 fireEvent.click(await region("Listing").findByRole("button", { name: "Cancel listing" }))
                 await vi.waitFor(() => expect(trading.sign).toHaveBeenCalledOnce())
-                expect(trading.lane).not.toHaveBeenCalled()
+                expect(trading.lane).toHaveBeenCalledOnce()
                 expect(trading.sign.mock.calls[0][0].prepare().msgs[0].value).toMatchObject({ caller: OWNER, send: "", func: "Cancel", args: ["L4"] })
             })
 
@@ -403,7 +407,7 @@ describe("Market NFT lane", () => {
                     fireEvent.change(sell.getByRole("textbox", { name: "Price in GNOT" }), { target: { value: "1" } })
                     fireEvent.click(sell.getByRole("button", { name: "List for sale" }))
                     expect(await sell.findByRole("alert")).toHaveTextContent("The market takes no new listing on this network: its protocol fee is not set.")
-                    trading.lane.mockResolvedValueOnce({ lane: "nft_market", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false })
+                    trading.lane.mockResolvedValueOnce(PAUSED)
                     fireEvent.click(sell.getByRole("button", { name: "List for sale" }))
                     await vi.waitFor(() => expect(sell.getByRole("alert")).toHaveTextContent("Trading is paused on this network for now."))
                     expect(trading.sign).not.toHaveBeenCalled()
@@ -480,14 +484,49 @@ describe("Market NFT lane", () => {
                 expect(trading.sign.mock.calls[0][0].lines()).toContainEqual(["Listing", "L9 closes with this sale"])
             })
 
-            it("says a paused market before the holder's review", async () => {
+            it("says a market paused since the page read it before the holder's review", async () => {
                 market.listCollectionOffers.mockResolvedValue([theirs(2, "collection")])
-                trading.lane.mockResolvedValueOnce({ lane: "nft_market", currency: "ugnot", paused: true, allowlisted: true, laneReady: true, open: false })
+                trading.lane.mockResolvedValueOnce(OPEN).mockResolvedValueOnce(PAUSED)
                 show({ kind: "token", collection: "C1", number: 2n }, HOLDER)
                 const offers = region("Offers for this token")
                 fireEvent.click(await offers.findByRole("button", { name: "Sell for 3 GNOT" }))
                 expect(await offers.findByRole("alert")).toHaveTextContent("Trading is paused on this network for now.")
                 expect(trading.sign).not.toHaveBeenCalled()
+            })
+
+            it("says a paused market on the page and offers no purchase, sale or offer, while the buyer still cancels", async () => {
+                trading.lane.mockResolvedValue(PAUSED)
+                market.getTokenListing.mockResolvedValue(listing(9, 2n, { seller: BUYER }))
+                market.listCollectionOffers.mockResolvedValue([theirs(1, "token", { buyer: HOLDER }), theirs(2, "collection")])
+                show({ kind: "token", collection: "C1", number: 2n }, HOLDER)
+                await vi.waitFor(() => expect(screen.getByText(/^Trading is paused on this network for now\. New listings, offers and purchases wait until it reopens; cancelling an order still works\.$/)).toBeInTheDocument())
+                await region("Offers for this token").findByRole("button", { name: "Cancel offer" })
+                expect(region("Offers for this token").queryByRole("button", { name: /Sell for/ })).toBeNull()
+                expect(region("Listing").queryByRole("button", { name: /Buy for/ })).toBeNull()
+                expect(screen.queryByRole("region", { name: "Sell this token" })).toBeNull()
+            })
+
+            it("shows a guest the paused market and no offer form, on a token and on its collection, and not on the curation desk", async () => {
+                trading.lane.mockResolvedValue(PAUSED)
+                market.listCollectionOffers.mockResolvedValue([])
+                market.listCollectionListings.mockResolvedValue([])
+                const paused = /^Trading is paused on this network for now\./
+                show({ kind: "token", collection: "C1", number: 2n })
+                expect(await screen.findByText(paused)).toBeInTheDocument()
+                expect(screen.queryByRole("region", { name: "Make an offer for this token" })).toBeNull()
+                cleanup()
+                show({ kind: "collection", collection: "C1" })
+                expect(await screen.findByText(paused)).toBeInTheDocument()
+                await screen.findByRole("region", { name: "Offers on this collection" })
+                expect(screen.queryByRole("region", { name: "Make a collection offer" })).toBeNull()
+                cleanup()
+                market.listCollectionOffers.mockResolvedValue([])
+                const reads = trading.lane.mock.calls.length
+                show({ kind: "operations" })
+                await vi.waitFor(() => expect(trading.lane.mock.calls.length).toBe(reads + 1))
+                // Let this view's status read settle, so the absence below is not just a pending read.
+                await act(async () => { await trading.lane.mock.results.at(-1)!.value; await new Promise((settle) => setTimeout(settle, 0)) })
+                expect(screen.queryByText(paused)).toBeNull()
             })
 
             it("offers no sale to an offer when the collection cannot be sold here", async () => {
@@ -504,7 +543,7 @@ describe("Market NFT lane", () => {
                 fireEvent.click(await region("Offers for this token").findByRole("button", { name: "Cancel offer" }))
                 await vi.waitFor(() => expect(trading.sign).toHaveBeenCalledOnce())
                 expect(trading.sign.mock.calls[0][0].prepare().msgs[0].value).toMatchObject({ caller: BUYER, func: "CancelOffer", args: ["O1"] })
-                expect(trading.lane).not.toHaveBeenCalled()
+                expect(trading.lane).toHaveBeenCalledOnce()
 
                 const make = within(screen.getByRole("region", { name: "Make an offer for this token" }))
                 fireEvent.change(make.getByRole("textbox", { name: "Price in GNOT" }), { target: { value: "3" } })

@@ -8,7 +8,7 @@
  */
 import { listCollectionListings } from "../../../../lib/nft/market"
 import type { OsSession } from "../../../shell/useOsSession"
-import { tradeBlocker } from "./signing"
+import { tradeBlocker, useTradingClosed } from "./signing"
 import { MakeOfferForm, OfferAction } from "./offerActions"
 import { CollectionName, ListingCard, OfferCard, OrderList, ReadFailure } from "./orders"
 import { PAGE_SIZE, useCollection, useCollectionOffers, useOrders, type LaneProps } from "./reads"
@@ -18,6 +18,7 @@ export function CollectionTrade({ lane, session, collection }: { lane: LaneProps
     const listings = useOrders([lane.chainId, "collection-listings", collection],
         (after: bigint) => listCollectionListings(collection, after, PAGE_SIZE), 0n, (last) => last.number)
     const offers = useCollectionOffers(lane.chainId, collection)
+    const closed = useTradingClosed(session.network.key)
     return (
         <>
             <div className="os-row">
@@ -32,7 +33,7 @@ export function CollectionTrade({ lane, session, collection }: { lane: LaneProps
                     {(listing) => <ListingCard key={listing.id} listing={listing} lane={lane} />}
                 </OrderList>
             </section>
-            {profile.data && (
+            {profile.data && !closed && (
                 <section aria-label="Make a collection offer">
                     <h4 className="os-h">Make a collection offer</h4>
                     {tradeBlocker(profile.data) ? <p className="os-sub">{tradeBlocker(profile.data)}</p>
