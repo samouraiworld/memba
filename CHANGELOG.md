@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba DAO's new governance, read-only (2026-10-08)
+- The Memba DAO window shows memba_gov, the contract that replaces the current DAO: its members, pending invitations, the voting rules read from the contract, and each proposal, decoded where Memba knows the action and shown raw otherwise, with its target contract flagged
+- It turns on in a network once memba_gov is published there; until then the window says the contract is not published on that network
+
 ### Multisig: shared names (2026-10-08)
 - A member who has not named a multisig sees the name given by the member who named it first, marked with who that is; their own name still wins, and an account they have not joined keeps a neutral label outside its own page
 
