@@ -109,4 +109,4 @@ Optional repository secrets `BASE_RPC_URL` and `BASE_SEPOLIA_RPC_URL` (archive e
 | Track | Scope | Status |
 |---|---|---|
 | M0 | Flag, bundle gate, Phase 0 fork verification | Done |
-| T1a | Frontend network seam (`frontend/src/lib/chain/`), Base Sepolia in the OS network selector, apps per network family, EVM wallet and sign-in | In progress: network selection, apps per network family, EVM adapter (viem + @wagmi/core, injected wallets), wallet connection (sign-in waits for the SIWE RPCs), one chain-bound send path for every EVM write (`sendEvmWrite`) |
+| T1a | Frontend network seam (`frontend/src/lib/chain/`), Base Sepolia in the OS network selector, apps per network family, EVM wallet and sign-in | In progress: network selection, apps per network family, EVM adapter (viem + @wagmi/core, injected wallets), wallet connection, Sign-In with Ethereum, one chain-bound send path for every EVM write (`sendEvmWrite`) |

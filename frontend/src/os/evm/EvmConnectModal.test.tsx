@@ -10,7 +10,8 @@ function session(over: Partial<OsSession> & { evm?: Partial<NonNullable<OsSessio
         network: { key: "base-sepolia", family: "evm", chainId: "84532", label: "Base Sepolia", isTestnet: true, rpcHost: "" },
         cancel: vi.fn(), disconnect: vi.fn(), switchWallet: vi.fn(async () => true),
         ...rest,
-        evm: { wallets: [{ uid: "w1", name: "Rabby", icon: "data:image/svg+xml,x" }], choose: vi.fn(), wrongChain: false, ...evm },
+        signIn: vi.fn(async () => {}),
+        evm: { wallets: [{ uid: "w1", name: "Rabby", icon: "data:image/svg+xml,x" }], choose: vi.fn(), wrongChain: false, displayAddress: "0xabCDeF0123456789AbcdEf0123456789aBCDEF01", ...evm },
     } as unknown as OsSession
 }
 
@@ -35,12 +36,20 @@ describe("EvmConnectModal", () => {
         expect(await screen.findByRole("alert")).toHaveTextContent("The wallet didn't switch.")
     })
 
-    it("on the right chain, tells a connected wallet that signing in comes soon", () => {
+    it("on the right chain, asks to sign in, showing the address in its EIP-55 form", () => {
         const s = session({ stage: "login", walletAddress: "0xabcdef0123456789abcdef0123456789abcdef01", walletChainId: "84532" })
         render(<EvmConnectModal session={s} />)
-        expect(screen.getByText(/Signing in to Memba with this wallet comes in an update soon/)).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "Connected · 0xabCDeF…EF01" })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Sign in" }))
+        expect(s.signIn).toHaveBeenCalled()
         fireEvent.click(screen.getByRole("button", { name: "Disconnect" }))
         expect(s.disconnect).toHaveBeenCalled()
+    })
+
+    it("waits while the wallet shows the sign-in message", () => {
+        render(<EvmConnectModal session={session({ stage: "loginwait" })} />)
+        expect(screen.getByText("Waiting for your wallet…")).toBeInTheDocument()
+        expect(screen.getByText(/costs nothing and sends no transaction/)).toBeInTheDocument()
     })
 
     it("shows nothing without a step", () => {

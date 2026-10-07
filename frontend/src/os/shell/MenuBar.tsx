@@ -83,6 +83,8 @@ export function MenuBar(p: MenuBarProps) {
     // On an EVM network: queued Safe transactions waiting for this wallet (Safe Transaction Service).
     const safeAwaiting = useSafeAwaiting(onEvm ? safeNetworkOf(session) : null, onEvm ? session.walletAddress?.toLowerCase() ?? "" : "")
     const awaiting = onEvm ? safeAwaiting : gnoAwaiting
+    // How the address is shown and copied: EIP-55 on an EVM network, as stored on gno.land.
+    const shown = session.evm?.displayAddress || session.address
     const waiting = awaiting.mine + awaiting.shared
 
     // "Add an app…" on the desktop menu opens the start menu (state adjusted
@@ -145,7 +147,7 @@ export function MenuBar(p: MenuBarProps) {
                     <div className="os-who">
                         <span className="os-av os-av-lg" data-guest={guest || undefined} aria-hidden="true">{guest ? "G" : session.address.slice(2, 3).toUpperCase()}</span>
                         <div className="os-grow">
-                            <b>{guest ? "Guest" : shortAddr(session.address)}</b>
+                            <b>{guest ? "Guest" : shortAddr(shown)}</b>
                             <div className="os-sub os-mono">{guest ? "Read-only · this browser" : net.chainId}</div>
                         </div>
                         {guest && <button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button>}
@@ -267,9 +269,9 @@ export function MenuBar(p: MenuBarProps) {
             right = true
             content = (
                 <div className="os-menu" role="menu" aria-label="Account">
-                    <div className="os-mhd os-mono">{shortAddr(session.address)}</div>
+                    <div className="os-mhd os-mono">{shortAddr(shown)}</div>
                     <Item onClick={run(() => p.openApp("profile"))}>Profile</Item>
-                    <Item onClick={copy(session.address, "your address")}>Copy address</Item>
+                    <Item onClick={copy(shown, "your address")}>Copy address</Item>
                     <div className="os-msep" role="separator" />
                     <Item onClick={run(p.lock)}>Disconnect & lock</Item>
                 </div>
@@ -304,9 +306,9 @@ export function MenuBar(p: MenuBarProps) {
                 🔔{signer.unread + waiting > 0 && <span className="os-badge" aria-hidden="true">{signer.unread + waiting}</span>}
             </button>
             {session.status === "member"
-                ? <button type="button" className="os-mb os-acct" aria-label={`Account ${session.address}`} {...mb("acct")}>
+                ? <button type="button" className="os-mb os-acct" aria-label={`Account ${shown}`} {...mb("acct")}>
                     <span className="os-av os-av-xs" aria-hidden="true">{session.address.slice(2, 3).toUpperCase()}</span>
-                    <span className="os-mono">{shortAddr(session.address)}</span>
+                    <span className="os-mono">{shortAddr(shown)}</span>
                 </button>
                 : session.status === "resuming"
                     ? <span className="os-mb" role="status"><span className="os-spin" aria-hidden="true" />Resuming…</span>

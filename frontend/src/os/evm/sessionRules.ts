@@ -21,7 +21,13 @@ export function isEvmToken(token: StoredToken | null | undefined): token is Stor
     return !!token && token.chainId.startsWith("eip155:")
 }
 
-/** The token signs in exactly this account (lowercase `0x…`) on exactly this chain. */
+/**
+ * The token signs in exactly this account (lowercase `0x…`) on exactly this chain.
+ * The backend names a key holder `0x…` and a contract account (a Safe, a smart
+ * wallet) `eip155:<id>:0x…`; both count.
+ */
 export function tokenFits(token: StoredToken | null | undefined, chainCaip2: string, address: string): boolean {
-    return isEvmToken(token) && !!address && token.chainId === chainCaip2 && token.userAddress.toLowerCase() === address
+    if (!isEvmToken(token) || !address || token.chainId !== chainCaip2) return false
+    const who = token.userAddress.toLowerCase()
+    return who === address || who === `${chainCaip2}:${address}`
 }

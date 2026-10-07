@@ -1,7 +1,7 @@
 /**
  * The connect flow on an EVM network: pick one of the wallets this browser
- * announced → approve in it → the sign-in step, which first gets the wallet
- * onto Memba's chain. Same dialog frame and keys as the Gno one (ConnectModal).
+ * announced → approve in it → sign in (Sign-In with Ethereum), after getting the
+ * wallet onto Memba's chain. Same dialog frame and keys as the Gno one (ConnectModal).
  *
  * @module os/evm/EvmConnectModal
  */
@@ -31,6 +31,12 @@ export function EvmConnectModal({ session }: { session: OsSession }) {
             <Waiting label="Waiting for your wallet…" />
             <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button></div>
         </>
+    } else if (stage === "loginwait") {
+        body = <>
+            <Head title="Sign in your wallet" sub="Your wallet shows Memba's sign-in message. Signing it costs nothing and sends no transaction." />
+            <Waiting label="Waiting for your wallet…" />
+            <div className="os-row os-end"><button type="button" className="os-btn os-quiet" onClick={session.cancel}>Cancel</button></div>
+        </>
     } else if (stage === "login") {
         const switchFailed = switchFailedOn !== null && switchFailedOn === session.walletChainId
         const switchChain = async () => {
@@ -38,7 +44,7 @@ export function EvmConnectModal({ session }: { session: OsSession }) {
             if (!(await session.switchWallet())) setSwitchFailedOn(from)
         }
         body = <>
-            <Head title={`Connected · ${shortAddr(session.walletAddress)}`} sub={`Memba is on ${network.label}.`} />
+            <Head title={`Connected · ${shortAddr(evm.displayAddress)}`} sub={`Memba is on ${network.label}.`} />
             {evm.wrongChain
                 ? <>
                     <p className="os-note os-warn" role="status">Your wallet is on chain {session.walletChainId}. Switch it to {network.label} to sign in.</p>
@@ -49,10 +55,10 @@ export function EvmConnectModal({ session }: { session: OsSession }) {
                     </div>
                 </>
                 : <>
-                    <p className="os-sub">Signing in to Memba with this wallet comes in an update soon. Until then you browse as a guest.</p>
+                    <p className="os-sub">Sign Memba's sign-in message in your wallet. It proves this address is yours; it costs nothing and sends no transaction.</p>
                     <div className="os-row os-end">
                         <button type="button" className="os-btn os-quiet" onClick={session.disconnect}>Disconnect</button>
-                        <button type="button" className="os-btn" onClick={session.cancel}>Done</button>
+                        <button type="button" className="os-btn" onClick={() => { void session.signIn() }}>Sign in</button>
                     </div>
                 </>}
         </>
