@@ -8,6 +8,7 @@
  *
  * @module os/apps
  */
+import type { ChainFamily } from "../lib/chain/types"
 
 /** When an app gets its native window layout. Until then its routes open as pages in a window. */
 export type AppTier = "mvp" | "v1.1" | "v1.2" | "v1.3"
@@ -28,6 +29,8 @@ export interface OsApp {
     /** Shown in the dock by default. */
     dock: boolean
     routes: readonly string[]
+    /** The network families the app works on. Omitted: gno.land only (most apps read Gno realms). */
+    chains?: readonly ChainFamily[]
 }
 
 export const OS_APPS: readonly OsApp[] = [
@@ -48,7 +51,7 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "validators", name: "Validators", slug: "validators", summary: "Validator set and monitoring", tier: "mvp", tint: ["#4A5368", "#232836"], dock: true,
       routes: ["validators", "validators/hacker", "validators/valoper/:operatorAddress", "validators/:address"] },
     { id: "settings", name: "Settings", slug: "settings", summary: "Desktop, notifications and alerts, safety, network, account", tier: "mvp", tint: ["#A9B1C2", "#7E879A"], dock: false,
-      routes: ["settings", "alerts"] },
+      routes: ["settings", "alerts"], chains: ["gno", "evm"] },
     { id: "tokens", name: "Tokens", slug: "tokens", summary: "Create and hold GRC20 tokens", tier: "v1.1", tint: ["#F2B544", "#E08A1E"], dock: false,
       routes: ["tokens", "tokens/:symbol", "create-token"] },
     { id: "nft", name: "NFT", slug: "nft", summary: "Browse Launchpad NFT collections", tier: "v1.1", tint: ["#EC6FCF", "#A34FE0"], dock: false,
@@ -63,7 +66,7 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "profile", name: "Profile", slug: "profile", summary: "Your profile and other people’s", tier: "v1.1", tint: ["#8E9BB5", "#56627C"], dock: false,
       routes: ["profile", "profile/:address", "u/:username"] },
     { id: "news", name: "News", slug: "news", summary: "Blog and changelog", tier: "v1.1", tint: ["#FF7A7A", "#E0463B"], dock: false,
-      routes: ["blog", "blog/:slug", "changelogs"] },
+      routes: ["blog", "blog/:slug", "changelogs"], chains: ["gno", "evm"] },
     { id: "devreport", name: "Dev Report", slug: "dev-report", summary: "Gno development activity: contributors, teams, reports", tier: "v1.2", tint: ["#6D8BFF", "#2B4FD8"], dock: false,
       routes: ["gnolove", "gnolove/report", "gnolove/notable-prs", "gnolove/analytics", "gnolove/contributor/:login", "gnolove/teams",
           "gnolove/teams/:teamName", "gnolove/reports", "gnolove/milestone"] },
@@ -72,7 +75,7 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "learn", name: "Learn", slug: "learn", summary: "PeerDev lessons for building on Gno", tier: "v1.3", tint: ["#446A9F", "#263F69"], dock: false,
       routes: [] },
     { id: "meet", name: "Meet", slug: "meet", summary: "Start or join a video meeting", tier: "v1.3", tint: ["#3684C7", "#17496C"], dock: false,
-      routes: [] },
+      routes: [], chains: ["gno", "evm"] },
 ] as const
 
 /** Routes that aren't an app: the desktop itself, redirects, callbacks and retired previews. */
@@ -101,3 +104,13 @@ export function appForRoute(route: string): OsApp | undefined {
 }
 
 export const DOCK_APPS: readonly OsApp[] = OS_APPS.filter((app) => app.dock)
+
+/** Whether `app` works on networks of this family. Every app runs on gno.land; on EVM, only those that say so. */
+export function runsOn(app: OsApp, family: ChainFamily): boolean {
+    return family !== "evm" || (app.chains?.includes("evm") ?? false)
+}
+
+/** The apps of `apps` offered on a network of this family: all of them on gno.land. */
+export function appsOn(apps: readonly OsApp[], family: ChainFamily): readonly OsApp[] {
+    return family === "evm" ? apps.filter((app) => runsOn(app, family)) : apps
+}

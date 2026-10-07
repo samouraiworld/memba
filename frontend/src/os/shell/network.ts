@@ -79,6 +79,11 @@ export function activeOsNetwork(): OsNetwork {
     return describe(OS_NETWORK_KEY)
 }
 
+/** The gno.land network this page's config was loaded with: where "Switch to gno.land" goes from an EVM network. */
+export function gnoOsNetwork(): OsNetwork {
+    return describe(ACTIVE_NETWORK_KEY)
+}
+
 /** What the network menu offers: the visible networks, plus the active one if it's hidden. */
 export function selectableOsNetworks(): OsNetwork[] {
     const gno = Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY))

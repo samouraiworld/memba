@@ -8,6 +8,7 @@
  */
 import { OS_APPS } from "../apps"
 import { DEFAULT_NETWORK } from "../../lib/config"
+import { isVisibleEvmNetworkKey } from "../../lib/chain/evm/networks"
 import { parseOsPath, type OsTarget } from "./osPath"
 
 export type DeskItemType = "app" | "dao" | "prop" | "msig"
@@ -138,11 +139,16 @@ export function nearestCell(x: number, y: number, deskWidth: number): { c: numbe
 
 const TYPES: readonly DeskItemType[] = ["app", "dao", "prop", "msig"]
 
+/** A guest's desk before any change: the featured gno.land items, none on an EVM network. */
+function guestDesk(networkKey: string): DeskItem[] {
+    return isVisibleEvmNetworkKey(networkKey) ? [] : FEATURED_DESK.map((i) => ({ ...i }))
+}
+
 export function loadDesk(address: string | null, networkKey = DEFAULT_NETWORK): DeskItem[] {
     try {
         migrateLegacyDesk(address, networkKey)
         const raw = localStorage.getItem(deskKey(address, networkKey))
-        if (raw === null) return address ? [] : FEATURED_DESK.map((i) => ({ ...i }))
+        if (raw === null) return address ? [] : guestDesk(networkKey)
         const parsed: unknown = JSON.parse(raw)
         if (!Array.isArray(parsed)) return []
         return parsed.slice(0, GRID.cols * GRID.rows).flatMap((e: Partial<DeskItem>) => {
@@ -154,7 +160,7 @@ export function loadDesk(address: string | null, networkKey = DEFAULT_NETWORK): 
             return [{ ...item, c, r }]
         })
     } catch {
-        return address ? [] : FEATURED_DESK.map((i) => ({ ...i }))
+        return address ? [] : guestDesk(networkKey)
     }
 }
 

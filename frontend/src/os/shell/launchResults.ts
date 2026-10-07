@@ -7,7 +7,8 @@
  * @module os/shell/launchResults
  */
 import { COMMANDS } from "../../components/ui/commands"
-import { OS_APPS, type OsAppId } from "../apps"
+import type { ChainFamily } from "../../lib/chain/types"
+import { appsOn, OS_APPS, type OsAppId } from "../apps"
 import { nameForRealm } from "../daos/daoNames"
 import { osTargetForClassic } from "../page/classicRoute"
 import { appSpec, daoSpec, newDaoSpec, sendSpec, specForTarget, type WindowSpec } from "./windows"
@@ -26,6 +27,8 @@ export interface LaunchItem {
 
 export interface LaunchContext {
     network: string
+    /** Omitted: gno.land. On an EVM network only its apps and About are offered. */
+    family?: ChainFamily
     /** DAOs to offer: featured and saved in this browser. */
     daos: readonly { realmPath: string; name: string }[]
 }
@@ -34,6 +37,7 @@ const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/
 const REALM = /^gno\.land\/r\/[a-z0-9_./-]+$/
 
 function typed(q: string, ctx: LaunchContext): LaunchItem[] {
+    if (ctx.family === "evm") return [] // addresses and realm paths below are Gno's
     const v = q.trim()
     if (ADDRESS.test(v)) {
         const profile = osTargetForClassic(`/${ctx.network}/profile/${v}`, ctx.network)
@@ -51,8 +55,12 @@ function typed(q: string, ctx: LaunchContext): LaunchItem[] {
     return []
 }
 
+const ABOUT: LaunchItem = { id: "cmd:about", title: "About Memba OS", sub: "Command · version, chain and links", keywords: "credits licence samourai", icon: { thing: "doc" }, spec: specForTarget({ kind: "about" })! }
+
 function all(ctx: LaunchContext): LaunchItem[] {
-    const out: LaunchItem[] = OS_APPS.map((a) => ({ id: `app:${a.id}`, title: a.name, sub: `App · ${a.summary}`, icon: { app: a.id }, spec: appSpec(a.id) }))
+    const out: LaunchItem[] = appsOn(OS_APPS, ctx.family ?? "gno").map((a) => ({ id: `app:${a.id}`, title: a.name, sub: `App · ${a.summary}`, icon: { app: a.id }, spec: appSpec(a.id) }))
+    // DAOs, the commands and the classic pages below are all Gno's.
+    if (ctx.family === "evm") return [...out, ABOUT]
     for (const d of ctx.daos) {
         const name = nameForRealm(d.realmPath)
         if (!name) continue
@@ -62,7 +70,7 @@ function all(ctx: LaunchContext): LaunchItem[] {
     }
     out.push({ id: "cmd:new-dao", title: "Create a DAO", sub: "Command · DAOs", icon: { app: "daos" }, spec: newDaoSpec() })
     out.push({ id: "cmd:send", title: "Send GNOT", sub: "Command · Wallet", keywords: "transfer pay", icon: { app: "wallet" }, spec: sendSpec() })
-    out.push({ id: "cmd:about", title: "About Memba OS", sub: "Command · version, chain and links", keywords: "credits licence samourai", icon: { thing: "doc" }, spec: specForTarget({ kind: "about" })! })
+    out.push(ABOUT)
     for (const c of COMMANDS) {
         if (!c.path || c.path === "/" || c.path === "/dashboard" || c.path === "/dao/create") continue
         const t = osTargetForClassic(`/${ctx.network}${c.path}`, ctx.network)

@@ -27,6 +27,7 @@ import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
 import { SignerProvider } from "../sign/SignerProvider"
 import { setWalletActionGuard } from "../../lib/grc20"
+import { EVM_ENABLED } from "../../lib/chain/flag"
 import { PhoneShell } from "../phone/PhoneShell"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { LiveActivityProvider } from "../apps/live/LiveProvider"
@@ -304,6 +305,8 @@ export function Shell() {
     const tile = useCallback(() => dispatch({ type: "tile", desk: placeDesk() }), [dispatch, placeDesk])
 
     const member = session.status === "member"
+    // Live activity reads a Gno indexer: nothing to show on an EVM network.
+    const onEvm = EVM_ENABLED && session.network.family === "evm"
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
@@ -466,7 +469,7 @@ export function Shell() {
     )
     // The video stays at one React position while the visible layout changes.
     return (
-        <LiveActivityProvider networkKey={session.network.key} active={!locked && (!phone || front?.app === "live")}>
+        <LiveActivityProvider networkKey={session.network.key} active={!onEvm && !locked && (!phone || front?.app === "live")}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
@@ -481,14 +484,14 @@ export function Shell() {
                         if (w && windowToken(w.target) !== null) navigate(location.pathname + location.search)
                         win.minimiseAll()
                     }} />
-                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
+                {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </> : <>
             <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
-                {!locked && liveWidget && <LiveTicker onOpen={() => openApp("live")} />}
+                {!locked && liveWidget && !onEvm && <LiveTicker onOpen={() => openApp("live")} />}
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">
@@ -506,7 +509,7 @@ export function Shell() {
                     <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
-                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
+                {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </main>
             {bannerUp && (
                 <div className="os-banner os-glass" role="status" inert={modalBlocked} aria-hidden={modalBlocked}>
@@ -514,7 +517,7 @@ export function Shell() {
                     <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
                 </div>
             )}
-            <Dock wins={win.wins} openApp={openApp} restore={win.focus} locked={modalBlocked} />
+            <Dock wins={win.wins} family={session.network.family} openApp={openApp} restore={win.focus} locked={modalBlocked} />
             </>}
             {meetStage}
             </MeetStageContext.Provider>

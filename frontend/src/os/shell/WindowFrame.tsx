@@ -7,7 +7,9 @@
  */
 import { createElement, lazy, Suspense, useEffect, useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
-import { getApp, type OsAppId } from "../apps"
+import { getApp, runsOn, type OsAppId } from "../apps"
+import { EVM_ENABLED } from "../../lib/chain/flag"
+import { gnoOsNetwork, switchOsNetwork } from "./network"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
 // Each app's windows load when first opened (day 7), keeping the shell chunk small.
@@ -96,11 +98,46 @@ export function WindowBody(props: Actions & { win: OsWindow }) {
     )
 }
 
+/** Whether a window has something to show on an EVM network: only the apps that run there, and About. */
+function runsOnEvm(t: OsTarget): boolean {
+    return t.kind === "desktop" || t.kind === "about" || (t.kind === "app" && runsOn(getApp(t.app), "evm"))
+}
+
+/** The name a gno.land-only window goes by on an EVM network. */
+function gnoWindowName(t: OsTarget): string {
+    switch (t.kind) {
+        case "app": return getApp(t.app).name
+        case "dao": case "proposal": case "new-proposal": return getApp("daos").name
+        case "multisig": return getApp("multisig").name
+        case "feedback": return "Feedback"
+        default: return "This page"
+    }
+}
+
+/** On an EVM network, in place of a window that reads gno.land: what it is, and the way back. */
+function GnoOnly({ title, text }: { title: string; text: string }) {
+    const gno = gnoOsNetwork()
+    return (
+        <Holding tile={<ThingTile icon="doc" size={44} />} title={title} text={text}>
+            <button type="button" className="os-btn" onClick={() => switchOsNetwork(gno.key)}>Switch to {gno.label}</button>
+        </Holding>
+    )
+}
+
 function Body({ win, ...a }: Actions & { win: OsWindow }) {
     const navigate = useNavigate()
     const net = a.session.network.key
-    if (win.key === "welcome") return <Welcome {...a} />
+    const onEvm = EVM_ENABLED && a.session.network.family === "evm"
+    const here = a.session.network.label
+    if (win.key === "welcome") {
+        return onEvm
+            ? <GnoOnly title={`Memba on ${here}`} text="Memba's apps are coming to this network one at a time. DAOs, multisigs, tokens and games run on gno.land for now." />
+            : <Welcome {...a} />
+    }
     const t = win.target
+    if (onEvm && t && t.kind !== "unknown" && !runsOnEvm(t)) {
+        return <GnoOnly title={`${gnoWindowName(t)} runs on gno.land`} text={`It isn't available on ${here} yet.`} />
+    }
     if (!t || t.kind === "unknown") {
         return (
             <Holding tile={<ThingTile icon="doc" size={44} />} title="Nothing lives here"
@@ -122,7 +159,10 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} active={a.active} />
     if (t.kind === "about") return <AboutWindow chainId={a.session.network.chainId} openApp={a.openApp} open={a.open} />
     const classicPage = classicForSection(t.app, t.section)
-    const fallback = bodyFallback({ ...a, t, classicPage, winId: win.id })
+    // Classic pages are all gno.land's: never one on an EVM network.
+    const fallback = onEvm
+        ? <GnoOnly title="This page runs on gno.land" text={`It isn't available on ${here} yet.`} />
+        : bodyFallback({ ...a, t, classicPage, winId: win.id })
     const native = nativeView(t.app)
     if (native) {
         // JSX (<native .../>) would trip react-hooks/static-components ("component created

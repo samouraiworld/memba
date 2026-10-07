@@ -8,11 +8,12 @@ import { useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { DAO_REALM_PATH } from "../../lib/config"
 import { AppTile, ThingTile } from "./icons"
+import type { ChainFamily } from "../../lib/chain/types"
 import { launcherResults, type LaunchItem } from "./launchResults"
 import { useDialogKeys } from "./useDialogKeys"
 import type { WindowSpec } from "./windows"
 
-export function Launcher({ network, open, onClose }: { network: string; open: (spec: WindowSpec) => void; onClose: (restoreFocus: boolean) => void }) {
+export function Launcher({ network, family, open, onClose }: { network: string; family?: ChainFamily; open: (spec: WindowSpec) => void; onClose: (restoreFocus: boolean) => void }) {
     const dialogRef = useRef<HTMLDivElement>(null)
     // Two stops: the field and the result list, which can scroll.
     useDialogKeys(dialogRef, true, 'input, [tabindex="0"]', () => onClose(true))
@@ -23,7 +24,7 @@ export function Launcher({ network, open, onClose }: { network: string; open: (s
         const saved = getSavedDAOsForOrg(null).filter((d) => !featured.some((f) => f.realmPath === d.realmPath)).map((d) => ({ realmPath: d.realmPath, name: d.name || d.realmPath }))
         return [...featured, ...saved]
     }, [])
-    const results = launcherResults(q, { network, daos })
+    const results = launcherResults(q, { network, family, daos })
     const current = Math.min(sel, Math.max(0, results.length - 1))
     const go = (item: LaunchItem | undefined) => {
         if (!item) return

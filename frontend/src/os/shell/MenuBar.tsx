@@ -6,7 +6,8 @@
  * @module os/shell/MenuBar
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { OS_APPS, type OsAppId } from "../apps"
+import { appsOn, OS_APPS, type OsAppId } from "../apps"
+import { EVM_ENABLED } from "../../lib/chain/flag"
 import { AppTile } from "./icons"
 import { useClock } from "./clock"
 import { shortAddr } from "./format"
@@ -146,7 +147,7 @@ export function MenuBar(p: MenuBarProps) {
                     </div>
                     <div className="os-mhd">All apps · ＋ adds to desktop</div>
                     <div className="os-pins" role="menu" aria-label="All apps">
-                        {OS_APPS.map((a) => {
+                        {appsOn(OS_APPS, net.family).map((a) => {
                             const on = p.isPinned({ ty: "app", ref: a.id })
                             return (
                                 <div key={a.id} className="os-pinbox" role="none">
@@ -285,7 +286,7 @@ export function MenuBar(p: MenuBarProps) {
                 <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${networkName(net)}`} {...mb("net")}>
                     <i aria-hidden="true" /><span className="os-mono">{networkName(net)}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}
                 </button>
-                {!panel && <div className="os-live-popover os-glass" role="group" aria-label="Live activity preview">
+                {!panel && !(EVM_ENABLED && net.family === "evm") && <div className="os-live-popover os-glass" role="group" aria-label="Live activity preview">
                     <LiveTicker onOpen={() => p.openApp("live")} />
                 </div>}
             </div>

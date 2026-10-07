@@ -8,7 +8,7 @@
  * @module os/phone/PhoneShell
  */
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { OS_APPS, type OsAppId } from "../apps"
+import { appsOn, OS_APPS, runsOn, getApp, type OsAppId } from "../apps"
 import type { DeskItem } from "../shell/desk"
 import { DeskIcon } from "../shell/DeskItems"
 import { AppTile } from "../shell/icons"
@@ -67,7 +67,7 @@ export function PhoneShell(p: PhoneShellProps) {
         content = (
             <Sheet title="All apps" onHome={() => setSheet(null)}>
                 <div className="os-ph-grid">
-                    {OS_APPS.map((a) => (
+                    {appsOn(OS_APPS, net.family).map((a) => (
                         <button key={a.id} type="button" className="os-ph-ic" onClick={go(() => p.openApp(a.id))}><AppTile app={a.id} size={52} /><span className="os-ph-label">{a.name}</span></button>
                     ))}
                 </div>
@@ -151,7 +151,7 @@ export function PhoneShell(p: PhoneShellProps) {
                 </div>
             })}
             <nav className="os-ph-dock os-glass" aria-label="Dock">
-                {PHONE_DOCK.map((id) => (
+                {PHONE_DOCK.filter((id) => runsOn(getApp(id), net.family)).map((id) => (
                     <button key={id} type="button" aria-label={OS_APPS.find((a) => a.id === id)!.name} onClick={go(() => p.openApp(id))}><AppTile app={id} size={40} /></button>
                 ))}
                 <button type="button" aria-label="Search" className="os-ph-search" onClick={go(p.openSearch)}>⌕</button>
