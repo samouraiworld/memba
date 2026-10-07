@@ -71,11 +71,11 @@ export function actionErrorText(reason: SafeActionReason, network: string, actio
         case "declined": return action === "propose" || action === "sign" ? "You declined in your wallet. Nothing was signed." : "You declined in your wallet. Nothing was sent."
         case "address-taken": return "A contract already exists at the address this Safe would have. Review again for a new address."
         case "unexpected-deployment": return `The deployment Memba built is not the Safe you asked for (${reason.detail}). Nothing was sent.`
-        case "reverted": return action === "create"
-            ? "The creation transaction failed on chain. No Safe was created; only its gas was spent."
+        case "reverted": return reason.detail ? `${reason.detail} ${action === "create" ? "No Safe was created." : "Nothing moved."}`
+            : action === "create" ? "The creation transaction failed on chain. No Safe was created; only its gas was spent."
             : "The transaction failed on chain: nothing moved, only its gas was spent."
         case "not-the-safe": return "The transaction went through, but the address does not hold the Safe you asked for. Don't send funds to it."
-        case "unconfirmed": return `Sent, but ${network} hasn't confirmed it yet. Don't send it again: check again in a moment.`
+        case "unconfirmed": return reason.detail ?? `Sent, but ${network} hasn't confirmed it yet. Don't send it again: check again in a moment.`
         case "unverified": return `Confirmed, but Memba couldn't read ${network} to check the result yet. Check again in a moment.`
         case "failed": return `Couldn't ${ACTION_NAME[action]}: ${reason.detail}`
     }

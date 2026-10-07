@@ -59,10 +59,11 @@ export type SafeActionReason =
     | { code: "declined" }
     | { code: "address-taken" }
     | { code: "unexpected-deployment"; detail: string }
-    | { code: "reverted"; hash: Hex }
+    // Included and reverted, or cancelled by a replacement; `detail` is the send path's own account of it.
+    | { code: "reverted"; hash: Hex; detail?: string }
     | { code: "not-the-safe"; hash: Hex }
-    // Sent, but the network didn't confirm it yet: the hash is kept to check again.
-    | { code: "unconfirmed"; hash: Hex }
+    // Sent, but the network didn't confirm it yet (or it was replaced): the hash is kept to check again.
+    | { code: "unconfirmed"; hash: Hex; detail?: string }
     // Confirmed, but the chain couldn't be read to check the result: check again.
     | { code: "unverified"; hash: Hex }
     | { code: "failed"; detail: string }
@@ -81,14 +82,8 @@ const HANDLER_1_5_0 = SAFE_FALLBACK_HANDLERS.find((h) => h.version === "1.5.0")!
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
-/** How long a creation's receipt is awaited before "Check again" is offered. */
+/** How long "Check again" awaits a creation's receipt (sendEvmWrite waits as long on the send itself). */
 const RECEIPT_TIMEOUT_MS = 120_000
-/**
- * sendEvmWrite waits for the receipt itself; asking it to wait only this long
- * returns the hash as soon as the wallet sent it, so it is saved (onSent) before
- * the wait, which confirmNewSafe then does with the predicted-address read.
- */
-const HASH_FIRST_MS = 1
 
 /** Throws unless the deployment creates exactly the requested SafeL2 v1.5.0. */
 export function assertDeployment(tx: { to: string; data: string; value: string | bigint }, owners: readonly string[], threshold: number, saltNonce: bigint): void {
@@ -170,15 +165,10 @@ async function plannedSafeAt(networkKey: string, plan: NewSafePlan): Promise<Ext
     return safe
 }
 
-/** What the send path's outcome means here: the hash when one exists, else why not. */
-export function sentHash(result: TxResult): { hash: Hex | null; declined: boolean; maybeSent: boolean; error: string } {
-    switch (result.outcome) {
-        case "sent": return { hash: result.hash as Hex, declined: false, maybeSent: true, error: "" }
-        case "cancelled": return { hash: null, declined: true, maybeSent: false, error: result.error }
-        case "failed": return { hash: null, declined: false, maybeSent: false, error: result.error.replace(/\. Nothing was sent\.$/, "") }
-        case "refused":
-        case "unknown": return { hash: (result.hash as Hex | undefined) ?? null, declined: false, maybeSent: true, error: result.error }
-    }
+/** Throws for a send that certainly sent nothing (declined, or refused before the wallet sent it). */
+export function assertSomethingSent(result: TxResult): asserts result is Exclude<TxResult, { outcome: "failed" | "cancelled" }> {
+    if (result.outcome === "cancelled") throw new SafeActionError({ code: "declined" })
+    if (result.outcome === "failed") throw new SafeActionError({ code: "failed", detail: result.error.replace(/\. Nothing was sent\.$/, "") })
 }
 
 /**
@@ -212,28 +202,37 @@ export async function confirmNewSafe(networkKey: string, plan: NewSafePlan, hash
 
 /**
  * Sends the planned deployment from the connected wallet (it pays the gas) on
- * the plan's chain, then confirms it (confirmNewSafe). `onSent` gets the
- * transaction hash as soon as the wallet returns it: from then on, a failure
- * carries the hash and is never a reason to plan (and pay for) a second Safe.
+ * the plan's chain, through sendEvmWrite, which awaits the receipt (replacements
+ * included). `onSent` gets the transaction hash as soon as the wallet returns
+ * it, before that wait: from then on, a failure carries the hash and is never a
+ * reason to plan (and pay for) a second Safe.
+ *
+ * Whatever the outcome once something may have been sent, the predicted address
+ * decides: someone can create the same Safe first with the same arguments (the
+ * address is public), which makes this transaction revert with the Safe there.
  */
 export async function deployNewSafe(networkKey: string, plan: NewSafePlan, onSent?: (hash: Hex) => void): Promise<{ hash: Hex; safe: Extract<SafeInspection, { kind: "safe" }> }> {
     assertDeployment(plan.tx, plan.owners, plan.threshold, plan.saltNonce)
     const chainId = chainIdOf(networkKey)
     if (chainId !== plan.chainId) throw new SafeActionError({ code: "wrong-chain" })
+    const handed: { hash?: Hex } = {}
     // The one send path: chain and account re-checked, code at the factory, the wallet's live chain.
-    const result = await sendEvmWrite({ chainId, from: plan.deployer, to: plan.tx.to, data: plan.tx.data, value: plan.tx.value }, { receiptTimeoutMs: HASH_FIRST_MS })
-    const sent = sentHash(result)
-    if (!sent.hash) {
-        if (sent.declined) throw new SafeActionError({ code: "declined" })
-        // Refused or unknown without a hash: the wallet may have sent it. The address decides; else check the wallet.
-        if (sent.maybeSent) {
-            const there = await plannedSafeAt(networkKey, plan).catch(() => null)
-            if (there) return { hash: "0x" as Hex, safe: there }
+    const result = await sendEvmWrite({ chainId, from: plan.deployer, to: plan.tx.to, data: plan.tx.data, value: plan.tx.value }, {
+        onSent: (hash) => { handed.hash = hash; onSent?.(hash) },
+    })
+    assertSomethingSent(result)
+    const there = await plannedSafeAt(networkKey, plan).catch(() => null)
+    // sent and refused carry the mined hash (a repriced send's differs from the one handed over).
+    const mined = (result.hash as Hex | undefined) ?? null
+    if (there) return { hash: mined ?? handed.hash ?? "0x", safe: there }
+    switch (result.outcome) {
+        case "sent": throw new SafeActionError({ code: there === null ? "unverified" : "not-the-safe", hash: mined! })
+        case "refused": throw new SafeActionError(there === null ? { code: "unverified", hash: mined! } : { code: "reverted", hash: mined!, detail: result.error })
+        case "unknown": {
+            // Not seen confirmed, or replaced: check again with the hash the wallet first returned.
+            const hash = handed.hash ?? mined
+            if (!hash) throw new SafeActionError({ code: "failed", detail: result.error })
+            throw new SafeActionError({ code: "unconfirmed", hash, detail: result.error })
         }
-        throw new SafeActionError({ code: "failed", detail: sent.error })
     }
-    // sent, refused (reverted, or cancelled by a replacement), unknown: a hash exists, so the address decides.
-    const hash = sent.hash
-    onSent?.(hash)
-    return { hash, safe: await confirmNewSafe(networkKey, plan, hash) }
 }

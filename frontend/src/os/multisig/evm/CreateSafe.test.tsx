@@ -170,6 +170,11 @@ describe("creating a Safe", () => {
         expect(actionErrorText({ code: "not-connected" }, "Base Sepolia", "execute")).toBe("Connect a wallet to execute this.")
         expect(actionErrorText({ code: "unexpected-deployment", detail: "another threshold" }, "Base Sepolia")).toMatch(/another threshold.*Nothing was sent/)
         expect(actionErrorText({ code: "not-the-safe", hash: "0x" }, "Base Sepolia")).toMatch(/Don't send funds/)
+        // The send path's own account of a revert, a cancellation or a replacement is shown as it is.
+        expect(actionErrorText({ code: "reverted", hash: "0x", detail: "Your wallet cancelled this transaction with a replacement: the write did not happen." }, "Base Sepolia"))
+            .toBe("Your wallet cancelled this transaction with a replacement: the write did not happen. No Safe was created.")
+        expect(actionErrorText({ code: "reverted", hash: "0x", detail: "It reverted." }, "Base Sepolia", "execute")).toBe("It reverted. Nothing moved.")
+        expect(actionErrorText({ code: "unconfirmed", hash: "0x", detail: "Your wallet replaced this transaction with a different one." }, "Base Sepolia")).toBe("Your wallet replaced this transaction with a different one.")
     })
 })
 

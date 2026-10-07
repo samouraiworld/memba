@@ -12,7 +12,7 @@
 import { connect, createConfig, http, mock, type Config } from "@wagmi/core"
 import { baseSepolia, type Chain } from "viem/chains"
 import type { Hex } from "viem"
-import { sendEvmWriteWith, type EvmWrite } from "../lib/chain/evm/send"
+import { sendEvmWriteWith, type EvmWrite, type SendOptions } from "../lib/chain/evm/send"
 
 export const FORK = process.env.MEMBA_EVM_FORK_RPC ?? ""
 
@@ -42,7 +42,7 @@ export async function connectWallet(account: Hex): Promise<void> {
 /** What `vi.mock("../adapter", …)` returns in a fork test: Memba's own send path, on the fork. */
 export const forkAdapter = {
     chainFor: () => forkChain,
-    sendEvmWrite: (write: EvmWrite, opts?: { receiptTimeoutMs?: number }) => sendEvmWriteWith(forkAdapter.evmConfig, baseSepolia.id, write, opts),
+    sendEvmWrite: (write: EvmWrite, opts?: SendOptions) => sendEvmWriteWith(forkAdapter.evmConfig, baseSepolia.id, write, opts),
     get evmConfig() {
         if (!current) throw new Error("call connectWallet() first")
         return current
