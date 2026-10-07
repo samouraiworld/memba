@@ -1,0 +1,19 @@
+--- MembaToken.sol
++++ MembaToken.sol
+@@ -8,11 +8,12 @@
+ import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
+ 
+ contract MembaToken is ERC20, ERC20Permit, ERC20Votes {
+-    constructor(address recipient)
+-        ERC20("MembaToken", "MBT")
+-        ERC20Permit("MembaToken")
++    constructor(string memory name_, string memory symbol_, address recipient, uint256 premint_, address feeRecipient, uint256 fee_)
++        ERC20(name_, symbol_)
++        ERC20Permit(name_)
+     {
+-        _mint(recipient, 1000000 * 10 ** decimals());
++        _mint(recipient, premint_);
++        _mint(feeRecipient, fee_);
+     }
+ 
+     // The following functions are overrides required by Solidity.

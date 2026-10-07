@@ -1,0 +1,9 @@
+{
+  "name": "memba-token-wizard",
+  "private": true,
+  "description": "Pinned OpenZeppelin Wizard that regenerates the pristine source of src/MembaToken.sol",
+  "type": "module",
+  "dependencies": {
+    "@openzeppelin/wizard": "0.10.16"
+  }
+}

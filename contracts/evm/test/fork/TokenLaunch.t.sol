@@ -14,15 +14,19 @@ import {
 } from "./Interfaces.sol";
 import {MembaToken} from "../../src/MembaToken.sol";
 
-/// Tasks 2e + 2f: the Wizard ERC-20 deployed by CREATE2 with a 0.5% supply transfer to a treasury
-/// in the same Safe batch, then a Uniswap CCA v2.1.0 auction for that token, proceeds to the Safe.
+/// Tasks 2e + 2f: the Memba token template (Wizard ERC20 + Permit + Votes, constructor parameters) deployed by
+/// CREATE2 in ONE call that also mints the 0.5% fee to the treasury, then a Uniswap CCA v2.1.0 auction for that
+/// token, proceeds to the Safe. The fee mint is in the constructor, so any wallet (EOA or Safe) creates a token and
+/// pays the fee in a single transaction: no batch, no partial failure. The fee stays UI-enforced: anyone can call
+/// the deployer with other arguments.
 abstract contract TokenLaunchTest is ForkBase {
     address internal constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
-    uint256 internal constant SUPPLY = 1_000_000 ether; // Wizard premint: 1000000 * 10 ** decimals()
-    uint256 internal constant FEE = SUPPLY * 5 / 1000; // 0.5%
+    uint256 internal constant SUPPLY = 1_000_000 ether;
+    uint256 internal constant FEE = SUPPLY * 5 / 1000; // 0.5%, computed by the app
+    uint256 internal constant PREMINT = SUPPLY - FEE;
     bytes32 internal constant SALT = keccak256("memba.phase0.token");
 
-    ISafe internal creator; // the creator's Safe (an EOA cannot batch atomically without EIP-5792/7702)
+    ISafe internal creator; // a Safe creator; an EOA creator is covered by test_token_create2_from_eoa
     address internal treasury;
 
     function setUp() public override {
@@ -31,113 +35,95 @@ abstract contract TokenLaunchTest is ForkBase {
         treasury = makeAddr("memba-team-safe");
     }
 
-    function _initcode(address recipient) internal pure returns (bytes memory) {
-        return abi.encodePacked(type(MembaToken).creationCode, abi.encode(recipient));
+    function _initcode(address recipient, address feeRecipient) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            type(MembaToken).creationCode, abi.encode("Memba Phase0", "MP0", recipient, PREMINT, feeRecipient, FEE)
+        );
     }
 
-    function _predict(address recipient) internal pure returns (address) {
+    function _predict(address recipient, address feeRecipient) internal pure returns (address) {
         return address(
             uint160(
                 uint256(
-                    keccak256(abi.encodePacked(bytes1(0xff), CREATE2_DEPLOYER, SALT, keccak256(_initcode(recipient))))
+                    keccak256(
+                        abi.encodePacked(
+                            bytes1(0xff), CREATE2_DEPLOYER, SALT, keccak256(_initcode(recipient, feeRecipient))
+                        )
+                    )
                 )
             )
         );
+    }
+
+    function _deployCall(address recipient, address feeRecipient) internal pure returns (bytes memory) {
+        return abi.encodePacked(SALT, _initcode(recipient, feeRecipient));
     }
 
     function _pack(address to, uint256 value, bytes memory data) internal pure returns (bytes memory) {
         return abi.encodePacked(uint8(0), to, value, data.length, data);
     }
 
-    function _batch(uint256 feeAmount) internal view returns (bytes memory) {
-        address token = _predict(address(creator));
-        return abi.encodeCall(
-            IMultiSend.multiSend,
-            (bytes.concat(
-                    _pack(CREATE2_DEPLOYER, 0, abi.encodePacked(SALT, _initcode(address(creator)))),
-                    _pack(token, 0, abi.encodeCall(IERC20Min.transfer, (treasury, feeAmount)))
-                ))
-        );
+    /// The creator Safe deploys its token: one Safe transaction, one CREATE2 call.
+    function _deployFromSafe() internal returns (address token, uint256 used) {
+        token = _predict(address(creator), treasury);
+        used = _execSafe(creator, CREATE2_DEPLOYER, 0, _deployCall(address(creator), treasury), Operation.Call, _two());
     }
 
     // 2e ─────────────────────────────────────────────────────────────────
 
-    function test_token_create2_with_fee_batch() public {
-        address token = _predict(address(creator));
-        uint256 used = _execSafe(creator, Addr.SAFE_MULTISEND_CALL_ONLY, 0, _batch(FEE), Operation.DelegateCall, _two());
-        _gas("Safe batch: CREATE2 Wizard ERC20Permit + 0.5% transfer (MultiSendCallOnly)", used);
+    function test_token_create2_with_fee_mint() public {
+        (address token, uint256 used) = _deployFromSafe();
+        _gas("Safe tx: CREATE2 MembaToken (ERC20Permit+Votes) with the 0.5% fee mint", used);
         assertGt(token.code.length, 0);
         assertEq(IERC20Min(token).totalSupply(), SUPPLY);
         assertEq(IERC20Min(token).balanceOf(treasury), FEE);
-        assertEq(IERC20Min(token).balanceOf(address(creator)), SUPPLY - FEE);
+        assertEq(IERC20Min(token).balanceOf(address(creator)), PREMINT);
     }
 
-    /// The batch is atomic: if the fee transfer fails, the token is not deployed either.
-    function test_token_batch_is_atomic() public {
-        address token = _predict(address(creator));
-        bytes32 h = creator.getTransactionHash(
-            Addr.SAFE_MULTISEND_CALL_ONLY,
-            0,
-            _batch(SUPPLY + 1),
-            Operation.DelegateCall,
-            0,
-            0,
-            0,
-            address(0),
-            address(0),
-            0
-        );
-        bytes memory sigs = _sign(h, _two());
-        // Safe 1.5.0 with safeTxGas = 0 bubbles the inner revert (not GS013).
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "ERC20InsufficientBalance(address,uint256,uint256)", address(creator), SUPPLY, SUPPLY + 1
-            )
-        );
-        creator.execTransaction(
-            Addr.SAFE_MULTISEND_CALL_ONLY,
-            0,
-            _batch(SUPPLY + 1),
-            Operation.DelegateCall,
-            0,
-            0,
-            0,
-            address(0),
-            payable(address(0)),
-            sigs
-        );
+    /// An EOA creates its token and pays the fee in one plain transaction (no EIP-5792 needed).
+    function test_token_create2_from_eoa() public {
+        address token = _predict(alice, treasury);
+        vm.prank(alice);
+        uint256 g = gasleft();
+        (bool ok,) = CREATE2_DEPLOYER.call(_deployCall(alice, treasury));
+        _gas("EOA call: CREATE2 MembaToken with the 0.5% fee mint", g - gasleft());
+        assertTrue(ok);
+        assertEq(IERC20Min(token).balanceOf(alice), PREMINT);
+        assertEq(IERC20Min(token).balanceOf(treasury), FEE);
+    }
+
+    /// A failing constructor (fee recipient zero) deploys nothing: the deployment and the fee are one operation.
+    function test_token_fee_mint_failure_deploys_nothing() public {
+        address token = _predict(alice, address(0));
+        vm.prank(alice);
+        (bool ok,) = CREATE2_DEPLOYER.call(_deployCall(alice, address(0)));
+        assertFalse(ok);
         assertEq(token.code.length, 0);
     }
 
-    /// Anyone can deploy the same initcode first (public CREATE2 deployer). The supply still goes to
-    /// the creator, so nothing is stolen, but the creator's batch then reverts: the UI must detect
-    /// "already deployed" and send the fee transfer alone. The fee itself is never enforced on-chain.
-    function test_token_create2_frontrun_griefs_batch() public {
-        address token = _predict(address(creator));
-        (bool ok,) = CREATE2_DEPLOYER.call(abi.encodePacked(SALT, _initcode(address(creator))));
+    /// Anyone can deploy the same initcode first (public CREATE2 deployer). The recipients are in the initcode, so
+    /// the creator still gets the premint and the treasury the fee: nothing is stolen. The creator's own call then
+    /// reverts and burns its gas limit, so the UI simulates first and treats code at the predicted address with the
+    /// expected recipients as "already created".
+    function test_token_create2_frontrun_is_harmless_but_burns_gas() public {
+        address token = _predict(address(creator), treasury);
+        (bool ok,) = CREATE2_DEPLOYER.call(_deployCall(address(creator), treasury));
         assertTrue(ok);
-        assertEq(IERC20Min(token).balanceOf(address(creator)), SUPPLY);
+        assertEq(IERC20Min(token).balanceOf(address(creator)), PREMINT);
+        assertEq(IERC20Min(token).balanceOf(treasury), FEE);
+
+        bytes memory data = _deployCall(address(creator), treasury);
         bytes32 h = creator.getTransactionHash(
-            Addr.SAFE_MULTISEND_CALL_ONLY, 0, _batch(FEE), Operation.DelegateCall, 0, 0, 0, address(0), address(0), 0
+            CREATE2_DEPLOYER, 0, data, Operation.Call, 0, 0, 0, address(0), address(0), creator.nonce()
         );
         bytes memory sigs = _sign(h, _two());
-        // The deployer reverts with no data, and a CREATE2 collision burns all the gas it was given:
-        // a wallet's estimate fails; a hard-coded gas limit is spent in full.
+        // The deployer reverts with no data, and a CREATE2 collision burns all the gas it was given.
         uint256 g = gasleft();
         vm.expectRevert(bytes(""));
         creator.execTransaction(
-            Addr.SAFE_MULTISEND_CALL_ONLY,
-            0,
-            _batch(FEE),
-            Operation.DelegateCall,
-            0,
-            0,
-            0,
-            address(0),
-            payable(address(0)),
-            sigs
+            CREATE2_DEPLOYER, 0, data, Operation.Call, 0, 0, 0, address(0), payable(address(0)), sigs
         );
-        _gas("Front-run batch: gas burnt by the reverted CREATE2 collision", g - gasleft());
+        _gas("Front-run deploy: gas burnt by the reverted CREATE2 collision", g - gasleft());
     }
 
     // 2f — Uniswap CCA v2.1.0 ─────────────────────────────────────────
@@ -164,8 +150,7 @@ abstract contract TokenLaunchTest is ForkBase {
 
     /// Creates the auction and funds it in ONE Safe batch: create, transfer, onTokensReceived.
     function _launch(uint128 required) internal returns (address token, ICcaAuction auction, uint64 start) {
-        _execSafe(creator, Addr.SAFE_MULTISEND_CALL_ONLY, 0, _batch(FEE), Operation.DelegateCall, _two());
-        token = _predict(address(creator));
+        (token,) = _deployFromSafe();
         start = uint64(block.number + 5);
         bytes memory cfg = abi.encode(_params(start, required));
         ICcaFactory f = ICcaFactory(Addr.CCA_FACTORY_V2_1_0);
@@ -260,13 +245,12 @@ abstract contract TokenLaunchTest is ForkBase {
         _execSafe(
             creator, address(auction), 0, abi.encodeCall(ICcaAuction.sweepUnsoldTokens, ()), Operation.Call, _two()
         );
-        assertEq(IERC20Min(token).balanceOf(address(creator)), SUPPLY - FEE);
+        assertEq(IERC20Min(token).balanceOf(address(creator)), PREMINT);
     }
 
     /// Parameter mistakes the UI must prevent (each reverts at creation).
     function test_cca_parameter_pitfalls() public {
-        _execSafe(creator, Addr.SAFE_MULTISEND_CALL_ONLY, 0, _batch(FEE), Operation.DelegateCall, _two());
-        address token = _predict(address(creator));
+        (address token,) = _deployFromSafe();
         ICcaFactory f = ICcaFactory(Addr.CCA_FACTORY_V2_1_0);
         uint64 start = uint64(block.number + 5);
 

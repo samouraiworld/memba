@@ -27,7 +27,7 @@ abstract contract SafeTreasuryTest is ForkBase {
         super.setUp();
         safe = _deploySafe(_owners3(), 2, uint256(keccak256("memba.phase0.safe")));
         vm.deal(address(safe), 10 ether);
-        token = new MembaToken(address(safe));
+        token = new MembaToken("MembaToken", "MBT", address(safe), 1_000_000 ether, makeAddr("fee"), 0);
     }
 
     // 2a ─────────────────────────────────────────────────────────────────

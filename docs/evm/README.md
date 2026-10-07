@@ -53,6 +53,26 @@ Fork tests use `BASE_RPC_URL` / `BASE_SEPOLIA_RPC_URL` when set (an archive endp
 2. `forge test --match-path 'test/fork/*'` on both chains; fix any test that relied on old state.
 3. Update the gas figures quoted in docs if they moved.
 
+## Token template
+
+Every Memba token is one contract, `contracts/evm/src/MembaToken.sol`: OpenZeppelin Wizard output (ERC20 + ERC20Permit + ERC20Votes with a block-number clock) where the reviewed patch `contracts/evm/wizard/MembaToken.patch` only turns the name, symbol and premint into constructor parameters and adds the fee mint:
+
+```solidity
+constructor(string name_, string symbol_, address recipient, uint256 premint_, address feeRecipient, uint256 fee_)
+```
+
+- The app deploys it through the CREATE2 deployer (`create2Deployer` in the manifest) with the bytecode in `contracts/evm/artifacts/MembaToken.json`, passing `fee_ = supply * 5 / 1000` to the team Safe and `premint_ = supply - fee_` to the creator. Deployment and fee are one transaction for any wallet; the fee stays UI-enforced (anyone can call the deployer with other arguments).
+- Amounts are in base units (18 decimals). The supply is capped at 2^208 - 1 (ERC20Votes). The name must be at most 31 bytes (UTF-8): OpenZeppelin 5.7 reverts the deployment above that. Holders have voting power only after delegating (self-delegation included).
+- A front-run of the same CREATE2 call deploys the same token with the same recipients, and the creator's own call then reverts and burns its gas limit: simulate first and treat code at the predicted address as "already created".
+- Checks: `wizard/check.sh` regenerates the source with the pinned `@openzeppelin/wizard`, refuses a patch that does anything but these edits, applies it with no fuzz and compares bytes; `script/token-artifact.sh --check` rebuilds the artifact and compares it.
+
+```bash
+cd contracts/evm
+(cd wizard && npm ci && ./check.sh)
+script/token-artifact.sh --check
+forge test --match-path 'test/unit/*'
+```
+
 ## Exceptions register
 
 | Contract | Why | Status |
