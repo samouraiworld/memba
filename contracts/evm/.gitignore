@@ -1,2 +1,5 @@
 out/
 cache/
+.canary/
+lcov.info
+crytic-export/

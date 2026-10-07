@@ -73,6 +73,19 @@ script/token-artifact.sh --check
 forge test --match-path 'test/unit/*'
 ```
 
+## Contracts CI
+
+`.github/workflows/contracts-evm.yml`; the required check is the aggregate job **`Contracts (EVM)`** (it always reports; jobs a PR does not need are skipped and count as passed).
+
+| Job | Runs when | Gate |
+|---|---|---|
+| Static gates and unit tests | `contracts/evm`, `deployments/evm` or the workflow changed; every push to `main` | `forge fmt --check`, `forge build --sizes`, unit and manifest-consistency tests, 100% line/function/branch coverage of `src/`, Wizard diff check, token artifact rebuild, canaries (`script/ci-canaries.sh`) |
+| Slither | same | Slither 0.11.6 over `src/`, fails on any finding of low severity or above |
+| Fork tests · base / base_sepolia | same | every fork suite at the pinned block; `script/check-forge-json.sh` fails if a suite did not run or a test skipped |
+| Manifest vs chains | manifest or its tests changed; push to `main`; daily 05:23 UTC | `ManifestLive` on both chains, then a drifted copy must fail. On the daily run a failure opens an issue; an unreachable RPC is only a warning there, and a failure on a PR |
+
+Optional repository secrets `BASE_RPC_URL` and `BASE_SEPOLIA_RPC_URL` (archive endpoints) are used first; `script/pick-rpc.sh` falls back to public endpoints and never prints one. Secrets are not passed to pull requests from forks, which use the public endpoints.
+
 ## Exceptions register
 
 | Contract | Why | Status |

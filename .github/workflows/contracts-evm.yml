@@ -1,0 +1,271 @@
+name: EVM Contracts
+
+# Gates for contracts/evm and deployments/evm (docs/evm/README.md):
+#   static        fmt, build + sizes, unit + manifest-consistency tests, 100% coverage of src/, the Wizard diff
+#                 check of the token template, the token artifact rebuild, and canaries proving those gates fail
+#   slither       pinned Slither over src/
+#   fork          every fork suite on Base and Base Sepolia at the pinned blocks, with a vacuity check
+#   manifest-live deployments/evm against both chains at the latest block (daily, and on manifest changes)
+# The required check is the aggregate job "Contracts (EVM)": it always reports, and skipped jobs count as passed
+# (a PR that touches nothing here skips the heavy jobs).
+#
+# RPC: optional repository secrets BASE_RPC_URL / BASE_SEPOLIA_RPC_URL (an archive endpoint), else public
+# endpoints (script/pick-rpc.sh). Endpoints are never printed. Without the secrets the pinned fork blocks must stay
+# inside the public Base Sepolia history window (docs/evm/README.md, "RPC endpoints and pinned fork blocks").
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 5 * * *' # daily live manifest check: catches upstream proxy upgrades and drift
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  FOUNDRY_VERSION: v1.4.4
+
+jobs:
+  changes:
+    name: EVM paths changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      contracts: ${{ steps.paths.outputs.contracts }}
+      manifest: ${{ steps.paths.outputs.manifest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          case "$EVENT" in
+            schedule) echo "contracts=false" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
+            pull_request) ;;
+            *) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+          files="$(git diff --name-only "$BASE_SHA"...HEAD)"
+          contracts=false
+          manifest=false
+          if grep -qE '^(contracts/evm/|deployments/evm/|\.github/workflows/contracts-evm\.yml$|\.gitmodules$)' <<<"$files"; then
+            contracts=true
+          fi
+          if grep -qE '^(deployments/evm/|contracts/evm/test/manifest/|contracts/evm/test/RpcUrl\.sol$|contracts/evm/script/(pick-rpc|ci-canaries)\.sh$|contracts/evm/foundry\.toml$|\.github/workflows/contracts-evm\.yml$)' <<<"$files"; then
+            manifest=true
+          fi
+          echo "contracts=$contracts" >>"$GITHUB_OUTPUT"
+          echo "manifest=$manifest" >>"$GITHUB_OUTPUT"
+          echo "contracts=$contracts manifest=$manifest"
+
+  static:
+    name: Static gates and unit tests
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: contracts/evm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: contracts/evm/wizard/package-lock.json
+
+      - name: Format
+        run: forge fmt --check
+      - name: Build (contract sizes)
+        run: forge build --sizes
+      - name: Unit tests
+        run: |
+          forge test --match-path 'test/unit/*' --json >unit.json || true
+          script/check-forge-json.sh unit.json 'Test$' test/unit
+      - name: Manifest consistency (offline)
+        run: |
+          forge test --match-contract ManifestConsistencyTest --json >consistency.json || true
+          script/check-forge-json.sh consistency.json '^ManifestConsistencyTest$' test/manifest
+      - name: Coverage of Memba-owned contracts (100%)
+        run: |
+          forge coverage --ir-minimum --match-path 'test/unit/*' --no-match-coverage '^(test|script)/' --report lcov
+          script/check-coverage.sh lcov.info
+      - name: Token template = pinned Wizard output + reviewed patch
+        run: |
+          (cd wizard && npm ci --ignore-scripts --no-audit --no-fund)
+          wizard/check.sh
+      - name: Token artifact is reproducible
+        run: script/token-artifact.sh --check
+      - name: Canaries (each gate above must fail on a broken input)
+        run: script/ci-canaries.sh
+
+  slither:
+    name: Slither
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: contracts/evm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install Slither (pinned)
+        run: python -m pip install --disable-pip-version-check slither-analyzer==0.11.6 crytic-compile==0.4.2
+      - name: Slither over src/
+        run: slither . --filter-paths 'lib/|test/|script/' --fail-low
+
+  fork:
+    name: Fork tests · ${{ matrix.chain }}
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chain: base
+            block_const: BASE_FORK_BLOCK
+            suites: 'BaseTest$'
+          - chain: base_sepolia
+            block_const: BASE_SEPOLIA_FORK_BLOCK
+            suites: 'BaseSepoliaTest$'
+    defaults:
+      run:
+        working-directory: contracts/evm
+    env:
+      BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+      BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+          # Fork reads at the pinned blocks never change: cache them per chain and pin set.
+          cache-key: fork-${{ matrix.chain }}-${{ hashFiles('contracts/evm/test/fork/Addresses.sol') }}
+          cache-restore-keys: fork-${{ matrix.chain }}-
+      - name: Pick an endpoint that serves the pinned block
+        env:
+          CHAIN: ${{ matrix.chain }}
+          BLOCK_CONST: ${{ matrix.block_const }}
+        run: |
+          block="$(sed -nE "s/.*${BLOCK_CONST} = ([0-9_]+);.*/\1/p" test/fork/Addresses.sol | tr -d _)"
+          [ -n "$block" ] || { echo "::error::no ${BLOCK_CONST} in Addresses.sol"; exit 1; }
+          script/pick-rpc.sh "$CHAIN" "$block"
+      - name: Fork suites
+        env:
+          SUITES: ${{ matrix.suites }}
+        run: |
+          forge test --match-path 'test/fork/*' --match-contract "$SUITES" --json >fork.json || true
+          script/check-forge-json.sh fork.json "$SUITES" test/fork
+
+  manifest-live:
+    name: Manifest vs chains
+    needs: changes
+    if: needs.changes.outputs.manifest == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: contracts/evm
+    env:
+      BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+      BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+      EVENT: ${{ github.event_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+          cache: false
+      # No endpoint answering is fatal when a change is being verified (an unverified manifest must not merge),
+      # and only a warning on the daily run. A mismatch is always fatal.
+      - name: Pick endpoints
+        id: rpc
+        run: |
+          ok=true
+          script/pick-rpc.sh base || ok=false
+          script/pick-rpc.sh base_sepolia || ok=false
+          echo "ok=$ok" >>"$GITHUB_OUTPUT"
+          if [ "$ok" = false ]; then
+            if [ "$EVENT" = schedule ]; then
+              echo "::warning::no RPC endpoint answered; the live manifest check did not run"
+            else
+              echo "::error::no RPC endpoint answered; re-run the job"
+              exit 1
+            fi
+          fi
+      - name: Manifest at the latest block, both chains
+        if: steps.rpc.outputs.ok == 'true'
+        run: |
+          forge test --match-path 'test/manifest/ManifestLive.t.sol' --json >live.json || true
+          script/check-forge-json.sh live.json '^ManifestLive' test/manifest
+      - name: Canary (a drifted manifest must fail)
+        if: steps.rpc.outputs.ok == 'true'
+        run: script/ci-canaries.sh --live
+
+  alert:
+    name: Open an issue on a failed daily manifest check
+    needs: manifest-live
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - run: |
+          title="EVM manifest no longer matches the chain"
+          if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[].number')" ]; then
+            gh issue create --title "$title" --body "The daily check of deployments/evm against Base / Base Sepolia failed: $RUN_URL
+
+          A contract changed on chain (an upstream proxy upgrade, a redeploy) or an endpoint misbehaved. Re-verify the new code, then update the manifest entry (docs/evm/README.md, Deployment manifest)."
+          fi
+
+  aggregate:
+    name: Contracts (EVM)
+    needs: [changes, static, slither, fork, manifest-live]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$RESULTS" | jq -e '[.[].result] | any(. == "failure" or . == "cancelled")' >/dev/null; then
+            echo "::error::an EVM contracts gate failed"
+            exit 1
+          fi

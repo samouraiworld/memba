@@ -5,7 +5,7 @@
 # Usage (from contracts/evm): script/token-artifact.sh [--check]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-target=artifacts/MembaToken.json
+target="${TOKEN_ARTIFACT:-artifacts/MembaToken.json}" # override only for the CI canary
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 
