@@ -31,6 +31,9 @@ type Claims struct {
 	Subject string
 	// Email is set only when the provider reports it verified.
 	Email string
+	// IssuedAt orders sessions: one issued before the stored address last
+	// changed must not change it back.
+	IssuedAt time.Time
 }
 
 // Verifier checks Clerk session JWTs against the instance's public keys,
@@ -99,6 +102,9 @@ func (v *Verifier) Verify(token string) (Claims, error) {
 		return Claims{}, ErrToken
 	}
 	out := Claims{Subject: c.Subject}
+	if c.IssuedAt != nil {
+		out.IssuedAt = c.IssuedAt.Time
+	}
 	if string(c.EmailVerified) == "true" {
 		out.Email = c.Email
 	}

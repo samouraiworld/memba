@@ -94,6 +94,20 @@ flyctl secrets set CLERK_JWT_KEYS='{"<new kid>":"<new PEM>"}' --app memba-backen
 
 ---
 
+## Resend (optional account email): RESEND_API_KEY, MEMBA_EMAIL_LINK_SECRET
+
+**Impact of compromise:** `RESEND_API_KEY`: mail can be sent as Memba and contacts read. `MEMBA_EMAIL_LINK_SECRET`: confirmation links can be forged for addresses that asked.
+**Impact of rotation:** a new `MEMBA_EMAIL_LINK_SECRET` voids the links not yet used (people ask again). A new `RESEND_API_KEY` has no user-visible effect.
+
+```bash
+# RESEND_API_KEY: create a new key in Resend, set it, then revoke the old one
+flyctl secrets set RESEND_API_KEY=<new> --app memba-backend
+# MEMBA_EMAIL_LINK_SECRET: 32 random bytes or more
+flyctl secrets set MEMBA_EMAIL_LINK_SECRET=$(openssl rand -base64 48) --app memba-backend
+```
+
+---
+
 ## GITHUB_OAUTH_CLIENT_SECRET (OAuth Identity Verification)
 
 **Impact of compromise:** Attacker can exchange OAuth codes for GitHub access tokens.

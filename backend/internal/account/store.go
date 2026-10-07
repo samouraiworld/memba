@@ -13,50 +13,71 @@ type Account struct {
 	ID              string `json:"id"`
 	Email           string `json:"email,omitempty"`
 	EmailVerifiedAt string `json:"emailVerifiedAt,omitempty"`
-	CreatedAt       string `json:"createdAt"`
+	// EmailUndeliverable: the provider reported a permanent bounce or a complaint for this address.
+	EmailUndeliverable bool   `json:"emailUndeliverable,omitempty"`
+	CreatedAt          string `json:"createdAt"`
+	emailChangedAt     string
 }
 
 const idp = "clerk"
 
-// Ensure returns the account of a verified session. The first call creates
-// it; every call keeps the stored email equal to the provider's verified one
-// (none when the provider reports it unverified).
-func Ensure(ctx context.Context, db *sql.DB, c Claims, now time.Time) (Account, error) {
+// Ensure returns the account of a verified session, creating it on first use.
+// It does not change the stored address: (*handler).followEmail does, after
+// the email provider has let go of the old one.
+func Ensure(ctx context.Context, db *sql.DB, subject string, now time.Time) (Account, error) {
 	id := make([]byte, 16)
 	if _, err := rand.Read(id); err != nil {
 		return Account{}, err
 	}
-	at := now.UTC().Format(time.RFC3339)
 	if _, err := db.ExecContext(ctx,
 		"INSERT OR IGNORE INTO accounts (id, idp, idp_subject, created_at) VALUES (?, ?, ?, ?)",
-		hex.EncodeToString(id), idp, c.Subject, at,
+		hex.EncodeToString(id), idp, subject, now.UTC().Format(time.RFC3339),
 	); err != nil {
 		return Account{}, err
 	}
 	var a Account
-	var email, verifiedAt sql.NullString
+	var email, verifiedAt, undeliverable, changedAt sql.NullString
 	if err := db.QueryRowContext(ctx,
-		"SELECT id, email, email_verified_at, created_at FROM accounts WHERE idp = ? AND idp_subject = ?",
-		idp, c.Subject,
-	).Scan(&a.ID, &email, &verifiedAt, &a.CreatedAt); err != nil {
+		"SELECT id, email, email_verified_at, email_undeliverable_at, email_changed_at, created_at FROM accounts WHERE idp = ? AND idp_subject = ?",
+		idp, subject,
+	).Scan(&a.ID, &email, &verifiedAt, &undeliverable, &changedAt, &a.CreatedAt); err != nil {
 		return Account{}, err
 	}
-	a.Email, a.EmailVerifiedAt = email.String, verifiedAt.String
-	if a.Email == c.Email {
-		return a, nil
-	}
-	// A new address starts deliverable; no address means no verification time.
-	a.Email, a.EmailVerifiedAt = c.Email, ""
+	a.Email, a.EmailVerifiedAt, a.EmailUndeliverable, a.emailChangedAt = email.String, verifiedAt.String, undeliverable.Valid, changedAt.String
+	return a, nil
+}
+
+// setEmail stores the provider's verified address (none when it reports it
+// unverified), only if the stored one is still `from`: concurrent calls change
+// it once. It reports whether this call changed it.
+func setEmail(ctx context.Context, tx *sql.Tx, a *Account, from, to string, now time.Time) (bool, error) {
+	at := now.UTC().Format(time.RFC3339)
 	var stored, verified any
-	if c.Email != "" {
-		a.EmailVerifiedAt = at
-		stored, verified = c.Email, at
+	if to != "" {
+		stored, verified = to, at
 	}
-	_, err := db.ExecContext(ctx,
-		"UPDATE accounts SET email = ?, email_verified_at = ?, email_undeliverable_at = NULL WHERE id = ?",
-		stored, verified, a.ID,
+	res, err := tx.ExecContext(ctx,
+		"UPDATE accounts SET email = ?, email_verified_at = ?, email_undeliverable_at = NULL, email_changed_at = ? WHERE id = ? AND email IS ?",
+		stored, verified, at, a.ID, nullable(from),
 	)
-	return a, err
+	if err != nil {
+		return false, err
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 1 {
+		return false, err
+	}
+	a.Email, a.EmailVerifiedAt, a.EmailUndeliverable, a.emailChangedAt = to, "", false, at
+	if to != "" {
+		a.EmailVerifiedAt = at
+	}
+	return true, nil
+}
+
+func nullable(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 // Delete removes the account; every row that references it goes with it

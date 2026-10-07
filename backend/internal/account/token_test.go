@@ -84,7 +84,7 @@ func TestVerifyAcceptsAClerkSessionAndReadsOnlyAVerifiedEmail(t *testing.T) {
 	k := newKey(t, "ins_1")
 	v := verifier(t, k)
 	got, err := v.Verify(sign(t, k, claims(nil)))
-	if err != nil || got != (Claims{Subject: "user_1", Email: "ada@example.org"}) {
+	if err != nil || got.Subject != "user_1" || got.Email != "ada@example.org" || !got.IssuedAt.Equal(now) {
 		t.Fatalf("got %+v, %v", got, err)
 	}
 	for name, verified := range map[string]any{"false": false, "string true": "true", "missing": nil} {

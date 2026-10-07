@@ -589,11 +589,19 @@ func main() {
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	// The state is bound to the requesting wallet, so this needs the session too.
 	// The optional Memba account (off-chain extras), authenticated by the
-	// identity provider's session JWT, never by the wallet token. Off unless
-	// MEMBA_ACCOUNT_ENABLED=1; 503 without a usable CLERK_JWT_KEYS.
-	accountHandler := maxBodySize(1<<10, account.NewHandler(database, os.Getenv("MEMBA_ACCOUNT_ENABLED") == "1", os.Getenv("CLERK_JWT_KEYS")))
-	mux.Handle("/api/account", rateLimitMiddleware("account", accountHandler))
-	mux.Handle("/api/account/", rateLimitMiddleware("account", accountHandler))
+	// identity provider's session JWT, never by the wallet token; consent
+	// confirmations by their signed link.
+	// Off unless MEMBA_ACCOUNT_ENABLED=1; 503 when any of its settings is unusable.
+	accountHandler := account.NewHandler(database, account.Config{
+		Enabled:      os.Getenv("MEMBA_ACCOUNT_ENABLED") == "1",
+		JWTKeys:      os.Getenv("CLERK_JWT_KEYS"),
+		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
+		LinkSecret:   os.Getenv("MEMBA_EMAIL_LINK_SECRET"),
+		TopicIDs:     os.Getenv("RESEND_TOPIC_IDS"),
+	})
+	mux.Handle("/api/account", rateLimitMiddleware("account", maxBodySize(1<<10, accountHandler)))
+	mux.Handle("/api/account/", rateLimitMiddleware("account", maxBodySize(1<<10, accountHandler)))
+	mux.Handle("/api/consent/confirm", rateLimitMiddleware("consent_confirm", maxBodySize(4<<10, accountHandler)))
 
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", githubOAuthStateHandler(svc, oauthStore)))
 	// The exchange writes the verified link onto the caller's profile, so it
