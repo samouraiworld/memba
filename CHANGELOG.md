@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Guest banner wording (2026-10-08)
+- Memba OS: the guest banner says Connect to sign instead of Connect to vote, which only made sense over a DAO
+
 ### Dependencies (2026-10-08)
 - Security: the HTML sanitiser (`dompurify`) is raised past its latest advisory (GHSA-p98j-92pf-mc4p, GHSA-6688-9rhm-gjv2)
 - React 19.3, react-router 7.18.4, TanStack Query 5.104, Sentry 10.76, protobuf 2.16, zod 4.6 and the backend's SQLite driver 1.60.1 are current

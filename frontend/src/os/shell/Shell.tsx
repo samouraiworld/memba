@@ -514,7 +514,8 @@ export function Shell() {
             {bannerUp && (
                 <div className="os-banner os-glass" role="status" inert={modalBlocked} aria-hidden={modalBlocked}>
                     Browsing as guest
-                    <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
+                    {/* Over any window (Tokens, Validators, a DAO): true everywhere, unlike "vote". */}
+                    <button type="button" className="os-btn" onClick={session.openConnect}>Connect to sign</button>
                 </div>
             )}
             <Dock wins={win.wins} family={session.network.family} openApp={openApp} restore={win.focus} locked={modalBlocked} />

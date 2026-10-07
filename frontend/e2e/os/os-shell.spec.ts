@@ -158,7 +158,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(page.getByRole('region', { name: 'memba_dao · Proposal #12' })).toBeVisible()
         await expect(page.getByText('Browsing as guest')).toBeVisible()
         await expect(lockScreen(page)).toHaveCount(0)
-        await page.getByRole('status').getByRole('button', { name: 'Connect to vote' }).click()
+        await page.getByRole('status').getByRole('button', { name: 'Connect to sign' }).click()
         await expect(connectModal(page)).toBeVisible()
     })
 

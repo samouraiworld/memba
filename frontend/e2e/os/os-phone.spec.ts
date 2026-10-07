@@ -59,6 +59,23 @@ test.describe('Memba OS on a phone', () => {
         await noOverflow(page)
     })
 
+    test('a guest reloading a non-DAO window gets no overlay over its content', async ({ page }) => {
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+        await page.goto(`${OS_ON}/os/tokens`)
+        const tokens = sheet(page, 'Tokens')
+        await expect(tokens).toBeVisible()
+        await page.reload()
+        await expect(tokens).toBeVisible()
+        // The desktop guest banner is not drawn on a phone; the sheet's own content is on top.
+        await expect(page.locator('.os-banner')).toHaveCount(0)
+        const covered = await tokens.evaluate((el) => {
+            const r = el.getBoundingClientRect()
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + 24)
+            return !!hit && !el.contains(hit)
+        })
+        expect(covered).toBe(false)
+    })
+
     test('a shared link opens straight as a sheet; Home and back work; DAO tabs follow the address', async ({ page }) => {
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os/dao/govdao/proposals/4`)

@@ -150,7 +150,7 @@ test('a desktop game pauses while wallet connection blocks the desk', async ({ p
     const barricade = page.getByRole('region', { name: 'BARRICADE · Arcade' })
     await barricade.getByRole('button', { name: 'Practice', exact: true }).click()
     await expect(barricade.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
-    await page.getByRole('status').getByRole('button', { name: 'Connect to vote' }).click()
+    await page.getByRole('status').getByRole('button', { name: 'Connect to sign' }).click()
     await expect(page.getByRole('dialog', { name: /connect a wallet/i })).toBeVisible()
     await expect(page.locator('.bar-pause')).toHaveCount(1)
     await page.getByRole('button', { name: 'Not now' }).click()
