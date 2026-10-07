@@ -4,7 +4,8 @@
  *
  * Sources: safe-global/safe-deployments 1.37.63 (addresses and codehashes,
  * v1.3.0 canonical and eip155, v1.4.1, v1.5.0), checked on chain by the Phase 0
- * fork tests (docs/evm/PHASE0.md) and, on 2026-10-07, every v1.3.0 canonical
+ * fork tests (docs/evm/PHASE0.md) and the per-chain manifests
+ * (deployments/evm/<chainId>.json) for v1.5.0, and, on 2026-10-07, every v1.3.0 canonical
  * and eip155 singleton, fallback handler and MultiSend by codehash on both
  * chains. Proxy runtime codehashes: v1.3.0 from the factory's
  * `proxyRuntimeCode()`; v1.4.1 and v1.5.0 from running each factory's

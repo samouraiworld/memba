@@ -5,25 +5,27 @@ import { describe, expect, it } from "vitest"
 import { getAddress, keccak256, toBytes } from "viem"
 import {
     CREATE_SINGLETON, isKnownFallbackHandler, isKnownProxyCodeHash, multiSendAt, SAFE_FALLBACK_HANDLERS, SAFE_MULTISENDS,
-    SAFE_PROXY_CODE_HASHES, SAFE_PROXY_FACTORY_1_5_0, SAFE_SINGLETONS, SAFE_SLOTS, singletonAt,
+    SAFE_CHAIN_IDS, SAFE_PROXY_CODE_HASHES, SAFE_PROXY_FACTORY_1_5_0, SAFE_SINGLETONS, SAFE_SLOTS, singletonAt,
 } from "./known"
 
-// The fork-verified constants (Phase 0): the frontend table must agree with them.
-const forkAddresses = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../../../../contracts/evm/test/fork/Addresses.sol"), "utf8")
-const fork = (name: string) => {
-    const m = new RegExp(`constant ${name} =\\s*(0x[0-9a-fA-F]+);`).exec(forkAddresses)
-    if (!m) throw new Error(`${name} not in Addresses.sol`)
-    return m[1]
-}
+// The manifests checked against each chain (deployments/evm/<chainId>.json): the frontend table must agree with them.
+const repo = join(dirname(fileURLToPath(import.meta.url)), "../../../../../..")
+const manifests = [8453, 84532].map((id) => JSON.parse(readFileSync(join(repo, `deployments/evm/${id}.json`), "utf8")) as {
+    chainId: number
+    contracts: Record<string, { address: string; codehash: string; version?: string }>
+})
 
 describe("the Safe contracts Memba recognises", () => {
-    it("matches the Phase 0 fork-verified v1.5.0 addresses and codehashes", () => {
-        expect(singletonAt(fork("SAFE"))).toMatchObject({ version: "1.5.0", l2: false, codeHash: fork("SAFE_CODEHASH") })
-        expect(singletonAt(fork("SAFE_L2"))).toMatchObject({ version: "1.5.0", l2: true, codeHash: fork("SAFE_L2_CODEHASH") })
-        expect(SAFE_PROXY_FACTORY_1_5_0).toBe(fork("SAFE_PROXY_FACTORY"))
-        expect(isKnownFallbackHandler(fork("SAFE_FALLBACK_HANDLER"))).toBe(true)
-        expect(multiSendAt(fork("SAFE_MULTISEND"))).toMatchObject({ version: "1.5.0", kind: "multiSend" })
-        expect(multiSendAt(fork("SAFE_MULTISEND_CALL_ONLY"))).toMatchObject({ version: "1.5.0", kind: "multiSendCallOnly" })
+    it("matches the v1.5.0 contracts each chain's manifest pins, address and codehash", () => {
+        for (const { chainId, contracts: c } of manifests) {
+            expect(SAFE_CHAIN_IDS).toContain(chainId)
+            expect(singletonAt(c.safeSingleton.address)).toMatchObject({ version: "1.5.0", l2: false, codeHash: c.safeSingleton.codehash })
+            expect(singletonAt(c.safeL2Singleton.address)).toMatchObject({ version: "1.5.0", l2: true, codeHash: c.safeL2Singleton.codehash })
+            expect(SAFE_PROXY_FACTORY_1_5_0).toBe(c.safeProxyFactory.address)
+            expect(isKnownFallbackHandler(c.safeFallbackHandler.address)).toBe(true)
+            expect(multiSendAt(c.safeMultiSend.address)).toMatchObject({ version: "1.5.0", kind: "multiSend" })
+            expect(multiSendAt(c.safeMultiSendCallOnly.address)).toMatchObject({ version: "1.5.0", kind: "multiSendCallOnly" })
+        }
     })
 
     it("creates Safes with SafeL2 v1.5.0", () => {
@@ -47,8 +49,8 @@ describe("the Safe contracts Memba recognises", () => {
         expect(singletonAt(CREATE_SINGLETON.address.toLowerCase())).toBe(CREATE_SINGLETON)
         expect(singletonAt(CREATE_SINGLETON.address.toUpperCase().replace("0X", "0x"))).toBe(CREATE_SINGLETON)
         expect(singletonAt("0x0000000000000000000000000000000000000001")).toBeUndefined()
-        expect(multiSendAt(fork("SAFE_L2"))).toBeUndefined()
-        expect(isKnownFallbackHandler(fork("SAFE_MULTISEND"))).toBe(false)
+        expect(multiSendAt(manifests[0].contracts.safeL2Singleton.address)).toBeUndefined()
+        expect(isKnownFallbackHandler(manifests[0].contracts.safeMultiSend.address)).toBe(false)
         expect(isKnownProxyCodeHash(SAFE_PROXY_CODE_HASHES["1.4.1"].toUpperCase().replace("0X", "0x"))).toBe(true)
         expect(isKnownProxyCodeHash(CREATE_SINGLETON.codeHash)).toBe(false)
     })
