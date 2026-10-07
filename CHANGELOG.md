@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Signing: "nothing was sent" (2026-10-08)
+- Memba OS: when a signature stops before the wallet (a failed read, a risen fee, a refusal), the sheet now says nothing was sent
+
 ### DAO analyst MCP server removed (2026-10-07)
 - Removed the DAO analyst MCP server, whose analysis tools called a backend endpoint that does not exist
 

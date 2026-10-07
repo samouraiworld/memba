@@ -208,7 +208,7 @@ describe("submitReview", () => {
         fee.mockResolvedValueOnce(20_400)
         await expect(beforeSign!()).resolves.toBeUndefined()
         fee.mockResolvedValueOnce(20_401)
-        await expect(beforeSign!()).rejects.toThrow("The network fee increased since review. Try again to see the new fee.")
+        await expect(beforeSign!()).rejects.toThrow("The network fee increased since review. Nothing was sent. Try again to see the new fee.")
     })
 
     it("sends nothing the realm would refuse after charging the fee", async () => {

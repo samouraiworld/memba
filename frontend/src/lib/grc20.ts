@@ -352,7 +352,7 @@ export async function assertFeeStillCovers(
     let fresh: number | bigint
     try { fresh = await freshFeeUgnot() }
     catch { throw new Error("Couldn't confirm the current network fee. Nothing was sent; try again when the network is available.") }
-    if (fresh > reviewedFeeUgnot) throw new Error(`The network fee increased since review. ${next}`)
+    if (fresh > reviewedFeeUgnot) throw new Error(`The network fee increased since review. Nothing was sent. ${next}`)
 }
 
 export async function doContractBroadcast(
