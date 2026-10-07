@@ -74,7 +74,8 @@ export type SignResult =
     | { outcome: "failed" | "cancelled"; error: string }
     /** Signed, sent, and refused by the node: final. `error` carries the node's reason. */
     | { outcome: "refused"; error: string }
-    | { outcome: "unknown"; error: string; hash: string }
+    /** `hash` when the transaction is known to exist (an EVM wallet error can leave it unknown). */
+    | { outcome: "unknown"; error: string; hash?: string }
 
 export type SettledOutcome = "confirmed" | "submitted" | "failed" | "cancelled" | "unknown"
 

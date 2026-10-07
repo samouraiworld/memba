@@ -14,6 +14,7 @@
  *
  * @module lib/chain/evm/networks
  */
+import { NETWORK_PREF_STORAGE_KEY } from "../../config"
 
 export interface EvmNetwork {
     /** EIP-155 chain id. */
@@ -51,4 +52,18 @@ export const EVM_NETWORKS: Readonly<Record<string, EvmNetwork>> = Object.freeze(
 /** Whether `key` names an EVM network that may be offered or restored. Only the registry's own keys count. */
 export function isVisibleEvmNetworkKey(key: string | null | undefined): key is string {
     return !!key && Object.hasOwn(EVM_NETWORKS, key) && !EVM_NETWORKS[key].hidden
+}
+
+/**
+ * The EVM network this page runs on: the stored network choice when it names a
+ * visible EVM network, else null (the page is on gno.land). A switch reloads, so
+ * the answer never changes in a page's life. Callers check VITE_ENABLE_EVM.
+ */
+export function storedEvmNetworkKey(): string | null {
+    try {
+        const pref = localStorage.getItem(NETWORK_PREF_STORAGE_KEY)
+        return isVisibleEvmNetworkKey(pref) ? pref : null
+    } catch {
+        return null
+    }
 }

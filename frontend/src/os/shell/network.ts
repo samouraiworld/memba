@@ -19,7 +19,7 @@ import {
     isNetworkKey,
     selectableNetworksFor,
 } from "../../lib/config"
-import { EVM_NETWORKS, isVisibleEvmNetworkKey } from "../../lib/chain/evm/networks"
+import { EVM_NETWORKS, isVisibleEvmNetworkKey, storedEvmNetworkKey } from "../../lib/chain/evm/networks"
 import { EVM_ENABLED } from "../../lib/chain/flag"
 import type { ChainFamily } from "../../lib/chain/types"
 import { OS_NET_SWITCHED_KEY } from "../../lib/networkSwitch"
@@ -51,16 +51,6 @@ function describe(key: string): OsNetwork {
     }
     const n = NETWORKS[key]
     return { key, family: "gno", chainId: n.chainId, label: n.label, isTestnet: !!n.isTestnet, rpcHost: hostOf(n.rpcUrl) }
-}
-
-/** The stored choice when it names a visible EVM network, else null. */
-function storedEvmNetworkKey(): string | null {
-    try {
-        const pref = localStorage.getItem(NETWORK_PREF_STORAGE_KEY)
-        return isVisibleEvmNetworkKey(pref) ? pref : null
-    } catch {
-        return null
-    }
 }
 
 /** The network this page's Memba OS was loaded on. A switch reloads, so it never changes in a page's life. */

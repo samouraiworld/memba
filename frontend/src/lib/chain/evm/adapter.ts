@@ -9,7 +9,7 @@ import { createConfig, createStorage, getPublicClient, http, injected } from "@w
 import { base, baseSepolia, type Chain } from "viem/chains"
 import type { Read, TxResult } from "../types"
 import { readChainStatus, type ChainStatus } from "./chainCheck"
-import { EVM_NETWORKS } from "./networks"
+import { EVM_NETWORKS, storedEvmNetworkKey } from "./networks"
 import { createEvmWallet } from "./wallet"
 import { sendEvmWriteWith, type EvmWrite } from "./send"
 
@@ -55,5 +55,6 @@ export function readNetworkStatus(key: string): Promise<Read<ChainStatus>> {
 
 /** The one send path for EVM writes (lib/chain/evm/send.ts), on Memba's wallet config. */
 export function sendEvmWrite(write: EvmWrite, opts?: { receiptTimeoutMs?: number }): Promise<TxResult> {
-    return sendEvmWriteWith(evmConfig, write, opts)
+    const here = storedEvmNetworkKey()
+    return sendEvmWriteWith(evmConfig, here ? EVM_NETWORKS[here].chainId : null, write, opts)
 }

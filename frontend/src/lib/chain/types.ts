@@ -24,4 +24,5 @@ export type TxResult =
     | { outcome: "sent"; hash: string; result?: unknown }
     | { outcome: "failed" | "cancelled"; error: string }
     | { outcome: "refused"; error: string; hash?: string }
-    | { outcome: "unknown"; error: string; hash: string }
+    /** `hash` when the transaction is known to exist; without it, the wallet may or may not have sent it. */
+    | { outcome: "unknown"; error: string; hash?: string }
