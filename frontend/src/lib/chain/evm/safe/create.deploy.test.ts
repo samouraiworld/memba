@@ -5,11 +5,10 @@ import { confirmNewSafe, deployNewSafe, planNewSafe, SafeActionError, type NewSa
 const mocks = vi.hoisted(() => ({ send: vi.fn(), receipt: vi.fn(), inspect: vi.fn(), getCode: vi.fn(), kit: { getAddress: vi.fn(), createSafeDeploymentTransaction: vi.fn() }, init: vi.fn() }))
 vi.mock("@wagmi/core", async (orig) => ({
     ...(await orig<typeof import("@wagmi/core")>()),
-    sendTransaction: mocks.send,
-    waitForTransactionReceipt: mocks.receipt,
     getConnectorClient: async () => ({ account: { address: "0xa11ce00000000000000000000000000000000001" } }),
-    getPublicClient: () => ({ getCode: mocks.getCode }),
+    getPublicClient: () => ({ getCode: mocks.getCode, waitForTransactionReceipt: mocks.receipt }),
 }))
+vi.mock("../adapter", async (orig) => ({ ...(await orig<typeof import("../adapter")>()), sendEvmWrite: mocks.send }))
 vi.mock("@safe-global/protocol-kit", () => ({ default: { init: mocks.init } }))
 vi.mock("./inspect", () => ({ inspectSafe: mocks.inspect }))
 vi.mock("./reader", () => ({ safeReader: () => ({}) }))
@@ -38,7 +37,7 @@ async function reason(p: Promise<unknown>): Promise<unknown> {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    mocks.send.mockResolvedValue(HASH)
+    mocks.send.mockResolvedValue({ outcome: "unknown", hash: HASH, error: "not seen yet" })
     mocks.receipt.mockResolvedValue({ status: "success", logs: [] })
     mocks.inspect.mockResolvedValue(theSafe)
     mocks.getCode.mockResolvedValue(undefined)
@@ -67,7 +66,7 @@ describe("sending and confirming a Safe creation", () => {
     it("sends on the plan's chain and confirms the Safe", async () => {
         const sent = vi.fn()
         expect(await reason(deployNewSafe("base-sepolia", plan, sent))).toBe("ok")
-        expect(mocks.send).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ account: A, chainId: 84532, to: plan.tx.to }))
+        expect(mocks.send).toHaveBeenCalledWith({ chainId: 84532, from: A, to: plan.tx.to, data: plan.tx.data, value: 0n }, { receiptTimeoutMs: 1 })
         expect(sent).toHaveBeenCalledWith(HASH)
     })
 
@@ -130,8 +129,29 @@ describe("sending and confirming a Safe creation", () => {
         expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "unconfirmed", hash: HASH })
     })
 
-    it("reads a declined request through wrapped errors", async () => {
-        mocks.send.mockRejectedValueOnce(Object.assign(new Error("tx failed"), { name: "TransactionExecutionError", cause: Object.assign(new Error("rpc"), { name: "RpcRequestError", cause: { code: 4001 } }) }))
+    it("maps the send path's outcomes: cancelled, failed with nothing sent, and any outcome with a hash checked at the address", async () => {
+        mocks.send.mockResolvedValueOnce({ outcome: "cancelled", error: "You rejected it. Nothing was sent." })
         expect(await reason(deployNewSafe("base-sepolia", plan))).toEqual({ code: "declined" })
+        mocks.send.mockResolvedValueOnce({ outcome: "failed", error: "Your wallet is on chain 1, but this transaction is for Base Sepolia (84532). Switch the wallet, then try again. Nothing was sent." })
+        expect(await reason(deployNewSafe("base-sepolia", plan))).toEqual({ code: "failed", detail: "Your wallet is on chain 1, but this transaction is for Base Sepolia (84532). Switch the wallet, then try again" })
+        // No hash, but maybe sent: the address decides; nothing there means "check your wallet".
+        mocks.send.mockResolvedValueOnce({ outcome: "unknown", error: "Check your wallet's activity before retrying" })
+        mocks.inspect.mockResolvedValueOnce({ kind: "ok", value: { kind: "not-a-safe", reason: "no-contract" } })
+        expect(await reason(deployNewSafe("base-sepolia", plan))).toEqual({ code: "failed", detail: "Check your wallet's activity before retrying" })
+        mocks.send.mockResolvedValueOnce({ outcome: "unknown", error: "Check your wallet's activity before retrying" })
+        expect(await reason(deployNewSafe("base-sepolia", plan))).toBe("ok")
+        // Failed and cancelled are known to have sent nothing: the address isn't read.
+        mocks.inspect.mockClear()
+        mocks.send.mockResolvedValueOnce({ outcome: "failed", error: "Nope. Nothing was sent." })
+        expect(await reason(deployNewSafe("base-sepolia", plan))).toEqual({ code: "failed", detail: "Nope" })
+        expect(mocks.inspect).not.toHaveBeenCalled()
+        // A replacement or a revert with a hash: the address decides (here the planned Safe is there).
+        for (const outcome of ["sent", "refused", "unknown"]) {
+            const onSent = vi.fn()
+            mocks.send.mockResolvedValueOnce({ outcome, hash: HASH, error: "x" })
+            mocks.receipt.mockResolvedValueOnce({ status: outcome === "sent" ? "success" : "reverted", logs: [] })
+            expect(await reason(deployNewSafe("base-sepolia", plan, onSent))).toBe("ok")
+            expect(onSent).toHaveBeenCalledWith(HASH)
+        }
     })
 })

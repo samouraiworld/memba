@@ -11,10 +11,11 @@
  *
  * @module lib/chain/evm/safe/create
  */
-import { getConnectorClient, getPublicClient, sendTransaction, waitForTransactionReceipt } from "@wagmi/core"
+import { getConnectorClient, getPublicClient } from "@wagmi/core"
 import { decodeFunctionData, keccak256, parseAbi, type Hex } from "viem"
 import Safe, { type Eip1193Provider, type PredictedSafeProps } from "@safe-global/protocol-kit"
-import { chainFor, evmConfig } from "../adapter"
+import type { TxResult } from "../../types"
+import { chainFor, evmConfig, sendEvmWrite } from "../adapter"
 import { CREATE_SINGLETON, SAFE_FALLBACK_HANDLERS, SAFE_PROXY_FACTORY_1_5_0 } from "./known"
 import { inspectSafe, type SafeInspection } from "./inspect"
 import { safeReader } from "./reader"
@@ -79,6 +80,15 @@ const SETUP_ABI = parseAbi(["function setup(address[] _owners, uint256 _threshol
 const HANDLER_1_5_0 = SAFE_FALLBACK_HANDLERS.find((h) => h.version === "1.5.0")!.address
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+
+/** How long a creation's receipt is awaited before "Check again" is offered. */
+const RECEIPT_TIMEOUT_MS = 120_000
+/**
+ * sendEvmWrite waits for the receipt itself; asking it to wait only this long
+ * returns the hash as soon as the wallet sent it, so it is saved (onSent) before
+ * the wait, which confirmNewSafe then does with the predicted-address read.
+ */
+const HASH_FIRST_MS = 1
 
 /** Throws unless the deployment creates exactly the requested SafeL2 v1.5.0. */
 export function assertDeployment(tx: { to: string; data: string; value: string | bigint }, owners: readonly string[], threshold: number, saltNonce: bigint): void {
@@ -160,6 +170,17 @@ async function plannedSafeAt(networkKey: string, plan: NewSafePlan): Promise<Ext
     return safe
 }
 
+/** What the send path's outcome means here: the hash when one exists, else why not. */
+export function sentHash(result: TxResult): { hash: Hex | null; declined: boolean; maybeSent: boolean; error: string } {
+    switch (result.outcome) {
+        case "sent": return { hash: result.hash as Hex, declined: false, maybeSent: true, error: "" }
+        case "cancelled": return { hash: null, declined: true, maybeSent: false, error: result.error }
+        case "failed": return { hash: null, declined: false, maybeSent: false, error: result.error.replace(/\. Nothing was sent\.$/, "") }
+        case "refused":
+        case "unknown": return { hash: (result.hash as Hex | undefined) ?? null, declined: false, maybeSent: true, error: result.error }
+    }
+}
+
 /**
  * Checks a sent creation: waits for its receipt, then reads the predicted
  * address on chain, which must hold exactly the planned Safe. Safe to call
@@ -176,7 +197,8 @@ export async function confirmNewSafe(networkKey: string, plan: NewSafePlan, hash
     if (chainId !== plan.chainId) throw new SafeActionError({ code: "wrong-chain" })
     let receipt
     try {
-        receipt = await waitForTransactionReceipt(evmConfig, { chainId, hash })
+        // viem's own wait: a revert is a status (wagmi's throws on it), a replacement is followed.
+        receipt = await getPublicClient(evmConfig, { chainId }).waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS })
     } catch {
         const there = await plannedSafeAt(networkKey, plan).catch(() => null)
         if (there) return there
@@ -198,12 +220,20 @@ export async function deployNewSafe(networkKey: string, plan: NewSafePlan, onSen
     assertDeployment(plan.tx, plan.owners, plan.threshold, plan.saltNonce)
     const chainId = chainIdOf(networkKey)
     if (chainId !== plan.chainId) throw new SafeActionError({ code: "wrong-chain" })
-    let hash: Hex
-    try {
-        hash = await sendTransaction(evmConfig, { account: plan.deployer, chainId, to: plan.tx.to, data: plan.tx.data, value: plan.tx.value })
-    } catch (err) {
-        walletError(err)
+    // The one send path: chain and account re-checked, code at the factory, the wallet's live chain.
+    const result = await sendEvmWrite({ chainId, from: plan.deployer, to: plan.tx.to, data: plan.tx.data, value: plan.tx.value }, { receiptTimeoutMs: HASH_FIRST_MS })
+    const sent = sentHash(result)
+    if (!sent.hash) {
+        if (sent.declined) throw new SafeActionError({ code: "declined" })
+        // Refused or unknown without a hash: the wallet may have sent it. The address decides; else check the wallet.
+        if (sent.maybeSent) {
+            const there = await plannedSafeAt(networkKey, plan).catch(() => null)
+            if (there) return { hash: "0x" as Hex, safe: there }
+        }
+        throw new SafeActionError({ code: "failed", detail: sent.error })
     }
+    // sent, refused (reverted, or cancelled by a replacement), unknown: a hash exists, so the address decides.
+    const hash = sent.hash
     onSent?.(hash)
     return { hash, safe: await confirmNewSafe(networkKey, plan, hash) }
 }

@@ -33,7 +33,7 @@ type Stage =
 const MAX_OWNERS = 20
 
 function explorerTx(networkKey: string, hash: string): string | null {
-    return Object.hasOwn(EVM_NETWORKS, networkKey) ? `${EVM_NETWORKS[networkKey].explorerUrl}/tx/${hash}` : null
+    return Object.hasOwn(EVM_NETWORKS, networkKey) && /^0x[0-9a-fA-F]{64}$/.test(hash) ? `${EVM_NETWORKS[networkKey].explorerUrl}/tx/${hash}` : null
 }
 
 function Full({ display }: { display: string }) {
