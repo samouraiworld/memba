@@ -474,9 +474,9 @@ describe('getTelemetryRpcUrls', () => {
 describe('network reduction — test13 + mainnet + onyx only', () => {
     it('exposes only test13, mainnet and onyx', () => {
         const keys = Object.keys(NETWORKS).sort()
-        // mainnet (`gnoland-1`) is the default and only visible network since
-        // 2026-09-23. onyx (`onyx-1`) is the testnet, hidden until Memba
-        // publishes there. test13 stays as a hidden entry (the e2e fixture);
+        // mainnet (`gnoland-1`) is the default. onyx (`onyx-1`) is the testnet,
+        // offered since Connect 4 went live there (2026-10-07). test13 stays as a
+        // hidden entry (the e2e fixture);
         // Pearl, Sapphire, Topaz and Betanet have no entry: their links
         // redirect to mainnet (RETIRED_NETWORKS).
         expect(keys).toEqual(['mainnet', 'onyx', 'test13'])
@@ -1170,7 +1170,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('offers the ACTIVE network even when it is hidden', async () => {
         const { selectableNetworksFor } = await import('./config')
-        for (const hidden of ['test13', 'onyx']) {
+        for (const hidden of ['test13']) {
             const offered = selectableNetworksFor(hidden)
             expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
             // A one-option <select> cannot fire onChange — there must be somewhere to go.

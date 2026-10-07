@@ -21,8 +21,9 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Onyx in the network menu, so Connect 4 can be played in Memba OS (2026-10-07)
-- Onyx is offered in the network menu, marked as a testnet. Memba OS only runs on a network the menu offers, so Connect 4 (live on Onyx) could not be reached from the OS before.
-- An old classic link such as /onyx/game/connect4 now opens the Connect 4 window in Memba OS instead of the classic page.
+- Onyx is offered in the network menu (Memba OS labels it as a testnet). Memba OS only runs on a network the menu offers, so Connect 4 (live on Onyx) could not be reached from the OS before.
+- An old classic link such as /onyx/game/connect4 now opens the Connect 4 window in Memba OS instead of the classic page, and keeps Onyx as your network, so a reload stays there.
+- The wallet-mismatch banner no longer offers to move Memba onto a testnet the wallet was left on; it asks to switch the wallet instead.
 - The Connect 4 card on other networks says to choose Onyx in the network menu.
 
 ### Arcade: Connect 4, staked two-player on testnet, with Quick play (2026-10-07)
