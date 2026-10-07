@@ -3,6 +3,10 @@
  * Votes) deployed through the CREATE2 deployer in ONE transaction that also mints the 0.5% fee to the treasury.
  * Any wallet (EOA or Safe) can send it; no batch is needed. The fee is enforced by this code, not on chain.
  *
+ * This module only plans and checks; it never talks to a wallet. The transaction it returns ({ chainId, to, data,
+ * value }) goes through Memba's one EVM send path (`sendEvmWrite` in ./adapter.ts), which re-checks the wallet's
+ * chain and the target's code right before sending and passes the chain to viem.
+ *
  * A viem module: reach it only through the lazy EVM adapter (./load.ts), never from eager code.
  *
  * @module lib/chain/evm/tokenDeploy
@@ -17,8 +21,6 @@ export const TOKEN_FEE_PER_MILLE = 5n
 export const TOKEN_MAX_SUPPLY = (1n << 208n) - 1n
 /** OpenZeppelin 5.7 stores the EIP-712 name in 31 bytes; a longer name reverts the deployment. */
 export const TOKEN_NAME_MAX_BYTES = 31
-/** Gas head-room over the estimate. A CREATE2 collision burns the whole limit, so it stays modest. */
-const GAS_MARGIN_PERCENT = 120n
 
 const utf8Length = (s: string) => new TextEncoder().encode(s).length
 
@@ -63,7 +65,16 @@ export interface TokenPlanInput {
     salt: Hex
 }
 
+/** A transaction for Memba's EVM send path (`sendEvmWrite`): bound to its chain. */
+export interface TokenWrite {
+    chainId: number
+    to: Address
+    data: Hex
+    value: bigint
+}
+
 export interface TokenPlan {
+    chainId: number
     /** The CREATE2 deployer from the manifest. */
     to: Address
     /** salt ++ initcode, the deployer's whole input. */
@@ -90,6 +101,7 @@ export function planTokenDeploy(input: TokenPlanInput): TokenPlan {
     })
     const to = evmContract(input.chainId, "create2Deployer")
     return {
+        chainId: input.chainId,
         to,
         data: `${input.salt}${initcode.slice(2)}`,
         token: getContractAddress({ opcode: "CREATE2", from: to, salt: input.salt, bytecodeHash: keccak256(initcode) }),
@@ -103,21 +115,23 @@ export type TokenDeployStep =
      *  (name, symbol, recipients, amounts), so it is this exact token: someone (or an earlier attempt) deployed
      *  it, the supply went to the creator and the fee to the treasury. Nothing to send. */
     | { kind: "deployed"; token: Address }
-    /** Send this transaction. `gas` is the estimate plus a margin; never send without a limit. */
-    | { kind: "send"; token: Address; to: Address; data: Hex; gas: bigint }
+    /** Send `write` through sendEvmWrite. `estimatedGas` is the successful estimate this decision rests on. */
+    | { kind: "send"; token: Address; write: TokenWrite; estimatedGas: bigint }
 
 /**
- * Decides what to do with a plan right before signing: if the token already exists, nothing; otherwise the
- * transaction with a gas limit from a successful estimate (an estimate that reverts throws, so a doomed
- * deployment is never sent and never burns gas).
+ * Decides what to do with a plan right before signing, on the plan's chain: if the token already exists, nothing;
+ * otherwise the transaction, once an estimate succeeded (an estimate that reverts throws, so a doomed deployment,
+ * such as a CREATE2 collision that would burn the whole gas limit, is never sent). Refuses an RPC on another chain.
  */
 export async function prepareTokenDeploy(
-    client: Pick<PublicClient, "getCode" | "estimateGas">,
+    client: Pick<PublicClient, "getChainId" | "getCode" | "estimateGas">,
     plan: TokenPlan,
     account: Address,
 ): Promise<TokenDeployStep> {
+    const chainId = await client.getChainId()
+    if (chainId !== plan.chainId) throw new Error(`This token is planned for chain ${plan.chainId}, not chain ${chainId}.`)
     const code = await client.getCode({ address: plan.token })
     if (code && code !== "0x") return { kind: "deployed", token: plan.token }
-    const estimate = await client.estimateGas({ account, to: plan.to, data: plan.data })
-    return { kind: "send", token: plan.token, to: plan.to, data: plan.data, gas: (estimate * GAS_MARGIN_PERCENT) / 100n }
+    const estimatedGas = await client.estimateGas({ account, to: plan.to, data: plan.data })
+    return { kind: "send", token: plan.token, write: { chainId: plan.chainId, to: plan.to, data: plan.data, value: 0n }, estimatedGas }
 }

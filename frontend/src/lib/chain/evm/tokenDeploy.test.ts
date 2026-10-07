@@ -82,23 +82,29 @@ describe("prepareTokenDeploy", () => {
     const plan = planTokenDeploy(FORGE_INPUT)
 
     it("sends nothing when the token already exists (front-run or earlier attempt)", async () => {
-        const client = { getCode: vi.fn().mockResolvedValue("0x6080"), estimateGas: vi.fn() }
+        const client = { getChainId: vi.fn().mockResolvedValue(84532), getCode: vi.fn().mockResolvedValue("0x6080"), estimateGas: vi.fn() }
         await expect(prepareTokenDeploy(client, plan, ALICE)).resolves.toEqual({ kind: "deployed", token: plan.token })
         expect(client.estimateGas).not.toHaveBeenCalled()
     })
 
-    it("sends with the estimate plus 20% when the address is empty", async () => {
+    it("returns the chain-bound write for sendEvmWrite once the estimate succeeds, when the address is empty", async () => {
         for (const empty of [undefined, "0x"]) {
-            const client = { getCode: vi.fn().mockResolvedValue(empty), estimateGas: vi.fn().mockResolvedValue(1_527_439n) }
+            const client = { getChainId: vi.fn().mockResolvedValue(84532), getCode: vi.fn().mockResolvedValue(empty), estimateGas: vi.fn().mockResolvedValue(1_527_439n) }
             await expect(prepareTokenDeploy(client, plan, ALICE)).resolves.toEqual({
-                kind: "send", token: plan.token, to: plan.to, data: plan.data, gas: 1_832_926n,
+                kind: "send", token: plan.token, write: { chainId: 84532, to: plan.to, data: plan.data, value: 0n }, estimatedGas: 1_527_439n,
             })
             expect(client.estimateGas).toHaveBeenCalledWith({ account: ALICE, to: plan.to, data: plan.data })
         }
     })
 
     it("never returns a transaction when the estimate reverts", async () => {
-        const client = { getCode: vi.fn().mockResolvedValue("0x"), estimateGas: vi.fn().mockRejectedValue(new Error("execution reverted")) }
+        const client = { getChainId: vi.fn().mockResolvedValue(84532), getCode: vi.fn().mockResolvedValue("0x"), estimateGas: vi.fn().mockRejectedValue(new Error("execution reverted")) }
         await expect(prepareTokenDeploy(client, plan, ALICE)).rejects.toThrow(/reverted/)
+    })
+
+    it("refuses an RPC on another chain before reading anything else", async () => {
+        const client = { getChainId: vi.fn().mockResolvedValue(8453), getCode: vi.fn(), estimateGas: vi.fn() }
+        await expect(prepareTokenDeploy(client, plan, ALICE)).rejects.toThrow(/planned for chain 84532, not chain 8453/)
+        expect(client.getCode).not.toHaveBeenCalled()
     })
 })
