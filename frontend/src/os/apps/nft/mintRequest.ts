@@ -47,17 +47,26 @@ function validated(draft: MintDraft): MintDraft {
     return draft
 }
 
-/** The gate token must still be the member's, live, and not yet used in this stage. */
+/** The gate token must have existed when the stage was scheduled, still be the member's, live, and not yet used in this stage. */
 export async function assertGateToken(collection: string, stage: NftStage, gateNumber: bigint, owner: string): Promise<void> {
+    if (gateNumber > stage.gateLimit) throw new Error(gateLimitText(stage, gateNumber))
     const [token, used] = await Promise.all([getToken(stage.gate, gateNumber), gateUsed(collection, stage.index, gateNumber)])
     if (token.status !== "active" || token.owner !== owner) throw new Error(`This account does not hold ${stage.gate} #${gateNumber}.`)
     if (used) throw new Error(`${stage.gate} #${gateNumber} has already been used for a mint in this stage.`)
 }
 
+/** Why a gate token minted after the stage was scheduled opens no mint. */
+function gateLimitText(stage: NftStage, gateNumber: bigint): string {
+    return stage.gateLimit === 0n
+        ? `${stage.gate} #${gateNumber} was minted after this stage was scheduled, when ${stage.gate} had no token: no token opens a mint here.`
+        : `${stage.gate} #${gateNumber} was minted after this stage was scheduled: only ${stage.gate} #1 to #${stage.gateLimit} allow a mint here.`
+}
+
 /** The fresh stage still has the terms the member reviewed, and is still open for one more token. */
 function assertSameStage(read: NftStage | undefined, reviewed: NftStage, offered: bigint): asserts read is NftStage {
     const same = !!read && read.kind === reviewed.kind && read.currency === reviewed.currency && read.feeBPS === reviewed.feeBPS &&
-        read.start === reviewed.start && read.end === reviewed.end && read.gate === reviewed.gate && read.perWallet === reviewed.perWallet
+        read.start === reviewed.start && read.end === reviewed.end && read.gate === reviewed.gate && read.gateLimit === reviewed.gateLimit &&
+        read.perWallet === reviewed.perWallet
     if (!same) throw new Error("This stage changed after your review. Nothing was sent. Close the review and read the stage again.")
     const blocker = mintBlocker(read)
     if (blocker) throw new Error(`${blocker} Nothing was sent.`)

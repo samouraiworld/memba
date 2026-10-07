@@ -6,7 +6,7 @@ import { buildMintMsg, mintBlocker } from "./mint"
 const BUYER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const stage = (more: Partial<NftStage> = {}): NftStage => ({
     index: 2, kind: "fixed", start: 1n, end: 2n, open: true, price: 1_500_000n, floor: 0n, currentPrice: 1_500_000n, currency: "ugnot",
-    feeBPS: 200n, supplyCap: 0n, perWallet: 2n, root: "", gate: "", minted: 0n, ...more,
+    feeBPS: 200n, supplyCap: 0n, perWallet: 2n, root: "", gate: "", gateLimit: 0n, minted: 0n, ...more,
 })
 
 describe("mint call", () => {

@@ -18,10 +18,10 @@ const without = (row: Record<string, unknown>, key: string) => Object.fromEntrie
 
 const fixed = {
     index: 0, kind: "fixed", start: "1000", end: "2000", open: false, price: "500", floor: "0", currentPrice: "500", currency: "ugnot",
-    feeBPS: "250", supplyCap: "0", perWallet: "2", root: "", gate: "", minted: "0",
+    feeBPS: "250", supplyCap: "0", perWallet: "2", root: "", gate: "", gateLimit: "0", minted: "0",
 }
 const allowlist = { ...fixed, kind: "allowlist", perWallet: "0", root: HASH }
-const holder = { ...fixed, kind: "holder", gate: "C7" }
+const holder = { ...fixed, kind: "holder", gate: "C7", gateLimit: "40" }
 const dutch = { ...fixed, kind: "dutch", floor: "100", open: true, currentPrice: "300" }
 const terms = { currency: "ugnot", collectionFee: "5000000", primaryFeeBPS: "250", maxPrimaryFeeBPS: "500", treasury: addr(9) }
 
@@ -34,10 +34,14 @@ describe("stages", () => {
     it("reads the stages of a collection with every field typed", async () => {
         const later = { ...dutch, index: 1, start: "2000", end: "3000" }
         await expect(stages([fixed, later])).resolves.toEqual([
-            { ...fixed, start: 1000n, end: 2000n, price: 500n, floor: 0n, currentPrice: 500n, feeBPS: 250n, supplyCap: 0n, perWallet: 2n, minted: 0n },
-            { ...later, start: 2000n, end: 3000n, price: 500n, floor: 100n, currentPrice: 300n, feeBPS: 250n, supplyCap: 0n, perWallet: 2n, minted: 0n },
+            { ...fixed, start: 1000n, end: 2000n, price: 500n, floor: 0n, currentPrice: 500n, feeBPS: 250n, supplyCap: 0n, perWallet: 2n, gateLimit: 0n, minted: 0n },
+            { ...later, start: 2000n, end: 3000n, price: 500n, floor: 100n, currentPrice: 300n, feeBPS: 250n, supplyCap: 0n, perWallet: 2n, gateLimit: 0n, minted: 0n },
         ])
         expect(queryEval).toHaveBeenCalledWith(GNO_RPC_URL, NFT_DROPS_PATH, 'StagesJSON("C1")', true)
+    })
+
+    it("reads which gate tokens open a holder stage", async () => {
+        await expect(stage(holder)).resolves.toMatchObject([{ gate: "C7", gateLimit: 40n }])
     })
 
     it("reads a collection without stages as an empty list", async () => {
@@ -88,6 +92,8 @@ describe("stages", () => {
         ["a fixed stage with a floor", { ...fixed, floor: "1" }, "Inconsistent stage terms"],
         ["a fixed stage with a root", { ...fixed, root: HASH }, "Inconsistent stage terms"],
         ["a fixed stage with a gate", { ...fixed, gate: "C7" }, "Inconsistent stage terms"],
+        ["a fixed stage with a gate limit", { ...fixed, gateLimit: "3" }, "Inconsistent stage terms"],
+        ["a holder stage without its gate limit", without(holder, "gateLimit"), "Invalid stage fields"],
         ["an allowlist stage with a wallet limit", { ...allowlist, perWallet: "1" }, "Inconsistent stage terms"],
         ["an allowlist stage without a root", { ...allowlist, root: "" }, "Inconsistent stage terms"],
         ["an allowlist root that is not lowercase hex", { ...allowlist, root: "A".repeat(64) }, "Inconsistent stage terms"],

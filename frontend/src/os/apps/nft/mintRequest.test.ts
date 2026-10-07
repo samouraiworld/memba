@@ -57,9 +57,9 @@ const BUYER = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const OTHER = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 const dutch: NftStage = {
     index: 0, kind: "dutch", start: 1n, end: 2n, open: true, price: 10_000_000n, floor: 1_000_000n, currentPrice: 4_000_000n, currency: "ugnot",
-    feeBPS: 200n, supplyCap: 10n, perWallet: 2n, root: "", gate: "", minted: 3n,
+    feeBPS: 200n, supplyCap: 10n, perWallet: 2n, root: "", gate: "", gateLimit: 0n, minted: 3n,
 }
-const holder: NftStage = { ...dutch, kind: "holder", floor: 0n, price: 0n, currentPrice: 0n, gate: "C2" }
+const holder: NftStage = { ...dutch, kind: "holder", floor: 0n, price: 0n, currentPrice: 0n, gate: "C2", gateLimit: 40n }
 const draft = (more: Partial<MintDraft> = {}): MintDraft => ({
     collection: "C1", collectionName: "Relevés", supply: { sealed: false, maxSupply: 0n, minted: 3n }, stage: dutch, gateNumber: 0n, mintedSoFar: 0n, caller: BUYER,
     networkKey: "mainnet", chainId: "gnoland-1", price: { gas: 1000, ugnot: 1 }, ...more,
@@ -143,6 +143,22 @@ describe("NFT mint signing", () => {
         expect(await run(request)).toEqual({ outcome: "failed", error: "This account does not hold C2 #7." })
         expect(await run(request)).toMatchObject({ outcome: "sent" })
         expect(mocks.gateUsed).toHaveBeenLastCalledWith("C1", 0, 7n)
+    })
+
+    it("refuses a gate token minted after the stage was scheduled, as the realm does", async () => {
+        mocks.listStages.mockResolvedValue([holder])
+        expect(await run(mintRequest(draft({ stage: holder, gateNumber: 41n })))).toMatchObject({
+            outcome: "failed", error: expect.stringMatching(/^C2 #41 was minted after this stage was scheduled: only C2 #1 to #40 allow a mint here\./),
+        })
+        const none = { ...holder, gateLimit: 0n }
+        mocks.listStages.mockResolvedValue([none])
+        expect(await run(mintRequest(draft({ stage: none, gateNumber: 1n })))).toMatchObject({
+            outcome: "failed", error: expect.stringMatching(/^C2 #1 was minted after this stage was scheduled, when C2 had no token: no token opens a mint here\./),
+        })
+        // The limit is part of the terms reviewed: a stage replaced with another one stops the signature.
+        mocks.listStages.mockResolvedValue([{ ...holder, gateLimit: 41n }])
+        expect(await run(mintRequest(draft({ stage: holder, gateNumber: 7n })))).toMatchObject({ outcome: "failed", error: expect.stringContaining("This stage changed after your review.") })
+        expect(mocks.wallet).not.toHaveBeenCalled()
     })
 })
 
