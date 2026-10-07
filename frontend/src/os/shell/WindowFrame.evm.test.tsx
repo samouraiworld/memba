@@ -18,6 +18,7 @@ vi.mock("../multisig/evm/SafeWindows", () => ({
     SafeApp: () => <div>safe app</div>,
     SafeWindow: ({ address }: { address: string }) => <div>safe window {address}</div>,
 }))
+vi.mock("../multisig/evm/ImportSafe", () => ({ ImportSafe: () => <div>import safe</div> }))
 vi.mock("../multisig/MultisigWindows", () => ({ MultisigApp: () => <div>gno multisig app</div>, MultisigWindow: () => <div>gno multisig window</div> }))
 
 afterEach(() => vi.clearAllMocks())
@@ -78,6 +79,11 @@ describe("WindowBody on an EVM network", () => {
         show({ kind: "multisig", address: "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l" }, onBase)
         expect(screen.getByText("This is a gno.land multisig")).toBeInTheDocument()
         expect(screen.queryByText(/gno multisig window/)).toBeNull()
+    })
+
+    it("opens the Safe import window for Multisig's import page", async () => {
+        show({ kind: "app", app: "multisig", section: "import" }, onBase)
+        expect(await screen.findByText("import safe")).toBeInTheDocument()
     })
 
     it("holds the Multisig pages not built for Safes yet, never their gno.land page", () => {

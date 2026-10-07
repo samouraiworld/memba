@@ -47,6 +47,8 @@ interface IBnResolver {
     function text(bytes32 node, string calldata key) external view returns (string memory);
     function addr(bytes32 node) external view returns (address);
     function name(bytes32 node) external view returns (string memory);
+    function setAddr(bytes32 node, address a) external;
+    function multicall(bytes[] calldata data) external returns (bytes[] memory);
 }
 
 interface IBnRegistry {
@@ -55,6 +57,7 @@ interface IBnRegistry {
 
 interface IBnL2ReverseRegistrar {
     function nameForAddr(address addr) external view returns (string memory);
+    function setName(string calldata name) external;
 }
 
 /// Profile row: a Basename registered through the controller that is live today, with a text record.
@@ -86,6 +89,138 @@ abstract contract BasenamesTest is ForkBase {
         IBnResolver(_resolver()).setText(node, "org.memba.profile", "ipfs://profile");
         _gas("Basenames setText (UpgradeableL2Resolver)", g - gasleft());
         assertEq(IBnResolver(_resolver()).text(node, "org.memba.profile"), "ipfs://profile");
+    }
+
+    function _suffix() internal view returns (string memory) {
+        return block.chainid == 8453 ? ".base.eth" : ".basetest.eth";
+    }
+
+    function _lowerHex(uint256 v, uint256 nibbles) internal pure returns (string memory) {
+        bytes memory out = new bytes(nibbles);
+        bytes16 digits = "0123456789abcdef";
+        for (uint256 i; i < nibbles; i++) {
+            out[nibbles - 1 - i] = digits[(v >> (4 * i)) & 0x0f];
+        }
+        return string(out);
+    }
+
+    /// namehash("<addr hex>.<0x80000000 | chainid hex>.reverse"), the legacy (ENSIP-11) reverse node.
+    function _legacyReverseNode(address a) internal view returns (bytes32) {
+        bytes32 reverse = keccak256(abi.encodePacked(bytes32(0), keccak256("reverse")));
+        bytes32 coin = keccak256(abi.encodePacked(reverse, keccak256(bytes(_lowerHex(0x80000000 | block.chainid, 8)))));
+        return keccak256(abi.encodePacked(coin, keccak256(bytes(_lowerHex(uint160(a), 40)))));
+    }
+
+    /// The Profile app's registration (frontend lib/chain/evm/basenamesWrite.ts): ONE payable transaction that
+    /// registers the name on the upgradeable resolver, sets its forward address and profile records through the
+    /// request's resolver data, and sets the primary name (legacy reverse record; no ENSIP-19 signature needed).
+    /// Overpaying is refunded, so the app can send a small margin over the quoted price.
+    function test_register_with_records_and_primary_name_in_one_tx() public {
+        string memory label = "membaprofilewrite";
+        string memory name = string.concat(label, _suffix());
+        IBnController c = IBnController(_controller());
+        uint256 price = c.registerPrice(label, 365 days);
+        bytes32 node = keccak256(abi.encodePacked(IBnRegistrar(_registrar()).baseNode(), keccak256(bytes(label))));
+        bytes[] memory data = new bytes[](3);
+        data[0] = abi.encodeCall(IBnResolver.setAddr, (node, alice));
+        data[1] = abi.encodeCall(IBnResolver.setText, (node, "description", "Memba builder"));
+        data[2] = abi.encodeCall(IBnResolver.setText, (node, "memba.profile.v1", '{"version":1}'));
+
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        uint256 g = gasleft();
+        c.register{value: price * 110 / 100}(
+            BnRegisterRequest(label, alice, 365 days, _resolver(), data, true, new uint256[](0), 0, "")
+        );
+        _gas("Basenames register + addr + 2 text records + primary name (one tx)", g - gasleft());
+        assertEq(alice.balance, 1 ether - price, "overpayment refunded");
+
+        assertEq(IBnResolver(_resolver()).addr(node), alice);
+        assertEq(IBnResolver(_resolver()).text(node, "description"), "Memba builder");
+        assertEq(IBnResolver(_resolver()).text(node, "memba.profile.v1"), '{"version":1}');
+        bytes32 rnode = _legacyReverseNode(alice);
+        address rres = IBnRegistry(_registry()).resolver(rnode);
+        assertTrue(rres != address(0), "reverse node has a resolver");
+        assertEq(IBnResolver(rres).name(rnode), name, "primary name");
+    }
+
+    /// Editing a profile: the owner sets several records in one resolver multicall; anyone else is refused.
+    function test_owner_updates_texts_in_one_multicall() public {
+        string memory label = "membaprofileedit";
+        IBnController c = IBnController(_controller());
+        uint256 price = c.registerPrice(label, 365 days);
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        c.register{value: price}(
+            BnRegisterRequest(label, alice, 365 days, _resolver(), new bytes[](0), false, new uint256[](0), 0, "")
+        );
+        bytes32 node = keccak256(abi.encodePacked(IBnRegistrar(_registrar()).baseNode(), keccak256(bytes(label))));
+        bytes[] memory data = new bytes[](2);
+        data[0] = abi.encodeCall(IBnResolver.setText, (node, "url", "https://memba.club"));
+        data[1] = abi.encodeCall(IBnResolver.setText, (node, "location", "Base"));
+
+        vm.prank(bob);
+        vm.expectRevert();
+        IBnResolver(_resolver()).multicall(data);
+
+        vm.prank(alice);
+        uint256 g = gasleft();
+        IBnResolver(_resolver()).multicall(data);
+        _gas("Basenames resolver multicall: 2 text records", g - gasleft());
+        assertEq(IBnResolver(_resolver()).text(node, "url"), "https://memba.club");
+        assertEq(IBnResolver(_resolver()).text(node, "location"), "Base");
+    }
+
+    function _registry() internal pure virtual returns (address);
+    function _l2Reverse() internal pure virtual returns (address);
+
+    function _register(address payer, address owner, string memory label, bool reverse)
+        internal
+        returns (uint256 price)
+    {
+        IBnController c = IBnController(_controller());
+        price = c.registerPrice(label, 365 days);
+        vm.deal(payer, 1 ether);
+        vm.prank(payer);
+        c.register{value: price * 105 / 100}(
+            BnRegisterRequest(label, owner, 365 days, _resolver(), new bytes[](0), reverse, new uint256[](0), 0, "")
+        );
+    }
+
+    /// The controller's reverse record and refund go to msg.sender, not to the request's owner: paying for a
+    /// name owned by someone else makes it the PAYER's primary name. The app therefore registers for the
+    /// sending account only (owner = account).
+    function test_reverse_record_and_refund_go_to_the_payer() public {
+        string memory label = "membapayerowner";
+        uint256 price = _register(alice, bob, label, true);
+        assertEq(alice.balance, 1 ether - price, "refund to the payer");
+        assertEq(IBnRegistrar(_registrar()).ownerOf(uint256(keccak256(bytes(label)))), bob);
+        bytes32 rnode = _legacyReverseNode(alice);
+        assertEq(IBnResolver(IBnRegistry(_registry()).resolver(rnode)).name(rnode), string.concat(label, _suffix()));
+    }
+
+    /// register(reverseRecord: true) with no coin types and no signature sets only the LEGACY reverse record. An
+    /// account that already has an ENSIP-19 primary name keeps it until it calls setName on the L2ReverseRegistrar
+    /// itself: the app's follow-up step (planPrimaryName).
+    function test_ensip19_primary_name_needs_set_name() public {
+        IBnL2ReverseRegistrar rr = IBnL2ReverseRegistrar(_l2Reverse());
+        string memory old = string.concat("membaoldname", _suffix());
+        vm.prank(alice);
+        rr.setName(old);
+        assertEq(rr.nameForAddr(alice), old);
+
+        string memory label = "membanewprimary";
+        string memory name = string.concat(label, _suffix());
+        _register(alice, alice, label, true);
+        assertEq(rr.nameForAddr(alice), old, "register leaves the ENSIP-19 name");
+        bytes32 rnode = _legacyReverseNode(alice);
+        assertEq(IBnResolver(IBnRegistry(_registry()).resolver(rnode)).name(rnode), name, "legacy record updated");
+
+        vm.prank(alice);
+        uint256 g = gasleft();
+        rr.setName(name);
+        _gas("ENSIP-19 setName (primary name)", g - gasleft());
+        assertEq(rr.nameForAddr(alice), name);
     }
 
     /// Which controller the registrar accepts today (README lists both).
@@ -120,6 +255,14 @@ contract BasenamesBaseSepoliaTest is BasenamesTest {
     function _resolver() internal pure override returns (address) {
         return Addr.BASENAMES_UPGRADEABLE_L2_RESOLVER_BASE_SEPOLIA;
     }
+
+    function _registry() internal pure override returns (address) {
+        return Addr.BASENAMES_REGISTRY_BASE_SEPOLIA;
+    }
+
+    function _l2Reverse() internal pure override returns (address) {
+        return Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE_SEPOLIA;
+    }
 }
 
 contract BasenamesBaseTest is BasenamesTest {
@@ -145,6 +288,26 @@ contract BasenamesBaseTest is BasenamesTest {
 
     function _resolver() internal pure override returns (address) {
         return Addr.BASENAMES_UPGRADEABLE_L2_RESOLVER_BASE;
+    }
+
+    function _registry() internal pure override returns (address) {
+        return Addr.BASENAMES_REGISTRY_BASE;
+    }
+
+    function _l2Reverse() internal pure override returns (address) {
+        return Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE;
+    }
+
+    /// Names registered before the upgrade keep the legacy L2Resolver; their owner can still edit records there.
+    function test_owner_edits_texts_on_legacy_resolver() public {
+        address jesse = 0x2211d1D0020DAEA8039E46Cf1367962070d77DA9;
+        bytes32 node = keccak256(abi.encodePacked(IBnRegistrar(_registrar()).baseNode(), keccak256("jesse")));
+        assertEq(IBnRegistry(_registry()).resolver(node), Addr.BASENAMES_L2_RESOLVER_BASE);
+        bytes[] memory data = new bytes[](1);
+        data[0] = abi.encodeCall(IBnResolver.setText, (node, "memba.profile.v1", '{"version":1}'));
+        vm.prank(jesse);
+        IBnResolver(Addr.BASENAMES_L2_RESOLVER_BASE).multicall(data);
+        assertEq(IBnResolver(Addr.BASENAMES_L2_RESOLVER_BASE).text(node, "memba.profile.v1"), '{"version":1}');
     }
 
     /// The read path of the Profile app (frontend lib/chain/evm/basenames.ts) on a long-standing primary name:

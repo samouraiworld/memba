@@ -101,8 +101,10 @@ function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: bo
     return windowsReducer(EMPTY_WINDOWS, { type: "restore", wins })
 }
 
-/** The wallet session for this page's network: Adena on gno.land, an EVM wallet on Base. A switch reloads, so it never changes in a page's life. */
-const useShellSession = EVM_ENABLED && activeOsNetwork().family === "evm" ? useEvmSession : useOsSession
+/** This page runs on an EVM network (Base). A switch reloads, so it never changes in a page's life. */
+const EVM_SESSION = EVM_ENABLED && activeOsNetwork().family === "evm"
+/** The wallet session for this page's network: Adena on gno.land, an EVM wallet on Base. */
+const useShellSession = EVM_SESSION ? useEvmSession : useOsSession
 
 export function Shell() {
     const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
@@ -151,7 +153,7 @@ export function Shell() {
             setLocked(false)
             win.closeKey("welcome")
             setLinkGuest(false)
-            showToast(`Connected with Adena · ${shortAddr(address)}`)
+            showToast(`Connected with ${EVM_SESSION ? "your wallet" : "Adena"} · ${shortAddr(address)}`)
         },
     })
     const memberNow = useRef(session.status === "member")

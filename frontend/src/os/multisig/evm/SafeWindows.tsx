@@ -18,10 +18,13 @@ import { NOT_A_SAFE_TEXT } from "../../../lib/chain/evm/safe/inspect"
 import { loadSafeSdk } from "../../../lib/chain/evm/safe/load"
 import { parseRecipient, addressGroups } from "../../../lib/chain/evm/safe/recipients"
 import type { Hex } from "../../../lib/chain/evm/safe/known"
+import { revealInvisibleFormatting } from "../../../lib/dao/v2Text"
+import { shortAddr } from "../../shell/format"
 import type { OsSession } from "../../shell/useOsSession"
 import { specForTarget, type WindowSpec } from "../../shell/windows"
 import { ConnectHere, CopyAddressButton, Loading, MemberChips, SigDots, ThresholdAvatar } from "../MultisigParts"
 import { describeTx, formatEth } from "./describe"
+import { registerErrorText, safeLabel, useMySafes, useRegisterSafe, useSafeToken } from "./useMySafes"
 import { HISTORY_LIMIT, safeNetworkOf, sameNonce, useSafeAwaiting, useSafeBalance, useSafeFacts, useSafeHistory, useSafeQueue, useSafesListing } from "./useSafes"
 
 const ABOUT = "A Safe is a shared account on this network: a transaction leaves it only when enough of its owners sign, for example 2 of 3. Owners sign without paying gas; whoever executes the transaction pays it."
@@ -72,9 +75,41 @@ export function SafeApp({ session, open }: { session: OsSession; open: (spec: Wi
     const me = session.walletAddress?.toLowerCase() ?? ""
     const listing = useSafesListing(net, me)
     const awaiting = useSafeAwaiting(net, me)
+    // Keeping and naming Safes needs a Sign-In with Ethereum session.
+    const token = useSafeToken(session)
+    const mine = useMySafes(net, token)
+    const register = useRegisterSafe(net, token)
+    const [addError, setAddError] = useState<string | null>(null)
+    const kept = new Set((mine.data ?? []).map((r) => r.address))
+    const waiting = (address: string) => (awaiting.counts.get(address) ?? 0) > 0 && <span className="os-sub os-block os-strong">{awaiting.counts.get(address)} waiting for your signature</span>
+    const add = async (address: string) => {
+        setAddError(null)
+        try { await register.mutateAsync({ address, name: "", joined: true }) } catch (err) { setAddError(registerErrorText(err)) }
+    }
     return (
         <div className="os-stack">
+            <div className="os-row"><button type="button" className="os-btn os-quiet" onClick={() => open(specForTarget({ kind: "app", app: "multisig", section: "import" })!)}>Import a Safe</button></div>
             <OpenByAddress open={open} />
+            {token && <section>
+                <h3 className="os-h">Your Safes</h3>
+                {mine.isPending ? <Loading what="your Safes" />
+                    : mine.isError ? <p className="os-note os-err" role="alert">Couldn't load your Safes. <button type="button" className="os-btn os-quiet os-inline" onClick={() => void mine.refetch()}>Try again</button></p>
+                    : mine.data.length === 0 ? <p className="os-sub">None yet. Import one, or add one that lists you below.</p>
+                    : <ul className="os-list">{mine.data.map((r) => {
+                        const name = safeLabel(r)
+                        return (
+                            <li key={r.address} className="os-row os-nowrap">
+                                <button type="button" className="os-it os-click os-grow" onClick={() => open(accountSpec(r.address))}>
+                                    <span className="os-grow">
+                                        <b>{name ? revealInvisibleFormatting(name.name) : "Safe"}</b>{name?.namedBy && <span className="os-sub"> · named by {shortAddr(name.namedBy)}</span>}
+                                        <span className="os-sub os-block os-mono os-break">{addressGroups(listing.data?.find((x) => x.address === r.address)?.display ?? r.address).join(" ")}</span>
+                                        {waiting(r.address)}
+                                    </span>
+                                </button>
+                            </li>
+                        )
+                    })}</ul>}
+            </section>}
             {!me ? <><p className="os-sub">{ABOUT}</p><ConnectHere resuming={session.status === "resuming"} onConnect={session.openConnect} text="Connect a wallet to see the Safes that list you as an owner." /></>
                 : listing.isPending ? <Loading what="the Safes that list you" />
                 : listing.isError ? <TxServiceError what="the Safes that list you" retry={() => void listing.refetch()} />
@@ -83,16 +118,57 @@ export function SafeApp({ session, open }: { session: OsSession; open: (spec: Wi
                         <h3 className="os-h">Safes listing you as an owner</h3>
                         {listing.data.length === 0 ? <><p className="os-sub">{ABOUT}</p><p className="os-sub">No Safe on {session.network.label} lists this address as an owner.</p></> : <>
                             <p className="os-sub">Anyone can create a Safe that lists you as an owner. Open one only if you know it.</p>
-                            <ul className="os-list">{listing.data.map((s) => (
+                            {!token && <p className="os-sub">Sign in with this wallet to keep Safes in your list and name them. <button type="button" className="os-btn os-quiet os-inline" onClick={session.openConnect}>Sign in</button></p>}
+                            <ul className="os-list">{listing.data.filter((s) => !kept.has(s.address)).map((s) => (
                                 <li key={s.address} className="os-row os-nowrap">
                                     <button type="button" className="os-it os-click os-grow" onClick={() => open(accountSpec(s.address))}>
-                                        <span className="os-grow"><b className="os-mono os-break">{s.display}</b>{(awaiting.counts.get(s.address) ?? 0) > 0 && <span className="os-sub os-block os-strong">{awaiting.counts.get(s.address)} waiting for your signature</span>}</span>
+                                        <span className="os-grow"><b className="os-mono os-break">{s.display}</b>{waiting(s.address)}</span>
                                     </button>
+                                    {token && <button type="button" className="os-btn os-quiet" aria-label={`Add ${s.display} to your Safes`} disabled={register.isPending} onClick={() => { void add(s.address) }}>Add</button>}
                                 </li>
                             ))}</ul>
                         </>}
                     </section>
                 )}
+            {addError && <p className="os-note os-err" role="alert">{addError}</p>}
+        </div>
+    )
+}
+
+/**
+ * The Safe's name in Memba and, for its owner signed in with this wallet,
+ * renaming, adding it to their list and taking it out. A name is the
+ * account's own; another owner's first name shows until they give one.
+ */
+function SafeNameBar({ session, address, owner }: { session: OsSession; address: Hex; owner: boolean }) {
+    const net = safeNetworkOf(session)
+    const token = useSafeToken(session)
+    const mine = useMySafes(net, token)
+    const register = useRegisterSafe(net, token)
+    const record = mine.data?.find((r) => r.address === address)
+    const label = safeLabel(record)
+    const [draft, setDraft] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null)
+    const save = async (name: string, joined: boolean) => {
+        setError(null)
+        try { await register.mutateAsync({ address, name, joined }); setDraft(null) } catch (err) { setError(registerErrorText(err)) }
+    }
+    return (
+        <div className="os-stack os-tight">
+            {label && <p className="os-sub"><b>{revealInvisibleFormatting(label.name)}</b>{label.namedBy && <> · named by {shortAddr(label.namedBy)}</>}</p>}
+            {owner && token && (draft !== null
+                ? <form className="os-row" onSubmit={(e) => { e.preventDefault(); void save(draft.trim(), true) }}>
+                    <input className="os-in" aria-label="Safe name" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} autoComplete="off" />
+                    <button type="submit" className="os-btn" disabled={register.isPending}>Save</button>
+                    <button type="button" className="os-btn os-quiet" onClick={() => setDraft(null)}>Cancel</button>
+                </form>
+                : <div className="os-row">
+                    {record?.joined
+                        ? <><button type="button" className="os-btn os-quiet" onClick={() => setDraft(record.name)}>Rename</button>
+                            <button type="button" className="os-btn os-quiet" disabled={register.isPending} onClick={() => { void save(record.name, false) }}>Remove from my Safes</button></>
+                        : <button type="button" className="os-btn os-quiet" disabled={register.isPending} onClick={() => { void save(record?.name ?? "", true) }}>Add to my Safes</button>}
+                </div>)}
+            {error && <p className="os-note os-err" role="alert">{error}</p>}
         </div>
     )
 }
@@ -156,6 +232,7 @@ export function SafeWindow({ address, session }: { address: string; session: OsS
                     {w.text}{w.addresses.length > 0 && <div className="os-mono os-break">{w.addresses.map(display).join(", ")}</div>}
                 </div>
             ))}
+            <SafeNameBar session={session} address={canonical} owner={s.owners.includes(me as Hex)} />
             <MemberChips members={s.owners.map(display)} me={me ? display(me) : ""} />
             <div className="os-row"><CopyAddressButton address={display(canonical)} label={`Copy ${label} address`} /></div>
             {!me

@@ -62,3 +62,5 @@ export function sendEvmWrite(write: EvmWrite, opts?: { receiptTimeoutMs?: number
     const here = storedEvmNetworkKey()
     return sendEvmWriteWith(evmConfig, here ? EVM_NETWORKS[here].chainId : null, write, opts)
 }
+
+export { buildSiweMessage } from "./siwe"

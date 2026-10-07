@@ -24,34 +24,43 @@
  */
 
 const TOKEN_KEY = "memba_auth_token"
+/** The EVM session's token (os/evm/evmToken.ts): one session per network family, each under its own key. */
+const EVM_TOKEN_KEY = "memba_evm_auth_token"
+
+/** Which session a token belongs to: gno.land's, or the EVM network's. */
+export type SessionFamily = "gno" | "evm"
+const KEYS: Record<SessionFamily, string> = { gno: TOKEN_KEY, evm: EVM_TOKEN_KEY }
 
 type Listener = (reason: string) => void
-const listeners = new Set<Listener>()
+const listeners: Record<SessionFamily, Set<Listener>> = { gno: new Set(), evm: new Set() }
 
 /** Remove the stored token. Safe when localStorage is unavailable. */
-export function clearStoredToken() {
+export function clearStoredToken(family: SessionFamily = "gno") {
     try {
-        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(KEYS[family])
     } catch {
         /* localStorage unavailable (private browsing / disabled) */
     }
 }
 
-export { TOKEN_KEY }
+export { TOKEN_KEY, EVM_TOKEN_KEY }
 
 /**
- * Tear down the current session and tell every listener why.
+ * Tear down one family's session and tell its listeners why; the other family's
+ * session is untouched.
  *
  * Called by the transport interceptor when the server rejects the token, and
  * safe to call when no session exists (it simply notifies nobody useful).
  * Deliberately idempotent: several in-flight requests can fail together, and
  * that must not produce several logout cascades.
  */
-export function invalidateSession(reason: string) {
-    const had = hasStoredToken()
-    clearStoredToken()
-    if (!had) return
-    for (const l of listeners) {
+export function invalidateSession(reason: string, family: SessionFamily = "gno") {
+    const had = hasStoredToken(family)
+    clearStoredToken(family)
+    // The EVM session may live in memory only (its storage write failed): its listeners always hear,
+    // and dropping an already-dropped session is harmless. The gno.land session keeps its one-shot rule.
+    if (!had && family === "gno") return
+    for (const l of listeners[family]) {
         try {
             l(reason)
         } catch {
@@ -60,17 +69,17 @@ export function invalidateSession(reason: string) {
     }
 }
 
-/** True when a token is currently persisted. */
-export function hasStoredToken(): boolean {
+/** True when a token of this family is currently persisted. */
+export function hasStoredToken(family: SessionFamily = "gno"): boolean {
     try {
-        return localStorage.getItem(TOKEN_KEY) !== null
+        return localStorage.getItem(KEYS[family]) !== null
     } catch {
         return false
     }
 }
 
 /** Subscribe to session invalidation. Returns an unsubscribe function. */
-export function onSessionInvalidated(listener: Listener): () => void {
-    listeners.add(listener)
-    return () => listeners.delete(listener)
+export function onSessionInvalidated(listener: Listener, family: SessionFamily = "gno"): () => void {
+    listeners[family].add(listener)
+    return () => listeners[family].delete(listener)
 }

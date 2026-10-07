@@ -115,6 +115,7 @@ contract ManifestConsistencyTest is Test {
         assertEq(_a(sepolia, "basenamesRegistrarController"), Addr.BASENAMES_UPGRADEABLE_CONTROLLER_BASE_SEPOLIA);
         assertEq(_a(sepolia, "basenamesL2Resolver"), Addr.BASENAMES_UPGRADEABLE_L2_RESOLVER_BASE_SEPOLIA);
         assertEq(_a(sepolia, "basenamesL2ResolverLegacy"), Addr.BASENAMES_L2_RESOLVER_BASE_SEPOLIA);
+        assertEq(_a(sepolia, "basenamesL2ReverseRegistrar"), Addr.BASENAMES_L2_REVERSE_REGISTRAR_BASE_SEPOLIA);
         assertEq(
             sepolia.readAddress(".deny.basenamesRegistrarControllerLegacy.address"),
             Addr.BASENAMES_REGISTRAR_CONTROLLER_BASE_SEPOLIA

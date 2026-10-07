@@ -85,6 +85,16 @@ forge test --match-path 'test/unit/*'
 
 An RPC failure throws; "no name" is only what the chain answered. `frontend/src/os/profile/evm/basenameProfile.ts` maps the result onto the Profile app's `ProfileChainRead`. Evidence: `contracts/evm/test/fork/Basenames.t.sol` `test_primary_name_read_path` (jesse.base.eth at the pinned block) and `ManifestLive` `test_reverse_registrar_serves_this_chain`.
 
+## Profile on Basenames (write)
+
+`frontend/src/lib/chain/evm/basenamesWrite.ts` is a payable path, so the owner gives a go per PR.
+
+- **Quote** (`quoteBasename`): availability, price and the account's current ENSIP-19 primary name. The plan takes the quote object (chain, label, years, price), so a price cannot be paired with another duration. Re-quote right before sending.
+- **Register** (`planBasenameRegistration`): one payable `register` on the manifest's UpgradeableRegistrarController (never the legacy one), **for the sending account only**; the quote must be for that account too. The controller refunds overpayment and writes the reverse record for `msg.sender` whatever the request's owner says (fork test `test_reverse_record_and_refund_go_to_the_payer`). The request points the name at the UpgradeableL2Resolver and sets `addr` and the text records. With `makePrimary` (default true) it sets `reverseRecord: true`; with no coin types and no signature that writes **only the legacy reverse record**. The plan's `steps` are therefore `[register, primaryName]`: `primaryName` is `setName` on the L2ReverseRegistrar, planned whenever ENSIP-19 does not already name it, including when the account has no ENSIP-19 name (`test_ensip19_primary_name_needs_set_name`). Send the steps in order, and `primaryName` **only after the register outcome is "sent"**. `setName` has no ownership check on chain, so `prepareBasenameWrite` refuses it unless the name's forward record already points at the account. `makePrimary: false` keeps the current primary name (one step). Labels need at least 3 characters (code points), and the price + 5% is sent.
+- **Edit** (`planBasenameTextUpdate`): one `multicall` of `setText` on the name's own resolver (the upgradeable or the legacy one; any other is refused; the node must be the name's). Owner only, no value; `""` clears a record.
+- **Chain binding** (`prepareBasenameWrite`): every write carries its `chainId` and sender. It is refused when the sender is another account, the RPC serves another chain, or the target has no code: the other chain's controller has no code, and a call there would keep the ETH. An estimate must succeed. The module never talks to a wallet: the write goes through Memba's one send path (`sendEvmWrite`), which re-checks the wallet's chain and the target's code and passes the chain to viem.
+- **Golden calldata:** `basenamesWrite.fixture.test.ts` writes and checks `contracts/evm/test/fixtures/basenames-<chainId>.json`, and `BasenamesFixture.t.sol` executes those exact bytes on both forks (register, setName, update, a stranger's edit refused).
+
 ## Contracts CI
 
 `.github/workflows/contracts-evm.yml`; the required check is the aggregate job **`Contracts (EVM)`** (it always reports; jobs a PR does not need are skipped and count as passed).
@@ -109,4 +119,4 @@ Optional repository secrets `BASE_RPC_URL` and `BASE_SEPOLIA_RPC_URL` (archive e
 | Track | Scope | Status |
 |---|---|---|
 | M0 | Flag, bundle gate, Phase 0 fork verification | Done |
-| T1a | Frontend network seam (`frontend/src/lib/chain/`), Base Sepolia in the OS network selector, apps per network family, EVM wallet and sign-in | In progress: network selection, apps per network family, EVM adapter (viem + @wagmi/core, injected wallets), wallet connection (sign-in waits for the SIWE RPCs), one chain-bound send path for every EVM write (`sendEvmWrite`) |
+| T1a | Frontend network seam (`frontend/src/lib/chain/`), Base Sepolia in the OS network selector, apps per network family, EVM wallet and sign-in | In progress: network selection, apps per network family, EVM adapter (viem + @wagmi/core, injected wallets), wallet connection, Sign-In with Ethereum, one chain-bound send path for every EVM write (`sendEvmWrite`) |
