@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test'
-import { OS_ON } from '../../playwright.os.config'
+import { expect, test, type Page } from '@playwright/test'
+import { OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 
 // Day 7 smoke: each of the 8 core apps (D8) opens in its window, desktop and
@@ -56,5 +56,39 @@ test.describe('Memba OS window failure', () => {
         await multisig.getByRole('button', { name: 'Close window' }).click()
         await expect(multisig).toHaveCount(0)
         await expect(daos).toBeVisible()
+    })
+})
+
+test.describe('Memba OS · the optional account', () => {
+    const SIGN_IN = /clerk\.example\.test|challenges\.cloudflare\.com/
+    /** Every attempt to reach Clerk or its bot check: a request, or a script the CSP refused before any request. */
+    function watchSignIn(page: Page): string[] {
+        const seen: string[] = []
+        page.on('request', (r) => { if (SIGN_IN.test(new URL(r.url()).hostname)) seen.push(r.url()) })
+        page.on('console', (m) => { if (SIGN_IN.test(m.text())) seen.push(m.text()) })
+        return seen
+    }
+    test.beforeEach(async ({ page }) => {
+        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+        await fulfillGovernance(page)
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+        await page.setViewportSize({ width: 1280, height: 800 })
+    })
+
+    // On the build that has a Clerk key (an unreachable test host): without one, nothing could load anyway.
+    test('a guest who never signs in makes no attempt to reach Clerk or its bot check, whatever they open', async ({ page }) => {
+        const seen = watchSignIn(page)
+        for (const [slug, name] of [...CORE, ['profile', 'Profile']] as const) {
+            await page.goto(`${OS_FLAGS_ON}/os/${slug}`)
+            await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
+        }
+        expect(seen).toEqual([])
+    })
+
+    test('the same watch sees Clerk load once the guest asks to sign in (the control for the case above)', async ({ page }) => {
+        const seen = watchSignIn(page)
+        await page.goto(`${OS_FLAGS_ON}/os/validators/alerts`)
+        await page.getByRole('button', { name: 'Sign in to configure alerts' }).click()
+        await expect.poll(() => seen.length).toBeGreaterThan(0)
     })
 })

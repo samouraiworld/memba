@@ -1,14 +1,9 @@
-import { lazy, Suspense } from "react"
-import { useClerkAuth } from "../../hooks/useClerkAuth"
+import { useAccount } from "../../account/accountContext"
 
-// Must lazy load since Clerk is isolated
-const ClerkProvider = lazy(() => import("../auth/ClerkProvider"))
-
-function AdminPanelLinkInner() {
-    const auth = useClerkAuth()
-    
-    // Only show if Clerk loaded, logged in, and user has the admin role
-    if (!auth.isLoaded || !auth.isSignedIn || !auth.isAdmin) return null
+/** Shown only to a signed-in account with the admin role; it never loads Clerk itself. */
+export function AdminPanelLink() {
+    const { user } = useAccount()
+    if (!user?.isAdmin) return null
 
     return (
         <a 
@@ -34,15 +29,5 @@ function AdminPanelLinkInner() {
         >
             <span style={{ fontSize: "var(--pro-body, 14px)" }}>⚙️</span> Admin Panel ↗
         </a>
-    )
-}
-
-export function AdminPanelLink() {
-    return (
-        <Suspense fallback={null}>
-            <ClerkProvider>
-                <AdminPanelLinkInner />
-            </ClerkProvider>
-        </Suspense>
     )
 }

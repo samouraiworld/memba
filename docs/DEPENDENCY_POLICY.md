@@ -85,7 +85,7 @@ For dependencies whose runtime behavior we can pin to a specific risk class, we 
 | Dependency | Risk class | Regression test |
 |------------|-----------|-----------------|
 | `dompurify` | XSS sanitizer | `frontend/src/lib/__tests__/sanitize-regression.test.ts` (30 OWASP-style XSS vectors at the 3 call sites' default config). Locks the 3.4+ baseline and flags any future regression to a vulnerable version. |
-| `@clerk/clerk-react` | Auth surface | The Clerk advisories `GHSA-w24r-5266-9c3c` and `GHSA-vqx2-fgx2-5wq9` are **not exploitable in Memba** (no calls to `has()`, `auth.protect()`, `createRouteMatcher`, billing, reverification, or org-scoped APIs). See `docs/advisories/MEMBA-2026-001.md` §"Memba-specific exploitability" for the evidence. Re-audit after any Clerk major bump. |
+| Clerk (no npm package) | Auth surface | Memba has no Clerk dependency: `frontend/src/account/loadClerk.ts` loads Clerk's client (`@clerk/clerk-js@6`) and sign-in UI (`@clerk/ui@1`) from the instance's own host only when someone signs in or a session is remembered, so the version is the major Clerk serves. Memba calls `load`, `openSignIn`, `addListener`, `session.getToken` and `signOut`: no `has()`, `auth.protect()`, billing, reverification or org-scoped APIs. `src/account/AccountProvider.test.tsx` covers a failed and a hung load. Re-check this row whenever the majors in `loadClerk.ts` change. |
 | `golang.org/x/net`, `crypto/x509`, `html/template`, `net/http` | Stdlib | `govulncheck` runs on every PR and weekly cron. The backend's required Go version is declared in [go.mod](../backend/go.mod); check the active toolchain before relying on a historical advisory closeout. |
 
 When adding a new call-site regression test:
@@ -98,8 +98,7 @@ When adding a new call-site regression test:
 
 | Advisory | Affected dep | Memba's call surface | Exploitable today? | Evidence |
 |----------|-------------|----------------------|--------------------|----------|
-| `GHSA-w24r-5266-9c3c` (Clerk auth bypass on org/billing/reverification) | `@clerk/clerk-react ≤ 5.61.5` | `<ClerkProvider>`, `useAuth`, `useUser`, `SignInButton` only — alerts page only | **No** — Memba uses none of `has()`, `auth.protect()`, `createRouteMatcher`, billing, reverification, or orgs. | `grep -rn "has\\(\\|auth\\.protect\\|createRouteMatcher\\|hasPermission" frontend/src` → 0 hits as of 2026-05-11. |
-| `GHSA-vqx2-fgx2-5wq9` (Clerk middleware bypass) | `@clerk/shared ≤ 3.47.4` | Same as above; transitive via `@clerk/clerk-react` and `@clerk/themes` | **No** — affects `@clerk/nextjs\|nuxt\|astro`, none of which Memba uses (Memba is a Vite SPA). | `frontend/package.json` does not depend on any `@clerk/{nextjs,nuxt,astro}` package. |
+| `GHSA-w24r-5266-9c3c` (Clerk auth bypass on org/billing/reverification), `GHSA-vqx2-fgx2-5wq9` (Clerk middleware bypass) | `@clerk/clerk-react ≤ 5.61.5`, `@clerk/shared ≤ 3.47.4` | None since 2026-10: Memba has no Clerk npm package and no `@clerk/shared` override | **No** | `grep -n '@clerk' frontend/package.json` → no hits. |
 | dompurify 3.3.x advisories (4 × ADD_TAGS/RETURN_DOM/SAFE_FOR_TEMPLATES/CUSTOM_ELEMENT_HANDLING) | `dompurify ≤ 3.3.3` | 3 sites: `NFTGallery.tsx:489`, `RealmDetailDrawer.tsx:164`, `SourceCodeView.tsx:116` — all `DOMPurify.sanitize(html)` with **no options** | **No, in default config** — the 4 CVEs require non-default options Memba doesn't pass. Regression suite locks that fact. | `sanitize-regression.test.ts` "the production sanitize helper passes no options" case. |
 
 When a future advisory lands, add a row here with the same evidence shape. The intent is that an external auditor reading this file can confirm the exposure assessment without re-reading the entire codebase.

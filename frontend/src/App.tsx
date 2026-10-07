@@ -4,6 +4,7 @@ import { ScrollToTop } from "./components/layout/ScrollToTop"
 import { NetworkGate } from "./components/layout/NetworkGate"
 import { RootRedirect } from "./components/layout/RootRedirect"
 import { OS_ENABLED } from "./os/flag"
+import { AccountProvider } from "./account/AccountProvider"
 import { networkRouteChildren } from "./routes/networkRoutes"
 
 // ── Memba OS (behind VITE_MEMBA_OS; its own shell, outside the network Layout) ──
@@ -49,6 +50,7 @@ function App() {
   }, [])
 
   return (
+    <AccountProvider>
     <BrowserRouter>
       <ScrollToTop />
       <OsOrClassic>
@@ -63,6 +65,7 @@ function App() {
       </Routes>
       </OsOrClassic>
     </BrowserRouter>
+    </AccountProvider>
   )
 }
 
