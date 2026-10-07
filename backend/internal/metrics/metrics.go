@@ -13,7 +13,9 @@ import (
 // signed_invalid, signed_invalid_rejected, empty_allowed, empty_rejected}.
 // signed / total is the signed-login ratio — the gate signal to watch before
 // flipping MEMBA_ALLOW_UNSIGNED_AUTH / MEMBA_ENFORCE_MULTISIG_SIG_VERIFY to
-// enforce. Incremented in internal/auth.logAuthLogin.
+// enforce. Incremented in internal/auth.logAuthLogin. Sign-In with Ethereum
+// adds siwe_eoa (session issued), siwe_rejected, siwe_replay,
+// siwe_chain_mismatch and siwe_origin_refused (internal/service.siweLogin).
 var AuthLoginTotal = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "memba_auth_login_total",

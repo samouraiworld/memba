@@ -24,6 +24,7 @@ func DefaultConfigs() map[string]Config {
 		// "eval" removed in v6 (SEC-01) — /api/eval endpoint was removed
 		"rpc":                {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
 		"tx":                 {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
+		"siwe":               {MaxRequests: 10, Window: time.Minute},  // Sign-In with Ethereum challenge/token — stricter, on top of "rpc"
 		"oauth":              {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
 		"analyst":            {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
 		"upload":             {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict (single downscaled avatar)

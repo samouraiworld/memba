@@ -302,6 +302,15 @@ func main() {
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
+	// Sign-In with Ethereum (EVM accounts). Off unless MEMBA_ENABLE_SIWE with
+	// MEMBA_SIWE_CHAIN_IDS and MEMBA_SIWE_DOMAINS; a partial or invalid
+	// configuration stays off and is logged. Used nonces are pruned hourly
+	// while it is on.
+	svc.ConfigureSiwe(os.Getenv)
+	if svc.SiweEnabled() {
+		go pruneSiweNonces(ctx, svc)
+	}
+
 	// W2.3 (NEW-INF-2): the same-volume `VACUUM INTO` backup scheduler is
 	// RETIRED. It could not survive the one failure mode that actually
 	// happened (volume loss — see OPS_RUNBOOK §4) and raced Litestream for
@@ -1091,6 +1100,16 @@ func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 			return
 		}
 
+		// Stricter per-IP limit for the Sign-In with Ethereum RPCs (each token
+		// request runs a signature recovery and a database write).
+		if endpoint == "rpc" && (strings.HasSuffix(r.URL.Path, "/GetSiweChallenge") || strings.HasSuffix(r.URL.Path, "/GetSiweToken")) {
+			if !limiter.Allow(ip, "siwe") {
+				slog.Warn("rate limited", "ip", ip, "endpoint", "siwe")
+				http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+				return
+			}
+		}
+
 		// Stricter per-IP limit for Sign/Complete transaction RPCs.
 		if endpoint == "rpc" && (strings.HasSuffix(r.URL.Path, "/SignTransaction") || strings.HasSuffix(r.URL.Path, "/CompleteTransaction")) {
 			if !limiter.Allow(ip, "tx") {
@@ -1102,6 +1121,22 @@ func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// pruneSiweNonces deletes expired used-nonce rows every hour until ctx ends.
+func pruneSiweNonces(ctx context.Context, svc *service.MultisigService) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := svc.PruneSiweNonces(ctx); err != nil {
+				slog.Warn("siwe: nonce pruning failed", "error", err)
+			}
+		}
+	}
 }
 
 // ── Health handler ───────────────────────────────────────────────
