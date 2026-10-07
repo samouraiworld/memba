@@ -395,7 +395,7 @@ func TestAuthenticateAccount(t *testing.T) {
 	scoped := "eip155:84532:" + evmUser
 	for user, ok := range map[string]bool{
 		evmUser:                  true,
-		scoped:                   true,
+		scoped:                   false, // contract path off here; accepted in siwe_contract_test.go
 		"eip155:8453:" + evmUser: false, // scoped to another chain
 		"0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf": false, // not canonical
 		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5":   false, // a Gno address in an EVM session

@@ -28,10 +28,12 @@ import (
 // chain asked for and to the page origin (the Origin header, which must be an
 // allowed domain). The wallet signs an EIP-4361 message; GetSiweToken checks
 // the challenge signature and expiry, parses the message strictly, requires it
-// to match the challenge field by field, verifies the signature (EOA only for
-// now: a contract-account signature is refused), consumes the nonce once in
+// to match the challenge field by field, verifies the signature (ecrecover
+// for key holders; through EIP-1271 / ERC-6492 for contract accounts when
+// MEMBA_SIWE_CONTRACT_SIGNERS is on), consumes the nonce once in
 // the database, and issues the ordinary session Token with chain_id
-// "eip155:<id>" and user_address the lower-case 0x address. No state is kept
+// "eip155:<id>" and user_address the lower-case 0x address (a key holder) or
+// "eip155:<id>:0x…" (a contract account). No state is kept
 // between the two calls except the used-nonce row.
 
 // siweMaxSignatureHex bounds the signature field before decoding.
@@ -129,11 +131,31 @@ func (s *MultisigService) GetSiweToken(
 	if err != nil {
 		return nil, deny("rejected", "signature encoding", evm)
 	}
-	// Key holders only: a contract account (Safe, smart wallet) cannot
-	// produce a signature that recovers to its own address, and its
-	// EIP-1271 path is not enabled.
+	// A key holder's signature recovers to its address: the session is the
+	// chain-agnostic 0x identity. Anything else may be a contract account
+	// (Safe, smart wallet), checked through EIP-1271 / ERC-6492 on this chain
+	// when the contract path is on for it: the session is then bound to the
+	// chain (eip155:<id>:0x…) and short, since its owners can change.
+	identity, ttl, result := evm, auth.DefaultTokenDuration, "eoa"
 	if err := siwe.VerifyEOA(m, sig); err != nil {
-		return nil, deny("rejected", "signature does not recover to the address", evm)
+		v := cfg.verifiers[chainID]
+		if v == nil {
+			return nil, deny("rejected", "signature does not recover to the address", evm)
+		}
+		vctx, cancel := context.WithTimeout(ctx, siweVerifyBudget)
+		valid, verr := v.Verify(vctx, m.Address, siwe.EIP191Hash(siwe.Format(m)), sig)
+		cancel()
+		if verr != nil {
+			// Not a verdict: the chain could not be asked. Nothing is consumed,
+			// the user may retry.
+			siweLogin("rpc_unavailable", evm, ch.GetChainId())
+			slog.Warn("siwe: contract signature could not be checked", "error", verr, "address", evm)
+			return nil, connect.NewError(connect.CodeUnavailable, nil)
+		}
+		if !valid {
+			return nil, deny("rejected", "contract signature invalid", evm)
+		}
+		identity, ttl, result = address.Scoped(chainID, m.Address).String(), siweContractSessionTTL, "contract"
 	}
 
 	// Consume the nonce atomically, after every check and before the token:
@@ -150,11 +172,11 @@ func (s *MultisigService) GetSiweToken(
 		return nil, deny("replay", "nonce already used", evm)
 	}
 
-	token, err := auth.MintToken(s.privateKey, evm, ch.GetChainId(), auth.DefaultTokenDuration)
+	token, err := auth.MintToken(s.privateKey, identity, ch.GetChainId(), ttl)
 	if err != nil {
 		return nil, internalError("siwe token", err)
 	}
-	siweLogin("eoa", evm, ch.GetChainId())
+	siweLogin(result, identity, ch.GetChainId())
 	return connect.NewResponse(&membav1.GetSiweTokenResponse{AuthToken: token}), nil
 }
 
@@ -220,6 +242,11 @@ func (s *MultisigService) authenticateAccount(token *membav1.Token) (string, err
 	case address.KindEVMScoped:
 		if a.ChainID() != chainID {
 			return refuse("scoped address on another chain")
+		}
+		// A contract-account session ends when the contract path is turned
+		// off for its chain.
+		if cfg.verifiers[chainID] == nil {
+			return refuse("contract signers off")
 		}
 	default:
 		return refuse("not an EVM address")

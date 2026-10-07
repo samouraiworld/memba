@@ -16,6 +16,7 @@ import { classicForSection } from "../page/classicRoute"
 import { nameForRealm } from "../daos/daoNames"
 import { parseDaoSplat } from "../../lib/daoSlug"
 import { OS_APPS, type OsAppId } from "../apps"
+import { EVM_ENABLED } from "../../lib/chain/flag"
 
 export type DaoSection = "overview" | "proposals" | "treasury" | "members"
 
@@ -35,6 +36,8 @@ export type OsTarget =
 const DAO_NAME = /^[A-Za-z0-9_.-]{1,64}$/
 const PROPOSAL_N = /^\d{1,9}$/
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/
+/** An EVM account (a Safe), kept lowercase: EIP-55 is for display. Only in EVM builds. */
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/
 const SECTIONS: readonly DaoSection[] = ["proposals", "treasury", "members"]
 
 function decode(seg: string): string | null {
@@ -67,6 +70,7 @@ export function parseOsPath(pathname: string): OsTarget {
     // /os/multisig/<address> is the multisig window; its other pages (create, …/propose) are Multisig app sections.
     if (first === "multisig" && second !== undefined) {
         if (ADDRESS.test(second) && third === undefined) return { kind: "multisig", address: second }
+        if (EVM_ENABLED && EVM_ADDRESS.test(second) && third === undefined) return { kind: "multisig", address: second.toLowerCase() }
         const section = [second, third, fourth, ...rest].filter(Boolean).join("/")
         const page = classicForSection("multisig", section)
         // multisig/<x>/… pages need x to be an address.

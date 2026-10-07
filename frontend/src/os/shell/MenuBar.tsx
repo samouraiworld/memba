@@ -21,6 +21,7 @@ import { newRoomId } from "../apps/meet/rooms"
 import { appSpec } from "./windows"
 import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
 import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
+import { safeNetworkOf, useSafeAwaiting } from "../multisig/evm/useSafes"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
@@ -77,7 +78,11 @@ export function MenuBar(p: MenuBarProps) {
     const guest = session.status !== "member"
     const net = session.network
     const signer = useSigner()
-    const awaiting = useAwaiting(session.layout.auth, session.status === "member" ? session.address : "")
+    const onEvm = EVM_ENABLED && net.family === "evm"
+    const gnoAwaiting = useAwaiting(session.layout.auth, !onEvm && session.status === "member" ? session.address : "")
+    // On an EVM network: queued Safe transactions waiting for this wallet (Safe Transaction Service).
+    const safeAwaiting = useSafeAwaiting(onEvm ? safeNetworkOf(session) : null, onEvm ? session.walletAddress?.toLowerCase() ?? "" : "")
+    const awaiting = onEvm ? safeAwaiting : gnoAwaiting
     const waiting = awaiting.mine + awaiting.shared
 
     // "Add an app…" on the desktop menu opens the start menu (state adjusted

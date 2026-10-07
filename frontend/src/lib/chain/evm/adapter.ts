@@ -1,15 +1,21 @@
 /**
- * The EVM adapter: the only module that imports viem and @wagmi/core. It is
+ * The EVM adapter: wallet connection and chain reads (viem + @wagmi/core). It is
  * reached through `loadEvmAdapter()` (./load.ts) alone, so it and the
  * vendor-evm chunk load on first use and never ship in a flag-off build.
+ *
+ * Rule: viem is imported only by modules under lib/chain/evm that are reached
+ * exclusively through a lazy loader (this one, or a feature's own loader such as
+ * the token deploy helper's, so its 40 KB template bytecode never rides here).
  *
  * @module lib/chain/evm/adapter
  */
 import { createConfig, createStorage, getPublicClient, http, injected } from "@wagmi/core"
 import { base, baseSepolia, type Chain } from "viem/chains"
-import type { Read } from "../types"
+import type { Read, TxResult } from "../types"
 import { readChainStatus, type ChainStatus } from "./chainCheck"
-import { EVM_NETWORKS } from "./networks"
+import { EVM_NETWORKS, storedEvmNetworkKey } from "./networks"
+import { createEvmWallet } from "./wallet"
+import { sendEvmWriteWith, type EvmWrite } from "./send"
 
 const CHAINS: Readonly<Record<string, Chain>> = { "base-sepolia": baseSepolia, base }
 
@@ -42,8 +48,17 @@ export const evmConfig = createConfig({
     },
 })
 
+/** The one EVM wallet source (lib/chain/evm/wallet.ts). */
+export const evmWallet = createEvmWallet(evmConfig)
+
 /** The network's RPC, proven to serve that chain, and its latest block. */
 export function readNetworkStatus(key: string): Promise<Read<ChainStatus>> {
     const chain = chainFor(key)
     return readChainStatus(chain.id, getPublicClient(evmConfig, { chainId: chain.id as typeof baseSepolia.id }))
+}
+
+/** The one send path for EVM writes (lib/chain/evm/send.ts), on Memba's wallet config. */
+export function sendEvmWrite(write: EvmWrite, opts?: { receiptTimeoutMs?: number }): Promise<TxResult> {
+    const here = storedEvmNetworkKey()
+    return sendEvmWriteWith(evmConfig, here ? EVM_NETWORKS[here].chainId : null, write, opts)
 }
