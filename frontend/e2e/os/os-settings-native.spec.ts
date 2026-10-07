@@ -210,6 +210,9 @@ test.describe('native OS Settings', () => {
         await page.goto(`${OS_FLAGS_ON}/os/confirm?t=12.abc`)
         await expect(settings.getByRole('heading', { name: 'Confirm your email' })).toBeVisible()
         expect(confirms).toEqual([])
+        // The token leaves the address at once, and the saved desk never holds it.
+        await expect.poll(() => page.url()).not.toContain('12.abc')
+        expect(await page.evaluate(() => Object.keys(localStorage).map((k) => localStorage.getItem(k)).join(' '))).not.toContain('12.abc')
         await settings.getByRole('button', { name: 'Confirm' }).click()
         await expect(settings.getByRole('status').filter({ hasText: 'Confirmed: Memba will email you newsletter.' })).toBeVisible()
         expect(JSON.parse(confirms[0])).toEqual({ token: '12.abc' })
