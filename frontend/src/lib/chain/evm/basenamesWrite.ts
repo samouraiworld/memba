@@ -8,9 +8,11 @@
  * controller refunds overpayment and writes the reverse record for msg.sender whatever the request's owner says,
  * so owner = payer is the only safe pairing. The request points the name at the UpgradeableL2Resolver, sets the
  * forward address and the given text records, and, unless asked not to, sets the LEGACY reverse record
- * (`reverseRecord: true` with no coin types and no signature sets only that one; ENSIP-19 readers do not see it). An account that already has a different ENSIP-19 primary name (read first, see
- * readPrimaryBasename) keeps it until a second, free transaction calls `setName` on the L2ReverseRegistrar:
- * planBasenameRegistration returns that step as `primaryName`, and the UI must send it too.
+ * (`reverseRecord: true` with no coin types and no signature sets only that one; ENSIP-19 readers do not see it).
+ * So a primary-name registration has a second, free step: `setName` on the L2ReverseRegistrar, planned whenever
+ * the account's ENSIP-19 name is not already this one (including when it has none). The plan's `steps` are sent in
+ * order, and the setName step ONLY after the register step's outcome is "sent". setName has no ownership check on
+ * chain, so prepareBasenameWrite also refuses it unless the name's forward record already points at the account.
  *
  * Every write is bound to its chain: `prepareBasenameWrite` refuses an RPC on another chain and a target with no
  * code (a plan for one chain sent on the other would pay a codeless address, which keeps the ETH). This module
@@ -22,7 +24,7 @@
  *
  * @module lib/chain/evm/basenamesWrite
  */
-import { encodeFunctionData, isAddressEqual, parseAbi, type Address, type Hex, type PublicClient } from "viem"
+import { decodeFunctionData, encodeFunctionData, isAddressEqual, parseAbi, zeroAddress, type Address, type Hex, type PublicClient } from "viem"
 import { namehash } from "viem/ens"
 import { BASENAME_TEXT_KEYS, basenameSuffix, isAcceptableBasename, isKnownResolver, type BasenameTextKey, type PrimaryBasename } from "./basenames"
 import { evmContract } from "./manifest"
@@ -46,6 +48,10 @@ export const resolverWriteAbi = parseAbi([
     "function setAddr(bytes32 node, address a)",
     "function setText(bytes32 node, string key, string value)",
     "function multicall(bytes[] data) returns (bytes[])",
+])
+const ownershipAbi = parseAbi([
+    "function resolver(bytes32 node) view returns (address)",
+    "function addr(bytes32 node) view returns (address)",
 ])
 export const reverseRegistrarAbi = parseAbi([
     "function nameForAddr(address addr) view returns (string)",
@@ -87,6 +93,8 @@ function checkYears(years: number): void {
 
 export interface BasenameQuote {
     chainId: number
+    /** The account the quote was made for (its ENSIP-19 name was read); a plan must be for the same account. */
+    account: Address
     label: string
     years: number
     available: boolean
@@ -112,10 +120,13 @@ export async function quoteBasename(
         client.readContract({ address: controller, abi: controllerAbi, functionName: "registerPrice", args: [label, BigInt(years) * BASENAME_YEAR_SECONDS] }),
         client.readContract({ address: evmContract(chainId, "basenamesL2ReverseRegistrar"), abi: reverseRegistrarAbi, functionName: "nameForAddr", args: [account] }),
     ])
-    return { chainId, label, years, available, price, ensip19Primary }
+    return { chainId, account, label, years, available, price, ensip19Primary }
 }
 
-/** The free transaction that makes `name` the account's ENSIP-19 primary name (setName, for msg.sender). */
+/**
+ * The free transaction that makes `name` the account's ENSIP-19 primary name (setName, for msg.sender). The
+ * registrar does not check ownership: prepareBasenameWrite refuses it until `name` resolves to the account.
+ */
 export function planPrimaryName(chainId: number, account: Address, name: string): BasenameWrite {
     if (!isAcceptableBasename(name, chainId)) throw new Error("Not a Basename on this network.")
     return {
@@ -127,13 +138,17 @@ export function planPrimaryName(chainId: number, account: Address, name: string)
     }
 }
 
+export type RegistrationStep =
+    /** The payable registration: name, address, records and, when asked, the LEGACY reverse record. */
+    | { kind: "register"; write: BasenameWrite }
+    /** The ENSIP-19 primary name. Send ONLY after the register step's outcome is "sent". */
+    | { kind: "primaryName"; write: BasenameWrite }
+
 export interface RegistrationPlan {
     name: string
     node: Hex
-    /** The payable registration: name, address, records and, when asked, the LEGACY reverse record. */
-    register: BasenameWrite
-    /** Send after `register` when the name becomes primary and the account has another ENSIP-19 primary name. */
-    primaryName: BasenameWrite | null
+    /** In order: register, then (when the name becomes primary and ENSIP-19 does not name it yet) primaryName. */
+    steps: [RegistrationStep] | [RegistrationStep, RegistrationStep]
 }
 
 export interface RegistrationInput {
@@ -152,6 +167,7 @@ export interface RegistrationInput {
 export function planBasenameRegistration(input: RegistrationInput): RegistrationPlan {
     const { account, quote } = input
     const makePrimary = input.makePrimary ?? true
+    if (!isAddressEqual(account, quote.account)) throw new Error("This quote was made for another account.")
     const name = basenameFor(quote.chainId, quote.label)
     checkYears(quote.years)
     if (!quote.available) throw new Error("This name is taken.")
@@ -159,10 +175,9 @@ export function planBasenameRegistration(input: RegistrationInput): Registration
     const node = namehash(name)
     const texts = Object.fromEntries(Object.entries(input.texts ?? {}).filter(([, v]) => v !== "" && v !== undefined)) as BasenameTextChanges
     const data = [encodeFunctionData({ abi: resolverWriteAbi, functionName: "setAddr", args: [node, account] }), ...textCalls(node, texts)]
-    return {
-        name,
-        node,
-        register: {
+    const register: RegistrationStep = {
+        kind: "register",
+        write: {
             chainId: quote.chainId,
             from: account,
             to: evmContract(quote.chainId, "basenamesRegistrarController"),
@@ -183,8 +198,23 @@ export function planBasenameRegistration(input: RegistrationInput): Registration
                 }],
             }),
         },
-        primaryName: makePrimary && quote.ensip19Primary && quote.ensip19Primary !== name ? planPrimaryName(quote.chainId, account, name) : null,
     }
+    return makePrimary && quote.ensip19Primary !== name
+        ? { name, node, steps: [register, { kind: "primaryName", write: planPrimaryName(quote.chainId, account, name) }] }
+        : { name, node, steps: [register] }
+}
+
+/** For a setName write: the name it would make primary must already resolve to the account (setName checks nothing). */
+async function assertPrimaryNameOwned(client: Pick<PublicClient, "readContract">, write: BasenameWrite, account: Address): Promise<void> {
+    const { functionName, args } = decodeFunctionData({ abi: reverseRegistrarAbi, data: write.data })
+    if (functionName !== "setName") throw new Error("Memba only sends setName to the reverse registrar.")
+    const name = args[0] as string
+    if (!isAcceptableBasename(name, write.chainId)) throw new Error("Not a Basename on this network.")
+    const node = namehash(name)
+    const resolver = await client.readContract({ address: evmContract(write.chainId, "basenamesRegistry"), abi: ownershipAbi, functionName: "resolver", args: [node] })
+    if (resolver === zeroAddress || !isKnownResolver(write.chainId, resolver)) throw new Error(`${name} is not registered with a Basenames resolver yet.`)
+    const target = await client.readContract({ address: resolver, abi: ownershipAbi, functionName: "addr", args: [node] })
+    if (!isAddressEqual(target, account)) throw new Error(`${name} does not point to this account, so it cannot become its primary name.`)
 }
 
 /**
@@ -201,11 +231,12 @@ export function planBasenameTextUpdate(chainId: number, account: Address, primar
 
 /**
  * Proves the write can only land where it was planned, right before handing it to `sendEvmWrite`: the sender is
- * the planned account, the RPC serves the planned chain, the target has code there, and the estimate succeeds (an
- * estimate that reverts throws, so nothing doomed is sent).
+ * the planned account, the RPC serves the planned chain, the target has code there, a setName names a Basename
+ * that already resolves to the account, and the estimate succeeds (an estimate that reverts throws, so nothing
+ * doomed is sent).
  */
 export async function prepareBasenameWrite(
-    client: Pick<PublicClient, "getChainId" | "getCode" | "estimateGas">,
+    client: Pick<PublicClient, "getChainId" | "getCode" | "estimateGas" | "readContract">,
     write: BasenameWrite,
     account: Address,
 ): Promise<{ write: BasenameWrite; estimatedGas: bigint }> {
@@ -214,6 +245,7 @@ export async function prepareBasenameWrite(
     if (chainId !== write.chainId) throw new Error(`This transaction is for chain ${write.chainId}, not chain ${chainId}.`)
     const code = await client.getCode({ address: write.to })
     if (!code || code === "0x") throw new Error("The contract is not deployed on this chain.")
+    if (isAddressEqual(write.to, evmContract(write.chainId, "basenamesL2ReverseRegistrar"))) await assertPrimaryNameOwned(client, write, account)
     const estimatedGas = await client.estimateGas({ account, to: write.to, data: write.data, value: write.value })
     return { write, estimatedGas }
 }

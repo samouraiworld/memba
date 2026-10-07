@@ -40,6 +40,22 @@ abstract contract BasenamesFixtureTest is ForkBase {
         assertTrue(ok, string.concat(step, " reverted"));
     }
 
+    function _lowerHex(uint256 v, uint256 nibbles) internal pure returns (string memory) {
+        bytes memory out = new bytes(nibbles);
+        bytes16 digits = "0123456789abcdef";
+        for (uint256 i; i < nibbles; i++) {
+            out[nibbles - 1 - i] = digits[(v >> (4 * i)) & 0x0f];
+        }
+        return string(out);
+    }
+
+    /// namehash("<addr hex>.<0x80000000 | chainid hex>.reverse"), the legacy (ENSIP-11) reverse node.
+    function _legacyReverseNode(address a) internal view returns (bytes32) {
+        bytes32 reverse = keccak256(abi.encodePacked(bytes32(0), keccak256("reverse")));
+        bytes32 coin = keccak256(abi.encodePacked(reverse, keccak256(bytes(_lowerHex(0x80000000 | block.chainid, 8)))));
+        return keccak256(abi.encodePacked(coin, keccak256(bytes(_lowerHex(uint160(a), 40)))));
+    }
+
     function test_frontend_calldata_executes() public {
         string memory json = vm.readFile(string.concat("test/fixtures/basenames-", vm.toString(block.chainid), ".json"));
         address account = json.readAddress(".account");
@@ -63,6 +79,12 @@ abstract contract BasenamesFixtureTest is ForkBase {
         assertEq(IFxResolver(resolver).addr(node), account);
         assertEq(IFxResolver(resolver).text(node, "description"), "Memba builder");
         assertEq(IFxResolver(resolver).text(node, "memba.profile.v1"), '{"version":1}');
+        bytes32 rnode = _legacyReverseNode(account);
+        assertEq(
+            IFxResolver(IFxRegistry(_registry()).resolver(rnode)).name(rnode),
+            name,
+            "legacy reverse record set by register"
+        );
         assertEq(IFxReverse(_l2Reverse()).nameForAddr(account), old, "register leaves the ENSIP-19 name");
 
         vm.prank(account);

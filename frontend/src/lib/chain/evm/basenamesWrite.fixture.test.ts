@@ -21,7 +21,7 @@ function fixture(chainId: number) {
     const suffix = chainId === 8453 ? ".base.eth" : ".basetest.eth"
     const plan = planBasenameRegistration({
         account: ALICE,
-        quote: { chainId, label: LABEL, years: 1, available: true, price: PRICE, ensip19Primary: `membaoldname${suffix}` },
+        quote: { chainId, account: ALICE, label: LABEL, years: 1, available: true, price: PRICE, ensip19Primary: `membaoldname${suffix}` },
         texts: { description: "Memba builder", "memba.profile.v1": '{"version":1}' },
     })
     const update = planBasenameTextUpdate(chainId, ALICE, { name: plan.name, node: plan.node, resolver: evmContract(chainId, "basenamesL2Resolver") }, {
@@ -35,8 +35,8 @@ function fixture(chainId: number) {
         name: plan.name,
         node: plan.node,
         price: PRICE.toString(),
-        register: { to: plan.register.to, value: plan.register.value.toString(), data: plan.register.data },
-        setName: { to: plan.primaryName!.to, data: plan.primaryName!.data },
+        register: { to: plan.steps[0].write.to, value: plan.steps[0].write.value.toString(), data: plan.steps[0].write.data },
+        setName: { to: plan.steps[1]!.write.to, data: plan.steps[1]!.write.data },
         update: { to: update.to, data: update.data },
     }
 }
