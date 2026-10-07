@@ -30,8 +30,14 @@ import { join, resolve } from "node:path"
 const GATES = {
   three: { chunk: "vendor-three-", flag: null, markers: [] },
   // viem's and wagmi's own names (a flag-off build has no vendor-evm chunk to find them by), the
-  // Base Sepolia RPC host (lib/chain/evm/networks.ts) and the adapter's storage key (adapter.ts).
-  evm: { chunk: "vendor-evm-", flag: "VITE_ENABLE_EVM", markers: ["viem@", "wagmi", "sepolia.base.org", "memba.evm"] },
+  // Base Sepolia RPC host (lib/chain/evm/networks.ts), the adapter's storage key (adapter.ts), a key of the
+  // generated contract manifest (manifest.generated.ts) and an error name of the token template
+  // (membaToken.generated.ts ABI; Gno templates also say "feeRecipient", so that name cannot serve).
+  evm: {
+    chunk: "vendor-evm-",
+    flag: "VITE_ENABLE_EVM",
+    markers: ["viem@", "wagmi", "sepolia.base.org", "memba.evm", "basenamesRegistrarController", "ERC20ExceededSafeSupply"],
+  },
   // The Safe{Core} SDK's own strings (api-kit's default host, protocol-kit's contract keys) and
   // Memba's Transaction Service proxy route (lib/chain/evm/safe/sdk.ts).
   safe: { chunk: "vendor-safe-", flag: "VITE_ENABLE_EVM", markers: ["api.safe.global", "safeSingletonL2Version", "/api/safe-tx/"] },

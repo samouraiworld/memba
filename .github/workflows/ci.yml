@@ -108,9 +108,10 @@ jobs:
           fi
           echo "✅ verify-worker.cjs matches its source"
 
-      - name: "Determinism gate: EVM manifest module matches deployments/evm"
+      - name: "Determinism gate: generated EVM modules match deployments/evm and the token artifact"
         # lib/chain/evm/manifest.generated.ts is generated from deployments/evm/<chainId>.json (checked
-        # against the chains by the EVM Contracts workflow). Regenerate locally with:
+        # against the chains by the EVM Contracts workflow) and membaToken.generated.ts from
+        # contracts/evm/artifacts/MembaToken.json (rebuilt by the same workflow). Regenerate locally with:
         #   node scripts/gen-evm-manifest.mjs   (in frontend/)
         run: node scripts/gen-evm-manifest.mjs --check
 
