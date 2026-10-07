@@ -43,6 +43,8 @@ export function initNewSafe(provider: Eip1193Provider, signer: string, config: P
 export interface NewSafePlan {
     /** The chain the plan was built and checked for: the factory and the predicted address are the same on every chain. */
     chainId: number
+    /** The account that sends the deployment (lowercase): the plan is sent from it only. */
+    deployer: Hex
     predicted: Hex
     owners: Hex[]
     threshold: number
@@ -75,8 +77,6 @@ const ZERO: Hex = "0x0000000000000000000000000000000000000000"
 const FACTORY_ABI = parseAbi(["function createProxyWithNonce(address _singleton, bytes initializer, uint256 saltNonce) returns (address proxy)"])
 const SETUP_ABI = parseAbi(["function setup(address[] _owners, uint256 _threshold, address to, bytes data, address fallbackHandler, address paymentToken, uint256 payment, address paymentReceiver)"])
 const HANDLER_1_5_0 = SAFE_FALLBACK_HANDLERS.find((h) => h.version === "1.5.0")!.address
-/** keccak256("ProxyCreation(address,address)"): SafeProxyFactory 1.5.0's event, the proxy indexed. */
-const PROXY_CREATION: Hex = "0x4f51faf6c4561ff95f067657e43439f0f856d97c04d9ec9070a6199ad418e235"
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -140,7 +140,24 @@ export async function planNewSafe(networkKey: string, owners: readonly Hex[], th
     if (code && code !== "0x") throw new SafeActionError({ code: "address-taken" })
     const deployment = await kit.createSafeDeploymentTransaction()
     assertDeployment(deployment, owners, threshold, saltNonce)
-    return { chainId, predicted, owners: [...owners], threshold, saltNonce, tx: { to: deployment.to as Hex, data: deployment.data as Hex, value: BigInt(deployment.value) } }
+    return { chainId, deployer: client.account.address.toLowerCase() as Hex, predicted, owners: [...owners], threshold, saltNonce, tx: { to: deployment.to as Hex, data: deployment.data as Hex, value: BigInt(deployment.value) } }
+}
+
+/**
+ * Whether the predicted address holds exactly the planned Safe, read on chain:
+ * SafeL2 1.5.0, the planned owners and threshold, no module. Its address
+ * commits to the owners, threshold and salt, so a Safe there that matches is
+ * the planned one, whichever transaction created it. null: the chain couldn't
+ * be read.
+ */
+async function plannedSafeAt(networkKey: string, plan: NewSafePlan): Promise<Extract<SafeInspection, { kind: "safe" }> | false | null> {
+    const inspection = await inspectSafe(safeReader(networkKey), keccak256, plan.chainId, plan.predicted)
+    if (inspection.kind === "unavailable") return null
+    const safe = inspection.value.kind === "safe" ? inspection.value : null
+    const owners = new Set(plan.owners.map((o) => o.toLowerCase()))
+    if (!safe || safe.version !== "1.5.0" || !safe.l2 || safe.threshold !== plan.threshold
+        || safe.owners.length !== owners.size || safe.owners.some((o) => !owners.has(o)) || safe.modules.length > 0) return false
+    return safe
 }
 
 /**
@@ -148,6 +165,11 @@ export async function planNewSafe(networkKey: string, owners: readonly Hex[], th
  * address on chain, which must hold exactly the planned Safe. Safe to call
  * again with the same hash ("check again") while the network or the RPC is
  * slow: an outage is never reported as a wrong Safe.
+ *
+ * A creation that reverted, was replaced, or never confirmed may still have
+ * its Safe: someone can create the same Safe first with the same arguments
+ * (the address is public), which makes this one revert. So the address is
+ * read before anything is said to have failed.
  */
 export async function confirmNewSafe(networkKey: string, plan: NewSafePlan, hash: Hex): Promise<Extract<SafeInspection, { kind: "safe" }>> {
     const chainId = chainIdOf(networkKey)
@@ -156,22 +178,14 @@ export async function confirmNewSafe(networkKey: string, plan: NewSafePlan, hash
     try {
         receipt = await waitForTransactionReceipt(evmConfig, { chainId, hash })
     } catch {
+        const there = await plannedSafeAt(networkKey, plan).catch(() => null)
+        if (there) return there
         throw new SafeActionError({ code: "unconfirmed", hash })
     }
-    if (receipt.status !== "success") throw new SafeActionError({ code: "reverted", hash })
-    // The factory says which proxy it created: it must be the predicted address.
-    const created = receipt.logs.some((log) => same(log.address, SAFE_PROXY_FACTORY_1_5_0) && log.topics[0] === PROXY_CREATION
-        && !!log.topics[1] && same(`0x${log.topics[1].slice(26)}`, plan.predicted))
-    if (!created) throw new SafeActionError({ code: "not-the-safe", hash })
-    const inspection = await inspectSafe(safeReader(networkKey), keccak256, chainId, plan.predicted)
-    if (inspection.kind === "unavailable") throw new SafeActionError({ code: "unverified", hash })
-    const safe = inspection.value.kind === "safe" ? inspection.value : null
-    const owners = new Set(plan.owners.map((o) => o.toLowerCase()))
-    if (!safe || safe.version !== "1.5.0" || !safe.l2 || safe.threshold !== plan.threshold
-        || safe.owners.length !== owners.size || safe.owners.some((o) => !owners.has(o)) || safe.modules.length > 0) {
-        throw new SafeActionError({ code: "not-the-safe", hash })
-    }
-    return safe
+    const there = await plannedSafeAt(networkKey, plan)
+    if (there === null) throw new SafeActionError({ code: "unverified", hash })
+    if (there) return there
+    throw new SafeActionError({ code: receipt.status !== "success" ? "reverted" : "not-the-safe", hash })
 }
 
 /**
@@ -186,7 +200,7 @@ export async function deployNewSafe(networkKey: string, plan: NewSafePlan, onSen
     if (chainId !== plan.chainId) throw new SafeActionError({ code: "wrong-chain" })
     let hash: Hex
     try {
-        hash = await sendTransaction(evmConfig, { chainId, to: plan.tx.to, data: plan.tx.data, value: plan.tx.value })
+        hash = await sendTransaction(evmConfig, { account: plan.deployer, chainId, to: plan.tx.to, data: plan.tx.data, value: plan.tx.value })
     } catch (err) {
         walletError(err)
     }

@@ -13,7 +13,7 @@ const BOB = "0xb0b0000000000000000000000000000000000002"
 const PREDICTED = "0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe"
 const HASH = `0x${"ab".repeat(32)}`
 
-const plan = { chainId: 84532, predicted: PREDICTED, owners: [ME, BOB], threshold: 2, saltNonce: 7n, tx: { to: "0x14F2982D601c9458F93bd70B218933A6f8165e7b", data: "0x", value: 0n } }
+const plan = { chainId: 84532, deployer: ME, predicted: PREDICTED, owners: [ME, BOB], threshold: 2, saltNonce: 7n, tx: { to: "0x14F2982D601c9458F93bd70B218933A6f8165e7b", data: "0x", value: 0n } }
 const sdk = {
     toChecksum: (a: string) => getAddress(a),
     planNewSafe: vi.fn(),
@@ -29,6 +29,7 @@ const guest = { ...base, status: "guest", address: "", walletAddress: "" } as un
 
 beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
     sdk.planNewSafe.mockResolvedValue(plan)
     sdk.deployNewSafe.mockImplementation(async (_key: string, _plan: unknown, onSent?: (h: string) => void) => { onSent?.(HASH); return { hash: HASH, safe: {} } })
 })
@@ -116,6 +117,42 @@ describe("creating a Safe", () => {
         expect(sdk.confirmNewSafe).toHaveBeenCalledWith("base-sepolia", plan, HASH)
         expect(sdk.planNewSafe).toHaveBeenCalledTimes(1)
         expect(sdk.deployNewSafe).toHaveBeenCalledTimes(1)
+    })
+
+    it("resumes a sent creation after the window closes or the page reloads, with the same plan and hash", async () => {
+        sdk.deployNewSafe.mockImplementation(async (_key: string, _plan: unknown, onSent?: (h: string) => void) => {
+            onSent?.(HASH)
+            throw new SafeActionError({ code: "unconfirmed", hash: HASH as `0x${string}` })
+        })
+        const first = render(<CreateSafe session={connected} open={vi.fn()} />)
+        fillBob()
+        fireEvent.click(screen.getByRole("button", { name: "Review" }))
+        await screen.findByText("Review the new Safe")
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Create Safe" })) })
+        await screen.findByRole("button", { name: "Check again" })
+        first.unmount()
+
+        // Reopened: straight back to the sent creation, not a new plan.
+        sdk.confirmNewSafe.mockResolvedValueOnce({})
+        const second = render(<CreateSafe session={connected} open={vi.fn()} />)
+        expect(screen.getByRole("link", { name: "Transaction" })).toHaveAttribute("href", `https://sepolia.basescan.org/tx/${HASH}`)
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Check again" })) })
+        expect(sdk.confirmNewSafe).toHaveBeenCalledWith("base-sepolia", expect.objectContaining({ predicted: PREDICTED, saltNonce: 7n, deployer: ME }), HASH)
+        expect(await screen.findByText("Safe created")).toBeInTheDocument()
+        second.unmount()
+
+        // Done: nothing to resume any more.
+        render(<CreateSafe session={connected} open={vi.fn()} />)
+        expect(screen.getByRole("textbox", { name: "Owner 1 address" })).toBeInTheDocument()
+        expect(sdk.planNewSafe).toHaveBeenCalledTimes(1)
+    })
+
+    it("lets the member start over from a sent creation, on purpose only", async () => {
+        sessionStorage.setItem("memba.safe.creating.84532", JSON.stringify({ plan: { ...plan, saltNonce: "7", tx: { ...plan.tx, value: "0" } }, hash: HASH, display: {} }))
+        render(<CreateSafe session={connected} open={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: "Start a new Safe" }))
+        expect(screen.getByRole("textbox", { name: "Owner 1 address" })).toBeInTheDocument()
+        expect(sessionStorage.getItem("memba.safe.creating.84532")).toBeNull()
     })
 
     it("goes back to the form when the deployment can't be built as asked, with the reason", async () => {

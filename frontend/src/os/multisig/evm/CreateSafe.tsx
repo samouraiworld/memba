@@ -18,6 +18,7 @@ import type { NewSafePlan } from "../../../lib/chain/evm/safe/create"
 import type { OsSession } from "../../shell/useOsSession"
 import { specForTarget, type WindowSpec } from "../../shell/windows"
 import { actionErrorText } from "./describe"
+import { clearPendingCreation, loadPendingCreation, savePendingCreation } from "./pendingCreation"
 import { safeNetworkOf } from "./useSafes"
 
 type Stage =
@@ -45,7 +46,11 @@ export function CreateSafe({ session, open }: { session: OsSession; open: (spec:
     const wallet = session.walletAddress?.toLowerCase() ?? ""
     const [owners, setOwners] = useState<string[]>(wallet ? [wallet] : [""])
     const [threshold, setThreshold] = useState(1)
-    const [stage, setStage] = useState<Stage>({ kind: "edit" })
+    // A creation sent from this tab and not yet confirmed resumes where it was: never a second Safe.
+    const [stage, setStage] = useState<Stage>(() => {
+        const pending = loadPendingCreation(net.chainId)
+        return pending ? { kind: "mining", plan: pending.plan, display: pending.display, hash: pending.hash, stuck: true } : { kind: "edit" }
+    })
     const [error, setError] = useState<string | null>(null)
 
     const setOwner = (i: number, v: string) => setOwners((o) => o.map((x, j) => (j === i ? v : x)))
@@ -86,11 +91,17 @@ export function CreateSafe({ session, open }: { session: OsSession; open: (spec:
         const sdk = await loadSafeSdk()
         let sent: Hex | null = null
         try {
-            const { hash } = await sdk.deployNewSafe(net.key, plan, (h) => { sent = h; setStage({ kind: "mining", plan, display, hash: h, stuck: false }) })
-            setStage({ kind: "done", address: plan.predicted, display: display[plan.predicted], hash })
+            const { hash } = await sdk.deployNewSafe(net.key, plan, (h) => {
+                sent = h
+                savePendingCreation({ plan, hash: h, display })
+                setStage({ kind: "mining", plan, display, hash: h, stuck: false })
+            })
+            clearPendingCreation(plan.chainId)
+            setStage({ kind: "done", address: plan.predicted, display: display[plan.predicted] ?? plan.predicted, hash })
         } catch (err) {
             setError(err instanceof sdk.SafeActionError ? actionErrorText(err.reason, label) : "Couldn't create the Safe. Check your wallet's activity before trying again.")
             const code = err instanceof sdk.SafeActionError ? err.reason.code : null
+            if (sent && (code === "reverted" || code === "not-the-safe")) clearPendingCreation(plan.chainId)
             if (sent) setStage({ kind: "mining", plan, display, hash: sent, stuck: true })
             else setStage(code === "unexpected-deployment" ? { kind: "edit" } : { kind: "review", plan, display })
         }
@@ -105,9 +116,11 @@ export function CreateSafe({ session, open }: { session: OsSession; open: (spec:
         const sdk = await loadSafeSdk()
         try {
             await sdk.confirmNewSafe(net.key, plan, hash)
-            setStage({ kind: "done", address: plan.predicted, display: display[plan.predicted], hash })
+            clearPendingCreation(plan.chainId)
+            setStage({ kind: "done", address: plan.predicted, display: display[plan.predicted] ?? plan.predicted, hash })
         } catch (err) {
             setError(err instanceof sdk.SafeActionError ? actionErrorText(err.reason, label) : "Couldn't check the Safe yet. Try again in a moment.")
+            if (err instanceof sdk.SafeActionError && (err.reason.code === "reverted" || err.reason.code === "not-the-safe")) clearPendingCreation(plan.chainId)
             setStage({ kind: "mining", plan, display, hash, stuck: true })
         }
     }
@@ -134,8 +147,8 @@ export function CreateSafe({ session, open }: { session: OsSession; open: (spec:
             <div className="os-stack">
                 <h3 className="os-h">Review the new Safe</h3>
                 <dl className="os-stack os-tight">
-                    <dt className="os-sub">Address it will have on {label}</dt><dd><Full display={display[plan.predicted]} /></dd>
-                    <dt className="os-sub">Owners</dt><dd><ul className="os-list">{plan.owners.map((o) => <li key={o}><Full display={display[o]} />{o === wallet && <span className="os-pill">You</span>}</li>)}</ul></dd>
+                    <dt className="os-sub">Address it will have on {label}</dt><dd><Full display={display[plan.predicted] ?? plan.predicted} /></dd>
+                    <dt className="os-sub">Owners</dt><dd><ul className="os-list">{plan.owners.map((o) => <li key={o}><Full display={display[o] ?? o} />{o === wallet && <span className="os-pill">You</span>}</li>)}</ul></dd>
                     <dt className="os-sub">Signatures needed</dt><dd>{plan.threshold} of {plan.owners.length}</dd>
                     <dt className="os-sub">Contract</dt><dd>Safe v1.5.0 (L2), no modules</dd>
                 </dl>
@@ -144,7 +157,10 @@ export function CreateSafe({ session, open }: { session: OsSession; open: (spec:
                 {stage.kind === "wallet" && <p className="os-sub" role="status">Confirm the transaction in your wallet…</p>}
                 {stage.kind === "mining" && <p className="os-sub" role="status">{stage.stuck ? "Sent." : "Creating the Safe…"}{link && <> <a href={link} target="_blank" rel="noreferrer">Transaction</a></>}</p>}
                 {stage.kind === "mining" && stage.stuck
-                    ? <div className="os-row"><button type="button" className="os-btn" onClick={() => { void checkAgain() }}>Check again</button></div>
+                    ? <div className="os-row">
+                        <button type="button" className="os-btn" onClick={() => { void checkAgain() }}>Check again</button>
+                        <button type="button" className="os-btn os-quiet" onClick={() => { clearPendingCreation(stage.plan.chainId); setError(null); setStage({ kind: "edit" }) }}>Start a new Safe</button>
+                    </div>
                     : <div className="os-row">
                         <button type="button" className="os-btn" disabled={stage.kind !== "review"} onClick={() => { void create() }}>Create Safe</button>
                         <button type="button" className="os-btn os-quiet" disabled={stage.kind !== "review"} onClick={() => { setError(null); setStage({ kind: "edit" }) }}>Edit</button>

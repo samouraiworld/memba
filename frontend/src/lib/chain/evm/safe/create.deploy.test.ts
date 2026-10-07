@@ -27,12 +27,9 @@ const abi = parseAbi([
 const ZERO: Hex = "0x0000000000000000000000000000000000000000"
 const setup = encodeFunctionData({ abi, functionName: "setup", args: [[A, B], 2n, ZERO, "0x", "0x3EfCBb83A4A7AfcB4F68D501E2c2203a38be77f4", ZERO, 0n, ZERO] })
 const plan: NewSafePlan = {
-    chainId: 84532, predicted: PREDICTED, owners: [A, B], threshold: 2, saltNonce: 7n,
+    chainId: 84532, deployer: A, predicted: PREDICTED, owners: [A, B], threshold: 2, saltNonce: 7n,
     tx: { to: "0x14F2982D601c9458F93bd70B218933A6f8165e7b", value: 0n, data: encodeFunctionData({ abi, functionName: "createProxyWithNonce", args: ["0xEdd160fEBBD92E350D4D398fb636302fccd67C7e", setup, 7n] }) },
 }
-const FACTORY: Hex = "0x14F2982D601c9458F93bd70B218933A6f8165e7b"
-const PROXY_CREATION: Hex = "0x4f51faf6c4561ff95f067657e43439f0f856d97c04d9ec9070a6199ad418e235"
-const created = (proxy: Hex, factory: Hex = FACTORY) => ({ address: factory, topics: [PROXY_CREATION, `0x${proxy.slice(2).padStart(64, "0")}`] })
 const theSafe = { kind: "ok", value: { kind: "safe", version: "1.5.0", l2: true, threshold: 2, owners: [A, B], modules: [] } }
 
 async function reason(p: Promise<unknown>): Promise<unknown> {
@@ -42,7 +39,7 @@ async function reason(p: Promise<unknown>): Promise<unknown> {
 beforeEach(() => {
     vi.clearAllMocks()
     mocks.send.mockResolvedValue(HASH)
-    mocks.receipt.mockResolvedValue({ status: "success", logs: [created(PREDICTED)] })
+    mocks.receipt.mockResolvedValue({ status: "success", logs: [] })
     mocks.inspect.mockResolvedValue(theSafe)
     mocks.getCode.mockResolvedValue(undefined)
     mocks.init.mockResolvedValue(mocks.kit)
@@ -70,7 +67,7 @@ describe("sending and confirming a Safe creation", () => {
     it("sends on the plan's chain and confirms the Safe", async () => {
         const sent = vi.fn()
         expect(await reason(deployNewSafe("base-sepolia", plan, sent))).toBe("ok")
-        expect(mocks.send).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ chainId: 84532, to: plan.tx.to }))
+        expect(mocks.send).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ account: A, chainId: 84532, to: plan.tx.to }))
         expect(sent).toHaveBeenCalledWith(HASH)
     })
 
@@ -88,6 +85,7 @@ describe("sending and confirming a Safe creation", () => {
 
     it("keeps the hash when the network hasn't confirmed it yet, and when the chain can't be read", async () => {
         mocks.receipt.mockRejectedValueOnce(new Error("timeout"))
+        mocks.inspect.mockResolvedValueOnce({ kind: "ok", value: { kind: "not-a-safe", reason: "no-contract" } })
         expect(await reason(deployNewSafe("base-sepolia", plan))).toEqual({ code: "unconfirmed", hash: HASH })
         mocks.inspect.mockResolvedValueOnce({ kind: "unavailable", reason: "the RPC did not answer" })
         expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "unverified", hash: HASH })
@@ -98,6 +96,7 @@ describe("sending and confirming a Safe creation", () => {
 
     it("says a reverted creation reverted, and a wrong Safe is a wrong Safe", async () => {
         mocks.receipt.mockResolvedValueOnce({ status: "reverted" })
+        mocks.inspect.mockResolvedValueOnce({ kind: "ok", value: { kind: "not-a-safe", reason: "no-contract" } })
         expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "reverted", hash: HASH })
         mocks.inspect.mockResolvedValueOnce({ kind: "ok", value: { ...theSafe.value, threshold: 1 } })
         expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "not-the-safe", hash: HASH })
@@ -111,12 +110,24 @@ describe("sending and confirming a Safe creation", () => {
         expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "not-the-safe", hash: HASH })
     })
 
-    it("needs the factory's own word that it created the predicted address", async () => {
-        for (const logs of [[], [created(B)], [created(PREDICTED, B)]]) {
-            mocks.receipt.mockResolvedValueOnce({ status: "success", logs })
-            expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "not-the-safe", hash: HASH })
-        }
-        expect(mocks.inspect).not.toHaveBeenCalled()
+    it("reads the address before saying a creation failed: a front-run with the same arguments created the planned Safe", async () => {
+        // Reverted (someone created it first), replaced or never seen: the planned Safe is there, so it is created.
+        mocks.receipt.mockResolvedValueOnce({ status: "reverted", logs: [] })
+        expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toBe("ok")
+        mocks.receipt.mockRejectedValueOnce(new Error("replaced"))
+        expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toBe("ok")
+        mocks.receipt.mockResolvedValueOnce({ status: "success", logs: [] })
+        expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toBe("ok")
+        // Reverted and nothing there: reverted. Not seen and nothing there (or the chain unreadable): unconfirmed.
+        mocks.receipt.mockResolvedValueOnce({ status: "reverted", logs: [] })
+        mocks.inspect.mockResolvedValueOnce({ kind: "ok", value: { kind: "not-a-safe", reason: "no-contract" } })
+        expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "reverted", hash: HASH })
+        mocks.receipt.mockRejectedValueOnce(new Error("replaced"))
+        mocks.inspect.mockResolvedValueOnce({ kind: "unavailable", reason: "down" })
+        expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "unconfirmed", hash: HASH })
+        mocks.receipt.mockRejectedValueOnce(new Error("replaced"))
+        mocks.inspect.mockRejectedValueOnce(new Error("down"))
+        expect(await reason(confirmNewSafe("base-sepolia", plan, HASH))).toEqual({ code: "unconfirmed", hash: HASH })
     })
 
     it("reads a declined request through wrapped errors", async () => {
