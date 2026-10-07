@@ -164,10 +164,10 @@ describe("the two dependency gates agree on what is acknowledged", () => {
         ).toEqual(Object.keys(ALLOWLIST).sort())
     })
 
-    it("limits the owner-approved dependency exception to the Gno module", () => {
+    it("limits the owner-approved dependency exceptions to the Gno module and the CI-only Wizard", () => {
         const exceptions = String(only?.step.with?.["allow-dependencies-licenses"] ?? "")
             .split(",").map((value) => value.trim()).filter(Boolean)
-        expect(exceptions).toEqual(["pkg:golang/github.com/gnolang/gno"])
+        expect(exceptions).toEqual(["pkg:golang/github.com/gnolang/gno", "pkg:npm/@openzeppelin/wizard"])
     })
 
     it("keeps security and other dependencies checked despite the Gno exception", () => {
