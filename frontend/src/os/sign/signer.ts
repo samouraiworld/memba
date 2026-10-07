@@ -118,6 +118,7 @@ export const WATCH_MS = 3000
 export const WALLET_SILENT_MS = 3 * 60_000
 const SILENT_UNCHANGED = "Adena has not answered for 3 minutes, and your account shows no new transaction. If Adena is still open, finish or close the request there, then check your account before trying again."
 const SILENT_UNREAD = "Adena has not answered for 3 minutes, and Memba could not read your account to tell whether it sent a transaction. If Adena is still open, finish or close the request there, then check your account before trying again."
+const SILENT_MOVED = "Adena has not answered for 3 minutes, and your account shows a new transaction Memba could not confirm. If Adena is still open, finish or close the request there, then check its result in your account's history before trying again."
 const STOPPED = "Memba stopped waiting for Adena. Check your account before trying again."
 
 /** The account's sequence in a mark ("<sequence> <coins>"): it moves only when the account itself signs a transaction. */
@@ -165,8 +166,8 @@ export async function executeSignature<C extends string>(
     // has already sent the transaction, nor forever when nothing happened.
     let stopWatch = () => {}
     let startWatch = () => {}
-    // The last read of the account, and whether it showed no change (for the timeout's wording).
-    let unchanged = false
+    // What the last read of the account showed, for the timeout's wording.
+    let lastRead: "unchanged" | "moved" | "unread" = "unread"
     const chainWatch = new Promise<"landed" | "silent" | "stopped">((resolve) => {
         startWatch = () => {
             const opened = Date.now()
@@ -184,7 +185,7 @@ export async function executeSignature<C extends string>(
                 if (sent && before !== null) {
                     const now = await sent.before().then(sequenceOf, () => null)
                     if (stopped) return
-                    unchanged = now !== null && now === before
+                    lastRead = now === null || now < before ? "unread" : now === before ? "unchanged" : "moved"
                     if (now !== null && now > before && now === moved) { resolve("landed"); return }
                     moved = now !== null && now > before ? now : null
                 }
@@ -231,7 +232,7 @@ export async function executeSignature<C extends string>(
         const answer = await Promise.race([sending.then((r) => ({ wallet: r })), chainWatch.then((c) => ({ chain: c }))])
         if ("chain" in answer) { // a later wallet answer no longer decides; the race keeps it handled
             if (answer.chain === "stopped") return { outcome: "unknown", error: STOPPED, hash }
-            if (answer.chain === "silent") return { outcome: "unknown", error: unchanged ? SILENT_UNCHANGED : SILENT_UNREAD, hash }
+            if (answer.chain === "silent") return { outcome: "unknown", error: { unchanged: SILENT_UNCHANGED, moved: SILENT_MOVED, unread: SILENT_UNREAD }[lastRead], hash }
             if (req.receipt) {
                 try { saveGovernanceReceipt(req.receipt, { phase: "submitted", hash: "", label }) } catch { /* kept in memory by governanceRecovery */ }
             }

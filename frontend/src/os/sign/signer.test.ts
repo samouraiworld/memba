@@ -208,6 +208,7 @@ describe("executeSignature", () => {
         }
         const UNCHANGED = /^Adena has not answered for 3 minutes, and your account shows no new transaction\..*check your account before trying again\.$/
         const UNREAD = /^Adena has not answered for 3 minutes, and Memba could not read your account to tell whether it sent a transaction\..*check your account before trying again\.$/
+        const MOVED = /^Adena has not answered for 3 minutes, and your account shows a new transaction Memba could not confirm\..*check its result in your account's history before trying again\.$/
         const fake = async (run: () => Promise<void>) => {
             vi.useFakeTimers()
             try { await run() } finally { vi.useRealTimers() }
@@ -256,6 +257,8 @@ describe("executeSignature", () => {
             ["only the coins moved (an incoming transfer or a session key)", ["7 6000000ugnot"], UNCHANGED],
             ["the last read failed", [MARK, "offline"], UNREAD],
             ["every read failed", ["offline"], UNREAD],
+            // The deadline's own read is the first to see it move: read, and not yet confirmed by a second.
+            ["the sequence first moved on the last read", [...Array<string>((WALLET_SILENT_MS - WALLET_QUIET_MS) / WATCH_MS).fill(MARK), "8 4990000ugnot"], MOVED],
         ])("is an unknown outcome after the whole wait when %s, saying what is known", (_why, reads, says) => fake(async () => {
             const sent = account(...reads)
             const onNothingSent = vi.fn()
