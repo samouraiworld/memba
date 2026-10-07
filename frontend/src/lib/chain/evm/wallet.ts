@@ -120,9 +120,10 @@ export function createEvmWallet(config: Config) {
          * Asks the wallet to sign `message` (personal_sign). The signature is returned
          * exactly as the wallet gives it: a smart wallet's EIP-1271 / ERC-6492 form included.
          */
-        async signMessage(message: string): Promise<{ ok: true; signature: string } | { ok: false; reason: "declined" | "failed" }> {
+        /** `account`: the address that must sign; wagmi refuses if the wallet no longer connects it. */
+        async signMessage(message: string, account: string): Promise<{ ok: true; signature: string } | { ok: false; reason: "declined" | "failed" }> {
             try {
-                return { ok: true, signature: await signMessage(config, { message }) }
+                return { ok: true, signature: await signMessage(config, { message, account: account as `0x${string}` }) }
             } catch (err) {
                 return { ok: false, reason: declinedInWallet(err) ? "declined" : "failed" }
             }

@@ -77,12 +77,12 @@ describe("EVM wallet store", () => {
         try {
             const w = setup()
             await w.connect(w.getSnapshot().wallets[0].uid)
-            expect(await w.signMessage("hello")).toEqual({ ok: true, signature: sig })
+            expect(await w.signMessage("hello", ADDR.toLowerCase())).toEqual({ ok: true, signature: sig })
         } finally {
             vi.unstubAllGlobals()
         }
         const refusing = setup({ signMessageError: new UserRejectedRequestError(new Error("User rejected the request.")) })
         await refusing.connect(refusing.getSnapshot().wallets[0].uid)
-        expect(await refusing.signMessage("hello")).toEqual({ ok: false, reason: "declined" })
+        expect(await refusing.signMessage("hello", ADDR.toLowerCase())).toEqual({ ok: false, reason: "declined" })
     })
 })

@@ -163,12 +163,6 @@ export function useAuth() {
         []
     );
 
-    /** Keep a session token minted outside getToken (the EVM sign-in, GetSiweToken). */
-    const adoptToken = useCallback((token: Token) => {
-        saveToken(token);
-        setState({ token, address: token.userAddress, loading: false, error: null });
-    }, []);
-
     const logout = useCallback(() => {
         clearToken();
         setState({ token: null, address: "", loading: false, error: null });
@@ -179,7 +173,6 @@ export function useAuth() {
         isAuthenticated: !!state.token,
         getChallenge,
         getToken,
-        adoptToken,
         logout,
     };
 }
