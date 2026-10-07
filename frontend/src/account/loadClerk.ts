@@ -31,9 +31,10 @@ export interface ClerkClient {
     openSignIn: () => void
     getToken: () => Promise<string | null>
     signOut: () => Promise<void>
+    deleteUser: () => Promise<void>
 }
 
-type ClerkUserResource = { id: string; fullName: string | null; primaryEmailAddress?: { emailAddress: string } | null; publicMetadata?: Record<string, unknown> }
+type ClerkUserResource = { id: string; fullName: string | null; primaryEmailAddress?: { emailAddress: string } | null; publicMetadata?: Record<string, unknown>; delete?: () => Promise<void> }
 interface ClerkGlobal {
     load: (options: object) => Promise<void>
     user?: ClerkUserResource | null
@@ -85,5 +86,9 @@ export async function loadClerk(publishableKey: string): Promise<ClerkClient> {
         openSignIn: () => clerk.openSignIn(),
         getToken: async () => (await clerk.session?.getToken()) ?? null,
         signOut: () => clerk.signOut(),
+        deleteUser: async () => {
+            if (!clerk.user?.delete) throw new Error("No signed-in user to delete")
+            await clerk.user.delete()
+        },
     }
 }

@@ -189,6 +189,32 @@ test.describe('native OS Settings', () => {
         await expect(page.getByRole('region', { name: 'Validators', exact: true }).getByRole('heading', { name: 'Validators', exact: true })).toBeVisible()
     })
 
+    test('the optional account: a guest sees what it is, the privacy page, early access at the closed Launchpad, and a confirmation link that confirms only on a click', async ({ page }) => {
+        await page.route((url) => url.hostname !== '127.0.0.1' && /clerk[.-]|challenges\.cloudflare\.com/.test(url.hostname), (r) => r.abort())
+        const confirms: string[] = []
+        await page.route('**/api/consent/confirm', (route) => {
+            confirms.push(route.request().postData() ?? '')
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ topic: 'newsletter', state: 'on' }) })
+        })
+        const settings = page.getByRole('region', { name: 'Settings', exact: true })
+        await page.goto(`${OS_FLAGS_ON}/os/settings/account`)
+        await expect(settings.getByRole('heading', { name: 'Memba account (optional)' })).toBeVisible()
+        await expect(settings.getByRole('button', { name: 'Sign in' })).toBeVisible()
+        await settings.getByRole('link', { name: 'Privacy' }).click()
+        await expect(settings.getByRole('heading', { name: 'Privacy', level: 2 })).toBeVisible()
+        await expect(settings.getByRole('link', { name: 'privacy@memba.club' })).toBeVisible()
+
+        await page.goto(`${OS_FLAGS_ON}/os/tokens`)
+        await expect(page.getByRole('group', { name: 'Early access: Token Launchpad' }).getByRole('button', { name: 'Sign in for early access' })).toBeVisible()
+
+        await page.goto(`${OS_FLAGS_ON}/os/confirm?t=12.abc`)
+        await expect(settings.getByRole('heading', { name: 'Confirm your email' })).toBeVisible()
+        expect(confirms).toEqual([])
+        await settings.getByRole('button', { name: 'Confirm' }).click()
+        await expect(settings.getByRole('status').filter({ hasText: 'Confirmed: Memba will email you newsletter.' })).toBeVisible()
+        expect(JSON.parse(confirms[0])).toEqual({ token: '12.abc' })
+    })
+
     test('account and About remain available to guests', async ({ page }) => {
         await page.goto(`${OS_ON}/os/settings`)
         const win = page.getByRole('region', { name: 'Settings', exact: true })
