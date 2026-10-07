@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { keccak256, toBytes, type Address, type Hex } from "viem"
 import { evmContract } from "./manifest"
 import { MEMBA_TOKEN } from "./membaToken.generated"
+import type { EvmWrite } from "./send"
 import {
     TOKEN_MAX_SUPPLY,
     planTokenDeploy,
@@ -91,7 +92,7 @@ describe("prepareTokenDeploy", () => {
         for (const empty of [undefined, "0x"]) {
             const client = { getChainId: vi.fn().mockResolvedValue(84532), getCode: vi.fn().mockResolvedValue(empty), estimateGas: vi.fn().mockResolvedValue(1_527_439n) }
             await expect(prepareTokenDeploy(client, plan, ALICE)).resolves.toEqual({
-                kind: "send", token: plan.token, write: { chainId: 84532, to: plan.to, data: plan.data, value: 0n }, estimatedGas: 1_527_439n,
+                kind: "send", token: plan.token, write: { chainId: 84532, from: ALICE, to: plan.to, data: plan.data, value: 0n }, estimatedGas: 1_527_439n,
             })
             expect(client.estimateGas).toHaveBeenCalledWith({ account: ALICE, to: plan.to, data: plan.data })
         }
@@ -100,6 +101,17 @@ describe("prepareTokenDeploy", () => {
     it("never returns a transaction when the estimate reverts", async () => {
         const client = { getChainId: vi.fn().mockResolvedValue(84532), getCode: vi.fn().mockResolvedValue("0x"), estimateGas: vi.fn().mockRejectedValue(new Error("execution reverted")) }
         await expect(prepareTokenDeploy(client, plan, ALICE)).rejects.toThrow(/reverted/)
+    })
+
+    it("returns an EvmWrite sent by the creator, and refuses any other sender before reading the chain", async () => {
+        const client = { getChainId: vi.fn().mockResolvedValue(84532), getCode: vi.fn().mockResolvedValue("0x"), estimateGas: vi.fn().mockResolvedValue(1n) }
+        const step = await prepareTokenDeploy(client, plan, ALICE)
+        if (step.kind !== "send") throw new Error("expected a send step")
+        const write = step.write satisfies EvmWrite
+        expect(write.from).toBe(ALICE)
+        const other = { getChainId: vi.fn(), getCode: vi.fn(), estimateGas: vi.fn() }
+        await expect(prepareTokenDeploy(other, plan, TREASURY)).rejects.toThrow(/another creator/)
+        expect(other.getChainId).not.toHaveBeenCalled()
     })
 
     it("refuses an RPC on another chain before reading anything else", async () => {

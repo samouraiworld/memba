@@ -11,9 +11,10 @@
  *
  * @module lib/chain/evm/tokenDeploy
  */
-import { encodeDeployData, getContractAddress, isAddress, keccak256, type Address, type Hex, type PublicClient } from "viem"
+import { encodeDeployData, getContractAddress, isAddress, isAddressEqual, keccak256, type Address, type Hex, type PublicClient } from "viem"
 import { evmContract } from "./manifest"
 import { MEMBA_TOKEN } from "./membaToken.generated"
+import type { EvmWrite } from "./send"
 
 /** 0.5% of the total supply goes to the treasury, as a second mint in the constructor. */
 export const TOKEN_FEE_PER_MILLE = 5n
@@ -65,9 +66,9 @@ export interface TokenPlanInput {
     salt: Hex
 }
 
-/** A transaction for Memba's EVM send path (`sendEvmWrite`): bound to its chain. */
-export interface TokenWrite {
-    chainId: number
+/** A transaction for Memba's EVM send path (`sendEvmWrite`): bound to its chain and to its sender, the creator. */
+export interface TokenWrite extends EvmWrite {
+    from: Address
     to: Address
     data: Hex
     value: bigint
@@ -75,6 +76,8 @@ export interface TokenWrite {
 
 export interface TokenPlan {
     chainId: number
+    /** Receives the premint and sends the transaction. */
+    creator: Address
     /** The CREATE2 deployer from the manifest. */
     to: Address
     /** salt ++ initcode, the deployer's whole input. */
@@ -102,6 +105,7 @@ export function planTokenDeploy(input: TokenPlanInput): TokenPlan {
     const to = evmContract(input.chainId, "create2Deployer")
     return {
         chainId: input.chainId,
+        creator: input.creator,
         to,
         data: `${input.salt}${initcode.slice(2)}`,
         token: getContractAddress({ opcode: "CREATE2", from: to, salt: input.salt, bytecodeHash: keccak256(initcode) }),
@@ -121,17 +125,19 @@ export type TokenDeployStep =
 /**
  * Decides what to do with a plan right before signing, on the plan's chain: if the token already exists, nothing;
  * otherwise the transaction, once an estimate succeeded (an estimate that reverts throws, so a doomed deployment,
- * such as a CREATE2 collision that would burn the whole gas limit, is never sent). Refuses an RPC on another chain.
+ * such as a CREATE2 collision that would burn the whole gas limit, is never sent). Refuses an RPC on another chain
+ * and a sender other than the creator (the write carries it as `from`, which sendEvmWrite checks against the wallet).
  */
 export async function prepareTokenDeploy(
     client: Pick<PublicClient, "getChainId" | "getCode" | "estimateGas">,
     plan: TokenPlan,
     account: Address,
 ): Promise<TokenDeployStep> {
+    if (!isAddressEqual(account, plan.creator)) throw new Error("This token is planned for another creator account.")
     const chainId = await client.getChainId()
     if (chainId !== plan.chainId) throw new Error(`This token is planned for chain ${plan.chainId}, not chain ${chainId}.`)
     const code = await client.getCode({ address: plan.token })
     if (code && code !== "0x") return { kind: "deployed", token: plan.token }
     const estimatedGas = await client.estimateGas({ account, to: plan.to, data: plan.data })
-    return { kind: "send", token: plan.token, write: { chainId: plan.chainId, to: plan.to, data: plan.data, value: 0n }, estimatedGas }
+    return { kind: "send", token: plan.token, write: { chainId: plan.chainId, from: plan.creator, to: plan.to, data: plan.data, value: 0n }, estimatedGas }
 }
