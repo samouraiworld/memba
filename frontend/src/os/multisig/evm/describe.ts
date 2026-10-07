@@ -6,7 +6,7 @@
  * @module os/multisig/evm/describe
  */
 import type { DecodedTx, SafeSetting } from "../../../lib/chain/evm/safe/decode"
-import type { CreateError } from "../../../lib/chain/evm/safe/create"
+import type { SafeActionReason } from "../../../lib/chain/evm/safe/create"
 
 const WEI_PER_ETH = 10n ** 18n
 
@@ -59,17 +59,24 @@ export function describeTx(tx: DecodedTx): TxText {
     }
 }
 
-/** Why creating a Safe stopped, and what to do. */
-export function createErrorText(reason: CreateError, network: string): string {
+/** Why creating a Safe, or acting on one, stopped, and what to do. */
+export type SafeAction = "create" | "propose" | "sign" | "execute"
+
+const ACTION_NAME: Readonly<Record<SafeAction, string>> = { create: "create the Safe", propose: "propose this", sign: "sign this", execute: "execute this" }
+
+export function actionErrorText(reason: SafeActionReason, network: string, action: SafeAction = "create"): string {
     switch (reason.code) {
-        case "not-connected": return "Connect a wallet to create a Safe."
+        case "not-connected": return `Connect a wallet to ${ACTION_NAME[action]}.`
         case "wrong-chain": return `Your wallet is on another network. Switch it to ${network} and try again.`
-        case "declined": return "You declined in your wallet. Nothing was sent."
+        case "declined": return action === "propose" || action === "sign" ? "You declined in your wallet. Nothing was signed." : "You declined in your wallet. Nothing was sent."
         case "address-taken": return "A contract already exists at the address this Safe would have. Review again for a new address."
         case "unexpected-deployment": return `The deployment Memba built is not the Safe you asked for (${reason.detail}). Nothing was sent.`
-        case "reverted": return "The creation transaction failed on chain. No Safe was created; only its gas was spent."
+        case "reverted": return action === "create"
+            ? "The creation transaction failed on chain. No Safe was created; only its gas was spent."
+            : "The transaction failed on chain: nothing moved, only its gas was spent."
         case "not-the-safe": return "The transaction went through, but the address does not hold the Safe you asked for. Don't send funds to it."
-        case "failed": return `Couldn't create the Safe: ${reason.detail}`
+        case "unconfirmed": return `Sent, but ${network} hasn't confirmed it yet. Don't send it again: check again in a moment.`
+        case "unverified": return `Confirmed, but Memba couldn't read ${network} to check the result yet. Check again in a moment.`
+        case "failed": return `Couldn't ${ACTION_NAME[action]}: ${reason.detail}`
     }
 }
-

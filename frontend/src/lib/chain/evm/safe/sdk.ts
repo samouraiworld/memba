@@ -25,7 +25,7 @@ import { safeReader } from "./reader"
 import type { Hex } from "./known"
 
 export { checkQueuedTx, type QueuedSafeTx, type TxCheck } from "./verify"
-export { deployNewSafe, initNewSafe, NEW_SAFE_VERSION, newSafeConfig, planNewSafe, randomSalt, SafeCreateError, type CreateError, type NewSafePlan } from "./create"
+export { confirmNewSafe, deployNewSafe, initNewSafe, NEW_SAFE_VERSION, newSafeConfig, planNewSafe, randomSalt, SafeActionError, type SafeActionReason, type NewSafePlan } from "./create"
 
 /** The proxy's base for one chain; the API client appends /v1/… and /v2/…. */
 export function txServiceUrl(apiBase: string, chainId: number): string {

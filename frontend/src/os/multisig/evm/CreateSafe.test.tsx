@@ -2,9 +2,9 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { getAddress } from "viem"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { OsSession } from "../../shell/useOsSession"
-import { SafeCreateError } from "../../../lib/chain/evm/safe/create"
+import { SafeActionError } from "../../../lib/chain/evm/safe/create"
 import { CreateSafe } from "./CreateSafe"
-import { createErrorText } from "./describe"
+import { actionErrorText } from "./describe"
 
 vi.mock("../../../lib/chain/flag", () => ({ EVM_ENABLED: true }))
 
@@ -13,12 +13,13 @@ const BOB = "0xb0b0000000000000000000000000000000000002"
 const PREDICTED = "0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe"
 const HASH = `0x${"ab".repeat(32)}`
 
-const plan = { predicted: PREDICTED, owners: [ME, BOB], threshold: 2, saltNonce: 7n, tx: { to: "0x14F2982D601c9458F93bd70B218933A6f8165e7b", data: "0x", value: 0n } }
+const plan = { chainId: 84532, predicted: PREDICTED, owners: [ME, BOB], threshold: 2, saltNonce: 7n, tx: { to: "0x14F2982D601c9458F93bd70B218933A6f8165e7b", data: "0x", value: 0n } }
 const sdk = {
     toChecksum: (a: string) => getAddress(a),
     planNewSafe: vi.fn(),
     deployNewSafe: vi.fn(),
-    SafeCreateError,
+    confirmNewSafe: vi.fn(),
+    SafeActionError,
 }
 vi.mock("../../../lib/chain/evm/safe/load", () => ({ loadSafeSdk: async () => sdk }))
 
@@ -82,7 +83,7 @@ describe("creating a Safe", () => {
     })
 
     it("keeps the review when the wallet declines, and says nothing was sent", async () => {
-        sdk.deployNewSafe.mockRejectedValue(new SafeCreateError({ code: "declined" }))
+        sdk.deployNewSafe.mockRejectedValue(new SafeActionError({ code: "declined" }))
         render(<CreateSafe session={connected} open={vi.fn()} />)
         fillBob()
         fireEvent.click(screen.getByRole("button", { name: "Review" }))
@@ -92,8 +93,33 @@ describe("creating a Safe", () => {
         expect(screen.getByRole("button", { name: "Create Safe" })).toBeEnabled()
     })
 
+    it("keeps the sent hash when the network is slow, and checks again without creating a second Safe", async () => {
+        sdk.deployNewSafe.mockImplementation(async (_key: string, _plan: unknown, onSent?: (h: string) => void) => {
+            onSent?.(HASH)
+            throw new SafeActionError({ code: "unconfirmed", hash: HASH as `0x${string}` })
+        })
+        sdk.confirmNewSafe.mockRejectedValueOnce(new SafeActionError({ code: "unverified", hash: HASH as `0x${string}` })).mockResolvedValueOnce({})
+        render(<CreateSafe session={connected} open={vi.fn()} />)
+        fillBob()
+        fireEvent.click(screen.getByRole("button", { name: "Review" }))
+        await screen.findByText("Review the new Safe")
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Create Safe" })) })
+        expect(await screen.findByRole("alert")).toHaveTextContent("Don't send it again")
+        expect(screen.getByRole("link", { name: "Transaction" })).toHaveAttribute("href", `https://sepolia.basescan.org/tx/${HASH}`)
+        expect(screen.queryByRole("button", { name: "Create Safe" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
+
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Check again" })) })
+        expect(await screen.findByRole("alert")).toHaveTextContent("couldn't read Base Sepolia to check the result")
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Check again" })) })
+        expect(await screen.findByText("Safe created")).toBeInTheDocument()
+        expect(sdk.confirmNewSafe).toHaveBeenCalledWith("base-sepolia", plan, HASH)
+        expect(sdk.planNewSafe).toHaveBeenCalledTimes(1)
+        expect(sdk.deployNewSafe).toHaveBeenCalledTimes(1)
+    })
+
     it("goes back to the form when the deployment can't be built as asked, with the reason", async () => {
-        sdk.planNewSafe.mockRejectedValue(new SafeCreateError({ code: "wrong-chain" }))
+        sdk.planNewSafe.mockRejectedValue(new SafeActionError({ code: "wrong-chain" }))
         render(<CreateSafe session={connected} open={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: "Review" }))
         await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Switch it to Base Sepolia"))
@@ -101,9 +127,12 @@ describe("creating a Safe", () => {
     })
 
     it("names every way creation can stop", () => {
-        for (const code of ["not-connected", "wrong-chain", "declined", "address-taken", "reverted"] as const) expect(createErrorText({ code } as never, "Base Sepolia")).toBeTruthy()
-        expect(createErrorText({ code: "unexpected-deployment", detail: "another threshold" }, "Base Sepolia")).toMatch(/another threshold.*Nothing was sent/)
-        expect(createErrorText({ code: "not-the-safe", hash: "0x" }, "Base Sepolia")).toMatch(/Don't send funds/)
+        for (const code of ["not-connected", "wrong-chain", "declined", "address-taken", "reverted", "unconfirmed", "unverified"] as const) expect(actionErrorText({ code } as never, "Base Sepolia")).toBeTruthy()
+        expect(actionErrorText({ code: "declined" }, "Base Sepolia", "sign")).toBe("You declined in your wallet. Nothing was signed.")
+        expect(actionErrorText({ code: "reverted", hash: "0x" }, "Base Sepolia", "execute")).toMatch(/nothing moved/)
+        expect(actionErrorText({ code: "not-connected" }, "Base Sepolia", "execute")).toBe("Connect a wallet to execute this.")
+        expect(actionErrorText({ code: "unexpected-deployment", detail: "another threshold" }, "Base Sepolia")).toMatch(/another threshold.*Nothing was sent/)
+        expect(actionErrorText({ code: "not-the-safe", hash: "0x" }, "Base Sepolia")).toMatch(/Don't send funds/)
     })
 })
 

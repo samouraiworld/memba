@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { encodeFunctionData, parseAbi, type Hex } from "viem"
-import { assertDeployment, randomSalt, SafeCreateError } from "./create"
+import { assertDeployment, randomSalt, SafeActionError } from "./create"
 
 const FACTORY: Hex = "0x14F2982D601c9458F93bd70B218933A6f8165e7b"
 const SAFE_L2: Hex = "0xEdd160fEBBD92E350D4D398fb636302fccd67C7e"
@@ -32,7 +32,7 @@ function refusal(tx: ReturnType<typeof deployment>): string {
     try {
         assertDeployment(tx, [A, B], 2, 7n)
     } catch (err) {
-        if (err instanceof SafeCreateError && err.reason.code === "unexpected-deployment") return err.reason.detail
+        if (err instanceof SafeActionError && err.reason.code === "unexpected-deployment") return err.reason.detail
         throw err
     }
     return "accepted"
