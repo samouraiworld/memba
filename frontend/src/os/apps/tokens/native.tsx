@@ -10,7 +10,7 @@
  *
  * @module os/apps/tokens/native
  */
-import { Fragment, useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
 import { formatTokenAmount as units, networkGasPriceFresh, type GasPrice } from "../../../lib/grc20"
@@ -147,9 +147,12 @@ function TokenDetails({ network, session, token }: { network: string; session: O
         enabled: salesAvailable, retry: false,
     })
     const ticker = revealInvisibleFormatting(token.ticker)
+    // The details follow the list: bring them into view, or a selection below the fold looks like nothing happened.
+    const details = useRef<HTMLElement>(null)
+    useEffect(() => { details.current?.scrollIntoView({ block: "nearest" }) }, [])
 
     return (
-        <section aria-labelledby="token-details" className="os-stack os-tight">
+        <section ref={details} aria-labelledby="token-details" className="os-stack os-tight">
             <h3 className="os-h" id="token-details">{revealInvisibleFormatting(token.name)} ({ticker})</h3>
             <dl className="os-tokens-facts">
                 <dt>Token</dt><dd className="os-mono">{token.id}</dd>

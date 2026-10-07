@@ -96,6 +96,7 @@ describe("Tokens window", () => {
         queryEval.mockReset()
         sign.mockClear()
         chain()
+        Element.prototype.scrollIntoView = vi.fn()
     })
 
     it("says the Launchpad is not deployed on mainnet, without reading the chain or showing the classic page", () => {
@@ -127,6 +128,18 @@ describe("Tokens window", () => {
         expect(reads().some(read => read.startsWith("BalanceOf") || read.startsWith("FairBuyerJSON"))).toBe(false)
         fireEvent.click(screen.getByRole("button", { name: /Plain Token/ }))
         expect(await screen.findByText("This token has no sale, airdrop or vesting.")).toBeInTheDocument()
+    })
+
+    it("brings a selected token's details into view, since they follow the list", async () => {
+        availability.ledger = true; availability.sales = true
+        show("mainnet")
+        fireEvent.click(await screen.findByRole("button", { name: /Fair Token/ }))
+        const details = (await screen.findByRole("heading", { name: /Fair Token/ })).closest("section")!
+        expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts).toContain(details)
+        expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" })
+        fireEvent.click(screen.getByRole("button", { name: /Plain Token/ }))
+        const next = (await screen.findByRole("heading", { name: /Plain Token/ })).closest("section")!
+        expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts.at(-1)).toBe(next)
     })
 
     it("shows a member their balance and what their order pays once settled", async () => {
