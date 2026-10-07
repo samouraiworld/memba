@@ -141,9 +141,9 @@ describe("prepareBasenameWrite", () => {
         ...over,
     })
 
-    it("adds a gas limit from a successful estimate, value included", async () => {
+    it("returns the unchanged chain-bound write for sendEvmWrite once the estimate succeeds, value included", async () => {
         const c = client()
-        await expect(prepareBasenameWrite(c as never, write, ALICE)).resolves.toMatchObject({ gas: 454_185n, value: write.value })
+        await expect(prepareBasenameWrite(c as never, write, ALICE)).resolves.toEqual({ write, estimatedGas: 378_488n })
         expect(c.estimateGas).toHaveBeenCalledWith({ account: ALICE, to: write.to, data: write.data, value: write.value })
     })
 

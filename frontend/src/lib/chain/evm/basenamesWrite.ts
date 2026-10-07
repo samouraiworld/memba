@@ -13,9 +13,10 @@
  * planBasenameRegistration returns that step as `primaryName`, and the UI must send it too.
  *
  * Every write is bound to its chain: `prepareBasenameWrite` refuses an RPC on another chain and a target with no
- * code (a plan for one chain sent on the other would pay a codeless address, which keeps the ETH), and the sender
- * must pass the chain to the wallet (viem `sendTransaction({ chain, ... })`), which refuses a wallet on another
- * chain. Re-quote right before sending: the price can move (expiry premium).
+ * code (a plan for one chain sent on the other would pay a codeless address, which keeps the ETH). This module
+ * never talks to a wallet: the write ({ chainId, to, data, value }) goes through Memba's one EVM send path
+ * (`sendEvmWrite` in ./adapter.ts), which re-checks the wallet's chain and the target's code right before sending
+ * and passes the chain to viem. Re-quote right before sending: the price can move (expiry premium).
  *
  * A viem module: reach it only through a lazy loader, never from eager code (docs/evm/README.md).
  *
@@ -32,8 +33,6 @@ export const BASENAME_YEAR_SECONDS = 365n * 24n * 60n * 60n
 export const BASENAME_MIN_LABEL_CHARS = 3
 /** Margin over the quoted price; the controller refunds what is not used, to the sender. */
 const PRICE_MARGIN_PERCENT = 105n
-/** Gas head-room over the estimate. */
-const GAS_MARGIN_PERCENT = 120n
 /** A record larger than this is refused before it costs gas (the layout document is capped at 4 KB too). */
 const MAX_RECORD_BYTES = 4096
 
@@ -56,7 +55,7 @@ export const reverseRegistrarAbi = parseAbi([
 /** Record values to set; "" clears a record (ENS has no delete). */
 export type BasenameTextChanges = Partial<Record<BasenameTextKey, string>>
 
-/** A transaction bound to its chain and its sender. */
+/** A transaction bound to its chain and its sender; a valid input of `sendEvmWrite`. */
 export interface BasenameWrite {
     chainId: number
     from: Address
@@ -201,20 +200,20 @@ export function planBasenameTextUpdate(chainId: number, account: Address, primar
 }
 
 /**
- * The write with a gas limit, after proving it can only land where it was planned: the sender is the planned
- * account, the RPC serves the planned chain, the target has code there, and the estimate succeeds (an estimate
- * that reverts throws, so nothing doomed is sent). The caller still passes the chain to the wallet.
+ * Proves the write can only land where it was planned, right before handing it to `sendEvmWrite`: the sender is
+ * the planned account, the RPC serves the planned chain, the target has code there, and the estimate succeeds (an
+ * estimate that reverts throws, so nothing doomed is sent).
  */
 export async function prepareBasenameWrite(
     client: Pick<PublicClient, "getChainId" | "getCode" | "estimateGas">,
     write: BasenameWrite,
     account: Address,
-): Promise<BasenameWrite & { gas: bigint }> {
+): Promise<{ write: BasenameWrite; estimatedGas: bigint }> {
     if (!isAddressEqual(account, write.from)) throw new Error("This transaction was prepared for another account.")
     const chainId = await client.getChainId()
     if (chainId !== write.chainId) throw new Error(`This transaction is for chain ${write.chainId}, not chain ${chainId}.`)
     const code = await client.getCode({ address: write.to })
     if (!code || code === "0x") throw new Error("The contract is not deployed on this chain.")
-    const estimate = await client.estimateGas({ account, to: write.to, data: write.data, value: write.value })
-    return { ...write, gas: (estimate * GAS_MARGIN_PERCENT) / 100n }
+    const estimatedGas = await client.estimateGas({ account, to: write.to, data: write.data, value: write.value })
+    return { write, estimatedGas }
 }
