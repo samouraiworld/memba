@@ -71,7 +71,7 @@ flyctl secrets set GROQ_API_KEY=<new> GOOGLE_AI_KEY=<new> --app memba-backend
 
 ## Clerk keys (Alerts sign-in)
 
-The Memba backend holds no Clerk secret. The Alerts page signs in with Clerk in the browser, and gnomonitoring checks the session token with its own Clerk secret key (`clerk_secret_key` in its server config).
+The Memba backend holds no Clerk secret. The Alerts page signs in with Clerk in the browser, and gnomonitoring checks the session token with its own Clerk secret key (`clerk_secret_key` in its server config). The Memba backend checks the optional account's sessions with the instance's public keys only (`CLERK_JWT_KEYS`).
 
 **Impact of compromise:** Attacker can forge Clerk sessions for the Alerts page (gnomonitoring webhooks).
 **Impact of rotation:** Users on the Alerts page must sign in again.
@@ -80,6 +80,16 @@ The Memba backend holds no Clerk secret. The Alerts page signs in with Clerk in 
 # 1. Rotate in the Clerk dashboard: https://dashboard.clerk.com
 # 2. Put the new secret key in gnomonitoring's server config and restart it
 # 3. If the publishable key changed, update VITE_CLERK_PUBLISHABLE_KEY on Netlify and redeploy
+```
+
+When the instance's JWT signing key changes, rotate `CLERK_JWT_KEYS` in this order so no session is refused:
+
+```bash
+# 1. Add the new key next to the old one (both kids listed), then deploy
+flyctl secrets set CLERK_JWT_KEYS='{"<old kid>":"<old PEM>","<new kid>":"<new PEM>"}' --app memba-backend
+# 2. Switch the signing key in the Clerk dashboard
+# 3. After the longest session token lifetime has passed, remove the old key
+flyctl secrets set CLERK_JWT_KEYS='{"<new kid>":"<new PEM>"}' --app memba-backend
 ```
 
 ---

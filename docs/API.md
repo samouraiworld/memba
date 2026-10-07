@@ -111,6 +111,9 @@ Public verification: `scripts/verify-blockparty-seed.mjs` +
 |----------|------|-------------|
 | `GET /health` | No | Health check → `{"status":"ok"}` |
 | `GET /github/oauth/state` | Yes (`Authorization: Bearer <token JSON>`) | Generate a CSRF state token bound to the caller's wallet (256-bit, 10min TTL, one-time-use); the exchange accepts it only from that wallet |
+| `GET /api/account` | Account session (`Authorization: Bearer <Clerk session JWT>`) | The caller's optional Memba account, created on first call; the email shown is the provider's verified one (none while unverified). Off (404) unless `MEMBA_ACCOUNT_ENABLED=1`; 503 without a usable `CLERK_JWT_KEYS` |
+| `GET /api/account/export` | Account session | Everything Memba stores for the account, as a JSON download |
+| `POST /api/account/delete` | Account session | Deletes the account and every row it owns (204). It does not end the identity-provider session: a later `GET /api/account` with the same session would create a new account, so the client deletes the provider user (or at least signs out) right after, before any other account call |
 | `GET /github/oauth/exchange?code=X&state=Y` | Yes (`Authorization: Bearer <token JSON>`) | Exchange GitHub OAuth code (validates CSRF state), store the verified GitHub link on the caller's profile, return user info |
 
 ## Protocol

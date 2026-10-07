@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
+	"github.com/samouraiworld/memba/backend/internal/account"
 	"github.com/samouraiworld/memba/backend/internal/arcade"
 	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/auth"
@@ -587,6 +588,13 @@ func main() {
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	// The state is bound to the requesting wallet, so this needs the session too.
+	// The optional Memba account (off-chain extras), authenticated by the
+	// identity provider's session JWT, never by the wallet token. Off unless
+	// MEMBA_ACCOUNT_ENABLED=1; 503 without a usable CLERK_JWT_KEYS.
+	accountHandler := maxBodySize(1<<10, account.NewHandler(database, os.Getenv("MEMBA_ACCOUNT_ENABLED") == "1", os.Getenv("CLERK_JWT_KEYS")))
+	mux.Handle("/api/account", rateLimitMiddleware("account", accountHandler))
+	mux.Handle("/api/account/", rateLimitMiddleware("account", accountHandler))
+
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", githubOAuthStateHandler(svc, oauthStore)))
 	// The exchange writes the verified link onto the caller's profile, so it
 	// needs the wallet session token (401 without one, before any GitHub call).
