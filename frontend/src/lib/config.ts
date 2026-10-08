@@ -570,6 +570,21 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // owner-controlled), and the hire dialog refuses to sign while
         // GetPauseStateJSON reports paused. Canary: docs/ESCROW_MAINNET_CANARY.md.
         "gno.land/r/samcrew/escrow_v4",
+        // ── Token Launchpad go-live ───────────────────────────────────────────
+        // Published 2026-10-08 from the frozen release bytes by the publisher
+        // 2-of-3 (sequences 46-58) and configured at 59-72 (realm-versions.json
+        // `mainnet`, launchpad/*). sales/v1 CUSTODIES FUNDS: fair-sale escrow,
+        // refunds, creator proceeds and fees, all owed on record (SolvencyJSON,
+        // watched by OPS-1). Listing these three IS the switch: the Tokens app
+        // opens token creation and fair sales wherever they are listed, with no
+        // other flag. config/v1 decides per lane (direct, fairsale, airdrop) and
+        // every create or order reads its ActionStatusJSON first, so a lane its
+        // pauser closes refuses before the wallet. Exits never read it. The NFT
+        // realms (nft, drops, market, curation) are published too but stay off
+        // this list until their own go after the Q16 market run.
+        "gno.land/r/samcrew/launchpad/config/v1",
+        "gno.land/r/samcrew/launchpad/tokens/v1",
+        "gno.land/r/samcrew/launchpad/sales/v1",
     ],
     test13: [
         "gno.land/r/samcrew/memba_dao",

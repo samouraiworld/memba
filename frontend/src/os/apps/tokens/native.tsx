@@ -1,7 +1,7 @@
 /**
  * Tokens native home: the Token Launchpad's tokens and each one's launch, read
  * from the ledger and sales realms. Available where the network's allowlist
- * names the ledger, which it does on none until the realms are published;
+ * names the ledger (onyx-1, and gnoland-1 since the 2026-10-08 publication);
  * elsewhere the classic token factory pages where that factory exists, or a
  * note saying the Launchpad is not here. Guests browse everything; a member
  * also sees their balance, their fair-sale order and what it pays. Reads are

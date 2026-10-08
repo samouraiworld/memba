@@ -409,7 +409,7 @@ Frontend feature flags are configured as **Netlify environment variables** (NOT 
 |------|---------|--------|-------|
 | `VITE_ENABLE_TEAMS` | `false` | ✅ Ready to enable | Backend + frontend shipped in v2.28. Set to `true` via Netlify UI. |
 | `VITE_ENABLE_MARKETPLACE` | `false` | 🔒 Gated | `agent_registry_v2` is not deployed on mainnet (`realm-versions.json` `mainnet`), so the flag stays off. |
-| `VITE_ENABLE_NFT` | `false` | Ordinary flag (de-gated at the Pearl cutover) | The NFT/collections/market realms are not deployed on mainnet (`realm-versions.json` `mainnet`), so the NFT views have no ledger to read yet. |
+| `VITE_ENABLE_NFT` | `false` | Ordinary flag (de-gated at the Pearl cutover) | The Launchpad NFT realms (`launchpad/nft`, `drops`, `market`, `curation` v1) are published on mainnet (`realm-versions.json` `mainnet`) but not in `REALM_ALLOWLIST.mainnet`, so the NFT views read nothing there yet; they are listed in their own change after the NFT market run. |
 | `VITE_ENABLE_SERVICES` | `false` | Ordinary flag | `escrow_v4` is live and allowlisted on mainnet; the Services lane also needs this flag. Canary: [`ESCROW_MAINNET_CANARY.md`](ESCROW_MAINNET_CANARY.md). |
 
 **Where to set:** Netlify Dashboard → Site → Build & Deploy → Environment Variables.

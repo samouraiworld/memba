@@ -1,9 +1,10 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useOutletContext } from "react-router-dom"
+import { Link, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { GNO_RPC_URL, GNO_CHAIN_ID, ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH, isRealmValidOn } from "../lib/config"
 import { listFactoryTokens, getTokenInfo, getTokenBalance, formatTokenAmount } from "../lib/grc20"
+import { TOKEN_LAUNCHPAD_PATH } from "../lib/tokenLaunchpadClient"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { LayoutContext } from "../types/layout"
 import "./tokendashboard.css"
@@ -11,6 +12,7 @@ import "./tokendashboard.css"
 export function TokenDashboard() {
     const navigate = useNetworkNav()
     const factoryAvailable = isRealmValidOn(ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH)
+    const launchpadListed = isRealmValidOn(ACTIVE_NETWORK_KEY, TOKEN_LAUNCHPAD_PATH)
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     // Token list (public — independent of the wallet). Cached + deduped by React
@@ -51,10 +53,12 @@ export function TokenDashboard() {
             <button onClick={() => navigate("/")} className="token-back-btn">← Home</button>
             <h2 className="token-title">Token launchpad</h2>
             <div className="k-card token-empty">
-                <h3 className="token-empty-title">Token creation unavailable here</h3>
+                <h3 className="token-empty-title">{launchpadListed ? "Tokens are made in the Token Launchpad here" : "Token creation unavailable here"}</h3>
                 <p className="token-empty-desc">
-                    Memba’s token launchpad is implemented, but its factory is {ACTIVE_NETWORK_KEY === "mainnet" ? "not deployed" : "not available"} on {GNO_CHAIN_ID}.
-                    This page lists Memba factory tokens only, not every token on the network.
+                    {launchpadListed
+                        ? <>Memba’s classic token factory is not deployed on {GNO_CHAIN_ID}; tokens there are created and sold in the Token Launchpad. <Link to="/os/tokens">Open the Tokens app</Link>.</>
+                        : <>Memba’s token launchpad is implemented, but its factory is {ACTIVE_NETWORK_KEY === "mainnet" ? "not deployed" : "not available"} on {GNO_CHAIN_ID}.
+                            This page lists Memba factory tokens only, not every token on the network.</>}
                 </p>
             </div>
         </div>

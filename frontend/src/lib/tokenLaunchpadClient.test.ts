@@ -130,9 +130,9 @@ describe("Token Launchpad structured reader", () => {
         await expect(new TokenLaunchpadClient().listPage(0)).rejects.toMatchObject({ code: "network_changed" })
     })
 
-    it("keeps the unpublished token realm gated by the real mainnet allowlist", async () => {
+    it("lists the token realm on the real mainnet allowlist since its publication", async () => {
         const config = await vi.importActual<typeof import("./config")>("./config")
-        expect(config.isRealmValidOn("mainnet", TOKEN_LAUNCHPAD_PATH)).toBe(false)
+        expect(config.isRealmValidOn("mainnet", TOKEN_LAUNCHPAD_PATH)).toBe(true)
     })
 
     it("reads a balance with validated arguments and an exact integer result", async () => {

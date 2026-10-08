@@ -10,7 +10,7 @@ import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { renderWithProviders, mockLayoutContext } from "../test/test-utils"
 import { TokenDashboard } from "./TokenDashboard"
 
-const capability = vi.hoisted(() => ({ available: true }))
+const capability = vi.hoisted(() => ({ available: true, launchpad: false }))
 const mockNavigate = vi.fn()
 vi.mock("../hooks/useNetworkNav", () => ({
     useNetworkNav: () => mockNavigate,
@@ -21,8 +21,9 @@ vi.mock("../lib/config", () => ({
     GNO_CHAIN_ID: "test-13",
     ACTIVE_NETWORK_KEY: "test13",
     GRC20_FACTORY_PATH: "gno.land/r/samcrew/tokenfactory_v2",
-    isRealmValidOn: () => capability.available,
+    isRealmValidOn: (_network: string, path: string) => path === "gno.land/r/samcrew/tokenfactory_v2" ? capability.available : capability.launchpad,
 }))
+vi.mock("../lib/tokenLaunchpadClient", () => ({ TOKEN_LAUNCHPAD_PATH: "gno.land/r/samcrew/launchpad/tokens/v1" }))
 
 const listFactoryTokens = vi.fn()
 const getTokenInfo = vi.fn()
@@ -45,7 +46,17 @@ describe("TokenDashboard", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         capability.available = true
+        capability.launchpad = false
         getTokenBalance.mockResolvedValue(0n)
+    })
+
+    it("points to the Tokens app where the Launchpad, not the factory, makes tokens", () => {
+        capability.available = false
+        capability.launchpad = true
+        renderWithProviders(<TokenDashboard />)
+        expect(screen.getByText("Tokens are made in the Token Launchpad here")).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "Open the Tokens app" })).toHaveAttribute("href", "/os/tokens")
+        expect(listFactoryTokens).not.toHaveBeenCalled()
     })
 
     it("does not query or advertise creation when the factory is unavailable", () => {
