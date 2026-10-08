@@ -164,8 +164,9 @@ test.describe('Memba OS wallet', () => {
             a.GetAccount = async () => { const r = await get(); r.data.address = other; return r }
         }, BOB)
         await review.getByRole('button', { name: 'Sign in Adena' }).click()
-        // The broadcaster's live wallet check refuses first: Adena's account is not the connected one.
-        await expect(review.getByRole('alert')).toContainText('Your Adena account is not the one connected to Memba')
+        // The review's recheck and the broadcaster's live wallet check run side by side; either refuses
+        // before Adena is asked, and nothing is sent.
+        await expect(review.getByRole('alert')).toContainText(/Your Adena account is not the one connected to Memba|Your wallet changed since the review\. Review the send again\. Nothing was sent\./)
         expect(await calls(page)).toHaveLength(0)
     })
 
