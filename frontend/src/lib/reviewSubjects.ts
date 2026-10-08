@@ -8,18 +8,23 @@
  * one; our games' realms are also their App Store listings, so a game's page
  * and its store page share one review pool.
  */
-import type { EcosystemProject } from "./ecosystemDirectory"
+import { ECOSYSTEM_PROJECTS, type EcosystemProject } from "./ecosystemDirectory"
 
-export const GAME_REVIEW_SUBJECTS = {
+export type ArcadeGameId = "block-party" | "space-invaders" | "barricade" | "connect4"
+
+/**
+ * Only games whose realm is deployed on mainnet have a subject. Connect 4 gets
+ * its subject only once its audited mainnet realm exists: pinning a path before
+ * then could lock deposits under a realm that is never deployed there.
+ */
+export const GAME_REVIEW_SUBJECTS: Readonly<Partial<Record<ArcadeGameId, string>>> = Object.freeze({
     "block-party": "gno.land/r/samcrew/block_party",
     "space-invaders": "gno.land/r/samcrew/space_invaders",
     "barricade": "gno.land/r/samcrew/barricade",
-    "connect4": "gno.land/r/samcrew/connect4",
-} as const
-export type ArcadeGameId = keyof typeof GAME_REVIEW_SUBJECTS
+})
 
 /** Keyed by ECOSYSTEM_PROJECTS id. A new project adds a line; an existing line never changes. */
-export const CURATED_APP_SUBJECTS: Readonly<Record<string, string>> = {
+export const CURATED_APP_SUBJECTS: Readonly<Record<string, string>> = Object.freeze({
     adena: "memba:app/adena",
     gnoswap: "gno.land/r/gnoswap/router",
     boards: "gno.land/r/gnoland/boards2/v0",
@@ -30,7 +35,7 @@ export const CURATED_APP_SUBJECTS: Readonly<Record<string, string>> = {
     gnoscan: "memba:app/gnoscan",
     playground: "memba:app/playground",
     mygnoscan: "memba:app/mygnoscan",
-}
+})
 
 export function projectReviewSubject(project: Pick<EcosystemProject, "id" | "realm">): string {
     const subject = Object.hasOwn(CURATED_APP_SUBJECTS, project.id) ? CURATED_APP_SUBJECTS[project.id] : undefined
@@ -43,4 +48,21 @@ const CURATED: ReadonlySet<string> = new Set([...Object.values(GAME_REVIEW_SUBJE
 /** A subject Memba curates itself: reviewable without a live registry listing. */
 export function isCuratedReviewSubject(subject: string): boolean {
     return CURATED.has(subject)
+}
+
+const GAME_REVIEW_NAMES: Readonly<Partial<Record<ArcadeGameId, string>>> = Object.freeze({
+    "block-party": "Block Party",
+    "space-invaders": "Space Invaders",
+    "barricade": "BARRICADE",
+})
+
+/** The one display name the signing sheet may show for each curated subject. */
+const CURATED_REVIEW_NAMES: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries([
+    ...Object.entries(GAME_REVIEW_SUBJECTS).map(([id, subject]) => [subject, GAME_REVIEW_NAMES[id as ArcadeGameId]]),
+    ...ECOSYSTEM_PROJECTS.map((project) => [projectReviewSubject(project), project.name]),
+]))
+
+/** The pinned display name of a curated subject, or null for any other subject. */
+export function curatedReviewName(subject: string): string | null {
+    return Object.hasOwn(CURATED_REVIEW_NAMES, subject) ? CURATED_REVIEW_NAMES[subject] : null
 }
