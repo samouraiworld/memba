@@ -45,7 +45,7 @@ describe("ecosystem discovery controls", () => {
         const { container } = renderWithProviders(<EcosystemDirectory standalone />)
         expect(screen.queryByRole("link", { name: "Mainnet Explorer" })).not.toBeInTheDocument()
         expect(container.querySelector("a a, button a, a button")).toBeNull()
-        expect(screen.getByRole("link", { name: "Visit mygnoscan (opens in a new tab)" })).toHaveAttribute("href", "https://mygnoscan.moul.p2p.team/storage?network=mainnet")
+        expect(screen.getByRole("link", { name: "Visit gnoscope (opens in a new tab)" })).toHaveAttribute("href", "https://gnoscope.com/storage?network=mainnet")
     })
     it("shows only unmatched projects after live listings, with verified realm links only", () => {
         renderWithProviders(<EcosystemDirectory onChain={[

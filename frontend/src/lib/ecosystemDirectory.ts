@@ -62,11 +62,12 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         url: "https://play.gno.land/", status: "Browser workspace", availability: "Sandbox · no chain deployment implied",
         description: "Write, run, and share Gno code directly in your browser.",
         evidence: { url: "https://play.gno.land/", checkedAt: "2026-09-22" } },
-    { id: "mygnoscan", name: "mygnoscan", category: "Explorer", kind: "tool", networks: ["mainnet"],
-        url: "https://mygnoscan.moul.p2p.team/storage?network=mainnet", status: "Storage explorer", availability: "Mainnet · opens mainnet view",
+    // Formerly "mygnoscan" (renamed to gnoscope, 2026-10): the id stays, since it keys the pinned review subject and media.
+    { id: "mygnoscan", name: "gnoscope", category: "Explorer", kind: "tool", networks: ["mainnet"],
+        url: "https://gnoscope.com/storage?network=mainnet", status: "Storage explorer", availability: "Mainnet · opens mainnet view",
         description: "Explore indexed realms and storage on mainnet using an independent explorer.",
         sourceUrl: "https://github.com/gnoverse/mygnoscan",
-        evidence: { url: "https://mygnoscan.moul.p2p.team/storage?network=mainnet", checkedAt: "2026-09-22" } },
+        evidence: { url: "https://gnoscope.com/storage?network=mainnet", checkedAt: "2026-10-08" } },
 ]
 /** Independent mainnet games the Arcade links out to; derived so the directory stays the single source. */
 export const COMMUNITY_GAMES: readonly EcosystemProject[] = ECOSYSTEM_PROJECTS.filter(project => project.category === "Games" && project.networks.includes("mainnet"))
