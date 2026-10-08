@@ -355,7 +355,7 @@ describe("Store: submitting and managing listings", () => {
         fill()
         fireEvent.click(screen.getByRole("button", { name: "Submit for review" }))
         await waitFor(() => expect(signer.sign).toHaveBeenCalledTimes(1))
-        expect(mocks.registerApplies).toHaveBeenCalledWith(expect.objectContaining({ pkgPath: "gno.land/r/alice/garden", name: "Garden" }), 1_000_000)
+        expect(mocks.registerApplies).toHaveBeenCalledWith(MEMBER, expect.objectContaining({ pkgPath: "gno.land/r/alice/garden", name: "Garden" }), 1_000_000)
         const request = vi.mocked(signer.sign).mock.calls[0][0] as SignRequest
         expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: "RegisterApp", send: "1000000ugnot", caller: MEMBER })
         request.onSettled?.("confirmed", undefined)

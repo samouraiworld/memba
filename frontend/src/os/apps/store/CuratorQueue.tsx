@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { fetchCuratorQueue, FLAG_HIDE_THRESHOLD, isAppStoreV3On } from "../../../lib/appStore"
+import { fetchCuratorQueue, FLAG_HIDE_THRESHOLD, isAppStoreV3OrLaterOn } from "../../../lib/appStore"
 import { MAX_RESUBMITS } from "../../../lib/appStoreSubmit"
 import { TEAM_MULTISIG_ADDRESS } from "../../../lib/reviews"
 import { ErrorState, Loading } from "../../kit"
@@ -8,7 +8,7 @@ import { specForTarget } from "../../shell/windows"
 
 /** The listings waiting for a curator, read-only: curators decide by transactions from their own accounts. */
 export function CuratorQueue({ session, open }: Pick<NativeViewProps, "session" | "open">) {
-    const available = isAppStoreV3On(session.network.key)
+    const available = isAppStoreV3OrLaterOn(session.network.key)
     const queue = useQuery({
         queryKey: ["appStore", "native-curator-queue", session.network.chainId],
         queryFn: () => fetchCuratorQueue(), enabled: available, staleTime: 60_000, retry: 1,

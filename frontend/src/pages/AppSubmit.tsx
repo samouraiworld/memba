@@ -1,14 +1,15 @@
 /**
  * AppSubmit — self-service App Store submission at `/apps/submit` (B3, the money path).
  *
- * Anyone can list an app on the v3 realm by paying the registration fee (read LIVE from
+ * Anyone can list an app on the v3 realm (on v4: a path whose namespace they own, or one a curator
+ * attested for them) by paying the registration fee (read LIVE from
  * `GetRegistrationFee()` — the realm demands an exact coin match, so the client never
  * hardcodes it). The listing starts `pending` and only a curator can make it Verified;
  * that is disclosed before signing AND after broadcast. Rejected listings show the
  * curator's reason here and can be fixed + resubmitted for free (`EditListing`, no coin).
  *
  * Triple-gated: `VITE_ENABLE_APPSTORE_SUBMIT` (ordinary flag — de-gated 2026-07-10
- * after the v3 fee-path checklist passed live), v3 realm active (`isAppStoreV3`), and a
+ * after the v3 fee-path checklist passed live), a v3 or v4 realm active (`isAppStoreV3OrLater`), and a
  * connected wallet. Validation mirrors the realm's rules so a transaction the realm
  * would reject is never signed.
  *
@@ -22,7 +23,7 @@ import { useAdena } from "../hooks/useAdena"
 import { useAuth } from "../hooks/useAuth"
 import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreSubmitEnabled } from "../lib/config"
-import { isAppStoreV3, fetchByPublisher, type AppListing } from "../lib/appStore"
+import { isAppStoreV3OrLater, isAppStoreV4, fetchByPublisher, type AppListing } from "../lib/appStore"
 import {
     validateSubmission,
     submitRegisterApp,
@@ -33,6 +34,7 @@ import {
     formatGnot,
     registerStorageBytes,
     submitErrorText,
+    V4_LISTING_RULE,
     type AppSubmission,
 } from "../lib/appStoreSubmit"
 import { formatUgnot, STORAGE_PRICE_UGNOT } from "../lib/dao/v2Budget"
@@ -61,7 +63,7 @@ export function AppSubmit() {
     const [editLoading, setEditLoading] = useState<string | null>(null)
 
     const submitOpen = isAppStoreSubmitEnabled()
-    const v3 = isAppStoreV3()
+    const v3 = isAppStoreV3OrLater()
 
     // The live fee — null means "could not read it", which BLOCKS submission (exact-coin).
     const { data: fee } = useQuery({
@@ -136,7 +138,7 @@ export function AppSubmit() {
     if (!v3) {
         return <div data-testid="appsubmit-v2"><ComingSoonGate
             title="App publishing" icon="◇"
-            description="Submissions need the v3 App Store realm. Publishing is not available on this network yet."
+            description="Submissions need App Store v3 or later. Publishing is not available on this network yet."
             features={["Present your app and its public source", "Submit a listing for curator review", "Manage your published apps"]}
         /></div>
     }
@@ -198,6 +200,7 @@ export function AppSubmit() {
                     List a gno.land realm in the App Store. Submissions start as{" "}
                     <strong>pending review</strong> — they only become Verified after a curator
                     checks the listing. Most submissions are reviewed within 3 business days.
+                    {isAppStoreV4() && <> {V4_LISTING_RULE}</>}
                 </p>
             </header>
 

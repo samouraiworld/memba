@@ -23,7 +23,7 @@ vi.mock("../lib/appStore", async (importActual) => {
     const actual = await importActual<typeof import("../lib/appStore")>()
     return {
         ...actual,
-        isAppStoreV3: () => v3,
+        isAppStoreV3OrLater: () => v3,
         fetchByPublisher: (...a: unknown[]) => fetchByPublisher(...a),
         fetchApp: (...a: unknown[]) => fetchApp(...a),
         // The checks before the wallet read the same listing, and the registry's fee and pause switch.

@@ -8,7 +8,7 @@ vi.mock("../../../lib/config", async (importActual) => ({
 }))
 vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
-    isAppStoreV3On: mocks.v3,
+    isAppStoreV3OrLaterOn: mocks.v3,
 }))
 vi.mock("../../../lib/appStoreSubmit", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStoreSubmit")>(),
@@ -65,7 +65,7 @@ describe("a listing call through the OS signing sheet", () => {
         // 36M gas at 1 ugnot per 1,000 gas, with the 20 % headroom.
         expect(line(request, "Network fee")).toBe("0.0432 GNOT")
         await expect(run(request)).resolves.toMatchObject({ outcome: "sent", hash: HASH })
-        expect(mocks.register).toHaveBeenCalledWith(S, 1_000_000)
+        expect(mocks.register).toHaveBeenCalledWith(CALLER, S, 1_000_000)
         expect(doContractBroadcast).toHaveBeenCalledWith(expect.anything(), "Submit app", { gasWanted: 36_000_000, gasFee: 43_200, beforeSign: expect.any(Function) })
     })
 
