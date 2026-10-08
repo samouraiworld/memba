@@ -10,7 +10,9 @@ import { DailyTop } from "./DailyTop"
 
 export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; toLobby: () => void } & Pick<NativeViewProps, "session" | "open">) {
     const media = resolveMedia(game.id, null, game.id)
-    const summary = useReviewSummaries(session.network.chainId, [game.reviewSubject]).get(game.reviewSubject)
+    const { reviewSubject } = game
+    const summaries = useReviewSummaries(session.network.chainId, reviewSubject ? [reviewSubject] : [])
+    const summary = reviewSubject ? summaries.get(reviewSubject) : undefined
     const enabled = game.enabled()
     const play = () => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
     const latest = game.changelog[0]
@@ -23,7 +25,9 @@ export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; t
             {latest && <section className="os-cin-panel"><h2>What's new</h2><p><b>{latest.version}</b> · {latest.date} — {latest.note}</p></section>}
             {/* The reviews list renders its own "Reviews" heading, so this section is labelled rather than headed. */}
             <section className="os-cin-panel" aria-label="Ratings and reviews">
-                <ReviewsPanel subject={game.reviewSubject} name={game.name} session={session} composable={enabled} /></section>
+                {reviewSubject
+                    ? <ReviewsPanel subject={reviewSubject} name={game.name} session={session} composable={enabled} />
+                    : <p className="os-cin-sub">Reviews open once {game.name} is live on mainnet.</p>}</section>
         </>}
         side={<>
             <div className="os-cin-panel">

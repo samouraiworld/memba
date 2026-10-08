@@ -58,7 +58,7 @@ export default function ArcadeWindow({ section, open, push, fallback, session, a
     // Play opens the game's own window, beside this one.
     const play = (game: ArcadeGame) => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
     const scoped = (children: ReactNode) => <div ref={root} style={{ display: "contents" }}>{children}</div>
-    const summaries = useReviewSummaries(session.network.chainId, ARCADE_GAMES.map((game) => game.reviewSubject))
+    const summaries = useReviewSummaries(session.network.chainId, ARCADE_GAMES.flatMap((game) => game.reviewSubject ? [game.reviewSubject] : []))
     if (section?.startsWith("g/")) {
         const game = gameById(section.slice(2))
         return game ? scoped(<CinemaScope tone="arcade"><GamePage game={game} session={session} open={open} toLobby={() => follow(null)} /></CinemaScope>) : <>{fallback}</>
@@ -70,7 +70,7 @@ export default function ArcadeWindow({ section, open, push, fallback, session, a
         const on = game.enabled()
         return <CoverCapsule key={game.id} title={game.name} pitch={game.pitch} cover={media.cover} accent={media.accent} tags={game.tags.slice(0, 1)}
             costTag={game.cost === "staked" ? { label: "Staked · GNOT", tone: "warn" } : on ? { label: "Free", tone: "free" } : { label: "Unavailable", tone: "warn" }}
-            summary={summaries.get(game.reviewSubject)} disabled={!on}
+            summary={game.reviewSubject ? summaries.get(game.reviewSubject) : undefined} disabled={!on}
             onOpen={() => follow(gameSection(game))} onPlay={on ? () => play(game) : undefined} />
     }
     const slides: HeroSlide[] = ARCADE_GAMES.filter((game) => game.featured).map((game) => {
@@ -82,9 +82,10 @@ export default function ArcadeWindow({ section, open, push, fallback, session, a
             secondary: game.enabled() ? { label: "Details", onClick: () => follow(gameSection(game)) } : undefined,
         }
     })
+    const summaryOf = (game: ArcadeGame) => game.reviewSubject ? summaries.get(game.reviewSubject) : undefined
     const topRated = ARCADE_GAMES
-        .filter((game) => (summaries.get(game.reviewSubject)?.count ?? 0) >= MIN_RATED_COUNT)
-        .sort((a, b) => summaries.get(b.reviewSubject)!.average - summaries.get(a.reviewSubject)!.average)
+        .filter((game) => (summaryOf(game)?.count ?? 0) >= MIN_RATED_COUNT)
+        .sort((a, b) => summaryOf(b)!.average - summaryOf(a)!.average)
 
     return scoped(<CinemaShell tone="arcade" label="Arcade" brand="Arcade" sections={sections} current={current} onSelect={(next) => go(next === "games" ? null : next)}>
         {current === "games" && <>

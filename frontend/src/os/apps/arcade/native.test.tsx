@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { GAME_REVIEW_SUBJECTS } from "../../../lib/reviewSubjects"
+import { curatedReviewName, GAME_REVIEW_SUBJECTS } from "../../../lib/reviewSubjects"
 import ArcadeWindow from "./native"
 import { CommunityGames } from "./community"
 
@@ -20,7 +20,7 @@ vi.mock("../../kit/storefront", async (original) => ({
     ...(await original<typeof import("../../kit/storefront")>()),
     useReviewSummaries: () => summaries.map,
 }))
-vi.mock("../store/ReviewsPanel", () => ({ ReviewsPanel: ({ subject }: { subject: string }) => <p>reviews of {subject}</p> }))
+vi.mock("../store/ReviewsPanel", () => ({ ReviewsPanel: ({ subject, name }: { subject: string; name: string }) => <p>reviews of {subject} as {name}</p> }))
 vi.mock("./DailyTop", () => ({ DailyTop: () => <p>daily top</p> }))
 
 const session = { network: { key: "mainnet", chainId: "gnoland-1" }, status: "guest" } as never
@@ -88,12 +88,26 @@ describe("Arcade lobby", () => {
         const push = vi.fn()
         wrap(<ArcadeWindow {...base} section="g/barricade" open={open} push={push} />)
         expect(screen.getByRole("heading", { level: 1, name: "BARRICADE" })).toBeInTheDocument()
-        expect(screen.getByText("reviews of gno.land/r/samcrew/barricade")).toBeInTheDocument()
+        expect(screen.getByText("reviews of gno.land/r/samcrew/barricade as BARRICADE")).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:barricade" }))
         fireEvent.click(screen.getByRole("button", { name: "← Arcade" }))
         expect(push).toHaveBeenLastCalledWith(expect.objectContaining({ key: "app:arcade", target: expect.objectContaining({ section: null }) }))
         expect(open).toHaveBeenCalledTimes(1)
+    })
+
+    it("reviews each deployed game under its pinned display name, and Connect 4 has no reviews yet", () => {
+        const pinned = [["block-party", "Block Party"], ["space-invaders", "Space Invaders"], ["barricade", "BARRICADE"]] as const
+        for (const [id, name] of pinned) {
+            const { unmount } = wrap(<ArcadeWindow {...base} section={`g/${id}`} open={vi.fn()} />)
+            expect(curatedReviewName(GAME_REVIEW_SUBJECTS[id]!)).toBe(name)
+            expect(screen.getByText(`reviews of ${GAME_REVIEW_SUBJECTS[id]} as ${name}`)).toBeInTheDocument()
+            unmount()
+        }
+        wrap(<ArcadeWindow {...base} section="g/connect4" open={vi.fn()} />)
+        expect(screen.getByRole("heading", { level: 1, name: "Connect 4" })).toBeInTheDocument()
+        expect(screen.getByText("Reviews open once Connect 4 is live on mainnet.")).toBeInTheDocument()
+        expect(screen.queryByText(/^reviews of /)).not.toBeInTheDocument()
     })
 
     it("shows the daily top only on Block Party's page", () => {

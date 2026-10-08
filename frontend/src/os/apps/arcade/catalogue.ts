@@ -13,7 +13,8 @@ export interface ArcadeGame {
     tags: readonly string[]
     cost: "free" | "staked"
     info: readonly (readonly [string, string])[]
-    reviewSubject: string
+    /** Null until the game has an audited mainnet realm: it then has no ratings and no reviews. */
+    reviewSubject: string | null
     enabled: () => boolean
     daily: boolean
     dailyBoard: boolean
@@ -30,7 +31,7 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
         howTo: ["Swipe, or press the arrow keys, to slide every tile at once.", "Two tiles with the same number merge into one, and its value is added to your score.", "A new tile appears after every move. The game ends when nothing can move or your moves run out."],
         tags: ["Puzzle", "Daily"], cost: "free",
         info: [["Modes", "Daily · Practice"], ["Players", "Solo"], ["Cost", "Free"], ["Scores", "First finished Daily run, checked and posted"], ["Controls", "Swipe or arrow keys"], MADE_BY],
-        reviewSubject: GAME_REVIEW_SUBJECTS["block-party"], enabled: isGameEnabled, daily: true, dailyBoard: true, changelog: [], featured: true,
+        reviewSubject: GAME_REVIEW_SUBJECTS["block-party"] ?? null, enabled: isGameEnabled, daily: true, dailyBoard: true, changelog: [], featured: true,
     },
     {
         id: "space-invaders", name: "Space Invaders", section: "space-invaders", pitch: "Daily arcade waves and free play",
@@ -38,7 +39,7 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
         howTo: ["Move, fire or press Enter to begin.", "On touch, drag left to steer and tap right to fire.", "Chain hits without missing to raise your multiplier."],
         tags: ["Shooter", "Daily"], cost: "free",
         info: [["Modes", "Daily · Free play"], ["Players", "Solo"], ["Cost", "Free"], ["Scores", "Daily run replay-checked on this device"], ["Controls", "Keyboard · touch"], MADE_BY],
-        reviewSubject: GAME_REVIEW_SUBJECTS["space-invaders"], enabled: isSpaceInvadersEnabled, daily: true, dailyBoard: false, changelog: [], featured: true,
+        reviewSubject: GAME_REVIEW_SUBJECTS["space-invaders"] ?? null, enabled: isSpaceInvadersEnabled, daily: true, dailyBoard: false, changelog: [], featured: true,
     },
     {
         id: "barricade", name: "BARRICADE", section: "barricade", pitch: "Defend the lanes in a daily run",
@@ -46,7 +47,7 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
         howTo: ["Tap a lane and you fire automatically; shove its nearest machine or aim a molotov farther up the street.", "Defeated machines fill Rally and drop scrap for the between-wave shop.", "Everyone gets the same daily seed; Practice uses a separate run."],
         tags: ["Strategy", "Daily"], cost: "free",
         info: [["Modes", "Daily run"], ["Players", "Solo"], ["Cost", "Free"], ["Scores", "Accepted runs await day-close attestation"], MADE_BY],
-        reviewSubject: GAME_REVIEW_SUBJECTS.barricade, enabled: isBarricadeEnabled, daily: true, dailyBoard: false, changelog: [], featured: true,
+        reviewSubject: GAME_REVIEW_SUBJECTS.barricade ?? null, enabled: isBarricadeEnabled, daily: true, dailyBoard: false, changelog: [], featured: true,
     },
     {
         id: "connect4", name: "Connect 4", section: "connect4", pitch: "Staked two-player — winner takes the pot",
@@ -54,7 +55,7 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
         howTo: ["Connect your wallet to play. You can watch games without one.", "After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts.", "The reveal key is stored only in this browser; missing it forfeits your stake."],
         tags: ["Duel", "Staked"], cost: "staked",
         info: [["Modes", "Staked duel"], ["Players", "2"], ["Cost", "Staked · GNOT"], ["Scores", "Results settle on-chain"], ["Controls", "Pick a column"], MADE_BY],
-        reviewSubject: GAME_REVIEW_SUBJECTS.connect4, enabled: isConnect4Live, daily: false, dailyBoard: false, changelog: [], featured: false,
+        reviewSubject: null, enabled: isConnect4Live, daily: false, dailyBoard: false, changelog: [], featured: false,
     },
 ]
 
