@@ -106,7 +106,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
         realmPath: listing.pkgPath, availability: session.network.key === "mainnet" ? "mainnet" as const : "testnet" as const, listing,
     } : null
     const back = () => { open(specForTarget({ kind: "app", app: "store", section: null })!); close() }
-    const more = entry ? buildCatalogue([], ECOSYSTEM_PROJECTS, session.network.key).filter((other) => other.category === entry.category && other.id !== entry.id).slice(0, 4) : []
+    const more = entry ? buildCatalogue([], ECOSYSTEM_PROJECTS, session.network.key).filter((other) => other.category === entry.category && other.id !== entry.id && !(entry.project && other.project?.id === entry.project.id) && !(other.realmPath && other.realmPath === entry.realmPath)).slice(0, 4) : []
     const summaries = useReviewSummaries(session.network.chainId, entry ? [entrySubject(entry), ...more.map(entrySubject)] : [])
     return <div className="os-store-detail">
         <CinemaScope tone="store">

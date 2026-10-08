@@ -125,6 +125,15 @@ describe("Store detail", () => {
         expect(open.mock.calls.at(-1)![0].target).toEqual(expect.objectContaining({ app: "store", section: expect.stringMatching(/^project\//) }))
     })
 
+    it("never lists the app itself under More in", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ pkgPath: "gno.land/r/gnoland/boards2/v0", name: "Boards", category: "community", appURL: "https://gno.land/r/gnoland/boards2/v0" }))
+        show("apps/r/gnoland/boards2/v0")
+        expect(await screen.findByRole("heading", { level: 1, name: "Boards" })).toBeInTheDocument()
+        const more = screen.getByRole("region", { name: "More in Community" })
+        expect(within(more).getAllByRole("button").length).toBeGreaterThan(0)
+        expect(within(more).queryByRole("button", { name: "Details for Boards" })).not.toBeInTheDocument()
+    })
+
     it.each([
         ["pending", "Pending review, not yet vetted by a curator"],
         ["rejected", "Rejected by a curator"],
