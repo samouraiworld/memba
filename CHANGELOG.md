@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Ops: the Launchpad watcher cannot fail silently (2026-10-08)
+- An enabled Launchpad watcher that refuses its configuration now raises the MembaLaunchpadWatcherDown alert (memba_launchpad_watcher_enabled with no reading) instead of running silently unwatched.
+
 ### Faster Adena signatures and activation (2026-10-08)
 - Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.
 - An address that has never sent a transaction goes straight to activation, without the login popup that could only fail. After activation, Memba waits for the network to record the key before it opens the login step, and a required activation finishes without reloading the page.
