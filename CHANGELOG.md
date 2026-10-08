@@ -26,6 +26,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba DAO on gno.land mainnet (2026-10-08)
 - The Memba DAO window now opens the new governance (memba_gov), where seated members propose, vote and execute. It acts on an app only once that app is handed over to the DAO's bridge (Reviews first), and says which apps it governs.
+
 ### The App Store as a storefront (2026-10-08)
 - Memba OS App Store: Discover is now a dark storefront with a featured-apps carousel, shelves for Essentials, Play on gno.land and Top rated by the community, and category chips that filter the results. The Availability filter and search stay.
 - Memba OS App Store: every app has its own page with a banner, a large logo, rating, category and network badges, a screenshot gallery, About, and a side column with Open, Read realm source, facts and the "Before you open" notes. "More in <category>" lists related apps. The page opens in a larger window.
@@ -46,10 +47,12 @@ Full changelogs are split by version range for easier navigation:
 - Memba OS Arcade: a "Top rated by the community" shelf appears once a game has enough reviews.
 - Memba OS Arcade: the Arcade window opens bigger (1120x760), and so does the App Store window. Game covers fall back to a colour and the game's wordmark until real artwork is added.
 - Tests: end-to-end specs cover the storefront lobby, game pages, a narrow window and accessibility.
+
 ### A storefront look for the Arcade and App Store (2026-10-08)
 - Reviews: the review signing path now accepts games and curated apps under pinned, permanent subjects (the review UI for them follows).
 - Memba OS: new storefront building blocks (dark shell, featured carousel, cover capsules, screenshot gallery, detail layout, rating badge) for the Arcade and App Store windows to adopt (not shown anywhere yet).
 - Memba OS: the Chakra Petch display font is bundled with Memba OS only (two small font files, OFL-1.1).
+
 ### Ops: the Launchpad watcher cannot fail silently (2026-10-08)
 - An enabled Launchpad watcher that refuses its configuration now raises the MembaLaunchpadWatcherDown alert (memba_launchpad_watcher_enabled with no reading) instead of running silently unwatched.
 ### One Adena connection per page (2026-10-08)

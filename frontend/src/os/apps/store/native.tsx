@@ -185,6 +185,7 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
     const topRated = all.filter((entry) => (rated(entry)?.count ?? 0) >= MIN_RATED_COUNT).sort((a, b) => rated(b)!.average - rated(a)!.average).slice(0, 6)
     const gamePage = (id: string) => open(specForTarget({ kind: "app", app: "arcade", section: `g/${id}` })!)
     return <div className="os-store-home">
+        {section === "discover" && <header className="os-store-section-head os-store-section-head--compact"><h1>Discover</h1></header>}
         {section === "discover" && !filtering && <HeroCarousel label="Featured apps" slides={slides} active={active} />}
         {section === "ecosystem" && <header className="os-store-section-head"><p className="os-store-kicker">BEYOND THE REGISTRY</p><h1>Ecosystem</h1><p>Independent projects and tools. Their links and network status are shown before you open them.</p></header>}
         <form className="os-store-search" role="search" onSubmit={search}><label htmlFor="os-store-query">Search apps and tools</label><div><input id="os-store-query" type="search" maxLength={200} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="App, category or realm path" /><button type="submit" className="os-btn">Search</button></div></form>
@@ -198,8 +199,10 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
             <Shelf id="store-games" title="Play on gno.land" action={{ label: "Open the Arcade", onClick: () => openApp("arcade") }}>
                 <div className="os-cin-grid">{ARCADE_GAMES.map((game) => {
                     const media = resolveMedia(game.id, null, game.id)
+                    const on = game.enabled()
                     return <CoverCapsule key={game.id} title={game.name} pitch={game.pitch} cover={media.cover} accent={media.accent} tags={game.tags.slice(0, 1)}
-                        costTag={game.cost === "staked" ? { label: "Staked · GNOT", tone: "warn" } : { label: "Free", tone: "free" }} summary={game.reviewSubject ? summaries.get(game.reviewSubject) : undefined} onOpen={() => gamePage(game.id)} />
+                        costTag={game.cost === "staked" ? { label: "Staked · GNOT", tone: "warn" } : on ? { label: "Free", tone: "free" } : { label: "Unavailable", tone: "warn" }}
+                        summary={game.reviewSubject ? summaries.get(game.reviewSubject) : undefined} disabled={!on} onOpen={() => gamePage(game.id)} />
                 })}</div>
             </Shelf>
             {topRated.length > 0 && <Shelf id="store-top" title="Top rated by the community">

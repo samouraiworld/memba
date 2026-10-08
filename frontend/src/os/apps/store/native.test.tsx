@@ -7,11 +7,12 @@ import type { SignRequest } from "../../sign/signer"
 import { SignerContext, type SignerApi } from "../../sign/signerContext"
 import StoreWindow from "./native"
 
-const mocks = vi.hoisted(() => ({ submitOpen: true, fetchRegistryState: vi.fn(), fetchMyListings: vi.fn(), registerApplies: vi.fn(), editApplies: vi.fn(), delistApplies: vi.fn(), fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), fetchLive: vi.fn(), fetchSummaries: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0 }))
+const mocks = vi.hoisted(() => ({ submitOpen: true, fetchRegistryState: vi.fn(), fetchMyListings: vi.fn(), registerApplies: vi.fn(), editApplies: vi.fn(), delistApplies: vi.fn(), fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), fetchLive: vi.fn(), fetchSummaries: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0, space: true }))
 vi.mock("../../../lib/config", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/config")>(),
     isAppStoreEnabled: () => true, isAppReviewsAvailable: () => true, isRealmValidOn: () => true,
     isAppStoreSubmitEnabled: () => mocks.submitOpen,
+    isSpaceInvadersEnabled: () => mocks.space,
 }))
 vi.mock("../../../lib/appStoreSubmit", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStoreSubmit")>(),
@@ -74,7 +75,7 @@ beforeEach(() => {
     mocks.fetchAppStrict.mockReset(); mocks.fetchModerator.mockReset().mockResolvedValue(null)
     mocks.price.mockReset(); mocks.applies.mockReset().mockResolvedValue(undefined); mocks.mounts = 0
     mocks.reportApplies.mockReset().mockResolvedValue(undefined); mocks.fetchCuratorQueue.mockReset()
-    mocks.submitOpen = true
+    mocks.submitOpen = true; mocks.space = true
     mocks.fetchRegistryState.mockReset().mockResolvedValue({ pending: 0, registrationFee: 1_000_000, paused: false })
     mocks.fetchMyListings.mockReset(); mocks.registerApplies.mockReset().mockResolvedValue(undefined); mocks.editApplies.mockReset().mockResolvedValue(undefined); mocks.delistApplies.mockReset().mockResolvedValue(undefined)
     vi.mocked(signer.sign).mockReset(); openConnect.mockReset()
@@ -597,6 +598,41 @@ describe("Store: discover home", () => {
         expect(within(essentials).getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
         fireEvent.click(within(screen.getByRole("region", { name: "Play on gno.land" })).getByRole("button", { name: "Details for BARRICADE" }))
         expect(target(open)).toEqual(expect.objectContaining({ app: "arcade", section: "g/barricade" }))
+    })
+
+    it("tags a game this build cannot run as Unavailable, as the Arcade lobby does", () => {
+        mocks.space = false
+        home()
+        const games = within(screen.getByRole("region", { name: "Play on gno.land" }))
+        expect(games.getByRole("button", { name: "Details for Space Invaders" })).toHaveTextContent("Unavailable")
+        expect(games.getByRole("button", { name: "Details for Space Invaders" })).not.toHaveTextContent("Free")
+        expect(games.getByRole("button", { name: "Details for Connect 4" })).toHaveTextContent("Staked · GNOT")
+    })
+
+    it("tags a game this build can run as Free", () => {
+        home()
+        expect(within(screen.getByRole("region", { name: "Play on gno.land" })).getByRole("button", { name: "Details for Space Invaders" })).toHaveTextContent("Free")
+    })
+
+    it("heads the home with a Discover h1, and the Ecosystem section with its own", () => {
+        home()
+        expect(screen.getByRole("heading", { level: 1, name: "Discover" })).toBeInTheDocument()
+        cleanup()
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}>
+            <StoreWindow section="ecosystem" session={guest} active open={vi.fn()} openApp={vi.fn()} push={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        </QueryClientProvider>)
+        expect(screen.getByRole("heading", { level: 1, name: "Ecosystem" })).toBeInTheDocument()
+        expect(screen.queryByRole("heading", { level: 1, name: "Discover" })).not.toBeInTheDocument()
+    })
+
+    it("renders the fallback for an unknown section", () => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}>
+            <StoreWindow section="nope" session={guest} active open={vi.fn()} openApp={vi.fn()} push={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={<p>existing store</p>} />
+        </QueryClientProvider>)
+        expect(screen.getByText("existing store")).toBeInTheDocument()
+        expect(screen.queryByRole("navigation", { name: "App Store" })).not.toBeInTheDocument()
     })
 
     it("looks up ratings only for games that have a review subject, and still lists Connect 4", async () => {

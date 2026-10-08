@@ -2,6 +2,8 @@
 .memba-os .os-store-kicker { margin: 0 0 9px; color: var(--os-acc-ink); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .memba-os .os-store-section-head { padding: 10px 2px 2px; }
 .memba-os .os-store-section-head h1 { margin: 0; font-size: clamp(25px, 4vw, 37px); line-height: 1.1; letter-spacing: -.045em; }
+.memba-os .os-store-section-head--compact { padding: 4px 2px 0; }
+.memba-os .os-store-section-head--compact h1 { font-size: 20px; letter-spacing: -.02em; }
 .memba-os .os-store-section-head p:last-child { max-width: 560px; margin: 11px 0 0; color: var(--os-mut); line-height: 1.55; }
 .memba-os .os-store-search { display: grid; gap: 7px; }
 .memba-os .os-store-search label, .memba-os .os-store-filters label { font-size: 11px; font-weight: 750; color: var(--os-mut); }

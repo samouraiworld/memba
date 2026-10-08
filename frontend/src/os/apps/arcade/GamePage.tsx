@@ -15,14 +15,12 @@ export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; t
     const summary = reviewSubject ? summaries.get(reviewSubject) : undefined
     const enabled = game.enabled()
     const play = () => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
-    const latest = game.changelog[0]
     return <DetailLayout banner={media.cover} accent={media.accent} back={{ label: "← Arcade", onClick: toLobby }} title={game.name} pitch={game.pitch}
         badges={<><RatingBadge summary={summary} />{game.tags.map((tag) => <span key={tag} className="os-cin-tag">{tag}</span>)}</>}
         main={<>
             <MediaGallery name={game.name} images={media.screenshots} />
             <section className="os-cin-panel"><h2>About this game</h2><p>{game.description}</p>
                 {game.howTo.length > 0 && <ol className="os-cin-steps">{game.howTo.map((step) => <li key={step}>{step}</li>)}</ol>}</section>
-            {latest && <section className="os-cin-panel"><h2>What's new</h2><p><b>{latest.version}</b> · {latest.date} — {latest.note}</p></section>}
             {/* The reviews list renders its own "Reviews" heading, so this section is labelled rather than headed. */}
             <section className="os-cin-panel" aria-label="Ratings and reviews">
                 {reviewSubject
