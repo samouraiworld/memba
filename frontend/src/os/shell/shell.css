@@ -487,3 +487,7 @@
 /* keyboard focus on windows and sheets (day 7) */
 .memba-os .os-win:focus, .memba-os .os-ph-title:focus { outline: none; }
 .memba-os .os-win:focus-visible { outline: 2px solid var(--os-acc); outline-offset: 2px; }
+
+/* The avatar's folded faces sit on their own blue light, including in light mode. */
+.memba-os .os-intro-mark { display: inline-flex; padding: 10px; border-radius: 22px; background: radial-gradient(ellipse at center, #4545f5 0%, #142474 65%, #09123c 100%); box-shadow: 0 0 24px #5253ef40; }
+.memba-os .os-intro-mark .os-mark-lg { width: 64px; height: 64px; filter: drop-shadow(0 0 7px #9290ff80); }
