@@ -164,7 +164,7 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
     const [draft, setDraft] = useState(filters.q)
     const all = useMemo(() => buildCatalogue(registryEnabled ? live.data?.apps ?? [] : [], ECOSYSTEM_PROJECTS, session.network.key), [registryEnabled, live.data, session.network.key])
     const filtering = !!filters.q || filters.category !== "all" || filters.availability !== "all"
-    const summaries = useReviewSummaries(session.network.chainId, [...all.map(entrySubject), ...ARCADE_GAMES.map((game) => game.reviewSubject)])
+    const summaries = useReviewSummaries(session.network.chainId, [...all.map(entrySubject), ...ARCADE_GAMES.flatMap((game) => game.reviewSubject ? [game.reviewSubject] : [])])
     const byProject = (id: string) => all.find((entry) => entry.project?.id === id)
     const pool = section === "ecosystem" ? all.filter((entry) => entry.source === "editorial") : all
     const visible = filterCatalogue(pool, filters)
@@ -198,7 +198,7 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
                 <div className="os-cin-grid">{ARCADE_GAMES.map((game) => {
                     const media = resolveMedia(game.id, null, game.id)
                     return <CoverCapsule key={game.id} title={game.name} pitch={game.pitch} cover={media.cover} accent={media.accent} tags={game.tags.slice(0, 1)}
-                        costTag={game.cost === "staked" ? { label: "Staked · GNOT", tone: "warn" } : { label: "Free", tone: "free" }} summary={summaries.get(game.reviewSubject)} onOpen={() => gamePage(game.id)} />
+                        costTag={game.cost === "staked" ? { label: "Staked · GNOT", tone: "warn" } : { label: "Free", tone: "free" }} summary={game.reviewSubject ? summaries.get(game.reviewSubject) : undefined} onOpen={() => gamePage(game.id)} />
                 })}</div>
             </Shelf>
             {topRated.length > 0 && <Shelf id="store-top" title="Top rated by the community">

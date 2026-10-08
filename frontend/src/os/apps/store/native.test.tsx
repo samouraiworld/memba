@@ -588,6 +588,17 @@ describe("Store: discover home", () => {
         expect(target(open)).toEqual(expect.objectContaining({ app: "arcade", section: "g/barricade" }))
     })
 
+    it("looks up ratings only for games that have a review subject, and still lists Connect 4", async () => {
+        mocks.fetchSummaries.mockClear()
+        home()
+        const games = within(screen.getByRole("region", { name: "Play on gno.land" }))
+        expect(games.getByRole("button", { name: "Details for Connect 4" })).toBeInTheDocument()
+        await waitFor(() => expect(mocks.fetchSummaries).toHaveBeenCalled())
+        const subjects = mocks.fetchSummaries.mock.calls.flatMap(([asked]) => [...asked as string[]])
+        expect(subjects).toContain("gno.land/r/samcrew/barricade")
+        expect(subjects.every((subject) => typeof subject === "string" && subject !== "")).toBe(true)
+    })
+
     it("opens the Arcade from the games shelf", () => {
         const { openApp } = home()
         fireEvent.click(screen.getByRole("button", { name: "Open the Arcade" }))
