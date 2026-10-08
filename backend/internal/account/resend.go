@@ -91,6 +91,21 @@ func (r *resend) setTopic(ctx context.Context, email, topicID string, in bool) e
 	return err
 }
 
+// unsubscribed reads the current global state, not the historical webhook's
+// flag (the contact may have been deleted and recreated since that event).
+func (r *resend) unsubscribed(ctx context.Context, email string) (bool, error) {
+	var out struct {
+		Unsubscribed *bool `json:"unsubscribed"`
+	}
+	if err := r.do(ctx, "read contact", http.MethodGet, "/contacts/"+url.PathEscape(email), nil, &out); err != nil {
+		return false, err
+	}
+	if out.Unsubscribed == nil {
+		return false, errors.New("resend read contact: missing subscription state")
+	}
+	return *out.Unsubscribed, nil
+}
+
 // topics returns the contact's subscription per Resend topic id.
 func (r *resend) topics(ctx context.Context, email string) (map[string]string, error) {
 	var out struct {

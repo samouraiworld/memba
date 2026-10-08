@@ -13,12 +13,13 @@ import (
 // fakeResend stands in for Resend's API: contacts with their topic
 // subscriptions, sent emails, and a switch that makes every call fail.
 type fakeResend struct {
-	srv      *httptest.Server
-	mu       sync.Mutex
-	contacts map[string]map[string]string // email → topic id → opt_in | opt_out
-	sent     []struct{ To, Subject, Text string }
-	calls    []string
-	down     bool
+	srv          *httptest.Server
+	mu           sync.Mutex
+	contacts     map[string]map[string]string // email → topic id → opt_in | opt_out
+	unsubscribed map[string]bool
+	sent         []struct{ To, Subject, Text string }
+	calls        []string
+	down         bool
 	// afterDelete runs once, right after a contact is deleted and before the
 	// caller hears back: what another request does in that window.
 	afterDelete func()
@@ -29,7 +30,7 @@ type fakeResend struct {
 }
 
 func newFakeResend(t *testing.T) *fakeResend {
-	f := &fakeResend{contacts: map[string]map[string]string{}}
+	f := &fakeResend{contacts: map[string]map[string]string{}, unsubscribed: map[string]bool{}}
 	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
 	return f
@@ -70,11 +71,13 @@ func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"id":"em_1"}`))
 	case r.Method == http.MethodPost && r.URL.Path == "/contacts":
 		var m struct {
-			Email  string              `json:"email"`
-			Topics []topicSubscription `json:"topics"`
+			Email        string              `json:"email"`
+			Topics       []topicSubscription `json:"topics"`
+			Unsubscribed bool                `json:"unsubscribed"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&m)
 		f.contacts[m.Email] = map[string]string{}
+		f.unsubscribed[m.Email] = m.Unsubscribed
 		for _, t := range m.Topics {
 			f.contacts[m.Email][t.ID] = t.Subscription
 		}
@@ -103,12 +106,19 @@ func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, _ = w.Write([]byte(`{}`))
+	case r.Method == http.MethodGet && len(parts) == 2:
+		if _, ok := f.contacts[email]; !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"email": email, "unsubscribed": f.unsubscribed[email]})
 	case r.Method == http.MethodDelete && len(parts) == 2:
 		if _, ok := f.contacts[email]; !ok {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		delete(f.contacts, email)
+		delete(f.unsubscribed, email)
 		_, _ = w.Write([]byte(`{}`))
 	default:
 		w.WriteHeader(http.StatusBadRequest)

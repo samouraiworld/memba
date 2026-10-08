@@ -17,6 +17,10 @@ func assertOperationReleased(t *testing.T) {
 	if active != 0 {
 		t.Fatalf("operation map retained %d subjects after completion", active)
 	}
+	if !accountOperations.lifecycle.TryLock() {
+		t.Fatal("lifecycle reservation leaked after completion")
+	}
+	accountOperations.lifecycle.Unlock()
 }
 
 func TestAccountOperationReleasesAfterErrorsAndRetries(t *testing.T) {
@@ -121,25 +125,36 @@ func TestAccountOperationReleasesOnCancellationAndPanic(t *testing.T) {
 	}
 }
 
-func TestWebhookCanWithdrawDuringProviderIOWithoutWaitingOnSQLite(t *testing.T) {
+func TestWebhookRetriesAfterProviderIOWithoutWaitingOnSQLite(t *testing.T) {
 	f := newConsentFixture(t)
 	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("newsletter"))
 	link := lastLink(t, f.fake)
+	body := []byte(`{"type":"contact.updated","data":{"email":"ada@example.org","unsubscribed":false}}`)
+	headers := signedWebhook(t, f, "racing-unsubscribe", body, now)
 	f.fake.mu.Lock()
 	f.fake.contacts["ada@example.org"] = map[string]string{"top_news": "opt_out"}
 	f.fake.afterTopicPatch = func() {
-		// Model a provider unsubscribe after it applied the confirmation's PATCH.
 		f.fake.mu.Lock()
 		f.fake.contacts["ada@example.org"]["top_news"] = "opt_out"
 		f.fake.mu.Unlock()
-		body := []byte(`{"type":"contact.updated","data":{"email":"ada@example.org","unsubscribed":true}}`)
-		if rec := call(t, f.mux, "POST", "/api/webhooks/resend", "", body, signedWebhook(t, f, "racing-unsubscribe", body, now)...); rec.Code != http.StatusNoContent {
-			t.Errorf("webhook: %d", rec.Code)
+		rec := call(t, f.mux, "POST", "/api/webhooks/resend", "", body, headers...)
+		if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "1" {
+			t.Errorf("busy webhook: %d", rec.Code)
+		}
+		var n int
+		if err := f.h.db.QueryRow("SELECT COUNT(*) FROM webhook_events WHERE id = 'racing-unsubscribe'").Scan(&n); err != nil || n != 0 {
+			t.Errorf("busy delivery consumed: %d (%v)", n, err)
 		}
 	}
 	f.fake.mu.Unlock()
-	if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusGone {
-		t.Fatalf("withdrawn confirmation: %d", rec.Code)
+	if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusOK {
+		t.Fatalf("confirmation: %d", rec.Code)
+	}
+	if rec := call(t, f.mux, "POST", "/api/webhooks/resend", "", body, headers...); rec.Code != http.StatusNoContent {
+		t.Fatalf("webhook retry: %d", rec.Code)
+	}
+	if got := states(t, call(t, f.mux, "GET", "/api/account/topics", f.tok, nil)); got["newsletter"] != "off" {
+		t.Fatalf("retry left local state: %v", got)
 	}
 	if got := f.fake.sub("ada@example.org", "top_news"); got != "opt_out" {
 		t.Fatalf("provider: %q", got)

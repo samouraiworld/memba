@@ -56,16 +56,66 @@ func (h *handler) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx, now := r.Context(), h.now()
+	// Validate before reserving the lifecycle or contacting the provider.
+	switch ev.Type {
+	case "contact.updated":
+		if ev.Data.Email == "" {
+			writeError(w, http.StatusBadRequest, "missing contact address")
+			return
+		}
+	case "email.bounced", "email.complained":
+		if ev.Type == "email.bounced" && ev.Data.Bounce.Type != "Permanent" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if len(ev.Data.To) == 0 {
+			writeError(w, http.StatusBadRequest, "missing recipient")
+			return
+		}
+		for _, addr := range ev.Data.To {
+			if addr == "" {
+				writeError(w, http.StatusBadRequest, "missing recipient")
+				return
+			}
+		}
+	default:
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	var applied int
+	if err := h.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM webhook_events WHERE id = ?", id).Scan(&applied); err != nil {
+		h.fail(w, "webhook replay check", err)
+		return
+	}
+	if applied != 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	release, ok := beginWebhookOperation(w)
+	if !ok {
+		return
+	}
+	defer release()
 	optedOut := map[string]bool{}
-	if ev.Type == "contact.updated" && !ev.Data.Unsubscribed && ev.Data.Email != "" {
-		subs, err := h.resend.topics(ctx, ev.Data.Email)
+	globalUnsubscribed := false
+	if ev.Type == "contact.updated" {
+		var err error
+		globalUnsubscribed, err = h.resend.unsubscribed(ctx, ev.Data.Email)
 		if err != nil && !errors.Is(err, errNoContact) {
-			slog.Error("account: webhook topics", "error", err)
+			slog.Error("account: webhook contact", "error", err)
 			writeError(w, http.StatusBadGateway, "retry")
 			return
 		}
-		for _, t := range topics {
-			optedOut[t] = subs[h.topicIDs[t]] == "opt_out"
+		if err == nil && !globalUnsubscribed {
+			subs, err := h.resend.topics(ctx, ev.Data.Email)
+			if err != nil && !errors.Is(err, errNoContact) {
+				slog.Error("account: webhook topics", "error", err)
+				writeError(w, http.StatusBadGateway, "retry")
+				return
+			}
+			for _, t := range topics {
+				optedOut[t] = subs[h.topicIDs[t]] == "opt_out"
+			}
 		}
 	}
 	err = h.inTx(ctx, func(tx *sql.Tx) error {
@@ -78,7 +128,7 @@ func (h *handler) webhook(w http.ResponseWriter, r *http.Request) {
 		}
 		switch ev.Type {
 		case "contact.updated":
-			if ev.Data.Unsubscribed {
+			if globalUnsubscribed {
 				return withdraw(ctx, tx, now, "unsubscribe", "email = ?", ev.Data.Email)
 			}
 			for t, out := range optedOut {
