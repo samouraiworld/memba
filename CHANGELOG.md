@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba realm activity in the watcher channel (2026-10-08)
+- The existing Discord watcher can report confirmed calls, package changes and realm events across the samcrew namespace: governance, games, feed, App Store, escrow and Launchpad. Financial alarms keep the same channel.
+- Activity delivery resumes after restarts, retries outages, and sends a daily heartbeat. It starts with new activity; arguments and post contents are omitted.
+
 ### Connect 4 on gno.land mainnet (2026-10-08)
 - Staked two-player Connect 4 in the Arcade on gnoland-1: both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT house fee; a draw or a void game refunds both stakes. There is no maximum stake. Connect 4 now has community reviews.
 ### A new folded M, Radio and a notification experiment (2026-10-08)
