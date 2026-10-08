@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { ECOSYSTEM_PROJECTS } from "./ecosystemDirectory"
-import { GAME_REVIEW_SUBJECTS, isCuratedReviewSubject, projectReviewSubject } from "./reviewSubjects"
+import { CURATED_APP_SUBJECTS, GAME_REVIEW_SUBJECTS, isCuratedReviewSubject, projectReviewSubject } from "./reviewSubjects"
 
 // These strings are stored on-chain with every review. Changing one orphans its reviews:
 // a new project gets a new line here, an existing line never changes.
@@ -26,6 +26,14 @@ describe("review subjects are permanent", () => {
             playground: "memba:app/playground",
             mygnoscan: "memba:app/mygnoscan",
         })
+    })
+    it("has a pinned subject for every ecosystem project", () => {
+        for (const project of ECOSYSTEM_PROJECTS) expect(CURATED_APP_SUBJECTS[project.id], project.id).toBeTruthy()
+        expect(Object.keys(CURATED_APP_SUBJECTS).sort()).toEqual(ECOSYSTEM_PROJECTS.map((p) => p.id).sort())
+    })
+    it("throws for a project with no pinned subject", () => {
+        expect(() => projectReviewSubject({ id: "not-pinned" })).toThrow("No review subject pinned for project not-pinned")
+        expect(() => projectReviewSubject({ id: "toString" })).toThrow("No review subject pinned")
     })
     it("recognises only curated subjects", () => {
         expect(isCuratedReviewSubject("memba:app/adena")).toBe(true)

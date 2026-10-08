@@ -20,7 +20,7 @@ export function MediaGallery({ name, images }: { name: string; images: readonly 
             {images.length > 1 && <span className="os-cin-count" aria-hidden="true">{current + 1} / {images.length}</span>}
         </button>
         {images.length > 1 && <div className="os-cin-thumbs">
-            {images.map((src, i) => <button key={src} type="button" className="os-cin-thumb" aria-label={`Show ${alt(i)}`} aria-current={i === current ? "true" : undefined} onClick={() => setIndex(i)}><img src={src} alt="" loading="lazy" /></button>)}
+            {images.map((src, i) => <button key={`${i}`} type="button" className="os-cin-thumb" aria-label={`Show ${alt(i)}`} aria-current={i === current ? "true" : undefined} onClick={() => setIndex(i)}><img src={src} alt="" loading="lazy" /></button>)}
         </div>}
         <dialog ref={dialog} className="os-cin-lightbox" aria-label={alt(current)} onClose={() => setZoomed(false)} onClick={(event) => { if (event.target === event.currentTarget) close() }}>
             {zoomed && <img src={images[current]} alt="" />}

@@ -29,6 +29,8 @@
   --os-err-bg: rgba(255, 120, 120, .12);
   --os-rim: rgba(255, 255, 255, .08);
   color-scheme: dark;
+  /* These two deliberately override the copied dark block above, which mirrors
+     os.css .memba-os[data-os-theme="dark"] and must be kept in sync with it. */
   --os-card: #12151D;
   --os-acc-ink: var(--cin-accent);
   --cin-ground: #0A0C11; --cin-surface: #12151D; --cin-raised: #181C26;

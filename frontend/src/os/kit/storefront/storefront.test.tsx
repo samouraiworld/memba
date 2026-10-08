@@ -61,6 +61,19 @@ describe("CoverCapsule", () => {
         fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
         expect(onOpen).toHaveBeenCalledOnce(); expect(onPlay).toHaveBeenCalledOnce()
     })
+    it("offers no Play button on a disabled capsule, but keeps its details live", () => {
+        const onOpen = vi.fn()
+        render(<CoverCapsule title="BARRICADE" pitch="Defend" cover={null} accent="#000" tags={["Strategy"]} costTag={{ label: "Free", tone: "free" }} onOpen={onOpen} onPlay={vi.fn()} disabled />)
+        expect(screen.queryByRole("button", { name: "Play BARRICADE" })).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "Details for BARRICADE" }))
+        expect(onOpen).toHaveBeenCalledOnce()
+    })
+    it("describes the details button with the pitch, tags and cost", () => {
+        render(<CoverCapsule title="BARRICADE" pitch="Defend the gate" cover={null} accent="#000" tags={["Strategy"]} costTag={{ label: "Free", tone: "free" }} onOpen={vi.fn()} />)
+        const details = screen.getByRole("button", { name: "Details for BARRICADE" })
+        expect(details).toHaveAccessibleDescription(expect.stringContaining("Defend the gate"))
+        expect(details).toHaveAccessibleDescription(expect.stringContaining("Strategy"))
+    })
     it("links out when external, with the given name", () => {
         render(<CoverCapsule title="gnofly" pitch="Fly" cover={null} accent="#000" tags={[]} costTag={{ label: "External", tone: "warn" }} href="https://gnofly.xyz/" linkLabel="Visit gnofly (opens in a new tab)" />)
         const link = screen.getByRole("link", { name: "Visit gnofly (opens in a new tab)" })
