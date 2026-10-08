@@ -68,7 +68,7 @@ describe("Cooperation engine", () => {
 
     it("explains details inline and restores the directory and initiating control on Back", () => {
         draw()
-        fireEvent.click(screen.getByRole("button", { name: "Explore all 20 tools" }))
+        fireEvent.click(screen.getByRole("button", { name: "Explore all 21 tools" }))
         for (const feature of FEATURES) expect(screen.getByRole("button", { name: `Details: ${feature.name}` })).toBeInTheDocument()
         const trigger = screen.getByRole("button", { name: "Details: Shared wallets" })
         fireEvent.click(trigger)
@@ -77,7 +77,7 @@ describe("Cooperation engine", () => {
         advance(24_000)
         expect(screen.getByRole("region", { name: "Shared wallets details" })).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Back to Engine" }))
-        expect(screen.getByRole("button", { name: "Hide all 20 tools" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Hide all 21 tools" })).toBeInTheDocument()
         expect(screen.getByRole("button", { name: "Details: Shared wallets" })).toHaveFocus()
     })
 

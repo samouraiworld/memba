@@ -6,7 +6,7 @@
  *
  * @module os/shell/Shell
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react"
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
@@ -42,6 +42,8 @@ import {
     appSpec, EMPTY_WINDOWS, newDaoSpec, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
     type DeskSize, type OsWindow, type WindowSpec, type WindowsState,
 } from "./windows"
+
+const RadioStage = lazy(() => import("../apps/radio/RadioStage"))
 
 const TOAST_MS = 2600
 const MENU_BAR = 30
@@ -477,6 +479,8 @@ export function Shell() {
     )
     // The video stays at one React position while the visible layout changes.
     return (
+        <>
+        {win.wins.some(w => w.app === "radio") && <Suspense fallback={null}><RadioStage locked={locked} /></Suspense>}
         <LiveActivityProvider networkKey={session.network.key} active={!onEvm && !locked && (!phone || front?.app === "live")}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
@@ -534,5 +538,6 @@ export function Shell() {
             {shared}
         </SignerProvider>
         </LiveActivityProvider>
+        </>
     )
 }

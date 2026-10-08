@@ -73,7 +73,7 @@ test('About keeps inspected tools readable, restores scroll, and opens public so
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(`${OS_ON}/os/about`)
     const about = page.getByRole('region', { name: 'About Memba OS', exact: true })
-    await about.getByRole('button', { name: 'Explore all 20 tools' }).click()
+    await about.getByRole('button', { name: 'Explore all 21 tools' }).click()
     const trigger = about.getByRole('button', { name: 'Details: Shared wallets' })
     await trigger.scrollIntoViewIfNeeded()
     const body = about.locator('.os-wbody')

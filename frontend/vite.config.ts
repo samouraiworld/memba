@@ -342,6 +342,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
   server: {
     port: 5173,
     proxy: {
+      '/api/radio-meta': { target: 'https://gnoradio.xyz', changeOrigin: true, rewrite: path => path.replace('/api/radio-meta', '/api/meta') },
       '/memba.v1.MultisigService': {
         target: 'http://localhost:8080',
         changeOrigin: true,
