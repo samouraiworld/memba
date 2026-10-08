@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Token Launchpad on gno.land mainnet (2026-10-08)
+- The Tokens app now creates tokens and opens fair sales on gnoland-1, in the Launchpad realms published on 2026-10-08: the sales realm holds what sales owe and pays each exit to its recorded receiver, and a paused lane takes no new launch or order. The home cards, the Wallet and the classic token page point to it.
+- NFT collections and the NFT market are published on mainnet but not open yet.
+
+### Memba DAO on gno.land mainnet (2026-10-08)
+- The Memba DAO window now opens the new governance (memba_gov), where seated members propose, vote and execute. It acts on an app only once that app is handed over to the DAO's bridge (Reviews first), and says which apps it governs.
+
 ### Connect 4 Quick play by default (2026-10-08)
 - Connect 4: Offer and Accept start Quick play in the same wallet approval as the stake. A line under each button shows it ("+ Quick play 4h, up to X GNOT/day") with a checkbox to decline it for that stake. The banner still offers "Start Quick play" for players who haven't staked yet.
 - Until it ends, the session key signs moves in all the player's live games, including staked ones. Staking and resigning still ask the wallet.
