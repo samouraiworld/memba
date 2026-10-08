@@ -34,8 +34,10 @@ test.describe('Memba OS weighted DAO', () => {
     })
 
     test('a guest reads the governing DAO in its window: how it decides, its applications, seats, fees and proposals', async ({ page }, info) => {
+        // On mainnet the featured Memba DAO is memba_gov now; v12 stays readable at its own address.
         await page.goto(`${OS_ON}/os/daos`)
-        await win(page, 'DAOs').getByRole('button', { name: /Memba DAO/ }).click()
+        await expect(win(page, 'DAOs').getByRole('button', { name: /Memba DAO/ })).toContainText('gno.land/r/samcrew/memba_gov')
+        await page.goto(`${OS_ON}/os/dao/memba_dao`)
         const folder = win(page, 'memba_dao')
         await expect(folder.getByText('7 seats · 8 voting points · gnoland-1')).toBeVisible()
         await expect(folder.getByText('6 points and at least 4 people, then 24 hours')).toBeVisible()

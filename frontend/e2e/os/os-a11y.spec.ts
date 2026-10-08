@@ -168,10 +168,10 @@ for (const scheme of ['light', 'dark'] as const) {
             expect(await violations(page)).toEqual([])
         })
 
-        test('tokens native unavailable window', async ({ page }) => {
+        test('tokens native Launchpad window', async ({ page }) => {
             await page.goto(`${OS_ON}/os/tokens`)
             const tokens = page.getByRole('region', { name: 'Tokens', exact: true })
-            await expect(tokens.getByRole('note')).toContainText('Token Launchpad is not deployed')
+            await expect(tokens.getByRole('button', { name: 'Create a token' })).toBeVisible()
             await expect(tokens.locator('.os-classic')).toHaveCount(0)
             expect(await violations(page)).toEqual([])
         })

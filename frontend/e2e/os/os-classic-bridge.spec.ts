@@ -55,7 +55,8 @@ for (const theme of ['light', 'dark'] as const) {
 const APPS = ['quests/connect-wallet', 'validators', 'validators?tab=network', 'profile', 'explorer?tab=packages', 'feedback', 'dev-report']
 const NATIVE_ROOT: Record<string, string> = { validators: '.os-validators' }
 
-test('Tokens unavailable state is native on mainnet', async ({ page }) => {
+// The unlisted-network note is covered by the window's unit test: every offered network lists a token path now.
+test('Tokens is the native Launchpad on mainnet', async ({ page }) => {
     await guest(page)
     await page.addInitScript(() => {
         localStorage.setItem('memba_os_skip_intro', '1')
@@ -63,7 +64,8 @@ test('Tokens unavailable state is native on mainnet', async ({ page }) => {
     })
     await page.goto(`${OS_ON}/os/tokens`)
     const tokens = page.getByRole('region', { name: 'Tokens', exact: true })
-    await expect(tokens.getByRole('note')).toContainText('Token Launchpad is not deployed')
+    await expect(tokens.getByRole('button', { name: 'Create a token' })).toBeVisible()
+    await expect(tokens.getByRole('heading', { name: 'Launchpad tokens' })).toBeVisible()
     await expect(tokens.locator('.os-classic')).toHaveCount(0)
 })
 

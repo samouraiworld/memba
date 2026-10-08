@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { GNO_RPC_URL, GNO_CHAIN_ID, ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH, isRealmValidOn } from "../lib/config"
 import { listFactoryTokens, getTokenInfo, getTokenBalance, formatTokenAmount } from "../lib/grc20"
@@ -56,7 +56,7 @@ export function TokenDashboard() {
                 <h3 className="token-empty-title">{launchpadListed ? "Tokens are made in the Token Launchpad here" : "Token creation unavailable here"}</h3>
                 <p className="token-empty-desc">
                     {launchpadListed
-                        ? <>Memba’s classic token factory is not deployed on {GNO_CHAIN_ID}; tokens there are created and sold in the Token Launchpad. <Link to="/os/tokens">Open the Tokens app</Link>.</>
+                        ? <>Memba’s classic token factory is not deployed on {GNO_CHAIN_ID}; tokens there are created and sold in the Token Launchpad, in Memba OS’s Tokens app.</>
                         : <>Memba’s token launchpad is implemented, but its factory is {ACTIVE_NETWORK_KEY === "mainnet" ? "not deployed" : "not available"} on {GNO_CHAIN_ID}.
                             This page lists Memba factory tokens only, not every token on the network.</>}
                 </p>

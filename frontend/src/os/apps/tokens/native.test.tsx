@@ -99,9 +99,9 @@ describe("Tokens window", () => {
         Element.prototype.scrollIntoView = vi.fn()
     })
 
-    it("says the Launchpad is not deployed on mainnet, without reading the chain or showing the classic page", () => {
+    it("says the Launchpad is not open where mainnet does not list it, without reading the chain or showing the classic page", () => {
         show("mainnet")
-        expect(screen.getByRole("note").textContent).toBe(`Token Launchpad unavailable here The Token Launchpad is not deployed on ${NETWORKS.mainnet.chainId}.`)
+        expect(screen.getByRole("note").textContent).toBe(`Token Launchpad unavailable here The Token Launchpad is not open on ${NETWORKS.mainnet.chainId}.`)
         expect(screen.queryByText("classic token page")).toBeNull()
         expect(queryEval).not.toHaveBeenCalled()
     })
