@@ -4,7 +4,7 @@ import { isAppReviewsAvailable, isRealmValidOn } from "../../../lib/config"
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
 import { depositCapUgnot, formatUgnot, formatUgnotExact, STORAGE_PRICE_UGNOT } from "../../../lib/dao/v2Budget"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
-import { isCuratedReviewSubject } from "../../../lib/reviewSubjects"
+import { curatedReviewName, isCuratedReviewSubject } from "../../../lib/reviewSubjects"
 import { buildPostReviewMsg, REVIEW_BODY_MAX_BYTES, REVIEW_GAS_WANTED, REVIEWS_PKG_PATH, reviewStorageBytes } from "../../../lib/reviews"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
@@ -26,7 +26,10 @@ export interface StoreReviewDraft {
 /** The review as it will be signed: checked, with its body trimmed. Throws with a user message. */
 function validated(draft: StoreReviewDraft): StoreReviewDraft {
     const body = draft.body.trim()
-    if (!isCuratedReviewSubject(draft.subject) && !isSafeRealmPath(draft.subject)) throw new Error("This app's realm path is invalid. Refresh its listing.")
+    const curated = isCuratedReviewSubject(draft.subject)
+    if (!curated && !isSafeRealmPath(draft.subject)) throw new Error("This app's realm path is invalid. Refresh its listing.")
+    // The sheet names the app it signs for: a curated subject carries only its pinned name.
+    if (curated && draft.appName !== curatedReviewName(draft.subject)) throw new Error("This review's app name does not match its listing. Refresh before reviewing.")
     if (!isAppReviewsAvailable() || !isRealmValidOn(draft.networkKey, REVIEWS_PKG_PATH)) throw new Error("App reviews are not available on this network.")
     if (!isValidGnoAddressChecksum(draft.caller)) throw new Error("Connect your wallet before reviewing.")
     if (!Number.isInteger(draft.rating) || draft.rating < 1 || draft.rating > 5) throw new Error("Select a rating from 1 to 5.")
@@ -60,13 +63,22 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(review)
-            // Curated entries are listed by Memba itself: only the fee is rechecked.
+            const feeStillCovers = () => assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED))
             if (isCuratedReviewSubject(review.subject)) {
-                await assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED))
+                // A memba:app/* entry has no registry listing: only the fee is rechecked.
+                if (!isSafeRealmPath(review.subject)) {
+                    await feeStillCovers()
+                    return
+                }
+                // A curated realm may also be a registry listing: a delisted or hidden one stops the
+                // review, while no listing at all is fine. Its name is pinned, so it is not compared.
+                await withFeeCheck(fetchAppStrict(review.subject), feeStillCovers(), (listing) => {
+                    if (listing && listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
+                })
                 return
             }
             // Strict: a registry outage must surface as one, not as a delisted app.
-            await withFeeCheck(fetchAppStrict(review.subject), assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED)), (listing) => {
+            await withFeeCheck(fetchAppStrict(review.subject), feeStillCovers(), (listing) => {
                 if (!listing || listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
                 if (listing.name !== review.appName) throw new Error("This app's listing changed. Refresh before reviewing.")
             })
