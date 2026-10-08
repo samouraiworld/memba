@@ -204,6 +204,22 @@ describe("native App Store review signing", () => {
         expect(() => storeReviewRequest({ ...draft, subject: "memba:app/not-listed" })).toThrow(/realm path is invalid/)
     })
 
+    it("stops a curated review before Adena when the network fee rose, without reading the registry", async () => {
+        const request = storeReviewRequest({ ...draft, subject: "memba:app/adena", appName: "Adena" })
+        mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/network fee increased/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+        expect(mocks.fetchAppStrict).not.toHaveBeenCalled()
+    })
+
+    it("labels a curated subject that is also a realm path as an app realm, and does not read the registry", async () => {
+        const request = storeReviewRequest({ ...draft, subject: "gno.land/r/samcrew/barricade", appName: "BARRICADE" })
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["App realm", "gno.land/r/samcrew/barricade"]]))
+        await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
+        expect(mocks.fetchAppStrict).not.toHaveBeenCalled()
+    })
+
     it("passes the settled outcome to the composer", () => {
         const onSettled = vi.fn()
         storeReviewRequest({ ...draft, onSettled }).onSettled?.("confirmed", undefined)
