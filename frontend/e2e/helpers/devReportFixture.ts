@@ -19,7 +19,7 @@ export async function devReportFixture(page: Page, failCatalogue = false) {
             requestedScopes.push(url.searchParams.get('repositories') ?? '')
             data = { lastSyncedAt: '2026-10-08T00:00:00Z', users: [] }
         } else if (url.pathname === '/score-factors') {
-            data = { commits: 10, prs: 2, issues: 0.5, reviewedPrs: 2 }
+            data = { commitFactor: 10, prFactor: 2, issueFactor: 0.5, reviewedPrFactor: 2 }
         } else if (url.pathname.startsWith('/milestones/')) {
             return route.fulfill({ status: 404, body: 'not found' })
         }
