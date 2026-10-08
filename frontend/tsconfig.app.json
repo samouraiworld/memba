@@ -28,7 +28,8 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
-    "src"
+    "src",
+    "labs/**/*.ts"
   ],
   "exclude": [
     "src/**/*.test.ts",
