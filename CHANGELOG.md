@@ -34,6 +34,10 @@ Full changelogs are split by version range for easier navigation:
 - A closed Advanced popover holds the session length and "Sign every transaction in my wallet". Both choices are remembered on this device. Ticking the box pauses Quick play: a running session keeps its status, End and Forget controls until it ends.
 - When the budget runs low, Renew replaces the session with a fresh one in one approval, since the chain can't top up an existing session. The confirmation names the revoke "End current Quick play session".
 
+### A storefront look for the Arcade and App Store (2026-10-08)
+- Reviews: the review signing path now accepts games and curated apps under pinned, permanent subjects (the review UI for them follows).
+- Memba OS: new storefront building blocks (dark shell, featured carousel, cover capsules, screenshot gallery, detail layout, rating badge) for the Arcade and App Store windows to adopt (not shown anywhere yet).
+- Memba OS: the Chakra Petch display font is bundled with Memba OS only (two small font files, OFL-1.1).
 ### Ops: the Launchpad watcher cannot fail silently (2026-10-08)
 - An enabled Launchpad watcher that refuses its configuration now raises the MembaLaunchpadWatcherDown alert (memba_launchpad_watcher_enabled with no reading) instead of running silently unwatched.
 ### One Adena connection per page (2026-10-08)

@@ -175,7 +175,7 @@ function sitemapPlugin(mode: string): PluginOption {
   }
 }
 
-// Memba OS's self-hosted Manrope (src/os/fonts/*.woff2) is only reached via a
+// Memba OS's self-hosted Manrope and Chakra Petch (src/os/fonts/*.woff2) is only reached via a
 // dynamic import() gated on OS_ENABLED, but Vite's CSS plugin emits url()
 // assets at transform time — before tree-shaking drops the (now orphaned)
 // dead OS chunk — so the fonts leak into a flag-off build as unreferenced
@@ -201,7 +201,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
   cacheDir: evmBuild ? 'node_modules/.vite-evm' : undefined,
   build: {
     sourcemap: true, // Required for Sentry source map uploads
-    assetsInlineLimit: osEnabledFor(mode) ? undefined : (filePath: string) => /manrope-latin-\d+-normal\.woff2$/.test(filePath) || undefined,
+    assetsInlineLimit: osEnabledFor(mode) ? undefined : (filePath: string) => /(manrope|chakra-petch)-latin-\d+-normal\.woff2$/.test(filePath) || undefined,
     rollupOptions: {
       output: {
         // Function form (BARRICADE 3D, PR-0c): unlike the object form, a module is
