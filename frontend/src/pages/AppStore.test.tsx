@@ -169,6 +169,13 @@ const DAO = "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8"
         expect(fetchModerator).not.toHaveBeenCalled()
     })
 
+    it("shows a curated app's committed logo instead of a monogram", async () => {
+        teamListing()
+        const { container } = renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/gnoswap/router" })
+        await trustOf()
+        expect(container.querySelector('img.appicon[src="/store/gnoswap/logo.svg"]')).not.toBeNull()
+    })
+
     it("says the lister also moderates reviews only when the reviews realm names it as moderator", async () => {
         reviewsEnabled = true
         teamListing()
