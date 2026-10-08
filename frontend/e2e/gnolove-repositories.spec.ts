@@ -32,3 +32,18 @@ test('all scope cannot silently request core while the catalogue is down', async
     await expect(page.locator('.gl-error-banner')).toBeVisible()
     expect(scopes).toEqual([])
 })
+
+
+test('preset checkboxes match the effective scope and all can become custom', async ({ page }) => {
+    const scopes = await devReportFixture(page)
+    await page.goto('/mainnet/gnolove')
+    await page.locator('.gl-filter-btn[aria-expanded]').click()
+    const filter = page.getByRole('group', { name: 'Repository filter' })
+    await expect(filter.getByRole('checkbox', { name: /gnolang\/gno/ })).toBeChecked()
+    await filter.getByRole('button', { name: 'All repositories' }).click()
+    await expect(filter.getByRole('checkbox', { name: /samouraiworld\/memba/ })).toBeChecked()
+    await filter.getByRole('checkbox', { name: /gnolang\/gno/ }).uncheck()
+    await expect.poll(() => scopes.at(-1)).toBe('samouraiworld/memba')
+    await expect(page).toHaveURL(/repos=samouraiworld%2Fmemba/)
+    expect(new URL(page.url()).searchParams.has('scope')).toBe(false)
+})

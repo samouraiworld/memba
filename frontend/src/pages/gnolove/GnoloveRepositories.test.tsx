@@ -1,5 +1,5 @@
 import { describe, it, vi, expect, beforeEach } from "vitest"
-import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import GnoloveRepositories from "./GnoloveRepositories"
@@ -51,4 +51,20 @@ describe("repository catalogue", () => {
         fireEvent.keyDown(all, { key: "ArrowRight" })
         await waitFor(() => expect(screen.getByRole("tab", { name: /Year/ })).toHaveAttribute("aria-selected", "true"))
     })
+})
+
+
+it("advances repository sync ages in a long visible window", () => {
+    vi.useFakeTimers()
+    let view: ReturnType<typeof mount> | undefined
+    try {
+        vi.setSystemTime(new Date("2026-10-08T00:05:00Z"))
+        view = mount()
+        expect(screen.getByText("Last successful sync 5m ago")).toBeInTheDocument()
+        act(() => { vi.advanceTimersByTime(60_000) })
+        expect(screen.getByText("Last successful sync 6m ago")).toBeInTheDocument()
+    } finally {
+        view?.unmount()
+        vi.useRealTimers()
+    }
 })

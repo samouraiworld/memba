@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useGnoloveRepositories } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { useMinuteClock } from "../../hooks/useMinuteClock"
 import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import { TIME_FILTER_KEYS, TIME_FILTER_LABELS, TimeFilter } from "../../lib/gnoloveConstants"
@@ -13,7 +14,7 @@ import type { TRepository } from "../../lib/gnoloveSchemas"
 const STATUS_LABELS: Record<string, string> = { active: "Active", inactive: "Inactive", archived: "Archived", unavailable: "Unavailable" }
 
 export default function GnoloveRepositories() {
-    const [nowMs] = useState(() => Date.now())
+    const nowMs = useMinuteClock()
     const np = useNetworkPath()
     const catalogue = useGnoloveRepositories()
     const [search, setSearch] = useState("")
