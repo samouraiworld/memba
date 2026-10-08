@@ -43,14 +43,14 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
     {
         id: "barricade", name: "BARRICADE", section: "barricade", pitch: "Defend the lanes in a daily run",
         description: "Hold the Paris barricade against the machines in a daily run. An accepted run waits for day-close attestation; it is not on-chain yet.",
-        howTo: [],
+        howTo: ["Tap a lane and you fire automatically; shove its nearest machine or aim a molotov farther up the street.", "Defeated machines fill Rally and drop scrap for the between-wave shop.", "Everyone gets the same daily seed; Practice uses a separate run."],
         tags: ["Strategy", "Daily"], cost: "free",
         info: [["Modes", "Daily run"], ["Players", "Solo"], ["Cost", "Free"], ["Scores", "Accepted runs await day-close attestation"], MADE_BY],
         reviewSubject: GAME_REVIEW_SUBJECTS.barricade, enabled: isBarricadeEnabled, daily: true, dailyBoard: false, changelog: [], featured: true,
     },
     {
         id: "connect4", name: "Connect 4", section: "connect4", pitch: "Staked two-player — winner takes the pot",
-        description: "Post an offer or accept one. Both players stake GNOT and the winner takes the pot; when no one moves in time, both stakes are refunded.",
+        description: "Post an offer or accept one. Both players stake the same GNOT; the winner takes the pot minus a house fee. If no one moves in time, both stakes are refunded.",
         howTo: ["Connect your wallet to play. You can watch games without one.", "After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts.", "The reveal key is stored only in this browser; missing it forfeits your stake."],
         tags: ["Duel", "Staked"], cost: "staked",
         info: [["Modes", "Staked duel"], ["Players", "2"], ["Cost", "Staked · GNOT"], ["Scores", "Results settle on-chain"], ["Controls", "Pick a column"], MADE_BY],
