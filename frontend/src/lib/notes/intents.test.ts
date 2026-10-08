@@ -108,3 +108,95 @@ describe("durable Notes transaction intentions", () => {
         expect(await intents.begin(input, session)).toEqual({ status: "conflict" })
     })
 })
+
+const notesRealm = "gno.land/r/samcrew/memba_notes_v1", digest = "ab".repeat(32)
+const descriptors: { name: string; fixture: NotesIntentInput }[] = [
+    { name: "identity", fixture: { ...input, scope: { ...scope, realm: "gno.land/r/samcrew/enckeys_v1" }, action: "identity-setup",
+        expectedStateRevision: "1", resultingStateRevision: "2", expectedEpoch: "2", ownerGeneration: "1", draftLocalRevision: "0",
+        verification: { kind: "identity-v1", mode: "standard", generation: "2", backupRevision: "3", publicKeySha256: digest, backupSha256: digest, quoteHeight: "10" } } },
+    { name: "access", fixture: { ...input, scope: { ...scope, realm: notesRealm }, action: "access-addWriter",
+        expectedStateRevision: "7", resultingStateRevision: "8", expectedEpoch: "3", ownerGeneration: "1", draftLocalRevision: "0",
+        verification: { kind: "access-v1", metadataSha256: digest, writersSha256: digest, quoteHeight: "10" } } },
+    { name: "private-comment", fixture: { ...input, scope: { ...scope, realm: `${notesRealm}/comments/${"ef".repeat(16)}` }, action: "addPrivateComment",
+        expectedStateRevision: "7", resultingStateRevision: "8", expectedEpoch: "3", ownerGeneration: "1", draftLocalRevision: "1",
+        verification: { kind: "private-comment-v1", noteId: "ef".repeat(16), parent: "", author: scope.owner, bodyRevision: "1", epoch: "3",
+            ciphertextSha256: digest, deleted: false, hidden: false, resolved: false, quoteHeight: "10" } } },
+]
+const rawReceipts = (store: NotesStore) => notesRead<unknown[]>(store.database, "intents", records => records.getAll())
+
+// Exercise the persisted receipt API directly, without future signing adapters.
+describe("F02 durable verification descriptors", () => {
+    it.each(descriptors)("persists $name, snapshots inputs and reloads unknown exactly", async ({ fixture }) => {
+        const factory = new IDBFactory(), first = setup(factory)
+        const candidate = structuredClone(fixture), expected = structuredClone(fixture.verification)
+        const pending = first.intents.begin(candidate, first.session)
+        candidate.verification!.quoteHeight = "999"
+        expect(await pending).toMatchObject({ status: "saved", value: { verification: expected } })
+        expect(await first.intents.settle(fixture.scope, fixture.operationId, "unknown", first.session)).toMatchObject({ status: "saved" })
+        await first.store.close()
+        const second = setup(factory)
+        expect(await second.intents.get(fixture.scope, fixture.operationId)).toMatchObject({ phase: "unknown", verification: expected })
+        expect((await rawReceipts(second.store))[0]).toMatchObject({ verification: expected })
+        expect(await second.intents.begin(fixture, second.session)).toEqual({ status: "conflict" })
+        expect(await second.intents.settle(fixture.scope, fixture.operationId, "not-sent", second.session)).toEqual({ status: "conflict" })
+    })
+
+    it.each(descriptors)("rejects malformed $name without changing durable receipts", async ({ fixture }) => {
+        const { intents, store, session } = setup()
+        await intents.begin(input, session)
+        await intents.settle(scope, input.operationId, "unknown", session)
+        const before = await rawReceipts(store)
+        const changeProof = (patch: Record<string, unknown>): NotesIntentInput => ({ ...fixture, verification: { ...fixture.verification!, ...patch } as NotesIntentInput["verification"] })
+        const rejected: NotesIntentInput[] = [
+            { ...fixture, scope: { ...fixture.scope, realm: "gno.land/r/wrong/realm" } }, { ...fixture, action: "wrongAction" },
+            { ...fixture, expectedEpoch: "01" }, { ...fixture, resultingStateRevision: String(BigInt(fixture.expectedStateRevision) + 2n) },
+            changeProof({ secret: "must never persist" }), changeProof({ quoteHeight: "0" }), changeProof({ quoteHeight: "9223372036854775808" }),
+        ]
+        if (fixture.verification?.kind === "identity-v1") rejected.push(
+            { ...fixture, ownerGeneration: "2" }, { ...fixture, expectedEpoch: "3" }, changeProof({ generation: "3" }), changeProof({ publicKeySha256: digest.toUpperCase() }),
+        )
+        if (fixture.verification?.kind === "access-v1") rejected.push(
+            { ...fixture, expectedStateRevision: "0", resultingStateRevision: "1" }, { ...fixture, ownerGeneration: "0" }, { ...fixture, draftLocalRevision: "1" }, changeProof({ writersSha256: digest.toUpperCase() }),
+        )
+        if (fixture.verification?.kind === "private-comment-v1") rejected.push(
+            { ...fixture, expectedEpoch: "4" }, { ...changeProof({ epoch: "0" }), expectedEpoch: "0" }, changeProof({ ciphertextSha256: digest.toUpperCase() }),
+            ...["bodySha256", "anchorSha256", "plaintext"].map(field => changeProof({ [field]: digest })),
+        )
+        for (const candidate of rejected) {
+            expect(await intents.begin(candidate, session)).toEqual({ status: "invalid" })
+            expect(await rawReceipts(store)).toEqual(before)
+        }
+    })
+
+    it.each(descriptors)("never reports saved for $name when commit aborts after add succeeds", async ({ fixture }) => {
+        const { store, intents, session } = setup(), before = await rawReceipts(store)
+        const original = IDBObjectStore.prototype.add
+        const add = vi.spyOn(IDBObjectStore.prototype, "add").mockImplementation(function (this: IDBObjectStore, ...args) {
+            const request = original.apply(this, args)
+            request.addEventListener("success", () => this.transaction.abort())
+            return request
+        })
+        expect(await intents.begin(fixture, session)).toEqual({ status: "unavailable" })
+        add.mockRestore()
+        expect(await rawReceipts(store)).toEqual(before)
+        expect(await intents.get(fixture.scope, fixture.operationId)).toBeNull()
+        expect(await intents.begin(fixture, session)).toMatchObject({ status: "saved" })
+    })
+
+    it.each([false, true])("reloads public receipts with explicit owner=%s and rejects ambiguous extras", async explicitOwner => {
+        const factory = new IDBFactory(), first = setup(factory)
+        const fixture: NotesIntentInput = { ...input, action: "commit", expectedStateRevision: "1", resultingStateRevision: "2", expectedEpoch: "0",
+            verification: { kind: "public-v1", mode: 3, epoch: "0", titleSha256: digest, bodySha256: digest, deleted: false,
+                quoteHeight: "10", ownerGeneration: "1", titleRevision: "1", bodyRevision: "2", ...(explicitOwner ? { owner: "note-owner" } : {}) } }
+        expect(await first.intents.begin(fixture, first.session)).toMatchObject({ status: "saved" })
+        await first.store.close()
+        const second = setup(factory)
+        expect((await second.intents.get(fixture.scope, fixture.operationId))?.verification).toEqual(fixture.verification)
+        const before = await rawReceipts(second.store)
+        for (const patch of [{ owner: "" }, { owner: undefined }, { owner: "a".repeat(129) }, { secret: "must never persist" }]) {
+            const candidate = { ...fixture, verification: { ...fixture.verification!, ...patch } as NotesIntentInput["verification"] }
+            expect(await second.intents.begin(candidate, second.session)).toEqual({ status: "invalid" })
+            expect(await rawReceipts(second.store)).toEqual(before)
+        }
+    })
+})
