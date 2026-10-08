@@ -21,7 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Optional account groundwork (2026-10-08)
-- Prepared optional Memba accounts, email consent confirmation and account deletion. This groundwork remains disabled pending provider setup and separate activation approval.
+- Prepared optional Memba accounts, email consent confirmation and account deletion. This groundwork remains disabled pending provider setup and separate activation approval. When enabled, the closed NFT screen offers an optional early-access email; the live Token Launchpad does not.
 
 ### Connect 4 on gno.land mainnet (2026-10-08)
 - Staked two-player Connect 4 in the Arcade on gnoland-1: both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT house fee; a draw or a void game refunds both stakes. There is no maximum stake. Connect 4 now has community reviews.

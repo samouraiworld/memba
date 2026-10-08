@@ -189,7 +189,7 @@ test.describe('native OS Settings', () => {
         await expect(page.getByRole('region', { name: 'Validators', exact: true }).getByRole('heading', { name: 'Validators', exact: true })).toBeVisible()
     })
 
-    test('the optional account: a guest sees what it is, the privacy page, early access at the closed Launchpad, and a confirmation link that confirms only on a click', async ({ page }) => {
+    test('the optional account: a guest sees what it is, the privacy page, early access at the closed NFT app, and a confirmation link that confirms only on a click', async ({ page }) => {
         await page.route((url) => url.hostname !== '127.0.0.1' && /clerk[.-]|challenges\.cloudflare\.com/.test(url.hostname), (r) => r.abort())
         const confirms: string[] = []
         await page.route('**/api/consent/confirm', (route) => {
@@ -205,7 +205,13 @@ test.describe('native OS Settings', () => {
         await expect(settings.getByRole('link', { name: 'privacy@memba.club' })).toBeVisible()
 
         await page.goto(`${OS_FLAGS_ON}/os/tokens`)
-        await expect(page.getByRole('group', { name: 'Early access: Token Launchpad' }).getByRole('button', { name: 'Sign in for early access' })).toBeVisible()
+        // Token Launchpad is live on mainnet; it must not offer early access.
+        await expect(page.getByRole('heading', { name: 'Launchpad tokens' })).toBeVisible()
+        await expect(page.getByRole('group', { name: 'Early access: Token Launchpad' })).toHaveCount(0)
+        await page.goto(`${OS_FLAGS_ON}/os/nft`)
+        const nft = page.getByRole('region', { name: 'NFT', exact: true })
+        await expect(nft.getByRole('note').filter({ hasText: 'NFT unavailable here' })).toBeVisible()
+        await expect(nft.getByRole('group', { name: 'Early access: NFT collections' }).getByRole('button', { name: 'Sign in for early access' })).toBeVisible()
 
         await page.goto(`${OS_FLAGS_ON}/os/confirm?t=12.abc`)
         await expect(settings.getByRole('heading', { name: 'Confirm your email' })).toBeVisible()
@@ -216,6 +222,14 @@ test.describe('native OS Settings', () => {
         await settings.getByRole('button', { name: 'Confirm' }).click()
         await expect(settings.getByRole('status').filter({ hasText: 'Confirmed: Memba will email you newsletter.' })).toBeVisible()
         expect(JSON.parse(confirms[0])).toEqual({ token: '12.abc' })
+    })
+
+    test('closed NFT has no early-access account offer when the optional account is off', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/nft`)
+        const nft = page.getByRole('region', { name: 'NFT', exact: true })
+        await expect(nft.getByRole('note').filter({ hasText: 'NFT unavailable here' })).toBeVisible()
+        await expect(nft.getByRole('group', { name: 'Early access: NFT collections' })).toHaveCount(0)
+        await expect(nft.getByRole('button', { name: 'Sign in for early access' })).toHaveCount(0)
     })
 
     test('account and About remain available to guests', async ({ page }) => {
