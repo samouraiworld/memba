@@ -1,0 +1,32 @@
+{
+  "action": "Rename",
+  "chainId": "test-chain-id",
+  "digest": "86f5ef6c612c6c3645931460fd20aeaa3804b679319e3cf3973e2822fcf0f7b1",
+  "note": {
+    "actor": "g13z6jr6p8vuamzqs2m7htj5g7e38d5ayn8tu8y7",
+    "body_blob": "Ym9keQ==",
+    "body_revision": "1",
+    "commitment": "",
+    "created_height": "42",
+    "deleted": false,
+    "epoch": "0",
+    "executor": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+    "gov_writers": false,
+    "height": "43",
+    "id": "00000000000000000000000000000001",
+    "listed": true,
+    "mode": 3,
+    "moderator_hidden": false,
+    "op_id": "00000000000000000000000000000003",
+    "owner": "g13z6jr6p8vuamzqs2m7htj5g7e38d5ayn8tu8y7",
+    "owner_generation": "2",
+    "owner_listed": true,
+    "pending_owner": "",
+    "state_revision": "3",
+    "title_blob": "R292ZXJuZWQ=",
+    "title_revision": "1"
+  },
+  "op_id": "00000000000000000000000000000004",
+  "payload_base64": "AQAAAA5BcHByb3ZlZCB0aXRsZQ==",
+  "realm": "gno.land/r/samcrew/memba_notes_v1"
+}
