@@ -10,6 +10,11 @@ const MSIG = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
 afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
+    it("round-trips an Arcade game page", () => {
+        const target = { kind: "app", app: "arcade", section: "g/barricade" } as const
+        expect(windowToken(target)).toBe("arcade.g.barricade")
+        expect(tokenToTarget("arcade.g.barricade")).toEqual(expect.objectContaining({ kind: "app", app: "arcade", section: "g/barricade" }))
+    })
     it("round-trips the connect4 lobby and a game window", () => {
         expect(windowToken({ kind: "app", app: "arcade", section: "connect4" })).toBe("arcade.connect4")
         expect(windowToken({ kind: "app", app: "arcade", section: "connect4/12" })).toBe("arcade.connect4.12")

@@ -210,6 +210,15 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.goto(`${OS_ON}/os/arcade`)
             const arcade = page.getByRole('region', { name: 'Arcade', exact: true })
             await expect(arcade.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+            await expect(arcade.locator('.os-cinema')).toBeVisible()
+            expect(await violations(page)).toEqual([])
+        })
+
+        test('Arcade game page', async ({ page }) => {
+            await page.goto(`${OS_ON}/os/arcade/g/barricade`)
+            const arcade = page.getByRole('region', { name: 'Arcade', exact: true })
+            await expect(arcade.getByRole('heading', { level: 1, name: 'BARRICADE' })).toBeVisible()
+            await expect(arcade.locator('.os-cinema')).toBeVisible()
             expect(await violations(page)).toEqual([])
         })
 

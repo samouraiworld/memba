@@ -230,6 +230,15 @@ describe("native App Store review signing", () => {
         expect(mocks.wallet).not.toHaveBeenCalled()
     })
 
+    it("stops a curated realm review before Adena when the network fee rose", async () => {
+        const request = storeReviewRequest(barricade)
+        mocks.fetchAppStrict.mockResolvedValue({ status: "live", name: "BARRICADE" })
+        mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/network fee increased/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+    })
+
     it("signs a curated realm review that has no registry listing at all", async () => {
         mocks.fetchAppStrict.mockResolvedValue(null)
         await expect(run(storeReviewRequest(barricade))).resolves.toMatchObject({ outcome: "sent" })
