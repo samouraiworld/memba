@@ -64,6 +64,14 @@ describe("direct token rules", () => {
         expect(parseAirdrop(`${A.toUpperCase()} 1`, 6)).toBe(`Line 1: ${A.toUpperCase()} is not an address that can receive tokens.`)
     })
 
+    it("refuses text the chain's Unicode 15 IsPrint refuses, though a newer browser prints it", () => {
+        for (const c of ["\u1C89", "\u2FFC", "\u31EF"]) {
+            expect(directLaunchProblem(launch({ name: `Coin ${c}` }))?.message, c).toMatch(/name/)
+            expect(directLaunchProblem(launch({ description: `About ${c}` }))?.message, c).toMatch(/description/)
+        }
+        expect(directLaunchProblem(launch({ name: "Café Ünïcode", description: "Ça marche: 日本語 ✓" }))).toBeNull()
+    })
+
     it("names the part of the wizard each broken rule belongs to", () => {
         expect(directLaunchProblem(launch())).toBeNull()
         const cases: [Partial<DirectLaunch>, string, RegExp][] = [

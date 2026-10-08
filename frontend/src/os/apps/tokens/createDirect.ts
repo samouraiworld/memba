@@ -9,6 +9,7 @@
 import { GNO_CHAIN_ID } from "../../../lib/config"
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
 import { depositCapUgnot, formatUgnotExact } from "../../../lib/dao/v2Budget"
+import { isGnoPrintable } from "../../../lib/gnoPrintable"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, formatTokenAmount, freshFeeForGasWanted, type AminoMsg, type GasPrice } from "../../../lib/grc20"
 import type { AirdropEntry, AirdropManifest } from "../../../lib/tokenLaunchpadAirdropManifest"
 import { TokenLaunchpadClient } from "../../../lib/tokenLaunchpadClient"
@@ -59,8 +60,6 @@ export interface DirectLaunch {
 }
 
 const encoder = new TextEncoder()
-/** As Go's unicode.IsPrint: no control or format character, and no space but U+0020. */
-const printable = (s: string) => !/[\p{C}\p{Z}]/u.test(s.replaceAll(" ", ""))
 
 /** A whole-token amount such as "1.5" in base units, or null; exact, no float. */
 export function toBaseUnits(text: string, decimals: number): bigint | null {
@@ -90,14 +89,14 @@ export interface LaunchProblem { part: LaunchPart; message: string }
 /** The token ledger's rules for any new token, worded for its creator, or null. */
 export function tokenProblem(t: { name: string; ticker: string; decimals: number; initialSupply: bigint; description: string }): string | null {
     const { name, ticker, decimals, initialSupply, description } = t
-    if (encoder.encode(name).length < 1 || encoder.encode(name).length > 32 || !printable(name) || /[[\]()*#<>`|\\]/.test(name) || name.trim() !== name) {
+    if (encoder.encode(name).length < 1 || encoder.encode(name).length > 32 || !isGnoPrintable(name) || /[[\]()*#<>`|\\]/.test(name) || name.trim() !== name) {
         return "The name needs 1 to 32 bytes, no surrounding spaces, and none of [ ] ( ) * # < > ` | \\."
     }
     if (!/^[A-Z0-9]{1,10}$/.test(ticker)) return "The ticker needs 1 to 10 capital letters or digits."
     if (PROTECTED_TICKERS.has(ticker)) return `${ticker} is reserved.`
     if (!Number.isInteger(decimals) || decimals < 0 || decimals > 12) return "Decimals must be 0 to 12."
     if (initialSupply <= 0n || initialSupply > MAX_INT64) return "The supply must be above zero and fit in 64 bits."
-    if (encoder.encode(description).length > 280 || !printable(description) || /[[\]()<>]/.test(description)) {
+    if (encoder.encode(description).length > 280 || !isGnoPrintable(description) || /[[\]()<>]/.test(description)) {
         return "The description needs at most 280 bytes and none of [ ] ( ) < >."
     }
     return null
