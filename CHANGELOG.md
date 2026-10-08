@@ -27,6 +27,9 @@ Full changelogs are split by version range for easier navigation:
 - When Adena closes its window because another tab asked it something, Memba says that instead of a generic failure
 - Memba OS: Connect stays usable while a previous session resumes; a connect waits for the resume instead of opening a second request
 - Classic top bar: the Connect button no longer passes the click event to the wallet as options
+### gnofly listed, and community games in the Arcade (2026-10-07)
+- App Store: gnofly, a multiplayer plane game on gno.land, joins the ecosystem directory with its checked mainnet realm and plane NFT pricing (777 planes, 77 GNOT each at launch)
+- Memba OS: the Arcade shows independent mainnet games under From the community as external links, with a note that Memba has not reviewed them and that some charge GNOT
 
 ### Onyx in the network menu, so Connect 4 can be played in Memba OS (2026-10-07)
 - Onyx is offered in the network menu (Memba OS labels it as a testnet). Memba OS only runs on a network the menu offers, so Connect 4 (live on Onyx) could not be reached from the OS before.

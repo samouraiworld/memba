@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import ArcadeWindow from "./native"
+import { CommunityGames } from "./community"
 
 const flags = vi.hoisted(() => ({ block: true, space: false, barricade: true, connect4: true }))
 vi.mock("../../../lib/config", async (original) => ({
@@ -38,6 +39,23 @@ describe("Arcade lobby", () => {
         expect(screen.getByRole("status")).toHaveTextContent("Block Party has its own server-verified Daily leaderboard")
         fireEvent.click(screen.getByRole("button", { name: /Space Invaders/ }))
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: expect.objectContaining({ section: "space-invaders" }) }))
+    })
+
+    it("links community games out of Memba with a disclaimer", () => {
+        render(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
+        expect(screen.getByRole("heading", { name: "From the community" })).toBeInTheDocument()
+        const gnofly = screen.getByRole("link", { name: "Visit gnofly (opens in a new tab)" })
+        expect(gnofly).toHaveAttribute("href", "https://gnofly.xyz/")
+        expect(gnofly).toHaveAttribute("target", "_blank")
+        expect(gnofly).toHaveAttribute("rel", "noopener noreferrer")
+        expect(gnofly).toHaveTextContent("External")
+        expect(screen.getByText(/not reviewed or audited by Memba/)).toHaveTextContent("some charge GNOT. Check their network and costs before connecting a wallet.")
+        expect(screen.queryByRole("link", { name: /Bubble Rumble/ })).not.toBeInTheDocument()
+    })
+
+    it("omits the community section when there are no community games", () => {
+        const { container } = render(<CommunityGames games={[]} />)
+        expect(container).toBeEmptyDOMElement()
     })
 
     it("keeps the existing game pages intact", () => {
