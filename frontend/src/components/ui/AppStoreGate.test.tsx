@@ -13,7 +13,7 @@ describe("App Store directory and registry boundary", () => {
     it.each(["/mainnet/apps", "/test13/apps/"])("keeps ecosystem links available with the registry off at %s", route => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "false")
         mount(route)
-        for (const name of ["Adena", "GnoSwap", "Boards", "Akkadia", "Bubble Rumble", "Kourt", "GnoScan", "Gno Playground", "mygnoscan"]) {
+        for (const name of ["Adena", "GnoSwap", "Boards", "Akkadia", "Bubble Rumble", "gnofly", "Kourt", "GnoScan", "Gno Playground", "mygnoscan"]) {
             const link = screen.getByRole("link", { name: `Visit ${name} (opens in a new tab)` })
             expect(link.getAttribute("href")).toMatch(/^https:\/\//)
             expect(link).toHaveAttribute("rel", "noopener noreferrer")

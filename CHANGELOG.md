@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Signing works again with Adena's default mainnet node (2026-10-08)
+- Adena 1.22 sends gno.land mainnet transactions through its own node, rpc.onbloc.xyz, by default. Memba stopped trusting that host on 10-06, so every wallet action (posting, profiles, DAOs, activation) was refused before Adena opened, and the Feed only said "Could not post". Memba trusts that exact host again.
+
+### gnofly listed, and community games in the Arcade (2026-10-07)
+- App Store: gnofly, a multiplayer plane game on gno.land, joins the ecosystem directory with its checked mainnet realm and plane NFT pricing (777 planes, 77 GNOT each at launch)
+- Memba OS: the Arcade shows independent mainnet games under From the community as external links, with a note that Memba has not reviewed them and that some charge GNOT
+
 ### Onyx in the network menu, so Connect 4 can be played in Memba OS (2026-10-07)
 - Onyx is offered in the network menu (Memba OS labels it as a testnet). Memba OS only runs on a network the menu offers, so Connect 4 (live on Onyx) could not be reached from the OS before.
 - An old classic link such as /onyx/game/connect4 now opens the Connect 4 window in Memba OS instead of the classic page, and keeps Onyx as your network, so a reload stays there.

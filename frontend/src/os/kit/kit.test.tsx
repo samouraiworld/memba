@@ -263,4 +263,13 @@ describe("os kit", () => {
         expect(screen.getByText("Static card").closest("button")).toBeNull()
         expect(button.parentElement?.style.gridTemplateColumns).toBe("repeat(auto-fill, minmax(180px, 1fr))")
     })
+    it("a Card with href is a new-tab external link, not a button", () => {
+        render(<Card href="https://example.org/" label="Visit Example (opens in a new tab)" onClick={vi.fn()}>Example</Card>)
+        const link = screen.getByRole("link", { name: "Visit Example (opens in a new tab)" })
+        expect(link).toHaveAttribute("href", "https://example.org/")
+        expect(link).toHaveAttribute("target", "_blank")
+        expect(link).toHaveAttribute("rel", "noopener noreferrer")
+        expect(link).toHaveClass("os-scard")
+        expect(screen.queryByRole("button")).not.toBeInTheDocument()
+    })
 })

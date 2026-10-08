@@ -4,6 +4,7 @@ import { isBarricadeEnabled, isConnect4Live, isGameEnabled, isSpaceInvadersEnabl
 import { AppShell, Card, CardGrid, Pill } from "../../kit"
 import { Icon } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
+import { CommunityGames } from "./community"
 
 const sections = [
     { id: "games", name: "Games", icon: "game" },
@@ -37,6 +38,7 @@ export default function ArcadeWindow({ section, open, fallback }: NativeViewProp
                 </Card>)}
             </CardGrid>
             <p className="os-sub">An unavailable game opens its build-gate explanation. Your current build determines which games can play.</p>
+            <CommunityGames />
         </div>}
         {current === "runs" && <div className="os-stack">
             <h2>Your runs</h2>

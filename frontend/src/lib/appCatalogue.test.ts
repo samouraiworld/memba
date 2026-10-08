@@ -18,7 +18,7 @@ describe("one App Store catalogue", () => {
             { pkgPath: "gno.land/r/gnoland/boards2/v0/", appURL: "" },
         ]
         expect(notOnChain(ECOSYSTEM_PROJECTS, live).map((project) => project.id)).toEqual([
-            "adena", "akkadia", "bubble-rumble", "kourt", "gnoscan", "playground", "mygnoscan",
+            "adena", "akkadia", "bubble-rumble", "gnofly", "kourt", "gnoscan", "playground", "mygnoscan",
         ])
         expect(notOnChain(ECOSYSTEM_PROJECTS, [])).toHaveLength(ECOSYSTEM_PROJECTS.length)
     })

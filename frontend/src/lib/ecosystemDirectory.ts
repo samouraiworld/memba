@@ -44,6 +44,11 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         url: "https://bubblerumble.net/", status: "External game", availability: "External game · mainnet realm not verified",
         description: "Play Bubble Rumble on its own site. Its advertised realm is not available on gnoland-1 yet.",
         evidence: { url: "https://bubblerumble.net/", checkedAt: "2026-09-26" } },
+    { id: "gnofly", name: "gnofly", category: "Games", kind: "app", networks: ["mainnet"],
+        url: "https://gnofly.xyz/", status: "Multiplayer game", availability: "Mainnet · realm source checked",
+        description: "Fly in a multiplayer plane game on gno.land. It sells plane NFTs used in the game (777 planes, 77 GNOT each at launch).",
+        realm: { path: "gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0", network: "mainnet", url: "https://gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0" },
+        evidence: { url: "https://gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0", checkedAt: "2026-10-07" } },
     { id: "kourt", name: "Kourt", category: "Community", kind: "app", networks: ["mainnet"],
         url: "https://kourt.xyz/", status: "On-chain community", availability: "Mainnet · realm source checked",
         description: "Explore Kourt's community experience and its public on-chain realm.",
@@ -63,6 +68,8 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         sourceUrl: "https://github.com/gnoverse/mygnoscan",
         evidence: { url: "https://mygnoscan.moul.p2p.team/storage?network=mainnet", checkedAt: "2026-09-22" } },
 ]
+/** Independent mainnet games the Arcade links out to; derived so the directory stays the single source. */
+export const COMMUNITY_GAMES: readonly EcosystemProject[] = ECOSYSTEM_PROJECTS.filter(project => project.category === "Games" && project.networks.includes("mainnet"))
 export const ECOSYSTEM_AVAILABILITY = ["all", "mainnet", "testnet", "tools", "unknown"] as const
 export type EcosystemAvailability = typeof ECOSYSTEM_AVAILABILITY[number]
 export interface EcosystemFilters { q: string; category: EcosystemCategory | "all"; availability: EcosystemAvailability }
