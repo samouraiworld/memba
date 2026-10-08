@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ShieldCheck, ArrowRight, Wallet, Spinner } from "@phosphor-icons/react"
 import { doContractBroadcast, networkGasPriceFresh } from "../../lib/grc20"
-import { ACTIVATION_MEMO, ACTIVATION_SEND_UGNOT, activationCosts, activationMsgs } from "../../lib/activation"
+import { ACTIVATION_MEMO, ACTIVATION_NOT_SEEN, ACTIVATION_SEND_UGNOT, activationCosts, activationMsgs, activationOnChain } from "../../lib/activation"
+import { chainPublicKey } from "../../lib/account"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { isUserCancellation } from "../../lib/userCancellation"
 import "./ActivationModal.css"
@@ -27,12 +28,25 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
     // The balance hook retains its last value during refresh. That value must
     // not authorize a new transaction until the current check succeeds.
     const checkedUgnot = balanceLoading || balanceError ? undefined : rawUgnot
+    // Aborted when the dialog goes away: a wait still running must not reload the page after that.
+    const shown = useRef<AbortController | null>(null)
+    useEffect(() => {
+        const current = new AbortController()
+        shown.current = current
+        return () => current.abort()
+    }, [])
 
     const handleActivate = async () => {
         if (checkedUgnot === undefined || checkedUgnot <= 0n) return
+        const gone = shown.current?.signal
         setActivating(true)
         setError(null)
         try {
+            // Already active on chain (an activation that landed after the last wait gave up): nothing to send.
+            if (await chainPublicKey(address).then(Boolean, () => false)) {
+                if (!gone?.aborted) onSuccess()
+                return
+            }
             // W2.1: the guarded broadcaster, so RPC trust, the chain check and
             // the confirmation dialog apply as to any write. The fee is read at
             // the network's price now; the balance must hold it and the 1 ugnot.
@@ -42,6 +56,10 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
             const needed = BigInt(feeUgnot) + ACTIVATION_SEND_UGNOT
             if (checkedUgnot < needed) throw new Error(`Activation needs at least ${formatUgnotExact(Number(needed))}: the network fee and the 1 ugnot sent to yourself. Add GNOT to this address, then activate.`)
             await doContractBroadcast(activationMsgs(address), ACTIVATION_MEMO, { gasWanted, gasFee: feeUgnot })
+            // Adena answers at broadcast: the reload that follows must find the key on chain.
+            const visible = await activationOnChain(address, gone)
+            if (gone?.aborted) return
+            if (!visible) throw new Error(`${ACTIVATION_NOT_SEEN} Select Activate My Wallet again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active.`)
             onSuccess()
         } catch (err: unknown) {
             // A cancel in the confirmation dialog or a reject in Adena sends nothing.

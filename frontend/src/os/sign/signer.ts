@@ -23,7 +23,7 @@ import {
 } from "../../lib/dao/governanceRecovery"
 import { friendlyDaoError } from "../../lib/dao/errors"
 import { sameMsgs } from "./decode"
-import { WalletNetworkError } from "../../lib/walletNetworkGuard"
+import { isAdenaUnlockOpen, subscribeAdenaUnlock, WalletNetworkError } from "../../lib/walletNetworkGuard"
 
 export interface SignChoice<C extends string> { label: string; options: readonly C[]; initial: C }
 
@@ -132,6 +132,14 @@ function sequenceOf(mark: string): bigint | null {
 const REJECTED_IN_WALLET = /user (rejected|denied|cancelled|canceled)|rejected by (the )?user|^(transaction )?cancelled by (the )?user$/i
 let signingActive = false
 
+/** Resolves once no Adena unlock window is open (at once when none is). */
+function unlockAnswered(): Promise<void> {
+    return new Promise((resolve) => {
+        const off = subscribeAdenaUnlock(() => { if (!isAdenaUnlockOpen()) { off(); resolve() } })
+        if (!isAdenaUnlockOpen()) { off(); resolve() }
+    })
+}
+
 /** A request that stopped before anything reached the chain: the reason, and that nothing was sent (a failed read says only the first). */
 function nothingSentFailure(err: unknown): SignResult {
     const said = friendlyDaoError(err)
@@ -162,6 +170,8 @@ export async function executeSignature<C extends string>(
     let hash = ""
     let mismatch = false
     let restored = false
+    // Set once this call has returned its outcome: from then on its request never reaches the wallet.
+    let settled = false
     let finish = () => {}
     // Once the wallet has the request, its answer races the chain: a wallet that never
     // answers (Adena's promise left pending) must not hold the flow when the account
@@ -214,7 +224,7 @@ export async function executeSignature<C extends string>(
         const sending = req.send(choice, async () => {
             // Without this read a later "rejected" reply cannot be confirmed, and is reported as unknown.
             // It runs alongside the request's rechecks: one wait before the wallet opens, not two.
-            const marking = (async () => {
+            const marking = async () => {
                 if (!sent) return
                 let timer: ReturnType<typeof setTimeout> | undefined
                 markBefore = await Promise.race([
@@ -222,14 +232,24 @@ export async function executeSignature<C extends string>(
                     new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), FIRST_READ_MS) }),
                 ])
                 clearTimeout(timer)
-            })()
-            await Promise.all([marking, req.recheck?.(choice)])
+            }
+            const rechecks = () => Promise.all([marking(), req.recheck?.(choice)]).then(() => null, (err: unknown) => ({ err }))
+            let refused = await rechecks()
+            // The wallet check alongside found Adena locked: the password comes first, before the sheet says
+            // Adena is open and the watch's clock starts, and the chain is read again after it.
+            if (isAdenaUnlockOpen()) {
+                await unlockAnswered()
+                refused = await rechecks()
+            }
+            if (refused) throw refused.err
             if (!canOpenWallet()) throw new Error("Your Memba session ended. Connect again before signing.")
             if (!restored) throw new Error("Signature review expired. Try again.")
             walletStarted = true
             onWallet()
             startWatch()
-            return canOpenWallet
+            // Adena can still ask for its password after this (it locked itself meanwhile): a request this
+            // call has already given an outcome for must never reach it.
+            return () => canOpenWallet() && !settled
         })
         const answer = await Promise.race([sending.then((r) => ({ wallet: r })), chainWatch.then((c) => ({ chain: c }))])
         if ("chain" in answer) { // a later wallet answer no longer decides; the race keeps it handled
@@ -272,6 +292,7 @@ export async function executeSignature<C extends string>(
         }
         return { outcome: "unknown", error: friendlyDaoError(err), hash }
     } finally {
+        settled = true
         stopWatch()
         if (!restored) replaceTxConfirmationCallback(confirm, previous)
         finish()

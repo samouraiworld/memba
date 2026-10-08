@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { Token } from "../../gen/memba/v1/memba_pb"
 import { SESSION_ACCOUNT_LOGIN_MSG } from "../../lib/loginErrors"
 import { assertLiveWalletNetwork, WalletNetworkError } from "../../lib/walletNetworkGuard"
+import { chainPublicKey } from "../../lib/account"
 import { signInWithWallet, walletOnOtherChain, type LoginAuth, type LoginWallet } from "./walletLogin"
 
 vi.mock("../../lib/walletNetworkGuard", async (original) => ({ ...(await original<typeof import("../../lib/walletNetworkGuard")>()), assertLiveWalletNetwork: vi.fn() }))
+vi.mock("../../lib/account", async (original) => ({ ...(await original<typeof import("../../lib/account")>()), chainPublicKey: vi.fn() }))
 
 const ADDR = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
 const CHAIN_PUBKEY = '{"type":"tendermint/PubKeySecp256k1","value":"chain"}'
@@ -39,6 +41,8 @@ const infoOf = (a: ReturnType<typeof auth>) => JSON.parse(a.getToken.mock.calls[
 beforeEach(() => {
     vi.mocked(assertLiveWalletNetwork).mockReset()
     vi.mocked(assertLiveWalletNetwork).mockResolvedValue({ chainId: "gnoland-1", address: ADDR, rpcUrl: "https://rpc.gno.land" })
+    vi.mocked(chainPublicKey).mockReset()
+    vi.mocked(chainPublicKey).mockResolvedValue(null)
 })
 
 describe("signInWithWallet", () => {
@@ -48,7 +52,7 @@ describe("signInWithWallet", () => {
         await expect(signInWithWallet(w, a, "gnoland-1")).resolves.toBe(TOKEN)
         expect(assertLiveWalletNetwork).toHaveBeenCalledWith("gnoland-1", { address: ADDR })
         expect(a.getChallenge).toHaveBeenCalledWith(CHAIN_PUBKEY, "gnoland-1")
-        expect(w.signLoginChallenge).toHaveBeenCalledWith("gnoland-1", "AQID")
+        expect(w.signLoginChallenge).toHaveBeenCalledWith("gnoland-1", "AQID", expect.any(Object))
         expect(a.getToken.mock.calls[0][1]).toBe("sig")
         const info = infoOf(a)
         expect(info.userPubkeyJson).toBe('{"from":"adena"}')
@@ -71,12 +75,42 @@ describe("signInWithWallet", () => {
         expect(infoOf(a).userPubkeyJson).toBeUndefined()
     })
 
+    it("does not open Adena for an account the chain confirms has no key: it asks by address straight away", async () => {
+        const w = wallet({ pubkeyJSON: "" })
+        const a = auth()
+        await signInWithWallet(w, a, "gnoland-1")
+        expect(chainPublicKey).toHaveBeenCalledWith(ADDR, "gnoland-1")
+        expect(w.signLoginChallenge).not.toHaveBeenCalled()
+        expect(a.getChallenge).toHaveBeenCalledWith(undefined, "gnoland-1")
+        expect(a.getToken.mock.calls[0][1]).toBe("")
+        expect(infoOf(a).userAddress).toBe(ADDR)
+        expect(infoOf(a).userPubkeyJson).toBeUndefined()
+    })
+
+    it("opens Adena when the chain shows a key the wallet did not report, or cannot be read", async () => {
+        vi.mocked(chainPublicKey).mockResolvedValueOnce({ "@type": "/tm.PubKeySecp256k1", value: "A0key" })
+        const activated = wallet({ pubkeyJSON: "" })
+        await signInWithWallet(activated, auth(), "gnoland-1")
+        expect(activated.signLoginChallenge).toHaveBeenCalledOnce()
+        vi.mocked(chainPublicKey).mockRejectedValueOnce(new Error("fetch failed"))
+        const unread = wallet({ pubkeyJSON: "" })
+        await signInWithWallet(unread, auth(), "gnoland-1")
+        expect(unread.signLoginChallenge).toHaveBeenCalledOnce()
+    })
+
+    it("reads no account from the chain when the wallet reports a key", async () => {
+        await signInWithWallet(wallet(), auth(), "gnoland-1")
+        expect(chainPublicKey).not.toHaveBeenCalled()
+    })
+
     it("sends nothing unsigned for any other refusal, and says which it was", async () => {
         const cases = [
             ["declined", "You declined the login message in Adena. Sign in again when you're ready."],
             ["session-account", SESSION_ACCOUNT_LOGIN_MSG],
             ["unsupported", "This version of Adena can't sign Memba's login message. Update Adena, then sign in again."],
             ["failed", "Adena couldn't sign the login message. Try again."],
+            ["no-answer", "Adena didn't answer — reload this tab (needed after Adena updates)."],
+            ["closed", "Adena closed its window or hit an error (another tab may have asked it something). Try again."],
         ] as const
         for (const [refusal, message] of cases) {
             const a = auth()
@@ -85,11 +119,59 @@ describe("signInWithWallet", () => {
         }
     })
 
-    it("checks Adena's network live before asking for a challenge, since Adena signs for its own network", async () => {
-        vi.mocked(assertLiveWalletNetwork).mockRejectedValue(new WalletNetworkError("Your wallet is on onyx-1, but this page is on gnoland-1 — switch Adena to gnoland-1 and try again."))
+    it("asks for the challenge while Adena's network is checked live, and signs only after the check passed", async () => {
+        let pass!: (v: Awaited<ReturnType<typeof assertLiveWalletNetwork>>) => void
+        vi.mocked(assertLiveWalletNetwork).mockReturnValue(new Promise((r) => { pass = r }))
+        const w = wallet()
         const a = auth()
-        await expect(signInWithWallet(wallet(), a, "gnoland-1")).rejects.toThrow("Your wallet is on onyx-1")
-        expect(a.getChallenge).not.toHaveBeenCalled()
+        const signing = signInWithWallet(w, a, "gnoland-1")
+        await Promise.resolve()
+        expect(a.getChallenge).toHaveBeenCalledOnce()
+        expect(w.signLoginChallenge).not.toHaveBeenCalled()
+        pass({ chainId: "gnoland-1", address: ADDR, rpcUrl: "https://rpc.gno.land" })
+        await expect(signing).resolves.toBe(TOKEN)
+        expect(w.signLoginChallenge).toHaveBeenCalledOnce()
+    })
+
+    it("a refused network check signs nothing and drops the challenge, even one that failed too", async () => {
+        vi.mocked(assertLiveWalletNetwork).mockRejectedValue(new WalletNetworkError("Your wallet is on onyx-1, but this page is on gnoland-1 — switch Adena to gnoland-1 and try again."))
+        const w = wallet()
+        const a = auth()
+        await expect(signInWithWallet(w, a, "gnoland-1")).rejects.toThrow("Your wallet is on onyx-1")
+        expect(w.signLoginChallenge).not.toHaveBeenCalled()
+        expect(a.getToken).not.toHaveBeenCalled()
+        // The challenge request failing as well must not surface as an unhandled rejection.
+        const unhandled = vi.fn()
+        process.on("unhandledRejection", unhandled)
+        try {
+            // A plain function: a vi.fn would itself observe the rejection it returns.
+            const down = { ...auth(), getChallenge: async () => { throw new Error("backend down") } }
+            await expect(signInWithWallet(wallet(), down, "gnoland-1")).rejects.toThrow("Your wallet is on onyx-1")
+            await new Promise((r) => setTimeout(r, 20))
+        } finally {
+            process.off("unhandledRejection", unhandled)
+        }
+        expect(unhandled).not.toHaveBeenCalled()
+    })
+
+    it("says the backend's failure when the check passes but the challenge failed", async () => {
+        const down = auth({ getChallenge: vi.fn(async () => { throw new Error("backend down") }) })
+        await expect(signInWithWallet(wallet(), down, "gnoland-1")).rejects.toThrow("backend down")
+    })
+
+    it("hands Adena's window progress to the caller and still times the flow", async () => {
+        const onSent = vi.fn()
+        const onSlow = vi.fn()
+        const w = wallet({
+            signLoginChallenge: vi.fn<LoginWallet["signLoginChallenge"]>(async (_c, _n, watch) => {
+                watch?.onSent?.()
+                watch?.onSlow?.()
+                return { signature: "sig", pubKey: "" }
+            }),
+        })
+        await signInWithWallet(w, auth(), "gnoland-1", { watch: { onSent, onSlow } })
+        expect(onSent).toHaveBeenCalledOnce()
+        expect(onSlow).toHaveBeenCalledOnce()
     })
 
     it("says the login message expired once its challenge has, and otherwise names the network to check", async () => {

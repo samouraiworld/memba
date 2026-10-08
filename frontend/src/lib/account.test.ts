@@ -8,8 +8,11 @@
  * the chain answered and the account has no record; everything else throws.
  */
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { fetchAccountInfo } from "./account"
+import { chainPublicKey, fetchAccountInfo } from "./account"
 import { AbciQueryError } from "./rpcFallback"
+import { abciQueryText, ChainAnswerError } from "./dao/packageStatus"
+
+vi.mock("./dao/packageStatus", async (original) => ({ ...(await original<typeof import("./dao/packageStatus")>()), abciQueryText: vi.fn() }))
 
 const ADDR = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 
@@ -76,5 +79,40 @@ describe("fetchAccountInfo — fail-loud (W2.2)", () => {
         vi.stubGlobal("fetch", fetchSpy)
         await expect(fetchAccountInfo("not-an-address")).rejects.toThrow(/not a valid gno address/)
         expect(fetchSpy).not.toHaveBeenCalled()
+    })
+})
+
+describe("chainPublicKey", () => {
+    const KEY = { "@type": "/tm.PubKeySecp256k1", value: "A0key" }
+
+    it("returns the key the chain holds, read from a node of the asked chain", async () => {
+        vi.mocked(abciQueryText).mockResolvedValueOnce(JSON.stringify({ BaseAccount: { address: ADDR, public_key: KEY, sequence: "3" } }))
+        await expect(chainPublicKey(ADDR, "gnoland-1")).resolves.toEqual(KEY)
+        expect(vi.mocked(abciQueryText).mock.calls[0][0]).toMatchObject({ chainId: "gnoland-1" })
+        expect(vi.mocked(abciQueryText).mock.calls[0][1]).toBe(`auth/accounts/${ADDR}`)
+    })
+
+    it("returns null for an address that never signed: no key, no account, or the chain's refusal", async () => {
+        vi.mocked(abciQueryText).mockResolvedValueOnce(JSON.stringify({ BaseAccount: { address: ADDR, public_key: null, sequence: "0" } }))
+        await expect(chainPublicKey(ADDR)).resolves.toBeNull()
+        vi.mocked(abciQueryText).mockResolvedValueOnce("null")
+        await expect(chainPublicKey(ADDR)).resolves.toBeNull()
+        vi.mocked(abciQueryText).mockRejectedValueOnce(new ChainAnswerError("Query failed"))
+        await expect(chainPublicKey(ADDR)).resolves.toBeNull()
+    })
+
+    it("throws when no node answers", async () => {
+        vi.mocked(abciQueryText).mockRejectedValueOnce(new Error("fetch failed"))
+        await expect(chainPublicKey(ADDR)).rejects.toThrow("fetch failed")
+    })
+
+    it("asks the chain for any spelling of an address, upper case included, and answers null for what is not one", async () => {
+        vi.mocked(abciQueryText).mockClear()
+        vi.mocked(abciQueryText).mockResolvedValueOnce(JSON.stringify({ BaseAccount: { public_key: KEY } }))
+        await expect(chainPublicKey(ADDR.toUpperCase())).resolves.toEqual(KEY)
+        expect(vi.mocked(abciQueryText).mock.calls[0][1]).toBe(`auth/accounts/${ADDR.toUpperCase()}`)
+        vi.mocked(abciQueryText).mockClear()
+        for (const text of ['g1"x', "", `${ADDR}x`, "g1b"]) await expect(chainPublicKey(text)).resolves.toBeNull()
+        expect(abciQueryText).not.toHaveBeenCalled()
     })
 })

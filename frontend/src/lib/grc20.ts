@@ -308,9 +308,14 @@ export function replaceTxConfirmationCallback(expected: TxConfirmCallback, next:
  *
  * SECURITY: Blocks all transactions if the wallet's RPC URL is untrusted.
  * The wallet RPC is validated by useAdena via Adena's GetNetwork() API.
- * Immediately before each wallet request the wallet's live network is read
- * again (walletNetworkGuard): an empty/unknown chain, an account and network
- * that disagree, or a chain other than GNO_CHAIN_ID refuses to sign.
+ * Before each wallet request the wallet's live network is read once more
+ * (walletNetworkGuard), while the caller's `beforeSign` rechecks the chain:
+ * an empty/unknown chain, an account and network that disagree, or a chain
+ * other than GNO_CHAIN_ID refuses to sign.
+ *
+ * Adena is asked not to show its result screen: it answers as soon as the
+ * transaction is broadcast and closes its window, instead of holding the
+ * answer until the person clicks Close.
  *
  * A6: Blocks with a user confirmation modal before broadcasting.
  * The modal shows a summary of the transaction effects (action, recipients,
@@ -425,11 +430,11 @@ interface BroadcastOptions {
     osActivation?: true
 }
 
-/** The wallet checks, run before the wallet request: a refusal here means nothing was sent. */
-async function walletStillSafe(allowOsActivation: boolean): Promise<void> {
-    assertWalletBroadcastSafeInternal(allowOsActivation)
-    await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress, unlock: true })
-}
+/**
+ * Adena's options: notify, but answer at broadcast instead of after its result screen's Close.
+ * Adena builds before 1.18.3 take this argument as a plain `withNotification` flag, which the object sets.
+ */
+const DO_CONTRACT_OPTIONS = { withNotification: true, isVisibleResult: false } as const
 
 async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: BroadcastOptions): Promise<{ hash: string; result?: unknown }> {
     if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
@@ -456,6 +461,11 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
         }
     }
 
+    const gas = getGasConfig()
+    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget.
+    const gasWanted = opts?.gasWanted ?? (opts?.gas === "deploy" ? gas.deployWanted : gas.wanted)
+    const gasFee = opts?.gasFee ?? (opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee)
+
     // SECURITY: RPC-trust + wrong-chain guards (shared with multisig broadcast)
     assertWalletBroadcastSafeInternal(activation)
 
@@ -465,29 +475,41 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
         throw new Error("Adena wallet not available — please install or refresh the page")
     }
 
-    const gas = getGasConfig()
-    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget.
-    const gasWanted = opts?.gasWanted ?? (opts?.gas === "deploy" ? gas.deployWanted : gas.wanted)
-    const gasFee = opts?.gasFee ?? (opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee)
-
     // SECURITY: the cached chain id checked by assertWalletBroadcastSafe
     // can be stale or empty (a wallet that switched network without firing
     // its event, or reports none). Ask the wallet itself and refuse unless
-    // it names this page's chain (and account). Asked first before the
-    // caller's beforeSign, which callers treat as "the wallet is opening",
-    // so a wallet on the wrong network is reported as nothing sent.
-    await walletStillSafe(activation)
-    // Await caller revalidation after confirmation, then recheck wallet safety.
-    const requestGuard = await opts?.beforeSign?.()
-    // Asked again right before the wallet request: beforeSign can take a while.
-    await walletStillSafe(activation)
-    // No await between this OS session check and the Adena request.
-    assertWalletActionAllowed(activation)
+    // it names this page's chain (and account). Adena takes its snapshot of
+    // account and network while it handles the read, so a change after that
+    // snapshot goes unseen until the request; as before, that span is never
+    // longer than the read itself takes. The read runs while the caller's
+    // beforeSign rechecks the chain, so the two waits overlap, and it stays
+    // the last thing awaited before the request: when beforeSign finishes
+    // after the wallet has answered, the wallet is read again. A refusal is
+    // a WalletNetworkError, which callers report as nothing sent even after
+    // beforeSign said the wallet was opening; it is thrown only once
+    // beforeSign is done, so none of beforeSign's effects land after it.
+    const liveCheck = () => assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress, unlock: true })
+    let answered = false
+    const checking = liveCheck().then(() => { answered = true })
+    checking.catch(() => { /* thrown below, unless beforeSign refuses first */ })
+    let requestGuard: void | (() => boolean)
+    try {
+        requestGuard = await opts?.beforeSign?.()
+    } catch (err) {
+        // Reported once the wallet read it overlapped is over: an unlock window that read opened is answered first.
+        await checking.catch(() => {})
+        throw err
+    }
+    const outlasted = answered
+    await checking
+    if (outlasted) await liveCheck()
+    // No await between these checks (cached chain and RPC, OS session, request owner) and the Adena request.
+    assertWalletBroadcastSafeInternal(activation)
     if (requestGuard && !requestGuard()) throw new WalletActionBlockedError()
 
     let res: { status?: string; type?: string; message?: string; data?: { hash?: string; message?: string; error?: unknown; log?: unknown } } | undefined
     try {
-        res = await adena.DoContract({ messages: toAdenaMessages(msgs), gasFee, gasWanted, memo })
+        res = await adena.DoContract({ messages: toAdenaMessages(msgs), gasFee, gasWanted, memo }, DO_CONTRACT_OPTIONS)
     } catch (err) {
         // W6.5 money-path visibility: the wallet request itself broke. Addresses/JWTs
         // are scrubbed by the global beforeSend; no-op when Sentry.init didn't run.

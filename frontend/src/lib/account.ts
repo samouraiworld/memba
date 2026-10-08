@@ -4,7 +4,36 @@
  * Uses JSON-RPC POST to prevent ABCI query injection via address.
  */
 
-import { resilientFetch, AbciQueryError, abciErrorPresent } from "./rpcFallback"
+import { resilientFetch, AbciQueryError, abciErrorPresent, getRpcUrlsInOrder } from "./rpcFallback"
+import { GNO_CHAIN_ID, GNO_RPC_URL } from "./config"
+import { abciQueryText, ChainAnswerError } from "./dao/packageStatus"
+
+/** A public key as the chain records it: its amino type and base64 value. */
+export interface ChainPublicKey { "@type": string; value: string }
+
+/**
+ * The public key the chain holds for `address`, or null while the address has
+ * never signed a transaction there (the chain learns a key from its first one),
+ * and for text that is not an address. Read from a node that serves `chainId`,
+ * which decides what a valid spelling is; throws when none answers.
+ */
+export async function chainPublicKey(address: string, chainId: string = GNO_CHAIN_ID): Promise<ChainPublicKey | null> {
+    // Only the shape is checked here (it goes into the query path), in either case: the chain refuses a bad checksum.
+    if (!/^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/i.test(address)) return null
+    let text: string
+    try {
+        text = await abciQueryText({ rpcUrl: GNO_RPC_URL, rpcUrls: getRpcUrlsInOrder(), chainId }, `auth/accounts/${address}`, "")
+    } catch (err) {
+        // The chain answered and has no account there (or refused the address): nothing has signed from it.
+        if (err instanceof ChainAnswerError) return null
+        throw err
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed: any = JSON.parse(text)
+    const account = parsed?.BaseAccount || parsed?.value?.BaseAccount || parsed?.value || parsed
+    const key = account?.pub_key || account?.PubKey || account?.public_key
+    return typeof key?.["@type"] === "string" && key["@type"] ? { "@type": key["@type"], value: typeof key.value === "string" ? key.value : "" } : null
+}
 
 /**
  * Fetch account number and sequence from the Gno chain.

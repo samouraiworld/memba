@@ -7,11 +7,10 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
-import { abciQueryText, ChainAnswerError } from "../../lib/dao/packageStatus"
+import { ENABLE_NATIVE_GNO_MULTISIG, GNO_CHAIN_ID } from "../../lib/config"
+import { chainPublicKey } from "../../lib/account"
 import { awaitingText, countAwaiting, sharedAwaitingText } from "../../lib/multisigAwaiting"
 import { NATIVE_MULTISIG_TYPE } from "../../lib/nativeMultisig"
-import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
 import { ExecutionState, type Multisig, type Transaction } from "../../gen/memba/v1/memba_pb"
 import type { LayoutContext } from "../../types/layout"
 
@@ -70,19 +69,7 @@ export function useChainAccountKind(address: string, enabled: boolean) {
         enabled,
         retry: false,
         queryFn: async (): Promise<ChainAccountKind> => {
-            let text: string
-            try {
-                text = await abciQueryText({ rpcUrl: GNO_RPC_URL, rpcUrls: getRpcUrlsInOrder(), chainId: GNO_CHAIN_ID }, `auth/accounts/${address}`, "")
-            } catch (err) {
-                // The chain answered and has no account there: nothing has signed from it yet.
-                if (err instanceof ChainAnswerError) return "unused"
-                throw err
-            }
-            // The same shapes the create form reads a member's key from.
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const parsed: any = JSON.parse(text)
-            const account = parsed?.BaseAccount || parsed?.value?.BaseAccount || parsed?.value || parsed
-            const type = (account?.pub_key || account?.PubKey || account?.public_key)?.["@type"]
+            const type = (await chainPublicKey(address))?.["@type"]
             return type === NATIVE_MULTISIG_TYPE ? "multisig" : type ? "single" : "unused"
         },
     })

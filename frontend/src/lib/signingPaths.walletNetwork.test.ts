@@ -24,7 +24,7 @@ import { broadcastEscrowTx, escrowFailureMayHaveLanded, planCancelContract } fro
 import { submitFeedMsg } from "./feed"
 import { submitReview } from "./reviews"
 import { clearGovernanceMemory, readGovernanceReceipt, type GovernanceScope } from "./dao/governanceRecovery"
-import { executeSignature } from "../os/sign/signer"
+import { executeSignature, WALLET_SILENT_MS } from "../os/sign/signer"
 import { liveWallet } from "../test/walletStub"
 
 const CALLER = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
@@ -109,19 +109,26 @@ describe.each(PATHS)("%s", (_name, sign) => {
 })
 
 describe("a refusal is reported as nothing sent", () => {
-    it("is asked before the caller's beforeSign, which callers treat as the wallet opening", async () => {
+    it("is a WalletNetworkError, thrown once the caller's beforeSign (which callers treat as the wallet opening) has finished", async () => {
         vi.stubGlobal("adena", { ...liveWallet({ chainId: "", networkChainId: "" }), DoContract })
-        const beforeSign = vi.fn()
-        await expect(doContractBroadcast([call("Post")], "post", { beforeSign })).rejects.toThrow(/did not report its network/)
-        expect(beforeSign).not.toHaveBeenCalled()
+        let finished = false
+        const beforeSign = vi.fn(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); finished = true })
+        const err = await doContractBroadcast([call("Post")], "post", { beforeSign }).catch((e: unknown) => e)
+        expect(err).toBeInstanceOf(WalletNetworkError)
+        expect((err as Error).message).toMatch(/did not report its network/)
+        expect(finished).toBe(true)
         expect(DoContract).not.toHaveBeenCalled()
     })
 
-    it("is asked again after beforeSign, right before the wallet request", async () => {
+    it("is asked again when beforeSign finishes after the wallet answered, right before the wallet request", async () => {
         const wallet = liveWallet()
         vi.stubGlobal("adena", { ...wallet, DoContract })
-        // The wallet switches network while the caller's last checks run.
-        const beforeSign = vi.fn(async () => { wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } }); wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } }) })
+        // The wallet answers, then switches network while the caller's last checks still run.
+        const beforeSign = vi.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } })
+            wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } })
+        })
         await expect(doContractBroadcast([call("Post")], "post", { beforeSign })).rejects.toThrow(/Your wallet is on/)
         expect(beforeSign).toHaveBeenCalledTimes(1)
         expect(DoContract).not.toHaveBeenCalled()
@@ -133,10 +140,16 @@ describe("a refusal is reported as nothing sent", () => {
         expect(escrowFailureMayHaveLanded(err)).toBe(false)
     })
 
-    it("in the Memba OS signer, the request's recheck runs before the last wallet check, and that check before the wallet", async () => {
+    it("in the Memba OS signer, the request's recheck runs while the wallet is read once, and its answer comes before the wallet request", async () => {
         const order: string[] = []
         const wallet = liveWallet()
-        wallet.GetAccount.mockImplementation(async () => { order.push("guard"); return { status: "success", data: { address: "g1stub", chainId: GNO_CHAIN_ID } } })
+        wallet.GetAccount.mockImplementation(async () => {
+            order.push("guard")
+            // Adena's read is the slow part (it decrypts the wallet), so it answers after the recheck.
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            order.push("answer")
+            return { status: "success", data: { address: "g1stub", chainId: GNO_CHAIN_ID } }
+        })
         DoContract.mockImplementation(async () => { order.push("wallet"); return { status: "success", data: { hash: "H" } } })
         vi.stubGlobal("adena", { ...wallet, DoContract })
         const msg = call("Vote", "gno.land/r/alice/team")
@@ -147,7 +160,7 @@ describe("a refusal is reported as nothing sent", () => {
             send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { beforeSign }),
         }, undefined, [msg], () => {})
         expect(res.outcome).toBe("sent")
-        expect(order).toEqual(["guard", "recheck", "guard", "wallet"])
+        expect(order).toEqual(["guard", "recheck", "answer", "wallet"])
     })
 
     it("the Memba OS signer reports it as failed and keeps no governance lock", async () => {
@@ -163,6 +176,84 @@ describe("a refusal is reported as nothing sent", () => {
             expect(res.outcome).toBe("failed")
             expect(readGovernanceReceipt(scope)).toBeNull()
         }
+        expect(DoContract).not.toHaveBeenCalled()
+    })
+})
+
+describe("a locked Adena in the Memba OS signer", () => {
+    const LOCKED = { status: "failure", type: "WALLET_LOCKED", data: {} }
+    const msg = call("Vote", "gno.land/r/alice/team")
+    /** Adena locked until its unlock window, held by the test, is answered. */
+    function lockedWallet(lockedAt: () => boolean) {
+        const wallet = liveWallet()
+        const ok = wallet.GetAccount.getMockImplementation()!
+        wallet.GetAccount.mockImplementation(async () => (lockedAt() ? LOCKED as never : ok()))
+        const net = wallet.GetNetwork.getMockImplementation()!
+        wallet.GetNetwork.mockImplementation(async () => (lockedAt() ? LOCKED as never : net()))
+        let unlock!: () => void
+        const AddEstablish = vi.fn(() => new Promise((resolve) => { unlock = () => resolve({ status: "failure", type: "ALREADY_CONNECTED", data: {} }) }))
+        vi.stubGlobal("adena", { ...wallet, AddEstablish, DoContract })
+        return { AddEstablish, unlock: () => unlock() }
+    }
+
+    afterEach(() => { vi.useRealTimers() })
+
+    it("says the wallet is opening only once Adena is unlocked, and rechecks the chain after the password", async () => {
+        let locked = true
+        const { AddEstablish, unlock } = lockedWallet(() => locked)
+        // A chain read: slower than Adena's answer that it is locked.
+        const recheck = vi.fn(async () => { await new Promise((resolve) => setTimeout(resolve, 10)) })
+        const onWallet = vi.fn()
+        const result = executeSignature({
+            title: "Vote", summary: "Vote on #1", lines: () => [], label: () => "Vote on #1",
+            prepare: () => ({ msgs: [msg] }), recheck,
+            send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { beforeSign }),
+        }, undefined, [msg], onWallet)
+        await vi.waitFor(() => expect(AddEstablish).toHaveBeenCalledOnce())
+        await new Promise((resolve) => setTimeout(resolve, 40))
+        expect(recheck).toHaveBeenCalledOnce()
+        expect(onWallet).not.toHaveBeenCalled()
+        locked = false
+        unlock()
+        await expect(result).resolves.toMatchObject({ outcome: "sent" })
+        expect(recheck).toHaveBeenCalledTimes(2)
+        expect(onWallet).toHaveBeenCalledOnce()
+        expect(DoContract).toHaveBeenCalledOnce()
+    })
+
+    it("never opens Adena for a request it already gave up on", async () => {
+        vi.useFakeTimers()
+        let locked = false
+        const { AddEstablish, unlock } = lockedWallet(() => locked)
+        const res = executeSignature({
+            title: "Vote", summary: "Vote on #1", lines: () => [], label: () => "Vote on #1",
+            prepare: () => ({ msgs: [msg] }),
+            // Outlasts the wallet's first answer, and Adena locks itself meanwhile: the read after it opens the unlock window.
+            recheck: async () => { await new Promise((resolve) => setTimeout(resolve, 100)); locked = true },
+            send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { beforeSign }),
+        }, undefined, [msg], () => {}, () => true, { before: async () => "0 5ugnot", after: async () => "0 5ugnot" })
+        await vi.advanceTimersByTimeAsync(200)
+        expect(AddEstablish).toHaveBeenCalledOnce()
+        await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS + 5_000)
+        await expect(res).resolves.toMatchObject({ outcome: "unknown" })
+        locked = false
+        unlock()
+        await vi.advanceTimersByTimeAsync(100)
+        expect(DoContract).not.toHaveBeenCalled()
+    })
+
+    it("reports a recheck refusal only once Adena's unlock window is answered, and never opens Adena", async () => {
+        let locked = true
+        const { AddEstablish, unlock } = lockedWallet(() => locked)
+        let settled = false
+        const result = doContractBroadcast([msg], "vote", { beforeSign: async () => { throw new Error("The network fee increased since review. Nothing was sent.") } })
+            .finally(() => { settled = true })
+        await vi.waitFor(() => expect(AddEstablish).toHaveBeenCalledOnce())
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        expect(settled).toBe(false)
+        locked = false
+        unlock()
+        await expect(result).rejects.toThrow("The network fee increased")
         expect(DoContract).not.toHaveBeenCalled()
     })
 })
