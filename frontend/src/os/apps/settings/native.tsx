@@ -212,7 +212,8 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
             </>}
             {current === "notifications" && <>
                 <header><h2>Notifications</h2><p className="os-sub">Signing and transaction status appears in the menu-bar bell or phone notification sheet while this session is open.</p></header>
-                <div className="os-set-card"><h3>Delivery</h3><p>Feed replies appear in Feed. Browser and email notification controls are not available in this beta.</p></div>
+                <div className="os-set-card"><h3>Delivery</h3><p>Feed replies appear in Feed. Email notification controls are not available in this beta.</p></div>
+                {import.meta.env.VITE_ENABLE_GNOTIF_LAB === "true" && <div className="os-set-card"><h3>Browser notifications</h3><p>Try Gnotif with a public Echo event on Onyx. This experiment uses a separate test page and your browser's permission.</p><a className="os-btn os-quiet" href="/labs/gnotif/" target="_blank" rel="noopener noreferrer">Try browser notifications</a></div>}
                 <div className="os-set-card"><h3>Validators and GovDAO alerts</h3>
                     <Suspense fallback={<p className="os-sub" role="status">Loading alerts…</p>}><AlertsPanel embedded /></Suspense>
                 </div>

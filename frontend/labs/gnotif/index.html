@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Browser notification test · Memba</title></head>
+<body class="memba-os" data-os-theme="light">
+<main class="gnotif-lab">
+    <a class="back" href="/os/settings/notifications">Back to Memba</a>
+    <header><span class="lab-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg></span><h1>A little tap from Onyx.</h1><p>Try browser notifications with Gnotif. This experiment listens for a public Echo event on the Onyx testnet.</p></header>
+    <section aria-label="Notification test">
+        <label for="address">Your testnet address</label><input id="address" type="text" autocomplete="off" spellcheck="false" placeholder="g1…" maxlength="40">
+        <p class="hint">Use a disposable Onyx wallet. Gnotif receives this address and this browser's push subscription. Echo messages are public on-chain.</p>
+        <div class="actions"><button id="enable" type="button" disabled>Enable notifications</button><button id="disable" type="button" hidden>Turn off</button></div>
+        <p id="status" role="status" aria-live="polite">Checking this browser…</p>
+    </section>
+    <section class="send"><h2>Send yourself a hello</h2><p>Open the official demo, send a short Echo from the same address, then look for the notification from this site. You can close this test page before sending.</p><a class="demo" href="https://demo.gnotif.xyz/" target="_blank" rel="noopener noreferrer">Open the Gnotif demo</a><p class="hint">The demo asks your wallet to approve a testnet transaction. Clicking the notification returns to Memba.</p></section>
+    <footer><span>Experimental · Onyx only</span><a href="https://gnotif.xyz" target="_blank" rel="noopener noreferrer">About Gnotif</a><a href="https://github.com/gfanton/gnotif" target="_blank" rel="noopener noreferrer">Source</a></footer>
+</main>
+<script type="module" src="./main.ts"></script>
+</body></html>
