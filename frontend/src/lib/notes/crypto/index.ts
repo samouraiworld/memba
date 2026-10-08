@@ -1,0 +1,11 @@
+// Load this entrypoint lazily from Notes; never from the OS bootstrap.
+export { NotesCryptoError } from './bytes'
+export { MAX_BODY_BYTES, MAX_TITLE_BYTES, MAX_COMMENT_BYTES } from './padding'
+export { keyCommitment, sealField, openField } from './content'
+export type { EpochContext, FieldContext } from './content'
+export { encodeComment, decodeComment } from './comment'
+export type { CommentPayload } from './comment'
+export { wrapForReader, unwrapForReader, WRAP_BYTES } from './wrap'
+export type { ReaderContext } from './wrap'
+export { encodeManifest, decodeManifest, MAX_RECIPIENTS } from './manifest'
+export type { Recipient } from './manifest'
