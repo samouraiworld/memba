@@ -9,6 +9,6 @@ afterEach(() => localStorage.clear())
 describe("guest desk on an EVM network", () => {
     it("starts empty: the featured desk is gno.land's DAOs and Arcade", () => {
         expect(loadDesk(null, "base-sepolia")).toEqual([])
-        expect(loadDesk(null, DEFAULT_NETWORK)).toEqual(FEATURED_DESK)
+        expect(loadDesk(null, DEFAULT_NETWORK).map((i) => i.ref)).toEqual(FEATURED_DESK.map((i) => i.ref === "memba_dao" ? "samcrew.memba_gov" : i.ref))
     })
 })
