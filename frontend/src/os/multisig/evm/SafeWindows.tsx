@@ -88,7 +88,10 @@ export function SafeApp({ session, open }: { session: OsSession; open: (spec: Wi
     }
     return (
         <div className="os-stack">
-            <div className="os-row"><button type="button" className="os-btn os-quiet" onClick={() => open(specForTarget({ kind: "app", app: "multisig", section: "import" })!)}>Import a Safe</button></div>
+            <div className="os-row">
+                <button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "app", app: "multisig", section: "create" })!)}>New Safe</button>
+                <button type="button" className="os-btn os-quiet" onClick={() => open(specForTarget({ kind: "app", app: "multisig", section: "import" })!)}>Import a Safe</button>
+            </div>
             <OpenByAddress open={open} />
             {token && <section>
                 <h3 className="os-h">Your Safes</h3>

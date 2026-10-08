@@ -28,6 +28,7 @@ const WalletWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({
 const SafeApp = EVM_ENABLED ? lazy(() => import("../multisig/evm/SafeWindows").then((m) => ({ default: m.SafeApp }))) : null
 const SafeWindow = EVM_ENABLED ? lazy(() => import("../multisig/evm/SafeWindows").then((m) => ({ default: m.SafeWindow }))) : null
 const ImportSafe = EVM_ENABLED ? lazy(() => import("../multisig/evm/ImportSafe").then((m) => ({ default: m.ImportSafe }))) : null
+const CreateSafe = EVM_ENABLED ? lazy(() => import("../multisig/evm/CreateSafe").then((m) => ({ default: m.CreateSafe }))) : null
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { nativeView } from "../native/registry"
 import type { OsTarget } from "./osPath"
@@ -164,7 +165,8 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
             : <GnoOnly title="This is a gno.land multisig" text={`Its address is a gno.land one: it doesn't exist on ${here}.`} />
         if (t.section === null) return <SafeApp session={a.session} open={a.open} />
         if (t.section === "import" && ImportSafe) return <ImportSafe session={a.session} open={a.open} />
-        return <Holding tile={<AppTile app="multisig" size={44} />} title="Coming next" text={`Creating Safes and proposing for them on ${here} come to Memba next. Open a Safe by its address from the Multisig app.`} />
+        if (t.section === "create" && CreateSafe) return <CreateSafe session={a.session} open={a.open} />
+        return <Holding tile={<AppTile app="multisig" size={44} />} title="Coming next" text={`Proposing for Safes on ${here} comes to Memba next. Open a Safe by its address from the Multisig app.`} />
     }
     if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
     if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />
