@@ -7,6 +7,7 @@
  * @module pages/gnolove/GnoloveAnalytics
  */
 
+import { GNOLOVE_ONCHAIN_DATA_ENABLED, GNOLOVE_ONCHAIN_UNAVAILABLE } from "../../lib/gnoloveChainAvailability"
 import { useMemo, useCallback, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import {
@@ -149,6 +150,8 @@ export default function GnoloveAnalytics() {
                 </div>
             )}
 
+            {!GNOLOVE_ONCHAIN_DATA_ENABLED && <p className="gl-warning-banner" role="status">{GNOLOVE_ONCHAIN_UNAVAILABLE}</p>}
+
             {/* ── Stat Cards with Sparklines ──────────────────── */}
             {stats && (
                 <div className="gl-dash-stats">
@@ -157,7 +160,7 @@ export default function GnoloveAnalytics() {
                     <DashStatCard label="Commits" value={stats.totalCommits} icon="📝" />
                     <DashStatCard label="Issues" value={stats.totalIssues} icon="🐛" />
                     <DashStatCard label="Reviews" value={stats.totalReviews} icon="👁️" sparkline={sparklines.open} color={ct.reviewed} />
-                    <DashStatCard label="GovDAO" value={stats.govdaoMembers} icon="🏛️" />
+                    {GNOLOVE_ONCHAIN_DATA_ENABLED && <DashStatCard label="GovDAO" value={stats.govdaoMembers} icon="🏛️" />}
                 </div>
             )}
 
@@ -509,7 +512,7 @@ export default function GnoloveAnalytics() {
                     {/* ── Two-column bottom row ───────────────── */}
                     <div className="gl-panel-grid">
                         {/* Proposal Vote Distribution */}
-                        {voteData.length > 0 && (
+                        {GNOLOVE_ONCHAIN_DATA_ENABLED && voteData.length > 0 && (
                             <div className="gl-panel">
                                 <div className="gl-panel-header">
                                     <h2 className="gl-panel-title">Governance Votes</h2>

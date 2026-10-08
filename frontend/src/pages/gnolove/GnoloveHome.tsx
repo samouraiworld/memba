@@ -36,6 +36,8 @@ import { useWindowActive } from "../../os/page/WindowActivity"
 import { RepoBadge } from "../../components/gnolove/RepoBadge"
 import { isCorerepo } from "../../lib/gnoloveRepo"
 
+import { resolveRepositoryScope } from "../../lib/gnoloveRepositoryScope"
+
 const PAGE_SIZE = 25
 
 export default function GnoloveHome() {
@@ -96,12 +98,19 @@ export default function GnoloveHome() {
     // Derive logins to exclude from the set of excluded teams
     const excludeLogins = useMemo(() => deriveExcludeLogins(excludedTeams), [excludedTeams])
 
-    const { data: contributors, isLoading, isFetching, isError, refetch } = useGnoloveContributors(
-        timeFilter, excludeLogins, selectedRepos.length > 0 ? [...selectedRepos] : undefined
-    )
+    const catalogue = useGnoloveRepositories()
+    const { data: repos } = catalogue
+    const effectiveRepos = resolveRepositoryScope(selectedRepos, urlState.scope === "all", repos)
+    const allCatalogueMissing = urlState.scope === "all" && !selectedRepos.length && effectiveRepos === null
+    const contributorsQuery = useGnoloveContributors(timeFilter, excludeLogins, effectiveRepos ?? undefined, !allCatalogueMissing)
+    const contributors = allCatalogueMissing ? undefined : contributorsQuery.data
+    const isFetching = contributorsQuery.isFetching
+    const isLoading = contributorsQuery.isLoading || (allCatalogueMissing && catalogue.isLoading)
+    const isError = contributorsQuery.isError || (allCatalogueMissing && !catalogue.isLoading)
+    const refetch = () => allCatalogueMissing ? catalogue.refetch() : contributorsQuery.refetch()
     const { data: issues } = useGnoloveIssues()
-    const { data: freshlyMerged } = useGnoloveFreshlyMerged()
-    const { data: repos } = useGnoloveRepositories()
+    const freshlyMergedQuery = useGnoloveFreshlyMerged(effectiveRepos ?? undefined, !allCatalogueMissing)
+    const freshlyMerged = allCatalogueMissing ? undefined : freshlyMergedQuery.data
     const { data: milestone } = useGnoloveMilestone()
     const { data: scoreFactors } = useGnoloveScoreFactors()
 
@@ -379,7 +388,7 @@ export default function GnoloveHome() {
                             onClick={() => setRepoFilterOpen(o => !o)}
                             aria-expanded={repoFilterOpen}
                         >
-                            {selectedRepos.length === 0 ? "All Repos" : `${selectedRepos.length} repo${selectedRepos.length > 1 ? "s" : ""}`}
+                            {selectedRepos.length === 0 ? (urlState.scope === "all" ? "All repositories" : "Gno core") : `${selectedRepos.length} repo${selectedRepos.length > 1 ? "s" : ""}`}
                         </button>
                         {repoFilterOpen && (
                             <div
@@ -390,12 +399,12 @@ export default function GnoloveHome() {
                             >
                                 <div className="gl-repo-filter-actions">
                                     <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => {
-                                        setUrlState({ repos: repos!.map(r => `${r.owner}/${r.name}`).sort(), page: 1 })
+                                        setUrlState({ repos: [], scope: "all", page: 1 })
                                     }}>
-                                        Select All
+                                        All repositories
                                     </button>
-                                    <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => setUrlState({ repos: [], page: 1 })}>
-                                        Clear
+                                    <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => setUrlState({ repos: [], scope: undefined, page: 1 })}>
+                                        Gno core
                                     </button>
                                 </div>
                                 {repos.slice().sort((a, b) => {
@@ -416,7 +425,7 @@ export default function GnoloveHome() {
                                                     const next = checked
                                                         ? selectedRepos.filter(r => r !== key)
                                                         : [...selectedRepos, key].sort()
-                                                    setUrlState({ repos: next, page: 1 })
+                                                    setUrlState({ repos: next, scope: undefined, page: 1 })
                                                 }}
                                             />
                                             <span>{key}</span>
@@ -538,26 +547,8 @@ export default function GnoloveHome() {
                 )}
             </div>
 
-            {/* Repositories */}
-            {repos && repos.length > 0 && (
-                <div className="gl-section">
-                    <h2 className="gl-section-title">Tracked Repositories ({repos.length})</h2>
-                    <div className="gl-repo-grid">
-                        {repos.map(repo => (
-                            <a
-                                key={repo.id}
-                                href={`https://github.com/${repo.owner}/${repo.name}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="gl-repo-card"
-                            >
-                                <span className="gl-repo-name">{repo.owner}/{repo.name}</span>
-                                <span className="gl-repo-branch">{repo.baseBranch}</span>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            )}
+            {repos && <p className="gl-section"><Link to={np("gnolove/repositories")}>{repos.length} repositories tracked · See all →</Link></p>}
+
         </div>
     )
 }

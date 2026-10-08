@@ -1,3 +1,4 @@
+import { GNOLOVE_ONCHAIN_DATA_ENABLED, GNOLOVE_ONCHAIN_UNAVAILABLE } from "../lib/gnoloveChainAvailability"
 /** ValidatorProfile — the single, canonical validator profile at
  *  /:network/validators/:address. It unifies what used to be two pages:
  *    - the performance/technical page (keyed by signing/consensus address), and
@@ -429,9 +430,9 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
 
     const hasContribs = !!profile && (
         profile.lovePowerScore > 0 || profile.totalCommits > 0 || profile.totalPRs > 0 ||
-        profile.totalIssues > 0 || profile.totalReviews > 0 || profile.deployedPackages.length > 0
+        profile.totalIssues > 0 || profile.totalReviews > 0 || (GNOLOVE_ONCHAIN_DATA_ENABLED && profile.deployedPackages.length > 0)
     )
-    const votes = profile?.governanceVotes ?? []
+    const votes = GNOLOVE_ONCHAIN_DATA_ENABLED ? profile?.governanceVotes ?? [] : []
 
     const ownerXP = (effectiveBackend ?? localQuests).totalXP
     const ownerRank = calculateRank(ownerXP)
@@ -666,7 +667,7 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
                                     <Stat label="Reviews" value={String(profile!.totalReviews)} />
                                 </div>
                             </div>
-                            {profile!.deployedPackages.length > 0 && (
+                            {GNOLOVE_ONCHAIN_DATA_ENABLED && profile!.deployedPackages.length > 0 && (
                                 <div className="vd-card">
                                     <div className="vd-card__title">Deployed packages ({profile!.deployedPackages.length})</div>
                                     <div className="vp-pkgs">
@@ -739,7 +740,7 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
                             </div>
                         </div>
                     ) : (
-                        !activity.available && <div className="vd-card vp-empty"><p>No governance votes recorded for this address yet.</p></div>
+                        !activity.available && <div className="vd-card vp-empty"><p>{GNOLOVE_ONCHAIN_DATA_ENABLED ? "No governance votes recorded for this address yet." : GNOLOVE_ONCHAIN_UNAVAILABLE}</p></div>
                     )}
                 </div>
             )}

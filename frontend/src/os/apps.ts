@@ -69,7 +69,7 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "news", name: "News", slug: "news", summary: "Blog and changelog", tier: "v1.1", tint: ["#FF7A7A", "#E0463B"], dock: false,
       routes: ["blog", "blog/:slug", "changelogs"], chains: ["gno", "evm"] },
     { id: "devreport", name: "Dev Report", slug: "dev-report", summary: "Gno development activity: contributors, teams, reports", tier: "v1.2", tint: ["#6D8BFF", "#2B4FD8"], dock: false,
-      routes: ["gnolove", "gnolove/report", "gnolove/notable-prs", "gnolove/analytics", "gnolove/contributor/:login", "gnolove/teams",
+      routes: ["gnolove", "gnolove/repositories", "gnolove/report", "gnolove/notable-prs", "gnolove/analytics", "gnolove/contributor/:login", "gnolove/teams",
           "gnolove/teams/:teamName", "gnolove/reports", "gnolove/milestone"] },
     { id: "terminal", name: "Terminal", slug: "terminal", summary: "Explore the chain and edit Gno drafts", tier: "v1.3", tint: ["#2B3040", "#0F1117"], dock: false,
       routes: [] },

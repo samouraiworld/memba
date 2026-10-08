@@ -13,6 +13,7 @@ import * as api from "./gnoloveApi"
 const mockFetch = vi.fn()
 
 beforeEach(() => {
+    mockFetch.mockReset()
     vi.stubGlobal("fetch", mockFetch)
 })
 
@@ -154,14 +155,16 @@ describe("getContributor", () => {
 describe("getProposals", () => {
     it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        await expect(api.getProposals()).rejects.toThrow("fail")
+        await expect(api.getProposals()).rejects.toThrow("network source is verified")
+        expect(mockFetch).not.toHaveBeenCalled()
     })
 })
 
 describe("getGovdaoMembers", () => {
     it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        await expect(api.getGovdaoMembers()).rejects.toThrow("fail")
+        await expect(api.getGovdaoMembers()).rejects.toThrow("network source is verified")
+        expect(mockFetch).not.toHaveBeenCalled()
     })
 })
 
