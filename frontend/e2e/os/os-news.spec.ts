@@ -10,7 +10,7 @@ import { settleAnimations } from "./settle"
 const ARTICLE = "multisig"
 
 test.beforeEach(async ({ page }) => {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await abortOnchainReads(page)
     await page.addInitScript(() => localStorage.setItem("memba_os_skip_intro", "1"))
 })

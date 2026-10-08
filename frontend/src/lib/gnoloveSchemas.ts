@@ -287,6 +287,14 @@ export const RepositorySchema = z.object({
     name: z.string(),
     owner: z.string(),
     baseBranch: z.string(),
+    category: z.string().optional(),
+    description: z.string().optional(),
+    status: z.string().optional(),
+    stars: z.number().int().nonnegative().nullish(),
+    language: z.string().optional(),
+    pushedAt: z.string().nullish(),
+    lastSyncedAt: z.string().nullish(),
+    syncError: z.string().optional(),
 })
 export type TRepository = z.infer<typeof RepositorySchema>
 

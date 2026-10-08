@@ -25,6 +25,12 @@ describe("fetchUserProfile: whether an earlier bio is known", () => {
         expect(await fetchUserProfile(API, ADDRESS)).toMatchObject({ githubBio: "", bio: "", bioSourcesRead: true })
     })
 
+    it("treats the deployed 404 as absence and does not read unattested chain history", async () => {
+        gnolove(async () => new Response("Not Found", { status: 404 }))
+        expect(await fetchUserProfile(API, ADDRESS)).toMatchObject({ bioSourcesRead: true, deployedPackages: [], governanceVotes: [] })
+        expect(vi.mocked(fetch).mock.calls.every(([url]) => String(url).includes("/users/"))).toBe(true)
+    })
+
     it("is not known when either source did not answer, and the rest of the profile still loads", async () => {
         gnolove(async () => new Response("bad gateway", { status: 502 }))
         expect(await fetchUserProfile(API, ADDRESS)).toMatchObject({ address: ADDRESS, bioSourcesRead: false })

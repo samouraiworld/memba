@@ -68,7 +68,7 @@ for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS accessibility · ${scheme}`, () => {
         test.beforeEach(async ({ page }) => {
             await page.emulateMedia({ colorScheme: scheme })
-            await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
             await fulfillGovernance(page)
         })
 
@@ -116,7 +116,7 @@ for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
         test.beforeEach(async ({ page }) => {
             await page.emulateMedia({ colorScheme: scheme })
-            await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
             await abortOnchainReads(page)
             await page.addInitScript(() => {
                 localStorage.setItem('memba_os_skip_intro', '1')
@@ -247,7 +247,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 test.describe('Memba OS keyboard and motion', () => {
     test.beforeEach(async ({ page }) => {
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
         await fulfillGovernance(page)
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 860 })

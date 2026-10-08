@@ -9,6 +9,10 @@ Memba is a Gno application for multisig coordination, DAO governance and communi
 
 Each site's public `build-info.json` identifies its deployed frontend version and commit; it does not establish the availability of every feature or its backing realm. Both sites served version 7.7.0 on 2026-09-26. The production beta build sets `VITE_MEMBA_OS` and the build-only `MEMBA_OS_BETA_SITE` marker; local development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. The classic production build excludes OS assets. The beta keeps the existing install ID `/` and starts at `/os`.
 
+## Dev Report candidate (2026-10-08)
+
+Dev Report adds a searchable public repository catalogue at `/mainnet/gnolove/repositories` and `/os/dev-report/repositories`, grouped by organisation. Overview starts with Gno core (`gnolang/gno`); all and custom scopes are explicit, shareable and restored by browser history. Enriched metrics depend on the gnolove registry backend; unavailable fields remain blank. Legacy package/vote activity is withheld until the index network and genesis are verified. This is candidate scope pending coordinated backend/frontend deployment.
+
 ## Network and availability
 
 The offered network is gno.land mainnet, chain ID `gnoland-1`. The testnet is Onyx, chain ID `onyx-1`: reachable at `/onyx/…` and as a build default, hidden from the selector until Memba publishes realms there. The Pearl, Sapphire and Topaz testnets and Betanet (`gnoland1`, a different chain from mainnet) are retired; their old routes (`/pearl/…`, `/sapphire/…`, `/topaz/…`, `/gnoland1/…`) redirect to the same page on mainnet. See [the capability registry](frontend/src/lib/config.ts) and [wave-one deployment records](realm-versions.json) when checking a shared community realm. The founding DAO's status is recorded separately in [weighted DAO documentation](docs/WEIGHTED_DAO.md).

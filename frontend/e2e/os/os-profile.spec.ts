@@ -12,7 +12,7 @@ const document = JSON.stringify({
 
 async function guest(page: Page) {
     await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, route => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, route => route.abort())
     await fulfillOnchainReads(page, ({ method, path, arg }) => {
         if (method === 'status') return mockAppChainStatus()
         if (method === 'abci_query' && path === 'vm/qeval' && arg.includes('ResolveName("nym-builder042")')) {

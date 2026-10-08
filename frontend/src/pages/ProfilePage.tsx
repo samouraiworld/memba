@@ -1,3 +1,4 @@
+import { GNOLOVE_ONCHAIN_DATA_ENABLED, GNOLOVE_ONCHAIN_UNAVAILABLE } from "../lib/gnoloveChainAvailability"
 import { useState, useEffect, useCallback } from "react"
 import { Link, useParams, useOutletContext, useSearchParams } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -397,8 +398,9 @@ export function ProfilePage() {
                                 </div>
                             )}
 
+                            {!GNOLOVE_ONCHAIN_DATA_ENABLED && <p role="status">{GNOLOVE_ONCHAIN_UNAVAILABLE}</p>}
                             {/* Deployed Packages */}
-                            {profile && profile.deployedPackages.length > 0 && (
+                            {GNOLOVE_ONCHAIN_DATA_ENABLED && profile && profile.deployedPackages.length > 0 && (
                                 <div className="k-card profile-packages-card">
                                     <h3 className="profile-section-title">📦 Deployed Packages ({profile.deployedPackages.length})</h3>
                                     <div className="profile-packages-list">
@@ -416,8 +418,8 @@ export function ProfilePage() {
                             )}
 
                             {/* Governance Votes */}
-                            {profile && isOwnProfile && <MyVotesSection address={address || ""} gnoloveVotes={profile.governanceVotes} />}
-                            {profile && !isOwnProfile && profile.governanceVotes.length > 0 && (
+                            {profile && isOwnProfile && <MyVotesSection address={address || ""} gnoloveVotes={GNOLOVE_ONCHAIN_DATA_ENABLED ? profile.governanceVotes : []} />}
+                            {GNOLOVE_ONCHAIN_DATA_ENABLED && profile && !isOwnProfile && profile.governanceVotes.length > 0 && (
                                 <div className="k-card profile-votes-card">
                                     <h3 className="profile-section-title">🗳️ Governance Votes ({profile.governanceVotes.length})</h3>
                                     <div className="profile-votes-list">
@@ -447,7 +449,7 @@ export function ProfilePage() {
                     </div>
                     <h3 className="profile-empty-title">No profile data yet</h3>
                     <p className="profile-empty-desc">
-                        This address has no registered username, GitHub activity, or on-chain deployments.
+                        No registered username or GitHub activity is available for this address.
                     </p>
                 </div>
             )}

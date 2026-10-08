@@ -42,6 +42,7 @@ export const ROUTE_META: RouteMetaEntry[] = [
     { pattern: /^\/quests(\/|$)/, title: "GnoBuilders Quests — Memba", description: "Earn on-chain XP and badges by building on gno.land — quests, ranks, and the GnoBuilders leaderboard." },
     { pattern: /^\/feed(\/|$)/, title: "Feed — Memba", description: "A global, on-chain social feed for the Memba community — post, reply, and discuss on gno.land." },
     { pattern: /^\/leaderboard(\/|$)/, title: "Leaderboard — Memba", description: "GnoBuilders leaderboard — top contributors on gno.land by on-chain XP." },
+    { pattern: /^\/gnolove\/repositories$/, title: "Repositories — Dev Report · Memba", description: "Public repositories tracked across the Gno ecosystem." },
     { pattern: /^\/gnolove(\/|$)/, title: "Gnolove — Memba", description: "Gno ecosystem analytics: contributions, teams, and community activity across gno.land." },
     { pattern: /^\/changelogs(\/|$)/, title: "Changelogs — Memba", description: "Every Memba release and gno.land ecosystem update, generated straight from the changelog." },
     { pattern: /^\/extensions(\/|$)/, title: "Extensions — Memba", description: "Extend Memba with ecosystem integrations and upcoming features for gno.land DAOs and wallets." },

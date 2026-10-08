@@ -7,6 +7,7 @@
  * See: gno.land/r/gnoland/users/v1, Gnolove API
  */
 
+import { GNOLOVE_ONCHAIN_DATA_ENABLED } from "./gnoloveChainAvailability"
 import { getExplorerBaseUrl } from "./config"
 import { resolveRegisteredUsername } from "./dao/shared"
 import { api } from "./api"
@@ -102,8 +103,8 @@ export async function fetchUserProfile(
     const [usernameResult, gnoloveResult, packagesResult, votesResult, backendResult] = await Promise.allSettled([
         resolveOnChainUsername(address),
         fetchGnoloveUser(gnoloveApiUrl, address),
-        fetchGnolovePackages(gnoloveApiUrl, address),
-        fetchGnoloveVotes(gnoloveApiUrl, address),
+        GNOLOVE_ONCHAIN_DATA_ENABLED ? fetchGnolovePackages(gnoloveApiUrl, address) : Promise.resolve([]),
+        GNOLOVE_ONCHAIN_DATA_ENABLED ? fetchGnoloveVotes(gnoloveApiUrl, address) : Promise.resolve([]),
         readBackendProfile(address),
     ])
     profile.bioSourcesRead = gnoloveResult.status === "fulfilled" && backendResult.status === "fulfilled"
@@ -190,7 +191,8 @@ async function fetchGnoloveUser(
         signal: AbortSignal.timeout(5000),
     })
     if (res.ok) return await res.json()
-    // Gnolove answers an address it does not know with this text (and status 500): that is an answer. Anything else is not.
+    // A missing Gnolove account is a definitive answer, including the legacy text response.
+    if (res.status === 404) return null
     if ((await res.text()).trim() === "record not found") return null
     throw new Error(`Gnolove did not answer for this address (${res.status}).`)
 }

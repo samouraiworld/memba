@@ -69,10 +69,10 @@ describe("parseHomeUrl", () => {
         expect(parseHomeUrl(new URLSearchParams("repos=")).repos).toEqual([])
     })
 
-    it("repos with >50 entries truncates", () => {
-        const huge = Array.from({ length: 80 }, (_, i) => `o/r${i}`).join(",")
+    it("repos with >200 entries truncates", () => {
+        const huge = Array.from({ length: 220 }, (_, i) => `o/r${i}`).join(",")
         const s = parseHomeUrl(new URLSearchParams(`repos=${huge}`))
-        expect(s.repos.length).toBe(50)
+        expect(s.repos.length).toBe(200)
     })
 
     it("page=5 parses to 5", () => {
@@ -136,5 +136,18 @@ describe("parse ∘ serialize round-trip", () => {
         }
         const round = parseHomeUrl(serializeHomeUrl(original))
         expect(round).toEqual(original)
+    })
+})
+
+
+describe("explicit repository scopes", () => {
+    it("keeps Gno core default and round-trips all", () => {
+        expect(parseHomeUrl(new URLSearchParams())).toEqual(DEFAULT_HOME_STATE)
+        expect(parseHomeUrl(serializeHomeUrl({ ...DEFAULT_HOME_STATE, scope: "all" })).scope).toBe("all")
+    })
+    it("preserves legacy custom URLs and all 59 IDs", () => {
+        const repos = Array.from({ length: 59 }, (_, i) => `org/repo${String(i).padStart(2, "0")}`)
+        expect(parseHomeUrl(serializeHomeUrl({ ...DEFAULT_HOME_STATE, repos })).repos).toEqual(repos)
+        expect(parseHomeUrl(new URLSearchParams("scope=all&repos=org/repo")).scope).toBeUndefined()
     })
 })
