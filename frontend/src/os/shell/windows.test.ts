@@ -24,6 +24,7 @@ describe("windowsReducer", () => {
     })
     it("opens games beside the Arcade lobby and gives BARRICADE the available desk", () => {
         const lobby = appSpec("arcade")
+        expect([lobby.width, lobby.height]).toEqual([1120, 760])
         const barricade = appSpec("arcade", "barricade")
         expect(lobby.key).toBe("app:arcade")
         expect(barricade.key).toBe("game:barricade")

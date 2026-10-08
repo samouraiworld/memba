@@ -64,6 +64,11 @@
 .memba-os .os-cin-panel h2 { font-size: 17px; font-weight: 600; }
 .memba-os .os-cin-panel p { margin: 0; color: var(--cin-ink-2); line-height: 1.6; }
 .memba-os .os-cin-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+/* the Block Party countdown, restyled for the dark storefront */
+.memba-os .os-cin-countdown .k-bp-next { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: var(--cin-ink-2); }
+.memba-os .os-cin-countdown .k-bp-next-clock { font-family: var(--cin-mono); color: var(--cin-ink); }
+.memba-os .os-cin-countdown .k-bp-next-label { color: var(--cin-muted); }
+.memba-os .os-cin-countdown .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 /* shell */
 .memba-os .os-cin-shell { display: flex; flex-direction: column; }
 .memba-os .os-cin-tabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 24px; padding: 12px 24px 0; border-bottom: 1px solid var(--cin-line); }

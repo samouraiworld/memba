@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type { ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 import ArcadeWindow from "./native"
 import { CommunityGames } from "./community"
@@ -10,39 +12,63 @@ vi.mock("../../../lib/config", async (original) => ({
     isSpaceInvadersEnabled: () => flags.space,
     isBarricadeEnabled: () => flags.barricade,
     isConnect4Live: () => flags.connect4,
+    isAppReviewsAvailable: () => false,
 }))
-const base = { query: undefined, close: () => {}, toast: () => {}, fallback: <p>existing game</p>, session: {} as never, openApp: () => {} }
+vi.mock("../store/ReviewsPanel", () => ({ ReviewsPanel: ({ subject }: { subject: string }) => <p>reviews of {subject}</p> }))
+vi.mock("./DailyTop", () => ({ DailyTop: () => <p>daily top</p> }))
+
+const session = { network: { key: "mainnet", chainId: "gnoland-1" }, status: "guest" } as never
+const base = { query: undefined, close: () => {}, toast: () => {}, fallback: <p>existing game</p>, session, openApp: () => {}, push: () => {}, active: true }
+const wrap = (ui: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>)
 
 describe("Arcade lobby", () => {
-    it("shows all games, their availability, and opens each existing route", () => {
+    it("shows every game as a capsule: details open its page, Play opens the game", () => {
         const open = vi.fn()
-        render(<ArcadeWindow {...base} section={null} open={open} />)
+        wrap(<ArcadeWindow {...base} section={null} open={open} />)
         expect(screen.getByRole("navigation", { name: "Arcade" })).toBeInTheDocument()
         expect(screen.getByText(/leaderboard is server-verified when Daily is live/)).toBeInTheDocument()
-        expect(screen.getByRole("button", { name: /Block Party/ })).toHaveTextContent("Play")
-        expect(screen.getByRole("button", { name: /Space Invaders/ })).toHaveTextContent("Unavailable")
-        expect(screen.getByRole("button", { name: /BARRICADE/ })).toHaveTextContent("Play")
-        fireEvent.click(screen.getByRole("button", { name: /BARRICADE/ }))
-        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "game:barricade", target: expect.objectContaining({ section: "barricade" }) }))
-        expect(screen.getByRole("button", { name: /Connect 4/ })).toHaveTextContent("Play")
-        fireEvent.click(screen.getByRole("button", { name: /Connect 4/ }))
-        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:connect4", title: "Connect 4 · Arcade", target: expect.objectContaining({ section: "connect4" }) }))
+        fireEvent.click(screen.getByRole("button", { name: "Details for BARRICADE" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "app:arcade", target: expect.objectContaining({ section: "g/barricade" }) }))
+        fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:barricade", target: expect.objectContaining({ section: "barricade" }) }))
+        fireEvent.click(screen.getByRole("button", { name: "Play Connect 4" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:connect4", title: "Connect 4 · Arcade" }))
+        // A game this build cannot run has no Play button; its page explains why.
+        expect(screen.queryByRole("button", { name: "Play Space Invaders" })).not.toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Details for Space Invaders" })).toBeInTheDocument()
+    })
+
+    it("features games in a carousel", () => {
+        wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
+        expect(screen.getByRole("region", { name: "Featured games" })).toBeInTheDocument()
     })
 
     it("states the limits of runs and the daily board", () => {
         const open = vi.fn()
-        const { rerender } = render(<ArcadeWindow {...base} section="runs" open={open} />)
+        const { rerender } = wrap(<ArcadeWindow {...base} section="runs" open={open} />)
         expect(screen.getByRole("heading", { name: "Your runs" })).toBeInTheDocument()
         expect(screen.getByRole("status")).toHaveTextContent("not a certified Arcade record")
-        rerender(<ArcadeWindow {...base} section="daily-board" open={open} />)
+        rerender(<QueryClientProvider client={new QueryClient()}><ArcadeWindow {...base} section="daily-board" open={open} /></QueryClientProvider>)
         expect(screen.getByRole("status")).toHaveTextContent("attestation is off")
         expect(screen.getByRole("status")).toHaveTextContent("Block Party has its own server-verified Daily leaderboard")
-        fireEvent.click(screen.getByRole("button", { name: /Space Invaders/ }))
-        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: expect.objectContaining({ section: "space-invaders" }) }))
+    })
+
+    it("opens a game page with its reviews, and plays from it", () => {
+        const open = vi.fn()
+        wrap(<ArcadeWindow {...base} section="g/barricade" open={open} />)
+        expect(screen.getByRole("heading", { level: 1, name: "BARRICADE" })).toBeInTheDocument()
+        expect(screen.getByText("reviews of gno.land/r/samcrew/barricade")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:barricade" }))
+    })
+
+    it("falls back for an unknown game page", () => {
+        wrap(<ArcadeWindow {...base} section="g/nope" open={vi.fn()} />)
+        expect(screen.getByText("existing game")).toBeInTheDocument()
     })
 
     it("links community games out of Memba with a disclaimer", () => {
-        render(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
+        wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
         expect(screen.getByRole("heading", { name: "From the community" })).toBeInTheDocument()
         const gnofly = screen.getByRole("link", { name: "Visit gnofly (opens in a new tab)" })
         expect(gnofly).toHaveAttribute("href", "https://gnofly.xyz/")
@@ -56,10 +82,5 @@ describe("Arcade lobby", () => {
     it("omits the community section when there are no community games", () => {
         const { container } = render(<CommunityGames games={[]} />)
         expect(container).toBeEmptyDOMElement()
-    })
-
-    it("keeps the existing game pages intact", () => {
-        render(<ArcadeWindow {...base} section="game" open={vi.fn()} />)
-        expect(screen.getByText("existing game")).toBeInTheDocument()
     })
 })
