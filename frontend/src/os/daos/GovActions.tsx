@@ -25,11 +25,15 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
     const dispute = p.target === BRIDGE_PATH && p.action === "escrow_v4.ResolveDispute" ? decodeGovAction(p.target, p.action, p.args)?.rows[0].value ?? null : null
     const parties = useDisputeParties(session.status === "member" ? dispute : null)
     const app = p.target === BRIDGE_PATH ? p.action.split(".")[0] : null
-    const governed = useGovernedApps(app !== null && p.status === "ready" && bridgePublished())
+    const governed = useGovernedApps(app !== null && OPEN.has(p.status) && bridgePublished())
     if (!OPEN.has(p.status)) return null
-    if (session.status !== "member") return <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
+    // memba_gov files a proposal for any app; only one the bridge governs can run. Everyone is told, members or not.
+    const governance = app === null ? null
+        : governed.isError ? <p className="os-note os-warn" role="status">Couldn't read whether Memba DAO governs {BRIDGE_APPS[app]?.label ?? app}, so Memba offers no execution for now.</p>
+            : governed.data?.[app] === false ? <p className="os-note os-warn" role="status">{notGovernedText(app)}</p> : null
+    if (session.status !== "member") return <>{governance}<button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button></>
     const me = roster.members.find((m) => m.address === session.address)
-    if (!me) return <p className="os-sub">Only seated members vote. An invited key joins first, from the Members tab.</p>
+    if (!me) return <>{governance}<p className="os-sub">Only seated members vote. An invited key joins first, from the Members tab.</p></>
     const voteLock = lock(govScope(session.address, `vote:${p.id}`), "vote")
     const execLock = lock(govScope(session.address, `execute:${p.id}`), "execution")
     const mine = p.ballots.find((b) => b.person === me.id)
@@ -38,10 +42,10 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
     const decoded = decodeGovAction(p.target, p.action, p.args)
     // Memba offers Execute only for what can run: a roster action, or an app action the bridge would accept as voted.
     const executable = decoded !== null && govNeverRuns(p, decoded) === null && (p.target === GOV_PATH || (bridgePublished() && bridgeCall(p.action, p.args) !== null && app !== null && governed.data?.[app] === true))
-    const ungoverned = app !== null && governed.data?.[app] === false
     return (
         <section className="os-stack os-tight">
             <h3 className="os-h">Your vote</h3>
+            {governance}
             {failed}
             {parties.data && (parties.data.client === session.address || parties.data.freelancer === session.address) && (
                 <p className="os-note os-warn" role="alert">
@@ -70,8 +74,7 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
                 </>)}
             {p.status === "ready" && (execLock || (executable
                 ? <button type="button" className="os-btn" disabled={quoting} onClick={() => start((s) => govExecuteRequest(s, p))}>{quoting ? "Reading the fee…" : "Execute…"}</button>
-                : ungoverned && app ? <p className="os-sub">{notGovernedText(app)}</p>
-                    : !decoded && <p className="os-sub">Ready: its target realm runs it when called, and checks this approval then.</p>))}
+                : !decoded && <p className="os-sub">Ready: its target realm runs it when called, and checks this approval then.</p>))}
         </section>
     )
 }

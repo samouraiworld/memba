@@ -7,7 +7,9 @@
  * @module os/shell/desk
  */
 import { OS_APPS } from "../apps"
-import { DEFAULT_NETWORK } from "../../lib/config"
+import { DEFAULT_NETWORK, isRealmValidOn } from "../../lib/config"
+import { GOV_PATH } from "../../lib/dao/govActions"
+import { nameForRealm } from "../daos/daoNames"
 import { isVisibleEvmNetworkKey } from "../../lib/chain/evm/networks"
 import { EVM_ENABLED } from "../../lib/chain/flag"
 import { parseOsPath, type OsTarget } from "./osPath"
@@ -142,7 +144,9 @@ const TYPES: readonly DeskItemType[] = ["app", "dao", "prop", "msig"]
 
 /** A guest's desk before any change: the featured gno.land items, none on an EVM network. */
 function guestDesk(networkKey: string): DeskItem[] {
-    return EVM_ENABLED && isVisibleEvmNetworkKey(networkKey) ? [] : FEATURED_DESK.map((i) => ({ ...i }))
+    if (EVM_ENABLED && isVisibleEvmNetworkKey(networkKey)) return []
+    // Memba DAO's icon opens memba_gov once its publication is recorded, as the DAOs app does.
+    return FEATURED_DESK.map((i) => (i.ref === "memba_dao" && isRealmValidOn(networkKey, GOV_PATH) ? { ...i, ref: nameForRealm(GOV_PATH)! } : { ...i }))
 }
 
 export function loadDesk(address: string | null, networkKey = DEFAULT_NETWORK): DeskItem[] {

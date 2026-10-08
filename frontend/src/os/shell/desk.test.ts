@@ -60,16 +60,24 @@ describe("desk items", () => {
     })
 })
 
+// The default network (mainnet) records memba_gov, so Memba DAO's featured icon opens it.
+const GUEST_DESK = FEATURED_DESK.map((i) => (i.ref === "memba_dao" ? { ...i, ref: "samcrew.memba_gov" } : i))
+
 describe("desk storage", () => {
     it("gives guests the featured desk and a new wallet an empty one", () => {
-        expect(loadDesk(null)).toEqual(FEATURED_DESK)
+        expect(loadDesk(null)).toEqual(GUEST_DESK)
         expect(loadDesk(ADDR)).toEqual([])
+    })
+
+    it("opens Memba DAO's icon on memba_gov where its publication is recorded, and on v12 elsewhere", () => {
+        expect(loadDesk(null, "mainnet").map((i) => i.ref)).toEqual(["govdao", "samcrew.memba_gov", "arcade"])
+        expect(loadDesk(null, "test13").map((i) => i.ref)).toEqual(["govdao", "memba_dao", "arcade"])
     })
 
     it("keeps one desk per wallet", () => {
         saveDesk(ADDR, [{ ty: "app", ref: "feed", c: 0, r: 0 }])
         expect(loadDesk(ADDR)).toHaveLength(1)
-        expect(loadDesk(null)).toEqual(FEATURED_DESK)
+        expect(loadDesk(null)).toEqual(GUEST_DESK)
         expect(localStorage.getItem(deskKey(ADDR))).toContain("feed")
     })
 

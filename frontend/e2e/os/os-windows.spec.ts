@@ -170,11 +170,12 @@ test.describe('Memba OS desktop items', () => {
     test('guests start from the featured desk; one click opens', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         await expect(item(page, 'dao:govdao')).toBeVisible()
-        await expect(item(page, 'dao:memba_dao')).toBeVisible()
+        // Mainnet records memba_gov, so the featured Memba DAO icon opens it.
+        await expect(item(page, 'dao:samcrew.memba_gov')).toBeVisible()
         await expect(item(page, 'app:arcade')).toBeVisible()
-        await item(page, 'dao:memba_dao').click()
-        await expect(win(page, 'memba_dao')).toBeVisible()
-        await expect.poll(() => path(page)).toBe('/os/dao/memba_dao')
+        await item(page, 'dao:samcrew.memba_gov').click()
+        await expect(win(page, 'samcrew.memba_gov')).toBeVisible()
+        await expect.poll(() => path(page)).toBe('/os/dao/samcrew.memba_gov')
     })
 
     test('pin from the start menu and the app menu, remove with right-click; it persists', async ({ page }) => {

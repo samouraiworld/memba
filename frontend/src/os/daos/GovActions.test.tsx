@@ -108,6 +108,25 @@ describe("executing a memba_gov proposal", () => {
         expect(screen.queryByRole("button", { name: "Execute…" })).toBeNull()
     })
 
+    it("says so while a proposal for an ungoverned app is still voting, to members and guests alike", async () => {
+        vi.mocked(readGovernedApps).mockResolvedValue({ ...Object.fromEntries(Object.keys(BRIDGE_APPS).map((app) => [app, true])), memba_market_config: false })
+        const voting = live(find("memba_market_config.SetFee"), { status: "voting" })
+        const view = show(<ProposalActions p={voting} roster={roster} session={member(ZX)} raw={false} />)
+        expect(await screen.findByText(/Memba DAO does not govern Market config now/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Vote YES…" })).toBeInTheDocument()
+        view.unmount()
+        show(<ProposalActions p={voting} roster={roster} session={guest} raw={false} />)
+        expect(await screen.findByText(/Memba DAO does not govern Market config now/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Connect to vote" })).toBeInTheDocument()
+    })
+
+    it("says when it cannot read whether the DAO governs the app, and offers no execution", async () => {
+        vi.mocked(readGovernedApps).mockRejectedValue(new Error("rpc down"))
+        show(<ProposalActions p={ready(find("memba_market_config.SetFee"))} roster={roster} session={member(ZX)} raw={false} />)
+        expect(await screen.findByText("Couldn't read whether Memba DAO governs Market config, so Memba offers no execution for now.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Execute…" })).toBeNull()
+    })
+
     it("offers no Execute for a proposal that can never run, nor for one its own realm executes", () => {
         const view = show(<ProposalActions p={ready({ ...find("memba_market_config.SetFee"), scope: "bogus" })} roster={roster} session={member(ZX)} raw={false} />)
         expect(screen.queryByRole("button", { name: "Execute…" })).toBeNull()
