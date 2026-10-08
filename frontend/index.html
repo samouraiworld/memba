@@ -89,12 +89,47 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/memba-icon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
+  <!-- Capture bearer links synchronously before any analytics or application script. -->
+  <script id="notes-link-bootstrap">
+    (function () {
+      var path = location.pathname, secret = null;
+      if (!/\/os\/notes\/[0-9a-f]{32}\/?$/.test(path) || !location.hash.startsWith('#k=')) return;
+      if (/^#k=[A-Za-z0-9_-]{48}$/.test(location.hash)) {
+        try {
+          secret = Uint8Array.from(atob(location.hash.slice(3).replace(/-/g, '+').replace(/_/g, '/')), function (c) { return c.charCodeAt(0) });
+        } catch (_) { secret = null; }
+      }
+      function clear() { if (secret) secret.fill(0); secret = null; }
+      try { history.replaceState(history.state, '', path + location.search); }
+      catch (_) { clear(); }
+      var expiry = setTimeout(clear, 300000);
+      addEventListener('pagehide', clear, { once: true });
+      addEventListener('popstate', clear);
+      ['pushState', 'replaceState'].forEach(function (method) {
+        var original = history[method];
+        history[method] = function () {
+          var result = original.apply(this, arguments);
+          if (location.pathname !== path) clear();
+          return result;
+        };
+      });
+      Object.defineProperty(window, '__membaClearNotesLink', { value: clear });
+      Object.defineProperty(window, '__membaNotesLink', { value: function (expectedPath) {
+        if (expectedPath !== path || location.pathname !== path || !secret) { clear(); return null; }
+        var bytes = secret.slice(); clear(); clearTimeout(expiry); return bytes;
+      } });
+    })();
+  </script>
+
   <!-- Privacy-friendly analytics by Plausible -->
   <script>
     window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
     // Meeting codes grant access. Strip them from pageviews, referrers and event properties.
     function redactMeetAnalytics(value) {
-      if (typeof value === 'string') return value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[redacted]')
+      if (typeof value === 'string') return value
+        .replace(/(?:#|%23)k(?:=|%3d)[A-Za-z0-9_%=-]*/gi, '[redacted]')
+        .replace(/\/os\/notes(?:\/[^\s?#"'<>]*)?(?:[?#][^\s"'<>]*)?/gi, '/os/notes/[redacted]')
+        .replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[redacted]')
       if (value && typeof value === 'object') Object.keys(value).forEach(function(key) { value[key] = redactMeetAnalytics(value[key]) })
       return value
     }

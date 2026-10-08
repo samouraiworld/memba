@@ -1,6 +1,8 @@
 import type { Breadcrumb, Event } from '@sentry/react'
 
 function redactText(value: string): string {
+    value = value.replace(/(?:#|%23)k(?:=|%3d)[A-Za-z0-9_%=-]*/gi, '[REDACTED_NOTE_KEY]')
+    value = value.replace(/\/os\/notes(?:\/[^\s?#"'<>]*)?(?:[?#][^\s"'<>]*)?/gi, '/os/notes/[REDACTED]')
     value = value.replace(/g1[a-z0-9]{38}/gi, '[REDACTED_ADDRESS]')
     // Visio room slugs grant access, including when they appear in OS URLs,
     // saved-window query tokens, referrers or an outbound Visio link.

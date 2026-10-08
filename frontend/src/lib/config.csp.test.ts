@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { NETWORKS } from './config'
@@ -14,6 +15,35 @@ import { EVM_NETWORKS } from './chain/evm/networks'
 // future network (e.g. the test13 cutover) adds an unlisted RPC host.
 const here = dirname(fileURLToPath(import.meta.url))
 const netlifyToml = readFileSync(resolve(here, '../../../netlify.toml'), 'utf8')
+
+// Hash actual script text, including whitespace: VM execution alone cannot prove
+// that the production browser's CSP allows privacy bootstrap or analytics code.
+describe('production CSP permits executable inline entry scripts', () => {
+    it('authorizes every executable inline script by its exact SHA-256', () => {
+        const html = readFileSync(resolve(here, '../../index.html'), 'utf8')
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        const scripts = [...document.querySelectorAll('script:not([src])')].filter(script => {
+            const type = (script.getAttribute('type') ?? '').trim().toLowerCase()
+            return !type || type === 'module' || /^(?:text|application)\/(?:x-)?(?:java|ecma)script(?:1\.[0-5])?$/.test(type)
+                || type === 'text/jscript' || type === 'text/livescript'
+        })
+        expect(scripts.length).toBeGreaterThan(0)
+        const csp = netlifyToml.match(/Content-Security-Policy\s*=\s*"([^"]*)"/)?.[1]
+        const scriptSrc = csp?.split(';').map(value => value.trim()).find(value => value.startsWith('script-src '))?.split(/\s+/).slice(1)
+        expect(scriptSrc).toBeDefined()
+        expect(scriptSrc).not.toContain("'unsafe-inline'")
+        const requiredHashes: string[] = []
+        for (const script of scripts) {
+            const hash = createHash('sha256').update(script.textContent ?? '', 'utf8').digest('base64')
+            const source = `'sha256-${hash}'`
+            requiredHashes.push(source)
+            expect(scriptSrc, `CSP blocks inline script ${script.id || '(unnamed)'}: sha256-${hash}`).toContain(source)
+        }
+        // This entrypoint is the only page with inline JS: do not retain stale
+        // permissions after replacing a script, or silently weaken the policy.
+        expect(scriptSrc?.filter(source => /^'sha(?:256|384|512)-/.test(source)).sort()).toEqual([...new Set(requiredHashes)].sort())
+    })
+})
 
 function connectSrcSources(toml: string): string[] {
     const csp = toml.match(/Content-Security-Policy\s*=\s*"([^"]*)"/)?.[1]
