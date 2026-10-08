@@ -32,8 +32,9 @@ func (h *handler) export(w http.ResponseWriter, r *http.Request, a Account) {
 
 // delete removes the Resend contact of every address the account ever gave
 // first: if one fails, Memba deletes nothing and the person can try again.
-// The rows go with the account (cascade); then the contacts are deleted once
-// more, in case a confirmation landed in between and re-created one.
+// The account operation guard keeps this address set stable through provider
+// I/O and the final cascade. On failure, every local cleanup reference stays
+// available for a retry, including after a process restart.
 func (h *handler) delete(w http.ResponseWriter, r *http.Request, a Account) {
 	emails, err := addresses(r.Context(), h.db, a)
 	if err != nil {
@@ -50,9 +51,6 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request, a Account) {
 	if err := Delete(r.Context(), h.db, a.ID); err != nil {
 		h.fail(w, "delete", err)
 		return
-	}
-	for _, email := range emails {
-		h.dropContact(r.Context(), email)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -221,12 +219,26 @@ func (h *handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b := boundRequest{ID: id}
-	var accountEmail string
+	var accountEmail, subject string
 	var confirmed, withdrawn, undeliverable sql.NullString
-	err = h.db.QueryRowContext(ctx, `SELECT c.account_id, c.topic, c.email, c.requested_at, c.confirmed_at, c.withdrawn_at, COALESCE(a.email, ''), a.email_undeliverable_at
+	load := func() error {
+		return h.db.QueryRowContext(ctx, `SELECT c.account_id, c.topic, c.email, c.requested_at, c.confirmed_at, c.withdrawn_at, COALESCE(a.email, ''), a.email_undeliverable_at, a.idp_subject
 		FROM consents c JOIN accounts a ON a.id = c.account_id WHERE c.id = ?`, id).
-		Scan(&b.AccountID, &b.Topic, &b.Email, &b.RequestedAt, &confirmed, &withdrawn, &accountEmail, &undeliverable)
-	if err != nil || !b.issuedFor(h.linkSecret, mac) || expired(b.RequestedAt, now) {
+			Scan(&b.AccountID, &b.Topic, &b.Email, &b.RequestedAt, &confirmed, &withdrawn, &accountEmail, &undeliverable, &subject)
+	}
+	// Authenticate the link before reserving a subject's operation slot.
+	if load() != nil || !b.issuedFor(h.linkSecret, mac) || expired(b.RequestedAt, now) {
+		invalid()
+		return
+	}
+	release, ok := beginOperation(w, subject)
+	if !ok {
+		return
+	}
+	defer release()
+	// Another operation may have completed between the first read and the
+	// reservation. Never authorize provider changes from that old snapshot.
+	if load() != nil || !b.issuedFor(h.linkSecret, mac) || expired(b.RequestedAt, h.now()) {
 		invalid()
 		return
 	}

@@ -165,7 +165,7 @@ func TestAConfirmDuringOptOutCannotKeepTheProviderSubscribed(t *testing.T) {
 	f.fake.mu.Lock()
 	f.fake.contacts["ada@example.org"] = map[string]string{"top_news": "opt_out"}
 	f.fake.afterTopicPatch = func() {
-		if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusOK {
+		if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusConflict {
 			t.Errorf("concurrent confirmation: %d", rec.Code)
 		}
 	}
@@ -498,7 +498,7 @@ func TestAConfirmInTheAddressChangeWindowLeavesNoContact(t *testing.T) {
 	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("newsletter"))
 	link := lastLink(t, f.fake)
 	f.fake.afterDelete = func() {
-		if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusOK {
+		if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusConflict {
 			t.Errorf("confirm in the window: %d", rec.Code)
 		}
 	}

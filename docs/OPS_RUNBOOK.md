@@ -157,6 +157,8 @@ deliberately carries no game flags).
 
 **Optional account migrations:** deploying the account backend applies `038_accounts.sql`, `039_consents.sql` and `040_webhook_events.sql` at startup even with `MEMBA_ACCOUNT_ENABLED` off. The existing EVM migrations `038_siwe_used_nonces.sql` and `039_evm_safes.sql` keep their names: `_migrations` identifies each migration by its full filename, not its numeric prefix. On an existing deployment, EVM files are already recorded and only the new account files run in filename order. Do not rename these files after application: the consents migration adds a column and must not run twice. Obtain migration approval and verify a recoverable backup before deploying. The account kill switch closes its routes without removing account data or schema; an application rollback must keep the migration ledger intact.
 
+**Account lifecycle concurrency:** the current single backend process on its local SQLite volume serializes authenticated account calls and consent confirmations per identity-provider subject, including their Resend I/O and compensation. Concurrent calls return 409 with `Retry-After: 1`, without waiting on a database write lock. This prevents email changes or confirmations from escaping a deletion/withdrawal's address set. Deletion keeps the account and consent rows until every provider contact removal succeeds, so partial cleanup can be retried after failure or restart. The guard is process-local: **introduce shared coordination before running multiple backend processes that serve the same accounts**, and verify the single-process deployment before enabling this feature.
+
 ### 3.2 SLO (operational definition of "broken")
 
 | Signal | Target | Source |

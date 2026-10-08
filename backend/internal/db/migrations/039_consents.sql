@@ -21,4 +21,3 @@ CREATE INDEX IF NOT EXISTS idx_consents_email ON consents (email);
 -- When the account's stored address last changed: a session issued before it
 -- (still valid for a minute) must not change the address back.
 ALTER TABLE accounts ADD COLUMN email_changed_at TEXT;
-

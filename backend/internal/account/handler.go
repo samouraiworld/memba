@@ -111,6 +111,13 @@ func (h *handler) authed(next func(http.ResponseWriter, *http.Request, Account))
 			writeError(w, http.StatusUnauthorized, "sign-in required")
 			return
 		}
+		// Reads also synchronize verified email, so they participate in the
+		// same operation as topic writes, deletion and link confirmation.
+		release, ok := beginOperation(w, claims.Subject)
+		if !ok {
+			return
+		}
+		defer release()
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 		a, err := Ensure(ctx, h.db, claims.Subject, h.now())
