@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { GAME_REVIEW_SUBJECTS } from "../../../lib/reviewSubjects"
 import ArcadeWindow from "./native"
 import { CommunityGames } from "./community"
 
 const flags = vi.hoisted(() => ({ block: true, space: false, barricade: true, connect4: true }))
+const summaries = vi.hoisted(() => ({ map: new Map<string, unknown>() }))
 vi.mock("../../../lib/config", async (original) => ({
     ...(await original<typeof import("../../../lib/config")>()),
     isGameEnabled: () => flags.block,
@@ -13,6 +15,10 @@ vi.mock("../../../lib/config", async (original) => ({
     isBarricadeEnabled: () => flags.barricade,
     isConnect4Live: () => flags.connect4,
     isAppReviewsAvailable: () => false,
+}))
+vi.mock("../../kit/storefront", async (original) => ({
+    ...(await original<typeof import("../../kit/storefront")>()),
+    useReviewSummaries: () => summaries.map,
 }))
 vi.mock("../store/ReviewsPanel", () => ({ ReviewsPanel: ({ subject }: { subject: string }) => <p>reviews of {subject}</p> }))
 vi.mock("./DailyTop", () => ({ DailyTop: () => <p>daily top</p> }))
@@ -22,6 +28,8 @@ const base = { query: undefined, close: () => {}, toast: () => {}, fallback: <p>
 const wrap = (ui: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>)
 
 describe("Arcade lobby", () => {
+    beforeEach(() => { summaries.map = new Map() })
+
     it("shows every game as a capsule: details open its page, Play opens the game", () => {
         const open = vi.fn()
         wrap(<ArcadeWindow {...base} section={null} open={open} />)
@@ -41,6 +49,25 @@ describe("Arcade lobby", () => {
     it("features games in a carousel", () => {
         wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
         expect(screen.getByRole("region", { name: "Featured games" })).toBeInTheDocument()
+    })
+
+    it("lists only games with enough ratings under Top rated, best first", () => {
+        summaries.map = new Map([
+            [GAME_REVIEW_SUBJECTS.barricade, { count: 3, sum: 12, average: 4 }],
+            [GAME_REVIEW_SUBJECTS["block-party"], { count: 5, sum: 24, average: 4.8 }],
+            [GAME_REVIEW_SUBJECTS["space-invaders"], { count: 2, sum: 10, average: 5 }],
+        ])
+        wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
+        expect(screen.getByRole("heading", { name: "Top rated by the community" })).toBeInTheDocument()
+        const shelf = within(screen.getByRole("region", { name: "Top rated by the community" }))
+        const names = shelf.getAllByRole("button", { name: /^Details for / }).map((button) => button.getAttribute("aria-label"))
+        expect(names).toEqual(["Details for Block Party", "Details for BARRICADE"])
+        expect(shelf.queryByRole("button", { name: "Details for Space Invaders" })).not.toBeInTheDocument()
+    })
+
+    it("has no Top rated shelf while nothing is rated", () => {
+        wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
+        expect(screen.queryByRole("heading", { name: "Top rated by the community" })).not.toBeInTheDocument()
     })
 
     it("states the limits of runs and the daily board", () => {

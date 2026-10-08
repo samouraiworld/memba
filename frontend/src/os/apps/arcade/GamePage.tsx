@@ -39,6 +39,6 @@ export function GamePage({ game, session, open }: { game: ArcadeGame } & Pick<Na
             </div>
             <div className="os-cin-panel"><InfoRows rows={game.info} /></div>
             {game.dailyBoard && enabled && <DailyTop onOpen={play} />}
-            <p className="os-cin-sub" role="note">A combined daily leaderboard and on-chain Arcade attestation are unavailable while Arcade attestation is off.</p>
+            {game.daily && <p className="os-cin-sub" role="note">A combined daily leaderboard and on-chain Arcade attestation are unavailable while Arcade attestation is off.</p>}
         </>} />
 }

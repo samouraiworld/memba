@@ -36,6 +36,13 @@ describe("windowsReducer", () => {
         expect(urlForWindow(s.wins[1])).toBe("/os/arcade/barricade")
     })
 
+    it("sizes Arcade game pages like the lobby and leaves the games at page size", () => {
+        const page = appSpec("arcade", "g/barricade")
+        expect([page.key, page.width, page.height]).toEqual(["app:arcade", 1120, 760])
+        expect([appSpec("arcade", "game").width, appSpec("arcade", "game").height]).toEqual([960, 660])
+        expect([appSpec("arcade", "connect4").width, appSpec("arcade", "connect4").height]).toEqual([960, 660])
+    })
+
     it("opens About once as a linkable system window", () => {
         const spec = specForTarget({ kind: "about" })!
         expect(spec).toMatchObject({ key: "about", title: "About Memba OS", app: null })

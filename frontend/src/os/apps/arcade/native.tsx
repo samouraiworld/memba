@@ -17,6 +17,12 @@ const sections = [
     { id: "daily-board", name: "Daily board", icon: "chart" },
 ] as const
 
+/** Text up to and including the first sentence end; never ends in "..". */
+const firstSentence = (text: string) => {
+    const end = text.indexOf(". ")
+    return (end < 0 ? text : text.slice(0, end + 1)).replace(/\.{2,}$/, ".")
+}
+
 export default function ArcadeWindow({ section, open, fallback, session, active }: NativeViewProps) {
     const go = (next: string | null) => open(specForTarget({ kind: "app", app: "arcade", section: next })!)
     const summaries = useReviewSummaries(session.network.chainId, ARCADE_GAMES.map((game) => game.reviewSubject))
@@ -37,7 +43,7 @@ export default function ArcadeWindow({ section, open, fallback, session, active 
     const slides: HeroSlide[] = ARCADE_GAMES.filter((game) => game.featured).map((game) => {
         const media = resolveMedia(game.id, null, game.id)
         return {
-            id: game.id, kicker: `Featured · ${game.tags.join(" · ")}`, title: game.name, pitch: game.description.split(". ")[0] + ".",
+            id: game.id, kicker: `Featured · ${game.tags.join(" · ")}`, title: game.name, pitch: firstSentence(game.description),
             cover: media.cover, accent: media.accent, tags: game.tags,
             primary: game.enabled() ? { label: "Play now", onClick: () => go(game.section) } : { label: "Details", onClick: () => go(gameSection(game)) },
             secondary: game.enabled() ? { label: "Details", onClick: () => go(gameSection(game)) } : undefined,
