@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### One Adena connection per page (2026-10-08)
+- Wallet: Memba keeps one Adena connection per page instead of one per window, so opening apps no longer queues extra Adena reads, and a network switch shows the new network at once instead of waiting for Adena's event (or looking stuck).
+
 ### Faster Adena signatures and activation (2026-10-08)
 - Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.
 - An address that has never sent a transaction goes straight to activation, without the login popup that could only fail. After activation, Memba waits for the network to record the key before it opens the login step, and a required activation finishes without reloading the page.
