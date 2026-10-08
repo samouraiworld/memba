@@ -20,7 +20,7 @@ export function LockScreen({ onConnect, onGuest, onWake, resuming = false }: { o
     return (
         <div className="os-lock" role="dialog" aria-modal="true" aria-label="Welcome to Memba" onKeyDown={onKeyDown}>
             <div>
-                <MembaMark className="os-mark os-mark-lg" />
+                <span className="os-intro-mark"><MembaMark className="os-mark os-mark-lg" faceted /></span>
                 <div className="os-lock-clock">{time}</div>
                 <div className="os-lock-tag">Memba — your desk on gno.land</div>
                 <div className="os-lock-date">{date}</div>
