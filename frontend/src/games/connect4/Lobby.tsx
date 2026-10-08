@@ -36,9 +36,12 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
     // Re-read on the QuickPlay panel's query (start, end, opt-out), not on every tick.
     useQuery({ queryKey: ["quickplay", me], queryFn: () => quickPlayStatus(me), enabled: false })
     const bundles = connected && !!me && !signEachMove() && !hasLocalSession(me)
+    const qpBudget = (stakeUgnot: number) => rawUgnot === undefined ? null : quickPlayBudget(rawUgnot, stakeUgnot)
+    // The action must follow the consent shown for this stake, including its low-budget note.
+    const quickPlayFor = (stakeUgnot: number) => withQp && (qpBudget(stakeUgnot) ?? MIN_QP_BUDGET) >= MIN_QP_BUDGET
     const consent = (stakeUgnot: number) => {
         if (!bundles) return null
-        const budget = rawUgnot === undefined ? null : quickPlayBudget(rawUgnot, stakeUgnot)
+        const budget = qpBudget(stakeUgnot)
         if (budget !== null && budget < MIN_QP_BUDGET) return <p className="os-sub">Not enough GNOT left after the stake for Quick play — your wallet will sign each move.</p>
         return <label className="c4-qp-consent"><input type="checkbox" checked={withQp} onChange={(e) => setWithQp(e.target.checked)} />
             <span>+ Quick play {QUICKPLAY_LABEL[quickPlayDuration()]}, up to {budget === null ? "5 GNOT" : formatGnot(budget)}/day of gas — moves in your live games sign without a popup</span></label>
@@ -66,7 +69,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
         && (opponent === "" || /^g1[02-9ac-hj-np-z]{38}$/.test(opponent))
 
     const post = (maxFeeUgnot: number) => tx.run(async () => {
-        const commitment = await offer(me, { stakeUgnot, validFor: minutes, opponent, maxFeeUgnot }, broadcast, withQp)
+        const commitment = await offer(me, { stakeUgnot, validFor: minutes, opponent, maxFeeUgnot }, broadcast, quickPlayFor(stakeUgnot))
         // ponytail: finds the new game in the first 100 active games; page if the lobby ever grows past that.
         for (let i = 0; i < 10; i++) {
             if (!alive.current) return
@@ -120,7 +123,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
                                     </div>
                                     <div className="os-sub">by {who(g.creator)}</div>
                                     <div className="os-row c4-offer-actions">
-                                        {g.creator !== me && <button type="button" className="os-btn c4-cta" disabled={tx.pending || !canAccept(g)} onClick={() => tx.run(async () => { await accept(me, g, broadcast, withQp); onOpen(g.id) })}>Accept</button>}
+                                        {g.creator !== me && <button type="button" className="os-btn c4-cta" disabled={tx.pending || !canAccept(g)} onClick={() => tx.run(async () => { await accept(me, g, broadcast, quickPlayFor(g.stake)); onOpen(g.id) })}>Accept</button>}
                                         {canCancel(g) && <button type="button" className="os-btn os-quiet" disabled={tx.pending} onClick={() => tx.run(() => cancel(me, g.id, broadcast))}>Cancel</button>}
                                         <button type="button" className="os-btn os-quiet" aria-label={`Open game #${g.id}`} onClick={() => onOpen(g.id)}>Open</button>
                                     </div>
