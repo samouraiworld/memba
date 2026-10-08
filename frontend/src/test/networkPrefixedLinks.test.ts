@@ -13,7 +13,8 @@ import { dirname, join, relative } from "node:path"
 const src = join(dirname(fileURLToPath(import.meta.url)), "..")
 
 /** Static files served at the site root, not app routes. */
-const ROOT_ASSETS = new Set(["/blog.rss"])
+// The lab is a separately built HTML document with its own fixed worker scope.
+const ROOT_ASSETS = new Set(["/blog.rss", "/labs/gnotif/"])
 
 /** Tags whose to/href is used verbatim. Wrappers such as SidebarLink add the
  *  network prefix themselves and are not listed. */
@@ -57,6 +58,8 @@ describe("network-prefixed links", () => {
         expect(bareLinks("<a href={`/${network}/profile/${a}`}>x</a>")).toEqual([])
         expect(bareLinks('<SidebarLink to="/quest-admin" />')).toEqual([])
         expect(bareLinks('<a href="/blog.rss">rss</a>')).toEqual([])
+        expect(bareLinks('<a href="/labs/gnotif/">notification test</a>')).toEqual([])
+        expect(bareLinks('<a href="/labs/gnotif/other">other</a>')).toEqual(["1: /labs/gnotif/other"])
         expect(bareLinks(' *   <a href="/r/samcrew/memba_dao">doc example</a>')).toEqual([])
     })
 
