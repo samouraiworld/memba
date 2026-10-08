@@ -389,21 +389,21 @@ export async function ensureMonitoringUser(token: string, name: string, email: s
     }
 }
 
-/**
- * Deletes the signed-in person's gnomonitoring user and, with it, their
- * webhooks, alert contacts and daily report. True when nothing is left
- * (deleted, never provisioned, or no monitoring configured).
- */
-export async function deleteMonitoringUser(token: string): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return true
+/** Erases monitoring's user data and records its durable denial marker.
+ * Only the dedicated endpoint's 204 proves completion (including an absent
+ * user). DELETE /users merely resets alerts; 404 never proves erasure. */
+export async function eraseMonitoringUser(token: string): Promise<MutationResult> {
+    if (!GNO_MONITORING_API_URL) return { ok: false, error: "Monitoring account erasure is not configured. Try again after the service is available." }
     try {
-        const res = await fetch(`${GNO_MONITORING_API_URL}/users`, {
-            method: "DELETE",
+        const res = await fetch(`${GNO_MONITORING_API_URL}/users/erase`, {
+            method: "POST",
             headers: { Authorization: `Bearer ${token}` },
             signal: AbortSignal.timeout(8000),
         })
-        return res.ok || res.status === 404
+        if (res.status === 204) return { ok: true }
+        if (res.status === 404) return { ok: false, error: "Monitoring account erasure is unavailable. Your sign-in account has not been deleted. Try again after the service is available." }
+        return { ok: false, error: `Monitoring account erasure was not confirmed (HTTP ${res.status}). Try again.` }
     } catch {
-        return false
+        return { ok: false, error: "Monitoring account erasure could not be confirmed. Check your connection and try again." }
     }
 }

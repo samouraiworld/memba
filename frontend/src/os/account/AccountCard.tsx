@@ -2,9 +2,8 @@
  * Settings → Account: the optional Memba account. Sign in, the address Memba
  * uses, the email topics (each confirmed by email first), the data download,
  * and deletion, which goes step by step: Memba's data (and the email
- * provider's contacts), the validator alerts at gnomonitoring, then the
- * sign-in account itself. Memba's data must go first, and nothing reads the
- * account after it (a read would create it again).
+ * provider's contacts), the complete monitoring user data, then the sign-in
+ * account itself. Memba's data goes first; reads stay paused during cleanup.
  *
  * @module os/account/AccountCard
  */
@@ -12,7 +11,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { accountApi, EARLY_ACCESS_APPS, TOPICS, type EarlyAccessApp, type TopicState } from "../../lib/accountApi"
 import { ACCOUNT_ENABLED } from "../../lib/config"
-import { deleteMonitoringUser } from "../../lib/monitoringAuth"
+import { eraseMonitoringUser } from "../../lib/monitoringAuth"
 import { setDeletion, useDeletion, getDeletion, beginDeletion, type DeleteStep } from "./deletion"
 import { PrivacyLink } from "./EarlyAccess"
 import { requireDeletionCoordination, withDeletionLock } from "../../account/operations"
@@ -82,8 +81,13 @@ export function AccountCard() {
                         return t
                     }
                     if (step === "memba") { await accountApi.remove(await token()); step = "alerts"; setDeletion({ userId, step, running: true }) }
-                    if (step === "alerts") {
-                        if (!await deleteMonitoringUser(await token())) throw new Error("Validator alerts could not be deleted. Try again.")
+                    // Reconfirm erasure even when resuming the identity step: older
+                    // browser progress could have recorded only an alert reset.
+                    if (step === "alerts" || step === "identity") {
+                        step = "alerts"
+                        setDeletion({ userId, step, running: true })
+                        const result = await eraseMonitoringUser(await token())
+                        if (!result.ok) throw new Error(result.error || "Monitoring account erasure was not confirmed. Try again.")
                         step = "identity"
                         setDeletion({ userId, step, running: true })
                     }
@@ -152,7 +156,7 @@ export function AccountCard() {
         <h4>Delete my account</h4>
         {deleteError && <p role="alert">{deleteError}</p>}
         {asking === account.user.id ? <>
-            <p>This deletes your Memba email and consent history, your validator alerts, and your sign-in account. Memba keeps a pseudonymized deletion marker to reject old sign-in tokens. It cannot be undone. Your wallet and everything on chain are not affected.</p>
+            <p>This deletes your Memba email and consent history, your monitoring account and validator alerts, and your sign-in account. Memba and its monitoring service each keep a pseudonymized deletion marker to reject old sign-in tokens. It cannot be undone. Your wallet and everything on chain are not affected.</p>
             <div className="os-row">
                 <button type="button" className="os-btn" onClick={() => { void runDelete("memba") }}>Delete permanently</button>
                 <button type="button" className="os-btn os-quiet" onClick={() => setAsking(null)}>Cancel</button>

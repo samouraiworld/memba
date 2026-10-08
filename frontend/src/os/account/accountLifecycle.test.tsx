@@ -20,7 +20,7 @@ it("never dispatches a row read whose token arrives after deletion", async () =>
         const path = new URL(String(url), "https://test.invalid").pathname
         events.push(`${init?.method ?? "GET"} ${path}`)
         if (path.endsWith("/delete")) return new Response(null, { status: 204 })
-        if (path === "/users") return new Response(null, { status: 204 })
+        if (path === "/users/erase") return new Response(null, { status: 204 })
         return Response.json(path.endsWith("/topics") ? [] : { id: "account-A", email: user.email, createdAt: "2026-10-08" })
     }))
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -117,7 +117,7 @@ it("stops the deletion sequence at its original subject when identity changes du
         backendDelete.resolve(new Response(null, { status: 204 }))
     })
     await waitFor(() => expect(localStorage.getItem(`memba_account_deletion:${user.id}`)).toContain('"step":"alerts"'))
-    expect(events).not.toContain("DELETE /users")
+    expect(events).not.toContain("POST /users/erase")
     expect(deleteUser).not.toHaveBeenCalled()
 })
 
@@ -142,7 +142,7 @@ it("pauses reads on a server deletion marker and resumes cleanup only on a manua
     vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) => {
         const path = new URL(String(url), "https://test.invalid").pathname
         events.push(`${init?.method ?? "GET"} ${path}`)
-        if (path.endsWith("/delete") || path === "/users") return new Response(null, { status: 204 })
+        if (path.endsWith("/delete") || path === "/users/erase") return new Response(null, { status: 204 })
         return Response.json({ code: "account_deleted", error: "This Memba account was deleted." }, { status: 410 })
     }))
     const client = new QueryClient()
@@ -154,7 +154,7 @@ it("pauses reads on a server deletion marker and resumes cleanup only on a manua
     expect(events).toEqual(["GET /api/account"])
     fireEvent.click(screen.getByRole("button", { name: "Try again" }))
     await screen.findByText(/Your account is deleted/)
-    expect(events).toEqual(["GET /api/account", "POST /api/account/delete", "DELETE /users"])
+    expect(events).toEqual(["GET /api/account", "POST /api/account/delete", "POST /users/erase"])
     expect(deleteUser).toHaveBeenCalledWith(user.id)
 })
 
@@ -165,4 +165,69 @@ it("does not confuse an expired confirmation link with a deleted account", async
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: "Link expired" }, { status: 410 })))
     await expect(accountRequest({ ...SIGNED_OUT, user, getToken: async () => "token-A" }, t => accountApi.get(t))).rejects.toThrow(/Link expired/)
     expect(getDeletion(user.id)).toBeNull()
+})
+
+it.each([404, 500])("keeps monitoring erasure retryable after HTTP %i and never deletes Clerk prematurely", async status => {
+    const events: string[] = []
+    const deleteUser = vi.fn(async () => { events.push("Clerk delete") })
+    let monitoringStatus = status
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const path = new URL(String(url), "https://test.invalid").pathname
+        events.push(`${init?.method ?? "GET"} ${path}`)
+        if (path.endsWith("/delete")) return new Response(null, { status: 204 })
+        if (path === "/users/erase") return new Response(null, { status: monitoringStatus })
+        return Response.json(path.endsWith("/topics") ? [] : { id: "account-A", email: user.email, createdAt: "2026-10-08" })
+    }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const ui = <QueryClientProvider client={client}><MemoryRouter><AccountContext.Provider value={{ ...SIGNED_OUT, available: true, status: "ready", user, getToken: async () => "token-A", deleteUser }}><AccountCard /></AccountContext.Provider></MemoryRouter></QueryClientProvider>
+    const view = render(ui)
+    await screen.findByText(user.email)
+    events.length = 0
+    fireEvent.click(screen.getByRole("button", { name: "Delete my account…" }))
+    fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }))
+    const alert = await screen.findByRole("alert")
+    if (status === 404) expect(alert).toHaveTextContent("Monitoring account erasure is unavailable")
+    expect(events).toEqual(["POST /api/account/delete", "POST /users/erase"])
+    expect(deleteUser).not.toHaveBeenCalled()
+    expect(localStorage.getItem(`memba_account_deletion:${user.id}`)).toContain('"step":"alerts"')
+    // A remount still pauses account reads; only a manual retry proceeds.
+    view.unmount()
+    render(ui)
+    await screen.findByRole("button", { name: "Try again" })
+    expect(events).toHaveLength(2)
+    monitoringStatus = 204
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+    await screen.findByText(/Your account is deleted/)
+    expect(events).toEqual(["POST /api/account/delete", "POST /users/erase", "POST /users/erase", "Clerk delete"])
+    expect(deleteUser).toHaveBeenCalledWith(user.id)
+})
+
+it("reconfirms durable monitoring erasure before retrying Clerk from saved identity progress", async () => {
+    const { setDeletion } = await import("./deletion")
+    setDeletion({ userId: user.id, step: "identity", running: false })
+    const events: string[] = []
+    let monitoringStatus = 404
+    let identityAttempts = 0
+    const deleteUser = vi.fn(async () => {
+        events.push("Clerk delete")
+        if (++identityAttempts === 1) throw new Error("Sign-in service unavailable")
+    })
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) => {
+        events.push(`${init?.method ?? "GET"} ${new URL(String(url), "https://test.invalid").pathname}`)
+        return new Response(null, { status: monitoringStatus })
+    }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter><AccountContext.Provider value={{ ...SIGNED_OUT, available: true, status: "ready", user, getToken: async () => "token-A", deleteUser }}><AccountCard /></AccountContext.Provider></MemoryRouter></QueryClientProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+    await screen.findByText(/Monitoring account erasure is unavailable/)
+    expect(deleteUser).not.toHaveBeenCalled()
+    monitoringStatus = 204
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+    await screen.findByText(/Sign-in service unavailable/)
+    expect(localStorage.getItem(`memba_account_deletion:${user.id}`)).toContain('"step":"identity"')
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+    await screen.findByText(/Your account is deleted/)
+    expect(events).toEqual(["POST /users/erase", "POST /users/erase", "Clerk delete", "POST /users/erase", "Clerk delete"])
+    expect(deleteUser).toHaveBeenNthCalledWith(1, user.id)
+    expect(deleteUser).toHaveBeenNthCalledWith(2, user.id)
 })

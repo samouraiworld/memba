@@ -11,9 +11,9 @@ vi.mock("../../lib/accountApi", async (importOriginal) => {
     const real = await importOriginal<typeof import("../../lib/accountApi")>()
     return { ...real, accountApi: { get: vi.fn(), topics: vi.fn(), setTopic: vi.fn(), exportData: vi.fn(), remove: vi.fn(), confirm: vi.fn() } }
 })
-vi.mock("../../lib/monitoringAuth", () => ({ deleteMonitoringUser: vi.fn(async () => true) }))
+vi.mock("../../lib/monitoringAuth", () => ({ eraseMonitoringUser: vi.fn(async () => ({ ok: true })) }))
 const { accountApi } = await import("../../lib/accountApi")
-const { deleteMonitoringUser } = await import("../../lib/monitoringAuth")
+const { eraseMonitoringUser } = await import("../../lib/monitoringAuth")
 const { AccountCard } = await import("./AccountCard")
 const { EarlyAccess } = await import("./EarlyAccess")
 const { ConfirmView } = await import("./ConfirmView")
@@ -39,7 +39,7 @@ beforeEach(() => {
     vi.mocked(accountApi.setTopic).mockReset().mockResolvedValue(off as never)
     vi.mocked(accountApi.remove).mockReset().mockResolvedValue(undefined)
     vi.mocked(accountApi.confirm).mockReset()
-    vi.mocked(deleteMonitoringUser).mockReset().mockResolvedValue(true)
+    vi.mocked(eraseMonitoringUser).mockReset().mockResolvedValue({ ok: true })
 })
 
 describe("Settings → Account", () => {
@@ -62,7 +62,7 @@ describe("Settings → Account", () => {
 
     it("deletes step by step, never reads the account again once Memba's data is gone, and resumes a failed step", async () => {
         const deleteUser = vi.fn(async () => {})
-        vi.mocked(deleteMonitoringUser).mockResolvedValueOnce(false)
+        vi.mocked(eraseMonitoringUser).mockResolvedValueOnce({ ok: false })
         show(<AccountCard />, signedIn({ deleteUser }))
         await screen.findByText("ada@example.org")
         const reads = vi.mocked(accountApi.get).mock.calls.length
@@ -76,7 +76,7 @@ describe("Settings → Account", () => {
         fireEvent.click(screen.getByRole("button", { name: "Try again" }))
         expect(await screen.findByText(/Your account is deleted/)).toBeInTheDocument()
         expect(accountApi.remove).toHaveBeenCalledOnce()
-        expect(deleteMonitoringUser).toHaveBeenCalledTimes(2)
+        expect(eraseMonitoringUser).toHaveBeenCalledTimes(2)
         expect(deleteUser).toHaveBeenCalledOnce()
         expect(accountApi.get).toHaveBeenCalledTimes(reads)
     })
@@ -89,14 +89,14 @@ describe("Settings → Account", () => {
         fireEvent.click(screen.getByRole("button", { name: "Delete my account…" }))
         fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }))
         expect(await screen.findByRole("alert")).toHaveTextContent("Account deletion is incomplete.")
-        expect(deleteMonitoringUser).not.toHaveBeenCalled()
+        expect(eraseMonitoringUser).not.toHaveBeenCalled()
         expect(deleteUser).not.toHaveBeenCalled()
     })
 })
 
 describe("Settings → Account, deleting across windows and remounts", () => {
     it("keeps every reader paused after a failed later step: a remount and another window read nothing", async () => {
-        vi.mocked(deleteMonitoringUser).mockResolvedValue(false)
+        vi.mocked(eraseMonitoringUser).mockResolvedValue({ ok: false })
         const deleteUser = vi.fn(async () => {})
         const view = show(<><AccountCard /><EarlyAccess app="nft" /></>, signedIn({ deleteUser }))
         await screen.findByText("ada@example.org")
