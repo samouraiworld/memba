@@ -167,6 +167,13 @@
   .memba-os .os-cin-hero-copy { left: 18px; bottom: 18px; }
   .memba-os .os-cin-hero-copy h2 { font-size: 34px; }
   .memba-os .os-cin-banner-copy h1 { font-size: 32px; }
+  /* The banner grows with its copy, so a wrapped logo never hangs above the top edge. */
+  .memba-os .os-cin-banner { display: flex; align-items: flex-end; height: auto; min-height: 200px; }
+  .memba-os .os-cin-banner-copy { position: relative; inset: auto; width: 100%; padding: 72px 18px 18px; box-sizing: border-box; }
+  .memba-os .os-cin-banner .os-cin-icon { width: 64px; height: 64px; font-size: 23px; }
+  .memba-os .os-store-filters { min-width: 0; }
+  .memba-os .os-store-filters > .os-store-chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
+  .memba-os .os-store-chips > .os-cin-tag { flex: none; }
 }
 @container os-window (max-width: 400px) {
   .memba-os .os-cin-grid { grid-template-columns: 1fr; }
