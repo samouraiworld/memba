@@ -8,6 +8,6 @@ export function RatingBadge({ summary }: { summary: SubjectSummary | undefined }
     const average = summary.average.toFixed(1)
     return <span className="os-cin-rating">
         <span aria-hidden="true">★ {average} · {summary.count}</span>
-        <span className="sr-only">Rated {average} out of 5 from {summary.count} reviews</span>
+        <span className="os-cin-sr">Rated {average} out of 5 from {summary.count} reviews</span>
     </span>
 }

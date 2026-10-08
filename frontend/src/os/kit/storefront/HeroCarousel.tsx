@@ -18,7 +18,9 @@ const reducedMotion = () => typeof window.matchMedia === "function" && window.ma
 /** Featured slides: autoplay only when visible, unhovered, unfocused, and motion is allowed. */
 export function HeroCarousel({ label, slides, active = true }: { label: string; slides: readonly HeroSlide[]; active?: boolean }) {
     const [index, setIndex] = useState(0)
-    const [paused, setPaused] = useState(false)
+    const [hovered, setHovered] = useState(false)
+    const [focused, setFocused] = useState(false)
+    const paused = hovered || focused
     const count = slides.length
     useEffect(() => {
         if (!active || paused || count < 2 || reducedMotion()) return
@@ -33,7 +35,8 @@ export function HeroCarousel({ label, slides, active = true }: { label: string; 
         else if (event.key === "ArrowLeft") setIndex((current - 1 + count) % count)
     }
     return <section className="os-cin-hero" aria-roledescription="carousel" aria-label={label} onKeyDown={onKey}
-        onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={() => setFocused(true)}
+        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false) }}>
         <div className="os-cin-hero-stage" role="group" aria-roledescription="slide" aria-label={`${current + 1} of ${count}`} style={{ "--hero-accent": slide.accent } as CSSProperties}>
             {slide.cover && <img src={slide.cover} alt="" />}
             <div className="os-cin-hero-scrim" />

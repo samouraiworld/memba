@@ -35,7 +35,7 @@
   --cin-line: rgba(255,255,255,.08); --cin-line-strong: rgba(255,255,255,.14);
   --cin-ink: #EEF1F7; --cin-ink-2: #D6DBE6; --cin-muted: #9AA3B5;
   --cin-free: #8FE3B5; --cin-warn: #F2B84B;
-  --cin-accent: #F46BA0; --cin-on-accent: #1A0710;
+  --cin-accent: #F46BA0; --cin-on-accent: #12050B;
   --cin-display: "Chakra Petch", Manrope, system-ui, sans-serif;
   --cin-mono: "JetBrains Mono", ui-monospace, monospace;
   min-height: 100%; background: var(--cin-ground); color: var(--cin-ink);
@@ -50,10 +50,11 @@
 .memba-os .os-cin-tag--warn { color: var(--cin-warn); }
 .memba-os .os-cin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 10px; border: 1px solid var(--cin-line-strong); background: rgba(255,255,255,.08); color: var(--cin-ink); font: 700 14px/1 Manrope, system-ui, sans-serif; cursor: pointer; text-decoration: none; }
 .memba-os .os-cin-btn--play { background: var(--cin-accent); border-color: transparent; color: var(--cin-on-accent); font-weight: 800; }
-.memba-os .os-cin-link { min-height: 32px; padding: 0; border: 0; background: none; color: var(--cin-accent); font: 700 13px Manrope, system-ui, sans-serif; cursor: pointer; text-align: left; }
+.memba-os .os-cin-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: none; color: var(--cin-accent); font: 700 13px Manrope, system-ui, sans-serif; cursor: pointer; text-align: left; }
 .memba-os .os-cin-panel { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--cin-line); border-radius: 12px; background: var(--cin-surface); }
 .memba-os .os-cin-panel h2 { font-size: 17px; font-weight: 600; }
 .memba-os .os-cin-panel p { margin: 0; color: var(--cin-ink-2); line-height: 1.6; }
+.memba-os .os-cin-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 /* shell */
 .memba-os .os-cin-shell { display: flex; flex-direction: column; }
 .memba-os .os-cin-tabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 24px; padding: 12px 24px 0; border-bottom: 1px solid var(--cin-line); }
@@ -70,10 +71,10 @@
 .memba-os .os-cin-kicker { margin: 0; font: 500 11px var(--cin-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--cin-accent); }
 .memba-os .os-cin-hero-copy h2 { font-size: 52px; line-height: .95; font-weight: 700; }
 .memba-os .os-cin-hero-copy > p:not(.os-cin-kicker) { margin: 0; font-size: 16px; line-height: 1.5; color: var(--cin-ink-2); }
-.memba-os .os-cin-dots { position: absolute; right: 20px; bottom: 18px; display: none; gap: 6px; }
-.memba-os .os-cin-dot { width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; position: relative; }
-.memba-os .os-cin-dot::after { content: ""; position: absolute; left: 8px; top: 10px; width: 8px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.35); }
-.memba-os .os-cin-dot[aria-current="true"]::after { left: 1px; width: 22px; background: var(--cin-accent); }
+.memba-os .os-cin-dots { position: absolute; right: 20px; bottom: 18px; display: none; gap: 0; }
+.memba-os .os-cin-dot { width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; position: relative; }
+.memba-os .os-cin-dot::after { content: ""; position: absolute; left: 18px; top: 20px; width: 8px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.35); }
+.memba-os .os-cin-dot[aria-current="true"]::after { left: 11px; width: 22px; background: var(--cin-accent); }
 .memba-os .os-cin-picker { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 8px; list-style: none; background: #0F1218; border: 1px solid var(--cin-line); border-radius: 14px; }
 .memba-os .os-cin-pick { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px; border: 0; border-radius: 10px; background: none; color: #C9CFDB; font: 600 13px Manrope, system-ui, sans-serif; text-align: left; cursor: pointer; }
 .memba-os .os-cin-pick[aria-current="true"] { background: rgba(255,255,255,.08); color: var(--cin-ink); }

@@ -31,6 +31,17 @@ describe("HeroCarousel", () => {
         act(() => { vi.advanceTimersByTime(30_000) })
         expect(screen.getByRole("heading", { name: "ONE" })).toBeInTheDocument()
     })
+    it("stays paused while hovered and resumes on leave", () => {
+        vi.useFakeTimers(); reduced(false)
+        render(<HeroCarousel label="Featured" slides={[slide("ONE"), slide("TWO")]} />)
+        const region = screen.getByRole("region", { name: "Featured" })
+        fireEvent.mouseEnter(region)
+        act(() => { vi.advanceTimersByTime(7000) })
+        expect(screen.getByRole("heading", { name: "ONE" })).toBeInTheDocument()
+        fireEvent.mouseLeave(region)
+        act(() => { vi.advanceTimersByTime(7000) })
+        expect(screen.getByRole("heading", { name: "TWO" })).toBeInTheDocument()
+    })
     it("moves with the arrow keys and runs the slide action", () => {
         reduced(true)
         const play = vi.fn()
