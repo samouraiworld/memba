@@ -55,9 +55,15 @@ describe("LaunchpadDoor", () => {
         expect(screen.queryByText(/^by /i)).not.toBeInTheDocument()
     })
 
-    it("does not advertise an unavailable factory on mainnet", () => {
+    it("offers token creation on mainnet, where the Launchpad is listed", () => {
         vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
         renderIt("mainnet")
+        expect(screen.getByText(/launch a token/i)).toBeInTheDocument()
+    })
+
+    it("does not advertise token creation where neither the Launchpad nor the factory is listed", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
+        renderIt("elsewhere")
         expect(screen.getByText("Token launchpad")).toBeInTheDocument()
         expect(screen.queryByText(/launch a token|factory is live/i)).not.toBeInTheDocument()
     })

@@ -224,7 +224,8 @@ for (const network of ['mainnet', 'test13'] as const) {
             await expect(page.getByTestId('value-card-vote')).toContainText('Explore DAOs')
             const tokenCard = page.getByTestId('value-card-launch')
             if (network === 'mainnet') {
-                await expect(tokenCard).toContainText('Memba token creation unavailable here')
+                // The Launchpad makes tokens on mainnet; the classic factory page says so and links to it.
+                await expect(tokenCard).toContainText('Launch a token')
                 await expect(page.getByRole('link', { name: 'MembaDAO', exact: true })).toHaveCount(0)
                 await tokenCard.click()
                 await expect(page.getByRole('heading', { name: 'Tokens are made in the Token Launchpad here' })).toBeVisible()

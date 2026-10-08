@@ -16,7 +16,7 @@
  * @module components/home/doors/LaunchpadDoor
  */
 
-import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
+import { canCreateTokensOn } from "../../../lib/tokenLaunchpadSalesClient"
 import { Door } from "../Door"
 import { useTokenLaunches } from "../../../hooks/home/useTokenLaunches"
 import { truncateAddr } from "../../../lib/format"
@@ -28,7 +28,7 @@ export interface LaunchpadDoorProps {
 }
 
 export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
-    const canCreateToken = isRealmValidOn(networkKey, GRC20_FACTORY_PATH)
+    const canCreateToken = canCreateTokensOn(networkKey)
     const tokensHref = `/${networkKey}/tokens`
     const { tokens, total } = useTokenLaunches(1)
     const featured = tokens[0]

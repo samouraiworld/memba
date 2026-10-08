@@ -21,8 +21,11 @@ describe("ExploreGrid", () => {
         expect(screen.getByTestId("explore-blog")).toHaveAttribute("href", "/test13/blog")
     })
 
-    it("labels the unavailable mainnet token launchpad", () => {
-        render(<MemoryRouter><ExploreGrid networkKey="mainnet" /></MemoryRouter>)
+    it("labels the token launchpad by whether Memba creates tokens on the network", () => {
+        const view = render(<MemoryRouter><ExploreGrid networkKey="mainnet" /></MemoryRouter>)
+        expect(screen.getByTestId("explore-tokens")).not.toHaveTextContent("unavailable")
+        view.unmount()
+        render(<MemoryRouter><ExploreGrid networkKey="elsewhere" /></MemoryRouter>)
         expect(screen.getByTestId("explore-tokens")).toHaveTextContent("Memba token creation unavailable here")
     })
 
