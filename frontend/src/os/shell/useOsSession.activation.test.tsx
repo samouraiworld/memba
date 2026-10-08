@@ -12,7 +12,9 @@ vi.mock("../../lib/grc20", async (orig) => ({ ...(await orig<typeof import("../.
 vi.mock("../sign/signer", () => ({ executeSignature: vi.fn(async () => ({ outcome: "sent", hash: "H" })) }))
 vi.mock("./walletLogin", () => ({ signInWithWallet: vi.fn(async () => { throw new Error("Activate your address first (AUTH-ACTIVATE-01)") }) }))
 vi.mock("../../lib/activation", async (orig) => ({ ...(await orig<typeof import("../../lib/activation")>()), activationOnChain: vi.fn() }))
+vi.mock("../../lib/account", async (orig) => ({ ...(await orig<typeof import("../../lib/account")>()), chainPublicKey: vi.fn(async () => null) }))
 
+import { chainPublicKey } from "../../lib/account"
 import { activationOnChain } from "../../lib/activation"
 import { executeSignature } from "../sign/signer"
 import { useOsSession } from "./useOsSession"
@@ -87,7 +89,31 @@ describe("useOsSession activation", () => {
         await act(() => result.current.activate())
         expect(result.current.activationForced).toBe(true)
         expect(result.current.stage).toBe("activate")
-        expect(result.current.error).toBe("Your activation was sent, but the network doesn't show it yet. Check your account in a few seconds before activating again.")
+        expect(result.current.error).toBe("Your activation was sent, but the network doesn't show it yet. Select Activate in Adena again in a few seconds: Memba checks the network first, and sends nothing if your address is already active.")
+    })
+
+    it("sends nothing for an address the chain already shows a key for, and finishes as activated", async () => {
+        vi.mocked(chainPublicKey).mockResolvedValue({ "@type": "/tm.PubKeySecp256k1", value: "A0key" })
+        try {
+            const { result } = renderHook(() => useOsSession())
+            act(() => result.current.openConnect())
+            await act(() => result.current.signIn())
+            await priced(result)
+            await act(() => result.current.activate())
+            expect(chainPublicKey).toHaveBeenCalledWith(ME)
+            expect(executeSignature).not.toHaveBeenCalled()
+            expect(result.current.stage).toBe("login")
+            expect(result.current.note).toBe("Your address is active. Sign the login message to finish.")
+
+            Object.assign(auth, { isAuthenticated: true, address: ME })
+            const forced = renderHook(() => useOsSession()).result
+            expect(forced.current.activationForced).toBe(true)
+            await priced(forced)
+            await act(() => forced.current.activate())
+            expect(executeSignature).not.toHaveBeenCalled()
+            expect(forced.current.activationForced).toBe(false)
+            expect(forced.current.stage).toBeNull()
+        } finally { vi.mocked(chainPublicKey).mockResolvedValue(null) }
     })
 
     it("stops waiting for the chain on disconnect", async () => {

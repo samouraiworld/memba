@@ -22,6 +22,7 @@ import { signInWithWallet } from "./walletLogin"
 import { accountMark, accountMarkAfterBlocks } from "../sign/accountMark"
 import { executeSignature } from "../sign/signer"
 import { ACTIVATION_NOT_SEEN, ACTIVATION_SEND_UGNOT, activationCosts, activationOnChain } from "../../lib/activation"
+import { chainPublicKey } from "../../lib/account"
 import { activationRequest } from "./activation"
 import type { EvmConnect } from "../evm/useEvmSession"
 
@@ -184,30 +185,38 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         watch.current = stop
         // Leaves the activate step at once: a second click can't send a second transaction.
         go("activatewait")
-        // 1 ugnot to the address itself: any first transaction registers the key. Signed through the OS
-        // path, so no classic confirmation opens: the step the person just read is the review.
-        const req = activationRequest(adena.address, activationPrice)
         const address = adena.address
-        const res = await executeSignature(req, undefined, req.prepare(undefined).msgs, () => {}, () => epoch.current === my, {
-            // A "rejected" reply is confirmed against the account, so a plain cancel reads as one.
-            before: () => accountMark(address),
-            after: () => accountMarkAfterBlocks(address),
-            stop: stop.signal,
-        })
+        // An address the chain already shows a key for is active, so nothing is sent: a node that lagged at
+        // sign-in, or an activation that landed after Memba stopped waiting. A failed read sends, as before.
+        const active = await chainPublicKey(address).then(Boolean, () => false)
         if (epoch.current !== my) return
-        if (res.outcome !== "sent") {
-            // The price is read again for the next attempt: it may be what refused this one.
-            setActivationPrice(null)
-            go("activate", res.error)
-            return
-        }
-        // Adena answered at broadcast: the login signature, and the session, need the key on chain first.
-        go("activatesent")
-        const visible = await activationOnChain(address, stop.signal)
-        if (epoch.current !== my) return
-        if (!visible) {
-            go(activationForced ? "activate" : "login", `${ACTIVATION_NOT_SEEN} ${activationForced ? "Check your account in a few seconds before activating again." : "Wait a few seconds, then sign in."}`)
-            return
+        if (!active) {
+            // 1 ugnot to the address itself: any first transaction registers the key. Signed through the OS
+            // path, so no classic confirmation opens: the step the person just read is the review.
+            const req = activationRequest(address, activationPrice)
+            const res = await executeSignature(req, undefined, req.prepare(undefined).msgs, () => {}, () => epoch.current === my, {
+                // A "rejected" reply is confirmed against the account, so a plain cancel reads as one.
+                before: () => accountMark(address),
+                after: () => accountMarkAfterBlocks(address),
+                stop: stop.signal,
+            })
+            if (epoch.current !== my) return
+            if (res.outcome !== "sent") {
+                // The price is read again for the next attempt: it may be what refused this one.
+                setActivationPrice(null)
+                go("activate", res.error)
+                return
+            }
+            // Adena answered at broadcast: the login signature, and the session, need the key on chain first.
+            go("activatesent")
+            const visible = await activationOnChain(address, stop.signal)
+            if (epoch.current !== my) return
+            if (!visible) {
+                go(activationForced ? "activate" : "login", `${ACTIVATION_NOT_SEEN} ${activationForced
+                    ? "Select Activate in Adena again in a few seconds: Memba checks the network first, and sends nothing if your address is already active."
+                    : "Wait a few seconds, then sign in."}`)
+                return
+            }
         }
         if (activationForced) {
             setActivatedAddress(address)

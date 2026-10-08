@@ -10,10 +10,15 @@ vi.mock("../../lib/grc20", async (orig) => ({
     doContractBroadcast: (...a: unknown[]) => doContractBroadcast(...a),
     networkGasPriceFresh: () => networkGasPriceFresh(),
 }))
-const activationOnChain = vi.fn<(address: string) => Promise<boolean>>(async () => true)
+const activationOnChain = vi.fn<(address: string, stop?: AbortSignal) => Promise<boolean>>(async () => true)
 vi.mock("../../lib/activation", async (orig) => ({
     ...(await orig<typeof import("../../lib/activation")>()),
-    activationOnChain: (address: string) => activationOnChain(address),
+    activationOnChain: (address: string, stop?: AbortSignal) => activationOnChain(address, stop),
+}))
+const chainPublicKey = vi.fn<(address: string) => Promise<{ "@type": string; value: string } | null>>(async () => null)
+vi.mock("../../lib/account", async (orig) => ({
+    ...(await orig<typeof import("../../lib/account")>()),
+    chainPublicKey: (address: string) => chainPublicKey(address),
 }))
 
 import { ActivationModal } from "./ActivationModal"
@@ -151,7 +156,7 @@ describe("ActivationModal", () => {
         const onSuccess = vi.fn()
         const first = render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
         fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
-        await vi.waitFor(() => expect(activationOnChain).toHaveBeenCalledWith("g1abc"))
+        await vi.waitFor(() => expect(activationOnChain).toHaveBeenCalledWith("g1abc", expect.any(AbortSignal)))
         expect(onSuccess).not.toHaveBeenCalled()
         show(true)
         await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
@@ -161,8 +166,34 @@ describe("ActivationModal", () => {
         const notSeen = vi.fn()
         render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={notSeen} />)
         fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
-        expect(await screen.findByText(/Your activation was sent, but the network doesn't show it yet\. Reload this page in a few seconds before activating again\./)).toBeInTheDocument()
+        expect(await screen.findByText("Your activation was sent, but the network doesn't show it yet. Select Activate My Wallet again in a few seconds: Memba checks the network first, and sends nothing if your address is already active.")).toBeInTheDocument()
         expect(notSeen).not.toHaveBeenCalled()
+    })
+
+    it("sends nothing for an address the chain already shows a key for", async () => {
+        chainPublicKey.mockResolvedValueOnce({ "@type": "/tm.PubKeySecp256k1", value: "A0key" })
+        const onSuccess = vi.fn()
+        render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
+        expect(chainPublicKey).toHaveBeenCalledWith("g1abc")
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+
+    it("does not reload once the dialog is gone", async () => {
+        doContractBroadcast.mockResolvedValue({ hash: "abc" })
+        let show!: (seen: boolean) => void
+        activationOnChain.mockImplementationOnce(() => new Promise<boolean>((resolve) => { show = resolve }))
+        const onSuccess = vi.fn()
+        const view = render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        await vi.waitFor(() => expect(activationOnChain).toHaveBeenCalled())
+        const stop = activationOnChain.mock.calls[0][1]!
+        view.unmount()
+        expect(stop.aborted).toBe(true)
+        show(true)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        expect(onSuccess).not.toHaveBeenCalled()
     })
 
     it("activates with exactly the fee and the 1 ugnot", async () => {
