@@ -43,6 +43,13 @@ describe("windowsReducer", () => {
         expect([appSpec("arcade", "connect4").width, appSpec("arcade", "connect4").height]).toEqual([960, 660])
     })
 
+    it("opens an App Store page in a larger window than the store home", () => {
+        const page = appSpec("store", "project/adena")
+        expect([page.key, page.width, page.height]).toEqual(["store:project/adena", 1040, 760])
+        expect(appSpec("store", "apps/r/samcrew/app").width).toBe(1040)
+        expect(appSpec("store").width).not.toBe(1040)
+    })
+
     it("opens About once as a linkable system window", () => {
         const spec = specForTarget({ kind: "about" })!
         expect(spec).toMatchObject({ key: "about", title: "About Memba OS", app: null })

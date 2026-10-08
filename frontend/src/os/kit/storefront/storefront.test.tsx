@@ -104,6 +104,10 @@ describe("AppIcon and MediaGallery", () => {
         fireEvent.click(screen.getByRole("button", { name: "Show GnoSwap screenshot 2" }))
         expect(screen.getByAltText("GnoSwap screenshot 2")).toBeInTheDocument()
     })
+    it("shows at most six screenshots", () => {
+        render(<MediaGallery name="GnoSwap" images={Array.from({ length: 8 }, (_, i) => `/s${i}.webp`)} />)
+        expect(screen.getAllByRole("button", { name: /^Show GnoSwap screenshot / })).toHaveLength(6)
+    })
     it("renders nothing without images", () => {
         const { container } = render(<MediaGallery name="X" images={[]} />)
         expect(container).toBeEmptyDOMElement()

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { AppListing } from "../../../lib/appStore"
 import type { ReviewAct } from "../../../components/reviews/ReviewCard"
@@ -7,11 +7,12 @@ import type { SignRequest } from "../../sign/signer"
 import { SignerContext, type SignerApi } from "../../sign/signerContext"
 import StoreWindow from "./native"
 
-const mocks = vi.hoisted(() => ({ submitOpen: true, fetchRegistryState: vi.fn(), fetchMyListings: vi.fn(), registerApplies: vi.fn(), editApplies: vi.fn(), delistApplies: vi.fn(), fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0 }))
+const mocks = vi.hoisted(() => ({ submitOpen: true, fetchRegistryState: vi.fn(), fetchMyListings: vi.fn(), registerApplies: vi.fn(), editApplies: vi.fn(), delistApplies: vi.fn(), fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), fetchLive: vi.fn(), fetchSummaries: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0, space: true }))
 vi.mock("../../../lib/config", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/config")>(),
     isAppStoreEnabled: () => true, isAppReviewsAvailable: () => true, isRealmValidOn: () => true,
     isAppStoreSubmitEnabled: () => mocks.submitOpen,
+    isSpaceInvadersEnabled: () => mocks.space,
 }))
 vi.mock("../../../lib/appStoreSubmit", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStoreSubmit")>(),
@@ -20,6 +21,7 @@ vi.mock("../../../lib/appStoreSubmit", async (importActual) => ({
 vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
     fetchAppStrict: mocks.fetchAppStrict,
+    fetchLiveCatalogue: mocks.fetchLive,
     assertAppReportApplies: mocks.reportApplies,
     fetchCuratorQueue: mocks.fetchCuratorQueue,
     fetchRegistryState: mocks.fetchRegistryState,
@@ -28,6 +30,7 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
 vi.mock("../../../lib/reviews", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/reviews")>(),
     fetchModerator: mocks.fetchModerator,
+    fetchSummaries: mocks.fetchSummaries,
     assertReviewActionApplies: mocks.applies,
 }))
 vi.mock("../../../lib/grc20", async (importActual) => ({
@@ -68,10 +71,11 @@ function show(section = "apps/r/samcrew/app", session = guest) {
 }
 
 beforeEach(() => {
+    mocks.fetchLive.mockReset().mockResolvedValue({ apps: [], complete: true }); mocks.fetchSummaries.mockReset().mockResolvedValue(new Map())
     mocks.fetchAppStrict.mockReset(); mocks.fetchModerator.mockReset().mockResolvedValue(null)
     mocks.price.mockReset(); mocks.applies.mockReset().mockResolvedValue(undefined); mocks.mounts = 0
     mocks.reportApplies.mockReset().mockResolvedValue(undefined); mocks.fetchCuratorQueue.mockReset()
-    mocks.submitOpen = true
+    mocks.submitOpen = true; mocks.space = true
     mocks.fetchRegistryState.mockReset().mockResolvedValue({ pending: 0, registrationFee: 1_000_000, paused: false })
     mocks.fetchMyListings.mockReset(); mocks.registerApplies.mockReset().mockResolvedValue(undefined); mocks.editApplies.mockReset().mockResolvedValue(undefined); mocks.delistApplies.mockReset().mockResolvedValue(undefined)
     vi.mocked(signer.sign).mockReset(); openConnect.mockReset()
@@ -88,6 +92,47 @@ describe("Store detail", () => {
         expect(screen.getByRole("button", { name: "Write a review" })).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Refresh reviews" }))
         expect(await screen.findByRole("heading", { name: "Renamed App" })).toBeInTheDocument()
+    })
+
+    it("reviews an editorial app under its pinned subject, even without a listing", () => {
+        show("project/adena")
+        expect(screen.getByRole("heading", { level: 1, name: "Adena" })).toBeInTheDocument()
+        expect(screen.getByRole("region", { name: "Ratings and reviews" })).toBeInTheDocument()
+        expect(screen.getByText("reviews for a visitor")).toBeInTheDocument()
+    })
+
+    it("shows the listing's screenshots in the gallery", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ screenshotCIDs: [`bafy${"a".repeat(55)}`] }))
+        show()
+        expect(await screen.findByAltText(/screenshot 1$/)).toBeInTheDocument()
+    })
+
+    it("renders the page without a Website row when the listing's link does not parse", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ appURL: "https://" }))
+        show()
+        expect(await screen.findByRole("heading", { level: 1, name: "Test App" })).toBeInTheDocument()
+        expect(screen.queryByText("Website")).not.toBeInTheDocument()
+        expect(screen.getByText("Category")).toBeInTheDocument()
+    })
+
+    it("lists more apps of the same category, each opening its own page", () => {
+        const open = vi.fn()
+        render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><SignerContext.Provider value={signer}>
+            <StoreWindow section="project/boards" session={guest} open={open} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        </SignerContext.Provider></QueryClientProvider>)
+        const more = screen.getByRole("region", { name: /^More in / })
+        const first = within(more).getAllByRole("button")[0]
+        fireEvent.click(first)
+        expect(open.mock.calls.at(-1)![0].target).toEqual(expect.objectContaining({ app: "store", section: expect.stringMatching(/^project\//) }))
+    })
+
+    it("never lists the app itself under More in", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ pkgPath: "gno.land/r/gnoland/boards2/v0", name: "Boards", category: "community", appURL: "https://gno.land/r/gnoland/boards2/v0" }))
+        show("apps/r/gnoland/boards2/v0")
+        expect(await screen.findByRole("heading", { level: 1, name: "Boards" })).toBeInTheDocument()
+        const more = screen.getByRole("region", { name: "More in Community" })
+        expect(within(more).getAllByRole("button").length).toBeGreaterThan(0)
+        expect(within(more).queryByRole("button", { name: "Details for Boards" })).not.toBeInTheDocument()
     })
 
     it.each([
@@ -202,6 +247,17 @@ describe("Store detail: an action on a review", () => {
         expect(mocks.mounts).toBe(before)
         request.onSettled?.("confirmed", undefined)
         await waitFor(() => expect(mocks.mounts).toBe(before + 1))
+    })
+
+    it("reviews a curated listing under its pinned name, so a renamed listing still passes the sheet's name check", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ pkgPath: "gno.land/r/gnoswap/router", name: "GnoSwap DEX", appURL: "https://gnoswap.io/" }))
+        mocks.price.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        show("apps/r/gnoswap/router", member)
+        expect(await screen.findByRole("heading", { name: "GnoSwap DEX" })).toBeInTheDocument()
+        await screen.findByText(`reviews for ${MEMBER}`)
+        flag()
+        await screen.findByText("sent: false")
+        expect(signed().summary).toBe("Flag a review of GnoSwap")
     })
 
     it("opens no sheet when the fee cannot be read, and says so", async () => {
@@ -487,5 +543,138 @@ describe("Store: submitting and managing listings", () => {
         show("my-submissions", member)
         expect(await screen.findByText("Your listings could not be read from the registry.")).toBeInTheDocument()
         expect(screen.queryByText("This wallet has not published a listing yet.")).toBeNull()
+    })
+})
+
+describe("Store: discover home", () => {
+    function home(query?: string) {
+        const open = vi.fn()
+        const openApp = vi.fn()
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}>
+            <StoreWindow section={null} query={query} session={guest} active open={open} openApp={openApp} push={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        </QueryClientProvider>)
+        return { open, openApp }
+    }
+    const target = (open: ReturnType<typeof vi.fn>) => open.mock.calls.at(-1)![0].target
+
+    it("features editorial picks in a hero whose primary button opens the project page", () => {
+        const { open } = home()
+        expect(screen.getByRole("navigation", { name: "App Store" })).toBeInTheDocument()
+        expect(screen.getByRole("region", { name: "Featured apps" })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Explore GnoSwap" }))
+        expect(target(open)).toEqual(expect.objectContaining({ app: "store", section: "project/gnoswap" }))
+    })
+
+    it("offers Open app from the hero for an https entry, opening it in a new tab without opener", () => {
+        const opened = vi.spyOn(window, "open").mockReturnValue(null)
+        home()
+        const hero = screen.getByRole("region", { name: "Featured apps" })
+        expect(within(hero).getByRole("heading", { name: "GnoSwap" })).toBeInTheDocument()
+        fireEvent.click(within(hero).getByRole("button", { name: "Open app ↗" }))
+        expect(opened).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\//), "_blank", "noopener,noreferrer")
+        opened.mockRestore()
+    })
+
+    it("shows the category named in the address as pressed", () => {
+        home("category=Explorer")
+        const group = screen.getByRole("group", { name: "Category" })
+        expect(within(group).getByRole("button", { name: "Explorer", pressed: true })).toBeInTheDocument()
+        expect(within(group).getByRole("button", { name: "All", pressed: false })).toBeInTheDocument()
+    })
+
+    it("filters by category through a chip group and keeps the Availability select", () => {
+        const { open } = home()
+        const group = screen.getByRole("group", { name: "Category" })
+        expect(within(group).getByRole("button", { name: "All", pressed: true })).toBeInTheDocument()
+        fireEvent.click(within(group).getByRole("button", { name: "Explorer", pressed: false }))
+        expect(String(open.mock.calls.at(-1)![0].target.query)).toContain("category=Explorer")
+        expect(screen.getByLabelText("Availability")).toBeInTheDocument()
+    })
+
+    it("shows the essentials and game shelves, and a game capsule opens its Arcade page", () => {
+        const { open } = home()
+        const essentials = screen.getByRole("region", { name: "Essentials for gno.land" })
+        expect(within(essentials).getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
+        fireEvent.click(within(screen.getByRole("region", { name: "Play on gno.land" })).getByRole("button", { name: "Details for BARRICADE" }))
+        expect(target(open)).toEqual(expect.objectContaining({ app: "arcade", section: "g/barricade" }))
+    })
+
+    it("tags a game this build cannot run as Unavailable, as the Arcade lobby does", () => {
+        mocks.space = false
+        home()
+        const games = within(screen.getByRole("region", { name: "Play on gno.land" }))
+        expect(games.getByRole("button", { name: "Details for Space Invaders" })).toHaveTextContent("Unavailable")
+        expect(games.getByRole("button", { name: "Details for Space Invaders" })).not.toHaveTextContent("Free")
+        expect(games.getByRole("button", { name: "Details for Connect 4" })).toHaveTextContent("Staked · GNOT")
+    })
+
+    it("tags a game this build can run as Free", () => {
+        home()
+        expect(within(screen.getByRole("region", { name: "Play on gno.land" })).getByRole("button", { name: "Details for Space Invaders" })).toHaveTextContent("Free")
+    })
+
+    it("heads the home with a Discover h1, and the Ecosystem section with its own", () => {
+        home()
+        expect(screen.getByRole("heading", { level: 1, name: "Discover" })).toBeInTheDocument()
+        cleanup()
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}>
+            <StoreWindow section="ecosystem" session={guest} active open={vi.fn()} openApp={vi.fn()} push={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        </QueryClientProvider>)
+        expect(screen.getByRole("heading", { level: 1, name: "Ecosystem" })).toBeInTheDocument()
+        expect(screen.queryByRole("heading", { level: 1, name: "Discover" })).not.toBeInTheDocument()
+    })
+
+    it("renders the fallback for an unknown section", () => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}>
+            <StoreWindow section="nope" session={guest} active open={vi.fn()} openApp={vi.fn()} push={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={<p>existing store</p>} />
+        </QueryClientProvider>)
+        expect(screen.getByText("existing store")).toBeInTheDocument()
+        expect(screen.queryByRole("navigation", { name: "App Store" })).not.toBeInTheDocument()
+    })
+
+    it("looks up ratings only for games that have a review subject, and still lists Connect 4", async () => {
+        mocks.fetchSummaries.mockClear()
+        home()
+        const games = within(screen.getByRole("region", { name: "Play on gno.land" }))
+        expect(games.getByRole("button", { name: "Details for Connect 4" })).toBeInTheDocument()
+        await waitFor(() => expect(mocks.fetchSummaries).toHaveBeenCalled())
+        const subjects = mocks.fetchSummaries.mock.calls.flatMap(([asked]) => [...asked as string[]])
+        expect(subjects).toContain("gno.land/r/samcrew/barricade")
+        expect(subjects.every((subject) => typeof subject === "string" && subject !== "")).toBe(true)
+    })
+
+    it("opens the Arcade from the games shelf", () => {
+        const { openApp } = home()
+        fireEvent.click(screen.getByRole("button", { name: "Open the Arcade" }))
+        expect(openApp).toHaveBeenCalledWith("arcade")
+    })
+
+    it("lists a top-rated shelf only for entries with at least three reviews", async () => {
+        mocks.fetchSummaries.mockResolvedValue(new Map([["memba:app/adena", { count: 4, sum: 20, average: 5 }], ["gno.land/r/gnoswap/router", { count: 2, sum: 10, average: 5 }]]))
+        home()
+        const top = await screen.findByRole("region", { name: "Top rated by the community" })
+        expect(within(top).getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
+        expect(within(top).queryByRole("button", { name: "Details for GnoSwap" })).not.toBeInTheDocument()
+    })
+
+    it("has no top-rated shelf when nothing has three reviews", () => {
+        home()
+        expect(screen.queryByRole("region", { name: "Top rated by the community" })).not.toBeInTheDocument()
+    })
+
+    it("drops the hero and shelves while filtering, keeping the results grid", () => {
+        home("q=adena")
+        expect(screen.queryByRole("region", { name: "Featured apps" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("region", { name: "Essentials for gno.land" })).not.toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "Search results" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
+    })
+
+    it("shows a monogram, not an image, for an app without a logo", () => {
+        home("q=adena")
+        expect(screen.getByRole("button", { name: "Details for Adena" })).toHaveTextContent("AD")
     })
 })
