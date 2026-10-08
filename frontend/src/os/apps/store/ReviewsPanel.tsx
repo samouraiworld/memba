@@ -10,6 +10,7 @@ import { useAlive } from "../../shell/useAlive"
 import { useSigner } from "../../sign/signerContext"
 import { NativeReviewComposer } from "./NativeReviewComposer"
 import { reviewActionRequest } from "./reviewActionRequest"
+import "./native.css"
 
 export function ReviewsPanel({ subject, name, session, composable, onRefresh }: { subject: string; name: string; session: OsSession; composable: boolean; onRefresh?: () => void }) {
     const signer = useSigner()
