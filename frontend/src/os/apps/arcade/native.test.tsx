@@ -111,6 +111,12 @@ describe("Arcade lobby", () => {
         expect(screen.queryByText(/^reviews of /)).not.toBeInTheDocument()
     })
 
+    it("offers no Connect 4 review where its realm is live but the reviews realm is not listed", () => {
+        wrap(<ArcadeWindow {...base} session={{ network: { key: "onyx", chainId: "onyx-1" }, status: "guest" } as never} section="g/connect4" open={vi.fn()} />)
+        expect(screen.getByText("Onchain reviews are not available here yet.")).toBeInTheDocument()
+        expect(screen.queryByText(/^reviews of /)).not.toBeInTheDocument()
+    })
+
     it("shows the daily top only on Block Party's page", () => {
         const { unmount } = wrap(<ArcadeWindow {...base} section="g/block-party" open={vi.fn()} />)
         expect(screen.getByText("daily top")).toBeInTheDocument()

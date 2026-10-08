@@ -5,14 +5,16 @@ import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
 import { NextBoardCountdown } from "../../../game/components/NextBoardCountdown"
 import { ReviewsPanel } from "../store/ReviewsPanel"
-import { connect4PathFor } from "../../../lib/config"
+import { connect4PathFor, isRealmValidOn, reviewsPathFor } from "../../../lib/config"
 import type { ArcadeGame } from "./catalogue"
 import { DailyTop } from "./DailyTop"
 
 export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; toLobby: () => void } & Pick<NativeViewProps, "session" | "open">) {
     const media = resolveMedia(game.id, null, game.id)
-    // Connect 4 is reviewed only where its realm exists; elsewhere the page says when reviews open.
-    const reviewSubject = game.id === "connect4" && connect4PathFor(session.network.key) === null ? null : game.reviewSubject
+    // Connect 4 is reviewed only where both its realm and the reviews realm are listed.
+    const network = session.network.key
+    const c4Realm = game.id !== "connect4" || connect4PathFor(network) !== null
+    const reviewSubject = c4Realm && (game.id !== "connect4" || isRealmValidOn(network, reviewsPathFor(network))) ? game.reviewSubject : null
     const summaries = useReviewSummaries(session.network.chainId, reviewSubject ? [reviewSubject] : [])
     const summary = reviewSubject ? summaries.get(reviewSubject) : undefined
     const enabled = game.enabled()
@@ -27,7 +29,7 @@ export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; t
             <section className="os-cin-panel" aria-label="Ratings and reviews">
                 {reviewSubject
                     ? <ReviewsPanel subject={reviewSubject} name={game.name} session={session} composable={enabled} />
-                    : <p className="os-cin-sub">Reviews open once {game.name} is live on mainnet.</p>}</section>
+                    : <p className="os-cin-sub">{c4Realm ? "Onchain reviews are not available here yet." : `Reviews open once ${game.name} is live on mainnet.`}</p>}</section>
         </>}
         side={<>
             <div className="os-cin-panel">
