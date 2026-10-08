@@ -1,9 +1,10 @@
 /**
- * Every in-app route lives under /:network. A bare `to="/validators"`,
+ * Classic in-app routes live under /:network. A bare `to="/validators"`,
  * `href={`/u/${name}`}` or an HTML-string `<a href="/profile/…">` falls through
  * NetworkGate to LegacyRedirect, which costs a redirect hop and swaps the
  * network the user is on for the stored/default one. Links must be built with
  * useNetworkPath()/useNetworkNav() (or currentNetworkKey() outside React).
+ * Canonical OS window links are network-neutral and explicitly listed below.
  */
 import { describe, it, expect } from "vitest"
 import { readdirSync, readFileSync, statSync } from "node:fs"
@@ -15,6 +16,10 @@ const src = join(dirname(fileURLToPath(import.meta.url)), "..")
 /** Static files served at the site root, not app routes. */
 // The lab is a separately built HTML document with its own fixed worker scope.
 const ROOT_ASSETS = new Set(["/blog.rss", "/labs/gnotif/"])
+
+// parseOsPath maps this exact route to Settings → Privacy when the optional
+// account is enabled. Prefixing it would leave the canonical OS window route.
+const NETWORK_NEUTRAL_OS_ROUTES = new Set(["/os/privacy"])
 
 /** Tags whose to/href is used verbatim. Wrappers such as SidebarLink add the
  *  network prefix themselves and are not listed. */
@@ -34,7 +39,7 @@ export function bareLinks(text: string): string[] {
     // to="/x", href="/x", to={"/x"}, href={`/x/${y}`} — the value may sit on a
     // later line than the tag name, and props before it may contain "=>".
     for (const m of text.matchAll(/\b(?:to|href)=\{?\s*["'`](\/[a-z][^"'`$]*)/g)) {
-        if (ROOT_ASSETS.has(m[1])) continue
+        if (ROOT_ASSETS.has(m[1]) || NETWORK_NEUTRAL_OS_ROUTES.has(m[1])) continue
         // Skip comment lines (e.g. docs quoting gnoweb's own HTML).
         const lineStart = text.lastIndexOf("\n", m.index) + 1
         if (/^\s*(\*|\/\/)/.test(text.slice(lineStart, m.index))) continue
@@ -57,6 +62,12 @@ describe("network-prefixed links", () => {
         expect(bareLinks("<Link to={np(`profile/${a}`)}>x</Link>")).toEqual([])
         expect(bareLinks("<a href={`/${network}/profile/${a}`}>x</a>")).toEqual([])
         expect(bareLinks('<SidebarLink to="/quest-admin" />')).toEqual([])
+        expect(bareLinks('<Link to="/os/privacy">Privacy</Link>')).toEqual([])
+        // The one OS exception must not exempt classic routes or arbitrary /os paths.
+        expect(bareLinks('<Link to="/privacy">Privacy</Link>')).toEqual(["1: /privacy"])
+        expect(bareLinks('<Link to="/os/privacy/extra">extra</Link>')).toEqual(["1: /os/privacy/extra"])
+        expect(bareLinks('<Link to="/os/privacy-policy">other</Link>')).toEqual(["1: /os/privacy-policy"])
+        expect(bareLinks('<Link to="/os/unknown">unknown</Link>')).toEqual(["1: /os/unknown"])
         expect(bareLinks('<a href="/blog.rss">rss</a>')).toEqual([])
         expect(bareLinks('<a href="/labs/gnotif/">notification test</a>')).toEqual([])
         expect(bareLinks('<a href="/labs/gnotif/other">other</a>')).toEqual(["1: /labs/gnotif/other"])
