@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { AppListing } from "../../../lib/appStore"
 import type { ReviewAct } from "../../../components/reviews/ReviewCard"
@@ -7,7 +7,7 @@ import type { SignRequest } from "../../sign/signer"
 import { SignerContext, type SignerApi } from "../../sign/signerContext"
 import StoreWindow from "./native"
 
-const mocks = vi.hoisted(() => ({ submitOpen: true, fetchRegistryState: vi.fn(), fetchMyListings: vi.fn(), registerApplies: vi.fn(), editApplies: vi.fn(), delistApplies: vi.fn(), fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0 }))
+const mocks = vi.hoisted(() => ({ submitOpen: true, fetchRegistryState: vi.fn(), fetchMyListings: vi.fn(), registerApplies: vi.fn(), editApplies: vi.fn(), delistApplies: vi.fn(), fetchCuratorQueue: vi.fn(), fetchAppStrict: vi.fn(), fetchModerator: vi.fn(), fetchLive: vi.fn(), fetchSummaries: vi.fn(), price: vi.fn(), applies: vi.fn(), reportApplies: vi.fn(), mounts: 0 }))
 vi.mock("../../../lib/config", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/config")>(),
     isAppStoreEnabled: () => true, isAppReviewsAvailable: () => true, isRealmValidOn: () => true,
@@ -20,6 +20,7 @@ vi.mock("../../../lib/appStoreSubmit", async (importActual) => ({
 vi.mock("../../../lib/appStore", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/appStore")>(),
     fetchAppStrict: mocks.fetchAppStrict,
+    fetchLiveCatalogue: mocks.fetchLive,
     assertAppReportApplies: mocks.reportApplies,
     fetchCuratorQueue: mocks.fetchCuratorQueue,
     fetchRegistryState: mocks.fetchRegistryState,
@@ -28,6 +29,7 @@ vi.mock("../../../lib/appStore", async (importActual) => ({
 vi.mock("../../../lib/reviews", async (importActual) => ({
     ...await importActual<typeof import("../../../lib/reviews")>(),
     fetchModerator: mocks.fetchModerator,
+    fetchSummaries: mocks.fetchSummaries,
     assertReviewActionApplies: mocks.applies,
 }))
 vi.mock("../../../lib/grc20", async (importActual) => ({
@@ -68,6 +70,7 @@ function show(section = "apps/r/samcrew/app", session = guest) {
 }
 
 beforeEach(() => {
+    mocks.fetchLive.mockReset().mockResolvedValue({ apps: [], complete: true }); mocks.fetchSummaries.mockReset().mockResolvedValue(new Map())
     mocks.fetchAppStrict.mockReset(); mocks.fetchModerator.mockReset().mockResolvedValue(null)
     mocks.price.mockReset(); mocks.applies.mockReset().mockResolvedValue(undefined); mocks.mounts = 0
     mocks.reportApplies.mockReset().mockResolvedValue(undefined); mocks.fetchCuratorQueue.mockReset()
@@ -487,5 +490,75 @@ describe("Store: submitting and managing listings", () => {
         show("my-submissions", member)
         expect(await screen.findByText("Your listings could not be read from the registry.")).toBeInTheDocument()
         expect(screen.queryByText("This wallet has not published a listing yet.")).toBeNull()
+    })
+})
+
+describe("Store: discover home", () => {
+    function home(query?: string) {
+        const open = vi.fn()
+        const openApp = vi.fn()
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}>
+            <StoreWindow section={null} query={query} session={guest} active open={open} openApp={openApp} push={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        </QueryClientProvider>)
+        return { open, openApp }
+    }
+    const target = (open: ReturnType<typeof vi.fn>) => open.mock.calls.at(-1)![0].target
+
+    it("features editorial picks in a hero whose primary button opens the project page", () => {
+        const { open } = home()
+        expect(screen.getByRole("navigation", { name: "App Store" })).toBeInTheDocument()
+        expect(screen.getByRole("region", { name: "Featured apps" })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Explore GnoSwap" }))
+        expect(target(open)).toEqual(expect.objectContaining({ app: "store", section: "project/gnoswap" }))
+    })
+
+    it("filters by category through a chip group and keeps the Availability select", () => {
+        const { open } = home()
+        const group = screen.getByRole("group", { name: "Category" })
+        expect(within(group).getByRole("button", { name: "All", pressed: true })).toBeInTheDocument()
+        fireEvent.click(within(group).getByRole("button", { name: "Explorer", pressed: false }))
+        expect(String(open.mock.calls.at(-1)![0].target.query)).toContain("category=Explorer")
+        expect(screen.getByLabelText("Availability")).toBeInTheDocument()
+    })
+
+    it("shows the essentials and game shelves, and a game capsule opens its Arcade page", () => {
+        const { open } = home()
+        const essentials = screen.getByRole("region", { name: "Essentials for gno.land" })
+        expect(within(essentials).getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
+        fireEvent.click(within(screen.getByRole("region", { name: "Play on gno.land" })).getByRole("button", { name: "Details for BARRICADE" }))
+        expect(target(open)).toEqual(expect.objectContaining({ app: "arcade", section: "g/barricade" }))
+    })
+
+    it("opens the Arcade from the games shelf", () => {
+        const { openApp } = home()
+        fireEvent.click(screen.getByRole("button", { name: "Open the Arcade" }))
+        expect(openApp).toHaveBeenCalledWith("arcade")
+    })
+
+    it("lists a top-rated shelf only for entries with at least three reviews", async () => {
+        mocks.fetchSummaries.mockResolvedValue(new Map([["memba:app/adena", { count: 4, sum: 20, average: 5 }], ["gno.land/r/gnoswap/router", { count: 2, sum: 10, average: 5 }]]))
+        home()
+        const top = await screen.findByRole("region", { name: "Top rated by the community" })
+        expect(within(top).getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
+        expect(within(top).queryByRole("button", { name: "Details for GnoSwap" })).not.toBeInTheDocument()
+    })
+
+    it("has no top-rated shelf when nothing has three reviews", () => {
+        home()
+        expect(screen.queryByRole("region", { name: "Top rated by the community" })).not.toBeInTheDocument()
+    })
+
+    it("drops the hero and shelves while filtering, keeping the results grid", () => {
+        home("q=adena")
+        expect(screen.queryByRole("region", { name: "Featured apps" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("region", { name: "Essentials for gno.land" })).not.toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: "Search results" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
+    })
+
+    it("shows a monogram, not an image, for an app without a logo", () => {
+        home("q=adena")
+        expect(screen.getByRole("button", { name: "Details for Adena" })).toHaveTextContent("AD")
     })
 })

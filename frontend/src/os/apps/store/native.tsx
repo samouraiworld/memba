@@ -1,5 +1,5 @@
 /** Native Memba OS discovery. The registry and editorial directory remain distinct sources. */
-import { useMemo, useState, type CSSProperties, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { API_BASE_URL, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
 import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
@@ -7,14 +7,20 @@ import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDat
 import { fetchAppStrict, fetchLiveCatalogue, isAppStoreV3OrLaterOn, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { isValidCid } from "../../../lib/ipfs"
-import { publisherNote } from "../../../lib/reviews"
-import { AppShell, ErrorState, Loading, Pill } from "../../kit"
+import { publisherNote, type SubjectSummary } from "../../../lib/reviews"
+import { resolveMedia } from "../../../lib/storeMedia"
+import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
+import { ErrorState, Loading, Pill } from "../../kit"
+import { AppIcon, CinemaShell, CoverCapsule, HeroCarousel, RatingBadge, Shelf, useReviewSummaries, type HeroSlide } from "../../kit/storefront"
 import type { NativeViewProps } from "../../native/types"
 import { osTargetForClassic } from "../../page/classicRoute"
 import { Icon } from "../../shell/icons"
 import { specForTarget } from "../../shell/windows"
+import { ARCADE_GAMES } from "../arcade/catalogue"
 import { CuratorQueue } from "./CuratorQueue"
 import { ReviewsPanel } from "./ReviewsPanel"
+import { entryMedia, entrySubject } from "./entryMedia"
+import { STORE_ESSENTIALS, STORE_FEATURED } from "./featured"
 import { isListingSubmitOpen } from "./listingRequest"
 import { SubmitListing } from "./SubmitListing"
 import { YourListings } from "./YourListings"
@@ -26,22 +32,6 @@ const sections = [
     { id: "ecosystem", name: "Ecosystem", icon: "exp" },
     { id: "extensions", name: "Extensions", icon: "set" },
 ] as const
-
-function monogram(name: string): string {
-    const words = name.trim().split(/\s+/).filter(Boolean)
-    return (words.length > 1 ? `${words[0][0]}${words[1][0]}` : name.slice(0, 2)).toUpperCase()
-}
-
-function Artwork({ entry, large = false }: { entry: CatalogueEntry; large?: boolean }) {
-    const [failed, setFailed] = useState(false)
-    const cid = entry.listing?.iconCID
-    const style = { "--store-hue": `${[...entry.id].reduce((n, char) => (n * 33 + char.charCodeAt(0)) % 360, 0)}deg` } as CSSProperties
-    return <span className={`os-store-art${large ? " os-store-art--large" : ""}`} style={style} aria-hidden="true">
-        {cid && isValidCid(cid) && !failed
-            ? <img src={`${API_BASE_URL}/api/nft/image?cid=${encodeURIComponent(cid)}`} alt="" loading="lazy" onError={() => setFailed(true)} />
-            : monogram(entry.name)}
-    </span>
-}
 
 // Registering a listing is not a review: only a live one has been approved.
 const LISTING_PROVENANCE: Record<string, string> = {
@@ -67,15 +57,16 @@ function appSection(entry: CatalogueEntry): string {
     return entry.source === "registry" ? `apps/${entry.realmPath!.replace(/^gno\.land\//, "")}` : `project/${entry.project!.id}`
 }
 
-function StoreCard({ entry, onOpen }: { entry: CatalogueEntry; onOpen: () => void }) {
-    return <button type="button" className="os-store-card" onClick={onOpen} aria-label={`Details for ${entry.name}`}>
-        <Artwork entry={entry} />
+function StoreCard({ entry, summary, onOpen }: { entry: CatalogueEntry; summary?: SubjectSummary; onOpen: () => void }) {
+    const media = entryMedia(entry)
+    return <button type="button" className="os-store-card os-cin-tile" onClick={onOpen} aria-label={`Details for ${entry.name}`}>
+        <AppIcon name={entry.name} logo={media.logo} accent={media.accent} />
         <span className="os-store-card-copy">
             <b>{entry.name}</b>
             <span>{entry.tagline}</span>
             <small>{provenance(entry)} <span aria-hidden="true">·</span> {availability(entry)}</small>
+            <RatingBadge summary={summary} />
         </span>
-        <span className="os-store-card-arrow" aria-hidden="true">↗</span>
     </button>
 }
 
@@ -96,6 +87,11 @@ function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "sessio
     }
     if (/^https?:\/\//.test(entry.url)) return <a className="os-btn" href={entry.url} target="_blank" rel="noopener noreferrer">Open external site ↗</a>
     return <Pill tone="neutral">No launch link</Pill>
+}
+
+function DetailIcon({ entry }: { entry: CatalogueEntry }) {
+    const media = entryMedia(entry)
+    return <AppIcon name={entry.name} logo={media.logo} accent={media.accent} size={78} />
 }
 
 function Detail({ section, session, open, close }: NativeViewProps) {
@@ -125,7 +121,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
         {!entry && (projectId !== null || (!!path && !isSafeRealmPath(path)) || (canReadListing && !detail.isPending && !detail.isError)) && <div className="os-note" role="status">This app was not found in the current catalogue.</div>}
         {entry && <>
             <header className="os-store-detail-head">
-                <Artwork key={entry.id} entry={entry} large />
+                <DetailIcon entry={entry} />
                 <div><p className="os-store-kicker">{entry.category} <span aria-hidden="true">·</span> {availability(entry)}</p><h1>{entry.name}</h1><p>{entry.tagline}</p></div>
             </header>
             {listing?.status !== undefined && listing.status !== "live" && <p className="os-store-notice" role="status">{listing.status ? `This listing is ${listing.status}.` : "This listing has no status."} It is not in the approved catalogue.</p>}
@@ -145,7 +141,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
 }
 
 function Discovery({ props, section }: { props: NativeViewProps; section: "discover" | "ecosystem" }) {
-    const { session, query, open } = props
+    const { session, query, open, active, openApp } = props
     const registryEnabled = isAppStoreEnabled() && isRealmValidOn(session.network.key, appStorePathFor(session.network.key))
     const live = useQuery({
         queryKey: ["appStore", "native-catalogue", session.network.chainId, appStorePathFor(session.network.key)],
@@ -155,7 +151,9 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
     const filters = parseCatalogueFilters(new URLSearchParams(query))
     const [draft, setDraft] = useState(filters.q)
     const all = useMemo(() => buildCatalogue(registryEnabled ? live.data?.apps ?? [] : [], ECOSYSTEM_PROJECTS, session.network.key), [registryEnabled, live.data, session.network.key])
-    const spotlight = all.find((entry) => entry.project?.id === "gnoswap")
+    const filtering = !!filters.q || filters.category !== "all" || filters.availability !== "all"
+    const summaries = useReviewSummaries(session.network.chainId, [...all.map(entrySubject), ...ARCADE_GAMES.map((game) => game.reviewSubject)])
+    const byProject = (id: string) => all.find((entry) => entry.project?.id === id)
     const pool = section === "ecosystem" ? all.filter((entry) => entry.source === "editorial") : all
     const visible = filterCatalogue(pool, filters)
     const navigate = (patch: Partial<CatalogueFilters>) => {
@@ -164,19 +162,36 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
     }
     const search = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); navigate({ q: draft }) }
     const openEntry = (entry: CatalogueEntry) => open(specForTarget({ kind: "app", app: "store", section: appSection(entry) })!)
+    const slides: HeroSlide[] = STORE_FEATURED.map(byProject).filter((entry): entry is CatalogueEntry => !!entry).map((entry) => {
+        const media = entryMedia(entry)
+        return { id: entry.id, kicker: `Editor's pick · ${entry.category}`, title: entry.name, pitch: entry.tagline, cover: media.cover, accent: media.accent, tags: [availability(entry)], primary: { label: `Explore ${entry.name}`, onClick: () => openEntry(entry) } }
+    })
+    const essentials = STORE_ESSENTIALS.map(byProject).filter((entry): entry is CatalogueEntry => !!entry)
+    const rated = (entry: CatalogueEntry) => summaries.get(entrySubject(entry))
+    const topRated = all.filter((entry) => (rated(entry)?.count ?? 0) >= MIN_RATED_COUNT).sort((a, b) => rated(b)!.average - rated(a)!.average).slice(0, 6)
+    const gamePage = (id: string) => open(specForTarget({ kind: "app", app: "arcade", section: `g/${id}` })!)
     return <div className="os-store-home">
-        {section === "discover" && <header className="os-store-hero">
-            <div><p className="os-store-kicker">THE GNO ECOSYSTEM, IN ONE PLACE</p><h1>Find your next thing.</h1><p>Apps, games and tools for Gno, with public realms you can inspect and independent projects clearly marked.</p></div>
-            {spotlight && <button type="button" className="os-store-spotlight" onClick={() => openEntry(spotlight)} aria-label={`Explore ${spotlight.name}`}>
-                <span className="os-store-spotlight-label">A PLACE TO START <span aria-hidden="true">↗</span></span>
-                <Artwork entry={spotlight} />
-                <strong>{spotlight.name}</strong>
-                <small>{provenance(spotlight)} · {availability(spotlight)}</small>
-            </button>}
-        </header>}
+        {section === "discover" && !filtering && <HeroCarousel label="Featured apps" slides={slides} active={active} />}
         {section === "ecosystem" && <header className="os-store-section-head"><p className="os-store-kicker">BEYOND THE REGISTRY</p><h1>Ecosystem</h1><p>Independent projects and tools. Their links and network status are shown before you open them.</p></header>}
         <form className="os-store-search" role="search" onSubmit={search}><label htmlFor="os-store-query">Search apps and tools</label><div><input id="os-store-query" type="search" maxLength={200} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="App, category or realm path" /><button type="submit" className="os-btn">Search</button></div></form>
-        <div className="os-store-filters"><label>Category<select value={filters.category} onChange={(event) => navigate({ category: event.target.value as CatalogueFilters["category"] })}><option value="all">All categories</option>{CATALOGUE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><label>Availability<select value={filters.availability} onChange={(event) => navigate({ availability: event.target.value as CatalogueFilters["availability"] })}><option value="all">Any network</option><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option><option value="tools">Tools</option><option value="unknown">Not verified</option></select></label>{(filters.q || filters.category !== "all" || filters.availability !== "all") && <button type="button" className="os-btn os-quiet" onClick={() => { setDraft(""); navigate({ q: "", category: "all", availability: "all" }) }}>Clear</button>}</div>
+        <div className="os-store-filters"><div className="os-cin-row" role="group" aria-label="Category">
+            {(["all", ...CATALOGUE_CATEGORIES] as const).map((category) => <button key={category} type="button" className="os-cin-tag" aria-pressed={filters.category === category} onClick={() => navigate({ category: category as CatalogueFilters["category"] })}>{category === "all" ? "All" : category}</button>)}
+        </div><label>Availability<select value={filters.availability} onChange={(event) => navigate({ availability: event.target.value as CatalogueFilters["availability"] })}><option value="all">Any network</option><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option><option value="tools">Tools</option><option value="unknown">Not verified</option></select></label>{filtering && <button type="button" className="os-btn os-quiet" onClick={() => { setDraft(""); navigate({ q: "", category: "all", availability: "all" }) }}>Clear</button>}</div>
+        {section === "discover" && !filtering && <>
+            <Shelf id="store-essentials" title="Essentials for gno.land">
+                <div className="os-cin-grid os-cin-grid--tiles">{essentials.map((entry) => <StoreCard key={entry.id} entry={entry} summary={rated(entry)} onOpen={() => openEntry(entry)} />)}</div>
+            </Shelf>
+            <Shelf id="store-games" title="Play on gno.land" action={{ label: "Open the Arcade", onClick: () => openApp("arcade") }}>
+                <div className="os-cin-grid">{ARCADE_GAMES.map((game) => {
+                    const media = resolveMedia(game.id, null, game.id)
+                    return <CoverCapsule key={game.id} title={game.name} pitch={game.pitch} cover={media.cover} accent={media.accent} tags={game.tags.slice(0, 1)}
+                        costTag={game.cost === "staked" ? { label: "Staked · GNOT", tone: "warn" } : { label: "Free", tone: "free" }} summary={summaries.get(game.reviewSubject)} onOpen={() => gamePage(game.id)} />
+                })}</div>
+            </Shelf>
+            {topRated.length > 0 && <Shelf id="store-top" title="Top rated by the community">
+                <div className="os-cin-grid os-cin-grid--tiles">{topRated.map((entry) => <StoreCard key={entry.id} entry={entry} summary={rated(entry)} onOpen={() => openEntry(entry)} />)}</div>
+            </Shelf>}
+        </>}
         {registryEnabled && live.isPending && <Loading label="Reading onchain listings…" />}
         {registryEnabled && live.isError && <ErrorState message="Onchain listings could not be read. Independent projects remain available below." onRetry={() => void live.refetch()} />}
         {registryEnabled && live.data && !live.data.complete && <p className="os-store-notice" role="status">Showing the first {live.data.apps.length} onchain listings. Search may not cover later pages.</p>}
@@ -186,7 +201,7 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
             ? registryEnabled && live.isPending
                 ? null
                 : <p className="os-store-empty">{registryEnabled && live.isError ? "No independent projects match these filters. Onchain results are unavailable; retry the registry above." : "No projects match these filters. Try another search or clear them."}</p>
-            : <div className="os-store-grid">{visible.map((entry) => <StoreCard key={entry.id} entry={entry} onOpen={() => openEntry(entry)} />)}</div>}
+            : <div className="os-store-grid">{visible.map((entry) => <StoreCard key={entry.id} entry={entry} summary={rated(entry)} onOpen={() => openEntry(entry)} />)}</div>}
         <p className="os-store-footnote">A curator approved listing is a catalogue decision, not a code audit. External projects choose their own wallet and network requirements.</p>
     </div>
 }
@@ -207,11 +222,11 @@ export default function StoreWindow(props: NativeViewProps) {
         ...listingsOpen ? [{ id: "my-submissions", name: "Your listings", icon: "prof" as const }] : [],
     ]
     const closed = <p className="os-store-notice" role="status">Submitting listings is not open on this network yet.</p>
-    return <AppShell label="App Store" sections={nav} current={current} onSelect={(next) => open(specForTarget({ kind: "app", app: "store", section: next === "discover" ? null : next })!)}>
+    return <CinemaShell tone="store" label="App Store" brand="Store" sections={nav} current={current} onSelect={(next) => open(specForTarget({ kind: "app", app: "store", section: next === "discover" ? null : next })!)}>
         {current === "extensions" ? <Extensions />
             : current === "review" ? <CuratorQueue session={session} open={open} />
             : current === "submit" ? listingsOpen ? <SubmitListing key={props.query ?? ""} session={session} query={props.query} push={props.push} /> : closed
             : current === "my-submissions" ? listingsOpen ? <YourListings session={session} push={props.push} /> : closed
             : <Discovery key={`${current}:${props.query}`} props={props} section={current === "ecosystem" ? "ecosystem" : "discover"} />}
-    </AppShell>
+    </CinemaShell>
 }
