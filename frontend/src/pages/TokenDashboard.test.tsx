@@ -55,7 +55,7 @@ describe("TokenDashboard", () => {
         capability.launchpad = true
         renderWithProviders(<TokenDashboard />)
         expect(screen.getByText("Tokens are made in the Token Launchpad here")).toBeInTheDocument()
-        expect(screen.getByRole("link", { name: "Open the Tokens app" })).toHaveAttribute("href", "/os/tokens")
+        expect(screen.getByText(/created and sold in the Token Launchpad, in Memba OS’s Tokens app/)).toBeInTheDocument()
         expect(listFactoryTokens).not.toHaveBeenCalled()
     })
 

@@ -77,7 +77,7 @@ export default function TokensWindow({ session, fallback }: NativeViewProps) {
         <div className="os-stack">
             <div className="os-note os-warn" role="note">
                 <Pill tone="neutral">Token Launchpad unavailable here</Pill>
-                {network === "mainnet" ? ` The Token Launchpad is not deployed on ${session.network.chainId}.` : " The Token Launchpad is not available on this network."}
+                {network === "mainnet" ? ` The Token Launchpad is not open on ${session.network.chainId}.` : " The Token Launchpad is not available on this network."}
             </div>
         </div>
     )
