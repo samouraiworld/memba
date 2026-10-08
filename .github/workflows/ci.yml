@@ -325,6 +325,9 @@ jobs:
       - name: Production build and service-worker continuity
         if: matrix.shard == 1
         run: npm run test:e2e:release
+      - name: Gnotif lab worker coexistence
+        if: matrix.shard == 1
+        run: npm run test:e2e:gnotif
       - name: E2E tests (chromium)
         run: npx playwright test --project=chromium --reporter=list --shard=${{ matrix.shard }}/4
       # Memba OS: four dev servers. Flag on and flag off prove /os renders only behind

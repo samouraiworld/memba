@@ -27,7 +27,8 @@
     "test:e2e:pro-shell": "playwright test --config playwright.shell.config.ts",
     "test:e2e:pro-governance": "playwright test --config playwright.governance.config.ts",
     "test:e2e:complete": "playwright test --config playwright.complete.config.ts",
-    "test:e2e:complete-features": "DESIGN_REVIEW_FEATURES=true playwright test --config playwright.complete-features.config.ts"
+    "test:e2e:complete-features": "DESIGN_REVIEW_FEATURES=true playwright test --config playwright.complete-features.config.ts",
+    "test:e2e:gnotif": "playwright test -c playwright.gnotif.config.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.16.0",

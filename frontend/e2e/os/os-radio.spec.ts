@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 
-test('guest Radio plays, survives minimising, changes station and stops on close', async ({ page }) => {
+test('guest Radio plays, survives minimising, changes station and stops on close', async ({ page }, testInfo) => {
     await fulfillGovernance(page)
     await page.route('**/rpc.onyx.testnets.gno.land*/**', async route => {
         if (route.request().method() === 'GET') return route.fulfill({ json: { result: { node_info: { network: 'onyx-1' }, sync_info: { latest_block_height: '100' } } } })
@@ -41,7 +41,7 @@ test('guest Radio plays, survives minimising, changes station and stops on close
     await expect(player).toBeVisible()
     await player.getByLabel('Station', { exact: true }).selectOption('1')
     await expect(player.getByRole('status')).toHaveText('Live')
-    await page.screenshot({ path: '/private/tmp/memba-quick-tests/radio-desktop.png' })
+    await page.screenshot({ path: testInfo.outputPath('radio-desktop.png') })
     await page.getByRole('button', { name: 'Close Radio' }).click()
     await expect.poll(() => page.evaluate(() => (window as unknown as { radioTest: { playing: boolean } }).radioTest.playing)).toBe(false)
 })
