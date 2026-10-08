@@ -28,6 +28,7 @@ import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReview
 import { EcosystemDirectory } from "../components/appstore/EcosystemDirectory"
 import { buildCatalogue, CATALOGUE_AVAILABILITY_OPTIONS, CATALOGUE_CATEGORIES, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueFilters } from "../lib/appCatalogue"
 import { ECOSYSTEM_PROJECTS } from "../lib/ecosystemDirectory"
+import { mediaKeyFor, resolveMedia } from "../lib/storeMedia"
 import "./appstore.css"
 
 export function AppStore() {
@@ -126,6 +127,11 @@ function ProxyImage({ cid, alt, className, loading, onFinalError }: {
 // shape-validated before it becomes a URL.
 function AppIcon({ app, size }: { app: AppListing; size: "md" | "lg" }) {
     const [failed, setFailed] = useState(false)
+    // A curated app's committed logo (lib/storeMedia) wins over its listing's CID, as in Memba OS.
+    const curated = resolveMedia(mediaKeyFor(null, app.pkgPath), null, app.pkgPath).logo
+    if (curated && !failed) {
+        return <img key={curated} className={`appmono appmono--${size} appicon`} src={curated} alt="" loading="lazy" onError={() => setFailed(true)} />
+    }
     if (!app.iconCID || !isValidCid(app.iconCID) || failed) {
         return <Monogram app={app} size={size} />
     }

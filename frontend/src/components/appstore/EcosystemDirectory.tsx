@@ -4,6 +4,7 @@ import { notOnChain } from "../../lib/appCatalogue"
 import type { AppListing } from "../../lib/appStore"
 import { ECOSYSTEM_CATEGORIES, ECOSYSTEM_PROJECTS, filterEcosystemProjects, type EcosystemFilters, type EcosystemProject } from "../../lib/ecosystemDirectory"
 import { parseEcosystemFilters, updateEcosystemFilters } from "../../lib/ecosystemDirectoryUrl"
+import { resolveMedia } from "../../lib/storeMedia"
 import { ExplorerLink } from "../directory/ExplorerLink"
 import "./ecosystem-directory.css"
 
@@ -38,8 +39,9 @@ export function EcosystemDirectory({ standalone = false, onChain, filteredProjec
             <ul className="ecosystem-directory__grid">
                 {projects.map(project => {
                     const Icon = ICONS[project.category]
+                    const logo = resolveMedia(project.id, null, project.id).logo
                     return <li key={project.id}><article className="ecosystem-app">
-                        <div className="ecosystem-app__top"><span className="ecosystem-app__icon"><Icon size={26} aria-hidden="true" /></span><span>{project.category}</span></div>
+                        <div className="ecosystem-app__top"><span className="ecosystem-app__icon">{logo ? <img src={logo} alt="" loading="lazy" /> : <Icon size={26} aria-hidden="true" />}</span><span>{project.category}</span></div>
                         {standalone ? <h2>{project.name}</h2> : <h3>{project.name}</h3>}<p>{project.description}</p>
                         <p className="ecosystem-app__availability">{project.availability}</p>
                         <div className="ecosystem-app__links">

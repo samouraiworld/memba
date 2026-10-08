@@ -40,6 +40,10 @@ describe("ecosystem discovery controls", () => {
         expect(screen.getByRole("link", { name: "Boards source (opens in a new tab)" })).toHaveAttribute("href", "https://gno.land/r/gnoland/boards2/v0$source")
         expect(screen.getByTestId("location")).toHaveTextContent("/pearl/apps")
     })
+    it("shows each project's committed logo in place of its category icon", () => {
+        const { container } = renderWithProviders(<EcosystemDirectory standalone />)
+        expect(container.querySelector('.ecosystem-app__icon img[src="/store/adena/logo.svg"]')).not.toBeNull()
+    })
     it("does not offer disabled explorer routes or nest interactive elements", () => {
         vi.stubEnv("VITE_ENABLE_EXPLORER", "false")
         const { container } = renderWithProviders(<EcosystemDirectory standalone />)
