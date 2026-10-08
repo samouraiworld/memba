@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Akkadia's logo and gnoscope's new name in the storefront (2026-10-08)
+- App Store: Akkadia shows its own logo instead of its studio's mark.
+- mygnoscan is now listed as gnoscope, with its new address (gnoscope.com) and logo. Its reviews stay under the same pinned subject.
+
 ### Token Launchpad on gno.land mainnet (2026-10-08)
 - The Tokens app now creates tokens and opens fair sales on gnoland-1, in the Launchpad realms published on 2026-10-08: the sales realm holds what sales owe and pays each exit to its recorded receiver, and a paused lane takes no new launch or order. The home cards, the Wallet and the classic token page point to it.
 - NFT collections and the NFT market are published on mainnet but not open yet.
