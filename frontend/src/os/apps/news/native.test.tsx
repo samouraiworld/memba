@@ -300,7 +300,7 @@ describe("News window · Blog", () => {
 describe("News window · Changelogs", () => {
     const entryCount = () => document.querySelectorAll(".os-news-entry").length
 
-    it("shows current and legacy entries, the unreleased block once, and the full changelog link", () => {
+    it("shows current and legacy entries, the unreleased block at most once, and the full changelog link", () => {
         renderNews("/os/news/changelogs")
         const nav = screen.getByRole("navigation", { name: "News" })
         expect(within(nav).getByRole("button", { name: "Changelogs" })).toHaveAttribute("aria-current", "true")
@@ -310,8 +310,10 @@ describe("News window · Changelogs", () => {
         expect(screen.getByRole("heading", { level: 2, name: "September 23, 2026" })).toBeInTheDocument()
         expect(screen.getByRole("heading", { level: 3, name: "Release v7.7.0" })).toBeInTheDocument()
         expect(screen.getByRole("heading", { level: 3, name: "v3.2.0 Multi-Model AI Consensus & Governance Discovery" })).toBeInTheDocument()
-        // The unreleased block is headed once; shipped interim blocks sit under their version.
-        expect(screen.getAllByText("Unreleased")).toHaveLength(1)
+        expect(screen.getByRole("heading", { level: 3, name: "Release v7.8.0" })).toBeInTheDocument()
+        // The unreleased block is headed at most once (none right after a release cut);
+        // shipped interim blocks sit under their version.
+        expect(screen.queryAllByText("Unreleased").length).toBeLessThanOrEqual(1)
         expect(screen.getByRole("heading", { level: 2, name: "v6.2.2" })).toBeInTheDocument()
         const full = screen.getByRole("link", { name: /Full changelog/ })
         expect(full).toHaveAttribute("href", "https://github.com/samouraiworld/memba/blob/main/CHANGELOG.md")

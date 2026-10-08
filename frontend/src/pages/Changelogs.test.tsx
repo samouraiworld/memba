@@ -15,6 +15,8 @@ function renderPage() {
 describe("Changelogs page (real CHANGELOG.md)", () => {
     it("renders current releases parsed from CHANGELOG.md", () => {
         renderPage()
+        expect(screen.getByText("v7.8.0")).toBeTruthy()
+        expect(screen.getAllByText(/October 8, 2026/).length).toBeGreaterThan(0)
         expect(screen.getByText("v7.7.0")).toBeTruthy()
         expect(screen.getAllByText(/September 23, 2026/).length).toBeGreaterThan(0)
         expect(screen.getByText("v7.3.0")).toBeTruthy()
@@ -32,7 +34,7 @@ describe("Changelogs page (real CHANGELOG.md)", () => {
         renderPage()
         // One separator + at most the entry-title fallback — historical
         // "Unreleased — v6.2.x" blocks must group under their version instead.
-        expect(screen.getAllByText("Unreleased").length).toBeLessThanOrEqual(2)
+        expect(screen.queryAllByText("Unreleased").length).toBeLessThanOrEqual(2)
         // A shipped interim-title block renders under its version label.
         expect(screen.getAllByText("v6.2.2").length).toBeGreaterThanOrEqual(1)
     })
