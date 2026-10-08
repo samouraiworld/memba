@@ -92,13 +92,13 @@
   <!-- Privacy-friendly analytics by Plausible -->
   <script>
     window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-    // Meeting codes grant access. Strip them from pageviews, referrers and event properties.
-    function redactMeetAnalytics(value) {
-      if (typeof value === 'string') return value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[redacted]')
-      if (value && typeof value === 'object') Object.keys(value).forEach(function(key) { value[key] = redactMeetAnalytics(value[key]) })
+    // Meeting codes and consent-link tokens grant access. Strip them from pageviews, referrers and event properties.
+    function redactAnalytics(value) {
+      if (typeof value === 'string') return value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[redacted]').replace(/([?&]t=)\d+\.[A-Za-z0-9_-]+/g, '$1[redacted]')
+      if (value && typeof value === 'object') Object.keys(value).forEach(function(key) { value[key] = redactAnalytics(value[key]) })
       return value
     }
-    plausible.init({ transformRequest: redactMeetAnalytics })
+    plausible.init({ transformRequest: redactAnalytics })
   </script>
   <script async src="https://plausible.io/js/pa-MoHERbBsU4W0bR6B_n184.js"></script>
 </head>

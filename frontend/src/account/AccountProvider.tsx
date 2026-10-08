@@ -33,6 +33,13 @@ export function AccountProvider({ children, publishableKey = CLERK_PUBLISHABLE_K
     const [status, setStatus] = useState<AccountStatus>(() => publishableKey && remembered() ? "loading" : "off")
     const [user, setUser] = useState<AccountUser | null>(null)
     const client = useRef<ClerkClient | null>(null)
+    const identity = useRef({ id: "", generation: 0 })
+    const updateUser = useCallback((u: AccountUser | null) => {
+        const id = u?.id ?? ""
+        if (identity.current.id !== id) identity.current = { id, generation: identity.current.generation + 1 }
+        setUser(u)
+        remember(!!u)
+    }, [])
     const loading = useRef<Promise<ClerkClient | null> | null>(null)
 
     const start = useCallback((): Promise<ClerkClient | null> => {
@@ -47,9 +54,8 @@ export function AccountProvider({ children, publishableKey = CLERK_PUBLISHABLE_K
                     new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Clerk did not load in time")), LOAD_TIMEOUT_MS) }),
                 ])
                 client.current = c
-                setUser(c.user)
-                remember(!!c.user)
-                c.onChange((u) => { setUser(u); remember(!!u) })
+                updateUser(c.user)
+                c.onChange(updateUser)
                 setStatus("ready")
                 return c
             } catch (err) {
@@ -62,20 +68,38 @@ export function AccountProvider({ children, publishableKey = CLERK_PUBLISHABLE_K
             }
         })()
         return loading.current
-    }, [publishableKey])
+    }, [publishableKey, updateUser])
 
     useEffect(() => {
         if (remembered()) void start()
     }, [start])
 
-    const api = useMemo<AccountApi>(() => ({
+    const api = useMemo<AccountApi>(() => {
+        const captured = identity.current
+        const assertIdentity = (expectedUserId?: string) => {
+            if (!expectedUserId || captured !== identity.current || captured.id !== expectedUserId || client.current?.user?.id !== expectedUserId) throw new Error("Your sign-in changed. Return to the account whose operation you confirmed.")
+        }
+        return ({
         available: !!publishableKey,
         status,
         user,
         openSignIn: () => { void start().then((c) => c?.openSignIn()) },
-        getToken: async () => client.current?.getToken() ?? null,
+        getToken: async (expectedUserId = user?.id) => {
+            if (!expectedUserId) return null
+            assertIdentity(expectedUserId)
+            const token = await client.current?.getToken(expectedUserId) ?? null
+            assertIdentity(expectedUserId)
+            return token
+        },
+        assertCurrentUser: assertIdentity,
         signOut: async () => { await client.current?.signOut(); remember(false) },
-    }), [publishableKey, status, user, start])
+        deleteUser: async (expectedUserId) => {
+            assertIdentity(expectedUserId)
+            if (!client.current) throw new Error("Sign-in is not loaded")
+            await client.current.deleteUser(expectedUserId)
+            remember(false)
+        },
+    }) }, [publishableKey, status, user, start])
 
     return <AccountContext.Provider value={api}>{children}</AccountContext.Provider>
 }

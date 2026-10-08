@@ -25,8 +25,11 @@ export interface AccountApi {
     /** Loads Clerk and opens its sign-in. */
     openSignIn: () => void
     /** A fresh session token per call (never cached), or null when signed out. */
-    getToken: () => Promise<string | null>
+    getToken: (expectedUserId?: string) => Promise<string | null>
+    assertCurrentUser: (expectedUserId: string) => void
     signOut: () => Promise<void>
+    /** Deletes the identity-provider user (and ends the session). */
+    deleteUser: (expectedUserId: string) => Promise<void>
 }
 
 export const SIGNED_OUT: AccountApi = {
@@ -35,7 +38,9 @@ export const SIGNED_OUT: AccountApi = {
     user: null,
     openSignIn: () => {},
     getToken: async () => null,
+    assertCurrentUser: () => {},
     signOut: async () => {},
+    deleteUser: async () => {},
 }
 
 export const AccountContext = createContext<AccountApi>(SIGNED_OUT)

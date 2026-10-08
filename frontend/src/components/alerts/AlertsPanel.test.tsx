@@ -70,3 +70,13 @@ describe("the Alerts panel", () => {
         expect(screen.getByRole("heading", { name: "Alerts", level: 2 })).toBeInTheDocument()
     })
 })
+
+
+it("keeps guest sign-in and Telegram available after another subject was deleted", async () => {
+    const { setDeletion } = await import("../../os/account/deletion")
+    setDeletion({ userId: "deleted-subject", step: "done", running: false })
+    withAccount({ user: null })
+    expect(screen.getByRole("button", { name: "Sign in to configure alerts" })).toBeInTheDocument()
+    expect(screen.getByText("Telegram Bots")).toBeInTheDocument()
+    expect(screen.queryByText(/Account deletion is in progress/)).toBeNull()
+})

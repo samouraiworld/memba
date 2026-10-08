@@ -14,6 +14,7 @@
  *
  * @module os/apps/nft/native
  */
+import { EarlyAccess } from "../../account/EarlyAccess"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useRef, type Ref } from "react"
 import type { NativeViewProps } from "../../native/types"
@@ -112,6 +113,7 @@ export default function NftWindow({ section, session, push, openApp, fallback }:
                         : " The NFT ledger is not available on this network.")}
                     {!enabled && " NFT features are disabled in this build."}
                 </div>
+                <EarlyAccess app="nft" />
                 <CardGrid>{market}</CardGrid>
             </div>
         )

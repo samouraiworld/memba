@@ -4,13 +4,13 @@ import { createHash } from 'node:crypto'
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 
-describe('Meet analytics privacy', () => {
+describe('analytics privacy', () => {
     it('redacts room codes from the actual Plausible pageview and event payloads', () => {
         const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
         const inline = html.match(/<script>(\s*window\.plausible=[\s\S]*?)<\/script>/)?.[1]
         const hash = createHash('sha256').update(inline!).digest('base64')
         expect(readFileSync(resolve(process.cwd(), '../netlify.toml'), 'utf8')).toContain(`'sha256-${hash}'`)
-        expect(html.indexOf('plausible.init({ transformRequest: redactMeetAnalytics })'))
+        expect(html.indexOf('plausible.init({ transformRequest: redactAnalytics })'))
             .toBeLessThan(html.indexOf('<script async src="https://plausible.io/js/'))
         const snippet = html.match(/<script>\s*(window\.plausible=[\s\S]*?)<\/script>/)?.[1]
         expect(snippet).toBeTruthy()
@@ -26,6 +26,11 @@ describe('Meet analytics privacy', () => {
         }
         expect(JSON.stringify(transform(payload))).not.toContain(room)
         expect(payload.u).toBe('https://memba.club/os/meet/[redacted]')
+        // A consent confirmation link's token, on the first page load and in a referrer.
+        const token = '12.Q2xlcmtfX19fX19fX19fX19fX19fX19fX19fX19fXw'
+        const confirm = { u: `https://memba.club/os/confirm?t=${token}`, r: `https://memba.club/os/settings/confirm?w=app.daos&t=${token}` }
+        expect(JSON.stringify(transform(confirm))).not.toContain(token)
+        expect(confirm.u).toBe('https://memba.club/os/confirm?t=[redacted]')
         const ordinary = { u: 'https://memba.club/os/daos', p: { source: 'menu' } }
         expect(transform(ordinary)).toBe(ordinary)
         expect(ordinary.u).toBe('https://memba.club/os/daos')

@@ -12,6 +12,7 @@
  *
  * @module os/shell/osPath
  */
+import { ACCOUNT_ENABLED } from "../../lib/config"
 import { classicForSection } from "../page/classicRoute"
 import { nameForRealm } from "../daos/daoNames"
 import { parseDaoSplat } from "../../lib/daoSlug"
@@ -80,6 +81,8 @@ export function parseOsPath(pathname: string): OsTarget {
 
     if (first === "feedback") return second === undefined ? { kind: "feedback" } : { kind: "unknown", path: pathname }
     if (first === "about") return second === undefined ? { kind: "about" } : { kind: "unknown", path: pathname }
+    // The optional account's confirmation link and privacy page live in Settings (only while the account is on).
+    if (ACCOUNT_ENABLED && (first === "confirm" || first === "privacy") && second === undefined) return { kind: "app", app: "settings", section: first }
 
     // The old weighted-DAO workspace address, typed under the DAOs app, is read as that DAO's own address
     // (/os/dao/<name>[/members|treasury|proposals[/<n>]]), so it is held to exactly the same rules.

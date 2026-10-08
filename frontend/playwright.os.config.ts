@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Memba OS e2e. The standard OS servers prove the on/off gate; a third server
 // turns on flag-gated features (Feed, the App Store registry, listing submissions, app
-// reviews, profile publishing, a GitHub OAuth client id and a Clerk key for an
+// reviews, profile publishing, a GitHub OAuth client id, the optional account and a Clerk key for an
 // unreachable test host) so their flows run without changing what the other OS
 // tests see, a fourth runs native multisig broadcast (off by default), and a fifth
 // the EVM network (VITE_ENABLE_EVM).
@@ -43,7 +43,7 @@ export default defineConfig({
         },
         {
             command: `npm run dev -- --host 127.0.0.1 --port ${FLAGS_PORT} --strictPort`,
-            env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_FEED: 'true', VITE_ENABLE_APPSTORE: 'true', VITE_ENABLE_APPSTORE_SUBMIT: 'true', VITE_ENABLE_APP_REVIEWS: 'true', VITE_ENABLE_OS_PROFILE_PUBLISH: 'true', VITE_GITHUB_CLIENT_ID: 'e2e-client', VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcmsuZXhhbXBsZS50ZXN0JA==' },
+            env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_FEED: 'true', VITE_ENABLE_APPSTORE: 'true', VITE_ENABLE_APPSTORE_SUBMIT: 'true', VITE_ENABLE_APP_REVIEWS: 'true', VITE_ENABLE_OS_PROFILE_PUBLISH: 'true', VITE_GITHUB_CLIENT_ID: 'e2e-client', VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcmsuZXhhbXBsZS50ZXN0JA==', VITE_ENABLE_ACCOUNT: 'true' },
             url: OS_FLAGS_ON, reuseExistingServer: false, timeout: 120_000,
         },
         {
