@@ -51,16 +51,17 @@ export default function MarketWindow({ section, session, active, open, push, fal
     // A card, or the control back to the home, unmounts when it is used and would
     // drop focus on the page body: focus follows into the view it opened instead,
     // unless another window came to the front meanwhile, which focus would push back.
-    const moved = useRef(false)
+    // An older pending effect must not consume focus intended for the destination.
+    const focusRequest = useRef<{ section: string | null } | null>(null)
     const heading = useRef<HTMLHeadingElement>(null)
     const back = useRef<HTMLButtonElement>(null)
     useEffect(() => {
-        if (!moved.current) return
-        moved.current = false
+        if (!focusRequest.current || focusRequest.current.section !== section) return
+        focusRequest.current = null
         if (active) (inLane ? back.current : heading.current)?.focus({ preventScroll: true })
     }, [section, inLane, active])
     const go = (to: string | null) => {
-        moved.current = true
+        focusRequest.current = { section: to }
         open(specForTarget({ kind: "app", app: "market", section: to })!)
     }
 
