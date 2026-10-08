@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Connect 4 clock risk and Quick Play consent (#1559, 2026-10-08)
+- The lobby, offer form and live game now explain that block-time deadlines can forfeit a stake after a network halt or stall, even when the player could not act.
+- When the displayed balance leaves too little gas for Quick Play after a stake, Offer and Accept send the stake without adding a Quick Play session, matching the notice shown to the player.
+
 ### Connect 4 on gno.land mainnet (2026-10-08)
 - Staked two-player Connect 4 in the Arcade on gnoland-1: both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT house fee; a draw or a void game refunds both stakes. There is no maximum stake. Connect 4 now has community reviews.
 ### A new folded M, Radio and a notification experiment (2026-10-08)
