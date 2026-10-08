@@ -36,6 +36,10 @@ Full changelogs are split by version range for easier navigation:
 
 ### Ops: the Launchpad watcher cannot fail silently (2026-10-08)
 - An enabled Launchpad watcher that refuses its configuration now raises the MembaLaunchpadWatcherDown alert (memba_launchpad_watcher_enabled with no reading) instead of running silently unwatched.
+### A storefront look for the Arcade and App Store (2026-10-08)
+- Reviews: games and curated apps can be reviewed (their review subjects are pinned and cannot change).
+- Memba OS: new storefront building blocks (dark shell, featured carousel, cover capsules, screenshot gallery, detail layout, rating badge) for the Arcade and App Store windows.
+- Memba OS: the Chakra Petch display font is bundled with the app (two small font files, OFL-1.1).
 ### One Adena connection per page (2026-10-08)
 - Wallet: Memba keeps one Adena connection per page instead of one per window, so opening apps no longer queues extra Adena reads, and a network switch shows the new network at once instead of waiting for Adena's event (or looking stuck).
 ### The Memba logo in Memba OS (2026-10-08)
