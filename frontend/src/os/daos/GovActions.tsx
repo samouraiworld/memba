@@ -8,13 +8,13 @@
  */
 import { useState } from "react"
 import { BRIDGE_APPS, BRIDGE_PATH, GOV_PATH, bridgeCall, decodeGovAction, govNeverRuns } from "../../lib/dao/govActions"
-import { bridgePublished, PAUSABLE_APPS, type GovProposal, type GovRoster } from "../../lib/dao/membaGov"
+import { bridgePublished, notGovernedText, PAUSABLE_APPS, type GovProposal, type GovRoster } from "../../lib/dao/membaGov"
 import { formatChainTime } from "../../lib/dao/v2Lifecycle"
 import type { OsSession } from "../shell/useOsSession"
 import { useNowSeconds } from "../shell/useNowSeconds"
 import { govExecuteRequest, govJoinRequest, govPauseRequest, govScope, govVoteRequest } from "./govRequests"
 import { useGovSign } from "./useGovSign"
-import { useBridgePauses, useDisputeParties } from "./useGovDao"
+import { useBridgePauses, useDisputeParties, useGovernedApps } from "./useGovDao"
 
 const OPEN = new Set<GovProposal["status"]>(["voting", "timelocked", "ready"])
 
@@ -24,6 +24,8 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
     const now = useNowSeconds()
     const dispute = p.target === BRIDGE_PATH && p.action === "escrow_v4.ResolveDispute" ? decodeGovAction(p.target, p.action, p.args)?.rows[0].value ?? null : null
     const parties = useDisputeParties(session.status === "member" ? dispute : null)
+    const app = p.target === BRIDGE_PATH ? p.action.split(".")[0] : null
+    const governed = useGovernedApps(app !== null && p.status === "ready" && bridgePublished())
     if (!OPEN.has(p.status)) return null
     if (session.status !== "member") return <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
     const me = roster.members.find((m) => m.address === session.address)
@@ -35,7 +37,8 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
     const vote = (v: "yes" | "no" | "abstain") => start((s) => govVoteRequest(s, p, v, raw))
     const decoded = decodeGovAction(p.target, p.action, p.args)
     // Memba offers Execute only for what can run: a roster action, or an app action the bridge would accept as voted.
-    const executable = decoded !== null && govNeverRuns(p, decoded) === null && (p.target === GOV_PATH || (bridgePublished() && bridgeCall(p.action, p.args) !== null))
+    const executable = decoded !== null && govNeverRuns(p, decoded) === null && (p.target === GOV_PATH || (bridgePublished() && bridgeCall(p.action, p.args) !== null && app !== null && governed.data?.[app] === true))
+    const ungoverned = app !== null && governed.data?.[app] === false
     return (
         <section className="os-stack os-tight">
             <h3 className="os-h">Your vote</h3>
@@ -67,7 +70,8 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
                 </>)}
             {p.status === "ready" && (execLock || (executable
                 ? <button type="button" className="os-btn" disabled={quoting} onClick={() => start((s) => govExecuteRequest(s, p))}>{quoting ? "Reading the fee…" : "Execute…"}</button>
-                : !decoded && <p className="os-sub">Ready: its target realm runs it when called, and checks this approval then.</p>))}
+                : ungoverned && app ? <p className="os-sub">{notGovernedText(app)}</p>
+                    : !decoded && <p className="os-sub">Ready: its target realm runs it when called, and checks this approval then.</p>))}
         </section>
     )
 }

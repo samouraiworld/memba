@@ -12,13 +12,14 @@ vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign, version: 0 }
 vi.mock("./sheetFee", async (original) => ({ ...(await original<typeof import("./sheetFee")>()), quoteSheetGasPrice: vi.fn(async () => ({ gas: 1000, ugnot: 1 })) }))
 vi.mock("../../lib/dao/membaGov", async (original) => ({
     ...(await original<typeof import("../../lib/dao/membaGov")>()),
-    bridgePublished: vi.fn(() => true), readGovProposal: vi.fn(), readGovSnapshot: vi.fn(), readBridgeApproval: vi.fn(), readBridgePauses: vi.fn(),
+    bridgePublished: vi.fn(() => true), readGovProposal: vi.fn(), readGovSnapshot: vi.fn(), readBridgeApproval: vi.fn(), readBridgePauses: vi.fn(), readGovernedApps: vi.fn(),
 }))
 vi.mock("../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../lib/grc20")>()), assertFeeStillCovers: vi.fn(async () => {}) }))
 const readEscrowContract = vi.hoisted(() => vi.fn())
 vi.mock("../../lib/marketplace/escrowState", async (original) => ({ ...(await original<typeof import("../../lib/marketplace/escrowState")>()), readEscrowContract }))
 const { EmergencyPauses, JoinAction, ProposalActions } = await import("./GovActions")
-const { readBridgeApproval, readBridgePauses, readGovProposal, readGovSnapshot } = await import("../../lib/dao/membaGov")
+const { readBridgeApproval, readBridgePauses, readGovernedApps, readGovProposal, readGovSnapshot } = await import("../../lib/dao/membaGov")
+const { BRIDGE_APPS } = await import("../../lib/dao/govActions")
 
 const ZX = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", GHOST = "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"
 const roster = native.roster as GovRoster
@@ -35,6 +36,7 @@ beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
     vi.mocked(readGovSnapshot).mockResolvedValue({ roster, page: { total: "0", proposals: [] }, constants: native.const })
+    vi.mocked(readGovernedApps).mockResolvedValue(Object.fromEntries(Object.keys(BRIDGE_APPS).map((app) => [app, true])))
 })
 
 describe("voting on memba_gov", () => {
@@ -87,7 +89,7 @@ describe("executing a memba_gov proposal", () => {
     it("runs an app action through its bridge entrypoint, and stops if the app changed since the vote", async () => {
         const fee = ready(find("memba_market_config.SetFee"))
         show(<ProposalActions p={fee} roster={roster} session={member(ZX)} raw={false} />)
-        fireEvent.click(screen.getByRole("button", { name: "Execute…" }))
+        fireEvent.click(await screen.findByRole("button", { name: "Execute…" }))
         await waitFor(() => expect(sign).toHaveBeenCalled())
         const req = lastRequest()
         expect(req.prepare(undefined).msgs[0].value).toMatchObject({ pkg_path: "gno.land/r/samcrew/memba_bridge_v1", func: "SetFee", args: [fee.id, "service", "300"] })
@@ -97,6 +99,13 @@ describe("executing a memba_gov proposal", () => {
         expect(readBridgeApproval).toHaveBeenCalledWith(expect.anything(), "s:6:SetFee|s:7:service|i:300")
         vi.mocked(readBridgeApproval).mockResolvedValue({ ...native.approval, args: "s:7:service|i:300|i:250|u:1" } as never)
         await expect(req.recheck!(undefined)).rejects.toThrow("The app changed since the vote")
+    })
+
+    it("withholds Execute for an app the DAO does not govern now, and says why", async () => {
+        vi.mocked(readGovernedApps).mockResolvedValue({ ...Object.fromEntries(Object.keys(BRIDGE_APPS).map((app) => [app, true])), memba_market_config: false })
+        show(<ProposalActions p={ready(find("memba_market_config.SetFee"))} roster={roster} session={member(ZX)} raw={false} />)
+        expect(await screen.findByText("Memba DAO does not govern Market config now: its admin is not the DAO's bridge, so no proposal for it can run.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Execute…" })).toBeNull()
     })
 
     it("offers no Execute for a proposal that can never run, nor for one its own realm executes", () => {

@@ -585,6 +585,16 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/launchpad/config/v1",
         "gno.land/r/samcrew/launchpad/tokens/v1",
         "gno.land/r/samcrew/launchpad/sales/v1",
+        // ── Memba DAO governance ──────────────────────────────────────────────
+        // memba_gov (the roster, proposals and votes) and memba_bridge_v1 (which
+        // runs voted actions on the apps it governs) were published 2026-10-08
+        // at sequences 74-75 (realm-versions.json `mainnet`). Listing them moves
+        // the "Memba DAO" window from memba_dao v12 to memba_gov. Neither holds
+        // funds. The bridge governs an app only once the app's admin has handed
+        // it over and the bridge accepted: the propose form offers only those
+        // apps, and Execute is withheld for any other (the bridge refuses them).
+        "gno.land/r/samcrew/memba_gov",
+        "gno.land/r/samcrew/memba_bridge_v1",
     ],
     test13: [
         "gno.land/r/samcrew/memba_dao",

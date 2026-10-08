@@ -117,6 +117,8 @@ export async function readBridgeApproval(ctx: GovContext, call: string, signal?:
     if (answer.failed) {
         // The bridge's own refusal ("memba_bridge: role already in that state").
         const reason = answer.log.match(/(?:memba_bridge|daoauth): ([\x20-\x7e]{1,200}?)(?:\\n|\n|"|$)/)?.[1]
+        const ungoverned = reason?.match(/^the bridge does not govern ([a-z0-9_]+)$/)?.[1]
+        if (ungoverned) throw new Error(`${notGovernedText(ungoverned)} Nothing was sent.`)
         throw new Error(reason ? `The bridge refuses this call: ${reason}` : "Chain read failed")
     }
     return approvalSchema.parse(parseWeightedQeval(answer.text))
@@ -148,10 +150,30 @@ async function abciQuery(ctx: GovContext, path: string, query: string, signal?: 
     return { failed: false as const, text: new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(base.Data ?? ""), c => c.charCodeAt(0))) }
 }
 
-/** The getter of each pausable app's current admin: the bridge pauses only an app it governs. */
+/** The getter of each app's current admin, as the bridge's own governs() reads it. */
 const ADMIN_GETTER: Record<string, string> = {
-    escrow_v4: "GetAdmin()", memba_appstore_v3: "GetOwner()", memba_arcade_leaderboard_v1: "GetOwner()", gnobuilders_badges_v2: "GetOwner()",
+    memba_market_config: "GetAdmin()", escrow_v4: "GetAdmin()", memba_appstore_v3: "GetOwner()", memba_reviews_v2: "GetModerator()",
+    memba_quest_attestation_v1: "GetOwner()", memba_arcade_leaderboard_v1: "GetOwner()", gnobuilders_badges_v2: "GetOwner()",
     memba_feed_v1: "GetOwner()", memba_dao_channels_v2: "GetOwner()", memba_feedback_v2: "GetOwner()",
+}
+
+/** Why no proposal for an app can run: the bridge is not its admin. */
+export const notGovernedText = (app: string) =>
+    `Memba DAO does not govern ${BRIDGE_APPS[app]?.label ?? app} now: its admin is not the DAO's bridge, so no proposal for it can run.`
+
+async function governedBy(ctx: GovContext, bridge: string, app: string, signal?: AbortSignal): Promise<boolean> {
+    const admin = (await qevalText(ctx.rpcUrl, `gno.land/r/samcrew/${app}`, ADMIN_GETTER[app], signal)).match(/^\("(g1[0-9a-z]{38})" (?:string|\.uverse\.address)\)\s*$/)?.[1]
+    if (!admin) throw new Error("Invalid admin read")
+    return admin === bridge
+}
+
+/** For each of the bridge's apps, whether the bridge is its admin now: only then can a proposal for it run. */
+export async function readGovernedApps(ctx: GovContext, signal?: AbortSignal): Promise<Record<string, boolean>> {
+    await assertWeightedChain(ctx, signal)
+    const bridge = packageAddress(BRIDGE_PATH)
+    const apps = Object.keys(BRIDGE_APPS)
+    const governed = await Promise.all(apps.map((app) => governedBy(ctx, bridge, app, signal)))
+    return Object.fromEntries(apps.map((app, i) => [app, governed[i]]))
 }
 
 export type BridgePause = { until: number; governed: boolean }
@@ -163,15 +185,14 @@ export type BridgePause = { until: number; governed: boolean }
 export async function readBridgePauses(ctx: GovContext, signal?: AbortSignal): Promise<Record<string, BridgePause>> {
     await assertWeightedChain(ctx, signal)
     const bridge = packageAddress(BRIDGE_PATH)
-    const raw = await Promise.all(PAUSABLE_APPS.flatMap((app) => [
-        qevalText(ctx.rpcUrl, BRIDGE_PATH, `PausedUntil("${app}")`, signal),
-        qevalText(ctx.rpcUrl, `gno.land/r/samcrew/${app}`, ADMIN_GETTER[app], signal),
-    ]))
+    const [until, governed] = await Promise.all([
+        Promise.all(PAUSABLE_APPS.map((app) => qevalText(ctx.rpcUrl, BRIDGE_PATH, `PausedUntil("${app}")`, signal))),
+        Promise.all(PAUSABLE_APPS.map((app) => governedBy(ctx, bridge, app, signal))),
+    ])
     return Object.fromEntries(PAUSABLE_APPS.map((app, i) => {
-        const until = raw[2 * i].match(/^\((0|[1-9][0-9]{0,11}) int64\)\s*$/)
-        if (!until) throw new Error("Invalid pause read")
-        const admin = raw[2 * i + 1].match(/^\("(g1[0-9a-z]{38})" (?:string|\.uverse\.address)\)\s*$/)?.[1]
-        return [app, { until: Number(until[1]), governed: admin === bridge }]
+        const end = until[i].match(/^\((0|[1-9][0-9]{0,11}) int64\)\s*$/)
+        if (!end) throw new Error("Invalid pause read")
+        return [app, { until: Number(end[1]), governed: governed[i] }]
     }))
 }
 
