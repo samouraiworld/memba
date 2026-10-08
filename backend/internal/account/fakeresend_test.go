@@ -22,6 +22,8 @@ type fakeResend struct {
 	// afterDelete runs once, right after a contact is deleted and before the
 	// caller hears back: what another request does in that window.
 	afterDelete func()
+	// afterTopicPatch runs once after a topic update, before the response.
+	afterTopicPatch func()
 	// applyThenFail applies topic changes but answers 500 (a timeout after the fact).
 	applyThenFail bool
 }
@@ -39,6 +41,11 @@ func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodDelete && hook != nil {
 		f.afterDelete = nil
 		defer hook() // after the unlock below
+	}
+	if r.Method == http.MethodPatch && f.afterTopicPatch != nil {
+		afterPatch := f.afterTopicPatch
+		f.afterTopicPatch = nil
+		defer afterPatch()
 	}
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, r.Method+" "+r.URL.Path)

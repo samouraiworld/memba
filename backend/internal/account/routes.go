@@ -123,6 +123,15 @@ func (h *handler) setTopic(w http.ResponseWriter, r *http.Request, a Account) {
 			h.fail(w, "opt out", err)
 			return
 		}
+		// A confirmation can opt back in while the provider-first opt-out is
+		// in flight. Reconcile after withdrawal so its later completion cannot
+		// leave the provider subscribed to a consent we just closed.
+		if a.Email != "" {
+			if err := h.undoOptIn(ctx, boundRequest{AccountID: a.ID, Topic: req.Topic, Email: a.Email}); err != nil {
+				writeError(w, http.StatusBadGateway, "your withdrawal is recorded, but the email provider did not confirm it; try again")
+				return
+			}
+		}
 		h.getTopics(w, r, a)
 		return
 	}
@@ -226,7 +235,7 @@ func (h *handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.resend.setTopic(ctx, b.Email, h.topicIDs[b.Topic], true); err != nil {
-		h.undoOptIn(ctx, b) // the call may have been applied before it failed
+		_ = h.undoOptIn(ctx, b) // the call may have been applied before it failed; failures are logged
 		slog.Error("account: opt in", "error", err)
 		writeError(w, http.StatusBadGateway, "the email provider did not answer; try the link again")
 		return
@@ -243,7 +252,7 @@ func (h *handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return withdraw(ctx, tx, now, "superseded", "account_id = ? AND topic = ? AND id != ?", b.AccountID, b.Topic, id)
 	})
 	if err != nil {
-		h.undoOptIn(ctx, b)
+		_ = h.undoOptIn(ctx, b) // this response already reports failure; reconciliation failures are logged
 		if errors.Is(err, errUsed) {
 			used()
 			return
@@ -257,16 +266,18 @@ func (h *handler) confirm(w http.ResponseWriter, r *http.Request) {
 // undoOptIn opts the address back out of the topic at the provider, unless a
 // confirmed request is known to keep it on. It fails closed: when that cannot
 // be read, it opts out. It outlives the request (a cancelled one included).
-func (h *handler) undoOptIn(ctx context.Context, b boundRequest) {
+func (h *handler) undoOptIn(ctx context.Context, b boundRequest) error {
 	ctx = context.WithoutCancel(ctx)
 	var live int
 	if err := h.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM consents WHERE account_id = ? AND topic = ? AND email = ? AND confirmed_at IS NOT NULL AND withdrawn_at IS NULL",
 		b.AccountID, b.Topic, b.Email).Scan(&live); err == nil && live > 0 {
-		return
+		return nil
 	}
 	if err := h.resend.setTopic(ctx, b.Email, h.topicIDs[b.Topic], false); err != nil {
 		slog.Error("account: undo opt-in", "error", err)
+		return err
 	}
+	return nil
 }
 
 // dropContact deletes an address's contact once more after its rows are

@@ -659,8 +659,6 @@ func main() {
 	// read path. Bearer-gated + fail-closed (404 unless FEED_MODERATION_BEARER set).
 	mux.Handle("/api/feed/moderation", rateLimitMiddleware("feed_moderation", service.HandleFeedModeration(database)))
 
-	// GitHub OAuth — CSRF-protected state generation + code exchange
-	// The state is bound to the requesting wallet, so this needs the session too.
 	// The optional Memba account (off-chain extras), authenticated by the
 	// identity provider's session JWT, never by the wallet token; consent
 	// confirmations by their signed link; Resend's webhook by its signature.
@@ -681,6 +679,8 @@ func main() {
 		account.StartSweep(ctx, database)
 	}
 
+	// GitHub OAuth — CSRF-protected state generation + code exchange
+	// The state is bound to the requesting wallet, so this needs the session too.
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", githubOAuthStateHandler(svc, oauthStore)))
 	// The exchange writes the verified link onto the caller's profile, so it
 	// needs the wallet session token (401 without one, before any GitHub call).

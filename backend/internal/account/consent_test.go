@@ -158,6 +158,47 @@ func TestTurningATopicOffReachesTheProviderFirst(t *testing.T) {
 	}
 }
 
+func TestAConfirmDuringOptOutCannotKeepTheProviderSubscribed(t *testing.T) {
+	f := newConsentFixture(t)
+	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("newsletter"))
+	link := lastLink(t, f.fake)
+	f.fake.mu.Lock()
+	f.fake.contacts["ada@example.org"] = map[string]string{"top_news": "opt_out"}
+	f.fake.afterTopicPatch = func() {
+		if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusOK {
+			t.Errorf("concurrent confirmation: %d", rec.Code)
+		}
+	}
+	f.fake.mu.Unlock()
+	rec := call(t, f.mux, "POST", "/api/account/topics", f.tok, map[string]any{"topic": "newsletter", "on": false})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("opt out: %d", rec.Code)
+	}
+	if got := states(t, rec); got["newsletter"] != "off" {
+		t.Fatalf("local state: %v", got)
+	}
+	if got := f.fake.sub("ada@example.org", "top_news"); got != "opt_out" {
+		t.Fatalf("successful opt-out left provider subscribed: %q", got)
+	}
+}
+
+func TestOptOutReportsProviderFailureAfterWithdrawal(t *testing.T) {
+	f := newConsentFixture(t)
+	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("newsletter"))
+	f.fake.mu.Lock()
+	f.fake.contacts["ada@example.org"] = map[string]string{"top_news": "opt_out"}
+	f.fake.afterTopicPatch = func() { f.fake.setDown(true) }
+	f.fake.mu.Unlock()
+	off := map[string]any{"topic": "newsletter", "on": false}
+	if rec := call(t, f.mux, "POST", "/api/account/topics", f.tok, off); rec.Code != http.StatusBadGateway {
+		t.Fatalf("unconfirmed provider state must not report success: %d", rec.Code)
+	}
+	f.fake.setDown(false)
+	if rec := call(t, f.mux, "POST", "/api/account/topics", f.tok, off); rec.Code != http.StatusOK {
+		t.Fatalf("retry: %d", rec.Code)
+	}
+}
+
 func TestARequestNeedsAVerifiedAddressAValidTopicAndASentEmail(t *testing.T) {
 	f := newConsentFixture(t)
 	unverified := sign(t, f.k, claims(func(c jwt.MapClaims) { c["sub"] = "user_2"; c["email_verified"] = false }))
@@ -515,13 +556,17 @@ func TestUndoingAnOptInFailsClosedAndOutlivesTheRequest(t *testing.T) {
 	set("opt_in")
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	f.h.undoOptIn(ctx, b)
+	if err := f.h.undoOptIn(ctx, b); err != nil {
+		t.Fatal(err)
+	}
 	if f.fake.sub("ada@example.org", "top_news") != "opt_out" {
 		t.Fatal("a cancelled request skipped the undo")
 	}
 	set("opt_in")
 	_ = f.h.db.Close()
-	f.h.undoOptIn(t.Context(), b)
+	if err := f.h.undoOptIn(t.Context(), b); err != nil {
+		t.Fatal(err)
+	}
 	if f.fake.sub("ada@example.org", "top_news") != "opt_out" {
 		t.Fatal("an unreadable database kept the opt-in")
 	}
