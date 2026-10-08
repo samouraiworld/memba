@@ -148,6 +148,13 @@ describe("PostCard flag that responds", () => {
         expect(mockSubmit).not.toHaveBeenCalled()
     })
 
+    it("shows any other failure as it is, not a generic sentence", async () => {
+        mockSubmit.mockRejectedValueOnce(new Error("Your wallet is on test12, but this page is on gnoland-1 — switch Adena to gnoland-1 and try again."))
+        render(<PostCard post={basePost({})} {...connectedOther} />)
+        fireEvent.click(screen.getByTestId("feed-flag-btn"))
+        await waitFor(() => expect(screen.getByTestId("feed-flag-error")).toHaveTextContent("Your wallet is on test12, but this page is on gnoland-1"))
+    })
+
     it("stays silent on a wallet rejection (no error banner)", async () => {
         mockSubmit.mockRejectedValueOnce(new Error("user denied the request"))
         render(<PostCard post={basePost({})} {...connectedOther} />)

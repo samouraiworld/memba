@@ -15,6 +15,7 @@ import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { formatTokenAmount } from "../../lib/grc20"
 import { fetchMyListings, cancelListing, anyListingLaneLive, type MyListing } from "../../lib/myListings"
+import { walletErrorText } from "../../lib/walletErrorText"
 
 export default function MyListingsView() {
     const { connected, address, connect } = useAdena()
@@ -78,10 +79,7 @@ export default function MyListingsView() {
                     })
                 }, 2_500)
             } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e)
-                if (!/reject|cancel|denied/i.test(msg)) {
-                    setError("Could not cancel the listing. Please try again.")
-                }
+                setError(walletErrorText(e, "Could not cancel the listing. Please try again.") || null)
             } finally {
                 setBusyKey(null)
             }

@@ -29,25 +29,11 @@ import { PostUnfurls } from "./PostUnfurls"
 import { ReactionBar } from "./ReactionBar"
 import { renderPostBody } from "../../lib/markdownLite"
 import { MAX_FEED_BODY, feedBodyLength } from "../../lib/feedConstants"
+import { walletErrorText } from "../../lib/walletErrorText"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
 function shortAddr(a: string): string {
     return a.length > 12 ? `${a.slice(0, 8)}…${a.slice(-4)}` : a
-}
-
-/** Turn a realm flag panic into an actionable line (or "" to stay silent). */
-function flagErrorMessage(msg: string): string {
-    if (/reject|cancel|denied/i.test(msg)) return "" // wallet rejection — not an error
-    if (/already flagged|budget|blocks ago|paused|deleted|hidden|not indexed/i.test(msg)) {
-        return msg.replace(/^.*?panic:\s*/i, "").trim() || "Could not flag this post."
-    }
-    return "Could not flag this post. Please try again."
-}
-
-/** A realm write panic → an actionable line ("" = silent wallet rejection). */
-function writeErrorMessage(msg: string, fallback: string): string {
-    if (/reject|cancel|denied/i.test(msg)) return ""
-    return msg.replace(/^.*?panic:\s*/i, "").trim() || fallback
 }
 
 /**
@@ -206,7 +192,7 @@ function PostCardInner({
             // retry that will only panic again.
             setFlagged(postRef.current.viewerHasFlagged)
             setFlagBump(0)
-            const line = flagErrorMessage(e instanceof Error ? e.message : String(e))
+            const line = walletErrorText(e, "Could not flag this post. Please try again.")
             if (line) setFlagError(line)
         } finally {
             setFlagging(false)
@@ -229,7 +215,7 @@ function PostCardInner({
             setEditing(false)
             onRefetch()
         } catch (e) {
-            const line = writeErrorMessage(e instanceof Error ? e.message : String(e), "Could not save the edit.")
+            const line = walletErrorText(e, "Could not save the edit.")
             if (line) setActionError(line)
         } finally {
             setBusy(false)
@@ -246,7 +232,7 @@ function PostCardInner({
             onRefetch()
         } catch (e) {
             setConfirmingDelete(false)
-            const line = writeErrorMessage(e instanceof Error ? e.message : String(e), "Could not delete the post.")
+            const line = walletErrorText(e, "Could not delete the post.")
             if (line) setActionError(line)
         } finally {
             setBusy(false)

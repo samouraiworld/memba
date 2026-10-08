@@ -14,6 +14,7 @@ import { PaperPlaneTilt } from "@phosphor-icons/react"
 import { buildCreatePostMsg, submitFeedMsg } from "../../lib/feed"
 import { makeOptimisticPost, type UiPost } from "../../lib/feedTypes"
 import { MAX_FEED_BODY, FEED_LIMITS_NOTE, cooldownMessage, feedBodyLength } from "../../lib/feedConstants"
+import { walletErrorText } from "../../lib/walletErrorText"
 import { isFeedWritable, FEED_INDEXED_NETWORK, FEED_INDEXED_NETWORK_LABEL } from "../../lib/config"
 import { useNetwork } from "../../hooks/useNetwork"
 
@@ -87,18 +88,8 @@ export function FeedComposer({
             onPosted(makeOptimisticPost(from, text, replyTo, nonce.current++))
             setBody("")
         } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            const cooldown = cooldownMessage(msg)
-            if (cooldown) {
-                setError(cooldown)
-            } else if (/reject|cancel|denied/i.test(msg)) {
-                // A user rejection in the wallet is not worth shouting about.
-            } else if (/too fast|characters|deleted|hidden|paused|reply|not indexed/i.test(msg)) {
-                // Surface the realm's actionable panic (e.g. "posting too fast").
-                setError(msg.replace(/^.*?panic:\s*/i, "").trim() || "Could not post.")
-            } else {
-                setError("Could not post. Please try again.")
-            }
+            // A cancel stays silent; anything else says what failed (untrusted RPC, wrong network, the realm's panic…).
+            setError(cooldownMessage(e instanceof Error ? e.message : String(e)) || walletErrorText(e, "Could not post. Please try again.") || null)
         } finally {
             setSubmitting(false)
         }

@@ -11,7 +11,7 @@
  * or a chain other than the page's all refuse.
  */
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, NETWORKS, isTrustedRpcDomain } from "./config"
-import { adenaPrompt, adenaRead, UNLOCK_TIMEOUT_MS, type PromptWatch } from "./adenaCall"
+import { AdenaNoAnswerError, adenaPrompt, adenaRead, UNLOCK_TIMEOUT_MS, type PromptWatch } from "./adenaCall"
 
 type WalletReply = { status?: unknown; type?: unknown; data?: { address?: unknown; chainId?: unknown; rpcUrl?: unknown } | null } | null | undefined
 
@@ -72,8 +72,9 @@ export function networkLabelForChain(chainId: string): string {
     return label && label !== chainId ? `${label} (${chainId})` : chainId
 }
 
-function unreported(expectedChainId: string): WalletNetworkError {
-    return new WalletNetworkError(`Your wallet did not report its network — switch Adena to ${networkLabelForChain(expectedChainId)} and try again.`)
+/** `why` says which case it was: what Adena answered, or that it did not answer. */
+function unreported(expectedChainId: string, why: string): WalletNetworkError {
+    return new WalletNetworkError(`Your wallet did not report its network (${why}) — switch Adena to ${networkLabelForChain(expectedChainId)} and try again.`)
 }
 
 /**
@@ -87,7 +88,8 @@ function failedReply(replies: WalletReply[], expectedChainId: string): WalletNet
     const types = replies.map((r) => (r?.status === "failure" ? text(r.type) : ""))
     if (types.includes("WALLET_LOCKED")) return new WalletNetworkError(WALLET_LOCKED_MESSAGE)
     if (types.includes("NOT_CONNECTED")) return new WalletNetworkError("Adena is not connected to Memba — reconnect your wallet, then try again.")
-    return unreported(expectedChainId)
+    const type = types.find(Boolean)
+    return unreported(expectedChainId, type ? `Adena answered ${type}` : "Adena answered with a failure")
 }
 
 async function ask(call: (() => Promise<WalletReply>) | undefined, timeoutMs: number): Promise<WalletReply> {
@@ -114,7 +116,7 @@ export async function assertLiveWalletNetwork(
     opts: { timeoutMs?: number; address?: string | null; unlock?: boolean; watch?: PromptWatch } = {},
 ): Promise<LiveWalletNetwork> {
     const adena = (window as unknown as { adena?: AdenaNetworkApi }).adena
-    if (!adena || typeof adena.GetAccount !== "function") throw unreported(expectedChainId)
+    if (!adena || typeof adena.GetAccount !== "function") throw new WalletNetworkError("Adena is not available on this page — install or enable it, then reload.")
     const timeoutMs = opts.timeoutMs ?? LIVE_NETWORK_TIMEOUT_MS
     const read = async (): Promise<[WalletReply, WalletReply]> => {
         try {
@@ -122,8 +124,11 @@ export async function assertLiveWalletNetwork(
                 ask(adena.GetAccount!.bind(adena), timeoutMs),
                 ask(typeof adena.GetNetwork === "function" ? adena.GetNetwork.bind(adena) : undefined, timeoutMs),
             ])
-        } catch {
-            throw unreported(expectedChainId)
+        } catch (err) {
+            if (err instanceof AdenaNoAnswerError) {
+                throw new WalletNetworkError(`Your wallet did not report its network (no answer within ${Math.round(timeoutMs / 1000)} s) — reload this tab (needed after Adena updates), then try again.`)
+            }
+            throw unreported(expectedChainId, `Adena failed: ${(err instanceof Error ? err.message : String(err)).slice(0, 120) || "no reason given"}`)
         }
     }
 
@@ -146,7 +151,7 @@ export async function assertLiveWalletNetwork(
     const chainId = networkChain || accountChain
     const wanted = networkLabelForChain(expectedChainId)
 
-    if (!chainId) throw unreported(expectedChainId)
+    if (!chainId) throw unreported(expectedChainId, "Adena named no chain")
     if (accountChain && networkChain && accountChain !== networkChain) {
         throw new WalletNetworkError(
             `Your wallet reports two different networks (account on ${networkLabelForChain(accountChain)}, network ${networkLabelForChain(networkChain)}) — ` +
