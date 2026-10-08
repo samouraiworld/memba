@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { accept, cancel, getActive, offer, type Game } from "../../lib/connect4"
+import { QUICKPLAY_LABEL, hasLocalSession, quickPlayBudget, quickPlayDuration, quickPlayStatus, signEachMove } from "../../lib/quickPlay"
+import { useBalance } from "../../hooks/useBalance"
 import { Empty, Gate, Loading, Pill, Toggle } from "../../os/kit"
 import { COLS, ROWS, cell } from "./rules"
 import { TxError } from "./TxError"
@@ -11,6 +14,8 @@ import "./connect4.css"
 
 // Reveal steps already auto-opened ("id:revealed"): module-level so "← Lobby" (a remount) doesn't send the player straight back.
 const autoOpened = new Set<string>()
+// Below about one move's gas a session is useless; withQuickPlay sends the stake alone.
+const MIN_QP_BUDGET = 30_000
 
 export function Lobby({ me, connected, onOpen }: { me: string; connected: boolean; onOpen: (id: number) => void }) {
     const { data, dataUpdatedAt, isLoading } = useActive()
@@ -25,6 +30,19 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
     const [validFor, setValidFor] = useState("10")
     const [opponent, setOpponent] = useState("")
     const [mineOnly, setMineOnly] = useState(false)
+    // Consent, shown at the stake, to start Quick play in the same approval (lib/quickPlay withQuickPlay).
+    const [withQp, setWithQp] = useState(true)
+    const { rawUgnot } = useBalance(connected ? me : null)
+    // Re-read on the QuickPlay panel's query (start, end, opt-out), not on every tick.
+    useQuery({ queryKey: ["quickplay", me], queryFn: () => quickPlayStatus(me), enabled: false })
+    const bundles = connected && !!me && !signEachMove() && !hasLocalSession(me)
+    const consent = (stakeUgnot: number) => {
+        if (!bundles) return null
+        const budget = rawUgnot === undefined ? null : quickPlayBudget(rawUgnot, stakeUgnot)
+        if (budget !== null && budget < MIN_QP_BUDGET) return <p className="os-sub">Not enough GNOT left after the stake for Quick play — your wallet will sign each move.</p>
+        return <label className="c4-qp-consent"><input type="checkbox" checked={withQp} onChange={(e) => setWithQp(e.target.checked)} />
+            <span>+ Quick play {QUICKPLAY_LABEL[quickPlayDuration()]}, up to {budget === null ? "5 GNOT" : formatGnot(budget)}/day of gas — moves in your live games sign without a popup</span></label>
+    }
     const games = (data?.games ?? []).filter((g) => !mineOnly || g.creator === me || g.acceptor === me || g.opponent === me)
     const offers = games.filter((g) => g.status === "open")
     const live = games.filter((g) => g.status === "playing")
@@ -48,7 +66,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
         && (opponent === "" || /^g1[02-9ac-hj-np-z]{38}$/.test(opponent))
 
     const post = (maxFeeUgnot: number) => tx.run(async () => {
-        const commitment = await offer(me, { stakeUgnot, validFor: minutes, opponent, maxFeeUgnot }, broadcast)
+        const commitment = await offer(me, { stakeUgnot, validFor: minutes, opponent, maxFeeUgnot }, broadcast, withQp)
         // ponytail: finds the new game in the first 100 active games; page if the lobby ever grows past that.
         for (let i = 0; i < 10; i++) {
             if (!alive.current) return
@@ -102,10 +120,11 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
                                     </div>
                                     <div className="os-sub">by {who(g.creator)}</div>
                                     <div className="os-row c4-offer-actions">
-                                        {g.creator !== me && <button type="button" className="os-btn c4-cta" disabled={tx.pending || !canAccept(g)} onClick={() => tx.run(async () => { await accept(me, g, broadcast); onOpen(g.id) })}>Accept</button>}
+                                        {g.creator !== me && <button type="button" className="os-btn c4-cta" disabled={tx.pending || !canAccept(g)} onClick={() => tx.run(async () => { await accept(me, g, broadcast, withQp); onOpen(g.id) })}>Accept</button>}
                                         {canCancel(g) && <button type="button" className="os-btn os-quiet" disabled={tx.pending} onClick={() => tx.run(() => cancel(me, g.id, broadcast))}>Cancel</button>}
                                         <button type="button" className="os-btn os-quiet" aria-label={`Open game #${g.id}`} onClick={() => onOpen(g.id)}>Open</button>
                                     </div>
+                                    {canAccept(g) && consent(g.stake)}
                                 </li>
                             })}
                         </ul>}
@@ -152,6 +171,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
                             <span><small>Winner gets</small><b>{formOk && fee !== null ? formatGnot(2 * stakeUgnot - fee) : "—"}</b></span>
                         </div>
                         <div className="os-note os-warn">After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts. The reveal key is stored only in this browser; missing it forfeits your stake.</div>
+                        {formOk && consent(stakeUgnot)}
                         <button type="submit" className="os-btn c4-cta c4-cta-wide" disabled={!formOk || tx.pending}>Post offer</button>
                     </form>
                 </aside>}

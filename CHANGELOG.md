@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Connect 4 Quick play by default (2026-10-08)
+- Connect 4: Offer and Accept start Quick play in the same wallet approval as the stake. A line under each button shows it ("+ Quick play 4h, up to X GNOT/day") with a checkbox to decline it for that stake. The banner still offers "Start Quick play" for players who haven't staked yet.
+- Until it ends, the session key signs moves in all the player's live games, including staked ones. Staking and resigning still ask the wallet.
+- Budget: 5 GNOT a day of gas and storage, or what the balance holds after the stake when that's lower. If the balance can't be read, the budget stays 5 GNOT. If the account's sessions can't be counted, the stake goes out alone, so the 16-session limit can't make it fail.
+- A closed Advanced popover holds the session length and "Sign every transaction in my wallet". Both choices are remembered on this device. Ticking the box pauses Quick play: a running session keeps its status, End and Forget controls until it ends.
+- When the budget runs low, Renew replaces the session with a fresh one in one approval, since the chain can't top up an existing session. The confirmation names the revoke "End current Quick play session".
+
 ### Ops: the Launchpad watcher cannot fail silently (2026-10-08)
 - An enabled Launchpad watcher that refuses its configuration now raises the MembaLaunchpadWatcherDown alert (memba_launchpad_watcher_enabled with no reading) instead of running silently unwatched.
 ### One Adena connection per page (2026-10-08)

@@ -10,7 +10,7 @@ const lib = vi.hoisted(() => ({
 }))
 vi.mock("../../lib/connect4", async (orig) => ({ ...(await orig<typeof import("../../lib/connect4")>()), ...lib }))
 
-const qp = vi.hoisted(() => ({ hasLocalSession: vi.fn(() => true) }))
+const qp = vi.hoisted(() => ({ quickPlayOn: vi.fn(() => true), signEachMove: () => false, quickPlayDuration: () => 14400, setQuickPlayDuration: () => {} }))
 vi.mock("../../lib/quickPlay", () => qp)
 
 import { GameView } from "./GameView"
@@ -25,7 +25,7 @@ const view = (me: string, game: Game, now = 1_000) => {
     return renderWithProviders(<GameView id={4} me={me} connected={me !== ""} onBack={vi.fn()} />)
 }
 
-beforeEach(() => { Object.values(lib).forEach((f) => f.mockReset()); qp.hasLocalSession.mockReturnValue(true) })
+beforeEach(() => { Object.values(lib).forEach((f) => f.mockReset()); qp.quickPlayOn.mockReturnValue(true) })
 
 describe("GameView", () => {
     it("lets the player on turn drop a piece", async () => {
@@ -210,7 +210,7 @@ describe("GameView", () => {
         view("g1alice", g)
         fireEvent.click(await screen.findByRole("button", { name: /^Drop in column 5:/ }))
         await screen.findByRole("button", { name: "Use wallet instead" })
-        qp.hasLocalSession.mockReturnValue(false)
+        qp.quickPlayOn.mockReturnValue(false)
         fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }).then(() => screen.getByRole("button", { name: "Use wallet instead" })))
         await waitFor(() => expect(lib.play).toHaveBeenLastCalledWith("g1alice", 4, 5, 0, expect.objectContaining({ viaWallet: true })))
     })

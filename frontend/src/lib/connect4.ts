@@ -9,7 +9,7 @@
 import { queryEval, parseQevalJSON } from "./dao/shared"
 import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, connect4PathFor } from "./config"
 import { doContractBroadcast, type AminoMsg } from "./grc20"
-import { hasLocalSession, quickPlayCall, QuickPlayUnavailable } from "./quickPlay"
+import { quickPlayCall, quickPlayOn, QuickPlayUnavailable, withQuickPlay } from "./quickPlay"
 
 export type Status = "open" | "playing" | "won" | "draw" | "void" | "cancelled"
 
@@ -144,7 +144,7 @@ export interface MoveOptions { viaWallet?: boolean; broadcast?: Broadcast; befor
 // Coin-free moves sign through the Quick play session when one is active; if the
 // session can't be used, the same call goes to Adena at once.
 async function move(func: MoveFunc, args: string[], caller: string, opts?: MoveOptions) {
-    if (!opts?.viaWallet && hasLocalSession(caller)) {
+    if (!opts?.viaWallet && quickPlayOn(caller)) {
         try { return await quickPlayCall(caller, func, args) }
         catch (e) {
             if (!(e instanceof QuickPlayUnavailable)) throw e
@@ -206,17 +206,19 @@ async function newSecret(caller: string): Promise<{ secret: string; commitment: 
 }
 
 /** Posts an offer and returns its commitment. `maxFeeUgnot` is the fee the creator was shown: the realm refuses the offer if the fee is now higher. */
-export async function offer(caller: string, o: { stakeUgnot: number; validFor: number; opponent: string; maxFeeUgnot: number }, broadcast?: Broadcast): Promise<string> {
+/** `quickPlay`: the player's consent, shown at the stake, to start Quick play in the same approval. */
+export async function offer(caller: string, o: { stakeUgnot: number; validFor: number; opponent: string; maxFeeUgnot: number }, broadcast?: Broadcast, quickPlay = true): Promise<string> {
     if (!isIndex(o.maxFeeUgnot)) throw new Error("The house fee isn't known yet, so nothing was sent.")
     const { commitment } = await newSecret(caller)
-    await submit("Offer", [o.opponent, String(o.validFor), commitment, String(o.maxFeeUgnot)], caller, o.stakeUgnot, broadcast)
+    // The same approval starts Quick play unless the player signs every move (see withQuickPlay).
+    await submit("Offer", [o.opponent, String(o.validFor), commitment, String(o.maxFeeUgnot)], caller, o.stakeUgnot, withQuickPlay(caller, o.stakeUgnot, broadcast, quickPlay))
     return commitment
 }
 
 /** Accepts with the commitment of a fresh seed, revealed after the creator's passphrase (revealSeed). */
-export async function accept(caller: string, g: Game, broadcast?: Broadcast) {
+export async function accept(caller: string, g: Game, broadcast?: Broadcast, quickPlay = true) {
     const { commitment } = await newSecret(caller)
-    return submit("Accept", [String(g.id), commitment], caller, g.stake, broadcast)
+    return submit("Accept", [String(g.id), commitment], caller, g.stake, withQuickPlay(caller, g.stake, broadcast, quickPlay))
 }
 
 export async function reveal(caller: string, id: number, passphrase: string, opts?: MoveOptions) {

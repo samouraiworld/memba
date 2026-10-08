@@ -18,6 +18,27 @@ const base: Game = {
 beforeEach(() => Object.values(lib).forEach((f) => f.mockReset()))
 
 describe("Lobby", () => {
+    it("shows the bundled Quick play at the stake and lets the player decline it", async () => {
+        localStorage.clear()
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base] })
+        lib.accept.mockResolvedValue({ hash: "h" })
+        renderWithProviders(<Lobby me="g1bob" connected onOpen={vi.fn()} />)
+        const row = await screen.findByRole("listitem", { name: /#1/ })
+        const box = screen.getAllByRole("checkbox", { name: /\+ Quick play 4h, up to .* GNOT\/day/ })
+        expect(row).toContainElement(box[0])
+        expect(box[0]).toBeChecked()
+        fireEvent.click(box[0])
+        fireEvent.click(screen.getByRole("button", { name: "Accept" }))
+        await waitFor(() => expect(lib.accept).toHaveBeenCalledWith("g1bob", expect.objectContaining({ id: 1 }), undefined, false))
+    })
+    it("doesn't offer the bundle when the player signs every move", async () => {
+        localStorage.setItem("memba.quickplay.signEach", "1")
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base] })
+        renderWithProviders(<Lobby me="g1bob" connected onOpen={vi.fn()} />)
+        await screen.findByRole("listitem", { name: /#1/ })
+        expect(screen.queryByRole("checkbox", { name: /Quick play/ })).toBeNull()
+        localStorage.clear()
+    })
     it("lists offers and lets another player accept", async () => {
         lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base, { ...base, id: 2, opponent: "g1carol" }] })
         lib.accept.mockResolvedValue({ hash: "h" })
@@ -27,7 +48,7 @@ describe("Lobby", () => {
         expect(screen.getByRole("listitem", { name: /#2/ })).toHaveTextContent("private")
         expect(screen.getAllByRole("button", { name: "Accept" })[1]).toBeDisabled() // private, not for bob
         fireEvent.click(screen.getAllByRole("button", { name: "Accept" })[0])
-        await waitFor(() => expect(lib.accept).toHaveBeenCalledWith("g1bob", expect.objectContaining({ id: 1 }), undefined))
+        await waitFor(() => expect(lib.accept).toHaveBeenCalledWith("g1bob", expect.objectContaining({ id: 1 }), undefined, true))
     })
 
     it("disables Accept on your own and expired offers, and offers Cancel on expired ones to anyone", async () => {
@@ -48,7 +69,7 @@ describe("Lobby", () => {
         fireEvent.change(await screen.findByLabelText("Stake (GNOT)"), { target: { value: "2" } })
         fireEvent.change(screen.getByLabelText("Valid for (minutes)"), { target: { value: "15" } })
         fireEvent.click(screen.getByRole("button", { name: "Post offer" }))
-        await waitFor(() => expect(lib.offer).toHaveBeenCalledWith("g1alice", { stakeUgnot: 2_000_000, validFor: 15, opponent: "", maxFeeUgnot: 100_000 }, undefined))
+        await waitFor(() => expect(lib.offer).toHaveBeenCalledWith("g1alice", { stakeUgnot: 2_000_000, validFor: 15, opponent: "", maxFeeUgnot: 100_000 }, undefined, true))
         await waitFor(() => expect(onOpen).toHaveBeenCalledWith(7))
     })
 
@@ -72,7 +93,7 @@ describe("Lobby", () => {
         expect(await screen.findByText(/a 0\.3 GNOT fee/)).toBeInTheDocument()
         fireEvent.change(screen.getByLabelText("Stake (GNOT)"), { target: { value: "2" } })
         fireEvent.click(screen.getByRole("button", { name: "Post offer" }))
-        await waitFor(() => expect(lib.offer).toHaveBeenCalledWith("g1alice", expect.objectContaining({ maxFeeUgnot: 300_000 }), undefined))
+        await waitFor(() => expect(lib.offer).toHaveBeenCalledWith("g1alice", expect.objectContaining({ maxFeeUgnot: 300_000 }), undefined, true))
     })
 
     it("asks to connect a wallet before offering", async () => {

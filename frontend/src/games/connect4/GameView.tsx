@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { QUICKPLAY_FALLBACK_EVENT, cancel, claimTimeout, getGame, play, resign, reveal, revealKey, revealSeed, type Game } from "../../lib/connect4"
-import { hasLocalSession, quickPlayStatus } from "../../lib/quickPlay"
+import { quickPlayOn, quickPlayStatus } from "../../lib/quickPlay"
 import { Empty, Loading, Pill, type PillTone } from "../../os/kit"
 import { Board } from "./Board"
 import { TxError } from "./TxError"
@@ -50,7 +50,7 @@ export function GameView({ id, me, connected, onBack }: { id: number; me: string
     // Read localStorage once per account/session change, not per 1s tick (observes the QuickPlay panel's query).
     const { dataUpdatedAt: qpUpdatedAt } = useQuery({ queryKey: ["quickplay", me], queryFn: () => quickPlayStatus(me), enabled: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- qpUpdatedAt is the invalidation signal
-    const quick = useMemo(() => connected && hasLocalSession(me), [connected, me, qpUpdatedAt])
+    const quick = useMemo(() => connected && quickPlayOn(me), [connected, me, qpUpdatedAt])
     const latest = useRef(g)
     useEffect(() => { latest.current = g })
     // The game as it was when the failed action was sent (captured before sending), and what must still hold to re-send it.

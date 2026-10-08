@@ -104,8 +104,9 @@ function TxConfirmationModal({
 }) {
     const { messages, memo, feeUgnot } = summary
 
-    // Revokes inside a create are Start's cleanup of expired sessions; alone they are End.
+    // Revokes inside a create are Start's cleanup of expired sessions, except Renew's first, which ends the live one; alone they are End.
     const withCreate = messages.some((m) => m.type === "/auth.m_create_session")
+    const renew = memo === "Renew Quick play"
     // Parse transaction effects from messages
     const effects = messages.map((msg, i) => {
         const v = msg.value as Record<string, unknown>
@@ -117,7 +118,7 @@ function TxConfirmationModal({
             return { index: i, func: "Create Quick play session", caller: String(v.creator ?? ""), send: "", args: [`${realm.split("/").pop()} only · up to ${gnot} GNOT/day for gas and storage · ends ${ends}`], pkgPath: realm, depositCap: "" }
         }
         if (msg.type === "/auth.m_revoke_session") {
-            return { index: i, func: withCreate ? "Remove expired Quick play session" : "End Quick play session", caller: String(v.creator ?? ""), send: "", args: [] as string[], pkgPath: "", depositCap: "" }
+            return { index: i, func: renew && i === 0 ? "End current Quick play session" : withCreate ? "Remove expired Quick play session" : "End Quick play session", caller: String(v.creator ?? ""), send: "", args: [] as string[], pkgPath: "", depositCap: "" }
         }
         if (msg.type === "/bank.MsgSend") {
             const amount = String(v.amount ?? "")
