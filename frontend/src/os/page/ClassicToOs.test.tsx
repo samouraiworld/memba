@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import ClassicToOs from "./ClassicToOs"
 
 function Where() {
@@ -21,6 +21,8 @@ function at(url: string) {
 
 // The test build loads on mainnet, as memba.club does.
 describe("ClassicToOs", () => {
+    afterEach(() => { localStorage.removeItem("memba_network_pref"); localStorage.removeItem("memba_network") })
+
     it("opens a classic URL in its window, query and fragment kept", () => {
         at("/mainnet/feed/post/12?x=1#reply-3")
         expect(screen.getByText("at /os/feed/post/12?x=1#reply-3")).toBeInTheDocument()
@@ -29,5 +31,15 @@ describe("ClassicToOs", () => {
     it("leaves a page with no window classic", () => {
         at("/mainnet/github/callback?code=a&state=b")
         expect(screen.getByText("classic page")).toBeInTheDocument()
+        expect(localStorage.getItem("memba_network_pref")).toBeNull()
+    })
+
+    it("records the link's network, so a reload of the /os URL stays on it", () => {
+        localStorage.setItem("memba_network_pref", "onyx")
+        localStorage.setItem("memba_network", "onyx")
+        at("/mainnet/feed")
+        expect(screen.getByText("at /os/feed")).toBeInTheDocument()
+        expect(localStorage.getItem("memba_network_pref")).toBe("mainnet")
+        expect(localStorage.getItem("memba_network")).toBe("mainnet")
     })
 })

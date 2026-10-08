@@ -5,6 +5,7 @@ import { ChainRejectedError, setTxConfirmationCallback } from "../../lib/grc20"
 import type { OsSession } from "../shell/useOsSession"
 import { accountMark, accountMarkAfterBlocks } from "./accountMark"
 import { useSigner } from "./signerContext"
+import { WALLET_QUIET_MS, WATCH_MS } from "./signer"
 import { SignerProvider } from "./SignerProvider"
 
 const warm = vi.hoisted(() => vi.fn(async () => undefined))
@@ -331,6 +332,68 @@ describe("OS signing session boundary", () => {
         expect(toast).toHaveBeenCalledWith("Submitted: Vote. Waiting for network approval.")
     })
 
+    describe("Adena never answers", () => {
+        const onSettled = vi.fn()
+        const verify = vi.fn(async () => true)
+        const silent = {
+            ...request, verify, onSettled,
+            send: vi.fn(async (_c: unknown, beforeSign: () => Promise<unknown>) => {
+                const confirm = setTxConfirmationCallback(null) ?? (async () => true)
+                setTxConfirmationCallback(confirm)
+                await confirm([], "")
+                await beforeSign()
+                return new Promise<never>(() => {}) // Adena's promise, left pending
+            }),
+        }
+        function Silent() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(silent)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.title} | {n.sub}</li>)}</ul></>
+        }
+        const open = (toast = vi.fn()) => {
+            vi.clearAllMocks()
+            const view = render(<SignerProvider session={session("member")} toast={toast}><Silent /></SignerProvider>)
+            fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+            fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+            return view
+        }
+
+        it("closes the review once the account shows a transaction, says only that, and settles as unknown", async () => {
+            vi.useFakeTimers({ shouldAdvanceTime: true })
+            try {
+                vi.mocked(accountMark).mockResolvedValueOnce("7 5000000ugnot").mockResolvedValue("8 4990000ugnot")
+                const toast = vi.fn()
+                open(toast)
+                await act(async () => { await vi.advanceTimersByTimeAsync(WALLET_QUIET_MS + WATCH_MS) })
+                // Which transaction is not known: never "done" (NFT create would say "created").
+                await waitFor(() => expect(onSettled).toHaveBeenCalledWith("unknown", undefined))
+                expect(screen.queryByRole("dialog")).toBeNull()
+                expect(screen.getByText("warn | Your account sent a transaction · Vote | Adena did not answer, but your account sent a transaction while it was open. Check its result in your account's history before doing this again.")).toBeInTheDocument()
+                expect(toast).toHaveBeenCalledWith("Your account sent a transaction: Vote. Adena did not answer; check the result in your account's history.")
+                expect(screen.queryByText(/^warn \| Sent/)).toBeNull()
+                expect(verify).not.toHaveBeenCalled() // there is no hash to verify by
+            } finally {
+                vi.mocked(accountMark).mockReset().mockImplementation(async () => "7 5000000ugnot")
+                vi.useRealTimers()
+            }
+        })
+
+        it("stops watching the account when the provider goes away", async () => {
+            vi.useFakeTimers({ shouldAdvanceTime: true })
+            try {
+                const view = open()
+                await act(async () => { await vi.advanceTimersByTimeAsync(WALLET_QUIET_MS + WATCH_MS) })
+                const reads = vi.mocked(accountMark).mock.calls.length
+                expect(reads).toBeGreaterThan(1)
+                view.unmount()
+                await waitFor(() => expect(onSettled).toHaveBeenCalledWith("unknown", undefined))
+                await act(async () => { await vi.advanceTimersByTimeAsync(WATCH_MS * 5) })
+                expect(vi.mocked(accountMark).mock.calls.length).toBe(reads)
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+    })
+
     describe("a 'rejected' reply from Adena after its window opened", () => {
         const onSettled = vi.fn()
         const rejected = {
@@ -416,6 +479,18 @@ describe("OS signing session boundary", () => {
         fireEvent.click(screen.getByRole("button", { name: "Without fee" }))
         expect(screen.getByRole("dialog", { name: "Review · Vote" })).toBeInTheDocument()
         expect(screen.queryByText(/Your wallet sets the fee it signs/)).toBeNull()
+    })
+
+    it("tells the request when its review is dismissed without signing", () => {
+        const onDismissed = vi.fn()
+        function Dismissable() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign({ ...request, onDismissed })}>Open</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><Dismissable /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open" }))
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+        expect(onDismissed).toHaveBeenCalledTimes(1)
     })
 
     it("contains transaction review focus and returns it to the invoking control", async () => {

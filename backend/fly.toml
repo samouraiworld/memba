@@ -53,7 +53,9 @@ primary_region = 'cdg'
   # Watch after changing it: `auth: token chain mismatch` (validation) and
   # `AUTH-CHAINID-MISMATCH-01` (mint-time refusal, also counted in
   # AuthLoginTotal{result="chain_mismatch"}, so it can be alerted on).
-  MEMBA_ACCEPTED_CHAIN_IDS = 'gnoland-1'
+  # onyx-1 added 2026-10-07 (owner) so Memba OS can sign in on Onyx for Connect 4;
+  # the secret was set to the same value and verified by a scoped read.
+  MEMBA_ACCEPTED_CHAIN_IDS = 'gnoland-1,onyx-1'
   # Generic low-volume reads → the public mainnet canonical. The feed tailer
   # polls a DIFFERENT node (FEED_RPC_URL → rpc.mainnet.samourai.live).
   GNO_RPC_URL = 'https://rpc.gno.land:443'

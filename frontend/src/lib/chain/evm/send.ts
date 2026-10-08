@@ -41,6 +41,18 @@ export interface EvmWrite {
     value?: bigint
 }
 
+export interface SendOptions {
+    /** How long the receipt is awaited before the outcome is reported as unknown (default 120 s). */
+    receiptTimeoutMs?: number
+    /**
+     * Called once, synchronously, with the transaction hash as soon as the wallet returns a
+     * well-formed one, before the receipt is awaited: the caller can keep the hash while the
+     * wait (and its replacement handling) stays here. Never called when nothing was sent; an
+     * exception it throws is ignored and changes nothing.
+     */
+    onSent?: (hash: `0x${string}`) => void
+}
+
 /** How long the receipt is awaited before the outcome is reported as unknown. */
 const RECEIPT_TIMEOUT_MS = 120_000
 
@@ -77,7 +89,7 @@ function shortReason(err: unknown): string {
  * Sends `write` from the connected wallet on `config`. `activeChainId` is the EIP-155 id of the
  * network this page runs on (null on a gno.land page): a write for any other chain is refused.
  */
-export async function sendEvmWriteWith(config: Config, activeChainId: number | null, write: EvmWrite, opts: { receiptTimeoutMs?: number } = {}): Promise<TxResult> {
+export async function sendEvmWriteWith(config: Config, activeChainId: number | null, write: EvmWrite, opts: SendOptions = {}): Promise<TxResult> {
     const nothingSent = (reason: string): TxResult => ({ outcome: "failed", error: `${reason}. Nothing was sent.` })
     const label = networkLabel(write.chainId)
     const chainId = write.chainId as Config["chains"][number]["id"]
@@ -144,6 +156,7 @@ export async function sendEvmWriteWith(config: Config, activeChainId: number | n
     if (typeof hash !== "string" || !/^0x[0-9a-f]{64}$/i.test(hash)) {
         return { outcome: "unknown", error: "Your wallet answered without a valid transaction hash. Check your wallet's activity before retrying: the transaction may have been sent." }
     }
+    try { opts.onSent?.(hash) } catch { /* the caller's bookkeeping cannot change what happened on chain */ }
 
     const replaced: { reason?: "replaced" | "repriced" | "cancelled" } = {}
     try {

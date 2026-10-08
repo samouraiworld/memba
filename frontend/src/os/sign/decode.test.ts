@@ -61,3 +61,15 @@ describe("adenaChecklist for a GNOT send", () => {
         ])
     })
 })
+
+describe("adenaChecklist for account sessions", () => {
+    it("names the session message, its allowed path and spend limit", () => {
+        const create: AminoMsg = { type: "/auth.m_create_session", value: { creator: "g1x", allow_paths: ["vm/exec:gno.land/r/x/c4"], spend_limit: "1000000ugnot" } }
+        expect(adenaChecklist([create, { type: "/auth.m_revoke_session", value: { creator: "g1x" } }], "onyx-1")).toEqual([
+            { label: "Message", value: "Create session" }, { label: "type", value: "/auth.m_create_session", mono: true },
+            { label: "Allowed", value: "vm/exec:gno.land/r/x/c4", mono: true }, { label: "Spend limit", value: "1 GNOT" },
+            { label: "Message", value: "Revoke session" }, { label: "type", value: "/auth.m_revoke_session", mono: true },
+            { label: "Network", value: "onyx-1", mono: true },
+        ])
+    })
+})

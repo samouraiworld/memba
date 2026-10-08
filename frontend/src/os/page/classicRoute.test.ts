@@ -204,7 +204,8 @@ describe("osUrlForClassic", () => {
         ["/mainnet/no-such-page", null],
         // Networks hidden from the selector stay classic: Memba OS would not stay on them.
         ["/test13/dao", null],
-        ["/onyx/feed", null],
+        // Onyx is offered (2026-10-07): an old classic Connect 4 link opens the OS window.
+        ["/onyx/game/connect4", "/os/arcade/connect4"],
     ]
     const resolve = (classic: string) => osUrlForClassic(classic, resolveNetworkKey({ pathname: classic }))
 

@@ -76,10 +76,21 @@ describe("accountMark", () => {
         const calls = chain({ head: () => 100, account: (height) => (height < 90 ? { sequence: "6", coins: "9000000ugnot" } : BEFORE) })
         expect(await accountMark(ADDRESS)).toBe("7 5000000ugnot")
         expect(await accountMark(ADDRESS, 80)).toBe("6 9000000ugnot")
-        expect(calls.map((c) => c.params)).toEqual([
-            { path: `auth/accounts/${ADDRESS}`, data: "" },
-            { path: `auth/accounts/${ADDRESS}`, data: "", height: "80" },
+        expect(calls.map((c) => [c.method, c.params])).toEqual([
+            ["status", {}],
+            ["abci_query", { path: `auth/accounts/${ADDRESS}`, data: "", height: "100" }],
+            ["abci_query", { path: `auth/accounts/${ADDRESS}`, data: "", height: "80" }],
         ])
+    })
+
+    it.each([
+        ["on another network", { network: "onyx-1" }],
+        ["catching up", { catchingUp: true }],
+        ["two blocks behind", { lag: 2 }],
+    ])("has no latest value from a node %s: an RPC pool can hand the read to another chain", async (_why, node) => {
+        const calls = chain({ head: () => 100, account: () => ({ sequence: "40", coins: "1ugnot" }), ...node })
+        await expect(accountMark(ADDRESS)).rejects.toThrow()
+        expect(calls.map((c) => c.method)).toEqual(["status"])
     })
 
     it("has no value for an account the node does not know, or for a height it does not have", async () => {

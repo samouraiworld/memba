@@ -31,7 +31,8 @@ export function windowToken(t: OsTarget | null): string | null {
             if (t.app === "news" && newsArticle(t.section)) return `news.${t.section}`
             // Meet room codes grant access: never put them in URLs or saved windows.
             if (t.app === "meet") return "app.meet"
-            if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
+            if (t.app === "arcade" && t.section && /^connect4\/[1-9]\d{0,8}$/.test(t.section)) return `arcade.connect4.${t.section.slice(9)}`
+            if (t.app === "arcade" && t.section && ["game", "connect4", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
             if (t.app === "daos" && t.section?.startsWith("dao/")) return `daopage.${t.section.slice(4)}`
             return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
@@ -58,7 +59,8 @@ export function tokenToTarget(token: string): OsTarget | null {
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
     else if (kind === "feed" && /^post\.[1-9]\d{0,19}$/.test(rest)) path = `/os/feed/post/${rest.slice(5)}`
     else if (kind === "news" && newsArticle(rest)) path = `/os/news/${rest}`
-    else if (kind === "arcade" && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
+    else if (kind === "arcade" && /^connect4\.[1-9]\d{0,8}$/.test(rest)) path = `/os/arcade/connect4/${rest.slice(9)}`
+    else if (kind === "arcade" && ["game", "connect4", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
     else if (kind === "daopage") path = `/os/daos/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`

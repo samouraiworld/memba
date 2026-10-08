@@ -15,7 +15,7 @@ import type { Read, TxResult } from "../types"
 import { readChainStatus, type ChainStatus } from "./chainCheck"
 import { EVM_NETWORKS, storedEvmNetworkKey } from "./networks"
 import { createEvmWallet } from "./wallet"
-import { sendEvmWriteWith, type EvmWrite } from "./send"
+import { sendEvmWriteWith, type EvmWrite, type SendOptions } from "./send"
 
 const CHAINS: Readonly<Record<string, Chain>> = { "base-sepolia": baseSepolia, base }
 
@@ -58,7 +58,7 @@ export function readNetworkStatus(key: string): Promise<Read<ChainStatus>> {
 }
 
 /** The one send path for EVM writes (lib/chain/evm/send.ts), on Memba's wallet config. */
-export function sendEvmWrite(write: EvmWrite, opts?: { receiptTimeoutMs?: number }): Promise<TxResult> {
+export function sendEvmWrite(write: EvmWrite, opts?: SendOptions): Promise<TxResult> {
     const here = storedEvmNetworkKey()
     return sendEvmWriteWith(evmConfig, here ? EVM_NETWORKS[here].chainId : null, write, opts)
 }

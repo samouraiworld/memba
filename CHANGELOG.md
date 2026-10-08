@@ -24,6 +24,19 @@ Full changelogs are split by version range for easier navigation:
 - App Store: gnofly, a multiplayer plane game on gno.land, joins the ecosystem directory with its checked mainnet realm and plane NFT pricing (777 planes, 77 GNOT each at launch)
 - Memba OS: the Arcade shows independent mainnet games under From the community as external links, with a note that Memba has not reviewed them and that some charge GNOT
 
+### Onyx in the network menu, so Connect 4 can be played in Memba OS (2026-10-07)
+- Onyx is offered in the network menu (Memba OS labels it as a testnet). Memba OS only runs on a network the menu offers, so Connect 4 (live on Onyx) could not be reached from the OS before.
+- An old classic link such as /onyx/game/connect4 now opens the Connect 4 window in Memba OS instead of the classic page, and keeps Onyx as your network, so a reload stays there.
+- The wallet-mismatch banner no longer offers to move Memba onto a testnet the wallet was left on; it asks to switch the wallet instead.
+- The Connect 4 card on other networks says to choose Onyx in the network menu.
+### Signing no longer waits forever on Adena (2026-10-08)
+- Fixed: signing (including address activation) no longer waits forever when Adena never answers. After 45 seconds of silence Memba checks your account and, if it sent a transaction, says so and tells you to check its result; after 3 minutes it says what to check
+
+### Arcade: Connect 4, staked two-player on testnet, with Quick play (2026-10-07)
+- A fourth Arcade game: staked Connect 4 against another wallet. Both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT fee; every move has 90 seconds of chain time. The lobby lists open offers and live games as cards (anyone can open one to watch), and offers are posted with stake and duration presets. The board drops discs with a bounce, shows whose turn it is with a move-clock ring, and highlights the winning line.
+- Testnet only: the game appears only where its realm is configured (Onyx today) and behind its own flag. Every move is signed in the wallet. Who moves first is drawn from a secret each player commits to and reveals right after the game starts; both reveals are sent automatically from the player's browser, so both should keep the game open for about three minutes after an offer is accepted.
+- Quick play: one wallet approval starts a session (1h, 4h or 24h) limited to Connect 4 and 1 GNOT a day of gas and storage. Moves then sign without a wallet popup, while stakes and resigning still ask the wallet. If the session can't sign a move, the move goes to the wallet at once — straight away when less than 15 seconds are left — and ending Quick play revokes the session on chain.
+- The transaction confirmation window stays readable in light themes and in Memba OS.
 ### Guest banner wording (2026-10-08)
 - Memba OS: the guest banner says Connect to sign instead of Connect to vote, which only made sense over a DAO
 

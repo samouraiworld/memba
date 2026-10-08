@@ -39,7 +39,7 @@ describe("useNetworkKey", () => {
     })
 
     it("ignores a stale URL echo naming a retired or hidden network", () => {
-        for (const echo of ["onyx", "test13"]) {
+        for (const echo of ["test13"]) {
             expect(NETWORKS[echo]?.hidden, echo).toBe(true)
             localStorage.setItem("memba_network", echo)
             expect(keyAt("/no-network-here"), echo).toBe(DEFAULT_NETWORK)
@@ -53,7 +53,7 @@ describe("useNetworkKey", () => {
     })
 
     it("ignores a stored explicit choice of a hidden network, and honours a visible one", () => {
-        localStorage.setItem("memba_network_pref", "onyx")
+        localStorage.setItem("memba_network_pref", "test13")
         expect(keyAt("/no-network-here")).toBe(DEFAULT_NETWORK)
         // A retired network (pearl) is no network at all.
         localStorage.setItem("memba_network_pref", "pearl")
