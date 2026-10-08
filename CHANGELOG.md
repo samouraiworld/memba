@@ -22,6 +22,10 @@ Full changelogs are split by version range for easier navigation:
 
 ### Connect 4 on gno.land mainnet (2026-10-08)
 - Staked two-player Connect 4 in the Arcade on gnoland-1: both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT house fee; a draw or a void game refunds both stakes. There is no maximum stake. Connect 4 now has community reviews.
+### A new folded M, Radio and a notification experiment (2026-10-08)
+- Memba OS: the intro uses the new white and lavender folded M over a blue glow; the menu uses the same silhouette in each theme.
+- Radio: guests can listen to the live Gno Radio schedule on Onyx, change station, control volume, and open track attribution, governance and source links. Playback continues while minimised and stops when the window closes.
+- Notifications: an optional Gnotif Echo lab tests browser push on Onyx through a separate page and worker. It is disabled by default; real delivery must be checked before enabling it on the beta site.
 
 ### Akkadia's logo and gnoscope's new name in the storefront (2026-10-08)
 - App Store: Akkadia shows its own logo instead of its studio's mark.

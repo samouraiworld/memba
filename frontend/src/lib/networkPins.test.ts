@@ -88,6 +88,7 @@ interface Pin {
 }
 
 const ALLOWLIST: Pin[] = [
+    { file: "os/apps/radio/client.ts", allow: ["onyx-1"], why: "Gno Radio is an independent read-only Onyx service. Its RPC chain is verified against that deployment, never Memba's selected network; there is no radio write path." },
     { file: "lib/recentSubmissions.ts", allow: ["gnoland-1"], why: "The C2b read accepts only the backend's fixed official mainnet submission source; it does not select the app network or permit writes." },
     { file: "hooks/useRecentSubmissions.ts", allow: ["mainnet"], why: "The C2b Directory read is intentionally enabled only for the mainnet route, with no polling." },
     { file: "components/directory/RecentSubmissionsSection.tsx", allow: ["mainnet"], why: "Submission rows are omitted on Pearl and other networks; editorial Directory content remains separate." },

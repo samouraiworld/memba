@@ -47,7 +47,7 @@ function buildIdentityPlugin(): PluginOption {
     name: 'memba-build-identity',
     apply: 'build',
     generateBundle(_options, bundle) {
-      const entry = Object.values(bundle).find(file => file.type === 'chunk' && file.isEntry)?.fileName
+      const entry = Object.values(bundle).find(file => file.type === 'chunk' && file.isEntry && file.name === 'index')?.fileName
       this.emitFile({ type: 'asset', fileName: 'build-info.json', source: JSON.stringify({ version: pkg.version, commit, entry }) })
     },
   }
@@ -181,6 +181,7 @@ function sitemapPlugin(mode: string): PluginOption {
 // dead OS chunk — so the fonts leak into a flag-off build as unreferenced
 // files. See the assetsInlineLimit override below.
 const osEnabledFor = (mode: string) => ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_MEMBA_OS === 'true'
+const gnotifEnabledFor = (mode: string) => osEnabledFor(mode) && ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_GNOTIF_LAB === 'true'
 const evmEnabledFor = (mode: string) => ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_EVM === 'true'
 
 // https://vite.dev/config/
@@ -203,7 +204,8 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
     sourcemap: true, // Required for Sentry source map uploads
     assetsInlineLimit: osEnabledFor(mode) ? undefined : (filePath: string) => /(manrope|chakra-petch)-latin-\d+-normal\.woff2$/.test(filePath) || undefined,
     rollupOptions: {
-      input: { main: resolve('index.html'), gnotif: resolve('labs/gnotif/index.html') },
+      // Preserve the index entry used by bundle budgets; omit the lab from ordinary builds.
+      input: { index: resolve('index.html'), ...(gnotifEnabledFor(mode) ? { gnotif: resolve('labs/gnotif/index.html') } : {}) },
       output: {
         // Function form (BARRICADE 3D, PR-0c): unlike the object form, a module is
         // grouped ONLY when it is actually in the graph — so three / react-three-fiber
