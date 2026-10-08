@@ -11,7 +11,7 @@ import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 const MEMBER = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
 
 async function phone(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillGovernance(page)
     await page.setViewportSize(MOBILE_375)
 }

@@ -8,7 +8,7 @@ import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
 // teal palette. Chain reads and third-party hosts are refused so the probes are
 // deterministic (same pattern as os-pages.spec.ts).
 async function guest(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await abortOnchainReads(page)
 }
 

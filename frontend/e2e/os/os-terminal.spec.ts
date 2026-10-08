@@ -3,7 +3,7 @@ import { OS_ON } from "../../playwright.os.config"
 import { abortOnchainReads } from "../helpers/onchain"
 
 test.beforeEach(async ({ page }) => {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]|youtube/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]|youtube/, (route) => route.abort())
     await abortOnchainReads(page)
     await page.addInitScript(() => localStorage.setItem("memba_os_skip_intro", "1"))
     await page.setViewportSize({ width: 1400, height: 900 })

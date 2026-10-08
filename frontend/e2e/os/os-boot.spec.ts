@@ -7,7 +7,7 @@ import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 // a click or a key skips it, never under reduced motion, never on a shared link.
 
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => {
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => {
         const u = new URL(r.request().url())
         return u.hostname === '127.0.0.1' && !/memba\.v1\./.test(u.pathname) ? r.continue() : r.abort()
     })

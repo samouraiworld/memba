@@ -15,7 +15,7 @@ for (const section of ['submit', 'my-submissions']) {
 
 test('guest Store curator queue is read without a wallet', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
-    await page.route(/memba\.v1\.|\.gno\.land|gnolove|clerk[.-]/, route => route.abort())
+    await page.route(/memba\.v1\.|\.gno\.land|https?:\/\/[^/]*gnolove|clerk[.-]/, route => route.abort())
     await page.goto(`${OS_ON}/os/store/review`)
     const win = page.getByRole('region', { name: 'App Store', exact: true })
     await expect(win.getByRole('heading', { name: 'Curator queue' })).toBeVisible()
@@ -25,7 +25,7 @@ test('guest Store curator queue is read without a wallet', async ({ page }) => {
 
 test('guest Store catalogue remains readable', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
-    await page.route(/memba\.v1\.|\.gno\.land|gnolove|clerk[.-]/, route => route.abort())
+    await page.route(/memba\.v1\.|\.gno\.land|https?:\/\/[^/]*gnolove|clerk[.-]/, route => route.abort())
     await page.goto(`${OS_ON}/os/store`)
     const win = page.getByRole('region', { name: 'App Store', exact: true })
     await expect(win.getByRole('navigation', { name: 'App Store' })).toBeVisible()

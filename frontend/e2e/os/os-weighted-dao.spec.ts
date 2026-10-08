@@ -18,7 +18,7 @@ const fits = async (window: ReturnType<typeof win>) => {
 test.describe('Memba OS weighted DAO', () => {
     test.beforeEach(async ({ page }) => {
         // Only other hosts are refused: the dev server's own modules must load.
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => {
             const url = new URL(route.request().url())
             return url.hostname === '127.0.0.1' && !/memba\.v1\./.test(url.pathname) ? route.continue() : route.abort()
         })

@@ -4,7 +4,7 @@ import { OS_ON } from '../../playwright.os.config'
 import { devReportFixture } from '../helpers/devReportFixture'
 
 for (const theme of ['light', 'dark'] as const) {
-    test(`repository catalogue works in an OS window (${theme})`, async ({ page, browserName }) => {
+    test(`repository catalogue works in an OS window (${theme})`, async ({ page, browserName }, testInfo) => {
         await page.emulateMedia({ colorScheme: theme })
         await page.addInitScript(() => {
             localStorage.setItem('memba_os_skip_intro', '1')
@@ -19,7 +19,9 @@ for (const theme of ['light', 'dark'] as const) {
         expect(await navigation.evaluate(el => getComputedStyle(el).flexWrap)).toBe('nowrap')
         const violations = (await new AxeBuilder({ page }).include('.gl-repositories').analyze()).violations
         expect(violations).toEqual([])
-        await page.screenshot({ path: `/private/tmp/devreport-os-${theme}-${browserName}.png` })
+        const screenshot = testInfo.outputPath(`devreport-os-${theme}-${browserName}.png`)
+        await page.screenshot({ path: screenshot })
+        await testInfo.attach(`devreport-os-${theme}-${browserName}`, { path: screenshot, contentType: 'image/png' })
         await page.setViewportSize({ width: 390, height: 844 })
         await app.getByRole('searchbox').fill('memba')
         await expect(app.getByRole('link', { name: 'samouraiworld/memba', exact: true })).toBeVisible()

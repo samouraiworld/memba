@@ -4,7 +4,7 @@ import { OS_ON } from '../../playwright.os.config'
 const OS_BASE = process.env.OS_SHELL_QA_URL ?? OS_ON
 
 async function quietExternalServices(page: Page) {
-    await page.route(/memba\.v1\.|\.gno\.land|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|\.gno\.land|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
 }
 
 test.beforeEach(async ({ page }) => { await quietExternalServices(page) })

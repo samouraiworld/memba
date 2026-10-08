@@ -19,7 +19,7 @@ type Chain = { names?: Record<string, string>; gasPrice?: boolean; registerPrice
 async function owner(page: Page, mode: Mode, fields: Record<string, string>, { names = {}, gasPrice = true, registerPrice = 0 }: Chain = {}) {
     // A landed transaction moves the account's sequence, which is what a cancellation is checked against.
     let sequence = 1
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillOnchainReads(page, ({ method, path, arg }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method !== 'abci_query') return null

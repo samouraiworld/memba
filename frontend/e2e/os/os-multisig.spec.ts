@@ -38,7 +38,7 @@ async function stubIndexer(page: Page, transfers: { hash: string; from: string; 
 
 async function setup(page: Page) {
     await stubIndexer(page)
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
     await page.route('**/memba.v1.MultisigService/Multisigs', (route) => route.fulfill(json({ multisigs: [team, invite] })))
     await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill(json({ multisig: team })))
@@ -139,7 +139,7 @@ test.describe('Memba OS multisig', () => {
     })
 
     test('a guest sees the Multisig app and an account’s address and balance, named by the chain, and is asked to connect only where their own data would be', async ({ page }) => {
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
         await stubIndexer(page, [{ hash: RECEIVED_HASH, from: BOB, to: MSIG, amount: '1100000ugnot' }])
         await fulfillOnchainReads(page, ({ method, path }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
@@ -248,7 +248,7 @@ test.describe('Memba OS multisig', () => {
     })
 
     test('a guest opens the import and creation forms, each with its own connect prompt and a disabled submit', async ({ page }) => {
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os/multisig/import`)
         await expect(page.getByText('Connect your wallet to import a multisig')).toBeVisible()
@@ -487,7 +487,7 @@ test.describe('Memba OS multisig · native lifecycle', () => {
     async function memberSession(browser: Browser, me: { pub: string; address: string }, fake: Fake): Promise<Page> {
         const page = await (await browser.newContext({ viewport: { width: 1280, height: 860 } })).newPage()
         await stubIndexer(page)
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
         const ok = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
         const req = (route: { request(): { postData(): string | null } }) => JSON.parse(route.request().postData() ?? '{}')
         await page.route('**/memba.v1.MultisigService/CreateOrJoinMultisig', (route) => {

@@ -10,7 +10,7 @@ const BOB = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
 const HASH = 'a'.repeat(64)
 
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillOnchainReads(page, ({ method, path }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method === 'tx') return { hash: HASH, height: '435604', tx_result: { ResponseBase: { Error: null } } }
