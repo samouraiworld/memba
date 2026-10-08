@@ -88,4 +88,3 @@ describe('Versioned identity backup and fail-closed recovery', () => {
     expect(equalBytes(newIdentitySeed(), newIdentitySeed())).toBe(false)
   })
 })
-
