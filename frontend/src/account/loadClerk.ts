@@ -29,15 +29,16 @@ export interface ClerkClient {
     user: AccountUser | null
     onChange: (listener: (user: AccountUser | null) => void) => () => void
     openSignIn: () => void
-    getToken: () => Promise<string | null>
+    getToken: (expectedUserId?: string) => Promise<string | null>
     signOut: () => Promise<void>
+    deleteUser: (expectedUserId: string) => Promise<void>
 }
 
-type ClerkUserResource = { id: string; fullName: string | null; primaryEmailAddress?: { emailAddress: string } | null; publicMetadata?: Record<string, unknown> }
+type ClerkUserResource = { id: string; fullName: string | null; primaryEmailAddress?: { emailAddress: string } | null; publicMetadata?: Record<string, unknown>; delete?: () => Promise<void> }
 interface ClerkGlobal {
     load: (options: object) => Promise<void>
     user?: ClerkUserResource | null
-    session?: { getToken: () => Promise<string | null> } | null
+    session?: { getToken: (expectedUserId?: string) => Promise<string | null> } | null
     addListener: (listener: (state: { user?: ClerkUserResource | null }) => void) => () => void
     openSignIn: () => void
     signOut: () => Promise<void>
@@ -83,7 +84,18 @@ export async function loadClerk(publishableKey: string): Promise<ClerkClient> {
         get user() { return toUser(clerk.user) },
         onChange: (listener) => clerk.addListener(({ user }) => listener(toUser(user))),
         openSignIn: () => clerk.openSignIn(),
-        getToken: async () => (await clerk.session?.getToken()) ?? null,
+        getToken: async (expectedUserId = clerk.user?.id) => {
+            const session = clerk.session
+            if (!expectedUserId || clerk.user?.id !== expectedUserId || !session) return null
+            const token = await session.getToken()
+            if (clerk.user?.id !== expectedUserId || clerk.session !== session) throw new Error("Your sign-in changed. Try again.")
+            return token
+        },
         signOut: () => clerk.signOut(),
+        deleteUser: async (expectedUserId) => {
+            const target = clerk.user
+            if (!target?.delete || target.id !== expectedUserId) throw new Error("Your sign-in changed. Return to the account whose deletion you confirmed.")
+            await target.delete()
+        },
     }
 }

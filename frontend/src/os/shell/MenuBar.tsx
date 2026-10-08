@@ -5,6 +5,7 @@
  *
  * @module os/shell/MenuBar
  */
+import { ACCOUNT_ENABLED } from "../../lib/config"
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { appsOn, OS_APPS, type OsAppId } from "../apps"
 import { EVM_ENABLED } from "../../lib/chain/flag"
@@ -272,6 +273,7 @@ export function MenuBar(p: MenuBarProps) {
                 <div className="os-menu" role="menu" aria-label="Account">
                     <div className="os-mhd os-mono">{shortAddr(shown)}</div>
                     <Item onClick={run(() => p.openApp("profile"))}>Profile</Item>
+                    {ACCOUNT_ENABLED && <Item onClick={run(() => p.openSpec(specForTarget({ kind: "app", app: "settings", section: "account" })!))}>Memba account</Item>}
                     <Item onClick={copy(shown, "your address")}>Copy address</Item>
                     <div className="os-msep" role="separator" />
                     <Item onClick={run(p.lock)}>Disconnect & lock</Item>

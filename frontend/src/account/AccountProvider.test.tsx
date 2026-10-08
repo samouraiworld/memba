@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { useEffect } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AccountProvider, LOAD_TIMEOUT_MS, SESSION_MARKER } from "./AccountProvider"
-import { useAccount, type AccountUser } from "./accountContext"
+import { useAccount, type AccountUser, type AccountApi } from "./accountContext"
 import type { ClerkClient } from "./loadClerk"
 
 vi.mock("./loadClerk", () => ({ loadClerk: vi.fn() }))
@@ -18,7 +18,8 @@ function fakeClient(user: AccountUser | null = null) {
         openSignIn: vi.fn(),
         getToken: vi.fn(async () => "jwt"),
         signOut: vi.fn(async () => {}),
-        emit: (u) => listener?.(u),
+        deleteUser: vi.fn(async () => {}),
+        emit: (u) => { client.user = u; listener?.(u) },
     }
     return client
 }
@@ -116,4 +117,26 @@ describe("the optional account", () => {
         await act(async () => { await vi.advanceTimersByTimeAsync(1) })
         expect(screen.getByText("status: failed")).toBeInTheDocument()
     })
+})
+
+
+it("invalidates a pending token and old callbacks even after switching away and back", async () => {
+    let resolve!: (token: string) => void
+    const delayed = new Promise<string>(r => { resolve = r })
+    const client = fakeClient(ADA)
+    vi.mocked(client.getToken).mockReturnValue(delayed)
+    vi.mocked(loadClerk).mockResolvedValue(client)
+    localStorage.setItem(SESSION_MARKER, "1")
+    let current!: AccountApi
+    function Capture() { const account = useAccount(); useEffect(() => { current = account }, [account]); return null }
+    render(<AccountProvider publishableKey="pk_test_x"><Capture /></AccountProvider>)
+    await waitFor(() => expect(current.user?.id).toBe(ADA.id))
+    const captured = current
+    const result = captured.getToken(ADA.id)
+    act(() => client.emit({ ...ADA, id: "other" }))
+    act(() => client.emit(ADA))
+    resolve("token-A")
+    await expect(result).rejects.toThrow(/sign-in changed/)
+    await expect(captured.deleteUser(ADA.id)).rejects.toThrow(/sign-in changed/)
+    expect(client.deleteUser).not.toHaveBeenCalled()
 })

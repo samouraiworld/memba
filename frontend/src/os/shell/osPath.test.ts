@@ -43,6 +43,9 @@ describe("parseOsPath", () => {
     it("reads About as a system window, never as an app section", () => {
         expect(parseOsPath("/os/about")).toEqual({ kind: "about" })
         expect(parseOsPath("/os/about/extra").kind).toBe("unknown")
+        // The optional account's pages exist only while it is on (settings/account.test.tsx covers it on).
+        expect(parseOsPath("/os/confirm").kind).toBe("unknown")
+        expect(parseOsPath("/os/privacy").kind).toBe("unknown")
     })
 
     it("reads apps by their slug, keeping any section", () => {

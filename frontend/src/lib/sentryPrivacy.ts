@@ -5,6 +5,8 @@ function redactText(value: string): string {
     // Visio room slugs grant access, including when they appear in OS URLs,
     // saved-window query tokens, referrers or an outbound Visio link.
     value = value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[REDACTED_MEETING]')
+    // A consent confirmation link's token (/os/confirm?t=<id>.<mac>) is a one-time credential.
+    value = value.replace(/([?&]t=)\d+\.[A-Za-z0-9_-]+/g, '$1[REDACTED_TOKEN]')
     // Same matches as eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+,
     // without quadratic retries on a long run of `eyJ` with no dots.
     const word = /[A-Za-z0-9_-]+/g

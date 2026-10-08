@@ -388,3 +388,22 @@ export async function ensureMonitoringUser(token: string, name: string, email: s
         console.warn("[monitoring] user provisioning failed:", err)
     }
 }
+
+/**
+ * Deletes the signed-in person's gnomonitoring user and, with it, their
+ * webhooks, alert contacts and daily report. True when nothing is left
+ * (deleted, never provisioned, or no monitoring configured).
+ */
+export async function deleteMonitoringUser(token: string): Promise<boolean> {
+    if (!GNO_MONITORING_API_URL) return true
+    try {
+        const res = await fetch(`${GNO_MONITORING_API_URL}/users`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(8000),
+        })
+        return res.ok || res.status === 404
+    } catch {
+        return false
+    }
+}
