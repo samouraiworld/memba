@@ -8,14 +8,13 @@ import { ReviewsPanel } from "../store/ReviewsPanel"
 import type { ArcadeGame } from "./catalogue"
 import { DailyTop } from "./DailyTop"
 
-export function GamePage({ game, session, open }: { game: ArcadeGame } & Pick<NativeViewProps, "session" | "open">) {
+export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; toLobby: () => void } & Pick<NativeViewProps, "session" | "open">) {
     const media = resolveMedia(game.id, null, game.id)
     const summary = useReviewSummaries(session.network.chainId, [game.reviewSubject]).get(game.reviewSubject)
     const enabled = game.enabled()
     const play = () => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
-    const back = () => open(specForTarget({ kind: "app", app: "arcade", section: null })!)
     const latest = game.changelog[0]
-    return <DetailLayout banner={media.cover} accent={media.accent} back={{ label: "← Arcade", onClick: back }} title={game.name} pitch={game.pitch}
+    return <DetailLayout banner={media.cover} accent={media.accent} back={{ label: "← Arcade", onClick: toLobby }} title={game.name} pitch={game.pitch}
         badges={<><RatingBadge summary={summary} />{game.tags.map((tag) => <span key={tag} className="os-cin-tag">{tag}</span>)}</>}
         main={<>
             <MediaGallery name={game.name} images={media.screenshots} />
@@ -38,7 +37,7 @@ export function GamePage({ game, session, open }: { game: ArcadeGame } & Pick<Na
                 </>}
             </div>
             <div className="os-cin-panel"><InfoRows rows={game.info} /></div>
-            {game.dailyBoard && enabled && <DailyTop onOpen={play} />}
+            {game.dailyBoard && enabled && <DailyTop chainId={session.network.chainId} onOpen={play} />}
             {game.daily && <p className="os-cin-sub" role="note">A combined daily leaderboard and on-chain Arcade attestation are unavailable while Arcade attestation is off.</p>}
         </>} />
 }

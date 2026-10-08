@@ -80,10 +80,15 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
     test(`Arcade lobby opens a game page and plays from it on ${device}`, async ({ page }) => {
         const lobby = await openLobby(page, width)
         await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
-        await expect(lobby.getByRole('heading', { level: 1, name: 'BARRICADE' })).toBeVisible()
+        // The page is a history entry: focus moves to its title, and the browser's Back returns to the lobby.
+        await expect(lobby.getByRole('heading', { level: 1, name: 'BARRICADE' })).toBeFocused()
         await expect(lobby.getByRole('button', { name: '← Arcade' })).toBeVisible()
+        await page.goBack()
+        await expect(lobby.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+        await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
         await lobby.getByRole('button', { name: '← Arcade' }).click()
         await expect(lobby.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+        await expect(lobby.getByRole('button', { name: 'Details for BARRICADE' })).toBeFocused()
         await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
         test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'Play needs the three OS test-server game flags')
         await lobby.getByRole('button', { name: 'Play BARRICADE', exact: true }).click()

@@ -32,11 +32,14 @@ describe("Arcade lobby", () => {
 
     it("shows every game as a capsule: details open its page, Play opens the game", () => {
         const open = vi.fn()
-        wrap(<ArcadeWindow {...base} section={null} open={open} />)
+        const push = vi.fn()
+        wrap(<ArcadeWindow {...base} section={null} open={open} push={push} />)
         expect(screen.getByRole("navigation", { name: "Arcade" })).toBeInTheDocument()
         expect(screen.getByText(/leaderboard is server-verified when Daily is live/)).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Details for BARRICADE" }))
-        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "app:arcade", target: expect.objectContaining({ section: "g/barricade" }) }))
+        // Details is a page change: a history entry, not a new window.
+        expect(push).toHaveBeenLastCalledWith(expect.objectContaining({ key: "app:arcade", target: expect.objectContaining({ section: "g/barricade" }) }))
+        expect(open).not.toHaveBeenCalled()
         fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:barricade", target: expect.objectContaining({ section: "barricade" }) }))
         fireEvent.click(screen.getByRole("button", { name: "Play Connect 4" }))
@@ -82,11 +85,45 @@ describe("Arcade lobby", () => {
 
     it("opens a game page with its reviews, and plays from it", () => {
         const open = vi.fn()
-        wrap(<ArcadeWindow {...base} section="g/barricade" open={open} />)
+        const push = vi.fn()
+        wrap(<ArcadeWindow {...base} section="g/barricade" open={open} push={push} />)
         expect(screen.getByRole("heading", { level: 1, name: "BARRICADE" })).toBeInTheDocument()
         expect(screen.getByText("reviews of gno.land/r/samcrew/barricade")).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:barricade" }))
+        fireEvent.click(screen.getByRole("button", { name: "← Arcade" }))
+        expect(push).toHaveBeenLastCalledWith(expect.objectContaining({ key: "app:arcade", target: expect.objectContaining({ section: null }) }))
+        expect(open).toHaveBeenCalledTimes(1)
+    })
+
+    it("shows the daily top only on Block Party's page", () => {
+        const { unmount } = wrap(<ArcadeWindow {...base} section="g/block-party" open={vi.fn()} />)
+        expect(screen.getByText("daily top")).toBeInTheDocument()
+        unmount()
+        wrap(<ArcadeWindow {...base} section="g/barricade" open={vi.fn()} />)
+        expect(screen.queryByText("daily top")).not.toBeInTheDocument()
+    })
+
+    it("explains a game this build cannot run, and See why opens its section", () => {
+        const open = vi.fn()
+        wrap(<ArcadeWindow {...base} section="g/space-invaders" open={open} />)
+        expect(screen.getByText("This game is unavailable in this build.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Play Space Invaders" })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "See why" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:space-invaders" }))
+    })
+
+    it("moves focus to the game page title and back to the Details button", () => {
+        const push = vi.fn()
+        const client = new QueryClient()
+        const at = (section: string | null) => <QueryClientProvider client={client}><ArcadeWindow {...base} section={section} open={vi.fn()} push={push} /></QueryClientProvider>
+        const view = render(at(null))
+        fireEvent.click(screen.getByRole("button", { name: "Details for BARRICADE" }))
+        view.rerender(at("g/barricade"))
+        expect(screen.getByRole("heading", { level: 1, name: "BARRICADE" })).toHaveFocus()
+        fireEvent.click(screen.getByRole("button", { name: "← Arcade" }))
+        view.rerender(at(null))
+        expect(screen.getByRole("button", { name: "Details for BARRICADE" })).toHaveFocus()
     })
 
     it("falls back for an unknown game page", () => {
