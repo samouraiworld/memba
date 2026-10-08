@@ -6,7 +6,7 @@
  * chain reads are stubbed, and the lane flags are set here, whatever the
  * checkout's .env says.
  */
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { useReducer } from "react"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
@@ -70,7 +70,8 @@ describe("Market window with the Services lane live", () => {
         expect(screen.queryByRole("heading", { name: "Market lanes" })).toBeNull()
         const back = screen.getByRole("button", { name: "Market lanes" })
         expect(classic()).not.toContainElement(back)
-        expect(back).toHaveFocus()
+        // Focus moves in an effect after the lane renders; on a loaded runner that lands after the lane's heading.
+        await waitFor(() => expect(back).toHaveFocus())
 
         fireEvent.click(back)
         expect(await screen.findByRole("heading", { name: "Market lanes" })).toHaveFocus()
