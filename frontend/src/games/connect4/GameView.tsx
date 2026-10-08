@@ -161,6 +161,7 @@ export function GameView({ id, me, connected, onBack }: { id: number; me: string
             <QuickPlay me={me} connected={connected} />
             <span className="os-sub">pot {formatGnot(2 * g.stake)}</span>
         </div>
+        {(g.status === "open" || g.status === "playing") && <div className="os-note os-warn">The 90-second reveal and move clocks use block timestamps. A network halt or stall can cost you your stake when blocks resume, even if you couldn't act.</div>}
         {note && <div className="os-note" role="status">{note}</div>}
         <TxError message={txError} onDismiss={tx.clearError} action={txAction} />
 
