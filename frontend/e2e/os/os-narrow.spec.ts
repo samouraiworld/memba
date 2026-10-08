@@ -61,6 +61,33 @@ test.describe('Memba OS pages in a narrow window', () => {
         expect(await spill(page)).toEqual([])
     })
 
+    test('an App Store page fits a 360 px window', async ({ page }) => {
+        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => {
+            const u = new URL(r.request().url())
+            return u.hostname === '127.0.0.1' && !/memba\.v1\./.test(u.pathname) ? r.continue() : r.abort()
+        })
+        await fulfillGovernance(page)
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
+        await page.setViewportSize({ width: 1280, height: 800 })
+        await page.goto(`${OS_ON}/os/store/project/adena`)
+        const win = page.getByRole('region', { name: 'App details · App Store', exact: true })
+        await expect(win.getByRole('heading', { level: 1, name: 'Adena' })).toBeVisible()
+        // The page opens wide (1040 px); drag its corner in to a phone-sized window.
+        await win.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+        const box = (await win.boundingBox())!
+        expect(Math.round(box.width)).toBe(1040)
+        const corner = (await win.getByTestId('resize').boundingBox())!
+        await page.mouse.move(corner.x + 8, corner.y + 8)
+        await page.mouse.down()
+        await page.mouse.move(corner.x + 8 - (box.width - 360), corner.y + 8, { steps: 8 })
+        await page.mouse.up()
+        await expect.poll(async () => Math.round((await win.boundingBox())!.width)).toBe(360)
+        await expect(win.getByRole('heading', { name: 'Community reviews' })).toBeVisible()
+        await expect(win.locator('.os-cin-detail')).toHaveCSS('display', 'grid', { timeout: 20_000 })
+        await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))))
+        expect(await spill(page)).toEqual([])
+    })
+
     for (const [app, name, sentinel, display] of PAGES) {
         test(`${name} fits a 360 px window`, async ({ page }) => {
             // Only other hosts are refused: the dev server's own modules must load.

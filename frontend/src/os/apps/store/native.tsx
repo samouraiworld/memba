@@ -1,17 +1,16 @@
 /** Native Memba OS discovery. The registry and editorial directory remain distinct sources. */
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { API_BASE_URL, appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
+import { appStorePathFor, isAppReviewsAvailable, isAppStoreEnabled, isRealmValidOn } from "../../../lib/config"
 import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
 import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDate, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
 import { fetchAppStrict, fetchLiveCatalogue, isAppStoreV3OrLaterOn, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
-import { isValidCid } from "../../../lib/ipfs"
 import { publisherNote, type SubjectSummary } from "../../../lib/reviews"
 import { resolveMedia } from "../../../lib/storeMedia"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
 import { ErrorState, Loading, Pill } from "../../kit"
-import { AppIcon, CinemaShell, CoverCapsule, HeroCarousel, RatingBadge, Shelf, useReviewSummaries, type HeroSlide } from "../../kit/storefront"
+import { AppIcon, CinemaScope, CinemaShell, CoverCapsule, DetailLayout, HeroCarousel, InfoRows, MediaGallery, RatingBadge, Shelf, useReviewSummaries, type HeroSlide } from "../../kit/storefront"
 import type { NativeViewProps } from "../../native/types"
 import { osTargetForClassic } from "../../page/classicRoute"
 import { Icon } from "../../shell/icons"
@@ -70,12 +69,6 @@ function StoreCard({ entry, summary, onOpen }: { entry: CatalogueEntry; summary?
     </button>
 }
 
-function Screenshot({ cid, name, index }: { cid: string; name: string; index: number }) {
-    const [failed, setFailed] = useState(false)
-    if (failed) return <span className="os-store-shot-unavailable" role="img" aria-label={`${name} screenshot ${index + 1} unavailable`}>Screenshot unavailable</span>
-    return <img src={`${API_BASE_URL}/api/nft/image?cid=${encodeURIComponent(cid)}`} alt={`${name} screenshot ${index + 1}`} loading="lazy" onError={() => setFailed(true)} />
-}
-
 function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "session" | "open"> & { entry: CatalogueEntry }) {
     if (entry.url.startsWith("/") && !entry.url.startsWith("//")) {
         const path = `/${session.network.key}${entry.url}`
@@ -87,11 +80,6 @@ function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "sessio
     }
     if (/^https?:\/\//.test(entry.url)) return <a className="os-btn" href={entry.url} target="_blank" rel="noopener noreferrer">Open external site ↗</a>
     return <Pill tone="neutral">No launch link</Pill>
-}
-
-function DetailIcon({ entry }: { entry: CatalogueEntry }) {
-    const media = entryMedia(entry)
-    return <AppIcon name={entry.name} logo={media.logo} accent={media.accent} size={78} />
 }
 
 function Detail({ section, session, open, close }: NativeViewProps) {
@@ -113,30 +101,48 @@ function Detail({ section, session, open, close }: NativeViewProps) {
         realmPath: listing.pkgPath, availability: session.network.key === "mainnet" ? "mainnet" as const : "testnet" as const, listing,
     } : null
     const back = () => { open(specForTarget({ kind: "app", app: "store", section: null })!); close() }
+    const summaries = useReviewSummaries(session.network.chainId, entry ? [entrySubject(entry)] : [])
     return <div className="os-store-detail">
-        <button type="button" className="os-store-back" onClick={back}>← Discover</button>
-        {path && !registryEnabled && <div className="os-note" role="status">Onchain listings are unavailable in this build.</div>}
-        {detail.isPending && canReadListing && <Loading label="Loading app details…" />}
-        {detail.isError && <ErrorState message="App details could not be read from the registry." onRetry={() => void detail.refetch()} />}
-        {!entry && (projectId !== null || (!!path && !isSafeRealmPath(path)) || (canReadListing && !detail.isPending && !detail.isError)) && <div className="os-note" role="status">This app was not found in the current catalogue.</div>}
-        {entry && <>
-            <header className="os-store-detail-head">
-                <DetailIcon entry={entry} />
-                <div><p className="os-store-kicker">{entry.category} <span aria-hidden="true">·</span> {availability(entry)}</p><h1>{entry.name}</h1><p>{entry.tagline}</p></div>
-            </header>
-            {listing?.status !== undefined && listing.status !== "live" && <p className="os-store-notice" role="status">{listing.status ? `This listing is ${listing.status}.` : "This listing has no status."} It is not in the approved catalogue.</p>}
-            <div className="os-store-actions">{(!listing || listing.status === "live") && <OpenDestination entry={entry} session={session} open={open} />}{entry.realmPath && <a className="os-btn os-quiet" href={`https://gno.land/${entry.realmPath.replace(/^gno\.land\//, "")}$source`} target="_blank" rel="noopener noreferrer">Read realm source ↗</a>}</div>
-            <div className="os-store-detail-columns">
-                <div className="os-store-main">
-                    <section><h2>About this app</h2><p>{listing?.descr || entry.project?.description || entry.tagline || "The publisher has not supplied a description yet."}</p></section>
-                    {!!listing?.screenshotCIDs?.filter(isValidCid).length && <section><h2>Screenshots</h2><div className="os-store-shots">{listing.screenshotCIDs.filter(isValidCid).map((cid, i) => <Screenshot key={cid} cid={cid} name={entry.name} index={i} />)}</div></section>}
-                    {entry.source === "registry" && (isAppReviewsAvailable()
-                        ? <ReviewsPanel subject={entry.realmPath!} name={entry.name} session={session} composable={listing?.status === "live"} onRefresh={() => void detail.refetch()} />
-                        : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
-                </div>
-                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{listing && (listing.status === "live" || listing.status === "pending") && isAppStoreV3OrLaterOn(session.network.key) && <ReportListing session={session} listing={listing} appName={entry.name} onReported={() => void detail.refetch()} />}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
-            </div>
-        </>}
+        <CinemaScope tone="store">
+            {path && !registryEnabled && <div className="os-note" role="status">Onchain listings are unavailable in this build.</div>}
+            {detail.isPending && canReadListing && <Loading label="Loading app details…" />}
+            {detail.isError && <ErrorState message="App details could not be read from the registry." onRetry={() => void detail.refetch()} />}
+            {!entry && (projectId !== null || (!!path && !isSafeRealmPath(path)) || (canReadListing && !detail.isPending && !detail.isError)) && <div className="os-note" role="status">This app was not found in the current catalogue.</div>}
+            {entry && (() => {
+                const media = entryMedia(entry)
+                const subject = entrySubject(entry)
+                const composable = listing ? listing.status === "live" : entry.source === "editorial"
+                const more = buildCatalogue([], ECOSYSTEM_PROJECTS, session.network.key).filter((other) => other.category === entry.category && other.id !== entry.id).slice(0, 4)
+                const rows: (readonly [string, ReactNode])[] = [["Category", entry.category], ["Network", availability(entry)]]
+                if (entry.realmPath) rows.push(["Realm", <code key="realm">{entry.realmPath}</code>])
+                if (/^https?:\/\//.test(entry.url)) rows.push(["Website", <a key="site" href={entry.url} target="_blank" rel="noopener noreferrer">{new URL(entry.url).host} ↗</a>])
+                if (listing?.publisher) rows.push(["Listed by", <code key="pub">{listing.publisher}</code>])
+                return <DetailLayout banner={media.cover} accent={media.accent}
+                    icon={<AppIcon name={entry.name} logo={media.logo} accent={media.accent} size={96} />}
+                    back={{ label: "← Discover", onClick: back }} title={entry.name} pitch={entry.tagline}
+                    badges={<><RatingBadge summary={summaries.get(subject)} /><span className="os-cin-tag">{entry.category}</span><span className="os-cin-tag">{availability(entry)}</span></>}
+                    main={<>
+                        {listing?.status !== undefined && listing.status !== "live" && <p className="os-store-notice" role="status">{listing.status ? `This listing is ${listing.status}.` : "This listing has no status."} It is not in the approved catalogue.</p>}
+                        <MediaGallery name={entry.name} images={media.screenshots} />
+                        <section className="os-cin-panel"><h2>About this app</h2><p>{listing?.descr || entry.project?.description || entry.tagline || "The publisher has not supplied a description yet."}</p></section>
+                        {/* The reviews list renders its own "Reviews" heading, so this section is labelled rather than headed. */}
+                        {isAppReviewsAvailable()
+                            ? <section className="os-cin-panel" aria-label="Ratings and reviews"><ReviewsPanel subject={subject} name={entry.name} session={session} composable={composable} onRefresh={() => void detail.refetch()} /></section>
+                            : <section className="os-cin-panel"><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>}
+                        {more.length > 0 && <Shelf id="store-more" title={`More in ${entry.category}`}>
+                            <div className="os-cin-grid os-cin-grid--tiles">{more.map((other) => <StoreCard key={other.id} entry={other} summary={summaries.get(entrySubject(other))} onOpen={() => open(specForTarget({ kind: "app", app: "store", section: appSection(other) })!)} />)}</div>
+                        </Shelf>}
+                    </>}
+                    side={<>
+                        <div className="os-cin-panel os-store-actions">
+                            {(!listing || listing.status === "live") && <OpenDestination entry={entry} session={session} open={open} />}
+                            {entry.realmPath && <a className="os-cin-btn" href={`https://gno.land/${entry.realmPath.replace(/^gno\.land\//, "")}$source`} target="_blank" rel="noopener noreferrer">Read realm source ↗</a>}
+                        </div>
+                        <div className="os-cin-panel"><InfoRows rows={rows} /></div>
+                        <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{listing && (listing.status === "live" || listing.status === "pending") && isAppStoreV3OrLaterOn(session.network.key) && <ReportListing session={session} listing={listing} appName={entry.name} onReported={() => void detail.refetch()} />}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
+                    </>} />
+            })()}
+        </CinemaScope>
     </div>
 }
 

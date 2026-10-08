@@ -93,6 +93,30 @@ describe("Store detail", () => {
         expect(await screen.findByRole("heading", { name: "Renamed App" })).toBeInTheDocument()
     })
 
+    it("reviews an editorial app under its pinned subject, even without a listing", () => {
+        show("project/adena")
+        expect(screen.getByRole("heading", { level: 1, name: "Adena" })).toBeInTheDocument()
+        expect(screen.getByRole("region", { name: "Ratings and reviews" })).toBeInTheDocument()
+        expect(screen.getByText("reviews for a visitor")).toBeInTheDocument()
+    })
+
+    it("shows the listing's screenshots in the gallery", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ screenshotCIDs: [`bafy${"a".repeat(55)}`] }))
+        show()
+        expect(await screen.findByAltText(/screenshot 1$/)).toBeInTheDocument()
+    })
+
+    it("lists more apps of the same category, each opening its own page", () => {
+        const open = vi.fn()
+        render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><SignerContext.Provider value={signer}>
+            <StoreWindow section="project/boards" session={guest} open={open} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        </SignerContext.Provider></QueryClientProvider>)
+        const more = screen.getByRole("region", { name: /^More in / })
+        const first = within(more).getAllByRole("button")[0]
+        fireEvent.click(first)
+        expect(open.mock.calls.at(-1)![0].target).toEqual(expect.objectContaining({ app: "store", section: expect.stringMatching(/^project\//) }))
+    })
+
     it.each([
         ["pending", "Pending review, not yet vetted by a curator"],
         ["rejected", "Rejected by a curator"],

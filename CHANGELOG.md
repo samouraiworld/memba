@@ -26,6 +26,11 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba DAO on gno.land mainnet (2026-10-08)
 - The Memba DAO window now opens the new governance (memba_gov), where seated members propose, vote and execute. It acts on an app only once that app is handed over to the DAO's bridge (Reviews first), and says which apps it governs.
+### The App Store as a storefront (2026-10-08)
+- Memba OS App Store: Discover is now a dark storefront with a featured-apps carousel, shelves for Essentials, Play on gno.land and Top rated by the community, and category chips that filter the results. The Availability filter and search stay.
+- Memba OS App Store: every app has its own page with a banner, a large logo, rating, category and network badges, a screenshot gallery, About, and a side column with Open, Read realm source, facts and the "Before you open" notes. "More in <category>" lists related apps. The page opens in a larger window.
+- Memba OS App Store: every app now has ratings and reviews, including independent projects with no registry listing. Reviews are on-chain and shared with the game pages for our own games. Reading is open to guests. Listings that are not approved still cannot be reviewed.
+- Logos and screenshots appear once the store media is added; until then apps show a monogram and any images from their listing.
 
 ### Connect 4 Quick play by default (2026-10-08)
 - Connect 4: Offer and Accept start Quick play in the same wallet approval as the stake. A line under each button shows it ("+ Quick play 4h, up to X GNOT/day") with a checkbox to decline it for that stake. The banner still offers "Start Quick play" for players who haven't staked yet.

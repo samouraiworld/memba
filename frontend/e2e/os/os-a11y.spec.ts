@@ -160,6 +160,14 @@ for (const scheme of ['light', 'dark'] as const) {
             expect(await violations(page)).toEqual([])
         })
 
+        test('Store app page', async ({ page }) => {
+            await page.goto(`${OS_ON}/os/store/project/adena`)
+            const store = page.getByRole('region', { name: 'App details · App Store', exact: true })
+            await expect(store.getByRole('heading', { level: 1, name: 'Adena' })).toBeVisible()
+            await expect(store.getByRole('heading', { name: 'Community reviews' })).toBeVisible()
+            expect(await violations(page)).toEqual([])
+        })
+
         test('Feed native enabled window', async ({ page }) => {
             await page.route(/memba\.v1\.|memba-backend\.fly\.dev/, route => route.fulfill({ status: 503, body: 'offline' }))
             await page.goto(`${OS_FLAGS_ON}/os/feed`)
