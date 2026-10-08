@@ -34,6 +34,9 @@ Full changelogs are split by version range for easier navigation:
 - A closed Advanced popover holds the session length and "Sign every transaction in my wallet". Both choices are remembered on this device. Ticking the box pauses Quick play: a running session keeps its status, End and Forget controls until it ends.
 - When the budget runs low, Renew replaces the session with a fresh one in one approval, since the chain can't top up an existing session. The confirmation names the revoke "End current Quick play session".
 
+### Real logos and screenshots in the storefront (2026-10-08)
+- Memba OS: official logos, covers and screenshots for our four games (Block Party, Space Invaders, BARRICADE, Connect 4) and the ten curated apps, with where each third-party asset came from and when it was taken. The files and the list that points to them ship now; they are not shown anywhere until the Arcade and App Store storefront windows adopt them in the next changes.
+- Memba OS: a script to re-capture storefront screenshots from public pages, and a test that every listed file exists, stays within its size budget and carries no metadata.
 ### A storefront look for the Arcade and App Store (2026-10-08)
 - Reviews: the review signing path now accepts games and curated apps under pinned, permanent subjects (the review UI for them follows).
 - Memba OS: new storefront building blocks (dark shell, featured carousel, cover capsules, screenshot gallery, detail layout, rating badge) for the Arcade and App Store windows to adopt (not shown anywhere yet).
