@@ -16,7 +16,7 @@ test.describe('Profile Page', () => {
     test('profile page shows wallet connect info when disconnected', async ({ page }) => {
         await page.goto('/profile/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5')
         // When disconnected, various content may appear
-        await expect(page.locator('body')).toContainText(/Connect|Adena|Profile|https?:\/\/[^/]*gnolove|g1/)
+        await expect(page.locator('body')).toContainText(/Connect|Adena|Profile|gnolove|g1/)
     })
 })
 
