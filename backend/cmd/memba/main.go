@@ -131,6 +131,41 @@ func litestreamManaged(getenv func(string) string) bool {
 	return getenv("LITESTREAM_MANAGED") == "1"
 }
 
+// startLaunchpadWatcher starts the Launchpad solvency watcher (OPS-1), off unless
+// LAUNCHPAD_WATCH_ENABLED=1. It reads one node (ours by default, never a pool) and
+// pages the webhook in LAUNCHPAD_WATCH_WEBHOOK_URL (a secret). A configuration it
+// refuses does not stop the backend: memba_launchpad_watcher_enabled reads 1 with
+// no reading series, and MembaLaunchpadWatcherDown pages on that.
+func startLaunchpadWatcher(ctx context.Context, database *sql.DB, getenv func(string) string) bool {
+	if getenv("LAUNCHPAD_WATCH_ENABLED") != "1" {
+		return false
+	}
+	metrics.LaunchpadWatcherEnabled.Set(1)
+	or := func(key, fallback string) string {
+		if v := getenv(key); v != "" {
+			return v
+		}
+		return fallback
+	}
+	offset, err := strconv.ParseInt(or("LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET", "0"), 10, 64)
+	if err != nil {
+		slog.Error("launchpad watcher not started: LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET is not an integer", "error", err)
+		return false
+	}
+	w, err := launchpadwatch.New(database, launchpadwatch.Config{
+		RPCURL:              or("LAUNCHPAD_WATCH_RPC_URL", defaultNFTRPCURL),
+		ChainID:             getenv("GNO_CHAIN_ID"),
+		WebhookURL:          getenv("LAUNCHPAD_WATCH_WEBHOOK_URL"),
+		InjectBalanceOffset: offset,
+	})
+	if err != nil {
+		slog.Error("launchpad watcher not started", "error", err)
+		return false
+	}
+	go w.Run(ctx)
+	return true
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -641,24 +676,7 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Launchpad solvency watcher (OPS-1): off unless LAUNCHPAD_WATCH_ENABLED=1. It
-	// reads one node (ours by default, never a pool) and pages the webhook in
-	// LAUNCHPAD_WATCH_WEBHOOK_URL (a secret); without one it does not start.
-	if os.Getenv("LAUNCHPAD_WATCH_ENABLED") == "1" {
-		offset, err := strconv.ParseInt(envOr("LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET", "0"), 10, 64)
-		if err != nil {
-			slog.Error("launchpad watcher not started: LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET is not an integer", "error", err)
-		} else if w, err := launchpadwatch.New(database, launchpadwatch.Config{
-			RPCURL:              envOr("LAUNCHPAD_WATCH_RPC_URL", defaultNFTRPCURL),
-			ChainID:             os.Getenv("GNO_CHAIN_ID"),
-			WebhookURL:          os.Getenv("LAUNCHPAD_WATCH_WEBHOOK_URL"),
-			InjectBalanceOffset: offset,
-		}); err != nil {
-			slog.Error("launchpad watcher not started", "error", err)
-		} else {
-			go w.Run(ctx)
-		}
-	}
+	startLaunchpadWatcher(ctx, database, os.Getenv)
 
 	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash
 	// doesn't leave a multi-hundred-MB WAL that slows restart recovery. The

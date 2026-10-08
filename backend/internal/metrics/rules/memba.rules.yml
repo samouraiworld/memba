@@ -323,6 +323,23 @@ groups:
             The pauser pauses the lane (config/v1.Pause: fairsale for sales,
             nft_market for the market); exits keep working.
           runbook: "docs/OPS_RUNBOOK.md"
+      - alert: MembaLaunchpadWatcherDown
+        # LAUNCHPAD_WATCH_ENABLED=1 but no realm has a reading series: the watcher
+        # refused its configuration at boot (it never runs, so the staleness rule
+        # below has nothing to read), or it watches no realm.
+        expr: absent(memba_launchpad_last_stable_reading_timestamp_seconds) and on() memba_launchpad_watcher_enabled == 1
+        for: 5m
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "The Launchpad watcher is enabled but not running"
+          description: >-
+            Solvency is unwatched. The boot log has "launchpad watcher not started"
+            with the reason (no webhook URL, no chain id, a bad or off-rehearsal
+            balance offset); fix the setting and redeploy, then check for
+            "launchpad watcher started".
+          runbook: "docs/OPS_RUNBOOK.md"
       - alert: MembaLaunchpadBooksUnread
         # No stable reading for 15 minutes: busy blocks are normal for a few,
         # not for this long. A warning, never a page.

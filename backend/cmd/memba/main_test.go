@@ -448,3 +448,34 @@ func TestConfigureAttestation(t *testing.T) {
 		})
 	}
 }
+
+// A refused watcher configuration must leave the enabled gauge at 1 with no reading
+// series, which is what MembaLaunchpadWatcherDown pages on; off leaves the gauge at 0.
+func TestStartLaunchpadWatcherFailsLoud(t *testing.T) {
+	cases := []struct {
+		name        string
+		env         map[string]string
+		wantStarted bool
+		wantEnabled float64
+	}{
+		{"off", map[string]string{"LAUNCHPAD_WATCH_WEBHOOK_URL": "https://hook.example"}, false, 0},
+		{"no webhook", map[string]string{"LAUNCHPAD_WATCH_ENABLED": "1", "GNO_CHAIN_ID": "gnoland-1"}, false, 1},
+		{"bad offset", map[string]string{"LAUNCHPAD_WATCH_ENABLED": "1", "GNO_CHAIN_ID": "onyx-1", "LAUNCHPAD_WATCH_WEBHOOK_URL": "https://hook.example", "LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET": "x"}, false, 1},
+		{"offset off rehearsal", map[string]string{"LAUNCHPAD_WATCH_ENABLED": "1", "GNO_CHAIN_ID": "gnoland-1", "LAUNCHPAD_WATCH_WEBHOOK_URL": "https://hook.example", "LAUNCHPAD_WATCH_INJECT_BALANCE_OFFSET": "-5"}, false, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			metrics.LaunchpadWatcherEnabled.Set(0)
+			metrics.LaunchpadLastStableReading.Reset()
+			if got := startLaunchpadWatcher(t.Context(), nil, func(k string) string { return tc.env[k] }); got != tc.wantStarted {
+				t.Fatalf("started = %v, want %v", got, tc.wantStarted)
+			}
+			if v := testutil.ToFloat64(metrics.LaunchpadWatcherEnabled); v != tc.wantEnabled {
+				t.Fatalf("enabled gauge = %v, want %v", v, tc.wantEnabled)
+			}
+			if n := testutil.CollectAndCount(metrics.LaunchpadLastStableReading); n != 0 {
+				t.Fatalf("a refused watcher exported %d reading series; the alert needs none", n)
+			}
+		})
+	}
+}

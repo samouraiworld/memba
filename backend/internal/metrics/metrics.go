@@ -206,6 +206,13 @@ var (
 		Name: "memba_launchpad_last_stable_reading_timestamp_seconds",
 		Help: "Unix time of the realm's last stable reading; set to the watcher's start until the first one.",
 	}, []string{"realm"})
+	// LaunchpadWatcherEnabled is set to 1 at boot when LAUNCHPAD_WATCH_ENABLED=1, whether
+	// or not the watcher accepted its configuration; a running watcher also exports a
+	// reading series per realm, so the rules can tell "on but not running" apart.
+	LaunchpadWatcherEnabled = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "memba_launchpad_watcher_enabled",
+		Help: "1 when LAUNCHPAD_WATCH_ENABLED=1 at boot; with no memba_launchpad_last_stable_reading_timestamp_seconds series it means the watcher refused its configuration.",
+	})
 	LaunchpadAlert = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "memba_launchpad_alert",
 		Help: "1 while a paging rule holds for the realm (rule = view, deficit or surplus_fell; surplus_fell holds from the fall until its page is delivered).",
