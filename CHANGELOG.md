@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Connect 4 on gno.land mainnet (2026-10-08)
+- Staked two-player Connect 4 in the Arcade on gnoland-1: both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT house fee; a draw or a void game refunds both stakes. There is no maximum stake. Connect 4 now has community reviews.
+
 ### Akkadia's logo and gnoscope's new name in the storefront (2026-10-08)
 - App Store: Akkadia shows its own logo instead of its studio's mark.
 - mygnoscan is now listed as gnoscope, with its new address (gnoscope.com) and logo. Its reviews stay under the same pinned subject.
