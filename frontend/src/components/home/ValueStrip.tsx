@@ -12,7 +12,8 @@
  */
 import { Link } from "react-router-dom"
 import { UsersThree, Rocket, Pulse, SquaresFour } from "@phosphor-icons/react"
-import { GRC20_FACTORY_PATH, isRealmValidOn, isAppStoreEnabled } from "../../lib/config"
+import { isAppStoreEnabled } from "../../lib/config"
+import { canCreateTokensOn } from "../../lib/tokenLaunchpadSalesClient"
 import "./home.css"
 
 export interface ValueStripProps {
@@ -28,7 +29,7 @@ interface ValueCard {
 }
 
 export function ValueStrip({ networkKey }: ValueStripProps) {
-    const canCreateToken = isRealmValidOn(networkKey, GRC20_FACTORY_PATH)
+    const canCreateToken = canCreateTokensOn(networkKey)
     const cards: ValueCard[] = [
         { key: "vote", title: "Explore DAOs", sub: "read proposals and membership rules", href: `/${networkKey}/dao`, Icon: UsersThree },
         { key: "launch", title: canCreateToken ? "Launch a token" : "Token launchpad", sub: canCreateToken ? "review the token creation flow" : "Memba token creation unavailable here", href: `/${networkKey}/tokens`, Icon: Rocket },

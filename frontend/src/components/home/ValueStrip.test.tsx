@@ -17,9 +17,14 @@ describe("ValueStrip", () => {
         expect(screen.getByRole("link", { name: /track the network/i })).toHaveAttribute("href", "/test13/validators")
     })
 
-    it("labels the unavailable token launchpad on mainnet", () => {
+    it("offers token creation on mainnet, where the Launchpad is listed", () => {
         renderIt("mainnet")
-        expect(screen.getByRole("link", { name: /token launchpad.*Memba token creation unavailable here/i })).toHaveAttribute("href", "/mainnet/tokens")
+        expect(screen.getByRole("link", { name: /launch a token/i })).toHaveAttribute("href", "/mainnet/tokens")
+    })
+
+    it("labels the token launchpad unavailable where neither the Launchpad nor the factory is listed", () => {
+        renderIt("elsewhere")
+        expect(screen.getByRole("link", { name: /token launchpad.*Memba token creation unavailable here/i })).toHaveAttribute("href", "/elsewhere/tokens")
         expect(screen.queryByText(/launch a token/i)).not.toBeInTheDocument()
     })
 

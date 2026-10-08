@@ -4,13 +4,18 @@
 import { sha256 } from "@noble/hashes/sha2.js"
 import { isValidGnoAddressChecksum } from "./dao/address"
 import { bech32Encode } from "./dao/realmAddress"
-import { ACTIVE_NETWORK_KEY } from "./config"
+import { ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH, isRealmValidOn } from "./config"
 import { parseLaunchpadToken, readLaunchpad, readLaunchpadJSON, TokenLaunchpadReadError, type LaunchpadToken } from "./tokenLaunchpadClient"
 
 export const TOKEN_LAUNCHPAD_SALES_PATH = "gno.land/r/samcrew/launchpad/sales/v1"
 /** The sales realm's address: it holds launch tokens, so no allocation or airdrop leaf may pay it. */
 export const TOKEN_LAUNCHPAD_SALES_ADDRESS = bech32Encode("g", sha256(new TextEncoder().encode(`pkgPath:${TOKEN_LAUNCHPAD_SALES_PATH}`)).slice(0, 20))
 const MAX_INT64 = 9223372036854775807n
+
+/** Whether Memba creates tokens on a network: through the Launchpad's sales realm, or the classic token factory. */
+export function canCreateTokensOn(networkKey: string): boolean {
+    return isRealmValidOn(networkKey, TOKEN_LAUNCHPAD_SALES_PATH) || isRealmValidOn(networkKey, GRC20_FACTORY_PATH)
+}
 
 function invalid(message: string): never {
     throw new TokenLaunchpadReadError("invalid_response", `Launchpad sales response: ${message}`)
