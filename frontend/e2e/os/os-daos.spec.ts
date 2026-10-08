@@ -248,7 +248,7 @@ test.describe('Memba OS DAOs', () => {
         const prop = win(page, 'govdao · Proposal #4')
         await prop.getByRole('button', { name: 'Vote…' }).click()
         await sheet(page).getByRole('button', { name: 'Sign in Adena' }).click()
-        await expect(page.getByText(/Your wallet did not report its network — switch Adena to gno\.land \(gnoland-1\) and try again\./).first()).toBeVisible()
+        await expect(page.getByText(/Your wallet did not report its network \(Adena named no chain\) — switch Adena to gno\.land \(gnoland-1\) and try again\./).first()).toBeVisible()
         expect(await page.evaluate(() => (window as unknown as { __adenaCalls: unknown[] }).__adenaCalls)).toHaveLength(0)
         // Nothing was sent, so the vote is not locked behind an unknown outcome.
         await expect(prop.getByText('Outcome unknown.')).toHaveCount(0)

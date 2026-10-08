@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from "react"
 import { Outlet, useLocation } from "react-router-dom"
 import { XLogo, InstagramLogo, YoutubeLogo, GithubLogo, LinkedinLogo, TelegramLogo, EnvelopeSimple } from "@phosphor-icons/react"
-import { useAdena } from "../../hooks/useAdena"
+import { onAdenaAccountChanged, useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
@@ -184,21 +184,13 @@ export function Layout() {
     }, [adena.connected, adena.address, auth.isAuthenticated, auth.address, auth])
 
     // ── Listen for Adena account changes (user switches wallet in extension) ──
-    useEffect(() => {
-        const adenaGlobal = (window as unknown as Record<string, unknown>).adena
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (!adenaGlobal || typeof (adenaGlobal as any).On !== "function") return
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const off = (adenaGlobal as any).On("changedAccount", () => {
-            // Account changed in Adena — clear everything and reconnect
-            auth.logout()
-            adena.disconnect()
-            loginAttemptedRef.current = false
-            setNeedsActivation(false)
-        })
-        return () => { if (typeof off === "function") off() }
-    }, [adena, auth])
+    useEffect(() => onAdenaAccountChanged(() => {
+        // Account changed in Adena — clear everything and reconnect
+        auth.logout()
+        adena.disconnect()
+        loginAttemptedRef.current = false
+        setNeedsActivation(false)
+    }), [adena, auth])
 
     // ── Disconnect: also clear auth ──
     const handleDisconnect = useCallback(() => {

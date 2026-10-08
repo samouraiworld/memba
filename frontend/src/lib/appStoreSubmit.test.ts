@@ -53,7 +53,7 @@ function submission(over: Partial<AppSubmission> = {}): AppSubmission {
     }
 }
 
-describe("field limits mirror the memba_appstore_v3 realm", () => {
+describe("field limits mirror the memba_appstore_v3 and v4 realms", () => {
     it("uses the realm's exact constants", () => {
         expect(MAX_NAME_LEN).toBe(80)
         expect(MAX_TAGLINE_LEN).toBe(140)
@@ -303,6 +303,18 @@ describe("what a listing costs, bounded on what gnoland-1 measured", () => {
         expect(buildDelistAppMsg(CALLER, base.pkgPath).value.max_deposit).toBe(`${depositCapUgnot(64)}ugnot`)
     })
 
+    it("on v4, accepts only a path gno.land publishes, as the realm's validPkgPath", () => {
+        vi.spyOn(appStore, "isAppStoreV4").mockReturnValue(true)
+        for (const ok of ["gno.land/r/samcrew/my_app_v1", "gno.land/p/a/b-c/d1", "gno.land/r/g1abc/x"]) {
+            expect(validateSubmission(submission({ pkgPath: ok })).pkgPath, ok).toBeUndefined()
+        }
+        for (const bad of ["gno.land/r/Samcrew/app", "gno.land/r/samcrew/my.app", "gno.land/r/samcrew/1app", "gno.land/r/samcrew/a__b", "gno.land/r/samcrew/a_/b", "gno.land/r/samcrew/app_"]) {
+            expect(validateSubmission(submission({ pkgPath: bad })).pkgPath, bad).toMatch(/publishes/)
+        }
+        vi.restoreAllMocks()
+        expect(validateSubmission(submission({ pkgPath: "gno.land/r/samcrew/my.app" })).pkgPath).toBeUndefined()
+    })
+
     it("counts field limits in UTF-8 bytes, as the realm does", () => {
         expect(validateSubmission(submission({ name: "é".repeat(40) }))).toEqual({})
         expect(validateSubmission(submission({ name: "é".repeat(41) })).name).toMatch(/80 bytes/)
@@ -324,14 +336,38 @@ describe("checks made before the wallet, on a verified node", () => {
 
     it("registers only unpaused, at the fee shown, on a free path", async () => {
         state(); const read = vi.spyOn(appStore, "fetchAppStrict").mockResolvedValue(null)
-        await expect(assertRegisterApplies(s, 1_000_000)).resolves.toBeUndefined()
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).resolves.toBeUndefined()
         expect(read).toHaveBeenCalledWith(s.pkgPath)
         state({ paused: true })
-        await expect(assertRegisterApplies(s, 1_000_000)).rejects.toThrow("paused")
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("paused")
         state({ registrationFee: 2_000_000 })
-        await expect(assertRegisterApplies(s, 1_000_000)).rejects.toThrow("The listing fee is now 2 GNOT")
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("The listing fee is now 2 GNOT")
         state(); read.mockResolvedValue(mine({ publisher: "g1someoneelse" }))
-        await expect(assertRegisterApplies(s, 1_000_000)).rejects.toThrow("already listed")
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("already listed")
+    })
+
+    it("on v4, registers only from the path's namespace owner or its attested publisher", async () => {
+        vi.spyOn(appStore, "isAppStoreV4").mockReturnValue(true)
+        state(); vi.spyOn(appStore, "fetchAppStrict").mockResolvedValue(null)
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue('("{\\"via\\":\\"namespace\\"}" string)')
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).resolves.toBeUndefined()
+        expect(qe).toHaveBeenCalledWith(expect.any(String), APPSTORE_REALM_PATH, `CanRegisterJSON(${JSON.stringify(s.pkgPath)}, ${JSON.stringify(CALLER)})`, true)
+        qe.mockResolvedValue('("{\\"via\\":\\"attested\\"}" string)')
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).resolves.toBeUndefined()
+        qe.mockResolvedValue('("{\\"via\\":\\"none\\"}" string)')
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("This address cannot list this path")
+        // An unreadable registry stops the call; it never reads as "none" or as allowed.
+        qe.mockResolvedValue(null)
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("could not be read")
+        qe.mockResolvedValue('("{\\"via\\":\\"maybe\\"}" string)')
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("could not be read")
+    })
+
+    it("does not read CanRegisterJSON before v4", async () => {
+        state(); vi.spyOn(appStore, "fetchAppStrict").mockResolvedValue(null)
+        const qe = vi.spyOn(shared, "queryEval")
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).resolves.toBeUndefined()
+        expect(qe).not.toHaveBeenCalled()
     })
 
     it("edits only the publisher's pending or rejected listing, with edits left, unchanged since loaded", async () => {

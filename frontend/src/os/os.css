@@ -8,6 +8,8 @@
   /* 5.7:1 under white text (WCAG AA 4.5); --os-acc-ink is the accent used as text. */
   --os-acc: #3B5BDB;
   --os-acc-ink: #3B5BDB;
+  /* the folded-M brand colours (/brand/folded-m/favicon.svg) */
+  --os-mark: #006E57;
   /* text on an accent fill: white in both themes (5.7:1 on --os-acc) */
   --os-on-acc: #FFFFFF;
   --os-ink: #1B1F2A;
@@ -71,6 +73,7 @@
   --os-ink: #E9ECF3;
   --os-mut: #9AA2B5;
   --os-acc-ink: #91A7FF;
+  --os-mark: #00D4AA;
   --os-glass: rgba(26, 30, 41, .76);
   --os-opaque: #161A23;
   --os-line: rgba(255, 255, 255, .08);
@@ -127,8 +130,7 @@
 .memba-os .os-mark {
   width: 15px;
   height: 15px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, var(--os-acc), #B07CF7);
+  fill: var(--os-mark);
   flex: none;
 }
 

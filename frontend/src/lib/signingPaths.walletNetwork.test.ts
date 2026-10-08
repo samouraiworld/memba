@@ -66,7 +66,7 @@ afterEach(() => {
 describe.each(PATHS)("%s", (_name, sign) => {
     it("refuses when the wallet reports no chain", async () => {
         vi.stubGlobal("adena", { ...liveWallet({ chainId: "", networkChainId: "" }), DoContract })
-        await expect(sign()).rejects.toThrow(/Your wallet did not report its network — switch Adena to .+ and try again\./)
+        await expect(sign()).rejects.toThrow(/Your wallet did not report its network \(Adena named no chain\) — switch Adena to .+ and try again\./)
         expect(DoContract).not.toHaveBeenCalled()
     })
 

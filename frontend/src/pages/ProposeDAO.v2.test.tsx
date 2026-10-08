@@ -302,7 +302,7 @@ describe("version-2 propose form", () => {
     })
 
     it("reports a wallet-network refusal after the rechecks as not sent, and leaves the form editable", async () => {
-        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); throw new WalletNetworkError("Your wallet did not report its network — switch Adena to gno.land (gnoland-1) and try again.") })
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); throw new WalletNetworkError("Your wallet did not report its network (Adena named no chain) — switch Adena to gno.land (gnoland-1) and try again.") })
         const first = mount()
         fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Try again" } })
         fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))

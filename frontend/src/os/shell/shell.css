@@ -115,7 +115,7 @@
   position: absolute; inset: 0; z-index: 1000; display: grid; place-items: center; text-align: center;
   background: var(--os-lockbg); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
 }
-.memba-os .os-mark-lg { width: 40px; height: 40px; border-radius: 12px; display: inline-block; }
+.memba-os .os-mark-lg { width: 48px; height: 48px; display: inline-block; }
 .memba-os .os-lock-clock { margin-top: 18px; font-size: 84px; font-weight: 300; letter-spacing: -.045em; line-height: 1; }
 .memba-os .os-lock-tag { font-weight: 700; font-size: 15px; margin-top: 14px; }
 .memba-os .os-lock-date { font-weight: 600; opacity: .7; margin-top: 4px; font-size: 13px; }

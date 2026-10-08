@@ -5,7 +5,7 @@ const ME = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const wallet = { connected: true, address: ME, pubkeyJSON: "", chainId: "gnoland-1", installed: true, reconnecting: false, disconnect: vi.fn() }
 const auth = { isAuthenticated: false, address: "", token: null, loading: false, error: null, logout: vi.fn() }
 
-vi.mock("../../hooks/useAdena", () => ({ useAdena: () => wallet }))
+vi.mock("../../hooks/useAdena", () => ({ useAdena: () => wallet, onAdenaAccountChanged: () => () => {} }))
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => auth }))
 vi.mock("../../hooks/useBalance", () => ({ useBalance: () => ({ rawUgnot: 10_000_000n, loading: false, balance: "10 GNOT", error: null, refetch: vi.fn() }) }))
 vi.mock("../../lib/grc20", async (orig) => ({ ...(await orig<typeof import("../../lib/grc20")>()), networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })) }))

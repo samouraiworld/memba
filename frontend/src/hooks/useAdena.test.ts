@@ -68,7 +68,7 @@ function clearAdena() {
 // Import the hook AFTER the module graph is set up. trackEvent (analytics) is a
 // no-op without window.plausible; setWalletRpcContext / isTrustedRpcDomain run
 // for real — RPC-trust is part of the hook's observable security output.
-import { useAdena } from "./useAdena"
+import { __resetWalletStoreForTests, onAdenaAccountChanged, useAdena } from "./useAdena"
 import { doContractBroadcast, setWalletRpcContext } from "../lib/grc20"
 import { GNO_CHAIN_ID } from "../lib/config"
 import { isWalletRequestPending } from "../lib/walletActivity"
@@ -77,6 +77,8 @@ beforeEach(() => {
     sessionStorage.clear() // setup.ts only clears localStorage; the hook uses sessionStorage
     clearAdena()
     vi.restoreAllMocks()
+    // One wallet store per page: every test is a fresh page.
+    __resetWalletStoreForTests()
 })
 
 afterEach(() => {
@@ -669,12 +671,15 @@ describe("useAdena — changedNetwork subscription", () => {
         expect(result.current.pubkeyJSON).toBe("")
     })
 
-    it("does not subscribe to changedNetwork while disconnected", () => {
-        const adena = makeAdena()
+    it("ignores changedNetwork while disconnected: no wallet read", async () => {
+        let changedHandler: (() => void) | undefined
+        const adena = makeAdena({ On: vi.fn((event: string, cb: () => void) => { if (event === "changedNetwork") changedHandler = cb; return true }) })
         setAdena(adena)
 
         renderHook(() => useAdena()) // never connect
-        expect(adena.On).not.toHaveBeenCalled()
+        await act(async () => { changedHandler!() })
+        expect(adena.GetNetwork).not.toHaveBeenCalled()
+        expect(adena.GetAccount).not.toHaveBeenCalled()
     })
 
     // R2-CHN-E (W2.1): the OLD handler called setWalletRpcContext with 2 args,
@@ -1198,6 +1203,37 @@ describe("useAdena — switching networks and signing the login message", () => 
         expect(switched).toBe(false)
     })
 
+    it("re-reads the wallet right after a switch Adena accepted, without waiting for its event", async () => {
+        const adena = makeAdena({ SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1" }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "gnoland-1", pubKeyValue: null }))
+        adena.GetNetwork.mockResolvedValue({ status: "success", data: { rpcUrl: UNTRUSTED_RPC } })
+        let switched = false
+        await act(async () => { switched = await result.current.switchWalletNetwork("gnoland-1") })
+        expect(switched).toBe(true)
+        expect(result.current.chainId).toBe("gnoland-1")
+        expect(result.current.pubkeyJSON).toBe("")
+        expect(result.current.rpcTrusted).toBe(false)
+    })
+
+    it("re-reads after a switch that needed the network added first", async () => {
+        const adena = makeAdena({
+            SwitchNetwork: vi.fn().mockResolvedValueOnce({ status: "failure", type: "UNADDED_NETWORK" }).mockResolvedValueOnce({ status: "success" }),
+            AddNetwork: vi.fn().mockResolvedValue({ status: "success" }),
+        })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1" }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "gnoland-1" }))
+        await act(async () => { await result.current.switchWalletNetwork("gnoland-1", "gno.land", "https://rpc.gno.land:443") })
+        expect(adena.AddNetwork).toHaveBeenCalledTimes(1)
+        expect(result.current.chainId).toBe("gnoland-1")
+    })
+
     it("says why Adena returned no login signature", async () => {
         const adena = makeAdena()
         setAdena(adena)
@@ -1236,5 +1272,121 @@ describe("useAdena — the login signature waits for a person, not forever", () 
         })
         expect(refusal).toBe("no-answer")
         expect(isWalletRequestPending()).toBe(false)
+    })
+})
+
+describe("useAdena — one wallet per page", () => {
+    it("every component sees one state, from one silent reconnect", async () => {
+        sessionStorage.setItem(SESSION_KEY, "true")
+        const adena = makeAdena()
+        setAdena(adena)
+        const a = renderHook(() => useAdena())
+        const b = renderHook(() => useAdena())
+        await waitFor(() => expect(a.result.current.connected).toBe(true))
+        expect(b.result.current.connected).toBe(true)
+        expect(b.result.current.address).toBe(ADDR)
+        // One reconnect for the page: each Adena read costs it a wallet decrypt.
+        expect(adena.GetAccount).toHaveBeenCalledTimes(1)
+        // A component mounted later reads the same state and asks Adena nothing.
+        const c = renderHook(() => useAdena())
+        expect(c.result.current.connected).toBe(true)
+        expect(adena.GetAccount).toHaveBeenCalledTimes(1)
+        act(() => { c.result.current.disconnect() })
+        expect(a.result.current.connected).toBe(false)
+    })
+
+    it("registers Adena's events once, and a network change reaches every component", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({ On: vi.fn((event: string, cb: () => void) => { if (event === "changedNetwork") changedHandler = cb; return true }) })
+        setAdena(adena)
+        const a = renderHook(() => useAdena())
+        const b = renderHook(() => useAdena())
+        await act(async () => { await a.result.current.connect() })
+        expect(adena.On.mock.calls.filter(([event]) => event === "changedNetwork")).toHaveLength(1)
+        expect(adena.On.mock.calls.filter(([event]) => event === "changedAccount")).toHaveLength(1)
+        adena.GetAccount.mockResolvedValue(okAccount({ address: ADDR2 }))
+        await act(async () => { await changedHandler!() })
+        expect(b.result.current.address).toBe(ADDR2)
+    })
+
+    it("hands Adena's account change to every subscriber, and stops after unsubscribe", () => {
+        let accountHandler: (() => void) | undefined
+        setAdena(makeAdena({ On: vi.fn((event: string, cb: () => void) => { if (event === "changedAccount") accountHandler = cb; return true }) }))
+        const first = vi.fn(), second = vi.fn()
+        const offFirst = onAdenaAccountChanged(first)
+        onAdenaAccountChanged(second)
+        accountHandler!()
+        expect(first).toHaveBeenCalledTimes(1)
+        expect(second).toHaveBeenCalledTimes(1)
+        offFirst()
+        accountHandler!()
+        expect(first).toHaveBeenCalledTimes(1)
+        expect(second).toHaveBeenCalledTimes(2)
+    })
+
+    it("a re-read that answers after a disconnect writes nothing: signing stays blocked", async () => {
+        const adena = makeAdena({ SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        let answer!: () => void
+        adena.GetNetwork.mockReturnValue(new Promise((resolve) => { answer = () => resolve({ status: "success", data: { rpcUrl: TRUSTED_RPC } }) }))
+        let switching!: Promise<boolean>
+        act(() => { switching = result.current.switchWalletNetwork(GNO_CHAIN_ID) })
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalledTimes(2))
+        act(() => { result.current.disconnect() })
+        await act(async () => { answer(); await switching })
+        expect(result.current.connected).toBe(false)
+        expect(result.current.address).toBe("")
+        expect(result.current.rpcTrusted).toBe(false)
+        await expect(doContractBroadcast([], "after disconnect")).rejects.not.toThrow(/Adena wallet not available/)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it("a switch while disconnected reads and writes nothing", async () => {
+        const adena = makeAdena({ SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.switchWalletNetwork(GNO_CHAIN_ID) })
+        expect(adena.GetAccount).not.toHaveBeenCalled()
+        expect(adena.GetNetwork).not.toHaveBeenCalled()
+        expect(result.current.rpcTrusted).toBe(false)
+        expect(result.current.chainId).toBe("")
+    })
+
+    it("an older re-read that answers last does not bring the old network back", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({
+            SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }),
+            On: vi.fn((event: string, cb: () => void) => { if (event === "changedNetwork") changedHandler = cb; return true }),
+        })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1" }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        // The first re-read is slow and still sees the old network; the second answers first with the new one.
+        let answerOld!: () => void
+        adena.GetAccount.mockReturnValueOnce(new Promise((resolve) => { answerOld = () => resolve(okAccount({ chainId: "onyx-1" })) }))
+        let switching!: Promise<boolean>
+        act(() => { switching = result.current.switchWalletNetwork(GNO_CHAIN_ID) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID }))
+        await act(async () => { await changedHandler!() })
+        expect(result.current.chainId).toBe(GNO_CHAIN_ID)
+        await act(async () => { answerOld(); await switching })
+        expect(result.current.chainId).toBe(GNO_CHAIN_ID)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it("listens again when Adena injects a new provider (an extension update)", async () => {
+        const first = makeAdena()
+        setAdena(first)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        const second = makeAdena()
+        setAdena(second)
+        await act(async () => { await result.current.connect() })
+        expect(second.On).toHaveBeenCalledWith("changedAccount", expect.any(Function))
+        expect(second.On).toHaveBeenCalledWith("changedNetwork", expect.any(Function))
     })
 })

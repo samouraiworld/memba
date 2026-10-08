@@ -1,5 +1,5 @@
 /**
- * appStore — client for the App Store realm (W9; v2 on testnets, v3 on mainnet).
+ * appStore — client for the App Store realm (W9; v2 on testnets, v3 on mainnet, v4 once it replaces v3).
  *
  * Reads the realm's JSON getters (`ListLiveJSON`, `GetListingJSON`) via ABCI
  * `vm/qeval` and parses them, and sends a report (`FlagApp`) at its measured cost.
@@ -20,21 +20,30 @@ import { GNO_RPC_URL, isAppStoreEnabled, isRealmValidOn, MEMBA_DAO } from "./con
 // The active App Store realm, chosen per network in config (MEMBA_DAO.appStorePath).
 export const APPSTORE_REALM_PATH = MEMBA_DAO.appStorePath
 
+/** The App Store generation a realm path names (`…/memba_appstore_v<N>`), or 0 for any other path. */
+export function appStoreVersion(path: string): number {
+    const m = /\/memba_appstore_v(\d+)$/.exec(path)
+    return m ? Number(m[1]) : 0
+}
 /**
- * True when the active realm is the v3 realm, which exposes the richer read surface
- * (per-status listing windows via `ListByStatusJSON`, screenshots + `rejectReason` in
- * `GetListingJSON`, publisher windows, curator getters). v3-only UI MUST gate on this so the
- * app never calls a getter the live v2 realm doesn't expose. Follows the per-network path in config.
+ * True when the active realm is v3 or v4. Both expose the richer read surface (per-status listing
+ * windows via `ListByStatusJSON`, screenshots + `rejectReason` in `GetListingJSON`, publisher
+ * windows, curator getters) with the same limits; v2 does not, so that UI MUST gate on this.
+ * Follows the per-network path in config.
  */
-export function isV3Path(path: string): boolean {
-    return /_v3$/.test(path)
+export function isAppStoreV3OrLater(): boolean {
+    return appStoreVersion(APPSTORE_REALM_PATH) >= 3
 }
-export function isAppStoreV3(): boolean {
-    return isV3Path(APPSTORE_REALM_PATH)
+/**
+ * True when the active realm is v4 or later: a path is listed only by the owner of its namespace
+ * (r/sys/names) or by an address a curator attested for it (`CanRegisterJSON`, `AttestPublisher`).
+ */
+export function isAppStoreV4(): boolean {
+    return appStoreVersion(APPSTORE_REALM_PATH) >= 4
 }
-/** Reports and the curator queue need the v3 registry on this network: its threshold, reads and measured costs are the ones Memba states. */
-export function isAppStoreV3On(networkKey: string): boolean {
-    return isAppStoreEnabled() && isAppStoreV3() && isRealmValidOn(networkKey, APPSTORE_REALM_PATH)
+/** Reports and the curator queue need a v3 or v4 registry on this network: its threshold and reads are the ones Memba states (their costs were measured on v3). */
+export function isAppStoreV3OrLaterOn(networkKey: string): boolean {
+    return isAppStoreEnabled() && isAppStoreV3OrLater() && isRealmValidOn(networkKey, APPSTORE_REALM_PATH)
 }
 
 /** App lifecycle status. The client passes these literals into `ListByStatusJSON` — never free text. */
@@ -53,7 +62,7 @@ export interface AppListing {
     flagCount: number
     createdAt: number
     descr?: string
-    // v3-only fields (absent on v2 → left undefined by coerce).
+    // v3 and v4 fields (absent on v2 → left undefined by coerce).
     rejectReason?: string
     screenshotCIDs?: string[]
     resubmitCount?: number
@@ -71,10 +80,21 @@ export function isSafeRealmPath(p: string): boolean {
     return REALM_PATH_RE.test(p) && p.length <= 200
 }
 
+/**
+ * v4's `validPkgPath`: after `gno.land/r/` or `gno.land/p/`, lowercase letters, digits, `_`, `-`
+ * and `/`, each segment starting with a letter, never ending on or doubling a separator.
+ */
+const PUBLISHABLE_PATH_RE = /^gno\.land\/[rp](?:\/[a-z](?:[a-z0-9]|[_-](?=[a-z0-9]))*)+$/
+
+/** A path v4 accepts for a listing or an attestation (stricter than `isSafeRealmPath`). */
+export function isPublishablePath(p: string): boolean {
+    return isSafeRealmPath(p) && PUBLISHABLE_PATH_RE.test(p)
+}
+
 /** FlagApp measured on gnoland-1 (09-30): 7.03M to 7.53M gas. The limit is twice that. */
 export const APP_FLAG_GAS_WANTED = 15_000_000
 
-/** memba_appstore_v3 `FlagHideThreshold`: reports from this many accounts hide a listing from the public lists until a curator clears them. */
+/** memba_appstore_v3 and v4 `FlagHideThreshold`: reports from this many accounts hide a listing from the public lists until a curator clears them. */
 export const FLAG_HIDE_THRESHOLD = 5
 
 /** Bytes a report stores, never returned: 1,095 to 1,098 measured for 25- to 33-byte paths, since the report's key holds the path. */
@@ -155,7 +175,7 @@ function coerce(o: unknown): AppListing | null {
     // /explorer/{pkgPath}, so drop any listing whose pkgPath isn't a safe realm path.
     if (!isSafeRealmPath(r.pkgPath)) return null
     const str = (v: unknown): string => (typeof v === "string" ? v : "")
-    // v3 screenshots arrive as a JSON string array; keep only string CIDs, drop the field if empty.
+    // v3/v4 screenshots arrive as a JSON string array; keep only string CIDs, drop the field if empty.
     const cids = Array.isArray(r.screenshotCIDs)
         ? (r.screenshotCIDs as unknown[]).filter((c): c is string => typeof c === "string")
         : []

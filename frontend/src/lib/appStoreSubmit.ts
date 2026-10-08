@@ -1,5 +1,5 @@
 /**
- * appStoreSubmit — write-side client for the memba_appstore_v3 submission money path (B3).
+ * appStoreSubmit — write-side client for the App Store submission money path (B3; v3 and v4).
  *
  * Builds the `RegisterApp` (exact-fee coin attach), `EditListing` (resubmit, no listing fee) and `DelistApp`
  * wallet messages with their measured gas limits and capped deposits, reads the live registration
@@ -8,24 +8,26 @@
  * the network fee is caught BEFORE the wallet prompt.
  *
  * SECURITY:
- * - Field limits and the `appURL` scheme allowlist mirror `memba_appstore_v3` exactly
+ * - Field limits and the `appURL` scheme allowlist mirror `memba_appstore_v3` and `_v4` exactly
  *   (`validateListingFields` / `validateAppURL` in appstore.gno) — the realm stays the
  *   authority; this is UX, not enforcement.
  * - The fee is read from `GetRegistrationFee()` at submit time, never hardcoded: the realm
  *   demands an EXACT coin match, so a stale client constant would brick every submission
  *   the moment the DAO changes the fee.
  * - Builders throw on any invalid field — a tx the realm will panic on is never broadcast.
+ * - v4 lists a path only for its namespace owner or an attested publisher: `CanRegisterJSON`
+ *   is read before the wallet opens, so a registration it would refuse is never signed.
  *
  * @module lib/appStoreSubmit
  */
 
-import { queryEval } from "./dao/shared"
+import { parseQevalJSON, queryEval } from "./dao/shared"
 import { depositCapUgnot } from "./dao/v2Budget"
 import type { AminoMsg } from "./grc20"
 import { GNO_RPC_URL } from "./config"
-import { APPSTORE_REALM_PATH, isSafeRealmPath, fetchApp, fetchAppStrict, fetchRegistryState, NothingSentError, sendAppStoreCall, type AppListing } from "./appStore"
+import { APPSTORE_REALM_PATH, isAppStoreV4, isPublishablePath, isSafeRealmPath, fetchApp, fetchAppStrict, fetchRegistryState, NothingSentError, sendAppStoreCall, type AppListing } from "./appStore"
 
-// Field limits in UTF-8 bytes, as the realm counts them — MUST stay equal to the memba_appstore_v3 realm constants.
+// Field limits in UTF-8 bytes, as the realm counts them — MUST stay equal to the memba_appstore_v3 and v4 realm constants.
 export const MAX_NAME_LEN = 80
 export const MAX_TAGLINE_LEN = 140
 export const MAX_DESCR_LEN = 2000
@@ -40,7 +42,8 @@ export const MAX_RESUBMITS = 5
 // screenshots, 18.10M with every field at its limit. DelistApp: 9.48M to 10.34M. EditListing on
 // its own cannot be measured on mainnet (no listing is pending); it did 4.0M to 4.2M of work after
 // a registration in the same transaction, on top of the load cost DelistApp shows. Each limit is
-// about twice the most measured, so that estimate included.
+// about twice the most measured, so that estimate included. Measured on v3: v4's RegisterApp adds
+// one r/sys/names read, not measured yet.
 export const REGISTER_GAS_WANTED = 36_000_000
 export const EDIT_GAS_WANTED = 30_000_000
 export const DELIST_GAS_WANTED = 21_000_000
@@ -133,6 +136,9 @@ export function validateAppURL(u: string): string | null {
     return "The app URL must start with https://, http://, or / (an in-app path)"
 }
 
+/** On v4: who may list a path (`CanRegisterJSON`), stated before the form is filled. */
+export const V4_LISTING_RULE = "You can list a package path only from an address that owns its namespace, or after a curator attests your address for that path."
+
 /**
  * Validate a submission against the realm's rules. Returns a map of per-field error messages —
  * empty when the submission would pass the realm's `validateListingFields` + `validatePkgPath`.
@@ -143,6 +149,8 @@ export function validateSubmission(s: AppSubmission): Partial<Record<keyof AppSu
     // guard); equal on prefix + length. The pkgPath is the listing's permanent unique key.
     if (!isSafeRealmPath(s.pkgPath)) {
         errors.pkgPath = "Must be a gno.land/r/… or gno.land/p/… package path (letters, digits, _ . / -)"
+    } else if (isAppStoreV4() && !isPublishablePath(s.pkgPath)) {
+        errors.pkgPath = "Must be a path gno.land publishes: lowercase letters, digits, _ and -, each part starting with a letter"
     }
     // The realm counts bytes: an accented letter takes two, most emoji four.
     if (s.name.length === 0 || utf8Bytes(s.name) > MAX_NAME_LEN) {
@@ -253,13 +261,30 @@ function sameSubmission(a: AppSubmission, b: AppSubmission): boolean {
     return wireArgs(a).every((value, i) => value === wireArgs(b)[i])
 }
 
-/** A registration goes through only unpaused, at the fee the user was shown, on a free package path. */
-export async function assertRegisterApplies(s: AppSubmission, feeUgnot: number): Promise<void> {
+/** How v4 would let `caller` register `pkgPath` now: as its namespace owner, as an attested publisher, or not at all. */
+export type RegisterRoute = "namespace" | "attested" | "none"
+
+/** v4 `CanRegisterJSON`, read on a verified node; a failed or malformed read throws, so an outage never looks like "none". */
+export async function fetchRegisterRoute(pkgPath: string, caller: string): Promise<RegisterRoute> {
+    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, `CanRegisterJSON(${JSON.stringify(pkgPath)}, ${JSON.stringify(caller)})`, true)
+    const via = raw ? (parseQevalJSON(raw) as { via?: unknown } | null)?.via : undefined
+    if (via !== "namespace" && via !== "attested" && via !== "none") throw new Error("The App Store registry could not be read. Nothing was sent.")
+    return via
+}
+
+/**
+ * A registration goes through only unpaused, at the fee the user was shown, on a free package path,
+ * and on v4 only from the path's namespace owner or its attested publisher.
+ */
+export async function assertRegisterApplies(caller: string, s: AppSubmission, feeUgnot: number): Promise<void> {
     assertValid(s)
     const state = await fetchRegistryState()
     if (state.paused) throw new Error("The App Store is paused: new listings are closed for now. Nothing was sent.")
     if (state.registrationFee !== feeUgnot) throw new Error(`The listing fee is now ${formatGnot(state.registrationFee)} GNOT. Review it again; nothing was sent.`)
     if (await fetchAppStrict(s.pkgPath)) throw new Error("An app is already listed for this package path.")
+    if (isAppStoreV4() && await fetchRegisterRoute(s.pkgPath, caller) === "none") {
+        throw new Error("This address cannot list this path: a path is listed by the owner of its namespace (while the network's name registry is running), or by an address a curator attested for that path. Nothing was sent.")
+    }
 }
 
 /**
@@ -296,7 +321,7 @@ export function submitErrorText(e: unknown, action: string): string | null {
 }
 
 export function submitRegisterApp(caller: string, s: AppSubmission, feeUgnot: number): Promise<string> {
-    return sendAppStoreCall(buildRegisterAppMsg(caller, feeUgnot, s), LISTING_MEMO.register, REGISTER_GAS_WANTED, () => assertRegisterApplies(s, feeUgnot))
+    return sendAppStoreCall(buildRegisterAppMsg(caller, feeUgnot, s), LISTING_MEMO.register, REGISTER_GAS_WANTED, () => assertRegisterApplies(caller, s, feeUgnot))
 }
 
 export function submitEditListing(caller: string, s: AppSubmission, was: AppSubmission): Promise<string> {

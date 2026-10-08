@@ -9,7 +9,7 @@
  * @module os/shell/useOsSession
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useAdena, type ConnectFailure } from "../../hooks/useAdena"
+import { onAdenaAccountChanged, useAdena, type ConnectFailure } from "../../hooks/useAdena"
 import { useAuth } from "../../hooks/useAuth"
 import { useBalance } from "../../hooks/useBalance"
 import { NETWORKS } from "../../lib/config"
@@ -116,24 +116,16 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         if (adena.connected && adena.address) setQuestWalletAddress(adena.address)
         else if (!adena.connected && !adena.reconnecting) setQuestWalletAddress(null)
     }, [adena.connected, adena.address, adena.reconnecting])
-    // Adena.On has no unsubscribe, so the account listener is registered once and
-    // reads the latest hooks through a ref.
+    // The account listener reads the latest hooks through a ref.
     const latest = useRef({ adena, auth })
     useEffect(() => { latest.current = { adena, auth } })
-    const accountListener = useRef(false)
-    useEffect(() => {
-        if (accountListener.current) return
-        const g = (window as unknown as { adena?: { On?: (e: string, cb: () => void) => unknown } }).adena
-        if (!g || typeof g.On !== "function") return
-        accountListener.current = true
-        g.On("changedAccount", () => {
-            epoch.current++
-            watch.current?.abort()
-            latest.current.auth.logout()
-            latest.current.adena.disconnect()
-            setStage(null)
-        })
-    }, [adena.installed])
+    useEffect(() => onAdenaAccountChanged(() => {
+        epoch.current++
+        watch.current?.abort()
+        latest.current.auth.logout()
+        latest.current.adena.disconnect()
+        setStage(null)
+    }), [])
 
     const go = useCallback((next: ConnectStage | null, err: string | null = null, kind: ConnectErrorKind | null = null) => {
         setStage(next)

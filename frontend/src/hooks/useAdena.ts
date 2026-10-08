@@ -2,7 +2,7 @@ import { withWalletActivity } from "../lib/walletActivity";
 import { ADENA_CLOSED_MESSAGE, ADENA_NO_ANSWER_MESSAGE, AdenaNoAnswerError, adenaPrompt, adenaRead, isAdenaWindowClosed, type PromptWatch } from "../lib/adenaCall";
 import { LIVE_NETWORK_TIMEOUT_MS } from "../lib/walletNetworkGuard";
 import { startWalletFlow, type WalletFlow } from "../lib/walletTiming";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useSyncExternalStore } from "react";
 import { isTrustedRpcDomain, networkScopedKey } from "../lib/config";
 import { setWalletRpcContext, UNVERIFIED_CHAIN_ID } from "../lib/grc20";
 import { buildAdenaMultisigDoc, type CanonicalSignDoc } from "../lib/multisigTx";
@@ -156,28 +156,138 @@ async function readWallet(adena: any, ms: number, flow?: WalletFlow | null): Pro
     return { account: a, network: n }
 }
 
+const initialState = (): AdenaState => ({
+    connected: false,
+    address: "",
+    pubkeyJSON: "",
+    chainId: "",
+    loading: false,
+    reconnecting: wasConnected(), // true if we expect to auto-reconnect
+    error: null,
+    rpcUrl: "",
+    rpcTrusted: false, // strict: untrusted until GetNetwork verifies
+});
+
+// One wallet per page. Every useAdena() reads and writes this store, so the silent
+// reconnect, its Adena reads and Adena's event listeners run once, not once per
+// component: each read costs Adena a wallet decrypt, and Adena's On() calls only
+// the first listener registered for an event.
+let walletState = initialState();
+const storeListeners = new Set<() => void>();
+function setState(next: AdenaState | ((s: AdenaState) => AdenaState)) {
+    walletState = typeof next === "function" ? next(walletState) : next;
+    for (const listener of storeListeners) listener();
+}
+function subscribeStore(listener: () => void) {
+    storeListeners.add(listener);
+    return () => { storeListeners.delete(listener); };
+}
+const getWalletState = () => walletState;
+
+const autoReconnectAttempted = { current: false };
+// F-24: bumped by disconnect(). An in-flight connect() compares it against
+// the value it snapshotted before its awaits — a mismatch means the user
+// disconnected mid-connect and the connect must stand down, whatever the
+// storage state says.
+const disconnectEpoch = { current: 0 };
+// The last wake (a GetNetwork that warms Adena up while the person decides): when it
+// started, when it answered, and whether Adena answered it as connected and unlocked.
+const wakeState = { current: { startedAt: 0, answeredAt: 0, ok: false, running: null as Promise<boolean> | null } };
+// The silent connect in flight, which an interactive one waits for instead of racing it.
+const silentRun = { current: null as Promise<boolean> | null };
+const lastVisibilityRetry = { current: 0 };
+
+const accountChangedListeners = new Set<() => void>();
+// The provider Adena's events are registered on: an extension update injects a new one.
+let listenedProvider: unknown = null;
+// Bumped by every re-read: only the latest one may write.
+let rereadRun = 0;
+
+/** Adena's own events, registered once per provider (Adena has no unsubscribe). */
+function listenToAdena() {
+    const adena = getAdena();
+    if (!adena || adena === listenedProvider || typeof adena.On !== "function") return;
+    listenedProvider = adena;
+    // SECURITY: re-validate the RPC as soon as Adena changes network.
+    adena.On("changedNetwork", () => {
+        if (walletState.connected && typeof getAdena()?.GetNetwork === "function") void rereadWallet();
+    });
+    adena.On("changedAccount", () => { for (const listener of [...accountChangedListeners]) listener(); });
+}
+
+/** Hear Adena switching account. Returns the unsubscribe. */
+export function onAdenaAccountChanged(listener: () => void): () => void {
+    accountChangedListeners.add(listener);
+    listenToAdena();
+    return () => { accountChangedListeners.delete(listener); };
+}
+
+/** Read Adena's account and network again after it changed network: the address, chain, key and RPC it reports there. */
+async function rereadWallet(): Promise<void> {
+    const adena = getAdena();
+    if (!adena || !walletState.connected) return;
+    const epoch = disconnectEpoch.current;
+    const run = ++rereadRun;
+    logWalletEvent("changedNetwork");
+    // Fail CLOSED for the whole re-validation window: from the instant
+    // the wallet switches until the reads below resolve, the old
+    // trust/chain values are stale — a broadcast racing this must be
+    // blocked, not waved through on pre-switch state.
+    setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
+    // Side by side: Adena queues them anyway, and each costs it a wallet decrypt.
+    const [net, acct] = await Promise.allSettled([
+        adenaRead<{ data?: { rpcUrl?: string } } | null | undefined>(() => adena.GetNetwork(), READ_TIMEOUT_MS),
+        adenaRead<AdenaAccount>(() => adena.GetAccount(), READ_TIMEOUT_MS),
+    ]);
+    // A disconnect, or a newer re-read, owns the wallet now: keep the fail-closed context and write nothing.
+    if (epoch !== disconnectEpoch.current || run !== rereadRun || !walletState.connected) return;
+    if (net.status === "rejected") {
+        // GetNetwork failed after switch → strict: untrusted + unverified chain
+        setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
+        setState((s) => ({ ...s, rpcUrl: "", rpcTrusted: false }));
+        return;
+    }
+    const url = net.value?.data?.rpcUrl || "";
+    const trusted = url ? isTrustedRpcDomain(url) : false;
+    // R2-CHN-E: the NEW chainId must reach grc20's wrong-chain guard (two
+    // arguments would reset it to null and DISABLE the guard right after a
+    // switch). The cached chain id and account come from the account read; if
+    // it fails, fail CLOSED with the unverified sentinel — signing stays
+    // blocked until the chain is verified again.
+    let chainId: string = UNVERIFIED_CHAIN_ID;
+    let address: string | null = null;
+    const account = acct.status === "fulfilled" ? acct.value : null;
+    const read = account && account.status !== "failure" && account.data ? account.data : null;
+    if (read) {
+        chainId = read.chainId || UNVERIFIED_CHAIN_ID;
+        address = read.address || null;
+    }
+    setWalletRpcContext(url || null, trusted, chainId, address);
+    // Adena's key is per network: unknown on a network the account never used, known only there.
+    setState((s) => ({
+        ...s,
+        ...(read ? { address: read.address, chainId: read.chainId, pubkeyJSON: pubkeyJSONOf(read.publicKey) } : {}),
+        rpcUrl: url,
+        rpcTrusted: trusted,
+    }));
+}
+
+/** Tests only: a fresh page's wallet store. */
+export function __resetWalletStoreForTests(): void {
+    walletState = initialState();
+    autoReconnectAttempted.current = false;
+    disconnectEpoch.current = 0;
+    wakeState.current = { startedAt: 0, answeredAt: 0, ok: false, running: null };
+    silentRun.current = null;
+    lastVisibilityRetry.current = 0;
+    accountChangedListeners.clear();
+    listenedProvider = null;
+    rereadRun = 0;
+}
+
 export function useAdena() {
     const [installed, setInstalled] = useState(() => !!getAdena());
-    const [state, setState] = useState<AdenaState>({
-        connected: false,
-        address: "",
-        pubkeyJSON: "",
-        chainId: "",
-        loading: false,
-        reconnecting: wasConnected(), // true if we expect to auto-reconnect
-        error: null,
-        rpcUrl: "",
-        rpcTrusted: false, // strict: untrusted until GetNetwork verifies
-    });
-    const autoReconnectAttempted = useRef(false);
-    // Live view of state for event handlers registered once (visibility retry).
-    const stateRef = useRef(state);
-    useEffect(() => { stateRef.current = state; });
-    // F-24: bumped by disconnect(). An in-flight connect() compares it against
-    // the value it snapshotted before its awaits — a mismatch means the user
-    // disconnected mid-connect and the connect must stand down, whatever the
-    // storage state says.
-    const disconnectEpoch = useRef(0);
+    const state = useSyncExternalStore(subscribeStore, getWalletState);
 
     // Extensions inject globals after page load — poll to detect.
     // Adena can take up to 5-10s depending on browser load.
@@ -214,13 +324,7 @@ export function useAdena() {
         };
     }, [installed]);
 
-    // The last wake (a GetNetwork that warms Adena up while the person decides): when it
-    // started, when it answered, and whether Adena answered it as connected and unlocked.
-    const wakeState = useRef<{ startedAt: number; answeredAt: number; ok: boolean; running: Promise<boolean> | null }>({
-        startedAt: 0, answeredAt: 0, ok: false, running: null,
-    })
-    // The silent connect in flight, which an interactive one waits for instead of racing it.
-    const silentRun = useRef<Promise<boolean> | null>(null)
+    useEffect(() => { if (installed) listenToAdena() }, [installed])
 
     /**
      * Wake Adena before the person clicks: GetNetwork, a read that opens no window, for 4 s
@@ -255,6 +359,7 @@ export function useAdena() {
             return false;
         }
         if (silent && silentRun.current) return silentRun.current
+        listenToAdena()
 
         const watch = opts?.watch
         const signal = opts?.signal
@@ -415,7 +520,7 @@ export function useAdena() {
     useEffect(() => {
         if (!installed || autoReconnectAttempted.current) return;
         if (!wasConnected()) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- no earlier session: nothing to resume
+            // No earlier session: nothing to resume.
             setState((s) => ({ ...s, reconnecting: false }));
             return;
         }
@@ -434,12 +539,11 @@ export function useAdena() {
     // disconnected forever even after the user unlocked Adena. Retry the silent
     // reconnect when the tab becomes visible again, throttled to one attempt
     // per 15s, only while we still expect to be connected.
-    const lastVisibilityRetry = useRef(0);
     useEffect(() => {
         if (!installed) return;
         const onVisible = () => {
             if (document.hidden) return;
-            if (stateRef.current.connected || stateRef.current.loading) return;
+            if (walletState.connected || walletState.loading) return;
             if (!wasConnected()) return;
             const now = Date.now();
             if (now - lastVisibilityRetry.current < 15_000) return;
@@ -532,56 +636,6 @@ export function useAdena() {
         [state.connected, state.address]
     );
 
-    /** Read Adena's account and network again after it changed network: the address, chain, key and RPC it reports there. */
-    const rereadWallet = useCallback(async () => {
-        const adena = getAdena();
-        if (!adena) return;
-        logWalletEvent("changedNetwork");
-        // Fail CLOSED for the whole re-validation window: from the instant
-        // the wallet switches until the async reads below resolve, the old
-        // trust/chain values are stale — a broadcast racing this handler
-        // must be blocked, not waved through on pre-switch state.
-        setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
-        try {
-            const netRes = await adena.GetNetwork();
-            const url = netRes?.data?.rpcUrl || "";
-            const trusted = url ? isTrustedRpcDomain(url) : false;
-
-            // R2-CHN-E: the NEW chainId must reach grc20's wrong-chain guard.
-            // Calling setWalletRpcContext with 2 args resets _walletChainId
-            // to null, which silently DISABLES the guard right when it
-            // matters most (the wallet just switched networks). The cached
-            // chain id and account come from the account read (GetNetwork
-            // also reports a chainId; the live check before every signature
-            // requires the two to agree). If the account read fails, fail
-            // CLOSED with the unverified sentinel — signing stays blocked
-            // until the chain is verified again.
-            let chainId: string = UNVERIFIED_CHAIN_ID;
-            let address: string | null = null;
-            try {
-                const acct = await adena.GetAccount();
-                if (acct.status !== "failure" && acct.data) {
-                    chainId = acct.data.chainId || UNVERIFIED_CHAIN_ID;
-                    address = acct.data.address || null;
-                    // Adena's key is per network: unknown on a network the account never used, known only there.
-                    setState((s) => ({
-                        ...s,
-                        address: acct.data.address,
-                        chainId: acct.data.chainId,
-                        pubkeyJSON: pubkeyJSONOf(acct.data.publicKey),
-                    }));
-                }
-            } catch { /* keep the fail-closed sentinel */ }
-
-            setWalletRpcContext(url || null, trusted, chainId, address);
-            setState((s) => ({ ...s, rpcUrl: url, rpcTrusted: trusted }));
-        } catch {
-            // GetNetwork failed after switch → strict: untrusted + unverified chain
-            setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
-            setState((s) => ({ ...s, rpcUrl: "", rpcTrusted: false }));
-        }
-    }, []);
-
     /** Add a network to Adena wallet. Opens a confirmation popup.
      *  Params match Adena's AddNetworkParams: { chainId, chainName, rpcUrl }.
      *  Returns true on success (including "already added"), false on rejection/error. */
@@ -617,15 +671,17 @@ export function useAdena() {
             }
             try {
                 const res = await withWalletActivity<AdenaPromptResult>(() => adena.SwitchNetwork(chainId));
-                if (res.status !== "failure") return true;
-                // Already there: Memba's copy of the account is what is stale.
-                if (res.type === "REDUNDANT_CHANGE_REQUEST") { await rereadWallet(); return true; }
+                // Switched, or already there: read the wallet now rather than wait for Adena's
+                // changedNetwork event, so the chain, key and RPC shown are the new ones.
+                if (res.status !== "failure" || res.type === "REDUNDANT_CHANGE_REQUEST") { await rereadWallet(); return true; }
                 // UNADDED_NETWORK: try adding the network first, then switch again
                 if (res.type === "UNADDED_NETWORK" && chainName && rpcUrl) {
                     const added = await addNetwork({ chainId, chainName, rpcUrl });
                     if (!added) return false;
                     const retry = await withWalletActivity<AdenaPromptResult>(() => adena.SwitchNetwork(chainId));
-                    return retry.status !== "failure";
+                    if (retry.status === "failure") return false;
+                    await rereadWallet();
+                    return true;
                 }
                 return false;
             } catch (err) {
@@ -633,7 +689,7 @@ export function useAdena() {
                 return false;
             }
         },
-        [addNetwork, rereadWallet],
+        [addNetwork],
     );
 
     const disconnect = useCallback(() => {
@@ -656,18 +712,6 @@ export function useAdena() {
             rpcTrusted: false,
         });
     }, []);
-
-    // SECURITY: Listen for network changes in Adena — re-validate RPC immediately.
-    useEffect(() => {
-        if (!state.connected) return;
-        const adena = getAdena();
-        if (!adena?.On || typeof adena.GetNetwork !== "function") return;
-
-        const registered = adena.On("changedNetwork", () => { void rereadWallet(); });
-
-        // Cleanup: Adena.On returns boolean, no unsubscribe available
-        void registered;
-    }, [state.connected, rereadWallet]);
 
     return {
         ...state,

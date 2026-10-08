@@ -22,6 +22,15 @@ Full changelogs are split by version range for easier navigation:
 
 ### Ops: the Launchpad watcher cannot fail silently (2026-10-08)
 - An enabled Launchpad watcher that refuses its configuration now raises the MembaLaunchpadWatcherDown alert (memba_launchpad_watcher_enabled with no reading) instead of running silently unwatched.
+### One Adena connection per page (2026-10-08)
+- Wallet: Memba keeps one Adena connection per page instead of one per window, so opening apps no longer queues extra Adena reads, and a network switch shows the new network at once instead of waiting for Adena's event (or looking stuck).
+### The Memba logo in Memba OS (2026-10-08)
+- Memba OS: the menu button and lock screen show the Memba folded-M logo, in the brand colour of each theme.
+### Wallet errors say what failed (2026-10-08)
+- Feed posts, flags, reactions, listing cancels and app curation now show what actually failed (an untrusted wallet node, the wrong network, a locked Adena, the realm's own reason) instead of "Could not post. Please try again."; a cancel in the wallet stays silent.
+- When Adena does not report its network, the message now says why: no answer in time, Adena's failure type, or no network named.
+### Token names checked against the chain's characters (2026-10-08)
+- Token creation now checks names and descriptions against the chain's own character tables, so text the ledger would refuse is caught before you sign.
 
 ### Faster Adena signatures and activation (2026-10-08)
 - Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.

@@ -22,6 +22,7 @@ import { appSpec } from "./windows"
 import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
 import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
 import { safeNetworkOf, useSafeAwaiting } from "../multisig/evm/useSafes"
+import { MembaMark } from "./MembaMark"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
@@ -281,7 +282,7 @@ export function MenuBar(p: MenuBarProps) {
 
     return (
         <header className="os-menubar" aria-label="Menu bar" ref={barRef} inert={p.locked} aria-hidden={p.locked}>
-            <button type="button" className="os-mb" aria-label="Memba menu" {...mb("start")}><span className="os-mark" aria-hidden="true" /></button>
+            <button type="button" className="os-mb" aria-label="Memba menu" {...mb("start")}><MembaMark /></button>
             <button type="button" className="os-mb os-strong" {...mb("spaces")}>
                 <span className="os-av os-av-sm" data-guest={guest || undefined} aria-hidden="true">{guest ? "G" : session.address.slice(2, 3).toUpperCase()}</span>
                 My space <span className="os-caret" aria-hidden="true">▾</span>

@@ -8,7 +8,7 @@
  * `ListingFields` form right here, so `EditListing` never overwrites a field with a blank and the
  * publisher never leaves the console.
  *
- * Gated exactly like the rest of the publisher surface: `VITE_ENABLE_APPSTORE_SUBMIT`, the v3 realm,
+ * Gated exactly like the rest of the publisher surface: `VITE_ENABLE_APPSTORE_SUBMIT`, a v3 or v4 realm,
  * and a connected wallet. Read-only for a disconnected visitor beyond the connect prompt.
  *
  * @module pages/PublisherConsole
@@ -21,7 +21,7 @@ import { useAdena } from "../hooks/useAdena"
 import { useAuth } from "../hooks/useAuth"
 import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreSubmitEnabled } from "../lib/config"
-import { isAppStoreV3, fetchByPublisher, type AppListing } from "../lib/appStore"
+import { isAppStoreV3OrLater, fetchByPublisher, type AppListing } from "../lib/appStore"
 import {
     loadEditForm, submitDelistApp, submitEditListing, submitErrorText, validateSubmission, type AppSubmission,
 } from "../lib/appStoreSubmit"
@@ -47,7 +47,7 @@ export function PublisherConsole() {
     const [delistError, setDelistError] = useState<string | null>(null)
 
     const submitOpen = isAppStoreSubmitEnabled()
-    const v3 = isAppStoreV3()
+    const v3 = isAppStoreV3OrLater()
 
     const queryKey = ["appStore", "mine", address, page]
     const { data: listings, isLoading } = useQuery({
@@ -140,7 +140,7 @@ export function PublisherConsole() {
         return (
             <Shell networkKey={networkKey}>
                 <div className="appstore__notice" data-testid="console-v2">
-                    <p className="appstore__notice-title">The console needs the v3 App Store realm</p>
+                    <p className="appstore__notice-title">The console needs App Store v3 or later</p>
                     <p className="appstore__muted">This network is still on the previous realm. Check back after the migration.</p>
                 </div>
             </Shell>

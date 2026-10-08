@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query"
 import { loadPostReactions } from "../../lib/feedReactionsLoader"
 import { buildAddReactionMsg, buildRemoveReactionMsg, submitFeedMsg, REACTION_EMOJIS } from "../../lib/feed"
 import { isFeedWritable } from "../../lib/config"
+import { walletErrorText } from "../../lib/walletErrorText"
 
 interface ReactionBarProps {
     postId: bigint
@@ -39,6 +40,7 @@ export function ReactionBar(props: ReactionBarProps) {
 function ReactionBarInner({ postId, connected, selfAddress, onConnect }: ReactionBarProps) {
     const [picking, setPicking] = useState(false)
     const [busy, setBusy] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     const q = useQuery({
         queryKey: ["feed-reactions", postId.toString(), selfAddress ?? ""],
@@ -57,14 +59,16 @@ function ReactionBarInner({ postId, connected, selfAddress, onConnect }: Reactio
             return
         }
         setBusy(emoji)
+        setError(null)
         try {
             const msg = reacted
                 ? buildRemoveReactionMsg(selfAddress, postId, emoji)
                 : buildAddReactionMsg(selfAddress, postId, emoji)
             await submitFeedMsg(msg, reacted ? "feed: remove reaction" : "feed: react")
             await q.refetch()
-        } catch {
-            /* leave the counts as they were; the user can retry */
+        } catch (e) {
+            // The counts stay as they were; a cancel stays silent, anything else says what failed.
+            setError(walletErrorText(e, "Could not save the reaction. Please try again.") || null)
         } finally {
             setBusy(null)
             setPicking(false)
@@ -129,6 +133,7 @@ function ReactionBarInner({ postId, connected, selfAddress, onConnect }: Reactio
                     })}
                 </div>
             )}
+            {error && <p className="feed-post__flagerror" role="alert" data-testid="feed-reaction-error">{error}</p>}
         </div>
     )
 }

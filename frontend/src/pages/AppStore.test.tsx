@@ -10,7 +10,7 @@ import { getIpfsGatewayUrl } from "../lib/ipfs"
 const appStoreRoutes = <Routes><Route path="/:network/apps/*" element={<AppStore />} /></Routes>
 
 // Control the realm generation + the network reads so we can assert the v3-only pending disclosure
-// without hitting a chain. isAppStoreV3 is a plain fn here, flipped per-test via `v3`.
+// without hitting a chain. isAppStoreV3OrLater is a plain fn here, flipped per-test via `v3`.
 let v3 = true
 let submitEnabled = false
 let reviewsEnabled = false
@@ -26,7 +26,7 @@ vi.mock("../lib/appStore", async (importActual) => {
     const actual = await importActual<typeof import("../lib/appStore")>()
     return {
         ...actual,
-        isAppStoreV3: () => v3,
+        isAppStoreV3OrLater: () => v3,
         fetchLiveCatalogue: async (...a: unknown[]) => ({ apps: await fetchLiveApps(...a), complete: catalogueComplete }),
         fetchByStatus: (...a: unknown[]) => fetchByStatus(...a),
         fetchApp: (...a: unknown[]) => fetchApp(...a),

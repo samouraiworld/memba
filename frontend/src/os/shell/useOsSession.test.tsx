@@ -17,7 +17,7 @@ const auth = {
     token: null as unknown, isAuthenticated: false, address: "", loading: false, error: null,
     logout: vi.fn(), getChallenge: vi.fn(), getToken: vi.fn(),
 }
-vi.mock("../../hooks/useAdena", () => ({ useAdena: () => wallet }))
+vi.mock("../../hooks/useAdena", () => ({ useAdena: () => wallet, onAdenaAccountChanged: () => () => {} }))
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => auth }))
 vi.mock("../../hooks/useBalance", () => ({ useBalance: () => ({ rawUgnot: undefined, loading: false, balance: "0 GNOT", error: null, refetch: vi.fn() }) }))
 vi.mock("../../lib/quests", () => ({ completeQuest: vi.fn(), setQuestWalletAddress: vi.fn(), syncQuestsToBackend: vi.fn(async () => {}) }))
