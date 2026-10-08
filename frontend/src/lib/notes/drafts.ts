@@ -50,6 +50,21 @@ function validDraft(value: unknown): value is DraftRecord {
     const draft = value as DraftRecord
     return draft.schema === 1 && !!draft.scope && validNotesScope(draft.scope) && isNotesRevision(draft.localRevision) && validPayload(draft.payload) && Number.isSafeInteger(draft.updatedAt) && draft.updatedAt >= 0
 }
+/** Deletion retains only a CAS generation; no title, body, envelope or list index. */
+interface DraftTombstone { schema: 1; deleted: true; scope: NotesScope; localRevision: string }
+function validTombstone(value: unknown): value is DraftTombstone {
+    if (!value || typeof value !== "object") return false
+    const row = value as DraftTombstone
+    return row.schema === 1 && row.deleted === true && !!row.scope && validNotesScope(row.scope) && isNotesRevision(row.localRevision)
+        && row.localRevision !== "0" && !("payload" in row)
+}
+function storedRevision(value: unknown, storageKey: string): string | null {
+    if (value === undefined) return "0"
+    return (validDraft(value) || validTombstone(value)) && notesKey(value.scope) === storageKey ? value.localRevision : null
+}
+function tombstone(scope: NotesScope, revision: string): DraftTombstone & { key: string } {
+    return { schema: 1, deleted: true, scope: copyScope(scope), localRevision: revision === String(MAX_UINT64) ? revision : String(BigInt(revision) + 1n), key: notesKey(scope) }
+}
 function publicRecord(value: DraftRecord): DraftRecord {
     return { schema: 1, scope: copyScope(value.scope), localRevision: value.localRevision, payload: copyPayload(value.payload), updatedAt: value.updatedAt }
 }
@@ -138,9 +153,18 @@ export class NotesStore {
         if (!validNotesScope(scope)) throw new Error("Invalid draft location.")
         const storageKey = notesKey(scope)
         const value = await notesRead<unknown>(this.database, "drafts", store => store.get(storageKey))
-        if (value === undefined) return null
+        if (value === undefined || (validTombstone(value) && notesKey(value.scope) === storageKey)) return null
         if (!validDraft(value) || notesKey(value.scope) !== storageKey) throw new Error("This draft could not be read. Its stored copy was kept.")
         return publicRecord(value)
+    }
+    /** Read before an explicit recreation, including before encrypting revision + 1 in its AAD. */
+    async getDraftRevision(scope: NotesScope): Promise<string> {
+        if (!validNotesScope(scope)) throw new Error("Invalid draft location.")
+        const storageKey = notesKey(scope)
+        const value = await notesRead<unknown>(this.database, "drafts", store => store.get(storageKey))
+        const revision = storedRevision(value, storageKey)
+        if (revision === null) throw new Error("This draft could not be read. Its stored copy was kept.")
+        return revision
     }
     async listDrafts(partition: NotesPartition): Promise<DraftRecord[]> {
         if (!validNotesPartition(partition)) throw new Error("Invalid draft location.")
@@ -157,27 +181,28 @@ export class NotesStore {
         return notesWrite(this.database, ["drafts"], signal, (tx, finish) => {
             const store = tx.objectStore("drafts")
             notesRequest(store.get(notesKey(next.scope)), tx, (current: unknown) => {
-                if (current !== undefined && (!validDraft(current) || notesKey(current.scope) !== notesKey(next.scope))) { finish({ status: "invalid" }); return }
-                if ((current === undefined ? "0" : current.localRevision) !== expectedRevision) { finish({ status: "conflict" }); return }
+                const revision = storedRevision(current, notesKey(next.scope))
+                if (revision === null) { finish({ status: "invalid" }); return }
+                if (revision !== expectedRevision) { finish({ status: "conflict" }); return }
                 store.put({ ...next, key: notesKey(next.scope), partition: notesPartitionKey(next.scope) })
                 finish({ status: "saved", value: next })
             })
         })
     }
     /** Copy (optionally encrypted by the caller) and remove the guest copy atomically. */
-    adoptDraft(from: NotesScope, to: NotesScope, expectedSourceRevision: string, payload: DraftPayload, session: DraftWriteGuard): Promise<NotesWriteResult<DraftRecord>> {
+    adoptDraft(from: NotesScope, to: NotesScope, expectedSourceRevision: string, payload: DraftPayload, session: DraftWriteGuard, expectedTargetRevision = "0"): Promise<NotesWriteResult<DraftRecord>> {
         const signal = session.signal
-        if (!validNotesScope(from) || !validNotesScope(to) || from.owner !== "guest" || to.owner === "guest" || from.chainId !== to.chainId || from.realm !== to.realm || from.noteId !== to.noteId || !isNotesRevision(expectedSourceRevision) || !validPayload(payload)) return Promise.resolve({ status: "invalid" })
-        const next: DraftRecord = { schema: 1, scope: copyScope(to), localRevision: "1", payload: copyPayload(payload), updatedAt: Date.now() }
+        if (!validNotesScope(from) || !validNotesScope(to) || from.owner !== "guest" || to.owner === "guest" || from.chainId !== to.chainId || from.realm !== to.realm || from.noteId !== to.noteId || !isNotesRevision(expectedSourceRevision) || !isNotesRevision(expectedTargetRevision) || expectedTargetRevision === String(MAX_UINT64) || !validPayload(payload)) return Promise.resolve({ status: "invalid" })
+        const next: DraftRecord = { schema: 1, scope: copyScope(to), localRevision: String(BigInt(expectedTargetRevision) + 1n), payload: copyPayload(payload), updatedAt: Date.now() }
         const sourceKey = notesKey(from)
         return notesWrite(this.database, ["drafts"], signal, (tx, finish) => {
             const store = tx.objectStore("drafts")
             notesRequest(store.get(sourceKey), tx, (source: unknown) => {
                 if (!validDraft(source) || notesKey(source.scope) !== sourceKey || source.localRevision !== expectedSourceRevision) { finish({ status: "conflict" }); return }
                 notesRequest(store.get(notesKey(next.scope)), tx, (target: unknown) => {
-                    if (target !== undefined) { finish({ status: "conflict" }); return }
+                    if (validDraft(target) || storedRevision(target, notesKey(next.scope)) !== expectedTargetRevision) { finish({ status: "conflict" }); return }
                     store.put({ ...next, key: notesKey(next.scope), partition: notesPartitionKey(next.scope) })
-                    store.delete(sourceKey)
+                    store.put(tombstone(source.scope, source.localRevision))
                     finish({ status: "saved", value: next })
                 })
             })
@@ -191,7 +216,7 @@ export class NotesStore {
             const store = tx.objectStore("drafts")
             notesRequest(store.get(storageKey), tx, (value: unknown) => {
                 if (!validDraft(value) || notesKey(value.scope) !== storageKey || value.localRevision !== expectedRevision) { finish({ status: "conflict" }); return }
-                store.delete(storageKey); finish({ status: "saved", value: null })
+                store.put(tombstone(value.scope, value.localRevision)); finish({ status: "saved", value: null })
             })
         })
     }
