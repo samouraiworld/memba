@@ -370,7 +370,14 @@ describe('isTrustedRpcDomain', () => {
     })
 
     it('no longer trusts the hosts only the retired test13 fixture used', () => {
-        for (const url of ['https://rpc.test-13-aeddi-1.gnoland.network', 'https://gnoland.network', 'https://test13.rpc.onbloc.xyz:443', 'https://onbloc.xyz']) {
+        for (const url of ['https://rpc.test-13-aeddi-1.gnoland.network', 'https://gnoland.network', 'https://onbloc.xyz']) {
+            expect(isTrustedRpcDomain(url), url).toBe(false)
+        }
+    })
+
+    it("trusts Adena's default gnoland-1 RPC host and nothing else of its domain", () => {
+        expect(isTrustedRpcDomain('https://rpc.onbloc.xyz:443')).toBe(true)
+        for (const url of ['https://onbloc.xyz', 'https://other.onbloc.xyz', 'https://fakerpc.onbloc.xyz', 'https://rpc.onbloc.xyz.evil.com']) {
             expect(isTrustedRpcDomain(url), url).toBe(false)
         }
     })
