@@ -4,6 +4,7 @@ import { settle, settleAnimations } from './settle'
 import { OS_FLAGS_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { abortOnchainReads } from '../helpers/onchain'
+import { storeResults } from '../helpers/storeHome'
 import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
 
 // No serious or critical WCAG 2.1 AA violations (contrast included) on the main
@@ -155,7 +156,7 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.goto(`${OS_ON}/os/store`)
             const store = page.getByRole('region', { name: 'App Store', exact: true })
             await expect(store.getByRole('navigation', { name: 'App Store' })).toBeVisible()
-            await expect(store.getByRole('button', { name: 'Details for Adena' })).toBeVisible()
+            await expect(storeResults(store).getByRole('button', { name: 'Details for Adena' })).toBeVisible()
             expect(await violations(page)).toEqual([])
         })
 

@@ -513,6 +513,23 @@ describe("Store: discover home", () => {
         expect(target(open)).toEqual(expect.objectContaining({ app: "store", section: "project/gnoswap" }))
     })
 
+    it("offers Open app from the hero for an https entry, opening it in a new tab without opener", () => {
+        const opened = vi.spyOn(window, "open").mockReturnValue(null)
+        home()
+        const hero = screen.getByRole("region", { name: "Featured apps" })
+        expect(within(hero).getByRole("heading", { name: "GnoSwap" })).toBeInTheDocument()
+        fireEvent.click(within(hero).getByRole("button", { name: "Open app ↗" }))
+        expect(opened).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\//), "_blank", "noopener,noreferrer")
+        opened.mockRestore()
+    })
+
+    it("shows the category named in the address as pressed", () => {
+        home("category=Explorer")
+        const group = screen.getByRole("group", { name: "Category" })
+        expect(within(group).getByRole("button", { name: "Explorer", pressed: true })).toBeInTheDocument()
+        expect(within(group).getByRole("button", { name: "All", pressed: false })).toBeInTheDocument()
+    })
+
     it("filters by category through a chip group and keeps the Availability select", () => {
         const { open } = home()
         const group = screen.getByRole("group", { name: "Category" })

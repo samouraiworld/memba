@@ -164,7 +164,8 @@ function Discovery({ props, section }: { props: NativeViewProps; section: "disco
     const openEntry = (entry: CatalogueEntry) => open(specForTarget({ kind: "app", app: "store", section: appSection(entry) })!)
     const slides: HeroSlide[] = STORE_FEATURED.map(byProject).filter((entry): entry is CatalogueEntry => !!entry).map((entry) => {
         const media = entryMedia(entry)
-        return { id: entry.id, kicker: `Editor's pick · ${entry.category}`, title: entry.name, pitch: entry.tagline, cover: media.cover, accent: media.accent, tags: [availability(entry)], primary: { label: `Explore ${entry.name}`, onClick: () => openEntry(entry) } }
+        return { id: entry.id, kicker: `Editor's pick · ${entry.category}`, title: entry.name, pitch: entry.tagline, cover: media.cover, accent: media.accent, tags: [availability(entry)], primary: { label: `Explore ${entry.name}`, onClick: () => openEntry(entry) },
+            secondary: entry.url.startsWith("https://") ? { label: "Open app ↗", onClick: () => window.open(entry.url, "_blank", "noopener,noreferrer") } : undefined }
     })
     const essentials = STORE_ESSENTIALS.map(byProject).filter((entry): entry is CatalogueEntry => !!entry)
     const rated = (entry: CatalogueEntry) => summaries.get(entrySubject(entry))

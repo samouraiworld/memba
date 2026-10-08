@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { OS_ON } from '../../playwright.os.config'
+import { storeResults } from '../helpers/storeHome'
 
 for (const section of ['submit', 'my-submissions']) {
     test(`guest Store ${section} stays native and says submissions are closed while they are`, async ({ page }) => {
@@ -28,6 +29,6 @@ test('guest Store catalogue remains readable', async ({ page }) => {
     await page.goto(`${OS_ON}/os/store`)
     const win = page.getByRole('region', { name: 'App Store', exact: true })
     await expect(win.getByRole('navigation', { name: 'App Store' })).toBeVisible()
-    await expect(win.getByRole('button', { name: 'Details for Adena' })).toBeVisible()
-    await expect(win.getByRole('button', { name: 'Connect' })).toHaveCount(0)
+    await expect(storeResults(win).getByRole('button', { name: 'Details for Adena' })).toBeVisible()
+    await expect(win.getByRole('button', { name: 'Connect', exact: true })).toHaveCount(0)
 })

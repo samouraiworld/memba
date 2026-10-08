@@ -118,7 +118,7 @@ for (const [name, device] of [['desktop', devices['Desktop Chrome']], ['phone', 
             isMobile: device.isMobile, hasTouch: device.hasTouch, userAgent: device.userAgent })
         test('keeps a Store window open until reload is chosen', async ({ page, request }) => {
             await page.goto('/os/store')
-            const storeHeading = page.getByRole('heading', { name: /^(App Store|Find your next thing\.)$/ }).first()
+            const storeHeading = page.getByRole('heading', { name: 'App Store', exact: true }).first()
             await expect(storeHeading).toBeVisible()
             await page.evaluate(async () => { await navigator.serviceWorker.ready })
             if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) await page.reload()
