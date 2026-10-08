@@ -87,7 +87,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
             <div className="c4-hero-discs" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
             <div className="os-grow">
                 <h2>Connect 4</h2>
-                <p>Both players stake the same GNOT; the winner takes the pot minus {fee === null ? "a house fee" : `a ${formatGnot(fee)} fee`}. Each move has 90 seconds of chain time — run out and you forfeit.</p>
+                <p>Both players stake the same GNOT; the winner takes the pot minus {fee === null ? "a house fee" : `a ${formatGnot(fee)} fee`}. Each move has 90 seconds of chain time — run out and you forfeit. There is no maximum stake: stake only what you can afford to lose.</p>
             </div>
             <div className="os-row c4-hero-controls">
                 <QuickPlay me={me} connected={connected} />

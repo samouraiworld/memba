@@ -964,6 +964,19 @@
       "verifiedVia": "vm/qfile",
       "fileCount": 4,
       "note": "Published by the samcrew 2-of-3 from the frozen bytes (config/gov-freeze.tsv) and enabled at height 652702 (storage deposit 6,983,000 ugnot). Every file byte-equal to the ceremony stage; reconcile ALL_OK."
+    },
+    "connect4": {
+      "path": "gno.land/r/samcrew/connect4",
+      "version": "v1",
+      "date": "2026-10-08",
+      "sourceCommit": "gnoland-packages be929ad1",
+      "seq": 77,
+      "height": 658483,
+      "txHash": "NruTPWup0PXmq+ItaDnikJHz9vv4mfKu67L4a8kI2SY=",
+      "verifiedOn": "2026-10-08",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 6,
+      "note": "Published by the samcrew 2-of-3 from samouraiworld/gnoland-packages (the same bytes as onyx-1's seq 36 publish) and enabled at height 658489 (storage deposit 6,534,500 ugnot). Its owner is the deployer, the 2-of-3. No stake cap; house fee 0.1 GNOT per decisive game. Every file byte-equal to the ceremony stage; reconcile ALL_OK."
     }
   },
   "_note_stale_networks": "test11, portal-loop, staging removed 2026-06-28 (no Memba realms deployed; test12 retained for historical record).",

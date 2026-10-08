@@ -44,6 +44,7 @@ describe("ComingSoon", () => {
             "VITE_ENABLE_SERVICES",
             "VITE_ENABLE_AGENTS",
             "VITE_ENABLE_POINTS",
+            "VITE_ENABLE_CONNECT4", // the default network (mainnet) has the Connect 4 realm
         ]) {
             vi.stubEnv(flag, "true")
         }

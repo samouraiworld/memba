@@ -106,7 +106,9 @@ describe('config constants', () => {
             // The Token Launchpad (2026-10-08): listing these opens token creation and fair sales.
             'launchpad/config/v1', 'launchpad/tokens/v1', 'launchpad/sales/v1',
             // Memba DAO's governance (2026-10-08): each app joins it only once handed over.
-            'memba_gov', 'memba_bridge_v1']
+            'memba_gov', 'memba_bridge_v1',
+            // Connect 4 (2026-10-08): staked games, no stake cap.
+            'connect4']
         for (const base of exposed) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must be allowlisted on mainnet`).toBe(true)
             expect(records?.[base], `mainnet realm '${base}' has no realm-versions.json mainnet record`).toBeDefined()
@@ -1215,9 +1217,9 @@ describe("candidature realm gate", () => {
 describe("connect4 realm path", () => {
     afterEach(() => vi.unstubAllEnvs())
 
-    it("is set on onyx only, never on mainnet", () => {
+    it("is set on mainnet and onyx, nowhere else", () => {
         expect(connect4PathFor("onyx")).toBe("gno.land/r/samcrew/connect4")
-        expect(connect4PathFor("mainnet")).toBeNull()
+        expect(connect4PathFor("mainnet")).toBe("gno.land/r/samcrew/connect4")
         expect(connect4PathFor("gnoland1")).toBeNull()
         expect(connect4PathFor("nope")).toBeNull()
     })
@@ -1225,7 +1227,7 @@ describe("connect4 realm path", () => {
     it("honours the env override on testnets only", () => {
         vi.stubEnv("VITE_CONNECT4_REALM_PATH", "gno.land/r/x/c4")
         expect(connect4PathFor("onyx")).toBe("gno.land/r/x/c4")
-        expect(connect4PathFor("mainnet")).toBeNull()
+        expect(connect4PathFor("mainnet")).toBe("gno.land/r/samcrew/connect4")
     })
 
     it("is off unless the flag is exactly true", () => {

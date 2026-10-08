@@ -595,6 +595,13 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // apps, and Execute is withheld for any other (the bridge refuses them).
         "gno.land/r/samcrew/memba_gov",
         "gno.land/r/samcrew/memba_bridge_v1",
+        // ── Connect 4 go-live ─────────────────────────────────────────────────
+        // CUSTODIES FUNDS: each game's two stakes until it settles. Published
+        // 2026-10-08 at sequence 77 (realm-versions.json `mainnet`), no stake cap,
+        // house fee 0.1 GNOT per decisive game; its owner is the 2-of-3. The
+        // games read their realm from connect4PathFor, fixed on mainnet; the
+        // Arcade lane also needs VITE_ENABLE_CONNECT4.
+        "gno.land/r/samcrew/connect4",
     ],
     test13: [
         "gno.land/r/samcrew/memba_dao",
@@ -1041,14 +1048,17 @@ export function appStorePathFor(networkKey: string): string {
     return import.meta.env.VITE_APPSTORE_REALM_PATH
         || (networkKey === "mainnet" ? "gno.land/r/samcrew/memba_appstore_v3" : "gno.land/r/samcrew/memba_appstore_v2")
 }
-/** The Connect 4 realm on a network, or null where it is not deployed. Testnets
- * only — the env override is ignored on mainnet so a stray variable cannot open
- * a money path there. */
+/** The Connect 4 realm on a network, or null where it is not deployed. On mainnet
+ * it is the realm the publisher 2-of-3 published on 2026-10-08 (realm-versions.json
+ * `mainnet`), fixed here: the env override applies to testnets only, so a stray
+ * variable cannot point a money path elsewhere on mainnet. */
 export function connect4PathFor(networkKey: string): string | null {
+    if (networkKey === "mainnet") return CONNECT4_MAINNET_PATH
     if (!NETWORKS[networkKey]?.isTestnet) return null
     return import.meta.env.VITE_CONNECT4_REALM_PATH
         || (networkKey === "onyx" ? "gno.land/r/samcrew/connect4" : null)
 }
+const CONNECT4_MAINNET_PATH = "gno.land/r/samcrew/connect4"
 export const isConnect4Live = (): boolean =>
     isConnect4Enabled() && connect4PathFor(ACTIVE_NETWORK_KEY) !== null
 
@@ -1239,9 +1249,10 @@ export const isSpaceInvadersEnabled = (): boolean =>
  * wallet, no money path. Off by default; owner flips at reveal time. */
 export const isBarricadeEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_BARRICADE === "true"
-/** Connect 4 (staked, testnet demo). Real ugnot stakes move, but only on a
- * testnet: connect4PathFor returns null on every non-testnet, which is the
- * structural lock (a SAFETY_GATED flag would fail every build that enables it). */
+/** Connect 4 (staked). Real ugnot stakes move wherever connect4PathFor names a
+ * realm (mainnet and Onyx). Ordinary flag: one build serves both networks, so a
+ * SAFETY_GATED flag would take Onyx down with mainnet; the path itself is the
+ * reviewed gate. */
 export const isConnect4Enabled = (): boolean =>
   import.meta.env.VITE_ENABLE_CONNECT4 === "true"
 /** BARRICADE on-chain certify (G3). Read-only/opt-in surface: the certify action
