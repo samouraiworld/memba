@@ -13,7 +13,7 @@ export interface ArcadeGame {
     tags: readonly string[]
     cost: "free" | "staked"
     info: readonly (readonly [string, string])[]
-    /** Null until the game has an audited mainnet realm: it then has no ratings and no reviews. */
+    /** Null until the game has a mainnet realm: it then has no ratings and no reviews. */
     reviewSubject: string | null
     enabled: () => boolean
     daily: boolean
@@ -54,7 +54,7 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
         howTo: ["Connect your wallet to play. You can watch games without one.", "After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts.", "The reveal key is stored only in this browser; missing it forfeits your stake."],
         tags: ["Duel", "Staked"], cost: "staked",
         info: [["Modes", "Staked duel"], ["Players", "2"], ["Cost", "Staked · GNOT"], ["Scores", "Results settle on-chain"], ["Controls", "Pick a column"], MADE_BY],
-        reviewSubject: null, enabled: isConnect4Live, daily: false, dailyBoard: false, featured: false,
+        reviewSubject: GAME_REVIEW_SUBJECTS.connect4 ?? null, enabled: isConnect4Live, daily: false, dailyBoard: false, featured: false,
     },
 ]
 

@@ -10,6 +10,7 @@ describe("review subjects are permanent", () => {
             "block-party": "gno.land/r/samcrew/block_party",
             "space-invaders": "gno.land/r/samcrew/space_invaders",
             "barricade": "gno.land/r/samcrew/barricade",
+            "connect4": "gno.land/r/samcrew/connect4",
         })
     })
     it("pins every curated project subject", () => {
@@ -39,8 +40,7 @@ describe("review subjects are permanent", () => {
         expect(isCuratedReviewSubject("gno.land/r/samcrew/barricade")).toBe(true)
         expect(isCuratedReviewSubject("memba:app/unknown")).toBe(false)
         expect(isCuratedReviewSubject("gno.land/r/someone/app")).toBe(false)
-        // Not deployed on mainnet: Connect 4 gets a subject only with its audited mainnet realm.
-        expect(isCuratedReviewSubject("gno.land/r/samcrew/connect4")).toBe(false)
+        expect(isCuratedReviewSubject("gno.land/r/samcrew/connect4")).toBe(true)
     })
     it("freezes the subject tables", () => {
         expect(Object.isFrozen(GAME_REVIEW_SUBJECTS)).toBe(true)
@@ -53,13 +53,13 @@ describe("curated review names", () => {
         expect(curatedReviewName("gno.land/r/samcrew/block_party")).toBe("Block Party")
         expect(curatedReviewName("gno.land/r/samcrew/space_invaders")).toBe("Space Invaders")
         expect(curatedReviewName("gno.land/r/samcrew/barricade")).toBe("BARRICADE")
+        expect(curatedReviewName("gno.land/r/samcrew/connect4")).toBe("Connect 4")
         for (const project of ECOSYSTEM_PROJECTS) expect(curatedReviewName(projectReviewSubject(project)), project.id).toBe(project.name)
     })
     it("has a name for every curated subject and none for others", () => {
         for (const subject of [...Object.values(GAME_REVIEW_SUBJECTS), ...Object.values(CURATED_APP_SUBJECTS)]) {
             expect(curatedReviewName(subject!), subject).toBeTruthy()
         }
-        expect(curatedReviewName("gno.land/r/samcrew/connect4")).toBeNull()
         expect(curatedReviewName("memba:app/unknown")).toBeNull()
         expect(curatedReviewName("toString")).toBeNull()
     })

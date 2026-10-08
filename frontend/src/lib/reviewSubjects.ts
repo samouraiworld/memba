@@ -13,14 +13,14 @@ import { ECOSYSTEM_PROJECTS, type EcosystemProject } from "./ecosystemDirectory"
 export type ArcadeGameId = "block-party" | "space-invaders" | "barricade" | "connect4"
 
 /**
- * Only games whose realm is deployed on mainnet have a subject. Connect 4 gets
- * its subject only once its audited mainnet realm exists: pinning a path before
- * then could lock deposits under a realm that is never deployed there.
+ * Only games whose realm is deployed on mainnet have a subject. Connect 4's was
+ * pinned once its realm was published on gnoland-1 (2026-10-08).
  */
 export const GAME_REVIEW_SUBJECTS: Readonly<Partial<Record<ArcadeGameId, string>>> = Object.freeze({
     "block-party": "gno.land/r/samcrew/block_party",
     "space-invaders": "gno.land/r/samcrew/space_invaders",
     "barricade": "gno.land/r/samcrew/barricade",
+    "connect4": "gno.land/r/samcrew/connect4",
 })
 
 /** Keyed by ECOSYSTEM_PROJECTS id. A new project adds a line; an existing line never changes. */
@@ -54,6 +54,7 @@ const GAME_REVIEW_NAMES: Readonly<Partial<Record<ArcadeGameId, string>>> = Objec
     "block-party": "Block Party",
     "space-invaders": "Space Invaders",
     "barricade": "BARRICADE",
+    "connect4": "Connect 4",
 })
 
 /** The one display name the signing sheet may show for each curated subject. */

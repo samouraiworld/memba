@@ -97,14 +97,15 @@ describe("Arcade lobby", () => {
     })
 
     it("reviews each deployed game under its pinned display name, and Connect 4 has no reviews yet", () => {
-        const pinned = [["block-party", "Block Party"], ["space-invaders", "Space Invaders"], ["barricade", "BARRICADE"]] as const
+        const pinned = [["block-party", "Block Party"], ["space-invaders", "Space Invaders"], ["barricade", "BARRICADE"], ["connect4", "Connect 4"]] as const
         for (const [id, name] of pinned) {
             const { unmount } = wrap(<ArcadeWindow {...base} section={`g/${id}`} open={vi.fn()} />)
             expect(curatedReviewName(GAME_REVIEW_SUBJECTS[id]!)).toBe(name)
             expect(screen.getByText(`reviews of ${GAME_REVIEW_SUBJECTS[id]} as ${name}`)).toBeInTheDocument()
             unmount()
         }
-        wrap(<ArcadeWindow {...base} section="g/connect4" open={vi.fn()} />)
+        // Where Connect 4 has no realm, the page says when its reviews open.
+        wrap(<ArcadeWindow {...base} session={{ network: { key: "test13", chainId: "test13" }, status: "guest" } as never} section="g/connect4" open={vi.fn()} />)
         expect(screen.getByRole("heading", { level: 1, name: "Connect 4" })).toBeInTheDocument()
         expect(screen.getByText("Reviews open once Connect 4 is live on mainnet.")).toBeInTheDocument()
         expect(screen.queryByText(/^reviews of /)).not.toBeInTheDocument()
