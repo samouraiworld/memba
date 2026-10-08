@@ -1,0 +1,23 @@
+body.memba-os { display: block; margin: 0; min-height: 100vh; height: auto; overflow: auto; background: var(--os-bg); color: var(--os-ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.gnotif-lab { max-width: 560px; margin: 48px auto; padding: 0 24px; line-height: 1.6; }
+.gnotif-lab .back { font-size: 13px; }
+.gnotif-lab header { margin: 36px 0; }
+.gnotif-lab .lab-symbol { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--os-chip); color: var(--os-acc); font-size: 32px; }
+.gnotif-lab h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.2; letter-spacing: -.04em; margin: 22px 0 16px; }
+.gnotif-lab h2 { font-size: 19px; margin: 0; }
+.gnotif-lab p { color: var(--os-mut); }
+.gnotif-lab label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.gnotif-lab input { box-sizing: border-box; width: 100%; padding: 12px; font: inherit; color: var(--os-ink); background: var(--os-card); border: 1px solid var(--os-line); border-radius: 10px; }
+.gnotif-lab .hint { font-size: 12px; }
+.gnotif-lab .actions { display: flex; gap: 12px; margin-top: 24px; }
+.gnotif-lab button, .gnotif-lab .demo { padding: 10px 16px; background: var(--os-acc); color: white; border: 0; border-radius: 9px; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; }
+.gnotif-lab #disable { background: var(--os-chip); color: var(--os-ink); }
+.gnotif-lab [hidden] { display: none; }
+.gnotif-lab button:disabled { opacity: .5; cursor: default; }
+.gnotif-lab #status { font-size: 13px; min-height: 42px; overflow-wrap: anywhere; }
+.gnotif-lab .send { border-top: 1px solid var(--os-line); padding-top: 26px; margin-top: 30px; }
+.gnotif-lab .demo { display: inline-block; }
+.gnotif-lab footer { border-top: 1px solid var(--os-line); margin-top: 36px; padding-top: 20px; display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--os-mut); }
+.gnotif-lab a { color: var(--os-acc); }
+.gnotif-lab :focus-visible { outline: 2px solid var(--os-acc); outline-offset: 4px; }
+@media (max-width: 480px) { .gnotif-lab { margin: 24px auto; } }

@@ -84,7 +84,7 @@ function professionalBrandPlugin(): PluginOption {
     config(_config, { mode }) {
       enabled = ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_PRO_APP === 'true'
     },
-    transformIndexHtml(html) { return enabled ? professionalBrandHtml(html) : html },
+    transformIndexHtml(html, ctx) { return enabled && !ctx.filename.includes('/labs/') ? professionalBrandHtml(html) : html },
     writeBundle() {
       if (!enabled) return
       // Existing manifest URLs remain stable; only this preview build adopts the approved artwork.
@@ -102,7 +102,7 @@ function osIdentityPlugin(mode: string): PluginOption {
   return {
     name: 'beta-site-identity',
     apply: 'build',
-    transformIndexHtml(html) { return enabled ? osSiteHtml(html) : html },
+    transformIndexHtml(html, ctx) { return enabled && !ctx.filename.includes('/labs/') ? osSiteHtml(html) : html },
     generateBundle() {
       if (!enabled) return
       for (const name of OS_BRAND_FILES) {
@@ -203,6 +203,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
     sourcemap: true, // Required for Sentry source map uploads
     assetsInlineLimit: osEnabledFor(mode) ? undefined : (filePath: string) => /(manrope|chakra-petch)-latin-\d+-normal\.woff2$/.test(filePath) || undefined,
     rollupOptions: {
+      input: { main: resolve('index.html'), gnotif: resolve('labs/gnotif/index.html') },
       output: {
         // Function form (BARRICADE 3D, PR-0c): unlike the object form, a module is
         // grouped ONLY when it is actually in the graph — so three / react-three-fiber
@@ -272,6 +273,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/labs\/gnotif(?:\/|$)/],
         globPatterns: ['**/*.{js,css,html,woff2}'],
         // The BARRICADE 3D renderer chunk is precache-EXCLUDED: globPatterns above
         // precaches **/*.js ≤4MB, so without this every user — including 2D-mode
@@ -281,7 +283,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
         // the 3D renderer lands and lazily imports three.
         // Review-only brand specimens should not enter the production offline precache.
         // sw-retire.js is the retired classic host's service-worker kill switch, never part of this app.
-        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js', '**/vendor-safe-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js'],
+        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js', '**/vendor-safe-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js', 'labs/gnotif/**'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [

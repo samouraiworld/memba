@@ -18,6 +18,22 @@ function show(section: string | null, open = vi.fn<(spec: WindowSpec) => void>()
 }
 
 describe("Settings · Notifications", () => {
+    it("hides the browser experiment unless explicitly enabled", () => {
+        vi.stubEnv("VITE_ENABLE_GNOTIF_LAB", "false")
+        show("notifications")
+        expect(screen.queryByRole("link", { name: "Try browser notifications" })).toBeNull()
+        vi.unstubAllEnvs()
+    })
+
+    it("opens the enabled lab in a separate tab", () => {
+        vi.stubEnv("VITE_ENABLE_GNOTIF_LAB", "true")
+        show("notifications")
+        const link = screen.getByRole("link", { name: "Try browser notifications" })
+        expect(link).toHaveAttribute("href", "/labs/gnotif/")
+        expect(link).toHaveAttribute("target", "_blank")
+        vi.unstubAllEnvs()
+    })
+
     it("opens Notifications for the classic /alerts address, with the alerts panel loaded there", async () => {
         show("alerts")
         expect(screen.getByRole("button", { name: "Notifications" })).toHaveAttribute("aria-current", "true")
