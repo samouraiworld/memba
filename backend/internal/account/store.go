@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"time"
 )
 
@@ -80,9 +81,31 @@ func nullable(s string) any {
 	return s
 }
 
-// Delete removes the account; every row that references it goes with it
-// (ON DELETE CASCADE).
-func Delete(ctx context.Context, db *sql.DB, id string) error {
-	_, err := db.ExecContext(ctx, "DELETE FROM accounts WHERE id = ?", id)
-	return err
+// Delete atomically records the pseudonymous denial marker and removes the
+// account plus every owned row (cascade). Neither half may commit alone.
+func Delete(ctx context.Context, db *sql.DB, id string, now time.Time) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var provider, subject string
+	if err := tx.QueryRowContext(ctx, "SELECT idp, idp_subject FROM accounts WHERE id = ?", id).Scan(&provider, &subject); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO account_deletions (subject_digest, deleted_at) VALUES (?, ?)",
+		deletionDigest(provider, subject), now.UTC().Format(time.RFC3339)); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, "DELETE FROM accounts WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 1 {
+		return errors.New("account deletion did not remove the account")
+	}
+	return tx.Commit()
 }

@@ -48,7 +48,7 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request, a Account) {
 			return
 		}
 	}
-	if err := Delete(r.Context(), h.db, a.ID); err != nil {
+	if err := Delete(r.Context(), h.db, a.ID, h.now()); err != nil {
 		h.fail(w, "delete", err)
 		return
 	}

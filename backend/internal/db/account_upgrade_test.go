@@ -24,7 +24,7 @@ func TestAccountUpgradePreservesEVMMigrationsAndSurvivesRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	accountMigrations := map[string]bool{
-		"038_accounts.sql": true, "039_consents.sql": true, "040_webhook_events.sql": true,
+		"038_accounts.sql": true, "039_consents.sql": true, "040_webhook_events.sql": true, "041_account_deletions.sql": true,
 	}
 	entries, err := migrationsFS.ReadDir("migrations")
 	if err != nil {
@@ -62,8 +62,8 @@ func TestAccountUpgradePreservesEVMMigrationsAndSurvivesRestart(t *testing.T) {
 	if err := database.QueryRow("SELECT COUNT(*) FROM _migrations").Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied < baseline+3 {
-		t.Fatalf("expected three account migrations after %d baseline migrations, got %d", baseline, applied)
+	if applied < baseline+len(accountMigrations) {
+		t.Fatalf("expected all account migrations after %d baseline migrations, got %d", baseline, applied)
 	}
 	for name := range accountMigrations {
 		var n int

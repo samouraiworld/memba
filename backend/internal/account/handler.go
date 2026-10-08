@@ -120,6 +120,20 @@ func (h *handler) authed(next func(http.ResponseWriter, *http.Request, Account))
 		defer release()
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
+		deleted, err := wasDeleted(ctx, h.db, claims.Subject)
+		if err != nil {
+			slog.Error("account: deletion marker", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		if deleted {
+			if r.Method == http.MethodPost && r.URL.Path == "/api/account/delete" {
+				w.WriteHeader(http.StatusNoContent)
+			} else {
+				deletedAccount(w)
+			}
+			return
+		}
 		a, err := Ensure(ctx, h.db, claims.Subject, h.now())
 		if err != nil {
 			slog.Error("account: ensure", "error", err)
