@@ -101,11 +101,18 @@ describe("chainPublicKey", () => {
         await expect(chainPublicKey(ADDR)).resolves.toBeNull()
     })
 
-    it("throws when no node answers, and never queries a malformed address", async () => {
+    it("throws when no node answers", async () => {
         vi.mocked(abciQueryText).mockRejectedValueOnce(new Error("fetch failed"))
         await expect(chainPublicKey(ADDR)).rejects.toThrow("fetch failed")
+    })
+
+    it("asks the chain for any spelling of an address, upper case included, and answers null for what is not one", async () => {
         vi.mocked(abciQueryText).mockClear()
-        await expect(chainPublicKey('g1"x')).rejects.toThrow("Not a gno.land address")
+        vi.mocked(abciQueryText).mockResolvedValueOnce(JSON.stringify({ BaseAccount: { public_key: KEY } }))
+        await expect(chainPublicKey(ADDR.toUpperCase())).resolves.toEqual(KEY)
+        expect(vi.mocked(abciQueryText).mock.calls[0][1]).toBe(`auth/accounts/${ADDR.toUpperCase()}`)
+        vi.mocked(abciQueryText).mockClear()
+        for (const text of ['g1"x', "", `${ADDR}x`, "g1b"]) await expect(chainPublicKey(text)).resolves.toBeNull()
         expect(abciQueryText).not.toHaveBeenCalled()
     })
 })

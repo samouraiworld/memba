@@ -13,16 +13,18 @@ export interface ChainPublicKey { "@type": string; value: string }
 
 /**
  * The public key the chain holds for `address`, or null while the address has
- * never signed a transaction there (the chain learns a key from its first one).
- * Read from a node that serves `chainId`; throws when none answers.
+ * never signed a transaction there (the chain learns a key from its first one),
+ * and for text that is not an address. Read from a node that serves `chainId`,
+ * which decides what a valid spelling is; throws when none answers.
  */
 export async function chainPublicKey(address: string, chainId: string = GNO_CHAIN_ID): Promise<ChainPublicKey | null> {
-    if (!/^g1[a-z0-9]{38}$/.test(address)) throw new Error("Not a gno.land address")
+    // Only the shape is checked here (it goes into the query path), in either case: the chain refuses a bad checksum.
+    if (!/^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/i.test(address)) return null
     let text: string
     try {
         text = await abciQueryText({ rpcUrl: GNO_RPC_URL, rpcUrls: getRpcUrlsInOrder(), chainId }, `auth/accounts/${address}`, "")
     } catch (err) {
-        // The chain answered and has no account there: nothing has signed from it yet.
+        // The chain answered and has no account there (or refused the address): nothing has signed from it.
         if (err instanceof ChainAnswerError) return null
         throw err
     }
