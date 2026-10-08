@@ -22,6 +22,9 @@ Full changelogs are split by version range for easier navigation:
 
 ### The Memba logo in Memba OS (2026-10-08)
 - Memba OS: the menu button and lock screen show the Memba folded-M logo, in the brand colour of each theme.
+### Wallet errors say what failed (2026-10-08)
+- Feed posts, flags, reactions, listing cancels and app curation now show what actually failed (an untrusted wallet node, the wrong network, a locked Adena, the realm's own reason) instead of "Could not post. Please try again."; a cancel in the wallet stays silent.
+- When Adena does not report its network, the message now says why: no answer in time, Adena's failure type, or no network named.
 
 ### Faster Adena signatures and activation (2026-10-08)
 - Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.

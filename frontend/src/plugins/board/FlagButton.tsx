@@ -11,6 +11,7 @@
 
 import { useState } from "react"
 import { doContractBroadcast } from "../../lib/grc20"
+import { walletErrorText } from "../../lib/walletErrorText"
 
 interface FlagButtonProps {
     boardPath: string
@@ -57,11 +58,10 @@ export function FlagButton({ boardPath, channel, threadId, isMember, isAuthentic
             setFlagged(true)
             onFlagged?.()
         } catch (err) {
-            const msg = err instanceof Error ? err.message : "Failed to flag"
-            if (msg.includes("already flagged")) {
+            if (err instanceof Error && err.message.includes("already flagged")) {
                 setFlagged(true)
             } else {
-                setError(msg)
+                setError(walletErrorText(err, "Failed to flag") || null)
             }
         } finally {
             setFlagging(false)

@@ -910,6 +910,7 @@
     color: var(--color-k-danger-text, #d33);
     font-size: var(--text-xs, 0.75rem);
 }
+.feed-reactions .feed-post__flagerror { flex-basis: 100%; }
 
 /* Visible keyboard focus on every card control (they reset border/background). */
 .feed-post__identity:focus-visible,

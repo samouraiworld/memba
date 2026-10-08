@@ -99,6 +99,21 @@ describe("ReactionBar", () => {
         expect(mockSubmit.mock.calls[0][1]).toMatch(/react/i)
     })
 
+    it("says why a reaction failed, and stays silent on a cancel", async () => {
+        vi.stubEnv("VITE_ENABLE_REACTIONS", "true")
+        mockFetch.mockResolvedValue(reactions([{ emoji: "👍", count: 3, viewerReacted: false }]))
+        mockSubmit.mockRejectedValueOnce(new Error("Adena is locked — unlock it, then try again."))
+        withClient(<ReactionBar postId={7n} connected selfAddress="g1me" onConnect={vi.fn()} />)
+
+        fireEvent.click(await screen.findByLabelText("👍 3"))
+        expect(await screen.findByTestId("feed-reaction-error")).toHaveTextContent("Adena is locked — unlock it, then try again.")
+
+        mockSubmit.mockRejectedValueOnce(new Error("The transaction has been rejected by the user."))
+        fireEvent.click(screen.getByLabelText("👍 3"))
+        await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(2))
+        await waitFor(() => expect(screen.queryByTestId("feed-reaction-error")).toBeNull())
+    })
+
     it("connects first when a disconnected visitor taps a reaction", async () => {
         vi.stubEnv("VITE_ENABLE_REACTIONS", "true")
         mockFetch.mockResolvedValue(reactions([{ emoji: "👍", count: 3, viewerReacted: false }]))

@@ -25,7 +25,7 @@ describe("assertLiveWalletNetwork", () => {
 
     it("refuses an empty chain id from both the account and the network", async () => {
         vi.stubGlobal("adena", liveWallet({ chainId: "", networkChainId: "" }))
-        await expect(assertLiveWalletNetwork()).rejects.toThrow(`Your wallet did not report its network — switch Adena to ${label} and try again.`)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(`Your wallet did not report its network (Adena named no chain) — switch Adena to ${label} and try again.`)
     })
 
     it("refuses a chain id made only of whitespace", async () => {
@@ -61,21 +61,22 @@ describe("assertLiveWalletNetwork", () => {
     })
 
     it("refuses when there is no wallet, or it cannot report its account", async () => {
-        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
+        const absent = "Adena is not available on this page — install or enable it, then reload."
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(absent)
         vi.stubGlobal("adena", { DoContract: vi.fn() })
-        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(absent)
     })
 
     it("refuses when the wallet answers with a failure or throws", async () => {
         const locked = liveWallet()
         locked.GetAccount.mockResolvedValue({ status: "failure", data: null } as never)
         vi.stubGlobal("adena", locked)
-        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network \(Adena answered with a failure\)/)
 
         const broken = liveWallet()
         broken.GetNetwork.mockRejectedValue(new Error("boom"))
         vi.stubGlobal("adena", broken)
-        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network \(Adena failed: boom\)/)
 
         const failing = liveWallet()
         failing.GetNetwork.mockResolvedValue({ status: "failure" } as never)
@@ -187,11 +188,11 @@ describe("assertLiveWalletNetwork", () => {
         await expect(assertLiveWalletNetwork()).rejects.toThrow("Adena is not connected to Memba — reconnect your wallet, then try again.")
     })
 
-    it("keeps the network message for other failures", async () => {
+    it("keeps the network message for other failures, naming Adena's failure type", async () => {
         const wallet = liveWallet()
         wallet.GetAccount.mockResolvedValue({ status: "failure", type: "NO_ACCOUNT", data: {} } as never)
         vi.stubGlobal("adena", wallet)
-        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(`Your wallet did not report its network (Adena answered NO_ACCOUNT) — switch Adena to ${label} and try again.`)
     })
 
     it("refuses when Adena's account is not the connected one", async () => {
@@ -209,7 +210,7 @@ describe("assertLiveWalletNetwork", () => {
         wallet.GetAccount.mockReturnValue(new Promise(() => {}) as never)
         vi.stubGlobal("adena", wallet)
         const pending = assertLiveWalletNetwork(GNO_CHAIN_ID, { timeoutMs: 1000 })
-        const settled = expect(pending).rejects.toThrow(/did not report its network/)
+        const settled = expect(pending).rejects.toThrow("Your wallet did not report its network (no answer within 1 s) — reload this tab (needed after Adena updates), then try again.")
         await vi.advanceTimersByTimeAsync(1000)
         await settled
     })

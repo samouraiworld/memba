@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAdena } from "../hooks/useAdena"
 import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreV3, fetchByStatus, type AppListing } from "../lib/appStore"
+import { walletErrorText } from "../lib/walletErrorText"
 import {
     MAX_REASON_LEN,
     fetchIsCurator,
@@ -166,13 +167,11 @@ function QueueItem({ listing, networkKey, address }: {
         onSuccess: removeFromQueue,
         onError: (e: unknown) => {
             const msg = e instanceof Error ? e.message : String(e)
-            if (/denied|rejected by user|cancel/i.test(msg)) {
-                setError(null) // wallet dismissal
-            } else if (/only a pending app|unauthorized/i.test(msg)) {
+            if (/only a pending app|unauthorized/i.test(msg)) {
                 // The realm's verdict is the truth — refresh rather than argue with it.
                 setError("The realm refused the action — the listing may have changed. Reload the queue.")
             } else {
-                setError("The transaction didn't go through. Please try again.")
+                setError(walletErrorText(e, "The transaction didn't go through. Please try again.") || null)
             }
         },
     })
