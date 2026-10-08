@@ -8,7 +8,7 @@
  * page renders — and it fails closed on any read problem.
  *
  * Curation moves no funds, so there is no safety-gated flag: the route rides
- * `VITE_ENABLE_APPSTORE` (AppStoreGate) and requires the v3 realm + a curator wallet.
+ * `VITE_ENABLE_APPSTORE` (AppStoreGate) and requires a v3 or v4 realm + a curator wallet.
  *
  * @module pages/AppCurator
  */
@@ -18,20 +18,23 @@ import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAdena } from "../hooks/useAdena"
 import { useNetwork } from "../hooks/useNetwork"
-import { isAppStoreV3, fetchByStatus, type AppListing } from "../lib/appStore"
+import { isAppStoreV3OrLater, isAppStoreV4, isPublishablePath, isSafeRealmPath, fetchByStatus, type AppListing } from "../lib/appStore"
 import { walletErrorText } from "../lib/walletErrorText"
 import {
     MAX_REASON_LEN,
     fetchIsCurator,
     buildApproveAppMsg,
     buildRejectAppMsg,
+    buildAttestPublisherMsg,
+    buildRevokeAttestationMsg,
 } from "../lib/appStoreCuration"
+import { isValidGnoAddressChecksum } from "../lib/dao/address"
 import "./appstore.css"
 
 export function AppCurator() {
     const { networkKey } = useNetwork()
     const { connected, address, connect } = useAdena()
-    const v3 = isAppStoreV3()
+    const v3 = isAppStoreV3OrLater()
 
     const { data: isCurator } = useQuery({
         queryKey: ["appStore", "isCurator", address],
@@ -45,7 +48,7 @@ export function AppCurator() {
         return (
             <Shell networkKey={networkKey}>
                 <div className="appstore__notice" data-testid="appcurator-v2">
-                    <p className="appstore__notice-title">Curation needs the v3 App Store realm</p>
+                    <p className="appstore__notice-title">Curation needs App Store v3 or later</p>
                     <p className="appstore__muted">
                         This network is still on the previous App Store realm. Check back after the
                         migration.
@@ -112,6 +115,8 @@ function CuratorQueue({ networkKey, address }: { networkKey: string; address: st
                     before approving; give rejected submitters a reason they can act on.
                 </p>
             </header>
+
+            {isAppStoreV4() && <AttestPanel address={address} />}
 
             {isPending ? (
                 <p className="appstore__muted">Loading the queue…</p>
@@ -233,6 +238,62 @@ function QueueItem({ listing, networkKey, address }: {
             )}
             {error && <p className="appsubmit__txerror" role="alert">{error}</p>}
         </li>
+    )
+}
+
+/**
+ * v4 registers a path only for its namespace owner, or for an address a curator attested for it:
+ * attest a publisher whose namespace owner cannot sign, or withdraw an unused attestation.
+ */
+function AttestPanel({ address }: { address: string }) {
+    const [pkgPath, setPkgPath] = useState("")
+    const [publisher, setPublisher] = useState("")
+    const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
+    // Attesting needs a path v4 publishes; withdrawing only a safe one (the realm says when there is none).
+    const attestPathOk = isPublishablePath(pkgPath)
+    const revokePathOk = isSafeRealmPath(pkgPath)
+    const publisherOk = isValidGnoAddressChecksum(publisher)
+    // The account, the path and the publisher travel with the call (see QueueItem).
+    const act = useMutation({
+        mutationFn: async ({ kind, caller, pkgPath, publisher }: { kind: "attest" | "revoke"; caller: string; pkgPath: string; publisher: string }) => {
+            const { doContractBroadcast } = await import("../lib/grc20")
+            const msg = kind === "attest" ? buildAttestPublisherMsg(caller, pkgPath, publisher) : buildRevokeAttestationMsg(caller, pkgPath)
+            await doContractBroadcast([msg], kind === "attest" ? "Attest publisher" : "Revoke attestation")
+            return kind
+        },
+        onSuccess: (kind, { pkgPath, publisher }) => setResult({ ok: true, text: kind === "attest"
+            ? `Sent: once the chain includes it, ${publisher} can list ${pkgPath} once.`
+            : `Sent: once the chain includes it, the attestation for ${pkgPath} is withdrawn.` }),
+        onError: (e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e)
+            if (/denied|rejected by user|cancel/i.test(msg)) setResult(null)
+            else if (/already registered/i.test(msg)) setResult({ ok: false, text: "This path is already listed: an attestation only opens an unlisted path." })
+            else if (/no attestation/i.test(msg)) setResult({ ok: false, text: "This path has no attestation to withdraw." })
+            else setResult({ ok: false, text: "The transaction didn't go through. Please try again." })
+        },
+    })
+    const send = (kind: "attest" | "revoke") => { setResult(null); act.mutate({ kind, caller: address, pkgPath, publisher }) }
+    return (
+        <section className="appcurator__rejectbox" data-testid="appcurator-attest">
+            <p className="appstore__notice-title">Attest a publisher</p>
+            <p className="appstore__muted">
+                Only the owner of a path's namespace can list it. To let another address list one path once,
+                attest it here; withdraw an attestation that has not been used yet.
+            </p>
+            <label htmlFor="appcurator-attest-path">Package path</label>
+            <input id="appcurator-attest-path" value={pkgPath} placeholder="gno.land/r/…" onChange={(e) => setPkgPath(e.target.value.trim())} />
+            <label htmlFor="appcurator-attest-publisher">Publisher address</label>
+            <input id="appcurator-attest-publisher" value={publisher} placeholder="g1…" onChange={(e) => setPublisher(e.target.value.trim())} />
+            <div className="appcurator__actions">
+                <button type="button" className="appbtn appbtn--primary" disabled={act.isPending || !attestPathOk || !publisherOk} onClick={() => send("attest")}>
+                    {act.isPending ? "Waiting for wallet…" : "Attest"}
+                </button>
+                <button type="button" className="appbtn appbtn--ghost" disabled={act.isPending || !revokePathOk} onClick={() => send("revoke")}>
+                    Withdraw attestation
+                </button>
+            </div>
+            {result && <p className={result.ok ? "appstore__muted" : "appsubmit__txerror"} role={result.ok ? "status" : "alert"}>{result.text}</p>}
+        </section>
     )
 }
 
