@@ -14,7 +14,7 @@ import type { ChainFamily } from "../lib/chain/types"
 export type AppTier = "mvp" | "v1.1" | "v1.2" | "v1.3"
 
 export type OsAppId =
-    | "daos" | "wallet" | "multisig" | "feed" | "live" | "store" | "arcade" | "validators" | "settings"
+    | "radio" | "daos" | "wallet" | "multisig" | "feed" | "live" | "store" | "arcade" | "validators" | "settings"
     | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal" | "learn" | "meet"
 
 export interface OsApp {
@@ -34,6 +34,7 @@ export interface OsApp {
 }
 
 export const OS_APPS: readonly OsApp[] = [
+    { id: "radio", name: "Radio", slug: "radio", summary: "Listen to Gno Radio live on Onyx", tier: "mvp", tint: ["#627EF8", "#4249B8"], dock: false, routes: [] },
     { id: "daos", name: "DAOs", slug: "daos", summary: "Browse, create and govern DAOs", tier: "mvp", tint: ["#5B7CFA", "#3D5BE0"], dock: true,
       routes: ["dao", "dao/create", "dao/*", "organizations", "candidature"] },
     { id: "wallet", name: "Wallet", slug: "wallet", summary: "Balances, send, receive, history", tier: "mvp", tint: ["#2FC08E", "#12A07A"], dock: true,

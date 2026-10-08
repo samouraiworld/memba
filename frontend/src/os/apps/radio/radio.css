@@ -1,0 +1,22 @@
+.memba-os .os-radio { padding: 22px; max-width: 480px; margin: auto; color: var(--os-ink); }
+.memba-os .os-radio header { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.memba-os .os-radio header .os-sub { margin-left: auto; }
+.memba-os .os-radio-signal { width: 6px; height: 6px; border-radius: 50%; background: var(--os-mut); }
+.memba-os .os-radio-signal[data-playing] { background: var(--os-acc); box-shadow: 0 0 8px var(--os-acc); }
+.memba-os .os-radio-record { width: 112px; height: 112px; margin: 24px auto 18px; border-radius: 50%; background: repeating-radial-gradient(circle at center, #293344 0 2px, #182230 3px 5px); display: grid; place-items: center; box-shadow: 0 6px 16px var(--os-shadow); position: relative; overflow: hidden; }
+.memba-os .os-radio-record::after { content: ""; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #eef0fa; }
+.memba-os .os-radio-record img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+.memba-os .os-radio-record span { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #4c6ef5; color: white; font-size: 24px; }
+.memba-os .os-radio-title { text-align: center; min-height: 54px; overflow-wrap: anywhere; }
+.memba-os .os-radio-title h3 { margin: 0 0 5px; font-size: 18px; }
+.memba-os .os-radio-title p { margin: 0; }
+.memba-os .os-radio-station { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 14px; font-size: 13px; }
+.memba-os .os-radio-station select { width: 65%; color: var(--os-ink); background: var(--os-card); border: 1px solid var(--os-line); border-radius: 8px; padding: 7px; }
+.memba-os .os-radio-controls { display: flex; gap: 8px; align-items: center; }
+.memba-os .os-radio-play { min-width: 46px; }
+.memba-os .os-radio-controls input { min-width: 30px; flex: 1; accent-color: var(--os-acc); }
+.memba-os .os-radio-status { min-height: 16px; margin: 12px 0; font-size: 12px; }
+.memba-os .os-radio-credit { font-size: 11px; overflow-wrap: anywhere; }
+.memba-os .os-radio footer { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--os-line); padding-top: 14px; margin-top: 18px; font-size: 11px; }
+.memba-os .os-radio a { color: var(--os-acc); }
+.memba-os .os-radio :is(button, input, select, a):focus-visible { outline: 2px solid var(--os-acc); outline-offset: 3px; }

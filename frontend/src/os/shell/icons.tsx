@@ -7,6 +7,7 @@ import type { CSSProperties } from "react"
 import { getApp, type OsAppId } from "../apps"
 
 const PATHS = {
+    radio: <><rect x="3" y="8" width="18" height="12" rx="3" /><path d="M6 8l11-5M6 12h7M6 15h3" /><circle cx="16" cy="15" r="2" /></>,
     dao: <path d="M3 10l9-6 9 6M5 10v9h14v-9M9 19v-5h6v5" />,
     wal: <><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M16 12.5h2" /></>,
     feed: <path d="M5 6h14M5 11h14M5 16h9" />,
@@ -35,7 +36,7 @@ const PATHS = {
 export type IconName = keyof typeof PATHS
 
 const APP_ICON: Record<OsAppId, IconName> = {
-    daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", live: "live", store: "store", arcade: "game", validators: "val",
+    radio: "radio", daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", live: "live", store: "store", arcade: "game", validators: "val",
     settings: "set", tokens: "tok", nft: "nft", market: "tag", quests: "quest", explorer: "exp", profile: "prof", news: "news",
     devreport: "chart", terminal: "term", learn: "learn", meet: "meet",
 }
