@@ -5,12 +5,14 @@ import type { NativeViewProps } from "../../native/types"
 import { specForTarget } from "../../shell/windows"
 import { NextBoardCountdown } from "../../../game/components/NextBoardCountdown"
 import { ReviewsPanel } from "../store/ReviewsPanel"
+import { connect4PathFor } from "../../../lib/config"
 import type { ArcadeGame } from "./catalogue"
 import { DailyTop } from "./DailyTop"
 
 export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; toLobby: () => void } & Pick<NativeViewProps, "session" | "open">) {
     const media = resolveMedia(game.id, null, game.id)
-    const { reviewSubject } = game
+    // Connect 4 is reviewed only where its realm exists; elsewhere the page says when reviews open.
+    const reviewSubject = game.id === "connect4" && connect4PathFor(session.network.key) === null ? null : game.reviewSubject
     const summaries = useReviewSummaries(session.network.chainId, reviewSubject ? [reviewSubject] : [])
     const summary = reviewSubject ? summaries.get(reviewSubject) : undefined
     const enabled = game.enabled()
