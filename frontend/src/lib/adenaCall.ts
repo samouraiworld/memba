@@ -18,8 +18,8 @@ export const ADENA_SLOW_MS = 3_000
 export const ADENA_NO_POPUP_MS = 8_000
 
 export const ADENA_NO_ANSWER_MESSAGE = "Adena didn't answer — reload this tab (needed after Adena updates)."
-/** What Adena answers (UNEXPECTED_ERROR) when another request, from any tab, closed its window. */
-export const ADENA_CLOSED_MESSAGE = "Adena closed its window (another tab asked it something). Try again."
+/** What Adena's UNEXPECTED_ERROR means: Adena closed its window itself (another request, from any tab, replaced it) or failed inside. */
+export const ADENA_CLOSED_MESSAGE = "Adena closed its window or hit an error (another tab may have asked it something). Try again."
 
 /** Adena did not answer in time. */
 export class AdenaNoAnswerError extends Error {
@@ -29,7 +29,7 @@ export class AdenaNoAnswerError extends Error {
     }
 }
 
-/** Adena's reply type when its window was closed under it. */
+/** Adena's reply type when it closed its window itself or failed inside (UNEXPECTED_ERROR). */
 export const isAdenaWindowClosed = (reply: { status?: unknown; type?: unknown } | null | undefined): boolean =>
     reply?.status === "failure" && reply.type === "UNEXPECTED_ERROR"
 

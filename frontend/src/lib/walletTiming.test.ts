@@ -19,13 +19,22 @@ describe("startWalletFlow", () => {
         const flow = startWalletFlow("connect")
         flow.step("click")
         flow.step("account")
+        expect(performance.getEntriesByType("measure").map((m) => m.name)).toEqual(["memba:wallet:connect:click", "memba:wallet:connect:account"])
         flow.end("connected")
         flow.step("late")
-        const measures = performance.getEntriesByType("measure").map((m) => m.name)
-        expect(measures).toEqual(["memba:wallet:connect:click", "memba:wallet:connect:account", "memba:wallet:connect:end:connected"])
         expect(log().filter((e) => e.event === "timing").map((e) => e.detail?.replace(/\+\d+ms$/, ""))).toEqual([
             "connect click ", "connect account ", "connect end:connected ",
         ])
+    })
+
+    it("clears the flow's marks and measures when it ends", () => {
+        performance.clearMarks()
+        const flow = startWalletFlow("connect")
+        flow.step("click")
+        flow.end("connected")
+        const ours = (type: string) => performance.getEntriesByType(type).filter((e) => e.name.startsWith("memba:wallet:connect"))
+        expect(ours("mark")).toEqual([])
+        expect(ours("measure")).toEqual([])
     })
 
     it("keeps the flow going when the Performance API is missing", () => {

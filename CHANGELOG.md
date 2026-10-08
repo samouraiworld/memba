@@ -24,7 +24,8 @@ Full changelogs are split by version range for easier navigation:
 - Connecting asks Adena for the account and the network at the same time, and wakes Adena while you open the connect window, so an approved, unlocked wallet skips the approval request entirely
 - The sign-in challenge is fetched while the wallet is checked, not after it
 - After 3 seconds the connect window says Adena's window may be behind this one or on another screen; when Adena never answers (a tab opened before an Adena update), it says so and offers to reload the tab instead of waiting forever
-- When Adena closes its window because another tab asked it something, Memba says that instead of a generic failure
+- When Adena closes its window or hits an error (another tab may have asked it something), Memba says that instead of a generic failure
+- Cancel stops a connect still waiting for Adena: it no longer opens Adena's window or keeps the wallet connected afterwards
 - Memba OS: Connect stays usable while a previous session resumes; a connect waits for the resume instead of opening a second request
 - Classic top bar: the Connect button no longer passes the click event to the wallet as options
 ### gnofly listed, and community games in the Arcade (2026-10-07)

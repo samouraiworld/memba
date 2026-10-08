@@ -108,6 +108,17 @@ describe("useOsSession · connect", () => {
         expect(result.current.noPopup).toBe(false)
     })
 
+    it("Cancel aborts the connect still waiting on Adena", () => {
+        let signal: AbortSignal | undefined
+        wallet.connect.mockImplementation((opts) => { signal = opts?.signal; return new Promise(() => {}) })
+        const { result } = renderHook(() => useOsSession())
+        act(() => result.current.openConnect())
+        act(() => result.current.chooseAdena())
+        expect(signal?.aborted).toBe(false)
+        act(() => result.current.cancel())
+        expect(signal?.aborted).toBe(true)
+    })
+
     it("goes on to sign in when the silent reconnect lands during the connect", () => {
         wallet.connect.mockReturnValue(new Promise(() => {}))
         const { result, rerender } = renderHook(() => useOsSession())

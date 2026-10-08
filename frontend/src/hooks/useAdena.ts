@@ -115,8 +115,7 @@ const READ_TIMEOUT_MS = LIVE_NETWORK_TIMEOUT_MS
 /** A silent reconnect's read limit. Adena's first GetAccount after a few idle minutes took ~4.2 s (measured). */
 const SILENT_READ_TIMEOUT_MS = 8_000
 const WAKE_TIMEOUT_MS = 4_000
-const WAKE_THROTTLE_MS = 20_000
-/** A wake younger than this lets connect read instead of sending AddEstablish. */
+/** A wake answer younger than this lets connect read instead of sending AddEstablish; until then no new wake is sent. */
 const WAKE_FRESH_MS = 10_000
 
 /** Why a connect the person started failed. */
@@ -127,6 +126,8 @@ export interface ConnectOptions {
     silent?: boolean
     /** Progress of Adena's window, and the reason when the connect fails. */
     watch?: PromptWatch & { onFailure?: (kind: ConnectFailure, message: string) => void }
+    /** The person cancelled: checked after each wait and before AddEstablish. A cancelled connect opens no window and records no session. */
+    signal?: AbortSignal
 }
 
 interface WalletReads {
@@ -222,8 +223,9 @@ export function useAdena() {
     const silentRun = useRef<Promise<boolean> | null>(null)
 
     /**
-     * Wake Adena before the person clicks: GetNetwork, a read that opens no window, at most
-     * once per 20 s, for 4 s at most. Adena answers it with success only for a site it has
+     * Wake Adena before the person clicks: GetNetwork, a read that opens no window, for 4 s
+     * at most, and not again while its last answer is fresh (10 s): the answer handed back is
+     * never older than connect accepts. Adena answers it with success only for a site it has
      * approved while it is unlocked (otherwise NOT_CONNECTED or WALLET_LOCKED), so a fresh
      * success means connect can skip AddEstablish. Resolves whether it did.
      */
@@ -232,7 +234,7 @@ export function useAdena() {
         if (!adena || typeof adena.GetNetwork !== "function") return Promise.resolve(false)
         const w = wakeState.current
         if (w.running) return w.running
-        if (Date.now() - w.startedAt < WAKE_THROTTLE_MS) return Promise.resolve(w.ok)
+        if (w.answeredAt && Date.now() - w.answeredAt < WAKE_FRESH_MS) return Promise.resolve(w.ok)
         const startedAt = Date.now()
         const running = adenaRead<{ status?: string } | null | undefined>(() => adena.GetNetwork(), WAKE_TIMEOUT_MS)
             .then((reply) => !!reply && reply.status !== "failure", () => false)
@@ -255,12 +257,14 @@ export function useAdena() {
         if (silent && silentRun.current) return silentRun.current
 
         const watch = opts?.watch
+        const signal = opts?.signal
         const flow = silent ? null : startWalletFlow("connect")
         flow?.step("click")
         // An interactive connect while a silent one runs: wait for it, and go on only if it failed.
         if (!silent && silentRun.current) {
             if (await silentRun.current) { flow?.end("resumed"); return true }
         }
+        if (signal?.aborted) { flow?.end("cancelled"); return false }
 
         const run = (async (): Promise<boolean> => {
             setState((s) => ({ ...s, loading: true, error: null }));
@@ -282,6 +286,12 @@ export function useAdena() {
                 flow?.end(kind)
                 return false
             }
+            // The person cancelled while this connect waited: stand down quietly.
+            const cancelled = () => {
+                setState((s) => ({ ...s, loading: false }))
+                flow?.end("cancelled")
+                return false
+            }
 
             try {
                 let reads: WalletReads | null = null
@@ -300,6 +310,7 @@ export function useAdena() {
                 } else {
                     // Adena answers the wake fast only when it is awake; one still running is waited for (4 s at most).
                     if (wakeState.current.running) { await wakeState.current.running; flow?.step("wake") }
+                    if (signal?.aborted) return cancelled()
                     const w = wakeState.current
                     if (w.ok && Date.now() - w.answeredAt < WAKE_FRESH_MS) {
                         // Approved and unlocked a moment ago: read, and open no window. AddEstablish
@@ -308,6 +319,7 @@ export function useAdena() {
                         if (!accountOk(reads.account)) reads = null
                     }
                     if (!reads) {
+                        if (signal?.aborted) return cancelled()
                         // Adena answers ALREADY_CONNECTED at once for an approved, unlocked wallet;
                         // otherwise its window asks to approve Memba or to unlock.
                         flow?.step("establish-sent")
@@ -357,6 +369,8 @@ export function useAdena() {
                     flow?.end("aborted")
                     return false;
                 }
+                // Cancelled while Adena's window or the reads were open: nothing is recorded either.
+                if (signal?.aborted) return cancelled()
 
                 // Only an INTERACTIVE connect asserts the session flag — it is
                 // fresh user intent. A silent reconnect merely acts on a flag that

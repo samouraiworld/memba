@@ -54,7 +54,8 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const [resumeTimedOut, setResumeTimedOut] = useState(false)
     // Bumped by cancel/disconnect: a step still awaiting Adena then stands down.
     const epoch = useRef(0)
-    // Stops the account watch of an activation Adena has not answered, with the epoch.
+    // Stops, with the epoch, what a step still waiting on Adena would do next: a pending
+    // connect (no AddEstablish, no saved session) or an activation's account watch.
     const watch = useRef<AbortController | null>(null)
     useEffect(() => {
         const current = watch
@@ -162,9 +163,13 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
 
     const approve = useCallback(async () => {
         const my = ++epoch.current
+        watch.current?.abort()
+        const stop = new AbortController()
+        watch.current = stop
         go("waking")
         let failure = null as { kind: ConnectFailure; message: string } | null
         const ok = await adena.connect({
+            signal: stop.signal,
             watch: {
                 // "Approve in Adena" only once Adena was actually asked.
                 ...watchFor(my, () => go("approve")),

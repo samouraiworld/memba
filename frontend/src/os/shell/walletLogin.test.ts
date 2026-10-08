@@ -78,7 +78,7 @@ describe("signInWithWallet", () => {
             ["unsupported", "This version of Adena can't sign Memba's login message. Update Adena, then sign in again."],
             ["failed", "Adena couldn't sign the login message. Try again."],
             ["no-answer", "Adena didn't answer — reload this tab (needed after Adena updates)."],
-            ["closed", "Adena closed its window (another tab asked it something). Try again."],
+            ["closed", "Adena closed its window or hit an error (another tab may have asked it something). Try again."],
         ] as const
         for (const [refusal, message] of cases) {
             const a = auth()

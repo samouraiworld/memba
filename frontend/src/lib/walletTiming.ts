@@ -1,7 +1,8 @@
 /**
  * Timing of one wallet flow (connect, sign-in): each step is a performance
  * mark + measure from the flow's start ("memba:wallet:<flow>:<label>"), visible
- * in the browser's Performance panel, and a "timing" line in the opt-in wallet
+ * in a Performance panel recording and cleared when the flow ends (so they
+ * never pile up), and a "timing" line in the opt-in wallet
  * log (walletDebug), so a slow report can say which Adena call took the time.
  */
 import { installWalletLogDump, logWalletEvent } from "./walletDebug"
@@ -25,6 +26,7 @@ export function startWalletFlow(name: string): WalletFlow {
     const t0 = Date.now()
     try { perf()?.mark(startMark) } catch { /* timing is best effort */ }
     let done = false
+    const marks: string[] = [startMark]
     const record = (label: string) => {
         const ms = Date.now() - t0
         try {
@@ -33,6 +35,7 @@ export function startWalletFlow(name: string): WalletFlow {
                 const mark = `${prefix}:${label}`
                 p.mark(mark)
                 p.measure(mark, startMark, mark)
+                marks.push(mark)
             }
         } catch { /* timing is best effort */ }
         logWalletEvent("timing", `${name} ${label} +${ms}ms`)
@@ -43,7 +46,14 @@ export function startWalletFlow(name: string): WalletFlow {
             if (done) return
             record(`end:${outcome}`)
             done = true
-            try { perf()?.clearMarks(startMark) } catch { /* best effort */ }
+            // The log line holds the timing: the flow's entries would only pile up in the buffer.
+            try {
+                const p = perf()
+                for (const m of marks) {
+                    p?.clearMarks(m)
+                    if (m !== startMark) p?.clearMeasures(m)
+                }
+            } catch { /* best effort */ }
         },
     }
 }

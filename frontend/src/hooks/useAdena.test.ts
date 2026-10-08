@@ -193,7 +193,7 @@ describe("useAdena — connect ordering (latency)", () => {
         expect(result.current.rpcTrusted).toBe(true)
     })
 
-    it("wakes Adena at most once per 20 s", async () => {
+    it("does not wake Adena again while its last answer is fresh", async () => {
         const adena = makeAdena()
         setAdena(adena)
         const { result } = renderHook(() => useAdena())
@@ -202,6 +202,25 @@ describe("useAdena — connect ordering (latency)", () => {
             await result.current.wake()
         })
         expect(adena.GetNetwork).toHaveBeenCalledOnce()
+    })
+
+    it("wakes Adena again once its last answer is older than 10 s, so a connect 10-20 s after a wake still skips AddEstablish", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const now = Date.now()
+        const clock = vi.spyOn(Date, "now").mockReturnValue(now)
+        await act(async () => { await result.current.wake() })
+        clock.mockReturnValue(now + 15_000)
+        let ok: boolean | undefined
+        await act(async () => {
+            await result.current.wake()
+            ok = await result.current.connect()
+        })
+        expect(ok).toBe(true)
+        // Two wakes, then the connect's own read.
+        expect(adena.GetNetwork).toHaveBeenCalledTimes(3)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
     })
 
     it("a wake that gets no answer gives up after 4 s, and connect then goes the AddEstablish way", async () => {
@@ -296,7 +315,7 @@ describe("useAdena — connect ordering (latency)", () => {
         expect(adena.AddEstablish).toHaveBeenCalledOnce()
     })
 
-    it("says another tab closed Adena's window when Adena answers UNEXPECTED_ERROR", async () => {
+    it("says Adena closed its window or hit an error when Adena answers UNEXPECTED_ERROR", async () => {
         const adena = makeAdena({ AddEstablish: vi.fn().mockResolvedValue({ status: "failure", type: "UNEXPECTED_ERROR" }) })
         setAdena(adena)
         const { result } = renderHook(() => useAdena())
@@ -304,7 +323,7 @@ describe("useAdena — connect ordering (latency)", () => {
         let ok: boolean | undefined
         await act(async () => { ok = await result.current.connect({ watch: { onFailure } }) })
         expect(ok).toBe(false)
-        expect(result.current.error).toBe("Adena closed its window (another tab asked it something). Try again.")
+        expect(result.current.error).toBe("Adena closed its window or hit an error (another tab may have asked it something). Try again.")
         expect(onFailure).toHaveBeenCalledWith("closed", result.current.error)
     })
 
@@ -332,6 +351,77 @@ describe("useAdena — connect ordering (latency)", () => {
             await c
         })
         expect(ok).toBe(true)
+    })
+})
+
+describe("useAdena — a cancelled connect", () => {
+    it("cancelled while the wake runs: sends no AddEstablish and records no session", async () => {
+        let releaseWake!: (v: unknown) => void
+        const adena = makeAdena({
+            GetNetwork: vi.fn().mockReturnValueOnce(new Promise((r) => { releaseWake = r })).mockResolvedValue({ status: "success", data: { rpcUrl: TRUSTED_RPC } }),
+        })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const stop = new AbortController()
+        let pending!: Promise<boolean>
+        act(() => {
+            void result.current.wake()
+            pending = result.current.connect({ signal: stop.signal })
+        })
+        stop.abort()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseWake({ status: "failure", type: "NOT_CONNECTED" })
+            ok = await pending
+        })
+        expect(ok).toBe(false)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        expect(result.current.connected).toBe(false)
+        expect(result.current.loading).toBe(false)
+        expect(result.current.error).toBeNull()
+    })
+
+    it("cancelled while a silent resume runs: sends no AddEstablish once the resume fails", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValueOnce(new Promise((r) => { releaseAcct = r })).mockResolvedValue(okAccount()) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const stop = new AbortController()
+        let interactive!: Promise<boolean>
+        act(() => { void result.current.connect({ silent: true }) })
+        act(() => { interactive = result.current.connect({ signal: stop.signal }) })
+        stop.abort()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseAcct({ status: "failure", type: "WALLET_LOCKED" })
+            ok = await interactive
+        })
+        expect(ok).toBe(false)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        expect(result.current.connected).toBe(false)
+    })
+
+    it("cancelled while Adena's window is open: records no session when Adena answers later", async () => {
+        let releaseEstablish!: (v: unknown) => void
+        const adena = makeAdena({ AddEstablish: vi.fn().mockReturnValue(new Promise((r) => { releaseEstablish = r })) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const stop = new AbortController()
+        let pending!: Promise<boolean>
+        act(() => { pending = result.current.connect({ signal: stop.signal }) })
+        await waitFor(() => expect(adena.AddEstablish).toHaveBeenCalledOnce())
+        stop.abort()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseEstablish({ status: "success" })
+            ok = await pending
+        })
+        expect(ok).toBe(false)
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        expect(result.current.connected).toBe(false)
+        expect(result.current.loading).toBe(false)
     })
 })
 
