@@ -11,6 +11,10 @@
 // To enable a flag legitimately: remove it from SAFETY_GATED_FLAGS AND pass code
 // review (the build fails otherwise).
 export const SAFETY_GATED_FLAGS = [
+    // Notes transactions and encryption require their independent release reviews.
+    "VITE_ENABLE_NOTES_CHAIN",
+    "VITE_ENABLE_NOTES_ENCRYPTED",
+    "VITE_ENABLE_NOTES_VAULT_REVEAL",
     // VITE_ENABLE_NFT DE-GATED by the pearl §6 completion PR: the combined
     // pearl ceremony deploys + registers the whole NFT stack (grc721 →
     // collections → market_core → config → v3_2) and §4.4's live fee-path
