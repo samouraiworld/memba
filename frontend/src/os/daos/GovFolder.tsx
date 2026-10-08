@@ -7,9 +7,9 @@
  */
 import { useState } from "react"
 import { GNO_CHAIN_ID } from "../../lib/config"
-import { CLASS_NAMES, GOV_PATH } from "../../lib/dao/govActions"
+import { BRIDGE_APPS, CLASS_NAMES, GOV_PATH } from "../../lib/dao/govActions"
 import { classRules, GOV_STATUS_TEXT, govProposalTitle, govReadError, rosterRules, votingRules } from "../../lib/dao/govView"
-import type { GovProposal, GovSnapshot } from "../../lib/dao/membaGov"
+import { bridgePublished, type GovProposal, type GovSnapshot } from "../../lib/dao/membaGov"
 import { formatChainTime } from "../../lib/dao/v2Lifecycle"
 import { ErrorState, Loading, Pill, type PillTone } from "../kit"
 import { ThingTile } from "../shell/icons"
@@ -19,7 +19,7 @@ import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { FolderTabs } from "./FolderTabs"
 import { EmergencyPauses, JoinAction } from "./GovActions"
 import { ProposeForm } from "./GovPropose"
-import { useGovSnapshot } from "./useGovDao"
+import { useGovernedApps, useGovSnapshot } from "./useGovDao"
 
 const TABS: { id: DaoSection; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "proposals", label: "Proposals" }, { id: "members", label: "Members" }]
 
@@ -109,8 +109,25 @@ function Overview({ data, name, open, session }: { data: GovSnapshot; name: stri
                 {openNow.length > 0 && <ul className="os-list">{openNow.slice(0, 3).map((p) => <li key={p.id}><Row p={p} name={name} open={open} /></li>)}</ul>}
                 {data.page.total !== "0" && <button type="button" className="os-btn os-quiet" onClick={() => open(daoSpec(name, "proposals"))}>All proposals</button>}
             </section>
+            <GovernedApps />
             <EmergencyPauses roster={data.roster} session={session} />
         </div>
+    )
+}
+
+/** Which apps the DAO governs now: publication alone hands it none; each app's handover is accepted separately. */
+function GovernedApps() {
+    const enabled = bridgePublished()
+    const governed = useGovernedApps(enabled)
+    if (!enabled) return null
+    const names = (want: boolean) => Object.keys(BRIDGE_APPS).filter((app) => governed.data?.[app] === want).map((app) => BRIDGE_APPS[app].label)
+    return (
+        <section>
+            <h3 className="os-h">Apps the DAO governs</h3>
+            {governed.isError ? <p className="os-note os-err">Couldn't read which apps the DAO governs.</p>
+                : !governed.data ? <p className="os-sub">Reading…</p>
+                    : <p className="os-sub">{names(true).length ? names(true).join(", ") : "None yet"}.{names(false).length > 0 && ` Not governed by the DAO: ${names(false).join(", ")}; each joins when its current admin nominates the DAO's bridge and the handover is accepted.`}</p>}
+        </section>
     )
 }
 

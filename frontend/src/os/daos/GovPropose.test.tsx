@@ -11,11 +11,12 @@ vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign, version: 0 }
 vi.mock("./sheetFee", async (original) => ({ ...(await original<typeof import("./sheetFee")>()), quoteSheetGasPrice: vi.fn(async () => ({ gas: 1000, ugnot: 1 })) }))
 vi.mock("../../lib/dao/membaGov", async (original) => ({
     ...(await original<typeof import("../../lib/dao/membaGov")>()),
-    bridgePublished: vi.fn(() => true), readBridgeApproval: vi.fn(), readGovSnapshot: vi.fn(),
+    bridgePublished: vi.fn(() => true), readBridgeApproval: vi.fn(), readGovSnapshot: vi.fn(), readGovernedApps: vi.fn(),
 }))
 vi.mock("../../lib/grc20", async (original) => ({ ...(await original<typeof import("../../lib/grc20")>()), assertFeeStillCovers: vi.fn(async () => {}) }))
 const { ProposeForm } = await import("./GovPropose")
-const { readBridgeApproval, readGovSnapshot } = await import("../../lib/dao/membaGov")
+const { readBridgeApproval, readGovernedApps, readGovSnapshot } = await import("../../lib/dao/membaGov")
+const { BRIDGE_APPS } = await import("../../lib/dao/govActions")
 
 const ZX = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", NEW = "g1v3addmckxxdzjf9mgawecushq7w66pq0lldjgk"
 const me = { status: "member", address: ZX, openConnect: vi.fn() } as unknown as OsSession
@@ -27,6 +28,7 @@ beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
     vi.mocked(readGovSnapshot).mockResolvedValue({ roster: native.roster, page: { total: "0", proposals: [] }, constants: native.const } as never)
+    vi.mocked(readGovernedApps).mockResolvedValue(Object.fromEntries(Object.keys(BRIDGE_APPS).map((app) => [app, true])))
 })
 
 describe("proposing on Memba DAO", () => {
@@ -48,9 +50,27 @@ describe("proposing on Memba DAO", () => {
         })
     })
 
+    it("offers only the apps the DAO governs now, and says why the others wait", async () => {
+        vi.mocked(readGovernedApps).mockResolvedValue({ ...Object.fromEntries(Object.keys(BRIDGE_APPS).map((app) => [app, true])), memba_feed_v1: false })
+        show(<ProposeForm session={me} onClose={vi.fn()} />)
+        const feed = await screen.findByRole("option", { name: "Feed (not governed by the DAO)" })
+        expect(feed).toBeDisabled()
+        expect(screen.getByRole("option", { name: "Reviews" })).toBeEnabled()
+        expect(screen.getByText(/An app takes proposals once the DAO governs it/)).toBeInTheDocument()
+    })
+
+    it("offers no app while it cannot read which apps the DAO governs", async () => {
+        vi.mocked(readGovernedApps).mockRejectedValue(new Error("rpc down"))
+        show(<ProposeForm session={me} onClose={vi.fn()} />)
+        expect(await screen.findByText(/Couldn't read which apps the DAO governs/)).toBeInTheDocument()
+        expect(screen.getByRole("option", { name: "Reviews" })).toBeDisabled()
+        expect(screen.getByRole("option", { name: "Memba DAO's roster" })).toBeEnabled()
+    })
+
     it("files an app action exactly as the bridge answers, at its minimum class or higher", async () => {
         vi.mocked(readBridgeApproval).mockResolvedValue(native.approval as never)
         show(<ProposeForm session={me} onClose={vi.fn()} />)
+        await screen.findByRole("option", { name: "Market config" })
         choose("About", "memba_market_config")
         choose("Action", "SetFee")
         type("Lane", "service")

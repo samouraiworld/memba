@@ -11,9 +11,10 @@ vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn(), ver
 vi.mock("../../lib/dao/membaGov", async original => ({
     ...(await original<typeof import("../../lib/dao/membaGov")>()),
     govPublished: vi.fn(() => true), readGovSnapshot: vi.fn(), readGovRoster: vi.fn(), readGovProposal: vi.fn(), readTargetManifest: vi.fn(),
+    bridgePublished: vi.fn(() => false), readGovernedApps: vi.fn(), readBridgePauses: vi.fn(),
 }))
 const { DaoFolder, DaosApp, ProposalWindow } = await import("./DaoWindows")
-const { GovNotFound, govPublished, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } = await import("../../lib/dao/membaGov")
+const { GovNotFound, bridgePublished, govPublished, readBridgePauses, readGovernedApps, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } = await import("../../lib/dao/membaGov")
 
 const NAME = "samcrew.memba_gov"
 const proposals = [...native.page0.proposals, ...native.page22.proposals] as GovProposal[]
@@ -52,6 +53,16 @@ describe("Memba DAO on memba_gov", () => {
         expect(readGovSnapshot).not.toHaveBeenCalled()
         show(<DaosApp open={open} />)
         expect(screen.getByText("gno.land/r/samcrew/memba_dao")).toBeInTheDocument()
+    })
+
+    it("names the apps it governs and the ones not handed over yet", async () => {
+        vi.mocked(bridgePublished).mockReturnValue(true)
+        vi.mocked(readBridgePauses).mockResolvedValue({})
+        vi.mocked(readGovernedApps).mockResolvedValue({ memba_market_config: false, escrow_v4: false, memba_appstore_v3: false, memba_reviews_v2: true,
+            memba_quest_attestation_v1: false, memba_arcade_leaderboard_v1: false, gnobuilders_badges_v2: false, memba_feed_v1: false,
+            memba_dao_channels_v2: false, memba_feedback_v2: false })
+        folder("overview")
+        expect(await screen.findByText(/^Reviews\. Not governed by the DAO: Market config, Escrow, App Store, Quests, Arcade, Badges, Feed, Channels, Feedback; each joins when its current admin nominates the DAO's bridge and the handover is accepted\.$/)).toBeInTheDocument()
     })
 
     it("is the featured Memba DAO once published", () => {

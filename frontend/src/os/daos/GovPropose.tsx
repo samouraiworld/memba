@@ -17,6 +17,7 @@ import { bridgePublished, readBridgeApproval } from "../../lib/dao/membaGov"
 import type { OsSession } from "../shell/useOsSession"
 import { useAlive } from "../shell/useAlive"
 import { govProposeRequest, govScope } from "./govRequests"
+import { useGovernedApps } from "./useGovDao"
 import { useGovSign } from "./useGovSign"
 
 const ROSTER = "roster"
@@ -56,6 +57,8 @@ export function ProposeForm({ session, onClose }: { session: OsSession; onClose:
     const [review, setReview] = useState<{ draft: GovDraft; call: string | null; floor: number } | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
+    // An app the bridge does not govern takes no proposal: the bridge would refuse to build it.
+    const governed = useGovernedApps(bridgePublished())
     const ops = what === ROSTER ? Object.keys(ROSTER_INPUTS) : what ? opsFor(what) : []
     const inputs = !op ? [] : what === ROSTER ? ROSTER_INPUTS[op].inputs : BRIDGE_INPUTS[op].inputs
     const reset = (next: () => void) => { next(); setReview(null); setError(null) }
@@ -93,8 +96,14 @@ export function ProposeForm({ session, onClose }: { session: OsSession; onClose:
                 <select id="gov-what" className="os-in" value={what} onChange={(e) => reset(() => { setWhat(e.target.value); setOp(""); setValues([]) })}>
                     <option value="">Choose…</option>
                     <option value={ROSTER}>Memba DAO's roster</option>
-                    {bridgePublished() && Object.entries(BRIDGE_APPS).map(([key, app]) => <option key={key} value={key}>{app.label}</option>)}
+                    {bridgePublished() && Object.entries(BRIDGE_APPS).map(([key, app]) => (
+                        <option key={key} value={key} disabled={governed.data?.[key] !== true}>
+                            {app.label}{governed.data && !governed.data[key] ? " (not governed by the DAO)" : ""}
+                        </option>
+                    ))}
                 </select>
+                {bridgePublished() && (governed.isError ? <p className="os-note os-err">Couldn't read which apps the DAO governs; app proposals wait until it can.</p>
+                    : governed.data && <p className="os-sub">An app takes proposals once the DAO governs it, that is once its admin is the DAO's bridge.</p>)}
             </div>
             {what && (
                 <div className="os-stack os-tight">

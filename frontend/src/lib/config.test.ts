@@ -104,19 +104,20 @@ describe('config constants', () => {
         const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2', 'memba_feed_v1',
             'memba_quest_attestation_v1', 'escrow_v4',
             // The Token Launchpad (2026-10-08): listing these opens token creation and fair sales.
-            'launchpad/config/v1', 'launchpad/tokens/v1', 'launchpad/sales/v1']
+            'launchpad/config/v1', 'launchpad/tokens/v1', 'launchpad/sales/v1',
+            // Memba DAO's governance (2026-10-08): each app joins it only once handed over.
+            'memba_gov', 'memba_bridge_v1']
         for (const base of exposed) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must be allowlisted on mainnet`).toBe(true)
             expect(records?.[base], `mainnet realm '${base}' has no realm-versions.json mainnet record`).toBeDefined()
         }
         // Live on chain but deliberately NOT exposed: the superseded escrow,
         // the fee config (escrow_v4 reads it on chain), DAO-dependent, and the
-        // arcade lane (its backend attester is off), the Launchpad NFT realms
-        // (their own go after the Q16 market run) and the governance (no app is
-        // handed to the bridge yet; listing memba_gov switches the Memba DAO window).
+        // arcade lane (its backend attester is off) and the Launchpad NFT realms
+        // (their own go after the Q16 market run).
         const liveButGated = ['escrow_v3', 'memba_market_config', 'memba_dao_channels_v2',
             'memba_arcade_leaderboard_v1', 'launchpad/nft/v1', 'launchpad/drops/v1', 'launchpad/market/v1',
-            'launchpad/curation/v1', 'memba_gov', 'memba_bridge_v1']
+            'launchpad/curation/v1']
         for (const base of liveButGated) {
             expect(records?.[base], `${base} should be recorded as live on mainnet`).toBeDefined()
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must stay gated on mainnet`).toBe(false)

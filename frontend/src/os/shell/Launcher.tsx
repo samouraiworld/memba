@@ -7,6 +7,8 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { getSavedDAOsForOrg, FEATURED_DAO } from "../../lib/daoSlug"
 import { DAO_REALM_PATH } from "../../lib/config"
+import { GOV_PATH } from "../../lib/dao/govActions"
+import { govPublished } from "../../lib/dao/membaGov"
 import { AppTile, ThingTile } from "./icons"
 import type { ChainFamily } from "../../lib/chain/types"
 import { launcherResults, type LaunchItem } from "./launchResults"
@@ -20,7 +22,8 @@ export function Launcher({ network, family, open, onClose }: { network: string; 
     const [q, setQ] = useState("")
     const [sel, setSel] = useState(0)
     const daos = useMemo(() => {
-        const featured = [{ realmPath: FEATURED_DAO.realmPath, name: FEATURED_DAO.name }, { realmPath: DAO_REALM_PATH, name: "Memba DAO" }]
+        // Memba DAO is memba_gov once its publication is recorded on this network, as in the DAOs app.
+        const featured = [{ realmPath: FEATURED_DAO.realmPath, name: FEATURED_DAO.name }, { realmPath: govPublished() ? GOV_PATH : DAO_REALM_PATH, name: "Memba DAO" }]
         const saved = getSavedDAOsForOrg(null).filter((d) => !featured.some((f) => f.realmPath === d.realmPath)).map((d) => ({ realmPath: d.realmPath, name: d.name || d.realmPath }))
         return [...featured, ...saved]
     }, [])

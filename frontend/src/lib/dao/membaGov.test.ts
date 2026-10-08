@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/memba-gov/native.json"
 import { qevalWire } from "./testdata/weighted"
 import { directRpcCall } from "../rpcFallback"
-import { GovNotFound, readBridgeApproval, readBridgePauses, readEscrowDecidedByDao, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
+import { GovNotFound, readBridgeApproval, readBridgePauses, readEscrowDecidedByDao, readGovernedApps, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "./membaGov"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
 vi.mock("../config", async importOriginal => ({ ...await importOriginal<typeof import("../config")>(), isRealmValid: vi.fn(() => true) }))
 
@@ -12,6 +12,7 @@ let answers: Record<string, unknown>
 let network: string
 const asked: string[] = []
 let escrowAdmin = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf" // the 2-of-3, as on gnoland-1 today
+let reviewsModerator = '("g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp" string)' // the bridge
 const manifests: Record<string, string> = {
     "gno.land/r/samcrew/memba_bridge_v1/gnomod.toml": 'module = "gno.land/r/samcrew/memba_bridge_v1"\ngno = "0.9"\n',
     "gno.land/r/alice/app/gnomod.toml": 'module = "gno.land/r/alice/app"\ngno = "0.9"\nprivate = true\n',
@@ -35,11 +36,14 @@ beforeEach(() => {
         asked.push(expr)
         if (expr.startsWith("gno.land/r/samcrew/memba_bridge_v1.Approval(")) {
             if (expr.includes("Grant")) return { response: { ResponseBase: { Data: null, Error: { msg: "x" }, Log: "VM panic: memba_bridge: role already in that state\nstack..." } } }
+            if (expr.includes("HideReview")) return { response: { ResponseBase: { Data: null, Error: { msg: "x" }, Log: "VM panic: memba_bridge: the bridge does not govern memba_reviews_v2\nstack..." } } }
             return wire(native.approval)
         }
         const goWire = (text: string) => ({ response: { ResponseBase: { Data: btoa(text), Error: null } } })
         if (expr.startsWith("gno.land/r/samcrew/memba_bridge_v1.PausedUntil(")) return goWire(expr.includes("feed") ? "(1700000000 int64)" : "(0 int64)")
         if (expr === "gno.land/r/samcrew/escrow_v4.GetAdmin()") return goWire(`("${escrowAdmin}" string)`)
+        if (expr === "gno.land/r/samcrew/memba_market_config.GetAdmin()") return goWire('("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf" .uverse.address)')
+        if (expr === "gno.land/r/samcrew/memba_reviews_v2.GetModerator()") return goWire(reviewsModerator)
         if (expr.endsWith(".GetOwner()")) return goWire('("g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp" .uverse.address)')
         if (params!.path === '"vm/qfile"') {
             const manifest = manifests[expr]
@@ -100,6 +104,23 @@ describe("memba_gov reads", () => {
         await expect(readBridgeApproval(ctx, 's:4:x"); Evil(')).resolves.toBeDefined() // quoted as one string literal
         expect(asked.at(-1)).toBe('gno.land/r/samcrew/memba_bridge_v1.Approval("s:4:x\\"); Evil(")')
         await expect(readBridgeApproval(ctx, "s:1:é")).rejects.toThrow("Invalid call")
+        // An app the bridge does not govern is named, in words, before any wallet opens.
+        await expect(readBridgeApproval(ctx, "s:10:HideReview|u:1")).rejects.toThrow(
+            "Memba DAO does not govern Reviews now: its admin is not the DAO's bridge, so no proposal for it can run. Nothing was sent.")
+    })
+
+    it("reads whether the bridge is each of its ten apps' admin, and never guesses", async () => {
+        const governed = await readGovernedApps(ctx)
+        expect(Object.keys(governed)).toHaveLength(10)
+        expect(governed.memba_reviews_v2).toBe(true) // GetModerator() names the bridge
+        expect(governed.memba_market_config).toBe(false) // GetAdmin() is still the 2-of-3
+        expect(governed.escrow_v4).toBe(false)
+        expect(asked).toContain("gno.land/r/samcrew/memba_reviews_v2.GetModerator()")
+        reviewsModerator = "(undefined)"
+        await expect(readGovernedApps(ctx)).rejects.toThrow("Invalid admin read")
+        reviewsModerator = '("g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp" string)'
+        network = "gnoland-1"
+        await expect(readGovernedApps(ctx)).rejects.toThrow()
     })
 
     it("reads each pausable app's bridge pause and whether the bridge is its admin", async () => {

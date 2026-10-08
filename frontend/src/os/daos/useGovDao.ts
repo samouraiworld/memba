@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
-import { BRIDGE_ESCROW, readBridgePauses, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
+import { BRIDGE_ESCROW, readBridgePauses, readGovernedApps, readGovProposal, readGovRoster, readGovSnapshot, readTargetManifest } from "../../lib/dao/membaGov"
 import { readEscrowContract } from "../../lib/marketplace/escrowState"
 
 const ctx = () => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID })
@@ -53,6 +53,15 @@ export function useBridgePauses(enabled: boolean) {
     return useQuery({
         queryKey: key("pauses"),
         queryFn: ({ signal }) => readBridgePauses(ctx(), signal),
+        enabled, staleTime: 15_000, refetchInterval: REREAD_MS, retry: false,
+    })
+}
+
+/** Which of the bridge's apps it governs now (is their admin). */
+export function useGovernedApps(enabled: boolean) {
+    return useQuery({
+        queryKey: key("governed"),
+        queryFn: ({ signal }) => readGovernedApps(ctx(), signal),
         enabled, staleTime: 15_000, refetchInterval: REREAD_MS, retry: false,
     })
 }
