@@ -46,10 +46,10 @@ describe("NFT window", () => {
         real.reader = false; listNewestCollections.mockReset(); queryEval.mockReset()
     })
 
-    it("on mainnet with the flag off, names the absent registry and the disabled build without reading the chain", () => {
+    it("on mainnet with the flag off, says the NFT realms are not open there and the build is disabled, without reading the chain", () => {
         const openApp = vi.fn()
         show({ testnet: false, openApp })
-        expect(screen.getByRole("note").textContent).toBe(`NFT unavailable here The NFT ledger is not deployed on ${NETWORKS.mainnet.chainId}. NFT features are disabled in this build.`)
+        expect(screen.getByRole("note").textContent).toBe(`NFT unavailable here The Launchpad's NFT realms are published on ${NETWORKS.mainnet.chainId}, but NFT collections are not open there yet. NFT features are disabled in this build.`)
         expect(screen.queryByText("classic page")).toBeNull()
         expect(screen.queryByRole("region", { name: "Collections" })).toBeNull()
         expect(listNewestCollections).not.toHaveBeenCalled()
@@ -220,7 +220,7 @@ describe("NFT window", () => {
 
     it.each(["c/C1", "c/C1/7", "mine", "create", "studio/C1"])("shows the unavailable notice, not the fallback, on a deep link to %s", (section) => {
         show({ section, testnet: false })
-        expect(screen.getByRole("note")).toHaveTextContent("The NFT ledger is not deployed on")
+        expect(screen.getByRole("note")).toHaveTextContent("NFT collections are not open there yet")
         expect(screen.queryByText("classic page")).toBeNull()
     })
 

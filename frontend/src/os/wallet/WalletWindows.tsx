@@ -9,6 +9,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GRC20_FACTORY_PATH, isRealmValidOn } from "../../lib/config"
+import { TOKEN_LAUNCHPAD_PATH } from "../../lib/tokenLaunchpadClient"
 import { feeForGasWanted, FALLBACK_GAS_PRICE, networkGasPrice, networkGasPriceFresh, type GasPrice } from "../../lib/grc20"
 import { mainnetSubmissionTxUrl } from "../../lib/recentSubmissions"
 import { AppTile } from "../shell/icons"
@@ -64,9 +65,10 @@ export function WalletWindow({ session, open, toast }: { session: OsSession; ope
             </div>
             <div>
                 <h3 className="os-h">Tokens</h3>
-                {isRealmValidOn(ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH) ? (
+                {isRealmValidOn(ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH) || isRealmValidOn(ACTIVE_NETWORK_KEY, TOKEN_LAUNCHPAD_PATH) ? (
                     <div className="os-card os-row">
-                        <div className="os-grow"><b>GRC20 tokens</b><div className="os-sub">Balances and transfers live in the Tokens app for now.</div></div>
+                        <div className="os-grow"><b>GRC20 tokens</b><div className="os-sub">{isRealmValidOn(ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH)
+                            ? "Balances and transfers live in the Tokens app for now." : "Launchpad tokens, your balances and launches live in the Tokens app."}</div></div>
                         <button type="button" className="os-btn os-quiet" onClick={() => open(appSpec("tokens"))}>Open Tokens</button>
                     </div>
                 ) : (
@@ -230,7 +232,7 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
                 <Field label="Asset">
                     <div className="os-opt" aria-label="Asset">
                         <div className="os-asset os-asset-selected"><b>GNOT</b><span className="os-sub">{balance === null ? "Balance unavailable" : formatUgnot(balance)} · native</span></div>
-                        <div className="os-asset os-dim"><b>Tokens</b><span className="os-sub">Not on {GNO_CHAIN_ID} yet</span></div>
+                        <div className="os-asset os-dim"><b>Tokens</b><span className="os-sub">Not sent from this window</span></div>
                     </div>
                 </Field>
                 <Field label="To" htmlFor="os-send-to" error={shown("to", draft.to)}>

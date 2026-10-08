@@ -1,4 +1,4 @@
-import { NETWORKS, MEMBA_DAO, isRealmValidOn, isFeedEnabled, isAppStoreEnabled, isTokensEnabled, isNftEnabled } from "../../../lib/config"
+import { NETWORKS, MEMBA_DAO, isRealmValid, isRealmValidOn, isFeedEnabled, isAppStoreEnabled, isNftEnabled } from "../../../lib/config"
 import { OS_APPS, type OsAppId } from "../../apps"
 
 export type Layer = "onchain" | "offchain" | "hybrid" | "planned"
@@ -27,8 +27,8 @@ const appInfo: Record<OsAppId, { layer: Layer; detail: string; realm?: string; a
     arcade: { layer: "hybrid", detail: "Games run in your browser. Score verification uses a server; leaderboard publication depends on the active deployment and release flags.", realm: SAMCREW + "memba_arcade_leaderboard_v1" },
     validators: { layer: "hybrid", detail: "Validator membership comes from the chain; uptime and alerts use external monitoring services. Enabled reviews are onchain.", realm: MEMBA_DAO.reviewsPath },
     settings: { layer: "offchain", detail: "Appearance, desktop preferences and local safety settings stay in the browser. Network selection changes which chain the OS reads." },
-    tokens: { layer: "planned", detail: "Token creation, fair sales, vesting and airdrops are being prepared for Gno. Availability requires publication and release gates; later trading work is a separate step.", available: isTokensEnabled() },
-    nft: { layer: "planned", detail: "Collections, minting, curation and trading are being prepared for Gno. Media stays outside the chain, with references in the ledger. Publication and launch gates are still required.", available: isNftEnabled() },
+    tokens: { layer: "onchain", detail: "Token creation, fair sales, vesting and airdrops run in the Launchpad realms on Gno. The sales realm holds what sales owe and pays each exit only to its recorded receiver; a paused lane takes no new launch or order, and exits keep working. Trading tokens is a separate, later step.", realm: SAMCREW + "launchpad/sales/v1", available: isRealmValid(SAMCREW + "launchpad/sales/v1") },
+    nft: { layer: "onchain", detail: "Collections, minting, curation and trading run in the Launchpad's NFT realms on Gno. Media stays outside the chain, with references in the ledger. Each network opens them separately; on mainnet they are published but not open yet.", realm: SAMCREW + "launchpad/nft/v1", available: isNftEnabled() && isRealmValid(SAMCREW + "launchpad/nft/v1") },
     market: { layer: "hybrid", detail: "Services use an onchain escrow to hold funds and settle work under its rules. NFT and token trading are separate upcoming lanes. Service availability is release-gated.", realm: MEMBA_DAO.escrowPath },
     quests: { layer: "hybrid", detail: "Activity checks and XP use the backend and browser. Signed quest attestations can be claimed on Gno. XP does not automatically grant DAO voting power or rewards.", realm: SAMCREW + "memba_quest_attestation_v1" },
     explorer: { layer: "hybrid", detail: "Reads chain records and realm code through RPC and explorers. Directory indexes help discovery; published source is the reference." },
@@ -65,9 +65,9 @@ export const STEWARDSHIP: Brick = {
     detail: "The founding shared account publishes and administers applications until their individual handovers are accepted. Each contract defines its current administrator and fee receiver. This is an account, so its public record differs from a realm’s source code.",
 }
 export const RESERVE: Brick = {
-    id: "reserve", name: "Community Reserve", summary: "Intended home for community revenue", layer: "planned",
+    id: "reserve", name: "Community Reserve", summary: "Home of community revenue", layer: "onchain",
     account: "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0", code: REPO + "frontend/src/os/multisig",
-    detail: "An existing shared-wallet address intended to receive launchpad fees. Fee routing, signing readiness and governance must be confirmed before that role is operational. Inspect the live account record; this diagram does not certify its signer configuration. Operations and Contributor Rewards may initially be budgets within this reserve rather than separate accounts.",
+    detail: "The shared wallet the Token Launchpad names as its treasury: swept Launchpad fees are paid here. How the reserve is spent still needs a community policy and its signers' approval. Inspect the live account record; this diagram does not certify its signer configuration. Operations and Contributor Rewards may initially be budgets within this reserve rather than separate accounts.",
 }
 export const OPERATIONS: Brick = { id: "operations", name: "Operations", summary: "Maintain and improve the OS", layer: "planned", detail: "Proposed allocation for development, infrastructure and maintenance. No dedicated wallet is assigned here; allocations require an explicit community policy." }
 export const REWARDS: Brick = { id: "rewards", name: "Contributor Rewards", summary: "Reward approved responsibilities", layer: "planned", detail: "Proposed allocation for reviewers, moderators and other contributors. Roles, eligibility and payments need governance decisions. Usage or XP alone promises neither a role nor payment. No dedicated wallet is assigned here." }
@@ -97,7 +97,7 @@ export const PACKAGES: readonly Brick[] = [
     { id: "policy", name: "Governance rules", summary: "Proposal and voting policy", layer: "onchain", realm: "gno.land/p/samcrew/memba_weighted_policy", detail: "The reusable policy package supporting weighted governance." },
     { id: "channels", name: "Community channels", summary: "DAO conversations and membership", layer: "onchain", realm: MEMBA_DAO.channelsPath, detail: "Onchain community channels. Admission depends on the current owner and pending handover state, as reported by the membership notice below." },
     { id: "reviews", name: "Public reviews", summary: "App, profile and validator reviews", layer: "onchain", realm: MEMBA_DAO.reviewsPath, detail: "Published reviews and their moderation state live on Gno. Each type of review depends on its release flag." },
-    { id: "market-policy", name: "Exchange policy", summary: "Market fees and treasury routing", layer: "onchain", realm: SAMCREW + "memba_market_config", detail: "The deployed market policy defines fees and treasury routing. Upcoming launchpad contracts have their own configuration; this realm does not imply those launches are live." },
+    { id: "market-policy", name: "Exchange policy", summary: "Market fees and treasury routing", layer: "onchain", realm: SAMCREW + "memba_market_config", detail: "The deployed market policy defines fees and treasury routing. The Launchpad has its own configuration realm, launchpad/config/v1, with its own fees and treasury." },
     { id: "badges", name: "Builder badges", summary: "Onchain contribution credentials", layer: "onchain", realm: MEMBA_DAO.badgesPath, detail: "Contribution badges issued through the deployed badge realm; independent from backend XP." },
     { id: "feedback", name: "Feedback", summary: "Public requests and issues", layer: "onchain", realm: "gno.land/r/samcrew/memba_feedback_v2", detail: "Feedback records are published on Gno. Use the feedback action below to read or send feedback." },
 ]

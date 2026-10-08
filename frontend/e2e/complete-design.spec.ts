@@ -227,7 +227,7 @@ for (const network of ['mainnet', 'test13'] as const) {
                 await expect(tokenCard).toContainText('Memba token creation unavailable here')
                 await expect(page.getByRole('link', { name: 'MembaDAO', exact: true })).toHaveCount(0)
                 await tokenCard.click()
-                await expect(page.getByRole('heading', { name: 'Token creation unavailable here' })).toBeVisible()
+                await expect(page.getByRole('heading', { name: 'Tokens are made in the Token Launchpad here' })).toBeVisible()
                 await expect(page.getByRole('button', { name: /Create a Token/ })).toHaveCount(0)
             } else {
                 await expect(tokenCard).toContainText('Launch a token')

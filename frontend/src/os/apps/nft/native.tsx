@@ -108,7 +108,7 @@ export default function NftWindow({ section, session, push, openApp, fallback }:
                 <div className="os-note os-warn" role="note">
                     <Pill tone="neutral">NFT unavailable here</Pill>
                     {!ledgerAvailable && (session.network.key === "mainnet"
-                        ? ` The NFT ledger is not deployed on ${chainId}.`
+                        ? ` The Launchpad's NFT realms are published on ${chainId}, but NFT collections are not open there yet.`
                         : " The NFT ledger is not available on this network.")}
                     {!enabled && " NFT features are disabled in this build."}
                 </div>

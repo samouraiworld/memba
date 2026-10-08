@@ -34,9 +34,9 @@ test.describe('Memba OS pages in windows', () => {
     test('the NFT window shows its own native home instead of opening Market by itself', async ({ page }) => {
         await page.goto(`${OS_ON}/os/nft`)
         const nft = win(page, 'NFT')
-        // The default network is mainnet: the home names the missing registry
-        // and the build flag instead of implying NFT actions are available.
-        await expect(nft.getByRole('note')).toContainText('NFT ledger is not deployed')
+        // The default network is mainnet: the home says its NFT realms are not open
+        // there and names the build flag instead of implying NFT actions are available.
+        await expect(nft.getByRole('note')).toContainText('NFT collections are not open there yet')
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft')
         await expect(page.getByRole('region', { name: 'Market', exact: true })).toHaveCount(0)
         await nft.getByRole('button', { name: 'Open Market' }).click()
@@ -85,7 +85,7 @@ test.describe('Memba OS pages in windows', () => {
         for (const section of ['c/C1', 'c/C1/7', 'mine', 'create']) {
             await page.goto(`${OS_ON}/os/nft/${section}`)
             const nft = win(page, 'NFT')
-            await expect(nft.getByRole('note')).toContainText('NFT ledger is not deployed')
+            await expect(nft.getByRole('note')).toContainText('NFT collections are not open there yet')
             await expect(nft.locator('.os-classic')).toHaveCount(0)
         }
     })
@@ -203,7 +203,7 @@ for (const view of [
         await page.setViewportSize({ width: view.width, height: view.height })
         await page.goto(`${OS_ON}/os/nft`)
         const nft = win(page, 'NFT')
-        await expect(nft.getByRole('note')).toContainText('NFT ledger is not deployed')
+        await expect(nft.getByRole('note')).toContainText('NFT collections are not open there yet')
         if ('windowWidth' in view) {
             await nft.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
         }
