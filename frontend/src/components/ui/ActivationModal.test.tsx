@@ -166,8 +166,19 @@ describe("ActivationModal", () => {
         const notSeen = vi.fn()
         render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={notSeen} />)
         fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
-        expect(await screen.findByText("Your activation was sent, but the network doesn't show it yet. Select Activate My Wallet again in a few seconds: Memba checks the network first, and sends nothing if your address is already active.")).toBeInTheDocument()
+        expect(await screen.findByText("Your activation was sent, but the network doesn't show it yet. Select Activate My Wallet again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active.")).toBeInTheDocument()
         expect(notSeen).not.toHaveBeenCalled()
+    })
+
+    it("still sends the activation when the chain's key cannot be read", async () => {
+        chainPublicKey.mockRejectedValueOnce(new Error("fetch failed"))
+        doContractBroadcast.mockResolvedValue({ hash: "abc" })
+        const onSuccess = vi.fn()
+        render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
+        expect(chainPublicKey).toHaveBeenCalledWith("g1abc")
+        expect(doContractBroadcast).toHaveBeenCalledOnce()
     })
 
     it("sends nothing for an address the chain already shows a key for", async () => {

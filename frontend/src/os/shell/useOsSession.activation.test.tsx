@@ -89,7 +89,20 @@ describe("useOsSession activation", () => {
         await act(() => result.current.activate())
         expect(result.current.activationForced).toBe(true)
         expect(result.current.stage).toBe("activate")
-        expect(result.current.error).toBe("Your activation was sent, but the network doesn't show it yet. Select Activate in Adena again in a few seconds: Memba checks the network first, and sends nothing if your address is already active.")
+        expect(result.current.error).toBe("Your activation was sent, but the network doesn't show it yet. Select Activate in Adena again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active.")
+    })
+
+    it("still sends the activation when the chain's key cannot be read", async () => {
+        vi.mocked(chainPublicKey).mockRejectedValueOnce(new Error("fetch failed"))
+        vi.mocked(activationOnChain).mockResolvedValueOnce(true)
+        const { result } = renderHook(() => useOsSession())
+        act(() => result.current.openConnect())
+        await act(() => result.current.signIn())
+        await priced(result)
+        await act(() => result.current.activate())
+        expect(chainPublicKey).toHaveBeenCalledWith(ME)
+        expect(executeSignature).toHaveBeenCalledOnce()
+        expect(result.current.stage).toBe("login")
     })
 
     it("sends nothing for an address the chain already shows a key for, and finishes as activated", async () => {

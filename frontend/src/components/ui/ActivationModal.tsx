@@ -59,7 +59,7 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
             // Adena answers at broadcast: the reload that follows must find the key on chain.
             const visible = await activationOnChain(address, gone)
             if (gone?.aborted) return
-            if (!visible) throw new Error(`${ACTIVATION_NOT_SEEN} Select Activate My Wallet again in a few seconds: Memba checks the network first, and sends nothing if your address is already active.`)
+            if (!visible) throw new Error(`${ACTIVATION_NOT_SEEN} Select Activate My Wallet again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active.`)
             onSuccess()
         } catch (err: unknown) {
             // A cancel in the confirmation dialog or a reject in Adena sends nothing.
