@@ -18,6 +18,14 @@ const base: Game = {
 beforeEach(() => Object.values(lib).forEach((f) => f.mockReset()))
 
 describe("Lobby", () => {
+    it("warns about block-time forfeiture in the lobby and before posting a stake", async () => {
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [] })
+        renderWithProviders(<Lobby me="g1alice" connected onOpen={vi.fn()} />)
+        expect(screen.getByText(/Each reveal and move has 90 seconds measured by block timestamps/)).toHaveTextContent("A network halt or stall can cost you your stake when blocks resume")
+        const form = (await screen.findByLabelText("Stake (GNOT)")).closest("form")!
+        expect(form).toHaveTextContent("The clock uses block timestamps: a network halt or stall can forfeit your stake when blocks resume.")
+    })
+
     it("shows the bundled Quick play at the stake and lets the player decline it", async () => {
         localStorage.clear()
         lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base] })

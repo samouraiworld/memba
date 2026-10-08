@@ -87,7 +87,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
             <div className="c4-hero-discs" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
             <div className="os-grow">
                 <h2>Connect 4</h2>
-                <p>Both players stake the same GNOT; the winner takes the pot minus {fee === null ? "a house fee" : `a ${formatGnot(fee)} fee`}. Each move has 90 seconds of chain time — run out and you forfeit. There is no maximum stake: stake only what you can afford to lose.</p>
+                <p>Both players stake the same GNOT; the winner takes the pot minus {fee === null ? "a house fee" : `a ${formatGnot(fee)} fee`}. Each reveal and move has 90 seconds measured by block timestamps. A network halt or stall can cost you your stake when blocks resume, even if you couldn't act. There is no maximum stake: stake only what you can afford to lose.</p>
             </div>
             <div className="os-row c4-hero-controls">
                 <QuickPlay me={me} connected={connected} />
@@ -170,7 +170,7 @@ export function Lobby({ me, connected, onOpen }: { me: string; connected: boolea
                             <span className="c4-payout-arrow" aria-hidden="true">→</span>
                             <span><small>Winner gets</small><b>{formOk && fee !== null ? formatGnot(2 * stakeUgnot - fee) : "—"}</b></span>
                         </div>
-                        <div className="os-note os-warn">After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts. The reveal key is stored only in this browser; missing it forfeits your stake.</div>
+                        <div className="os-note os-warn">After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts. The reveal key is stored only in this browser; missing it forfeits your stake. The clock uses block timestamps: a network halt or stall can forfeit your stake when blocks resume.</div>
                         {formOk && consent(stakeUgnot)}
                         <button type="submit" className="os-btn c4-cta c4-cta-wide" disabled={!formOk || tx.pending}>Post offer</button>
                     </form>
