@@ -1,4 +1,7 @@
 import { withWalletActivity } from "../lib/walletActivity";
+import { ADENA_CLOSED_MESSAGE, ADENA_NO_ANSWER_MESSAGE, AdenaNoAnswerError, adenaPrompt, adenaRead, isAdenaWindowClosed, type PromptWatch } from "../lib/adenaCall";
+import { LIVE_NETWORK_TIMEOUT_MS } from "../lib/walletNetworkGuard";
+import { startWalletFlow, type WalletFlow } from "../lib/walletTiming";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { isTrustedRpcDomain, networkScopedKey } from "../lib/config";
 import { setWalletRpcContext, UNVERIFIED_CHAIN_ID } from "../lib/grc20";
@@ -107,6 +110,52 @@ function setCachedRpc(url: string) {
     try { sessionStorage.setItem(SESSION_RPC_KEY, JSON.stringify({ url })); } catch { /* no-op */ }
 }
 
+/** Reads Adena answers within this long during a connect the person started. */
+const READ_TIMEOUT_MS = LIVE_NETWORK_TIMEOUT_MS
+/** A silent reconnect's read limit. Adena's first GetAccount after a few idle minutes took ~4.2 s (measured). */
+const SILENT_READ_TIMEOUT_MS = 8_000
+const WAKE_TIMEOUT_MS = 4_000
+/** A wake answer younger than this lets connect read instead of sending AddEstablish; until then no new wake is sent. */
+const WAKE_FRESH_MS = 10_000
+
+/** Why a connect the person started failed. */
+export type ConnectFailure = "no-answer" | "closed" | "rejected" | "failed"
+
+export interface ConnectOptions {
+    /** Read only, never open Adena's window. */
+    silent?: boolean
+    /** Progress of Adena's window, and the reason when the connect fails. */
+    watch?: PromptWatch & { onFailure?: (kind: ConnectFailure, message: string) => void }
+    /** The person cancelled: checked after each wait and before AddEstablish. A cancelled connect opens no window and records no session. */
+    signal?: AbortSignal
+}
+
+interface WalletReads {
+    account: AdenaAccount | null | undefined
+    network: { fresh: true; rpcUrl: string } | { fresh: false }
+}
+
+function accountOk(account: AdenaAccount | null | undefined): account is AdenaAccount {
+    return !!account && account.status !== "failure" && !!account.data?.address
+}
+
+/**
+ * GetAccount and GetNetwork side by side (Adena answers GetAccount with a chain
+ * query, so the two in a row cost twice). GetAccount's no-answer rejects; a
+ * failed or missing GetNetwork reads as not fresh (the caller falls back).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function readWallet(adena: any, ms: number, flow?: WalletFlow | null): Promise<WalletReads> {
+    const network: Promise<WalletReads["network"]> = typeof adena.GetNetwork === "function"
+        ? adenaRead<{ data?: { rpcUrl?: string } } | null | undefined>(() => adena.GetNetwork(), ms)
+            .then((res) => { flow?.step("network"); return { fresh: true as const, rpcUrl: res?.data?.rpcUrl || "" } })
+            .catch(() => ({ fresh: false as const }))
+        : Promise.resolve({ fresh: false as const })
+    const account = adenaRead<AdenaAccount>(() => adena.GetAccount(), ms).then((res) => { flow?.step("account"); return res })
+    const [a, n] = await Promise.all([account, network])
+    return { account: a, network: n }
+}
+
 export function useAdena() {
     const [installed, setInstalled] = useState(() => !!getAdena());
     const [state, setState] = useState<AdenaState>({
@@ -123,7 +172,7 @@ export function useAdena() {
     const autoReconnectAttempted = useRef(false);
     // Live view of state for event handlers registered once (visibility retry).
     const stateRef = useRef(state);
-    stateRef.current = state;
+    useEffect(() => { stateRef.current = state; });
     // F-24: bumped by disconnect(). An in-flight connect() compares it against
     // the value it snapshotted before its awaits — a mismatch means the user
     // disconnected mid-connect and the connect must stand down, whatever the
@@ -136,6 +185,7 @@ export function useAdena() {
         if (installed) return;
 
         // Check immediately
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- the extension may have injected since the first render
         if (getAdena()) { setInstalled(true); return; }
 
         let stopped = false;
@@ -164,131 +214,199 @@ export function useAdena() {
         };
     }, [installed]);
 
-    const connect = useCallback(async (opts?: { silent?: boolean }) => {
-        const adena = getAdena();
+    // The last wake (a GetNetwork that warms Adena up while the person decides): when it
+    // started, when it answered, and whether Adena answered it as connected and unlocked.
+    const wakeState = useRef<{ startedAt: number; answeredAt: number; ok: boolean; running: Promise<boolean> | null }>({
+        startedAt: 0, answeredAt: 0, ok: false, running: null,
+    })
+    // The silent connect in flight, which an interactive one waits for instead of racing it.
+    const silentRun = useRef<Promise<boolean> | null>(null)
+
+    /**
+     * Wake Adena before the person clicks: GetNetwork, a read that opens no window, for 4 s
+     * at most, and not again while its last answer is fresh (10 s): the answer handed back is
+     * never older than connect accepts. Adena answers it with success only for a site it has
+     * approved while it is unlocked (otherwise NOT_CONNECTED or WALLET_LOCKED), so a fresh
+     * success means connect can skip AddEstablish. Resolves whether it did.
+     */
+    const wake = useCallback((): Promise<boolean> => {
+        const adena = getAdena()
+        if (!adena || typeof adena.GetNetwork !== "function") return Promise.resolve(false)
+        const w = wakeState.current
+        if (w.running) return w.running
+        if (w.answeredAt && Date.now() - w.answeredAt < WAKE_FRESH_MS) return Promise.resolve(w.ok)
+        const startedAt = Date.now()
+        const running = adenaRead<{ status?: string } | null | undefined>(() => adena.GetNetwork(), WAKE_TIMEOUT_MS)
+            .then((reply) => !!reply && reply.status !== "failure", () => false)
+            .then((ok) => {
+                wakeState.current = { startedAt, answeredAt: Date.now(), ok, running: null }
+                logWalletEvent("timing", `wake ${ok ? "connected" : "not-connected"} +${Date.now() - startedAt}ms`)
+                return ok
+            })
+        wakeState.current = { ...w, startedAt, running }
+        return running
+    }, [])
+
+    const connect = useCallback(async (opts?: ConnectOptions) => {
+        const silent = !!opts?.silent
+        const adena = getAdena()
         if (!adena) {
             setState((s) => ({ ...s, error: "Adena wallet not installed" }));
             return false;
         }
+        if (silent && silentRun.current) return silentRun.current
 
-        setState((s) => ({ ...s, loading: true, error: null }));
+        const watch = opts?.watch
+        const signal = opts?.signal
+        const flow = silent ? null : startWalletFlow("connect")
+        flow?.step("click")
+        // An interactive connect while a silent one runs: wait for it, and go on only if it failed.
+        if (!silent && silentRun.current) {
+            if (await silentRun.current) { flow?.end("resumed"); return true }
+        }
+        if (signal?.aborted) { flow?.end("cancelled"); return false }
 
-        // F-24: snapshot the disconnect state BEFORE any await. The epoch
-        // catches this instance's own disconnect() — the button, or Layout's
-        // programmatic one on changedAccount — landing anywhere in the awaits
-        // below, including the human-paced AddEstablish window. The flag
-        // snapshot catches another tab or another hook instance clearing the
-        // session; the `hadFlag &&` in the guard keeps that clause inert when
-        // storage is unavailable (privacy-hardened browsers) or on a
-        // first-time connect, so neither can produce a spurious abort.
-        const epoch = disconnectEpoch.current;
-        const hadFlag = wasConnected();
+        const run = (async (): Promise<boolean> => {
+            setState((s) => ({ ...s, loading: true, error: null }));
 
-        try {
-            // Silent reconnect: try GetAccount() first — if the user already
-            // whitelisted Memba, this succeeds without showing a popup.
-            let accountRes: AdenaAccount | null = null;
-            try {
-                const silentCheck: AdenaAccount = await adena.GetAccount();
-                if (silentCheck.status !== "failure" && silentCheck.data?.address) {
-                    accountRes = silentCheck;
-                }
-            } catch { /* silent check failed — wallet may be locked */ }
+            // F-24: snapshot the disconnect state BEFORE any await. The epoch
+            // catches this instance's own disconnect() — the button, or Layout's
+            // programmatic one on changedAccount — landing anywhere in the awaits
+            // below, including the human-paced AddEstablish window. The flag
+            // snapshot catches another tab or another hook instance clearing the
+            // session; the `hadFlag &&` in the guard keeps that clause inert when
+            // storage is unavailable (privacy-hardened browsers) or on a
+            // first-time connect, so neither can produce a spurious abort.
+            const epoch = disconnectEpoch.current;
+            const hadFlag = wasConnected();
 
-            if (!accountRes) {
-                // In silent mode, don't show the Adena popup — just give up.
-                // The user can browse freely and connect manually when needed.
-                if (opts?.silent) {
-                    logWalletEvent("silent-check-failed", "wallet locked or not whitelisted");
-                    setState((s) => ({ ...s, loading: false, reconnecting: false }));
-                    return false;
-                }
-                // Full establish flow — shows Adena approval popup (interactive only)
-                const connectRes = await withWalletActivity<AdenaPromptResult>(() => adena.AddEstablish("Memba"));
-                if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
-                    setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
-                    return false;
-                }
-                accountRes = await adena.GetAccount();
+            const fail = (kind: ConnectFailure, message: string) => {
+                setState((s) => ({ ...s, loading: false, error: message }))
+                watch?.onFailure?.(kind, message)
+                flow?.end(kind)
+                return false
+            }
+            // The person cancelled while this connect waited: stand down quietly.
+            const cancelled = () => {
+                setState((s) => ({ ...s, loading: false }))
+                flow?.end("cancelled")
+                return false
             }
 
-            // Validate account
-            if (!accountRes || accountRes.status === "failure") {
-                setState((s) => ({ ...s, loading: false, error: "Failed to get account" }));
-                return false;
-            }
-
-            const { address, publicKey, chainId } = accountRes.data;
-
-            const pubkeyJSON = pubkeyJSONOf(publicKey);
-
-            // SECURITY: Read wallet's active RPC URL via GetNetwork()
-            let rpcUrl = "";
-            let rpcTrusted = false;
-            let gotFreshNetwork = false;
             try {
-                if (typeof adena.GetNetwork === "function") {
-                    const netRes = await adena.GetNetwork();
-                    rpcUrl = netRes?.data?.rpcUrl || "";
-                    rpcTrusted = rpcUrl ? isTrustedRpcDomain(rpcUrl) : false;
-                    gotFreshNetwork = true; // cache write deferred past the guard
+                let reads: WalletReads | null = null
+                if (silent) {
+                    // Silent reconnect: read only — if the user already whitelisted Memba and
+                    // Adena is unlocked, this succeeds without a window. Otherwise give up: the
+                    // user can browse freely and connect when needed.
+                    try {
+                        reads = await readWallet(adena, SILENT_READ_TIMEOUT_MS)
+                    } catch { /* no answer in time — wallet asleep or the tab predates an Adena update */ }
+                    if (!reads || !accountOk(reads.account)) {
+                        logWalletEvent("silent-check-failed", "wallet locked, not whitelisted or not answering")
+                        setState((s) => ({ ...s, loading: false, reconnecting: false }))
+                        return false
+                    }
                 } else {
-                    // GetNetwork unavailable → try cached value from previous session
+                    // Adena answers the wake fast only when it is awake; one still running is waited for (4 s at most).
+                    if (wakeState.current.running) { await wakeState.current.running; flow?.step("wake") }
+                    if (signal?.aborted) return cancelled()
+                    const w = wakeState.current
+                    if (w.ok && Date.now() - w.answeredAt < WAKE_FRESH_MS) {
+                        // Approved and unlocked a moment ago: read, and open no window. AddEstablish
+                        // would close every Adena window, other tabs' included.
+                        reads = await readWallet(adena, READ_TIMEOUT_MS, flow)
+                        if (!accountOk(reads.account)) reads = null
+                    }
+                    if (!reads) {
+                        if (signal?.aborted) return cancelled()
+                        // Adena answers ALREADY_CONNECTED at once for an approved, unlocked wallet;
+                        // otherwise its window asks to approve Memba or to unlock.
+                        flow?.step("establish-sent")
+                        const connectRes = await adenaPrompt<AdenaPromptResult>(() => adena.AddEstablish("Memba"), {
+                            ...watch,
+                            onPopupFocus: () => { flow?.step("popup-focus"); watch?.onPopupFocus?.() },
+                        })
+                        flow?.step("establish-done")
+                        if (isAdenaWindowClosed(connectRes)) return fail("closed", ADENA_CLOSED_MESSAGE)
+                        if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") return fail("rejected", "Connection rejected")
+                        reads = await readWallet(adena, READ_TIMEOUT_MS, flow)
+                    }
+                }
+
+                const accountRes = reads.account
+                // Validate account
+                if (!accountOk(accountRes)) return fail("failed", "Failed to get account")
+
+                const { address, publicKey, chainId } = accountRes.data;
+
+                const pubkeyJSON = pubkeyJSONOf(publicKey);
+
+                // SECURITY: the wallet's active RPC URL, from GetNetwork() (read alongside the account).
+                let rpcUrl = "";
+                let rpcTrusted = false;
+                const gotFreshNetwork = reads.network.fresh; // cache write deferred past the guard
+                if (reads.network.fresh) {
+                    rpcUrl = reads.network.rpcUrl
+                    rpcTrusted = rpcUrl ? isTrustedRpcDomain(rpcUrl) : false
+                } else {
+                    // GetNetwork unavailable or failed → try cached value from previous session, else strict: untrusted
                     const cached = getCachedRpc();
                     if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
                 }
-            } catch {
-                // GetNetwork failed → try cached, else strict: untrusted
-                const cached = getCachedRpc();
-                if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
+
+                // F-24: a disconnect may have landed while the awaits above were in
+                // flight — this instance's disconnect() (epoch mismatch) or another
+                // tab/instance clearing the session flag. Completing would silently
+                // undo the user's disconnect, so stand down BEFORE anything is
+                // persisted or published (same storage-is-truth rule as the
+                // changedNetwork publish guard). Everything with a side effect —
+                // session flag, analytics, RPC cache, wallet RPC context, state —
+                // sits below this line.
+                if (disconnectEpoch.current !== epoch || (hadFlag && !wasConnected())) {
+                    logWalletEvent("connect-aborted", "disconnected during connect");
+                    setState((s) => ({ ...s, loading: false, reconnecting: false }));
+                    flow?.end("aborted")
+                    return false;
+                }
+                // Cancelled while Adena's window or the reads were open: nothing is recorded either.
+                if (signal?.aborted) return cancelled()
+
+                // Only an INTERACTIVE connect asserts the session flag — it is
+                // fresh user intent. A silent reconnect merely acts on a flag that
+                // was already true when it started.
+                if (!silent) saveConnected();
+                trackEvent("Wallet Connected");
+                logWalletEvent("connected", silent ? "silent" : "interactive");
+                if (gotFreshNetwork) setCachedRpc(rpcUrl);
+
+                setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null, address || null);
+
+                setState({
+                    connected: true,
+                    address,
+                    pubkeyJSON,
+                    chainId,
+                    loading: false,
+                    reconnecting: false,
+                    error: null,
+                    rpcUrl,
+                    rpcTrusted,
+                });
+                flow?.end("connected")
+                return true;
+            } catch (err) {
+                logWalletEvent("connect-error", err instanceof Error ? err.message : "unknown");
+                console.error("[Memba] Connect error:", err);
+                if (err instanceof AdenaNoAnswerError) return fail("no-answer", ADENA_NO_ANSWER_MESSAGE)
+                return fail("failed", err instanceof Error ? err.message : "Connection failed")
             }
-
-            // F-24: a disconnect may have landed while the awaits above were in
-            // flight — this instance's disconnect() (epoch mismatch) or another
-            // tab/instance clearing the session flag. Completing would silently
-            // undo the user's disconnect, so stand down BEFORE anything is
-            // persisted or published (same storage-is-truth rule as the
-            // changedNetwork publish guard). Everything with a side effect —
-            // session flag, analytics, RPC cache, wallet RPC context, state —
-            // sits below this line.
-            if (disconnectEpoch.current !== epoch || (hadFlag && !wasConnected())) {
-                logWalletEvent("connect-aborted", "disconnected during connect");
-                setState((s) => ({ ...s, loading: false, reconnecting: false }));
-                return false;
-            }
-
-            // Only an INTERACTIVE connect asserts the session flag — it is
-            // fresh user intent. A silent reconnect merely acts on a flag that
-            // was already true when it started.
-            if (!opts?.silent) saveConnected();
-            trackEvent("Wallet Connected");
-            logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
-            if (gotFreshNetwork) setCachedRpc(rpcUrl);
-
-            setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null, address || null);
-
-            setState({
-                connected: true,
-                address,
-                pubkeyJSON,
-                chainId,
-                loading: false,
-                reconnecting: false,
-                error: null,
-                rpcUrl,
-                rpcTrusted,
-            });
-            return true;
-        } catch (err) {
-            logWalletEvent("connect-error", err instanceof Error ? err.message : "unknown");
-            console.error("[Memba] Connect error:", err);
-            setState((s) => ({
-                ...s,
-                loading: false,
-                error: err instanceof Error ? err.message : "Connection failed",
-            }));
-            return false;
+        })()
+        if (silent) {
+            silentRun.current = run
+            void run.finally(() => { if (silentRun.current === run) silentRun.current = null })
         }
+        return run
     }, []);
 
     // Auto-reconnect: if sessionStorage flag exists and Adena is installed,
@@ -297,6 +415,7 @@ export function useAdena() {
     useEffect(() => {
         if (!installed || autoReconnectAttempted.current) return;
         if (!wasConnected()) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- no earlier session: nothing to resume
             setState((s) => ({ ...s, reconnecting: false }));
             return;
         }
@@ -389,14 +508,14 @@ export function useAdena() {
      *  wallets (no on-chain pubkey) authenticate by proving key ownership. Says
      *  why when there is no signature. */
     const signLoginChallenge = useCallback(
-        async (chainId: string, nonceBase64: string): Promise<LoginSignature | LoginRefusal> => {
+        async (chainId: string, nonceBase64: string, watch?: PromptWatch): Promise<LoginSignature | LoginRefusal> => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const adena = getAdena() as any;
             if (!adena || !state.connected || !state.address) return "failed";
             if (typeof adena.SignMultisigTransaction !== "function") return "unsupported";
             try {
                 const doc = buildLoginChallengeDoc(chainId, state.address, nonceBase64);
-                const res = await withWalletActivity(async () => adena.SignMultisigTransaction(doc));
+                const res = await adenaPrompt(async () => adena.SignMultisigTransaction(doc), watch);
                 if (!res) return "failed";
                 if (res.status === "failure") return loginRefusal(res);
                 const signature = res.data?.signature?.signature;
@@ -407,7 +526,7 @@ export function useAdena() {
                 return { signature, pubKey };
             } catch (err) {
                 console.error("[Memba] login challenge sign error:", err);
-                return "failed";
+                return err instanceof AdenaNoAnswerError ? "no-answer" : "failed";
             }
         },
         [state.connected, state.address]
@@ -554,6 +673,7 @@ export function useAdena() {
         ...state,
         installed,
         connect,
+        wake,
         disconnect,
         signArbitrary,
         signLoginChallenge,

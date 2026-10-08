@@ -267,8 +267,13 @@ export function useEvmSession(opts: { onSignedIn?: (address: string) => void } =
         noFunds: false,
         balanceUnknown: true,
         error,
+        // Adena's waiting hints and wake are gno.land steps.
+        errorKind: null,
+        slow: false,
+        noPopup: false,
         note: null,
         openConnect,
+        wake: noop,
         chooseAdena: noop,
         recheck: noop,
         signIn,

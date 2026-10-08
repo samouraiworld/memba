@@ -40,9 +40,11 @@ export interface LoginSignature { signature: string; pubKey: string }
  * Why Adena returned no login signature: the user declined; the account has
  * no key on Adena's current network (it never sent a transaction there); a
  * session account (Adena refuses it); an Adena too old to sign the message;
- * or anything else.
+ * Adena never answered (a tab opened before an Adena update); Adena closed its
+ * window itself (another request, any tab's) or failed inside (both
+ * UNEXPECTED_ERROR); or anything else.
  */
-export type LoginRefusal = "declined" | "no-key" | "session-account" | "unsupported" | "failed"
+export type LoginRefusal = "declined" | "no-key" | "session-account" | "unsupported" | "no-answer" | "closed" | "failed"
 
 /** Reads Adena's failure reply to SignMultisigTransaction. */
 export function loginRefusal(reply: { type?: unknown; data?: { error?: { message?: unknown } } | null }): LoginRefusal {
@@ -50,6 +52,7 @@ export function loginRefusal(reply: { type?: unknown; data?: { error?: { message
     const message = typeof reply.data?.error?.message === "string" ? reply.data.error.message : ""
     if (type.includes("REJECTED")) return "declined"
     if (type === "UNSUPPORTED_TYPE") return "session-account"
+    if (type === "UNEXPECTED_ERROR") return "closed"
     if (message.includes("Public key not found")) return "no-key"
     return "failed"
 }

@@ -114,14 +114,15 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
         }
     })
 
-    it("exactly one truly-unreleased block exists (the canonical [Unreleased])", () => {
+    it("at most one truly-unreleased block exists (the canonical [Unreleased])", () => {
         // Tripwire for the review finding: shipped-but-undated historical
         // blocks (## Unreleased — v6.2.x, ## v6.2.3 (…)) must NOT be flagged
-        // unreleased — only the version-less [Unreleased] block is.
+        // unreleased — only the version-less [Unreleased] block is. Right after
+        // a release cut that block is empty, and the parser skips it.
         const entries = parseChangelogMarkdown(real)
         const unreleased = entries.filter(e => e.unreleased)
-        expect(unreleased).toHaveLength(1)
-        expect(unreleased[0].version).toBeUndefined()
+        expect(unreleased.length).toBeLessThanOrEqual(1)
+        for (const e of unreleased) expect(e.version).toBeUndefined()
         // And every undated non-unreleased entry carries a version to group under.
         for (const e of entries) {
             if (e.date === "" && !e.unreleased) expect(e.version).toBeTruthy()
@@ -149,10 +150,21 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
         expect(v77.date).toBe("2026-09-23")
         expect(v77.unreleased).toBe(false)
         expect(v77.items[0]).toContain("Memba moves to gno.land mainnet")
-        // Newest release sits directly below the canonical [Unreleased] block.
-        expect(entries[0].unreleased).toBe(true)
-        expect(entries[1].version).toBe("v7.7.0")
         // 7.6.0 was never tagged: it is folded into v7.7.0, not a block of its own.
         expect(entries.some(e => e.version === "v7.6.0")).toBe(false)
+    })
+
+    it("v7.8.0 carries its release date and leads with the curated headline", () => {
+        const entries = parseChangelogMarkdown(real)
+        const v78 = entries.find(e => e.version === "v7.8.0")!
+        expect(v78.date).toBe("2026-10-08")
+        expect(v78.unreleased).toBe(false)
+        expect(v78.items[0]).toContain("Memba OS at memba.club")
+        // Newest release first, then v7.7.0. The canonical [Unreleased] block
+        // may sit above them, and is skipped while it has no sections.
+        const released = entries.filter(e => !e.unreleased)
+        expect(released[0].version).toBe("v7.8.0")
+        expect(released[1].version).toBe("v7.7.0")
+        expect(entries.filter(e => e.unreleased).length).toBeLessThanOrEqual(1)
     })
 })

@@ -84,7 +84,7 @@ afterEach(() => {
 })
 
 describe("useAdena — connect success", () => {
-    it("transitions to connected and exposes the returned address (silent GetAccount path)", async () => {
+    it("transitions to connected and exposes the returned address (woken wallet: reads only, no AddEstablish)", async () => {
         const adena = makeAdena()
         setAdena(adena)
 
@@ -93,6 +93,7 @@ describe("useAdena — connect success", () => {
 
         let returned: boolean | undefined
         await act(async () => {
+            await result.current.wake()
             returned = await result.current.connect()
         })
 
@@ -101,22 +102,22 @@ describe("useAdena — connect success", () => {
         expect(result.current.address).toBe(ADDR)
         expect(result.current.loading).toBe(false)
         expect(result.current.error).toBeNull()
-        // Already-whitelisted wallet must NOT trigger the approval popup.
+        // Already-whitelisted wallet must NOT trigger the approval popup: AddEstablish closes every Adena window.
         expect(adena.AddEstablish).not.toHaveBeenCalled()
     })
 
-    it("falls back to the AddEstablish popup flow when no silent session exists", async () => {
-        // Silent GetAccount reports failure → hook must run the interactive establish flow.
+    it("falls back to the AddEstablish popup flow when the wake says the site is not connected", async () => {
         const adena = makeAdena({
-            GetAccount: vi
+            GetNetwork: vi
                 .fn()
-                .mockResolvedValueOnce({ status: "failure", data: null }) // silent probe fails
-                .mockResolvedValueOnce(okAccount()), // post-establish fetch succeeds
+                .mockResolvedValueOnce({ status: "failure", type: "NOT_CONNECTED" }) // the wake
+                .mockResolvedValue({ status: "success", data: { rpcUrl: TRUSTED_RPC } }),
         })
         setAdena(adena)
 
         const { result } = renderHook(() => useAdena())
         await act(async () => {
+            await result.current.wake()
             await result.current.connect()
         })
 
@@ -124,6 +125,303 @@ describe("useAdena — connect success", () => {
         expect(adena.AddEstablish).toHaveBeenCalledWith("Memba")
         expect(result.current.connected).toBe(true)
         expect(result.current.address).toBe(ADDR)
+    })
+})
+
+describe("useAdena — connect ordering (latency)", () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    it("without a fresh wake, sends AddEstablish first (Adena answers ALREADY_CONNECTED at once), then reads", async () => {
+        const order: string[] = []
+        const adena = makeAdena({
+            AddEstablish: vi.fn(async () => { order.push("establish"); return { status: "failure", type: "ALREADY_CONNECTED" } }),
+            GetAccount: vi.fn(async () => { order.push("account"); return okAccount() }),
+            GetNetwork: vi.fn(async () => { order.push("network"); return { status: "success", data: { rpcUrl: TRUSTED_RPC } } }),
+        })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let ok: boolean | undefined
+        await act(async () => { ok = await result.current.connect() })
+        expect(ok).toBe(true)
+        expect(order[0]).toBe("establish")
+        expect(order.slice(1).sort()).toEqual(["account", "network"])
+        expect(adena.GetAccount).toHaveBeenCalledOnce()
+    })
+
+    it("a wake older than 10 s no longer counts: AddEstablish goes first again", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const now = Date.now()
+        const clock = vi.spyOn(Date, "now").mockReturnValue(now)
+        await act(async () => { await result.current.wake() })
+        clock.mockReturnValue(now + 10_001)
+        await act(async () => { await result.current.connect() })
+        expect(adena.AddEstablish).toHaveBeenCalledOnce()
+    })
+
+    it("with a fresh wake but an account Adena no longer connects, asks AddEstablish then reads again", async () => {
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValueOnce({ status: "failure", type: "NOT_CONNECTED" }).mockResolvedValue(okAccount()),
+        })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let ok: boolean | undefined
+        await act(async () => {
+            await result.current.wake()
+            ok = await result.current.connect()
+        })
+        expect(ok).toBe(true)
+        expect(adena.AddEstablish).toHaveBeenCalledOnce()
+        expect(adena.GetAccount).toHaveBeenCalledTimes(2)
+    })
+
+    it("reads the account and the network side by side", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValue(new Promise((r) => { releaseAcct = r })) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let pending!: Promise<boolean>
+        await act(async () => { await result.current.wake() })
+        adena.GetNetwork.mockClear()
+        act(() => { pending = result.current.connect() })
+        // GetNetwork is asked while GetAccount is still unanswered.
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalledOnce())
+        expect(adena.GetAccount).toHaveBeenCalledOnce()
+        await act(async () => { releaseAcct(okAccount()); await pending })
+        expect(result.current.connected).toBe(true)
+        expect(result.current.rpcTrusted).toBe(true)
+    })
+
+    it("does not wake Adena again while its last answer is fresh", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await Promise.all([result.current.wake(), result.current.wake()])
+            await result.current.wake()
+        })
+        expect(adena.GetNetwork).toHaveBeenCalledOnce()
+    })
+
+    it("wakes Adena again once its last answer is older than 10 s, so a connect 10-20 s after a wake still skips AddEstablish", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const now = Date.now()
+        const clock = vi.spyOn(Date, "now").mockReturnValue(now)
+        await act(async () => { await result.current.wake() })
+        clock.mockReturnValue(now + 15_000)
+        let ok: boolean | undefined
+        await act(async () => {
+            await result.current.wake()
+            ok = await result.current.connect()
+        })
+        expect(ok).toBe(true)
+        // Two wakes, then the connect's own read.
+        expect(adena.GetNetwork).toHaveBeenCalledTimes(3)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+    })
+
+    it("a wake that gets no answer gives up after 4 s, and connect then goes the AddEstablish way", async () => {
+        vi.useFakeTimers()
+        const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValueOnce(new Promise(() => {})).mockResolvedValue({ status: "success", data: { rpcUrl: TRUSTED_RPC } }) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let woke: boolean | undefined
+        await act(async () => {
+            const w = result.current.wake().then((v) => { woke = v })
+            await vi.advanceTimersByTimeAsync(4_000)
+            await w
+        })
+        expect(woke).toBe(false)
+        await act(async () => { await result.current.connect() })
+        expect(adena.AddEstablish).toHaveBeenCalledOnce()
+        expect(result.current.connected).toBe(true)
+    })
+
+    it("says Adena didn't answer when a read never settles (a tab older than an Adena update)", async () => {
+        vi.useFakeTimers()
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValue(new Promise(() => {})) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const onFailure = vi.fn()
+        let ok: boolean | undefined
+        await act(async () => {
+            const c = result.current.connect({ watch: { onFailure } }).then((v) => { ok = v })
+            await vi.advanceTimersByTimeAsync(15_000)
+            await c
+        })
+        expect(ok).toBe(false)
+        expect(result.current.error).toBe("Adena didn't answer — reload this tab (needed after Adena updates).")
+        expect(onFailure).toHaveBeenCalledWith("no-answer", result.current.error)
+        expect(result.current.loading).toBe(false)
+    })
+
+    it("a silent reconnect gives up after 8 s without an answer, and never opens a window", async () => {
+        vi.useFakeTimers()
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValue(new Promise(() => {})) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let ok: boolean | undefined
+        await act(async () => {
+            const c = result.current.connect({ silent: true }).then((v) => { ok = v })
+            await vi.advanceTimersByTimeAsync(7_999)
+            expect(ok).toBeUndefined()
+            await vi.advanceTimersByTimeAsync(1)
+            await c
+        })
+        expect(ok).toBe(false)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        expect(result.current.error).toBeNull()
+    })
+
+    it("an interactive connect waits for a running silent one and adds no window when it succeeds", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValueOnce(new Promise((r) => { releaseAcct = r })).mockResolvedValue(okAccount()) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let silent!: Promise<boolean>
+        let interactive!: Promise<boolean>
+        act(() => { silent = result.current.connect({ silent: true }) })
+        act(() => { interactive = result.current.connect() })
+        await act(async () => { await Promise.resolve() })
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseAcct(okAccount())
+            await silent
+            ok = await interactive
+        })
+        expect(ok).toBe(true)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        expect(adena.GetAccount).toHaveBeenCalledOnce()
+    })
+
+    it("an interactive connect goes on with AddEstablish when the silent one it waited for failed", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValueOnce(new Promise((r) => { releaseAcct = r })).mockResolvedValue(okAccount()) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        let interactive!: Promise<boolean>
+        act(() => { void result.current.connect({ silent: true }) })
+        act(() => { interactive = result.current.connect() })
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseAcct({ status: "failure", type: "WALLET_LOCKED" })
+            ok = await interactive
+        })
+        expect(ok).toBe(true)
+        expect(adena.AddEstablish).toHaveBeenCalledOnce()
+    })
+
+    it("says Adena closed its window or hit an error when Adena answers UNEXPECTED_ERROR", async () => {
+        const adena = makeAdena({ AddEstablish: vi.fn().mockResolvedValue({ status: "failure", type: "UNEXPECTED_ERROR" }) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const onFailure = vi.fn()
+        let ok: boolean | undefined
+        await act(async () => { ok = await result.current.connect({ watch: { onFailure } }) })
+        expect(ok).toBe(false)
+        expect(result.current.error).toBe("Adena closed its window or hit an error (another tab may have asked it something). Try again.")
+        expect(onFailure).toHaveBeenCalledWith("closed", result.current.error)
+    })
+
+    it("tells the caller when AddEstablish is sent, when it is slow, and when its window never seemed to open", async () => {
+        vi.useFakeTimers()
+        let answer!: (v: unknown) => void
+        const adena = makeAdena({ AddEstablish: vi.fn().mockReturnValue(new Promise((r) => { answer = r })) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const onSent = vi.fn()
+        const onSlow = vi.fn()
+        const onNoPopup = vi.fn()
+        let ok: boolean | undefined
+        await act(async () => {
+            const c = result.current.connect({ watch: { onSent, onSlow, onNoPopup } }).then((v) => { ok = v })
+            await vi.advanceTimersByTimeAsync(0)
+            expect(onSent).toHaveBeenCalledOnce()
+            await vi.advanceTimersByTimeAsync(3_000)
+            expect(onSlow).toHaveBeenCalledOnce()
+            expect(onNoPopup).not.toHaveBeenCalled()
+            await vi.advanceTimersByTimeAsync(5_000)
+            expect(onNoPopup).toHaveBeenCalledOnce()
+            // A hint only: the person can still answer, and the connect completes.
+            answer({ status: "success" })
+            await c
+        })
+        expect(ok).toBe(true)
+    })
+})
+
+describe("useAdena — a cancelled connect", () => {
+    it("cancelled while the wake runs: sends no AddEstablish and records no session", async () => {
+        let releaseWake!: (v: unknown) => void
+        const adena = makeAdena({
+            GetNetwork: vi.fn().mockReturnValueOnce(new Promise((r) => { releaseWake = r })).mockResolvedValue({ status: "success", data: { rpcUrl: TRUSTED_RPC } }),
+        })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const stop = new AbortController()
+        let pending!: Promise<boolean>
+        act(() => {
+            void result.current.wake()
+            pending = result.current.connect({ signal: stop.signal })
+        })
+        stop.abort()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseWake({ status: "failure", type: "NOT_CONNECTED" })
+            ok = await pending
+        })
+        expect(ok).toBe(false)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        expect(result.current.connected).toBe(false)
+        expect(result.current.loading).toBe(false)
+        expect(result.current.error).toBeNull()
+    })
+
+    it("cancelled while a silent resume runs: sends no AddEstablish once the resume fails", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValueOnce(new Promise((r) => { releaseAcct = r })).mockResolvedValue(okAccount()) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const stop = new AbortController()
+        let interactive!: Promise<boolean>
+        act(() => { void result.current.connect({ silent: true }) })
+        act(() => { interactive = result.current.connect({ signal: stop.signal }) })
+        stop.abort()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseAcct({ status: "failure", type: "WALLET_LOCKED" })
+            ok = await interactive
+        })
+        expect(ok).toBe(false)
+        expect(adena.AddEstablish).not.toHaveBeenCalled()
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        expect(result.current.connected).toBe(false)
+    })
+
+    it("cancelled while Adena's window is open: records no session when Adena answers later", async () => {
+        let releaseEstablish!: (v: unknown) => void
+        const adena = makeAdena({ AddEstablish: vi.fn().mockReturnValue(new Promise((r) => { releaseEstablish = r })) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        const stop = new AbortController()
+        let pending!: Promise<boolean>
+        act(() => { pending = result.current.connect({ signal: stop.signal }) })
+        await waitFor(() => expect(adena.AddEstablish).toHaveBeenCalledOnce())
+        stop.abort()
+        let ok: boolean | undefined
+        await act(async () => {
+            releaseEstablish({ status: "success" })
+            ok = await pending
+        })
+        expect(ok).toBe(false)
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        expect(result.current.connected).toBe(false)
+        expect(result.current.loading).toBe(false)
     })
 })
 
@@ -752,10 +1050,8 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         let releaseEstablish!: (v: unknown) => void
         const establishGate = new Promise((r) => { releaseEstablish = r })
         const adena = makeAdena({
-            GetAccount: vi
-                .fn()
-                .mockResolvedValueOnce({ status: "failure", data: null }) // silent probe fails → popup flow
-                .mockResolvedValue(okAccount()),
+            // No fresh wake → AddEstablish goes first; the reads after it succeed, so only the abort guard can stop it.
+            GetAccount: vi.fn().mockResolvedValue(okAccount()),
             AddEstablish: vi.fn().mockReturnValue(establishGate),
         })
         setAdena(adena)
@@ -912,8 +1208,33 @@ describe("useAdena — switching networks and signing the login message", () => 
         expect(await reply({ status: "failure", type: "UNSUPPORTED_TYPE" })).toBe("session-account")
         expect(await reply({ status: "failure", type: "SIGN_MULTISIG_TRANSACTION_FAILED", data: { error: { message: "Public key not found. This account has not sent any transactions yet." } } })).toBe("no-key")
         expect(await reply({ status: "failure", type: "SIGN_MULTISIG_TRANSACTION_FAILED", data: { error: { message: "boom" } } })).toBe("failed")
+        expect(await reply({ status: "failure", type: "UNEXPECTED_ERROR" })).toBe("closed")
         expect(await reply({ status: "success", data: { signature: { signature: "c2ln", pub_key: { value: "Akey==" } } } })).toEqual({ signature: "c2ln", pubKey: '{"type":"tendermint/PubKeySecp256k1","value":"Akey=="}' })
         setAdena({ ...adena, SignMultisigTransaction: undefined })
         expect(await result.current.signLoginChallenge("gnoland-1", "AQID")).toBe("unsupported")
+    })
+})
+
+describe("useAdena — the login signature waits for a person, not forever", () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    it("gives the window the unlock budget (300 s), then says Adena didn't answer", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        vi.useFakeTimers()
+        adena.SignMultisigTransaction.mockReturnValue(new Promise(() => {}))
+        let refusal: unknown
+        await act(async () => {
+            const signing = result.current.signLoginChallenge("gnoland-1", "AQID").then((r) => { refusal = r })
+            await vi.advanceTimersByTimeAsync(299_999)
+            expect(refusal).toBeUndefined()
+            expect(isWalletRequestPending()).toBe(true)
+            await vi.advanceTimersByTimeAsync(1)
+            await signing
+        })
+        expect(refusal).toBe("no-answer")
+        expect(isWalletRequestPending()).toBe(false)
     })
 })

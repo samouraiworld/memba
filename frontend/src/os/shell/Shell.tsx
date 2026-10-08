@@ -463,6 +463,7 @@ export function Shell() {
             {locked && !session.stage && (
                 <LockScreen
                     resuming={session.status === "resuming"}
+                    onWake={session.wake}
                     onConnect={() => { if (session.status === "member") unlock(); else session.openConnect() }}
                     onGuest={() => {
                         if (session.status !== "guest") session.disconnect()

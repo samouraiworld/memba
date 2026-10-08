@@ -52,7 +52,7 @@ describe("signInWithWallet", () => {
         await expect(signInWithWallet(w, a, "gnoland-1")).resolves.toBe(TOKEN)
         expect(assertLiveWalletNetwork).toHaveBeenCalledWith("gnoland-1", { address: ADDR })
         expect(a.getChallenge).toHaveBeenCalledWith(CHAIN_PUBKEY, "gnoland-1")
-        expect(w.signLoginChallenge).toHaveBeenCalledWith("gnoland-1", "AQID")
+        expect(w.signLoginChallenge).toHaveBeenCalledWith("gnoland-1", "AQID", expect.any(Object))
         expect(a.getToken.mock.calls[0][1]).toBe("sig")
         const info = infoOf(a)
         expect(info.userPubkeyJson).toBe('{"from":"adena"}')
@@ -109,6 +109,8 @@ describe("signInWithWallet", () => {
             ["session-account", SESSION_ACCOUNT_LOGIN_MSG],
             ["unsupported", "This version of Adena can't sign Memba's login message. Update Adena, then sign in again."],
             ["failed", "Adena couldn't sign the login message. Try again."],
+            ["no-answer", "Adena didn't answer — reload this tab (needed after Adena updates)."],
+            ["closed", "Adena closed its window or hit an error (another tab may have asked it something). Try again."],
         ] as const
         for (const [refusal, message] of cases) {
             const a = auth()
@@ -117,11 +119,59 @@ describe("signInWithWallet", () => {
         }
     })
 
-    it("checks Adena's network live before asking for a challenge, since Adena signs for its own network", async () => {
-        vi.mocked(assertLiveWalletNetwork).mockRejectedValue(new WalletNetworkError("Your wallet is on onyx-1, but this page is on gnoland-1 — switch Adena to gnoland-1 and try again."))
+    it("asks for the challenge while Adena's network is checked live, and signs only after the check passed", async () => {
+        let pass!: (v: Awaited<ReturnType<typeof assertLiveWalletNetwork>>) => void
+        vi.mocked(assertLiveWalletNetwork).mockReturnValue(new Promise((r) => { pass = r }))
+        const w = wallet()
         const a = auth()
-        await expect(signInWithWallet(wallet(), a, "gnoland-1")).rejects.toThrow("Your wallet is on onyx-1")
-        expect(a.getChallenge).not.toHaveBeenCalled()
+        const signing = signInWithWallet(w, a, "gnoland-1")
+        await Promise.resolve()
+        expect(a.getChallenge).toHaveBeenCalledOnce()
+        expect(w.signLoginChallenge).not.toHaveBeenCalled()
+        pass({ chainId: "gnoland-1", address: ADDR, rpcUrl: "https://rpc.gno.land" })
+        await expect(signing).resolves.toBe(TOKEN)
+        expect(w.signLoginChallenge).toHaveBeenCalledOnce()
+    })
+
+    it("a refused network check signs nothing and drops the challenge, even one that failed too", async () => {
+        vi.mocked(assertLiveWalletNetwork).mockRejectedValue(new WalletNetworkError("Your wallet is on onyx-1, but this page is on gnoland-1 — switch Adena to gnoland-1 and try again."))
+        const w = wallet()
+        const a = auth()
+        await expect(signInWithWallet(w, a, "gnoland-1")).rejects.toThrow("Your wallet is on onyx-1")
+        expect(w.signLoginChallenge).not.toHaveBeenCalled()
+        expect(a.getToken).not.toHaveBeenCalled()
+        // The challenge request failing as well must not surface as an unhandled rejection.
+        const unhandled = vi.fn()
+        process.on("unhandledRejection", unhandled)
+        try {
+            // A plain function: a vi.fn would itself observe the rejection it returns.
+            const down = { ...auth(), getChallenge: async () => { throw new Error("backend down") } }
+            await expect(signInWithWallet(wallet(), down, "gnoland-1")).rejects.toThrow("Your wallet is on onyx-1")
+            await new Promise((r) => setTimeout(r, 20))
+        } finally {
+            process.off("unhandledRejection", unhandled)
+        }
+        expect(unhandled).not.toHaveBeenCalled()
+    })
+
+    it("says the backend's failure when the check passes but the challenge failed", async () => {
+        const down = auth({ getChallenge: vi.fn(async () => { throw new Error("backend down") }) })
+        await expect(signInWithWallet(wallet(), down, "gnoland-1")).rejects.toThrow("backend down")
+    })
+
+    it("hands Adena's window progress to the caller and still times the flow", async () => {
+        const onSent = vi.fn()
+        const onSlow = vi.fn()
+        const w = wallet({
+            signLoginChallenge: vi.fn<LoginWallet["signLoginChallenge"]>(async (_c, _n, watch) => {
+                watch?.onSent?.()
+                watch?.onSlow?.()
+                return { signature: "sig", pubKey: "" }
+            }),
+        })
+        await signInWithWallet(w, auth(), "gnoland-1", { watch: { onSent, onSlow } })
+        expect(onSent).toHaveBeenCalledOnce()
+        expect(onSlow).toHaveBeenCalledOnce()
     })
 
     it("says the login message expired once its challenge has, and otherwise names the network to check", async () => {

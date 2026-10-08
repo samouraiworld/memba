@@ -97,7 +97,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(page.getByRole('button', { name: 'Connect wallet' })).toHaveCount(0)
     })
 
-    test('wallet reconnect keeps keyboard focus on the available guest action', async ({ page }) => {
+    test('Connect stays usable while the wallet resumes, with Guest one Tab away', async ({ page }) => {
         await page.emulateMedia({ reducedMotion: 'reduce' })
         await page.addInitScript(() => {
             localStorage.setItem('memba_adena_connected', 'true')
@@ -108,13 +108,17 @@ test.describe('Memba OS shell · entry scenarios', () => {
         })
         await page.goto(`${OS_ON}/os`)
         const lock = lockScreen(page)
+        const connect = lock.getByRole('button', { name: 'Connect wallet' })
         const guest = lock.getByRole('button', { name: 'Continue as guest' })
-        await expect(lock.getByRole('button', { name: 'Resuming wallet…' })).toBeDisabled()
+        await expect(lock.getByRole('status').filter({ hasText: 'Resuming…' })).toBeVisible()
+        await expect(connect).toBeEnabled()
+        await expect(connect).toBeFocused()
+        await page.keyboard.press('Tab')
         await expect(guest).toBeFocused()
-        for (const key of ['Tab', 'Shift+Tab', 'Tab']) {
-            await page.keyboard.press(key)
-            await expect(guest).toBeFocused()
-        }
+        await page.keyboard.press('Tab')
+        await expect(connect).toBeFocused()
+        await page.keyboard.press('Shift+Tab')
+        await expect(guest).toBeFocused()
         await page.keyboard.press('Enter')
         await expect(lock).toHaveCount(0)
         await expect(page.getByRole('main', { name: 'Desktop' })).toBeVisible()
@@ -494,6 +498,28 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(connectModal(page)).toHaveCount(0)
         // The challenge is bound to the key Adena has on gnoland-1, read again after the switch.
         expect(challengedFor).toBe(JSON.stringify({ type: 'tendermint/PubKeySecp256k1', value: PUBKEY }))
+    })
+
+    test('an Adena that never answers: where its window may be, then a reload', async ({ page }) => {
+        // What a tab opened before an Adena update sees: requests are dropped and never settle.
+        await page.addInitScript(() => {
+            Object.defineProperty(window, 'adena', { value: {
+                GetAccount: async () => ({ status: 'failure', type: 'NOT_CONNECTED' }),
+                GetNetwork: async () => ({ status: 'failure', type: 'NOT_CONNECTED' }),
+                AddEstablish: () => new Promise(() => {}),
+                On: () => true,
+            } })
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await expect(modal.getByRole('heading', { name: 'Approve in Adena' })).toBeVisible()
+        await expect(modal.getByText('The Adena window may be behind this one or on another screen — click the Adena icon in your toolbar.')).toBeVisible()
+        await expect(modal.getByText('Adena hasn’t answered')).toBeVisible()
+        await expect(modal.getByRole('button', { name: 'Reload tab' })).toBeVisible()
+        await modal.getByRole('button', { name: 'Cancel' }).click()
+        await expect(connectModal(page)).toHaveCount(0)
     })
 
     test('connect without Adena: the install step', async ({ page }) => {

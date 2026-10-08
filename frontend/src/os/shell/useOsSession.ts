@@ -9,7 +9,7 @@
  * @module os/shell/useOsSession
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useAdena } from "../../hooks/useAdena"
+import { useAdena, type ConnectFailure } from "../../hooks/useAdena"
 import { useAuth } from "../../hooks/useAuth"
 import { useBalance } from "../../hooks/useBalance"
 import { NETWORKS } from "../../lib/config"
@@ -25,8 +25,12 @@ import { ACTIVATION_NOT_SEEN, ACTIVATION_SEND_UGNOT, activationCosts, activation
 import { chainPublicKey } from "../../lib/account"
 import { activationRequest } from "./activation"
 import type { EvmConnect } from "../evm/useEvmSession"
+import { ADENA_CLOSED_MESSAGE, ADENA_NO_ANSWER_MESSAGE, type PromptWatch } from "../../lib/adenaCall"
 
-export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait" | "activatesent"
+export type ConnectStage = "pick" | "missing" | "waking" | "approve" | "login" | "loginwait" | "activate" | "activatewait" | "activatesent"
+
+/** Why the last connect or sign-in failed, when the modal has more to offer than the message (a reload). */
+export type ConnectErrorKind = "no-answer" | "closed"
 
 export type SessionStatus = "resuming" | "guest" | "member"
 
@@ -43,11 +47,16 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const network = activeOsNetwork()
     const [stage, setStage] = useState<ConnectStage | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [errorKind, setErrorKind] = useState<ConnectErrorKind | null>(null)
+    // Adena's window has been open a while (it may be out of sight) / never seemed to open.
+    const [slow, setSlow] = useState(false)
+    const [noPopup, setNoPopup] = useState(false)
     const [note, setNote] = useState<string | null>(null)
     const [resumeTimedOut, setResumeTimedOut] = useState(false)
     // Bumped by cancel/disconnect: a step still awaiting Adena then stands down.
     const epoch = useRef(0)
-    // Stops the account watch of an activation Adena has not answered, with the epoch.
+    // Stops, with the epoch, what a step still waiting on Adena would do next: a pending
+    // connect (no AddEstablish, no saved session) or an activation's account watch.
     const watch = useRef<AbortController | null>(null)
     useEffect(() => {
         const current = watch
@@ -126,31 +135,77 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         })
     }, [adena.installed])
 
-    const go = useCallback((next: ConnectStage | null, err: string | null = null) => {
+    const go = useCallback((next: ConnectStage | null, err: string | null = null, kind: ConnectErrorKind | null = null) => {
         setStage(next)
         setError(err)
+        setErrorKind(err ? kind : null)
+        setSlow(false)
+        setNoPopup(false)
     }, [])
+
+    /** Warm Adena up while the person decides (hover, focus, the wallet list): a read, never a window. */
+    const { wake: wakeAdena } = adena
+    const wake = useCallback(() => {
+        if (!adena.connected && adenaPresent()) void wakeAdena()
+    }, [adena.connected, wakeAdena])
 
     const openConnect = useCallback(() => {
         if (member) return
         connectOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
         setNote(null)
+        wake()
         go(adena.connected ? "login" : "pick")
-    }, [member, adena.connected, go])
+    }, [member, adena.connected, go, wake])
+
+    /** What a step waiting on Adena's window hears, while it is still the current step. */
+    const watchFor = useCallback((my: number, onSent?: () => void): PromptWatch => ({
+        onSent: () => { if (epoch.current === my) onSent?.() },
+        onSlow: () => { if (epoch.current === my) setSlow(true) },
+        onNoPopup: () => { if (epoch.current === my) setNoPopup(true) },
+    }), [])
 
     const approve = useCallback(async () => {
         const my = ++epoch.current
-        go("approve")
-        const ok = await adena.connect()
+        watch.current?.abort()
+        const stop = new AbortController()
+        watch.current = stop
+        go("waking")
+        let failure = null as { kind: ConnectFailure; message: string } | null
+        const ok = await adena.connect({
+            signal: stop.signal,
+            watch: {
+                // "Approve in Adena" only once Adena was actually asked.
+                ...watchFor(my, () => go("approve")),
+                onFailure: (kind, message) => { failure = { kind, message } },
+            },
+        })
         if (epoch.current !== my) return
-        if (ok) go("login")
+        if (ok) { go("login"); return }
+        if (failure?.kind === "no-answer" || failure?.kind === "closed") go("pick", failure.message, failure.kind)
         else go("pick", "Adena didn't connect. Approve Memba in the Adena window, then try again.")
-    }, [adena, go])
+    }, [adena, go, watchFor])
 
     const chooseAdena = useCallback(() => {
         if (!adena.installed && !adenaPresent()) { go("missing"); return }
+        wake()
         void approve()
-    }, [adena.installed, approve, go])
+    }, [adena.installed, approve, go, wake])
+
+    // The silent reconnect can finish while the person is still in the connect flow: a
+    // member is done (the lock screen opens too), a connected wallet goes on to sign in.
+    useEffect(() => {
+        if (!stage || !adena.connected || !adena.address) return
+        if (member && (stage === "pick" || stage === "waking" || stage === "approve" || stage === "login")) {
+            epoch.current++
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reacts to the wallet finishing its silent reconnect
+            go(null)
+            restoreConnectFocus()
+            onSignedIn?.(adena.address)
+        } else if (!member && (stage === "pick" || stage === "waking" || stage === "approve")) {
+            epoch.current++
+            go("login")
+        }
+    }, [stage, member, adena.connected, adena.address, go, restoreConnectFocus, onSignedIn])
 
     const recheck = useCallback(() => {
         if (adenaPresent()) void approve()
@@ -161,7 +216,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         const my = ++epoch.current
         go("loginwait")
         try {
-            const token = await signInWithWallet(adena, auth, network.chainId)
+            const token = await signInWithWallet(adena, auth, network.chainId, { watch: watchFor(my) })
             if (epoch.current !== my) return
             go(null)
             restoreConnectFocus()
@@ -173,9 +228,9 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
             if (epoch.current !== my) return
             const msg = err instanceof Error ? err.message : "Sign-in failed"
             if (msg.includes(ACTIVATION_REQUIRED_CODE)) go("activate")
-            else go("login", msg)
+            else go("login", msg, msg === ADENA_NO_ANSWER_MESSAGE ? "no-answer" : msg === ADENA_CLOSED_MESSAGE ? "closed" : null)
         }
-    }, [adena, auth, network.chainId, go, onSignedIn, restoreConnectFocus])
+    }, [adena, auth, network.chainId, go, onSignedIn, restoreConnectFocus, watchFor])
 
     const activate = useCallback(async () => {
         if (!activationPrice) return
@@ -283,8 +338,15 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         noFunds: balanceKnown && activationCost !== null && rawUgnot! < BigInt(activationCost.feeUgnot) + ACTIVATION_SEND_UGNOT,
         balanceUnknown: !balanceKnown,
         error,
+        /** Why `error` happened, when the modal offers more than the message. */
+        errorKind,
+        /** Adena's window has been open 3 s: it may be behind this one or on another screen. */
+        slow,
+        /** 8 s and this page never lost focus: Adena's window most likely never opened. */
+        noPopup,
         note,
         openConnect,
+        wake,
         chooseAdena,
         recheck,
         signIn,

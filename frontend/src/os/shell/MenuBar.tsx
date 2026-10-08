@@ -310,9 +310,10 @@ export function MenuBar(p: MenuBarProps) {
                     <span className="os-av os-av-xs" aria-hidden="true">{session.address.slice(2, 3).toUpperCase()}</span>
                     <span className="os-mono">{shortAddr(shown)}</span>
                 </button>
-                : session.status === "resuming"
-                    ? <span className="os-mb" role="status"><span className="os-spin" aria-hidden="true" />Resuming…</span>
-                    : <button type="button" className="os-mb os-connect" onClick={session.openConnect}>Connect wallet</button>}
+                : <>
+                    {session.status === "resuming" && <span className="os-mb" role="status"><span className="os-spin" aria-hidden="true" />Resuming…</span>}
+                    <button type="button" className="os-mb os-connect" onClick={session.openConnect} onMouseEnter={session.wake} onFocus={session.wake}>Connect wallet</button>
+                </>}
             <span className="os-mono os-clock">{time}</span>
             {content && (
                 <div ref={panelRef} className="os-panel os-glass" data-panel={panel} style={right ? { right: panel === "acct" ? 60 : 10 } : { left: anchor }}>
