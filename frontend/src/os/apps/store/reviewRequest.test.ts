@@ -191,6 +191,19 @@ describe("native App Store review signing", () => {
         await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe("failed")
     })
 
+    it("signs a review of a curated app without a registry listing, and never reads the registry", async () => {
+        const curated = { ...draft, subject: "memba:app/adena", appName: "Adena" }
+        const request = storeReviewRequest(curated)
+        expect(request.prepare(undefined).msgs[0]).toMatchObject({ value: { func: "PostReview", args: ["memba:app/adena", "4", "Useful app"] } })
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Review subject", "memba:app/adena"]]))
+        await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
+        expect(mocks.fetchAppStrict).not.toHaveBeenCalled()
+    })
+
+    it("still refuses a subject that is neither curated nor a realm path", () => {
+        expect(() => storeReviewRequest({ ...draft, subject: "memba:app/not-listed" })).toThrow(/realm path is invalid/)
+    })
+
     it("passes the settled outcome to the composer", () => {
         const onSettled = vi.fn()
         storeReviewRequest({ ...draft, onSettled }).onSettled?.("confirmed", undefined)

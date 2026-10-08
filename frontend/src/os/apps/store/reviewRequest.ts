@@ -4,6 +4,7 @@ import { isAppReviewsAvailable, isRealmValidOn } from "../../../lib/config"
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
 import { depositCapUgnot, formatUgnot, formatUgnotExact, STORAGE_PRICE_UGNOT } from "../../../lib/dao/v2Budget"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
+import { isCuratedReviewSubject } from "../../../lib/reviewSubjects"
 import { buildPostReviewMsg, REVIEW_BODY_MAX_BYTES, REVIEW_GAS_WANTED, REVIEWS_PKG_PATH, reviewStorageBytes } from "../../../lib/reviews"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
@@ -25,7 +26,7 @@ export interface StoreReviewDraft {
 /** The review as it will be signed: checked, with its body trimmed. Throws with a user message. */
 function validated(draft: StoreReviewDraft): StoreReviewDraft {
     const body = draft.body.trim()
-    if (!isSafeRealmPath(draft.subject)) throw new Error("This app's realm path is invalid. Refresh its listing.")
+    if (!isCuratedReviewSubject(draft.subject) && !isSafeRealmPath(draft.subject)) throw new Error("This app's realm path is invalid. Refresh its listing.")
     if (!isAppReviewsAvailable() || !isRealmValidOn(draft.networkKey, REVIEWS_PKG_PATH)) throw new Error("App reviews are not available on this network.")
     if (!isValidGnoAddressChecksum(draft.caller)) throw new Error("Connect your wallet before reviewing.")
     if (!Number.isInteger(draft.rating) || draft.rating < 1 || draft.rating > 5) throw new Error("Select a rating from 1 to 5.")
@@ -47,7 +48,7 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
             ["Account", review.caller],
             ["Rating", `${review.rating} of 5 stars`],
             ["Review", review.body || "Rating only"],
-            ["App realm", review.subject],
+            [isSafeRealmPath(review.subject) ? "App realm" : "Review subject", review.subject],
             ["Reviews realm", REVIEWS_PKG_PATH],
             ["Network", review.chainId],
             ["Storage deposit", `Up to ${formatUgnot(bytes * STORAGE_PRICE_UGNOT)} for the first review of this app, less for a later one or a replacement (cap ${formatUgnot(depositCapUgnot(bytes))})`],
@@ -59,6 +60,11 @@ export function storeReviewRequest(draft: StoreReviewDraft): SignRequest {
         prepare: () => ({ msgs: [msg] }),
         recheck: async () => {
             validated(review)
+            // Curated entries are listed by Memba itself: only the fee is rechecked.
+            if (isCuratedReviewSubject(review.subject)) {
+                await assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED))
+                return
+            }
             // Strict: a registry outage must surface as one, not as a delisted app.
             await withFeeCheck(fetchAppStrict(review.subject), assertFeeStillCovers(fee, () => freshFeeForGasWanted(REVIEW_GAS_WANTED)), (listing) => {
                 if (!listing || listing.status !== "live") throw new Error("This app is no longer a live listing. Refresh before reviewing.")
