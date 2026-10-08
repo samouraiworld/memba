@@ -1,0 +1,139 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { IDBFactory, IDBObjectStore } from "fake-indexeddb"
+import { createDraftSession, createNotesStore, isNotesRevision, notesKey, type NotesScope, type NotesStore } from "./drafts"
+
+const scope: NotesScope = { chainId: "gnoland-1", realm: "gno.land/r/example/notes", owner: "alice", noteId: "ab".repeat(16) }
+const payload = { kind: "public" as const, title: "Draft", body: "Text on this device" }
+const stores: NotesStore[] = []
+function store(indexedDB = new IDBFactory()) {
+    const value = createNotesStore({ indexedDB, databaseName: "notes-tests" }); stores.push(value); return value
+}
+afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(value => value.close())) })
+
+describe("transactional Notes drafts", () => {
+    it("persists a public draft across connections and scopes account, realm and chain", async () => {
+        const factory = new IDBFactory(), session = createDraftSession(), first = store(factory)
+        const saved = await first.saveDraft(scope, "0", payload, session)
+        expect(saved).toMatchObject({ status: "saved", value: { localRevision: "1", payload } })
+        await first.close()
+        const second = store(factory)
+        expect(await second.getDraft(scope)).toMatchObject({ payload, localRevision: "1" })
+        for (const change of [{ chainId: "onyx-1" }, { realm: "other" }, { owner: "bob" }]) expect(await second.getDraft({ ...scope, ...change })).toBeNull()
+        expect(await second.listDrafts(scope)).toHaveLength(1)
+        expect(await second.listDrafts({ ...scope, owner: "bob" })).toEqual([])
+    })
+    it("serializes concurrent read/compare/write transactions from two connections", async () => {
+        const factory = new IDBFactory(), first = store(factory), second = store(factory), session = createDraftSession()
+        await first.saveDraft(scope, "0", payload, session)
+        const results = await Promise.all([first.saveDraft(scope, "1", { ...payload, body: "A" }, session), second.saveDraft(scope, "1", { ...payload, body: "B" }, session)])
+        expect(results.map(value => value.status).sort()).toEqual(["conflict", "saved"])
+        expect(await first.getDraft(scope)).toMatchObject({ localRevision: "2" })
+    })
+    it("returns unavailable on quota and preserves the previous durable revision", async () => {
+        const first = store(), session = createDraftSession()
+        await first.saveDraft(scope, "0", payload, session)
+        const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(() => { throw new DOMException("quota", "QuotaExceededError") })
+        expect(await first.saveDraft(scope, "1", { ...payload, body: "not saved" }, session)).toEqual({ status: "unavailable" })
+        put.mockRestore()
+        expect(await first.getDraft(scope)).toMatchObject({ localRevision: "1", payload })
+    })
+    it("does not claim saved when the transaction aborts after the write request succeeds", async () => {
+        const first = store(), session = createDraftSession()
+        const original = IDBObjectStore.prototype.put
+        const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, ...args) {
+            const request = original.apply(this, args)
+            request.addEventListener("success", () => this.transaction.abort())
+            return request
+        })
+        expect(await first.saveDraft(scope, "0", payload, session)).toEqual({ status: "unavailable" })
+        put.mockRestore()
+        expect(await first.getDraft(scope)).toBeNull()
+    })
+    it("aborts a pending session and an in-flight transaction on account/network lock", async () => {
+        const first = store(), session = createDraftSession()
+        const opening = first.saveDraft(scope, "0", payload, session)
+        session.invalidate()
+        expect(await opening).toEqual({ status: "session-changed" })
+        expect(await first.getDraft(scope)).toBeNull()
+        const original = IDBObjectStore.prototype.put
+        const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, ...args) {
+            const request = original.apply(this, args)
+            request.addEventListener("success", () => session.invalidate())
+            return request
+        })
+        expect(await first.saveDraft(scope, "0", payload, session)).toEqual({ status: "session-changed" })
+        put.mockRestore()
+        expect(await first.getDraft(scope)).toBeNull()
+        expect((await first.saveDraft(scope, "0", payload, session)).status).toBe("saved")
+    })
+    it("a guard captured before asynchronous encryption stays cancelled after session invalidation", async () => {
+        const first = store(), session = createDraftSession(), guard = session.capture()
+        session.invalidate()
+        expect(await first.saveDraft(scope, "0", { kind: "encrypted", envelope: new Uint8Array([1]) }, guard)).toEqual({ status: "session-changed" })
+        expect(await first.getDraft(scope)).toBeNull()
+    })
+    it("atomically adopts a guest draft and never overwrites an existing account draft", async () => {
+        const first = store(), session = createDraftSession(), guest = { ...scope, owner: "guest" }
+        await first.saveDraft(guest, "0", payload, session)
+        const result = await first.adoptDraft(guest, scope, "1", payload, session)
+        expect(result.status).toBe("saved")
+        expect(await first.getDraft(guest)).toBeNull()
+        expect(await first.getDraft(scope)).toMatchObject({ localRevision: "1", payload })
+        await first.saveDraft(guest, "0", { ...payload, body: "second guest copy" }, session)
+        expect(await first.adoptDraft(guest, scope, "1", payload, session)).toEqual({ status: "conflict" })
+        expect((await first.getDraft(guest))?.payload).toMatchObject({ body: "second guest copy" })
+    })
+    it("rolls back destination and guest deletion when adoption fails at commit", async () => {
+        const first = store(), session = createDraftSession(), guest = { ...scope, owner: "guest" }
+        await first.saveDraft(guest, "0", payload, session)
+        const original = IDBObjectStore.prototype.delete
+        const remove = vi.spyOn(IDBObjectStore.prototype, "delete").mockImplementation(function (this: IDBObjectStore, ...args) {
+            const request = original.apply(this, args); request.addEventListener("success", () => this.transaction.abort()); return request
+        })
+        expect(await first.adoptDraft(guest, scope, "1", payload, session)).toEqual({ status: "unavailable" })
+        remove.mockRestore()
+        expect(await first.getDraft(guest)).toMatchObject({ payload })
+        expect(await first.getDraft(scope)).toBeNull()
+    })
+    it("guest edits racing adoption preserve either the new source or the adopted destination", async () => {
+        const factory = new IDBFactory(), first = store(factory), second = store(factory), session = createDraftSession(), guest = { ...scope, owner: "guest" }
+        await first.saveDraft(guest, "0", payload, session)
+        const [edit, adopt] = await Promise.all([second.saveDraft(guest, "1", { ...payload, body: "new" }, session), first.adoptDraft(guest, scope, "1", payload, session)])
+        expect([edit.status, adopt.status].sort()).toEqual(["conflict", "saved"])
+        const remaining = await first.getDraft(guest), destination = await first.getDraft(scope)
+        expect(remaining?.payload ?? destination?.payload).toMatchObject({ kind: "public", body: edit.status === "saved" ? "new" : payload.body })
+    })
+    it("stores encrypted drafts only as an opaque byte envelope and snapshots caller data", async () => {
+        const first = store(), session = createDraftSession(), mutableScope = { ...scope }, bytes = new Uint8Array([1, 2, 3])
+        const encrypted = { kind: "encrypted" as const, envelope: bytes, accidentalPlaintext: "must not persist" }
+        const pending = first.saveDraft(mutableScope, "0", encrypted, session)
+        mutableScope.owner = "bob"; bytes.fill(9)
+        expect((await pending).status).toBe("saved")
+        const saved = await first.getDraft(scope)
+        expect(saved?.payload.kind).toBe("encrypted")
+        if (saved?.payload.kind === "encrypted") expect(Array.from(saved.payload.envelope)).toEqual([1, 2, 3])
+        const db = await first.database.open()
+        const raw = await new Promise<unknown>(resolve => { const request = db.transaction("drafts").objectStore("drafts").get(notesKey(scope)); request.onsuccess = () => resolve(request.result) })
+        expect(JSON.stringify(raw)).not.toContain("must not persist")
+        expect(await first.getDraft(mutableScope)).toBeNull()
+    })
+    it("retains unknown schemas and reports them instead of pretending a draft is missing", async () => {
+        const first = store(), db = await first.database.open()
+        await new Promise<void>(resolve => { const tx = db.transaction("drafts", "readwrite"); tx.objectStore("drafts").put({ schema: 9, key: notesKey(scope), scope }); tx.oncomplete = () => resolve() })
+        await expect(first.getDraft(scope)).rejects.toThrow("stored copy was kept")
+        expect(await first.saveDraft(scope, "0", payload, createDraftSession())).toEqual({ status: "invalid" })
+    })
+    it("protects newer edits from deletion after an older chain confirmation", async () => {
+        const first = store(), session = createDraftSession()
+        await first.saveDraft(scope, "0", payload, session); await first.saveDraft(scope, "1", { ...payload, body: "new" }, session)
+        expect(await first.deleteDraft(scope, "1", session)).toEqual({ status: "conflict" })
+        expect((await first.getDraft(scope))?.localRevision).toBe("2")
+        expect(await first.deleteDraft(scope, "2", session)).toEqual({ status: "saved", value: null })
+    })
+    it("rejects malformed revisions and oversized payloads without exposing content in errors", async () => {
+        const first = store(), session = createDraftSession()
+        for (const revision of ["-1", "01", "1e3", "18446744073709551616"]) expect(await first.saveDraft(scope, revision, payload, session)).toEqual({ status: "invalid" })
+        expect(isNotesRevision("18446744073709551615")).toBe(true)
+        expect(await first.saveDraft(scope, "0", { ...payload, body: "😀".repeat(32769) }, session)).toEqual({ status: "invalid" })
+    })
+})
