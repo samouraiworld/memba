@@ -673,8 +673,17 @@ describe("Store: discover home", () => {
         expect(screen.getByRole("button", { name: "Details for Adena" })).toBeInTheDocument()
     })
 
-    it("shows a monogram, not an image, for an app without a logo", () => {
+    it("shows a monogram, not an image, for an app without a logo", async () => {
+        // A registry listing with no icon CID and no committed media: the monogram fallback.
+        mocks.fetchLive.mockResolvedValue({ apps: [listing({ name: "Test App", iconCID: "" })], complete: true })
+        home("q=test app")
+        const card = await screen.findByRole("button", { name: "Details for Test App" })
+        expect(card).toHaveTextContent("TA")
+        expect(card.querySelector("img")).toBeNull()
+    })
+
+    it("shows the committed logo for a curated app", () => {
         home("q=adena")
-        expect(screen.getByRole("button", { name: "Details for Adena" })).toHaveTextContent("AD")
+        expect(screen.getByRole("button", { name: "Details for Adena" }).querySelector("img")).toHaveAttribute("src", "/store/adena/logo.svg")
     })
 })
