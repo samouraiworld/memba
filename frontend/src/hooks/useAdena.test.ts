@@ -1323,4 +1323,70 @@ describe("useAdena — one wallet per page", () => {
         expect(first).toHaveBeenCalledTimes(1)
         expect(second).toHaveBeenCalledTimes(2)
     })
+
+    it("a re-read that answers after a disconnect writes nothing: signing stays blocked", async () => {
+        const adena = makeAdena({ SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        let answer!: () => void
+        adena.GetNetwork.mockReturnValue(new Promise((resolve) => { answer = () => resolve({ status: "success", data: { rpcUrl: TRUSTED_RPC } }) }))
+        let switching!: Promise<boolean>
+        act(() => { switching = result.current.switchWalletNetwork(GNO_CHAIN_ID) })
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalledTimes(2))
+        act(() => { result.current.disconnect() })
+        await act(async () => { answer(); await switching })
+        expect(result.current.connected).toBe(false)
+        expect(result.current.address).toBe("")
+        expect(result.current.rpcTrusted).toBe(false)
+        await expect(doContractBroadcast([], "after disconnect")).rejects.not.toThrow(/Adena wallet not available/)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it("a switch while disconnected reads and writes nothing", async () => {
+        const adena = makeAdena({ SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }) })
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.switchWalletNetwork(GNO_CHAIN_ID) })
+        expect(adena.GetAccount).not.toHaveBeenCalled()
+        expect(adena.GetNetwork).not.toHaveBeenCalled()
+        expect(result.current.rpcTrusted).toBe(false)
+        expect(result.current.chainId).toBe("")
+    })
+
+    it("an older re-read that answers last does not bring the old network back", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({
+            SwitchNetwork: vi.fn().mockResolvedValue({ status: "success" }),
+            On: vi.fn((event: string, cb: () => void) => { if (event === "changedNetwork") changedHandler = cb; return true }),
+        })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "onyx-1" }))
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        // The first re-read is slow and still sees the old network; the second answers first with the new one.
+        let answerOld!: () => void
+        adena.GetAccount.mockReturnValueOnce(new Promise((resolve) => { answerOld = () => resolve(okAccount({ chainId: "onyx-1" })) }))
+        let switching!: Promise<boolean>
+        act(() => { switching = result.current.switchWalletNetwork(GNO_CHAIN_ID) })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID }))
+        await act(async () => { await changedHandler!() })
+        expect(result.current.chainId).toBe(GNO_CHAIN_ID)
+        await act(async () => { answerOld(); await switching })
+        expect(result.current.chainId).toBe(GNO_CHAIN_ID)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it("listens again when Adena injects a new provider (an extension update)", async () => {
+        const first = makeAdena()
+        setAdena(first)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        const second = makeAdena()
+        setAdena(second)
+        await act(async () => { await result.current.connect() })
+        expect(second.On).toHaveBeenCalledWith("changedAccount", expect.any(Function))
+        expect(second.On).toHaveBeenCalledWith("changedNetwork", expect.any(Function))
+    })
 })

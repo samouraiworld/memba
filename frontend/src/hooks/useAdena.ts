@@ -198,13 +198,16 @@ const silentRun = { current: null as Promise<boolean> | null };
 const lastVisibilityRetry = { current: 0 };
 
 const accountChangedListeners = new Set<() => void>();
-let listeningToAdena = false;
+// The provider Adena's events are registered on: an extension update injects a new one.
+let listenedProvider: unknown = null;
+// Bumped by every re-read: only the latest one may write.
+let rereadRun = 0;
 
-/** Adena's own events, registered once per page (Adena has no unsubscribe). */
+/** Adena's own events, registered once per provider (Adena has no unsubscribe). */
 function listenToAdena() {
     const adena = getAdena();
-    if (listeningToAdena || typeof adena?.On !== "function") return;
-    listeningToAdena = true;
+    if (!adena || adena === listenedProvider || typeof adena.On !== "function") return;
+    listenedProvider = adena;
     // SECURITY: re-validate the RPC as soon as Adena changes network.
     adena.On("changedNetwork", () => {
         if (walletState.connected && typeof getAdena()?.GetNetwork === "function") void rereadWallet();
@@ -222,7 +225,9 @@ export function onAdenaAccountChanged(listener: () => void): () => void {
 /** Read Adena's account and network again after it changed network: the address, chain, key and RPC it reports there. */
 async function rereadWallet(): Promise<void> {
     const adena = getAdena();
-    if (!adena) return;
+    if (!adena || !walletState.connected) return;
+    const epoch = disconnectEpoch.current;
+    const run = ++rereadRun;
     logWalletEvent("changedNetwork");
     // Fail CLOSED for the whole re-validation window: from the instant
     // the wallet switches until the reads below resolve, the old
@@ -234,6 +239,8 @@ async function rereadWallet(): Promise<void> {
         adenaRead<{ data?: { rpcUrl?: string } } | null | undefined>(() => adena.GetNetwork(), READ_TIMEOUT_MS),
         adenaRead<AdenaAccount>(() => adena.GetAccount(), READ_TIMEOUT_MS),
     ]);
+    // A disconnect, or a newer re-read, owns the wallet now: keep the fail-closed context and write nothing.
+    if (epoch !== disconnectEpoch.current || run !== rereadRun || !walletState.connected) return;
     if (net.status === "rejected") {
         // GetNetwork failed after switch → strict: untrusted + unverified chain
         setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
@@ -250,19 +257,19 @@ async function rereadWallet(): Promise<void> {
     let chainId: string = UNVERIFIED_CHAIN_ID;
     let address: string | null = null;
     const account = acct.status === "fulfilled" ? acct.value : null;
-    if (account && account.status !== "failure" && account.data) {
-        chainId = account.data.chainId || UNVERIFIED_CHAIN_ID;
-        address = account.data.address || null;
-        // Adena's key is per network: unknown on a network the account never used, known only there.
-        setState((s) => ({
-            ...s,
-            address: account.data.address,
-            chainId: account.data.chainId,
-            pubkeyJSON: pubkeyJSONOf(account.data.publicKey),
-        }));
+    const read = account && account.status !== "failure" && account.data ? account.data : null;
+    if (read) {
+        chainId = read.chainId || UNVERIFIED_CHAIN_ID;
+        address = read.address || null;
     }
     setWalletRpcContext(url || null, trusted, chainId, address);
-    setState((s) => ({ ...s, rpcUrl: url, rpcTrusted: trusted }));
+    // Adena's key is per network: unknown on a network the account never used, known only there.
+    setState((s) => ({
+        ...s,
+        ...(read ? { address: read.address, chainId: read.chainId, pubkeyJSON: pubkeyJSONOf(read.publicKey) } : {}),
+        rpcUrl: url,
+        rpcTrusted: trusted,
+    }));
 }
 
 /** Tests only: a fresh page's wallet store. */
@@ -274,7 +281,8 @@ export function __resetWalletStoreForTests(): void {
     silentRun.current = null;
     lastVisibilityRetry.current = 0;
     accountChangedListeners.clear();
-    listeningToAdena = false;
+    listenedProvider = null;
+    rereadRun = 0;
 }
 
 export function useAdena() {
@@ -351,6 +359,7 @@ export function useAdena() {
             return false;
         }
         if (silent && silentRun.current) return silentRun.current
+        listenToAdena()
 
         const watch = opts?.watch
         const signal = opts?.signal
