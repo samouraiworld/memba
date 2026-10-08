@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Wallet errors say what failed (2026-10-08)
+- Feed posts, flags, reactions, listing cancels and app curation now show what actually failed (an untrusted wallet node, the wrong network, a locked Adena, the realm's own reason) instead of "Could not post. Please try again."; a cancel in the wallet stays silent.
+- When Adena does not report its network, the message now says why: no answer in time, Adena's failure type, or no network named.
+
 ### Faster Adena signatures and activation (2026-10-08)
 - Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.
 - An address that has never sent a transaction goes straight to activation, without the login popup that could only fail. After activation, Memba waits for the network to record the key before it opens the login step, and a required activation finishes without reloading the page.
