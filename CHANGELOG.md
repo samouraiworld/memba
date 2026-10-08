@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Token names checked against the chain's characters (2026-10-08)
+- Token creation now checks names and descriptions against the chain's own character tables, so text the ledger would refuse is caught before you sign.
+
 ### Faster Adena signatures and activation (2026-10-08)
 - Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.
 - An address that has never sent a transaction goes straight to activation, without the login popup that could only fail. After activation, Memba waits for the network to record the key before it opens the login step, and a required activation finishes without reloading the page.
