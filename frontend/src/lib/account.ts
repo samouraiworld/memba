@@ -4,7 +4,34 @@
  * Uses JSON-RPC POST to prevent ABCI query injection via address.
  */
 
-import { resilientFetch, AbciQueryError, abciErrorPresent } from "./rpcFallback"
+import { resilientFetch, AbciQueryError, abciErrorPresent, getRpcUrlsInOrder } from "./rpcFallback"
+import { GNO_CHAIN_ID, GNO_RPC_URL } from "./config"
+import { abciQueryText, ChainAnswerError } from "./dao/packageStatus"
+
+/** A public key as the chain records it: its amino type and base64 value. */
+export interface ChainPublicKey { "@type": string; value: string }
+
+/**
+ * The public key the chain holds for `address`, or null while the address has
+ * never signed a transaction there (the chain learns a key from its first one).
+ * Read from a node that serves `chainId`; throws when none answers.
+ */
+export async function chainPublicKey(address: string, chainId: string = GNO_CHAIN_ID): Promise<ChainPublicKey | null> {
+    if (!/^g1[a-z0-9]{38}$/.test(address)) throw new Error("Not a gno.land address")
+    let text: string
+    try {
+        text = await abciQueryText({ rpcUrl: GNO_RPC_URL, rpcUrls: getRpcUrlsInOrder(), chainId }, `auth/accounts/${address}`, "")
+    } catch (err) {
+        // The chain answered and has no account there: nothing has signed from it yet.
+        if (err instanceof ChainAnswerError) return null
+        throw err
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed: any = JSON.parse(text)
+    const account = parsed?.BaseAccount || parsed?.value?.BaseAccount || parsed?.value || parsed
+    const key = account?.pub_key || account?.PubKey || account?.public_key
+    return typeof key?.["@type"] === "string" && key["@type"] ? { "@type": key["@type"], value: typeof key.value === "string" ? key.value : "" } : null
+}
 
 /**
  * Fetch account number and sequence from the Gno chain.
