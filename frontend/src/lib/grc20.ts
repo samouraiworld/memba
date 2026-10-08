@@ -461,6 +461,11 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
         }
     }
 
+    const gas = getGasConfig()
+    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget.
+    const gasWanted = opts?.gasWanted ?? (opts?.gas === "deploy" ? gas.deployWanted : gas.wanted)
+    const gasFee = opts?.gasFee ?? (opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee)
+
     // SECURITY: RPC-trust + wrong-chain guards (shared with multisig broadcast)
     assertWalletBroadcastSafeInternal(activation)
 
@@ -470,27 +475,31 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
         throw new Error("Adena wallet not available — please install or refresh the page")
     }
 
-    const gas = getGasConfig()
-    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget.
-    const gasWanted = opts?.gasWanted ?? (opts?.gas === "deploy" ? gas.deployWanted : gas.wanted)
-    const gasFee = opts?.gasFee ?? (opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee)
-
     // SECURITY: the cached chain id checked by assertWalletBroadcastSafe
     // can be stale or empty (a wallet that switched network without firing
     // its event, or reports none). Ask the wallet itself and refuse unless
-    // it names this page's chain (and account). It is read while the
-    // caller's beforeSign rechecks the chain, so the two waits overlap, and
-    // its answer stays the last thing awaited before the wallet request: when
-    // beforeSign finishes after it, the wallet is read again. A refusal is a
-    // WalletNetworkError, which callers report as nothing sent even after
+    // it names this page's chain (and account). Adena takes its snapshot of
+    // account and network while it handles the read, so a change after that
+    // snapshot goes unseen until the request; as before, that span is never
+    // longer than the read itself takes. The read runs while the caller's
+    // beforeSign rechecks the chain, so the two waits overlap, and it stays
+    // the last thing awaited before the request: when beforeSign finishes
+    // after the wallet has answered, the wallet is read again. A refusal is
+    // a WalletNetworkError, which callers report as nothing sent even after
     // beforeSign said the wallet was opening; it is thrown only once
     // beforeSign is done, so none of beforeSign's effects land after it.
-    assertWalletBroadcastSafeInternal(activation)
     const liveCheck = () => assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress, unlock: true })
     let answered = false
     const checking = liveCheck().then(() => { answered = true })
     checking.catch(() => { /* thrown below, unless beforeSign refuses first */ })
-    const requestGuard = await opts?.beforeSign?.()
+    let requestGuard: void | (() => boolean)
+    try {
+        requestGuard = await opts?.beforeSign?.()
+    } catch (err) {
+        // Reported once the wallet read it overlapped is over: an unlock window that read opened is answered first.
+        await checking.catch(() => {})
+        throw err
+    }
     const outlasted = answered
     await checking
     if (outlasted) await liveCheck()
