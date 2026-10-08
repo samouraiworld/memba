@@ -59,6 +59,7 @@ const draft: StoreReviewDraft = {
     chainId: "gnoland-1",
     price: { gas: 1000, ugnot: 1 },
 }
+const barricade: StoreReviewDraft = { ...draft, subject: "gno.land/r/samcrew/barricade", appName: "BARRICADE" }
 const run = (request: ReturnType<typeof storeReviewRequest>) => executeSignature(request, undefined, request.prepare(undefined).msgs, () => {})
 
 beforeEach(() => {
@@ -189,6 +190,70 @@ describe("native App Store review signing", () => {
         expect(mocks.readTx).toHaveBeenCalledWith("tx", { hash: `0x${HASH}` })
         mocks.readTx.mockResolvedValue({ hash: HASH, height: "12", tx_result: { ResponseBase: { Error: "out of gas" } } })
         await expect(request.verify?.(undefined, HASH, undefined)).resolves.toBe("failed")
+    })
+
+    it("signs a review of a curated app without a registry listing, and never reads the registry", async () => {
+        const curated = { ...draft, subject: "memba:app/adena", appName: "Adena" }
+        const request = storeReviewRequest(curated)
+        expect(request.prepare(undefined).msgs[0]).toMatchObject({ value: { func: "PostReview", args: ["memba:app/adena", "4", "Useful app"] } })
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["Review subject", "memba:app/adena"]]))
+        await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
+        expect(mocks.fetchAppStrict).not.toHaveBeenCalled()
+    })
+
+    it("still refuses a subject that is neither curated nor a realm path", () => {
+        expect(() => storeReviewRequest({ ...draft, subject: "memba:app/not-listed" })).toThrow(/realm path is invalid/)
+    })
+
+    it("stops a curated review before Adena when the network fee rose, without reading the registry", async () => {
+        const request = storeReviewRequest({ ...draft, subject: "memba:app/adena", appName: "Adena" })
+        mocks.freshPrice.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/network fee increased/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+        expect(mocks.fetchAppStrict).not.toHaveBeenCalled()
+    })
+
+    it("labels a curated subject that is also a realm path as an app realm, and rechecks its listing", async () => {
+        const request = storeReviewRequest(barricade)
+        expect(request.lines(undefined)).toEqual(expect.arrayContaining([["App realm", "gno.land/r/samcrew/barricade"]]))
+        mocks.fetchAppStrict.mockResolvedValue({ status: "live", name: "BARRICADE" })
+        await expect(run(request)).resolves.toMatchObject({ outcome: "sent" })
+        expect(mocks.fetchAppStrict).toHaveBeenCalledWith("gno.land/r/samcrew/barricade")
+    })
+
+    it("stops a curated realm review before Adena when its registry listing was delisted", async () => {
+        const request = storeReviewRequest(barricade)
+        mocks.fetchAppStrict.mockResolvedValue({ status: "delisted" })
+        await expect(request.recheck?.(undefined)).rejects.toThrow(/no longer a live listing/)
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+    })
+
+    it("signs a curated realm review that has no registry listing at all", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(null)
+        await expect(run(storeReviewRequest(barricade))).resolves.toMatchObject({ outcome: "sent" })
+        expect(mocks.fetchAppStrict).toHaveBeenCalledWith("gno.land/r/samcrew/barricade")
+    })
+
+    it("does not compare a curated realm listing's name: the subject's name is pinned", async () => {
+        mocks.fetchAppStrict.mockResolvedValue({ status: "live", name: "Renamed by publisher" })
+        await expect(run(storeReviewRequest(barricade))).resolves.toMatchObject({ outcome: "sent" })
+    })
+
+    it("reports a registry outage on a curated realm review as an outage", async () => {
+        const request = storeReviewRequest(barricade)
+        mocks.fetchAppStrict.mockRejectedValue(new Error("App Store registry is unavailable"))
+        await expect(request.recheck?.(undefined)).rejects.toThrow("App Store registry is unavailable")
+        await expect(run(request)).resolves.toMatchObject({ outcome: "failed" })
+        expect(mocks.wallet).not.toHaveBeenCalled()
+    })
+
+    it("refuses a curated subject shown under another app's name", () => {
+        expect(() => storeReviewRequest({ ...barricade, appName: "Space Invaders" })).toThrow("This review's app name does not match its listing. Refresh before reviewing.")
+        expect(() => storeReviewRequest({ ...draft, subject: "memba:app/adena", appName: "GnoSwap" })).toThrow(/app name does not match/)
+        expect(() => storeReviewRequest(barricade)).not.toThrow()
+        expect(() => storeReviewRequest({ ...draft, subject: "gno.land/r/gnoswap/router", appName: "GnoSwap" })).not.toThrow()
     })
 
     it("passes the settled outcome to the composer", () => {
