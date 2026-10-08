@@ -1,7 +1,7 @@
 /** A report on an App Store listing (FlagApp) through the OS signing sheet. */
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
 import { depositCapUgnot, formatUgnot, formatUgnotExact, STORAGE_PRICE_UGNOT } from "../../../lib/dao/v2Budget"
-import { APP_FLAG_GAS_WANTED, APPSTORE_REALM_PATH, appFlagStorageBytes, assertAppReportApplies, buildFlagAppMsg, FLAG_HIDE_THRESHOLD, isAppStoreV3On, isSafeRealmPath } from "../../../lib/appStore"
+import { APP_FLAG_GAS_WANTED, APPSTORE_REALM_PATH, appFlagStorageBytes, assertAppReportApplies, buildFlagAppMsg, FLAG_HIDE_THRESHOLD, isAppStoreV3OrLaterOn, isSafeRealmPath } from "../../../lib/appStore"
 import { assertFeeStillCovers, doContractBroadcast, feeForGasWanted, freshFeeForGasWanted, type GasPrice } from "../../../lib/grc20"
 import type { SettledOutcome, SignRequest } from "../../sign/signer"
 import { verifySendTx } from "../../wallet/sendRequest"
@@ -19,7 +19,7 @@ export interface StoreReport {
 }
 
 function validated(input: StoreReport): StoreReport {
-    if (!isAppStoreV3On(input.networkKey)) throw new Error("Reports are not available on this network.")
+    if (!isAppStoreV3OrLaterOn(input.networkKey)) throw new Error("Reports are not available on this network.")
     if (!isValidGnoAddressChecksum(input.caller)) throw new Error("Connect your wallet first.")
     if (!isSafeRealmPath(input.pkgPath)) throw new Error("This listing cannot be identified. Refresh the page.")
     return input

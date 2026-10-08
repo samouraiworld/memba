@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent } from "react"
 import { useClock } from "./clock"
+import { MembaMark } from "./MembaMark"
 
 /** Visit choice. Also shown after "Lock screen" / "Disconnect & lock". */
 export function LockScreen({ onConnect, onGuest, onWake, resuming = false }: { onConnect: () => void; onGuest: () => void; onWake?: () => void; resuming?: boolean }) {
@@ -19,7 +20,7 @@ export function LockScreen({ onConnect, onGuest, onWake, resuming = false }: { o
     return (
         <div className="os-lock" role="dialog" aria-modal="true" aria-label="Welcome to Memba" onKeyDown={onKeyDown}>
             <div>
-                <span className="os-mark os-mark-lg" aria-hidden="true" />
+                <MembaMark className="os-mark os-mark-lg" />
                 <div className="os-lock-clock">{time}</div>
                 <div className="os-lock-tag">Memba — your desk on gno.land</div>
                 <div className="os-lock-date">{date}</div>

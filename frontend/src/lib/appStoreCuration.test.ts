@@ -4,6 +4,8 @@ import {
     fetchIsCurator,
     buildApproveAppMsg,
     buildRejectAppMsg,
+    buildAttestPublisherMsg,
+    buildRevokeAttestationMsg,
 } from "./appStoreCuration"
 import { APPSTORE_REALM_PATH } from "./appStore"
 import * as shared from "./dao/shared"
@@ -72,5 +74,30 @@ describe("buildRejectAppMsg", () => {
 
     it("allows an empty reason (realm-legal; requiring text is the page's concern)", () => {
         expect(buildRejectAppMsg(CURATOR, APP, "").value.args).toEqual([APP, ""])
+    })
+})
+
+describe("v4 attestation builders (curator-only on chain, no coins)", () => {
+    it("attests one checksummed publisher for one safe path", () => {
+        expect(buildAttestPublisherMsg(CURATOR, APP, CURATOR)).toEqual({
+            type: "vm/MsgCall",
+            value: { caller: CURATOR, send: "", pkg_path: APPSTORE_REALM_PATH, func: "AttestPublisher", args: [APP, CURATOR] },
+        })
+        expect(() => buildAttestPublisherMsg(CURATOR, APP, CURATOR.slice(0, -1) + "q")).toThrow("invalid publisher address")
+        expect(() => buildAttestPublisherMsg(CURATOR, APP, CURATOR.toUpperCase())).toThrow("invalid publisher address")
+        expect(() => buildAttestPublisherMsg(CURATOR, `${APP}") + Evil("`, CURATOR)).toThrow("invalid app path")
+        // Paths v4 refuses after the fee: never sent.
+        for (const bad of ["gno.land/r/Samcrew/app", "gno.land/r/samcrew/my.app", "gno.land/r/samcrew/a__b"]) {
+            expect(() => buildAttestPublisherMsg(CURATOR, bad, CURATOR), bad).toThrow("invalid app path")
+        }
+        expect(buildRevokeAttestationMsg(CURATOR, "gno.land/r/samcrew/my.app").value.func).toBe("RevokeAttestation")
+    })
+
+    it("withdraws the attestation of a safe path", () => {
+        expect(buildRevokeAttestationMsg(CURATOR, APP)).toEqual({
+            type: "vm/MsgCall",
+            value: { caller: CURATOR, send: "", pkg_path: APPSTORE_REALM_PATH, func: "RevokeAttestation", args: [APP] },
+        })
+        expect(() => buildRevokeAttestationMsg(CURATOR, "not/a/path")).toThrow("invalid app path")
     })
 })

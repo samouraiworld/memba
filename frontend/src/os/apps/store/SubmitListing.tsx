@@ -2,9 +2,9 @@ import { useState, type FormEvent } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ListingFields } from "../../../components/appstore/ListingFields"
 import { useAuth } from "../../../hooks/useAuth"
-import { fetchAppStrict, fetchRegistryState, isSafeRealmPath, type AppListing } from "../../../lib/appStore"
+import { fetchAppStrict, fetchRegistryState, isAppStoreV4, isSafeRealmPath, type AppListing } from "../../../lib/appStore"
 import {
-    assertEditApplies, assertRegisterApplies, formatGnot, listingToSubmission, registerStorageBytes, validateSubmission, type AppSubmission,
+    assertEditApplies, assertRegisterApplies, formatGnot, listingToSubmission, registerStorageBytes, V4_LISTING_RULE, validateSubmission, type AppSubmission,
 } from "../../../lib/appStoreSubmit"
 import { formatUgnot, STORAGE_PRICE_UGNOT } from "../../../lib/dao/v2Budget"
 import { networkGasPriceFresh } from "../../../lib/grc20"
@@ -83,7 +83,7 @@ function ListingForm({ session, push, listing }: Omit<Props, "query"> & { listin
                 action = { kind: "edit", submission, was, editsUsed: listing.resubmitCount ?? 0 }
             } else {
                 if (!state) throw new Error("The listing fee could not be read. Nothing was sent.")
-                await assertRegisterApplies(submission, state.registrationFee)
+                await assertRegisterApplies(session.address, submission, state.registrationFee)
                 action = { kind: "register", submission, feeUgnot: state.registrationFee }
             }
             const price = await networkGasPriceFresh().catch(() => { throw new Error("The network fee could not be read. Try again in a moment.") })
@@ -109,7 +109,7 @@ function ListingForm({ session, push, listing }: Omit<Props, "query"> & { listin
             <h1>{editPath ? `Edit ${listing?.name}` : "Submit an app"}</h1>
             <p>{editPath
                 ? "Editing sends the listing back to pending review. It costs no listing fee, only the network fee and a small deposit for anything it adds."
-                : "A listing starts as pending review and joins the catalogue when a curator approves it."}</p>
+                : `A listing starts as pending review and joins the catalogue when a curator approves it.${isAppStoreV4() ? ` ${V4_LISTING_RULE}` : ""}`}</p>
         </header>
         <ListingFields form={form} setForm={setForm} errors={errors} authed={auth.isAuthenticated} pkgPathDisabled={!!editPath} />
         {!editPath && (state

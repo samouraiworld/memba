@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
     isSafeRealmPath,
-    isV3Path,
-    isAppStoreV3,
+    appStoreVersion,
+    isPublishablePath,
+    isAppStoreV3OrLater,
+    isAppStoreV4,
     APPSTORE_REALM_PATH,
     fetchLiveApps,
     fetchLiveAppsPage,
@@ -28,7 +30,8 @@ import { ACTIVE_NETWORK_KEY, appStorePathFor } from "./config"
 describe("APPSTORE_REALM_PATH", () => {
     it("follows the per-network path for the active network", () => {
         expect(APPSTORE_REALM_PATH).toBe(appStorePathFor(ACTIVE_NETWORK_KEY))
-        expect(isAppStoreV3()).toBe(isV3Path(APPSTORE_REALM_PATH))
+        expect(isAppStoreV3OrLater()).toBe(appStoreVersion(APPSTORE_REALM_PATH) >= 3)
+        expect(isAppStoreV4()).toBe(appStoreVersion(APPSTORE_REALM_PATH) >= 4)
     })
     it("uses v3 on mainnet and v2 on pearl", () => {
         expect(appStorePathFor("mainnet")).toBe("gno.land/r/samcrew/memba_appstore_v3")
@@ -36,12 +39,22 @@ describe("APPSTORE_REALM_PATH", () => {
     })
 })
 
-describe("isV3Path (which realm generation is active)", () => {
-    it("recognizes a v3 realm path and rejects v2", () => {
-        expect(isV3Path("gno.land/r/samcrew/memba_appstore_v3")).toBe(true)
-        expect(isV3Path("gno.land/r/samcrew/memba_appstore_v2")).toBe(false)
-        // must anchor on the suffix — a v3 substring mid-path shouldn't match
-        expect(isV3Path("gno.land/r/samcrew/memba_appstore_v3_beta")).toBe(false)
+describe("isPublishablePath (v4's validPkgPath)", () => {
+    it("accepts what gno.land publishes and nothing looser", () => {
+        for (const ok of ["gno.land/r/samcrew/my_app_v1", "gno.land/p/a/b-c/d1", "gno.land/r/g1abc/x"]) expect(isPublishablePath(ok), ok).toBe(true)
+        for (const bad of ["gno.land/r/Samcrew/app", "gno.land/r/samcrew/my.app", "gno.land/r/samcrew/1app", "gno.land/r/samcrew/a__b",
+            "gno.land/r/samcrew/a_/b", "gno.land/r/samcrew/app_", "gno.land/r/", `gno.land/r/${"a".repeat(200)}`]) expect(isPublishablePath(bad), bad).toBe(false)
+    })
+})
+
+describe("appStoreVersion (which realm generation is active)", () => {
+    it("reads the generation from an App Store realm path", () => {
+        expect(appStoreVersion("gno.land/r/samcrew/memba_appstore_v2")).toBe(2)
+        expect(appStoreVersion("gno.land/r/samcrew/memba_appstore_v3")).toBe(3)
+        expect(appStoreVersion("gno.land/r/samcrew/memba_appstore_v4")).toBe(4)
+        // anchored on the suffix and on the realm name: no other path names a generation
+        expect(appStoreVersion("gno.land/r/samcrew/memba_appstore_v3_beta")).toBe(0)
+        expect(appStoreVersion("gno.land/r/samcrew/escrow_v4")).toBe(0)
     })
 })
 

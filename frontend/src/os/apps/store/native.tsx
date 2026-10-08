@@ -7,7 +7,7 @@ import { ReviewsSection } from "../../../components/reviews/ReviewsSection"
 import { useReviewsModerator } from "../../../components/reviews/useReviewsModerator"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
 import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDate, filterCatalogue, parseCatalogueFilters, updateCatalogueFilters, type CatalogueEntry, type CatalogueFilters } from "../../../lib/appCatalogue"
-import { fetchAppStrict, fetchLiveCatalogue, isAppStoreV3On, isSafeRealmPath } from "../../../lib/appStore"
+import { fetchAppStrict, fetchLiveCatalogue, isAppStoreV3OrLaterOn, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { isValidCid } from "../../../lib/ipfs"
 import { networkGasPriceFresh } from "../../../lib/grc20"
@@ -50,7 +50,7 @@ function Artwork({ entry, large = false }: { entry: CatalogueEntry; large?: bool
     </span>
 }
 
-// Registering a listing is open to anyone: only a live one has been approved.
+// Registering a listing is not a review: only a live one has been approved.
 const LISTING_PROVENANCE: Record<string, string> = {
     live: "Curator approved listing",
     pending: "Pending review, not yet vetted by a curator",
@@ -168,7 +168,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                         </div>
                         : <section><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>)}
                 </div>
-                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{listing && (listing.status === "live" || listing.status === "pending") && isAppStoreV3On(session.network.key) && <ReportListing session={session} listing={listing} appName={entry.name} onReported={() => void detail.refetch()} />}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
+                <aside className="os-store-trust"><h2>Before you open</h2><p><b>{provenance(entry)}</b> identifies how this page was listed. Curation is not a code audit or a transaction guarantee.</p>{entry.realmPath && <code>{entry.realmPath}</code>}{listing?.publisher && <p>Listed by <code>{listing.publisher}</code>{publisherNote(listing.publisher, moderator)}</p>}{checkedLinkDate(entry) && <p>Link checked {checkedLinkDate(entry)}</p>}{listing && (listing.status === "live" || listing.status === "pending") && isAppStoreV3OrLaterOn(session.network.key) && <ReportListing session={session} listing={listing} appName={entry.name} onReported={() => void detail.refetch()} />}{entry.source === "editorial" && <p>Independent projects open outside Memba. Check their network before connecting a wallet.</p>}</aside>
             </div>
         </>}
     </div>
@@ -233,7 +233,7 @@ export default function StoreWindow(props: NativeViewProps) {
     const listingsOpen = isListingSubmitOpen(session.network.key)
     const nav = [
         ...sections,
-        ...isAppStoreV3On(session.network.key) ? [{ id: "review", name: "Curator queue", icon: "doc" as const }] : [],
+        ...isAppStoreV3OrLaterOn(session.network.key) ? [{ id: "review", name: "Curator queue", icon: "doc" as const }] : [],
         ...listingsOpen ? [{ id: "my-submissions", name: "Your listings", icon: "prof" as const }] : [],
     ]
     const closed = <p className="os-store-notice" role="status">Submitting listings is not open on this network yet.</p>

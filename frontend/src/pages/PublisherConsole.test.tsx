@@ -17,7 +17,7 @@ vi.mock("../lib/config", async (a) => ({
 }))
 vi.mock("../lib/appStore", async (a) => {
     const actual = await a<typeof import("../lib/appStore")>()
-    return { ...actual, isAppStoreV3: () => v3, fetchByPublisher: (...x: unknown[]) => fetchByPublisher(...x), fetchAppStrict: (...x: unknown[]) => fetchAppStrict(...x) }
+    return { ...actual, isAppStoreV3OrLater: () => v3, fetchByPublisher: (...x: unknown[]) => fetchByPublisher(...x), fetchAppStrict: (...x: unknown[]) => fetchAppStrict(...x) }
 })
 vi.mock("../lib/appStoreSubmit", async (a) => {
     const actual = await a<typeof import("../lib/appStoreSubmit")>()

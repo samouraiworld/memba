@@ -132,4 +132,20 @@ describe("FeedComposer join preset", () => {
         expect(await screen.findByText(/needs 12 more blocks/)).toBeInTheDocument()
         expect(screen.getByTestId("feed-composer-input")).toHaveValue("my post")
     })
+
+    it("says what failed instead of a generic sentence, and stays silent on a cancel", async () => {
+        const blocked = "🛡️ Transaction blocked — Your wallet is using an untrusted RPC: https://rpc.example:443"
+        mockSubmit.mockRejectedValueOnce(new Error(blocked))
+        render(<FeedComposer connected={true} address="g1meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" onConnect={vi.fn()} onPosted={vi.fn()} />)
+        fireEvent.change(screen.getByTestId("feed-composer-input"), { target: { value: "my post" } })
+        fireEvent.click(screen.getByTestId("feed-post-btn"))
+        expect(await screen.findByText(blocked)).toBeInTheDocument()
+        expect(screen.queryByText(/Could not post/)).toBeNull()
+
+        mockSubmit.mockRejectedValueOnce(new Error("The transaction has been rejected by the user."))
+        fireEvent.click(screen.getByTestId("feed-post-btn"))
+        await waitFor(() => expect(screen.queryByText(blocked)).toBeNull())
+        expect(screen.queryByText(/rejected|Could not post/)).toBeNull()
+        expect(screen.getByTestId("feed-composer-input")).toHaveValue("my post")
+    })
 })

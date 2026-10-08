@@ -17,7 +17,7 @@ import { Suspense, useState, type CSSProperties } from "react"
 import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
-import { fetchLiveCatalogue, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
+import { fetchLiveCatalogue, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3OrLater, type AppListing } from "../lib/appStore"
 import { fetchSummary, fetchSummaries, publisherNote, type SubjectSummary } from "../lib/reviews"
 import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
 import { API_BASE_URL, isAppReviewsAvailable, isAppStoreSubmitEnabled } from "../lib/config"
@@ -262,8 +262,8 @@ function AppGrid() {
                     </div>
                 )}
                 {/* Self-service listing (B3) — the submit route only exists meaningfully on the
-                    v3 realm, and an owner-controlled flag opens it. */}
-                {isAppStoreSubmitEnabled() && isAppStoreV3() && (
+                    v3 or v4 realm, and an owner-controlled flag opens it. */}
+                {isAppStoreSubmitEnabled() && isAppStoreV3OrLater() && (
                     <>
                         <Link className="appbtn appbtn--ghost appstore__submit-cta" to={`/${networkKey}/apps/submit`}>
                             Submit your app
@@ -328,7 +328,7 @@ function AppGrid() {
 
             {/* Verified (live) apps are the default view above. On v3, pending-review apps are an
                 opt-in disclosure only — never a peer of the verified grid. */}
-            {isAppStoreV3() && <PendingReviewSection networkKey={networkKey} />}
+            {isAppStoreV3OrLater() && <PendingReviewSection networkKey={networkKey} />}
         </div>
     )
 }
@@ -558,7 +558,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                         {/* Community safety valve (B1b): flaggable states only — the realm
                             rejects flags on rejected/delisted apps anyway. The stated threshold and
                             costs are the v3 registry's. */}
-                        {isAppStoreV3() && (app.status === "live" || app.status === "pending") && (
+                        {isAppStoreV3OrLater() && (app.status === "live" || app.status === "pending") && (
                             <ReportAppButton pkgPath={app.pkgPath} />
                         )}
                     </aside>

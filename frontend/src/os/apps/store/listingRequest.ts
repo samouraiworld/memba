@@ -2,7 +2,7 @@
 import { isAppStoreSubmitEnabled } from "../../../lib/config"
 import { isValidGnoAddressChecksum } from "../../../lib/dao/address"
 import { depositCapUgnot, formatUgnot, formatUgnotExact, STORAGE_PRICE_UGNOT } from "../../../lib/dao/v2Budget"
-import { APPSTORE_REALM_PATH, isAppStoreV3On } from "../../../lib/appStore"
+import { APPSTORE_REALM_PATH, isAppStoreV3OrLaterOn } from "../../../lib/appStore"
 import {
     assertDelistApplies, assertEditApplies, assertRegisterApplies, buildDelistAppMsg, buildEditListingMsg, buildRegisterAppMsg,
     DELIST_GAS_WANTED, DELIST_STORAGE_BYTES, EDIT_GAS_WANTED, editStorageBytes, formatGnot, LISTING_MEMO, MAX_RESUBMITS, REGISTER_GAS_WANTED,
@@ -29,16 +29,16 @@ export interface StoreListingCall {
     onSettled?: (outcome: SettledOutcome) => void
 }
 
-/** Submitting needs the v3 registry on this network and the submission switch on; off, nothing is offered. */
+/** Submitting needs a v3 or v4 registry on this network and the submission switch on; off, nothing is offered. */
 export function isListingSubmitOpen(networkKey: string): boolean {
-    return isAppStoreSubmitEnabled() && isAppStoreV3On(networkKey)
+    return isAppStoreSubmitEnabled() && isAppStoreV3OrLaterOn(networkKey)
 }
 
 function plan(action: ListingAction, caller: string): { msg: AminoMsg; gas: number; storage: number; check: () => Promise<void> } {
     switch (action.kind) {
         case "register": return {
             msg: buildRegisterAppMsg(caller, action.feeUgnot, action.submission), gas: REGISTER_GAS_WANTED,
-            storage: registerStorageBytes(action.submission), check: () => assertRegisterApplies(action.submission, action.feeUgnot),
+            storage: registerStorageBytes(action.submission), check: () => assertRegisterApplies(caller, action.submission, action.feeUgnot),
         }
         case "edit": return {
             msg: buildEditListingMsg(caller, action.submission, action.was), gas: EDIT_GAS_WANTED,
