@@ -1,7 +1,9 @@
 /** Transactional, device-local drafts. A failed write never means "saved". */
 export interface NotesPartition { chainId: string; realm: string; owner: string }
 export interface NotesScope extends NotesPartition { noteId: string }
-export type DraftPayload = { kind: "public"; title: string; body: string } | { kind: "encrypted"; envelope: Uint8Array }
+/** Frozen when editing a chain revision; never advance it just to make a publish succeed. */
+export interface DraftBase { stateRevision: string; epoch: string; ownerGeneration: string; titleRevision: string; bodyRevision: string }
+export type DraftPayload = { kind: "public"; title: string; body: string; base?: DraftBase } | { kind: "encrypted"; envelope: Uint8Array }
 export interface DraftRecord { schema: 1; scope: NotesScope; localRevision: string; payload: DraftPayload; updatedAt: number }
 export type NotesWriteResult<T> = { status: "saved"; value: T } | { status: "conflict" | "unavailable" | "session-changed" | "invalid" }
 export interface DraftWriteGuard { readonly signal: AbortSignal }
@@ -27,11 +29,20 @@ export function createDraftSession(): DraftSession {
 }
 function validPayload(payload: DraftPayload): boolean {
     return payload?.kind === "public"
-        ? typeof payload.title === "string" && encoder.encode(payload.title).length <= 320 && typeof payload.body === "string" && encoder.encode(payload.body).length <= MAX_NOTE_BODY_BYTES
+        ? typeof payload.title === "string" && encoder.encode(payload.title).length <= 320 && typeof payload.body === "string" && encoder.encode(payload.body).length <= MAX_NOTE_BODY_BYTES && (payload.base === undefined || validBase(payload.base))
         : payload?.kind === "encrypted" && ArrayBuffer.isView(payload.envelope) && Object.prototype.toString.call(payload.envelope) === "[object Uint8Array]" && payload.envelope.length > 0 && payload.envelope.length <= MAX_ENVELOPE_BYTES
 }
+function validBase(base: DraftBase): boolean {
+    return !!base && [base.stateRevision, base.ownerGeneration, base.titleRevision, base.bodyRevision].every(value => isNotesRevision(value) && value !== "0")
+        && isNotesRevision(base.epoch) && BigInt(base.epoch) <= 4_294_967_295n
+}
 function copyPayload(payload: DraftPayload): DraftPayload {
-    return payload.kind === "public" ? { kind: "public", title: payload.title, body: payload.body } : { kind: "encrypted", envelope: new Uint8Array(payload.envelope) }
+    if (payload.kind === "encrypted") return { kind: "encrypted", envelope: new Uint8Array(payload.envelope) }
+    const { base } = payload
+    return { kind: "public", title: payload.title, body: payload.body, ...(base ? { base: {
+        stateRevision: base.stateRevision, epoch: base.epoch, ownerGeneration: base.ownerGeneration,
+        titleRevision: base.titleRevision, bodyRevision: base.bodyRevision,
+    } } : {}) }
 }
 function copyScope(scope: NotesScope): NotesScope { return { chainId: scope.chainId, realm: scope.realm, owner: scope.owner, noteId: scope.noteId } }
 function validDraft(value: unknown): value is DraftRecord {

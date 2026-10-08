@@ -1,9 +1,57 @@
 /** Durable signing intentions. Unknown is preserved until matching evidence exists. */
-import { isNotesRevision, notesKey, notesPartitionKey, notesRead, notesRequest, notesWrite, validNotesPartition, validNotesScope, type DraftSession, type NotesPartition, type NotesScope, type NotesStore, type NotesWriteResult } from "./drafts"
+import { isNotesRevision, notesKey, notesPartitionKey, notesRead, notesRequest, notesWrite, validNotesPartition, validNotesScope, type DraftWriteGuard, type NotesPartition, type NotesScope, type NotesStore, type NotesWriteResult } from "./drafts"
 
+/** Hashes describe PUBLIC bytes only; never attach this to encrypted or identity operations. */
+export interface PublicIntentVerification {
+    kind: "public-v1"
+    mode: 3 | 4
+    epoch: string
+    titleSha256: string
+    bodySha256: string
+    deleted: boolean
+    quoteHeight: string
+    ownerGeneration: string
+    titleRevision: string
+    bodyRevision: string
+}
+export interface CommentIntentVerification {
+    kind: "comment-v1"
+    noteId: string
+    parent: string
+    author: string
+    bodyRevision: string
+    epoch: string
+    anchorSha256: string
+    bodySha256: string
+    deleted: boolean
+    hidden: boolean
+    resolved: boolean
+    quoteHeight: string
+}
+/** Ciphertext/public metadata only. Publish is checked by reconstructing the exact public MsgCall. */
+export interface PrivateIntentVerification {
+    kind: "private-v1"
+    mode: 0 | 1 | 2 | 3 | 4
+    epoch: string
+    owner: string
+    pendingOwner: string
+    ownerGeneration: string
+    titleRevision: string
+    bodyRevision: string
+    titleBlobSha256: string
+    bodyBlobSha256: string
+    commitmentSha256: string
+    manifestSha256: string
+    revealedEpoch: string
+    revealedCommitment: string
+    quoteHeight: string
+    maxDepositUgnot: string
+}
 export interface NotesIntentInput {
     scope: NotesScope
     operationId: string
+    /** SHA-256 of the exact canonical request reviewed before opening the wallet. */
+    requestDigest: string
     actor: string
     action: string
     expectedStateRevision: string
@@ -11,6 +59,7 @@ export interface NotesIntentInput {
     expectedEpoch: string
     ownerGeneration: string
     draftLocalRevision: string
+    verification?: PublicIntentVerification | CommentIntentVerification | PrivateIntentVerification
 }
 export type NotesIntentPhase = "prepared" | "submitted" | "unknown" | "confirmed" | "failed" | "not-sent"
 export interface NotesIntent extends NotesIntentInput { schema: 1; phase: NotesIntentPhase; txHash?: string; createdAt: number; updatedAt: number }
@@ -27,12 +76,77 @@ export interface NotesOperationEvidence {
 export interface IntentReconciliation { status: "confirmed" | "failed" | "unknown"; draftRevisionToClear?: string }
 const HEX_ID = /^[a-f0-9]{32}$/
 const TX_HASH = /^[a-fA-F0-9]{64}$/
+const HASH = /^[a-f0-9]{64}$/
+const VERIFICATION_KEYS = ["kind", "mode", "epoch", "titleSha256", "bodySha256", "deleted", "quoteHeight", "ownerGeneration", "titleRevision", "bodyRevision"]
+export function validPublicVerification(value: unknown): value is PublicIntentVerification {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false
+    const v = value as PublicIntentVerification
+    return Object.keys(v).length === VERIFICATION_KEYS.length && Object.keys(v).every(key => VERIFICATION_KEYS.includes(key))
+        && v.kind === "public-v1" && (v.mode === 3 || v.mode === 4) && typeof v.deleted === "boolean"
+        && typeof v.titleSha256 === "string" && HASH.test(v.titleSha256) && typeof v.bodySha256 === "string" && HASH.test(v.bodySha256)
+        && [v.epoch, v.quoteHeight, v.ownerGeneration, v.titleRevision, v.bodyRevision].every(isNotesRevision)
+        && BigInt(v.epoch) <= 0xffffffffn && BigInt(v.quoteHeight) > 0n && BigInt(v.quoteHeight) <= 0x7fffffffffffffffn
+        && v.ownerGeneration !== "0" && v.titleRevision !== "0" && v.bodyRevision !== "0"
+}
+const COMMENT_KEYS = ["kind", "noteId", "parent", "author", "bodyRevision", "epoch", "anchorSha256", "bodySha256", "deleted", "hidden", "resolved", "quoteHeight"]
+export function validCommentVerification(value: unknown): value is CommentIntentVerification {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false
+    const v = value as CommentIntentVerification
+    return Object.keys(v).length === COMMENT_KEYS.length && Object.keys(v).every(key => COMMENT_KEYS.includes(key))
+        && v.kind === "comment-v1" && typeof v.noteId === "string" && HEX_ID.test(v.noteId) && !/^0+$/.test(v.noteId)
+        && typeof v.parent === "string" && (v.parent === "" || (HEX_ID.test(v.parent) && !/^0+$/.test(v.parent)))
+        && typeof v.author === "string" && v.author.length > 0 && v.author.length <= 128
+        && typeof v.anchorSha256 === "string" && HASH.test(v.anchorSha256) && typeof v.bodySha256 === "string" && HASH.test(v.bodySha256)
+        && [v.deleted, v.hidden, v.resolved].every(flag => typeof flag === "boolean")
+        && [v.epoch, v.bodyRevision, v.quoteHeight].every(isNotesRevision) && v.bodyRevision !== "0"
+        && BigInt(v.epoch) <= 0xffffffffn && BigInt(v.quoteHeight) > 0n && BigInt(v.quoteHeight) <= 0x7fffffffffffffffn
+}
 const phases: readonly NotesIntentPhase[] = ["prepared", "submitted", "unknown", "confirmed", "failed", "not-sent"]
+const PRIVATE_KEYS = ["kind", "mode", "epoch", "owner", "pendingOwner", "ownerGeneration", "titleRevision", "bodyRevision", "titleBlobSha256", "bodyBlobSha256", "commitmentSha256", "manifestSha256", "revealedEpoch", "revealedCommitment", "quoteHeight", "maxDepositUgnot"]
+export function validPrivateVerification(value: unknown): value is PrivateIntentVerification {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false
+    const v = value as PrivateIntentVerification, hash = (s: unknown) => typeof s === "string" && HASH.test(s)
+    return Object.keys(v).length === PRIVATE_KEYS.length && Object.keys(v).every(key => PRIVATE_KEYS.includes(key))
+        && v.kind === "private-v1" && Number.isInteger(v.mode) && v.mode >= 0 && v.mode <= 4
+        && typeof v.owner === "string" && v.owner.length > 0 && v.owner.length <= 128 && typeof v.pendingOwner === "string" && v.pendingOwner.length <= 128
+        && (v.mode <= 2 ? hash(v.titleBlobSha256) && hash(v.bodyBlobSha256) : (v.titleBlobSha256 === "" && v.bodyBlobSha256 === "") || (hash(v.titleBlobSha256) && hash(v.bodyBlobSha256)))
+        && hash(v.commitmentSha256) && (v.manifestSha256 === "" || hash(v.manifestSha256))
+        && (v.revealedEpoch === "0" ? v.revealedCommitment === "" : hash(v.revealedCommitment))
+        && [v.epoch, v.ownerGeneration, v.titleRevision, v.bodyRevision, v.revealedEpoch, v.quoteHeight, v.maxDepositUgnot].every(isNotesRevision)
+        && BigInt(v.epoch) > 0n && BigInt(v.epoch) <= 0xffffffffn && BigInt(v.revealedEpoch) <= BigInt(v.epoch)
+        && BigInt(v.quoteHeight) > 0n && BigInt(v.quoteHeight) <= 0x7fffffffffffffffn && BigInt(v.maxDepositUgnot) <= 0x7fffffffffffffffn
+        && v.ownerGeneration !== "0" && v.titleRevision !== "0" && v.bodyRevision !== "0"
+}
 const key = (scope: NotesScope, operationId: string) => JSON.stringify([notesKey(scope), operationId])
 function validInput(value: NotesIntentInput): boolean {
     return !!value.scope && validNotesScope(value.scope) && value.scope.owner !== "guest" && HEX_ID.test(value.operationId)
+        && typeof value.requestDigest === "string" && /^[a-f0-9]{64}$/.test(value.requestDigest)
         && typeof value.actor === "string" && value.actor === value.scope.owner && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(value.action)
         && [value.expectedStateRevision, value.resultingStateRevision, value.expectedEpoch, value.ownerGeneration, value.draftLocalRevision].every(isNotesRevision)
+        && (value.verification === undefined || (validPublicVerification(value.verification)
+            && ["create", "commit", "rename", "delete", "comments"].includes(value.action)
+            && value.verification.deleted === (value.action === "delete") && value.verification.epoch === value.expectedEpoch
+            && value.verification.ownerGeneration === value.ownerGeneration
+            && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n
+            && BigInt(value.verification.titleRevision) <= BigInt(value.resultingStateRevision)
+            && BigInt(value.verification.bodyRevision) <= BigInt(value.resultingStateRevision))
+            || (validCommentVerification(value.verification)
+                && ["addComment", "deleteComment", "resolveComment", "hideComment"].includes(value.action)
+                && value.scope.realm === `gno.land/r/samcrew/memba_notes_v1/comments/${value.verification.noteId}`
+                && value.verification.epoch === value.expectedEpoch
+                && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n)
+            || (validPrivateVerification(value.verification)
+                && value.scope.realm === "gno.land/r/samcrew/memba_notes_v1"
+                && ["private-create", "private-commit", "private-rotate", "private-access", "private-refresh", "private-reveal", "private-publish"].includes(value.action)
+                && value.verification.ownerGeneration === value.ownerGeneration
+                && (value.action === "private-publish" ? value.verification.mode >= 3 && value.verification.titleBlobSha256 === "" && value.verification.bodyBlobSha256 === "" : HASH.test(value.verification.titleBlobSha256) && HASH.test(value.verification.bodyBlobSha256) && (value.action === "private-reveal" || value.verification.mode <= 2))
+                && (value.action === "private-reveal" ? value.verification.revealedEpoch !== "0" : value.verification.revealedEpoch === "0")
+                && (!["private-create", "private-rotate", "private-access", "private-refresh", "private-commit"].includes(value.action) || HASH.test(value.verification.manifestSha256))
+                && BigInt(value.verification.epoch) === BigInt(value.expectedEpoch) + (["private-create", "private-rotate"].includes(value.action) ? 1n : 0n)
+                && (value.action !== "private-create" || (value.expectedStateRevision === "0" && value.expectedEpoch === "0"))
+                && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n
+                && BigInt(value.verification.titleRevision) <= BigInt(value.resultingStateRevision)
+                && BigInt(value.verification.bodyRevision) <= BigInt(value.resultingStateRevision)))
 }
 function validIntent(value: unknown): value is NotesIntent {
     if (!value || typeof value !== "object") return false
@@ -42,9 +156,10 @@ function validIntent(value: unknown): value is NotesIntent {
 }
 function record(value: NotesIntent): NotesIntent {
     return {
-        schema: 1, scope: { chainId: value.scope.chainId, realm: value.scope.realm, owner: value.scope.owner, noteId: value.scope.noteId }, operationId: value.operationId, actor: value.actor, action: value.action,
+        schema: 1, scope: { chainId: value.scope.chainId, realm: value.scope.realm, owner: value.scope.owner, noteId: value.scope.noteId }, operationId: value.operationId, requestDigest: value.requestDigest, actor: value.actor, action: value.action,
         expectedStateRevision: value.expectedStateRevision, resultingStateRevision: value.resultingStateRevision,
         expectedEpoch: value.expectedEpoch, ownerGeneration: value.ownerGeneration, draftLocalRevision: value.draftLocalRevision,
+        ...(value.verification ? { verification: { ...value.verification } } : {}),
         phase: value.phase, createdAt: value.createdAt, updatedAt: value.updatedAt, ...(value.txHash ? { txHash: value.txHash } : {}),
     }
 }
@@ -76,8 +191,8 @@ export class NotesIntents {
         if (values.some(value => !validIntent(value) || notesPartitionKey(value.scope) !== notesPartitionKey(partition))) throw new Error("Some transaction receipts could not be read. Their stored copies were kept.")
         return (values as NotesIntent[]).map(record).sort((a, b) => b.createdAt - a.createdAt)
     }
-    /** Await a saved result before opening a wallet. Reusing any operation ID is refused. */
-    begin(input: NotesIntentInput, session: DraftSession): Promise<NotesWriteResult<NotesIntent>> {
+    /** Await commit before wallet. Pending note mutations require a strictly newer reviewed base. */
+    begin(input: NotesIntentInput, session: DraftWriteGuard): Promise<NotesWriteResult<NotesIntent>> {
         if (!validInput(input)) return Promise.resolve({ status: "invalid" })
         const now = Date.now()
         const next = record({ ...input, schema: 1, phase: "prepared", createdAt: now, updatedAt: now })
@@ -85,13 +200,20 @@ export class NotesIntents {
             const store = tx.objectStore("intents")
             notesRequest(store.get(key(next.scope, next.operationId)), tx, (value: unknown) => {
                 if (value !== undefined) { finish({ status: "conflict" }); return }
-                store.add({ ...next, key: key(next.scope, next.operationId), partition: notesPartitionKey(next.scope) })
-                finish({ status: "saved", value: next })
+                notesRequest(store.index("partition").getAll(notesPartitionKey(next.scope)), tx, (receipts: unknown[]) => {
+                    if (receipts.some(receipt => !validIntent(receipt))) { finish({ status: "invalid" }); return }
+                    const blocked = (receipts as NotesIntent[]).some(receipt => notesKey(receipt.scope) === notesKey(next.scope)
+                        && ["prepared", "submitted", "unknown"].includes(receipt.phase)
+                        && BigInt(receipt.expectedStateRevision) >= BigInt(next.expectedStateRevision))
+                    if (blocked) { finish({ status: "conflict" }); return }
+                    store.add({ ...next, key: key(next.scope, next.operationId), partition: notesPartitionKey(next.scope) })
+                    finish({ status: "saved", value: next })
+                })
             })
         })
     }
     /** "not-sent" is only for a driver outcome that establishes nothing was sent. */
-    settle(scope: NotesScope, operationId: string, phase: "submitted" | "unknown" | "not-sent", session: DraftSession, txHash?: string): Promise<NotesWriteResult<NotesIntent>> {
+    settle(scope: NotesScope, operationId: string, phase: "submitted" | "unknown" | "not-sent", session: DraftWriteGuard, txHash?: string): Promise<NotesWriteResult<NotesIntent>> {
         if (!["submitted", "unknown", "not-sent"].includes(phase) || (txHash !== undefined && !TX_HASH.test(txHash))) return Promise.resolve({ status: "invalid" })
         return this.update(scope, operationId, session, current => {
             if (current.txHash && txHash && current.txHash.toUpperCase() !== txHash.toUpperCase()) return null
@@ -102,7 +224,7 @@ export class NotesIntents {
         })
     }
     /** Does not delete a draft or receipt. The caller may separately CAS-delete that exact draft. */
-    confirm(scope: NotesScope, operationId: string, evidence: NotesOperationEvidence, session: DraftSession): Promise<NotesWriteResult<NotesIntent>> {
+    confirm(scope: NotesScope, operationId: string, evidence: NotesOperationEvidence, session: DraftWriteGuard): Promise<NotesWriteResult<NotesIntent>> {
         const observation = structuredClone(evidence)
         return this.update(scope, operationId, session, current => {
             if (["not-sent", "confirmed", "failed"].includes(current.phase)) return null
@@ -110,7 +232,7 @@ export class NotesIntents {
             return result.status === "unknown" ? null : { ...current, phase: result.status }
         })
     }
-    private update(scope: NotesScope, operationId: string, session: DraftSession, change: (intent: NotesIntent) => NotesIntent | null): Promise<NotesWriteResult<NotesIntent>> {
+    private update(scope: NotesScope, operationId: string, session: DraftWriteGuard, change: (intent: NotesIntent) => NotesIntent | null): Promise<NotesWriteResult<NotesIntent>> {
         if (!validNotesScope(scope) || !HEX_ID.test(operationId)) return Promise.resolve({ status: "invalid" })
         const storageKey = key(scope, operationId)
         return notesWrite(this.store.database, ["intents"], session.signal, (tx, finish) => {

@@ -11,6 +11,18 @@ function store(indexedDB = new IDBFactory()) {
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(value => value.close())) })
 
 describe("transactional Notes drafts", () => {
+    it("freezes the chain baseline with a draft and rejects malformed baselines", async () => {
+        const first = store(), session = createDraftSession()
+        const base = { stateRevision: "9", epoch: "0", ownerGeneration: "2", titleRevision: "2", bodyRevision: "5" }
+        const write = first.saveDraft(scope, "0", { ...payload, base }, session)
+        base.stateRevision = "10"
+        expect((await write).status).toBe("saved")
+        expect((await first.getDraft(scope))?.payload).toMatchObject({ base: { stateRevision: "9" } })
+        for (const bad of [{ stateRevision: "0" }, { epoch: "4294967296" }, { bodyRevision: "01" }, { ownerGeneration: "-1" }]) {
+            expect(await first.saveDraft(scope, "1", { ...payload, base: { ...base, ...bad } }, session)).toEqual({ status: "invalid" })
+        }
+        expect((await first.getDraft(scope))?.localRevision).toBe("1")
+    })
     it("persists a public draft across connections and scopes account, realm and chain", async () => {
         const factory = new IDBFactory(), session = createDraftSession(), first = store(factory)
         const saved = await first.saveDraft(scope, "0", payload, session)
