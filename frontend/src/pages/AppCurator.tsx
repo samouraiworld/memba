@@ -18,7 +18,7 @@ import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAdena } from "../hooks/useAdena"
 import { useNetwork } from "../hooks/useNetwork"
-import { isAppStoreV3OrLater, isAppStoreV4, isSafeRealmPath, fetchByStatus, type AppListing } from "../lib/appStore"
+import { isAppStoreV3OrLater, isAppStoreV4, isPublishablePath, isSafeRealmPath, fetchByStatus, type AppListing } from "../lib/appStore"
 import {
     MAX_REASON_LEN,
     fetchIsCurator,
@@ -250,7 +250,9 @@ function AttestPanel({ address }: { address: string }) {
     const [pkgPath, setPkgPath] = useState("")
     const [publisher, setPublisher] = useState("")
     const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
-    const pathOk = isSafeRealmPath(pkgPath)
+    // Attesting needs a path v4 publishes; withdrawing only a safe one (the realm says when there is none).
+    const attestPathOk = isPublishablePath(pkgPath)
+    const revokePathOk = isSafeRealmPath(pkgPath)
     const publisherOk = isValidGnoAddressChecksum(publisher)
     // The account, the path and the publisher travel with the call (see QueueItem).
     const act = useMutation({
@@ -284,10 +286,10 @@ function AttestPanel({ address }: { address: string }) {
             <label htmlFor="appcurator-attest-publisher">Publisher address</label>
             <input id="appcurator-attest-publisher" value={publisher} placeholder="g1…" onChange={(e) => setPublisher(e.target.value.trim())} />
             <div className="appcurator__actions">
-                <button type="button" className="appbtn appbtn--primary" disabled={act.isPending || !pathOk || !publisherOk} onClick={() => send("attest")}>
+                <button type="button" className="appbtn appbtn--primary" disabled={act.isPending || !attestPathOk || !publisherOk} onClick={() => send("attest")}>
                     {act.isPending ? "Waiting for wallet…" : "Attest"}
                 </button>
-                <button type="button" className="appbtn appbtn--ghost" disabled={act.isPending || !pathOk} onClick={() => send("revoke")}>
+                <button type="button" className="appbtn appbtn--ghost" disabled={act.isPending || !revokePathOk} onClick={() => send("revoke")}>
                     Withdraw attestation
                 </button>
             </div>

@@ -138,6 +138,12 @@ describe("AppCurator — v4 attestations", () => {
         fireEvent.change(screen.getByLabelText("Publisher address"), { target: { value: PUBLISHER.slice(0, -1) + "q" } })
         expect(attest).toBeDisabled()
         fireEvent.change(screen.getByLabelText("Publisher address"), { target: { value: PUBLISHER } })
+        // A path v4 would refuse after the fee keeps Attest closed.
+        for (const bad of ["gno.land/r/Samcrew/app", "gno.land/r/samcrew/my.app", "gno.land/r/samcrew/a__b"]) {
+            fireEvent.change(screen.getByLabelText("Package path"), { target: { value: bad } })
+            expect(attest, bad).toBeDisabled()
+        }
+        fireEvent.change(screen.getByLabelText("Package path"), { target: { value: "gno.land/r/gnoswap/router" } })
         fireEvent.click(attest)
         await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
         expect(doContractBroadcast.mock.calls[0][0][0].value).toMatchObject({ func: "AttestPublisher", args: ["gno.land/r/gnoswap/router", PUBLISHER], send: "" })

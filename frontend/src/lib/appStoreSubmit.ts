@@ -25,7 +25,7 @@ import { parseQevalJSON, queryEval } from "./dao/shared"
 import { depositCapUgnot } from "./dao/v2Budget"
 import type { AminoMsg } from "./grc20"
 import { GNO_RPC_URL } from "./config"
-import { APPSTORE_REALM_PATH, isAppStoreV4, isSafeRealmPath, fetchApp, fetchAppStrict, fetchRegistryState, NothingSentError, sendAppStoreCall, type AppListing } from "./appStore"
+import { APPSTORE_REALM_PATH, isAppStoreV4, isPublishablePath, isSafeRealmPath, fetchApp, fetchAppStrict, fetchRegistryState, NothingSentError, sendAppStoreCall, type AppListing } from "./appStore"
 
 // Field limits in UTF-8 bytes, as the realm counts them — MUST stay equal to the memba_appstore_v3 and v4 realm constants.
 export const MAX_NAME_LEN = 80
@@ -136,12 +136,6 @@ export function validateAppURL(u: string): string | null {
     return "The app URL must start with https://, http://, or / (an in-app path)"
 }
 
-/**
- * v4's `validPkgPath`: after `gno.land/r/` or `gno.land/p/`, lowercase letters, digits, `_`, `-`
- * and `/`, each segment starting with a letter, never ending on or doubling a separator.
- */
-const PUBLISHABLE_PATH_RE = /^gno\.land\/[rp](?:\/[a-z](?:[a-z0-9]|[_-](?=[a-z0-9]))*)+$/
-
 /** On v4: who may list a path (`CanRegisterJSON`), stated before the form is filled. */
 export const V4_LISTING_RULE = "You can list a package path only from an address that owns its namespace, or after a curator attests your address for that path."
 
@@ -155,7 +149,7 @@ export function validateSubmission(s: AppSubmission): Partial<Record<keyof AppSu
     // guard); equal on prefix + length. The pkgPath is the listing's permanent unique key.
     if (!isSafeRealmPath(s.pkgPath)) {
         errors.pkgPath = "Must be a gno.land/r/… or gno.land/p/… package path (letters, digits, _ . / -)"
-    } else if (isAppStoreV4() && !PUBLISHABLE_PATH_RE.test(s.pkgPath)) {
+    } else if (isAppStoreV4() && !isPublishablePath(s.pkgPath)) {
         errors.pkgPath = "Must be a path gno.land publishes: lowercase letters, digits, _ and -, each part starting with a letter"
     }
     // The realm counts bytes: an accented letter takes two, most emoji four.
@@ -289,7 +283,7 @@ export async function assertRegisterApplies(caller: string, s: AppSubmission, fe
     if (state.registrationFee !== feeUgnot) throw new Error(`The listing fee is now ${formatGnot(state.registrationFee)} GNOT. Review it again; nothing was sent.`)
     if (await fetchAppStrict(s.pkgPath)) throw new Error("An app is already listed for this package path.")
     if (isAppStoreV4() && await fetchRegisterRoute(s.pkgPath, caller) === "none") {
-        throw new Error("This address does not own the namespace of this package path, and no curator has attested it for this path. Nothing was sent.")
+        throw new Error("This address cannot list this path: a path is listed by the owner of its namespace (while the network's name registry is running), or by an address a curator attested for that path. Nothing was sent.")
     }
 }
 

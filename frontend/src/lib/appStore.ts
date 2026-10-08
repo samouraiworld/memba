@@ -35,11 +35,11 @@ export function isAppStoreV3OrLater(): boolean {
     return appStoreVersion(APPSTORE_REALM_PATH) >= 3
 }
 /**
- * True when the active realm is v4: a path is listed only by the owner of its namespace
+ * True when the active realm is v4 or later: a path is listed only by the owner of its namespace
  * (r/sys/names) or by an address a curator attested for it (`CanRegisterJSON`, `AttestPublisher`).
  */
 export function isAppStoreV4(): boolean {
-    return appStoreVersion(APPSTORE_REALM_PATH) === 4
+    return appStoreVersion(APPSTORE_REALM_PATH) >= 4
 }
 /** Reports and the curator queue need a v3 or v4 registry on this network: its threshold and reads are the ones Memba states (their costs were measured on v3). */
 export function isAppStoreV3OrLaterOn(networkKey: string): boolean {
@@ -78,6 +78,17 @@ const REALM_PATH_RE = /^gno\.land\/[rp](?:\/(?!\.{1,2}(?:\/|$))[a-zA-Z0-9_.-]+)+
 
 export function isSafeRealmPath(p: string): boolean {
     return REALM_PATH_RE.test(p) && p.length <= 200
+}
+
+/**
+ * v4's `validPkgPath`: after `gno.land/r/` or `gno.land/p/`, lowercase letters, digits, `_`, `-`
+ * and `/`, each segment starting with a letter, never ending on or doubling a separator.
+ */
+const PUBLISHABLE_PATH_RE = /^gno\.land\/[rp](?:\/[a-z](?:[a-z0-9]|[_-](?=[a-z0-9]))*)+$/
+
+/** A path v4 accepts for a listing or an attestation (stricter than `isSafeRealmPath`). */
+export function isPublishablePath(p: string): boolean {
+    return isSafeRealmPath(p) && PUBLISHABLE_PATH_RE.test(p)
 }
 
 /** FlagApp measured on gnoland-1 (09-30): 7.03M to 7.53M gas. The limit is twice that. */

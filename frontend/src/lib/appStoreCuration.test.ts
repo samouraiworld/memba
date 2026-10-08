@@ -86,6 +86,11 @@ describe("v4 attestation builders (curator-only on chain, no coins)", () => {
         expect(() => buildAttestPublisherMsg(CURATOR, APP, CURATOR.slice(0, -1) + "q")).toThrow("invalid publisher address")
         expect(() => buildAttestPublisherMsg(CURATOR, APP, CURATOR.toUpperCase())).toThrow("invalid publisher address")
         expect(() => buildAttestPublisherMsg(CURATOR, `${APP}") + Evil("`, CURATOR)).toThrow("invalid app path")
+        // Paths v4 refuses after the fee: never sent.
+        for (const bad of ["gno.land/r/Samcrew/app", "gno.land/r/samcrew/my.app", "gno.land/r/samcrew/a__b"]) {
+            expect(() => buildAttestPublisherMsg(CURATOR, bad, CURATOR), bad).toThrow("invalid app path")
+        }
+        expect(buildRevokeAttestationMsg(CURATOR, "gno.land/r/samcrew/my.app").value.func).toBe("RevokeAttestation")
     })
 
     it("withdraws the attestation of a safe path", () => {

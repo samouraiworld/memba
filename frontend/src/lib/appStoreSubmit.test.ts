@@ -355,7 +355,7 @@ describe("checks made before the wallet, on a verified node", () => {
         qe.mockResolvedValue('("{\\"via\\":\\"attested\\"}" string)')
         await expect(assertRegisterApplies(CALLER, s, 1_000_000)).resolves.toBeUndefined()
         qe.mockResolvedValue('("{\\"via\\":\\"none\\"}" string)')
-        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("does not own the namespace")
+        await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("This address cannot list this path")
         // An unreadable registry stops the call; it never reads as "none" or as allowed.
         qe.mockResolvedValue(null)
         await expect(assertRegisterApplies(CALLER, s, 1_000_000)).rejects.toThrow("could not be read")

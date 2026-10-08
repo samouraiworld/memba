@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
     isSafeRealmPath,
     appStoreVersion,
+    isPublishablePath,
     isAppStoreV3OrLater,
     isAppStoreV4,
     APPSTORE_REALM_PATH,
@@ -30,11 +31,19 @@ describe("APPSTORE_REALM_PATH", () => {
     it("follows the per-network path for the active network", () => {
         expect(APPSTORE_REALM_PATH).toBe(appStorePathFor(ACTIVE_NETWORK_KEY))
         expect(isAppStoreV3OrLater()).toBe(appStoreVersion(APPSTORE_REALM_PATH) >= 3)
-        expect(isAppStoreV4()).toBe(appStoreVersion(APPSTORE_REALM_PATH) === 4)
+        expect(isAppStoreV4()).toBe(appStoreVersion(APPSTORE_REALM_PATH) >= 4)
     })
     it("uses v3 on mainnet and v2 on pearl", () => {
         expect(appStorePathFor("mainnet")).toBe("gno.land/r/samcrew/memba_appstore_v3")
         expect(appStorePathFor("pearl")).toBe("gno.land/r/samcrew/memba_appstore_v2")
+    })
+})
+
+describe("isPublishablePath (v4's validPkgPath)", () => {
+    it("accepts what gno.land publishes and nothing looser", () => {
+        for (const ok of ["gno.land/r/samcrew/my_app_v1", "gno.land/p/a/b-c/d1", "gno.land/r/g1abc/x"]) expect(isPublishablePath(ok), ok).toBe(true)
+        for (const bad of ["gno.land/r/Samcrew/app", "gno.land/r/samcrew/my.app", "gno.land/r/samcrew/1app", "gno.land/r/samcrew/a__b",
+            "gno.land/r/samcrew/a_/b", "gno.land/r/samcrew/app_", "gno.land/r/", `gno.land/r/${"a".repeat(200)}`]) expect(isPublishablePath(bad), bad).toBe(false)
     })
 })
 
