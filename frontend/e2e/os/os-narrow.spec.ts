@@ -16,7 +16,7 @@ async function spill(page: Page): Promise<string[]> {
         const scrolls = (el: Element) => /auto|scroll/.test(getComputedStyle(el).overflowX)
         const out: string[] = []
         if (body.scrollWidth > body.clientWidth + 1) out.push(`window body scrolls sideways by ${body.scrollWidth - body.clientWidth}px`)
-        body.querySelectorAll<HTMLElement>('.os-classic *, .os-store-home *, .os-store-detail *, .os-validators *, .os-explorer *, .os-quests *').forEach((el) => {
+        body.querySelectorAll<HTMLElement>('.os-classic *, .os-store-home *, .os-store-detail *, .os-validators *, .os-explorer *, .os-quests *, .os-cinema *').forEach((el) => {
             if (el instanceof SVGElement) return
             for (let p = el.parentElement; p && p !== body; p = p.parentElement) if (scrolls(p)) return
             const r = el.getBoundingClientRect()
@@ -48,9 +48,16 @@ test.describe('Memba OS pages in a narrow window', () => {
         await page.goto(`${OS_ON}/os`)
         const win = page.getByRole('region', { name: 'Arcade', exact: true })
         await expect(win.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
-        await expect(win.getByRole('button', { name: /BARRICADE/ })).toBeVisible()
+        await expect(win.getByRole('button', { name: 'Details for BARRICADE' })).toBeVisible()
+        // The storefront stylesheet is lazy: measure only once its container rules apply.
+        await expect(win.locator('.os-cinema')).toBeVisible()
         await win.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
         expect(Math.round((await win.boundingBox())!.width)).toBe(360)
+        // A narrow window swaps the hero picker for dots.
+        await expect(win.getByRole('list', { name: 'Featured games: choose' })).toBeHidden()
+        await expect(win.getByRole('button', { name: 'Show slide 1' })).toBeVisible()
+        // The window is 360 px inside a 1280 px page, so "no horizontal scroll" is measured on the window, not the document.
+        expect(await win.evaluate((el) => el.scrollWidth)).toBeLessThanOrEqual(360)
         expect(await spill(page)).toEqual([])
     })
 

@@ -19,8 +19,7 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
     test(`Arcade games play inside the OS on ${device}`, async ({ page }) => {
         test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the three OS test-server game flags')
         const lobby = await openLobby(page, width)
-        await expect(lobby.getByRole('button', { name: /Block Party/ })).toContainText('Play')
-        await lobby.getByRole('button', { name: /Block Party/ }).click()
+        await lobby.getByRole('button', { name: 'Play Block Party', exact: true }).click()
         const block = page.getByRole('region', { name: 'Block Party · Arcade' })
         await expect(block.getByRole('grid', { name: /Block Party signal board/i })).toBeVisible()
         await block.getByRole('tab', { name: 'Practice' }).click()
@@ -35,7 +34,7 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
 
         await page.goto(`${OS_ON}/os/arcade`)
         const spaceLobby = page.getByRole('region', { name: 'Arcade', exact: true })
-        await spaceLobby.getByRole('button', { name: /Space Invaders/ }).click()
+        await spaceLobby.getByRole('button', { name: 'Play Space Invaders', exact: true }).click()
         const space = page.getByRole('region', { name: 'Space Invaders · Arcade' })
         await expect(space.getByRole('heading', { name: 'Space Invaders' })).toBeVisible()
         await space.getByRole('button', { name: /free play/i }).click()
@@ -46,7 +45,7 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
 
         await page.goto(`${OS_ON}/os/arcade`)
         const barricadeLobby = page.getByRole('region', { name: 'Arcade', exact: true })
-        await barricadeLobby.getByRole('button', { name: /BARRICADE/ }).click()
+        await barricadeLobby.getByRole('button', { name: 'Play BARRICADE', exact: true }).click()
         const barricade = page.getByRole('region', { name: 'BARRICADE · Arcade' })
         await expect(barricade.getByRole('group', { name: 'Barricade playfield' })).toBeVisible()
         if (device === 'desktop') {
@@ -67,13 +66,33 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
 
     test(`Arcade game window survives reload beside the lobby on ${device}`, async ({ page }) => {
         const lobby = await openLobby(page, width)
-        await lobby.getByRole('button', { name: /BARRICADE/ }).click()
-        await expect(page).toHaveURL(/\/os\/arcade\/barricade\?w=app\.arcade/)
+        await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
+        // Play when this build runs BARRICADE; "See why" opens the same game route to explain its absence.
+        await lobby.getByRole('button', { name: /^(Play BARRICADE|See why)$/ }).click()
+        await expect(page).toHaveURL(/\/os\/arcade\/barricade\?w=arcade\.g\.barricade/)
         await page.reload()
         await expect(page.getByRole('region', { name: 'BARRICADE · Arcade' })).toBeVisible()
         if (device === 'desktop') await expect(page.getByRole('region', { name: 'Arcade', exact: true })).toBeVisible()
         const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('memba_os_windows:guest:gnoland-1') ?? '[]') as { token: string }[])
-        expect(saved.map(({ token }) => token)).toEqual(expect.arrayContaining(['app.arcade', 'arcade.barricade']))
+        expect(saved.map(({ token }) => token)).toEqual(expect.arrayContaining(['arcade.g.barricade', 'arcade.barricade']))
+    })
+
+    test(`Arcade lobby opens a game page and plays from it on ${device}`, async ({ page }) => {
+        const lobby = await openLobby(page, width)
+        await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
+        // The page is a history entry: focus moves to its title, and the browser's Back returns to the lobby.
+        await expect(lobby.getByRole('heading', { level: 1, name: 'BARRICADE' })).toBeFocused()
+        await expect(lobby.getByRole('button', { name: '← Arcade' })).toBeVisible()
+        await page.goBack()
+        await expect(lobby.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+        await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
+        await lobby.getByRole('button', { name: '← Arcade' }).click()
+        await expect(lobby.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+        await expect(lobby.getByRole('button', { name: 'Details for BARRICADE' })).toBeFocused()
+        await lobby.getByRole('button', { name: 'Details for BARRICADE' }).click()
+        test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'Play needs the three OS test-server game flags')
+        await lobby.getByRole('button', { name: 'Play BARRICADE', exact: true }).click()
+        await expect(page.getByRole('region', { name: 'BARRICADE · Arcade' })).toBeVisible()
     })
 
     test(`Arcade lobby states are clear on ${device}`, async ({ page }) => {
@@ -82,13 +101,17 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
         await expect(lobby.getByRole('status')).toContainText('not a certified Arcade record')
         await lobby.getByRole('button', { name: 'Daily board' }).click()
         await expect(lobby.getByRole('status')).toContainText('attestation is off')
+        await lobby.getByRole('navigation', { name: 'Arcade' }).getByRole('button', { name: 'Featured' }).click()
+        await expect(lobby.getByRole('region', { name: 'Featured games' })).toBeVisible()
+        await expect(lobby.getByRole('heading', { name: 'From the community' })).toBeVisible()
+        await expect(lobby.getByRole('link', { name: 'Visit gnofly (opens in a new tab)' })).toBeVisible()
     })
 }
 
 test('a Block Party run ignores other windows and survives minimise', async ({ page }) => {
     test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the OS test-server game flags')
     const lobby = await openLobby(page, 1440)
-    await lobby.getByRole('button', { name: /Block Party/ }).click()
+    await lobby.getByRole('button', { name: 'Play Block Party', exact: true }).click()
     const block = page.getByRole('region', { name: 'Block Party · Arcade' })
     await block.getByRole('tab', { name: 'Practice' }).click()
     const board = block.getByRole('grid', { name: /Block Party signal board/i })
@@ -123,7 +146,7 @@ test('a Block Party run ignores other windows and survives minimise', async ({ p
 test('a phone Arcade run survives Home and Back in the same session', async ({ page }) => {
     test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the OS test-server game flags')
     const lobby = await openLobby(page, 375)
-    await lobby.getByRole('button', { name: /Block Party/ }).click()
+    await lobby.getByRole('button', { name: 'Play Block Party', exact: true }).click()
     const block = page.getByRole('region', { name: 'Block Party · Arcade' })
     await block.getByRole('tab', { name: 'Practice' }).click()
     const board = block.getByRole('grid', { name: /Block Party signal board/i })
@@ -146,7 +169,7 @@ test('a phone Arcade run survives Home and Back in the same session', async ({ p
 test('a desktop game pauses while wallet connection blocks the desk', async ({ page }) => {
     test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the OS test-server game flags')
     const lobby = await openLobby(page, 1440)
-    await lobby.getByRole('button', { name: /BARRICADE/ }).click()
+    await lobby.getByRole('button', { name: 'Play BARRICADE', exact: true }).click()
     const barricade = page.getByRole('region', { name: 'BARRICADE · Arcade' })
     await barricade.getByRole('button', { name: 'Practice', exact: true }).click()
     await expect(barricade.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
@@ -166,7 +189,7 @@ test.describe('Arcade touch play in a phone context', () => {
         test.skip(browserName === 'firefox', 'Firefox mobile-touch context cannot initialize in this harness')
         test.skip(process.env.OS_ARCADE_PLAY !== 'true', 'gameplay needs the three OS test-server game flags')
         const lobby = await openLobby(page, 375)
-        await lobby.getByRole('button', { name: /Block Party/ }).tap()
+        await lobby.getByRole('button', { name: 'Play Block Party', exact: true }).tap()
         const block = page.getByRole('region', { name: 'Block Party · Arcade' })
         await block.getByRole('tab', { name: 'Practice' }).tap()
         const board = block.getByRole('grid', { name: /Block Party signal board/i })
@@ -185,7 +208,7 @@ test.describe('Arcade touch play in a phone context', () => {
         expect(await snapshot()).not.toBe(before)
 
         await page.goto(`${OS_ON}/os/arcade`)
-        await page.getByRole('region', { name: 'Arcade', exact: true }).getByRole('button', { name: /Space Invaders/ }).tap()
+        await page.getByRole('region', { name: 'Arcade', exact: true }).getByRole('button', { name: 'Play Space Invaders', exact: true }).tap()
         const space = page.getByRole('region', { name: 'Space Invaders · Arcade' })
         await space.getByRole('button', { name: /free play/i }).tap()
         const surface = space.getByRole('group', { name: /Signal Defense game surface/i })
@@ -198,7 +221,7 @@ test.describe('Arcade touch play in a phone context', () => {
         await expect(space.getByRole('heading', { name: /relay standing by/i })).toBeHidden()
 
         await page.goto(`${OS_ON}/os/arcade`)
-        await page.getByRole('region', { name: 'Arcade', exact: true }).getByRole('button', { name: /BARRICADE/ }).tap()
+        await page.getByRole('region', { name: 'Arcade', exact: true }).getByRole('button', { name: 'Play BARRICADE', exact: true }).tap()
         const barricade = page.getByRole('region', { name: 'BARRICADE · Arcade' })
         await barricade.getByRole('button', { name: 'Practice', exact: true }).tap()
         const canvas = barricade.locator('.bar-canvas')

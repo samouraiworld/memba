@@ -24,6 +24,7 @@ describe("windowsReducer", () => {
     })
     it("opens games beside the Arcade lobby and gives BARRICADE the available desk", () => {
         const lobby = appSpec("arcade")
+        expect([lobby.width, lobby.height]).toEqual([1120, 760])
         const barricade = appSpec("arcade", "barricade")
         expect(lobby.key).toBe("app:arcade")
         expect(barricade.key).toBe("game:barricade")
@@ -33,6 +34,13 @@ describe("windowsReducer", () => {
         expect(s.wins[1].width).toBe(desk.w - 16)
         expect(s.wins[1].height).toBe(desk.h - DOCK_ROOM - 16)
         expect(urlForWindow(s.wins[1])).toBe("/os/arcade/barricade")
+    })
+
+    it("sizes Arcade game pages like the lobby and leaves the games at page size", () => {
+        const page = appSpec("arcade", "g/barricade")
+        expect([page.key, page.width, page.height]).toEqual(["app:arcade", 1120, 760])
+        expect([appSpec("arcade", "game").width, appSpec("arcade", "game").height]).toEqual([960, 660])
+        expect([appSpec("arcade", "connect4").width, appSpec("arcade", "connect4").height]).toEqual([960, 660])
     })
 
     it("opens About once as a linkable system window", () => {

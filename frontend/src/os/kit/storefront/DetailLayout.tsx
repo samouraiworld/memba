@@ -11,7 +11,7 @@ export function DetailLayout({ banner, accent, icon, back, title, pitch, badges,
                 {icon}
                 <div className="os-cin-banner-title">
                     <button type="button" className="os-cin-link" onClick={back.onClick}>{back.label}</button>
-                    <h1>{title}</h1>
+                    <h1 tabIndex={-1}>{title}</h1>
                     <p>{pitch}</p>
                 </div>
                 {badges && <div className="os-cin-row os-cin-banner-badges">{badges}</div>}
