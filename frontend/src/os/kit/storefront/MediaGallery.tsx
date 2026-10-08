@@ -1,7 +1,10 @@
 import { useRef, useState, type KeyboardEvent } from "react"
 
+const MAX_SHOTS = 6
+
 /** Screenshot viewer: one large image, thumbnails, arrow keys, and a lightbox dialog. */
-export function MediaGallery({ name, images }: { name: string; images: readonly string[] }) {
+export function MediaGallery({ name, images: all }: { name: string; images: readonly string[] }) {
+    const images = all.slice(0, MAX_SHOTS)
     const [index, setIndex] = useState(0)
     const [zoomed, setZoomed] = useState(false)
     const dialog = useRef<HTMLDialogElement>(null)
