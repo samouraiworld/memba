@@ -50,7 +50,7 @@ export const ARCADE_GAMES: readonly ArcadeGame[] = [
     },
     {
         id: "connect4", name: "Connect 4", section: "connect4", pitch: "Staked two-player — winner takes the pot",
-        description: "Post an offer or accept one. Both players stake the same GNOT; the winner takes the pot minus a house fee. If no one moves in time, both stakes are refunded.",
+        description: "Post an offer or accept one. Both players stake the same GNOT; the winner takes the pot minus a house fee. Each move has 90 seconds of chain time — run out and you forfeit. If no one moves at all, both stakes are refunded.",
         howTo: ["Connect your wallet to play. You can watch games without one.", "After someone accepts, you must reveal within 90 seconds — keep this tab open until the game starts.", "The reveal key is stored only in this browser; missing it forfeits your stake."],
         tags: ["Duel", "Staked"], cost: "staked",
         info: [["Modes", "Staked duel"], ["Players", "2"], ["Cost", "Staked · GNOT"], ["Scores", "Results settle on-chain"], ["Controls", "Pick a column"], MADE_BY],

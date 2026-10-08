@@ -36,10 +36,10 @@ Full changelogs are split by version range for easier navigation:
 
 ### The Arcade as a storefront (2026-10-08)
 - Memba OS Arcade: the lobby is now a dark storefront with a featured-games carousel, a capsule for every game, a Today's daily strip and a "From the community" shelf; Play is its own button on each capsule, and it is absent when a build cannot run the game.
-- Memba OS Arcade: every game has its own page (/os/arcade/g/<game>) with screenshots once media lands, about, how to play, what's new, facts, and Play; a game this build cannot run says so instead of offering Play.
+- Memba OS Arcade: every game has its own page (/os/arcade/g/<game>) with screenshots once media lands, about, how to play, facts, and Play; a game this build cannot run says so instead of offering Play.
 - Memba OS Arcade: ratings and reviews on game pages are on-chain and shared with each game's App Store listing, so a review written in one place shows in the other; reading is open to guests.
 - Memba OS Arcade: a "Top rated by the community" shelf appears once a game has enough reviews.
-- Memba OS Arcade: the Arcade window opens bigger (1120x760). Game covers fall back to a colour and the game's wordmark until real artwork is added.
+- Memba OS Arcade: the Arcade window opens bigger (1120x760), and so does the App Store window. Game covers fall back to a colour and the game's wordmark until real artwork is added.
 - Tests: end-to-end specs cover the storefront lobby, game pages, a narrow window and accessibility.
 ### A storefront look for the Arcade and App Store (2026-10-08)
 - Reviews: the review signing path now accepts games and curated apps under pinned, permanent subjects (the review UI for them follows).
