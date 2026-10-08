@@ -18,8 +18,9 @@ const gnoHighlight = HighlightStyle.define([
     { tag: [tags.definition(tags.variableName), tags.function(tags.variableName), tags.propertyName], color: "var(--os-code-value)" },
 ])
 
-export function CodeEditor({ value, onChange, onLimit, invalid, descriptionId }: {
+export function CodeEditor({ value, onChange, onLimit, invalid, descriptionId, language = "gno", maxBytes = MAX_SOURCE_BYTES, label = "Gno source editor", className = "os-terminal-editor" }: {
     value: string; onChange: (code: string) => void; onLimit: () => void; invalid: boolean; descriptionId: string
+    language?: "gno" | "text"; maxBytes?: number; label?: string; className?: string
 }) {
     const host = useRef<HTMLDivElement>(null)
     const view = useRef<EditorView | null>(null)
@@ -36,13 +37,13 @@ export function CodeEditor({ value, onChange, onLimit, invalid, descriptionId }:
             parent: host.current,
             state: EditorState.create({
                 doc: value,
-                extensions: [basicSetup, go(), syntaxHighlighting(gnoHighlight), EditorState.transactionFilter.of((transaction) => {
+                extensions: [basicSetup, ...(language === "gno" ? [go(), syntaxHighlighting(gnoHighlight)] : []), EditorState.transactionFilter.of((transaction) => {
                     if (!transaction.docChanged) return transaction
                     if (transaction.annotation(externalSync)) {
                         beforeDeletion.current = null
                         return transaction
                     }
-                    if (new TextEncoder().encode(transaction.newDoc.toString()).length > MAX_SOURCE_BYTES) {
+                    if (new TextEncoder().encode(transaction.newDoc.toString()).length > maxBytes) {
                         const deletion = beforeDeletion.current
                         const restore = deletion && performance.now() - deletion.at < 50 ? deletion.text : null
                         beforeDeletion.current = null
@@ -55,7 +56,7 @@ export function CodeEditor({ value, onChange, onLimit, invalid, descriptionId }:
                         ? { text: transaction.startState.doc.toString(), at: performance.now() } : null
                     return transaction
                 }), EditorView.lineWrapping, EditorView.contentAttributes.of({
-                    "aria-label": "Gno source editor", "aria-describedby": descriptionId, "aria-invalid": String(invalid),
+                    "aria-label": label, "aria-describedby": descriptionId, "aria-invalid": String(invalid),
                 }), EditorView.updateListener.of((update) => {
                     if (update.docChanged && !update.transactions.some((transaction) => transaction.annotation(externalSync)))
                         change.current(update.state.doc.toString())
@@ -80,5 +81,5 @@ export function CodeEditor({ value, onChange, onLimit, invalid, descriptionId }:
         editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value }, annotations: externalSync.of(true) })
     }, [value])
 
-    return <div className="os-terminal-editor" ref={host} role="group" aria-label="Gno source editor" />
+    return <div className={className} ref={host} role="group" aria-label={label} />
 }
