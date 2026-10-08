@@ -52,6 +52,11 @@ function availability(entry: CatalogueEntry): string {
     return entry.availability === "mainnet" ? "Mainnet" : entry.availability === "testnet" ? "Testnet" : entry.availability === "tools" ? "External tool" : "Network not verified"
 }
 
+/** The host of a publisher-supplied link, or null when it does not parse (the regex check alone lets "https://" through). */
+function siteHost(url: string): string | null {
+    try { return new URL(url).host || null } catch { return null }
+}
+
 function appSection(entry: CatalogueEntry): string {
     return entry.source === "registry" ? `apps/${entry.realmPath!.replace(/^gno\.land\//, "")}` : `project/${entry.project!.id}`
 }
@@ -101,7 +106,8 @@ function Detail({ section, session, open, close }: NativeViewProps) {
         realmPath: listing.pkgPath, availability: session.network.key === "mainnet" ? "mainnet" as const : "testnet" as const, listing,
     } : null
     const back = () => { open(specForTarget({ kind: "app", app: "store", section: null })!); close() }
-    const summaries = useReviewSummaries(session.network.chainId, entry ? [entrySubject(entry)] : [])
+    const more = entry ? buildCatalogue([], ECOSYSTEM_PROJECTS, session.network.key).filter((other) => other.category === entry.category && other.id !== entry.id).slice(0, 4) : []
+    const summaries = useReviewSummaries(session.network.chainId, entry ? [entrySubject(entry), ...more.map(entrySubject)] : [])
     return <div className="os-store-detail">
         <CinemaScope tone="store">
             {path && !registryEnabled && <div className="os-note" role="status">Onchain listings are unavailable in this build.</div>}
@@ -112,10 +118,10 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                 const media = entryMedia(entry)
                 const subject = entrySubject(entry)
                 const composable = listing ? listing.status === "live" : entry.source === "editorial"
-                const more = buildCatalogue([], ECOSYSTEM_PROJECTS, session.network.key).filter((other) => other.category === entry.category && other.id !== entry.id).slice(0, 4)
                 const rows: (readonly [string, ReactNode])[] = [["Category", entry.category], ["Network", availability(entry)]]
                 if (entry.realmPath) rows.push(["Realm", <code key="realm">{entry.realmPath}</code>])
-                if (/^https?:\/\//.test(entry.url)) rows.push(["Website", <a key="site" href={entry.url} target="_blank" rel="noopener noreferrer">{new URL(entry.url).host} ↗</a>])
+                const host = /^https?:\/\//.test(entry.url) ? siteHost(entry.url) : null
+                if (host) rows.push(["Website", <a key="site" href={entry.url} target="_blank" rel="noopener noreferrer">{host} ↗</a>])
                 if (listing?.publisher) rows.push(["Listed by", <code key="pub">{listing.publisher}</code>])
                 return <DetailLayout banner={media.cover} accent={media.accent}
                     icon={<AppIcon name={entry.name} logo={media.logo} accent={media.accent} size={96} />}

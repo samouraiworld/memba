@@ -106,6 +106,14 @@ describe("Store detail", () => {
         expect(await screen.findByAltText(/screenshot 1$/)).toBeInTheDocument()
     })
 
+    it("renders the page without a Website row when the listing's link does not parse", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ appURL: "https://" }))
+        show()
+        expect(await screen.findByRole("heading", { level: 1, name: "Test App" })).toBeInTheDocument()
+        expect(screen.queryByText("Website")).not.toBeInTheDocument()
+        expect(screen.getByText("Category")).toBeInTheDocument()
+    })
+
     it("lists more apps of the same category, each opening its own page", () => {
         const open = vi.fn()
         render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><SignerContext.Provider value={signer}>
