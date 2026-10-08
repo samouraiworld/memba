@@ -208,8 +208,8 @@ describe("Redirects — only an explicit choice is restored, never the URL echo"
                 expect(networkOf(renderLegacy("/directory")), `pref=${pref}`).toBe(networkOf(renderRoot()))
             }
         })
-        // …and with onyx hidden (reality) and a retired echo as well.
-        for (const pref of ["gnoland1", "pearl", "onyx", "no-such-network"]) {
+        // …and as configured (test13 hidden, onyx offered since 2026-10-07) with a retired echo as well.
+        for (const pref of ["gnoland1", "pearl", "test13", "onyx", "no-such-network"]) {
             localStorage.setItem("memba_network", "pearl")
             localStorage.setItem("memba_network_pref", pref)
             expect(networkOf(renderLegacy("/directory")), `pref=${pref}`).toBe(networkOf(renderRoot()))

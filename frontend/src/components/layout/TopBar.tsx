@@ -28,7 +28,7 @@ interface TopBarProps {
     network: {
         networkKey: string
         chainId: string
-        networks: Record<string, { label: string; chainId: string; rpcUrl: string; hidden?: boolean }>
+        networks: Record<string, { label: string; chainId: string; rpcUrl: string; hidden?: boolean; isTestnet?: boolean }>
         switchNetwork: (key: string) => void
     }
     isLoggingIn: boolean
@@ -244,7 +244,7 @@ export function ChainMismatchBanner({
 }: {
     walletChainId: string
     membaChainId: string
-    networks: Record<string, { label: string; chainId: string; rpcUrl: string; hidden?: boolean }>
+    networks: Record<string, { label: string; chainId: string; rpcUrl: string; hidden?: boolean; isTestnet?: boolean }>
     switchMembaNetwork: (key: string) => void
     addAndSwitchWallet?: (chainId: string, chainName: string, rpcUrl: string) => Promise<boolean>
     onSwitchSuccess?: (chainName: string) => void
@@ -262,8 +262,10 @@ export function ChainMismatchBanner({
     // the worst one: it renders only while a wallet is connected, i.e. exactly the
     // cohort that hits F-29 (login succeeds on gnoland1, then every call 401s).
     // For a hidden network the honest advice is the other branch — move the WALLET
-    // to the chain Memba is on.
-    const walletInMemba = !!walletKey && !networks[walletKey].hidden
+    // to the chain Memba is on. The same for a testnet (Onyx, offered for Connect 4
+    // since 2026-10-07): a wallet left there would otherwise move Memba off mainnet,
+    // onto a chain whose sign-in the backend may refuse.
+    const walletInMemba = !!walletKey && !networks[walletKey].hidden && !networks[walletKey].isTestnet
     const membaNet = networks[Object.keys(networks).find(k => networks[k].chainId === membaChainId) || ""]
 
     const handleAddAndSwitch = async () => {

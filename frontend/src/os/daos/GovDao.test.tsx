@@ -62,7 +62,7 @@ describe("Memba DAO on memba_gov", () => {
 
     it("shows a guest the rules, from the realm's constants, and the open proposals", async () => {
         folder("overview")
-        expect(await screen.findByText(/4 seated, total weight 5/)).toBeInTheDocument()
+        expect(await screen.findByText(/5 seated, total weight 6/)).toBeInTheDocument()
         expect(screen.getByText(/then 1 day; or at least 2\/3 of the people and more than half of the weight, then 3 days/)).toBeInTheDocument()
         expect(screen.getByText(/Voting lasts 7 days/)).toBeInTheDocument()
         expect(screen.getByText(/for 180 days can be removed by a routine vote after 14 days/)).toBeInTheDocument()
@@ -75,7 +75,7 @@ describe("Memba DAO on memba_gov", () => {
     it("tells a member their seat, and an invited key that it counts once it joins", async () => {
         folder("overview", as("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"))
         expect(await screen.findByText("zxxma")).toBeInTheDocument()
-        folder("overview", as("g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z"))
+        folder("overview", as("g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"))
         expect(await screen.findByText(/It counts once it signs Join/)).toBeInTheDocument()
     })
 
@@ -99,7 +99,7 @@ describe("Memba DAO on memba_gov", () => {
         const seated = folder("proposals", as("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"))
         expect(await screen.findByRole("button", { name: "New proposal…" })).toBeInTheDocument()
         seated.unmount()
-        folder("proposals", as("g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z")) // invited, not seated
+        folder("proposals", as("g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv")) // invited, not seated
         expect(await screen.findByText("Only seated members propose.")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "New proposal…" })).toBeNull()
     })
@@ -108,6 +108,7 @@ describe("Memba DAO on memba_gov", () => {
         folder("members")
         expect(await screen.findByText("g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2")).toBeInTheDocument()
         expect(screen.getByText("mikael")).toBeInTheDocument()
+        expect(screen.getByText("ghost")).toBeInTheDocument()
         expect(screen.getByText(/An invited key counts only once it signs Join/)).toBeInTheDocument()
     })
 })
@@ -157,6 +158,6 @@ describe("a memba_gov proposal", () => {
 
     it("counts YES by people and weight", async () => {
         proposal(native.one as GovProposal)
-        expect(await screen.findByText("YES: 3 of 4 people, weight 4 of 5.")).toBeInTheDocument()
+        expect(await screen.findByText("YES: 3 of 5 people, weight 4 of 6.")).toBeInTheDocument()
     })
 })

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { clearGovernanceMemory, readGovernanceReceipt, type GovernanceScope } from "../../lib/dao/governanceRecovery"
 import { ChainRejectedError, doContractBroadcast, setTxConfirmationCallback, type AminoMsg } from "../../lib/grc20"
-import { executeSignature, verifyWithRetries, type SignRequest } from "./signer"
+import { executeSignature, verifyWithRetries, WALLET_QUIET_MS, WALLET_SILENT_MS, WATCH_MS, type SignRequest } from "./signer"
 
 const msg: AminoMsg = { type: "vm/MsgCall", value: { caller: "g1x", send: "", pkg_path: "gno.land/r/alice/team", func: "Vote", args: ["1", "YES"] } }
 const scope: GovernanceScope = { chainId: "gnoland-1", realmPath: "gno.land/r/alice/team", caller: "g1x", operation: "vote:1" }
@@ -191,6 +191,136 @@ describe("executeSignature", () => {
         }
     })
 
+    describe("a wallet that never answers", () => {
+        const silent = () => request({ wallet: () => new Promise<{ hash: string }>(() => {}) })
+        /** Account reads: MARK before the wallet opens, then each of `reads` in turn (the last repeats); "offline" fails. */
+        const account = (...reads: string[]) => {
+            let n = 0
+            return {
+                before: vi.fn(async () => {
+                    const mark = n === 0 ? MARK : reads[Math.min(n - 1, reads.length - 1)]
+                    n++
+                    if (mark === "offline") throw new Error("offline")
+                    return mark
+                }),
+                after: vi.fn(async () => MARK),
+            }
+        }
+        const UNCHANGED = /^Adena has not answered for 3 minutes, and your account shows no new transaction\..*check your account before trying again\.$/
+        const UNREAD = /^Adena has not answered for 3 minutes, and Memba could not read your account to tell whether it sent a transaction\..*check your account before trying again\.$/
+        const MOVED = /^Adena has not answered for 3 minutes, and your account shows a new transaction Memba could not confirm\..*check its result in your account's history before trying again\.$/
+        const fake = async (run: () => Promise<void>) => {
+            vi.useFakeTimers()
+            try { await run() } finally { vi.useRealTimers() }
+        }
+
+        it("is sent once two reads after the quiet time agree that the sequence moved, and leaves no timer", () => fake(async () => {
+            const sent = account("8 4990000ugnot")
+            const pending = executeSignature(silent(), "YES", [msg], () => {}, () => true, sent)
+            let settled = false
+            void pending.then(() => { settled = true })
+            // Inside the quiet time the account is not even read.
+            await vi.advanceTimersByTimeAsync(WALLET_QUIET_MS - 1)
+            expect(sent.before).toHaveBeenCalledTimes(1)
+            await vi.advanceTimersByTimeAsync(1)
+            expect(settled).toBe(false) // one read is one node's word
+            await vi.advanceTimersByTimeAsync(WATCH_MS)
+            expect(await pending).toEqual({ outcome: "sent", hash: "", seenOnChain: true })
+            expect(readGovernanceReceipt(scope)).toMatchObject({ phase: "submitted", hash: "", label: "Vote on #1" })
+            expect(sent.after).not.toHaveBeenCalled()
+            expect(vi.getTimerCount()).toBe(0)
+        }))
+
+        it.each([5_000, WALLET_QUIET_MS - 1])("a wallet that answers at %i ms decides, though the sequence moved while its window was open", (at) => fake(async () => {
+            let answer!: (v: { hash: string }) => void
+            const sent = account("8 4990000ugnot")
+            const pending = executeSignature(request({ wallet: () => new Promise((r) => { answer = r }) }), "YES", [msg], () => {}, () => true, sent)
+            await vi.advanceTimersByTimeAsync(at)
+            answer({ hash: "REAL" })
+            expect(await pending).toEqual({ outcome: "sent", hash: "REAL", result: undefined })
+            expect(readGovernanceReceipt(scope)).toMatchObject({ phase: "submitted", hash: "REAL" })
+            expect(vi.getTimerCount()).toBe(0)
+        }))
+
+        it.each([
+            ["a single jump the next read does not repeat", ["40 1ugnot", MARK]],
+            ["two reads that disagree on where it moved", ["40 1ugnot", "8 4990000ugnot", "41 1ugnot", "9 1ugnot", MARK]],
+            ["two moved reads with a failed one between them", ["8 4990000ugnot", "offline", "8 4990000ugnot", MARK]],
+        ])("is never sent on %s", (_why, reads) => fake(async () => {
+            const pending = executeSignature(silent(), "YES", [msg], () => {}, () => true, account(...reads))
+            await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS)
+            expect(await pending).toMatchObject({ outcome: "unknown" })
+        }))
+
+        it.each([
+            ["the account is unchanged", [MARK], UNCHANGED],
+            ["only the coins moved (an incoming transfer or a session key)", ["7 6000000ugnot"], UNCHANGED],
+            ["the last read failed", [MARK, "offline"], UNREAD],
+            ["every read failed", ["offline"], UNREAD],
+            // A sequence never goes down: that read is not this account on this chain.
+            ["the last read had a lower sequence", ["6 5000000ugnot"], UNREAD],
+            // The deadline's own read is the first to see it move: read, and not yet confirmed by a second.
+            ["the sequence first moved on the last read", [...Array<string>((WALLET_SILENT_MS - WALLET_QUIET_MS) / WATCH_MS).fill(MARK), "8 4990000ugnot"], MOVED],
+        ])("is an unknown outcome after the whole wait when %s, saying what is known", (_why, reads, says) => fake(async () => {
+            const sent = account(...reads)
+            const onNothingSent = vi.fn()
+            const pending = executeSignature({ ...silent(), onNothingSent }, "YES", [msg], () => {}, () => true, sent)
+            let settled = false
+            void pending.then(() => { settled = true })
+            await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS - WATCH_MS)
+            expect(settled).toBe(false)
+            expect(sent.before.mock.calls.length).toBeGreaterThan(2) // it kept looking
+            await vi.advanceTimersByTimeAsync(WATCH_MS)
+            expect(await pending).toMatchObject({ outcome: "unknown", error: expect.stringMatching(says) })
+            // Nothing is known to be unsent: the lock stays.
+            expect(readGovernanceReceipt(scope)).toMatchObject({ phase: "intent" })
+            expect(onNothingSent).not.toHaveBeenCalled()
+            expect(vi.getTimerCount()).toBe(0)
+        }))
+
+        it("says the account was not read when there is no account check, or no first read", () => fake(async () => {
+            const none = executeSignature(silent(), "YES", [msg], () => {})
+            await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS)
+            expect(await none).toMatchObject({ outcome: "unknown", error: expect.stringMatching(UNREAD) })
+            clearGovernanceMemory(); localStorage.clear()
+            const before = vi.fn(() => new Promise<string>(() => {}))
+            const unread = executeSignature(silent(), "YES", [msg], () => {}, () => true, { before, after: async () => MARK })
+            await vi.advanceTimersByTimeAsync(3000 + WALLET_SILENT_MS)
+            expect(await unread).toMatchObject({ outcome: "unknown", error: expect.stringMatching(UNREAD) })
+            expect(vi.getTimerCount()).toBe(0)
+        }))
+
+        it("stops at once when nobody waits any more, and frees the next signature", () => fake(async () => {
+            const stop = new AbortController()
+            const sent = { ...account(MARK), stop: stop.signal }
+            const pending = executeSignature(silent(), "YES", [msg], () => {}, () => true, sent)
+            await vi.advanceTimersByTimeAsync(WALLET_QUIET_MS + WATCH_MS)
+            const reads = sent.before.mock.calls.length
+            stop.abort()
+            expect(await pending).toMatchObject({ outcome: "unknown", error: "Memba stopped waiting for Adena. Check your account before trying again." })
+            await vi.advanceTimersByTimeAsync(WALLET_SILENT_MS)
+            expect(sent.before).toHaveBeenCalledTimes(reads)
+            expect(vi.getTimerCount()).toBe(0)
+            clearGovernanceMemory(); localStorage.clear()
+            await expect(executeSignature(request({}), "YES", [msg], () => {})).resolves.toMatchObject({ outcome: "sent", hash: "ABC" })
+        }))
+
+        it("a wallet answer after the chain decided is ignored", () => fake(async () => {
+            const unhandled = vi.fn()
+            process.on("unhandledRejection", unhandled)
+            try {
+                let fail!: (e: Error) => void
+                const res = executeSignature(request({ wallet: () => new Promise((_r, reject) => { fail = reject }) }), "YES", [msg], () => {}, () => true, account("8 4990000ugnot"))
+                await vi.advanceTimersByTimeAsync(WALLET_QUIET_MS + WATCH_MS)
+                expect(await res).toMatchObject({ outcome: "sent", seenOnChain: true })
+                fail(new Error(REJECTED))
+                await vi.advanceTimersByTimeAsync(0)
+                expect(unhandled).not.toHaveBeenCalled()
+            } finally {
+                process.off("unhandledRejection", unhandled)
+            }
+        }))
+    })
     it("a cancellation before the wallet opened needs no check: there, nothing was sent is a fact", async () => {
         const sent = { before: vi.fn(async () => MARK), after: vi.fn(async () => MARK) }
         const changed = { ...msg, value: { ...msg.value, args: ["1", "NO"] } }

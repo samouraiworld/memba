@@ -14,3 +14,15 @@ export type ChainFamily = "gno" | "evm"
  * "absent", which only a read that succeeded can say (outage ≠ absent).
  */
 export type Read<T> = { kind: "ok"; value: T } | { kind: "unavailable"; reason: string }
+
+/**
+ * How a transaction ended, in the OS signer's terms (os/sign/signer.ts SignResult):
+ * sent (and confirmed), failed or cancelled with nothing sent, refused (final: for
+ * EVM, included and reverted, with its hash), or unknown (sent, outcome not seen).
+ */
+export type TxResult =
+    | { outcome: "sent"; hash: string; result?: unknown }
+    | { outcome: "failed" | "cancelled"; error: string }
+    | { outcome: "refused"; error: string; hash?: string }
+    /** `hash` when the transaction is known to exist; without it, the wallet may or may not have sent it. */
+    | { outcome: "unknown"; error: string; hash?: string }

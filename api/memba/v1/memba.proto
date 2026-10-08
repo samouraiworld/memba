@@ -18,6 +18,12 @@ service MultisigService {
   rpc CreateOrJoinMultisig(CreateOrJoinMultisigRequest) returns (CreateOrJoinMultisigResponse);
   rpc MultisigInfo(MultisigInfoRequest) returns (MultisigInfoResponse);
   rpc Multisigs(MultisigsRequest) returns (MultisigsResponse);
+  // Safes (EVM multisig): the caller's own list and names, shared with the
+  // Safe's other owners. The chain and the Safe Transaction Service hold
+  // everything else. Off unless the server enables Safe chains; returns
+  // Unimplemented otherwise.
+  rpc RegisterSafe(RegisterSafeRequest) returns (RegisterSafeResponse);
+  rpc Safes(SafesRequest) returns (SafesResponse);
 
   // Transactions — Propose, sign, complete
   rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse);
@@ -255,6 +261,50 @@ message MultisigsRequest {
 
 message MultisigsResponse {
   repeated Multisig multisigs = 1;
+}
+
+// --- Safe Messages (EVM) ---
+
+// A Safe in the caller's list. Addresses are lowercase 0x hex; chain_id is
+// CAIP-2 ("eip155:84532").
+message SafeRecord {
+  string chain_id = 1;
+  string address = 2;
+  // The caller's own name for the Safe ("" when they gave none).
+  string name = 3;
+  // false: the caller left it (their name is kept).
+  bool joined = 4;
+  // When the caller's own name is empty: the current name of the owner who
+  // first named the Safe in Memba, and that owner's account. Read-only labels.
+  string shared_name = 5;
+  string named_by = 6;
+  string created_at = 7;
+}
+
+// Adds (or renames, or leaves) a Safe in the caller's list. The server checks
+// on chain, at registration, that the address is a Safe it recognises and
+// that the caller is one of its owners.
+message RegisterSafeRequest {
+  Token auth_token = 1;
+  // Must be the chain of the caller's session.
+  string chain_id = 2;
+  string safe_address = 3;
+  string name = 4;
+  bool joined = 5;
+}
+
+message RegisterSafeResponse {
+  SafeRecord safe = 1;
+}
+
+message SafesRequest {
+  Token auth_token = 1;
+  // Must be the chain of the caller's session.
+  string chain_id = 2;
+}
+
+message SafesResponse {
+  repeated SafeRecord safes = 1;
 }
 
 // --- Transaction Messages ---

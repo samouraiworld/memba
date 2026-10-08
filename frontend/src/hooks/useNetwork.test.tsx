@@ -6,14 +6,13 @@ import { useNetwork } from "./useNetwork"
 import { NETWORKS, ACTIVE_NETWORK_KEY, NETWORK_PREF_STORAGE_KEY, selectableNetworksFor } from "../lib/config"
 import { OS_NET_SWITCHED_KEY } from "../lib/networkSwitch"
 
-/** A network the switcher would actually offer for `ACTIVE_NETWORK_KEY`, distinct
- *  from it — never a hard-coded key, and never a hidden/retired one when a visible
- *  alternative exists. (Today's config ships exactly one visible network, so no
- *  visible alternative exists; the fallback below still exercises a real switch
- *  rather than skip the case.) */
+/** A network the switcher would actually offer, other than the loaded config's
+ *  and the wrapper's (`/onyx/…`), where the switch would be a no-op; with no
+ *  visible one left, any other network, so the case still exercises a real switch. */
 function pickSwitchTarget(): string {
-    const visible = Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY)).find((k) => k !== ACTIVE_NETWORK_KEY)
-    return visible ?? Object.keys(NETWORKS).find((k) => k !== ACTIVE_NETWORK_KEY)!
+    const other = (k: string) => k !== ACTIVE_NETWORK_KEY && k !== "onyx"
+    const visible = Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY)).find(other)
+    return visible ?? Object.keys(NETWORKS).find(other)!
 }
 
 /**

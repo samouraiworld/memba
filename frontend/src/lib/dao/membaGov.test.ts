@@ -54,14 +54,14 @@ beforeEach(() => {
 describe("memba_gov reads", () => {
     it("reads the roster, a page and the policy as the realm writes them", async () => {
         const s = await readGovSnapshot(ctx)
-        expect(s.roster.members.map(m => m.id)).toEqual(["zxxma", "mikecito", "david", "lours"])
-        expect(s.roster.invitations.some(i => i.id === "mikael")).toBe(true)
+        expect(s.roster.members.map(m => m.id)).toEqual(["zxxma", "mikecito", "david", "lours", "mikael"])
+        expect(s.roster.invitations.some(i => i.id === "ghost")).toBe(true)
         expect(s.page.total).toBe("42")
         expect(s.page.proposals.map(p => p.id).slice(0, 2)).toEqual(["42", "41"])
         expect(s.constants.maxSeats).toBe(25)
         const next = await readGovSnapshot(ctx, "22")
         expect(next.page.proposals.map(p => p.id)).toEqual(Array.from({ length: 20 }, (_, i) => String(21 - i)))
-        expect((await readGovRoster(ctx)).persons).toBe(4)
+        expect((await readGovRoster(ctx)).persons).toBe(5)
         await expect(readGovProposal(ctx, "99")).rejects.toBeInstanceOf(GovNotFound)
         answers["gno.land/r/samcrew/memba_gov.ConstantsJSON()"] = { ...native.const, seedInviteTTL: 7776000 }
         expect((await readGovSnapshot(ctx)).constants.maxSeats).toBe(25) // a new constant does not hide the DAO

@@ -349,6 +349,75 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeEnabled()
     })
 
+    test('activation that Adena never answers moves on once the account shows it sent', async ({ page }) => {
+        // The account answers for a silent wallet only after 45 s, and on two agreeing reads.
+        test.setTimeout(120_000)
+        await newWallet(page)
+        // As on gnoland-1 (h633360): the activation landed, and Adena's promise never settled.
+        let landed = false
+        await page.exposeFunction('__land', () => { landed = true })
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            if (path.startsWith('auth/accounts/')) return JSON.stringify({ BaseAccount: { address: ADDR, coins: landed ? '997599ugnot' : '1000000ugnot', public_key: null, account_number: '9', sequence: landed ? '1' : '0' } })
+            return null
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>>; __land: () => Promise<void> }
+            w.adena.DoContract = async () => { await w.__land(); return new Promise(() => {}) }
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
+        await page.waitForTimeout(40_000)
+        await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible() // still the wallet's to answer
+        await expect(modal.getByText('Your address is active. Sign the login message to finish.')).toBeVisible({ timeout: 30_000 })
+        expect(landed).toBe(true)
+    })
+
+    test('a silent activation stops reading the account once the account changes in Adena', async ({ page }) => {
+        test.setTimeout(120_000)
+        await newWallet(page)
+        let changed = false
+        let readsAfter = 0
+        await page.exposeFunction('__changed', () => { changed = true })
+        await fulfillOnchainReads(page, ({ method, path }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
+            if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            if (path.startsWith('auth/accounts/')) {
+                if (changed) readsAfter++
+                return JSON.stringify({ BaseAccount: { address: ADDR, coins: '1000000ugnot', public_key: null, account_number: '9', sequence: '0' } })
+            }
+            return null
+        })
+        await page.addInitScript(() => {
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => unknown>; __accountChanged: () => void }
+            w.adena.DoContract = () => new Promise(() => {})
+            w.adena.On = (event: unknown, cb: unknown) => { if (event === 'changedAccount') w.__accountChanged = cb as () => void; return true }
+        })
+        await page.goto(`${OS_ON}/os`)
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
+        const modal = connectModal(page)
+        await modal.getByRole('button', { name: /Adena/ }).click()
+        await modal.getByRole('button', { name: 'Sign in Adena' }).click()
+        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
+        await page.evaluate(async () => {
+            const w = window as unknown as { __changed: () => Promise<void>; __accountChanged: () => void }
+            await w.__changed()
+            w.__accountChanged()
+        })
+        // Past the quiet time and several watch intervals: nobody waits for this answer any more.
+        await page.waitForTimeout(55_000)
+        expect(readsAfter).toBe(0)
+    })
+
     test('activation waits for a balance that holds its network fee, and says how much', async ({ page }) => {
         await newWallet(page)
         await fulfillOnchainReads(page, ({ method, path }) => {

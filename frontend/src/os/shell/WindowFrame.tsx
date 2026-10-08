@@ -24,6 +24,10 @@ const MultisigApp = lazy(() => import("../multisig/MultisigWindows").then((m) =>
 const MultisigWindow = lazy(() => import("../multisig/MultisigWindows").then((m) => ({ default: m.MultisigWindow })))
 const SendWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.SendWindow })))
 const WalletWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.WalletWindow })))
+// EVM builds only: the Safe windows (Multisig on an EVM network). Flag off, no chunk is emitted.
+const SafeApp = EVM_ENABLED ? lazy(() => import("../multisig/evm/SafeWindows").then((m) => ({ default: m.SafeApp }))) : null
+const SafeWindow = EVM_ENABLED ? lazy(() => import("../multisig/evm/SafeWindows").then((m) => ({ default: m.SafeWindow }))) : null
+const ImportSafe = EVM_ENABLED ? lazy(() => import("../multisig/evm/ImportSafe").then((m) => ({ default: m.ImportSafe }))) : null
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { nativeView } from "../native/registry"
 import type { OsTarget } from "./osPath"
@@ -53,7 +57,7 @@ function Welcome({ session, openApp }: Actions) {
             </div>
             <div className="os-opts">
                 <button type="button" onClick={() => openApp("daos")}><AppTile app="daos" size={34} /><b>Explore DAOs</b><span className="os-sub">See what communities are deciding</span></button>
-                <button type="button" onClick={() => openApp("arcade")}><AppTile app="arcade" size={34} /><b>Play</b><span className="os-sub">Three games and daily challenges</span></button>
+                <button type="button" onClick={() => openApp("arcade")}><AppTile app="arcade" size={34} /><b>Play</b><span className="os-sub">Four games and daily challenges</span></button>
                 <button type="button" onClick={session.openConnect}><AppTile app="wallet" size={34} /><b>Connect wallet</b><span className="os-sub">Vote, sign, post and keep your desk</span></button>
             </div>
         </div>
@@ -100,7 +104,7 @@ export function WindowBody(props: Actions & { win: OsWindow }) {
 
 /** Whether a window has something to show on an EVM network: only the apps that run there, and About. */
 function runsOnEvm(t: OsTarget): boolean {
-    return t.kind === "desktop" || t.kind === "about" || (t.kind === "app" && runsOn(getApp(t.app), "evm"))
+    return t.kind === "desktop" || t.kind === "about" || (t.kind === "app" && runsOn(getApp(t.app), "evm")) || (t.kind === "multisig" && runsOn(getApp("multisig"), "evm"))
 }
 
 /** The name a gno.land-only window goes by on an EVM network. */
@@ -154,6 +158,14 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "desktop") return null
     if (t.kind === "app" && t.app === "wallet" && t.section === null) return <WalletWindow session={a.session} open={a.open} toast={a.toast} />
     if (t.kind === "app" && t.app === "wallet" && t.section === "send") return <SendWindow session={a.session} close={a.close} />
+    if (onEvm && SafeApp && SafeWindow && (t.kind === "multisig" || (t.kind === "app" && t.app === "multisig"))) {
+        if (t.kind === "multisig") return /^0x[0-9a-f]{40}$/.test(t.address)
+            ? <SafeWindow address={t.address} session={a.session} />
+            : <GnoOnly title="This is a gno.land multisig" text={`Its address is a gno.land one: it doesn't exist on ${here}.`} />
+        if (t.section === null) return <SafeApp session={a.session} open={a.open} />
+        if (t.section === "import" && ImportSafe) return <ImportSafe session={a.session} open={a.open} />
+        return <Holding tile={<AppTile app="multisig" size={44} />} title="Coming next" text={`Creating Safes and proposing for them on ${here} come to Memba next. Open a Safe by its address from the Multisig app.`} />
+    }
     if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
     if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />
     if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} active={a.active} />

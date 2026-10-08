@@ -5,7 +5,7 @@ const onBase = { network: "base-sepolia", family: "evm" as const, daos: [{ realm
 
 describe("launcherResults on an EVM network", () => {
     it("lists only the apps that run there, and About", () => {
-        expect(launcherResults("", onBase).map((r) => r.id)).toEqual(["app:settings", "app:news", "app:meet", "cmd:about"])
+        expect(launcherResults("", onBase).map((r) => r.id)).toEqual(["app:multisig", "app:settings", "app:news", "app:meet", "cmd:about"])
     })
 
     it("finds no Gno DAO, command or page", () => {

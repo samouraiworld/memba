@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { filterEcosystemProjects } from "./ecosystemDirectory"
+import { COMMUNITY_GAMES, filterEcosystemProjects } from "./ecosystemDirectory"
 import { parseEcosystemFilters, updateEcosystemFilters } from "./ecosystemDirectoryUrl"
 const defaults = { q: "", category: "all", availability: "all" } as const
 
@@ -9,11 +9,14 @@ describe("editorial discovery", () => {
         expect(filterEcosystemProjects({ ...defaults, q: "boards", category: "Wallet" })).toEqual([])
     })
     it("does not turn tool or external-app labels into mainnet deployment claims", () => {
-        expect(filterEcosystemProjects({ ...defaults, availability: "mainnet" }).map(p => p.id)).toEqual(["gnoswap", "boards", "kourt", "gnoscan", "mygnoscan"])
+        expect(filterEcosystemProjects({ ...defaults, availability: "mainnet" }).map(p => p.id)).toEqual(["gnoswap", "boards", "gnofly", "kourt", "gnoscan", "mygnoscan"])
         expect(filterEcosystemProjects({ ...defaults, availability: "unknown" }).map(p => p.id)).toEqual(["akkadia", "bubble-rumble"])
         expect(filterEcosystemProjects({ ...defaults, availability: "testnet" }).map(p => p.id)).toEqual(["gnoscan"])
         expect(filterEcosystemProjects({ ...defaults, availability: "tools", category: "Wallet" }).map(p => p.id)).toEqual(["adena"])
-        expect(filterEcosystemProjects({ ...defaults, category: "Games" }).map(p => p.id)).toEqual(["bubble-rumble"])
+        expect(filterEcosystemProjects({ ...defaults, category: "Games" }).map(p => p.id)).toEqual(["bubble-rumble", "gnofly"])
+    })
+    it("derives the Arcade's community games from the directory: mainnet games only", () => {
+        expect(COMMUNITY_GAMES.map(p => p.id)).toEqual(["gnofly"])
     })
     it("bounds hostile URL input and defaults invalid facets", () => {
         expect(parseEcosystemFilters(new URLSearchParams({ q: "x".repeat(1000), category: "__proto__", availability: "live" }))).toEqual({ ...defaults, q: "x".repeat(200) })

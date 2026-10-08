@@ -20,13 +20,15 @@ import { BootScreen } from "../boot/BootScreen"
 import { bootLines, shouldBoot } from "../boot/boot"
 import { readSkipIntro, useLiveWidget } from "../preferences"
 import { MenuBar } from "./MenuBar"
-import { takeNetworkSwitchNotice } from "./network"
+import { activeOsNetwork, takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
 import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken, windowsStorageKey } from "./urlSync"
 import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
+import { useEvmSession } from "../evm/useEvmSession"
+import { EvmConnectModal } from "../evm/EvmConnectModal"
 import { SignerProvider } from "../sign/SignerProvider"
-import { setWalletActionGuard } from "../../lib/grc20"
+import { bumpWalletActionEpoch, setWalletActionGuard } from "../../lib/grc20"
 import { EVM_ENABLED } from "../../lib/chain/flag"
 import { PhoneShell } from "../phone/PhoneShell"
 import { LiveTicker } from "../apps/live/LiveTicker"
@@ -99,6 +101,11 @@ function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: bo
     return windowsReducer(EMPTY_WINDOWS, { type: "restore", wins })
 }
 
+/** This page runs on an EVM network (Base). A switch reloads, so it never changes in a page's life. */
+const EVM_SESSION = EVM_ENABLED && activeOsNetwork().family === "evm"
+/** The wallet session for this page's network: Adena on gno.land, an EVM wallet on Base. */
+const useShellSession = EVM_SESSION ? useEvmSession : useOsSession
+
 export function Shell() {
     const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
     const location = useLocation()
@@ -138,7 +145,7 @@ export function Shell() {
     const fromLink = arrival.front.kind !== "desktop" || arrival.others.length > 0
     const skipLockWrite = useRef(false)
 
-    const session = useOsSession({
+    const session = useShellSession({
         onSignedIn: (address) => {
             skipLockWrite.current = false
             markLocked(false)
@@ -146,11 +153,11 @@ export function Shell() {
             setLocked(false)
             win.closeKey("welcome")
             setLinkGuest(false)
-            showToast(`Connected with Adena · ${shortAddr(address)}`)
+            showToast(`Connected with ${EVM_SESSION ? "your wallet" : "Adena"} · ${shortAddr(address)}`)
         },
     })
     const memberNow = useRef(session.status === "member")
-    useLayoutEffect(() => { memberNow.current = session.status === "member" }, [session.status])
+    useLayoutEffect(() => { memberNow.current = session.status === "member"; bumpWalletActionEpoch() }, [session.status])
     useLayoutEffect(() => {
         setWalletActionGuard(() => memberNow.current)
         return () => setWalletActionGuard(null)
@@ -305,7 +312,7 @@ export function Shell() {
     const tile = useCallback(() => dispatch({ type: "tile", desk: placeDesk() }), [dispatch, placeDesk])
 
     const member = session.status === "member"
-    // Live activity reads a Gno indexer: nothing to show on an EVM network.
+    // An EVM network: its own connect flow, and no live activity (that reads a Gno indexer).
     const onEvm = EVM_ENABLED && session.network.family === "evm"
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
@@ -451,7 +458,7 @@ export function Shell() {
                     wallet: typeof window !== "undefined" && "adena" in window, deskCount: deskItems.items.length, appCount: OS_APPS.length,
                 })} />
             )}
-            <ConnectModal session={session} />
+            {onEvm ? <EvmConnectModal session={session} /> : <ConnectModal session={session} />}
             {toast && !locked && <div className="os-toast os-glass" role="status">{toast}</div>}
             {locked && !session.stage && (
                 <LockScreen

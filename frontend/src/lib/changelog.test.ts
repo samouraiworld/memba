@@ -157,7 +157,7 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
     it("v7.8.0 carries its release date and leads with the curated headline", () => {
         const entries = parseChangelogMarkdown(real)
         const v78 = entries.find(e => e.version === "v7.8.0")!
-        expect(v78.date).toBe("2026-10-07")
+        expect(v78.date).toBe("2026-10-08")
         expect(v78.unreleased).toBe(false)
         expect(v78.items[0]).toContain("Memba OS at memba.club")
         // Newest release first, then v7.7.0. The canonical [Unreleased] block

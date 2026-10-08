@@ -33,3 +33,19 @@ export async function readChainStatus(expectedChainId: number, reader: ChainRead
         return NO_ANSWER
     }
 }
+
+/** The code at an address, read only from an RPC that proves it serves the expected chain. */
+export async function readCode(expectedChainId: number, reader: Pick<ChainReader, "getChainId"> & { getCode: (a: { address: `0x${string}` }) => Promise<string | undefined> }, address: `0x${string}`): Promise<Read<string>> {
+    let chainId: number
+    try {
+        chainId = await reader.getChainId()
+    } catch {
+        return NO_ANSWER
+    }
+    if (chainId !== expectedChainId) return { kind: "unavailable", reason: `the RPC answered as chain ${chainId}, not ${expectedChainId}` }
+    try {
+        return { kind: "ok", value: (await reader.getCode({ address })) ?? "0x" }
+    } catch {
+        return NO_ANSWER
+    }
+}

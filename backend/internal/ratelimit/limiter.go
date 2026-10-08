@@ -56,6 +56,9 @@ const (
 	// stops one host flooding; this per-wallet cap stops one authenticated wallet
 	// rotating IPs to burn the Lighthouse quota.
 	ImageUploadEndpoint = "image_upload"
+	// SafeRegisterEndpoint gates per-account RegisterSafe calls, each of which
+	// reads the chain to check the Safe and its owners.
+	SafeRegisterEndpoint = "safe_register"
 	// ArcadeSubmitEndpoint gates per-authenticated-address BARRICADE run submits.
 	// Layered under the per-IP `arcade_submit` bucket: per-IP stops one host
 	// flooding; this per-wallet cap stops one authenticated wallet rotating IPs to
@@ -94,6 +97,8 @@ func PerUserQuestConfigs(envInt func(name string, def int) int) map[string]Confi
 		CurationInboxEndpoint: {MaxRequests: envInt("MEMBA_CURATION_INBOX_RPM", 30), Window: time.Minute},
 		// ...and a send adds to a conversation, not a feed.
 		CurationSendEndpoint: {MaxRequests: envInt("MEMBA_CURATION_SEND_RPM", 12), Window: time.Minute},
+		// Per-account Safe registrations: each one reads the chain (code, owners).
+		SafeRegisterEndpoint: {MaxRequests: envInt("MEMBA_SAFE_REGISTER_RPM", 10), Window: time.Minute},
 		"default":            {MaxRequests: 10, Window: time.Minute},
 	}
 }

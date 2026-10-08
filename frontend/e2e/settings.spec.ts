@@ -23,12 +23,12 @@ test.describe('Settings Page', () => {
         //
         // Pearl was the second offered network after Betanet's retirement
         // (2026-09-17) until its own shutdown at the 2026-09-23 mainnet
-        // cutover. Hidden (retired) networks must not be offered here.
+        // cutover. Hidden (retired) networks must not be offered here. Onyx is
+        // offered since 2026-10-07 (Connect 4), so it is no longer asserted absent.
         const active = page.locator('#settings-page button[id^="network-"]')
         await expect(active.first()).toBeVisible()
         await expect(page.locator('#network-pearl')).toHaveCount(0)
         await expect(page.locator('#network-gnoland1')).toHaveCount(0)
-        await expect(page.locator('#network-onyx')).toHaveCount(0)
         await expect(page.locator('#network-test13')).toHaveCount(0)
         const network = new URL(page.url()).pathname.split('/')[1]
         await expect(page.locator(`#network-${network}`)).toBeVisible()

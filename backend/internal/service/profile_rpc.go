@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/address"
 )
 
 // --- Input Validation Limits ---
@@ -23,7 +24,7 @@ const (
 
 // GetProfile returns a user's public profile. No authentication required.
 func (s *MultisigService) GetProfile(ctx context.Context, req *connect.Request[membav1.GetProfileRequest]) (*connect.Response[membav1.GetProfileResponse], error) {
-	addr := strings.TrimSpace(req.Msg.Address)
+	addr := profileKey(req.Msg.Address)
 	if addr == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
@@ -40,8 +41,13 @@ func (s *MultisigService) GetProfile(ctx context.Context, req *connect.Request[m
 
 // UpdateProfile updates the authenticated user's profile.
 // The auth token's address must match the profile address.
+//
+// It serves EVM accounts too (authenticateAccount): a Sign-In with Ethereum
+// session edits the profile keyed by its canonical EVM identity, which can
+// never collide with a Gno address. Without SIWE enabled this is exactly the
+// Gno-only behaviour.
 func (s *MultisigService) UpdateProfile(ctx context.Context, req *connect.Request[membav1.UpdateProfileRequest]) (*connect.Response[membav1.UpdateProfileResponse], error) {
-	userAddr, err := s.authenticate(req.Msg.AuthToken)
+	userAddr, err := s.authenticateAccount(req.Msg.AuthToken)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +58,7 @@ func (s *MultisigService) UpdateProfile(ctx context.Context, req *connect.Reques
 	}
 
 	// Auth check: user can only update their own profile
-	if strings.TrimSpace(p.Address) != "" && p.Address != userAddr {
+	if strings.TrimSpace(p.Address) != "" && profileKey(p.Address) != userAddr {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 	p.Address = userAddr
@@ -104,6 +110,18 @@ func (s *MultisigService) UpdateProfile(ctx context.Context, req *connect.Reques
 }
 
 // --- Helpers ---
+
+// profileKey is the profiles row key for an address as a client spells it.
+// EVM addresses are stored in their canonical lower-case form, so an EIP-55
+// (mixed-case) spelling finds the same profile; any other input, Gno addresses
+// included, is only trimmed, exactly as before EVM accounts existed.
+func profileKey(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if a, err := address.Parse(raw); err == nil && a.Kind() != address.KindGno {
+		return a.String()
+	}
+	return raw
+}
 
 // getProfileFromDB reads a profile from SQLite, returning an empty Profile if not found.
 func (s *MultisigService) getProfileFromDB(address string) (*membav1.Profile, error) {

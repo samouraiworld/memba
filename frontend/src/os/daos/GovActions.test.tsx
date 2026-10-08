@@ -20,7 +20,7 @@ vi.mock("../../lib/marketplace/escrowState", async (original) => ({ ...(await or
 const { EmergencyPauses, JoinAction, ProposalActions } = await import("./GovActions")
 const { readBridgeApproval, readBridgePauses, readGovProposal, readGovSnapshot } = await import("../../lib/dao/membaGov")
 
-const ZX = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", MIKAEL = "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z"
+const ZX = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", GHOST = "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"
 const roster = native.roster as GovRoster
 const proposals = [...native.page0.proposals, ...native.page22.proposals] as GovProposal[]
 const find = (action: string) => proposals.find((p) => p.action === action)!
@@ -43,7 +43,7 @@ describe("voting on memba_gov", () => {
         fireEvent.click(screen.getByRole("button", { name: "Connect to vote" }))
         expect(guest.openConnect).toHaveBeenCalled()
         view.unmount()
-        show(<ProposalActions p={live(find("memba_market_config.SetFee"))} roster={roster} session={member(MIKAEL)} raw={false} />)
+        show(<ProposalActions p={live(find("memba_market_config.SetFee"))} roster={roster} session={member(GHOST)} raw={false} />)
         expect(screen.getByText(/Only seated members vote/)).toBeInTheDocument()
         expect(screen.queryByRole("button")).toBeNull()
     })
@@ -114,10 +114,10 @@ describe("joining and pausing", () => {
         const view = show(<JoinAction roster={roster} session={member(ZX)} />)
         expect(screen.queryByRole("button")).toBeNull()
         view.unmount()
-        show(<JoinAction roster={roster} session={member(MIKAEL)} />)
-        fireEvent.click(screen.getByRole("button", { name: "Join as mikael…" }))
+        show(<JoinAction roster={roster} session={member(GHOST)} />)
+        fireEvent.click(screen.getByRole("button", { name: "Join as ghost…" }))
         await waitFor(() => expect(sign).toHaveBeenCalled())
-        expect(lastRequest().prepare(undefined).msgs[0].value).toMatchObject({ func: "Join", caller: MIKAEL })
+        expect(lastRequest().prepare(undefined).msgs[0].value).toMatchObject({ func: "Join", caller: GHOST })
         expect(lastRequest().warns).toEqual(["Joining ends every open proposal: members vote again on the new roster."])
     })
 
@@ -134,7 +134,7 @@ describe("joining and pausing", () => {
         await waitFor(() => expect(sign).toHaveBeenCalled())
         expect(lastRequest().prepare(undefined).msgs[0].value).toMatchObject({ func: "ExpirePause", args: ["memba_arcade_leaderboard_v1"] })
         view.unmount()
-        show(<EmergencyPauses roster={roster} session={member(MIKAEL)} />)
+        show(<EmergencyPauses roster={roster} session={member(GHOST)} />)
         expect(await screen.findByRole("button", { name: "End the pause…" })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Pause…" })).toBeNull()
     })
@@ -177,7 +177,7 @@ describe("a dispute vote", () => {
         const freelancer = show(<ProposalActions p={dispute} roster={roster} session={member(ZX)} raw={false} />)
         expect(await screen.findByRole("alert")).toHaveTextContent("You are the freelancer of this contract.")
         freelancer.unmount()
-        readEscrowContract.mockResolvedValue({ client: "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", freelancer: MIKAEL })
+        readEscrowContract.mockResolvedValue({ client: "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", freelancer: GHOST })
         show(<ProposalActions p={dispute} roster={roster} session={member(ZX)} raw={false} />)
         await waitFor(() => expect(readEscrowContract).toHaveBeenCalledTimes(3))
         expect(screen.queryByRole("alert")).toBeNull()

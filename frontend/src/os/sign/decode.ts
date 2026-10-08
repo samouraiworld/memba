@@ -32,6 +32,14 @@ export function adenaChecklist(msgs: readonly AminoMsg[], chainId: string): Sign
             rows.push({ label: "Message", value: "Transfer" }, { label: "type", value: "/bank.MsgSend", mono: true }, { label: "function", value: "Transfer", mono: true })
             continue
         }
+        if (msg.type === "/auth.m_create_session" || msg.type === "/auth.m_revoke_session") {
+            rows.push({ label: "Message", value: msg.type === "/auth.m_create_session" ? "Create session" : "Revoke session" }, { label: "type", value: msg.type, mono: true })
+            const paths = Array.isArray(v.allow_paths) ? v.allow_paths.map(String) : []
+            if (paths.length) rows.push({ label: "Allowed", value: paths.join(" · "), mono: true })
+            const limit = formatSend(v.spend_limit)
+            if (limit) rows.push({ label: "Spend limit", value: limit })
+            continue
+        }
         const deploy = deployEffect(msg)
         if (deploy) {
             rows.push({ label: "Action", value: "Deploy a package" }, { label: "Path", value: deploy.path, mono: true })

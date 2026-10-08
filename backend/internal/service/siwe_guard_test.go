@@ -42,7 +42,9 @@ const evmUser = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf"
 
 // Every RPC behind authenticate refuses an EVM-chain token, in both the
 // configured posture and the legacy accept-any one (no accepted chain set),
-// where ValidateToken alone would have let it through.
+// where ValidateToken alone would have let it through. UpdateProfile has opted
+// in to EVM sessions (authenticateAccount) and refuses here because SIWE is
+// off in this harness.
 func TestAuthenticatedRPCsRefuseEVMTokens(t *testing.T) {
 	for _, accepted := range [][]string{nil, {"gnoland-1"}, {"gnoland-1", "eip155:8453"}} {
 		h := setup(t)

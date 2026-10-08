@@ -16,7 +16,7 @@ describe("Changelogs page (real CHANGELOG.md)", () => {
     it("renders current releases parsed from CHANGELOG.md", () => {
         renderPage()
         expect(screen.getByText("v7.8.0")).toBeTruthy()
-        expect(screen.getAllByText(/October 7, 2026/).length).toBeGreaterThan(0)
+        expect(screen.getAllByText(/October 8, 2026/).length).toBeGreaterThan(0)
         expect(screen.getByText("v7.7.0")).toBeTruthy()
         expect(screen.getAllByText(/September 23, 2026/).length).toBeGreaterThan(0)
         expect(screen.getByText("v7.3.0")).toBeTruthy()

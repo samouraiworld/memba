@@ -2,8 +2,8 @@
  "_comment": "Answers of memba_gov and memba_bridge_v1 in their own unit tests at gno e75fef82 (written by a generator kept outside this repository): every bridge action the node fixtures propose, four roster actions, one action no decoder knows, and one Approval answer.",
  "gnoRef": "e75fef82c02876a4df92ad6e325c5479b9532168",
  "roster": {
-  "weight": 5,
-  "persons": 4,
+  "weight": 6,
+  "persons": 5,
   "members": [
    {
     "id": "zxxma",
@@ -28,15 +28,15 @@
     "address": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
     "weight": 1,
     "lastActive": "1234567890"
-   }
-  ],
-  "invitations": [
+   },
    {
     "id": "mikael",
     "address": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
     "weight": 1,
-    "expires": "1242343890"
-   },
+    "lastActive": "1234567890"
+   }
+  ],
+  "invitations": [
    {
     "id": "ghost",
     "address": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
@@ -58,7 +58,7 @@
     "id": "42",
     "target": "gno.land/r/samcrew/memba_gov",
     "action": "Uninvite",
-    "args": "s:6:mikael",
+    "args": "s:5:ghost",
     "scope": "",
     "class": 2,
     "proposer": "lours",
