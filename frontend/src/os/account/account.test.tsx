@@ -1,3 +1,4 @@
+import { installTestLocks } from "../../account/testLocks"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
@@ -29,6 +30,8 @@ function show(ui: ReactNode, account: Partial<AccountApi> = {}) {
 const signedIn = (extra: Partial<AccountApi> = {}): Partial<AccountApi> => ({ status: "ready", user: ADA, getToken: async () => "jwt", ...extra })
 
 beforeEach(() => {
+    installTestLocks()
+    localStorage.clear()
     sessionStorage.clear()
     resetDeletionForTests()
     vi.mocked(accountApi.get).mockReset().mockResolvedValue({ id: "acc", email: "ada@example.org", emailVerifiedAt: "2026-10-08T00:00:00Z", createdAt: "2026-10-08T00:00:00Z" })
@@ -85,7 +88,7 @@ describe("Settings → Account", () => {
         await screen.findByText("ada@example.org")
         fireEvent.click(screen.getByRole("button", { name: "Delete my account…" }))
         fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }))
-        expect(await screen.findByRole("alert")).toHaveTextContent("Memba could not delete your data, so nothing was deleted.")
+        expect(await screen.findByRole("alert")).toHaveTextContent("Account deletion is incomplete.")
         expect(deleteMonitoringUser).not.toHaveBeenCalled()
         expect(deleteUser).not.toHaveBeenCalled()
     })

@@ -55,4 +55,17 @@ describe("loading Clerk", () => {
         serveScripts(() => "load")
         await expect(loadClerk(KEY)).rejects.toThrow(/without defining Clerk/)
     })
+    it("does not delete a replacement identity after the original subject confirmed", async () => {
+        const deleteA = vi.fn(async () => {}), deleteB = vi.fn(async () => {})
+        serveScripts(() => "load", src => {
+            if (src.includes("clerk-js")) window.Clerk = { load: async () => {}, user: { id: "A", fullName: "A", delete: deleteA }, session: { getToken: async () => "token-A" }, addListener: () => () => {}, openSignIn: vi.fn(), signOut: async () => {} }
+            else window.__internal_ClerkUICtor = function ClerkUI() {}
+        })
+        const client = await loadClerk(KEY)
+        window.Clerk!.user = { id: "B", fullName: "B", delete: deleteB }
+        await expect(client.deleteUser("A")).rejects.toThrow()
+        expect(deleteA).not.toHaveBeenCalled()
+        expect(deleteB).not.toHaveBeenCalled()
+    })
+
 })

@@ -26,10 +26,11 @@ export function PrivacyView() {
             </ul>
         </div>
         <div className="os-set-card"><h3>How long</h3>
-            <p>Until you delete your account. A request you never confirm is deleted within about 8 days (it expires after 7, and a daily cleanup removes it). Deleted data can remain up to 7 days in the backups of Memba's database, and in the database file itself until its space is reused.</p>
+            <p>Your account data is kept until you delete your account. A request you never confirm is deleted within about 8 days (it expires after 7, and a daily cleanup removes it). Deleted data can remain up to 7 days in the backups of Memba's database, and in the database file itself until its space is reused.</p>
+            <p>After deletion, Memba retains a pseudonymized digest of the sign-in identity and the deletion date to reject old sign-in tokens. This marker contains no email address or consent history and has no automatic expiry. This browser also keeps deletion progress so another open tab cannot restart the account while deletion finishes.</p>
         </div>
         <div className="os-set-card"><h3>Your data</h3>
-            <p>Settings → Account: download your account and every email request you made, stop any email, or delete your account. Deleting removes your Memba data with its consent history, your address at Resend, your validator alerts and your sign-in account. On-chain data cannot be deleted by anyone and is not affected.</p>
+            <p>Settings → Account: download your account and every email request you made, stop any email, or delete your account. Deleting removes your Memba email and consent history, your address at Resend, your validator alerts and your sign-in account. On-chain data cannot be deleted by anyone and is not affected.</p>
             <p>Questions: <a href="mailto:privacy@memba.club">privacy@memba.club</a>.</p>
         </div>
     </>

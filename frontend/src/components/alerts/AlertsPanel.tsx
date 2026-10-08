@@ -27,9 +27,10 @@ function PageLoader() {
  * a returning user that their alerts moved there unchanged.
  */
 export default function AlertsPanel({ embedded = false }: { embedded?: boolean }) {
+    const account = useAccount()
     return (
         <AlertErrorBoundary>
-            <AlertsContent embedded={embedded} />
+            <AlertsContent key={account.user?.id ?? "guest"} embedded={embedded} />
         </AlertErrorBoundary>
     )
 }
@@ -41,7 +42,9 @@ import { WebhookForm } from "./WebhookForm"
 import { AlertContactForm } from "./AlertContactForm"
 import { ReportScheduleForm } from "./ReportScheduleForm"
 import { TelegramBotCards } from "./TelegramBotCards"
-import * as api from "../../lib/monitoringAuth"
+import { useMonitoringOperations } from "../../account/monitoringOperations"
+import { useDeletion } from "../../os/account/deletion"
+import type * as monitoring from "../../lib/monitoringAuth"
 import type {
     MonitoringWebhook,
     MutationResult,
@@ -98,10 +101,9 @@ function Section({ title, icon, defaultOpen = false, children }: {
 }
 
 // ── Webhook sub-section ──────────────────────────────────────
-function WebhookSection({ kind, label, token, onChanged }: {
+function WebhookSection({ kind, label, onChanged }: {
     kind: WebhookKind
     label: string
-    token: () => Promise<string | null>
     /** Called after a successful create, update, or delete. Validator webhook
      *  create/update change which webhooks a contact can link to, and delete
      *  cascade-deletes the user's linked alert contacts server-side — in all
@@ -109,6 +111,7 @@ function WebhookSection({ kind, label, token, onChanged }: {
      *  against a stale webhook list (or shows deleted rows). */
     onChanged?: () => void | Promise<void>
 }) {
+    const api = useMonitoringOperations()
     const [webhooks, setWebhooks] = useState<MonitoringWebhook[]>([])
     const [loading, setLoading] = useState(true)
     const [editing, setEditing] = useState<MonitoringWebhook | null>(null)
@@ -119,9 +122,8 @@ function WebhookSection({ kind, label, token, onChanged }: {
     useEffect(() => {
         let cancelled = false
         async function load() {
-            const t = await token()
-            if (!t || cancelled) return
-            const data = await api.listWebhooks(t, kind)
+            if (cancelled) return
+            const data = await api.listWebhooks(kind)
             if (!cancelled) {
                 setWebhooks(data)
                 setLoading(false)
@@ -129,23 +131,19 @@ function WebhookSection({ kind, label, token, onChanged }: {
         }
         load()
         return () => { cancelled = true }
-    }, [token, kind])
+    }, [api, kind])
 
     const refreshWebhooks = useCallback(async () => {
-        const t = await token()
-        if (!t) return
-        const data = await api.listWebhooks(t, kind)
+        const data = await api.listWebhooks(kind)
         setWebhooks(data)
-    }, [token, kind])
+    }, [api, kind])
 
     const handleCreate = async (data: WebhookInput): Promise<MutationResult> => {
-        const t = await token()
-        if (!t) return { ok: false, error: "Not signed in" }
         // WebhookForm's validate() blocks submission without a chain, but that
         // is a runtime guarantee, not a type one — narrow here so a chain-less
         // create can't compile its way into a guaranteed 400 from the server.
         if (!data.ChainID) return { ok: false, error: "Chain is required" }
-        const result = await api.createWebhook(t, kind, { ...data, ChainID: data.ChainID })
+        const result = await api.createWebhook(kind, { ...data, ChainID: data.ChainID })
         if (result.ok) {
             await refreshWebhooks()
             setShowForm(false)
@@ -155,10 +153,8 @@ function WebhookSection({ kind, label, token, onChanged }: {
     }
 
     const handleUpdate = async (data: WebhookInput): Promise<MutationResult> => {
-        const t = await token()
-        if (!t) return { ok: false, error: "Not signed in" }
         if (data.ID == null) return { ok: false, error: "Missing webhook id" }
-        const result = await api.updateWebhook(t, kind, { ...data, ID: data.ID })
+        const result = await api.updateWebhook(kind, { ...data, ID: data.ID })
         if (result.ok) {
             await refreshWebhooks()
             setEditing(null)
@@ -168,10 +164,8 @@ function WebhookSection({ kind, label, token, onChanged }: {
     }
 
     const handleDelete = async (id: number) => {
-        const t = await token()
-        if (!t) return
         setDeletingId(id)
-        const ok = await api.deleteWebhook(t, kind, id)
+        const ok = await api.deleteWebhook(kind, id)
         if (ok) {
             await refreshWebhooks()
             await onChanged?.()
@@ -300,14 +294,16 @@ function SignInUnavailable({ text }: { text: string }) {
 
 function AlertsContent({ embedded }: { embedded: boolean }) {
     const auth = useAccount()
-    const [contacts, setContacts] = useState<api.AlertContact[]>([])
+    const api = useMonitoringOperations()
+    const deletion = useDeletion(auth.user?.id)
+    const [contacts, setContacts] = useState<monitoring.AlertContact[]>([])
     // Validator-only, deliberately. The server resolves a contact's id_webhook
     // against WebhookValidator alone, and only validator alerts ever fire a
     // mention. The two webhook tables have independent autoincrement ids, so
     // merging them produced colliding <option> values and contacts silently
     // attached to the wrong webhook.
     const [validatorWebhooks, setValidatorWebhooks] = useState<MonitoringWebhook[]>([])
-    const [schedule, setSchedule] = useState<api.ReportSchedule | null>(null)
+    const [schedule, setSchedule] = useState<monitoring.ReportSchedule | null>(null)
     const [loadingContacts, setLoadingContacts] = useState(false)
     // Only for the "moved here" note in Memba OS: whether the user had GovDAO webhooks.
     const [hasGovdaoWebhooks, setHasGovdaoWebhooks] = useState(false)
@@ -315,28 +311,30 @@ function AlertsContent({ embedded }: { embedded: boolean }) {
     // Provision the gnomonitoring user, then fetch contacts + schedule, once signed in.
     const userId = auth.user?.id
     useEffect(() => {
-        if (!userId) return
+        if (!userId || deletion) return
+        let cancelled = false
         const load = async () => {
-            const t = await auth.getToken()
-            if (!t) return
             setLoadingContacts(true)
-            await api.ensureMonitoringUser(t, auth.user?.fullName || "", auth.user?.email || "")
+            await api.ensureMonitoringUser(auth.user?.fullName || "", auth.user?.email || "")
             const [c, s, wVal, wGov] = await Promise.all([
-                api.listAlertContacts(t),
-                api.getReportSchedule(t),
-                api.listWebhooks(t, "validator"),
-                embedded ? api.listWebhooks(t, "govdao") : Promise.resolve([]),
+                api.listAlertContacts(),
+                api.getReportSchedule(),
+                api.listWebhooks("validator"),
+                embedded ? api.listWebhooks("govdao") : Promise.resolve([]),
             ])
+            if (cancelled) return
             setContacts(c)
             setSchedule(s)
             setValidatorWebhooks(wVal)
             setHasGovdaoWebhooks(wGov.length > 0)
             setLoadingContacts(false)
         }
-        load()
-    }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+        void load().catch(() => { if (!cancelled) setLoadingContacts(false) })
+        return () => { cancelled = true }
+    }, [userId, deletion, api]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Not signed in → Auth Gate ────────────────────────────
+    if (auth.user && deletion) return <SignInUnavailable text="Account deletion is in progress. Finish it in Settings → Account before changing alerts." />
     if (!auth.available) return <SignInUnavailable text="Sign-in for alerts isn't available on this site yet, so alerts can't be set up here." />
     if (auth.status === "failed") return <SignInUnavailable text="Sign-in is unavailable right now. Try again later." />
     if (auth.status === "loading") return <PageLoader />
@@ -363,11 +361,9 @@ function AlertsContent({ embedded }: { embedded: boolean }) {
 
     // ── Signed in → Full dashboard ───────────────────────────
     const refreshContacts = async () => {
-        const t = await auth.getToken()
-        if (!t) return
         const [c, wVal] = await Promise.all([
-            api.listAlertContacts(t),
-            api.listWebhooks(t, "validator"),
+            api.listAlertContacts(),
+            api.listWebhooks("validator"),
         ])
         setContacts(c)
         setValidatorWebhooks(wVal)
@@ -412,9 +408,9 @@ function AlertsContent({ embedded }: { embedded: boolean }) {
 
             {/* Section B: Webhooks */}
             <Section title="Webhooks" icon={<span>🔔</span>}>
-                <WebhookSection kind="govdao" label="GovDAO" token={auth.getToken} />
+                <WebhookSection kind="govdao" label="GovDAO" />
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
-                <WebhookSection kind="validator" label="Validator" token={auth.getToken} onChanged={refreshContacts} />
+                <WebhookSection kind="validator" label="Validator" onChanged={refreshContacts} />
             </Section>
 
             {/* Section C: Contacts & Schedule */}
@@ -430,23 +426,17 @@ function AlertsContent({ embedded }: { embedded: boolean }) {
                             contacts={contacts}
                             webhooks={validatorWebhooks}
                             onAdd={async (data) => {
-                                const t = await auth.getToken()
-                                if (!t) return { ok: false, error: "Not signed in" }
-                                const result = await api.createAlertContact(t, data)
+                                const result = await api.createAlertContact(data)
                                 if (result.ok) await refreshContacts()
                                 return result
                             }}
                             onUpdate={async (data) => {
-                                const t = await auth.getToken()
-                                if (!t) return { ok: false, error: "Not signed in" }
-                                const result = await api.updateAlertContact(t, data)
+                                const result = await api.updateAlertContact(data)
                                 if (result.ok) await refreshContacts()
                                 return result
                             }}
                             onDelete={async (id) => {
-                                const t = await auth.getToken()
-                                if (!t) return false
-                                const ok = await api.deleteAlertContact(t, id)
+                                const ok = await api.deleteAlertContact(id)
                                 if (ok) await refreshContacts()
                                 return ok
                             }}
@@ -456,11 +446,9 @@ function AlertsContent({ embedded }: { embedded: boolean }) {
                         <ReportScheduleForm
                             schedule={schedule}
                             onSave={async (h, m, tz) => {
-                                const t = await auth.getToken()
-                                if (!t) return false
-                                const ok = await api.updateReportSchedule(t, h, m, tz)
+                                const ok = await api.updateReportSchedule(h, m, tz)
                                 if (ok) {
-                                    const s = await api.getReportSchedule(t)
+                                    const s = await api.getReportSchedule()
                                     setSchedule(s)
                                 }
                                 return ok

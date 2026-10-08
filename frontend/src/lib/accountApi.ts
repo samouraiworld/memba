@@ -36,7 +36,7 @@ export const TOPICS: readonly { topic: Topic; name: string; text: string }[] = [
 export const EARLY_ACCESS_APPS: Readonly<Record<EarlyAccessApp, string>> = { launchpad: "Token Launchpad", nft: "NFT collections", "session-accounts": "Session accounts" }
 
 export class AccountApiError extends Error {
-    constructor(readonly status: number, message: string) {
+    constructor(readonly status: number, message: string, readonly code?: string) {
         super(message)
     }
 }
@@ -48,15 +48,15 @@ async function call<T>(path: string, init: RequestInit & { token?: string } = {}
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     })
     if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
-        throw new AccountApiError(res.status, body.error ?? `The account service answered ${res.status}.`)
+        const body = await res.json().catch(() => ({})) as { error?: string; code?: string }
+        throw new AccountApiError(res.status, res.status === 409 ? "Another account operation is finishing. Wait a moment, then try again." : body.error ?? `The account service answered ${res.status}.`, body.code)
     }
     return res.status === 204 ? (undefined as T) : await res.json() as T
 }
 
 export const accountApi = {
-    get: (token: string) => call<AccountRow>("/api/account", { token }),
-    topics: (token: string) => call<TopicState[]>("/api/account/topics", { token }),
+    get: (token: string, signal?: AbortSignal) => call<AccountRow>("/api/account", { token, signal }),
+    topics: (token: string, signal?: AbortSignal) => call<TopicState[]>("/api/account/topics", { token, signal }),
     setTopic: (token: string, topic: Topic, on: boolean, source: string, scope = "") =>
         call<TopicState[]>("/api/account/topics", { token, method: "POST", body: JSON.stringify(on ? { topic, on, scope, source, wordingVersion: WORDING_VERSION } : { topic, on }) }),
     exportData: (token: string) => call<unknown>("/api/account/export", { token }),
