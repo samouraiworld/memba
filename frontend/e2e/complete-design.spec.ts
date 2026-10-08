@@ -317,7 +317,7 @@ for (const network of ['mainnet', 'test13']) {
         await page.goBack()
         await expect(page.getByRole('combobox', { name: 'Availability', exact: true })).toHaveValue('mainnet')
         await page.getByRole('button', { name: integrated ? 'Reset' : 'Reset filters' }).click()
-        await expect(page.getByRole('link', { name: 'Visit mygnoscan (opens in a new tab)' })).toHaveAttribute('href', 'https://mygnoscan.moul.p2p.team/storage?network=mainnet')
+        await expect(page.getByRole('link', { name: 'Visit gnoscope (opens in a new tab)' })).toHaveAttribute('href', 'https://gnoscope.com/storage?network=mainnet')
         await expect(page.getByRole('button', { name: /connect wallet/i })).toHaveCount(0)
         if (process.env.DESIGN_REVIEW_FEATURES === 'true') {
             // With the flag on, the App Store mounts only where its v3 registry is
