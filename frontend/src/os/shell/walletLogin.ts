@@ -9,6 +9,7 @@ import type { Token } from "../../gen/memba/v1/memba_pb"
 import { buildTokenRequestInfo, type LoginRefusal, type LoginSignature } from "../../lib/loginChallenge"
 import { SESSION_ACCOUNT_LOGIN_MSG } from "../../lib/loginErrors"
 import { assertLiveWalletNetwork } from "../../lib/walletNetworkGuard"
+import { chainPublicKey } from "../../lib/account"
 
 export interface LoginWallet {
     connected: boolean
@@ -55,10 +56,15 @@ const REFUSALS: Record<Exclude<LoginRefusal, "no-key">, string> = {
  * live first. An account with no key on that network can't sign (it never
  * sent a transaction there): it asks by address instead, and where signed
  * login is enforced the server answers AUTH-ACTIVATE-01, which the caller
- * turns into the activation step. No other refusal sends an unsigned request.
+ * turns into the activation step. When the wallet reported no key and the
+ * chain confirms it has none, Adena is not asked at all: its window could
+ * only fail with "Public key not found". No other refusal sends an unsigned
+ * request.
  */
 export async function signInWithWallet(wallet: LoginWallet, auth: LoginAuth, chainId: string): Promise<Token> {
     if (!wallet.connected || !wallet.address) throw new Error("Connect your wallet first.")
+    // Read while the wallet is checked. A failed read asks Adena, as for a key.
+    const keyless = wallet.pubkeyJSON ? Promise.resolve(false) : chainPublicKey(wallet.address, chainId).then((key) => !key, () => false)
     await assertLiveWalletNetwork(chainId, { address: wallet.address })
 
     // Bound to the pubkey when the chain already knows it; bound to the chain always.
@@ -66,7 +72,7 @@ export async function signInWithWallet(wallet: LoginWallet, auth: LoginAuth, cha
     if (!challenge) throw new Error("Memba couldn't start the sign-in. Try again in a moment.")
 
     const nonceB64 = bytesToBase64(challenge.nonce)
-    const signed = await wallet.signLoginChallenge(chainId, nonceB64)
+    const signed = (await keyless) ? "no-key" as const : await wallet.signLoginChallenge(chainId, nonceB64)
     if (typeof signed === "string" && signed !== "no-key") throw new Error(REFUSALS[signed])
     const signature = typeof signed === "string" ? "" : signed.signature
     // The key Adena signed with is authoritative; with no key on this network there is none.

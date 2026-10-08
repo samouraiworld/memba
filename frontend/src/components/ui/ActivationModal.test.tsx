@@ -10,6 +10,11 @@ vi.mock("../../lib/grc20", async (orig) => ({
     doContractBroadcast: (...a: unknown[]) => doContractBroadcast(...a),
     networkGasPriceFresh: () => networkGasPriceFresh(),
 }))
+const activationOnChain = vi.fn<(address: string) => Promise<boolean>>(async () => true)
+vi.mock("../../lib/activation", async (orig) => ({
+    ...(await orig<typeof import("../../lib/activation")>()),
+    activationOnChain: (address: string) => activationOnChain(address),
+}))
 
 import { ActivationModal } from "./ActivationModal"
 
@@ -137,6 +142,27 @@ describe("ActivationModal", () => {
         )
         fireEvent.click(screen.getByRole("button", { name: /not now/i }))
         expect(onDismiss).toHaveBeenCalledTimes(1)
+    })
+
+    it("reloads only once the chain shows the new key, and says so when it does not", async () => {
+        doContractBroadcast.mockResolvedValue({ hash: "abc" })
+        let show!: (seen: boolean) => void
+        activationOnChain.mockImplementationOnce(() => new Promise<boolean>((resolve) => { show = resolve }))
+        const onSuccess = vi.fn()
+        const first = render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={onSuccess} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        await vi.waitFor(() => expect(activationOnChain).toHaveBeenCalledWith("g1abc"))
+        expect(onSuccess).not.toHaveBeenCalled()
+        show(true)
+        await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
+        first.unmount()
+
+        activationOnChain.mockResolvedValueOnce(false)
+        const notSeen = vi.fn()
+        render(<ActivationModal address="g1abc" rawUgnot={500000n} faucetUrl="https://faucet.gno.land" onSuccess={notSeen} />)
+        fireEvent.click(screen.getByRole("button", { name: /Activate My Wallet/i }))
+        expect(await screen.findByText(/Your activation was sent, but the network doesn't show it yet\. Reload this page in a few seconds before activating again\./)).toBeInTheDocument()
+        expect(notSeen).not.toHaveBeenCalled()
     })
 
     it("activates with exactly the fee and the 1 ugnot", async () => {

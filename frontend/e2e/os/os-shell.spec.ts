@@ -225,17 +225,22 @@ test.describe('Memba OS shell · entry scenarios', () => {
 
     test('activation is reviewed in its own step and signed without the classic confirmation', async ({ page }) => {
         await newWallet(page)
-        // A funded, never-used address: the balance and the network price are read.
+        // A funded, never-used address: the balance, the network price and the account (no key yet) are read.
+        let keyOnChain = false
         await fulfillOnchainReads(page, ({ method, path }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
             if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
+            if (path.startsWith('auth/accounts/')) return JSON.stringify({ BaseAccount: { address: ADDR, coins: '1000000ugnot', public_key: keyOnChain ? { '@type': '/tm.PubKeySecp256k1', value: PUBKEY } : null, account_number: '9', sequence: keyOnChain ? '1' : '0' } })
             return null
         })
         await page.addInitScript(() => {
-            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>>; __activation: unknown[] }
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => Promise<unknown>>; __activation: unknown[]; __loginAsked: number }
             w.__activation = []
+            w.__loginAsked = 0
             w.adena.DoContract = async (tx: unknown) => { w.__activation.push(tx); return { status: 'success', data: { hash: 'ACTIVATED' } } }
+            const sign = w.adena.SignMultisigTransaction
+            w.adena.SignMultisigTransaction = async (...a: unknown[]) => { w.__loginAsked++; return sign(...a) }
         })
         await page.goto(`${OS_ON}/os`)
         await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
@@ -243,9 +248,14 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await modal.getByRole('button', { name: /Adena/ }).click()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
         await expect(modal.getByRole('heading', { name: 'Activate your address' })).toBeVisible()
+        // The chain has no key for this address: Adena was not asked for a login it could only refuse.
+        expect(await page.evaluate(() => (window as unknown as { __loginAsked: number }).__loginAsked)).toBe(0)
         await expect(modal.getByText('0.0024 GNOT', { exact: true })).toBeVisible()
         // A double click sends one transaction: the step is left at the first click, with nothing to put it off.
         await modal.getByRole('button', { name: 'Activate in Adena' }).dblclick()
+        // Adena answered at broadcast: the login step waits for the block that records the key.
+        await expect(modal.getByRole('heading', { name: 'Activation sent' })).toBeVisible()
+        keyOnChain = true
         await expect(modal.getByText('Your address is active. Sign the login message to finish.')).toBeVisible()
         // The step was the review: no classic confirmation opened over the OS.
         await expect(page.getByText('Confirm Transaction')).toHaveCount(0)
@@ -360,7 +370,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (path.startsWith('bank/balances/')) return '"1000000ugnot"'
             if (path === 'auth/gasprice') return '{"gas":1000,"price":"1ugnot"}'
-            if (path.startsWith('auth/accounts/')) return JSON.stringify({ BaseAccount: { address: ADDR, coins: landed ? '997599ugnot' : '1000000ugnot', public_key: null, account_number: '9', sequence: landed ? '1' : '0' } })
+            if (path.startsWith('auth/accounts/')) return JSON.stringify({ BaseAccount: { address: ADDR, coins: landed ? '997599ugnot' : '1000000ugnot', public_key: landed ? { '@type': '/tm.PubKeySecp256k1', value: PUBKEY } : null, account_number: '9', sequence: landed ? '1' : '0' } })
             return null
         })
         await page.addInitScript(() => {
@@ -397,8 +407,8 @@ test.describe('Memba OS shell · entry scenarios', () => {
             return null
         })
         await page.addInitScript(() => {
-            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => unknown>; __accountChanged: () => void }
-            w.adena.DoContract = () => new Promise(() => {})
+            const w = window as unknown as { adena: Record<string, (...a: unknown[]) => unknown>; __accountChanged: () => void; __asked: boolean }
+            w.adena.DoContract = () => { w.__asked = true; return new Promise(() => {}) }
             w.adena.On = (event: unknown, cb: unknown) => { if (event === 'changedAccount') w.__accountChanged = cb as () => void; return true }
         })
         await page.goto(`${OS_ON}/os`)
@@ -408,6 +418,8 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
         await modal.getByRole('button', { name: 'Activate in Adena' }).click()
         await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
+        // Adena has the request: the checks before it, and their reads, are done.
+        await page.waitForFunction(() => (window as unknown as { __asked?: boolean }).__asked === true)
         await page.evaluate(async () => {
             const w = window as unknown as { __changed: () => Promise<void>; __accountChanged: () => void }
             await w.__changed()

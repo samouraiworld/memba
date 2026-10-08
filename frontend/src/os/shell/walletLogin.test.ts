@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { Token } from "../../gen/memba/v1/memba_pb"
 import { SESSION_ACCOUNT_LOGIN_MSG } from "../../lib/loginErrors"
 import { assertLiveWalletNetwork, WalletNetworkError } from "../../lib/walletNetworkGuard"
+import { chainPublicKey } from "../../lib/account"
 import { signInWithWallet, walletOnOtherChain, type LoginAuth, type LoginWallet } from "./walletLogin"
 
 vi.mock("../../lib/walletNetworkGuard", async (original) => ({ ...(await original<typeof import("../../lib/walletNetworkGuard")>()), assertLiveWalletNetwork: vi.fn() }))
+vi.mock("../../lib/account", async (original) => ({ ...(await original<typeof import("../../lib/account")>()), chainPublicKey: vi.fn() }))
 
 const ADDR = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
 const CHAIN_PUBKEY = '{"type":"tendermint/PubKeySecp256k1","value":"chain"}'
@@ -39,6 +41,8 @@ const infoOf = (a: ReturnType<typeof auth>) => JSON.parse(a.getToken.mock.calls[
 beforeEach(() => {
     vi.mocked(assertLiveWalletNetwork).mockReset()
     vi.mocked(assertLiveWalletNetwork).mockResolvedValue({ chainId: "gnoland-1", address: ADDR, rpcUrl: "https://rpc.gno.land" })
+    vi.mocked(chainPublicKey).mockReset()
+    vi.mocked(chainPublicKey).mockResolvedValue(null)
 })
 
 describe("signInWithWallet", () => {
@@ -69,6 +73,34 @@ describe("signInWithWallet", () => {
         expect(a.getToken.mock.calls[0][1]).toBe("")
         expect(infoOf(a).userAddress).toBe(ADDR)
         expect(infoOf(a).userPubkeyJson).toBeUndefined()
+    })
+
+    it("does not open Adena for an account the chain confirms has no key: it asks by address straight away", async () => {
+        const w = wallet({ pubkeyJSON: "" })
+        const a = auth()
+        await signInWithWallet(w, a, "gnoland-1")
+        expect(chainPublicKey).toHaveBeenCalledWith(ADDR, "gnoland-1")
+        expect(w.signLoginChallenge).not.toHaveBeenCalled()
+        expect(a.getChallenge).toHaveBeenCalledWith(undefined, "gnoland-1")
+        expect(a.getToken.mock.calls[0][1]).toBe("")
+        expect(infoOf(a).userAddress).toBe(ADDR)
+        expect(infoOf(a).userPubkeyJson).toBeUndefined()
+    })
+
+    it("opens Adena when the chain shows a key the wallet did not report, or cannot be read", async () => {
+        vi.mocked(chainPublicKey).mockResolvedValueOnce({ "@type": "/tm.PubKeySecp256k1", value: "A0key" })
+        const activated = wallet({ pubkeyJSON: "" })
+        await signInWithWallet(activated, auth(), "gnoland-1")
+        expect(activated.signLoginChallenge).toHaveBeenCalledOnce()
+        vi.mocked(chainPublicKey).mockRejectedValueOnce(new Error("fetch failed"))
+        const unread = wallet({ pubkeyJSON: "" })
+        await signInWithWallet(unread, auth(), "gnoland-1")
+        expect(unread.signLoginChallenge).toHaveBeenCalledOnce()
+    })
+
+    it("reads no account from the chain when the wallet reports a key", async () => {
+        await signInWithWallet(wallet(), auth(), "gnoland-1")
+        expect(chainPublicKey).not.toHaveBeenCalled()
     })
 
     it("sends nothing unsigned for any other refusal, and says which it was", async () => {

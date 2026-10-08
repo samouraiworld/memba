@@ -42,6 +42,7 @@ import {
     getTokenDecimals,
     __resetTokenDecimalsCache,
 } from './grc20'
+import { WalletNetworkError } from './walletNetworkGuard'
 import { ACTIVATION_MEMO, activationMsgs } from './activation'
 import { GNO_CHAIN_ID } from './config'
 import { liveWallet } from '../test/walletStub'
@@ -534,7 +535,7 @@ describe('doContractBroadcast — OS member boundary', () => {
         expect(doContract).not.toHaveBeenCalled()
     })
 
-    it('rechecks membership after the final asynchronous wallet check', async () => {
+    it('rechecks membership after the asynchronous wallet check', async () => {
         setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         let member = true
         let releaseCheck!: () => void
@@ -542,9 +543,8 @@ describe('doContractBroadcast — OS member boundary', () => {
         const started = new Promise<void>((resolve) => { checkStarted = resolve })
         const held = new Promise<void>((resolve) => { releaseCheck = resolve })
         const wallet = liveWallet()
-        let accountReads = 0
         wallet.GetAccount.mockImplementation(async () => {
-            if (++accountReads === 2) { checkStarted(); await held }
+            checkStarted(); await held
             return { status: 'success', data: { address: 'g1stub', chainId: GNO_CHAIN_ID } }
         })
         const doContract = vi.fn()
@@ -559,7 +559,7 @@ describe('doContractBroadcast — OS member boundary', () => {
         expect(doContract).not.toHaveBeenCalled()
     })
 
-    it('rechecks the request owner after the final asynchronous wallet check', async () => {
+    it('rechecks the request owner after the asynchronous wallet check', async () => {
         setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
         let owner = 'A'
         let releaseCheck!: () => void
@@ -567,9 +567,8 @@ describe('doContractBroadcast — OS member boundary', () => {
         const started = new Promise<void>((resolve) => { checkStarted = resolve })
         const held = new Promise<void>((resolve) => { releaseCheck = resolve })
         const wallet = liveWallet()
-        let accountReads = 0
         wallet.GetAccount.mockImplementation(async () => {
-            if (++accountReads === 2) { checkStarted(); await held }
+            checkStarted(); await held
             return { status: 'success', data: { address: 'g1stub', chainId: GNO_CHAIN_ID } }
         })
         const doContract = vi.fn()
@@ -617,6 +616,73 @@ describe('doContractBroadcast — OS member boundary', () => {
         await expect(doContractBroadcast([activation], 'Memba Network Activation')).rejects.toThrow(/Memba session ended/)
         await expect(doContractBroadcast([activation], 'another memo', { osActivation: true })).rejects.toThrow(/Memba session ended/)
         expect(doContract).toHaveBeenCalledOnce()
+    })
+})
+
+describe('doContractBroadcast — one wallet check per signature', () => {
+    const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
+    function setup(opts: Parameters<typeof liveWallet>[0] = {}) {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
+        const wallet = liveWallet(opts)
+        const doContract = vi.fn().mockResolvedValue({ status: 'success', data: { hash: 'h' } })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { ...wallet, DoContract: doContract }
+        return { wallet, doContract }
+    }
+    it('reads the wallet once, while beforeSign rechecks the chain', async () => {
+        const { wallet, doContract } = setup()
+        let releaseRead!: () => void
+        const read = new Promise<void>((resolve) => { releaseRead = resolve })
+        wallet.GetAccount.mockImplementation(async () => { await read; return { status: 'success', data: { address: 'g1stub', chainId: GNO_CHAIN_ID } } })
+        let readWhileRechecking = false
+        const result = doContractBroadcast([call], 'memo', { beforeSign: async () => {
+            readWhileRechecking = wallet.GetAccount.mock.calls.length === 1
+            releaseRead()
+        } })
+        await expect(result).resolves.toMatchObject({ hash: 'h' })
+        expect(readWhileRechecking).toBe(true)
+        expect(wallet.GetAccount).toHaveBeenCalledTimes(1)
+        expect(wallet.GetNetwork).toHaveBeenCalledTimes(1)
+        expect(doContract).toHaveBeenCalledTimes(1)
+    })
+
+    it('reads the wallet again when beforeSign finishes after its answer: the answer stays the last thing awaited', async () => {
+        const { wallet, doContract } = setup()
+        await doContractBroadcast([call], 'memo', { beforeSign: async () => {
+            // The wallet answers within a few ticks; the recheck takes longer.
+            await new Promise((resolve) => setTimeout(resolve, 20))
+            expect(wallet.GetAccount).toHaveBeenCalledTimes(1)
+        } })
+        expect(wallet.GetAccount).toHaveBeenCalledTimes(2)
+        expect(doContract).toHaveBeenCalledTimes(1)
+    })
+
+    it('reports a wallet on another chain as nothing sent, only once beforeSign has finished', async () => {
+        const { doContract } = setup({ chainId: WRONG_CHAIN })
+        let rechecked = false
+        const result = doContractBroadcast([call], 'memo', { beforeSign: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20))
+            rechecked = true
+        } })
+        const err = await result.catch((e: unknown) => e)
+        expect(err).toBeInstanceOf(WalletNetworkError)
+        expect(rechecked).toBe(true)
+        expect(doContract).not.toHaveBeenCalled()
+    })
+
+    it('stops on a beforeSign refusal without opening the wallet', async () => {
+        const { doContract } = setup()
+        await expect(doContractBroadcast([call], 'memo', { beforeSign: async () => { throw new Error('The network fee increased since review. Nothing was sent.') } }))
+            .rejects.toThrow('The network fee increased')
+        expect(doContract).not.toHaveBeenCalled()
+    })
+
+    it('refuses when the wallet switches network (its event) while beforeSign runs', async () => {
+        const { doContract } = setup()
+        await expect(doContractBroadcast([call], 'memo', { beforeSign: async () => { setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID) } }))
+            .rejects.toThrow(/Transaction blocked/)
+        expect(doContract).not.toHaveBeenCalled()
     })
 })
 
@@ -693,11 +759,12 @@ describe('doContractBroadcast — one wallet request per call', () => {
         expect(Sentry.captureException).toHaveBeenCalledTimes(1)
     })
 
-    it('never asks the wallet to wait for the block, and hands it the given fee unchanged', async () => {
+    it('never asks the wallet to wait for the block, asks it to answer without its result screen, and hands it the given fee unchanged', async () => {
         const doContract = wallet({ status: 'success', data: { hash: 'h' } })
         await doContractBroadcast([call], 'memo', { gasWanted: 48_000_000, gasFee: 57_600 })
         expect(doContract).toHaveBeenCalledTimes(1)
-        expect(doContract.mock.calls[0]).toHaveLength(1)
+        // Adena answers at broadcast and closes its window, instead of waiting for its result screen's Close.
+        expect(doContract.mock.calls[0][1]).toEqual({ withNotification: true, isVisibleResult: false })
         expect(Object.keys(doContract.mock.calls[0][0]).sort()).toEqual(['gasFee', 'gasWanted', 'memo', 'messages'])
         expect(doContract.mock.calls[0][0]).toMatchObject({ gasWanted: 48_000_000, gasFee: 57_600, memo: 'memo' })
     })

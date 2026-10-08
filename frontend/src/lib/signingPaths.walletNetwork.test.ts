@@ -109,19 +109,26 @@ describe.each(PATHS)("%s", (_name, sign) => {
 })
 
 describe("a refusal is reported as nothing sent", () => {
-    it("is asked before the caller's beforeSign, which callers treat as the wallet opening", async () => {
+    it("is a WalletNetworkError, thrown once the caller's beforeSign (which callers treat as the wallet opening) has finished", async () => {
         vi.stubGlobal("adena", { ...liveWallet({ chainId: "", networkChainId: "" }), DoContract })
-        const beforeSign = vi.fn()
-        await expect(doContractBroadcast([call("Post")], "post", { beforeSign })).rejects.toThrow(/did not report its network/)
-        expect(beforeSign).not.toHaveBeenCalled()
+        let finished = false
+        const beforeSign = vi.fn(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); finished = true })
+        const err = await doContractBroadcast([call("Post")], "post", { beforeSign }).catch((e: unknown) => e)
+        expect(err).toBeInstanceOf(WalletNetworkError)
+        expect((err as Error).message).toMatch(/did not report its network/)
+        expect(finished).toBe(true)
         expect(DoContract).not.toHaveBeenCalled()
     })
 
-    it("is asked again after beforeSign, right before the wallet request", async () => {
+    it("is asked again when beforeSign finishes after the wallet answered, right before the wallet request", async () => {
         const wallet = liveWallet()
         vi.stubGlobal("adena", { ...wallet, DoContract })
-        // The wallet switches network while the caller's last checks run.
-        const beforeSign = vi.fn(async () => { wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } }); wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } }) })
+        // The wallet answers, then switches network while the caller's last checks still run.
+        const beforeSign = vi.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } })
+            wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } })
+        })
         await expect(doContractBroadcast([call("Post")], "post", { beforeSign })).rejects.toThrow(/Your wallet is on/)
         expect(beforeSign).toHaveBeenCalledTimes(1)
         expect(DoContract).not.toHaveBeenCalled()
@@ -133,10 +140,16 @@ describe("a refusal is reported as nothing sent", () => {
         expect(escrowFailureMayHaveLanded(err)).toBe(false)
     })
 
-    it("in the Memba OS signer, the request's recheck runs before the last wallet check, and that check before the wallet", async () => {
+    it("in the Memba OS signer, the request's recheck runs while the wallet is read once, and its answer comes before the wallet request", async () => {
         const order: string[] = []
         const wallet = liveWallet()
-        wallet.GetAccount.mockImplementation(async () => { order.push("guard"); return { status: "success", data: { address: "g1stub", chainId: GNO_CHAIN_ID } } })
+        wallet.GetAccount.mockImplementation(async () => {
+            order.push("guard")
+            // Adena's read is the slow part (it decrypts the wallet), so it answers after the recheck.
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            order.push("answer")
+            return { status: "success", data: { address: "g1stub", chainId: GNO_CHAIN_ID } }
+        })
         DoContract.mockImplementation(async () => { order.push("wallet"); return { status: "success", data: { hash: "H" } } })
         vi.stubGlobal("adena", { ...wallet, DoContract })
         const msg = call("Vote", "gno.land/r/alice/team")
@@ -147,7 +160,7 @@ describe("a refusal is reported as nothing sent", () => {
             send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { beforeSign }),
         }, undefined, [msg], () => {})
         expect(res.outcome).toBe("sent")
-        expect(order).toEqual(["guard", "recheck", "guard", "wallet"])
+        expect(order).toEqual(["guard", "recheck", "answer", "wallet"])
     })
 
     it("the Memba OS signer reports it as failed and keeps no governance lock", async () => {

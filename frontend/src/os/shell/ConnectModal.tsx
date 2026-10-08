@@ -57,7 +57,7 @@ export function ConnectModal({ session }: { session: OsSession }) {
         const first = dialog.current.querySelector<HTMLElement>('button:not(:disabled), a[href]')
         ;(first ?? dialog.current).focus({ preventScroll: true })
     }, [stage])
-    const closeable = !!stage && !(stage === "activate" && session.activationForced) && stage !== "activatewait"
+    const closeable = !!stage && !(stage === "activate" && session.activationForced) && stage !== "activatewait" && stage !== "activatesent"
     useDialogKeys(dialog, !!stage, "button:not(:disabled), a[href]", closeable ? session.cancel : undefined)
     if (!stage) return null
     const cost = session.activationCost
@@ -152,6 +152,9 @@ export function ConnectModal({ session }: { session: OsSession }) {
             break
         case "activatewait":
             body = <><Head title="Confirm in Adena" sub="Approve the activation. Check Adena shows:" /><AdenaShows /><Waiting label="Waiting for Adena…" /></>
+            break
+        case "activatesent":
+            body = <><Head title="Activation sent" sub="The network records your key in its next block, usually within seconds." /><Waiting label="Waiting for the network…" /></>
             break
     }
     const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {

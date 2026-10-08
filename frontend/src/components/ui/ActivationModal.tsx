@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { ShieldCheck, ArrowRight, Wallet, Spinner } from "@phosphor-icons/react"
 import { doContractBroadcast, networkGasPriceFresh } from "../../lib/grc20"
-import { ACTIVATION_MEMO, ACTIVATION_SEND_UGNOT, activationCosts, activationMsgs } from "../../lib/activation"
+import { ACTIVATION_MEMO, ACTIVATION_NOT_SEEN, ACTIVATION_SEND_UGNOT, activationCosts, activationMsgs, activationOnChain } from "../../lib/activation"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { isUserCancellation } from "../../lib/userCancellation"
 import "./ActivationModal.css"
@@ -42,6 +42,8 @@ export function ActivationModal({ address, rawUgnot, balanceLoading, balanceErro
             const needed = BigInt(feeUgnot) + ACTIVATION_SEND_UGNOT
             if (checkedUgnot < needed) throw new Error(`Activation needs at least ${formatUgnotExact(Number(needed))}: the network fee and the 1 ugnot sent to yourself. Add GNOT to this address, then activate.`)
             await doContractBroadcast(activationMsgs(address), ACTIVATION_MEMO, { gasWanted, gasFee: feeUgnot })
+            // Adena answers at broadcast: the reload that follows must find the key on chain.
+            if (!(await activationOnChain(address))) throw new Error(`${ACTIVATION_NOT_SEEN} Reload this page in a few seconds before activating again.`)
             onSuccess()
         } catch (err: unknown) {
             // A cancel in the confirmation dialog or a reject in Adena sends nothing.

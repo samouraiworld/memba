@@ -21,11 +21,11 @@ import type { LayoutContext } from "../../types/layout"
 import { signInWithWallet } from "./walletLogin"
 import { accountMark, accountMarkAfterBlocks } from "../sign/accountMark"
 import { executeSignature } from "../sign/signer"
-import { ACTIVATION_SEND_UGNOT, activationCosts } from "../../lib/activation"
+import { ACTIVATION_NOT_SEEN, ACTIVATION_SEND_UGNOT, activationCosts, activationOnChain } from "../../lib/activation"
 import { activationRequest } from "./activation"
 import type { EvmConnect } from "../evm/useEvmSession"
 
-export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait"
+export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait" | "activatesent"
 
 export type SessionStatus = "resuming" | "guest" | "member"
 
@@ -68,8 +68,10 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const member = adena.connected && auth.isAuthenticated && !!adena.address && auth.address === adena.address
     const resuming = adena.reconnecting && !resumeTimedOut
     const status: SessionStatus = member ? "member" : resuming ? "resuming" : "guest"
+    // Activated in this page: the chain shows its key, while the wallet's copy, read at connect, has none.
+    const [activatedAddress, setActivatedAddress] = useState("")
     // Untransacted wallet in an address-only session: activation isn't optional (same rule as Layout).
-    const activationForced = member && !adena.pubkeyJSON
+    const activationForced = member && !adena.pubkeyJSON && activatedAddress !== adena.address
     const { rawUgnot, loading: balanceLoading, balance, error: balanceError, refetch: refreshBalance } = useBalance(adena.connected ? adena.address : null)
     const balanceKnown = !balanceLoading && rawUgnot !== undefined
     const spendableUgnot = balanceLoading ? undefined : rawUgnot
@@ -199,10 +201,23 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
             go("activate", res.error)
             return
         }
-        if (activationForced) { window.location.reload(); return } // re-read the wallet with its key
+        // Adena answered at broadcast: the login signature, and the session, need the key on chain first.
+        go("activatesent")
+        const visible = await activationOnChain(address, stop.signal)
+        if (epoch.current !== my) return
+        if (!visible) {
+            go(activationForced ? "activate" : "login", `${ACTIVATION_NOT_SEEN} ${activationForced ? "Check your account in a few seconds before activating again." : "Wait a few seconds, then sign in."}`)
+            return
+        }
+        if (activationForced) {
+            setActivatedAddress(address)
+            go(null)
+            restoreConnectFocus()
+            return
+        }
         setNote("Your address is active. Sign the login message to finish.")
         go("login")
-    }, [adena.address, activationForced, activationPrice, go])
+    }, [adena.address, activationForced, activationPrice, go, restoreConnectFocus])
 
     const cancel = useCallback(() => {
         epoch.current++
@@ -249,7 +264,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         network,
         balanceError,
         refreshBalance,
-        stage: activationForced && stage !== "activatewait" ? ("activate" as const) : stage,
+        stage: activationForced && stage !== "activatewait" && stage !== "activatesent" ? ("activate" as const) : stage,
         activationForced,
         /** What activation costs at the network's price, once read. */
         activationCost,
