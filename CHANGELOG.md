@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Faster Adena signatures and activation (2026-10-08)
+- Memba asks Adena once per signature, while it rechecks the chain, instead of twice in a row. Adena answers as soon as the transaction is broadcast, so its result screen no longer needs Close.
+- An address that has never sent a transaction goes straight to activation, without the login popup that could only fail. After activation, Memba waits for the network to record the key before it opens the login step, and a required activation finishes without reloading the page.
+- A locked Adena is unlocked before Memba says it is open, and an address the network already shows as active is not activated again.
+
 ### Signing works again with Adena's default mainnet node (2026-10-08)
 - Adena 1.22 sends gno.land mainnet transactions through its own node, rpc.onbloc.xyz, by default. Memba stopped trusting that host on 10-06, so every wallet action (posting, profiles, DAOs, activation) was refused before Adena opened, and the Feed only said "Could not post". Memba trusts that exact host again.
 
