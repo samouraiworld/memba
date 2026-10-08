@@ -248,6 +248,17 @@ describe("Store detail: an action on a review", () => {
         await waitFor(() => expect(mocks.mounts).toBe(before + 1))
     })
 
+    it("reviews a curated listing under its pinned name, so a renamed listing still passes the sheet's name check", async () => {
+        mocks.fetchAppStrict.mockResolvedValue(listing({ pkgPath: "gno.land/r/gnoswap/router", name: "GnoSwap DEX", appURL: "https://gnoswap.io/" }))
+        mocks.price.mockResolvedValue({ gas: 1000, ugnot: 2 })
+        show("apps/r/gnoswap/router", member)
+        expect(await screen.findByRole("heading", { name: "GnoSwap DEX" })).toBeInTheDocument()
+        await screen.findByText(`reviews for ${MEMBER}`)
+        flag()
+        await screen.findByText("sent: false")
+        expect(signed().summary).toBe("Flag a review of GnoSwap")
+    })
+
     it("opens no sheet when the fee cannot be read, and says so", async () => {
         mocks.fetchAppStrict.mockResolvedValue(listing({}))
         mocks.price.mockRejectedValue(new Error("offline"))

@@ -7,6 +7,7 @@ import { buildCatalogue, catalogueCategory, CATALOGUE_CATEGORIES, checkedLinkDat
 import { fetchAppStrict, fetchLiveCatalogue, isAppStoreV3OrLaterOn, isSafeRealmPath } from "../../../lib/appStore"
 import { ECOSYSTEM_PROJECTS } from "../../../lib/ecosystemDirectory"
 import { publisherNote, type SubjectSummary } from "../../../lib/reviews"
+import { curatedReviewName } from "../../../lib/reviewSubjects"
 import { resolveMedia } from "../../../lib/storeMedia"
 import { MIN_RATED_COUNT } from "../../../components/reviews/AppReviewStars"
 import { ErrorState, Loading, Pill } from "../../kit"
@@ -133,7 +134,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                         <section className="os-cin-panel"><h2>About this app</h2><p>{listing?.descr || entry.project?.description || entry.tagline || "The publisher has not supplied a description yet."}</p></section>
                         {/* The reviews list renders its own "Reviews" heading, so this section is labelled rather than headed. */}
                         {isAppReviewsAvailable()
-                            ? <section className="os-cin-panel" aria-label="Ratings and reviews"><ReviewsPanel subject={subject} name={entry.name} session={session} composable={composable} onRefresh={() => void detail.refetch()} /></section>
+                            ? <section className="os-cin-panel" aria-label="Ratings and reviews"><ReviewsPanel subject={subject} name={curatedReviewName(subject) ?? entry.name} session={session} composable={composable} onRefresh={() => void detail.refetch()} /></section>
                             : <section className="os-cin-panel"><h2>Community reviews</h2><p>Onchain app reviews are not available here yet.</p></section>}
                         {more.length > 0 && <Shelf id="store-more" title={`More in ${entry.category}`}>
                             <div className="os-cin-grid os-cin-grid--tiles">{more.map((other) => <StoreCard key={other.id} entry={other} summary={summaries.get(entrySubject(other))} onOpen={() => open(specForTarget({ kind: "app", app: "store", section: appSection(other) })!)} />)}</div>
