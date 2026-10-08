@@ -32,6 +32,9 @@ import {
     isRealmValid,
     ACTIVE_NETWORK_KEY,
     MEMBA_DAO,
+    isConnect4Enabled,
+    connect4PathFor,
+    isConnect4Live,
 } from './config'
 import { SITEMAP_NETWORK } from './sitemap'
 import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
@@ -471,9 +474,9 @@ describe('getTelemetryRpcUrls', () => {
 describe('network reduction — test13 + mainnet + onyx only', () => {
     it('exposes only test13, mainnet and onyx', () => {
         const keys = Object.keys(NETWORKS).sort()
-        // mainnet (`gnoland-1`) is the default and only visible network since
-        // 2026-09-23. onyx (`onyx-1`) is the testnet, hidden until Memba
-        // publishes there. test13 stays as a hidden entry (the e2e fixture);
+        // mainnet (`gnoland-1`) is the default. onyx (`onyx-1`) is the testnet,
+        // offered since Connect 4 went live there (2026-10-07). test13 stays as a
+        // hidden entry (the e2e fixture);
         // Pearl, Sapphire, Topaz and Betanet have no entry: their links
         // redirect to mainnet (RETIRED_NETWORKS).
         expect(keys).toEqual(['mainnet', 'onyx', 'test13'])
@@ -493,12 +496,13 @@ describe('network reduction — test13 + mainnet + onyx only', () => {
         }
     })
 
-    it('onyx is a hidden testnet that opens only the Launchpad realms and gates every user DAO', () => {
+    it('onyx is an offered testnet that opens only the Launchpad realms and gates every user DAO', () => {
         const onyx = NETWORKS.onyx
-        expect(onyx).toMatchObject({ chainId: 'onyx-1', hidden: true, isTestnet: true, realmsDeployed: false })
+        expect(onyx).toMatchObject({ chainId: 'onyx-1', isTestnet: true, realmsDeployed: false })
+        expect(onyx.hidden).toBeFalsy()
         expect(retiredNetworkSuccessor('onyx')).toBeNull()
         expect(onyx.userDaos).toEqual({ create: false, channelsCompanion: false })
-        expect(VISIBLE_NETWORKS.onyx).toBeUndefined()
+        expect(VISIBLE_NETWORKS.onyx).toBe(onyx) // in the network menu since Connect 4 went live (2026-10-07)
         expect(networkHasRealms('onyx')).toBe(false)
         expect(networkHasAllowlistedRealms('onyx')).toBe(true)
         for (const realm of ['config', 'tokens', 'sales', 'nft', 'drops', 'market', 'curation']) {
@@ -508,11 +512,11 @@ describe('network reduction — test13 + mainnet + onyx only', () => {
         for (const path of ['gno.land/r/samcrew/launchpad/nft/v2', MEMBA_DAO.realmPath, MEMBA_DAO.feedPath, MEMBA_DAO.escrowPath, reviewsPathFor('onyx')]) {
             expect(isRealmValidOn('onyx', path), path).toBe(false)
         }
-        // Reachable by URL and as a build default, like every hidden network.
+        // Reachable by URL and as a build default, and restored from a stored
+        // choice now that it is offered (Memba OS only runs on such a network).
         expect(resolveNetworkKey({ pathname: '/onyx/dao' })).toBe('onyx')
         expect(resolveDefaultNetwork('onyx')).toBe('onyx')
-        // Never restored from a stored choice while hidden.
-        expect(resolveNetworkKey({ pref: 'onyx' })).toBe(DEFAULT_NETWORK)
+        expect(resolveNetworkKey({ pref: 'onyx' })).toBe('onyx')
         expect(isTrustedRpcDomain(onyx.rpcUrl)).toBe(true)
     })
 
@@ -1156,7 +1160,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.
-        for (const k of ['test13', 'onyx']) {
+        for (const k of ['test13']) {
             expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
             expect(NETWORKS[k].hidden).toBe(true)
         }
@@ -1166,7 +1170,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('offers the ACTIVE network even when it is hidden', async () => {
         const { selectableNetworksFor } = await import('./config')
-        for (const hidden of ['test13', 'onyx']) {
+        for (const hidden of ['test13']) {
             const offered = selectableNetworksFor(hidden)
             expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
             // A one-option <select> cannot fire onChange — there must be somewhere to go.
@@ -1192,5 +1196,36 @@ describe("candidature realm gate", () => {
 
     it("is open where the realm is published", () => {
         expect(isRealmValidOn("test13", MEMBA_DAO.candidaturePath)).toBe(true)
+    })
+})
+
+describe("connect4 realm path", () => {
+    afterEach(() => vi.unstubAllEnvs())
+
+    it("is set on onyx only, never on mainnet", () => {
+        expect(connect4PathFor("onyx")).toBe("gno.land/r/samcrew/connect4")
+        expect(connect4PathFor("mainnet")).toBeNull()
+        expect(connect4PathFor("gnoland1")).toBeNull()
+        expect(connect4PathFor("nope")).toBeNull()
+    })
+
+    it("honours the env override on testnets only", () => {
+        vi.stubEnv("VITE_CONNECT4_REALM_PATH", "gno.land/r/x/c4")
+        expect(connect4PathFor("onyx")).toBe("gno.land/r/x/c4")
+        expect(connect4PathFor("mainnet")).toBeNull()
+    })
+
+    it("is off unless the flag is exactly true", () => {
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "1")
+        expect(isConnect4Enabled()).toBe(false)
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "true")
+        expect(isConnect4Enabled()).toBe(true)
+    })
+
+    it("isConnect4Live follows the flag and the active network's realm", () => {
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "true")
+        expect(isConnect4Live()).toBe(connect4PathFor(ACTIVE_NETWORK_KEY) !== null)
+        vi.stubEnv("VITE_ENABLE_CONNECT4", "")
+        expect(isConnect4Live()).toBe(false)
     })
 })

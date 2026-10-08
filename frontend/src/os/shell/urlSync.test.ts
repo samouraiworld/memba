@@ -10,6 +10,13 @@ const MSIG = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
 afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
+    it("round-trips the connect4 lobby and a game window", () => {
+        expect(windowToken({ kind: "app", app: "arcade", section: "connect4" })).toBe("arcade.connect4")
+        expect(windowToken({ kind: "app", app: "arcade", section: "connect4/12" })).toBe("arcade.connect4.12")
+        expect(tokenToTarget("arcade.connect4.12")).toMatchObject({ kind: "app", app: "arcade", section: "connect4/12" })
+        expect(tokenToTarget("arcade.connect4.x")).toBeNull()
+    })
+
     it("round-trip every linkable window", () => {
         for (const url of ["/os/feed", "/os/feed/post/12", "/os/news", "/os/news/why-memba", "/os/meet", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/daos/dao/gno.land/r/alice/team/settings", "/os/daos/dao/gno.land/r/gov/dao/proposal/3", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)

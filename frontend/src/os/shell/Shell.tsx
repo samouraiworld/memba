@@ -28,7 +28,7 @@ import { useOsSession } from "./useOsSession"
 import { useEvmSession } from "../evm/useEvmSession"
 import { EvmConnectModal } from "../evm/EvmConnectModal"
 import { SignerProvider } from "../sign/SignerProvider"
-import { setWalletActionGuard } from "../../lib/grc20"
+import { bumpWalletActionEpoch, setWalletActionGuard } from "../../lib/grc20"
 import { EVM_ENABLED } from "../../lib/chain/flag"
 import { PhoneShell } from "../phone/PhoneShell"
 import { LiveTicker } from "../apps/live/LiveTicker"
@@ -157,7 +157,7 @@ export function Shell() {
         },
     })
     const memberNow = useRef(session.status === "member")
-    useLayoutEffect(() => { memberNow.current = session.status === "member" }, [session.status])
+    useLayoutEffect(() => { memberNow.current = session.status === "member"; bumpWalletActionEpoch() }, [session.status])
     useLayoutEffect(() => {
         setWalletActionGuard(() => memberNow.current)
         return () => setWalletActionGuard(null)

@@ -54,6 +54,12 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const [resumeTimedOut, setResumeTimedOut] = useState(false)
     // Bumped by cancel/disconnect: a step still awaiting Adena then stands down.
     const epoch = useRef(0)
+    // Stops the account watch of an activation Adena has not answered, with the epoch.
+    const watch = useRef<AbortController | null>(null)
+    useEffect(() => {
+        const current = watch
+        return () => current.current?.abort()
+    }, [])
     const connectOpener = useRef<HTMLElement | null>(null)
     const { onSignedIn } = opts
 
@@ -118,6 +124,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         accountListener.current = true
         g.On("changedAccount", () => {
             epoch.current++
+            watch.current?.abort()
             latest.current.auth.logout()
             latest.current.adena.disconnect()
             setStage(null)
@@ -220,6 +227,9 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
     const activate = useCallback(async () => {
         if (!activationPrice) return
         const my = ++epoch.current
+        watch.current?.abort()
+        const stop = new AbortController()
+        watch.current = stop
         // Leaves the activate step at once: a second click can't send a second transaction.
         go("activatewait")
         // 1 ugnot to the address itself: any first transaction registers the key. Signed through the OS
@@ -230,6 +240,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
             // A "rejected" reply is confirmed against the account, so a plain cancel reads as one.
             before: () => accountMark(address),
             after: () => accountMarkAfterBlocks(address),
+            stop: stop.signal,
         })
         if (epoch.current !== my) return
         if (res.outcome !== "sent") {
@@ -245,6 +256,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
 
     const cancel = useCallback(() => {
         epoch.current++
+        watch.current?.abort()
         setActivationPrice(null)
         go(null)
         restoreConnectFocus()
@@ -259,6 +271,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
 
     const disconnect = useCallback(() => {
         epoch.current++
+        watch.current?.abort()
         adena.disconnect()
         auth.logout()
         go(null)

@@ -16,6 +16,7 @@ import { FeedGate } from "../components/ui/FeedGate"
 import { GameGate } from "../components/ui/GameGate"
 import { SpaceInvadersGate } from "../components/ui/SpaceInvadersGate"
 import { BarricadeGate } from "../components/ui/BarricadeGate"
+import { Connect4Gate } from "../components/ui/Connect4Gate"
 import { AppStoreGate } from "../components/ui/AppStoreGate"
 import { ValoperRouteRedirect } from "../components/validators/ValoperRouteRedirect"
 
@@ -103,6 +104,7 @@ const SpaceInvadersGame = lazy(() => import("../pages/SpaceInvadersGame"))
 
 // ── MEMBA: BARRICADE game (lazy — gated behind VITE_ENABLE_BARRICADE) ──
 const BarricadeGame = lazy(() => import("../pages/BarricadeGame"))
+const Connect4Game = lazy(() => import("../pages/Connect4Game"))
 
 // ── Organizations page (lazy — v2.22.0) ──
 const OrganizationsPage = lazy(() => import("../pages/OrganizationsPage"))
@@ -300,6 +302,9 @@ export function networkRouteChildren() {
 
       {/* MEMBA: BARRICADE — daily lane-defense (gated behind VITE_ENABLE_BARRICADE) */}
       <Route path="game/barricade" element={<Suspense fallback={<PageLoader />}><BarricadeGate><BarricadeGame /></BarricadeGate></Suspense>} />
+      {/* Connect 4 — staked two-player, testnet only (VITE_ENABLE_CONNECT4) */}
+      <Route path="game/connect4" element={<Suspense fallback={<PageLoader />}><Connect4Gate><Connect4Game /></Connect4Gate></Suspense>} />
+      <Route path="game/connect4/:id" element={<Suspense fallback={<PageLoader />}><Connect4Gate><Connect4Game /></Connect4Gate></Suspense>} />
 
       {/* Candidature — Memba DAO membership application (v2.28) */}
       <Route path="candidature" element={<Suspense fallback={<PageLoader />}><CandidaturePage /></Suspense>} />

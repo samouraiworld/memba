@@ -59,6 +59,25 @@ describe("ChainMismatchBanner — test13 chainId/key resolution", () => {
  * through `selectableNetworksFor`; this one resolved against the full NETWORKS map
  * and rendered a literal "Switch Memba to Betanet (gnoland1)" button.
  */
+describe("ChainMismatchBanner — never offers to follow the wallet onto a testnet", () => {
+    it("does NOT offer to switch Memba to Onyx when the wallet was left there", () => {
+        render(
+            <ChainMismatchBanner
+                walletChainId="onyx-1"
+                membaChainId="gnoland-1"
+                networks={{
+                    mainnet: { label: "gno.land", chainId: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" },
+                    onyx: { label: "Onyx", chainId: "onyx-1", rpcUrl: "https://rpc.onyx.testnets.gno.land:443", isTestnet: true },
+                }}
+                switchMembaNetwork={vi.fn()}
+                addAndSwitchWallet={vi.fn().mockResolvedValue(true)}
+            />,
+        )
+        expect(screen.queryByRole("button", { name: /switch memba to/i })).toBeNull()
+        expect(screen.getByText(/Network mismatch/)).toBeInTheDocument()
+    })
+})
+
 describe("ChainMismatchBanner — never offers to follow the wallet onto a HIDDEN network", () => {
     const withHidden = {
         mainnet: { label: "gno.land", chainId: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" },

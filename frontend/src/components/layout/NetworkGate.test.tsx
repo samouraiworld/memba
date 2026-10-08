@@ -101,7 +101,7 @@ describe("NetworkGate — retired networks redirect to their successor", () => {
         expect(notice()?.textContent).toContain(text)
     })
 
-    it("leaves hidden-but-not-retired deep links alone (test13, onyx)", () => {
+    it("leaves non-retired deep links alone (test13 hidden, onyx offered)", () => {
         expect(renderAt("/test13/create-token")).toBe("/test13/create-token")
         expect(renderAt("/onyx/directory")).toBe("/onyx/directory")
         expect(notice()).toBeNull()

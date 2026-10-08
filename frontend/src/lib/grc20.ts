@@ -60,6 +60,9 @@ export interface AminoMsg {
  *   in the one shape Adena accepts: string addresses and ONE coin string
  *   ("<n>ugnot"). The old Amino spelling `bank/MsgSend` with an array amount
  *   is what Adena rejected in #1078; it still throws here.
+ * - /auth.m_create_session and /auth.m_revoke_session (Quick play) pass
+ *   through after validation; a create must be limited to one vm/exec realm
+ *   path, a real expiry, and a ugnot spend limit and period.
  * - Anything else throws: an unknown type must never reach the wallet.
  *
  * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
@@ -93,6 +96,30 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
             }
             return { type: "/bank.MsgSend", value: { from_address, to_address, amount } }
         }
+        if (m.type === "/auth.m_create_session" || m.type === "/auth.m_revoke_session") {
+            const v = m.value
+            const sk = v.session_key as { type_url?: unknown; value?: unknown } | undefined
+            // 35-byte secp256k1 PubKey proto = exactly 48 base64 chars (one "=" pad).
+            if (typeof v.creator !== "string" || !/^g1[02-9ac-hj-np-z]{38}$/.test(v.creator)
+                || !sk || sk.type_url !== "/tm.PubKeySecp256k1" || typeof sk.value !== "string" || !/^[A-Za-z0-9+/]{47}=$/.test(sk.value)) {
+                throw new Error("toAdenaMessages: a session message needs a g1 creator and a secp256k1 session key")
+            }
+            const session_key = { type_url: sk.type_url, value: sk.value }
+            if (m.type === "/auth.m_revoke_session") {
+                return { type: m.type, value: { creator: v.creator, session_key } }
+            }
+            // Never sign an unrestricted or never-expiring session: one realm path, a bounded expiry, a daily coin cap.
+            const { allow_paths: paths, expires_at, spend_limit, spend_period } = v
+            const now = Date.now() / 1000
+            if (!Array.isArray(paths) || paths.length !== 1 || typeof paths[0] !== "string"
+                || !/^vm\/exec:gno\.land\/r\/[a-z0-9_-]+(\/[a-z0-9_-]+)+$/.test(paths[0])
+                || typeof expires_at !== "string" || !/^[1-9][0-9]{9}$/.test(expires_at) || Number(expires_at) <= now || Number(expires_at) > now + 86400 + 300
+                || typeof spend_limit !== "string" || !/^[1-9][0-9]{0,18}ugnot$/.test(spend_limit) || parseInt(spend_limit, 10) > 10_000_000
+                || spend_period !== "86400") {
+                throw new Error("toAdenaMessages: a session must be limited to one realm, expire within 24h, and cap daily spending")
+            }
+            return { type: m.type, value: { creator: v.creator, session_key, expires_at, allow_paths: [paths[0]], spend_limit, spend_period } }
+        }
         throw new Error(`toAdenaMessages: unsupported message type: ${m.type}`)
     })
 }
@@ -107,6 +134,8 @@ let _walletRpcUrl: string | null = null
 let _walletRpcTrusted = false
 let _walletChainId: string | null = null
 let _walletAddress: string | null = null
+// Bumped whenever the connected account or the OS session changes (see walletActionTicket).
+let _walletEpoch = 0
 
 /** Called by useAdena to sync the wallet's active RPC validation state +
  *  the wallet's active chainId (used to block wrong-chain broadcasts) + the
@@ -115,6 +144,7 @@ export function setWalletRpcContext(url: string | null, trusted: boolean, chainI
     _walletRpcUrl = url
     _walletRpcTrusted = trusted
     _walletChainId = chainId
+    if (address !== _walletAddress) _walletEpoch++
     _walletAddress = address
 }
 
@@ -227,6 +257,28 @@ function nodeLines(nodeError: unknown, log: string): [string, string, string] {
 export function setWalletActionGuard(guard: (() => boolean) | null): void {
     _walletActionGuard = guard
 }
+
+/** The OS calls this when its session changes (lock, sign-out, sign-in). */
+export function bumpWalletActionEpoch(): void { _walletEpoch++ }
+
+/**
+ * For signing that never opens the wallet (Quick play): the returned check
+ * throws once the OS session or connected account that started the action
+ * has changed, even if a new one is in place. Call it before signing and
+ * right before sending.
+ */
+export function walletActionTicket(): () => void {
+    const epoch = _walletEpoch, address = _walletAddress
+    return () => {
+        assertWalletActionAllowed()
+        if (_walletEpoch !== epoch || _walletAddress !== address) throw new WalletActionBlockedError()
+    }
+}
+
+/** The wallet answered with a failure. Adena also answers "rejected" when its window closes after Confirm, so this alone is no proof nothing was sent. */
+export class WalletRefusedError extends Error { override name = "WalletRefusedError" }
+/** Nothing was sent: the review was dismissed, or the account was seen unchanged after a "rejected" reply. */
+export class NothingSentError extends Error { override name = "NothingSentError" }
 
 function assertWalletActionAllowed(allowOsActivation = false): void {
     if (_walletActionGuard && !_walletActionGuard() && !allowOsActivation) throw new WalletActionBlockedError()
@@ -454,7 +506,7 @@ async function broadcastContract(msgs: AminoMsg[], memo: string, opts?: Broadcas
     const { error: nodeError, log: nodeLog, hash } = res.data ?? {}
     const failure = typeof nodeLog === "string" && nodeLog
         ? new ChainRejectedError(nodeError, nodeLog, hash)
-        : new Error(res.message || res.data?.message || "Transaction failed")
+        : new WalletRefusedError(res.message || res.data?.message || "Transaction failed")
     // A refusal in the wallet and a domain error (insufficient funds, not a member…) are not faults to report.
     if (res.type !== "TRANSACTION_REJECTED" && !NOT_A_FAULT.test(failure.message)) Sentry.captureException(failure, { tags: { memba_path: "tx-broadcast" } })
     throw failure
