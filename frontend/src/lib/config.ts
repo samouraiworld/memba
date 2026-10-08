@@ -930,6 +930,9 @@ export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
     "testnets.gno.land", // covers rpc.test13.testnets.gno.land (official test13) + others
     "rpc.gno.land",
+    // Adena's default gnoland-1 RPC since Adena 1.22.0 (its storage migration moves
+    // users off rpc.gno.land), so Memba must accept it or every wallet write is blocked.
+    "rpc.onbloc.xyz",
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
     // Convention: https://rpc.{chain}.samourai.live (e.g. rpc.mainnet.samourai.live)
     "samourai.live",
