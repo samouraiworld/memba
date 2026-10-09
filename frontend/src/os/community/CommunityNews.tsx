@@ -57,13 +57,13 @@ export function CommunityNewsPrompt({ enabled, openNews }: { enabled: boolean; o
     }, [ready, state])
     if (!visible || !ready || state === "read") return null
     return <aside className="os-community-prompt os-glass" aria-label="News announcement">
-        <button type="button" className="os-community-close os-btn os-quiet" aria-label="Dismiss community news" onClick={markCommunityNewsRead}>×</button>
+        <button type="button" className="os-community-close os-btn os-quiet" aria-label="Dismiss community news" onClick={() => { setVisible(false); markCommunityNewsRead() }}>×</button>
         <div role="status">
             <p className="os-community-kicker">News</p>
             <h2>{MEMBA_COMMUNITY_TITLE}</h2>
             <p>{MEMBA_COMMUNITY_COPY}</p>
         </div>
         <CommunityLinks />
-        <button type="button" className="os-btn os-quiet" onClick={() => { markCommunityNewsRead(); openNews() }}>Read in News</button>
+        <button type="button" className="os-btn os-quiet" onClick={() => { setVisible(false); markCommunityNewsRead(); openNews() }}>Read in News</button>
     </aside>
 }
