@@ -202,7 +202,7 @@ test.describe('native OS Settings', () => {
         await expect(settings.getByRole('button', { name: 'Sign in' })).toBeVisible()
         await settings.getByRole('link', { name: 'Privacy' }).click()
         await expect(settings.getByRole('heading', { name: 'Privacy', level: 2 })).toBeVisible()
-        await expect(settings.getByRole('link', { name: 'privacy@memba.club' })).toBeVisible()
+        await expect(settings.getByRole('link', { name: 'support@samourai.coop' })).toBeVisible()
 
         await page.goto(`${OS_FLAGS_ON}/os/tokens`)
         // Token Launchpad is live on mainnet; it must not offer early access.

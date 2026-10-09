@@ -30,8 +30,8 @@ export function PrivacyView() {
             <p>After deletion, Memba and its validator-monitoring service each retain a pseudonymized digest of the sign-in identity and the deletion date to reject old sign-in tokens. These markers contain no email address, name or consent history and have no automatic expiry. This browser also keeps deletion progress so another open tab cannot restart the account while deletion finishes.</p>
         </div>
         <div className="os-set-card"><h3>Your data</h3>
-            <p>Settings → Account: download your account and every email request you made, stop any email, or delete your account. Deleting removes your Memba email and consent history, your Memba email subscriptions at Resend, your monitoring profile and validator alerts, and your sign-in account. The shared Resend contact, including your address and Memba opt-out preferences, remains with our email provider; deleting Memba does not erase that record or affect subscriptions to other services such as Zenao. To request removal of the shared record, contact privacy@memba.club. On-chain data cannot be deleted by anyone and is not affected.</p>
-            <p>Questions: <a href="mailto:privacy@memba.club">privacy@memba.club</a>.</p>
+            <p>Settings → Account: download your account and every email request you made, stop any email, or delete your account. Deleting removes your Memba email and consent history, your Memba email subscriptions at Resend, your monitoring profile and validator alerts, and your sign-in account. The shared Resend contact, including your address and Memba opt-out preferences, remains with our email provider; deleting Memba does not erase that record or affect subscriptions to other services such as Zenao. To request removal of the shared record, contact support@samourai.coop. On-chain data cannot be deleted by anyone and is not affected.</p>
+            <p>Questions: <a href="mailto:support@samourai.coop">support@samourai.coop</a>.</p>
         </div>
     </>
 }
