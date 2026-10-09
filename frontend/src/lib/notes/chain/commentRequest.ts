@@ -83,10 +83,13 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     if (Date.now() >= quote.expiresAtMs || BigInt(h) > BigInt(quote.expiresAtHeight) || BigInt(h) < BigInt(height)) throw new NotesChainError('stale')
     await assertFeeStillCovers(quote.networkFeeUgnot, () => freshFeeForGasWanted(quote.gasWanted)); allowed()
   }
-  const label = op.action.kind === 'add' ? 'Post public comment' : `${op.action.kind[0].toUpperCase()}${op.action.kind.slice(1)} comment`
+  const label = op.action.kind === 'add' ? 'Post public comment' : op.action.kind === 'delete' ? 'Delete comment'
+    : op.action.kind === 'resolve' ? (op.action.resolved ? 'Resolve comment' : 'Reopen comment') : (op.action.hidden ? 'Hide comment' : 'Unhide comment')
+  const targetState: [string, string][] = op.action.kind === 'resolve' ? [['Thread after confirmation', op.action.resolved ? 'Resolved' : 'Open']]
+    : op.action.kind === 'hide' ? [['Visibility after confirmation', op.action.hidden ? 'Hidden' : 'Visible']] : []
   return {
     title: label, summary: label, label: () => label,
-    lines: () => [['Account', op.caller], ['Network', client.chainId], ['Note', op.noteId], ['Comment', op.commentId], ['Operation', op.operationId],
+    lines: () => [['Account', op.caller], ['Network', client.chainId], ['Note', op.noteId], ['Comment', op.commentId], ['Operation', op.operationId], ...targetState,
       [quote.source === 'simulation' ? 'Simulated deposit (ugnot)' : 'Estimated deposit (ugnot)', quote.estimatedDepositUgnot], ['Maximum deposit (ugnot)', cap], ['Network fee (ugnot)', String(quote.networkFeeUgnot)],
       ...(op.action.kind === 'add' ? [['Body revision', op.action.bodyRevision], ['Quoted passage', op.action.anchor || '(none)'], ['Comment text', op.action.body]] as [string, string][] : [])],
     warns: ['Public comments and earlier versions remain in chain history.'],

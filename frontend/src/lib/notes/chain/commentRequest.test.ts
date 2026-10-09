@@ -61,6 +61,24 @@ describe('public comment intentions', () => {
       expect(await request.verify!(undefined, hash, undefined)).toBe(true)
     }
   })
+  it.each([
+    [{ kind: 'resolve', revision: '1', resolved: true }, 'Resolve comment', 'Thread after confirmation', 'Resolved', 'ResolveComment', true],
+    [{ kind: 'resolve', revision: '1', resolved: false }, 'Reopen comment', 'Thread after confirmation', 'Open', 'ResolveComment', false],
+    [{ kind: 'hide', revision: '1', hidden: true }, 'Hide comment', 'Visibility after confirmation', 'Hidden', 'HideComment', true],
+    [{ kind: 'hide', revision: '1', hidden: false }, 'Unhide comment', 'Visibility after confirmation', 'Visible', 'HideComment', false],
+  ] as const)('reviews %s with the same target state as its signed message', async (action, label, field, target, func, flag) => {
+    const s = setup(action)
+    s.setComment(action.kind === 'resolve' ? { resolved: !flag } : { hidden: !flag })
+    const request = await preparePublicCommentRequest(s.options)
+    expect.soft(request.title).toBe(label)
+    expect.soft(request.summary).toBe(label)
+    expect.soft(request.label(undefined)).toBe(label)
+    expect.soft(request.lines(undefined)).toContainEqual([field, target])
+    const message = request.prepare(undefined).msgs[0]
+    expect(message.value).toMatchObject({ func, args: [encode64(new Uint8Array(16).fill(1)), encode64(new Uint8Array(16).fill(2)), '1', String(flag), encode64(new Uint8Array(16).fill(3))] })
+    await request.send(undefined, async () => {})
+    expect(wallet.send.mock.calls[0][0]).toEqual([message])
+  })
   it('refuses malformed comment descriptors without blocking another note or another comment ID', async () => {
     const s = setup(), request = await preparePublicCommentRequest(s.options); await request.send(undefined, async () => {})
     const receipt = (await s.intents.get(s.scope, operationId))!
