@@ -24,6 +24,9 @@ Full changelogs are split by version range for easier navigation:
 - Radio opens as a compact floating player with artwork, track information and Play/Pause. Volume, stations, attribution and project links are available in its controls popover.
 - Live playback honours the schedule’s starting offset when joining a track already in progress.
 - Hide keeps the stream playing; the top-bar Radio button brings the widget back. Stop radio or locking Memba ends playback. The widget adapts to phones and follows the desktop theme.
+### Official Memba OS community channels (2026-10-09)
+- A quiet community News card appears once after 20 seconds on the desktop, waiting while booting, connecting, reviewing or signing a transaction, using a Meet room or Radio widget, or recently interacting. Presentation and dismissal are remembered on this browser; the card does not open automatically on phones.
+- The official X account (@membaclub) and Telegram invitation stay available in News, Notifications and About → Community without connecting a wallet.
 
 ### Memba realm activity in the watcher channel (2026-10-08)
 - The existing Discord watcher can report confirmed calls, package changes and realm events across the samcrew namespace: governance, games, feed, App Store, escrow and Launchpad. Financial alarms keep the same channel.

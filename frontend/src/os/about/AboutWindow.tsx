@@ -6,6 +6,7 @@ import type { WindowSpec } from "../shell/windows"
 import { specForTarget } from "../shell/windows"
 import { applyToJoinSpec } from "../daos/joinSpec"
 import { ABOUT_LINKS, LICENSE_URL, bootEntryPath, buildCommit } from "./aboutInfo"
+import { CommunityLinks } from "../community/CommunityNews"
 import { CooperationEngine } from "./engine/CooperationEngine"
 import "./about.css"
 
@@ -57,6 +58,11 @@ export function AboutWindow({ chainId, openApp, open }: {
                 {isFeedEnabled() && <button type="button" className="os-btn os-quiet" onClick={() => open(applyToJoinSpec())}>Write a #join post</button>}
             </div>
             {isFeedEnabled() && <p className="os-sub os-flush">{COMMUNITY_MEMBERSHIP_COPY[membership]}</p>}
+            <section aria-label="Memba community">
+                <h3 className="os-h">Community</h3>
+                <p className="os-sub">Follow Memba OS updates and meet other early users.</p>
+                <CommunityLinks />
+            </section>
             <nav className="os-about-links" aria-label="Memba links">
                 {ABOUT_LINKS.map(({ label, href }) => <a key={href} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}
             </nav>

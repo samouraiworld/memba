@@ -19,6 +19,7 @@ import { LockScreen } from "./LockScreen"
 import { BootScreen } from "../boot/BootScreen"
 import { bootLines, shouldBoot } from "../boot/boot"
 import { readSkipIntro, useLiveWidget } from "../preferences"
+import { CommunityNewsPrompt } from "../community/CommunityNews"
 import { MenuBar } from "./MenuBar"
 import { activeOsNetwork, takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
@@ -538,6 +539,7 @@ export function Shell() {
             {meetStage}
             </MeetStageContext.Provider>
             </div>
+            <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage && !win.wins.some((w) => w.app === "radio" && !w.min)} openNews={() => openApp("news")} />
             {shared}
         </SignerProvider>
         </LiveActivityProvider>

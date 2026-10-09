@@ -17,6 +17,7 @@ import type { OsSession } from "../shell/useOsSession"
 import { WindowBody } from "../shell/WindowFrame"
 import { sendSpec, specForTarget, type OsWindow, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
+import { CommunityNews } from "../community/CommunityNews"
 import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
 import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
 import { formatUgnot } from "../wallet/send"
@@ -78,6 +79,7 @@ export function PhoneShell(p: PhoneShellProps) {
         content = (
             <Sheet title="Notifications" onHome={() => setSheet(null)}>
                 <div className="os-stack os-tight">
+                    <CommunityNews />
                     <AwaitingSignatures awaiting={awaiting} onOpen={go(() => p.openApp("multisig"))} />
                     {signer.notices.map((n) => (
                         <div key={n.id} className={`os-nc os-nc-${n.kind}`}><span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span></div>
