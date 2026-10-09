@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/mail"
+	"strings"
 	"time"
 )
 
@@ -27,6 +29,7 @@ func (h *handler) afterEmailChange(ctx context.Context, a Account, previous stri
 type resendEvent struct {
 	Type string `json:"type"`
 	Data struct {
+		From         string   `json:"from"`
 		Email        string   `json:"email"`
 		Unsubscribed bool     `json:"unsubscribed"`
 		To           []string `json:"to"`
@@ -64,6 +67,13 @@ func (h *handler) webhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "email.bounced", "email.complained":
+		// Signed webhooks are team-wide. A Zenao complaint is not a Memba
+		// withdrawal; only our exact sender can change this local state.
+		sender, parseErr := mail.ParseAddress(ev.Data.From)
+		if parseErr != nil || !strings.EqualFold(sender.Address, "news@mail.memba.club") {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if ev.Type == "email.bounced" && ev.Data.Bounce.Type != "Permanent" {
 			w.WriteHeader(http.StatusNoContent)
 			return

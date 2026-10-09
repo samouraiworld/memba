@@ -276,7 +276,7 @@ func TestExportHoldsTheConsentsAndDeleteGoesThroughTheProviderFirst(t *testing.T
 		t.Fatalf("delete: %d", rec.Code)
 	}
 	_ = f.h.db.QueryRow("SELECT COUNT(*) FROM consents").Scan(&n)
-	if n != 0 || f.fake.sub("ada@example.org", "top_news") != "" {
+	if n != 0 || f.fake.sub("ada@example.org", "top_news") == "opt_in" {
 		t.Fatalf("after delete: %d consents, contact %q", n, f.fake.sub("ada@example.org", "top_news"))
 	}
 }
@@ -336,7 +336,7 @@ func TestAnAddressChangeLetsGoOfTheOldContactFirst(t *testing.T) {
 	if got := decode[Account](t, call(t, f.mux, "GET", "/api/account", newTok, nil)); got.Email != "ada@new.example" {
 		t.Fatalf("retry: %+v", got)
 	}
-	if f.fake.sub("ada@example.org", "top_news") != "" {
+	if f.fake.sub("ada@example.org", "top_news") == "opt_in" {
 		t.Fatal("the old address is still a contact")
 	}
 	all, _ := consents(t.Context(), f.h.db, accountID(t, consentFixture{mux: f.mux, tok: newTok}))
@@ -368,7 +368,7 @@ func TestDeleteRemovesTheContactOfEveryAddressTheAccountGave(t *testing.T) {
 	if rec := call(t, f.mux, "POST", "/api/account/delete", f.tok, nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete: %d", rec.Code)
 	}
-	if f.fake.sub("old@example.org", "top_ann") != "" || f.fake.sub("ada@example.org", "top_news") != "" {
+	if f.fake.sub("old@example.org", "top_ann") == "opt_in" || f.fake.sub("ada@example.org", "top_news") == "opt_in" {
 		t.Fatal("a contact outlived the account")
 	}
 }
@@ -497,13 +497,13 @@ func TestAConfirmInTheAddressChangeWindowLeavesNoContact(t *testing.T) {
 	f := newConsentFixture(t)
 	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("newsletter"))
 	link := lastLink(t, f.fake)
-	f.fake.afterDelete = func() {
+	f.fake.afterTopicPatch = func() {
 		if rec := call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}); rec.Code != http.StatusConflict {
 			t.Errorf("confirm in the window: %d", rec.Code)
 		}
 	}
 	call(t, f.mux, "GET", "/api/account", sign(t, f.k, claims(func(c jwt.MapClaims) { c["email"] = "ada@new.example" })), nil)
-	if f.fake.sub("ada@example.org", "top_news") != "" {
+	if f.fake.sub("ada@example.org", "top_news") == "opt_in" {
 		t.Fatal("the old address kept a contact the account no longer has")
 	}
 	var reason string
@@ -518,11 +518,11 @@ func TestAConfirmInTheDeleteWindowLeavesNoContact(t *testing.T) {
 	f := newConsentFixture(t)
 	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("announcements"))
 	link := lastLink(t, f.fake)
-	f.fake.afterDelete = func() { call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}) }
+	f.fake.afterTopicPatch = func() { call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": link}) }
 	if rec := call(t, f.mux, "POST", "/api/account/delete", f.tok, nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete: %d", rec.Code)
 	}
-	if f.fake.sub("ada@example.org", "top_ann") != "" {
+	if f.fake.sub("ada@example.org", "top_ann") == "opt_in" {
 		t.Fatal("a contact outlived the account")
 	}
 }

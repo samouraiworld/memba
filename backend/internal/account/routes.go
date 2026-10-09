@@ -30,7 +30,7 @@ func (h *handler) export(w http.ResponseWriter, r *http.Request, a Account) {
 	writeJSON(w, Export{Account: a, Consents: all})
 }
 
-// delete removes the Resend contact of every address the account ever gave
+// delete withdraws Memba topics for every address the account ever gave
 // first: if one fails, Memba deletes nothing and the person can try again.
 // The account operation guard keeps this address set stable through provider
 // I/O and the final cascade. On failure, every local cleanup reference stays
@@ -42,9 +42,9 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request, a Account) {
 		return
 	}
 	for _, email := range emails {
-		if err := h.resend.deleteContact(r.Context(), email); err != nil {
-			slog.Error("account: delete email contact", "error", err)
-			writeError(w, http.StatusBadGateway, "the email provider did not answer, so Memba deleted nothing yet (the provider may have removed some addresses already); try again")
+		if err := h.withdrawMemba(r.Context(), email); err != nil {
+			slog.Error("account: withdraw email topics", "error", err)
+			writeError(w, http.StatusBadGateway, "the email provider did not answer, so Memba deleted nothing yet (the provider may have disabled some Memba subscriptions already); try again")
 			return
 		}
 	}
@@ -248,6 +248,10 @@ func (h *handler) confirm(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.resend.setTopic(ctx, b.Email, h.topicIDs[b.Topic], true); err != nil {
 		_ = h.undoOptIn(ctx, b) // the call may have been applied before it failed; failures are logged
+		if errors.Is(err, errGloballyUnsubscribed) {
+			writeError(w, http.StatusConflict, "This address is unsubscribed from emails across our shared email provider. Memba cannot change that global preference.")
+			return
+		}
 		slog.Error("account: opt in", "error", err)
 		writeError(w, http.StatusBadGateway, "the email provider did not answer; try the link again")
 		return
@@ -292,19 +296,18 @@ func (h *handler) undoOptIn(ctx context.Context, b boundRequest) error {
 	return nil
 }
 
-// dropContact deletes an address's contact once more after its rows are
-// withdrawn or deleted: a confirmation that slipped in between the first
-// delete and the transaction re-created it. A few tries, then logged.
-func (h *handler) dropContact(ctx context.Context, email string) {
+// reconcileMembaWithdrawal reconciles Memba opt-outs again after local withdrawal.
+// It never removes the shared contact or changes another project's preferences.
+func (h *handler) reconcileMembaWithdrawal(ctx context.Context, email string) {
 	ctx = context.WithoutCancel(ctx)
 	var err error
 	for try := 0; try < 3; try++ {
-		if err = h.resend.deleteContact(ctx, email); err == nil {
+		if err = h.withdrawMemba(ctx, email); err == nil {
 			return
 		}
 		time.Sleep(time.Duration(try+1) * 200 * time.Millisecond)
 	}
-	slog.Error("account: drop contact", "error", err)
+	slog.Error("account: reconcile Memba withdrawal", "error", err)
 }
 
 // followEmail keeps the stored address equal to the provider's verified one.
@@ -331,7 +334,7 @@ func (h *handler) followEmail(ctx context.Context, a Account, c Claims) (Account
 				live = append(live, x)
 			}
 		}
-		if err := h.resend.deleteContact(ctx, previous); err != nil {
+		if err := h.withdrawMemba(ctx, previous); err != nil {
 			return a, err
 		}
 	}
@@ -347,7 +350,7 @@ func (h *handler) followEmail(ctx context.Context, a Account, c Claims) (Account
 		return a, err
 	}
 	if previous != "" {
-		h.dropContact(ctx, previous)
+		h.reconcileMembaWithdrawal(ctx, previous)
 	}
 	h.afterEmailChange(ctx, a, previous, live)
 	return a, nil

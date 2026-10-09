@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Shared email account preparation (2026-10-09)
+- Prepared Memba-only email withdrawals when sharing Resend with another service, preserving other subscriptions and global unsubscribe preferences. Account deletion retains the shared provider contact; this change remains disabled pending review of the deletion policy and provider setup.
+
 ### Optional account groundwork (2026-10-08)
 - Prepared optional Memba accounts, email consent confirmation and account deletion. This groundwork remains disabled pending provider setup and separate activation approval. When enabled, the closed NFT screen offers an optional early-access email; the live Token Launchpad does not.
 
