@@ -9,6 +9,9 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
+import { NOTES_ENABLED } from "../../lib/notes/config"
+import { NotesStages } from "../apps/notes/NotesStages"
+import { NotesStageProvider } from "../apps/notes/stageRegistry"
 import { ConnectModal } from "./ConnectModal"
 import { itemTarget } from "./desk"
 import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
@@ -45,6 +48,7 @@ import {
 } from "./windows"
 
 const RadioStage = lazy(() => import("../apps/radio/RadioStage"))
+const LazyPublicNotes = lazy(() => import("../apps/notes/native").then(module => ({ default: module.PublicNotesView })))
 
 const TOAST_MS = 2600
 const MENU_BAR = 30
@@ -489,6 +493,7 @@ export function Shell() {
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
+            <NotesStageProvider>
             {phone ? <>
                 <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
@@ -536,7 +541,11 @@ export function Shell() {
             )}
             <Dock wins={windowWins} family={session.network.family} openApp={openApp} restore={win.focus} locked={modalBlocked} />
             </>}
+            {NOTES_ENABLED && !locked && session.status !== "resuming" && <NotesStages wins={windowWins} session={session}
+                activeWindowId={!modalBlocked ? front?.id : null} App={LazyPublicNotes} open={open} push={open}
+                openApp={openApp} close={win.close} focus={win.focus} toast={showToast} />}
             {meetStage}
+            </NotesStageProvider>
             </MeetStageContext.Provider>
             </div>
             <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage && !win.wins.some((w) => w.app === "radio" && !w.min)} openNews={() => openApp("news")} />

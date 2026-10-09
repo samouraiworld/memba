@@ -3,7 +3,9 @@ import { useWindowActive } from '../../../os/page/WindowActivity'
 import { useGameLoop } from '../hooks/useGameLoop'
 import { detectHas3D } from '../render/three/caps'
 import { MAGAZINE, WAVE_COUNTS } from '../sim/fps/types'
-import { createSession } from './session'
+import { browserFpsStorage, createFpsRunConsumer, type FpsRunStorage } from './freeplay/consumer'
+import { SavedResults } from './freeplay/SavedResults'
+import type { FpsFreePlayBridge } from './freeplay/bridge'
 import { usePreviewHeight } from './usePreviewHeight'
 import './fps.css'
 
@@ -15,8 +17,12 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => vo
     render() { return this.state.failed ? null : this.props.children }
 }
 
-export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
-    const [session, setSession] = useState(() => createSession('fps-c1-preview'))
+export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic: () => void; freePlay?: FpsFreePlayBridge; storage?: FpsRunStorage }) {
+    const [consumer] = useState(() => createFpsRunConsumer({ seed: 'fps-c1-preview', storage: storage ?? browserFpsStorage(), bridge: freePlay }))
+    const run = useSyncExternalStore(consumer.subscribe, consumer.getSnapshot)
+    const { session } = run
+    useEffect(() => consumer.mount(), [consumer])
+    useEffect(() => consumer.setBridge(freePlay), [consumer, freePlay])
     const hud = useSyncExternalStore(session.subscribe, session.getSnapshot)
     const [has3D] = useState(detectHas3D)
     const [failed, setFailed] = useState(false)
@@ -91,14 +97,14 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
         }
     }
     function exportReplay() {
-        const url = URL.createObjectURL(new Blob([JSON.stringify(session.log())], { type: 'application/json' }))
+        const url = URL.createObjectURL(new Blob([JSON.stringify({ ...session.log(), clientRunId: run.clientRunId })], { type: 'application/json' }))
         const a = document.createElement('a'); a.href = url; a.download = 'barricade-fps-c1-replay.json'; a.click()
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
     const unavailable = !has3D || failed
     return <section ref={root} className="fps-preview" aria-label="Barricade FPS prototype" data-status={status} data-phase={state.phase}>
         <header className="fps-header">
-            <div><span className="fps-eyebrow">BARRICADE / ÉTUDE JOUABLE C1</span><h1>Tenir la rue.</h1></div>
+            <div><span className="fps-eyebrow">BARRICADE / ÉTUDE JOUABLE C2</span><h1>Tenir la rue.</h1></div>
             <button onClick={onClassic}>Retour à Classic</button>
         </header>
         <div className="fps-hud" aria-label="État de la partie">
@@ -149,11 +155,18 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
                         <button ref={resume} className="fps-primary" disabled={!hud.ready || !active} onClick={() => start()}>{hud.ready ? status === 'paused' ? 'Reprendre · visée libre' : 'Jouer · visée libre' : 'Chargement…'}</button>
                         <button disabled={!hud.ready || !active} onClick={() => start(true)}>Jouer · capturer la souris</button>
                     </div>}
+                    {freePlay?.saved && <SavedResults saved={freePlay.saved} />}
                 </div> : status === 'done' ? <div className="fps-overlay" role="dialog" aria-label="Résultat du prototype">
                     <h2>{state.phase === 'won' ? 'La barricade tient.' : 'La ligne a cédé.'}</h2><p>{state.score} points · {state.kills} adversaires neutralisés</p>
                     <p>{hud.verified ? 'Replay local vérifié' : 'Replay local divergent — à examiner'} · Prototype non classé</p>
-                    <div className="fps-actions"><button ref={resume} className="fps-primary" onClick={() => setSession(createSession('fps-c1-preview'))}>Rejouer le prototype</button>
+                    <div className="fps-actions"><button ref={resume} className="fps-primary" onClick={() => consumer.restart()}>Rejouer le prototype</button>
                     <button onClick={exportReplay}>Exporter le replay</button></div>
+                    <div className="fps-freeplay" aria-label="Conserver le résultat FPS">
+                        {run.preparation === 'preparing' && <p role="status">Préparation du résultat sauvegardé…</p>}
+                        {run.result?.render()}
+                        {(run.storageError || run.preparation === 'unavailable') && <><p role="status">Sauvegarde ou service indisponible. Votre résultat reste ici et peut être exporté.</p><button onClick={() => consumer.retry()}>Réessayer la sauvegarde du résultat</button></>}
+                    </div>
+                    {freePlay?.saved && <SavedResults saved={freePlay.saved} />}
                 </div> : state.phase === 'repair' ? <div className="fps-overlay fps-repair" role="dialog" aria-label="Réparer la barricade">
                     <h2>Reprenez votre souffle.</h2><p>Prochaine vague dans {Math.max(0, Math.ceil((state.repairUntil - state.tick) / 60))} s. Chargeur rempli à la reprise.</p>
                     <div className="fps-actions"><button ref={resume} className="fps-primary" disabled={!state.patchAvailable || state.hp === 100} onClick={() => session.command({ type: 'repair' })}>{state.patchAvailable ? 'Réparer +40% · une fois' : 'Réparation utilisée'}</button>
@@ -171,10 +184,11 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
             <details className="fps-settings"><summary>Réglages</summary><div className="fps-settings-panel">
             <label><input type="checkbox" checked={mutedMotion} onChange={e => setMutedMotion(e.target.checked)} /> Effets réduits</label>
             <label>Lumière <select value={light} onChange={e => setLight(e.target.value as 'dusk' | 'day')}><option value="dusk">Fin de journée</option><option value="day">Jour couvert</option></select></label>
-            <p className="fps-note">Prototype non classé · Trois vagues · Réparation unique · Aucun wallet ni envoi de score. L’ancrage volontaire est prévu après stabilisation.</p>
+            <p className="fps-note">Prototype non classé · Trois vagues · Réparation unique · {freePlay ? 'Sauvegarde onchain facultative en fin de partie, après vérification et confirmation.' : 'Résultat local, sans wallet ni envoi de score.'}</p>
             </div></details>
         </div>
         {lockHint && <p className="fps-notice" role="status">{lockHint}</p>}
+        {run.storageError && status !== 'done' && <p className="fps-notice" role="status">Sauvegarde locale indisponible ; gardez cette fenêtre pour conserver la partie.</p>}
         <p className="fps-note fps-caption">Prototype non classé · Trois vagues · Réparation unique · Score local</p>
     </section>
 }

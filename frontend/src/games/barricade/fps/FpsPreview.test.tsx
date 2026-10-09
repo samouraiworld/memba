@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WindowActivityContext } from '../../../os/page/WindowActivity'
 import FpsPreview from './FpsPreview'
+import { RecoveryBoundary, type FpsRecoverySelection } from './freeplay/RecoveryBoundary'
 
 vi.mock('../render/three/caps', () => ({ detectHas3D: () => true }))
 vi.mock('../render/three/fps/FpsScene', () => ({ default: function MockScene({ onReady }: { onReady: () => void }) {
@@ -14,7 +15,7 @@ vi.mock('../hooks/useGameLoop', () => ({ useGameLoop: (_running: boolean, onStep
 
 describe('FPS preview lifecycle and explicit capture', () => {
     const lock = vi.fn().mockResolvedValue(undefined)
-    beforeEach(() => { HTMLElement.prototype.setPointerCapture = vi.fn(); HTMLElement.prototype.requestPointerLock = lock; document.exitPointerLock = vi.fn(); lock.mockClear() })
+    beforeEach(() => { localStorage.clear(); HTMLElement.prototype.setPointerCapture = vi.fn(); HTMLElement.prototype.requestPointerLock = lock; document.exitPointerLock = vi.fn(); lock.mockClear() })
     afterEach(() => vi.restoreAllMocks())
     it('waits for a user gesture, and ordinary play never requests pointer lock or submits a score', async () => {
         const fetch = vi.spyOn(globalThis, 'fetch')
@@ -83,6 +84,81 @@ describe('FPS preview lifecycle and explicit capture', () => {
         pointer(screen.getByRole('button', { name: 'Tirer' }), 'pointerup', 1)
         act(() => loop.step(30))
         expect(screen.getByLabelText('État de la partie')).toHaveTextContent('10/12')
+    })
+    it('mounts the injected shared result only after a real terminal run and preserves export', async () => {
+        const handle = { render: () => <p>Shared result panel</p>, dispose: vi.fn() }
+        const prepare = vi.fn().mockResolvedValue(handle)
+        const { unmount } = render(<FpsPreview onClassic={vi.fn()} freePlay={{ prepare }} />)
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        expect(prepare).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Jouer · visée libre' }))
+        act(() => loop.step(10800))
+        expect(await screen.findByText('Shared result panel')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Exporter le replay' })).toBeEnabled()
+        expect(prepare).toHaveBeenCalledOnce()
+        unmount(); expect(handle.dispose).toHaveBeenCalledOnce()
+    })
+    it('opens an older A result by ID without starting or replacing the current game, and disposes on close', async () => {
+        const oldId = '55555555-5555-4555-8555-555555555555'
+        const handle = { render: () => <p>Saved receipt fixture</p>, dispose: vi.fn() }
+        const saved = { list: vi.fn(() => ({ runs: [{ clientRunId: oldId, score: 123 }], unavailable: 1 })), open: vi.fn(() => handle) }
+        const prepare = vi.fn()
+        const { container, unmount } = render(<FpsPreview onClassic={vi.fn()} freePlay={{ prepare, saved }} />)
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        const activeId = localStorage.getItem('memba:barricade:fps:active:v1')
+        expect(saved.list).not.toHaveBeenCalled(); expect(saved.open).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Résultats sauvegardés' }))
+        expect(saved.list).toHaveBeenCalledOnce()
+        expect(screen.getByText('1 sauvegarde(s) récente(s) indisponible(s).')).toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText('Identifiant du résultat'), { target: { value: oldId } })
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
+        expect(saved.open).toHaveBeenCalledWith(oldId)
+        expect(screen.getByText('Saved receipt fixture')).toBeInTheDocument()
+        expect(container.querySelector('.fps-preview')).toHaveAttribute('data-status', 'ready')
+        expect(localStorage.getItem('memba:barricade:fps:active:v1')).toBe(activeId)
+        expect(prepare).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer les sauvegardes' }))
+        expect(handle.dispose).toHaveBeenCalledOnce()
+        fireEvent.click(screen.getByRole('button', { name: 'Résultats sauvegardés' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
+        unmount(); expect(handle.dispose).toHaveBeenCalledTimes(2)
+    })
+    it('keeps ID recovery available when A reports a corrupt index', async () => {
+        const saved = { list: () => { throw new Error('invalid_snapshot_index') }, open: () => { throw new Error('missing_fps_result') } }
+        render(<FpsPreview onClassic={vi.fn()} freePlay={{ prepare: vi.fn(), saved }} />)
+        await screen.findByTestId('fps-scene')
+        fireEvent.click(screen.getByRole('button', { name: 'Résultats sauvegardés' }))
+        expect(screen.getByRole('alert')).toHaveTextContent('liste des sauvegardes est illisible')
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
+        expect(screen.getByRole('alert')).toHaveTextContent('Résultat introuvable sur cet appareil')
+        expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled()
+    })
+    it('opens an external archive over an existing FPS run without recreating or resuming it', async () => {
+        const close = vi.fn(), dispose = vi.fn(), open = vi.fn(() => ({ render: () => <p>Saved receipt from external selection</p>, dispose }))
+        const saved = { list: vi.fn(() => ({ runs: [], unavailable: 0 })), open }
+        const bridge = { prepare: vi.fn(), saved }
+        const view = (recovery?: FpsRecoverySelection) => <RecoveryBoundary recovery={recovery} saved={saved}><FpsPreview onClassic={vi.fn()} freePlay={bridge} /></RecoveryBoundary>
+        const { rerender, unmount, container } = render(view())
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Jouer · visée libre' }))
+        fireEvent.keyDown(screen.getByLabelText(/Visée FPS/), { key: ' ' }); act(() => loop.step(10))
+        const id = localStorage.getItem('memba:barricade:fps:active:v1'), hud = screen.getByLabelText('État de la partie').textContent
+        rerender(view({ clientRunId: '55555555-5555-4555-8555-555555555555', onClose: close }))
+        expect(await screen.findByText('Saved receipt from external selection')).toBeInTheDocument()
+        expect(open).toHaveBeenCalledOnce(); expect(saved.list).not.toHaveBeenCalled()
+        expect(container.querySelector('.fps-preview')).toHaveAttribute('data-status', 'paused')
+        expect(localStorage.getItem('memba:barricade:fps:active:v1')).toBe(id)
+        act(() => loop.step(100))
+        expect(screen.getByLabelText('État de la partie').textContent).toBe(hud)
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer le résultat sauvegardé' }))
+        expect(close).toHaveBeenCalledOnce()
+        rerender(view())
+        expect(dispose).toHaveBeenCalledOnce()
+        expect(screen.getByRole('button', { name: 'Reprendre · visée libre' })).toBeEnabled()
+        expect(screen.getByLabelText('État de la partie').textContent).toBe(hud)
+        expect(localStorage.getItem('memba:barricade:fps:active:v1')).toBe(id)
+        expect(bridge.prepare).not.toHaveBeenCalled()
+        unmount()
     })
     it('returns to Classic explicitly without converting the run', async () => {
         const classic = vi.fn(); render(<FpsPreview onClassic={classic} />)

@@ -1,0 +1,10 @@
+body { margin:0; background:#f7f5ee; color:#202725; font:16px/1.55 system-ui,sans-serif; --os-line:#c8d0c9; --os-card:#fff; --os-ink:#202725; --os-mut:#59665f; }
+button { cursor:pointer; padding:8px 12px; border:1px solid #9aaa9f; border-radius:8px; background:white; color:inherit; font:inherit; }
+.demo-notice { padding:16px 24px; border-bottom:2px solid #d0a74b; background:#fff3cf; }
+.demo-notice h1 { margin:0; font-size:22px; }
+nav { display:flex; flex-wrap:wrap; gap:24px; padding:24px; }
+nav > div { display:flex; flex-direction:column; gap:8px; }
+.demo-icon { display:flex; flex-direction:column; align-items:center; min-width:135px; }
+.demo-icon span { font-size:36px; }
+output { display:block; margin:0 24px; font:12px/1.5 monospace; overflow-wrap:anywhere; }
+main { padding:24px; }

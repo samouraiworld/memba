@@ -10,6 +10,7 @@
  *
  * @module os/shell/urlSync
  */
+import { NOTE_ID } from "../../lib/notes/config"
 import { BLOG_SLUG } from "../../lib/blogSlug"
 import { getApp, OS_APPS } from "../apps"
 import { classicForSection } from "../page/classicRoute"
@@ -26,6 +27,7 @@ export function windowToken(t: OsTarget | null): string | null {
     if (!t) return null
     switch (t.kind) {
         case "app":
+            if (t.app === "notes" && t.section) return NOTE_ID.test(t.section) ? `notes.${t.section}` : null
             if (isJoinFeedTarget(t)) return "feed.join"
             if (t.app === "feed" && t.section && /^post\/[1-9]\d{0,19}$/.test(t.section)) return `feed.post.${t.section.slice(5)}`
             if (t.app === "news" && newsArticle(t.section)) return `news.${t.section}`
@@ -59,6 +61,7 @@ export function tokenToTarget(token: string): OsTarget | null {
     let path: string | null = null
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
     else if (kind === "feed" && /^post\.[1-9]\d{0,19}$/.test(rest)) path = `/os/feed/post/${rest.slice(5)}`
+    else if (kind === "notes" && NOTE_ID.test(rest)) path = `/os/notes/${rest}`
     else if (kind === "news" && newsArticle(rest)) path = `/os/news/${rest}`
     else if (kind === "arcade" && /^connect4\.[1-9]\d{0,8}$/.test(rest)) path = `/os/arcade/connect4/${rest.slice(9)}`
     else if (kind === "arcade" && /^g\.[a-z0-9-]{1,40}$/.test(rest)) path = `/os/arcade/g/${rest.slice(2)}`
