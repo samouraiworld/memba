@@ -6,6 +6,10 @@ import { useTouch } from "./hooks/useTouch";
 import { usePlayfieldSize } from "./hooks/usePlayfieldSize";
 import type { SpaceInvadersLaunchIntent, SpaceInvadersReplayResult } from "./lib/launch";
 import { Canvas } from "./render/Canvas";
+import { usePreparedPublication } from "./lib/usePreparedPublication";
+import { createFreePlayIdentity, persistFreePlayIdentity, type FreePlayRunIdentity } from "./lib/freePlayIdentity";
+import type { SpaceInvadersPublication } from "./lib/freePlayPublication";
+import { FreePlayPublication } from "./screens/FreePlayPublication";
 import { FullscreenButton } from "./screens/FullscreenButton";
 import { draw } from "./render/draw";
 import { createFx, fxChainCues, fxConsume, fxUpdate, type FxState } from "./render/fx";
@@ -72,7 +76,10 @@ export default function SpaceInvaders({
   launch,
   onReplayReady,
   onLaunchConsumed,
+  publication,
 }: {
+  /** Inject A's shared publication consumer; omitted means no publication UI. */
+  publication?: SpaceInvadersPublication;
   launch?: SpaceInvadersLaunchIntent;
   onLaunchConsumed?: (id: string) => void;
   onReplayReady?: (result: SpaceInvadersReplayResult) => void;
@@ -110,6 +117,8 @@ export default function SpaceInvaders({
   const [runArmed, setRunArmed] = useState(() => initialState?.phase != null && initialState.phase !== "ready");
   const [dailyDay, setDailyDay] = useState("");
   const [replayOutcome, setReplayOutcome] = useState<SpaceInvadersReplayResult | null>(null);
+  const freeIdentityRef = useRef<FreePlayRunIdentity | null>(null);
+  const { prepared: preparedPublication, issue: publicationIssue } = usePreparedPublication(publication, replayOutcome);
   const [dailyOutcome, setDailyOutcome] = useState<DailyOutcome | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const resultFocusPendingRef = useRef(false);
@@ -294,14 +303,19 @@ export default function SpaceInvaders({
         finalTick: final.tick,
         inputs: fromWireDeltas(events),
       });
-      verified = sim.score === final.score && sim.hash === hashState(final);
+      verified = sim.state.phase === "gameover" && sim.firstGameoverTick === final.tick && sim.score === final.score && sim.hash === hashState(final);
     }
     const outcome: SpaceInvadersReplayResult = {
       game: "space-invaders",
       mode: modeRef.current, seed: seedRef.current, simVersion: REPLAY_VERSION,
+      ...(modeRef.current === "free" && freeIdentityRef.current ? { clientRunId: freeIdentityRef.current.clientRunId } : {}),
       finalTick: final.tick, events, score: final.score,
       hash: formatStateHash(hashState(final)), verified,
     };
+    // The same terminal evidence is reused across owner/network changes.
+    events.forEach(event => Object.freeze(event));
+    Object.freeze(events);
+    Object.freeze(outcome);
     setReplayOutcome(outcome);
     replayReadyRef.current?.(outcome);
     if (modeRef.current !== "daily") return;
@@ -483,6 +497,7 @@ export default function SpaceInvaders({
       return;
     }
     resumeReadyRef.current = false;
+    freeIdentityRef.current = null;
     setMenuOpen(false);
     resultFocusPendingRef.current = false;
     resetTouchInput();
@@ -508,6 +523,15 @@ export default function SpaceInvaders({
     setReplayOutcome(null);
     setRunResult(null);
     chainRef.current = createChainTracker();
+    if (nextMode === "free") {
+      try {
+        const identity = createFreePlayIdentity(nextSeed, globalThis.crypto);
+        freeIdentityRef.current = identity;
+        // A storage failure does not stop local play. A's terminal session must
+        // persist before it exposes any verification/publication action.
+        try { persistFreePlayIdentity(localStorage, identity); } catch { /* keep identity in memory */ }
+      } catch { /* no secure identity: preserve local play, never invent an ID */ }
+    }
     seedRef.current = nextSeed;
     const fresh = newGame(nextSeed);
     stateRef.current = fresh;
@@ -732,7 +756,9 @@ export default function SpaceInvaders({
                 shareUrl={shareUrlFromLocation(typeof window !== "undefined" ? window.location : undefined)}
                 reducedMotion={reducedMotion}
                 verification={replayOutcome ? { day: dailyDay, verified: replayOutcome.verified } : null}
-                certifySlot={certifyOn && mode === "daily" && dailyOutcome?.verified ? (
+                certifySlot={mode === "free" && publication && replayOutcome ? (
+                  <FreePlayPublication result={replayOutcome} prepared={preparedPublication} issue={publicationIssue} />
+                ) : certifyOn && mode === "daily" && dailyOutcome?.verified ? (
                   <Suspense fallback={null}>
                     <SpaceInvadersCertify
                       run={{

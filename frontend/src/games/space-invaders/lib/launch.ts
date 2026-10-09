@@ -11,6 +11,8 @@ export interface SpaceInvadersLaunchIntent {
 export interface SpaceInvadersReplayResult {
   game: "space-invaders";
   mode: RunMode;
+  /** Stable identity of this Free run; absent if secure identity creation failed. */
+  clientRunId?: string;
   seed: number;
   simVersion: number;
   finalTick: number;
