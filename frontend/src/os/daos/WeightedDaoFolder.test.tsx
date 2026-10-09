@@ -76,6 +76,17 @@ beforeEach(() => {
     })
 })
 
+describe("the old Memba DAO entry point", () => {
+    it("opens the current DAO without reinterpreting old proposals", async () => {
+        const { DaoFolder } = await import("./DaoWindows")
+        vi.mocked(useDaoKind).mockReturnValue({ loading: false, error: null, kind: "weighted" } as ReturnType<typeof useDaoKind>)
+        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={open} session={guest} />)
+        fireEvent.click(screen.getByRole("button", { name: "Open current Memba DAO" }))
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ target: { kind: "dao", name: "samcrew.memba_gov", section: "overview" } }))
+        expect(await screen.findByText(V12_READ_ONLY)).toBeInTheDocument()
+    })
+})
+
 describe("a weighted DAO's overview", () => {
     it("states the seats, the points and how each kind of decision passes, from the contract", async () => {
         show("overview")

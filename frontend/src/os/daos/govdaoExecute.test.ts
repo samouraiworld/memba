@@ -19,6 +19,9 @@ vi.mock("../../lib/dao/shared", async (orig) => ({
 vi.mock("../../lib/grc20", async (orig) => ({
     ...(await orig<typeof import("../../lib/grc20")>()),
     networkGasPriceFresh: vi.fn(async () => ({ gas: 1000, ugnot: 1 })),
+    // This suite tests tally rechecks; the real fee checker closes over its
+    // own RPC reader and cannot be isolated by mocking the exported reader.
+    assertFeeStillCovers: vi.fn(async () => {}),
 }))
 vi.mock("../wallet/sendRequest", async (orig) => ({
     ...(await orig<typeof import("../wallet/sendRequest")>()),

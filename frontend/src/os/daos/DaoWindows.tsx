@@ -173,12 +173,23 @@ const TABS: { id: DaoSection; label: string }[] = [
 
 interface DaoFolderProps { name: string; section: DaoSection; open: (spec: WindowSpec) => void; session: OsSession }
 
+const openCurrentDao = (open: (spec: WindowSpec) => void) => open(daoSpec(nameForRealm(GOV_PATH)!))
+
 export function DaoFolder(props: DaoFolderProps) {
     const realmPath = realmForName(props.name)
     if (!realmPath) return <NotADao name={props.name} />
     // memba_gov is known by its address: no contract probe.
     if (realmPath === GOV_PATH) return govPublished() ? <GovFolder {...props} /> : <GovNotPublished />
-    return <DaoFolderBody {...props} realmPath={realmPath} />
+    return <>
+        {realmPath === "gno.land/r/samcrew/memba_dao" && govPublished() && (
+            <section className="os-note os-stack os-tight" aria-label="Current Memba DAO">
+                <b>You are viewing the old Memba DAO</b>
+                <span>The current DAO is live in a new home, with its members, proposals and votes.</span>
+                <button type="button" className="os-btn" onClick={() => openCurrentDao(props.open)}>Open current Memba DAO</button>
+            </section>
+        )}
+        <DaoFolderBody {...props} realmPath={realmPath} />
+    </>
 }
 
 function DaoFolderBody({ name, realmPath, section, open, session }: DaoFolderProps & { realmPath: string }) {

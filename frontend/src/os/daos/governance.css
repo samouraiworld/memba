@@ -1,0 +1,30 @@
+/* Memba's council overview, using the desktop's light and dark tokens. */
+.memba-os .os-gov-overview { gap: 18px; max-width: 920px; margin-inline: auto; }
+.memba-os .os-gov-intro { display: flex; align-items: flex-start; gap: 16px; padding: 10px 0 0; }
+.memba-os .os-gov-intro > div { min-width: 0; }
+.memba-os .os-gov-intro h2 { margin: 0 0 8px; font-size: 26px; line-height: 1.2; letter-spacing: -.035em; }
+.memba-os .os-gov-intro p { margin: 0; max-width: 65ch; line-height: 1.7; }
+.memba-os .os-gov-overview .os-h { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--os-ink); }
+.memba-os .os-gov-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 16px; border-radius: 12px; background: var(--os-chip); }
+.memba-os .os-gov-facts > div { display: flex; flex-direction: column; gap: 4px; }
+.memba-os .os-gov-facts dt { order: 2; color: var(--os-mut); font-size: 11px; }
+.memba-os .os-gov-facts dd { order: 1; margin: 0; font-size: 23px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.memba-os .os-gov-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 16px; list-style: none; padding: 0; margin: 12px 0 0; counter-reset: gov-step; }
+.memba-os .os-gov-steps li { counter-increment: gov-step; border-top: 2px solid var(--os-line); padding-top: 10px; }
+.memba-os .os-gov-steps b::before { content: counter(gov-step) ". "; color: var(--os-acc-ink); }
+.memba-os .os-gov-steps span { display: block; margin-top: 5px; line-height: 1.6; color: var(--os-mut); font-size: 12px; }
+.memba-os .os-gov-app-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 20px; padding: 0; margin: 0; list-style: none; }
+.memba-os .os-gov-app-grid li { position: relative; padding: 12px 18px 12px 0; border-bottom: 1px solid var(--os-line); }
+.memba-os .os-gov-app-grid b, .memba-os .os-gov-app-grid .os-sub { display: block; }
+.memba-os .os-gov-dot { position: absolute; right: 0; top: 17px; width: 8px; height: 8px; border-radius: 50%; background: var(--os-line); border: 1px solid var(--os-mut); }
+.memba-os .os-gov-dot-active { background: var(--os-ok); border-color: var(--os-ok); }
+.memba-os .os-gov-details { border-top: 1px solid var(--os-line); padding-top: 12px; }
+.memba-os .os-gov-details > summary { cursor: pointer; font-weight: 650; padding: 4px 0; }
+.memba-os .os-gov-details[open] > summary { margin-bottom: 12px; }
+
+@container os-window (max-width: 440px) {
+  .memba-os .os-gov-steps { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .memba-os .os-gov-steps { grid-template-columns: 1fr; }
+}
