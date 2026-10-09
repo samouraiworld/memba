@@ -20,7 +20,7 @@ import vectors from "../../../games/space-invaders/lib/testdata/freeplay_vectors
 
 const probe = vi.hoisted(() => ({ advance: vi.fn(), ack: vi.fn() }))
 vi.mock("../../../games/space-invaders/render/draw", () => ({ draw: vi.fn() }))
-vi.mock("../../../games/space-invaders/lib/audio", () => ({ createAudioEngine: () => ({ muted: true, droning: false, unlock: vi.fn(), play: vi.fn(), setDrone: vi.fn(), setMuted: vi.fn(), dispose: vi.fn() }) }))
+vi.mock("../../../games/space-invaders/lib/audio", async original => ({ ...(await original<typeof import("../../../games/space-invaders/lib/audio")>()), createAudioEngine: () => ({ muted: true, droning: false, unlock: vi.fn(), play: vi.fn(), setDrone: vi.fn(), setMuted: vi.fn(), dispose: vi.fn() }) }))
 vi.mock("../../../games/space-invaders/hooks/useGameLoop", async original => {
     const actual = await original<typeof import("../../../games/space-invaders/hooks/useGameLoop")>()
     return { ...actual, advanceWithEvents: (...args: Parameters<typeof actual.advanceWithEvents>) => {
