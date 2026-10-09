@@ -21,7 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Space Invaders direct play and fitted arena (#1580, 2026-10-09)
-- Start Free play or Daily with one action, keep the complete arena and compact HUD within the available play area, and check Free play replays locally at game over.
+- Start Free play or Daily with one action, fit the arena and HUD to the available area, offer game fullscreen, and retain locally checked replays when returning through the result menu.
 
 ### Live Radio playback recovery (#1575, 2026-10-09)
 - Play live Audius and Jamendo tracks even when Onyx omits them from the station schedule, using the station's current track instead of incorrectly reporting that nothing is on air.

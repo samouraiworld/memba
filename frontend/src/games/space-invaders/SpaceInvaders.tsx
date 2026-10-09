@@ -6,6 +6,7 @@ import { useTouch } from "./hooks/useTouch";
 import { usePlayfieldSize } from "./hooks/usePlayfieldSize";
 import type { SpaceInvadersLaunchIntent, SpaceInvadersReplayResult } from "./lib/launch";
 import { Canvas } from "./render/Canvas";
+import { FullscreenButton } from "./screens/FullscreenButton";
 import { draw } from "./render/draw";
 import { createFx, fxChainCues, fxConsume, fxUpdate, type FxState } from "./render/fx";
 import { loadBest, saveBest } from "./lib/highScore";
@@ -110,6 +111,8 @@ export default function SpaceInvaders({
   const [dailyDay, setDailyDay] = useState("");
   const [replayOutcome, setReplayOutcome] = useState<SpaceInvadersReplayResult | null>(null);
   const [dailyOutcome, setDailyOutcome] = useState<DailyOutcome | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const resultFocusPendingRef = useRef(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   // Cosmetic chain tracking from step events (the engine keeps only the live
   // combo). Presentation-only: never read by the simulation or the recorder.
@@ -214,20 +217,21 @@ export default function SpaceInvaders({
   }, [windowActive, resetTouchInput]);
 
   useEffect(() => {
-    if (!windowActive || (state.phase !== "paused" && state.phase !== "gameover")) return;
+    if (!windowActive || menuOpen || (state.phase !== "paused" && state.phase !== "gameover")) return;
     const surface = areaRef.current;
-    if (!surface || !rootRef.current?.contains(document.activeElement)) return;
+    if (!surface || (!resultFocusPendingRef.current && !rootRef.current?.contains(document.activeElement))) return;
+    resultFocusPendingRef.current = false;
     const target = state.phase === "paused"
       ? surface.querySelector<HTMLElement>(".si-pause-sheet button")
       : surface.querySelector<HTMLElement>(".si-gameover h2");
     target?.focus({ preventScroll: true });
-  }, [windowActive, state.phase]);
+  }, [windowActive, state.phase, menuOpen]);
 
   useEffect(() => {
-    if (!windowActive || state.phase !== "ready" || runArmed || !menuFocusPendingRef.current) return;
+    if (!windowActive || !menuOpen || !menuFocusPendingRef.current) return;
     menuFocusPendingRef.current = false;
     areaRef.current?.querySelector<HTMLElement>(".si-menu button")?.focus({ preventScroll: true });
-  }, [windowActive, state.phase, runArmed]);
+  }, [windowActive, menuOpen]);
 
   // Quantize steering to tenths AT THE INPUT SEAM (combineInput): the live
   // engine, the recorder, and the server's replay (which reconstructs move as
@@ -436,6 +440,8 @@ export default function SpaceInvaders({
   };
 
   const beginRun = (nextMode: RunMode) => {
+    setMenuOpen(false);
+    resultFocusPendingRef.current = false;
     resetTouchInput();
     closeOverlays();
     let nextSeed: number;
@@ -467,34 +473,27 @@ export default function SpaceInvaders({
     fxRef.current = createFx(nextSeed, { reducedMotion });
     setState(fresh);
     launchPendingRef.current = true;
+    // A browser may scroll the chooser into view on a short classic page.
+    // Starting a run must also bring its HUD back into the visible viewport.
+    if (rootRef.current && rootRef.current.getBoundingClientRect().top < 0) {
+      rootRef.current.scrollIntoView({ block: "start", inline: "nearest", behavior: "instant" });
+    }
     focusGameSurface();
   };
 
   const restart = () => beginRun(modeRef.current);
 
   const openMenu = () => {
+    // The menu is presentation only. Keep the finished snapshot and replay
+    // until the player explicitly starts another run (future publish/retry).
     menuFocusPendingRef.current = true;
     resetTouchInput();
-    closeOverlays();
-    const nextSeed = seed ?? newRunSeed();
-    modeRef.current = "free";
-    runArmedRef.current = false;
-    dailySeedStrRef.current = "";
-    recorderRef.current = null;
-    seedRef.current = nextSeed;
-    last.current = null;
-    accRef.current = 0;
-    fxRef.current = createFx(nextSeed, { reducedMotion });
-    const fresh = newGame(nextSeed);
-    stateRef.current = fresh;
-    setMode("free");
-    setRunArmed(false);
-    setDailyDay("");
-    setDailyOutcome(null);
-    setReplayOutcome(null);
-    setRunResult(null);
-    chainRef.current = createChainTracker();
-    setState(fresh);
+    setMenuOpen(true);
+  };
+
+  const returnToResult = () => {
+    resultFocusPendingRef.current = true;
+    setMenuOpen(false);
   };
 
   const togglePause = () => {
@@ -513,7 +512,8 @@ export default function SpaceInvaders({
   // over. Focused buttons keep their native Enter, so nothing fires twice.
   const handleConfirm = () => {
     const cur = stateRef.current;
-    if (cur.phase === "gameover") restart();
+    if (menuOpen) beginRun("free");
+    else if (cur.phase === "gameover") restart();
     else if (cur.phase === "paused") togglePause();
     else if (cur.phase === "ready") {
       if (!runArmedRef.current) beginRun("free");
@@ -531,6 +531,7 @@ export default function SpaceInvaders({
       lastConsumedLaunchId.current = launch.id;
       // Play from the store never discards an existing run OR its result.
       if (runArmedRef.current) {
+        if (menuOpen) returnToResult();
         const target = stateRef.current.phase === "paused"
           ? surface.querySelector<HTMLElement>(".si-pause-sheet button")
           : stateRef.current.phase === "gameover"
@@ -577,6 +578,7 @@ export default function SpaceInvaders({
           <span aria-hidden="true" />
           {runArmed ? `${mode === "daily" ? `Daily · ${dailyDay}` : "Free play"} · ` : ""}{phaseLabel}
         </div>
+        <FullscreenButton root={rootRef} onChange={focusGameSurface} />
       </header>
 
       <div className="si-cabinet">
@@ -627,7 +629,7 @@ export default function SpaceInvaders({
           <div className="si-playfield" ref={fieldRef}>
           <div
             style={fieldSize.width > 0 ? { width: fieldSize.width, height: fieldSize.height } : undefined}
-            className={`si-stage${state.phase === "playing" ? "" : " si-stage--overlay"}`}
+            className={`si-stage${state.phase === "playing" ? "" : " si-stage--overlay"}${fieldSize.height > 0 && fieldSize.height < 250 ? " si-stage--compact" : ""}`}
             ref={areaRef}
             role="group"
             tabIndex={0}
@@ -656,11 +658,11 @@ export default function SpaceInvaders({
                 <p className="si-howto-tip">Chain hits without missing to raise your multiplier</p>
               </div>
             )}
-            {state.phase === "ready" && !runArmed && (
-              <MenuScreen certifyOn={certifyOn} onDaily={() => beginRun("daily")} onFree={() => beginRun("free")} />
+            {((state.phase === "ready" && !runArmed) || menuOpen) && (
+              <MenuScreen onReturnResult={menuOpen ? returnToResult : undefined} certifyOn={certifyOn} onDaily={() => beginRun("daily")} onFree={() => beginRun("free")} />
             )}
             {state.phase === "paused" && <PausedScreen onResume={togglePause} />}
-            {state.phase === "gameover" && (
+            {state.phase === "gameover" && !menuOpen && (
               <GameOverScreen
                 mode={mode}
                 day={dailyDay}

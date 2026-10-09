@@ -149,7 +149,7 @@ describe("SpaceInvaders daily mode", () => {
     expect(screen.getByText(/game over/i)).toBeInTheDocument();
     expect(screen.queryByText(/daily ·/i)).toBeNull();
     expect(screen.queryByText(/verified/i)).toBeNull();
-    expect(screen.queryByText(/replay check pending/i)).toBeNull();
+    expect(screen.queryByText(/replay not verified/i)).toBeNull();
     expect(screen.getByText(/free play · replay checked on this device/i)).toBeInTheDocument();
     expect(screen.queryByText(/certify/i)).toBeNull();
     expect(onReplayReady).toHaveBeenCalledTimes(1);
@@ -157,12 +157,15 @@ describe("SpaceInvaders daily mode", () => {
     expect(onReplayReady.mock.calls[0][0].events[0]).toEqual(expect.arrayContaining([0]));
   });
 
-  it("Menu from a daily game over returns to the free-mode chooser", () => {
+  it("Menu preserves the completed daily snapshot and can return to its result", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     nudgeAndDie();
     fireEvent.click(screen.getByRole("button", { name: /menu/i }));
     expect(screen.getByRole("button", { name: /daily run/i })).toBeInTheDocument();
-    expect(screen.queryByText(/daily · 2026-09-01/i)).toBeNull();
+    expect(screen.queryByRole("heading", { name: /game over/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /back to result/i }));
+    expect(screen.getByRole("heading", { name: /game over/i })).toHaveFocus();
+    expect(screen.getByText(/daily · 2026-09-01 · replay checked/i)).toBeInTheDocument();
   });
 });

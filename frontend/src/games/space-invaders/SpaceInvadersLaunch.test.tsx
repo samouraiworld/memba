@@ -140,4 +140,16 @@ describe("explicit local launch adapter", () => {
     outside.remove();
   });
 
+  it("refocuses a result kept behind the menu without starting another run", () => {
+    const props = { initialState: { phase: "gameover" as const, score: 42 }, seed: 7 };
+    const { rerender } = render(<SpaceInvaders {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: /^menu$/i }));
+    expect(screen.getByRole("button", { name: /back to result/i })).toBeInTheDocument();
+    rerender(<SpaceInvaders {...props} launch={{ id: "result", game: "space-invaders", mode: "free" }} />);
+    frame(0); frame(20);
+    expect(advanceSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: /game over/i })).toHaveFocus();
+    expect(screen.getByTestId("si-final-score").parentElement).toHaveTextContent("42");
+  });
+
 });

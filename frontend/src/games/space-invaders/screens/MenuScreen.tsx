@@ -3,10 +3,12 @@ export function MenuScreen({
   certifyOn,
   onDaily,
   onFree,
+  onReturnResult,
 }: {
   certifyOn: boolean;
   onDaily: () => void;
   onFree: () => void;
+  onReturnResult?: () => void;
 }) {
   return (
     <div className="si-overlay si-menu">
@@ -23,6 +25,7 @@ export function MenuScreen({
           <small>{certifyOn ? "Shared UTC signal · replay eligible" : "Shared UTC signal · same waves for everyone"}</small>
         </button>
       </div>
+      {onReturnResult && <button className="si-text-button" type="button" onClick={onReturnResult}>Back to result</button>}
     </div>
   );
 }

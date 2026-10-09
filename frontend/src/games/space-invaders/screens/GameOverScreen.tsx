@@ -93,7 +93,7 @@ export function GameOverScreen({
         {verification && (
           <p className={`si-verification ${verification.verified ? "si-verification--ok" : "si-verification--pending"}`}>
             <span aria-hidden="true">{verification.verified ? "✓" : "…"}</span>
-            {mode === "daily" ? `Daily · ${verification.day}` : "Free play"} · {verification.verified ? "Replay checked on this device" : "Replay check pending"}
+            {mode === "daily" ? `Daily · ${verification.day}` : "Free play"} · {verification.verified ? "Replay checked on this device" : "Replay not verified"}
           </p>
         )}
         <div className="si-mode-row">

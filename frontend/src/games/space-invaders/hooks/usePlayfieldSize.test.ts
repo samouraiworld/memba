@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { fitPlayfield, usePlayfieldSize } from "./usePlayfieldSize";
 
 describe("fitPlayfield", () => {
@@ -13,13 +13,13 @@ describe("fitPlayfield", () => {
 });
 
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(document, "fullscreenElement"); });
 
 it("subtracts a bounded host's padding and ignores shrink-wrapped clipping", () => {
   const host = document.createElement("div");
   host.style.cssText = "position:absolute;overflow-y:auto;padding-bottom:16px";
   const wrapper = document.createElement("div");
-  wrapper.style.overflowY = "hidden";
+  wrapper.style.cssText = "overflow-y:hidden;flex:1"; // not a flex item: host is block
   const root = document.createElement("section");
   const slot = document.createElement("div");
   host.append(wrapper); wrapper.append(root); root.append(slot); document.body.append(host);
@@ -32,5 +32,12 @@ it("subtracts a bounded host's padding and ignores shrink-wrapped clipping", () 
   vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(800);
   const { result, unmount } = renderHook(() => usePlayfieldSize({ current: root }, { current: slot }));
   expect(result.current).toEqual({ availableHeight: 520, width: 240, height: 300, landscape: false });
+  Object.defineProperty(document, "fullscreenElement", { configurable: true, value: wrapper });
+  act(() => document.dispatchEvent(new Event("fullscreenchange")));
+  expect(result.current.availableHeight).toBe(696); // host outside top layer no longer clips
+  Reflect.deleteProperty(document, "fullscreenElement");
+  vi.mocked(root.getBoundingClientRect).mockReturnValue(rect(-100, 600, 320));
+  act(() => window.dispatchEvent(new Event("resize")));
+  expect(result.current.availableHeight).toBe(620); // scrolling above the viewport cannot grow the game
   unmount(); host.remove();
 });

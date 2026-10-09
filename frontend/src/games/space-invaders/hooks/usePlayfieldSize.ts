@@ -16,21 +16,32 @@ export function usePlayfieldSize(root: RefObject<HTMLElement | null>, slot: RefO
     if (!el || !field) return;
     const parents: HTMLElement[] = [];
     for (let p = el.parentElement; p; p = p.parentElement) parents.push(p);
+    const navigation = Array.from(document.querySelectorAll<HTMLElement>('nav[aria-label="Mobile navigation"]'));
     const measure = () => {
       const rect = el.getBoundingClientRect();
       const viewport = window.visualViewport;
       let bottom = viewport ? viewport.offsetTop + viewport.height : document.documentElement.clientHeight;
       for (const p of parents) {
+        if (document.fullscreenElement && !document.fullscreenElement.contains(p)) continue;
         const css = getComputedStyle(p);
         // Only independently bounded hosts constrain us. A shrink-wrapped
         // overflow:hidden ancestor would otherwise shrink by 4px on every
         // observer delivery as our own height changes.
-        const bounded = Number(css.flexGrow) > 0 || css.position === "absolute" || css.position === "fixed";
+        const parentDisplay = p.parentElement ? getComputedStyle(p.parentElement).display : "";
+        const flexItem = Number(css.flexGrow) > 0 && /^(inline-)?flex$/.test(parentDisplay);
+        const bounded = flexItem || css.position === "absolute" || css.position === "fixed";
         if (!bounded || !/(auto|scroll|hidden|clip)/.test(css.overflowY)) continue;
         const box = p.getBoundingClientRect();
         if (box.height > 0) bottom = Math.min(bottom, box.bottom - (parseFloat(css.paddingBottom) || 0) - (parseFloat(css.borderBottomWidth) || 0));
       }
-      const availableHeight = Math.max(0, Math.floor(bottom - rect.top - 4));
+      // Classic routes have a fixed mobile tab bar outside their scroll host.
+      // Measure its real top (including safe area), never a guessed pixel inset.
+      for (const nav of navigation) {
+        if (document.fullscreenElement && !document.fullscreenElement.contains(nav)) continue;
+        const box = nav.getBoundingClientRect();
+        if (getComputedStyle(nav).position === "fixed" && box.height > 0 && box.top > rect.top && box.left < rect.right && box.right > rect.left) bottom = Math.min(bottom, box.top);
+      }
+      const availableHeight = Math.max(0, Math.floor(bottom - Math.max(0, rect.top) - 4));
       const fieldRect = field.getBoundingClientRect();
       const fitted = fitPlayfield(fieldRect.width, fieldRect.height);
       const explicitHostHeight = getComputedStyle(el).getPropertyValue("--si-host-height").trim();
@@ -39,13 +50,15 @@ export function usePlayfieldSize(root: RefObject<HTMLElement | null>, slot: RefO
       setSize(prev => Object.keys(next).every(k => prev[k as keyof typeof prev] === next[k as keyof typeof next]) ? prev : next);
     };
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    [el, field, ...parents].forEach(p => observer?.observe(p));
+    [el, field, ...parents, ...navigation].forEach(p => observer?.observe(p));
+    document.addEventListener("fullscreenchange", measure);
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("scroll", measure);
     measure();
     return () => {
       observer?.disconnect();
+      document.removeEventListener("fullscreenchange", measure);
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("scroll", measure);

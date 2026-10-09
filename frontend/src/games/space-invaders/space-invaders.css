@@ -291,7 +291,7 @@
 .si-root--fitted .si-cabinet { display: block; min-height: 0; }
 .si-root--fitted .si-console { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; min-height: 0; padding: 4px; border-radius: 10px; }
 .si-root--fitted .si-hud { min-height: 0; margin-bottom: 4px; }
-.si-playfield { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; }
+.si-playfield { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; }
 .si-root--fitted .si-stage { flex: none; width: min(100%, 320px); aspect-ratio: 4 / 5; border: 0; border-radius: 4px; }
 .si-root--fitted .si-canvas { width: 100%; height: 100%; border-radius: 4px; }
 .si-root--fitted .si-brief { position: absolute; display: block; }
@@ -299,8 +299,8 @@
 .si-root--fitted .si-overlay > :first-child { margin-top: auto; }
 .si-root--fitted .si-overlay > :last-child { margin-bottom: auto; }
 .si-pause-controls { margin-block: 8px; }
-.si-root--landscape .si-console { grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 8px; }
-.si-root--landscape .si-hud { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "score best" "wave lives" "chain actions"; align-content: center; margin: 0; }
+.si-root--landscape .si-console { grid-template-columns: 280px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 8px; }
+.si-root--landscape .si-hud { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "score best lives" "wave chain actions"; align-content: center; margin: 0; }
 .si-root--landscape .si-stat > strong { font-size: 1rem; }
 .si-root--landscape .si-stat { padding: 6px; }
 .si-root--landscape .si-actions { padding: 2px; gap: 2px; }
@@ -309,3 +309,28 @@
 .si-root--landscape .si-overlay-kicker { font-size: .55rem; }
 .si-root--landscape .si-mode-stack { margin-top: 6px; gap: 4px; }
 .si-root--landscape .si-mode-button { min-height: 44px; padding: 4px 8px; }
+
+/* Menus/results use the available panel width, not the narrow portrait arena.
+   They stay descendants of the keyboard scope; tall results scroll here only. */
+.si-root--fitted .si-stage--overlay { position: static; isolation: auto; overflow: visible; }
+.si-root--fitted .si-stage--overlay::after { display: none; }
+.si-root--fitted .si-stage--overlay .si-overlay { border-radius: 6px; }
+.si-root--landscape .si-menu > .si-overlay-copy,
+.si-root--landscape .si-menu > .si-overlay-kicker { display: none; }
+.si-root--landscape .si-menu h2 { margin: 0 0 4px; }
+.si-root--landscape .si-mode-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+
+/* Tiny hosts keep the arena clear; full controls remain in the pause sheet. */
+.si-stage--compact .si-howto,
+.si-stage--compact .si-touch-hints,
+.si-stage--compact .si-wave-banner { display: none; }
+
+.si-fullscreen-control { position: relative; flex: none; margin-left: auto; }
+.si-fullscreen-button { background: var(--si-ink); }
+.si-fullscreen-error { position: absolute; z-index: 10; top: 100%; right: 0; width: min(240px, 70vw); padding: 10px; border: 1px solid var(--si-mint); border-radius: 8px; background: var(--si-ink); color: var(--si-text-bright); font-size: .8rem; }
+.si-root:fullscreen { background: var(--si-ink); color: var(--si-text-bright); }
+/* Reserve a side rail for the touch-sized fullscreen control in short hosts. */
+.si-root.si-root--landscape { position: relative; }
+.si-root--landscape .si-heading { padding-right: 56px; }
+.si-root--landscape .si-fullscreen-control { position: absolute; top: 4px; right: 4px; }
+.si-root--landscape .si-console { margin-right: 56px; }
