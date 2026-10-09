@@ -15,7 +15,7 @@ export function usePreviewHeight(): RefObject<HTMLElement | null> {
             const windowBottom = windowBody?.getBoundingClientRect().bottom ?? bottom
             const height = Math.floor(Math.min(bottom, windowBottom) - Math.max(0, rect.top) - 8)
             node.style.setProperty('--fps-available-height', `${Math.max(160, height)}px`)
-            node.dataset.compact = String(height < 500 && rect.width >= 500)
+            node.dataset.compact = String(height < 600)
         }
         resize()
         const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)

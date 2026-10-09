@@ -1,6 +1,6 @@
 # Barricade FPS — C1 playable preview
 
-This is an opt-in, unranked gameplay/art prototype. Classic v2 remains the default, with unchanged simulation and certification. No shared routes, shell, flags, backend, dependencies or generated assets change.
+This is an opt-in, unranked gameplay/art prototype. Classic v2 remains the default, with unchanged simulation and certification. No shared routes, shell, flags, backend, dependencies or generated assets change. The three FPS JS/CSS families are excluded from the PWA precache; the existing three bundle gate checks that exclusion. No offline support is claimed.
 
 ## Open locally
 
@@ -16,7 +16,7 @@ With the existing Barricade gate enabled in the local preview environment, open 
 
 ## Boundaries / next slice
 
-This is procedural blockout art, not finished realistic art. It has no audio, animated locomotion, detailed arm reload/repair animation, dynamic shadows, adaptive quality, persistent run recovery or authoritative scenery collisions. The street is arranged to leave all three attack paths visible; meshes outside the enemy collision volumes are decorative. WebGL/context failure offers an explicit return to Classic, never a conversion of the FPS run. Portrait and short landscape layout, touch hardware, pointer lock, real GPU rendering and bundle isolation require browser validation before promotion.
+This is procedural blockout art, not finished realistic art. It has no audio, animated locomotion, detailed arm reload/repair animation, dynamic shadows, adaptive quality, persistent run recovery or authoritative scenery collisions. The street is arranged to leave all three attack paths visible; meshes outside the enemy collision volumes are decorative. WebGL/context failure offers an explicit return to Classic, never a conversion of the FPS run. The serial WebGL harness covers portrait/short landscape layout, browser multi-touch and context-loss fallback. Physical touch hardware, successful pointer lock, the full OS shell, real GPU budgets and the full deployed entry path still requires validation before promotion.
 
 Rules use millimetres, integer direction components and rational slab comparisons. Input trig is outside the simulation; the camera uses the same quantized direction as the shot. Frame interpolation never determines a hit. The C1 ruleset `barricade-fps-c1`, version 3, is separate from Classic. Prototype replays may be partial debugging exports; any future publishing verifier must require a terminal result and a unique run identity. No current server accepts these logs, and no FPS score is submitted here.
 
@@ -32,6 +32,16 @@ node node_modules/eslint/bin/eslint.js src/games/barricade/sim/fps src/games/bar
 ```
 
 Production build, bundle gate and browser checks must use the reserved Arcade validation slot. Tests cover collision boundaries/occlusion/ties, all axes, shields, cadence/reload/repair, exact replay of a winning run, 100 unattended seeds, live-loop frame grouping, pause/reset of held input, explicit capture, no submission and existing Classic window behavior. They do not substitute for visual/browser evidence.
+
+## Serial WebGL evidence
+
+Inside the reserved Arcade validation slot, run from `frontend`:
+
+```sh
+node src/games/barricade/fps/preview.browser.mjs
+```
+
+Requires the installed Playwright Chromium. `FPS_C1_OUTPUT` overrides the default `/private/tmp/memba-c1-proof` directory. The script mounts the actual component/scene in a local window activity harness and writes screenshots, a winning replay and `results.json`; it closes its server/browser in `finally`. Test-only build transforms expose the session and a controlled simulation clock. A separate real RAF pass checks shooting/pause. This fixture does not prove integration with the full OS shell. Headless pointer-lock rejection is recorded separately from successful capture. SwiftShader timings are software-renderer observations, not desktop/mobile GPU certification. No score, wallet or external network request is involved.
 
 ## Anchoring contract boundary
 

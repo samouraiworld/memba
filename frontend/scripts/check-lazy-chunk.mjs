@@ -116,6 +116,13 @@ if (swPath) {
   if (new RegExp(`["']?url["']?\\s*:\\s*["'][^"']*${CHUNK}[^"']*\\.js["']`).test(sw)) {
     fail(`${CHUNK}* is in the Workbox precache MANIFEST (sw.js) — verify globIgnores strips it.`)
   }
+  // FPS UI/scene assets are opt-in too; their CSS must not enter the install precache.
+  if (name === "three") {
+    const fpsUrl = [...sw.matchAll(/["']?url["']?\s*:\s*["']([^"']+)["']/g)]
+      .map((entry) => entry[1])
+      .find((url) => /(?:^|\/)(?:FpsPreview-[^/]+\.(?:js|css)|FpsScene-[^/]+\.js)$/.test(url))
+    if (fpsUrl) fail(`${fpsUrl} is in the Workbox precache MANIFEST (sw.js) — verify the FPS globIgnores.`)
+  }
 } else {
   console.warn(`bundle gate (${name}): no sw.js found (PWA build skipped?) — precache check skipped.`)
 }

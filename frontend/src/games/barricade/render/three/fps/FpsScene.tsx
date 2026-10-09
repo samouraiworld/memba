@@ -36,7 +36,7 @@ function Street() {
             const length = Math.hypot(sx - ex, sz - ez)
             return <group key={start} position={[(sx + ex) / 2, 0, (sz + ez) / 2]} rotation={[0, Math.atan2(sx - ex, sz - ez), 0]}>
                 <Block at={[0, 0, 0]} size={[4.5, 0.035, length + 8]} color="#44484a" />
-                {[-1, 1].map(side => <Block key={side} at={[side * 2.5, 0.06, 0]} size={[0.32, 0.12, length + 8]} color="#a69e8d" />)}
+                {[-1, 1].map(side => <Block key={side} at={[side * 2.5, 0.06, 5]} size={[0.32, 0.12, length - 10]} color="#a69e8d" />)}
             </group>
         })}
         {[-1, 1].map(side => <group key={side}>
