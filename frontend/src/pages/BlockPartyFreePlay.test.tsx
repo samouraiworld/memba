@@ -45,16 +45,34 @@ describe('Block Party page Free play integration', () => {
         const s = setup()
         let reject!: (error: Error) => void
         s.runtime.connect = vi.fn(() => new Promise<void>((_, fail) => { reject = fail }))
-        render(s.tree())
+        saveFreePlaySnapshot(s.storage, saved)
+        render(s.tree({ recovery: { clientRunId: saved.input.clientRunId, onClose: vi.fn() } }))
         expect(s.runtime.connect).not.toHaveBeenCalled()
         const connect = screen.getByRole('button', { name: 'Connect wallet for saved scores' })
         act(() => { fireEvent.click(connect); fireEvent.click(connect) })
         expect(s.runtime.connect).toHaveBeenCalledTimes(1)
         expect(connect).toBeDisabled()
         await act(async () => reject(new Error('cancelled')))
-        expect(await screen.findByText(/Wallet connection did not complete/)).toBeInTheDocument()
+        expect(await screen.findByText(/Connection did not complete/)).toBeInTheDocument()
         expect(connect).toBeEnabled()
         expect(s.reject).not.toHaveBeenCalled()
+        expect(listFreePlaySnapshots(s.storage).snapshots[0].input).toEqual(saved.input)
+    })
+
+    it('does not offer the terminal Connect path for an unfinished or unsaved result', async () => {
+        const s = setup(); s.runtime.connect = vi.fn()
+        const mounted = render(s.tree())
+        expect(screen.queryByRole('button', { name: 'Connect wallet for saved scores' })).not.toBeInTheDocument()
+        await screen.findByRole('grid')
+        fireEvent.click(screen.getByRole('tab', { name: 'Practice' }))
+        s.storage.setItem = () => { throw new Error('quota') }
+        for (const action of saved.input.replay) move(keys[action as keyof typeof keys])
+        await screen.findByRole('dialog', { name: 'Practice round complete' })
+        expect(await screen.findByText(/Local storage is unavailable/)).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Connect wallet for saved scores' })).not.toBeInTheDocument()
+        expect(screen.getByRole('textbox', { name: 'Block Party result export' })).toBeInTheDocument()
+        expect(s.runtime.connect).not.toHaveBeenCalled(); expect(s.reject).not.toHaveBeenCalled()
+        mounted.unmount()
     })
 
     it('saves only completed Practice with its full replay and keeps that result after restart', async () => {

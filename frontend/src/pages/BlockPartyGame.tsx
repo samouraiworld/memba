@@ -90,18 +90,6 @@ export default function BlockPartyGame({ freePlay, recovery }: BlockPartyGamePro
   const externalRecovery = recovery === undefined
     ? sharedRuntime?.recovery?.game === "block-party" ? sharedRuntime.recovery : null
     : recovery;
-  const [freePlayError, setFreePlayError] = useState<string | null>(null);
-  const [freePlayConnecting, setFreePlayConnecting] = useState(false);
-  const freePlayConnectBusy = useRef(false);
-  const connectForSavedScores = async () => {
-    if (!runtime?.connect || freePlayConnectBusy.current) return;
-    freePlayConnectBusy.current = true;
-    setFreePlayConnecting(true);
-    setFreePlayError(null);
-    try { await runtime.connect(); }
-    catch { setFreePlayError("Wallet connection did not complete. Your local results are preserved."); }
-    finally { freePlayConnectBusy.current = false; setFreePlayConnecting(false); }
-  };
   const [localRecoveryId, setLocalRecoveryId] = useState<string | null>(null);
   const recoveredId = runtime ? externalRecovery?.clientRunId ?? localRecoveryId : null;
   const recoveryHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -409,12 +397,10 @@ export default function BlockPartyGame({ freePlay, recovery }: BlockPartyGamePro
         <h2 ref={recoveryHeadingRef} tabIndex={-1}>Saved Block Party result</h2>
         <p>Your current board is paused while you review this result.</p>
         <button type="button" onClick={closeRecovery}>Close saved result</button>
-        <BlockPartyRecoveredRun key={recoveredId} clientRunId={recoveredId} storage={runtime.storage} client={runtime.client} />
+        <BlockPartyRecoveredRun key={recoveredId} clientRunId={recoveredId} storage={runtime.storage} client={runtime.client} connect={runtime.connect} />
       </section>}
       {runtime && <div>
-        {runtime.connect && <button type="button" disabled={freePlayConnecting} onClick={() => void connectForSavedScores()}>Connect wallet for saved scores</button>}
-        {freePlayError && <p role="alert">{freePlayError}</p>}
-        <BlockPartySavedRuns storage={runtime.storage} client={runtime.client} onOpen={setLocalRecoveryId} />
+        <BlockPartySavedRuns storage={runtime.storage} client={runtime.client} connect={runtime.connect} onOpen={setLocalRecoveryId} />
       </div>}
       <div className="k-bp-layout" inert={!!recoveredId}>
         <section className="k-bp-play" aria-label={ranked ? "Daily game" : "Practice game"}>
@@ -558,7 +544,7 @@ export default function BlockPartyGame({ freePlay, recovery }: BlockPartyGamePro
               </div>
               {runtime && <BlockPartyCompletedRound
                 round={{ roundId, roundMode, roundSeed, roundModifier, actionLog, score, roundOver }}
-                storage={runtime.storage} client={runtime.client}
+                storage={runtime.storage} client={runtime.client} connect={runtime.connect}
               />}
               <NextBoardCountdown />
             </div>
