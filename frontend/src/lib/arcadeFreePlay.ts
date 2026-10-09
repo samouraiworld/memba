@@ -44,6 +44,18 @@ export function sameFreePlayTarget(a: FreePlayTarget, b: FreePlayTarget): boolea
 export function validFreePlayTarget(v: unknown): v is FreePlayTarget {
     return record(v) && typeof v.chainId === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(v.chainId) && v.realm === FREE_PLAY_REALM
 }
+/** Bare trusted origins only. HTTP is a local-development exception for these
+ * literal loopback hosts; aliases, subdomains and lookalike suffixes are refused.
+ * Shared by the host validator and the directly callable client constructor.
+ */
+export function validFreePlayOrigin(value: unknown): value is string {
+    if (typeof value !== 'string') return false
+    let endpoint: URL
+    try { endpoint = new URL(value) } catch { return false }
+    if (endpoint.username || endpoint.password || endpoint.pathname !== '/' || endpoint.search || endpoint.hash) return false
+    return endpoint.protocol === 'https:' || endpoint.protocol === 'http:'
+        && /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]+)?\/?$/i.test(value)
+}
 export function validFreePlayBinding(v: unknown): v is FreePlayBinding {
     return record(v) && typeof v.player === 'string' && address.test(v.player) && validFreePlayTarget(v.target)
 }
@@ -126,8 +138,8 @@ export interface FreePlayClient {
     publish(binding: FreePlayBinding, input: FreePlayInput, request: FreePlayPublishRequest, signal: AbortSignal): Promise<FreePlayRun>
 }
 export function createFreePlayClient(options: { origin: string; target: FreePlayTarget; auth: FreePlayAuth; fetch: typeof fetch }): FreePlayClient {
+    if (!validFreePlayOrigin(options.origin) || !validFreePlayTarget(options.target)) throw new FreePlayError('invalid_endpoint')
     const endpoint = new URL(options.origin)
-    if (!['https:', 'http:'].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.pathname !== '/' || endpoint.search || endpoint.hash || !validFreePlayTarget(options.target)) throw new FreePlayError('invalid_endpoint')
     const target = { ...options.target }
     const sameIdentity = (a: FreePlayIdentity | null, b: FreePlayIdentity) => a?.player === b.player && a.chainId === b.chainId && a.revision === b.revision
     const assertIdentity = (binding: FreePlayBinding): FreePlayIdentity => {

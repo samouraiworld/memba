@@ -101,3 +101,30 @@ describe('Free play public boards', () => {
         expect(s.fetcher).not.toHaveBeenCalled()
     })
 })
+
+
+describe('Free play bearer transport origin', () => {
+    it('refuses remote HTTP and misleading loopback hosts before any auth or fetch', () => {
+        const identity = vi.fn(() => null), token = vi.fn(), subscribe = vi.fn(), fetcher = vi.fn<typeof fetch>()
+        for (const origin of [
+            'http://backend.example', 'http://192.168.1.10:8080', 'http://0.0.0.0',
+            'http://localhost.example', 'http://sub.localhost', 'http://localhost.',
+            'http://127.0.0.1.example', 'http://localhost@backend.example',
+            'http://[::2]', 'http://[::ffff:127.0.0.1]', 'http://127.1',
+            'http://2130706433', 'http://0x7f000001', 'not-a-url',
+        ]) expect(() => createFreePlayClient({ origin, target: v.target, auth: { identity, token, subscribe }, fetch: fetcher })).toThrow('invalid_endpoint')
+        expect(identity).not.toHaveBeenCalled(); expect(token).not.toHaveBeenCalled()
+        expect(subscribe).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled()
+    })
+    it('accepts HTTPS and literal localhost, IPv4 and IPv6 loopback for explicit local calls', async () => {
+        for (const origin of ['https://backend.example', 'http://localhost:8080', 'http://127.0.0.1:8080/', 'http://[::1]:8080']) {
+            const s = setup()
+            const client = createFreePlayClient({ origin, target: v.target, auth: s.auth, fetch: s.fetcher })
+            await expect(client.verify(binding, input, new AbortController().signal)).resolves.toEqual(run())
+            expect(s.auth.token).toHaveBeenCalledTimes(1); expect(s.fetcher).toHaveBeenCalledTimes(1)
+            const [url, init] = s.fetcher.mock.calls[0]
+            expect(new URL(String(url)).origin).toBe(new URL(origin).origin)
+            expect(init).toMatchObject({ redirect: 'error', headers: { Authorization: 'Bearer private-token' } })
+        }
+    })
+})

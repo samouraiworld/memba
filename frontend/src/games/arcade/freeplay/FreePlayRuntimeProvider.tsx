@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { FreePlayRuntimeContext, type FreePlayRuntime } from './FreePlayRuntimeContext'
 
-/** WindowBody supplies stable dependencies to native and classic views. Keep
+/** The OS Shell supplies stable dependencies to desktop and phone views. Keep
  * engines mounted when recovery changes; it only selects a result panel.
  * No construction, persistence, connection or API work takes place here.
  */
