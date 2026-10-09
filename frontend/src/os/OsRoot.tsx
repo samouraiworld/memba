@@ -10,11 +10,17 @@ import "./os.css"
 import "./shell/shell.css"
 import "./classic-bridge.css"
 import "./kit/kit.css"
+import { useState } from "react"
 import { Shell } from "./shell/Shell"
+import { ARCADE_FREE_PLAY_DEPLOYMENT, resolveArcadeFreePlayDeployment } from "./arcadeFreePlayDeployment"
 import { AppearanceContext, useAppearanceState } from "./appearance"
 import { useClassicThemeSync } from "./theme"
 
 export default function OsRoot() {
+    // Keep one configuration reference per host mount; null never acquires storage.
+    const [freePlayConfiguration] = useState(() => resolveArcadeFreePlayDeployment(
+        ARCADE_FREE_PLAY_DEPLOYMENT, () => window.localStorage,
+    ))
     const appearance = useAppearanceState()
     useClassicThemeSync(appearance.theme)
     return (
@@ -26,7 +32,7 @@ export default function OsRoot() {
             data-os-icon-size={appearance.iconSize}
             style={{ background: appearance.theme === "dark" ? appearance.wallpaper.dark : appearance.wallpaper.light }}
         >
-            <AppearanceContext.Provider value={appearance}><Shell /></AppearanceContext.Provider>
+            <AppearanceContext.Provider value={appearance}><Shell freePlayConfiguration={freePlayConfiguration} /></AppearanceContext.Provider>
         </div>
     )
 }
