@@ -1,7 +1,8 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 /** Measure only our available area; never resize or style the shared OS window. */
-export function usePreviewHeight(root: RefObject<HTMLElement | null>): void {
+export function usePreviewHeight(): RefObject<HTMLElement | null> {
+    const root = useRef<HTMLElement>(null)
     useEffect(() => {
         const node = root.current
         if (!node) return
@@ -13,7 +14,7 @@ export function usePreviewHeight(root: RefObject<HTMLElement | null>): void {
             if (!bottom || !rect.width) return
             const windowBottom = windowBody?.getBoundingClientRect().bottom ?? bottom
             const height = Math.floor(Math.min(bottom, windowBottom) - Math.max(0, rect.top) - 8)
-            node.style.setProperty('--fps-available-height', `${Math.max(240, height)}px`)
+            node.style.setProperty('--fps-available-height', `${Math.max(160, height)}px`)
             node.dataset.compact = String(height < 500 && rect.width >= 500)
         }
         resize()
@@ -27,5 +28,6 @@ export function usePreviewHeight(root: RefObject<HTMLElement | null>): void {
             window.removeEventListener('resize', resize)
             window.visualViewport?.removeEventListener('resize', resize)
         }
-    }, [root])
+    }, [])
+    return root
 }
