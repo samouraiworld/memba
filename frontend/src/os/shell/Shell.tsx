@@ -441,6 +441,8 @@ export function Shell() {
         ]
     }
 
+    const windowWins = win.wins.filter((w) => w.app !== "radio")
+    const radioWindow = win.wins.find((w) => w.app === "radio")
     const visible = visibleWindows(win.wins)
     const meetWindow = win.wins.find((w) => w.target?.kind === "app" && w.target.app === "meet" && !!w.target.section)
     const meetRoom = meetWindow?.target?.kind === "app" && meetWindow.target.section ? normaliseRoomId(meetWindow.target.section) : null
@@ -480,13 +482,14 @@ export function Shell() {
     // The video stays at one React position while the visible layout changes.
     return (
         <>
-        {win.wins.some(w => w.app === "radio") && <Suspense fallback={null}><RadioStage locked={locked} /></Suspense>}
+            {radioWindow && <Suspense fallback={null}><RadioStage locked={locked} visible={!radioWindow.min && !modalBlocked && !launcher}
+                onHide={() => win.minimise(radioWindow.id)} onStop={() => win.close(radioWindow.id)} /></Suspense>}
         <LiveActivityProvider networkKey={session.network.key} active={!onEvm && !locked && (!phone || front?.app === "live")}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
             {phone ? <>
-                <PhoneShell locked={modalBlocked} session={session} front={front} wins={win.wins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
@@ -498,8 +501,8 @@ export function Shell() {
                     }} />
                 {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </> : <>
-            <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
-                closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
+            <MenuBar locked={modalBlocked} session={session} wins={windowWins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
+                closeAll={() => windowWins.forEach((w) => win.close(w.id))} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
@@ -517,7 +520,7 @@ export function Shell() {
                         </div>
                     </div>
                 )}
-                {win.wins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
+                {windowWins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
                     <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
@@ -530,7 +533,7 @@ export function Shell() {
                     <button type="button" className="os-btn" onClick={session.openConnect}>Connect to sign</button>
                 </div>
             )}
-            <Dock wins={win.wins} family={session.network.family} openApp={openApp} restore={win.focus} locked={modalBlocked} />
+            <Dock wins={windowWins} family={session.network.family} openApp={openApp} restore={win.focus} locked={modalBlocked} />
             </>}
             {meetStage}
             </MeetStageContext.Provider>

@@ -2,13 +2,14 @@ import { entryAt, loadNow, loadStations, type NowPlaying, type RadioTrack, type 
 
 export interface RadioState { ready: boolean; station: number; stations: Station[]; track: RadioTrack | null; playing: boolean; busy: boolean; volume: number; error: string; status: string }
 const initial = (): RadioState => ({ ready: false, station: 0, stations: [], track: null, playing: false, busy: false, volume: .65, error: "", status: "Choose Play to join the live station." })
-/** An owner in the shell survives phone navigation and minimising a window. */
+/** An owner in the shell survives phone navigation and hiding the widget. */
 export class RadioPlayer {
     private state = initial()
     private listeners = new Set<() => void>()
     private audio: HTMLAudioElement | null = null
     private timer: ReturnType<typeof setInterval> | null = null
     private generation = 0
+    private lastVolume = .65
     private wanted = false
     private pending = false
     private nextRead = 0
@@ -74,7 +75,8 @@ export class RadioPlayer {
             this.set({ track: next.track, busy: false })
             if (!entry || !next.track) { this.pause(); this.set({ status: "Nothing is on air on this station yet." }); return }
             if (!next.urls.length) { this.pause(); this.set({ error: "This track has no supported audio source." }); return }
-            const offset = Math.max(0, next.schedule.now - entry.start + (this.clock() - started) / 2000)
+            // Rotation entries can begin partway through a track; the realm supplies that base offset.
+            const offset = (entry.offset ?? 0) + Math.max(0, next.schedule.now - entry.start + (this.clock() - started) / 2000)
             if (this.state.playing && audio.src && this.urls[0] === next.urls[0]) {
                 if (Math.abs(audio.currentTime - offset) > 5) audio.currentTime = offset
                 this.set({ status: "Live" })
@@ -99,9 +101,11 @@ export class RadioPlayer {
         this.set({ station, track: null, playing: false })
         if (this.wanted) void this.refresh()
     }
+    mute = () => this.volume(this.state.volume ? 0 : this.lastVolume)
     volume = (volume: number) => {
         const n = Math.max(0, Math.min(1, volume))
         if (!Number.isFinite(n)) return
+        if (n > 0) this.lastVolume = n
         if (this.audio) this.audio.volume = n
         this.set({ volume: n })
     }
@@ -109,6 +113,7 @@ export class RadioPlayer {
         ++this.generation; this.wanted = false; this.pending = false
         if (this.timer) clearInterval(this.timer)
         if (this.audio) { const a = this.audio; a.onpause = a.onplaying = a.onwaiting = a.onloadedmetadata = a.onerror = a.onended = null; a.pause(); a.removeAttribute("src"); a.load() }
+        this.lastVolume = .65
         this.audio = null; this.timer = null; this.loaded = null; this.urls = []; this.set(initial())
     }
 }
