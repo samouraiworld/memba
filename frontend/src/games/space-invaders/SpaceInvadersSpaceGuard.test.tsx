@@ -4,6 +4,11 @@ import SpaceInvaders from "./SpaceInvaders";
 import type { SpaceInvadersReplayResult } from "./lib/launch";
 const geometry = vi.hoisted(() => ({ width: 320, height: 400, availableHeight: 600, landscape: false }));
 const advance = vi.hoisted(() => vi.fn());
+const drone = vi.hoisted(() => vi.fn());
+vi.mock("./lib/audio", async original => {
+  const actual = await original<typeof import("./lib/audio")>();
+  return { ...actual, createAudioEngine: () => ({ muted: false, droning: false, unlock: vi.fn(), play: vi.fn(), setDrone: drone, setMuted: vi.fn(), dispose: vi.fn() }) };
+});
 vi.mock("./hooks/usePlayfieldSize", () => ({ usePlayfieldSize: () => geometry }));
 vi.mock("./render/draw", () => ({ draw: vi.fn() }));
 vi.mock("./hooks/useGameLoop", async original => {
@@ -17,7 +22,7 @@ let sequence: number;
 function frame(time: number) { act(() => { const pending = [...callbacks.values()]; callbacks.clear(); pending.forEach(cb => cb(time)); }); }
 function size(small: boolean) { Object.assign(geometry, small ? { width: 82, height: 103, availableHeight: 151, landscape: true } : { width: 320, height: 400, availableHeight: 600, landscape: false }); }
 beforeEach(() => {
-  size(false); callbacks = new Map(); sequence = 0; advance.mockClear(); localStorage.clear();
+  size(false); callbacks = new Map(); sequence = 0; advance.mockClear(); drone.mockClear(); localStorage.clear();
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => { callbacks.set(++sequence, cb); return sequence; });
   vi.stubGlobal("cancelAnimationFrame", (id: number) => callbacks.delete(id));
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as CanvasRenderingContext2D);
@@ -85,4 +90,22 @@ it("preserves an armed first shot when resized before its first step", () => {
   fireEvent.click(screen.getByRole("button", { name: "Resume defense" })); frame(6250);
   expect(advance.mock.calls[0][0][0]).toMatchObject({ seed: 7, tick: 0, phase: "ready" });
   expect(advance.mock.calls[0][0][2]).toMatchObject({ fire: true, pause: false });
+});
+
+it("silences an active UFO immediately on protection and restarts audio only after explicit resume", () => {
+  const props = { seed: 7, initialState: { phase: "playing" as const, ufo: { x: 100, y: 22, w: 24, h: 10, dir: 1 as const, alive: true } } };
+  const view = render(<SpaceInvaders {...props} />); frame(0); frame(20);
+  expect(drone).toHaveBeenLastCalledWith(true);
+  const saved = advance.mock.calls.at(-1)![1]; const count = advance.mock.calls.length;
+  size(true); view.rerender(<SpaceInvaders {...props} />);
+  // No frame is needed: the early-returning protected loop cannot leave sound on.
+  expect(drone).toHaveBeenLastCalledWith(false);
+  frame(5000); expect(drone).toHaveBeenLastCalledWith(false);
+  expect(advance).toHaveBeenCalledTimes(count);
+  size(false); view.rerender(<SpaceInvaders {...props} />); frame(6000); frame(6250);
+  expect(drone).toHaveBeenLastCalledWith(false);
+  expect(advance).toHaveBeenCalledTimes(count);
+  fireEvent.click(screen.getByRole("button", { name: "Resume defense" })); frame(6500);
+  expect(advance.mock.calls[count][0][0]).toMatchObject({ tick: saved.tick, seed: saved.seed, score: saved.score, ufo: saved.ufo });
+  expect(drone).toHaveBeenLastCalledWith(true);
 });

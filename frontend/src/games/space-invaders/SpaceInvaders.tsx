@@ -194,6 +194,8 @@ export default function SpaceInvaders({
   useLayoutEffect(() => {
     spaceBlockedRef.current = spaceBlocked;
     if (!spaceBlocked) return; // More room never resumes a run automatically.
+    // The protected rAF returns before normal audio reconciliation.
+    audioRef.current?.setDrone(false);
     accRef.current = 0;
     last.current = null;
     resetTouchInput();
