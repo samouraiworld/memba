@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react"
 import { act, render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
@@ -5,6 +6,21 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { subscribeTheme } from "../lib/themeStore"
 import OsRoot from "./OsRoot"
 import { OS_THEME_KEY } from "./theme"
+import { Shell } from "./shell/Shell"
+import type { ArcadeFreePlayDeployment } from "./arcadeFreePlayDeployment"
+import * as freePlayClient from "../lib/arcadeFreePlay"
+import * as freePlayAuth from "../games/arcade/freeplay/osAuth"
+
+const deploymentFixture = vi.hoisted(() => ({ deployment: null as ArcadeFreePlayDeployment | null, probe: false }))
+vi.mock("./arcadeFreePlayDeployment", async original => ({
+    ...(await original<typeof import("./arcadeFreePlayDeployment")>()),
+    get ARCADE_FREE_PLAY_DEPLOYMENT() { return deploymentFixture.deployment },
+}))
+vi.mock("./shell/Shell", async original => {
+    const actual = await original<typeof import("./shell/Shell")>()
+    return { ...actual, Shell: vi.fn((props: ComponentProps<typeof actual.Shell>) => deploymentFixture.probe
+        ? <div data-testid="shell-probe" /> : <actual.Shell {...props} />) }
+})
 
 function mockSystemDark(dark: boolean) {
     vi.stubGlobal("matchMedia", (query: string) => ({
@@ -19,10 +35,15 @@ function renderOs() {
     // main.tsx supplies this in the app; the shell's Live polling uses it.
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={["/os"]}><OsRoot /></MemoryRouter></QueryClientProvider>
-    return render(tree())
+    const view = render(tree())
+    return { ...view, rerenderOs: () => view.rerender(tree()) }
 }
 
 afterEach(() => {
+    deploymentFixture.deployment = null
+    deploymentFixture.probe = false
+    vi.restoreAllMocks()
+    vi.clearAllMocks()
     vi.unstubAllGlobals()
     localStorage.clear()
 })
@@ -108,5 +129,44 @@ describe("OsRoot", () => {
 
         unmount()
         expect(document.documentElement).toHaveAttribute("data-theme", "sepia")
+    })
+})
+
+
+describe("OsRoot reviewed Free play deployment wiring", () => {
+    it("passes null without constructing a second auth/client owner", () => {
+        deploymentFixture.probe = true
+        mockSystemDark(false)
+        const createClient = vi.spyOn(freePlayClient, "createFreePlayClient")
+        const createAuth = vi.spyOn(freePlayAuth, "createOsFreePlayAuth")
+        const view = renderOs()
+        view.rerenderOs()
+        expect(screen.getAllByTestId("shell-probe")).toHaveLength(1)
+        for (const [props] of vi.mocked(Shell).mock.calls) expect(props?.freePlayConfiguration).toBeNull()
+        expect(createClient).not.toHaveBeenCalled()
+        expect(createAuth).not.toHaveBeenCalled()
+    })
+
+    it("injects validated host storage with a stable configuration across appearance rerenders", () => {
+        deploymentFixture.probe = true
+        deploymentFixture.deployment = { chainId: "test-chain", games: {
+            "block-party": { rules: "bp-free-standard-undo-v1", simVersion: 1 },
+        } }
+        mockSystemDark(false)
+        const createClient = vi.spyOn(freePlayClient, "createFreePlayClient")
+        const createAuth = vi.spyOn(freePlayAuth, "createOsFreePlayAuth")
+        const view = renderOs()
+        const configuration = vi.mocked(Shell).mock.calls[0][0]?.freePlayConfiguration
+        expect(configuration).toEqual({ ...deploymentFixture.deployment, storage: localStorage })
+        act(() => {
+            localStorage.setItem(OS_THEME_KEY, "dark")
+            window.dispatchEvent(new StorageEvent("storage", { key: OS_THEME_KEY }))
+        })
+        view.rerenderOs()
+        expect(screen.getByTestId("memba-os")).toHaveAttribute("data-os-theme", "dark")
+        expect(vi.mocked(Shell).mock.calls.length).toBeGreaterThan(1)
+        for (const [props] of vi.mocked(Shell).mock.calls) expect(props?.freePlayConfiguration).toBe(configuration)
+        expect(createClient).not.toHaveBeenCalled()
+        expect(createAuth).not.toHaveBeenCalled()
     })
 })
