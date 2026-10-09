@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Escrow panel test isolation (2026-10-09)
+- Keep contract lookup and archive read-back tests independent of live DAO RPC timing by mocking the dispute-routing read in the panel fixture.
+
 ### Store logo contrast (2026-10-09)
 - Give transparent GnoSwap, Kourt, Boards and Playground logos contrasting backgrounds in Store cards/details and the ecosystem directory, retaining their original artwork and showing the full mark without cropping.
 

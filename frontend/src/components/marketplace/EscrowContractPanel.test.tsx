@@ -63,6 +63,12 @@ vi.mock("../../lib/dao/proposalDates", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/dao/proposalDates")>()),
     getCurrentBlock: async () => chain.height,
 }))
+// ContractDetail awaits this alongside the contract read, including after archive.
+// Keep the panel fixture independent of the live RPC; DAO behavior has its own tests.
+vi.mock("../../lib/dao/membaGov", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/dao/membaGov")>()),
+    readEscrowDecidedByDao: async () => false,
+}))
 
 const milestone = (status: EscrowContractView["milestones"][number]["status"]) =>
     ({ index: 0, title: "A", amountUgnot: 1000, status, fundedAt: null, completedAt: null, disputedAt: null, refundAt: null, resolveAt: null })
