@@ -39,9 +39,9 @@ export function EcosystemDirectory({ standalone = false, onChain, filteredProjec
             <ul className="ecosystem-directory__grid">
                 {projects.map(project => {
                     const Icon = ICONS[project.category]
-                    const logo = resolveMedia(project.id, null, project.id).logo
+                    const media = resolveMedia(project.id, null, project.id)
                     return <li key={project.id}><article className="ecosystem-app">
-                        <div className="ecosystem-app__top"><span className="ecosystem-app__icon">{logo ? <img src={logo} alt="" loading="lazy" /> : <Icon size={26} aria-hidden="true" />}</span><span>{project.category}</span></div>
+                        <div className="ecosystem-app__top"><span className="ecosystem-app__icon" data-framed={!!media.logoBackground || undefined} style={{ backgroundColor: media.logoBackground }}>{media.logo ? <img src={media.logo} alt="" loading="lazy" /> : <Icon size={26} aria-hidden="true" />}</span><span>{project.category}</span></div>
                         {standalone ? <h2>{project.name}</h2> : <h3>{project.name}</h3>}<p>{project.description}</p>
                         <p className="ecosystem-app__availability">{project.availability}</p>
                         <div className="ecosystem-app__links">

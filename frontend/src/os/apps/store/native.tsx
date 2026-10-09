@@ -65,7 +65,7 @@ function appSection(entry: CatalogueEntry): string {
 function StoreCard({ entry, summary, onOpen }: { entry: CatalogueEntry; summary?: SubjectSummary; onOpen: () => void }) {
     const media = entryMedia(entry)
     return <button type="button" className="os-store-card os-cin-tile" onClick={onOpen} aria-label={`Details for ${entry.name}`}>
-        <AppIcon name={entry.name} logo={media.logo} accent={media.accent} />
+        <AppIcon name={entry.name} logo={media.logo} accent={media.accent} logoBackground={media.logoBackground} />
         <span className="os-store-card-copy">
             <b>{entry.name}</b>
             <span>{entry.tagline}</span>
@@ -125,7 +125,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                 if (host) rows.push(["Website", <a key="site" href={entry.url} target="_blank" rel="noopener noreferrer">{host} ↗</a>])
                 if (listing?.publisher) rows.push(["Listed by", <code key="pub">{listing.publisher}</code>])
                 return <DetailLayout banner={media.cover} accent={media.accent}
-                    icon={<AppIcon name={entry.name} logo={media.logo} accent={media.accent} size={96} />}
+                    icon={<AppIcon name={entry.name} logo={media.logo} accent={media.accent} logoBackground={media.logoBackground} size={96} />}
                     back={{ label: "← Discover", onClick: back }} title={entry.name} pitch={entry.tagline}
                     badges={<><RatingBadge summary={summaries.get(subject)} /><span className="os-cin-tag">{entry.category}</span><span className="os-cin-tag">{availability(entry)}</span></>}
                     main={<>

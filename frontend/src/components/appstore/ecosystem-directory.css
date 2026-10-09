@@ -40,3 +40,5 @@
 .ecosystem-app > .ecosystem-app__checked { font-size: 12px; margin: 12px 0 0; }
 .ecosystem-app__footer span { overflow-wrap: anywhere; }
 .ecosystem-directory :is(a, input, select, button):focus-visible { outline: 2px solid var(--color-k-accent-text); outline-offset: 3px; }
+
+.ecosystem-app__icon[data-framed] img { padding: 12%; box-sizing: border-box; }

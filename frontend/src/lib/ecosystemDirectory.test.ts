@@ -11,12 +11,14 @@ describe("editorial discovery", () => {
     it("does not turn tool or external-app labels into mainnet deployment claims", () => {
         expect(filterEcosystemProjects({ ...defaults, availability: "mainnet" }).map(p => p.id)).toEqual(["gnoswap", "boards", "gnofly", "kourt", "gnoscan", "mygnoscan"])
         expect(filterEcosystemProjects({ ...defaults, availability: "unknown" }).map(p => p.id)).toEqual(["akkadia", "bubble-rumble"])
-        expect(filterEcosystemProjects({ ...defaults, availability: "testnet" }).map(p => p.id)).toEqual(["gnoscan"])
+        expect(filterEcosystemProjects({ ...defaults, availability: "testnet" }).map(p => p.id)).toEqual(["gnogolf", "gnoscan"])
         expect(filterEcosystemProjects({ ...defaults, availability: "tools", category: "Wallet" }).map(p => p.id)).toEqual(["adena"])
-        expect(filterEcosystemProjects({ ...defaults, category: "Games" }).map(p => p.id)).toEqual(["bubble-rumble", "gnofly"])
+        expect(filterEcosystemProjects({ ...defaults, category: "Games" }).map(p => p.id)).toEqual(["bubble-rumble", "gnofly", "gnogolf"])
     })
-    it("derives the Arcade's community games from the directory: mainnet games only", () => {
-        expect(COMMUNITY_GAMES.map(p => p.id)).toEqual(["gnofly"])
+    it("selects Arcade entries independently of mainnet and category", () => {
+        expect(COMMUNITY_GAMES.map(p => p.id)).toEqual(["akkadia", "gnofly", "gnogolf"])
+        expect(COMMUNITY_GAMES.find(p => p.id === "akkadia")).toMatchObject({ category: "Creative worlds", networks: [] })
+        expect(COMMUNITY_GAMES.find(p => p.id === "gnogolf")).toMatchObject({ networks: ["onyx"] })
     })
     it("bounds hostile URL input and defaults invalid facets", () => {
         expect(parseEcosystemFilters(new URLSearchParams({ q: "x".repeat(1000), category: "__proto__", availability: "live" }))).toEqual({ ...defaults, q: "x".repeat(200) })

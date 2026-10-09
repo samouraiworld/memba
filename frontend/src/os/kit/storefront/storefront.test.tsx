@@ -98,6 +98,19 @@ describe("AppIcon and MediaGallery", () => {
         expect(screen.getByText("GP")).toBeInTheDocument()
         expect(monogram("Adena")).toBe("AD")
     })
+    it("uses a contrasting plate for transparent logos, then restores the accent on load failure", () => {
+        const { container, rerender } = render(<AppIcon name="GnoSwap" logo="/store/gnoswap/logo.svg" accent="#233DBD" logoBackground="#F5F7FA" />)
+        const icon = container.querySelector(".os-cin-icon") as HTMLElement
+        expect(icon).toHaveAttribute("data-framed", "true")
+        expect(icon.style.getPropertyValue("--icon-accent")).toBe("#F5F7FA")
+        fireEvent.error(container.querySelector("img")!)
+        expect(screen.getByText("GN")).toBeInTheDocument()
+        expect(icon).not.toHaveAttribute("data-framed")
+        expect(icon.style.getPropertyValue("--icon-accent")).toBe("#233DBD")
+        rerender(<AppIcon name="Kourt" logo="/store/kourt/logo.webp" accent="#E6EDF2" logoBackground="#18232D" />)
+        expect(container.querySelector("img")).toHaveAttribute("src", "/store/kourt/logo.webp")
+        expect((container.querySelector(".os-cin-icon") as HTMLElement).style.getPropertyValue("--icon-accent")).toBe("#18232D")
+    })
     it("shows one screenshot at a time and switches from the thumbnails", () => {
         render(<MediaGallery name="GnoSwap" images={["/a.webp", "/b.webp"]} />)
         expect(screen.getByAltText("GnoSwap screenshot 1")).toBeInTheDocument()
