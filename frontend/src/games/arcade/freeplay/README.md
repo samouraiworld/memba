@@ -1,7 +1,7 @@
 # Free play client preparation
 
-Nothing in this directory is imported by a game or application route yet. No
-config, environment flag, wallet hook or LaunchContext is changed. Launch
+The client is prepared for separately reviewed game consumers. No production
+config, environment flag or LaunchContext is changed. Launch
 intentions are ephemeral and belong to D; these snapshots identify completed
 runs and have their own persistence lifecycle.
 
@@ -106,3 +106,33 @@ throws before any publication I/O. The canonical snapshot remains loadable by ID
 and may already contain consent; reopening it must preserve and retry that exact
 request. Keep a local export available when storage fails. This is a local saved
 results list, never a cross-game leaderboard.
+
+### Live OS authentication and runtime handoff
+
+`createOsFreePlayAuth({readSession})` uses the existing token serializer and
+signing guards without signing. The OS supplies its committed session and calls
+`refreshIdentity()` after commits; create/dispose this bridge in its lifecycle.
+Live RPC reads use frozen copies from `getWalletRpcContext`; its synchronous
+observer advances an independent revision on every setter, including unverified
+network transitions and A→B→A. The signing epoch semantics are unchanged.
+Nested observer notifications are coalesced to prevent recursion; each nested
+setter still updates the context and revision immediately. Listener exceptions
+and unsubscribe cannot block the remaining listeners.
+
+The bridge also consumes real Adena account/session-invalidated events, rejects
+that session's old token, expires credentials on a timer and rechecks the existing
+wallet action ticket at every identity/token boundary. OS lock/logout/refresh
+can invalidate work even without an RPC setter. Tokens remain private in memory.
+Six tests exercise real hooks/events/guards with only the Adena provider and HTTP
+boundary replaced; these are not a full Shell/browser recipe.
+
+`FreePlayRuntimeProvider` is a neutral optional dependency provider for WindowBody,
+native ArcadeWindow and classic pages. Its stable `games` map supplies per-game
+`client?`, `target?`, `storage`, `connect?`, `rules`, and `simVersion`; no values are
+constructed or activated by the provider. `recovery` carries the original game/ID
+and an explicit close callback. `subscribeSavedRuns?` belongs to the OS storage
+owner. Explicit game props take priority over the provider; an explicit null can
+disable a game integration. A missing provider keeps local play available.
+Opening an archive must only mount a separate result view while preserving the
+current game engine and its paused state. Shell/Phone/WindowBody integration is
+reserved to D and remains pending its reviewed inventory.
