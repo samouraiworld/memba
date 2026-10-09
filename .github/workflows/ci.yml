@@ -335,6 +335,12 @@ jobs:
       # reviews), the fourth native multisig broadcast.
       - name: E2E Memba OS (chromium)
         run: npm run test:e2e:os -- --project=chromium --shard=${{ matrix.shard }}/4
+      # Notes fixtures use their own read-only simulated servers, not the OS flag lanes.
+      - name: Public Notes isolated acceptance (chromium)
+        if: matrix.shard == 4
+        run: |
+          npx playwright test --config playwright.notes-sushi.config.ts --project=chromium
+          npx playwright test --config playwright.notes-sushi-shell.config.ts --project=chromium
       - name: Upload E2E artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
