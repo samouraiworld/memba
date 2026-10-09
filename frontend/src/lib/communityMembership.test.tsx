@@ -5,12 +5,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { GNO_CHAIN_ID, MEMBA_DAO, isFeedWritable } from "./config"
 import { COMMUNITY_MEMBERSHIP_COPY, fetchCommunityMembership, useCommunityMembership } from "./communityMembership"
 import { APPLICATION_TARGETS, packageAddress } from "./dao/weightedApplications"
+import { BRIDGE_PATH } from "./dao/govActions"
+import { bridgePublished } from "./dao/membaGov"
 import { directRpcCall } from "./rpcFallback"
 
+vi.mock("./dao/membaGov", async original => ({ ...await original<typeof import("./dao/membaGov")>(), bridgePublished: vi.fn(() => true) }))
 vi.mock("./rpcFallback", async original => ({ ...await original<typeof import("./rpcFallback")>(), directRpcCall: vi.fn() }))
 vi.mock("./config", async original => ({ ...await original<typeof import("./config")>(), isFeedWritable: vi.fn() }))
 
-const DAO = packageAddress(MEMBA_DAO.realmPath)
+const DAO = packageAddress(BRIDGE_PATH)
 const PUBLISHER = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
 const typed = (address: string) => (address ? `("${address}" .uverse.address)` : "( .uverse.address)")
 
@@ -27,10 +30,22 @@ function chain(owner: string, pending: string, network: string = GNO_CHAIN_ID) {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(bridgePublished).mockReturnValue(true)
     vi.mocked(isFeedWritable).mockReturnValue(true)
 })
 
 describe("fetchCommunityMembership", () => {
+    it("does not treat the retired DAO as the current community authority", async () => {
+        chain(typed(packageAddress(MEMBA_DAO.realmPath)), typed(""))
+        await expect(fetchCommunityMembership()).resolves.toBe("closed")
+    })
+
+    it("claims nothing where the bridge is not published", async () => {
+        vi.mocked(bridgePublished).mockReturnValue(false)
+        await expect(fetchCommunityMembership()).resolves.toBe("unknown")
+        expect(directRpcCall).not.toHaveBeenCalled()
+    })
+
     it("is closed while someone else owns the channels realm (gnoland-1 today: the publisher, DAO nominated)", async () => {
         chain(typed(PUBLISHER), typed(DAO))
         await expect(fetchCommunityMembership()).resolves.toBe("closed")
@@ -65,7 +80,7 @@ describe("useCommunityMembership", () => {
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
         const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
         const { result } = renderHook(() => useCommunityMembership(enabled), { wrapper })
-        const settled = () => waitFor(() => expect(client.getQueryState(["community-membership", GNO_CHAIN_ID])?.status).not.toBe("pending"))
+        const settled = () => waitFor(() => expect(client.getQueryState(["community-membership", GNO_CHAIN_ID, BRIDGE_PATH])?.status).not.toBe("pending"))
         return { result, settled }
     }
 

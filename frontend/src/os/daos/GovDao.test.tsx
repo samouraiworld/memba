@@ -7,6 +7,7 @@ import type { GovProposal, GovSnapshot } from "../../lib/dao/membaGov"
 import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 
+vi.mock("./GovFees", () => ({ GovFees: () => <section aria-label="Fees and transparency" /> }))
 vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn(), version: 0 }) }))
 vi.mock("../../lib/dao/membaGov", async original => ({
     ...(await original<typeof import("../../lib/dao/membaGov")>()),
@@ -39,6 +40,7 @@ const proposal = (p: GovProposal) => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(bridgePublished).mockReturnValue(false)
     vi.mocked(govPublished).mockReturnValue(true)
     vi.mocked(readGovSnapshot).mockImplementation(async (_ctx, before = "0") => snapshot(before))
     vi.mocked(readTargetManifest).mockResolvedValue("public")
@@ -46,6 +48,40 @@ beforeEach(() => {
 })
 
 describe("Memba DAO on memba_gov", () => {
+    it("lets an invited member join from Members, where the voting screen sends them", async () => {
+        folder("members", as("g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"))
+        expect(await screen.findByRole("button", { name: "Accept invitation as ghost…" })).toBeInTheDocument()
+    })
+
+    it("explains the DAO and links to members and proposals without a wallet", async () => {
+        folder("overview")
+        expect(await screen.findByText(/A group of people making decisions together for Memba/)).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "View proposals" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: { kind: "dao", name: NAME, section: "proposals" } }))
+        fireEvent.click(screen.getByRole("button", { name: "Meet the members" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: { kind: "dao", name: NAME, section: "members" } }))
+    })
+
+    it("does not count missing application reads as ungoverned", async () => {
+        vi.mocked(bridgePublished).mockReturnValue(true)
+        vi.mocked(readBridgePauses).mockResolvedValue({})
+        vi.mocked(readGovernedApps).mockResolvedValue({ memba_reviews_v2: true })
+        folder("overview")
+        expect(await screen.findAllByText("Ownership unknown")).toHaveLength(9)
+        expect(screen.queryByText(/of 10 connected/)).toBeNull()
+        expect(screen.queryByText("Handover needed")).toBeNull()
+    })
+
+    it("offers a retry instead of reporting zero governed apps on a failed read", async () => {
+        vi.mocked(bridgePublished).mockReturnValue(true)
+        vi.mocked(readBridgePauses).mockResolvedValue({})
+        vi.mocked(readGovernedApps).mockRejectedValue(new Error("offline"))
+        folder("overview")
+        expect(await screen.findByText("Couldn't read which apps the DAO governs.")).toBeInTheDocument()
+        expect(screen.queryByText(/of 10 connected/)).toBeNull()
+        expect(screen.queryByText("Handover needed")).toBeNull()
+    })
+
     it("is not read, and says so, where its publication is not recorded", () => {
         vi.mocked(govPublished).mockReturnValue(false)
         folder("overview")
@@ -62,7 +98,10 @@ describe("Memba DAO on memba_gov", () => {
             memba_quest_attestation_v1: false, memba_arcade_leaderboard_v1: false, gnobuilders_badges_v2: false, memba_feed_v1: false,
             memba_dao_channels_v2: false, memba_feedback_v2: false })
         folder("overview")
-        expect(await screen.findByText(/^Reviews\. Not governed by the DAO: Market config, Escrow, App Store, Quests, Arcade, Badges, Feed, Channels, Feedback; each joins when its current admin nominates the DAO's bridge and the handover is accepted\.$/)).toBeInTheDocument()
+        expect(await screen.findByText("1 of 10 connected")).toBeInTheDocument()
+        expect(screen.getAllByText("Handover needed")).toHaveLength(9)
+        expect(screen.getByText("Governed by the DAO")).toBeInTheDocument()
+        expect(screen.getByText(/No DAO vote is needed for this acceptance/)).toBeInTheDocument()
     })
 
     it("is the featured Memba DAO once published", () => {
@@ -73,7 +112,8 @@ describe("Memba DAO on memba_gov", () => {
 
     it("shows a guest the rules, from the realm's constants, and the open proposals", async () => {
         folder("overview")
-        expect(await screen.findByText(/5 seated, total weight 6/)).toBeInTheDocument()
+        expect(await screen.findByText("Seated members")).toBeInTheDocument()
+        expect(within(screen.getByLabelText("Current council")).getByText("5")).toBeInTheDocument()
         expect(screen.getByText(/then 1 day; or at least 2\/3 of the people and more than half of the weight, then 3 days/)).toBeInTheDocument()
         expect(screen.getByText(/Voting lasts 7 days/)).toBeInTheDocument()
         expect(screen.getByText(/for 180 days can be removed by a routine vote after 14 days/)).toBeInTheDocument()
@@ -87,7 +127,7 @@ describe("Memba DAO on memba_gov", () => {
         folder("overview", as("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"))
         expect(await screen.findByText("zxxma")).toBeInTheDocument()
         folder("overview", as("g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"))
-        expect(await screen.findByText(/It counts once it signs Join/)).toBeInTheDocument()
+        expect(await screen.findByText(/Accept your invitation with this wallet/)).toBeInTheDocument()
     })
 
     it("pages through proposals and names the unknown one as such", async () => {
@@ -120,7 +160,7 @@ describe("Memba DAO on memba_gov", () => {
         expect(await screen.findByText("g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2")).toBeInTheDocument()
         expect(screen.getByText("mikael")).toBeInTheDocument()
         expect(screen.getByText("ghost")).toBeInTheDocument()
-        expect(screen.getByText(/An invited key counts only once it signs Join/)).toBeInTheDocument()
+        expect(screen.getByText(/Invited members must connect the wallet/)).toBeInTheDocument()
     })
 })
 

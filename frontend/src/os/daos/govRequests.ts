@@ -38,7 +38,8 @@ function request(s: GovSigner, call: GovCall, spec: Spec): SignRequest {
     const fee = sheetFee(plan, s.gasPrice)
     return {
         title: spec.title, summary: spec.summary, sub: "Memba DAO",
-        lines: () => [...spec.lines, ["Storage deposit", `up to ${formatUgnot(plan.maxDepositUgnot!)}`], fee.line, ["Network", GNO_CHAIN_ID]],
+        lines: () => [...spec.lines, ["Storage deposit limit", `up to ${formatUgnot(plan.maxDepositUgnot!)}`], fee.line, ["Network", GNO_CHAIN_ID]],
+        note: "The storage deposit limit is a maximum allowance, not a quote. The network locks a deposit only for the storage this action adds; the unused allowance stays in your wallet. Network fees are separate.",
         acks: spec.acks ?? [], warns: spec.warns, label: () => spec.summary, receipt: govScope(s.caller, spec.operation),
         prepare: () => ({ msgs: [plan.msg] }),
         recheck: async () => { await withFeeCheck(spec.recheck(), fee.assertStillCovers()) },
@@ -104,8 +105,8 @@ export function govExecuteRequest(s: GovSigner, p: GovProposal): SignRequest {
 
 export function govJoinRequest(s: GovSigner, personId: string): SignRequest {
     return request(s, { type: "join" }, {
-        title: "Join Memba DAO", summary: `Join Memba DAO as ${personId}`,
-        lines: [["Seat", personId], ["Key", s.caller]],
+        title: "Accept DAO invitation", summary: `Join Memba DAO as ${personId}`,
+        lines: [["Member name", personId], ["Wallet", s.caller], ["What happens", "You become a DAO member and can take part in votes."]],
         warns: ["Joining ends every open proposal: members vote again on the new roster."],
         operation: "join",
         recheck: async () => {

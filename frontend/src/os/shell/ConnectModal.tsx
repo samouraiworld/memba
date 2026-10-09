@@ -75,7 +75,7 @@ export function ConnectModal({ session }: { session: OsSession }) {
         ;(first ?? dialog.current).focus({ preventScroll: true })
     }, [stage])
     const closeable = !!stage && !(stage === "activate" && session.activationForced) && stage !== "activatewait" && stage !== "activatesent"
-    useDialogKeys(dialog, !!stage, "button:not(:disabled), a[href]", closeable ? session.cancel : undefined)
+    useDialogKeys(dialog, !!stage, "button:not(:disabled), a[href], summary", closeable ? session.cancel : undefined)
     if (!stage) return null
     const cost = session.activationCost
     let body: ReactNode
@@ -159,20 +159,25 @@ export function ConnectModal({ session }: { session: OsSession }) {
             break
         case "activate":
             body = <>
-                <Head title="Activate your address" sub="Your address has never sent a transaction, so the chain doesn’t know its public key yet. Memba needs it to check your signatures." />
+                <Head title="Prepare your wallet to participate" sub="Memba needs to verify that actions come from you. For a wallet that has never sent a transaction on this network, Adena needs this one-time setup before you can sign in." />
                 <dl className="os-kv os-card">
-                    <dt>What happens</dt><dd>Sends {exact(ACTIVATION_SEND_UGNOT)} from your address to itself</dd>
-                    <dt>How often</dt><dd>Once, never again</dd>
-                    <dt>Network fee</dt><dd>{cost ? `${session.activationPriceEstimated ? "about " : ""}${exact(cost.feeUgnot)}` : "reading the network price…"}</dd>
+                    <dt>Sent to your own address</dt><dd>{exact(ACTIVATION_SEND_UGNOT)} · stays in your wallet</dd>
+                    <dt>How often</dt><dd>Once for this address on {session.network.chainId}</dd>
+                    <dt>Storage deposit</dt><dd>None · 0 GNOT</dd>
+                    <dt>Network fee estimate</dt><dd>{cost ? `${session.activationPriceEstimated ? "about " : ""}${exact(cost.feeUgnot)}` : "reading the network price…"}</dd>
                 </dl>
-                <p className="os-sub os-flush">Your wallet sets the fee it signs from its own gas estimate, usually lower than the figure above. Check the fee in Adena before you approve.</p>
-                <AdenaShows />
+                <p className="os-sub os-flush">Only the network fee is spent. Adena calculates the final fee, which may be lower than this estimate. Check it before you approve.</p>
+                <details className="os-card os-adena">
+                    <summary>Technical details</summary>
+                    <p className="os-sub">This first transaction records your public key so Memba can verify your login signatures. It does not accept a DAO invitation or cast a vote.</p>
+                    <AdenaShows />
+                </details>
                 {session.noFunds && cost && <p className="os-note os-warn" role="status">Activation needs at least {exact(BigInt(cost.feeUgnot) + ACTIVATION_SEND_UGNOT)} here: the network fee and the {exact(ACTIVATION_SEND_UGNOT)} sent to yourself. Send this address at least that much, then activate.</p>}
                 {session.balanceUnknown && <p className="os-note os-warn" role="status">{session.balanceError ? "Balance unavailable. Retry the check before activating." : "Checking this address's GNOT balance…"}</p>}
                 <div className="os-row os-end">
                     {closeable && <button type="button" className="os-btn os-quiet" onClick={session.cancel}>Later</button>}
                     {session.balanceUnknown && <button type="button" className="os-btn os-quiet" onClick={() => { void session.refreshBalance() }}>Retry balance check</button>}
-                    <button type="button" className="os-btn" onClick={session.activate} disabled={session.noFunds || session.balanceUnknown || !cost} autoFocus>Activate in Adena</button>
+                    <button type="button" className="os-btn" onClick={session.activate} disabled={session.noFunds || session.balanceUnknown || !cost} autoFocus>Continue in Adena</button>
                 </div>
             </>
             break
@@ -191,7 +196,7 @@ export function ConnectModal({ session }: { session: OsSession }) {
     }
     return (
         <div className="os-scrim os-scrim-center" onClick={(e) => { if (closeable && e.target === e.currentTarget) session.cancel() }}>
-            <div ref={dialog} className="os-modal os-glass" role="dialog" aria-modal="true" aria-label="Connect a wallet" tabIndex={-1}
+            <div ref={dialog} className="os-modal os-glass os-connect-modal" role="dialog" aria-modal="true" aria-label="Connect a wallet" tabIndex={-1}
                 onKeyDown={onKeyDown}>
                 {body}
                 {/* The network note replaces an error from a sign-in it explains. */}

@@ -16,7 +16,7 @@ export function activationRequest(address: string, price: GasPrice): SignRequest
     const msgs = activationMsgs(address)
     const { gasWanted, feeUgnot } = activationCosts(price)
     return {
-        title: "Activate", summary: "Activate your address", lines: () => [], label: () => "Activate your address",
+        title: "Prepare your wallet", summary: "Prepare your wallet to participate", lines: () => [], label: () => "Prepare your wallet",
         prepare: () => ({ msgs }),
         recheck: () => assertFeeStillCovers(feeUgnot, () => freshFeeForGasWanted(gasWanted)),
         send: (_c, beforeSign) => doContractBroadcast(msgs, ACTIVATION_MEMO, { osActivation: true, gasWanted, gasFee: feeUgnot, beforeSign }),
