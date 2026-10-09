@@ -1,6 +1,15 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
+import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 
 test.use({ baseURL: 'http://localhost:5174' })
+
+// This suite measures the cabinet in a healthy shell. The pinned :5174
+// fixture uses test13 (chain id test-13); its retired public RPC must never
+// decide when a tall outage banner appears above the game during rotation.
+// Fulfill status probes locally, keeping all other RPC reads offline too.
+test.beforeEach(async ({ page }) => {
+    await fulfillOnchainReads(page, ({ method }) => method === 'status' ? mockAppChainStatus('test-13') : null)
+})
 
 async function resolveNetwork(page) {
 	await page.goto('/')
@@ -176,7 +185,12 @@ for (const [width, height] of [[390, 844], [844, 390]]) {
     const result = page.locator('.si-gameover')
     await expect(result.getByRole('heading', { name: /game over/i })).toBeVisible({ timeout: 45000 })
     await expect(result).toContainText('Free play · Replay checked on this device')
-    const score = await page.getByTestId('si-final-score').textContent()
+    // The visible counter starts at zero and animates to the final score.
+    // Its screen-reader sibling exposes the canonical summary immediately;
+    // compare against that value before AND after rotation/menu round trips.
+    const score = await result.locator('.si-result-score > .si-sr-only').textContent()
+    expect(score).not.toBeNull()
+    await expect(page.getByTestId('si-final-score')).toHaveText(score!)
     const canvas = await page.locator('.si-canvas').elementHandle()
     expect(canvas).not.toBeNull()
     await page.setViewportSize({ width, height })
