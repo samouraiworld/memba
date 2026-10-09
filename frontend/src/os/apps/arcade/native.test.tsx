@@ -169,3 +169,30 @@ describe("Arcade lobby", () => {
         expect(container).toBeEmptyDOMElement()
     })
 })
+
+
+describe("explicit Arcade Play callback", () => {
+    it("uses the host for supported Play, but keeps Connect 4 and Daily on ordinary open", () => {
+        const play = vi.fn(), open = vi.fn()
+        wrap(<ArcadeWindow {...base} section={null} open={open} play={play} />)
+        fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
+        expect(play).toHaveBeenCalledWith(expect.objectContaining({ key: "game:barricade" }))
+        fireEvent.click(screen.getByRole("button", { name: "Play Connect 4" }))
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "game:connect4" }))
+        fireEvent.click(screen.getByRole("button", { name: "Play daily" }))
+        expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ key: "game:game" }))
+        expect(play).toHaveBeenCalledTimes(1)
+    })
+
+    it("delivers Play from the rich game page but does not launch an unavailable game", () => {
+        const play = vi.fn(), open = vi.fn()
+        const view = wrap(<ArcadeWindow {...base} section="g/barricade" open={open} play={play} />)
+        fireEvent.click(screen.getByRole("button", { name: "Play BARRICADE" }))
+        expect(play).toHaveBeenCalledWith(expect.objectContaining({ key: "game:barricade" }))
+        view.unmount()
+        wrap(<ArcadeWindow {...base} section="g/space-invaders" open={open} play={play} />)
+        fireEvent.click(screen.getByRole("button", { name: "See why" }))
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "game:space-invaders" }))
+        expect(play).toHaveBeenCalledTimes(1)
+    })
+})

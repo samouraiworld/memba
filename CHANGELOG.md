@@ -41,6 +41,9 @@ Full changelogs are split by version range for easier navigation:
 ### Independent featured Notes on the desktop (2026-10-09)
 - Prepare separate Sushi and Whitepaper shortcuts with remembered dismissal, fixed labels on desktop and phone, and scoped browser storage that preserves existing pins across account changes and concurrent tabs.
 - Production note IDs and release activation remain pending. This change does not publish a document or enable collaborative editing.
+### Arcade window launch host (2026-10-09)
+- Open rich Arcade and Store views maximised on first creation, retaining user geometry when restoring existing windows.
+- Deliver transient Free play commands to Space Invaders and a separate return-to-Arcade action that keeps local game windows mounted; preserve Connect 4 and external game links.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.

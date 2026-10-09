@@ -35,6 +35,7 @@ import { EvmConnectModal } from "../evm/EvmConnectModal"
 import { SignerProvider } from "../sign/SignerProvider"
 import { bumpWalletActionEpoch, setWalletActionGuard } from "../../lib/grc20"
 import { EVM_ENABLED } from "../../lib/chain/flag"
+import { useArcadeLaunch } from "../apps/arcade/useArcadeLaunch"
 import { PhoneShell } from "../phone/PhoneShell"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { LiveActivityProvider } from "../apps/live/LiveProvider"
@@ -193,7 +194,9 @@ export function Shell() {
     const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
 
     const win = useWindows(() => arrivalWindows(arrival, fromLink, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }, storageOwner, explicitlyLocked))
-    const { dispatch } = win
+    const arcadeLaunch = useArcadeLaunch({ wins: win.wins, scope: `${session.network.chainId}:${session.status}:${session.address}`,
+        blocked: locked || Boolean(session.stage) || session.status === "resuming", dispatch: win.dispatch, desk: placeDesk })
+    const { dispatch } = arcadeLaunch
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
     const skipNextOwnerWrite = useRef<string | null>(null)
@@ -507,6 +510,7 @@ export function Shell() {
             {phone ? <>
                 <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={deskItems.noteLabels} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
+                    play={arcadeLaunch.play} launchFor={arcadeLaunch.launchFor} consumeLaunch={arcadeLaunch.consume} returnToArcade={arcadeLaunch.returnToArcade}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
                         // minimising all sheets then rewrites this new entry to /os.
@@ -537,7 +541,8 @@ export function Shell() {
                     </div>
                 )}
                 {windowWins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
-                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast}
+                        play={arcadeLaunch.play} launch={arcadeLaunch.launchFor(w)} onLaunchConsumed={(id) => arcadeLaunch.consume(w.id, id)} returnToArcade={() => arcadeLaunch.returnToArcade(w.id)} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
