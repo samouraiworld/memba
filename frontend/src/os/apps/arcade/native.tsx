@@ -24,7 +24,7 @@ const firstSentence = (text: string) => {
     return (end < 0 ? text : text.slice(0, end + 1)).replace(/\.{2,}$/, ".")
 }
 
-export default function ArcadeWindow({ section, open, push, fallback, session, active }: NativeViewProps) {
+export default function ArcadeWindow({ section, open, play: launch, push, fallback, session, active }: NativeViewProps) {
     const root = useRef<HTMLDivElement>(null)
     const shown = useRef(section)
     /** Set by the controls that leave the view (Details, ← Arcade): the button they leave is gone afterwards. */
@@ -56,12 +56,12 @@ export default function ArcadeWindow({ section, open, push, fallback, session, a
     const go = (next: string | null) => push(specForTarget({ kind: "app", app: "arcade", section: next })!)
     const follow = (next: string | null) => { carryFocus.current = true; go(next) }
     // Play opens the game's own window, beside this one.
-    const play = (game: ArcadeGame) => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
+    const play = (game: ArcadeGame) => (game.id !== "connect4" && launch ? launch : open)(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
     const scoped = (children: ReactNode) => <div ref={root} style={{ display: "contents" }}>{children}</div>
     const summaries = useReviewSummaries(session.network.chainId, ARCADE_GAMES.flatMap((game) => game.reviewSubject ? [game.reviewSubject] : []))
     if (section?.startsWith("g/")) {
         const game = gameById(section.slice(2))
-        return game ? scoped(<CinemaScope tone="arcade"><GamePage game={game} session={session} open={open} toLobby={() => follow(null)} /></CinemaScope>) : <>{fallback}</>
+        return game ? scoped(<CinemaScope tone="arcade"><GamePage game={game} session={session} open={open} play={launch} toLobby={() => follow(null)} /></CinemaScope>) : <>{fallback}</>
     }
     if (section !== null && !sections.some((entry) => entry.id === section)) return <>{fallback}</>
     const current = section ?? "games"

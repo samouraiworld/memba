@@ -15,7 +15,8 @@ import { AppTile, Icon } from "../shell/icons"
 import { useClock } from "../shell/clock"
 import type { OsSession } from "../shell/useOsSession"
 import { WindowBody } from "../shell/WindowFrame"
-import { sendSpec, specForTarget, type OsWindow, type WindowSpec } from "../shell/windows"
+import type { ArcadeLaunchIntent } from "../../games/arcade/LaunchContext"
+import { isArcadePlayWindow, sendSpec, specForTarget, type OsWindow, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { CommunityNews } from "../community/CommunityNews"
 import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
@@ -40,6 +41,10 @@ export interface PhoneShellProps {
     openSearch: () => void
     /** Bumped to close Notifications or All apps from outside (the meeting player's Restore). */
     sheetReset?: number
+    play?: (spec: WindowSpec) => void
+    launchFor?: (win: OsWindow) => ArcadeLaunchIntent | undefined
+    consumeLaunch?: (windowId: string, id: string) => void
+    returnToArcade?: (id: string) => void
 }
 
 type SystemSheet = "apps" | "notif" | null
@@ -98,7 +103,7 @@ export function PhoneShell(p: PhoneShellProps) {
         content = (
             <Sheet title={front.title} onHome={() => p.home(front.id)} guest={!member} onConnect={session.openConnect}>
                 <div className="os-wbody os-ph-body">
-                    <WindowBody win={front} session={session} open={p.open} openApp={p.openApp} close={() => p.close(front.id)} toast={p.toast} active={!p.locked} />
+                    <WindowBody win={front} session={session} open={p.open} openApp={p.openApp} close={() => p.close(front.id)} toast={p.toast} active={!p.locked} play={p.play} />
                 </div>
             </Sheet>
         )
@@ -146,9 +151,10 @@ export function PhoneShell(p: PhoneShellProps) {
             {(p.wins ?? (front ? [front] : [])).filter((w) => w.key.startsWith("game:")).map((w) => {
                 const active = !p.locked && sheet === null && front?.id === w.id
                 return <div key={w.id} className="os-ph-game-slot" hidden={!active} inert={!active} aria-hidden={!active}>
-                    <Sheet title={w.title} active={active} onHome={() => p.home(w.id)} guest={!member} onConnect={session.openConnect}>
+                    <Sheet title={w.title} active={active} onArcade={isArcadePlayWindow(w) && p.returnToArcade ? () => p.returnToArcade!(w.id) : undefined} onHome={() => p.home(w.id)} guest={!member} onConnect={session.openConnect}>
                         <div className="os-wbody os-ph-body">
-                            <WindowBody win={w} session={session} open={p.open} openApp={p.openApp} close={() => p.close(w.id)} toast={p.toast} active={active} />
+                            <WindowBody win={w} session={session} open={p.open} openApp={p.openApp} close={() => p.close(w.id)} toast={p.toast} active={active} play={p.play}
+                                launch={p.launchFor?.(w)} onLaunchConsumed={(id) => p.consumeLaunch?.(w.id, id)} />
                         </div>
                     </Sheet>
                 </div>
@@ -163,7 +169,7 @@ export function PhoneShell(p: PhoneShellProps) {
     )
 }
 
-function Sheet({ title, onHome, guest, onConnect, children, active = true }: { title: string; onHome: () => void; guest?: boolean; onConnect?: () => void; active?: boolean; children: ReactNode }) {
+function Sheet({ title, onHome, onArcade, guest, onConnect, children, active = true }: { onArcade?: () => void; title: string; onHome: () => void; guest?: boolean; onConnect?: () => void; active?: boolean; children: ReactNode }) {
     // A new sheet takes focus at its title, so screen readers and keyboards start there.
     const heading = useRef<HTMLHeadingElement>(null)
     useEffect(() => {
@@ -175,6 +181,7 @@ function Sheet({ title, onHome, guest, onConnect, children, active = true }: { t
         <section className="os-ph-sheet" role="region" aria-label={title}>
             <div className="os-ph-sheet-h">
                 <button type="button" className="os-btn os-quiet" onClick={onHome}>‹ Home</button>
+                {onArcade && <button type="button" className="os-btn os-quiet" onClick={onArcade}>← Arcade</button>}
                 <span className="os-grow" />
                 {guest && onConnect && <button type="button" className="os-btn" onClick={onConnect}>Connect</button>}
             </div>

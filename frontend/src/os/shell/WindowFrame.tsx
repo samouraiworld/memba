@@ -33,9 +33,12 @@ import { nativeView } from "../native/registry"
 import type { OsTarget } from "./osPath"
 import { pageQuery } from "./urlSync"
 import { WindowError } from "./WindowError"
-import { maxGeometry, urlForWindow, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
+import { ArcadeLaunchContext, type ArcadeLaunchBridge } from "../../games/arcade/LaunchContext"
+import { isArcadePlayWindow, maxGeometry, urlForWindow, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
-interface Actions {
+interface Actions extends ArcadeLaunchBridge {
+    play?: (spec: WindowSpec) => void
+    returnToArcade?: () => void
     session: OsSession
     openApp: (app: OsAppId) => void
     open: (spec: WindowSpec) => void
@@ -96,7 +99,9 @@ export function WindowBody(props: Actions & { win: OsWindow }) {
     return (
         <WindowError resetKey={`${props.win.id}:${JSON.stringify(props.win.target ?? null)}`} close={props.close}>
             <Suspense fallback={<div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading…</span></div>}>
-                <Body {...props} />
+                <ArcadeLaunchContext.Provider value={{ launch: props.active !== false ? props.launch : undefined, onLaunchConsumed: props.onLaunchConsumed }}>
+                    <Body {...props} />
+                </ArcadeLaunchContext.Provider>
             </Suspense>
         </WindowError>
     )
@@ -193,7 +198,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
         }
         return createElement(native, {
             section: t.section, query: t.query, session: a.session, active: a.active ?? true,
-            open: a.open, push, openApp: a.openApp, close: a.close, toast: a.toast, fallback,
+            open: a.open, play: a.play, push, openApp: a.openApp, close: a.close, toast: a.toast, fallback,
         })
     }
     return fallback
@@ -322,6 +327,7 @@ export function WindowFrame({ win, active, parked = false, desk, frame, ...a }: 
                     <button type="button" className="os-light-min" aria-label={`Minimise ${win.title}`} onClick={() => frame.minimise(win.id)}><span aria-hidden="true">–</span></button>
                     <button type="button" className="os-light-max" aria-label={`${win.max ? "Restore" : "Maximise"} ${win.title}`} aria-pressed={win.max} onClick={() => frame.toggleMax(win.id)}><span aria-hidden="true">+</span></button>
                 </span>
+                {isArcadePlayWindow(win) && a.returnToArcade && <button type="button" className="os-btn os-quiet" onClick={a.returnToArcade}>← Arcade</button>}
                 <h2 className="os-tb-title" tabIndex={0} aria-label={`${win.title}. Arrow keys move window; Shift plus arrow keys resize window.`} onKeyDown={onTitleKey}>{win.title}</h2>
             </div>
             <div className="os-wbody"><WindowBody win={win} {...a} active={active} retarget={(spec) => frame.retarget(win.id, spec)} close={() => frame.close(win.id)} /></div>
