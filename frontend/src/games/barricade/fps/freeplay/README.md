@@ -1,6 +1,7 @@
 > **A8 intégré par Git depuis `35c9e9205bb7726e7a47ef913908296cff0de2e2`.**
-> Le wrapper utilise maintenant `runtime.tsx`. Ce delta C attend sa validation ciblée
-> au créneau alloué ; les preuves A3 antérieures ne valident pas A8.
+> Le wrapper utilise maintenant `runtime.tsx`. Raccord validé sur `6f2330f5` :
+> 28 tests C / 4 fichiers, assemblage réel A8, types stricts et lint ciblé PASS.
+> Aucun build/navigateur ni nouvelle exécution des tests communs A8.
 
 # FPS Free play consumer — injected, no default publication
 
@@ -207,7 +208,7 @@ is retained when preparing the same completed run again.
 `FPS_A3_TYPES=1 node src/games/barricade/fps/freeplay/real-a3.integration.mjs`
 checks strict adapter types and the real provider/session/client assembly against
 the integrated sources. `runtime.test.tsx` adds DOM coverage of the consumer's
-Connect wiring and storage failure paths. These commands await the C slot.
+Connect wiring and storage failure paths. These commands passed in the assigned C slot.
 No real Shell/browser or wallet publication is claimed by these tests.
 
 ## A8 — résultat terminal avant Connect
@@ -228,13 +229,13 @@ un échec initial de stockage affiche une explication/export du snapshot local ;
 le résultat n’est pas annoncé sauvegardé. Les conflits restent des erreurs, jamais
 une réattribution de binding/consentement. L’export replay du parent reste distinct.
 
-Validation ciblée, **à exécuter uniquement au créneau C attribué** :
+Commande de validation ciblée, exécutée au créneau C attribué :
 
 ```sh
 FPS_A3_TYPES=1 node src/games/barricade/fps/freeplay/real-a3.integration.mjs
 ```
 
-Le script importe directement les modules intégrés et prépare deux cas consumer
+Le script importe directement les modules intégrés et vérifie deux cas consumer
 d’écriture silencieuse (canonical/index) : erreur/export, pas de faux succès,
 UUID conservé. Les interactions DOM Connect/quota-au-clic, guest→member/bureaux,
 A→B et maintien du moteur à owner constant restent pour le slot de composition.
