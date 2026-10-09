@@ -26,7 +26,7 @@ function verifyBase(op: CommentOperation, note: ChainNote | null, comment: Publi
   if (a.kind === 'add') {
     if (comment || note.epoch !== a.epoch || BigInt(a.bodyRevision) > BigInt(note.bodyRevision)) throw new NotesChainError('stale')
   } else if (!comment || comment.encrypted || comment.revision !== a.revision
-    || (a.kind === 'delete' ? comment.deleted || comment.author !== op.caller : note.owner !== op.caller)) throw new NotesChainError('stale')
+    || (a.kind === 'delete' ? comment.deleted || comment.author !== op.caller : a.kind === 'hide' && note.owner !== op.caller)) throw new NotesChainError('stale')
 }
 function descriptor(op: CommentOperation, base: PublicComment | null, height: string): CommentIntentVerification {
   const a = op.action, add = a.kind === 'add', deleted = a.kind === 'delete' || !!base?.deleted
@@ -61,7 +61,8 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     const [note, comment, config, parent] = await Promise.all([client.note(op.noteId), readPublicComment(client, op.noteId, op.commentId), client.config(),
       op.action.kind === 'add' && op.action.parent ? readPublicComment(client, op.noteId, op.action.parent) : null])
     allowed(); verifyBase(op, note, comment)
-    if (op.action.kind === 'add' && note!.mode === 3 && !await readPublicWritePermission(client, note!, op.caller)) throw new NotesChainError('stale')
+    if ((op.action.kind === 'resolve' || (op.action.kind === 'add' && note!.mode === 3))
+      && !await readPublicWritePermission(client, note!, op.caller)) throw new NotesChainError('stale')
     allowed()
     if (op.action.kind === 'add' && (config.paused || (op.action.parent && (!parent || parent.deleted)))) throw new NotesChainError('stale')
     return { note: note!, comment }

@@ -94,6 +94,36 @@ describe('public comment intentions', () => {
     expect(wallet.send).toHaveBeenCalledOnce()
     expect((await s.intents.get({ ...s.scope, owner: other }, operationId))?.phase).toBe('not-sent')
   })
+  it('lets an explicit Public writer resolve a comment and verifies that writer receipt', async () => {
+    const s = setup({ kind: 'resolve', revision: '1', resolved: true })
+    s.setNote({ mode: 3 }); s.options.operation.caller = other
+    s.client.writersRaw.mockResolvedValue([other])
+    const request = await preparePublicCommentRequest(s.options)
+    await request.send(undefined, async () => {})
+    s.setComment({ revision: '2', resolved: true, actor: other })
+    expect(await request.verify!(undefined, hash, undefined)).toBe(true)
+    expect((await s.intents.get({ ...s.scope, owner: other }, operationId))?.phase).toBe('confirmed')
+  })
+  it('rechecks writer resolution rights before opening the wallet', async () => {
+    const s = setup({ kind: 'resolve', revision: '1', resolved: true })
+    s.setNote({ mode: 3 }); s.options.operation.caller = other
+    s.client.writersRaw.mockResolvedValue([other])
+    const request = await preparePublicCommentRequest(s.options)
+    s.client.writersRaw.mockResolvedValue([])
+    const beforeWallet = vi.fn(async () => {})
+    await expect(request.send(undefined, beforeWallet)).rejects.toThrow('stale')
+    expect(beforeWallet).not.toHaveBeenCalled()
+    expect((await s.intents.get({ ...s.scope, owner: other }, operationId))?.phase).toBe('not-sent')
+  })
+  it('keeps Public open resolution and hiding owner-only for explicit writers', async () => {
+    for (const [mode, kind] of [[4, 'resolve'], [3, 'hide']] as const) {
+      const s = setup(kind === 'resolve' ? { kind, revision: '1', resolved: true } : { kind, revision: '1', hidden: true })
+      s.setNote({ mode }); s.options.operation.caller = other
+      s.client.writersRaw.mockResolvedValue([other])
+      await expect(preparePublicCommentRequest(s.options)).rejects.toThrow('stale')
+    }
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
   it('retains unknown on wallet uncertainty and never retries the same comment revision', async () => {
     const s = setup(), request = await preparePublicCommentRequest(s.options)
     wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('wallet closed') })
