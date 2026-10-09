@@ -11,6 +11,7 @@ import { PublicPublish } from './PublicPublish'
 import { PublicNote } from './PublicNote'
 import { PublicEditButton } from './PublicEditButton'
 import { PublicCommentPanel } from './PublicCommentPanel'
+import { PublicCollaborationControls } from './PublicCollaborationControls'
 import { PublicHistory, type ArchivedPublicDraft } from './PublicHistory'
 import './notes-authoring.css'
 
@@ -77,7 +78,8 @@ function Workspace({ client, store, scope }: Props) {
             <PublicNote id={scope.noteId} client={client} owner={scope.owner}
                 encrypted={() => <p>Encrypted notes are not available in this public view.</p>}
                 editAction={note => !editing && <PublicEditButton note={note} owner={scope.owner} client={client} onEdit={() => void prepare()} />}>
-                {(note, _refresh, previewRoot) => <>
+                {(note, refresh, previewRoot) => <>
+                    {!editing && <PublicCollaborationControls note={note} client={client} owner={scope.owner} store={store} onChanged={refresh} />}
                     {!editing && note.mode >= 3 && <PublicCommentPanel note={note} client={client} owner={scope.owner} store={store} previewRoot={previewRoot} />}
                     {note.mode >= 3 && <PublicHistory noteId={scope.noteId} client={client} onRestore={draft => prepare(draft)} />}
                 </>}
