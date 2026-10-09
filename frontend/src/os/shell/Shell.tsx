@@ -539,7 +539,7 @@ export function Shell() {
             {meetStage}
             </MeetStageContext.Provider>
             </div>
-            <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage} openNews={() => openApp("news")} />
+            <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage && !win.wins.some((w) => w.app === "radio" && !w.min)} openNews={() => openApp("news")} />
             {shared}
         </SignerProvider>
         </LiveActivityProvider>

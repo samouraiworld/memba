@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { MEMBA_COMMUNITY_COPY, MEMBA_COMMUNITY_LINKS, MEMBA_COMMUNITY_TITLE } from "../../lib/membaCommunity"
+import { isWalletRequestPending, subscribeWalletActivity } from "../../lib/walletActivity"
 import { useSigner } from "../sign/signerContext"
 import { markCommunityNewsRead, markCommunityNewsShown, useCommunityNewsState } from "./newsState"
 import "./communityNews.css"
@@ -27,9 +28,10 @@ export const COMMUNITY_NEWS_DELAY = 20_000
 export function CommunityNewsPrompt({ enabled, openNews }: { enabled: boolean; openNews: () => void }) {
     const state = useCommunityNewsState()
     const signer = useSigner()
+    const walletBusy = useSyncExternalStore(subscribeWalletActivity, isWalletRequestPending, () => false)
     const [visible, setVisible] = useState(false)
     const lastInput = useRef(0)
-    const ready = enabled && signer.pending.length === 0
+    const ready = enabled && !walletBusy && signer.pending.length === 0
     useEffect(() => {
         const input = () => { lastInput.current = Date.now() }
         window.addEventListener("pointerdown", input)

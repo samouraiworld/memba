@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CommunityNews, CommunityNewsPrompt } from "./CommunityNews"
 import { COMMUNITY_NEWS_KEY } from "./newsState"
 import { useSigner } from "../sign/signerContext"
+import { beginWalletActivity } from "../../lib/walletActivity"
 
 vi.mock("../sign/signerContext", () => ({ useSigner: vi.fn() }))
 const advance = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
@@ -87,6 +88,25 @@ describe("community announcement", () => {
             window.dispatchEvent(new StorageEvent("storage", { key: COMMUNITY_NEWS_KEY }))
         })
         expect(prompt()).toBeNull()
+    })
+    it("defers and hides immediately from wallet review through the wallet decision", () => {
+        render(<CommunityNewsPrompt enabled openNews={vi.fn()} />)
+        let end = () => {}
+        try {
+            act(() => { end = beginWalletActivity() })
+            advance(30_000)
+            expect(prompt()).toBeNull()
+            act(() => end())
+            advance(20_000)
+            expect(prompt()).toBeVisible()
+            act(() => { end = beginWalletActivity() })
+            expect(prompt()).toBeNull()
+            act(() => end())
+            expect(prompt()).toBeVisible()
+            fireEvent.click(screen.getByRole("button", { name: "Dismiss community news" }))
+            advance(30_000)
+            expect(prompt()).toBeNull()
+        } finally { act(() => end()) }
     })
     it("waits for the foreground tab, signing review and two seconds without input", () => {
         vi.spyOn(document, "hidden", "get").mockReturnValue(true)
