@@ -12,7 +12,7 @@ The worker/envelope must validate the supplied fixtures before activation.
 ## Inject the existing A implementation
 
 Create a stable bridge outside render (A client PR #1586, contract read at
-`554ca706`), then pass it as `fpsFreePlay` to Barricade, or `freePlay` to FpsPreview:
+`179ffcfe55f829ffdaecd63b24008383654614fd`), then pass it as `fpsFreePlay` to Barricade, or `freePlay` to FpsPreview:
 
 ```tsx
 const fpsBridge = createFpsFreePlayBridge({
@@ -20,6 +20,10 @@ const fpsBridge = createFpsFreePlayBridge({
     createSnapshot: createFreePlaySnapshot,
     createSession: snapshot => createFreePlaySession({ snapshot, client, storage }),
     renderSession: session => <FreePlayResult session={session} />,
+    savedSnapshots: {
+        list: () => listFreePlaySnapshots(storage, { game: 'barricade', offset: 0, limit: 20 }),
+        load: id => loadFreePlaySnapshot(storage, id),
+    },
 })
 ```
 
@@ -38,8 +42,7 @@ checkpoint on mount and retains it across pause/reload/retry. Restart creates a
 new UUID and session. Each local record is under
 `memba:barricade:fps:local:v1:<uuid>`; `memba:barricade:fps:active:v1` is only the
 resume pointer. These are game checkpoints, not a duplicate of A's publication
-storage. Completed older records remain available; automatic pruning/history UI
-is not implemented.
+storage. Completed local checkpoints are retained without automatic pruning. Saved publication results are recovered separately from A’s bounded canonical index.
 
 Checkpoint accepted journals about once per simulated second and at safe pause
 or terminal boundaries. A pointer action can occur at the current tick before
@@ -147,3 +150,31 @@ UPDATE_FPS_FIXTURES=1 node node_modules/vitest/vitest.mjs run src/games/barricad
 
 Normal tests never regenerate them. A's Node-worker dispatch and Go-envelope conformance against these fixtures are
 still required. No end-to-end publication or receipt is claimed.
+
+## Older saved results (A3)
+
+From ready, pause or terminal, explicitly open “Résultats sauvegardés”. The bridge
+uses only A3 list/load APIs: at most20 Barricade snapshots, filtered to the exact
+FPS rules/version. No duplicate index or storage scan. An ID can recover a record
+outside the recent index. Missing/corrupt records and a corrupt index are shown
+separately; ID recovery remains available if the index fails.
+
+Opening creates A’s session directly from its canonical snapshot, without
+terminal replay, hashing, starting a game, replacing the active UUID or invoking
+an API. A revalidates the stored envelope and persists it. A saved receipt stays
+in phase `saved`, visibly “Saved receipt”, until explicit “Check saved result”.
+Close, changing selected result and component unmount dispose the shared session.
+No latest-result lookup or refresh runs automatically.
+
+Run the opt-in real-source assembly with:
+
+```sh
+node src/games/barricade/fps/freeplay/real-a3.integration.mjs
+```
+
+It reads exact A3 Git objects into a temporary directory (removed afterwards),
+bundles against the actual A snapshot/index/session/result/client modules, and
+uses a local fake HTTP transport. It checks no API/token/hash on recovery, current
+game preservation, Saved -> explicit refresh -> confirmed through the real client’s
+commitment validation, missing/corrupt/wrong-version records and disposal. No
+wallet, signature, chain publication or live backend is exercised.

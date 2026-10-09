@@ -4,6 +4,7 @@ import { useGameLoop } from '../hooks/useGameLoop'
 import { detectHas3D } from '../render/three/caps'
 import { MAGAZINE, WAVE_COUNTS } from '../sim/fps/types'
 import { browserFpsStorage, createFpsRunConsumer, type FpsRunStorage } from './freeplay/consumer'
+import { SavedResults } from './freeplay/SavedResults'
 import type { FpsFreePlayBridge } from './freeplay/bridge'
 import { usePreviewHeight } from './usePreviewHeight'
 import './fps.css'
@@ -153,6 +154,7 @@ export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic
                         <button ref={resume} className="fps-primary" disabled={!hud.ready || !active} onClick={() => start()}>{hud.ready ? status === 'paused' ? 'Reprendre · visée libre' : 'Jouer · visée libre' : 'Chargement…'}</button>
                         <button disabled={!hud.ready || !active} onClick={() => start(true)}>Jouer · capturer la souris</button>
                     </div>}
+                    {freePlay?.saved && <SavedResults saved={freePlay.saved} />}
                 </div> : status === 'done' ? <div className="fps-overlay" role="dialog" aria-label="Résultat du prototype">
                     <h2>{state.phase === 'won' ? 'La barricade tient.' : 'La ligne a cédé.'}</h2><p>{state.score} points · {state.kills} adversaires neutralisés</p>
                     <p>{hud.verified ? 'Replay local vérifié' : 'Replay local divergent — à examiner'} · Prototype non classé</p>
@@ -163,6 +165,7 @@ export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic
                         {run.result?.render()}
                         {(run.storageError || run.preparation === 'unavailable') && <><p role="status">Sauvegarde ou service indisponible. Votre résultat reste ici et peut être exporté.</p><button onClick={() => consumer.retry()}>Réessayer la sauvegarde du résultat</button></>}
                     </div>
+                    {freePlay?.saved && <SavedResults saved={freePlay.saved} />}
                 </div> : state.phase === 'repair' ? <div className="fps-overlay fps-repair" role="dialog" aria-label="Réparer la barricade">
                     <h2>Reprenez votre souffle.</h2><p>Prochaine vague dans {Math.max(0, Math.ceil((state.repairUntil - state.tick) / 60))} s. Chargeur rempli à la reprise.</p>
                     <div className="fps-actions"><button ref={resume} className="fps-primary" disabled={!state.patchAvailable || state.hp === 100} onClick={() => session.command({ type: 'repair' })}>{state.patchAvailable ? 'Réparer +40% · une fois' : 'Réparation utilisée'}</button>

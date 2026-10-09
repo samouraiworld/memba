@@ -97,6 +97,41 @@ describe('FPS preview lifecycle and explicit capture', () => {
         expect(prepare).toHaveBeenCalledOnce()
         unmount(); expect(handle.dispose).toHaveBeenCalledOnce()
     })
+    it('opens an older A result by ID without starting or replacing the current game, and disposes on close', async () => {
+        const oldId = '55555555-5555-4555-8555-555555555555'
+        const handle = { render: () => <p>Saved receipt fixture</p>, dispose: vi.fn() }
+        const saved = { list: vi.fn(() => ({ runs: [{ clientRunId: oldId, score: 123 }], unavailable: 1 })), open: vi.fn(() => handle) }
+        const prepare = vi.fn()
+        const { container, unmount } = render(<FpsPreview onClassic={vi.fn()} freePlay={{ prepare, saved }} />)
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        const activeId = localStorage.getItem('memba:barricade:fps:active:v1')
+        expect(saved.list).not.toHaveBeenCalled(); expect(saved.open).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Résultats sauvegardés' }))
+        expect(saved.list).toHaveBeenCalledOnce()
+        expect(screen.getByText('1 sauvegarde(s) récente(s) indisponible(s).')).toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText('Identifiant du résultat'), { target: { value: oldId } })
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
+        expect(saved.open).toHaveBeenCalledWith(oldId)
+        expect(screen.getByText('Saved receipt fixture')).toBeInTheDocument()
+        expect(container.querySelector('.fps-preview')).toHaveAttribute('data-status', 'ready')
+        expect(localStorage.getItem('memba:barricade:fps:active:v1')).toBe(activeId)
+        expect(prepare).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer les sauvegardes' }))
+        expect(handle.dispose).toHaveBeenCalledOnce()
+        fireEvent.click(screen.getByRole('button', { name: 'Résultats sauvegardés' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
+        unmount(); expect(handle.dispose).toHaveBeenCalledTimes(2)
+    })
+    it('keeps ID recovery available when A reports a corrupt index', async () => {
+        const saved = { list: () => { throw new Error('invalid_snapshot_index') }, open: () => { throw new Error('missing_fps_result') } }
+        render(<FpsPreview onClassic={vi.fn()} freePlay={{ prepare: vi.fn(), saved }} />)
+        await screen.findByTestId('fps-scene')
+        fireEvent.click(screen.getByRole('button', { name: 'Résultats sauvegardés' }))
+        expect(screen.getByRole('alert')).toHaveTextContent('liste des sauvegardes est illisible')
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
+        expect(screen.getByRole('alert')).toHaveTextContent('Résultat introuvable sur cet appareil')
+        expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled()
+    })
     it('returns to Classic explicitly without converting the run', async () => {
         const classic = vi.fn(); render(<FpsPreview onClassic={classic} />)
         await screen.findByTestId('fps-scene')

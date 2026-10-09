@@ -77,3 +77,7 @@
 .fps-freeplay p { margin: 8px auto; }
 .fps-freeplay button { margin: 4px; }
 .fps-overlay:has(.fps-freeplay) { justify-content: safe center; }
+
+.fps-saved input { display: block; width: 100%; min-height: 44px; box-sizing: border-box; color: inherit; background: var(--color-k-bg); border: 1px solid var(--color-k-edge-hover); }
+.fps-saved ul { padding: 0; list-style: none; max-height: 160px; overflow-y: auto; }
+.fps-saved li button { max-width: 100%; overflow-wrap: anywhere; }
