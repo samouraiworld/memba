@@ -17,11 +17,11 @@ module. It consumes the real A functions through an injected, narrow factory.
 The shared session remains the sole owner of verify/quote/publish/retry/auth
 invalidation, persistence, receipt checking and publication status.
 
-Binding after A3 is composed (API read at `554ca706`):
+Binding after A3 is composed (API read at `179ffcfe55f829ffdaecd63b24008383654614fd`):
 
 ```tsx
 import { createSpaceInvadersPublication } from "../games/space-invaders/lib/freePlayPublication";
-import { createFreePlaySnapshot, loadFreePlaySnapshot } from "../games/arcade/freeplay/snapshot";
+import { createFreePlaySnapshot, listFreePlaySnapshots, loadFreePlaySnapshot } from "../games/arcade/freeplay/snapshot";
 import { createFreePlaySession } from "../games/arcade/freeplay/session";
 import { FreePlayResult } from "../games/arcade/freeplay/FreePlayResult";
 
@@ -88,7 +88,13 @@ snapshot and owns receipt state. Its recovered controller starts `saved`, even
 when the stored snapshot contains a confirmed receipt.
 
 ```tsx
-// Selection comes from A's shared saved-results UI/index; no query-string launch.
+// Read only A's bounded shared index, which retains 20 recent IDs per game.
+const saved = listFreePlaySnapshots(storage, {
+  game: "space-invaders", offset: 0, limit: 10,
+});
+// The host displays saved.snapshots, unavailable, total and nextOffset.
+// An explicit selection supplies snapshot.input.clientRunId as selectedId.
+// No query-string launch or independent game-owned index.
 <SpaceInvadersGame
   publication={publication}
   recovery={{ clientRunId: selectedId, onClose: returnToSavedResults }}
@@ -111,9 +117,23 @@ publish. Only A may show confirmation after validated fresh readback. This
 consumer does not invent a gameover summary, new-best badge or local replay
 verification from an old receipt.
 
-The provided binding uses A3's existing one-ID loader. The future shared bounded
-index/reader must preserve these semantics; adapt the injected loader in the
-host when A finalizes its API, without introducing another game-owned index.
+The binding uses A3's shared `listFreePlaySnapshots(storage, {game,offset,limit})`
+and one-ID `loadFreePlaySnapshot`. `saveFreePlaySnapshot` already updates the
+20 recent IDs per game, so B adds no indexing writes. List results are saved
+metadata, never confirmation; the host must surface `unavailable` entries and
+pagination without inventing placeholder receipts.
+
+Run the retained offline assembly check against A's checkout (or its exact
+committed source exported to a temporary directory):
+
+```sh
+node src/games/space-invaders/lib/testdata/verify-shared-recovery.mjs /path/to/A/repository
+```
+
+It exercises the real shared save/index/load/session/result code: selected UUID
+opens without a new snapshot or automatic I/O, stored receipt stays unconfirmed,
+explicit refresh validates a fake injected response before confirmation, then
+subscriptions are disposed. No service, browser or transaction is involved.
 
 ## Proposed immutable game contract for A
 
