@@ -768,7 +768,7 @@ function canonicalFpsReplay(log) {
   decodeFpsReplay(log.seed, encoded);
   return encoded;
 }
-function verifyFpsTerminal(log) {
+function verifyFpsTranscript(log, requireTerminal = true) {
   const encoded = canonicalFpsReplay(log);
   const captured = decodeFpsReplay(log.seed, encoded);
   let state = init(captured.seed), cursor = 0;
@@ -781,9 +781,10 @@ function verifyFpsTerminal(log) {
     state = tick(state);
   }
   if (cursor !== captured.events.length || state.tick !== captured.finalTick) throw new Error("trailing_fps_input");
-  if (!terminal(state)) throw new Error("fps_not_terminal");
+  if (requireTerminal && !terminal(state)) throw new Error("fps_not_terminal");
   return { state, encoded, canonicalState: canonicalState(state) };
 }
+var verifyFpsTerminal = (log) => verifyFpsTranscript(log, true);
 
 // backend/internal/arcade/worker/freeplay_worker.ts
 var MAX_INPUT_BYTES = 1 << 20;
