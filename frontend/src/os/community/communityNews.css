@@ -1,0 +1,12 @@
+.memba-os .os-community-card,
+.memba-os .os-community-prompt { padding: 16px; color: var(--os-ink); }
+.memba-os .os-community-card { border: 1px solid var(--os-line); border-radius: var(--os-radius-ctl); margin-bottom: 16px; }
+.memba-os .os-community-card h2,
+.memba-os .os-community-prompt h2 { margin: 4px 0 8px; font-size: 17px; line-height: 1.35; }
+.memba-os .os-community-card p,
+.memba-os .os-community-prompt p { margin: 0 0 12px; line-height: 1.5; }
+.memba-os .os-community-kicker { color: var(--os-mut); font-size: 12px; font-weight: 700; }
+.memba-os .os-community-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.memba-os .os-community-prompt { position: fixed; bottom: 88px; right: 18px; width: min(360px, calc(100vw - 36px)); max-height: calc(100dvh - 130px); overflow-y: auto; z-index: 902; border: 1px solid var(--os-line); border-radius: 16px; box-shadow: 0 10px 36px #0002; }
+.memba-os .os-community-prompt h2 { padding-right: 24px; }
+.memba-os .os-community-close { position: absolute; top: 8px; right: 8px; font-size: 20px; line-height: 1; }

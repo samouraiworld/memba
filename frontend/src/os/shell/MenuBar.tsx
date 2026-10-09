@@ -19,6 +19,7 @@ import { useSigner } from "../sign/signerContext"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { newRoomId } from "../apps/meet/rooms"
 import { appSpec } from "./windows"
+import { CommunityNews } from "../community/CommunityNews"
 import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
 import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
 import { safeNetworkOf, useSafeAwaiting } from "../multisig/evm/useSafes"
@@ -253,6 +254,7 @@ export function MenuBar(p: MenuBarProps) {
                 <div className="os-panel-list">
                     <div className="os-nh"><b>Notifications</b></div>
                     <div className="os-nl">
+                        <CommunityNews />
                         <AwaitingSignatures awaiting={awaiting} onOpen={run(() => p.openApp("multisig"))} />
                         {signer.notices.map((n) => (
                             <div key={n.id} className={`os-nc os-nc-${n.kind}`}>
