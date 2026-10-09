@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Live Radio playback recovery (#1575, 2026-10-09)
+- Play live Audius and Jamendo tracks even when Onyx omits them from the station schedule, using the station's current track instead of incorrectly reporting that nothing is on air.
+- Join tracks at the correct playback position without counting the current offset twice, and respect the next scheduled track's start time.
+
 ### A discreet Radio widget (2026-10-09)
 - Radio opens as a compact floating player with artwork, track information and Play/Pause. Volume, stations, attribution and project links are available in its controls popover.
 - Live playback honours the schedule’s starting offset when joining a track already in progress.
