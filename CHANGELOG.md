@@ -25,6 +25,12 @@ Full changelogs are split by version range for easier navigation:
 
 ### External games in Arcade (2026-10-09)
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
+### Escrow page test isolation (2026-10-09)
+- Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
+
+### Public Notes reader preparation (#1577, 2026-10-09)
+- Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
+- Notes remains disabled pending deployment and activation. The sushi recipe demonstration and desktop persistence foundations are validated locally; no recipe or Whitepaper is published by this change.
 
 ### Live Radio playback recovery (#1575, 2026-10-09)
 - Play live Audius and Jamendo tracks even when Onyx omits them from the station schedule, using the station's current track instead of incorrectly reporting that nothing is on air.

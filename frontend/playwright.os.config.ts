@@ -23,6 +23,8 @@ export const OS_EVM = `http://127.0.0.1:${EVM_PORT}`
 
 export default defineConfig({
     testDir: './e2e/os',
+    // These isolated fixtures require their dedicated Notes server/config.
+    testIgnore: /os-notes-sushi-.*\.spec\.ts$/,
     timeout: 60_000, expect: { timeout: 15_000 }, workers: 2, reporter: 'list',
     outputDir: 'test-results-os',
     use: { screenshot: 'only-on-failure' },

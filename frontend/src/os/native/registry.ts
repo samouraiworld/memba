@@ -12,7 +12,7 @@
  * @module os/native/registry
  */
 import { lazy, type ComponentType, type LazyExoticComponent } from "react"
-import { OS_APPS, type OsAppId } from "../apps"
+import { REGISTERED_OS_APPS, type OsAppId } from "../apps"
 import type { NativeViewProps } from "./types"
 
 type Loader = () => Promise<{ default: ComponentType<NativeViewProps> }>
@@ -28,7 +28,7 @@ export function nativeModuleKeys(): string[] {
     return Object.keys(MODULES)
 }
 
-const APP_IDS = new Set<string>(OS_APPS.map((a) => a.id))
+const APP_IDS = new Set<string>(REGISTERED_OS_APPS.map((a) => a.id))
 
 /** Glob keys whose folder isn't an OS app id (a typo'd folder would never open). */
 export function unknownNativeFolders(keys: string[]): string[] {
