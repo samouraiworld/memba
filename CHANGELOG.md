@@ -35,6 +35,9 @@ Full changelogs are split by version range for easier navigation:
 
 ### External games in Arcade (2026-10-09)
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
+### Public Notes collaboration protocol preparation (2026-10-09)
+- Prepare verified per-note editing permissions, permanent public-history reads and owner consent for community editing; keep comment drafts while collaborators update a note.
+- Account for public history in storage estimates. Notes remains disabled pending contract deployment and reviewed activation.
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
 ### Independent featured Notes on the desktop (2026-10-09)
