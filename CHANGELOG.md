@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Arcade window launch host (2026-10-09)
 - Open rich Arcade and Store views maximised on first creation, retaining user geometry when restoring existing windows.
-- Prepare transient Free play delivery for Space Invaders and a separate return-to-Arcade action that keeps local game windows mounted; preserve Connect 4 and external game links. The game consumer is integrated separately after its adapter is approved.
+- Deliver transient Free play commands to Space Invaders and a separate return-to-Arcade action that keeps local game windows mounted; preserve Connect 4 and external game links.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
