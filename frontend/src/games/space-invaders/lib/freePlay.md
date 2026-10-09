@@ -10,7 +10,8 @@ The existing Daily publisher and version stay unchanged.
 
 B owns these game files and the page's optional `publication` prop. A owns
 `frontend/src/lib/arcadeFreePlay.ts`, `games/arcade/freeplay/**` and all shared
-backend code. D owns LaunchContext, shell, route/config wiring and board views.
+backend code. D owns the shell and LaunchContext. No `config.ts` or gate changes
+are authorized here; concrete auth/config adaptation is coordinated through the Lead.
 This branch does not copy A's files into its base or import an unresolved shared
 module. It consumes the real A functions through an injected, narrow factory.
 The shared session remains the sole owner of verify/quote/publish/retry/auth
@@ -20,7 +21,7 @@ Binding after A3 is composed (API read at `554ca706`):
 
 ```tsx
 import { createSpaceInvadersPublication } from "../games/space-invaders/lib/freePlayPublication";
-import { createFreePlaySnapshot } from "../games/arcade/freeplay/snapshot";
+import { createFreePlaySnapshot, loadFreePlaySnapshot } from "../games/arcade/freeplay/snapshot";
 import { createFreePlaySession } from "../games/arcade/freeplay/session";
 import { FreePlayResult } from "../games/arcade/freeplay/FreePlayResult";
 
@@ -31,6 +32,10 @@ const publication = createSpaceInvadersPublication({
   createSession: snapshot => createFreePlaySession({ snapshot, client, storage }),
   renderSession: session => <FreePlayResult session={session} />,
   connect: connectAccount,
+  recovery: {
+    loadSnapshot: id => loadFreePlaySnapshot(storage, id),
+    inputOf: snapshot => snapshot.input,
+  },
 });
 // Supply a stable adapter to <SpaceInvadersGame publication={publication} />.
 ```
@@ -64,10 +69,51 @@ A owns complete terminal snapshots under `memba:arcade:freeplay:v1:<UUID>`.
 Its session must persist before it exposes verification/publication, including
 when the initial identity write failed. This source does not promise resumable
 mid-run simulation: the active identity record is not an input journal.
-The eventual saved-results host must recover the UUID and use A's
-`loadFreePlaySnapshot`/session refresh; a saved receipt must be re-read, not
-trusted from localStorage. A saved-results picker and route/auth binding remain
-coordination work; no automatic recovery/publication has been added here.
+The saved-results host selects a UUID from A's shared bounded index; B owns no
+second index, storage scan, persistence schema or controller. The selected UUID
+is opened through A's loader and session, as specified below. A saved receipt
+must be re-read, not trusted from localStorage. Shared bounded discovery and
+host/auth binding remain coordination work; no automatic publication is added.
+
+## Open a saved result without starting a run
+
+The consumer exposes `publication.recover(clientRunId)` when the factory receives
+`recovery: { loadSnapshot, inputOf }`. The loader may be synchronous or return a
+Promise, must be A's bounded validated loader, and returns an existing snapshot
+or null. `inputOf` only projects `snapshot.input` for B's game/rules/version/codec
+and UUID equality checks. Recovery calls the same A `createSession(snapshot)`
+and `FreePlayResult`; it never calls `createSnapshot`, creates an identity,
+replays a simulation or sends API work. A alone validates/persists the full
+snapshot and owns receipt state. Its recovered controller starts `saved`, even
+when the stored snapshot contains a confirmed receipt.
+
+```tsx
+// Selection comes from A's shared saved-results UI/index; no query-string launch.
+<SpaceInvadersGame
+  publication={publication}
+  recovery={{ clientRunId: selectedId, onClose: returnToSavedResults }}
+/>
+```
+
+This explicit page mode mounts only `SavedFreePlayResult`, not the game. Any
+pending `launch` prop is neither consumed nor run while recovery is selected.
+The host must clear stale launch intent before leaving this mode; selecting a
+saved result is not a request to discard a live run. Only offer this transition
+from the saved-results host after explicitly leaving gameplay.
+
+The adapter must remain stable between renders. The view retains one prepared
+session until UUID/adapter changes or unmount. A session that arrives after
+unmount is immediately disposed; missing, corrupt, unsupported or wrong-game
+snapshots show a recovery error without falling through to gameplay or deleting
+storage. Back invokes the host callback only. Connection and A's `Check saved
+result` require explicit clicks; there is no automatic refresh/verify/quote or
+publish. Only A may show confirmation after validated fresh readback. This
+consumer does not invent a gameover summary, new-best badge or local replay
+verification from an old receipt.
+
+The provided binding uses A3's existing one-ID loader. The future shared bounded
+index/reader must preserve these semantics; adapt the injected loader in the
+host when A finalizes its API, without introducing another game-owned index.
 
 ## Proposed immutable game contract for A
 
@@ -154,8 +200,9 @@ the new Free dispatch of the exact bounded TS worker. No Go/worker integration
 test or end-to-end mainnet evidence is claimed here.
 
 Before activation: A registers the exact codec/rules and proves its fixtures;
-compose the shared client and owner-supplied auth/config, add saved-result
-recovery, measure resource ceilings, then validate a complete optional
+compose the shared client and Lead-coordinated auth/config, connect A's shared
+saved-result discovery to the recovery prop, measure resource ceilings, then
+validate a complete optional
 verify → quote → explicit consent → confirmed readback flow plus cancellation,
 wrong network/account, reload and retry. D consumes the per-game board via A's
 existing public board reader. Activation and any transaction need the separate
