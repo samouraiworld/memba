@@ -48,6 +48,35 @@ describe('one authoritative featured desktop', () => {
         expect(localStorage.getItem(deskKey(wallet))).toBeNull()
         expect(localStorage.getItem(`memba_os_desk:migrated:${wallet ?? 'guest'}`)).toBeNull()
     })
+    it.each([[41, false], [48, false], [41, true], [48, true]] as const)('recovers %i legacy five-row pins, scoped=%s, without dropping identities or changing old bytes', async (count, scoped) => {
+        const items: DeskItem[] = Array.from({ length: count }, (_, i) => ({ ty: 'dao', ref: `legacy_${i}`, c: 0, r: 0 }))
+        const legacy = deskModule.cleanUp(items), raw = JSON.stringify(legacy)
+        expect(legacy.some(item => item.c >= 8)).toBe(true)
+        const oldKey = scoped ? deskKey(owner) : `memba_os_desk:${owner}`
+        localStorage.setItem(oldKey, raw)
+        const load = vi.spyOn(deskModule, 'loadDesk'), hook = render(); await settled()
+        expect(hook.result.current.error).toBeNull(); expect(hook.result.current.items).toHaveLength(count)
+        expect(stored().items.map((item: DeskItem) => [item.ty, item.ref])).toEqual(items.map(item => [item.ty, item.ref]))
+        expect(stored().items.every((item: DeskItem) => item.c >= 0 && item.c < 8 && item.r >= 0 && item.r < 6)).toBe(true)
+        expect(new Set(stored().items.map((item: DeskItem) => `${item.c}:${item.r}`)).size).toBe(count)
+        expect(localStorage.getItem(oldKey)).toBe(raw); expect(load).not.toHaveBeenCalled()
+    })
+    it('keeps an overflowing legacy collection intact and refuses migration rather than dropping pins', async () => {
+        const raw = JSON.stringify(deskModule.cleanUp(Array.from({ length: 49 }, (_, i): DeskItem => ({ ty: 'dao', ref: `legacy_${i}`, c: 0, r: 0 }))))
+        localStorage.setItem(deskKey(owner), raw)
+        const hook = render(); await settled()
+        expect(hook.result.current.error).toBeTruthy(); expect(localStorage.getItem(key())).toBeNull()
+        expect(localStorage.getItem(deskKey(owner))).toBe(raw)
+    })
+    it.each([2, 3])('keeps strict geometry checks on v%i records', async version => {
+        const items = [{ ...pin, c: 8 }]
+        const raw = JSON.stringify(version === 3 ? envelope(items) : { version: 2, partition: { chainId, wallet: owner }, items, whitepaper: { status: 'pending' }, resetToken: null })
+        localStorage.setItem(key(owner, version), raw)
+        const hook = render(); await settled()
+        expect(hook.result.current.error).toBeTruthy(); expect(hook.result.current.items).toEqual([])
+        expect(localStorage.getItem(key(owner, version))).toBe(raw)
+        if (version === 2) expect(localStorage.getItem(key())).toBeNull()
+    })
     it.each([owner, null])('does not assign default legacy to another network: %s', async wallet => {
         localStorage.setItem(`memba_os_desk:${wallet ?? 'guest'}`, JSON.stringify([pin]))
         const network = Object.keys(NETWORKS).find(name => name !== DEFAULT_NETWORK)!

@@ -1,8 +1,9 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_NETWORK } from '../../lib/config'
 import { NOTE_ID } from '../../lib/notes/config'
+import { check, record } from '../../lib/notes/chain/schema'
 import { createFeaturedNoteStorage } from '../../lib/notes/featuredNoteStorage'
-import { featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, type FeaturedDesk, type FeaturedNoteRelease } from '../../lib/notes/featuredNoteSeed'
+import { FEATURED_MAX_CHARS, featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, type FeaturedDesk, type FeaturedNoteRelease } from '../../lib/notes/featuredNoteSeed'
 import { GRID, cleanUp, deskKey, guestDesk, itemTarget, moveItem, sameItem, type DeskItem } from './desk'
 
 type Pin = Pick<DeskItem, 'ty' | 'ref'>
@@ -15,6 +16,24 @@ const ERROR = 'The desktop could not be saved safely. Existing browser data was 
 const EMPTY: DeskItem[] = []
 const NO_RELEASES: readonly FeaturedNoteRelease[] = []
 const rules = { cols: GRID.cols, rows: GRID.rows, validItem: (item: Pin) => (item.ty === 'note' && NOTE_ID.test(item.ref)) || (item.ty === 'app' && item.ref === 'notes') || itemTarget(item) !== null }
+
+/** Historical tidy used five rows and could place valid pins outside the current grid. */
+function normalizedLegacy(raw: string | null): string | null {
+    if (raw === null) return null
+    check(raw.length <= FEATURED_MAX_CHARS)
+    const value: unknown = JSON.parse(raw)
+    check(Array.isArray(value) && value.length <= GRID.cols * GRID.rows)
+    const cells = new Set<string>(); let repack = false
+    const items = value.map(rawItem => {
+        const item = record(rawItem, ['ty', 'ref', 'c', 'r'])
+        check(Number.isInteger(item.c) && Number.isInteger(item.r))
+        const cell = `${item.c}:${item.r}`
+        if (Number(item.c) < 0 || Number(item.c) >= GRID.cols || Number(item.r) < 0 || Number(item.r) >= GRID.rows || cells.has(cell)) repack = true
+        cells.add(cell); return item
+    })
+    // Repack geometry only. Strict adapter validation still checks every identity; no pin is dropped.
+    return repack ? JSON.stringify(items.map((item, i) => ({ ...item, c: Math.floor(i / GRID.rows), r: i % GRID.rows }))) : raw
+}
 
 /** A selected v3 authority never falls back to a legacy writer in this scope. */
 export function useFeaturedDesk(owner: string | null | undefined, networkKey: string, options?: FeaturedDeskOptions) {
@@ -75,10 +94,10 @@ export function useFeaturedDesk(owner: string | null | undefined, networkKey: st
             const storage = window.localStorage, scope = { chainId, wallet: owner }
             const readLegacy = () => {
                 const scoped = storage.getItem(deskKey(owner, networkKey))
-                if (scoped !== null) return scoped
+                if (scoped !== null) return normalizedLegacy(scoped)
                 // Main's historical contract maps this exact wallet OR known guest to DEFAULT_NETWORK.
                 if (networkKey === DEFAULT_NETWORK && storage.getItem(`memba_os_desk:migrated:${owner ?? 'guest'}`) === null) {
-                    return storage.getItem(`memba_os_desk:${owner ?? 'guest'}`)
+                    return normalizedLegacy(storage.getItem(`memba_os_desk:${owner ?? 'guest'}`))
                 }
                 return null
             }
