@@ -3,6 +3,7 @@ import { assertRpcChain } from '../../dao/chainIdentity'
 import { directRpcCall, getRpcUrlsInOrder, resilientAbciQueryDetailed } from '../../rpcFallback'
 import { address, blob, check, cursor, decimal, decodeResponse, encode64, id, KEY_SUITE, NOTES_REALM, NOTES_REGISTRY, NotesChainError, parseConfig, parseKey, parseNote, parsePage, record } from './schema'
 import type { ChainNote, NotesPage } from './schema'
+import { parsePublicCapabilities } from './capabilities'
 
 export interface NotesDeployment { realm: string; version: 1 }
 export interface NotesReadContext {
@@ -124,6 +125,12 @@ export class NotesReadClient {
   }
   async writersRaw(noteId: string): Promise<unknown> {
     return this.query(NOTES_REALM, `WritersJSON("${id(noteId)}")`)
+  }
+  async publicCapabilities(noteId: string) {
+    const wanted = id(noteId), value = await this.query(NOTES_REALM, `PublicCapabilitiesJSON("${wanted}")`)
+    const capabilities = parsePublicCapabilities(value)
+    check(capabilities === null || capabilities.id === wanted)
+    return capabilities
   }
   async readersRaw(noteId: string): Promise<unknown> {
     return this.query(NOTES_REALM, `ReadersJSON("${id(noteId)}")`)

@@ -12,7 +12,7 @@ import type { ChainNote } from './schema'
 import { publicIntentEvidence, publicVerification } from './recovery'
 import type { NotesReadClient } from './client'
 import { gnotAmount } from './quote'
-import { readPublicWritePermission } from './publicPermissions'
+import { readPublicContentWritePermission } from './publicPermissions'
 
 export interface NotesQuote {
   requestDigest: string; chainId: string; atHeight: string; expiresAtHeight: string; expiresAtMs: number
@@ -53,7 +53,7 @@ async function verifyBase(client: NotesReadClient, operation: PublicNoteOperatio
   if (!note || note.deleted || note.mode < 3 || note.stateRevision !== a.revision
     || (('epoch' in a) && note.epoch !== a.epoch)) throw new NotesChainError('stale')
   const permitted = a.kind === 'commit' || a.kind === 'rename'
-    ? await readPublicWritePermission(client, note, operation.caller) : note.owner === operation.caller
+    ? await readPublicContentWritePermission(client, note, operation.caller) : note.owner === operation.caller
   if (!permitted) throw new NotesChainError('stale')
 }
 /** A later operation or a visually identical note is not evidence for this write. */
