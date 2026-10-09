@@ -25,7 +25,7 @@ describe('beta identity', () => {
         expect(doc.querySelector('[property="og:image"]')?.getAttribute('content')).toBe('https://memba.club/brand/os/share-1200x630.png')
         expect(doc.querySelector('[property="og:image:width"]')?.getAttribute('content')).toBe('1200')
         expect(doc.querySelector('[property="og:image:height"]')?.getAttribute('content')).toBe('630')
-        expect(doc.querySelector('[name="twitter:site"]')?.getAttribute('content')).toBe('@samouraicoop')
+        expect(doc.querySelector('[name="twitter:site"]')?.getAttribute('content')).toBe('@membaclub')
         expect(doc.querySelector('[http-equiv="Content-Security-Policy"]')?.outerHTML).toBe(original.querySelector('[http-equiv="Content-Security-Policy"]')?.outerHTML)
         expect([...doc.scripts].filter(s => s.type !== 'application/ld+json').map(s => s.outerHTML)).toEqual([...original.scripts].filter(s => s.type !== 'application/ld+json').map(s => s.outerHTML))
         expect(doc.body.innerHTML).toBe(original.body.innerHTML)

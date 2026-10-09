@@ -4,7 +4,7 @@ const SOURCE = "https://github.com/samouraiworld/memba"
 
 export const ABOUT_LINKS = [
     { label: "Samouraï Coop", href: "https://samourai.world" },
-    { label: "X", href: "https://x.com/samouraicoop" },
+    { label: "X", href: "https://x.com/membaclub" },
     { label: "Telegram", href: "https://t.me/samouraicoop" },
     { label: "Videos", href: "https://samourai.tv/" },
     { label: "Source on GitHub", href: SOURCE },

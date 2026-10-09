@@ -43,7 +43,7 @@ export function osSiteHtml(html: string): string {
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${shareAlt}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:site" content="@samouraicoop" />
+  <meta name="twitter:site" content="@membaclub" />
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${description}" />
   <meta name="twitter:image" content="${share}" />
@@ -55,6 +55,7 @@ export function osSiteHtml(html: string): string {
   <script type="application/ld+json">${JSON.stringify({
             '@context': 'https://schema.org', '@type': 'WebApplication',
             name: 'Memba OS', url: `${OS_ORIGIN}/`, description,
+            sameAs: ['https://x.com/membaclub'],
             image: share, applicationCategory: 'SocialNetworkingApplication', operatingSystem: 'Web',
             publisher: { '@type': 'Organization', name: 'Samourai Coop', url: 'https://samourai.world' },
         })}</script>

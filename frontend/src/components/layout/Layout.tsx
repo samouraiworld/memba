@@ -369,7 +369,7 @@ export function Layout() {
             <footer className="k-footer">
                 <div className="k-footer-links">
                     {[
-                        { href: "https://x.com/samouraicoop", label: "X", icon: <XLogo size={16} weight="fill" /> },
+                        { href: "https://x.com/membaclub", label: "X", icon: <XLogo size={16} weight="fill" /> },
                         { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: <InstagramLogo size={16} weight="fill" /> },
                         { href: "https://samourai.tv/", label: "YouTube", icon: <YoutubeLogo size={16} weight="fill" /> },
                         { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <GithubLogo size={16} weight="fill" /> },
