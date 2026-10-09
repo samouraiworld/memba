@@ -94,3 +94,31 @@ TypeScript program rooted at those eight files, using project options and the
 existing Vite/changelog/test declarations, reports zero diagnostics, including
 transitive dependencies. This is not a full-project build or typecheck. No browser,
 composed Shell engine or live-chain proof is claimed for this runtime delta.
+
+## Completed-result recovery after connecting
+
+The workspace's keyed SignerProvider and per-account desktop restoration can
+remount or replace game windows when connecting or switching accounts. They stay
+unchanged. The supported recovery contract preserves a completed result's original
+UUID/input, binding, publication consent and receipt; it does not preserve a live
+engine across connection or resume an unfinished game.
+
+SavedRunPanel uses A's shared FreePlayResult/FreePlayConnect and
+prepareFreePlayRecovery contract. Canonical data and index membership are confirmed
+after mounting and again immediately before the explicit Connect callback. The
+notice directs the user to Arcade → Your runs after connecting. There is no
+implicit navigation, Play, verification or publication. Account B cannot rebind
+account A's saved result. A storage failure offers a local JSON export and avoids
+promising recovery. If session creation fails and no Connect callback is supplied,
+the readable canonical snapshot remains exportable, including its binding,
+publication consent and receipt.
+
+The A8 integration composes shared commit 35c9e920. A separate 41-test pass covers
+SavedRunPanel (9), real Shell composition (7), native Arcade (17) and runtime owner
+(8), with one worker. ESLint and targeted TypeScript for the three changed files
+and their dependencies pass. The seven Shell cases use the real signer/window
+restoration and a mount-lifetime probe in place of WindowFrame's game engine:
+guest→member with absent/present/empty destination desk, a direct link, account
+A→B with desktop/direct-link restoration, and Your runs at a constant owner.
+They document expected remounts and canonical recovery, not real-engine or phone
+browser behavior. The earlier 60-test pass remains attributed to 954dd30a.

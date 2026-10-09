@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import { SavedRunPanel } from "./SavedRunPanel"
 import { createFreePlaySnapshot, saveFreePlaySnapshot, loadFreePlaySnapshot } from "../../../games/arcade/freeplay/snapshot"
 import type { FreePlayGameRuntime } from "../../../games/arcade/freeplay/FreePlayRuntimeContext"
-import type { FreePlayClient, FreePlayInput, FreePlayRun } from "../../../lib/arcadeFreePlay"
+import { createFreePlayClient, type FreePlayClient, type FreePlayInput, type FreePlayRun } from "../../../lib/arcadeFreePlay"
 import vectors from "../../../games/arcade/freeplay/vectors.json"
 function fixture() {
     const data = new Map<string, string>()
@@ -52,4 +52,91 @@ describe("independent saved result panel", () => {
         expect(screen.queryByText(/^Local score:/)).not.toBeInTheDocument()
         expect(screen.getByRole("alert")).toBeVisible()
     })
+})
+
+describe("saved result Connect persistence boundary", () => {
+    it("announces recovery only after readback and connects explicitly with the same input", () => {
+        const { input, runtime } = fixture(), connect = vi.fn()
+        render(<SavedRunPanel game={input.game} clientRunId={input.clientRunId} runtime={{ ...runtime, connect }} onClose={vi.fn()} />)
+        expect(screen.getByText("After connecting, find this completed result in Arcade → Your runs.")).toBeVisible()
+        expect(connect).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", { name: "Connect wallet for saved scores" }))
+        expect(connect).toHaveBeenCalledOnce()
+        expect(loadFreePlaySnapshot(runtime.storage, input.clientRunId)?.input).toEqual(input)
+    })
+    it("exports the readable local result when index persistence fails, without promising recovery", () => {
+        const { input, runtime } = fixture(), connect = vi.fn()
+        const storage = { ...runtime.storage, setItem: (key: string, value: string) => {
+            if (key.endsWith(":index:v1")) throw new Error("quota")
+            runtime.storage.setItem(key, value)
+        } }
+        render(<SavedRunPanel game={input.game} clientRunId={input.clientRunId} runtime={{ ...runtime, storage, connect }} onClose={vi.fn()} />)
+        expect(screen.getByRole("alert")).toHaveTextContent("could not be saved for recovery")
+        expect(screen.queryByText(/After connecting/)).toBeNull()
+        expect(screen.queryByRole("button", { name: "Connect wallet for saved scores" })).toBeNull()
+        fireEvent.click(screen.getByText("Export completed result"))
+        expect(JSON.parse((screen.getByRole("textbox", { name: "Completed result export" }) as HTMLTextAreaElement).value).input).toEqual(input)
+        expect(connect).not.toHaveBeenCalled()
+    })
+    it("rechecks storage at the click instead of trusting the earlier ready notice", () => {
+        const { input, runtime } = fixture(), connect = vi.fn()
+        let blocked = false
+        const storage = { ...runtime.storage, setItem: (key: string, value: string) => {
+            if (blocked) throw new Error("quota")
+            runtime.storage.setItem(key, value)
+        } }
+        render(<SavedRunPanel game={input.game} clientRunId={input.clientRunId} runtime={{ ...runtime, storage, connect }} onClose={vi.fn()} />)
+        blocked = true
+        fireEvent.click(screen.getByRole("button", { name: "Connect wallet for saved scores" }))
+        expect(connect).not.toHaveBeenCalled()
+        expect(screen.getByRole("alert")).toHaveTextContent("could not be saved for recovery")
+    })
+    it("keeps account A binding and consent when reopened with a real account B client", async () => {
+        const { input, runtime } = fixture(), v = vectors.runs[0], connect = vi.fn(), token = vi.fn(), request = vi.fn()
+        const saved = { ...createFreePlaySnapshot(input), binding: { player: v.player, target: v.target },
+            result: { status: "verified" as const, payloadHash: v.payloadHash, entry: {
+                game: input.game, player: v.player, rules: input.rules, simVersion: input.simVersion,
+                runID: v.runID, seed: input.seed, score: v.score, stateHash: v.stateHash, replayHash: v.replayHash,
+            } }, publication: { payloadHash: v.payloadHash, quoteId: "1".repeat(64), nonce: "2".repeat(64) } }
+        saveFreePlaySnapshot(runtime.storage, saved)
+        const client = createFreePlayClient({ origin: "https://example.test", target: v.target, fetch: request,
+            auth: { identity: () => ({ player: "g1" + "b".repeat(38), chainId: v.target.chainId, revision: "B" }), subscribe: () => () => {}, token } })
+        render(<SavedRunPanel game={input.game} clientRunId={input.clientRunId} runtime={{ ...runtime, client, connect }} onClose={vi.fn()} />)
+        expect(request).not.toHaveBeenCalled(); expect(token).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", { name: "Connect wallet for saved scores" }))
+        expect(connect).toHaveBeenCalledOnce()
+        fireEvent.click(screen.getByRole("button", { name: "Check saved result" }))
+        await screen.findByText("Reconnect the wallet and network used for this result, then check again.")
+        expect(request).not.toHaveBeenCalled(); expect(token).not.toHaveBeenCalled()
+        expect(loadFreePlaySnapshot(runtime.storage, input.clientRunId)).toEqual(saved)
+    })
+})
+
+
+it("exports canonical binding, consent and receipt when session persistence fails without Connect", () => {
+    const { input, runtime } = fixture(), v = vectors.runs[0]
+    const entry = { game: input.game, player: v.player, rules: input.rules, simVersion: input.simVersion,
+        runID: v.runID, seed: input.seed, score: v.score, stateHash: v.stateHash, replayHash: v.replayHash }
+    const saved = { ...createFreePlaySnapshot(input), binding: { player: v.player, target: v.target },
+        result: { status: "confirmed" as const, payloadHash: v.payloadHash, entry,
+            receipt: { target: v.target, entry, height: 42, attester: v.player, schemaVersion: 2 as const } },
+        publication: { payloadHash: v.payloadHash, quoteId: "1".repeat(64), nonce: "2".repeat(64) } }
+    saveFreePlaySnapshot(runtime.storage, saved)
+    const request = vi.fn(), token = vi.fn()
+    const client = createFreePlayClient({ origin: "https://example.test", target: v.target, fetch: request,
+        auth: { identity: () => null, subscribe: () => () => {}, token } })
+    const storage = { ...runtime.storage, setItem: (key: string, value: string) => {
+        if (key.endsWith(":index:v1")) throw new Error("quota")
+        runtime.storage.setItem(key, value)
+    } }
+    render(<SavedRunPanel game={input.game} clientRunId={input.clientRunId} runtime={{ ...runtime, client, storage }} onClose={vi.fn()} />)
+    expect(screen.getByText(`Local score: ${input.claimedScore.toLocaleString()}`)).toBeVisible()
+    expect(screen.getByRole("status")).toHaveTextContent("not rechecked")
+    expect(screen.queryByText(/After connecting/)).toBeNull()
+    expect(screen.queryByRole("button", { name: /Connect/ })).toBeNull()
+    expect(screen.getByRole("alert")).toHaveTextContent("Local recovery could not be confirmed")
+    fireEvent.click(screen.getByText("Export completed result"))
+    expect(JSON.parse((screen.getByRole("textbox", { name: "Completed result export" }) as HTMLTextAreaElement).value)).toEqual(saved)
+    expect(loadFreePlaySnapshot(runtime.storage, input.clientRunId)).toEqual(saved)
+    expect(request).not.toHaveBeenCalled(); expect(token).not.toHaveBeenCalled()
 })
