@@ -18,6 +18,7 @@ import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { FolderTabs } from "./FolderTabs"
 import { EmergencyPauses, JoinAction } from "./GovActions"
+import { GovFees } from "./GovFees"
 import { ProposeForm } from "./GovPropose"
 import { useGovernedApps, useGovSnapshot } from "./useGovDao"
 import "./governance.css"
@@ -116,6 +117,7 @@ function Overview({ data, name, open, session }: { data: GovSnapshot; name: stri
                     <li><b>Apply</b><span>A member carries out an approved decision once it is ready.</span></li>
                 </ol>
             </section>
+            <GovFees />
             <GovernedApps />
             <section>
                 <h3 className="os-h">Open proposals</h3>

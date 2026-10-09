@@ -94,3 +94,36 @@ an actual charge or measured estimate. Existing gas/deposit limits and signing
 guards are unchanged. Using the first DAO Join as the wallet's first transaction
 would require a separately designed authentication flow; this patch does not
 relax the current authentication requirement.
+
+
+## Fee transparency
+
+The Overview now reads the following verified mainnet fields every minute,
+with manual refresh and per-source unavailable states. Wrong-chain RPCs are
+rejected; amounts use exact integer ugnot arithmetic.
+
+| Source | Read | Meaning |
+|---|---|---|
+| Market config | `GetFeeBPS("nft"/"service"/"token")`, `GetTreasury()` | Shared current fee policy and its destination, not a second revenue pool |
+| Services escrow | `GetGovernanceFeeTerms().EffectiveBPS/EffectiveTreasury` | Actual effective rate/destination, including its fallback rules |
+| App Store | `GetRegistrationFee()`, `GetTreasury()` | Current price and destination; seeded listings and historical price changes prevent inferring revenue from listing count |
+| Connect 4 | `fee`, `feesCollected`, `owner.Owner()` | Current flat fee, collected fees awaiting withdrawal, and withdrawal authority |
+
+At the read on 9 October 2026, Market rates were 2% NFT, 2% services and 0.5%
+token OTC; escrow's effective rate was 2%; App Store registration cost 1 GNOT;
+Connect 4 cost 0.1 GNOT per decisive game and held **0 GNOT in collected fees**.
+All observed recipients/withdrawal authority were the publisher wallet
+`g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf`.
+
+Connect 4's deployed `WithdrawFees` resets `feesCollected` to zero. Its bank
+balance includes players' stakes, so it must never be substituted for this
+counter. Connect 4 is not among the current bridge's ten apps. Its fees are
+not DAO-controlled or lifetime revenue.
+
+Market and App Store forward fees to receiving wallets. The UI explicitly
+marks historical consolidated revenue as unavailable: calculating it requires
+a complete, deduplicated settlement/registration history, including former
+recipients and prices. Shared receiving wallets appear once, with their whole
+current balance labelled separately. Network gas fees and storage deposits
+are excluded. This release does not add an indexer, change fee rates, move
+funds, or claim the DAO can spend a receiving wallet's balance.

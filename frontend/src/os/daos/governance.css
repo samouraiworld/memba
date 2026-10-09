@@ -28,3 +28,10 @@
 @media (max-width: 480px) {
   .memba-os .os-gov-steps { grid-template-columns: 1fr; }
 }
+
+.memba-os .os-gov-fee-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; list-style: none; margin: 14px 0; padding: 0; }
+.memba-os .os-gov-fee-grid > li { min-width: 0; border: 1px solid var(--os-line); border-radius: 12px; padding: 14px; background: var(--os-card); }
+.memba-os .os-gov-fees a { color: var(--os-acc-ink); }
+.memba-os .os-gov-fee-amount { margin: 8px 0 0; font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.memba-os .os-gov-wallet { flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.memba-os .os-gov-wallet a { min-width: 0; }

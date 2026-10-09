@@ -7,6 +7,7 @@ import type { GovProposal, GovSnapshot } from "../../lib/dao/membaGov"
 import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
 
+vi.mock("./GovFees", () => ({ GovFees: () => <section aria-label="Fees and transparency" /> }))
 vi.mock("../sign/signerContext", () => ({ useSigner: () => ({ sign: vi.fn(), version: 0 }) }))
 vi.mock("../../lib/dao/membaGov", async original => ({
     ...(await original<typeof import("../../lib/dao/membaGov")>()),

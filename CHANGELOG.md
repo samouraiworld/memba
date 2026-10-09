@@ -21,6 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Memba DAO overview and readiness (#1587, 2026-10-09)
+- Add live fee transparency: current Market, escrow and App Store terms and receiving wallets, plus Connect 4 fees awaiting withdrawal. Receiving balances are shown separately; unavailable historical revenue is never inferred from wallet balances or presented as zero.
 - Explain first-time wallet preparation, show that activation has no storage deposit, and keep technical transaction details expandable. Distinguish DAO invitation acceptance from wallet setup and label storage allowances as limits.
 - Explain the current Memba DAO in plain language, show its members and application handovers, and keep detailed rules expandable on desktop and mobile.
 - Link the retired DAO page to current governance, let invitees join from Members, and check community admission against the current governance bridge.
