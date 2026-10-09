@@ -8,6 +8,11 @@ const manifest: Record<string, StoreMedia> = {
 }
 
 describe("resolveMedia", () => {
+    it.each(["gnoswap", "boards", "playground", "kourt"])("keeps %s logo contrast separate from its brand accent", (key) => {
+        const media = resolveMedia(key, null, key)
+        expect(media.logoBackground).toMatch(/^#[0-9A-Fa-f]{6}$/)
+        expect(media.logoBackground).not.toBe(media.accent)
+    })
     it("prefers curated media over the listing's CIDs", () => {
         expect(resolveMedia("gnoswap", { iconCID: CID, screenshotCIDs: [CID] }, "x", manifest)).toEqual({
             logo: "/store/gnoswap/logo.svg", cover: "/store/gnoswap/cover.webp", screenshots: ["/store/gnoswap/shot-1.webp"], accent: "#1FB89A",

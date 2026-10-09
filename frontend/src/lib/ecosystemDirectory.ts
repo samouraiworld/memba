@@ -3,7 +3,7 @@
  */
 export const ECOSYSTEM_CATEGORIES = ["Wallet", "Exchange", "Community", "Games", "Creative worlds", "Explorer", "Developer tools"] as const
 export type EcosystemCategory = typeof ECOSYSTEM_CATEGORIES[number]
-export type EcosystemNetwork = "mainnet" | "staging"
+export type EcosystemNetwork = "mainnet" | "staging" | "onyx"
 export interface EcosystemProject {
     id: string
     name: string
@@ -15,6 +15,8 @@ export interface EcosystemProject {
     /** Observed read access or network selection; never transaction readiness. */
     networks: readonly EcosystemNetwork[]
     availability: string
+    /** Editorial Arcade selection, independent of category and network support. */
+    arcade?: boolean
     evidence: { url: string; checkedAt: string }
     sourceUrl?: string
     realm?: { path: string; network: EcosystemNetwork; url: string }
@@ -36,19 +38,24 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         sourceUrl: "https://gno.land/r/gnoland/boards2/v0$source",
         realm: { path: "gno.land/r/gnoland/boards2/v0", network: "mainnet", url: "https://gno.land/r/gnoland/boards2/v0" },
         evidence: { url: "https://gno.land/r/gnoland/boards2/v0", checkedAt: "2026-09-22" } },
-    { id: "akkadia", name: "Akkadia", category: "Creative worlds", kind: "app", networks: [],
-        url: "https://abp.akkadia.land/", status: "Builder preview", availability: "Network not verified",
+    { id: "akkadia", name: "Akkadia", category: "Creative worlds", kind: "app", networks: [], arcade: true,
+        url: "https://abp.akkadia.land/", status: "Builder preview", availability: "Alpha / Builder preview · network not verified",
         description: "Discover a preview of a sandbox for creating shared worlds on Gno.",
-        evidence: { url: "https://abp.akkadia.land/", checkedAt: "2026-09-22" } },
+        evidence: { url: "https://abp.akkadia.land/", checkedAt: "2026-10-09" } },
     { id: "bubble-rumble", name: "Bubble Rumble", category: "Games", kind: "app", networks: [],
         url: "https://bubblerumble.net/", status: "External game", availability: "External game · mainnet realm not verified",
         description: "Play Bubble Rumble on its own site. Its advertised realm is not available on gnoland-1 yet.",
         evidence: { url: "https://bubblerumble.net/", checkedAt: "2026-09-26" } },
-    { id: "gnofly", name: "gnofly", category: "Games", kind: "app", networks: ["mainnet"],
+    { id: "gnofly", name: "gnofly", category: "Games", kind: "app", networks: ["mainnet"], arcade: true,
         url: "https://gnofly.xyz/", status: "Multiplayer game", availability: "Mainnet · realm source checked",
         description: "Fly in a multiplayer plane game on gno.land. It sells plane NFTs used in the game (777 planes, 77 GNOT each at launch).",
         realm: { path: "gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0", network: "mainnet", url: "https://gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0" },
         evidence: { url: "https://gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0", checkedAt: "2026-10-07" } },
+    { id: "gnogolf", name: "Gnogolf", category: "Games", kind: "app", networks: ["onyx"], arcade: true,
+        url: "https://gnogolf.xyz/", status: "External mini-golf", availability: "Onyx testnet · external site",
+        description: "Play mini-golf on the Onyx testnet in its own site. The site offers play without a wallet and signed round records.",
+        sourceUrl: "https://github.com/alexiscolin/gno-golf",
+        evidence: { url: "https://gnogolf.xyz/", checkedAt: "2026-10-09" } },
     { id: "kourt", name: "Kourt", category: "Community", kind: "app", networks: ["mainnet"],
         url: "https://kourt.xyz/", status: "On-chain community", availability: "Mainnet · realm source checked",
         description: "Explore Kourt's community experience and its public on-chain realm.",
@@ -69,8 +76,13 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         sourceUrl: "https://github.com/gnoverse/mygnoscan",
         evidence: { url: "https://gnoscope.com/storage?network=mainnet", checkedAt: "2026-10-08" } },
 ]
-/** Independent mainnet games the Arcade links out to; derived so the directory stays the single source. */
-export const COMMUNITY_GAMES: readonly EcosystemProject[] = ECOSYSTEM_PROJECTS.filter(project => project.category === "Games" && project.networks.includes("mainnet"))
+/** Editorial Arcade links; selection never implies mainnet support or an integrated game. */
+export const COMMUNITY_GAMES: readonly EcosystemProject[] = ECOSYSTEM_PROJECTS.filter(project => project.arcade === true)
+
+/** External project evidence only; this does not add a network to Memba. */
+export function hasEditorialTestnet(networks: readonly EcosystemNetwork[] = []): boolean {
+    return networks.includes("staging") || networks.includes("onyx")
+}
 export const ECOSYSTEM_AVAILABILITY = ["all", "mainnet", "testnet", "tools", "unknown"] as const
 export type EcosystemAvailability = typeof ECOSYSTEM_AVAILABILITY[number]
 export interface EcosystemFilters { q: string; category: EcosystemCategory | "all"; availability: EcosystemAvailability }
@@ -79,7 +91,7 @@ export function filterEcosystemProjects(filters: EcosystemFilters, pool: readonl
     return pool.filter(project => {
         if (filters.category !== "all" && project.category !== filters.category) return false
         if (filters.availability === "mainnet" && !project.networks.includes("mainnet")) return false
-        if (filters.availability === "testnet" && !project.networks.includes("staging")) return false
+        if (filters.availability === "testnet" && !hasEditorialTestnet(project.networks)) return false
         if (filters.availability === "tools" && project.kind !== "tool") return false
         if (filters.availability === "unknown" && (project.kind === "tool" || project.networks.length > 0)) return false
         return [project.name, project.description, project.category, project.realm?.path ?? ""].some(value => value.toLowerCase().includes(q))

@@ -18,7 +18,7 @@ describe("one App Store catalogue", () => {
             { pkgPath: "gno.land/r/gnoland/boards2/v0/", appURL: "" },
         ]
         expect(notOnChain(ECOSYSTEM_PROJECTS, live).map((project) => project.id)).toEqual([
-            "adena", "akkadia", "bubble-rumble", "gnofly", "kourt", "gnoscan", "playground", "mygnoscan",
+            "adena", "akkadia", "bubble-rumble", "gnofly", "gnogolf", "kourt", "gnoscan", "playground", "mygnoscan",
         ])
         expect(notOnChain(ECOSYSTEM_PROJECTS, [])).toHaveLength(ECOSYSTEM_PROJECTS.length)
     })
@@ -70,6 +70,19 @@ describe("one App Store catalogue", () => {
         const testnet = buildCatalogue([live[0]], ECOSYSTEM_PROJECTS, "testnet")
         expect(filterCatalogue(testnet, { q: "swap", category: "all", availability: "testnet" }).map((entry) => entry.id)).toEqual(["registry:gno.land/r/gnoswap/router"])
         expect(filterCatalogue(testnet, { q: "swap", category: "all", availability: "mainnet" })).toEqual([])
+    })
+
+    it("keeps Onyx editorial games out of mainnet without changing registry identity", () => {
+        const entries = buildCatalogue([], ECOSYSTEM_PROJECTS)
+        const filters = { q: "gnogolf", category: "all" as const, availability: "testnet" as const }
+        expect(filterCatalogue(entries, filters)).toEqual([expect.objectContaining({
+            id: "editorial:gnogolf", availability: "testnet", realmPath: null,
+            url: "https://gnogolf.xyz/", project: expect.objectContaining({ networks: ["onyx"] }),
+        })])
+        expect(filterCatalogue(entries, { ...filters, availability: "mainnet" })).toEqual([])
+        expect(filterCatalogue(entries, { ...filters, availability: "unknown" })).toEqual([])
+        expect(filterCatalogue(entries, { ...filters, q: "akkadia", availability: "unknown" })).toHaveLength(1)
+        expect(checkedLinkDate(entries.find(entry => entry.id === "editorial:gnogolf")!)).toBe("2026-10-09")
     })
 
     it("bounds and round-trips catalogue URL filters", () => {

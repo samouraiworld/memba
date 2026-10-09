@@ -14,7 +14,7 @@ describe("ecosystem discovery controls", () => {
         renderWithProviders(<Harness />, { route: "/pearl/apps?q=missing&availability=mainnet" })
         expect(screen.getByRole("status")).toHaveTextContent("0 projects found")
         fireEvent.click(screen.getByRole("button", { name: "Reset filters" }))
-        expect(screen.getByRole("status")).toHaveTextContent("10 projects found")
+        expect(screen.getByRole("status")).toHaveTextContent("11 projects found")
         fireEvent.change(screen.getByRole("searchbox", { name: "Search projects" }), { target: { value: "boards" } })
         fireEvent.change(screen.getByLabelText("Availability"), { target: { value: "unknown" } })
         expect(screen.getByRole("status")).toHaveTextContent("0 projects found")
@@ -43,6 +43,8 @@ describe("ecosystem discovery controls", () => {
     it("shows each project's committed logo in place of its category icon", () => {
         const { container } = renderWithProviders(<EcosystemDirectory standalone />)
         expect(container.querySelector('.ecosystem-app__icon img[src="/store/adena/logo.svg"]')).not.toBeNull()
+        expect(container.querySelector('img[src="/store/gnoswap/logo.svg"]')?.parentElement).toHaveStyle({ backgroundColor: "#F5F7FA" })
+        expect(container.querySelector('img[src="/store/kourt/logo.webp"]')?.parentElement).toHaveStyle({ backgroundColor: "#18232D" })
     })
     it("does not offer disabled explorer routes or nest interactive elements", () => {
         vi.stubEnv("VITE_ENABLE_EXPLORER", "false")
@@ -57,7 +59,7 @@ describe("ecosystem discovery controls", () => {
             { pkgPath: "gno.land/r/gnoland/boards2/v0", appURL: "https://gno.land/r/gnoland/boards2/v0" },
         ]} />)
         expect(screen.getByRole("heading", { level: 2, name: "More from the Gno ecosystem" })).toBeInTheDocument()
-        expect(screen.getByRole("status")).toHaveTextContent("8 projects found")
+        expect(screen.getByRole("status")).toHaveTextContent("9 projects found")
         expect(screen.queryByRole("heading", { name: "GnoSwap" })).not.toBeInTheDocument()
         expect(screen.queryByRole("heading", { name: "Boards" })).not.toBeInTheDocument()
         expect(screen.getByRole("link", { name: "Visit Bubble Rumble (opens in a new tab)" })).toHaveAttribute("href", "https://bubblerumble.net/")

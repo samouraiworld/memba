@@ -1,6 +1,6 @@
 # App Store ecosystem directory
 
-Checked 2026-09-22; GnoSwap, Bubble Rumble and Kourt evidence refreshed 2026-09-26; gnofly added 2026-10-07. These ten editorial projects supplement on-chain listings and are separate from review scores and Memba realm eligibility. Matching live registry listings replace static app cards by verified realm path or web URL; off-chain tools remain in the static directory. External links open in a new tab with `noopener noreferrer`. Network evidence describes read access or a network selector, never successful transactions.
+Checked 2026-09-22; GnoSwap, Bubble Rumble and Kourt evidence refreshed 2026-09-26; gnofly added 2026-10-07. These eleven editorial projects supplement on-chain listings and are separate from review scores and Memba realm eligibility. Matching live registry listings replace static app cards by verified realm path or web URL; off-chain tools remain in the static directory. External links open in a new tab with `noopener noreferrer`. Network evidence describes read access or a network selector, never successful transactions.
 
 | Project | Canonical destination | Evidence and limits |
 |---|---|---|
@@ -22,3 +22,10 @@ The original seven destinations returned HTTPS 200 after redirects with certific
 The public index remains available when the registry flag is off **or** the exact configured registry path is ineligible on the selected network. Nested detail, publishing, submission and curation routes retain that same boundary. This consumes existing `isRealmValidOn` policy; it does not change flags, allowlists or publication records. On an eligible network the registry appears first when enabled, followed by only unmatched editorial projects.
 
 2026-10-08: mygnoscan was renamed gnoscope; `mygnoscan.moul.p2p.team` now redirects to `gnoscope.com` (HTTP 200 after redirect). The directory keeps the id `mygnoscan` because it keys the pinned review subject.
+
+
+2026-10-09 — Arcade editorial selection is independent of category and network: gnofly, Akkadia and Gnogolf are external links. Akkadia keeps its Creative worlds category, ID, review subject and existing artwork; the ABP page is an alpha/builder preview, with no verified network. Bubble Rumble is not automatically added to Arcade.
+
+[Gnogolf](https://gnogolf.xyz/) loaded in the browser on 2026-10-09. Its About panel links [the Onyx golf realm](https://onyx.testnets.gno.land/r/nym-alexiscolin000/gnogolf/golf/v2), its source and [the project repository](https://github.com/alexiscolin/gno-golf), and identifies test GNOT / onyx-1. The site describes wallet-free reads and signed round records. No transaction was performed or verified. Onyx is editorial testnet evidence only, not an addition to Memba’s network configuration. No mainnet realm identity is assigned to this project. Its permanent review subject is `memba:app/gnogolf`.
+
+Both additions open their official sites in a new tab; no iframe, game modification or score integration. At the user’s explicit request on 2026-10-09, Gnogolf uses browser screenshots of its official homepage: a 829×466 crop centred on its wordmark/mascot as the cover, and the full 829×988 homepage in the gallery. The JPEG captures are committed locally at `/store/gnogolf/cover.jpg` and `/store/gnogolf/shot-1.jpg`; there is no hotlink or live embed. Existing Akkadia and gnoscope media and pinned IDs remain unchanged.

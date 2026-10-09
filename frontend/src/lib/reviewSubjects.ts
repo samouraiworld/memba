@@ -31,6 +31,7 @@ export const CURATED_APP_SUBJECTS: Readonly<Record<string, string>> = Object.fre
     akkadia: "memba:app/akkadia",
     "bubble-rumble": "memba:app/bubble-rumble",
     gnofly: "gno.land/r/g1t2kg2vtr3fukg43eujkn6x53gfdyakhngt4sfd/gnofly/game/v0",
+    gnogolf: "memba:app/gnogolf",
     kourt: "gno.land/r/g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6/kourt",
     gnoscan: "memba:app/gnoscan",
     playground: "memba:app/playground",
