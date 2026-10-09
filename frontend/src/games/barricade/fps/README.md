@@ -27,7 +27,7 @@ The agreed next stage remains **free play followed by voluntary end-of-run mainn
 From `frontend`, use the repository's installed Node/toolchain:
 
 ```sh
-node node_modules/vitest/vitest.mjs run src/games/barricade/sim/fps/engine.test.ts src/games/barricade/fps/session.test.ts src/games/barricade/fps/FpsPreview.test.tsx src/games/barricade/BarricadeWindow.test.tsx --maxWorkers=1 --no-file-parallelism
+node node_modules/vitest/vitest.mjs run src/games/barricade/sim/fps/engine.test.ts src/games/barricade/fps/session.test.ts src/games/barricade/fps/FpsPreview.test.tsx src/games/barricade/BarricadeWindow.test.tsx src/games/barricade/BarricadePreviewEntry.test.tsx --maxWorkers=1 --no-file-parallelism
 node node_modules/eslint/bin/eslint.js src/games/barricade/sim/fps src/games/barricade/fps src/games/barricade/render/three/fps src/games/barricade/Barricade.tsx --max-warnings=0
 ```
 

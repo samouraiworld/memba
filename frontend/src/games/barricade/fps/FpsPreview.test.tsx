@@ -9,11 +9,12 @@ vi.mock('../render/three/fps/FpsScene', () => ({ default: function MockScene({ o
     useEffect(onReady, [onReady])
     return <div data-testid="fps-scene" />
 } }))
-vi.mock('../hooks/useGameLoop', () => ({ useGameLoop: vi.fn() }))
+const loop = vi.hoisted(() => ({ step: (_steps: number) => { void _steps } }))
+vi.mock('../hooks/useGameLoop', () => ({ useGameLoop: (_running: boolean, onSteps: (steps: number) => void) => { loop.step = onSteps } }))
 
 describe('FPS preview lifecycle and explicit capture', () => {
     const lock = vi.fn().mockResolvedValue(undefined)
-    beforeEach(() => { HTMLElement.prototype.requestPointerLock = lock; document.exitPointerLock = vi.fn(); lock.mockClear() })
+    beforeEach(() => { HTMLElement.prototype.setPointerCapture = vi.fn(); HTMLElement.prototype.requestPointerLock = lock; document.exitPointerLock = vi.fn(); lock.mockClear() })
     afterEach(() => vi.restoreAllMocks())
     it('waits for a user gesture, and ordinary play never requests pointer lock or submits a score', async () => {
         const fetch = vi.spyOn(globalThis, 'fetch')
@@ -53,6 +54,22 @@ describe('FPS preview lifecycle and explicit capture', () => {
         rerender(view(false)); expect(screen.getByRole('dialog', { name: 'Partie en pause' })).toBeInTheDocument()
         rerender(view(true)); expect(screen.getByRole('dialog', { name: 'Partie en pause' })).toBeInTheDocument()
         expect(lock).not.toHaveBeenCalled()
+    })
+    it('keeps the firing finger held when the aiming finger is lifted', async () => {
+        const { container } = render(<FpsPreview onClassic={vi.fn()} />)
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Jouer · visée libre' }))
+        const pointer = (target: Element, type: string, id: number) => fireEvent(target, Object.assign(new Event(type, { bubbles: true, cancelable: true }), { pointerId: id, pointerType: 'touch', clientX: 100, clientY: 100, button: 0 }))
+        pointer(screen.getByRole('button', { name: 'Tirer' }), 'pointerdown', 1)
+        const aim = container.querySelector('.fps-input')!
+        pointer(aim, 'pointerdown', 2)
+        pointer(aim, 'pointerup', 2)
+        pointer(aim, 'lostpointercapture', 2)
+        act(() => loop.step(10))
+        expect(screen.getByLabelText('État de la partie')).toHaveTextContent('10/12')
+        pointer(screen.getByRole('button', { name: 'Tirer' }), 'pointerup', 1)
+        act(() => loop.step(30))
+        expect(screen.getByLabelText('État de la partie')).toHaveTextContent('10/12')
     })
     it('returns to Classic explicitly without converting the run', async () => {
         const classic = vi.fn(); render(<FpsPreview onClassic={classic} />)

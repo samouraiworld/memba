@@ -131,9 +131,9 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
                     session.aim((e.clientX - drag.current.x) * 0.16, -(e.clientY - drag.current.y) * 0.16)
                     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY }
                 }}
-                onPointerUp={e => { if (drag.current?.id === e.pointerId) drag.current = null; session.fire(false) }}
+                onPointerUp={e => { if (drag.current?.id === e.pointerId) drag.current = null }}
                 onPointerCancel={() => { drag.current = null; session.clear() }}
-                onLostPointerCapture={() => { drag.current = null; session.fire(false) }} />
+                onLostPointerCapture={() => { drag.current = null }} />
             {status === 'playing' && state.phase === 'wave' && !unavailable && <>
                 <div className="fps-crosshair" aria-hidden="true">+</div>
                 <div className="fps-axes" aria-hidden="true">↖ GAUCHE <span>↑ CENTRE</span> DROITE ↗</div>
@@ -147,7 +147,6 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
                         <button ref={resume} className="fps-primary" disabled={!hud.ready || !active} onClick={() => start()}>{hud.ready ? status === 'paused' ? 'Reprendre · visée libre' : 'Jouer · visée libre' : 'Chargement…'}</button>
                         <button disabled={!hud.ready || !active} onClick={() => start(true)}>Jouer · capturer la souris</button>
                     </div>}
-                    {lockHint && <p role="status">{lockHint}</p>}
                 </div> : status === 'done' ? <div className="fps-overlay" role="dialog" aria-label="Résultat du prototype">
                     <h2>{state.phase === 'won' ? 'La barricade tient.' : 'La ligne a cédé.'}</h2><p>{state.score} points · {state.kills} adversaires neutralisés</p>
                     <p>{hud.verified ? 'Replay local vérifié' : 'Replay local divergent — à examiner'} · Prototype non classé</p>
@@ -170,6 +169,7 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
             <label><input type="checkbox" checked={mutedMotion} onChange={e => setMutedMotion(e.target.checked)} /> Effets réduits</label>
             <label>Lumière <select value={light} onChange={e => setLight(e.target.value as 'dusk' | 'day')}><option value="dusk">Fin de journée</option><option value="day">Jour couvert</option></select></label>
         </div>
+        {lockHint && <p className="fps-note" role="status">{lockHint}</p>}
         <p className="fps-note" role="status">Prototype non classé · Trois vagues · Réparation unique · Aucun wallet ni envoi de score. L’ancrage volontaire est prévu après stabilisation.</p>
     </section>
 }
