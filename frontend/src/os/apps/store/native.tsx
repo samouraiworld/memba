@@ -15,7 +15,7 @@ import { AppIcon, CinemaScope, CinemaShell, CoverCapsule, DetailLayout, HeroCaro
 import type { NativeViewProps } from "../../native/types"
 import { osTargetForClassic } from "../../page/classicRoute"
 import { Icon } from "../../shell/icons"
-import { specForTarget } from "../../shell/windows"
+import { isArcadePlayWindow, specForTarget } from "../../shell/windows"
 import { ARCADE_GAMES } from "../arcade/catalogue"
 import { CuratorQueue } from "./CuratorQueue"
 import { ReviewsPanel } from "./ReviewsPanel"
@@ -75,20 +75,21 @@ function StoreCard({ entry, summary, onOpen }: { entry: CatalogueEntry; summary?
     </button>
 }
 
-function OpenDestination({ entry, session, open }: Pick<NativeViewProps, "session" | "open"> & { entry: CatalogueEntry }) {
+function OpenDestination({ entry, session, open, play }: Pick<NativeViewProps, "session" | "open" | "play"> & { entry: CatalogueEntry }) {
     if (entry.url.startsWith("/") && !entry.url.startsWith("//")) {
         const path = `/${session.network.key}${entry.url}`
         const target = osTargetForClassic(path, session.network.key)
         const spec = target && specForTarget(target)
+        const playable = spec && isArcadePlayWindow(spec) && target?.kind === "app" && ARCADE_GAMES.some((game) => game.section === target.section && game.enabled())
         return spec
-            ? <button type="button" className="os-btn" onClick={() => open(spec)}>Open in Memba OS</button>
+            ? <button type="button" className="os-btn" onClick={() => (playable && play ? play : open)(spec)}>Open in Memba OS</button>
             : <a className="os-btn" href={path}>Open app</a>
     }
     if (/^https?:\/\//.test(entry.url)) return <a className="os-btn" href={entry.url} target="_blank" rel="noopener noreferrer">Open external site ↗</a>
     return <Pill tone="neutral">No launch link</Pill>
 }
 
-function Detail({ section, session, open, close }: NativeViewProps) {
+function Detail({ section, session, open, play, close }: NativeViewProps) {
     const moderator = useReviewsModerator(isAppReviewsAvailable())
     const path = section?.startsWith("apps/") ? `gno.land/${section.slice(5)}` : null
     const projectId = section?.startsWith("project/") ? section.slice(8) : null
@@ -142,7 +143,7 @@ function Detail({ section, session, open, close }: NativeViewProps) {
                     </>}
                     side={<>
                         <div className="os-cin-panel os-store-actions">
-                            {(!listing || listing.status === "live") && <OpenDestination entry={entry} session={session} open={open} />}
+                            {(!listing || listing.status === "live") && <OpenDestination entry={entry} session={session} open={open} play={play} />}
                             {entry.realmPath && <a className="os-cin-btn" href={`https://gno.land/${entry.realmPath.replace(/^gno\.land\//, "")}$source`} target="_blank" rel="noopener noreferrer">Read realm source ↗</a>}
                         </div>
                         <div className="os-cin-panel"><InfoRows rows={rows} /></div>

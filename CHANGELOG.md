@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Arcade integration acceptance fixes (#1598, 2026-10-09)
+- Keep the desktop return-to-Arcade button clear of the window title so pointer clicks reach it.
+- Preserve classic route state across mobile/desktop rotation and prevent the Space Invaders playfield from shrinking against its own content height on narrow screens.
+- Match saved Block Party results to the existing button style and retain CI evidence for failed mobile guardrails.
+
 ### Memba DAO overview and readiness (#1587, 2026-10-09)
 - Add live fee transparency: current Market, escrow and App Store terms and receiving wallets, plus Connect 4 fees awaiting withdrawal. Receiving balances are shown separately; unavailable historical revenue is never inferred from wallet balances or presented as zero.
 - Explain first-time wallet preparation, show that activation has no storage deposit, and keep technical transaction details expandable. Distinguish DAO invitation acceptance from wallet setup and label storage allowances as limits.
@@ -37,10 +42,29 @@ Full changelogs are split by version range for easier navigation:
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
+### Free play runtime preparation (#1597, 2026-10-09)
+- Prepare studio-paid Free play publication with bounded request quotas and shutdown that waits for active handlers. Free play remains disabled.
+- Document database migration and recovery prerequisites; deployment, migration and publication require separate approval.
+
+### Free play budget preparation (#1595, 2026-10-09)
+- Prepare dormant studio-paid quotes and durable daily budgets without activating Free play. Migration043 depends on042 and applies automatically at backend startup even while the feature is disabled; its rollout requires a separate database migration approval.
+### Free play chain transport preparation (#1594, 2026-10-09)
+- Prepare bounded reads of saved scores and per-game leaderboards, plus score submission guarded by an explicit studio quote and spending limits. The transport remains dormant; this change does not enable publication or deploy a realm.
+### Independent featured Notes on the desktop (2026-10-09)
+- Prepare separate Sushi and Whitepaper shortcuts with remembered dismissal, fixed labels on desktop and phone, and scoped browser storage that preserves existing pins across account changes and concurrent tabs.
+- Production note IDs and release activation remain pending. This change does not publish a document or enable collaborative editing.
+### Arcade window launch host (2026-10-09)
+- Open rich Arcade and Store views maximised on first creation, retaining user geometry when restoring existing windows.
+- Deliver transient Free play commands to Space Invaders and a separate return-to-Arcade action that keeps local game windows mounted; preserve Connect 4 and external game links.
+### Arcade per-game boards and local result history (2026-10-09)
+- Prepare separate Free play scoreboards with anchoring details for Block Party, Space Invaders and BARRICADE, using the shared public reader.
+- Add injected local result history with bounded pagination and recovery by saved run ID. Saved scores and receipts remain explicitly unverified until explicitly rechecked. An opt-in workspace runtime shares game clients and opens saved results locally without launching another game; activation remains off by default. Confirm local recovery before connecting, and offer a canonical result export when storage fails, including when connection is unavailable.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
 - Notes remains disabled pending deployment and activation. The sushi recipe demonstration and desktop persistence foundations are validated locally; no recipe or Whitepaper is published by this change.
+### Space Invaders direct play and fitted arena (#1580, 2026-10-09)
+- Start Free play or Daily with one action, fit the arena and HUD to the available area, offer game fullscreen, pause safely when the terrain is too small, and retain locally checked replays when returning through the result menu.
 
 ### Live Radio playback recovery (#1575, 2026-10-09)
 - Play live Audius and Jamendo tracks even when Onyx omits them from the station schedule, using the station's current track instead of incorrectly reporting that nothing is on air.
@@ -114,6 +138,11 @@ Full changelogs are split by version range for easier navigation:
 - Memba OS: a script to re-capture storefront screenshots from public pages, and a test that every listed file exists, stays within its size budget and carries no metadata.
 ### The Arcade as a storefront (2026-10-08)
 - Block Party: merged numbers no longer show through translucent tiles after a fusion, including with reduced motion (#1579, 2026-10-09).
+- Prepare optional onchain publication for completed Block Party Practice scores, with local recovery that preserves the current board.
+- Prepare optional Free play score verification, immutable receipts and durable publication recovery. The service stays disabled pending migration and activation review (#1583, 2026-10-09).
+- Barricade: add an opt-in, unranked fixed-position FPS prototype with deterministic local replays; Classic remains the default.
+- Barricade FPS preview: prepare an original street and articulated silhouettes with instanced rendering, clearer impact/reload feedback, and an injected terminal result consumer with resumable run identities for future voluntary anchoring.
+- Completed FPS results use the shared recovery check before optional wallet connection; failed local storage offers an export without claiming the result is saved.
 - Memba OS Arcade: the lobby is now a dark storefront with a featured-games carousel, a capsule for every game, a Today's daily strip and a "From the community" shelf; Play is its own button on each capsule, and it is absent when a build cannot run the game.
 - Memba OS Arcade: every game has its own page (/os/arcade/g/<game>) with screenshots once media lands, about, how to play, facts, and Play; a game this build cannot run says so instead of offering Play.
 - Memba OS Arcade: ratings and reviews on game pages are on-chain and shared with each game's App Store listing, so a review written in one place shows in the other; reading is open to guests.

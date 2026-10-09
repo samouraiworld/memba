@@ -26,6 +26,8 @@ export interface NativeViewProps {
     active: boolean
     /** Opens the target's window, or shows the target in this one, without a history entry of its own. */
     open: (spec: WindowSpec) => void
+    /** Explicit Play; ordinary navigation never starts a run. */
+    play?: (spec: WindowSpec) => void
     /**
      * Goes to the target as a link in a classic page does: a history entry of
      * its own, so Back returns to the view it left, and the target exactly as

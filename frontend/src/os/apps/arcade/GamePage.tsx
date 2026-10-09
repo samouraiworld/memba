@@ -8,8 +8,9 @@ import { ReviewsPanel } from "../store/ReviewsPanel"
 import { connect4PathFor, isRealmValidOn, reviewsPathFor } from "../../../lib/config"
 import type { ArcadeGame } from "./catalogue"
 import { DailyTop } from "./DailyTop"
+import { FreePlayBoard, type FreePlayBoardProps } from "./FreePlayBoard"
 
-export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; toLobby: () => void } & Pick<NativeViewProps, "session" | "open">) {
+export function GamePage({ game, session, open, play: launch, toLobby, freePlayBoard }: { game: ArcadeGame; toLobby: () => void; freePlayBoard?: FreePlayBoardProps } & Pick<NativeViewProps, "session" | "open" | "play">) {
     const media = resolveMedia(game.id, null, game.id)
     // Connect 4 is reviewed only where both its realm and the reviews realm are listed.
     const network = session.network.key
@@ -18,13 +19,15 @@ export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; t
     const summaries = useReviewSummaries(session.network.chainId, reviewSubject ? [reviewSubject] : [])
     const summary = reviewSubject ? summaries.get(reviewSubject) : undefined
     const enabled = game.enabled()
-    const play = () => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
+    const showGame = () => open(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
+    const play = () => (game.id !== "connect4" && launch ? launch : open)(specForTarget({ kind: "app", app: "arcade", section: game.section })!)
     return <DetailLayout banner={media.cover} accent={media.accent} back={{ label: "← Arcade", onClick: toLobby }} title={game.name} pitch={game.pitch}
         badges={<><RatingBadge summary={summary} />{game.tags.map((tag) => <span key={tag} className="os-cin-tag">{tag}</span>)}</>}
         main={<>
             <MediaGallery name={game.name} images={media.screenshots} />
             <section className="os-cin-panel"><h2>About this game</h2><p>{game.description}</p>
                 {game.howTo.length > 0 && <ol className="os-cin-steps">{game.howTo.map((step) => <li key={step}>{step}</li>)}</ol>}</section>
+            {game.id !== "connect4" && freePlayBoard?.game === game.id && freePlayBoard.target.chainId === session.network.chainId && <FreePlayBoard {...freePlayBoard} />}
             {/* The reviews list renders its own "Reviews" heading, so this section is labelled rather than headed. */}
             <section className="os-cin-panel" aria-label="Ratings and reviews">
                 {reviewSubject
@@ -39,11 +42,11 @@ export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; t
                     <p className="os-cin-sub">{game.cost === "staked" ? "Connect a wallet to stake and play. You can watch games without one." : "No wallet needed to play."}</p>
                 </> : <>
                     <p className="os-cin-sub" role="status">This game is unavailable in this build.</p>
-                    <button type="button" className="os-cin-btn" onClick={play}>See why</button>
+                    <button type="button" className="os-cin-btn" onClick={showGame}>See why</button>
                 </>}
             </div>
             <div className="os-cin-panel"><InfoRows rows={game.info} /></div>
-            {game.dailyBoard && enabled && <DailyTop chainId={session.network.chainId} onOpen={play} />}
+            {game.dailyBoard && enabled && <DailyTop chainId={session.network.chainId} onOpen={showGame} />}
             {game.daily && <p className="os-cin-sub" role="note">A combined daily leaderboard and on-chain Arcade attestation are unavailable while Arcade attestation is off.</p>}
         </>} />
 }

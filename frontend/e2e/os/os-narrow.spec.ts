@@ -73,7 +73,11 @@ test.describe('Memba OS pages in a narrow window', () => {
             await page.goto(`${OS_ON}/os/store/project/adena`)
             const win = page.getByRole('region', { name: 'App details · App Store', exact: true })
             await expect(win.getByRole('heading', { level: 1, name: 'Adena' })).toBeVisible()
-            // The page opens wide (1040 px); drag its corner in to a phone-sized window.
+            // Store details open maximised; restore through the title bar before resizing.
+            await expect(win).toHaveClass(/os-max/)
+            await win.getByRole('button', { name: 'Restore App details · App Store', exact: true }).click()
+            await expect(win).not.toHaveClass(/os-max/)
+            // The restored page is 1040 px wide; drag its corner to the target width.
             await win.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
             const box = (await win.boundingBox())!
             expect(Math.round(box.width)).toBe(1040)

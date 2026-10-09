@@ -9,11 +9,12 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
-import { NOTES_ENABLED } from "../../lib/notes/config"
+import { featuredNoteReleases } from "../../lib/notes/featuredNoteRelease"
+import { NOTES_ENABLED, notesDeployment } from "../../lib/notes/config"
 import { NotesStages } from "../apps/notes/NotesStages"
 import { NotesStageProvider } from "../apps/notes/stageRegistry"
 import { ConnectModal } from "./ConnectModal"
-import { itemTarget } from "./desk"
+import { itemTarget, sameItem, type DeskItem } from "./desk"
 import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
 import { Dock } from "./Dock"
 import { markLocked, readLocked, resolveEntry } from "./entry"
@@ -34,7 +35,10 @@ import { EvmConnectModal } from "../evm/EvmConnectModal"
 import { SignerProvider } from "../sign/SignerProvider"
 import { bumpWalletActionEpoch, setWalletActionGuard } from "../../lib/grc20"
 import { EVM_ENABLED } from "../../lib/chain/flag"
+import { useArcadeLaunch } from "../apps/arcade/useArcadeLaunch"
 import { PhoneShell } from "../phone/PhoneShell"
+import { FreePlayRuntimeProvider } from "../../games/arcade/freeplay/FreePlayRuntimeProvider"
+import { useArcadeFreePlayRuntime, type ArcadeFreePlayConfiguration } from "../apps/arcade/useArcadeFreePlayRuntime"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { LiveActivityProvider } from "../apps/live/LiveProvider"
 import { Launcher } from "./Launcher"
@@ -113,7 +117,7 @@ const EVM_SESSION = EVM_ENABLED && activeOsNetwork().family === "evm"
 /** The wallet session for this page's network: Adena on gno.land, an EVM wallet on Base. */
 const useShellSession = EVM_SESSION ? useEvmSession : useOsSession
 
-export function Shell() {
+export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?: ArcadeFreePlayConfiguration | null } = {}) {
     const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
     const location = useLocation()
     const navigate = useNavigate()
@@ -192,7 +196,9 @@ export function Shell() {
     const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
 
     const win = useWindows(() => arrivalWindows(arrival, fromLink, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }, storageOwner, explicitlyLocked))
-    const { dispatch } = win
+    const arcadeLaunch = useArcadeLaunch({ wins: win.wins, scope: `${session.network.chainId}:${session.status}:${session.address}`,
+        blocked: locked || Boolean(session.stage) || session.status === "resuming", dispatch: win.dispatch, desk: placeDesk })
+    const { dispatch } = arcadeLaunch
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
     const skipNextOwnerWrite = useRef<string | null>(null)
@@ -321,10 +327,13 @@ export function Shell() {
     const member = session.status === "member"
     // An EVM network: its own connect flow, and no live activity (that reads a Gno indexer).
     const onEvm = EVM_ENABLED && session.network.family === "evm"
+    const freePlayRuntime = useArcadeFreePlayRuntime({ session, locked, onEvm, configuration: freePlayConfiguration })
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
-    const deskItems = useDesk(deskOwner, session.network.key)
+    const featured = notesDeployment(session.network.chainId) ? featuredNoteReleases(session.network.chainId) : []
+    const deskItems = useDesk(deskOwner, session.network.key, { chainId: session.network.chainId,
+        gno: session.network.family === "gno", adopt: NOTES_ENABLED, releases: featured, blocked: locked })
     const { resetFromStorage: resetDeskFromStorage } = deskItems
     // Reset is dispatched by Settings after the saved UI keys are removed. Keep
     // that window on screen, and leave the cleared layout absent until the user
@@ -338,10 +347,10 @@ export function Shell() {
             dispatch({ type: "restore", wins: settings ? [{ ...settings, min: false }] : [] })
         }
         const onLocalReset = () => {
-            applyReset()
             try {
                 localStorage.setItem(LOCAL_UI_RESET_REVISION_KEY, `${Date.now()}:${Math.random()}`)
             } catch { /* local reset still applies if storage refuses the notification */ }
+            applyReset()
         }
         const onStorage = (event: StorageEvent) => {
             if (event.key === LOCAL_UI_RESET_REVISION_KEY && event.newValue !== null) applyReset()
@@ -419,23 +428,30 @@ export function Shell() {
     }, [locked, session.stage, front, closeWin, nextWin, launcher, openLauncher, closeLauncher, toggleFullscreen])
 
     // ── right-click menus ──
-    const [menu, setMenu] = useState<{ x: number; y: number; item: number | null } | null>(null)
+    const menuScope = JSON.stringify([deskItems.scopeKey, locked])
+    const [menu, setMenu] = useState<{ x: number; y: number; item: Pick<DeskItem, "ty" | "ref"> | null; scope: string } | null>(null)
     const [startRequest, setStartRequest] = useState(0)
     const closeMenu = useCallback(() => setMenu(null), [])
     const openMenu = (e: ReactMouseEvent, item: number | null) => {
         const r = deskEl?.getBoundingClientRect()
         if (!r) return
-        setMenu({ x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200), item })
+        const target = item === null ? null : deskItems.items[item]
+        if (item !== null && !target) return
+        setMenu({ x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200),
+            item: target ? { ty: target.ty, ref: target.ref } : null, scope: menuScope })
     }
     const openItem = (i: number) => {
-        const t = itemTarget(deskItems.items[i])
+        const item = deskItems.items[i]; if (!item) return
+        const t = itemTarget(item)
         const spec = t && specForTarget(t)
         if (spec) open(spec)
     }
     let menuEntries: (MenuEntry | "sep")[] = []
-    if (menu && menu.item !== null) {
-        const i = menu.item
-        menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
+    if (menu && menu.scope !== menuScope) setMenu(null)
+    else if (menu && menu.item !== null) {
+        const target = menu.item, i = deskItems.items.findIndex(item => sameItem(item, target))
+        if (i < 0) setMenu(null)
+        else menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
     } else if (menu) {
         menuEntries = [
             { label: "Change wallpaper…", run: () => openApp("settings") },
@@ -468,7 +484,7 @@ export function Shell() {
                 })} />
             )}
             {onEvm ? <EvmConnectModal session={session} /> : <ConnectModal session={session} />}
-            {toast && !locked && <div className="os-toast os-glass" role="status">{toast}</div>}
+            {(toast || deskItems.error) && !locked && <div className="os-toast os-glass" role="status">{toast || deskItems.error}</div>}
             {locked && !session.stage && (
                 <LockScreen
                     resuming={session.status === "resuming"}
@@ -491,12 +507,14 @@ export function Shell() {
                 onHide={() => win.minimise(radioWindow.id)} onStop={() => win.close(radioWindow.id)} /></Suspense>}
         <LiveActivityProvider networkKey={session.network.key} active={!onEvm && !locked && (!phone || front?.app === "live")}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <FreePlayRuntimeProvider value={freePlayRuntime}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
             <NotesStageProvider>
             {phone ? <>
-                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={deskItems.noteLabels} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
+                    play={arcadeLaunch.play} launchFor={arcadeLaunch.launchFor} consumeLaunch={arcadeLaunch.consume} returnToArcade={arcadeLaunch.returnToArcade}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
                         // minimising all sheets then rewrites this new entry to /os.
@@ -513,7 +531,7 @@ export function Shell() {
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
                 {!locked && liveWidget && !onEvm && <LiveTicker onOpen={() => openApp("live")} />}
-                <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
+                <DeskItems key={menuScope} items={deskItems.items} noteLabels={deskItems.noteLabels} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">
                         <div className="os-getstarted-title">Your desk is empty — let's fill it.</div>
@@ -527,7 +545,8 @@ export function Shell() {
                     </div>
                 )}
                 {windowWins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
-                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast}
+                        play={arcadeLaunch.play} launch={arcadeLaunch.launchFor(w)} onLaunchConsumed={(id) => arcadeLaunch.consume(w.id, id)} returnToArcade={() => arcadeLaunch.returnToArcade(w.id)} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
@@ -548,6 +567,7 @@ export function Shell() {
             </NotesStageProvider>
             </MeetStageContext.Provider>
             </div>
+            </FreePlayRuntimeProvider>
             <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage && !win.wins.some((w) => w.app === "radio" && !w.min)} openNews={() => openApp("news")} />
             {shared}
         </SignerProvider>

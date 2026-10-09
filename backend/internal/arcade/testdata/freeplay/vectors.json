@@ -1,0 +1,130 @@
+{
+  "encoding": "SHA256 of uint32-BE length-prefixed UTF-8 fields",
+  "lp": [
+    {
+      "fields": [
+        "ab",
+        "c"
+      ],
+      "bytes": "0000000261620000000163",
+      "sha256": "f2939f903016e5bb29b1e4a61cdbd376220ca03a24180b39995f2d50f2e0a647"
+    },
+    {
+      "fields": [
+        "a",
+        "bc"
+      ],
+      "bytes": "0000000161000000026263",
+      "sha256": "b534ce16ac9c8b36823f39a395ce8e0e3c7ad9605b82b5444f18cadacd217a5d"
+    },
+    {
+      "fields": [
+        "",
+        "é",
+        "🙂"
+      ],
+      "bytes": "0000000000000002c3a900000004f09f9982",
+      "sha256": "9c5fb7e763fe3ecd4f525016b55b50c2727c240725000bf96d2673eb9c0c4a84"
+    }
+  ],
+  "runs": [
+    {
+      "name": "standard",
+      "target": {
+        "chainId": "gnoland-1",
+        "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+      },
+      "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000000",
+        "game": "block-party",
+        "rules": "bp-free-standard-undo-v1",
+        "simVersion": 1,
+        "seed": "bp1:00001092",
+        "replayCodec": "bp-actions-v1",
+        "replay": "LURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLU",
+        "finishReason": "game-over"
+      },
+      "runID": "3f9a414ad82b66fd83da2e5679b26b9ad8dacc028e1f581ff3a9fe9de3553b11",
+      "replayHash": "eace4cf6655ba98f633719eb107f78460fbfd12d52bca5575b09a88a3380609f",
+      "stateHash": "26e20256eee4bfbb4f9029dafc15b4b5e33713a4f55b487199aa4d6c8cf24800",
+      "score": 3204,
+      "payloadHash": "d85c5ce76626d8315ad8d5b62468eedbd821d3e56b2dabc8d0ce85aee0db3622",
+      "state": {
+        "board": [
+          2,
+          8,
+          64,
+          4,
+          4,
+          32,
+          256,
+          16,
+          16,
+          4,
+          128,
+          4,
+          4,
+          8,
+          32,
+          2
+        ],
+        "score": 3204,
+        "rng": 4234361138,
+        "rngCallCount": 544,
+        "modifier": "standard",
+        "moves": 270,
+        "over": true
+      }
+    },
+    {
+      "name": "standard-with-undo",
+      "target": {
+        "chainId": "gnoland-1",
+        "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+      },
+      "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "input": {
+        "clientRunId": "11111111-1111-4111-8111-111111111111",
+        "game": "block-party",
+        "rules": "bp-free-standard-undo-v1",
+        "simVersion": 1,
+        "seed": "bp1:00001092",
+        "replayCodec": "bp-actions-v1",
+        "replay": "LUZRDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURLRDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLURDLUR",
+        "finishReason": "game-over"
+      },
+      "runID": "b115ef29275e5dd7b4db3da57f3c8c5816b4e167417132e8e0f9db82ec398cf2",
+      "replayHash": "8d7b44dd91180154b1d2e9965ca8f91e98539fe3f1d09e5c90c2b8e07417d43c",
+      "stateHash": "6428581bd08151522309cf5a2a4b4739527f4ec42bdb81a098f1f82c36b7dfb1",
+      "score": 2832,
+      "payloadHash": "db7ff823d6a9a42a52392bde762bf0badeed3f48849d1828a2accfb3440bd79c",
+      "state": {
+        "board": [
+          4,
+          2,
+          32,
+          4,
+          256,
+          128,
+          4,
+          32,
+          4,
+          16,
+          8,
+          2,
+          2,
+          4,
+          2,
+          4
+        ],
+        "score": 2832,
+        "rng": 2474312822,
+        "rngCallCount": 468,
+        "modifier": "standard",
+        "moves": 232,
+        "over": true
+      }
+    }
+  ]
+}
