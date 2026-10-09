@@ -30,6 +30,7 @@ describe('Free play injected API', () => {
         for (const mutate of [
             (r: FreePlayRun) => { r.target = { ...r.target, chainId: 'onyx-1' } },
             (r: FreePlayRun) => { r.entry.score++ },
+            (r: FreePlayRun) => { r.entry.player = 'g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq' },
             (r: FreePlayRun) => { r.payloadHash = '0'.repeat(64) },
             (r: FreePlayRun) => { r.entry.replayHash = '0'.repeat(64) },
         ]) {
@@ -60,5 +61,43 @@ describe('Free play injected API', () => {
         const { client, fetcher } = setup(); const wrong = run(); wrong.status = 'confirmed'
         fetcher.mockResolvedValue(new Response(JSON.stringify(wrong)))
         await expect(client.read(binding, input, new AbortController().signal)).rejects.toThrow('invalid_response')
+    })
+})
+
+describe('Free play public boards', () => {
+    const query = { game: input.game, rules: input.rules, simVersion: input.simVersion, offset: 0, limit: 20 }
+    const receipt = () => ({ target: v.target, entry: run().entry, height: 42, attester: v.player, schemaVersion: 2 as const })
+    const board = () => ({ target: v.target, game: input.game, rules: input.rules, simVersion: input.simVersion, entries: [receipt()] })
+    it('uses the shared transport without credentials and preserves exact pagination/context', async () => {
+        const s = setup(); s.change({ chainId: 'onyx-1' })
+        s.fetcher.mockResolvedValue(new Response(JSON.stringify(board())))
+        expect(await s.client.board(query, new AbortController().signal)).toEqual(board())
+        expect(s.auth.token).not.toHaveBeenCalled()
+        const [url, init] = s.fetcher.mock.calls[0]
+        expect(String(url)).toContain('/boards/block-party?rules=bp-free-standard-undo-v1&simVersion=1&offset=0&limit=20')
+        expect(init?.headers).toBeUndefined(); expect(init?.credentials).toBe('omit')
+    })
+    it('rejects other contexts, malformed receipts and repeated players', async () => {
+        for (const mutate of [
+            (b: ReturnType<typeof board>) => { b.target = { ...b.target, chainId: 'onyx-1' } },
+            (b: ReturnType<typeof board>) => { b.game = 'barricade' },
+            (b: ReturnType<typeof board>) => { b.entries[0].entry.rules = 'other' },
+            (b: ReturnType<typeof board>) => { b.entries[0].entry.simVersion++ },
+            (b: ReturnType<typeof board>) => { b.entries[0].height = 0 },
+            (b: ReturnType<typeof board>) => { b.entries.push(receipt()) },
+        ]) {
+            const s = setup(); const value = board(); mutate(value)
+            s.fetcher.mockResolvedValue(new Response(JSON.stringify(value)))
+            await expect(s.client.board(query, new AbortController().signal)).rejects.toThrow('invalid_board')
+        }
+    })
+    it('distinguishes unavailable from empty and bounds requests before network I/O', async () => {
+        const s = setup(); s.fetcher.mockResolvedValueOnce(new Response('{}', { status: 503 }))
+        await expect(s.client.board(query, new AbortController().signal)).rejects.toThrow('leaderboard_unavailable')
+        s.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ ...board(), entries: [] })))
+        expect((await s.client.board(query, new AbortController().signal)).entries).toEqual([])
+        s.fetcher.mockClear()
+        await expect(s.client.board({ ...query, limit: 101 }, new AbortController().signal)).rejects.toThrow('invalid_board')
+        expect(s.fetcher).not.toHaveBeenCalled()
     })
 })

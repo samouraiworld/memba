@@ -13,6 +13,7 @@ function setup() {
     const storage = { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, value: string) => { saved.set(k, value) } }
     const listeners = new Set<() => void>()
     const client = {
+        board: vi.fn(),
         subscribeIdentity: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } },
         bind: () => binding,
         verify: vi.fn(async () => structuredClone(run)), read: vi.fn(async () => structuredClone(run)),
@@ -77,4 +78,40 @@ describe('Free play completed-run snapshots', () => {
         expect(s.saved.size).toBe(2)
         expect(() => createFreePlaySession({ snapshot: createFreePlaySnapshot({ ...input, replay: input.replay + 'Z' }), storage: s.storage, client: s.client })).toThrow('run_conflict')
     })
+})
+
+it('never sends publication when its consent cannot be persisted', async () => {
+    const s = setup(); await s.session.verify(); await s.session.quote()
+    const save = s.storage.setItem
+    s.storage.setItem = (key, raw) => {
+        if (JSON.parse(raw).publication) throw new DOMException('storage full', 'QuotaExceededError')
+        save(key, raw)
+    }
+    await s.session.publish()
+    expect(s.client.publish).not.toHaveBeenCalled()
+    expect(s.session.getSnapshot().phase).toBe('error')
+    expect(s.session.getSnapshot().snapshot.input).toEqual(input)
+    expect(loadFreePlaySnapshot(s.storage, input.clientRunId)?.input).toEqual(input)
+    expect(loadFreePlaySnapshot(s.storage, input.clientRunId)?.publication).toBeUndefined()
+})
+
+it('requires fresh explicit consent for an expired queued quote and never renews an unknown send', async () => {
+    const s = setup(); await s.session.verify(); await s.session.quote(); await s.session.publish()
+    const expired: FreePlayRun = { ...run, status: 'queued', lastError: 'quote_expired', canReauthorize: true }
+    s.client.read.mockResolvedValue(expired)
+    const nextQuote = { ...quote, quoteId: 'c'.repeat(64), nonce: 'd'.repeat(64), expiresAt: 3000 }
+    s.client.quote.mockResolvedValue(nextQuote)
+    await s.session.refresh()
+    expect(s.session.getSnapshot()).toMatchObject({ phase: 'pending', canReauthorize: true, error: 'quote_expired' })
+    await s.session.quote()
+    expect(s.session.getSnapshot().phase).toBe('quoted')
+    expect(s.client.publish).toHaveBeenCalledTimes(1)
+    expect(loadFreePlaySnapshot(s.storage, input.clientRunId)?.publication?.nonce).toBe(quote.nonce)
+    await s.session.publish()
+    expect(s.client.publish).toHaveBeenCalledTimes(2)
+    expect(loadFreePlaySnapshot(s.storage, input.clientRunId)?.publication?.nonce).toBe(nextQuote.nonce)
+    s.client.read.mockResolvedValue({ ...run, status: 'submitted', lastError: 'confirmation_pending', canReauthorize: false })
+    await s.session.quote()
+    expect(s.session.getSnapshot().phase).toBe('pending')
+    expect(s.client.quote).toHaveBeenCalledTimes(2)
 })

@@ -17,7 +17,7 @@ export interface FreePlayReceipt { target: FreePlayTarget; entry: FreePlayEntry;
 export interface FreePlayRun {
     target: FreePlayTarget; entry: FreePlayEntry; clientRunId: string; payloadHash: string
     replayCodec: string; replay: string; status: 'verified' | 'queued' | 'submitted' | 'confirmed'
-    receipt?: FreePlayReceipt; lastError?: string; nextCheckAt?: number
+    receipt?: FreePlayReceipt; lastError?: string; nextCheckAt?: number; canReauthorize?: boolean
 }
 export interface FreePlayQuote {
     quoteId: string; runID: string; payloadHash: string; nonce: string; expiresAt: number
@@ -75,7 +75,9 @@ export function validFreePlayRun(v: unknown): v is FreePlayRun {
         || typeof v.clientRunId !== 'string' || !uuid.test(v.clientRunId) || typeof v.payloadHash !== 'string' || !hex.test(v.payloadHash)
         || !text(v.replayCodec, 64) || typeof v.replay !== 'string' || v.replay.length > 1_000_000
         || !['verified', 'queued', 'submitted', 'confirmed'].includes(String(v.status))
+        || v.canReauthorize !== undefined && typeof v.canReauthorize !== 'boolean'
         || v.nextCheckAt !== undefined && !safe(v.nextCheckAt) || v.lastError !== undefined && !text(v.lastError, 1024)) return false
+    if (v.canReauthorize === true && v.status !== 'queued') return false
     if (v.status !== 'confirmed') return v.receipt === undefined
     return validFreePlayReceipt(v.receipt) && sameFreePlayTarget(v.receipt.target, v.target) && sameFreePlayEntry(v.receipt.entry, v.entry)
 }
@@ -112,7 +114,10 @@ async function validateRun(raw: unknown, binding: FreePlayBinding, input: FreePl
         || e.runID !== id || e.replayHash !== replay || raw.payloadHash !== payload) throw new FreePlayError('run_conflict')
     return raw
 }
+export interface FreePlayBoardQuery { game: FreePlayGame; rules: string; simVersion: number; offset?: number; limit?: number }
+export interface FreePlayBoard { target: FreePlayTarget; game: FreePlayGame; rules: string; simVersion: number; entries: FreePlayReceipt[] }
 export interface FreePlayClient {
+    board(query: FreePlayBoardQuery, signal: AbortSignal): Promise<FreePlayBoard>
     subscribeIdentity(listener: () => void): () => void
     bind(): FreePlayBinding
     verify(binding: FreePlayBinding, input: FreePlayInput, signal: AbortSignal): Promise<FreePlayRun>
@@ -152,6 +157,28 @@ export function createFreePlayClient(options: { origin: string; target: FreePlay
     }
     const ensureInput = (input: FreePlayInput) => { if (!validFreePlayInput(input) || new TextEncoder().encode(JSON.stringify(input)).length > (1 << 20)) throw new FreePlayError('invalid_snapshot') }
     return {
+        async board(query, signal) {
+            const { game: selected, rules, simVersion, offset = 0, limit = 50 } = query
+            if (!game(selected) || typeof rules !== 'string' || !/^[a-z0-9-]{1,48}$/.test(rules) || !safe(simVersion) || simVersion < 1 || simVersion > 2147483647
+                || !safe(offset) || offset > 100000 || !safe(limit) || limit < 1 || limit > 100) throw new FreePlayError('invalid_board')
+            const url = new URL(FREE_PLAY_PREFIX + 'boards/' + selected, endpoint)
+            url.search = new URLSearchParams({ rules, simVersion: String(simVersion), offset: String(offset), limit: String(limit) }).toString()
+            if (signal.aborted) throw new FreePlayError('cancelled')
+            const response = await options.fetch(url, { method: 'GET', credentials: 'omit', redirect: 'error', cache: 'no-store', signal })
+            const raw: unknown = await response.json()
+            if (signal.aborted) throw new FreePlayError('cancelled')
+            if (!response.ok) throw new FreePlayError('leaderboard_unavailable')
+            if (!record(raw) || !validFreePlayTarget(raw.target) || !sameFreePlayTarget(raw.target, target) || raw.game !== selected
+                || raw.rules !== rules || raw.simVersion !== simVersion || !Array.isArray(raw.entries) || raw.entries.length > limit) throw new FreePlayError('invalid_board')
+            const seen = new Set<string>()
+            const entries: FreePlayReceipt[] = []
+            for (const row of raw.entries) {
+                if (!validFreePlayReceipt(row) || !sameFreePlayTarget(row.target, target) || row.entry.game !== selected || row.entry.rules !== rules
+                    || row.entry.simVersion !== simVersion || seen.has(row.entry.player)) throw new FreePlayError('invalid_board')
+                seen.add(row.entry.player); entries.push(row)
+            }
+            return { target: { ...target }, game: selected, rules, simVersion, entries }
+        },
         subscribeIdentity: listener => options.auth.subscribe(listener),
         bind() { const identity = options.auth.identity(); const binding = { player: identity?.player ?? '', target: { ...target } }; assertIdentity(binding); return binding },
         async verify(binding, input, signal) { ensureInput(input); return request(binding, signal, 'verify', input, v => validateRun(v, binding, input)) },

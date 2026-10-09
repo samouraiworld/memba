@@ -7,6 +7,7 @@ export interface FreePlayView {
     quote?: FreePlayQuote
     error?: string
     nextCheckAt?: number
+    canReauthorize?: boolean
 }
 /** One controller per immutable completed run. There is no global current run. */
 export function createFreePlaySession(options: { snapshot: FreePlaySnapshot; client: FreePlayClient; storage: SnapshotStorage; now?: () => number }) {
@@ -33,7 +34,7 @@ export function createFreePlaySession(options: { snapshot: FreePlaySnapshot; cli
     }
     const applyRun = (run: FreePlayRun) => {
         const snapshot = persist({ ...view.snapshot, result: run })
-        emit({ snapshot, phase: run.status === 'confirmed' ? 'confirmed' : run.status === 'verified' ? 'verified' : 'pending', nextCheckAt: run.nextCheckAt, error: run.lastError })
+        emit({ snapshot, phase: run.status === 'confirmed' ? 'confirmed' : run.status === 'verified' ? 'verified' : 'pending', nextCheckAt: run.nextCheckAt, error: run.lastError, canReauthorize: run.canReauthorize })
     }
     async function operate(action: (signal: AbortSignal, current: () => boolean) => Promise<void>) {
         if (disposed || active) return
@@ -68,7 +69,7 @@ export function createFreePlaySession(options: { snapshot: FreePlaySnapshot; cli
                 // Never authorize a stored receipt/score without a fresh authenticated read.
                 const run = await options.client.read(bound, view.snapshot.input, signal)
                 if (!current()) return
-                if (run.status !== 'verified') { applyRun(run); return }
+                if (run.status !== 'verified' && !run.canReauthorize) { applyRun(run); return }
                 emit({ snapshot: persist({ ...view.snapshot, result: run }), phase: 'busy' })
                 const quote = await options.client.quote(bound, view.snapshot.input, run, signal)
                 if (current()) emit({ snapshot: view.snapshot, phase: 'quoted', quote })

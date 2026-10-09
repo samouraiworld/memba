@@ -58,3 +58,19 @@ quotes only, displaying player charge and studio fee/deposit caps.
 Tests are scoped to injected clients/auth/storage and shared backend vectors.
 No wallet signing, network request or production activation is needed. Game
 adapters and result-panel mounting remain separate reviewed integrations.
+
+The same client owns public `board({game,rules,simVersion,offset,limit}, signal)`
+for D and game UIs. It calls GET boards/:game without cookies or an auth token,
+validates the exact chain/realm/game/rules/version and every receipt, rejects
+cross-game rows and duplicate players, and preserves pagination order. An RPC/API
+error is unavailable, not an empty leaderboard. An empty confirmed response is
+valid. There is no global-board query. Abort an old request when changing the
+selected board; responses carry their exact context for the consuming UI.
+
+A queued quote may expire before any transaction was sent. A fresh API read can
+return `canReauthorize: true` only when the server proves zero broadcast attempts,
+an empty transaction marker and an inactive lease. The panel surfaces expiry and
+lets the player review a new quote, then explicitly consent again. Until that
+click the old saved request is retained. The server atomically fences expired
+workers when replacing authorization; submitted/unknown outcomes cannot use this
+path. `canReauthorize` is deliberately not trusted or persisted across reload.
