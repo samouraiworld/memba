@@ -285,7 +285,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
         // the 3D renderer lands and lazily imports three.
         // Review-only brand specimens should not enter the production offline precache.
         // sw-retire.js is the retired classic host's service-worker kill switch, never part of this app.
-        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js', '**/vendor-safe-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js', 'labs/gnotif/**'],
+        globIgnores: ['**/vendor-three-*.js', '**/FpsPreview-*.js', '**/FpsScene-*.js', '**/FpsPreview-*.css', '**/vendor-evm-*.js', '**/vendor-safe-*.js', '**/brand/folded-m/**', `${SITEMAP_NETWORK}/blog/**`, 'os/news/**', 'sw-retire.js', 'labs/gnotif/**'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
