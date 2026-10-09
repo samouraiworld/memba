@@ -5,6 +5,7 @@ import { createDraftSession, createNotesStore } from '../drafts'
 import type { NotesStore } from '../drafts'
 import { createNotesIntents } from '../intents'
 import type { NotesReadClient } from './client'
+import { parsePublicCapabilities } from './capabilities'
 import type { PublicNoteOperation } from './messages'
 import { notesRequestDigest, preparePublicNoteRequest } from './request'
 import type { NotesQuoteProvider, PublicRequestOptions } from './request'
@@ -25,14 +26,14 @@ const baseNote = (): ChainNote => ({ id: noteId, owner, pendingOwner: '', ownerG
 function setup() {
   const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store)
   const session = createDraftSession(), intents = createNotesIntents(store)
-  let current: ChainNote | null = baseNote(), enabled = true, height = '100'
-  const client = { writersRaw: vi.fn(async () => []), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => height), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
+  let current: ChainNote | null = baseNote(), enabled = true, height = '100', publicWrites = false
+  const client = { publicCapabilities: vi.fn(async () => current ? parsePublicCapabilities({ schema: 'memba-notes/public-capabilities/v1', id: current.id, state_revision: current.stateRevision, owner_generation: current.ownerGeneration, mode: current.mode, deleted: current.deleted, allow_public_writes: publicWrites }) : null), writersRaw: vi.fn(async () => []), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => height), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
   const operation: PublicNoteOperation = { caller: owner, noteId, operationId, action: { kind: 'commit', revision: '1', epoch: '0', body: 'New' } }
   const quote: NotesQuoteProvider = async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: (BigInt(input.height) + 10n).toString(), expiresAtMs: Date.now() + 60000, source: 'bounded-estimate', estimatedDepositUgnot: '100', maxDepositUgnot: '1000', gasWanted: 100000, networkFeeUgnot: 1000 })
   const options: PublicRequestOptions = { client, operation, maxDepositUgnot: '1000', draftLocalRevision: '5', session, intents, quote, isWriteEnabled: () => enabled }
   const scope = { chainId: client.chainId, realm: NOTES_REALM, owner, noteId }
   const applied = (patch: Partial<ChainNote> = {}) => { current = { ...baseNote(), operationId, stateRevision: '2', bodyRevision: '2', body: bytes('New'), height: '101', ...patch } }
-  return { options, store, intents, session, scope, applied, setNote: (note: ChainNote | null) => { current = note }, disable: () => { enabled = false }, setHeight: (value: string) => { height = value } }
+  return { options, store, intents, session, scope, applied, setPublicWrites: (value: boolean) => { publicWrites = value }, setNote: (note: ChainNote | null) => { current = note }, disable: () => { enabled = false }, setHeight: (value: string) => { height = value } }
 }
 beforeEach(() => {
   vi.clearAllMocks(); wallet.fee.mockResolvedValue(900)
@@ -107,7 +108,8 @@ describe('Notes signing intentions', () => {
   it('refuses changes to owner generation, epoch, revision, fee or quote height before signing', async () => {
     for (const patch of [{ ownerGeneration: '2' }, { epoch: '1' }, { stateRevision: '2' }]) {
       const s = setup(), request = await preparePublicNoteRequest(s.options); s.setNote({ ...baseNote(), ...patch })
-      await expect(request.recheck!(undefined)).rejects.toThrow('stale')
+      // Generation 2 at state revision 1 is impossible and the strict C1 codec rejects it first.
+      await expect(request.recheck!(undefined)).rejects.toThrow('ownerGeneration' in patch ? 'format' : 'stale')
     }
     const s = setup(), request = await preparePublicNoteRequest(s.options); s.setHeight('111')
     await expect(request.recheck!(undefined)).rejects.toThrow('stale')
@@ -158,6 +160,54 @@ describe('Notes signing intentions', () => {
     vi.mocked(s.options.client.noteMetadata).mockResolvedValue({ ...baseNote(), stateRevision: '2' })
     await expect(preparePublicNoteRequest(s.options)).rejects.toThrow('stale')
     expect(wallet.send).not.toHaveBeenCalled()
+  })
+
+  it.each(['commit', 'rename'] as const)('prepares and sends community %s only for the bound Sushi opt-in', async kind => {
+    const s = setup(), caller = bech32Encode('g', new Uint8Array(20).fill(2))
+    s.setNote({ ...baseNote(), mode: 4 }); s.setPublicWrites(true)
+    s.options.operation = { ...s.options.operation, caller, action: kind === 'commit'
+      ? { kind, revision: '1', epoch: '0', body: 'New' } : { kind, revision: '1', epoch: '0', title: 'New title' } }
+    const request = await preparePublicNoteRequest(s.options), beforeWallet = vi.fn(async () => () => true)
+    expect(request.prepare(undefined).msgs[0].value).toMatchObject({ caller, func: kind === 'commit' ? 'Commit' : 'Rename' })
+    await request.send(undefined, beforeWallet)
+    expect(beforeWallet).toHaveBeenCalledOnce()
+    expect(s.options.client.publicCapabilities).toHaveBeenCalledTimes(2)
+    expect(await s.intents.get({ ...s.scope, owner: caller }, operationId)).toMatchObject({ phase: 'submitted', verification: { owner } })
+  })
+  it.each(['commit', 'rename'] as const)('refuses revoked community %s between review and wallet without widening management', async kind => {
+    const s = setup(), caller = bech32Encode('g', new Uint8Array(20).fill(2))
+    s.setNote({ ...baseNote(), mode: 4 }); s.setPublicWrites(true)
+    s.options.operation = { ...s.options.operation, caller, action: kind === 'commit'
+      ? { kind, revision: '1', epoch: '0', body: 'New' } : { kind, revision: '1', epoch: '0', title: 'New title' } }
+    const request = await preparePublicNoteRequest(s.options), beforeWallet = vi.fn(async () => () => true)
+    s.setPublicWrites(false); s.setNote({ ...baseNote(), mode: 4, stateRevision: '2' })
+    await expect(request.send(undefined, beforeWallet)).rejects.toThrow('stale')
+    expect(beforeWallet).not.toHaveBeenCalled()
+    expect(await s.intents.get({ ...s.scope, owner: caller }, operationId)).toMatchObject({ phase: 'not-sent' })
+    s.setNote({ ...baseNote(), mode: 4 }); s.setPublicWrites(true)
+    for (const action of [{ kind: 'delete', revision: '1' }, { kind: 'comments', revision: '1', open: false }] as const) {
+      await expect(preparePublicNoteRequest({ ...s.options, operation: { ...s.options.operation, action } })).rejects.toThrow('stale')
+    }
+  })
+  it('refuses null or revoked capabilities before signing even if a stale endpoint repeats the note revision', async () => {
+    for (const missing of [false, true]) {
+      const s = setup(), caller = bech32Encode('g', new Uint8Array(20).fill(2))
+      s.setNote({ ...baseNote(), mode: 4 }); s.setPublicWrites(true); s.options.operation.caller = caller
+      const request = await preparePublicNoteRequest(s.options), beforeWallet = vi.fn(async () => {})
+      if (missing) vi.mocked(s.options.client.publicCapabilities).mockResolvedValue(null)
+      else s.setPublicWrites(false)
+      await expect(request.send(undefined, beforeWallet)).rejects.toThrow('stale')
+      expect(beforeWallet).not.toHaveBeenCalled()
+    }
+  })
+  it('invalidates a captured request session while capability reading is pending', async () => {
+    const s = setup(), read = vi.mocked(s.options.client.publicCapabilities).getMockImplementation()!
+    vi.mocked(s.options.client.publicCapabilities).mockImplementationOnce(async id => {
+      const result = await read(id); s.session.invalidate(); return result
+    })
+    const quote = vi.fn(s.options.quote)
+    await expect(preparePublicNoteRequest({ ...s.options, quote })).rejects.toThrow('session')
+    expect(quote).not.toHaveBeenCalled(); expect(wallet.send).not.toHaveBeenCalled()
   })
 
 })
