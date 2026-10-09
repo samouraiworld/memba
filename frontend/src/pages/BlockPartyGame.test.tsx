@@ -39,7 +39,7 @@ describe("BlockPartyGame", () => {
   it("renders the daily header and board without a wallet", async () => {
     wrap(<BlockPartyGame />);
     await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
-    expect(screen.getByText(/Block Party/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Block Party", level: 1 })).toBeTruthy();
   });
 
   it("switches to Practice mode and keeps the board rendered", async () => {

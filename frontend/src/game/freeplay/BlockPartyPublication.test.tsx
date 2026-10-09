@@ -5,24 +5,24 @@ import type { Token } from '../../gen/memba/v1/memba_pb'
 import { createFreePlayClient, type FreePlayRun } from '../../lib/arcadeFreePlay'
 import { createFreePlaySnapshot, loadFreePlaySnapshot, sanitizeSnapshot, saveFreePlaySnapshot } from '../../games/arcade/freeplay/snapshot'
 import vectors from '../../games/arcade/freeplay/vectors.json'
-import { createBlockPartyFreePlayAuth, type BlockPartyAuthState } from './auth'
+import { createOsFreePlayAuth, type FreePlayOsSession } from '../../games/arcade/freeplay/osAuth'
+import { setWalletActionGuard, setWalletRpcContext } from '../../lib/grc20'
 import { BlockPartyPublication, BlockPartySavedRuns } from './BlockPartyPublication'
 const v = vectors.runs[0]
 const input = { ...v.input, game: 'block-party' as const, claimedScore: v.score }
 const snapshot = createFreePlaySnapshot(input)
 const entry = { game: input.game, player: v.player, rules: input.rules, simVersion: input.simVersion, seed: input.seed, score: v.score, runID: v.runID, stateHash: v.stateHash, replayHash: v.replayHash }
 const verified: FreePlayRun = { entry, target: v.target, clientRunId: input.clientRunId, replayCodec: input.replayCodec, replay: input.replay, payloadHash: v.payloadHash, status: 'verified' }
-beforeEach(() => vi.stubGlobal('crypto', webcrypto))
-afterEach(() => vi.unstubAllGlobals())
+beforeEach(() => { vi.stubGlobal('crypto', webcrypto); setWalletActionGuard(null); setWalletRpcContext('https://rpc.gno.land:443', true, v.target.chainId, v.player) })
+afterEach(() => { setWalletRpcContext(null, false); vi.unstubAllGlobals() })
 function setup() {
     const data = new Map<string, string>()
     const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value) } }
-    const listeners = new Set<() => void>()
-    let state: BlockPartyAuthState = {
-        revision: '1', activeChainId: v.target.chainId, connected: true, walletVerified: true, walletAddress: v.player, walletChainId: v.target.chainId,
+    let state: FreePlayOsSession = {
+        status: 'member', address: v.player, chainId: v.target.chainId, walletAddress: v.player, walletChainId: v.target.chainId,
         token: { nonce: 'nonce', userAddress: v.player, chainId: v.target.chainId, expiration: '2099-01-01T00:00:00Z', serverSignature: 'signed-token' } as Token,
     }
-    const auth = createBlockPartyFreePlayAuth({ read: () => state, subscribe: fn => { listeners.add(fn); return () => { listeners.delete(fn) } } })
+    const auth = createOsFreePlayAuth({ readSession: () => state })
     let status: FreePlayRun['status'] = 'verified'
     let loseFirstResponse = false
     const publications: string[] = []
@@ -38,7 +38,12 @@ function setup() {
     const client = createFreePlayClient({ origin: 'https://backend.example', target: v.target, auth, fetch: fetcher })
     return { storage, data, auth, client, fetcher, publications,
         loseResponse: () => { loseFirstResponse = true },
-        change: (patch: Partial<BlockPartyAuthState>) => { state = { ...state, ...patch, revision: String(Number(state.revision) + 1) }; for (const notify of listeners) notify() },
+        change: (patch: Partial<FreePlayOsSession> & { walletVerified: boolean }) => {
+            const { walletVerified, ...session } = patch
+            state = { ...state, ...session }
+            setWalletRpcContext('https://rpc.gno.land:443', walletVerified, state.walletChainId, state.walletAddress)
+            auth.refreshIdentity()
+        },
     }
 }
 async function review() {

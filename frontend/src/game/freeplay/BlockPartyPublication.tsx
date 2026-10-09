@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { FreePlayClient } from '../../lib/arcadeFreePlay'
 import { FreePlayResult } from '../../games/arcade/freeplay/FreePlayResult'
 import { useFreePlayResult } from '../../games/arcade/freeplay/useFreePlayResult'
-import { listFreePlaySnapshots, type FreePlaySavedRuns, type FreePlaySnapshot, type SnapshotStorage } from '../../games/arcade/freeplay/snapshot'
+import { listFreePlaySnapshots, loadFreePlaySnapshot, type FreePlaySavedRuns, type FreePlaySnapshot, type SnapshotStorage } from '../../games/arcade/freeplay/snapshot'
 import type { FreePlaySession } from '../../games/arcade/freeplay/session'
 import { createBlockPartyPublication } from './publication'
 import { blockPartyFreePlaySnapshot, type CompletedPracticeRound } from './round'
@@ -39,7 +39,7 @@ export function BlockPartyCompletedRound({ round, storage, client }: { round: Co
 }
 
 /** Common index only: opening/reopening does not allocate a run or read the API. */
-export function BlockPartySavedRuns({ storage, client }: { storage: SnapshotStorage; client?: FreePlayClient }) {
+export function BlockPartySavedRuns({ storage, client, onOpen }: { storage: SnapshotStorage; client?: FreePlayClient; onOpen?: (clientRunId: string) => void }) {
     const [page, setPage] = useState<FreePlaySavedRuns | null>(null)
     const [selected, setSelected] = useState<FreePlaySnapshot | null>(null)
     const [error, setError] = useState(false)
@@ -54,7 +54,7 @@ export function BlockPartySavedRuns({ storage, client }: { storage: SnapshotStor
             {page.total === 0 && <p>No saved Block Party results yet.</p>}
             {page.unavailable > 0 && <p role="status">Some saved results in this page could not be read.</p>}
             <ul>{page.snapshots.map(snapshot => <li key={snapshot.input.clientRunId}>
-                <button type="button" onClick={() => setSelected(snapshot)}>Review saved score {snapshot.input.claimedScore.toLocaleString()} · {snapshot.input.clientRunId.slice(-8)}</button>
+                <button type="button" onClick={() => onOpen ? onOpen(snapshot.input.clientRunId) : setSelected(snapshot)}>Review saved score {snapshot.input.claimedScore.toLocaleString()} · {snapshot.input.clientRunId.slice(-8)}</button>
             </li>)}</ul>
             {page.nextOffset !== undefined && <button type="button" onClick={() => load(page.nextOffset)}>More saved results</button>}
         </>}
@@ -63,4 +63,16 @@ export function BlockPartySavedRuns({ storage, client }: { storage: SnapshotStor
             <BlockPartyPublication snapshot={selected} storage={storage} client={client} />
         </div>}
     </section>
+}
+
+/** Opens the canonical record by ID; no new game or implicit authenticated read. */
+export function BlockPartyRecoveredRun({ clientRunId, storage, client }: { clientRunId: string; storage: SnapshotStorage; client?: FreePlayClient }) {
+    const snapshot = useMemo(() => {
+        try {
+            const saved = loadFreePlaySnapshot(storage, clientRunId)
+            return saved?.input.game === 'block-party' ? saved : null
+        } catch { return null }
+    }, [clientRunId, storage])
+    if (!snapshot) return <p role="alert">This saved Block Party result is unavailable. Your current board is preserved.</p>
+    return <BlockPartyPublication snapshot={snapshot} storage={storage} client={client} />
 }
