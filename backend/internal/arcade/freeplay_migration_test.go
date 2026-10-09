@@ -26,7 +26,11 @@ func TestFreePlayMigrationExistingBackupRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Error("close existing database", err)
+		}
+	}()
 	if _, err = database.Exec(`CREATE TABLE _migrations(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +91,11 @@ func TestFreePlayMigrationExistingBackupRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer restored.Close()
+	defer func() {
+		if err := restored.Close(); err != nil {
+			t.Error("close restored database", err)
+		}
+	}()
 	if err = restored.QueryRow(`SELECT score FROM arcade_runs WHERE input_log_sha256='legacy-kept'`).Scan(&score); err != nil || score != 123 {
 		t.Fatal("restore data", score, err)
 	}
