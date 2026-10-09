@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { appsOn, OS_APPS, runsOn, getApp, type OsAppId } from "../apps"
 import type { DeskItem } from "../shell/desk"
 import { DeskIcon } from "../shell/DeskItems"
-import { AppTile } from "../shell/icons"
+import { AppTile, Icon } from "../shell/icons"
 import { useClock } from "../shell/clock"
 import type { OsSession } from "../shell/useOsSession"
 import { WindowBody } from "../shell/WindowFrame"
@@ -134,6 +134,7 @@ export function PhoneShell(p: PhoneShellProps) {
             <header className="os-ph-status" aria-label="Status bar">
                 <span className="os-mono">{time}</span>
                 <span className="os-grow" />
+                <button type="button" className="os-ph-bell os-radio-launch" aria-label="Show Radio" onClick={go(() => p.openApp("radio"))}><Icon name="radio" /></button>
                 {signer.pending.length > 0 && <span className="os-spin" role="status" aria-label={`${signer.pending.length} pending`} />}
                 <span className="os-row os-tight"><span className={`os-ph-dot${net.isTestnet ? " os-ph-dot-test" : ""}`} aria-hidden="true" />{net.isTestnet && <span className="os-pill">TEST</span>}</span>
                 <button type="button" className="os-ph-bell" aria-label={notificationsLabel(signer.unread, awaiting)}

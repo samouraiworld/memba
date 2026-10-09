@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { appsOn, OS_APPS, type OsAppId } from "../apps"
 import { EVM_ENABLED } from "../../lib/chain/flag"
-import { AppTile } from "./icons"
+import { AppTile, Icon } from "./icons"
 import { useClock } from "./clock"
 import { shortAddr } from "./format"
 import { networkName, selectableOsNetworks, switchOsNetwork } from "./network"
@@ -290,6 +290,7 @@ export function MenuBar(p: MenuBarProps) {
             {p.front && <button type="button" className="os-mb" {...mb("app")}>{p.front.app ? OS_APPS.find((a) => a.id === p.front?.app)?.name : p.front.title}</button>}
             <button type="button" className="os-mb" {...mb("window")}>Window</button>
             <span className="os-sp" />
+            <button type="button" className="os-mb os-radio-launch" aria-label="Show Radio" onClick={run(() => p.openApp("radio"))}><Icon name="radio" /><span>Radio</span></button>
             <div className="os-net-wrap">
                 <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${networkName(net)}`} {...mb("net")}>
                     <i aria-hidden="true" /><span className="os-mono">{networkName(net)}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}

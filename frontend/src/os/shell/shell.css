@@ -50,6 +50,8 @@
 .memba-os :focus-visible { outline: 2px solid var(--os-acc); outline-offset: 2px; }
 
 /* menu bar */
+.memba-os .os-radio-launch svg { width: 16px; height: 16px; }
+@media (max-width: 1000px) { .memba-os .os-mb.os-radio-launch span { display: none; } }
 .memba-os .os-menubar .os-sp { flex: 1; }
 .memba-os .os-mb {
   border: 0; background: none; cursor: pointer; padding: 3px 8px; border-radius: 6px;

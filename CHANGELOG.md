@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### A discreet Radio widget (2026-10-09)
+- Radio opens as a compact floating player with artwork, track information and Play/Pause. Volume, stations, attribution and project links are available in its controls popover.
+- Live playback honours the schedule’s starting offset when joining a track already in progress.
+- Hide keeps the stream playing; the top-bar Radio button brings the widget back. Stop radio or locking Memba ends playback. The widget adapts to phones and follows the desktop theme.
+
 ### Memba realm activity in the watcher channel (2026-10-08)
 - The existing Discord watcher can report confirmed calls, package changes and realm events across the samcrew namespace: governance, games, feed, App Store, escrow and Launchpad. Financial alarms keep the same channel.
 - Activity delivery resumes after restarts, retries outages, and sends a daily heartbeat. It starts with new activity; arguments and post contents are omitted.

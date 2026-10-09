@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { urlForWindows } from "./urlSync"
 import { parseOsPath } from "./osPath"
 import {
     appSpec, daoSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, maxGeometry, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
@@ -11,6 +12,28 @@ const open = (spec = appSpec("feed"), center = false): WindowsAction => ({ type:
 const byKey = (s: WindowsState, key: string) => s.wins.find((w) => w.key === key)!
 
 describe("windowsReducer", () => {
+    it("keeps the Radio widget out of window focus, tiling and share URLs", () => {
+        const state = run(open(appSpec("feed")), open(appSpec("wallet")), open(appSpec("radio")))
+        expect(frontWindow(state.wins)?.app).toBe("wallet")
+        expect(urlForWindows(state.wins)).toBe("/os/wallet?w=app.feed")
+        const tiled = windowsReducer(state, { type: "tile", desk })
+        expect(byKey(tiled, "app:radio")).toEqual(byKey(state, "app:radio"))
+        expect(byKey(tiled, "app:feed").width).toBe(584)
+        const desktop = windowsReducer(state, { type: "minimiseAll" })
+        expect(byKey(desktop, "app:radio").min).toBe(false)
+        expect(frontWindow(desktop.wins)).toBeNull()
+    })
+    it("preserves Radio across back/forward navigation and restores the same hidden widget", () => {
+        const state = run(open(appSpec("radio")), open(appSpec("feed")))
+        const back = windowsReducer(state, { type: "navigate", specs: [appSpec("wallet")], desk, exact: true })
+        expect(back.wins.map(w => w.app)).toEqual(["radio", "wallet"])
+        const radio = byKey(back, "app:radio")
+        const hidden = windowsReducer(back, { type: "minimise", id: radio.id })
+        const restored = windowsReducer(hidden, open(appSpec("radio")))
+        expect(byKey(restored, "app:radio")).toMatchObject({ id: radio.id, min: false })
+        expect(frontWindow(restored.wins)?.app).toBe("wallet")
+    })
+
     it("keeps a Meet room in its own window when the app starts a call", () => {
         const home = appSpec("meet")
         const room = appSpec("meet", "abc-defg-hij")

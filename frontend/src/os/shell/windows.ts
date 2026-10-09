@@ -263,7 +263,7 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
             if (self && other) return { ...s, wins: s.wins.filter((w) => w.id !== a.id).map((w) => (w.id === other.id ? { ...to(w), z: self.z, min: self.min } : w)) }
             return { ...s, wins: s.wins.map((w) => (w.id === a.id ? to(w) : w)) }
         }
-        case "minimiseAll": return { ...s, wins: s.wins.map((w) => ({ ...w, min: true })) }
+        case "minimiseAll": return { ...s, wins: s.wins.map((w) => w.app === "radio" ? w : ({ ...w, min: true })) }
         case "tile": {
             const two = visibleWindows(s.wins).sort((a, b) => b.z - a.z).slice(0, 2)
             if (!two.length) return s
@@ -312,12 +312,13 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
  */
 export function windowsForNavigation(s: WindowsState, specs: readonly WindowSpec[], desk: DeskSize, exact: boolean): WindowsState {
     const keys = new Set(specs.map((x) => x.key))
-    const kept = exact ? { ...s, wins: s.wins.filter((w) => w.min || keys.has(w.key)) } : s
+    const kept = exact ? { ...s, wins: s.wins.filter((w) => w.min || w.app === "radio" || keys.has(w.key)) } : s
     return specs.reduce((acc, spec) => windowsReducer(acc, { type: "open", spec, desk }), kept)
 }
 
 export function visibleWindows(wins: readonly OsWindow[]): OsWindow[] {
-    return wins.filter((w) => !w.min)
+    // Radio retains a saved lifecycle record, but is a floating utility, not a window.
+    return wins.filter((w) => !w.min && w.app !== "radio")
 }
 
 /** The focused window: the highest visible one. */

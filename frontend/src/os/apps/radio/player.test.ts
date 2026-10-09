@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RadioPlayer } from "./player"
-import { entryAt, mediaSources, safeAudio, type NowPlaying } from "./client"
+import { entryAt, mediaSources, safeAudio, scheduleSchema, type NowPlaying } from "./client"
 
 const result = (id = 1): NowPlaying => ({ schedule: { station: 0, now: 100, entries: [{ track: id, start: 80, end: 140 }] }, track: { id, title: "A song", artistName: "Artist", audio: "https://archive.org/song.mp3", cover: "", source: "", license: "CC BY", attribution: "Artist — CC BY" }, urls: [`https://archive.org/${id}.mp3`] })
 function fixture(now = vi.fn(async () => result())) {
@@ -14,13 +14,21 @@ const settle = async () => { await new Promise(resolve => setTimeout(resolve, 0)
 const players: RadioPlayer[] = []
 afterEach(() => { players.forEach(p => p.dispose()); players.length = 0 })
 describe("radio lifetime and schedule", () => {
-    it("never starts audio when the window opens; explicit Play joins the live offset", async () => {
+    it("never starts audio when the widget opens; explicit Play joins the live offset", async () => {
         const { audio, player } = fixture(); players.push(player)
         expect(audio.play).not.toHaveBeenCalled()
         player.toggle(); await settle()
         audio.onloadedmetadata?.()
         expect(audio.currentTime).toBe(20)
         expect(audio.play).toHaveBeenCalled()
+    })
+    it("honours the realm's base offset for a rotation already partway through a track", async () => {
+        const next = result()
+        next.schedule.entries[0].offset = 137
+        expect(scheduleSchema.parse(next.schedule).entries[0].offset).toBe(137)
+        const { audio, player } = fixture(vi.fn(async () => next)); players.push(player)
+        player.toggle(); await settle(); audio.onloadedmetadata?.()
+        expect(audio.currentTime).toBe(157)
     })
     it("does not autoplay after Pause while metadata is pending", async () => {
         let finish!: (v: NowPlaying) => void
