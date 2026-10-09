@@ -1,0 +1,8 @@
+.os-notes-public .os-notes-document { max-width:860px; margin:0 auto; }
+.os-notes-public .os-notes-content { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; margin-top:16px; }
+.os-notes-public .os-notes-content[data-view="split"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.os-notes-public .os-notes-code { min-height:320px; overflow:auto; }
+.os-notes-public .os-notes-title { width:100%; box-sizing:border-box; }
+.os-notes-public .os-notes-publish pre { max-height:320px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+.os-notes-public .os-notes-receipts { border-bottom:1px solid var(--os-line); padding-bottom:16px; }
+@media(max-width:640px) { .os-notes-public .os-notes-content[data-view="split"] { grid-template-columns:minmax(0,1fr); } }
