@@ -107,3 +107,56 @@ test('locking the shell stops a hidden Radio stream', async ({ page }) => {
     await expect.poll(() => page.evaluate(() => (window as unknown as { radioTest: { playing: boolean } }).radioTest.playing)).toBe(false)
     await expect(page.getByRole('button', { name: 'Show Radio' })).toHaveCount(0)
 })
+
+for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 375 }, { width: 390, height: 844 }]) {
+    test(`Radio controls remain reachable beside Meet PiP at ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
+        await radioFixture(page)
+        // Exercise the real Meet stage and responsive CSS without joining an external call.
+        await page.route('https://visio.samourai.app/**', route => route.abort())
+        await page.setViewportSize(viewport)
+        await page.goto(`${OS_ON}/os/meet`)
+        await page.getByRole('button', { name: 'New meeting', exact: true }).click()
+        await expect(page.locator('.meet-stage iframe')).toBeAttached()
+        await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Wallet', exact: true }).click()
+        const pip = page.locator('.meet-stage-pip')
+        await expect(pip).toBeVisible()
+        await page.getByRole('button', { name: 'Show Radio', exact: true }).click()
+        const player = page.getByRole('region', { name: 'Radio player', exact: true })
+        await player.getByRole('button', { name: 'Play radio' }).click()
+        await expect(player.getByRole('button', { name: 'Pause radio' })).toBeVisible()
+        await player.getByRole('button', { name: 'Radio controls', exact: true }).click()
+        const controls = player.getByRole('region', { name: 'Radio controls', exact: true })
+        // A positive visible scroll area, below the status bar and clear of the call and dock.
+        // The broken landscape rule collapsed this area to padding, partly above the viewport.
+        await expect.poll(async () => (await controls.boundingBox())!.height).toBeGreaterThanOrEqual(100)
+        const statusBox = (await page.locator('.os-ph-status').boundingBox())!
+        const dockBox = (await page.getByRole('navigation', { name: 'Dock' }).boundingBox())!
+        const pipBox = (await pip.boundingBox())!
+        for (const element of [player, controls]) {
+            const box = (await element.boundingBox())!
+            expect(box.y).toBeGreaterThanOrEqual(statusBox.y + statusBox.height)
+            expect(box.y + box.height).toBeLessThanOrEqual(dockBox.y)
+            expect(box.x).toBeGreaterThanOrEqual(0)
+            expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
+            expect(box.x + box.width <= pipBox.x || box.x >= pipBox.x + pipBox.width
+                || box.y + box.height <= pipBox.y || box.y >= pipBox.y + pipBox.height).toBe(true)
+        }
+        await player.getByLabel('Station', { exact: true }).selectOption('1')
+        await expect(player.getByRole('status')).toHaveText('Aquatone · Ambient')
+        await player.getByRole('slider', { name: 'Radio volume' }).fill('0.23')
+        await player.getByRole('button', { name: 'Mute radio' }).click()
+        await expect(player.getByRole('slider')).toHaveValue('0')
+        await player.getByRole('button', { name: 'Unmute radio' }).click()
+        await expect(player.getByRole('slider')).toHaveValue('0.23')
+        await page.screenshot({ path: testInfo.outputPath('radio-meet-pip.png') })
+        await player.getByRole('button', { name: 'Hide widget' }).click()
+        await expect(player).toHaveCount(0)
+        await expect.poll(() => page.evaluate(() => (window as unknown as { radioTest: { playing: boolean } }).radioTest.playing)).toBe(true)
+        await page.getByRole('button', { name: 'Show Radio', exact: true }).click()
+        await player.getByRole('button', { name: 'Radio controls', exact: true }).click()
+        await player.getByRole('button', { name: 'Stop radio' }).click()
+        await expect(player).toHaveCount(0)
+        await expect.poll(() => page.evaluate(() => (window as unknown as { radioTest: { playing: boolean } }).radioTest.playing)).toBe(false)
+        await expect(pip).toBeVisible()
+    })
+}
