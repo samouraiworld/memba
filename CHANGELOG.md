@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Owner consent for collaborative Notes (2026-10-09)
+- Prepare explicit owner controls to allow or revoke community content editing, with verified permissions and a separate signature review for each change.
+- Keep unresolved operation receipts and stop pending requests when the reader or account changes. Production Notes activation remains separate.
+
+
 ### Public Notes drafts and history preparation (2026-10-09)
 - Prepare durable public drafts, explicit revision comparison and permanent public-history browsing, with restoration into a new draft without replacing existing edits.
 - Unknown operations retain their receipts and are never resent automatically. The workspace remains disabled pending reviewed activation.
