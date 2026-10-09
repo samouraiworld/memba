@@ -25,7 +25,7 @@ describe("Settings with the optional account on", () => {
         show("privacy")
         expect(screen.getByRole("button", { name: "Privacy" })).toHaveAttribute("aria-current", "true")
         expect(screen.getByRole("heading", { name: "Privacy" })).toBeInTheDocument()
-        expect(screen.getByRole("link", { name: "privacy@memba.club" })).toHaveAttribute("href", "mailto:privacy@memba.club")
+        expect(screen.getByRole("link", { name: "support@samourai.coop" })).toHaveAttribute("href", "mailto:support@samourai.coop")
     })
 
     it("opens a confirmation link on Account, with its token, and the account card below", () => {

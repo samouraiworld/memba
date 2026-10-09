@@ -74,7 +74,7 @@ func TestReviewDeleteRacingEmailChangeAndConfirmation(t *testing.T) {
 	newToken := sign(t, f.k, claims(func(c jwt.MapClaims) { c["email"] = "ada@new.example" }))
 	f.fake.mu.Lock()
 	f.fake.contacts["ada@example.org"] = map[string]string{"top_news": "opt_out"}
-	f.fake.afterDelete = func() {
+	f.fake.afterTopicPatch = func() {
 		for range 3 {
 			if rec := call(t, f.mux, "GET", "/api/account", newToken, nil); rec.Code != http.StatusConflict {
 				t.Errorf("concurrent email change: %d", rec.Code)
@@ -119,7 +119,7 @@ func TestDeletePreservesCleanupAddressesUntilEveryProviderDeletionSucceeds(t *te
 	}
 	f.fake.mu.Lock()
 	f.fake.contacts["old@example.org"] = map[string]string{"top_ann": "opt_in"}
-	f.fake.afterDelete = func() { f.fake.setDown(true) }
+	f.fake.afterTopicPatch = func() { f.fake.setDown(true) }
 	f.fake.mu.Unlock()
 	if rec := call(t, f.mux, "POST", "/api/account/delete", f.tok, nil); rec.Code != http.StatusBadGateway {
 		t.Fatalf("partial provider cleanup: %d", rec.Code)
@@ -141,7 +141,7 @@ func TestDeletePreservesCleanupAddressesUntilEveryProviderDeletionSucceeds(t *te
 	if rec := call(t, f.h.routes(), "POST", "/api/account/delete", f.tok, nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("retry: %d", rec.Code)
 	}
-	if f.fake.sub("old@example.org", "top_ann") != "" || f.fake.sub("ada@example.org", "top_news") != "" {
+	if f.fake.sub("old@example.org", "top_ann") == "opt_in" || f.fake.sub("ada@example.org", "top_news") == "opt_in" {
 		t.Fatal("retry left provider contacts")
 	}
 	if err := f.h.db.QueryRow("SELECT COUNT(*) FROM consents").Scan(&consents); err != nil || consents != 0 {

@@ -20,9 +20,6 @@ type fakeResend struct {
 	sent         []struct{ To, Subject, Text string }
 	calls        []string
 	down         bool
-	// afterDelete runs once, right after a contact is deleted and before the
-	// caller hears back: what another request does in that window.
-	afterDelete func()
 	// afterTopicPatch runs once after a topic update, before the response.
 	afterTopicPatch func()
 	// applyThenFail applies topic changes but answers 500 (a timeout after the fact).
@@ -38,11 +35,6 @@ func newFakeResend(t *testing.T) *fakeResend {
 
 func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
-	hook := f.afterDelete
-	if r.Method == http.MethodDelete && hook != nil {
-		f.afterDelete = nil
-		defer hook() // after the unlock below
-	}
 	if r.Method == http.MethodPatch && f.afterTopicPatch != nil {
 		afterPatch := f.afterTopicPatch
 		f.afterTopicPatch = nil
@@ -73,11 +65,15 @@ func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 		var m struct {
 			Email        string              `json:"email"`
 			Topics       []topicSubscription `json:"topics"`
-			Unsubscribed bool                `json:"unsubscribed"`
+			Unsubscribed *bool               `json:"unsubscribed"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&m)
-		f.contacts[m.Email] = map[string]string{}
-		f.unsubscribed[m.Email] = m.Unsubscribed
+		if f.contacts[m.Email] == nil {
+			f.contacts[m.Email] = map[string]string{}
+		}
+		if m.Unsubscribed != nil {
+			f.unsubscribed[m.Email] = *m.Unsubscribed
+		}
 		for _, t := range m.Topics {
 			f.contacts[m.Email][t.ID] = t.Subscription
 		}
@@ -89,11 +85,11 @@ func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.Method == http.MethodGet {
-			var data []topicSubscription
+			data := []topicSubscription{}
 			for id, s := range subs {
 				data = append(data, topicSubscription{ID: id, Subscription: s})
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": data, "has_more": false})
 			return
 		}
 		var m []topicSubscription

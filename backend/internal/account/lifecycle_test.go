@@ -24,7 +24,7 @@ func TestAnAddressChangeAsksTheNewAddressToConfirmAgain(t *testing.T) {
 		t.Fatalf("after the change: %v", got)
 	}
 	sent := f.fake.emails()
-	if sent[len(sent)-1].To != "ada@new.example" || f.fake.sub("ada@example.org", "top_news") != "" {
+	if sent[len(sent)-1].To != "ada@new.example" || f.fake.sub("ada@example.org", "top_news") == "opt_in" {
 		t.Fatalf("the new address must be asked, the old contact removed: %+v", sent)
 	}
 	all, _ := consents(t.Context(), f.h.db, accountID(t, consentFixture{mux: f.mux, tok: newTok}))
@@ -88,7 +88,7 @@ func TestTheWebhookCanOnlyWithdrawAndAppliesEachDeliveryOnce(t *testing.T) {
 		}
 	}
 	// A permanent bounce marks the address undeliverable and withdraws the rest; a replay changes nothing.
-	bounce := []byte(`{"type":"email.bounced","data":{"to":["ada@example.org"],"bounce":{"type":"Permanent"}}}`)
+	bounce := []byte(`{"type":"email.bounced","data":{"from":"Memba <news@mail.memba.club>","to":["ada@example.org"],"bounce":{"type":"Permanent"}}}`)
 	if code := hook("msg_4", bounce, now); code != http.StatusNoContent {
 		t.Fatalf("bounce: %d", code)
 	}
@@ -117,7 +117,7 @@ func TestAWebhookWhoseUpdateFailsIsNotRecordedAndCanBeRetried(t *testing.T) {
 	if _, err := f.h.db.Exec("CREATE TRIGGER fail_bounce BEFORE UPDATE ON accounts BEGIN SELECT RAISE(ABORT, 'test'); END"); err != nil {
 		t.Fatal(err)
 	}
-	bounce := []byte(`{"type":"email.complained","data":{"to":["ada@example.org"]}}`)
+	bounce := []byte(`{"type":"email.complained","data":{"from":"Memba <news@mail.memba.club>","to":["ada@example.org"]}}`)
 	headers := signedWebhook(t, f, "msg_9", bounce, now)
 	if code := call(t, f.mux, "POST", "/api/webhooks/resend", "", bounce, headers...).Code; code != http.StatusInternalServerError {
 		t.Fatalf("failing update: %d", code)
@@ -144,7 +144,7 @@ func TestATemporaryBounceChangesNothing(t *testing.T) {
 	f := newConsentFixture(t)
 	call(t, f.mux, "POST", "/api/account/topics", f.tok, on("newsletter"))
 	call(t, f.mux, "POST", "/api/consent/confirm", "", map[string]string{"token": lastLink(t, f.fake)})
-	soft := []byte(`{"type":"email.bounced","data":{"to":["ada@example.org"],"bounce":{"type":"Temporary"}}}`)
+	soft := []byte(`{"type":"email.bounced","data":{"from":"Memba <news@mail.memba.club>","to":["ada@example.org"],"bounce":{"type":"Temporary"}}}`)
 	call(t, f.mux, "POST", "/api/webhooks/resend", "", soft, signedWebhook(t, f, "msg_t", soft, now)...)
 	if got := states(t, call(t, f.mux, "GET", "/api/account/topics", f.tok, nil)); got["newsletter"] != "on" {
 		t.Fatalf("temporary bounce withdrew: %v", got)

@@ -58,10 +58,12 @@ func (c Config) build(db *sql.DB) (*handler, error) {
 	if json.Unmarshal([]byte(c.TopicIDs), &ids) != nil {
 		return nil, errors.New("RESEND_TOPIC_IDS is not a JSON object")
 	}
+	seenIDs := map[string]bool{}
 	for _, t := range topics {
-		if ids[t] == "" {
-			return nil, fmt.Errorf("RESEND_TOPIC_IDS has no id for %q", t)
+		if ids[t] == "" || seenIDs[ids[t]] {
+			return nil, fmt.Errorf("RESEND_TOPIC_IDS needs a distinct id for %q", t)
 		}
+		seenIDs[ids[t]] = true
 	}
 	return &handler{db: db, verifier: NewVerifier(keys), resend: newResend(c.ResendAPIKey), webhookKey: webhookKey,
 		linkSecret: []byte(c.LinkSecret), topicIDs: ids, now: time.Now}, nil

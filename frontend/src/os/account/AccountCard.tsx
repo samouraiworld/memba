@@ -2,7 +2,7 @@
  * Settings → Account: the optional Memba account. Sign in, the address Memba
  * uses, the email topics (each confirmed by email first), the data download,
  * and deletion, which goes step by step: Memba's data (and the email
- * provider's contacts), the complete monitoring user data, then the sign-in
+ * provider's Memba subscriptions), the complete monitoring user data, then the sign-in
  * account itself. Memba's data goes first; reads stay paused during cleanup.
  *
  * @module os/account/AccountCard
@@ -156,7 +156,7 @@ export function AccountCard() {
         <h4>Delete my account</h4>
         {deleteError && <p role="alert">{deleteError}</p>}
         {asking === account.user.id ? <>
-            <p>This deletes your Memba email and consent history, your monitoring account and validator alerts, and your sign-in account. Memba and its monitoring service each keep a pseudonymized deletion marker to reject old sign-in tokens. It cannot be undone. Your wallet and everything on chain are not affected.</p>
+            <p>This deletes your Memba email and consent history, your monitoring account and validator alerts, and your sign-in account. Your Memba email subscriptions stop, but the shared email-provider contact is retained, including its address and opt-out preferences; subscriptions to other services are unchanged. Memba and its monitoring service each keep a pseudonymized deletion marker to reject old sign-in tokens. It cannot be undone. Your wallet and everything on chain are not affected.</p>
             <div className="os-row">
                 <button type="button" className="os-btn" onClick={() => { void runDelete("memba") }}>Delete permanently</button>
                 <button type="button" className="os-btn os-quiet" onClick={() => setAsking(null)}>Cancel</button>

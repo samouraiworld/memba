@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -74,22 +75,47 @@ type topicSubscription struct {
 	Subscription string `json:"subscription"` // opt_in | opt_out
 }
 
-// setTopic opts the address in or out of one topic, creating the contact on
-// the first opt-in.
+// setTopic changes only a Memba topic. Global unsubscribe belongs to the shared
+// Resend account and must never be reset by a Memba confirmation.
 func (r *resend) setTopic(ctx context.Context, email, topicID string, in bool) error {
 	sub := topicSubscription{ID: topicID, Subscription: "opt_out"}
 	if in {
 		sub.Subscription = "opt_in"
+		blocked, err := r.unsubscribed(ctx, email)
+		if errors.Is(err, errNoContact) {
+			// Do not send global status, properties, segments or topics on creation:
+			// another project may have created this email since our read.
+			if err = r.do(ctx, "create contact", http.MethodPost, "/contacts", map[string]any{"email": email}, nil); err != nil {
+				return err
+			}
+			blocked, err = r.unsubscribed(ctx, email)
+		}
+		if err != nil {
+			return err
+		}
+		if blocked {
+			return errGloballyUnsubscribed
+		}
 	}
 	err := r.do(ctx, "set topic", http.MethodPatch, "/contacts/"+url.PathEscape(email)+"/topics", []topicSubscription{sub}, nil)
-	if errors.Is(err, errNoContact) {
-		if !in {
-			return nil
-		}
-		return r.do(ctx, "create contact", http.MethodPost, "/contacts", map[string]any{"email": email, "unsubscribed": false, "topics": []topicSubscription{sub}}, nil)
+	if !in && errors.Is(err, errNoContact) {
+		return nil
 	}
-	return err
+	if err != nil || !in {
+		return err
+	}
+	// A global unsubscribe may have arrived while our topic PATCH was in flight.
+	blocked, err := r.unsubscribed(ctx, email)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return errGloballyUnsubscribed
+	}
+	return nil
 }
+
+var errGloballyUnsubscribed = errors.New("resend contact is globally unsubscribed")
 
 // unsubscribed reads the current global state, not the historical webhook's
 // flag (the contact may have been deleted and recreated since that event).
@@ -106,25 +132,65 @@ func (r *resend) unsubscribed(ctx context.Context, email string) (bool, error) {
 	return *out.Unsubscribed, nil
 }
 
-// topics returns the contact's subscription per Resend topic id.
+// topics follows every page before letting a webhook mark a delivery applied.
+// Repeated or empty cursors fail closed, so a partial response can be retried.
 func (r *resend) topics(ctx context.Context, email string) (map[string]string, error) {
-	var out struct {
-		Data []topicSubscription `json:"data"`
+	subs := map[string]string{}
+	seen := map[string]bool{}
+	path := "/contacts/" + url.PathEscape(email) + "/topics"
+	after := ""
+	for page := 0; page < 100; page++ {
+		var out struct {
+			Data    *[]topicSubscription `json:"data"`
+			HasMore *bool                `json:"has_more"`
+		}
+		next := path
+		if after != "" {
+			next += "?after=" + url.QueryEscape(after)
+		}
+		if err := r.do(ctx, "read topics", http.MethodGet, next, nil, &out); err != nil {
+			return nil, err
+		}
+		// Missing/null fields are not evidence of a complete empty list.
+		// Presentation metadata (name/description) is deliberately optional.
+		if out.Data == nil || out.HasMore == nil {
+			return nil, errors.New("resend read topics: missing list fields")
+		}
+		for _, t := range *out.Data {
+			if strings.TrimSpace(t.ID) == "" || (t.Subscription != "opt_in" && t.Subscription != "opt_out") {
+				return nil, errors.New("resend read topics: invalid subscription")
+			}
+			if _, duplicate := subs[t.ID]; duplicate {
+				return nil, errors.New("resend read topics: repeated topic")
+			}
+			subs[t.ID] = t.Subscription
+		}
+		if !*out.HasMore {
+			return subs, nil
+		}
+		if len(*out.Data) == 0 {
+			break
+		}
+		after = (*out.Data)[len(*out.Data)-1].ID
+		if after == "" || seen[after] {
+			break
+		}
+		seen[after] = true
 	}
-	if err := r.do(ctx, "read topics", http.MethodGet, "/contacts/"+url.PathEscape(email)+"/topics", nil, &out); err != nil {
-		return nil, err
-	}
-	subs := make(map[string]string, len(out.Data))
-	for _, t := range out.Data {
-		subs[t.ID] = t.Subscription
-	}
-	return subs, nil
+	return nil, errors.New("resend read topics: incomplete pagination")
 }
 
-// deleteContact removes the address from Resend; an unknown address is fine.
-func (r *resend) deleteContact(ctx context.Context, email string) error {
-	if err := r.do(ctx, "delete contact", http.MethodDelete, "/contacts/"+url.PathEscape(email), nil, nil); err != nil && !errors.Is(err, errNoContact) {
-		return err
+// withdrawMemba removes only Memba's permission to email this address. Neither
+// topic state nor absence of segments proves exclusive ownership of a contact.
+// Even a contact currently used only by Memba is retained by the shared provider.
+func (h *handler) withdrawMemba(ctx context.Context, email string) error {
+	subs := make([]topicSubscription, 0, len(topics))
+	for _, topic := range topics {
+		subs = append(subs, topicSubscription{ID: h.topicIDs[topic], Subscription: "opt_out"})
 	}
-	return nil
+	err := h.resend.do(ctx, "withdraw Memba topics", http.MethodPatch, "/contacts/"+url.PathEscape(email)+"/topics", subs, nil)
+	if errors.Is(err, errNoContact) {
+		return nil
+	}
+	return err
 }
