@@ -39,13 +39,16 @@ func (s *FreePlayStore) Get(ctx context.Context, id string) (FreePlayRun, error)
 		return run, err
 	}
 	run.Status = status
-	if err := s.db.QueryRowContext(ctx, `SELECT attempts,last_error FROM arcade_freeplay_outbox_v2 WHERE run_id=?`, id).Scan(&run.Attempts, &run.LastError); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := s.db.QueryRowContext(ctx, `SELECT broadcast_attempts,operational_failures,confirmation_polls,next_check_at,last_error FROM arcade_freeplay_outbox_v2 WHERE run_id=?`, id).Scan(&run.BroadcastAttempts, &run.OperationalFailures, &run.ConfirmationPolls, &run.NextCheckAt, &run.LastError); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return FreePlayRun{}, err
 	}
-	if run.Attempts >= 8 && status != "confirmed" {
+	if run.OperationalFailures >= 8 && status == "queued" {
 		run.LastError = "retry_limit_operator_review_required"
 	}
 
+	if status == "submitted" && run.LastError == "" {
+		run.LastError = "confirmation_pending"
+	}
 	if receipt.Valid {
 		run.Receipt = &FreePlayReceipt{}
 		if err = json.Unmarshal([]byte(receipt.String), run.Receipt); err != nil {
@@ -174,15 +177,16 @@ func (s *FreePlayStore) Queue(ctx context.Context, id, player, payload, quoteID,
 	return tx.Commit()
 }
 
-// Lease is one attempt. Its opaque owner token fences late workers; an expired
+// Lease owns one bounded operation, not a broadcast attempt. Its token fences late workers; an expired
 // worker cannot save receipts over the owner of a newer lease.
 type FreePlayLease struct {
-	Signer   string
-	Run      FreePlayRun
-	Quote    FreePlayQuote
-	Owner    string
-	TxHash   string
-	Attempts int
+	Signer              string
+	Run                 FreePlayRun
+	Quote               FreePlayQuote
+	Owner               string
+	TxHash              string
+	OperationalFailures int
+	ConfirmationPolls   int
 }
 
 func (s *FreePlayStore) Claim(ctx context.Context, signer, owner string, now, until int64) (FreePlayLease, bool, error) {
@@ -210,12 +214,12 @@ func (s *FreePlayStore) Claim(ctx context.Context, signer, owner string, now, un
 	if err = tx.QueryRowContext(ctx, `SELECT pending_run_id FROM arcade_freeplay_signers_v2 WHERE chain_id=? AND signer=?`, s.target.ChainID, signer).Scan(&pending); err != nil {
 		return FreePlayLease{}, false, err
 	}
-	res, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET lease_owner=?,lease_until=?,attempts=attempts+1 WHERE run_id=(
+	res, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET lease_owner=?,lease_until=? WHERE run_id=(
  SELECT o.run_id FROM arcade_freeplay_outbox_v2 o JOIN arcade_freeplay_runs_v2 r ON r.run_id=o.run_id
- WHERE r.chain_id=? AND r.realm=? AND r.status IN ('queued','submitted') AND o.lease_until<=? AND o.attempts<8
+ WHERE r.chain_id=? AND r.realm=? AND r.status IN ('queued','submitted') AND o.lease_until<=? AND o.next_check_at<=? AND (o.tx_hash!='' OR o.operational_failures<8)
  AND (?='' OR o.run_id=?)
  AND NOT EXISTS(SELECT 1 FROM arcade_freeplay_outbox_v2 used WHERE used.lease_owner=?)
- ORDER BY CASE WHEN r.status='submitted' THEN 0 ELSE 1 END,r.created_at,r.run_id LIMIT 1)`, owner, until, s.target.ChainID, s.target.Realm, now, pending, pending, owner)
+ ORDER BY CASE WHEN r.status='submitted' THEN 0 ELSE 1 END,r.created_at,r.run_id LIMIT 1)`, owner, until, s.target.ChainID, s.target.Realm, now, now, pending, pending, owner)
 	if err != nil {
 		return FreePlayLease{}, false, err
 	}
@@ -225,7 +229,7 @@ func (s *FreePlayStore) Claim(ctx context.Context, signer, owner string, now, un
 	}
 	var id, raw string
 	l := FreePlayLease{Signer: signer, Owner: owner}
-	err = tx.QueryRowContext(ctx, `SELECT o.run_id,o.tx_hash,o.attempts,q.quote_json FROM arcade_freeplay_outbox_v2 o JOIN arcade_freeplay_quotes_v2 q ON q.quote_id=o.quote_id WHERE o.lease_owner=?`, owner).Scan(&id, &l.TxHash, &l.Attempts, &raw)
+	err = tx.QueryRowContext(ctx, `SELECT o.run_id,o.tx_hash,o.operational_failures,o.confirmation_polls,q.quote_json FROM arcade_freeplay_outbox_v2 o JOIN arcade_freeplay_quotes_v2 q ON q.quote_id=o.quote_id WHERE o.lease_owner=?`, owner).Scan(&id, &l.TxHash, &l.OperationalFailures, &l.ConfirmationPolls, &raw)
 	if err != nil {
 		return l, false, err
 	}
@@ -258,7 +262,7 @@ func (s *FreePlayStore) reserveBroadcast(ctx context.Context, l FreePlayLease) e
 	if n != 1 {
 		return errors.New("signer_lease_lost")
 	}
-	res, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET tx_hash='unknown' WHERE run_id=? AND lease_owner=? AND tx_hash=''`, l.Run.Entry.RunID, l.Owner)
+	res, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET tx_hash='unknown',broadcast_attempts=broadcast_attempts+1 WHERE run_id=? AND lease_owner=? AND tx_hash=''`, l.Run.Entry.RunID, l.Owner)
 	if err != nil {
 		return err
 	}
@@ -276,16 +280,12 @@ func (s *FreePlayStore) reserveBroadcast(ctx context.Context, l FreePlayLease) e
 	return tx.Commit()
 }
 
-func (s *FreePlayStore) saveAttempt(ctx context.Context, l FreePlayLease, txHash string, failure error) error {
-	message := ""
-	if failure != nil {
-		message = failure.Error()
-		if len(message) > 256 {
-			message = message[:256]
-		}
+// saveBroadcastHash retains the account lease until the immediate readback.
+func (s *FreePlayStore) saveBroadcastHash(ctx context.Context, l FreePlayLease, hash string) error {
+	if !fpHex64.MatchString(hash) {
+		return errors.New("invalid_transaction_hash")
 	}
-	// Keep a submitted transaction hash until reconciliation proves its outcome.
-	res, err := s.db.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET tx_hash=CASE WHEN ?='' THEN tx_hash ELSE ? END,last_error=?,lease_until=0 WHERE run_id=? AND lease_owner=?`, txHash, txHash, message, l.Run.Entry.RunID, l.Owner)
+	res, err := s.db.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET tx_hash=? WHERE run_id=? AND lease_owner=? AND tx_hash='unknown'`, hash, l.Run.Entry.RunID, l.Owner)
 	if err != nil {
 		return err
 	}
@@ -296,13 +296,56 @@ func (s *FreePlayStore) saveAttempt(ctx context.Context, l FreePlayLease, txHash
 	if n != 1 {
 		return errors.New("lease_lost")
 	}
-	if _, releaseErr := s.db.ExecContext(ctx, `UPDATE arcade_freeplay_signers_v2 SET lease_until=0 WHERE chain_id=? AND signer=? AND lease_owner=?`, s.target.ChainID, l.Signer, l.Owner); releaseErr != nil {
-		return releaseErr
+	return nil
+}
+
+func freePlayCheckDelay(previous int) int64 {
+	delays := [...]int64{5, 10, 20, 40, 80, 160, 300}
+	return delays[min(max(previous, 0), len(delays)-1)]
+}
+
+// saveAttempt records either a pre-send operational failure or a pending
+// confirmation read. Only the former has a finite retry budget. Both persist
+// their next eligible time so even a tight caller loop cannot poll the RPC.
+func (s *FreePlayStore) saveAttempt(ctx context.Context, l FreePlayLease, txHash string, failure error, now int64) error {
+	message := ""
+	if failure != nil {
+		message = failure.Error()
+		if len(message) > 256 {
+			message = message[:256]
+		}
 	}
-	if txHash != "" {
-		_, err = s.db.ExecContext(ctx, `UPDATE arcade_freeplay_runs_v2 SET status='submitted' WHERE run_id=? AND status='queued'`, l.Run.Entry.RunID)
+	pending := l.TxHash != "" || txHash != ""
+	previous := l.OperationalFailures
+	if pending {
+		previous = l.ConfirmationPolls
 	}
-	return err
+	next := now + freePlayCheckDelay(previous)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	res, err := tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET
+ tx_hash=CASE WHEN ?='' THEN tx_hash ELSE ? END,
+ confirmation_polls=confirmation_polls+CASE WHEN tx_hash!='' OR ?!='' THEN 1 ELSE 0 END,
+ operational_failures=operational_failures+CASE WHEN tx_hash='' AND ?='' THEN 1 ELSE 0 END,
+ next_check_at=?,last_error=?,lease_until=0 WHERE run_id=? AND lease_owner=?`,
+		txHash, txHash, txHash, txHash, next, message, l.Run.Entry.RunID, l.Owner)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errors.New("lease_lost")
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_signers_v2 SET lease_until=0 WHERE chain_id=? AND signer=? AND lease_owner=?`, s.target.ChainID, l.Signer, l.Owner); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 func (s *FreePlayStore) confirm(ctx context.Context, l FreePlayLease, receipt FreePlayReceipt) error {
 	if err := ValidateFreePlayReceipt(l.Run, receipt); err != nil {
@@ -328,7 +371,7 @@ func (s *FreePlayStore) confirm(ctx context.Context, l FreePlayLease, receipt Fr
 	if n != 1 {
 		return fmt.Errorf("lease_lost")
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET lease_until=0,last_error='' WHERE run_id=? AND lease_owner=?`, l.Run.Entry.RunID, l.Owner)
+	_, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET lease_until=0,last_error='',next_check_at=0 WHERE run_id=? AND lease_owner=?`, l.Run.Entry.RunID, l.Owner)
 	if err != nil {
 		return err
 	}

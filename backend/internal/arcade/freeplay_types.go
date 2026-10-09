@@ -116,16 +116,19 @@ func FreePlayRunID(t FreePlayTarget, player, game, clientRunID string) (string, 
 }
 
 type FreePlayRun struct {
-	LastError   string           `json:"lastError,omitempty"`
-	Attempts    int              `json:"attempts,omitempty"`
-	Target      FreePlayTarget   `json:"target"`
-	Entry       FreePlayEntry    `json:"entry"`
-	ClientRunID string           `json:"clientRunId"`
-	PayloadHash string           `json:"payloadHash"`
-	ReplayCodec string           `json:"replayCodec"`
-	Replay      string           `json:"replay"`
-	Status      string           `json:"status"`
-	Receipt     *FreePlayReceipt `json:"receipt,omitempty"`
+	LastError           string           `json:"lastError,omitempty"`
+	BroadcastAttempts   int              `json:"broadcastAttempts,omitempty"`
+	OperationalFailures int              `json:"operationalFailures,omitempty"`
+	ConfirmationPolls   int              `json:"confirmationPolls,omitempty"`
+	NextCheckAt         int64            `json:"nextCheckAt,omitempty"`
+	Target              FreePlayTarget   `json:"target"`
+	Entry               FreePlayEntry    `json:"entry"`
+	ClientRunID         string           `json:"clientRunId"`
+	PayloadHash         string           `json:"payloadHash"`
+	ReplayCodec         string           `json:"replayCodec"`
+	Replay              string           `json:"replay"`
+	Status              string           `json:"status"`
+	Receipt             *FreePlayReceipt `json:"receipt,omitempty"`
 }
 
 // Receipt is supplied only after successful inclusion and an exact realm readback.

@@ -70,13 +70,28 @@ send can intentionally block the account until reviewed.
 All v2 workers for a dedicated signer must share the same SQLite database. Do
 not share the key with the legacy batcher, another database or an external
 writer. Transport calls must honor context cancellation; the operation deadline
-is 45 seconds and its lease is 60 seconds. Eight lease attempts are allowed;
-after that, status exposes `retry_limit_operator_review_required`. There is no
-worker loop or automatic backoff in this foundation. A future loop needs a
-bounded polling/backoff policy; it must not exhaust those attempts in a tight
-loop. The operator recovery procedure is not implemented and must precede
-activation; manually clearing an unknown marker without chain reconciliation
-would defeat the spend protection.
+is 45 seconds and its lease is 60 seconds. Counters distinguish durable broadcast
+reservations, operational failures before sending, and pending-confirmation
+rounds. Claiming a lease does not consume any attempt counter. A broadcast
+reservation can count as one even if the process dies before network I/O.
+
+Every unsuccessful operation persists its next eligible check: 5, 10, 20, 40,
+80, 160, then at most 300 seconds between checks. SQLite enforces this backoff
+across workers/restarts. Only pre-send operational failures stop at eight and
+expose `retry_limit_operator_review_required`; they never pin the signer.
+Pending confirmation continues without that limit and retains its actual error
+or `confirmation_pending`, even if inclusion takes many polls. Exact readback
+confirms the run and releases the signer in one transaction. No worker loop is
+installed yet; the caller should respect `nextCheckAt` to avoid useless DB work.
+
+An unknown broadcast that never becomes readable intentionally remains pinned.
+RPC not-found alone cannot prove a transaction was never broadcast, including a
+crash between the durable marker and Anchor. There is no automatic clearing or
+rebroadcast path. The future operator procedure for a genuinely unresolved send
+must prove its chain outcome and review spending before any new authorization;
+it is still an activation prerequisite. A late exact receipt uses the ordinary
+tested readback path and safely releases the signer, even after twelve or more
+polls. No manual counter reset is needed for slow inclusion.
 
 Confirmation requires exact committed receipt fields, schema 2, correct
 chain/realm, positive height and canonical attester address. The transport must

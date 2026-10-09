@@ -30,7 +30,10 @@ CREATE TABLE arcade_freeplay_outbox_v2 (
  nonce TEXT NOT NULL,
  lease_owner TEXT NOT NULL DEFAULT '',
  lease_until INTEGER NOT NULL DEFAULT 0,
- attempts INTEGER NOT NULL DEFAULT 0,
+ broadcast_attempts INTEGER NOT NULL DEFAULT 0,
+ operational_failures INTEGER NOT NULL DEFAULT 0,
+ confirmation_polls INTEGER NOT NULL DEFAULT 0,
+ next_check_at INTEGER NOT NULL DEFAULT 0,
  tx_hash TEXT NOT NULL DEFAULT '',
  last_error TEXT NOT NULL DEFAULT ''
 );

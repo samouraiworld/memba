@@ -75,7 +75,7 @@ func (p FreePlayPublisher) PublishOne(ctx context.Context) (bool, error) {
 		// Preserve ambiguity even when the transport exhausted its context.
 		saveCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer stop()
-		if err := p.Store.saveAttempt(saveCtx, lease, txHash, e); err != nil {
+		if err := p.Store.saveAttempt(saveCtx, lease, txHash, e, now().Unix()); err != nil {
 			return true, err
 		}
 		return true, e
@@ -85,6 +85,12 @@ func (p FreePlayPublisher) PublishOne(ctx context.Context) (bool, error) {
 		return recordFailure("", err)
 	}
 	if found {
+		if fpHex64.MatchString(lease.TxHash) && receipt.TxHash != "" && receipt.TxHash != lease.TxHash {
+			return recordFailure("", ErrFreePlayReceipt)
+		}
+		if err := ValidateFreePlayReceipt(lease.Run, receipt); err != nil {
+			return recordFailure("", err)
+		}
 		return true, p.Store.confirm(opCtx, lease, receipt)
 	}
 	// An included tx may not yet be readable from this RPC. Do not spend again
@@ -111,18 +117,22 @@ func (p FreePlayPublisher) PublishOne(ctx context.Context) (bool, error) {
 		return recordFailure("unknown", errors.New("invalid_transaction_hash"))
 	}
 	// Save the hash before readback; a failed save stops this invocation.
-	if err := p.Store.saveAttempt(opCtx, lease, txHash, nil); err != nil {
+	if err := p.Store.saveBroadcastHash(opCtx, lease, txHash); err != nil {
 		return true, err
 	}
+	lease.TxHash = txHash
 	receipt, found, err = p.Chain.Lookup(opCtx, lease.Run.Target, lease.Run.Entry.RunID)
 	if err != nil {
-		return true, err
+		return recordFailure("", err)
 	}
 	if !found {
-		return true, errors.New("confirmation_pending")
+		return recordFailure("", errors.New("confirmation_pending"))
 	}
 	if receipt.TxHash != "" && receipt.TxHash != txHash {
-		return true, ErrFreePlayReceipt
+		return recordFailure("", ErrFreePlayReceipt)
+	}
+	if err := ValidateFreePlayReceipt(lease.Run, receipt); err != nil {
+		return recordFailure("", err)
 	}
 	// The transport may only know the committed entry. Keep its evidence honest:
 	// no guessed inclusion hash is added to a readback-only receipt.

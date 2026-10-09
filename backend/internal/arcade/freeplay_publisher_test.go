@@ -12,6 +12,7 @@ type freeChainFake struct {
 	receipt    FreePlayReceipt
 	found      bool
 	broadcasts int
+	lookups    int
 	ambiguous  bool
 	noReadback bool
 	lookupErr  error
@@ -19,6 +20,7 @@ type freeChainFake struct {
 }
 
 func (f *freeChainFake) Lookup(context.Context, FreePlayTarget, string) (FreePlayReceipt, bool, error) {
+	f.lookups++
 	return f.receipt, f.found, f.lookupErr
 }
 func (f *freeChainFake) Anchor(_ context.Context, target FreePlayTarget, e FreePlayEntry, _ FreePlayQuote) (string, error) {
@@ -102,11 +104,13 @@ func TestFreePlayPublisherReadbackRecoveryAndAmbiguity(t *testing.T) {
 		t.Run(map[bool]string{true: "lost_send", false: "pending_readback"}[ambiguous], func(t *testing.T) {
 			s, run := queuedFreeRun(t)
 			chain := &freeChainFake{ambiguous: ambiguous, noReadback: true}
+			now := int64(20)
 			spend := &freeSpendingFake{}
-			p := FreePlayPublisher{Enabled: true, Signer: freeFixture(t).Entry.Player, Store: s, Chain: chain, Spending: spend, Now: func() time.Time { return time.Unix(20, 0) }}
+			p := FreePlayPublisher{Enabled: true, Signer: freeFixture(t).Entry.Player, Store: s, Chain: chain, Spending: spend, Now: func() time.Time { return time.Unix(now, 0) }}
 			if _, err := p.PublishOne(context.Background()); err == nil {
 				t.Fatal("pending delivery reported success")
 			}
+			now = 25
 			if _, err := p.PublishOne(context.Background()); err == nil {
 				t.Fatal("unknown outcome ignored")
 			}
@@ -115,6 +119,7 @@ func TestFreePlayPublisherReadbackRecoveryAndAmbiguity(t *testing.T) {
 			}
 			chain.receipt = FreePlayReceipt{Target: run.Target, Entry: run.Entry, Height: 50, Attester: run.Entry.Player, SchemaVersion: 2}
 			chain.found = true
+			now = 35
 			if _, err := p.PublishOne(context.Background()); err != nil {
 				t.Fatal(err)
 			}
@@ -174,10 +179,129 @@ func TestFreePlayPublisherCrashBeforeSavingHashDoesNotRespend(t *testing.T) {
 	}
 	chain.receipt = FreePlayReceipt{Target: run.Target, Entry: run.Entry, Height: 91, Attester: run.Entry.Player, SchemaVersion: 2}
 	chain.found = true
+	now = 86
 	if _, err = p.PublishOne(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if chain.broadcasts != 1 {
 		t.Fatal("recovery rebroadcast")
+	}
+}
+
+func TestFreePlayPendingPollsOutliveRetryLimitWithDurableBackoff(t *testing.T) {
+	s, run := queuedFreeRun(t)
+	chain := &freeChainFake{noReadback: true}
+	spend := &freeSpendingFake{}
+	now := int64(20)
+	p := FreePlayPublisher{Enabled: true, Signer: run.Entry.Player, Store: s, Chain: chain, Spending: spend, Now: func() time.Time { return time.Unix(now, 0) }}
+	for poll := 1; poll <= 12; poll++ {
+		if worked, err := p.PublishOne(context.Background()); !worked || err == nil {
+			t.Fatalf("pending poll %d: %v %v", poll, worked, err)
+		}
+		got, err := s.Get(context.Background(), run.Entry.RunID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.BroadcastAttempts != 1 || got.OperationalFailures != 0 || got.ConfirmationPolls != poll || got.LastError != "confirmation_pending" {
+			t.Fatalf("poll counters %+v", got)
+		}
+		want := now + freePlayCheckDelay(poll-1)
+		if got.NextCheckAt != want {
+			t.Fatalf("next check %d want %d", got.NextCheckAt, want)
+		}
+		// A restarted worker calling repeatedly before the persisted deadline must
+		// not reach the network, change counters, or reserve another spending budget.
+		calls := chain.lookups
+		now = want - 1
+		if worked, err := p.PublishOne(context.Background()); worked || err != nil || chain.lookups != calls {
+			t.Fatalf("backoff bypass %v %v", worked, err)
+		}
+		now = want
+	}
+	chain.found = true
+	chain.receipt.TxHash = strings.Repeat("f", 64)
+	if worked, err := p.PublishOne(context.Background()); !worked || !errors.Is(err, ErrFreePlayReceipt) {
+		t.Fatalf("mismatched inclusion hash %v %v", worked, err)
+	}
+	pendingRun, err := s.Get(context.Background(), run.Entry.RunID)
+	if err != nil || pendingRun.Status != "submitted" {
+		t.Fatalf("mismatch became confirmed %+v %v", pendingRun, err)
+	}
+	now = pendingRun.NextCheckAt
+	chain.receipt.TxHash = strings.Repeat("e", 64)
+	if worked, err := p.PublishOne(context.Background()); !worked || err != nil {
+		t.Fatalf("late inclusion %v %v", worked, err)
+	}
+	got, err := s.Get(context.Background(), run.Entry.RunID)
+	if err != nil || got.Status != "confirmed" || got.NextCheckAt != 0 || got.LastError != "" {
+		t.Fatalf("late receipt %+v %v", got, err)
+	}
+	if chain.broadcasts != 1 || spend.calls != 1 {
+		t.Fatal("confirmation polling spent again")
+	}
+	var pending string
+	if err = s.db.QueryRow(`SELECT pending_run_id FROM arcade_freeplay_signers_v2 WHERE chain_id=? AND signer=?`, run.Target.ChainID, run.Entry.Player).Scan(&pending); err != nil || pending != "" {
+		t.Fatalf("signer not released %q %v", pending, err)
+	}
+}
+
+func TestFreePlayCrashAfterIntentBeforeAnchorDoesNotBroadcast(t *testing.T) {
+	s, run := queuedFreeRun(t)
+	ctx := context.Background()
+	lease, ok, err := s.Claim(ctx, run.Entry.Player, strings.Repeat("7", 64), 20, 80)
+	if err != nil || !ok {
+		t.Fatalf("lease %v %v", ok, err)
+	}
+	spend := &freeSpendingFake{}
+	if err = spend.ReserveAttempt(ctx, run, lease.Quote); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.reserveBroadcast(ctx, lease); err != nil {
+		t.Fatal(err)
+	}
+	// Process dies here. No Anchor call happened, but a restarted process cannot
+	// prove that from a committed marker and therefore must not clear it.
+	chain := &freeChainFake{}
+	p := FreePlayPublisher{Enabled: true, Signer: run.Entry.Player, Store: s, Chain: chain, Spending: spend, Now: func() time.Time { return time.Unix(81, 0) }}
+	if worked, err := p.PublishOne(ctx); !worked || err == nil {
+		t.Fatalf("ambiguous intent %v %v", worked, err)
+	}
+	got, err := s.Get(ctx, run.Entry.RunID)
+	if err != nil || got.Status != "submitted" || got.BroadcastAttempts != 1 || got.ConfirmationPolls != 1 || got.OperationalFailures != 0 || got.LastError != "confirmation_pending" {
+		t.Fatalf("intent %+v %v", got, err)
+	}
+	if chain.broadcasts != 0 || spend.calls != 1 {
+		t.Fatal("crash recovery sent an ambiguous intent")
+	}
+}
+
+func TestFreePlayOperationalLimitDoesNotPinSigner(t *testing.T) {
+	s, run := queuedFreeRun(t)
+	chain := &freeChainFake{lookupErr: errors.New("RPC unavailable")}
+	now := int64(20)
+	p := FreePlayPublisher{Enabled: true, Signer: run.Entry.Player, Store: s, Chain: chain, Spending: &freeSpendingFake{}, Now: func() time.Time { return time.Unix(now, 0) }}
+	for failure := 1; failure <= 8; failure++ {
+		if worked, err := p.PublishOne(context.Background()); !worked || err == nil {
+			t.Fatalf("failure %d %v %v", failure, worked, err)
+		}
+		got, err := s.Get(context.Background(), run.Entry.RunID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.OperationalFailures != failure || got.BroadcastAttempts != 0 || got.ConfirmationPolls != 0 {
+			t.Fatalf("wrong failure counters %+v", got)
+		}
+		now = got.NextCheckAt
+	}
+	if worked, err := p.PublishOne(context.Background()); worked || err != nil {
+		t.Fatalf("pre-send limit %v %v", worked, err)
+	}
+	got, err := s.Get(context.Background(), run.Entry.RunID)
+	if err != nil || got.Status != "queued" || got.LastError != "retry_limit_operator_review_required" {
+		t.Fatalf("pre-send exhausted %+v %v", got, err)
+	}
+	var pending string
+	if err = s.db.QueryRow(`SELECT pending_run_id FROM arcade_freeplay_signers_v2 WHERE chain_id=? AND signer=?`, run.Target.ChainID, run.Entry.Player).Scan(&pending); err != nil || pending != "" {
+		t.Fatalf("failed run pinned signer %q %v", pending, err)
 	}
 }

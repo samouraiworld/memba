@@ -81,10 +81,10 @@ func TestFreePlayQueueAtomicRetriesAndLease(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("recovery %v %v", ok, err)
 	}
-	if err = s.saveAttempt(ctx, l, "", nil); err == nil {
+	if err = s.saveAttempt(ctx, l, "", nil, 81); err == nil {
 		t.Fatal("stale worker saved")
 	}
-	if err = s.saveAttempt(ctx, next, "", nil); err != nil {
+	if err = s.saveAttempt(ctx, next, "", nil, 81); err != nil {
 		t.Fatal(err)
 	}
 	var count int
@@ -143,10 +143,10 @@ func TestFreePlaySignerSerializesDifferentRunsAndPinsUnknownOutcome(t *testing.T
 	if err = s.reserveBroadcast(ctx, l); err != nil {
 		t.Fatal(err)
 	}
-	if err = s.saveAttempt(ctx, l, "unknown", errors.New("transport died")); err != nil {
+	if err = s.saveAttempt(ctx, l, "unknown", errors.New("transport died"), 21); err != nil {
 		t.Fatal(err)
 	}
-	next, ok, err := s.Claim(ctx, first.Entry.Player, strings.Repeat("5", 64), 22, 82)
+	next, ok, err := s.Claim(ctx, first.Entry.Player, strings.Repeat("5", 64), 26, 86)
 	if err != nil || !ok || next.Run.Entry.RunID != first.Entry.RunID || next.TxHash != "unknown" {
 		t.Fatalf("unknown run was not pinned %+v %v %v", next, ok, err)
 	}
@@ -158,7 +158,7 @@ func TestFreePlaySignerSerializesDifferentRunsAndPinsUnknownOutcome(t *testing.T
 	if err = s.confirm(ctx, next, receipt); err != nil {
 		t.Fatal(err)
 	}
-	final, ok, err := s.Claim(ctx, first.Entry.Player, strings.Repeat("6", 64), 23, 83)
+	final, ok, err := s.Claim(ctx, first.Entry.Player, strings.Repeat("6", 64), 27, 87)
 	if err != nil || !ok || final.Run.Entry.RunID != second.Entry.RunID {
 		t.Fatalf("second run not released %+v %v %v", final, ok, err)
 	}
