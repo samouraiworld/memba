@@ -142,3 +142,9 @@ chainId, one storage instance and per-game rules/version with optional explicit
 remote origin/target. D validates it before construction; null means no runtime.
 No new environment variable, flag, default endpoint, factory or owner hook is
 introduced here.
+
+The configured backend origin must use HTTPS. Explicit local development may use
+HTTP only with the literal hosts `localhost`, `127.0.0.1` or `[::1]`, optionally
+with a port. Both the host validator and direct client constructor enforce this
+before authentication or requests; aliases and misleading hostname suffixes are
+refused. Redirects remain disabled for all requests.

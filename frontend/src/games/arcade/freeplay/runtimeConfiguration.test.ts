@@ -30,3 +30,14 @@ describe('explicit OS Free play configuration contract', () => {
         }
     })
 })
+
+
+it('requires HTTPS remotely and accepts only literal loopback HTTP origins', () => {
+    const configured = (origin: string): ArcadeFreePlayConfiguration => ({ ...configuration, games: { 'block-party': { rules: 'bp-free-standard-undo-v1', simVersion: 1, remote: { origin, target } } } })
+    for (const origin of ['https://backend.example', 'http://localhost:8080', 'http://127.0.0.1:8080/', 'http://[::1]:8080']) {
+        expect(() => validateArcadeFreePlayConfiguration(configured(origin))).not.toThrow()
+    }
+    for (const origin of ['http://backend.example', 'http://192.168.1.10', 'http://localhost.example', 'http://sub.localhost', 'http://localhost.', 'http://127.0.0.1.example', 'http://localhost@backend.example', 'http://[::2]', 'http://[::ffff:127.0.0.1]', 'http://127.1', 'http://2130706433', 'http://0x7f000001']) {
+        expect(() => validateArcadeFreePlayConfiguration(configured(origin))).toThrow('invalid_runtime_configuration')
+    }
+})
