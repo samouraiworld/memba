@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 /** The browser API runs only in the button's trusted click, never at launch. */
-export function FullscreenButton({ root, onChange, onError, showError = true }: { root: RefObject<HTMLElement | null>; onChange: () => void; onError?: (message: string) => void; showError?: boolean }) {
+export function FullscreenButton({ root, onChange, onError }: { root: RefObject<HTMLElement | null>; onChange: () => void; onError: (message: string) => void }) {
   const [active, setActive] = useState(false);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
   const changeRef = useRef(onChange);
   useEffect(() => { changeRef.current = onChange; }, [onChange]);
   useEffect(() => {
@@ -16,7 +15,8 @@ export function FullscreenButton({ root, onChange, onError, showError = true }: 
     return () => document.removeEventListener("fullscreenchange", changed);
   }, [root]);
   const supported = document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function";
-  const reportError = (message: string) => { setError(message); onError?.(message); };
+  // The game owns one in-flow, dismissible alert outside its playfield.
+  const reportError = onError;
   const toggle = async () => {
     reportError("");
     if (!supported) { reportError("Fullscreen is unavailable in this browser."); return; }
@@ -38,6 +38,5 @@ export function FullscreenButton({ root, onChange, onError, showError = true }: 
         <path d={active ? "M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6" : "M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6"} />
       </svg>
     </button>
-    {error && showError && <p className="si-fullscreen-error" role="alert">{error}</p>}
   </div>;
 }
