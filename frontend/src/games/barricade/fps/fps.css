@@ -72,3 +72,8 @@
     .fps-preview[data-compact="true"] .fps-controls > button { font-size: 11px; padding: 6px; }
     .fps-preview[data-compact="true"] .fps-hud strong { margin-left: 2px; }
 }
+
+.fps-freeplay { width: min(100%, 36rem); overflow-wrap: anywhere; }
+.fps-freeplay p { margin: 8px auto; }
+.fps-freeplay button { margin: 4px; }
+.fps-overlay:has(.fps-freeplay) { justify-content: safe center; }

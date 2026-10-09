@@ -3,7 +3,8 @@ import { useWindowActive } from '../../../os/page/WindowActivity'
 import { useGameLoop } from '../hooks/useGameLoop'
 import { detectHas3D } from '../render/three/caps'
 import { MAGAZINE, WAVE_COUNTS } from '../sim/fps/types'
-import { createSession } from './session'
+import { browserFpsStorage, createFpsRunConsumer, type FpsRunStorage } from './freeplay/consumer'
+import type { FpsFreePlayBridge } from './freeplay/bridge'
 import { usePreviewHeight } from './usePreviewHeight'
 import './fps.css'
 
@@ -15,8 +16,11 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => vo
     render() { return this.state.failed ? null : this.props.children }
 }
 
-export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
-    const [session, setSession] = useState(() => createSession('fps-c1-preview'))
+export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic: () => void; freePlay?: FpsFreePlayBridge; storage?: FpsRunStorage }) {
+    const [consumer] = useState(() => createFpsRunConsumer({ seed: 'fps-c1-preview', storage: storage ?? browserFpsStorage(), bridge: freePlay }))
+    const run = useSyncExternalStore(consumer.subscribe, consumer.getSnapshot)
+    const { session } = run
+    useEffect(() => consumer.mount(), [consumer])
     const hud = useSyncExternalStore(session.subscribe, session.getSnapshot)
     const [has3D] = useState(detectHas3D)
     const [failed, setFailed] = useState(false)
@@ -91,7 +95,7 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
         }
     }
     function exportReplay() {
-        const url = URL.createObjectURL(new Blob([JSON.stringify(session.log())], { type: 'application/json' }))
+        const url = URL.createObjectURL(new Blob([JSON.stringify({ ...session.log(), clientRunId: run.clientRunId })], { type: 'application/json' }))
         const a = document.createElement('a'); a.href = url; a.download = 'barricade-fps-c1-replay.json'; a.click()
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
@@ -152,8 +156,13 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
                 </div> : status === 'done' ? <div className="fps-overlay" role="dialog" aria-label="Résultat du prototype">
                     <h2>{state.phase === 'won' ? 'La barricade tient.' : 'La ligne a cédé.'}</h2><p>{state.score} points · {state.kills} adversaires neutralisés</p>
                     <p>{hud.verified ? 'Replay local vérifié' : 'Replay local divergent — à examiner'} · Prototype non classé</p>
-                    <div className="fps-actions"><button ref={resume} className="fps-primary" onClick={() => setSession(createSession('fps-c1-preview'))}>Rejouer le prototype</button>
+                    <div className="fps-actions"><button ref={resume} className="fps-primary" onClick={() => consumer.restart()}>Rejouer le prototype</button>
                     <button onClick={exportReplay}>Exporter le replay</button></div>
+                    <div className="fps-freeplay" aria-label="Conserver le résultat FPS">
+                        {run.preparation === 'preparing' && <p role="status">Préparation du résultat sauvegardé…</p>}
+                        {run.result?.render()}
+                        {(run.storageError || run.preparation === 'unavailable') && <><p role="status">Sauvegarde ou service indisponible. Votre résultat reste ici et peut être exporté.</p><button onClick={() => consumer.retry()}>Réessayer la sauvegarde du résultat</button></>}
+                    </div>
                 </div> : state.phase === 'repair' ? <div className="fps-overlay fps-repair" role="dialog" aria-label="Réparer la barricade">
                     <h2>Reprenez votre souffle.</h2><p>Prochaine vague dans {Math.max(0, Math.ceil((state.repairUntil - state.tick) / 60))} s. Chargeur rempli à la reprise.</p>
                     <div className="fps-actions"><button ref={resume} className="fps-primary" disabled={!state.patchAvailable || state.hp === 100} onClick={() => session.command({ type: 'repair' })}>{state.patchAvailable ? 'Réparer +40% · une fois' : 'Réparation utilisée'}</button>
@@ -175,6 +184,7 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
             </div></details>
         </div>
         {lockHint && <p className="fps-notice" role="status">{lockHint}</p>}
+        {run.storageError && status !== 'done' && <p className="fps-notice" role="status">Sauvegarde locale indisponible ; gardez cette fenêtre pour conserver la partie.</p>}
         <p className="fps-note fps-caption">Prototype non classé · Trois vagues · Réparation unique · Score local</p>
     </section>
 }

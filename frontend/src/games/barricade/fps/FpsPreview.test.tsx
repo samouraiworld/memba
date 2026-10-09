@@ -14,7 +14,7 @@ vi.mock('../hooks/useGameLoop', () => ({ useGameLoop: (_running: boolean, onStep
 
 describe('FPS preview lifecycle and explicit capture', () => {
     const lock = vi.fn().mockResolvedValue(undefined)
-    beforeEach(() => { HTMLElement.prototype.setPointerCapture = vi.fn(); HTMLElement.prototype.requestPointerLock = lock; document.exitPointerLock = vi.fn(); lock.mockClear() })
+    beforeEach(() => { localStorage.clear(); HTMLElement.prototype.setPointerCapture = vi.fn(); HTMLElement.prototype.requestPointerLock = lock; document.exitPointerLock = vi.fn(); lock.mockClear() })
     afterEach(() => vi.restoreAllMocks())
     it('waits for a user gesture, and ordinary play never requests pointer lock or submits a score', async () => {
         const fetch = vi.spyOn(globalThis, 'fetch')
@@ -83,6 +83,19 @@ describe('FPS preview lifecycle and explicit capture', () => {
         pointer(screen.getByRole('button', { name: 'Tirer' }), 'pointerup', 1)
         act(() => loop.step(30))
         expect(screen.getByLabelText('État de la partie')).toHaveTextContent('10/12')
+    })
+    it('mounts the injected shared result only after a real terminal run and preserves export', async () => {
+        const handle = { render: () => <p>Shared result panel</p>, dispose: vi.fn() }
+        const prepare = vi.fn().mockResolvedValue(handle)
+        const { unmount } = render(<FpsPreview onClassic={vi.fn()} freePlay={{ prepare }} />)
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        expect(prepare).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Jouer · visée libre' }))
+        act(() => loop.step(10800))
+        expect(await screen.findByText('Shared result panel')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Exporter le replay' })).toBeEnabled()
+        expect(prepare).toHaveBeenCalledOnce()
+        unmount(); expect(handle.dispose).toHaveBeenCalledOnce()
     })
     it('returns to Classic explicitly without converting the run', async () => {
         const classic = vi.fn(); render(<FpsPreview onClassic={classic} />)

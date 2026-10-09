@@ -14,7 +14,7 @@ export interface FpsSnapshotPorts<T> {
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
-/** Preparation only: no imports from a route/session, storage, transport, wallet or launch. */
+/** Pure terminal adapter; the game consumer owns lifecycle, A owns publication. */
 export async function prepareFpsTerminalSnapshot<T>(clientRunId: string, log: Replay, ports: FpsSnapshotPorts<T>) {
     if (!uuid.test(clientRunId)) throw new Error('invalid_fps_run_id')
     const verified = verifyFpsTerminal(log)
@@ -27,6 +27,6 @@ export async function prepareFpsTerminalSnapshot<T>(clientRunId: string, log: Re
         ports.hashFields('memba:free-replay:v1', input.game, input.rules, String(input.simVersion), input.seed, input.replayCodec, input.replay),
     ])
     if (![stateHash, replayHash].every(h => /^[0-9a-f]{64}$/.test(h))) throw new Error('invalid_fps_commitment')
-    // This preparation returns A's snapshot but does not mount its panel or start a session.
+    // The caller owns mounting/disposal; no API action occurs in this adapter.
     return Object.freeze({ input, snapshot: ports.createSnapshot(input), stateHash, replayHash, canonicalState })
 }

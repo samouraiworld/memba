@@ -1,3 +1,4 @@
+import type { FpsFreePlayBridge } from './fps/freeplay/bridge'
 /**
  * MEMBA: BARRICADE — playable shell (Memba-native visual pass).
  *
@@ -852,7 +853,7 @@ function ClassicBarricade() {
 
 // C1 preview is explicit and local to this game; Classic remains the published default.
 const FpsPreview = lazy(() => import("./fps/FpsPreview"))
-export default function Barricade() {
+export default function Barricade({ fpsFreePlay }: { fpsFreePlay?: FpsFreePlayBridge } = {}) {
     const location = useLocation()
     const navigate = useNavigate()
     const [previewFailed, setPreviewFailed] = useState(false)
@@ -866,7 +867,7 @@ export default function Barricade() {
     if (previewFailed) return <div role="alert"><p>Chargement FPS indisponible. Classic reste accessible.</p><button onClick={classic}>Retour à Classic</button></div>
     return <RendererBoundary onFailure={() => setPreviewFailed(true)}>
         <Suspense fallback={<p role="status">Chargement du prototype FPS…</p>}>
-            <FpsPreview onClassic={classic} />
+            <FpsPreview freePlay={fpsFreePlay} onClassic={classic} />
         </Suspense>
     </RendererBoundary>
 }

@@ -1,26 +1,78 @@
-# FPS Free play preparation — not connected
+# FPS Free play consumer — injected, no default publication
 
-These modules have **no application/session import**, transport, storage, wallet,
-LaunchContext, or production activation. The existing game still exports C1 debug
-replays. A must port/register the verifier before any FPS score is eligible for
-publication. Classic and FPS remain incompatible categories within `barricade`.
+`FpsPreview` now owns the real run consumer. `Barricade` exposes an optional
+`fpsFreePlay` bridge and passes it only to its opt-in FPS preview. Without that
+bridge there is no shared API session or network call. There is no backend,
+shared-client, wallet or LaunchContext edit. Classic remains independent.
 
-The interface was checked against A client PR #1586, head `554ca706`, especially
-`games/arcade/freeplay/README.md`. Integration is intentionally deferred: inject
-A's `hashFreePlayFields` and `createFreePlaySnapshot` into
-`prepareFpsTerminalSnapshot(clientRunId, log, ports)`. The structurally compatible
-input is `FreePlayInput`; no duplicate client, retry/outbox or endpoint is added.
-A's session/storage lifecycle owns persistence, auth, quote/review/confirm and
-receipt validation. C returns frozen primitive input before async hashing; A's
-snapshot is a separate client-owned value. No claimed hash is sent as authority.
+The backend verifies the **exact TS engine in a bounded Node worker**. A owns
+strict Free play dispatch and the Go envelope, not a Go rewrite of the engine.
+The worker/envelope must validate the supplied fixtures before activation.
 
-The owner must allocate and persist a lowercase UUID v4 **once per run at start**,
-retain it for all retries, and fork on restart. This preparation accepts that
-identity; it never generates/reconstructs it or implements parallel storage.
-When persistence fails, keep the local result/export. The C1 fixed-seed in-memory
-session is not yet that durable lifecycle. Do not call this adapter from render.
+## Inject the existing A implementation
 
-## Codec proposal for A's Go port
+Create a stable bridge outside render (A client PR #1586, contract read at
+`554ca706`), then pass it as `fpsFreePlay` to Barricade, or `freePlay` to FpsPreview:
+
+```tsx
+const fpsBridge = createFpsFreePlayBridge({
+    hashFields: hashFreePlayFields,
+    createSnapshot: createFreePlaySnapshot,
+    createSession: snapshot => createFreePlaySession({ snapshot, client, storage }),
+    renderSession: session => <FreePlayResult session={session} />,
+})
+```
+
+The `client` above is A's injected client with its existing trusted endpoint,
+network target and identity adapter. No such client/default endpoint is created
+here. Keep bridge/storage stable for the mounted game; A handles identity changes
+inside its session. Remount to replace configuration, restoring the same local
+run from storage. A alone owns auth, verify/quote/confirm, publication persistence,
+retry/outbox and receipt validation. Opening its result panel does not call any
+API action. It restores saved receipts as untrusted and requires fresh reads.
+
+## Game identity, checkpoints and lifecycle
+
+`createFpsRunConsumer` allocates a lowercase UUID v4 at a new run, stores a local
+checkpoint on mount and retains it across pause/reload/retry. Restart creates a
+new UUID and session. Each local record is under
+`memba:barricade:fps:local:v1:<uuid>`; `memba:barricade:fps:active:v1` is only the
+resume pointer. These are game checkpoints, not a duplicate of A's publication
+storage. Completed older records remain available; automatic pruning/history UI
+is not implemented.
+
+Checkpoint accepted journals about once per simulated second and at safe pause
+or terminal boundaries. A pointer action can occur at the current tick before
+`advance`: that pending tail is not misrepresented as a completed tick. Until
+advance consumes it, keep the preceding consistent checkpoint. Abrupt close can
+therefore lose the latest uncheckpointed fraction of play; no extra simulation
+tick is invented. A valid recovered nonterminal run resumes **paused**, with aim
+reset to centre. Complete recovered runs remain complete under the same UUID.
+Malformed stored input is not trusted: recovery validates accepted actions and
+falls back to a new local run if invalid.
+
+On terminal notification, the consumer captures the real session journal,
+replays it strictly, freezes primitive input before awaiting commitments, then
+calls the injected A snapshot/session factory. A's constructor persists the
+snapshot before the result panel is made available. UUID/terminal journal stay
+unchanged on retry. No verify, quote, publish or refresh is automatic.
+
+Storage or preparation failure preserves the in-memory final score and export,
+shows a retry action and does not erase the run. Exports retain the original
+replay fields plus `clientRunId`. If storage is unavailable, the user must retain
+the window or export; durable recovery cannot be promised. Closing/restarting
+pauses/clears input, unsubscribes and disposes A's handle. A generation guard
+disposes handles arriving late after closure or replacement, including React
+effect detach/remount. A remains responsible for aborting its own in-flight I/O.
+
+`consumer.test.ts` produces a **new live winning run** through normal session
+commands, interspersed with full-magazine reloads, same-tick fire and duplicate
+repair/continue attempts. Its real accepted journal is compared to the terminal
+codec/state and the injected snapshot. This tests the assembly beyond fixtures.
+Directions are copied on admission and export; JavaScript signed zero becomes
+integer zero, preserving simulation semantics and the canonical wire contract.
+
+## Codec for A's bounded Node worker and Go envelope
 
 - Game `barricade`, rules `barricade-fps-c1`, simVersion `3` (C1 engine unchanged).
 - Codec `barricade-fps-inputs-v1`.
@@ -67,9 +119,9 @@ values or implicit object field order enter the commitment. This is a new
 16-hex FNV digest. A computes runID and payloadHash using its existing contract;
 there are no replacements here. No registry activation is included.
 
-## Porting traps and fixtures
+## Worker/envelope conformance and fixtures
 
-`sim/fps/{types,engine,collision,replay}.ts` are untouched from C1. Go must preserve
+`sim/fps/{types,engine,collision,replay}.ts` are untouched from C1. The worker must execute that exact engine; envelope/commitment code must preserve
 unsigned uint32 FNV/xorshift arithmetic, fallback nonzero RNG, truncation toward
 zero in millimetre interpolation, the exact integer shield window and rational
 slab comparisons (cross products), nearest intersection and smaller enemy ID on
@@ -93,5 +145,5 @@ validation. To deliberately regenerate vectors after an approved codec change:
 UPDATE_FPS_FIXTURES=1 node node_modules/vitest/vitest.mjs run src/games/barricade/fps/freeplay/terminal.test.ts --maxWorkers=1 --no-file-parallelism
 ```
 
-Normal tests never regenerate them. A's Go conformance against these fixtures is
+Normal tests never regenerate them. A's Node-worker dispatch and Go-envelope conformance against these fixtures are
 still required. No end-to-end publication or receipt is claimed.

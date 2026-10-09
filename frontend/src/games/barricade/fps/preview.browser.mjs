@@ -40,9 +40,9 @@ const bundle = await build({
     bundle: true, write: false, outdir: '/bundle', entryNames: 'preview', chunkNames: '[name]-[hash]', format: 'esm', splitting: true, jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"', 'import.meta.env': '{}', '__APP_VERSION__': '"C1-browser-fixture"' },
     plugins: [{ name: 'fixture-session-clock', setup(b) {
-        b.onLoad({ filter: /\/fps\/FpsPreview\.tsx$/ }, async ({ path }) => {
+        b.onLoad({ filter: /\/fps\/freeplay\/consumer\.ts$/ }, async ({ path }) => {
             const source = await readFile(path, 'utf8')
-            return { loader: 'tsx', contents: source.replace("import { createSession } from './session'", "import { createSession as actualCreateSession } from './session'\nconst createSession = (seed: string) => { const session = actualCreateSession(seed); window.__session = session; return session }") }
+            return { loader: 'ts', contents: source.replace("import { createSession, type Session } from '../session'", "import { createSession as actualCreateSession, type Session } from '../session'\nconst createSession = (...args: Parameters<typeof actualCreateSession>) => { const session = actualCreateSession(...args); window.__session = session; return session }") }
         })
         b.onLoad({ filter: /\/fps\/FpsScene\.tsx$/ }, async ({ path }) => {
             const source = await readFile(path, 'utf8')
@@ -82,6 +82,7 @@ async function capture(name) { await frame(); const path = `${output}/${name}.pn
 async function open(manual = true) {
     const start = performance.now()
     await page.goto(`${base}/${manual ? '?manual=1' : ''}`)
+    await page.evaluate(() => localStorage.clear()); await page.reload()
     await page.locator('#load-preview').waitFor()
     const before = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name))
     assert(!before.some(url => /\/Fps(?:Preview|Scene)-/.test(url)), 'FPS module loaded before explicit preview request')

@@ -47,7 +47,7 @@ export function canonicalFpsReplay(log: Replay): string {
 }
 
 /** Certification accepts only actions the engine accepted and a complete terminal run. */
-export function verifyFpsTerminal(log: Replay): { state: State; encoded: string; canonicalState: string } {
+export function verifyFpsTranscript(log: Replay, requireTerminal = true): { state: State; encoded: string; canonicalState: string } {
     const encoded = canonicalFpsReplay(log)
     // Detach from the caller before replaying, including nested direction objects.
     const captured = decodeFpsReplay(log.seed, encoded)
@@ -61,6 +61,8 @@ export function verifyFpsTerminal(log: Replay): { state: State; encoded: string;
         state = tick(state)
     }
     if (cursor !== captured.events.length || state.tick !== captured.finalTick) throw new Error('trailing_fps_input')
-    if (!terminal(state)) throw new Error('fps_not_terminal')
+    if (requireTerminal && !terminal(state)) throw new Error('fps_not_terminal')
     return { state, encoded, canonicalState: canonicalState(state) }
 }
+
+export const verifyFpsTerminal = (log: Replay) => verifyFpsTranscript(log, true)

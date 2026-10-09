@@ -50,6 +50,14 @@ describe('FPS live session', () => {
         expect(s.read().effects).toHaveLength(24)
         expect(localStateDigest(replay(s.log()))).toBe(localStateDigest(s.read().state))
     })
+    it('normalizes signed zero at the accepted journal boundary without changing aim or hit semantics', () => {
+        const s = run([1]); s.command({ type: 'fire', direction: { x: -0, y: -0, z: -10000 } }); s.advance(1)
+        const event = s.log().events[0]
+        expect(event.type).toBe('fire')
+        if (event.type === 'fire') { expect(Object.is(event.direction.x, -0)).toBe(false); expect(Object.is(event.direction.y, -0)).toBe(false) }
+        expect(Object.is(aimDirection(-.00001, -.00001).x, -0)).toBe(false)
+        expect(localStateDigest(replay(s.log()))).toBe(localStateDigest(s.read().state))
+    })
     it('finishes unattended games with exact local state verification', () => {
         const s = run([1])
         while (s.getSnapshot().status === 'playing') s.advance(15)
