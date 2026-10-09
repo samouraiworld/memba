@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Free play runtime preparation (#1597, 2026-10-09)
+- Prepare studio-paid Free play publication with bounded request quotas and shutdown that waits for active handlers. Free play remains disabled.
+- Document database migration and recovery prerequisites; deployment, migration and publication require separate approval.
+
 ### Free play budget preparation (#1595, 2026-10-09)
 - Prepare dormant studio-paid quotes and durable daily budgets without activating Free play. Migration043 depends on042 and applies automatically at backend startup even while the feature is disabled; its rollout requires a separate database migration approval.
 ### Free play chain transport preparation (#1594, 2026-10-09)
