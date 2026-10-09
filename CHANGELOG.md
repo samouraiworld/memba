@@ -44,6 +44,9 @@ Full changelogs are split by version range for easier navigation:
 ### Arcade window launch host (2026-10-09)
 - Open rich Arcade and Store views maximised on first creation, retaining user geometry when restoring existing windows.
 - Deliver transient Free play commands to Space Invaders and a separate return-to-Arcade action that keeps local game windows mounted; preserve Connect 4 and external game links.
+### Arcade per-game boards and local result history (2026-10-09)
+- Prepare separate Free play scoreboards with anchoring details for Block Party, Space Invaders and BARRICADE, using the shared public reader.
+- Add injected local result history with bounded pagination and recovery by saved run ID. Saved scores and receipts remain explicitly unverified until explicitly rechecked. An opt-in workspace runtime shares game clients and opens saved results locally without launching another game; activation remains off by default. Confirm local recovery before connecting, and offer a canonical result export when storage fails, including when connection is unavailable.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.

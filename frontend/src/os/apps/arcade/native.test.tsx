@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { curatedReviewName, GAME_REVIEW_SUBJECTS } from "../../../lib/reviewSubjects"
 import ArcadeWindow from "./native"
 import { CommunityGames } from "./community"
+import { FreePlayRuntimeProvider } from "../../../games/arcade/freeplay/FreePlayRuntimeProvider"
+import type { FreePlayRuntime } from "../../../games/arcade/freeplay/FreePlayRuntimeContext"
+import { createFreePlaySnapshot, saveFreePlaySnapshot } from "../../../games/arcade/freeplay/snapshot"
+import type { FreePlayInput } from "../../../lib/arcadeFreePlay"
+import vectors from "../../../games/arcade/freeplay/vectors.json"
 
 const flags = vi.hoisted(() => ({ block: true, space: false, barricade: true, connect4: true }))
 const summaries = vi.hoisted(() => ({ map: new Map<string, unknown>() }))
@@ -56,9 +61,9 @@ describe("Arcade lobby", () => {
 
     it("lists only games with enough ratings under Top rated, best first", () => {
         summaries.map = new Map([
-            [GAME_REVIEW_SUBJECTS.barricade, { count: 3, sum: 12, average: 4 }],
-            [GAME_REVIEW_SUBJECTS["block-party"], { count: 5, sum: 24, average: 4.8 }],
-            [GAME_REVIEW_SUBJECTS["space-invaders"], { count: 2, sum: 10, average: 5 }],
+            [GAME_REVIEW_SUBJECTS.barricade!, { count: 3, sum: 12, average: 4 }],
+            [GAME_REVIEW_SUBJECTS["block-party"]!, { count: 5, sum: 24, average: 4.8 }],
+            [GAME_REVIEW_SUBJECTS["space-invaders"]!, { count: 2, sum: 10, average: 5 }],
         ])
         wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
         expect(screen.getByRole("heading", { name: "Top rated by the community" })).toBeInTheDocument()
@@ -71,6 +76,45 @@ describe("Arcade lobby", () => {
     it("has no Top rated shelf while nothing is rated", () => {
         wrap(<ArcadeWindow {...base} section={null} open={vi.fn()} />)
         expect(screen.queryByRole("heading", { name: "Top rated by the community" })).not.toBeInTheDocument()
+    })
+
+    it("shows injected local history without offering a new launch", () => {
+        const open = vi.fn(), recover = vi.fn()
+        wrap(<ArcadeWindow {...base} section="runs" open={open} savedRuns={{ storage: { getItem: () => null, setItem: vi.fn() }, onOpenSavedRun: recover }} />)
+        expect(screen.getByText("No saved Free play results for this game yet.")).toBeVisible()
+        expect(screen.queryByRole("button", { name: /^Play / })).not.toBeInTheDocument()
+        expect(open).not.toHaveBeenCalled()
+        expect(recover).not.toHaveBeenCalled()
+    })
+
+    it("keeps saved recovery in Arcade and closes it across runtime A → null → A", () => {
+        const data = new Map<string, string>()
+        const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value) } }
+        const input = { ...vectors.runs[0].input, claimedScore: vectors.runs[0].score } as FreePlayInput
+        saveFreePlaySnapshot(storage, createFreePlaySnapshot(input))
+        const runtime: FreePlayRuntime = { games: { "block-party": { storage, rules: input.rules, simVersion: input.simVersion } } }
+        const open = vi.fn(), push = vi.fn(), client = new QueryClient()
+        const at = (value: FreePlayRuntime | null) => <QueryClientProvider client={client}><FreePlayRuntimeProvider value={value}><ArcadeWindow {...base} section="runs" open={open} push={push} /></FreePlayRuntimeProvider></QueryClientProvider>
+        const view = render(at(runtime))
+        fireEvent.click(screen.getByRole("button", { name: /^Open saved Block Party/ }))
+        expect(screen.getByRole("region", { name: "Saved Free play result" })).toBeVisible()
+        expect(open).not.toHaveBeenCalled()
+        expect(push).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", { name: "Back to saved results" }))
+        expect(screen.getByRole("button", { name: /^Open saved Block Party/ })).toBeVisible()
+        fireEvent.click(screen.getByRole("button", { name: /^Open saved Block Party/ }))
+        view.rerender(at(null))
+        view.rerender(at(runtime))
+        expect(screen.queryByRole("region", { name: "Saved Free play result" })).not.toBeInTheDocument()
+        expect(open).not.toHaveBeenCalled()
+        expect(push).not.toHaveBeenCalled()
+    })
+
+    it("honors explicit null history even when a provider is available", () => {
+        const storage = { getItem: () => null, setItem: vi.fn() }
+        wrap(<FreePlayRuntimeProvider value={{ games: { "block-party": { storage, rules: "r1", simVersion: 1 } } }}><ArcadeWindow {...base} section="runs" open={vi.fn()} savedRuns={null} /></FreePlayRuntimeProvider>)
+        expect(screen.queryByText("No saved Free play results for this game yet.")).not.toBeInTheDocument()
+        expect(screen.getByRole("status")).toHaveTextContent("not a certified Arcade record")
     })
 
     it("states the limits of runs and the daily board", () => {
