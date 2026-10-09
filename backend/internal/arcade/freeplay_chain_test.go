@@ -332,6 +332,7 @@ func TestFreePlayRPCBoundsResponseRedirectAndDeadline(t *testing.T) {
 			secondHits := atomic.Int64{}
 			second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { secondHits.Add(1); w.WriteHeader(500) }))
 			defer second.Close()
+			release := make(chan struct{})
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch kind {
 				case "oversize":
@@ -339,7 +340,10 @@ func TestFreePlayRPCBoundsResponseRedirectAndDeadline(t *testing.T) {
 				case "redirect":
 					http.Redirect(w, r, second.URL, 302)
 				case "deadline":
-					<-r.Context().Done()
+					select {
+					case <-r.Context().Done():
+					case <-release:
+					}
 				case "trailing":
 					_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}} {}`))
 				case "rpc-error":
@@ -347,6 +351,7 @@ func TestFreePlayRPCBoundsResponseRedirectAndDeadline(t *testing.T) {
 				}
 			}))
 			defer server.Close()
+			defer close(release) // unblock this fixture before httptest waits for handlers
 			c := f.chainClient(t, fpNoBroadcast, freePlayCostCheckFunc(fpAllowCost))
 			c.cfg.RPCURL = server.URL
 			c.cfg.Timeout = 30 * time.Millisecond
