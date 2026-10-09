@@ -23,10 +23,10 @@ describe("Arcade editorial links", () => {
         expect(container.querySelector("iframe")).toBeNull()
     })
 
-    it("reuses Akkadia artwork and leaves Gnogolf as text without fetching unverified artwork", () => {
+    it("reuses Akkadia artwork and shows the local Gnogolf homepage capture", () => {
         render(<CommunityGames />)
         const akkadia = screen.getByRole("link", { name: /Visit Akkadia/ })
         expect(akkadia.querySelector("img")).toHaveAttribute("src", "/store/akkadia/cover.webp")
-        expect(screen.getByRole("link", { name: /Visit Gnogolf/ }).querySelector("img")).toBeNull()
+        expect(screen.getByRole("link", { name: /Visit Gnogolf/ }).querySelector("img")).toHaveAttribute("src", "/store/gnogolf/cover.jpg")
     })
 })

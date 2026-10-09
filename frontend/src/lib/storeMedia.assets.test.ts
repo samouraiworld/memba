@@ -21,7 +21,7 @@ function webpChunks(file: Buffer): string[] {
 }
 
 describe("storefront media", () => {
-    // Only Gnogolf awaits artwork permission; existing assets keep the full contract.
+    // Gnogolf uses one requested homepage capture; other curated galleries keep their full contract.
     it.each([...GAMES, ...APPS.filter(key => key !== "gnogolf")])("%s has a logo, a cover, an accent and screenshots", (key) => {
         const media = STORE_MEDIA[key]
         expect(media, key).toBeDefined()
@@ -33,9 +33,9 @@ describe("storefront media", () => {
         if (APPS.includes(key)) expect(media.sources.length, `${key} records where its assets came from`).toBeGreaterThan(0)
     })
 
-    it("uses a text fallback for Gnogolf until artwork rights are established", () => {
-        expect(STORE_MEDIA.gnogolf).toEqual({ screenshots: [], accent: "#276749", sources: [] })
-        expect(resolveMedia("gnogolf", null, "gnogolf")).toEqual({ logo: null, cover: null, screenshots: [], accent: "#276749" })
+    it("uses a local Gnogolf homepage capture with its official source recorded", () => {
+        expect(STORE_MEDIA.gnogolf.sources).toEqual([{ url: "https://gnogolf.xyz/", retrieved: "2026-10-09" }])
+        expect(resolveMedia("gnogolf", null, "gnogolf")).toEqual({ logo: null, cover: "/store/gnogolf/cover.jpg", screenshots: ["/store/gnogolf/shot-1.jpg"], accent: "#276749" })
     })
 
     it("every file exists, stays within its size budget, and carries no metadata", () => {

@@ -21,7 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### External games in Arcade (2026-10-09)
-- Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Existing project identities and reviews are preserved.
+- Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
 
 ### Live Radio playback recovery (#1575, 2026-10-09)
 - Play live Audius and Jamendo tracks even when Onyx omits them from the station schedule, using the station's current track instead of incorrectly reporting that nothing is on air.
