@@ -64,4 +64,18 @@ describe('public comments', () => {
     onReply.mock.calls[0][0].body = 'Mutated'
     expect(screen.getByText('Comment 1')).toBeVisible()
   })
+  it('preserves encrypted controls by default but lets a public-only caller hide them', async () => {
+    const encrypted = { ...row(), encrypted: true, anchor_blob: '', body_blob: encode64(new Uint8Array(59)) }
+    const props = { client: { commentsRaw: vi.fn(async () => page([encrypted])) }, noteId, epoch: '0', bodyRevision: '1', viewer: owner,
+      canHide: true, canResolve: true, onDelete: vi.fn(), onHide: vi.fn(), onResolve: vi.fn() }
+    const view = render(<PublicComments {...props} />)
+    expect(await screen.findByRole('button', { name: 'Delete comment' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Resolve thread' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Hide comment' })).toBeVisible()
+    view.rerender(<PublicComments {...props} allowEncryptedActions={false} />)
+    expect(screen.getByText('Encrypted comment')).toBeVisible()
+    for (const name of ['Delete comment', 'Resolve thread', 'Hide comment']) expect(screen.queryByRole('button', { name })).toBeNull()
+    expect(props.onDelete).not.toHaveBeenCalled(); expect(props.onHide).not.toHaveBeenCalled(); expect(props.onResolve).not.toHaveBeenCalled()
+  })
+
 })

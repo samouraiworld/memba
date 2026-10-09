@@ -9,13 +9,14 @@
  * @module os/apps
  */
 import type { ChainFamily } from "../lib/chain/types"
+import { NOTES_ENABLED } from "../lib/notes/config"
 
 /** When an app gets its native window layout. Until then its routes open as pages in a window. */
 export type AppTier = "mvp" | "v1.1" | "v1.2" | "v1.3"
 
 export type OsAppId =
     | "radio" | "daos" | "wallet" | "multisig" | "feed" | "live" | "store" | "arcade" | "validators" | "settings"
-    | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal" | "learn" | "meet"
+    | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal" | "learn" | "meet" | "notes"
 
 export interface OsApp {
     id: OsAppId
@@ -33,7 +34,7 @@ export interface OsApp {
     chains?: readonly ChainFamily[]
 }
 
-export const OS_APPS: readonly OsApp[] = [
+export const REGISTERED_OS_APPS: readonly OsApp[] = [
     { id: "radio", name: "Radio", slug: "radio", summary: "Listen to Gno Radio live on Onyx", tier: "mvp", tint: ["#627EF8", "#4249B8"], dock: false, routes: [] },
     { id: "daos", name: "DAOs", slug: "daos", summary: "Browse, create and govern DAOs", tier: "mvp", tint: ["#5B7CFA", "#3D5BE0"], dock: true,
       routes: ["dao", "dao/create", "dao/*", "organizations", "candidature"] },
@@ -77,7 +78,10 @@ export const OS_APPS: readonly OsApp[] = [
       routes: [] },
     { id: "meet", name: "Meet", slug: "meet", summary: "Start or join a video meeting", tier: "v1.3", tint: ["#3684C7", "#17496C"], dock: false,
       routes: [], chains: ["gno", "evm"] },
+    { id: "notes", name: "Notes", slug: "notes", summary: "Read public notes and discuss them", tier: "v1.3", tint: ["#D7B85F", "#A17D2E"], dock: false, routes: [] },
 ] as const
+
+export const OS_APPS: readonly OsApp[] = REGISTERED_OS_APPS.filter(app => app.id !== "notes" || NOTES_ENABLED)
 
 /** Routes that aren't an app: the desktop itself, redirects, callbacks and retired previews. */
 export const OS_SYSTEM_ROUTES: readonly { route: string; handling: string }[] = [
@@ -91,7 +95,7 @@ export const OS_SYSTEM_ROUTES: readonly { route: string; handling: string }[] = 
     { route: "*", handling: "A not-found window that offers search" },
 ]
 
-const BY_ID = new Map(OS_APPS.map((app) => [app.id, app]))
+const BY_ID = new Map(REGISTERED_OS_APPS.map((app) => [app.id, app]))
 
 export function getApp(id: OsAppId): OsApp {
     const app = BY_ID.get(id)

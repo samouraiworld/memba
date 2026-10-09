@@ -7,6 +7,8 @@ export interface PublicCommentsProps {
   client: CommentsClient; noteId: string; epoch: string; bodyRevision: string; viewer?: string | null
   previewRoot?: HTMLElement | null
   canResolve?: boolean; canHide?: boolean
+  /** Existing full controls remain enabled unless a public-only consumer opts out. */
+  allowEncryptedActions?: boolean
   onReply?(comment: PublicComment): void; onDelete?(comment: PublicComment): void
   onResolve?(comment: PublicComment, resolved: boolean): void; onHide?(comment: PublicComment, hidden: boolean): void
 }
@@ -60,9 +62,9 @@ export function PublicComments(props: PublicCommentsProps) {
         </>}
         {viewer && <footer>
           {!comment.deleted && !comment.hidden && !comment.encrypted && props.onReply && <button className="os-btn os-quiet" onClick={() => props.onReply?.(copy(comment))}>Reply</button>}
-          {!comment.deleted && viewer === comment.author && props.onDelete && <button className="os-btn os-quiet" onClick={() => props.onDelete?.(copy(comment))}>Delete comment</button>}
-          {props.canResolve && props.onResolve && <button className="os-btn os-quiet" onClick={() => props.onResolve?.(copy(comment), !comment.resolved)}>{comment.resolved ? 'Reopen thread' : 'Resolve thread'}</button>}
-          {props.canHide && props.onHide && <button className="os-btn os-quiet" onClick={() => props.onHide?.(copy(comment), !comment.hidden)}>{comment.hidden ? 'Unhide comment' : 'Hide comment'}</button>}
+          {(!comment.encrypted || props.allowEncryptedActions !== false) && !comment.deleted && viewer === comment.author && props.onDelete && <button className="os-btn os-quiet" onClick={() => props.onDelete?.(copy(comment))}>Delete comment</button>}
+          {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canResolve && props.onResolve && <button className="os-btn os-quiet" onClick={() => props.onResolve?.(copy(comment), !comment.resolved)}>{comment.resolved ? 'Reopen thread' : 'Resolve thread'}</button>}
+          {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canHide && props.onHide && <button className="os-btn os-quiet" onClick={() => props.onHide?.(copy(comment), !comment.hidden)}>{comment.hidden ? 'Unhide comment' : 'Hide comment'}</button>}
         </footer>}
       </article>
     </li>)}</ol>
