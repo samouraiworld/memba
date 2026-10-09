@@ -30,6 +30,14 @@ Full changelogs are split by version range for easier navigation:
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
+### Free play runtime preparation (#1597, 2026-10-09)
+- Prepare studio-paid Free play publication with bounded request quotas and shutdown that waits for active handlers. Free play remains disabled.
+- Document database migration and recovery prerequisites; deployment, migration and publication require separate approval.
+
+### Free play budget preparation (#1595, 2026-10-09)
+- Prepare dormant studio-paid quotes and durable daily budgets without activating Free play. Migration043 depends on042 and applies automatically at backend startup even while the feature is disabled; its rollout requires a separate database migration approval.
+### Free play chain transport preparation (#1594, 2026-10-09)
+- Prepare bounded reads of saved scores and per-game leaderboards, plus score submission guarded by an explicit studio quote and spending limits. The transport remains dormant; this change does not enable publication or deploy a realm.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
@@ -110,6 +118,7 @@ Full changelogs are split by version range for easier navigation:
 ### The Arcade as a storefront (2026-10-08)
 - Block Party: merged numbers no longer show through translucent tiles after a fusion, including with reduced motion (#1579, 2026-10-09).
 - Prepare optional onchain publication for completed Block Party Practice scores, with local recovery that preserves the current board.
+- Prepare optional Free play score verification, immutable receipts and durable publication recovery. The service stays disabled pending migration and activation review (#1583, 2026-10-09).
 - Barricade: add an opt-in, unranked fixed-position FPS prototype with deterministic local replays; Classic remains the default.
 - Barricade FPS preview: prepare an original street and articulated silhouettes with instanced rendering, clearer impact/reload feedback, and an injected terminal result consumer with resumable run identities for future voluntary anchoring.
 - Completed FPS results use the shared recovery check before optional wallet connection; failed local storage offers an export without claiming the result is saved.
