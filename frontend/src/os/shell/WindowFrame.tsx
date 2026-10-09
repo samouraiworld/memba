@@ -327,7 +327,7 @@ export function WindowFrame({ win, active, parked = false, desk, frame, ...a }: 
                     <button type="button" className="os-light-min" aria-label={`Minimise ${win.title}`} onClick={() => frame.minimise(win.id)}><span aria-hidden="true">–</span></button>
                     <button type="button" className="os-light-max" aria-label={`${win.max ? "Restore" : "Maximise"} ${win.title}`} aria-pressed={win.max} onClick={() => frame.toggleMax(win.id)}><span aria-hidden="true">+</span></button>
                 </span>
-                {isArcadePlayWindow(win) && a.returnToArcade && <button type="button" className="os-btn os-quiet" onClick={a.returnToArcade}>← Arcade</button>}
+                {isArcadePlayWindow(win) && a.returnToArcade && <button type="button" className="os-btn os-quiet os-tb-return" onClick={a.returnToArcade}>← Arcade</button>}
                 <h2 className="os-tb-title" tabIndex={0} aria-label={`${win.title}. Arrow keys move window; Shift plus arrow keys resize window.`} onKeyDown={onTitleKey}>{win.title}</h2>
             </div>
             <div className="os-wbody"><WindowBody win={win} {...a} active={active} retarget={(spec) => frame.retarget(win.id, spec)} close={() => frame.close(win.id)} /></div>

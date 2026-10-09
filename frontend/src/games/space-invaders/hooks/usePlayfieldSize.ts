@@ -5,6 +5,20 @@ export function fitPlayfield(width: number, height: number) {
   return { width: 320 * scale, height: 400 * scale };
 }
 
+/** A flex item is bounded only when its growing flex chain reaches a
+ * positioned host. A normal-flow column with min-height is content-sized;
+ * treating its measured height as a limit feeds our own height back into it. */
+function hasBoundedFlexHeight(element: HTMLElement): boolean {
+  for (let item: HTMLElement | null = element; item?.parentElement; item = item.parentElement) {
+    const parent: HTMLElement = item.parentElement;
+    const itemStyle = getComputedStyle(item);
+    const parentStyle = getComputedStyle(parent);
+    if (Number(itemStyle.flexGrow) <= 0 || !/^(inline-)?flex$/.test(parentStyle.display)) return false;
+    if (parentStyle.position === "absolute" || parentStyle.position === "fixed") return true;
+  }
+  return false;
+}
+
 /** Fit inside the actual host and visual viewport, including classic routes.
  * The host may provide --si-host-height once the OS adapter owns its layout.
  * No page-wide scroll lock or shell mutation is needed. */
@@ -27,9 +41,7 @@ export function usePlayfieldSize(root: RefObject<HTMLElement | null>, slot: RefO
         // Only independently bounded hosts constrain us. A shrink-wrapped
         // overflow:hidden ancestor would otherwise shrink by 4px on every
         // observer delivery as our own height changes.
-        const parentDisplay = p.parentElement ? getComputedStyle(p.parentElement).display : "";
-        const flexItem = Number(css.flexGrow) > 0 && /^(inline-)?flex$/.test(parentDisplay);
-        const bounded = flexItem || css.position === "absolute" || css.position === "fixed";
+        const bounded = css.position === "absolute" || css.position === "fixed" || hasBoundedFlexHeight(p);
         if (!bounded || !/(auto|scroll|hidden|clip)/.test(css.overflowY)) continue;
         const box = p.getBoundingClientRect();
         if (box.height > 0) bottom = Math.min(bottom, box.bottom - (parseFloat(css.paddingBottom) || 0) - (parseFloat(css.borderBottomWidth) || 0));

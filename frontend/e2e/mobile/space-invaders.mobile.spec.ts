@@ -177,7 +177,13 @@ for (const [width, height] of [[390, 844], [844, 390]]) {
     await expect(result.getByRole('heading', { name: /game over/i })).toBeVisible({ timeout: 45000 })
     await expect(result).toContainText('Free play · Replay checked on this device')
     const score = await page.getByTestId('si-final-score').textContent()
+    const canvas = await page.locator('.si-canvas').elementHandle()
+    expect(canvas).not.toBeNull()
     await page.setViewportSize({ width, height })
+    // Rotation must preserve the real engine, before checking its result layout.
+    expect(await canvas!.evaluate(node => node.isConnected)).toBe(true)
+    await expect(result.getByRole('heading', { name: /game over/i })).toBeVisible()
+    await expect(page.getByTestId('si-final-score')).toHaveText(score!)
     await testInfo.attach(`result-${width}x${height}`, { body: await page.screenshot(), contentType: 'image/png' })
     for (const name of [/play again/i, /share result/i, /^menu$/i]) {
       const control = result.getByRole('button', { name })

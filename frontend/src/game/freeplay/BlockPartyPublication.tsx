@@ -50,7 +50,7 @@ export function BlockPartySavedRuns({ storage, client, connect, onOpen }: { stor
         catch { setError(true) }
     }
     return <section aria-label="Saved Block Party results">
-        <button type="button" onClick={() => load()}>Show saved Block Party results</button>
+        <button className="k-bp-btn" type="button" onClick={() => load()}>Show saved Block Party results</button>
         {error && <p role="alert">Saved results could not be read. Your exported copies can still be kept.</p>}
         {page && <>
             {page.total === 0 && <p>No saved Block Party results yet.</p>}

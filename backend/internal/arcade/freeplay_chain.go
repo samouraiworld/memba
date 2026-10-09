@@ -56,7 +56,7 @@ type FreePlayRPCChain struct {
 // signer or cost guard cannot write even when Enabled is true.
 func NewFreePlayRPCChain(cfg FreePlayChainConfig, client *http.Client, broadcast FreePlayBroadcastFunc, cost FreePlayBroadcastCostCheck) (*FreePlayRPCChain, error) {
 	u, err := url.Parse(cfg.RPCURL)
-	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "127.0.0.1" || u.Hostname() == "localhost" || u.Hostname() == "::1"))) || cfg.Target.Validate() != nil || cfg.Timeout <= 0 || cfg.Timeout > 45*time.Second {
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && (u.Scheme != "http" || (u.Hostname() != "127.0.0.1" && u.Hostname() != "localhost" && u.Hostname() != "::1"))) || cfg.Target.Validate() != nil || cfg.Timeout <= 0 || cfg.Timeout > 45*time.Second {
 		return nil, ErrFreePlayChain
 	}
 	if cfg.Enabled && (!freePlayGnoAddress(cfg.Signer) || cfg.GasWanted <= 0 || cfg.MaxFeeUgnot <= 0 || cfg.MaxDepositUgnot <= 0 || broadcast == nil || cost == nil) {
@@ -216,7 +216,7 @@ func (c *FreePlayRPCChain) receipt(raw []byte, height int64) (FreePlayReceipt, e
 			return FreePlayReceipt{}, ErrFreePlayReceipt
 		}
 	}
-	if decodeFreePlayJSON(raw, &flat, true) != nil || flat.SchemaVersion != 2 || flat.ChainID != c.cfg.Target.ChainID || flat.Realm != c.cfg.Target.Realm || flat.Mode != "free" || flat.Height <= 0 || flat.Height > height || !freePlayGnoAddress(flat.Attester) || flat.FreePlayEntry.Validate() != nil {
+	if decodeFreePlayJSON(raw, &flat, true) != nil || flat.SchemaVersion != 2 || flat.ChainID != c.cfg.Target.ChainID || flat.Realm != c.cfg.Target.Realm || flat.Mode != "free" || flat.Height <= 0 || flat.Height > height || !freePlayGnoAddress(flat.Attester) || flat.Validate() != nil {
 		return FreePlayReceipt{}, ErrFreePlayReceipt
 	}
 	// Historical attesters may have been revoked since inclusion. The realm is

@@ -135,7 +135,7 @@ func TestArcadeFreePlayRuntimeRealAuthAndSharedComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	if err = db.Migrate(database); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestArcadeFreePlayRuntimeRealAuthAndSharedComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer parent.Close()
+	defer func() { _ = parent.Close() }()
 	var reads atomic.Int64
 	cfg.Publish = true
 	deps := arcadeFreePlayDependencies{Broadcast: func(context.Context, []string) (string, error) {
@@ -264,7 +264,7 @@ func TestArcadeFreePlayRuntimeDrainFailureKeepsBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer parent.Close()
+	defer func() { _ = parent.Close() }()
 	bundles, err := filepath.Glob(filepath.Join(root, "memba-arcade-worker-*", "verify-worker.cjs"))
 	if err != nil || len(bundles) != 1 {
 		t.Fatalf("bundle fixture: %v %v", bundles, err)
@@ -317,7 +317,7 @@ func TestArcadeFreePlayRuntimePublicationCycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			if err = db.Migrate(database); err != nil {
 				t.Fatal(err)
 			}
@@ -418,7 +418,7 @@ func TestArcadeFreePlayRuntimePublicationCycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer parent.Close()
+			defer func() { _ = parent.Close() }()
 			checkSpending := func(want int) {
 				t.Helper()
 				var count, fee, deposit int

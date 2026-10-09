@@ -338,7 +338,7 @@ func TestFreePlayRPCBoundsResponseRedirectAndDeadline(t *testing.T) {
 				case "oversize":
 					_, _ = w.Write([]byte(strings.Repeat("x", freePlayRPCBodyLimit+1)))
 				case "redirect":
-					http.Redirect(w, r, second.URL, 302)
+					http.Redirect(w, r, second.URL, http.StatusFound)
 				case "deadline":
 					select {
 					case <-r.Context().Done():

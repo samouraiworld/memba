@@ -192,7 +192,7 @@ func TestFreePlayBudgetTwoIndependentConnectionsCannotOverspend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer first.Close()
+	defer func() { _ = first.Close() }()
 	if err = membadb.Migrate(first); err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestFreePlayBudgetTwoIndependentConnectionsCannotOverspend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer second.Close()
+	defer func() { _ = second.Close() }()
 	first.SetMaxOpenConns(1)
 	second.SetMaxOpenConns(1)
 	run := freeFixture(t)
@@ -259,7 +259,7 @@ func TestFreePlayBudgetRechecksClockAfterSQLiteWriterWait(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer first.Close()
+			defer func() { _ = first.Close() }()
 			if err = membadb.Migrate(first); err != nil {
 				t.Fatal(err)
 			}
@@ -267,7 +267,7 @@ func TestFreePlayBudgetRechecksClockAfterSQLiteWriterWait(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer second.Close()
+			defer func() { _ = second.Close() }()
 			first.SetMaxOpenConns(1)
 			second.SetMaxOpenConns(1)
 			initial := time.Date(2026, 1, 2, 23, 59, 59, 0, time.UTC)
@@ -294,7 +294,7 @@ func TestFreePlayBudgetRechecksClockAfterSQLiteWriterWait(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer tx.Rollback()
+			defer func() { _ = tx.Rollback() }()
 			if _, err = tx.Exec(`UPDATE arcade_freeplay_runs_v2 SET status=status`); err != nil {
 				t.Fatal(err)
 			}

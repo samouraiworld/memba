@@ -385,6 +385,13 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       - name: Run E2E guardrails (desktop-intact + mobile shell)
         run: npm run test:e2e:guardrails
+      - name: Upload guardrail failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-guardrails
+          path: frontend/test-results/
+          retention-days: 7
 
   workspaces:
     # The pnpm workspaces (packages/gno-rpc, mcp-server) were once never
