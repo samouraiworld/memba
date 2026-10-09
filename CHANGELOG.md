@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Explicit Arcade deployment configuration (2026-10-09)
+- Add a validated operator configuration path and a reviewed public OS manifest for Free play score services. Both remain disabled by default; production publication requires a separate release decision.
+
 ### Arcade integration acceptance fixes (#1598, 2026-10-09)
 - Keep the desktop return-to-Arcade button clear of the window title so pointer clicks reach it.
 - Preserve classic route state across mobile/desktop rotation and prevent the Space Invaders playfield from shrinking against its own content height on narrow screens.
