@@ -46,7 +46,7 @@ const bundle = await build({
         })
         b.onLoad({ filter: /\/fps\/FpsScene\.tsx$/ }, async ({ path }) => {
             const source = await readFile(path, 'utf8')
-            return { loader: 'tsx', contents: source.replace('const { camera, gl, invalidate } = useThree()', 'const { camera, gl, invalidate } = useThree(); window.__renderer = gl').replace('actors.update(state, previous, alpha, reducedMotion)', 'actors.update(window.__stress16 ? { ...state, enemies: Array.from({length:16}, (_,i) => ({...state.enemies[i % state.enemies.length], id:100+i, progress:1000+i*450})) } : state, previous, alpha, reducedMotion)') }
+            return { loader: 'tsx', contents: source.replace('const { camera, gl, invalidate } = useThree()', 'const { camera, gl, invalidate } = useThree(); window.__renderer = gl; window.__camera = camera').replace('actors.update(state, previous, alpha, reducedMotion)', 'actors.update(window.__stress16 ? { ...state, enemies: Array.from({length:16}, (_,i) => ({...state.enemies[i % state.enemies.length], id:100+i, progress:1000+i*450})) } : state, previous, alpha, reducedMotion)') }
         })
         b.onLoad({ filter: /\/hooks\/useGameLoop\.ts$/ }, async ({ path }) => {
             const source = await readFile(path, 'utf8')
@@ -119,7 +119,7 @@ try {
         const frames = []; let last = performance.now()
         for (let i = 0; i < 120; i++) { await new Promise(requestAnimationFrame); const now = performance.now(); frames.push(now-last); last = now }
         frames.sort((a,b)=>a-b)
-        return { renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable', calls: gl.info.render.calls, triangles: gl.info.render.triangles, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, frameMedianMs: frames[60], frameP95Ms: frames[114], fixtureEnemies: window.__session.read().state.enemies.length }
+        return { viewport: {width:innerWidth,height:innerHeight}, camera: {fov:window.__camera.fov, eye:window.__camera.position.toArray(), yaw:window.__session.read().yaw, pitch:window.__session.read().pitch}, renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable', calls: gl.info.render.calls, triangles: gl.info.render.triangles, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, frameMedianMs: frames[60], frameP95Ms: frames[114], fixtureEnemies: window.__session.read().state.enemies.length }
     })
     // Synthetic renderer-only stress: the authoritative session remains at its six real enemies.
     await page.evaluate(() => window.__stress16 = true); await frame()
@@ -287,6 +287,44 @@ try {
     assert.equal(await page.evaluate(() => window.__session.read().state.shots), cancelled)
     results.checks.push('browser two-finger aim/fire; aim release preserves fire; touch cancel stops fire')
     await capture('portrait-touch'); await cdp.detach()
+    // C3 recipe, not executed by source checks: real touch gestures must reach
+    // and damage the nearest natural enemy on each axis at both mobile sizes.
+    results.touchAxes = []
+    for (const [width, height] of [[320, 568], [667, 375]]) {
+        await page.setViewportSize({ width, height }); await open(); await start(); await step(900)
+        const touch = await page.context().newCDPSession(page)
+        await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 })
+        try {
+            for (const axis of [0, 1, 2]) {
+                const target = await page.evaluate(axis => {
+                    const s = window.__session.read(), e = s.state.enemies.filter(e => e.axis === axis).sort((a,b) => b.progress-a.progress)[0]
+                    const p = window.__position(e), z = p.z + (e.kind === 'robot' ? 440 : 0) - 1800
+                    const yaw = Math.atan2(p.x, -z) * 180 / Math.PI, pitch = Math.atan2((e.kind === 'robot' ? 1315 : 1650) - 1650, Math.hypot(p.x,z)) * 180 / Math.PI
+                    return { id:e.id, hp:e.hp, kind:e.kind, dx:(yaw-s.yaw)/.16, dy:-(pitch-s.pitch)/.16 }
+                }, axis)
+                const bounds = await page.locator('.fps-input').boundingBox()
+                // Repeated gestures, with no direct session.aim calls. This also
+                // covers changing from the left axis to the right in portrait.
+                const count = Math.max(1, Math.ceil(Math.abs(target.dx)/(bounds.width-40)), Math.ceil(Math.abs(target.dy)/(bounds.height-40)))
+                for (let i=0;i<count;i++) {
+                    const dx=target.dx/count, dy=target.dy/count
+                    const point={id:1,x:bounds.x+(dx>=0?20:bounds.width-20),y:bounds.y+bounds.height/2}
+                    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]})
+                    await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...point,x:point.x+dx,y:point.y+dy}]})
+                    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]})
+                }
+                await capture(`touch-axis-${width}-${axis}-aimed`)
+                const button=await page.getByRole('button',{name:'Tirer',exact:true}).boundingBox()
+                await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:2,x:button.x+button.width/2,y:button.y+button.height/2}]})
+                await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]})
+                const after=await page.evaluate(id=>({hp:window.__session.read().state.enemies.find(e=>e.id===id)?.hp ?? 0,impact:window.__session.read().impact}),target.id)
+                assert(after.hp<target.hp, `touch ${width} axis ${axis}: enemy not damaged`)
+                results.touchAxes.push({width,height,axis,target,after,gestures:count})
+                await capture(`touch-axis-${width}-${axis}-hit`); await step(10)
+            }
+        } finally { await touch.detach() }
+    }
+    results.checks.push('real touch swipes and fire reach all three axes in portrait320 and landscape667')
     // Real context loss reaches the explicit Classic fallback.
     await page.evaluate(() => window.__renderer.getContext().getExtension('WEBGL_lose_context').loseContext())
     await page.getByRole('heading', { name: 'FPS 3D indisponible' }).waitFor()
