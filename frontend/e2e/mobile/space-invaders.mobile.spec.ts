@@ -60,7 +60,8 @@ test.describe('Space Invaders: Signal Defense mobile cabinet', () => {
 		const surface = page.getByRole('group', { name: /signal defense game surface/i })
 		await expect(surface).toBeFocused()
 		const ready = page.getByRole('heading', { name: /relay standing by/i })
-		await expect(ready).toBeVisible()
+		await expect(ready).toHaveCount(0)
+		await expect(page.locator(".si-phase--playing")).toBeVisible()
 
 		// Deliver a complete synthetic touch in one browser task, so no rAF can
 		// sample a held pointer between down/up. This deterministically exercises
@@ -115,7 +116,7 @@ test.describe('Space Invaders: Signal Defense mobile cabinet', () => {
 		}
 		expect(await page.evaluate(() => document.documentElement.scrollWidth > 668)).toBe(false)
 
-		const stageClip = page.getByRole('group', { name: /signal defense game surface/i })
+		const stageClip = page.locator('.si-playfield')
 		const dailyRun = page.getByRole('button', { name: /daily run/i })
 		const freePlay = page.getByRole('button', { name: /free play/i })
 		await freePlay.scrollIntoViewIfNeeded()
@@ -123,6 +124,74 @@ test.describe('Space Invaders: Signal Defense mobile cabinet', () => {
 		await expectContainedWithin(dailyRun, stageClip, 'daily run overlay action')
 		await expectContainedWithin(freePlay, stageClip, 'free play overlay action')
 		await freePlay.click()
-		await expect(page.getByRole('heading', { name: /relay standing by/i })).toBeVisible()
+		await expect(page.locator('.si-phase--playing')).toContainText('Free play')
 	})
 })
+
+
+for (const [width, height] of [[320, 568], [375, 667], [390, 844], [667, 320], [844, 390]]) {
+  test(`contains the playing arena and HUD at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await page.addInitScript(() => localStorage.setItem('memba.space-invaders.best', '999999'))
+    const network = await resolveNetwork(page)
+    await page.goto(`/${network}/game/space-invaders`)
+    await page.getByRole('button', { name: /free play/i }).click()
+    await expect(page.locator('.si-phase--playing')).toBeVisible()
+    const root = page.locator('.si-root')
+    const canvas = page.locator('.si-canvas')
+    for (const [item, label] of [[canvas, 'arena'], [page.locator('.si-hud'), 'HUD']] as const) {
+      await expectContainedWithin(item, root, label)
+      const box = (await item.boundingBox())!
+      expect(box.y).toBeGreaterThanOrEqual(-1)
+      expect(box.y + box.height).toBeLessThanOrEqual(height + 1)
+    }
+    const nav = page.getByRole('navigation', { name: 'Mobile navigation' })
+    if (await nav.isVisible()) {
+      const navBox = (await nav.boundingBox())!
+      for (const item of [canvas, page.locator('.si-hud')]) {
+        const box = (await item.boundingBox())!
+        expect(box.y + box.height).toBeLessThanOrEqual(navBox.y + 1)
+      }
+    }
+    const arena = (await canvas.boundingBox())!
+    expect(arena.width / arena.height).toBeCloseTo(0.8, 2)
+    expect(await root.evaluate(el => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    expect(await truncatedHudText(page)).toEqual([])
+    for (const name of ['Pause', 'Mute']) {
+      const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+  })
+}
+
+
+for (const [width, height] of [[390, 844], [844, 390]]) {
+  test(`keeps completed results and their controls accessible at ${width}x${height}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height })
+    // Speed up wall time only: the real fixed-step engine and recorder still
+    // produce the terminal run and its independently replay-checked outcome.
+    await page.addInitScript(() => {
+      const raf = window.requestAnimationFrame.bind(window)
+      window.requestAnimationFrame = callback => raf(time => callback(time * 20))
+    })
+    const network = await resolveNetwork(page)
+    await page.goto(`/${network}/game/space-invaders`)
+    await page.getByRole('button', { name: /free play/i }).click()
+    const result = page.locator('.si-gameover')
+    await expect(result.getByRole('heading', { name: /game over/i })).toBeVisible({ timeout: 45000 })
+    await expect(result).toContainText('Free play · Replay checked on this device')
+    const score = await page.getByTestId('si-final-score').textContent()
+    await testInfo.attach(`result-${width}x${height}`, { body: await page.screenshot(), contentType: 'image/png' })
+    for (const name of [/play again/i, /share result/i, /^menu$/i]) {
+      const control = result.getByRole('button', { name })
+      await control.scrollIntoViewIfNeeded()
+      await expectContainedWithin(control, page.locator('.si-playfield'), 'result control')
+    }
+    await result.getByRole('button', { name: /^menu$/i }).click()
+    await page.getByRole('button', { name: /back to result/i }).click()
+    await expect(result.getByRole('heading', { name: /game over/i })).toBeFocused()
+    await expect(page.getByTestId('si-final-score')).toHaveText(score!)
+    await expect(result).toContainText('Replay checked on this device')
+  })
+}

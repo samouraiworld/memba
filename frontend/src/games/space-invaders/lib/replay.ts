@@ -31,12 +31,15 @@ export interface InputRecorder {
   build(finalTick: number): ReplayLog;
 }
 
-export function createInputRecorder(seed: number): InputRecorder {
+export function createInputRecorder(seed: number, maxChanges = Infinity): InputRecorder {
   const inputs: InputDelta[] = [];
   return {
     record(tick, input) {
       const last = inputs[inputs.length - 1];
       if (last && sameInput(last, input)) return;
+      // Retain one overflow marker (caller supplies cap + 1) to make the
+      // finished replay ineligible without growing memory for an endless run.
+      if (inputs.length >= maxChanges) return;
       inputs.push({ tick, move: input.move, fire: input.fire, pause: input.pause });
     },
     build(finalTick) {
