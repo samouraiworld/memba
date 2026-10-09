@@ -238,6 +238,9 @@ Le script importe directement les modules intégrés et prépare deux cas consum
 d’écriture silencieuse (canonical/index) : erreur/export, pas de faux succès,
 UUID conservé. Les interactions DOM Connect/quota-au-clic, guest→member/bureaux,
 A→B et maintien du moteur à owner constant restent pour le slot de composition.
-Au premier échec de guard, l’export ne peut contenir que le snapshot effectivement
-capturé ; ne pas promettre la récupération de champs plus récents que le stockage
-n’a pas pu restituer. Vérifier ce cas avec A lors de la composition exacte.
+Avant le guard initial, un snapshot terminal sans binding/consentement retient le
+canonical lu et validé par A si son input est identique. Si l’écriture de l’index
+échoue ensuite, l’export conserve ainsi binding, consentement et reçu existants.
+Un snapshot déjà lié n’adopte jamais un autre binding ici ; le guard A reste
+l’autorité de conflit/durabilité. Si la lecture canonique échoue elle-même,
+l’export ne peut contenir que le snapshot disponible, sans promesse de récupération.

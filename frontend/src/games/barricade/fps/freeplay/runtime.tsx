@@ -17,6 +17,17 @@ export function makeFpsRuntimeBridge(config: FreePlayGameRuntime): FpsFreePlayBr
         createSession(snapshot) {
             let shared: ReturnType<typeof createFreePlaySession> | undefined
             let recoveryReady = false, disposed = false
+            // A fresh terminal snapshot has no binding/consent. Retain A's
+            // readable canonical record before a write/index failure can hide
+            // it from the guard's return value. This is an export source only:
+            // the shared guard below still decides conflicts and durability.
+            // Already-bound snapshots never adopt another identity here.
+            if (!snapshot.binding && !snapshot.publication) {
+                try {
+                    const retained = loadFreePlaySnapshot(config.storage, snapshot.input.clientRunId)
+                    if (retained && JSON.stringify(retained.input) === JSON.stringify(snapshot.input)) snapshot = retained
+                } catch { /* The shared guard classifies unreadable storage below. */ }
+            }
             // A is the only authority for canonical/index readback and retained
             // binding/consent. Never infer durability from the FPS checkpoint.
             const prepareRecovery = () => {

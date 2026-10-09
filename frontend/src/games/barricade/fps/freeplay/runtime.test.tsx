@@ -1,11 +1,15 @@
+import { webcrypto } from 'node:crypto'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FREE_PLAY_REALM, type FreePlayClient, type FreePlayInput } from '../../../../lib/arcadeFreePlay'
 import { createFreePlaySnapshot, loadFreePlaySnapshot, persistFreePlaySnapshot } from '../../../arcade/freeplay/snapshot'
 import { makeFpsRuntimeBridge } from './runtime'
 import vectors from './fixtures/terminal-vectors.json'
+import wonReplay from './fixtures/won-repair.json'
+import type { Replay } from '../../sim/fps/types'
 
 const snapshot = createFreePlaySnapshot(vectors[0] as FreePlayInput)
+afterEach(() => vi.unstubAllGlobals())
 function setup() {
     const rows = new Map<string, string>()
     const storage = {
@@ -68,6 +72,31 @@ describe('FPS consumer with integrated A8 recovery', () => {
         const mounted = render(handle.render())
         expect(screen.getByRole('textbox', { name: 'Completed result export' })).toHaveValue(JSON.stringify(snapshot, null, 2))
         expect(screen.queryByRole('button', { name: 'Connect wallet for saved scores' })).not.toBeInTheDocument()
+        expect(s.connect).not.toHaveBeenCalled(); expect(api).not.toHaveBeenCalled(); expect(subscribeIdentity).not.toHaveBeenCalled()
+        mounted.unmount(); handle.dispose()
+    })
+
+    it.each([false, true])('exports the full canonical A record when terminal preparation loses index persistence (client: %s)', async withClient => {
+        vi.stubGlobal('crypto', webcrypto)
+        const s = setup()
+        const player = 'g1' + 'a'.repeat(38), target = { chainId: 'dev', realm: FREE_PLAY_REALM }
+        const entry = { game: snapshot.input.game, player, rules: snapshot.input.rules, simVersion: snapshot.input.simVersion, runID: 'a'.repeat(64), seed: snapshot.input.seed, score: snapshot.input.claimedScore, stateHash: vectors[0].stateHash, replayHash: vectors[0].replayHash }
+        const payloadHash = 'b'.repeat(64)
+        const retained = persistFreePlaySnapshot(s.storage, { ...snapshot, binding: { player, target }, result: { entry, payloadHash, status: 'confirmed', receipt: { target, entry, height: 42, attester: player, schemaVersion: 2 } }, publication: { payloadHash, quoteId: 'c'.repeat(64), nonce: 'd'.repeat(64) } })
+        // A new terminal wrapper supplies the bare guest snapshot, while the
+        // stored canonical already belongs to A and includes consent/receipt.
+        s.rows.delete('memba:arcade:freeplay:index:v1')
+        s.storage.setItem.mockImplementation((key, value) => { if (!key.endsWith('index:v1')) s.rows.set(key, value) })
+        const api = vi.fn(async () => { throw new Error('unexpected API') })
+        const subscribeIdentity = vi.fn(() => () => {})
+        const client: FreePlayClient = { bind: vi.fn(), subscribeIdentity, board: api, verify: api, read: api, quote: api, publish: api }
+        const bridge = makeFpsRuntimeBridge({ ...s.config, client: withClient ? client : undefined })!
+        const handle = await bridge.prepare(snapshot.input.clientRunId, wonReplay as Replay)
+        const mounted = render(handle.render())
+        expect(screen.getByRole('textbox', { name: 'Completed result export' })).toHaveValue(JSON.stringify(retained, null, 2))
+        expect(screen.queryByText(/After connecting/)).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Connect wallet for saved scores' })).not.toBeInTheDocument()
+        expect(loadFreePlaySnapshot(s.storage, snapshot.input.clientRunId)).toEqual(retained)
         expect(s.connect).not.toHaveBeenCalled(); expect(api).not.toHaveBeenCalled(); expect(subscribeIdentity).not.toHaveBeenCalled()
         mounted.unmount(); handle.dispose()
     })
