@@ -1,0 +1,7 @@
+.os-notes-history { overflow-wrap: anywhere; }
+.os-notes-history > header { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.os-notes-history ol { padding-inline-start: 1.5rem; }
+.os-notes-history li { margin-block: .75rem; }
+.os-notes-history pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; max-height: 28rem; overflow: auto; }
+.os-notes-history-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+.os-notes-history-comparison article { min-width: 0; border: 1px solid currentColor; border-radius: .5rem; padding: 1rem; }
