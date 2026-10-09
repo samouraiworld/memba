@@ -49,7 +49,7 @@ beforeEach(() => {
 describe("Memba DAO on memba_gov", () => {
     it("lets an invited member join from Members, where the voting screen sends them", async () => {
         folder("members", as("g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"))
-        expect(await screen.findByRole("button", { name: "Join as ghost…" })).toBeInTheDocument()
+        expect(await screen.findByRole("button", { name: "Accept invitation as ghost…" })).toBeInTheDocument()
     })
 
     it("explains the DAO and links to members and proposals without a wallet", async () => {
@@ -126,7 +126,7 @@ describe("Memba DAO on memba_gov", () => {
         folder("overview", as("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"))
         expect(await screen.findByText("zxxma")).toBeInTheDocument()
         folder("overview", as("g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv"))
-        expect(await screen.findByText(/It counts once it signs Join/)).toBeInTheDocument()
+        expect(await screen.findByText(/Accept your invitation with this wallet/)).toBeInTheDocument()
     })
 
     it("pages through proposals and names the unknown one as such", async () => {
@@ -159,7 +159,7 @@ describe("Memba DAO on memba_gov", () => {
         expect(await screen.findByText("g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2")).toBeInTheDocument()
         expect(screen.getByText("mikael")).toBeInTheDocument()
         expect(screen.getByText("ghost")).toBeInTheDocument()
-        expect(screen.getByText(/An invited key counts only once it signs Join/)).toBeInTheDocument()
+        expect(screen.getByText(/Invited members must connect the wallet/)).toBeInTheDocument()
     })
 })
 

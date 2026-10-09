@@ -81,8 +81,8 @@ function Seat({ data, session }: { data: GovSnapshot; session: OsSession }) {
     const me = data.roster.members.find((m) => m.address === session.address)
     const invited = data.roster.invitations.find((i) => i.address === session.address)
     if (me) return <p className="os-note">You sit as <b>{me.id}</b>, weight {me.weight}.</p>
-    if (invited) return <p className="os-note">This address is invited as <b>{invited.id}</b> until {formatChainTime(Number(invited.expires))}. It counts once it signs Join.</p>
-    return <p className="os-note">This address holds no seat.</p>
+    if (invited) return <p className="os-note">This address is invited as <b>{invited.id}</b> until {formatChainTime(Number(invited.expires))}. Accept your invitation with this wallet to become a member and take part in votes.</p>
+    return <p className="os-note">This wallet is not a DAO member. If you were invited, connect the wallet listed under Invitations in Members.</p>
 }
 
 function Overview({ data, name, open, session }: { data: GovSnapshot; name: string; open: (spec: WindowSpec) => void; session: OsSession }) {
@@ -223,7 +223,7 @@ function Members({ data, session }: { data: GovSnapshot; session: OsSession }) {
                         </li>
                     )
                 })}</ul>}
-                <p className="os-sub">An invited key counts only once it signs Join from its own account.</p>
+                <p className="os-sub">Invited members must connect the wallet listed above and accept their invitation before they can vote. Preparing a wallet for sign-in does not accept the invitation.</p>
             </section>
         </div>
     )

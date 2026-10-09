@@ -143,7 +143,7 @@ describe("joining and pausing", () => {
         expect(screen.queryByRole("button")).toBeNull()
         view.unmount()
         show(<JoinAction roster={roster} session={member(GHOST)} />)
-        fireEvent.click(screen.getByRole("button", { name: "Join as ghost…" }))
+        fireEvent.click(screen.getByRole("button", { name: "Accept invitation as ghost…" }))
         await waitFor(() => expect(sign).toHaveBeenCalled())
         expect(lastRequest().prepare(undefined).msgs[0].value).toMatchObject({ func: "Join", caller: GHOST })
         expect(lastRequest().warns).toEqual(["Joining ends every open proposal: members vote again on the new roster."])

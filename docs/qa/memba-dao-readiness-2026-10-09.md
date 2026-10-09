@@ -69,3 +69,28 @@ The interface remains in English, consistent with Memba OS. The updated window u
 - Browser review covered desktop and 390/320 px mobile widths, including navigation and no horizontal overflow at 320 px. It uses the live chain in guest mode on a local frontend. No wallet was connected, no proposal/vote was sent, and no governance or treasury ownership changed.
 - Merge after required CI passes, deploy the frontend, then verify both the historical entry point and current DAO route on production.
 - A real signed governance cycle and the nine application handovers remain operator/member actions. This review does not certify them as completed.
+
+
+## Wallet preparation follow-up (9 October 2026)
+
+The user-supplied [activation transaction](https://gnoscan.io/transactions/details?txhash=DAE272FC7DDFBAE5BFDEDA9423414FD9FB7DC515A159912D268B040B59EAF268)
+succeeded on `gnoland-1` at height 680776 (17:09:47 Europe/Paris). The public
+RPC transaction response and GnoScan agree on a self-send of 1 ugnot, a fee of
+686 ugnot (0.000686 GNOT), and gas used/wanted of 623038/685341. GnoScan reports
+**0 GNOT storage deposit (0 bytes)**. The fee is below the conservative 0.0024
+GNOT estimate shown in Memba; Adena estimated its own gas before signing.
+
+This activates `g1at2h7kdhz2m9lv6azn54mwu4wl95k94wu90uwj`, whereas a fresh
+`memba_gov.RosterJSON()` read still invites **ghost** at
+`g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv`. The activated address cannot accept
+that invitation. Confirm which wallet Ghost intends to use before proposing
+any membership change. No invitation or chain state was modified during this
+review.
+
+The updated UI explains wallet preparation separately from DAO membership,
+shows zero storage deposit for activation, and makes its technical details
+expandable. DAO signing reviews label the storage amount as a **limit**, not
+an actual charge or measured estimate. Existing gas/deposit limits and signing
+guards are unchanged. Using the first DAO Join as the wallet's first transaction
+would require a separately designed authentication flow; this patch does not
+relax the current authentication requirement.

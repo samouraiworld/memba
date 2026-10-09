@@ -33,7 +33,7 @@ export function ProposalActions({ p, roster, session, raw }: { p: GovProposal; r
             : governed.data?.[app] === false ? <p className="os-note os-warn" role="status">{notGovernedText(app)}</p> : null
     if (session.status !== "member") return <>{governance}<button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button></>
     const me = roster.members.find((m) => m.address === session.address)
-    if (!me) return <>{governance}<p className="os-sub">Only seated members vote. An invited key joins first, from the Members tab.</p></>
+    if (!me) return <>{governance}<p className="os-sub">Only seated members vote. If you were invited, accept your invitation from the Members tab first.</p></>
     const voteLock = lock(govScope(session.address, `vote:${p.id}`), "vote")
     const execLock = lock(govScope(session.address, `execute:${p.id}`), "execution")
     const mine = p.ballots.find((b) => b.person === me.id)
@@ -86,7 +86,7 @@ export function JoinAction({ roster, session }: { roster: GovRoster; session: Os
     if (!invite) return null
     return lock(govScope(session.address, "join"), "join") || (
         <>{failed}<button type="button" className="os-btn" disabled={quoting} onClick={() => start((s) => govJoinRequest(s, invite.id))}>
-            {quoting ? "Reading the fee…" : `Join as ${invite.id}…`}
+            {quoting ? "Reading the fee…" : `Accept invitation as ${invite.id}…`}
         </button></>
     )
 }

@@ -21,6 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Memba DAO overview and readiness (#1587, 2026-10-09)
+- Explain first-time wallet preparation, show that activation has no storage deposit, and keep technical transaction details expandable. Distinguish DAO invitation acceptance from wallet setup and label storage allowances as limits.
 - Explain the current Memba DAO in plain language, show its members and application handovers, and keep detailed rules expandable on desktop and mobile.
 - Link the retired DAO page to current governance, let invitees join from Members, and check community admission against the current governance bridge.
 - Document the nine remaining mainnet application handovers and first-vote verification; this change does not transfer application ownership.
