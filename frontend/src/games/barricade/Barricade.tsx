@@ -14,7 +14,7 @@
  */
 
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { isBarricade25DEnabled, isBarricadeCertifyEnabled } from "../../lib/config"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
@@ -145,7 +145,7 @@ function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, vi
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
-export default function Barricade() {
+function ClassicBarricade() {
     const windowActive = useWindowActive()
     const shellRef = useRef<HTMLDivElement | null>(null)
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -848,4 +848,25 @@ export default function Barricade() {
             )}
         </div>
     )
+}
+
+// C1 preview is explicit and local to this game; Classic remains the published default.
+const FpsPreview = lazy(() => import("./fps/FpsPreview"))
+export default function Barricade() {
+    const location = useLocation()
+    const navigate = useNavigate()
+    const [previewFailed, setPreviewFailed] = useState(false)
+    const preview = new URLSearchParams(location.search).get("barricadePreview") === "fps"
+    if (!preview) return <ClassicBarricade />
+    const classic = () => {
+        const search = new URLSearchParams(location.search)
+        search.delete("barricadePreview")
+        navigate({ pathname: location.pathname, search: search.toString(), hash: location.hash }, { replace: true })
+    }
+    if (previewFailed) return <div role="alert"><p>Chargement FPS indisponible. Classic reste accessible.</p><button onClick={classic}>Retour à Classic</button></div>
+    return <RendererBoundary onFailure={() => setPreviewFailed(true)}>
+        <Suspense fallback={<p role="status">Chargement du prototype FPS…</p>}>
+            <FpsPreview onClassic={classic} />
+        </Suspense>
+    </RendererBoundary>
 }
