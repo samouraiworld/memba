@@ -137,7 +137,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
             <button className="os-btn os-quiet" onClick={() => { setArmed(false); setReload(v => v + 1) }}>Discard these edits and reload</button>
         </div>}
         <input className="os-notes-title" aria-label="Note title" value={title} maxLength={160} onChange={event => edit("title", event.target.value)} />
-        <p id={descriptionId} className="os-notes-hint">{durable?.payload.kind === "public" && durable.payload.base ? "Local edits to a public note · Changes are not published" : "Draft on this device · Not encrypted or published"} · Markdown · 128 KiB maximum</p>
+        <p id={descriptionId} className="os-notes-hint">Local draft · Stored unencrypted on this device · Markdown · 128 KiB maximum</p>
         {notice && <p className="os-notes-message" role="status">{notice}</p>}
         <div className="os-notes-content" data-view={view}>
             {view !== "preview" && <CodeEditor value={body} onChange={value => edit("body", value)} onLimit={() => setNotice("The body is limited to 128 KiB. This change was not inserted.")} invalid={false} descriptionId={descriptionId} language="text" maxBytes={MAX_NOTE_BODY_BYTES} label="Markdown editor" className="os-notes-code" />}
