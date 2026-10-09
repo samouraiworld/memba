@@ -334,3 +334,10 @@
 .si-root--landscape .si-heading { padding-right: 56px; }
 .si-root--landscape .si-fullscreen-control { position: absolute; top: 4px; right: 4px; }
 .si-root--landscape .si-console { margin-right: 56px; }
+
+/* This layer does not change field allocation, avoiding a sizing feedback loop. */
+.si-root--fitted .si-console { position: relative; }
+.si-space-guard { position: absolute; z-index: 5; inset: 4px; overflow: auto; padding: 10px; border-radius: 6px; background: var(--si-ink); color: var(--si-text-bright); text-align: center; }
+.si-space-guard h2 { margin: 0 0 6px; font-size: 1rem; line-height: 1.2; }
+.si-space-guard p { margin: 4px 0; font-size: .8rem; line-height: 1.35; }
+.si-space-guard button { margin-top: 6px; }

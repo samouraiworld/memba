@@ -174,14 +174,43 @@ export default function SpaceInvaders({
   const areaRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const fieldSize = usePlayfieldSize(rootRef, fieldRef);
+  const [fullscreenError, setFullscreenError] = useState("");
+  // Below half the logical bitmap size, steering/targets are not usable.
+  // Protect independently of fullscreen support: browser permission may fail.
+  const measured = fieldSize.availableHeight > 0 || fieldSize.width > 0 || fieldSize.height > 0;
+  const spaceBlocked = measured && (fieldSize.width < 160 || fieldSize.height < 200);
+  const spaceBlockedRef = useRef(spaceBlocked);
+  const resumeReadyRef = useRef(false);
+  const showSpaceGuard = spaceBlocked && (state.phase !== "gameover" || menuOpen);
   const focusGameSurface = useCallback(() => {
     if (windowActive) areaRef.current?.focus({ preventScroll: true });
   }, [windowActive]);
   const onConfirm = useCallback(() => confirmRef.current(), []);
-  const getKeyInput = useKeyboard(areaRef, { onConfirm, active: windowActive });
+  const getKeyInput = useKeyboard(areaRef, { onConfirm, active: windowActive && !spaceBlocked });
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
   const { read: getTouchInput, consumeFire: consumeTouchFire, reset: resetTouchInput } = useTouch(areaRef as RefObject<HTMLElement>);
+
+  useLayoutEffect(() => {
+    spaceBlockedRef.current = spaceBlocked;
+    if (!spaceBlocked) return; // More room never resumes a run automatically.
+    accRef.current = 0;
+    last.current = null;
+    resetTouchInput();
+    const cur = stateRef.current;
+    if (cur.phase === "playing" || (cur.phase === "ready" && runArmedRef.current)) {
+      resumeReadyRef.current = cur.phase === "ready";
+      const paused = { ...cur, phase: "paused" as const };
+      stateRef.current = paused;
+      setState(paused);
+    }
+  }, [spaceBlocked, resetTouchInput]);
+
+  useEffect(() => {
+    if (showSpaceGuard && windowActive && rootRef.current?.contains(document.activeElement)) {
+      rootRef.current.querySelector<HTMLElement>(".si-space-guard h2")?.focus({ preventScroll: true });
+    }
+  }, [showSpaceGuard, windowActive]);
 
   // Losing the page is an explicit pause boundary. No ticks or replay inputs
   // are consumed while the player cannot see or control the run.
@@ -217,7 +246,7 @@ export default function SpaceInvaders({
   }, [windowActive, resetTouchInput]);
 
   useEffect(() => {
-    if (!windowActive || menuOpen || (state.phase !== "paused" && state.phase !== "gameover")) return;
+    if (!windowActive || showSpaceGuard || menuOpen || (state.phase !== "paused" && state.phase !== "gameover")) return;
     const surface = areaRef.current;
     if (!surface || (!resultFocusPendingRef.current && !rootRef.current?.contains(document.activeElement))) return;
     resultFocusPendingRef.current = false;
@@ -225,7 +254,7 @@ export default function SpaceInvaders({
       ? surface.querySelector<HTMLElement>(".si-pause-sheet button")
       : surface.querySelector<HTMLElement>(".si-gameover h2");
     target?.focus({ preventScroll: true });
-  }, [windowActive, state.phase, menuOpen]);
+  }, [windowActive, state.phase, menuOpen, showSpaceGuard]);
 
   useEffect(() => {
     if (!windowActive || !menuOpen || !menuFocusPendingRef.current) return;
@@ -299,6 +328,12 @@ export default function SpaceInvaders({
     const tick = (time: number) => {
       if (!windowActiveRef.current) return;
       launchRef.current();
+      if (spaceBlockedRef.current) {
+        last.current = null;
+        accRef.current = 0;
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       if (last.current == null) last.current = time;
       const frameMs = time - last.current;
       last.current = time;
@@ -307,14 +342,15 @@ export default function SpaceInvaders({
       if (phaseBeforeInput === "paused" || phaseBeforeInput === "gameover" ||
         (phaseBeforeInput === "ready" && !runArmedRef.current)) resetTouchInput();
       let input = getInput();
-      if (phaseBeforeInput !== "ready" || !runArmedRef.current) launchPendingRef.current = false;
+      if ((phaseBeforeInput !== "ready" && !(phaseBeforeInput === "paused" && resumeReadyRef.current)) || !runArmedRef.current) launchPendingRef.current = false;
       else if (launchPendingRef.current && !input.fire) input = { ...input, fire: true };
 
       // Pause edge handled once per frame (never per sub-step).
       if (input.pause) {
         const cur = stateRef.current;
         if (cur.phase === "playing" || cur.phase === "paused") {
-          const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
+          const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : resumeReadyRef.current ? "ready" : "playing";
+          resumeReadyRef.current = false;
           const next = { ...cur, phase };
           stateRef.current = next;
           setState(next);
@@ -440,6 +476,11 @@ export default function SpaceInvaders({
   };
 
   const beginRun = (nextMode: RunMode) => {
+    if (spaceBlockedRef.current) {
+      if (stateRef.current.phase === "gameover") setMenuOpen(true);
+      return;
+    }
+    resumeReadyRef.current = false;
     setMenuOpen(false);
     resultFocusPendingRef.current = false;
     resetTouchInput();
@@ -497,10 +538,12 @@ export default function SpaceInvaders({
   };
 
   const togglePause = () => {
+    if (spaceBlockedRef.current) return;
     const cur = stateRef.current;
     if (cur.phase !== "playing" && cur.phase !== "paused") return;
     resetTouchInput();
-    const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
+    const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : resumeReadyRef.current ? "ready" : "playing";
+    resumeReadyRef.current = false;
     const next = { ...cur, phase };
     stateRef.current = next;
     setState(next);
@@ -511,6 +554,7 @@ export default function SpaceInvaders({
   // menu, launch an armed run, resume a held one, or play again after game
   // over. Focused buttons keep their native Enter, so nothing fires twice.
   const handleConfirm = () => {
+    if (spaceBlockedRef.current) return;
     const cur = stateRef.current;
     if (menuOpen) beginRun("free");
     else if (cur.phase === "gameover") restart();
@@ -529,6 +573,13 @@ export default function SpaceInvaders({
       const surface = areaRef.current;
       if (!surface?.getBoundingClientRect().width) return;
       lastConsumedLaunchId.current = launch.id;
+      if (spaceBlockedRef.current && stateRef.current.phase !== "gameover") {
+        // Acknowledge the store gesture, but require a fresh Play/Resume once
+        // space is available. No deferred auto-start after rotation/fullscreen.
+        rootRef.current?.querySelector<HTMLElement>(".si-space-guard h2")?.focus({ preventScroll: true });
+        onLaunchConsumed?.(launch.id);
+        return;
+      }
       // Play from the store never discards an existing run OR its result.
       if (runArmedRef.current) {
         if (menuOpen) returnToResult();
@@ -578,12 +629,12 @@ export default function SpaceInvaders({
           <span aria-hidden="true" />
           {runArmed ? `${mode === "daily" ? `Daily · ${dailyDay}` : "Free play"} · ` : ""}{phaseLabel}
         </div>
-        <FullscreenButton root={rootRef} onChange={focusGameSurface} />
+        <FullscreenButton root={rootRef} onChange={focusGameSurface} onError={setFullscreenError} showError={!showSpaceGuard} />
       </header>
 
       <div className="si-cabinet">
         <section className="si-console" aria-label="Space Invaders: Signal Defense arcade cabinet">
-          <div className="si-hud" aria-label="Current run status">
+          <div className="si-hud" aria-label="Current run status" inert={showSpaceGuard} aria-hidden={showSpaceGuard}>
             <div className="si-stat si-stat--score"><span>Score</span><strong>{state.score.toLocaleString()}</strong></div>
             <div className="si-stat si-stat--best"><span>Best</span><strong>{best.toLocaleString()}</strong></div>
             <div className="si-stat si-stat--wave"><span>Wave</span><strong>{state.wave}</strong></div>
@@ -626,7 +677,7 @@ export default function SpaceInvaders({
             </div>
           </div>
 
-          <div className="si-playfield" ref={fieldRef}>
+          <div className="si-playfield" ref={fieldRef} inert={showSpaceGuard} aria-hidden={showSpaceGuard}>
           <div
             style={fieldSize.width > 0 ? { width: fieldSize.width, height: fieldSize.height } : undefined}
             className={`si-stage${state.phase === "playing" ? "" : " si-stage--overlay"}${fieldSize.height > 0 && fieldSize.height < 250 ? " si-stage--compact" : ""}`}
@@ -692,6 +743,13 @@ export default function SpaceInvaders({
             )}
           </div>
           </div>
+          {showSpaceGuard && <div className="si-space-guard" role="region" aria-live="polite" aria-label="More room to play">
+            <h2 tabIndex={-1}>More room to play</h2>
+            <p>Turn your phone to portrait or enlarge the window. You can also choose Game fullscreen above.</p>
+            {fullscreenError && <p role="alert">{fullscreenError}</p>}
+            <p>{state.phase === "gameover" ? "Your result is kept." : runArmed ? "Your run is paused and kept. Resume explicitly once there is more room." : "No run has started. Choose Play once there is more room."}</p>
+            {state.phase === "gameover" && <button type="button" className="si-button si-button--primary" onClick={returnToResult}>Back to result</button>}
+          </div>}
         </section>
 
         <aside className="si-brief si-sr-only" aria-label="Operator briefing">
