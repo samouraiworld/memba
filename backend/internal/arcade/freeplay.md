@@ -166,3 +166,30 @@ The source deliberately does not refund that allowance automatically; a future
 budget implementation must account for this distinction and receive independent
 review. This preserves the spending ceiling without claiming an unimplemented
 atomic refund protocol.
+
+## Exact SI/FPS worker (dormant opt-in)
+
+`NewFreePlayRunner(parent)` extracts a dedicated embedded bundle importing the
+reviewed Space Invaders Free codec/engine and Barricade FPS codec/engine directly.
+It shares the parent's concurrency semaphore and bounded Node subprocess
+implementation. It does not dispatch to Daily/Classic or reimplement either sim.
+The two committed bundles are rebuilt together and checked independently in CI.
+
+`FreePlayHTTPConfig.Verifier` is optional. Nil keeps SI/FPS ineligible; Block
+Party always uses its existing Go verifier. Main supplies no new runner and
+retains the disabled route. Construction requires an explicit legacy runner;
+there is no fallback network, engine, game, version or signer. Close removes the
+private extracted bundle. Request deadlines include the shared queue wait; the
+subprocess timeout bounds execution after admission.
+
+Preflight bounds shape/scope/cost before a child starts. The worker checks the
+actual terminal state, claimed score and canonical transcript. Go validates the
+compact verdict and independently recomputes replay/run/payload commitments.
+Malformed output, timeout or crash are infrastructure errors (HTTP503), distinct
+from a rejected replay (422). A verified response is not onchain confirmation.
+
+Validation evidence:6 positive fixture envelopes,14SI+9FPS rejections, legacy
+loops, shared capacity/cancellation, actual child kill/reap, stdout/stderr caps,
+private permissions and cleanup. See testdata/freeplay/worker-provenance.md.
+No live signing/broadcast, transport budget or production activation is provided
+by this worker preparation.

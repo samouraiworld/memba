@@ -39,3 +39,33 @@ func VerifyFreePlayRun(ctx context.Context, target FreePlayTarget, player string
 	}
 	return FreePlayRun{Target: target, Entry: e, ClientRunID: in.ClientRunID, PayloadHash: e.PayloadHash(target), ReplayCodec: in.ReplayCodec, Replay: in.Replay, Status: "verified"}, nil
 }
+
+// VerifyFreePlayRunWithWorker is opt-in composition. A nil worker keeps SI/FPS
+// ineligible, and Block Party always uses its existing reviewed Go verifier.
+func VerifyFreePlayRunWithWorker(ctx context.Context, target FreePlayTarget, player string, in FreePlayInput, worker FreePlayReplayVerifier) (FreePlayRun, error) {
+	if in.Game == "block-party" {
+		return VerifyFreePlayRun(ctx, target, player, in)
+	}
+	id, err := FreePlayRunID(target, player, in.Game, in.ClientRunID)
+	if err != nil {
+		return FreePlayRun{}, err
+	}
+	if worker == nil {
+		return FreePlayRun{}, errors.New("unsupported_rules")
+	}
+	if err = validateFreePlayWorkerInput(in); err != nil {
+		return FreePlayRun{}, err
+	}
+	result, err := worker.VerifyFreePlay(ctx, in)
+	if err != nil {
+		return FreePlayRun{}, err
+	}
+	if err = validateFreePlayWorkerResult(in, result); err != nil {
+		return FreePlayRun{}, err
+	}
+	entry := FreePlayEntry{Game: in.Game, Player: player, Rules: in.Rules, SimVersion: in.SimVersion, RunID: id, Seed: in.Seed, Score: result.Score, StateHash: result.StateHash, ReplayHash: result.ReplayHash}
+	if err = entry.Validate(); err != nil {
+		return FreePlayRun{}, err
+	}
+	return FreePlayRun{Target: target, Entry: entry, ClientRunID: in.ClientRunID, PayloadHash: entry.PayloadHash(target), ReplayCodec: in.ReplayCodec, Replay: in.Replay, Status: "verified"}, nil
+}
