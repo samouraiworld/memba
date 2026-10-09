@@ -6,9 +6,9 @@ import { useTouch } from "./hooks/useTouch";
 import { usePlayfieldSize } from "./hooks/usePlayfieldSize";
 import type { SpaceInvadersLaunchIntent, SpaceInvadersReplayResult } from "./lib/launch";
 import { Canvas } from "./render/Canvas";
-import { freePlayInputFromResult, SpaceInvadersFreePlayError } from "./lib/freePlayCodec";
+import { usePreparedPublication } from "./lib/usePreparedPublication";
 import { createFreePlayIdentity, persistFreePlayIdentity, type FreePlayRunIdentity } from "./lib/freePlayIdentity";
-import type { SpaceInvadersPublication, SpaceInvadersPreparedPublication } from "./lib/freePlayPublication";
+import type { SpaceInvadersPublication } from "./lib/freePlayPublication";
 import { FreePlayPublication } from "./screens/FreePlayPublication";
 import { FullscreenButton } from "./screens/FullscreenButton";
 import { draw } from "./render/draw";
@@ -118,12 +118,7 @@ export default function SpaceInvaders({
   const [dailyDay, setDailyDay] = useState("");
   const [replayOutcome, setReplayOutcome] = useState<SpaceInvadersReplayResult | null>(null);
   const freeIdentityRef = useRef<FreePlayRunIdentity | null>(null);
-  const publicationRef = useRef(publication);
-  useEffect(() => { publicationRef.current = publication; }, [publication]);
-  const preparedRef = useRef<SpaceInvadersPreparedPublication | null>(null);
-  const [preparedPublication, setPreparedPublication] = useState<SpaceInvadersPreparedPublication | null>(null);
-  const [publicationIssue, setPublicationIssue] = useState<"certification_limit" | "replay_not_verified" | "save_unavailable" | null>(null);
-  useEffect(() => () => { preparedRef.current?.dispose(); }, []);
+  const { prepared: preparedPublication, issue: publicationIssue } = usePreparedPublication(publication, replayOutcome);
   const [dailyOutcome, setDailyOutcome] = useState<DailyOutcome | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const resultFocusPendingRef = useRef(false);
@@ -317,22 +312,13 @@ export default function SpaceInvaders({
       finalTick: final.tick, events, score: final.score,
       hash: formatStateHash(hashState(final)), verified,
     };
+    // The same terminal evidence is reused across owner/network changes.
+    events.forEach(event => Object.freeze(event));
+    Object.freeze(events);
+    Object.freeze(outcome);
     setReplayOutcome(outcome);
     replayReadyRef.current?.(outcome);
-    if (modeRef.current !== "daily") {
-      const adapter = publicationRef.current;
-      if (adapter) {
-        try {
-          if (!freeIdentityRef.current || freeIdentityRef.current.seed !== outcome.seed) throw new Error("identity_unavailable");
-          const prepared = adapter.prepare(freePlayInputFromResult(freeIdentityRef.current.clientRunId, outcome));
-          preparedRef.current = prepared;
-          setPreparedPublication(prepared);
-        } catch (error) {
-          setPublicationIssue(error instanceof SpaceInvadersFreePlayError && (error.code === "certification_limit" || error.code === "replay_not_verified") ? error.code : "save_unavailable");
-        }
-      }
-      return;
-    }
+    if (modeRef.current !== "daily") return;
     setDailyOutcome({
       seed: seedStr,
       day: seedStr.slice(-10),
@@ -511,10 +497,6 @@ export default function SpaceInvaders({
       return;
     }
     resumeReadyRef.current = false;
-    preparedRef.current?.dispose();
-    preparedRef.current = null;
-    setPreparedPublication(null);
-    setPublicationIssue(null);
     freeIdentityRef.current = null;
     setMenuOpen(false);
     resultFocusPendingRef.current = false;

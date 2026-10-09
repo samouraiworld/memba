@@ -3,8 +3,8 @@ import { SI_FREE_CODEC, SI_FREE_RULES, SI_FREE_UUID, SI_FREE_VERSION, type Space
 
 export interface SpaceInvadersPreparedPublication { content: ReactNode; dispose(): void }
 export interface SpaceInvadersPublication {
-  /** Must persist the immutable terminal snapshot before returning. No API action. */
-  prepare(input: SpaceInvadersFreePlayInput): SpaceInvadersPreparedPublication;
+  /** Must persist the immutable terminal snapshot before exposing a handle. No API action. */
+  prepare(input: SpaceInvadersFreePlayInput): SpaceInvadersPreparedPublication | Promise<SpaceInvadersPreparedPublication>;
   /** Open an existing A snapshot without creating a run or starting API work. */
   recover?: (clientRunId: string) => SpaceInvadersPreparedPublication | Promise<SpaceInvadersPreparedPublication>;
   /** Optional host-owned wallet connection, called only from an explicit click. */

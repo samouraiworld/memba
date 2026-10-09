@@ -15,7 +15,7 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as CanvasRenderingContext2D);
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-it("prepares A's session once from the finished Free run, keeps it through Menu and disposes it on restart", () => {
+it("prepares A's session once from the finished Free run, keeps it through Menu and disposes it on restart", async () => {
   const verify = vi.fn(), connect = vi.fn(), dispose = vi.fn();
   const snapshot = vi.fn((input: SpaceInvadersFreePlayInput) => ({ input }));
   const session = vi.fn((saved: { input: SpaceInvadersFreePlayInput }) => ({ saved, dispose }));
@@ -27,6 +27,7 @@ it("prepares A's session once from the finished Free run, keeps it through Menu 
   const identity = JSON.parse(localStorage.getItem("memba:space-invaders:active-free:v1")!);
   expect(identity.seed).toBe("si1:00000001");
   drive(0, 600);
+  await screen.findByRole("button", { name: "Shared verify" });
   expect(snapshot).toHaveBeenCalledTimes(1); expect(session).toHaveBeenCalledTimes(1);
   const input = snapshot.mock.calls[0][0];
   expect(input.clientRunId).toBe(identity.clientRunId);
@@ -42,15 +43,16 @@ it("prepares A's session once from the finished Free run, keeps it through Menu 
   expect(dispose).toHaveBeenCalledTimes(1);
   expect(JSON.parse(localStorage.getItem("memba:space-invaders:active-free:v1")!).clientRunId).not.toBe(identity.clientRunId);
   drive(160_000, 600);
+  await screen.findByRole("button", { name: "Shared verify" });
   expect(snapshot).toHaveBeenCalledTimes(2);
   view.unmount(); expect(dispose).toHaveBeenCalledTimes(2);
 });
-it("keeps a result exportable when shared snapshot persistence fails", () => {
+it("keeps a result exportable when shared snapshot persistence fails", async () => {
   const prepare = vi.fn(() => { throw new Error("storage quota"); });
   render(<SpaceInvaders seed={1} publication={{ prepare }} />);
   fireEvent.click(screen.getByRole("button", { name: /free play/i })); drive(0, 600);
   expect(screen.getByRole("heading", { name: "Game Over" })).toBeVisible();
-  expect(screen.getByText(/snapshot could not be saved/)).toBeVisible();
+  expect(await screen.findByText(/snapshot could not be saved/)).toBeVisible();
   expect(screen.getByRole("button", { name: "Export replay" })).toBeVisible();
   expect(prepare).toHaveBeenCalledTimes(1);
 });

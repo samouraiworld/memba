@@ -15,8 +15,12 @@ export function createSpaceInvadersRuntimePublication(runtime: FreePlayGameRunti
     createSnapshot: createFreePlaySnapshot,
     createSession(snapshot): ResultOwner {
       if (!runtime.client) {
-        saveFreePlaySnapshot(runtime.storage, snapshot);
-        return { kind: "local", snapshot, dispose() {} };
+        const stored = loadFreePlaySnapshot(runtime.storage, snapshot.input.clientRunId);
+        if (stored && JSON.stringify(stored.input) !== JSON.stringify(snapshot.input)) throw new Error("run_conflict");
+        // Rebinding a terminal result must retain A's consent and saved receipt.
+        const canonical = stored ?? snapshot;
+        saveFreePlaySnapshot(runtime.storage, canonical);
+        return { kind: "local", snapshot: canonical, dispose() {} };
       }
       const session = createFreePlaySession({ snapshot, client: runtime.client, storage: runtime.storage });
       return { kind: "service", session, dispose: () => session.dispose() };

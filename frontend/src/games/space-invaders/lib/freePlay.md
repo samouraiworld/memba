@@ -34,8 +34,11 @@ engine: the game page deliberately ignores saved-result selection.
 With a client, B uses A's real snapshot/session/result functions. Without a
 client, it still persists via A's `saveFreePlaySnapshot` and shared index, showing
 a local-only result without verification/publication actions or confirmation.
-It does not manufacture a fake client or second publication controller. A stored
-receipt is labelled saved, never freshly confirmed. Recovery under a later
+It does not manufacture a fake client or second publication controller. The
+local branch first loads A's canonical snapshot and compares the sanitized
+input exactly. A conflicting UUID/input is rejected before writing; matching
+stored consent/receipt/binding is preserved rather than overwritten by a fresh
+terminal-only snapshot. A stored receipt is labelled saved, never freshly confirmed. Recovery under a later
 configured runtime can load that same UUID and request readback explicitly.
 
 Custom injection remains available for explicit props (A3 API at `2bb27005`):
@@ -61,9 +64,19 @@ const publication = createSpaceInvadersPublication({
 // Supply a stable adapter to <SpaceInvadersGame publication={publication} />.
 ```
 
-Preparing a session happens once at terminal Free gameover, outside render, and
-must persist the snapshot before returning. Preparing performs no API action.
-The shared buttons then make verification and publication explicit. An auth
+The terminal outcome and its event arrays are frozen at gameover. A lifecycle
+hook prepares that same outcome outside render for each publication-adapter
+lifetime, including when a client becomes available after finishing locally.
+It retains the same UUID/seed/score and never restarts the engine or emits a new
+replay-ready callback. Adapter replacement hides the old controls immediately,
+disposes their session, and prepares the immutable input through the new owner.
+No verify/connect/readback/quote/publish is invoked implicitly.
+
+`prepare` may return a handle or Promise. Each result/adapter request has its own
+identity, so late handles are disposed and cannot replace current controls,
+including adapter A → off → A. Restart/unmount dispose the current handle too.
+Snapshot persistence completes before exposing the handle. The shared buttons
+then make verification and publication explicit. An auth
 change invalidates A's controller; B never copies a token or binds a receipt to
 another run. Menu/Back retains the same session. Restart disposes that session
 and creates a new identity, while A's stored snapshot is retained independently.
