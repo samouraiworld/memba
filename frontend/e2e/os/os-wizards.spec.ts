@@ -41,7 +41,7 @@ const V2_READS: Record<string, string> = {
 const NEW_DAO_PATH = `gno.land/r/${ALICE}/gno_builders`
 
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
 }
 
 /** A connected member (ALICE), Adena stubbed; `window.__adenaCalls` records every DoContract. */

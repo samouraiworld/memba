@@ -14,7 +14,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { act, render, screen, fireEvent, within } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import { useGnoloveContributors } from "../../hooks/gnolove"
+import { useGnoloveContributors, useGnoloveRepositories } from "../../hooks/gnolove"
 
 vi.mock("../../hooks/gnolove", async () => {
     const actual = await vi.importActual<typeof import("../../hooks/gnolove")>("../../hooks/gnolove")
@@ -87,5 +87,27 @@ describe("GnoloveHome — sync age", () => {
             vi.useRealTimers()
             vi.mocked(useGnoloveContributors).mockReset()
         }
+    })
+})
+
+
+describe("GnoloveHome — preset repository selection", () => {
+    it("checks core by default, checks all, and turns an All deselection into the remaining custom scope", () => {
+        const empty = { data: undefined, isLoading: false, isError: false, refetch: vi.fn() }
+        vi.mocked(useGnoloveContributors).mockReturnValue(empty as never)
+        vi.mocked(useGnoloveRepositories).mockReturnValue({ ...empty, data: [
+            { id: "gnolang/gno", owner: "gnolang", name: "gno", baseBranch: "master" },
+            { id: "samouraiworld/memba", owner: "samouraiworld", name: "memba", baseBranch: "main" },
+        ] } as never)
+        renderHome()
+        fireEvent.click(screen.getByRole("button", { name: "Gno core" }))
+        const group = screen.getByRole("group", { name: "Repository filter" })
+        expect(within(group).getByRole("checkbox", { name: /gnolang\/gno/ })).toBeChecked()
+        expect(within(group).getByRole("checkbox", { name: /samouraiworld\/memba/ })).not.toBeChecked()
+        fireEvent.click(within(group).getByRole("button", { name: "All repositories" }))
+        expect(within(group).getAllByRole("checkbox").every(c => (c as HTMLInputElement).checked)).toBe(true)
+        fireEvent.click(within(group).getByRole("checkbox", { name: /gnolang\/gno/ }))
+        expect(within(group).getByRole("checkbox", { name: /samouraiworld\/memba/ })).toBeChecked()
+        expect(useGnoloveContributors).toHaveBeenLastCalledWith("monthly", undefined, ["samouraiworld/memba"], true)
     })
 })

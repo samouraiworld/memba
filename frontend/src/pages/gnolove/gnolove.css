@@ -101,6 +101,8 @@
 /* ── Sub Navigation ──────────────────────────── */
 
 .gl-subnav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
     display: flex;
     gap: 4px;
     padding: 4px;
@@ -110,6 +112,8 @@
 }
 
 .gl-subnav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
     padding: 8px 16px;
     border-radius: 8px;
     font-size: var(--pro-small, 13px);
@@ -1936,7 +1940,7 @@
     }
 
     .gl-subnav {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
 
     .gl-week-nav {
@@ -2062,7 +2066,7 @@
     }
 
     .gl-subnav {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
 
     .gl-week-nav {
@@ -4606,3 +4610,22 @@
     .gl-np-statelabel, .gl-np-time { display: none; }
     .gl-np-count { margin-left: 0; }
 }
+
+/* Public repository catalogue, also sized for an OS window. */
+.gl-repositories-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
+.gl-repository-search { display: grid; gap: 6px; flex: 1 1 240px; font-size: var(--pro-small, 13px); color: var(--color-text-secondary); }
+.gl-repository-search input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text); background: var(--color-surface); }
+.gl-repositories-note { color: var(--color-text-secondary); font-size: var(--pro-small, 13px); margin: 16px 0; }
+.gl-repository-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.gl-repository-entry { padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); min-width: 0; }
+.gl-repository-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.gl-repository-title { font-family: var(--gl-font-mono); font-weight: 600; color: var(--color-k-accent-text); overflow-wrap: anywhere; }
+.gl-repository-status { color: var(--color-text-secondary); font-size: var(--pro-small, 13px); }
+.gl-repository-description { color: var(--color-text-secondary); font-size: var(--pro-small, 13px); line-height: 1.6; overflow-wrap: anywhere; }
+.gl-repository-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 16px 0; }
+.gl-repository-metrics dt { color: var(--color-text-secondary); font-size: var(--pro-small, 13px); }
+.gl-repository-metrics dd { margin: 4px 0 0; font-family: var(--gl-font-mono); font-weight: 600; color: var(--color-text); }
+.gl-repository-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: var(--pro-small, 13px); color: var(--color-text-secondary); }
+.gl-repository-footer a { color: var(--color-k-accent-text); }
+.gl-repository-sync { display: block; margin-top: 8px; color: var(--color-text-secondary); }
+.gl-repositories :is(input, a, button):focus-visible { outline: 2px solid var(--color-k-accent); outline-offset: 3px; }

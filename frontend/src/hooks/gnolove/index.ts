@@ -1,3 +1,4 @@
+import { GNOLOVE_ONCHAIN_DATA_ENABLED } from "../../lib/gnoloveChainAvailability"
 /**
  * React Query hooks for the Gnolove data layer.
  *
@@ -20,8 +21,10 @@ export function useGnoloveContributors(
     timeFilter: TimeFilter = TimeFilter.ALL_TIME,
     excludeLogins?: string[],
     repositories?: string[],
+    enabled = true,
 ) {
     return useQuery({
+        enabled,
         queryKey: ["gnolove", "contributors", timeFilter, excludeLogins, repositories],
         queryFn: ({ signal }) =>
             api.getContributors(timeFilter, excludeLogins, repositories, signal),
@@ -69,10 +72,11 @@ export function useNotablePRs(boardId?: string) {
 
 // ── Freshly Merged PRs ──────────────────────────────────────
 
-export function useGnoloveFreshlyMerged() {
+export function useGnoloveFreshlyMerged(repositories?: string[], enabled = true) {
     return useQuery({
-        queryKey: ["gnolove", "freshlyMerged"],
-        queryFn: ({ signal }) => api.getFreshlyMerged(signal),
+        enabled,
+        queryKey: ["gnolove", "freshlyMerged", repositories],
+        queryFn: ({ signal }) => api.getFreshlyMerged(signal, repositories),
         staleTime: STALE_DEFAULT,
     })
 }
@@ -205,6 +209,7 @@ export function useGnoloveMonthlyActivity() {
 
 export function useGnolovePackages() {
     return useQuery({
+        enabled: GNOLOVE_ONCHAIN_DATA_ENABLED,
         queryKey: ["gnolove", "packages"],
         queryFn: ({ signal }) => api.getPackages(signal),
         staleTime: STALE_ONCHAIN,
@@ -213,6 +218,7 @@ export function useGnolovePackages() {
 
 export function useGnoloveNamespaces() {
     return useQuery({
+        enabled: GNOLOVE_ONCHAIN_DATA_ENABLED,
         queryKey: ["gnolove", "namespaces"],
         queryFn: ({ signal }) => api.getNamespaces(signal),
         staleTime: STALE_ONCHAIN,
@@ -221,6 +227,7 @@ export function useGnoloveNamespaces() {
 
 export function useGnoloveProposals() {
     return useQuery({
+        enabled: GNOLOVE_ONCHAIN_DATA_ENABLED,
         queryKey: ["gnolove", "proposals"],
         queryFn: ({ signal }) => api.getProposals(signal),
         staleTime: STALE_ONCHAIN,
@@ -229,6 +236,7 @@ export function useGnoloveProposals() {
 
 export function useGnoloveGovdaoMembers() {
     return useQuery({
+        enabled: GNOLOVE_ONCHAIN_DATA_ENABLED,
         queryKey: ["gnolove", "govdaoMembers"],
         queryFn: ({ signal }) => api.getGovdaoMembers(signal),
         staleTime: STALE_ONCHAIN,

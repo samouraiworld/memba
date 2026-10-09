@@ -111,6 +111,7 @@ const OrganizationsPage = lazy(() => import("../pages/OrganizationsPage"))
 
 // ── Gnolove section (lazy — v2.19.0) ──
 const GnoloveLayout = lazy(() => import("../layouts/GnoloveLayout"))
+const GnoloveRepositories = lazy(() => import("../pages/gnolove/GnoloveRepositories"))
 const GnoloveHome = lazy(() => import("../pages/gnolove/GnoloveHome"))
 const GnoloveReport = lazy(() => import("../pages/gnolove/GnoloveReport"))
 const GnoloveNotablePRs = lazy(() => import("../pages/gnolove/GnoloveNotablePRs"))
@@ -277,6 +278,7 @@ export function networkRouteChildren() {
       {/* Gnolove — Contributor scoreboard & analytics (v2.19.0) */}
       <Route path="gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>
         <Route index element={<GnoloveHome />} />
+        <Route path="repositories" element={<GnoloveRepositories />} />
         <Route path="report" element={<GnoloveReport />} />
         <Route path="notable-prs" element={<GnoloveNotablePRs />} />
         <Route path="analytics" element={<GnoloveAnalytics />} />

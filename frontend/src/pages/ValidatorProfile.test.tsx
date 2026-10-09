@@ -411,7 +411,7 @@ describe("ValidatorProfile — Contributions / Activity / Quests / Reviews", () 
         const panel = screen.getByTestId("vp-tab-contributions")
         expect(within(panel).getByText("42")).toBeInTheDocument()
         expect(within(panel).getByText("477")).toBeInTheDocument()
-        expect(within(panel).getByText("gno.land/r/foo/bar")).toBeInTheDocument()
+        expect(within(panel).queryByText("gno.land/r/foo/bar")).not.toBeInTheDocument()
     })
 
     it("Contributions tab shows an honest empty state when there is no gnolove data", async () => {
@@ -476,13 +476,13 @@ describe("ValidatorProfile — Contributions / Activity / Quests / Reviews", () 
         expect(within(screen.getByTestId("vp-tab-activity")).getByTestId("vp-activity-loading")).toBeInTheDocument()
     })
 
-    it("Activity tab lists governance votes alongside the on-chain feed", async () => {
+    it("Activity tab withholds unattested legacy votes alongside the on-chain feed", async () => {
         vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile({ governanceVotes: [{ proposalId: "12", proposalTitle: "Raise the gas cap", vote: "YES" }] }))
         setActivity({ items: [actItem()] })
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
-        expect(within(screen.getByTestId("vp-tab-activity")).getByText(/Raise the gas cap/)).toBeInTheDocument()
+        expect(within(screen.getByTestId("vp-tab-activity")).queryByText(/Raise the gas cap/)).not.toBeInTheDocument()
     })
 
     it("Quests tab prompts a non-owner to connect the operator wallet", async () => {

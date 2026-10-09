@@ -9,7 +9,7 @@ import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 const MEMBER = 'g1fixturealice00000000000000000000000000'
 
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
 }
 
 type WalletMode = 'ok' | 'timeout'

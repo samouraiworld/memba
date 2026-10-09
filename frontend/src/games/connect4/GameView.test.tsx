@@ -28,6 +28,17 @@ const view = (me: string, game: Game, now = 1_000) => {
 beforeEach(() => { Object.values(lib).forEach((f) => f.mockReset()); qp.quickPlayOn.mockReturnValue(true) })
 
 describe("GameView", () => {
+    it.each(["open", "playing"] as const)("warns about the block-time stake risk for %s games", async (status) => {
+        view("", { ...g, status })
+        expect(await screen.findByText(/The 90-second reveal and move clocks use block timestamps/)).toHaveTextContent("A network halt or stall can cost you your stake when blocks resume")
+    })
+
+    it("does not show a live clock warning after a game has settled", async () => {
+        view("", { ...g, status: "won", winner: g.creator })
+        await screen.findByText(/Creator won/)
+        expect(screen.queryByText(/The 90-second reveal and move clocks/)).toBeNull()
+    })
+
     it("lets the player on turn drop a piece", async () => {
         lib.play.mockResolvedValue({})
         view("g1alice", g)

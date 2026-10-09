@@ -17,6 +17,10 @@ Bounded guest access merged in #1339: public App Store browsing remains open, wh
 
 ---
 
+## Dev Report candidate (2026-10-08)
+
+The repository catalogue and explicit overview scopes are implemented for review, with coordinated gnolove registry migration and frontend deployment required. Backend coverage expands to 59 reviewed canonical repositories, retaining historical aliases and unavailable mobile rows. Chain package/vote activity stays unavailable pending a separate verified `gnoland-1` reindex; no historical data is purged.
+
 ## Historical: weighted DAO integration candidate (2026-09-15)
 
 The v7.6.0 frontend candidate adds structured founding-DAO reads and governed admin/finance proposal, vote and execution controls on a dedicated route. Mainnet writes remain held. Next: actual generated-realm browser/wallet rehearsal, member recovery/migration and typed application/treasury authority. See [the scoped plan](docs/WEIGHTED_DAO.md). This is not a release or mainnet readiness claim.

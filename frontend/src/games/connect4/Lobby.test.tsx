@@ -1,10 +1,13 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "../../test/test-utils"
 import type { Game } from "../../lib/connect4"
 
 const lib = vi.hoisted(() => ({ getActive: vi.fn(), offer: vi.fn(), accept: vi.fn(), cancel: vi.fn(), getGame: vi.fn() }))
 vi.mock("../../lib/connect4", async (orig) => ({ ...(await orig<typeof import("../../lib/connect4")>()), ...lib }))
+
+const balance = vi.hoisted(() => ({ rawUgnot: undefined as bigint | undefined }))
+vi.mock("../../hooks/useBalance", () => ({ useBalance: () => balance }))
 
 import { Lobby } from "./Lobby"
 import { SignerContext, type SignerApi } from "../../os/sign/signerContext"
@@ -15,9 +18,67 @@ const base: Game = {
     deadline: 0, status: "open", winner: "",
 }
 
-beforeEach(() => Object.values(lib).forEach((f) => f.mockReset()))
+beforeEach(() => {
+    Object.values(lib).forEach((f) => f.mockReset())
+    balance.rawUgnot = undefined
+    localStorage.clear()
+})
 
 describe("Lobby", () => {
+    it("warns about block-time forfeiture in the lobby and before posting a stake", async () => {
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [] })
+        renderWithProviders(<Lobby me="g1alice" connected onOpen={vi.fn()} />)
+        expect(screen.getByText(/Each reveal and move has 90 seconds measured by block timestamps/)).toHaveTextContent("A network halt or stall can cost you your stake when blocks resume")
+        const form = (await screen.findByLabelText("Stake (GNOT)")).closest("form")!
+        expect(form).toHaveTextContent("The clock uses block timestamps: a network halt or stall can forfeit your stake when blocks resume.")
+    })
+
+    it.each([
+        { balance: 2_029_999n, quickPlay: false },
+        { balance: 2_030_000n, quickPlay: true },
+    ])("Accept follows the consent at the minimum gas budget: $balance", async ({ balance: rawUgnot, quickPlay }) => {
+        balance.rawUgnot = rawUgnot
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base] })
+        lib.accept.mockResolvedValue({ hash: "h" })
+        renderWithProviders(<Lobby me="g1bob" connected onOpen={vi.fn()} />)
+        const row = await screen.findByRole("listitem", { name: /#1/ })
+        if (quickPlay) expect(within(row).getByRole("checkbox", { name: /Quick play/ })).toBeChecked()
+        else {
+            expect(row).toHaveTextContent("Not enough GNOT left after the stake for Quick play")
+            expect(within(row).queryByRole("checkbox", { name: /Quick play/ })).toBeNull()
+        }
+        fireEvent.click(within(row).getByRole("button", { name: "Accept" }))
+        await waitFor(() => expect(lib.accept).toHaveBeenCalledWith("g1bob", expect.objectContaining({ id: 1 }), undefined, quickPlay))
+    })
+
+    it("keeps Quick play available for a smaller offer while a larger offer shows insufficient funds", async () => {
+        balance.rawUgnot = 1_050_000n
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base, { ...base, id: 2, stake: 1_000_000 }] })
+        lib.accept.mockResolvedValue({ hash: "h" })
+        renderWithProviders(<Lobby me="g1bob" connected onOpen={vi.fn()} />)
+        const larger = await screen.findByRole("listitem", { name: /#1/ })
+        const smaller = screen.getByRole("listitem", { name: /#2/ })
+        expect(larger).toHaveTextContent("Not enough GNOT left after the stake for Quick play")
+        expect(within(smaller).getByRole("checkbox", { name: /Quick play/ })).toBeChecked()
+        fireEvent.click(within(smaller).getByRole("button", { name: "Accept" }))
+        await waitFor(() => expect(lib.accept).toHaveBeenCalledWith("g1bob", expect.objectContaining({ id: 2 }), undefined, true))
+    })
+
+    it("posts without Quick play when changing the stake removes the consent checkbox", async () => {
+        balance.rawUgnot = 1_050_000n
+        lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [] })
+        lib.offer.mockReturnValue(new Promise(() => {}))
+        renderWithProviders(<Lobby me="g1alice" connected onOpen={vi.fn()} />)
+        const input = await screen.findByLabelText("Stake (GNOT)")
+        const form = input.closest("form")!
+        expect(within(form).getByRole("checkbox", { name: /Quick play/ })).toBeChecked()
+        fireEvent.change(input, { target: { value: "2" } })
+        expect(form).toHaveTextContent("Not enough GNOT left after the stake for Quick play")
+        expect(within(form).queryByRole("checkbox", { name: /Quick play/ })).toBeNull()
+        fireEvent.click(within(form).getByRole("button", { name: "Post offer" }))
+        await waitFor(() => expect(lib.offer).toHaveBeenCalledWith("g1alice", expect.objectContaining({ stakeUgnot: 2_000_000 }), undefined, false))
+    })
+
     it("shows the bundled Quick play at the stake and lets the player decline it", async () => {
         localStorage.clear()
         lib.getActive.mockResolvedValue({ now: 1_000, fee: 100_000, games: [base] })

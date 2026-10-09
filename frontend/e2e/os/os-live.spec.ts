@@ -8,7 +8,7 @@ for (const [width, name] of [[1280, 'desktop'], [375, 'phone']] as const) {
         await page.setViewportSize({ width, height: 800 })
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.route(/\/api\/indexer/, route => route.fulfill({ status: 503, body: 'offline' }))
-        await page.route(/memba\.v1\.|\.gno\.land|gnolove|clerk[.-]/, route => route.abort())
+        await page.route(/memba\.v1\.|\.gno\.land|https?:\/\/[^/]*gnolove|clerk[.-]/, route => route.abort())
         await page.goto(`${OS_ON}/os/live`)
 
         const live = page.getByRole('region', { name: 'Live', exact: true })

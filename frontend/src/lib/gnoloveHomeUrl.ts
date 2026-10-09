@@ -17,7 +17,7 @@ import type { SortKey } from "./gnoloveFilters"
 
 const KNOWN_TEAMS = new Set(TEAMS.map(t => t.name))
 
-const MAX_REPOS = 50
+const MAX_REPOS = 200
 const MAX_REPOS_RAW_LEN = 4096
 const MAX_PAGE = 10_000 // sanity cap so ?page=99999999 doesn't render millions of empty rows
 
@@ -29,7 +29,8 @@ export interface HomeUrlState {
     excludedTeams: readonly string[]
     sortBy: SortKey
     sortDir: "asc" | "desc"
-    /** Sorted, deduped. [] = all repositories. */
+    /** Sorted, deduped. Empty defaults to Gno core unless scope is all. */
+    scope?: "all"
     repos: readonly string[]
     page: number
 }
@@ -116,7 +117,7 @@ export function parseHomeUrl(params: URLSearchParams): HomeUrlState {
         }
     }
 
-    return { time, excludedTeams, sortBy, sortDir, repos, page }
+    return { time, excludedTeams, sortBy, sortDir, repos, page, ...(repos.length === 0 && params.get("scope") === "all" ? { scope: "all" as const } : {}) }
 }
 
 export function serializeHomeUrl(s: HomeUrlState): URLSearchParams {
@@ -130,6 +131,7 @@ export function serializeHomeUrl(s: HomeUrlState): URLSearchParams {
     if (s.repos.length > 0) {
         out.set("repos", [...s.repos].sort().join(","))
     }
+    if (s.scope === "all" && s.repos.length === 0) out.set("scope", "all")
     if (s.page > 1) out.set("page", String(s.page))
     return out
 }

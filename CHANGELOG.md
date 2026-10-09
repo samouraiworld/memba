@@ -23,6 +23,14 @@ Full changelogs are split by version range for easier navigation:
 ### Memba realm activity in the watcher channel (2026-10-08)
 - The existing Discord watcher can report confirmed calls, package changes and realm events across the samcrew namespace: governance, games, feed, App Store, escrow and Launchpad. Financial alarms keep the same channel.
 - Activity delivery resumes after restarts, retries outages, and sends a daily heartbeat. It starts with new activity; arguments and post contents are omitted.
+### Connect 4 clock risk and Quick Play consent (#1559, 2026-10-08)
+- The lobby, offer form and live game now explain that block-time deadlines can forfeit a stake after a network halt or stall, even when the player could not act.
+- When the displayed balance leaves too little gas for Quick Play after a stake, Offer and Accept send the stake without adding a Quick Play session, matching the notice shown to the player.
+- Market navigation keeps keyboard focus on its destination when an earlier focus effect finishes late.
+### Dev Report repository catalogue
+- Browse public tracked repositories by organisation, search, and open the contributor overview for one repository. Activity metrics remain unavailable until confirmed by the backend.
+- Label the default leaderboard as Gno core; All repositories explicitly includes the available catalogue and persists in shareable URLs. Repository filters also apply to freshly merged PRs.
+- Keep section navigation on one line in narrow OS windows. Hide legacy Gnolove on-chain data until its network provenance is verified, including in profiles and analytics.
 
 ### Connect 4 on gno.land mainnet (2026-10-08)
 - Staked two-player Connect 4 in the Arcade on gnoland-1: both players stake the same GNOT and the winner takes the pot minus a 0.1 GNOT house fee; a draw or a void game refunds both stakes. There is no maximum stake. Connect 4 now has community reviews.

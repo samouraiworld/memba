@@ -1,10 +1,17 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { Suspense } from "react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import * as React from "react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { NFT_MARKET_PATH } from "../../../lib/nft/market"
 import { classicForSection } from "../../page/classicRoute"
 import type { WindowSpec } from "../../shell/windows"
 import MarketWindow from "./native"
+
+// Forward effects unchanged, except the one explicitly deferred by the regression below.
+vi.mock("react", async (original) => {
+    const react = await original<typeof import("react")>()
+    return { ...react, useEffect: vi.fn(react.useEffect) }
+})
 
 // The lane registry is real: only its inputs (each lane's build flag and realm check) are driven here.
 // The NFT lane's realm is checked per network, as "<network>:<path>"; the v3 engine it no longer reads as "nft-v3".
@@ -33,6 +40,7 @@ const sectionOf = (spec: WindowSpec) => (spec.target?.kind === "app" ? spec.targ
 
 describe("Market window", () => {
     beforeEach(() => { gates.flags.clear(); gates.realms.clear() })
+    afterEach(() => { vi.mocked(React.useEffect).mockReset() })
 
     it("says no lane is available here and what a lane needs, with no card and no promise, when no lane is live", () => {
         render(<MarketWindow {...base} section={null} open={vi.fn()} />)
@@ -108,7 +116,7 @@ describe("Market window", () => {
         let arrive = () => {}
         const pending = new Promise<void>((resolve) => { arrive = resolve })
         let loaded = false
-        function SlowPage(): JSX.Element { if (!loaded) throw pending; return <p>classic page</p> }
+        function SlowPage(): React.JSX.Element { if (!loaded) throw pending; return <p>classic page</p> }
         const open = vi.fn<(spec: WindowSpec) => void>()
         const view = (section: string | null) => <Suspense fallback={<p>window loading</p>}><MarketWindow {...base} fallback={<SlowPage />} section={section} open={open} /></Suspense>
         const { rerender } = render(view(null))
@@ -171,6 +179,32 @@ describe("Market window", () => {
         const card = screen.getByRole("button", { name: /Services/ })
         card.focus()
         fireEvent.click(card)
+        rerender(view(sectionOf(open.mock.lastCall![0])))
+        const back = screen.getByRole("button", { name: "Market lanes" })
+        expect(back).toHaveFocus()
+
+        fireEvent.click(back)
+        rerender(view(sectionOf(open.mock.lastCall![0])))
+        expect(screen.getByRole("heading", { name: "Market lanes" })).toHaveFocus()
+    })
+
+    it("keeps a lane's focus request when the initial home effect runs after its card is used", () => {
+        live("service")
+        // Defer the real component's first effect, preserving its captured home section.
+        // Flush it after navigation is requested but before the destination commits.
+        const originalEffect = vi.mocked(React.useEffect).getMockImplementation()!
+        let pending: React.EffectCallback | undefined
+        vi.mocked(React.useEffect).mockImplementationOnce((callback, deps) => {
+            originalEffect(() => { pending = callback }, deps)
+        })
+        const open = vi.fn<(spec: WindowSpec) => void>()
+        const view = (section: string | null) => <MarketWindow {...base} section={section} open={open} />
+        const { rerender } = render(view(null))
+        expect(pending).toBeTypeOf("function")
+        const card = screen.getByRole("button", { name: /Services/ })
+        card.focus()
+        fireEvent.click(card)
+        act(() => { pending!() })
         rerender(view(sectionOf(open.mock.lastCall![0])))
         const back = screen.getByRole("button", { name: "Market lanes" })
         expect(back).toHaveFocus()

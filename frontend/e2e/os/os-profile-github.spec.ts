@@ -10,7 +10,7 @@ import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 const OWNER = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
 
 async function signedInOwner(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillOnchainReads(page, ({ method, path, arg }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (method !== 'abci_query') return null
@@ -67,7 +67,7 @@ test('the owner links GitHub from the Profile window and comes back to it', asyn
 })
 
 test('a guest sees no GitHub card, only the way to connect', async ({ page }) => {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
+    await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillOnchainReads(page, ({ method }) => (method === 'status' ? mockAppChainStatus('gnoland-1') : null))
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
     await page.goto(`${OS_FLAGS_ON}/os/profile`)

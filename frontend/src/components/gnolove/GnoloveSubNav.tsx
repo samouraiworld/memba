@@ -19,6 +19,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
     { path: "gnolove",            label: "Overview",   end: true  },
+    { path: "gnolove/repositories", label: "Repositories", end: false },
     { path: "gnolove/teams",      label: "Teams",      end: false },
     { path: "gnolove/report",     label: "Report",     end: false },
     { path: "gnolove/notable-prs", label: "Notable PRs", end: false },

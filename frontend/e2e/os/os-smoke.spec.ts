@@ -14,7 +14,7 @@ const CORE = [
 for (const [width, label] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test.describe(`Memba OS smoke · ${label}`, () => {
         test.beforeEach(async ({ page }) => {
-            await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
             await fulfillGovernance(page)
             await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
             await page.setViewportSize({ width, height: 800 })
@@ -38,7 +38,7 @@ for (const [width, label] of [[1280, 'desktop'], [375, 'phone']] as const) {
 
 test.describe('Memba OS window failure', () => {
     test('a window whose code cannot load fails inside itself; the other windows keep working', async ({ page }) => {
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
         await fulfillGovernance(page)
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })
@@ -69,7 +69,7 @@ test.describe('Memba OS · the optional account', () => {
         return seen
     }
     test.beforeEach(async ({ page }) => {
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
         await fulfillGovernance(page)
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })

@@ -32,10 +32,18 @@ describe("assertSafeFlags", () => {
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
+            "VITE_ENABLE_NOTES_CHAIN",
+            "VITE_ENABLE_NOTES_ENCRYPTED",
+            "VITE_ENABLE_NOTES_VAULT_REVEAL",
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
             "VITE_ENABLE_EVM",
         ])
+    })
+
+    it.each(["VITE_ENABLE_NOTES_CHAIN", "VITE_ENABLE_NOTES_ENCRYPTED", "VITE_ENABLE_NOTES_VAULT_REVEAL"])("keeps %s out of release builds", flag => {
+        expect(() => assertSafeFlags({ [flag]: "true" })).toThrow(flag)
+        expect(() => assertSafeFlags({ [flag]: "false" })).not.toThrow()
     })
 
     it("keeps the EVM network out of release builds until launch", () => {

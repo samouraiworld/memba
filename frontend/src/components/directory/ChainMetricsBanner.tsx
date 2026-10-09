@@ -82,7 +82,7 @@ export function ChainMetricsBanner() {
     }, [])
 
     return (
-        <div className="chain-metrics-banner" aria-label="Chain metrics">
+        <div className="chain-metrics-banner" role="group" aria-label="Chain metrics">
             {metrics ? (
                 <>
                     <div className="chain-metric">

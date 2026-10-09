@@ -8,6 +8,7 @@
  * @module lib/gnoloveApi
  */
 
+import { GNOLOVE_ONCHAIN_DATA_ENABLED, GNOLOVE_ONCHAIN_UNAVAILABLE } from "./gnoloveChainAvailability"
 import { GNOLOVE_API_URL } from "./config"
 import {
     ContributorsResponseSchema,
@@ -73,7 +74,7 @@ export class HttpError extends Error {
     }
 }
 
-async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+export async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
@@ -151,8 +152,10 @@ export async function getPullRequestsReport(
     return PullRequestReportSchema.parse(data)
 }
 
-export async function getFreshlyMerged(signal?: AbortSignal): Promise<TPullRequest[] | null> {
-    const data = await fetchJson(apiUrl("/last-prs"), signal)
+export async function getFreshlyMerged(signal?: AbortSignal, repositories?: string[]): Promise<TPullRequest[] | null> {
+    const url = new URL("/last-prs", GNOLOVE_API_URL)
+    if (repositories?.length) url.searchParams.set("repositories", repositories.join(","))
+    const data = await fetchJson(url.toString(), signal)
     return z.array(PullRequestSchema).nullish().parse(data) ?? null
 }
 
@@ -191,21 +194,25 @@ export async function getContributor(login: string, signal?: AbortSignal): Promi
 }
 
 export async function getPackages(signal?: AbortSignal): Promise<TPackage[]> {
+    if (!GNOLOVE_ONCHAIN_DATA_ENABLED) throw new Error(GNOLOVE_ONCHAIN_UNAVAILABLE)
     const data = await fetchJson(apiUrl("/onchain/packages"), signal)
     return PackagesSchema.parse(data)
 }
 
 export async function getNamespaces(signal?: AbortSignal): Promise<TNamespace[]> {
+    if (!GNOLOVE_ONCHAIN_DATA_ENABLED) throw new Error(GNOLOVE_ONCHAIN_UNAVAILABLE)
     const data = await fetchJson(apiUrl("/onchain/namespaces"), signal)
     return NamespacesSchema.parse(data)
 }
 
 export async function getProposals(signal?: AbortSignal): Promise<TProposal[]> {
+    if (!GNOLOVE_ONCHAIN_DATA_ENABLED) throw new Error(GNOLOVE_ONCHAIN_UNAVAILABLE)
     const data = await fetchJson(apiUrl("/onchain/proposals"), signal)
     return ProposalsSchema.parse(data)
 }
 
 export async function getGovdaoMembers(signal?: AbortSignal): Promise<TGovdaoMember[]> {
+    if (!GNOLOVE_ONCHAIN_DATA_ENABLED) throw new Error(GNOLOVE_ONCHAIN_UNAVAILABLE)
     const data = await fetchJson(apiUrl("/onchain/govdao-members"), signal)
     return GovdaoMembersSchema.parse(data)
 }
