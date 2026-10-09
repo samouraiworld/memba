@@ -30,6 +30,7 @@ export interface PhoneShellProps {
     front: OsWindow | null
     wins?: readonly OsWindow[]
     items: readonly DeskItem[]
+    noteLabels?: Readonly<Record<string, string>>
     open: (spec: WindowSpec) => void
     openApp: (app: OsAppId) => void
     openItem: (index: number) => void
@@ -123,7 +124,7 @@ export function PhoneShell(p: PhoneShellProps) {
                 </div>
                 <div className="os-ph-grid">
                     {p.items.map((it, i) => (
-                        <button key={`${it.ty}:${it.ref}`} type="button" className="os-ph-ic" onClick={() => p.openItem(i)}><DeskIcon item={it} /></button>
+                        <button key={`${it.ty}:${it.ref}`} type="button" className="os-ph-ic" onClick={() => p.openItem(i)}><DeskIcon item={it} noteLabels={p.noteLabels} /></button>
                     ))}
                     <button type="button" className="os-ph-ic" onClick={() => setSheet("apps")}><span className="os-ph-all" aria-hidden="true">⋯</span><span className="os-ph-label">All apps</span></button>
                 </div>
