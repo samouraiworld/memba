@@ -19,6 +19,11 @@ primary_region = 'cdg'
   wait_timeout = "5m"
 
 [env]
+  # One Discord channel for realm activity and Launchpad financial alarms.
+  # Reuses LAUNCHPAD_WATCH_WEBHOOK_URL; no historical flood on first boot.
+  MEMBA_ACTIVITY_WATCH_ENABLED = '1'
+  MEMBA_ACTIVITY_WATCH_REALMS = 'gno.land/r/samcrew/*'
+  MEMBA_ACTIVITY_WATCH_RPC_URL = 'https://rpc.mainnet.samourai.live'
   # ⚠️ FIVE of these keys are SHADOWED BY FLY SECRETS and the values below are
   # DOCUMENTATION, not live config: CORS_ORIGINS, GNO_CHAIN_ID,
   # MEMBA_ACCEPTED_CHAIN_IDS, GNO_RPC_URL — and, since the §5 pearl window,

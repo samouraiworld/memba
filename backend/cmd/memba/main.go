@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
+	"github.com/samouraiworld/memba/backend/internal/activitywatch"
 	"github.com/samouraiworld/memba/backend/internal/arcade"
 	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/auth"
@@ -677,6 +678,7 @@ func main() {
 	}
 
 	startLaunchpadWatcher(ctx, database, os.Getenv)
+	activitywatch.Start(ctx, database, os.Getenv)
 
 	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash
 	// doesn't leave a multi-hundred-MB WAL that slows restart recovery. The

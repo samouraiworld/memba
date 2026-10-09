@@ -306,6 +306,30 @@ groups:
           runbook: "docs/FEED_MODERATION_RUNBOOK.md"
 
   # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.activity
+    interval: 60s
+    rules:
+      - alert: MembaActivityWatcherStalled
+        expr: memba_activity_watch_enabled == 1 and on() (time() - memba_activity_watch_progress_timestamp_seconds > 900)
+        for: 5m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Memba Discord activity watcher has stopped progressing"
+          description: "Check activity watcher logs, RPC identity/freshness and saved cursor. A changed confirmed block halts delivery for reconciliation."
+          runbook: "docs/DISCORD_WATCHER.md"
+      - alert: MembaActivityDeliveryStalled
+        expr: memba_activity_watch_enabled == 1 and on() memba_activity_watch_pending > 0 and on() (time() - memba_activity_watch_oldest_pending_timestamp_seconds > 300)
+        for: 5m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Memba activity messages are waiting for Discord"
+          description: "Check webhook validity and Discord HTTP errors. Pending messages survive restarts; do not reset the cursor."
+          runbook: "docs/DISCORD_WATCHER.md"
+
   - name: memba.launchpad
     interval: 60s
     rules:

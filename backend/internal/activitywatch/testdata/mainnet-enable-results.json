@@ -1,0 +1,50 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "height": "658489",
+    "results": {
+      "deliver_tx": [
+        {
+          "ResponseBase": {
+            "Error": null,
+            "Data": null,
+            "Events": [
+              {
+                "@type": "/tm.StorageDepositEvent",
+                "bytes_delta": "65345",
+                "fee_delta": "6534500ugnot",
+                "pkg_path": "gno.land/r/samcrew/connect4"
+              }
+            ],
+            "Log": "msg:0,success:true,log:,events:[]",
+            "Info": ""
+          },
+          "GasWanted": "24836310",
+          "GasUsed": "20696915"
+        }
+      ],
+      "end_block": {
+        "ResponseBase": {
+          "Error": null,
+          "Data": null,
+          "Events": null,
+          "Log": "",
+          "Info": ""
+        },
+        "ValidatorUpdates": null,
+        "ConsensusParams": null,
+        "Events": null
+      },
+      "begin_block": {
+        "ResponseBase": {
+          "Error": null,
+          "Data": null,
+          "Events": null,
+          "Log": "",
+          "Info": ""
+        }
+      }
+    }
+  }
+}
