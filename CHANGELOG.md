@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba DAO overview and readiness (#1587, 2026-10-09)
+- Explain the current Memba DAO in plain language, show its members and application handovers, and keep detailed rules expandable on desktop and mobile.
+- Link the retired DAO page to current governance, let invitees join from Members, and check community admission against the current governance bridge.
+- Document the nine remaining mainnet application handovers and first-vote verification; this change does not transfer application ownership.
+
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
 
