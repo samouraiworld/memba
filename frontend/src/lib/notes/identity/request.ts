@@ -5,6 +5,7 @@ import type { AminoMsg } from '../../grc20'
 import type { SignRequest } from '../../../os/sign/signer'
 import type { DraftSession, NotesWriteResult } from '../drafts'
 import type { NotesIntents, NotesIntentInput } from '../intents'
+import { validIdentityVerification } from '../intents'
 import type { NotesReadClient } from '../chain/client'
 import { decimal, NOTES_REGISTRY, NotesChainError } from '../chain/schema'
 import { validateNotesQuote } from '../chain/request'
@@ -27,7 +28,20 @@ export async function prepareIdentitySetupRequest(options: IdentityRequestOption
   const current = () => { client.assertCurrent(); if (guard.signal.aborted) throw new NotesChainError('session') }
   const enabled = () => { current(); if (!options.isWriteEnabled()) throw new NotesChainError('disabled') }
   enabled()
-  const plan = controller.preparedPlan(), caps = { ...options.caps }
+  let plan = controller.preparedPlan()
+  const caps = { ...options.caps }, scope = identityIntentScope(client.chainId, owner)
+  const previous = await intents.get(scope, plan.operationId); enabled()
+  if (controller.preparedPlan().operationId !== plan.operationId) throw new NotesChainError('stale')
+  if (previous) {
+    const v = previous.verification
+    if (previous.phase !== 'not-sent' || previous.action !== 'identity-setup' || previous.actor !== owner
+      || Object.entries(scope).some(([key, value]) => previous.scope[key as keyof typeof scope] !== value)
+      || previous.expectedStateRevision !== plan.expectedGeneration.toString() || previous.ownerGeneration !== plan.expectedGeneration.toString()
+      || previous.expectedEpoch !== plan.expectedBackupRevision.toString() || previous.resultingStateRevision !== plan.generation.toString()
+      || !validIdentityVerification(v)
+      || Object.entries(identityVerification(plan, v.quoteHeight)).some(([key, value]) => v[key as keyof typeof v] !== value)) throw new NotesChainError('stale')
+    plan = controller.renewPreparedOperation(plan.operationId)
+  }
   const reviewed = () => { enabled(); if (controller.preparedPlan().operationId !== plan.operationId) throw new NotesChainError('stale') }
   const messages = identitySetupMessages(plan, owner, client.chainId, caps)
   const totalCap = decimal((BigInt(caps.registryUgnot) + BigInt(caps.backupUgnot)).toString(), 63)
@@ -41,7 +55,7 @@ export async function prepareIdentitySetupRequest(options: IdentityRequestOption
   const quoteInput = { chainId: client.chainId, messages, requestDigest, height }
   const quote = structuredClone(await options.quote(structuredClone(quoteInput))); reviewed(); validateNotesQuote(quote, quoteInput, totalCap)
   const input: NotesIntentInput = {
-    scope: identityIntentScope(client.chainId, owner), operationId: plan.operationId, actor: owner, action: 'identity-setup', requestDigest,
+    scope, operationId: plan.operationId, actor: owner, action: 'identity-setup', requestDigest,
     expectedStateRevision: plan.expectedGeneration.toString(), resultingStateRevision: plan.generation.toString(),
     expectedEpoch: plan.expectedBackupRevision.toString(), ownerGeneration: plan.expectedGeneration.toString(), draftLocalRevision: '0',
     verification: identityVerification(plan, height),

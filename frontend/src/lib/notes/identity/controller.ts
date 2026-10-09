@@ -177,6 +177,15 @@ export class NotesIdentityController {
     if (!this.pending?.confirmed) throw new NotesCryptoError('identity')
     return { ...this.pending.plan, publicKey: this.pending.plan.publicKey.slice(), backup: this.pending.plan.backup.slice() }
   }
+  /** Caller must establish a matching durable not-sent receipt before requesting a new review. */
+  renewPreparedOperation(previousOperationId: string): IdentitySetupPlan {
+    this.assert(this.epoch)
+    if (this.busy || !this.pending?.confirmed || this.pending.plan.operationId !== previousOperationId) throw new NotesCryptoError('identity')
+    const next = bytesToHex(randomBytes(16))
+    if (next === previousOperationId || /^0+$/.test(next)) throw new NotesCryptoError('identity')
+    this.pending.plan.operationId = next
+    return this.preparedPlan()
+  }
   /** Only exact current registry AND backup receipts activate the prepared seed. */
   async confirmSetup(): Promise<boolean> {
     return this.run(async token => {

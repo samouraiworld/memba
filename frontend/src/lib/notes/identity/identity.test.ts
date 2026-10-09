@@ -99,6 +99,39 @@ describe('RAM-only identity lifecycle', () => {
     await expect(s.controller.prepareSetup('standard', {})).rejects.toThrow('signature')
     expect(s.controller.getSnapshot().phase).toBe('empty'); expect(dependencies.kdf).not.toHaveBeenCalled()
   })
+  it('renews only the prepared operation and recovers the same identity with the original export', async () => {
+    const s = setup(empty()), output = await s.controller.prepareSetup('standard', {})
+    expect(() => s.controller.renewPreparedOperation('11'.repeat(16))).toThrow()
+    s.controller.confirmRecovery(output.phrase)
+    const before = s.controller.preparedPlan(), next = s.controller.renewPreparedOperation(before.operationId)
+    expect(next.operationId).toMatch(/^[a-f0-9]{32}$/); expect(next.operationId).not.toBe(before.operationId)
+    expect(next).toEqual({ ...before, operationId: next.operationId })
+    expect(s.controller.getSnapshot().recoveryConfirmed).toBe(true)
+    expect(() => s.controller.renewPreparedOperation(before.operationId)).toThrow()
+    expect(dependencies.unlock).toHaveBeenCalledTimes(2)
+    s.setChain({ generation: next.generation, active: true, publicKey: next.publicKey, keyOperationId: next.operationId, keyHeight: 10n, backup: { revision: 1n, record: next.backup, operationId: next.operationId, height: 10n } })
+    expect(await s.controller.confirmSetup()).toBe(true)
+    s.controller.lock(); await s.controller.recover(output.phrase, output.exportText)
+    expect(s.controller.getSnapshot().phase).toBe('unlocked')
+    expect(await s.controller.use(identity => identity.publicKey)).toEqual(before.publicKey)
+    s.controller.dispose()
+  })
+  it('refuses renewal while busy or after lock, and fails closed on repeated or zero random IDs', async () => {
+    const s = setup(empty()), output = await s.controller.prepareSetup('vault'); s.controller.confirmRecovery(output.phrase)
+    const before = s.controller.preparedPlan()
+    let finish!: (state: IdentityChainState) => void
+    s.read.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const refreshing = s.controller.refresh()
+    expect(() => s.controller.renewPreparedOperation(before.operationId)).toThrow()
+    finish(empty()); await refreshing
+    for (const bytes of [new Uint8Array(16), hexToBytes(before.operationId)]) {
+      const rng = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(array => { (array as Uint8Array).set(bytes); return array })
+      try { expect(() => s.controller.renewPreparedOperation(before.operationId)).toThrow(); expect(s.controller.preparedPlan()).toEqual(before) }
+      finally { rng.mockRestore() }
+    }
+    s.controller.lock(); expect(() => s.controller.renewPreparedOperation(before.operationId)).toThrow()
+    s.controller.dispose()
+  })
   it('migrates to an independent Vault identity and retains an encrypted archival generation', async () => {
     const s = setup(); await s.controller.unlockStandard({})
     const output = await s.controller.prepareSetup('vault')

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory, IDBObjectStore } from 'fake-indexeddb'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import { bech32Encode } from '../../dao/realmAddress'
 import { createDraftSession, createNotesStore } from '../drafts'
@@ -7,13 +8,14 @@ import type { NotesStore } from '../drafts'
 import { createNotesIntents, validIdentityVerification } from '../intents'
 import type { NotesReadClient } from '../chain/client'
 import { blob, encode64, NOTES_REALM } from '../chain/schema'
-import type { NotesIdentityController, IdentitySetupPlan } from './controller'
+import { NotesIdentityController, type IdentitySetupPlan } from './controller'
 import { identityIntentScope, prepareIdentitySetupRequest } from './request'
 import type { IdentityQuoteProvider, IdentityRequestOptions } from './request'
 import { recoverIdentityIntent } from './requestRecovery'
 import golden from './__fixtures__/backup-standard.json'
 
-const network = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn() }))
+const network = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn(), kdf: vi.fn() }))
+vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => network.kdf(...args) }))
 vi.mock('../../grc20', () => ({ MAX_GAS_WANTED: 500000000, doContractBroadcast: (...args: unknown[]) => network.send(...args), freshFeeForGasWanted: (...args: unknown[]) => network.fee(...args), assertFeeStillCovers: async (fee: number, fresh: () => Promise<number>) => { if (await fresh() > fee) throw new Error('fee changed') } }))
 const owner = bech32Encode('g', hexToBytes(golden.addressHex)), op = '44'.repeat(16)
 const stores: NotesStore[] = []
@@ -31,12 +33,101 @@ function setup() {
   const options: IdentityRequestOptions = { controller, client, owner, caps: { registryUgnot: '1000000', backupUgnot: '1000000' }, quote, intents, session, isWriteEnabled: () => enabled }
   return { store, options, intents, session, controller, scope: identityIntentScope(golden.chainId, owner), apply: (id = op) => { applied = true; operationId = id }, disable: () => { enabled = false } }
 }
+async function realSetup() {
+  const s = setup(), controller = new NotesIdentityController({ chainId: golden.chainId, realm: NOTES_REALM, address: owner, addressBytes: hexToBytes(golden.addressHex), session: s.session, isCurrent: () => true, read: async () => ({ generation: 0n, active: false, publicKey: new Uint8Array(), keyOperationId: '', keyHeight: 0n, backup: null }) })
+  const output = await controller.prepareSetup('vault'); controller.confirmRecovery(output.phrase)
+  return { ...s, controller, output, options: { ...s.options, controller } }
+}
 beforeEach(() => {
   vi.clearAllMocks(); network.fee.mockResolvedValue(90000)
+  network.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
   network.send.mockImplementation(async (_messages, _memo, options) => { await options.beforeSign(); return { hash: 'aa'.repeat(32) } })
 })
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(store => store.close())) })
 describe('atomic identity setup signing', () => {
+  it('reviews a new operation after a proven pre-wallet fee failure without replacing recovery material', async () => {
+    const s = await realSetup(), original = s.controller.preparedPlan(), first = await prepareIdentitySetupRequest(s.options)
+    const wallet = vi.fn(async () => () => true)
+    network.fee.mockResolvedValueOnce(100001)
+    await expect(first.send(undefined, wallet)).rejects.toThrow('fee changed')
+    expect(wallet).not.toHaveBeenCalled()
+    const prior = (await s.intents.get(s.scope, original.operationId))!
+    expect(prior.phase).toBe('not-sent')
+    const retry = await prepareIdentitySetupRequest(s.options), renewed = s.controller.preparedPlan()
+    expect(renewed.operationId).not.toBe(original.operationId)
+    expect(renewed).toEqual({ ...original, operationId: renewed.operationId })
+    expect(s.controller.getSnapshot()).toMatchObject({ phase: 'prepared', recoveryConfirmed: true })
+    const oldMessages = first.prepare(undefined).msgs, newMessages = retry.prepare(undefined).msgs
+    expect(newMessages.map(message => (message.value.args as string[]).slice(0, -1))).toEqual(oldMessages.map(message => (message.value.args as string[]).slice(0, -1)))
+    expect(retry.acks).toEqual(first.acks)
+    await expect(first.recheck!(undefined)).rejects.toThrow('stale')
+    await expect(first.send(undefined, wallet)).rejects.toThrow('stale')
+    await retry.send(undefined, wallet)
+    expect(wallet).toHaveBeenCalledTimes(1)
+    const next = (await s.intents.get(s.scope, renewed.operationId))!
+    expect(next.phase).toBe('submitted'); expect(next.requestDigest).not.toBe(prior.requestDigest)
+    expect(await s.intents.get(s.scope, original.operationId)).toEqual(prior)
+    s.controller.dispose()
+  })
+  it.each(['prepared', 'submitted', 'unknown'] as const)('never renews an existing %s operation', async phase => {
+    const s = setup(), request = await prepareIdentitySetupRequest(s.options)
+    network.fee.mockResolvedValueOnce(100001)
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('fee changed')
+    const previous = (await s.intents.get(s.scope, op))!, t = setup()
+    expect((await t.intents.begin(previous, t.session.capture())).status).toBe('saved')
+    if (phase !== 'prepared') expect((await t.intents.settle(t.scope, op, phase, t.session.capture())).status).toBe('saved')
+    network.send.mockClear()
+    await expect(prepareIdentitySetupRequest(t.options)).rejects.toThrow('stale')
+    expect((await t.intents.get(t.scope, op))?.phase).toBe(phase)
+    expect(t.controller.preparedPlan().operationId).toBe(op); expect(network.send).not.toHaveBeenCalled()
+  })
+  it('allows only one renewal when concurrent reviews read the same not-sent record', async () => {
+    const s = await realSetup(), oldId = s.controller.preparedPlan().operationId, first = await prepareIdentitySetupRequest(s.options)
+    network.fee.mockResolvedValueOnce(100001); await expect(first.send(undefined, async () => {})).rejects.toThrow('fee changed')
+    const get = s.intents.get.bind(s.intents); let reads = 0, release!: () => void
+    const barrier = new Promise<void>(resolve => { release = resolve })
+    vi.spyOn(s.intents, 'get').mockImplementation(async (scope, id) => { const value = await get(scope, id); if (++reads === 2) release(); await barrier; return value })
+    const results = await Promise.allSettled([prepareIdentitySetupRequest(s.options), prepareIdentitySetupRequest(s.options)])
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter(result => result.status === 'rejected')).toHaveLength(1)
+    expect(s.controller.preparedPlan().operationId).not.toBe(oldId)
+    expect((await get(s.scope, oldId))?.phase).toBe('not-sent')
+    s.controller.dispose()
+  })
+  it.each(['publicKeySha256', 'backupSha256', 'mode', 'generation', 'backupRevision', 'actor', 'scope'] as const)('does not renew a not-sent receipt with mismatched %s', async field => {
+    const s = await realSetup(), plan = s.controller.preparedPlan(), first = await prepareIdentitySetupRequest(s.options)
+    network.fee.mockResolvedValueOnce(100001); await expect(first.send(undefined, async () => {})).rejects.toThrow('fee changed')
+    const db = await s.store.database.open()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('intents', 'readwrite'), store = tx.objectStore('intents'), read = store.getAll()
+      read.onsuccess = () => {
+        const value = read.result[0]
+        if (field === 'generation') { value.expectedStateRevision = '1'; value.ownerGeneration = '1'; value.resultingStateRevision = '2'; value.verification.generation = '2' }
+        else if (field === 'backupRevision') { value.expectedEpoch = '1'; value.verification.backupRevision = '2' }
+        else if (field === 'actor') value.actor = bech32Encode('g', new Uint8Array(20).fill(3))
+        else if (field === 'scope') value.scope.chainId = 'other-chain'
+        else value.verification[field] = field === 'mode' ? 'standard' : 'aa'.repeat(32)
+        store.put(value)
+      }
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error)
+    })
+    network.send.mockClear()
+    await expect(prepareIdentitySetupRequest(s.options)).rejects.toThrow()
+    expect(s.controller.preparedPlan()).toEqual(plan); expect(network.send).not.toHaveBeenCalled()
+    s.controller.dispose()
+  })
+  it('refuses renewal if lock or session invalidation occurs during the journal read', async () => {
+    for (const invalidate of ['lock', 'session'] as const) {
+      const s = await realSetup(), id = s.controller.preparedPlan().operationId, first = await prepareIdentitySetupRequest(s.options)
+      network.fee.mockResolvedValueOnce(100001); await expect(first.send(undefined, async () => {})).rejects.toThrow('fee changed')
+      const get = s.intents.get.bind(s.intents)
+      vi.spyOn(s.intents, 'get').mockImplementationOnce(async (scope, opId) => { const value = await get(scope, opId); if (invalidate === 'lock') s.controller.lock(); else s.session.invalidate(); return value })
+      network.send.mockClear()
+      await expect(prepareIdentitySetupRequest(s.options)).rejects.toThrow()
+      expect((await get(s.scope, id))?.phase).toBe('not-sent'); expect(network.send).not.toHaveBeenCalled()
+      s.controller.dispose()
+    }
+  })
   it('stores the two-call digest before wallet and confirms only the matched batch', async () => {
     const s = setup(), request = await prepareIdentitySetupRequest(s.options)
     network.send.mockImplementationOnce(async (messages, _memo, options) => {
