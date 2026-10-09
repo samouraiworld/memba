@@ -55,6 +55,19 @@ describe('FPS preview lifecycle and explicit capture', () => {
         rerender(view(true)); expect(screen.getByRole('dialog', { name: 'Partie en pause' })).toBeInTheDocument()
         expect(lock).not.toHaveBeenCalled()
     })
+    it('does not steal another window’s focus when parked, and stays paused on reactivation', async () => {
+        const view = (active: boolean) => <><button>Other OS window</button><WindowActivityContext.Provider value={active}><FpsPreview onClassic={vi.fn()} /></WindowActivityContext.Provider></>
+        const { rerender } = render(view(true))
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Jouer · visée libre' }))
+        screen.getByRole('button', { name: 'Other OS window' }).focus()
+        rerender(view(false))
+        expect(screen.getByRole('button', { name: 'Other OS window' })).toHaveFocus()
+        expect(screen.getByRole('dialog', { name: 'Partie en pause' })).toBeInTheDocument()
+        rerender(view(true))
+        expect(screen.getByRole('dialog', { name: 'Partie en pause' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Tirer' })).toBeDisabled()
+    })
     it('keeps the firing finger held when the aiming finger is lifted', async () => {
         const { container } = render(<FpsPreview onClassic={vi.fn()} />)
         await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())

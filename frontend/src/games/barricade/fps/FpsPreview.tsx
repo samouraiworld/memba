@@ -4,6 +4,7 @@ import { useGameLoop } from '../hooks/useGameLoop'
 import { detectHas3D } from '../render/three/caps'
 import { MAGAZINE, WAVE_COUNTS } from '../sim/fps/types'
 import { createSession } from './session'
+import { usePreviewHeight } from './usePreviewHeight'
 import './fps.css'
 
 const Scene = lazy(() => import('../render/three/fps/FpsScene'))
@@ -22,6 +23,8 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
     const [lockHint, setLockHint] = useState('')
     const [mutedMotion, setMutedMotion] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)
     const [light, setLight] = useState<'dusk' | 'day'>('dusk')
+    const root = useRef<HTMLElement>(null)
+    usePreviewHeight(root)
     const viewport = useRef<HTMLDivElement>(null)
     const resume = useRef<HTMLButtonElement>(null)
     const drag = useRef<{ id: number; x: number; y: number } | null>(null)
@@ -71,12 +74,12 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
     useEffect(() => {
         if (status !== 'playing' || state.phase === 'repair') {
             if (document.pointerLockElement === viewport.current) document.exitPointerLock()
-            resume.current?.focus({ preventScroll: true })
+            if (active && !document.hidden) resume.current?.focus({ preventScroll: true })
         }
-    }, [status, state.phase])
+    }, [status, state.phase, active])
 
     function start(lock = false) {
-        if (!active) return
+        if (!active || document.hidden) return
         session.start()
         viewport.current?.focus({ preventScroll: true })
         // ONLY this user click handler requests capture. Rejected capture keeps drag mode.
@@ -94,7 +97,7 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
     const unavailable = !has3D || failed
-    return <section className="fps-preview" aria-label="Barricade FPS prototype" data-status={status} data-phase={state.phase}>
+    return <section ref={root} className="fps-preview" aria-label="Barricade FPS prototype" data-status={status} data-phase={state.phase}>
         <header className="fps-header">
             <div><span className="fps-eyebrow">BARRICADE / ÉTUDE JOUABLE C1</span><h1>Tenir la rue.</h1></div>
             <button onClick={onClassic}>Retour à Classic</button>
@@ -141,7 +144,7 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
             {unavailable ? <div className="fps-overlay"><h2>FPS 3D indisponible</h2><p>Le prototype nécessite WebGL2. Votre partie Classic reste indépendante.</p><button onClick={onClassic}>Jouer à Classic</button></div>
                 : (status === 'ready' || status === 'paused') ? <div className="fps-overlay" role={status === 'paused' ? 'dialog' : undefined} aria-label={status === 'paused' ? 'Partie en pause' : 'Prêt à jouer'}>
                     <span className="fps-eyebrow">PREMIÈRE PERSONNE · POSITION FIXE</span><h2>{status === 'paused' ? 'La rue attend.' : 'Trois axes. Une barricade.'}</h2>
-                    <p>Visez librement les CRS et les robots. Les boucliers bloquent les tirs : attendez leur ouverture ou visez au-dessus. Réparez entre les vagues.</p>
+                    <p className="fps-intro">Visez librement les CRS et les robots. Les boucliers bloquent les tirs : attendez leur ouverture ou visez au-dessus. Réparez entre les vagues.</p>
                     <p>Glisser ou flèches : viser · Tirer ou Espace · R : recharger · P : pause</p>
                     {hud.limited ? <p>Limite du journal atteinte. Exportez le replay et recommencez.</p> : <div className="fps-actions">
                         <button ref={resume} className="fps-primary" disabled={!hud.ready || !active} onClick={() => start()}>{hud.ready ? status === 'paused' ? 'Reprendre · visée libre' : 'Jouer · visée libre' : 'Chargement…'}</button>
@@ -150,12 +153,12 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
                 </div> : status === 'done' ? <div className="fps-overlay" role="dialog" aria-label="Résultat du prototype">
                     <h2>{state.phase === 'won' ? 'La barricade tient.' : 'La ligne a cédé.'}</h2><p>{state.score} points · {state.kills} adversaires neutralisés</p>
                     <p>{hud.verified ? 'Replay local vérifié' : 'Replay local divergent — à examiner'} · Prototype non classé</p>
-                    <button ref={resume} className="fps-primary" onClick={() => setSession(createSession('fps-c1-preview'))}>Rejouer le prototype</button>
-                    <button onClick={exportReplay}>Exporter le replay</button>
+                    <div className="fps-actions"><button ref={resume} className="fps-primary" onClick={() => setSession(createSession('fps-c1-preview'))}>Rejouer le prototype</button>
+                    <button onClick={exportReplay}>Exporter le replay</button></div>
                 </div> : state.phase === 'repair' ? <div className="fps-overlay fps-repair" role="dialog" aria-label="Réparer la barricade">
                     <h2>Reprenez votre souffle.</h2><p>Prochaine vague dans {Math.max(0, Math.ceil((state.repairUntil - state.tick) / 60))} s. Chargeur rempli à la reprise.</p>
-                    <button ref={resume} className="fps-primary" disabled={!state.patchAvailable || state.hp === 100} onClick={() => session.command({ type: 'repair' })}>{state.patchAvailable ? 'Réparer +40% · une fois' : 'Réparation utilisée'}</button>
-                    <button onClick={() => { session.command({ type: 'continue' }); viewport.current?.focus() }}>À la barricade</button>
+                    <div className="fps-actions"><button ref={resume} className="fps-primary" disabled={!state.patchAvailable || state.hp === 100} onClick={() => session.command({ type: 'repair' })}>{state.patchAvailable ? 'Réparer +40% · une fois' : 'Réparation utilisée'}</button>
+                    <button onClick={() => { session.command({ type: 'continue' }); viewport.current?.focus() }}>À la barricade</button></div>
                 </div> : null}
         </div>
         <div className="fps-controls">
@@ -166,10 +169,13 @@ export default function FpsPreview({ onClassic }: { onClassic: () => void }) {
                 onKeyUp={() => session.fire(false)} onBlur={() => session.fire(false)}>Tirer</button>
             <button disabled={!running || state.phase !== 'wave' || !!state.reloadUntil || state.ammo === MAGAZINE} onClick={() => session.command({ type: 'reload' })}>Recharger · R</button>
             <button disabled={!running} onClick={pause}>Pause · P</button>
+            <details className="fps-settings"><summary>Réglages</summary><div className="fps-settings-panel">
             <label><input type="checkbox" checked={mutedMotion} onChange={e => setMutedMotion(e.target.checked)} /> Effets réduits</label>
             <label>Lumière <select value={light} onChange={e => setLight(e.target.value as 'dusk' | 'day')}><option value="dusk">Fin de journée</option><option value="day">Jour couvert</option></select></label>
+            <p className="fps-note">Prototype non classé · Trois vagues · Réparation unique · Aucun wallet ni envoi de score. L’ancrage volontaire est prévu après stabilisation.</p>
+            </div></details>
         </div>
-        {lockHint && <p className="fps-note" role="status">{lockHint}</p>}
-        <p className="fps-note" role="status">Prototype non classé · Trois vagues · Réparation unique · Aucun wallet ni envoi de score. L’ancrage volontaire est prévu après stabilisation.</p>
+        {lockHint && <p className="fps-notice" role="status">{lockHint}</p>}
+        <p className="fps-note fps-caption">Prototype non classé · Trois vagues · Réparation unique · Score local</p>
     </section>
 }
