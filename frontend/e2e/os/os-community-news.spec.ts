@@ -76,6 +76,8 @@ test('a Meet room and its floating player defer News until back on an available 
     await page.clock.fastForward(30_000)
     await expect(card).toHaveCount(0)
     await page.setViewportSize({ width: 1280, height: 800 })
+    // Wait for React's phone-layout subscription to commit before advancing its desktop timer.
+    await expect(page.getByRole('main', { name: 'Desktop' })).toBeVisible()
     await page.clock.fastForward(21_000)
     await expect(card).toBeVisible()
 })
