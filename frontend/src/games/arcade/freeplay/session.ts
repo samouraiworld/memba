@@ -1,8 +1,9 @@
 import { FreePlayError, type FreePlayClient, type FreePlayQuote, type FreePlayRun } from '../../../lib/arcadeFreePlay'
-import { sanitizeSnapshot, saveFreePlaySnapshot, loadFreePlaySnapshot, snapshotRun, type FreePlaySnapshot, type SnapshotStorage } from './snapshot'
+import { sanitizeSnapshot, persistFreePlaySnapshot, prepareFreePlayRecovery, loadFreePlaySnapshot, snapshotRun, type FreePlaySnapshot, type SnapshotStorage } from './snapshot'
 
 export interface FreePlayView {
     snapshot: FreePlaySnapshot
+    recoveryReady: boolean
     phase: 'saved' | 'busy' | 'verified' | 'quoted' | 'pending' | 'confirmed' | 'error'
     quote?: FreePlayQuote
     error?: string
@@ -20,21 +21,21 @@ export function createFreePlaySession(options: { snapshot: FreePlaySnapshot; cli
         deepFreeze(snapshot)
         return snapshot
     }
-    saveFreePlaySnapshot(options.storage, stored ?? initial)
-    let view: FreePlayView = { snapshot: freeze(stored ?? initial), phase: 'saved' }
+    persistFreePlaySnapshot(options.storage, stored ?? initial)
+    let view: FreePlayView = { snapshot: freeze(stored ?? initial), phase: 'saved', recoveryReady: true }
     let generation = 0
     let active: AbortController | undefined
     let disposed = false
     const listeners = new Set<() => void>()
-    const emit = (next: FreePlayView) => { view = next; for (const listener of listeners) listener() }
+    const emit = (next: Omit<FreePlayView, 'recoveryReady'> & { recoveryReady?: boolean }) => { view = { ...next, recoveryReady: next.recoveryReady ?? view.recoveryReady }; for (const listener of listeners) listener() }
     const persist = (snapshot: FreePlaySnapshot) => {
         const clean = sanitizeSnapshot(snapshot)
-        saveFreePlaySnapshot(options.storage, clean)
-        return freeze(clean)
+        try { return freeze(persistFreePlaySnapshot(options.storage, clean)) }
+        catch (error) { emit({ ...view, recoveryReady: false }); throw error }
     }
     const applyRun = (run: FreePlayRun) => {
         const snapshot = persist({ ...view.snapshot, result: run })
-        emit({ snapshot, phase: run.status === 'confirmed' ? 'confirmed' : run.status === 'verified' ? 'verified' : 'pending', nextCheckAt: run.nextCheckAt, error: run.lastError, canReauthorize: run.canReauthorize })
+        emit({ snapshot, recoveryReady: true, phase: run.status === 'confirmed' ? 'confirmed' : run.status === 'verified' ? 'verified' : 'pending', nextCheckAt: run.nextCheckAt, error: run.lastError, canReauthorize: run.canReauthorize })
     }
     async function operate(action: (signal: AbortSignal, current: () => boolean) => Promise<void>) {
         if (disposed || active) return
@@ -57,6 +58,15 @@ export function createFreePlaySession(options: { snapshot: FreePlaySnapshot; cli
     const unsubscribeIdentity = options.client.subscribeIdentity(invalidate)
     return {
         getSnapshot: () => view,
+        /** Reconfirm recoverable completed data immediately before explicit Connect. */
+        prepareRecovery() {
+            if (disposed || active) throw new FreePlayError('recovery_unavailable')
+            try {
+                const snapshot = freeze(prepareFreePlayRecovery(options.storage, view.snapshot))
+                if (!view.recoveryReady || JSON.stringify(snapshot) !== JSON.stringify(view.snapshot)) emit({ ...view, snapshot, recoveryReady: true })
+                return snapshot
+            } catch (error) { emit({ ...view, recoveryReady: false }); throw error }
+        },
         subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
         /** Aborts callbacks on wallet/network changes or when the owner is disposed. */
         invalidate,

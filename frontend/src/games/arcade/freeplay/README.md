@@ -148,3 +148,24 @@ HTTP only with the literal hosts `localhost`, `127.0.0.1` or `[::1]`, optionally
 with a port. Both the host validator and direct client constructor enforce this
 before authentication or requests; aliases and misleading hostname suffixes are
 refused. Redirects remain disabled for all requests.
+
+## Completed result before Connect
+
+Use `persistFreePlaySnapshot(storage, snapshot)` to write and read back both the
+canonical record and its shared index membership. Silent dropped writes are
+failures. `prepareFreePlayRecovery(storage, snapshot)` reconfirms this immediately
+before leaving for an explicit connection, preferring the canonical record and
+refusing conflicts with an existing binding or consent. It does not create an ID,
+bind a wallet, call an API or connect. Neither guard promises indefinite retention
+or atomicity across browser tabs.
+
+`session.getSnapshot().recoveryReady` describes its last local persistence check;
+`session.prepareRecovery()` must still run immediately before Connect.
+`FreePlayResult` accepts an optional `connect` callback and uses the shared
+`FreePlayConnect` panel. A local-only consumer can use that panel with a stable
+`prepare` callback invoking `prepareFreePlayRecovery` on its storage/snapshot.
+Do not duplicate this guard or put an unguarded generic Connect button beside an
+unfinished round. Storage failure shows an explanation and local JSON export.
+The notice directs users to Arcade → Your runs after connecting. Only the completed
+result is recoverable; opening it never calls Play, resumes an engine or fetches
+an API automatically. An existing wallet A binding is never reassigned to wallet B.

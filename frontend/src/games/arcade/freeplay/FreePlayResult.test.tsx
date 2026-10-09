@@ -14,7 +14,8 @@ it('treats a persisted receipt as saved until fresh readback and never auto-publ
     const confirmed: FreePlayRun = { entry, target: v.target, clientRunId: input.clientRunId, replayCodec: input.replayCodec, replay: input.replay, payloadHash: v.payloadHash, status: 'confirmed', receipt: { target: v.target, entry, height: 42, attester: v.player, schemaVersion: 2 } }
     const publish = vi.fn()
     const client: FreePlayClient = { board: vi.fn(), subscribeIdentity: () => () => {}, bind: () => binding, read: async () => confirmed, verify: async () => confirmed, quote: vi.fn(), publish }
-    const session = createFreePlaySession({ snapshot: sanitizeSnapshot({ schemaVersion: 1, input, binding, result: confirmed }), client, storage: { getItem: () => null, setItem: () => {} } })
+    const data = new Map<string, string>()
+    const session = createFreePlaySession({ snapshot: sanitizeSnapshot({ schemaVersion: 1, input, binding, result: confirmed }), client, storage: { getItem: key => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value) } } })
     const { unmount } = render(<FreePlayResult session={session} />)
     expect(screen.queryByText(/Score confirmed on/)).not.toBeInTheDocument()
     expect(screen.getByText(/Saved receipt/)).toBeInTheDocument()
