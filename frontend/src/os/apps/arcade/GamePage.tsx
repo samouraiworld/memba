@@ -8,8 +8,9 @@ import { ReviewsPanel } from "../store/ReviewsPanel"
 import { connect4PathFor, isRealmValidOn, reviewsPathFor } from "../../../lib/config"
 import type { ArcadeGame } from "./catalogue"
 import { DailyTop } from "./DailyTop"
+import { FreePlayBoard, type FreePlayBoardProps } from "./FreePlayBoard"
 
-export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; toLobby: () => void } & Pick<NativeViewProps, "session" | "open">) {
+export function GamePage({ game, session, open, toLobby, freePlayBoard }: { game: ArcadeGame; toLobby: () => void; freePlayBoard?: FreePlayBoardProps } & Pick<NativeViewProps, "session" | "open">) {
     const media = resolveMedia(game.id, null, game.id)
     // Connect 4 is reviewed only where both its realm and the reviews realm are listed.
     const network = session.network.key
@@ -25,6 +26,7 @@ export function GamePage({ game, session, open, toLobby }: { game: ArcadeGame; t
             <MediaGallery name={game.name} images={media.screenshots} />
             <section className="os-cin-panel"><h2>About this game</h2><p>{game.description}</p>
                 {game.howTo.length > 0 && <ol className="os-cin-steps">{game.howTo.map((step) => <li key={step}>{step}</li>)}</ol>}</section>
+            {game.id !== "connect4" && freePlayBoard?.game === game.id && freePlayBoard.target.chainId === session.network.chainId && <FreePlayBoard {...freePlayBoard} />}
             {/* The reviews list renders its own "Reviews" heading, so this section is labelled rather than headed. */}
             <section className="os-cin-panel" aria-label="Ratings and reviews">
                 {reviewSubject
