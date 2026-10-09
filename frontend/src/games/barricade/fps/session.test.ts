@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { aimDirection, createSession } from './session'
-import { hashState, replay } from '../sim/fps/replay'
+import { localStateDigest, replay } from '../sim/fps/replay'
 
 function run(frames: number[]) {
     const s = createSession('frame-parity'); s.setReady(); s.start()
@@ -12,21 +12,21 @@ describe('FPS live session', () => {
         const s = createSession('pause'); s.start(); s.advance(20)
         expect(s.read().state.tick).toBe(0)
         s.setReady(); s.start(); s.advance(60); s.fire(true); s.pause()
-        const before = hashState(s.read().state); s.advance(200)
-        expect(hashState(s.read().state)).toBe(before)
+        const before = localStateDigest(s.read().state); s.advance(200)
+        expect(localStateDigest(s.read().state)).toBe(before)
         s.start(); s.advance(60)
         expect(s.read().state.shots).toBe(1)
     })
     it('renders different frame groupings over identical integer ticks', () => {
         const a = run(Array(600).fill(1)), b = run(Array(300).fill(2)), c = run(Array(40).fill(15))
-        expect(hashState(a.read().state)).toBe(hashState(b.read().state))
-        expect(hashState(a.read().state)).toBe(hashState(c.read().state))
+        expect(localStateDigest(a.read().state)).toBe(localStateDigest(b.read().state))
+        expect(localStateDigest(a.read().state)).toBe(localStateDigest(c.read().state))
     })
     it('records held manual fire at the rule cadence and locally replays it', () => {
         const s = run([1]); s.fire(true); s.advance(90); s.fire(false)
         expect(s.read().state.shots).toBe(10)
         expect(s.log().events).toHaveLength(10)
-        expect(hashState(replay(s.log()))).toBe(hashState(s.read().state))
+        expect(localStateDigest(replay(s.log()))).toBe(localStateDigest(s.read().state))
     })
     it('does not record frame-rate pointer movements or move the player origin', () => {
         const s = run([1]), eye = s.read().eye

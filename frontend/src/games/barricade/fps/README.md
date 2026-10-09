@@ -32,3 +32,7 @@ node node_modules/eslint/bin/eslint.js src/games/barricade/sim/fps src/games/bar
 ```
 
 Production build, bundle gate and browser checks must use the reserved Arcade validation slot. Tests cover collision boundaries/occlusion/ties, all axes, shields, cadence/reload/repair, exact replay of a winning run, 100 unattended seeds, live-loop frame grouping, pause/reset of held input, explicit capture, no submission and existing Classic window behavior. They do not substitute for visual/browser evidence.
+
+## Anchoring contract boundary
+
+`localStateDigest()` is a 16-hex double-FNV diagnostic for local replay parity, **not a cryptographic proof or an API/realm stateHash**. It must never be sent to the v2 anchoring endpoint, which accepts the explicitly versioned 8/64-hex formats. The future FPS adapter must produce a canonical SHA-256 64-hex stateHash and LP/domain-separated replay/payload commitments, with shared TS/Go vectors. Follow `A-ONCHAIN-CONTRACT.md`: stable persisted lowercase UUID v4 per run, `game=barricade` with distinct FPS rules/version, canonical replay codec, terminal result, immutable snapshot and retry identity. Do not turn the C1 ruleset into a fourth game slug or reuse Classic's receipts. C1's fixed preview seed and in-memory log are not a durable publication identity.

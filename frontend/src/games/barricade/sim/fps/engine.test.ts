@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { apply, init, tick } from './engine'
 import { enemyBoxes, position, rayBox, shieldUp, trace, validDirection } from './collision'
-import { hashState, replay } from './replay'
+import { localStateDigest, replay } from './replay'
 import { EYE, FPS_RULESET, FPS_VERSION, MAGAZINE, MAX_ENEMIES, MAX_TICKS, RELOAD_TICKS, WAVE_COUNTS, terminal, type Enemy, type Event, type Replay, type State, type Vec3 } from './types'
 
 const enemy = (overrides: Partial<Enemy> = {}): Enemy => ({ id: 1, axis: 1, kind: 'robot', progress: 6000, speed: 5, hp: 68, ...overrides })
@@ -115,7 +115,7 @@ describe('FPS combat, repair and replay', () => {
         expect(s.wave).toBe(WAVE_COUNTS.length - 1)
         expect([...axes].sort()).toEqual([0, 1, 2])
         expect(s.kills).toBe(27)
-        expect(hashState(replay(log(s.seed, events, s.tick)))).toBe(hashState(s))
+        expect(localStateDigest(replay(log(s.seed, events, s.tick)))).toBe(localStateDigest(s))
     })
     it('bounds and terminates unattended runs for 100 seeds', () => {
         for (let seed = 0; seed < 100; seed++) {
@@ -127,7 +127,7 @@ describe('FPS combat, repair and replay', () => {
             }
             expect(peak).toBeLessThanOrEqual(MAX_ENEMIES)
             expect(s.tick).toBeLessThanOrEqual(MAX_TICKS)
-            expect(hashState(replay(log(s.seed, [], s.tick)))).toBe(hashState(s))
+            expect(localStateDigest(replay(log(s.seed, [], s.tick)))).toBe(localStateDigest(s))
         }
     })
 })

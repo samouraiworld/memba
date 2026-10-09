@@ -1,5 +1,5 @@
 import { apply, init, tick } from '../sim/fps/engine'
-import { hashState, replay } from '../sim/fps/replay'
+import { localStateDigest, replay } from '../sim/fps/replay'
 import { EYE, FIRE_INTERVAL, FPS_RULESET, FPS_VERSION, MAX_EVENTS, terminal, type Event, type Impact, type Input, type Replay } from '../sim/fps/types'
 
 export type Status = 'ready' | 'playing' | 'paused' | 'done'
@@ -58,7 +58,7 @@ export function createSession(seed: string) {
             }
             if (terminal(state)) {
                 status = 'done'; clear()
-                try { verified = hashState(replay(log())) === hashState(state) } catch { verified = false }
+                try { verified = localStateDigest(replay(log())) === localStateDigest(state) } catch { verified = false }
                 notify()
             } else if (state.tick % 6 < Math.max(1, steps) || state.tick < FIRE_INTERVAL) notify()
         },

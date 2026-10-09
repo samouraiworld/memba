@@ -2,10 +2,15 @@ import { apply, init, tick } from './engine'
 import { validDirection } from './collision'
 import { FPS_RULESET, FPS_VERSION, MAX_EVENTS, MAX_TICKS, terminal, type Event, type Replay, type State } from './types'
 
-export function hashState(s: State): string {
-    const canonical = JSON.stringify([FPS_RULESET, FPS_VERSION, s.seed, s.tick, s.rng, s.phase, s.wave, s.waveStarted,
+export function canonicalState(s: State): string {
+    return JSON.stringify([FPS_RULESET, FPS_VERSION, s.seed, s.tick, s.rng, s.phase, s.wave, s.waveStarted,
         s.spawned, s.nextId, s.hp, s.ammo, s.reloadUntil, s.fireAt, s.repairUntil, s.patchAvailable, s.score, s.kills, s.shots,
         s.enemies.map(e => [e.id, e.axis, e.kind, e.progress, e.speed, e.hp])])
+}
+
+/** Non-cryptographic FNV16 diagnostic ONLY. Never send this as an on-chain stateHash. */
+export function localStateDigest(s: State): string {
+    const canonical = canonicalState(s)
     let a = 0x811c9dc5, b = 0x01234567
     for (let i = 0; i < canonical.length; i++) { a = Math.imul(a ^ canonical.charCodeAt(i), 0x01000193); b = Math.imul(b ^ canonical.charCodeAt(i), 0x01000193) }
     return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0')
