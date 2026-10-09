@@ -52,7 +52,8 @@ describe('Free play completed-run snapshots', () => {
         const confirmed: FreePlayRun = { ...run, status: 'confirmed', receipt: { target: v.target, entry: run.entry, height: 42, attester: v.player, schemaVersion: 2 } }
         s.client.read.mockResolvedValue(confirmed)
         const snapshot = sanitizeSnapshot({ schemaVersion: 1, input, binding, result: confirmed })
-        const resumed = createFreePlaySession({ snapshot, storage: { getItem: () => null, setItem: () => {} }, client: s.client })
+        const data = new Map<string, string>()
+        const resumed = createFreePlaySession({ snapshot, storage: { getItem: key => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value) } }, client: s.client })
         expect(resumed.getSnapshot().phase).toBe('saved')
         await resumed.refresh()
         expect(resumed.getSnapshot().phase).toBe('confirmed')

@@ -126,3 +126,43 @@ export function listFreePlaySnapshots(storage: SnapshotStorage, options: { game?
     const nextOffset = offset + page.length
     return { snapshots, unavailable, total: rows.length, ...(nextOffset < rows.length ? { nextOffset } : {}) }
 }
+
+
+/** Write both records, then verify the exact canonical bytes and index membership.
+ * This proves recoverability in this storage now, not indefinite retention or a
+ * transaction across tabs. Call again immediately before leaving for Connect.
+ */
+export function persistFreePlaySnapshot(storage: SnapshotStorage, snapshot: FreePlaySnapshot): FreePlaySnapshot {
+    const clean = sanitizeSnapshot(snapshot)
+    try {
+        const prior = loadFreePlaySnapshot(storage, clean.input.clientRunId)
+        if (prior && (JSON.stringify(prior.input) !== JSON.stringify(clean.input)
+            || prior.binding && JSON.stringify(prior.binding) !== JSON.stringify(clean.binding)
+            || prior.publication && !clean.publication)) throw new FreePlayError('run_conflict')
+        saveFreePlaySnapshot(storage, clean)
+        const saved = loadFreePlaySnapshot(storage, clean.input.clientRunId)
+        if (!saved || JSON.stringify(saved) !== JSON.stringify(clean)
+            || !readSnapshotIndex(storage).some(row => row.clientRunId === clean.input.clientRunId && row.game === clean.input.game)) {
+            throw new FreePlayError('storage_unavailable')
+        }
+        return saved
+    } catch (error) {
+        if (error instanceof FreePlayError && error.code === 'run_conflict') throw error
+        throw new FreePlayError('storage_unavailable')
+    }
+}
+
+/** Local-only guard for completed results. Prefer the canonical record so an
+ * older mounted wrapper cannot erase an existing binding or publication consent.
+ * Never binds a wallet, generates an ID, connects, or calls the API.
+ */
+export function prepareFreePlayRecovery(storage: SnapshotStorage, snapshot: FreePlaySnapshot): FreePlaySnapshot {
+    const clean = sanitizeSnapshot(snapshot)
+    let stored: FreePlaySnapshot | null
+    try { stored = loadFreePlaySnapshot(storage, clean.input.clientRunId) }
+    catch { throw new FreePlayError('storage_unavailable') }
+    if (stored && (JSON.stringify(stored.input) !== JSON.stringify(clean.input)
+        || clean.binding && JSON.stringify(stored.binding) !== JSON.stringify(clean.binding)
+        || clean.publication && JSON.stringify(stored.publication) !== JSON.stringify(clean.publication))) throw new FreePlayError('run_conflict')
+    return persistFreePlaySnapshot(storage, stored ?? clean)
+}

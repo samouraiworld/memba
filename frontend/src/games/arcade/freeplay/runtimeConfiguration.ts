@@ -1,4 +1,4 @@
-import { FreePlayError, validFreePlayTarget, type FreePlayGame, type FreePlayTarget } from '../../../lib/arcadeFreePlay'
+import { FreePlayError, validFreePlayOrigin, validFreePlayTarget, type FreePlayGame, type FreePlayTarget } from '../../../lib/arcadeFreePlay'
 import type { SnapshotStorage } from './snapshot'
 
 /** Trusted host input only. Do not derive this from URLs, saved runs or storage.
@@ -34,8 +34,6 @@ export function validateArcadeFreePlayConfiguration(configuration: ArcadeFreePla
         if (config.rules !== rules || config.simVersion !== version) return invalid()
         if (config.remote === undefined) continue // explicitly local-only
         if (!config.remote || typeof config.remote.origin !== 'string' || !validFreePlayTarget(config.remote.target) || config.remote.target.chainId !== configuration.chainId) return invalid()
-        let origin: URL
-        try { origin = new URL(config.remote.origin) } catch { return invalid() }
-        if (!['https:', 'http:'].includes(origin.protocol) || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) return invalid()
+        if (!validFreePlayOrigin(config.remote.origin)) return invalid()
     }
 }
