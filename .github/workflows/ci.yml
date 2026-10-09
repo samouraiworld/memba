@@ -87,11 +87,10 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: "Determinism gate: arcade verify-worker bundle is fresh"
+      - name: "Determinism gate: both arcade worker bundles are fresh"
         run: |
-          # The attester's verify worker (backend/internal/arcade/worker) is ONE
-          # esbuild bundle of every game's frontend sim (BARRICADE + Space
-          # Invaders), committed and go:embed'd. Rebuild it and fail on any diff
+          # Legacy and Free play have separate bundles of their exact frontend
+          # codecs/sims, committed and go:embed'd. Rebuild both and fail on any diff
           # — a stale bundle could attest a result the current frontend sims no
           # longer produce. Rebuild locally with:
           #   node backend/internal/arcade/worker/build.mjs
@@ -102,11 +101,11 @@ jobs:
           # partitioned by their frozen build. That decision is the owner-gated
           # season-cutover ceremony (both versions are still unreleased).
           node ../backend/internal/arcade/worker/build.mjs
-          if ! git diff --exit-code -- ../backend/internal/arcade/worker/bundle/verify-worker.cjs; then
-            echo "::error::verify-worker.cjs is stale. Run 'node backend/internal/arcade/worker/build.mjs' and commit the result."
+          if ! git diff --exit-code -- ../backend/internal/arcade/worker/bundle/verify-worker.cjs ../backend/internal/arcade/worker/bundle/freeplay-worker.cjs; then
+            echo "::error::An arcade worker bundle is stale. Run 'node backend/internal/arcade/worker/build.mjs' and commit the result."
             exit 1
           fi
-          echo "✅ verify-worker.cjs matches its source"
+          echo "✅ Both arcade worker bundles match their sources"
 
       - name: "Determinism gate: generated EVM modules match deployments/evm and the token artifact"
         # lib/chain/evm/manifest.generated.ts is generated from deployments/evm/<chainId>.json (checked

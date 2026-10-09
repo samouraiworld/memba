@@ -28,14 +28,16 @@ type FreePlayBoardReader interface {
 	ReadBoard(context.Context, FreePlayTarget, string, string, int64, int, int) ([]FreePlayReceipt, error)
 }
 type FreePlayHTTPConfig struct {
-	Boards  FreePlayBoardReader
-	Enabled bool
-	Target  FreePlayTarget
-	Store   *FreePlayStore
-	Auth    FreePlayAuthenticator
-	Limiter FreePlayLimiter
-	Quotes  FreePlayQuotePolicy
-	Now     func() time.Time
+	// Nil keeps SI/FPS ineligible. Wire only after exact-worker fixture validation.
+	Verifier FreePlayReplayVerifier
+	Boards   FreePlayBoardReader
+	Enabled  bool
+	Target   FreePlayTarget
+	Store    *FreePlayStore
+	Auth     FreePlayAuthenticator
+	Limiter  FreePlayLimiter
+	Quotes   FreePlayQuotePolicy
+	Now      func() time.Time
 }
 
 // NewFreePlayHandler returns a standalone dormant router. The caller mounts the
@@ -105,8 +107,12 @@ func NewFreePlayHandler(cfg FreePlayHTTPConfig) http.Handler {
 			}
 			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 			defer cancel()
-			run, err := VerifyFreePlayRun(ctx, cfg.Target, player, input)
+			run, err := VerifyFreePlayRunWithWorker(ctx, cfg.Target, player, input, cfg.Verifier)
 			if err != nil {
+				if errors.Is(err, ErrFreePlayWorkerUnavailable) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					writeErr(w, 503, "verification_unavailable")
+					return
+				}
 				writeErr(w, 422, err.Error())
 				return
 			}
