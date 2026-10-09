@@ -1,0 +1,163 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { IDBFactory, IDBObjectStore } from 'fake-indexeddb'
+import { bech32Encode } from '../../dao/realmAddress'
+import { createDraftSession, createNotesStore } from '../drafts'
+import type { NotesStore } from '../drafts'
+import { createNotesIntents } from '../intents'
+import type { NotesReadClient } from './client'
+import type { PublicNoteOperation } from './messages'
+import { notesRequestDigest, preparePublicNoteRequest } from './request'
+import type { NotesQuoteProvider, PublicRequestOptions } from './request'
+import { NOTES_REALM } from './schema'
+import type { ChainNote } from './schema'
+
+const wallet = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn() }))
+vi.mock('../../grc20', () => ({
+  MAX_GAS_WANTED: 500_000_000,
+  doContractBroadcast: (...args: unknown[]) => wallet.send(...args),
+  freshFeeForGasWanted: (...args: unknown[]) => wallet.fee(...args),
+  assertFeeStillCovers: async (fee: number, fresh: () => Promise<number>) => { if (await fresh() > fee) throw new Error('fee changed') },
+}))
+const owner = bech32Encode('g', new Uint8Array(20).fill(1)), noteId = '11'.repeat(16), operationId = '22'.repeat(16)
+const bytes = (s: string) => new TextEncoder().encode(s)
+const stores: NotesStore[] = []
+const baseNote = (): ChainNote => ({ id: noteId, owner, pendingOwner: '', ownerGeneration: '1', mode: 3, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0', title: bytes('Title'), body: bytes('Old'), commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '90', operationId: '33'.repeat(16), actor: owner, height: '90' })
+function setup() {
+  const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store)
+  const session = createDraftSession(), intents = createNotesIntents(store)
+  let current: ChainNote | null = baseNote(), enabled = true, height = '100'
+  const client = { writersRaw: vi.fn(async () => []), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => height), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
+  const operation: PublicNoteOperation = { caller: owner, noteId, operationId, action: { kind: 'commit', revision: '1', epoch: '0', body: 'New' } }
+  const quote: NotesQuoteProvider = async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: (BigInt(input.height) + 10n).toString(), expiresAtMs: Date.now() + 60000, source: 'bounded-estimate', estimatedDepositUgnot: '100', maxDepositUgnot: '1000', gasWanted: 100000, networkFeeUgnot: 1000 })
+  const options: PublicRequestOptions = { client, operation, maxDepositUgnot: '1000', draftLocalRevision: '5', session, intents, quote, isWriteEnabled: () => enabled }
+  const scope = { chainId: client.chainId, realm: NOTES_REALM, owner, noteId }
+  const applied = (patch: Partial<ChainNote> = {}) => { current = { ...baseNote(), operationId, stateRevision: '2', bodyRevision: '2', body: bytes('New'), height: '101', ...patch } }
+  return { options, store, intents, session, scope, applied, setNote: (note: ChainNote | null) => { current = note }, disable: () => { enabled = false }, setHeight: (value: string) => { height = value } }
+}
+beforeEach(() => {
+  vi.clearAllMocks(); wallet.fee.mockResolvedValue(900)
+  wallet.send.mockImplementation(async (_msgs, _memo, options) => { await options.beforeSign(); return { hash: 'aa'.repeat(32) } })
+})
+afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(store => store.close())) })
+
+describe('Notes signing intentions', () => {
+  it('persists before wallet and signs exact reviewed calls without modifying the draft', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options)
+    expect(await s.intents.list(s.scope)).toEqual([])
+    await s.store.saveDraft(s.scope, '0', { kind: 'public', title: 'Title', body: 'New' }, s.session)
+    wallet.send.mockImplementationOnce(async (messages, _memo, options) => {
+      expect((await s.intents.get(s.scope, operationId))?.phase).toBe('prepared')
+      expect((await s.intents.get(s.scope, operationId))?.requestDigest).toBe(notesRequestDigest(s.options.client.chainId, messages[0]))
+      expect(messages).toEqual(request.prepare(undefined).msgs)
+      await options.beforeSign(); return { hash: 'aa'.repeat(32) }
+    })
+    await request.send(undefined, async () => () => true)
+    expect((await s.intents.get(s.scope, operationId))?.phase).toBe('submitted')
+    s.applied(); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+    expect((await s.intents.get(s.scope, operationId))?.phase).toBe('confirmed')
+    expect((await s.store.getDraft(s.scope))?.payload.kind).toBe('public')
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('stale')
+  })
+  it('rejects a quote that expires while the broadcaster waits after beforeSign', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options)
+    wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => {
+      const guard = await options.beforeSign()
+      vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120000)
+      expect(guard()).toBe(false)
+      throw new Error('final guard refused')
+    })
+    await expect(request.send(undefined, async () => () => true)).rejects.toThrow('final guard')
+  })
+  it('refuses storage failures before invoking the broadcaster', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options)
+    vi.spyOn(IDBObjectStore.prototype, 'add').mockImplementationOnce(() => { throw new DOMException('full', 'QuotaExceededError') })
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('storage')
+    expect(wallet.send).not.toHaveBeenCalled(); expect(await s.intents.list(s.scope)).toEqual([])
+  })
+  it('fails closed on the central flag and captured account session', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options); s.disable()
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('disabled')
+    const t = setup(), second = await preparePublicNoteRequest(t.options); t.session.invalidate()
+    await expect(second.send(undefined, async () => {})).rejects.toThrow('session')
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
+  it('retains unknown after wallet cancellation, including a driver cancellation callback', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options)
+    wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('rejected by user') })
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('rejected')
+    request.onNothingSent?.()
+    expect((await s.intents.get(s.scope, operationId))?.phase).toBe('unknown')
+    const duplicate = await preparePublicNoteRequest({ ...s.options, operation: { ...s.options.operation, operationId: '44'.repeat(16) } })
+    await expect(duplicate.send(undefined, async () => {})).rejects.toThrow('stale')
+  })
+  it('marks pre-wallet refusals not-sent, preserving their receipt', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options)
+    wallet.fee.mockResolvedValueOnce(1001)
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('fee changed')
+    expect((await s.intents.get(s.scope, operationId))?.phase).toBe('not-sent')
+  })
+  it('checks quote digest, bounded expiry and storage/gas limits', async () => {
+    for (const patch of [{ requestDigest: 'wrong' }, { estimatedDepositUgnot: '1001' }, { gasWanted: 500000001 }, { expiresAtHeight: '200' }, { expiresAtMs: 0 }]) {
+      const s = setup(), quote = s.options.quote
+      await expect(preparePublicNoteRequest({ ...s.options, quote: async input => ({ ...await quote(input), ...patch }) })).rejects.toThrow()
+    }
+    expect(notesRequestDigest('a', { type: 'x', value: {} })).not.toBe(notesRequestDigest('b', { type: 'x', value: {} }))
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
+  it('refuses changes to owner generation, epoch, revision, fee or quote height before signing', async () => {
+    for (const patch of [{ ownerGeneration: '2' }, { epoch: '1' }, { stateRevision: '2' }]) {
+      const s = setup(), request = await preparePublicNoteRequest(s.options); s.setNote({ ...baseNote(), ...patch })
+      await expect(request.recheck!(undefined)).rejects.toThrow('stale')
+    }
+    const s = setup(), request = await preparePublicNoteRequest(s.options); s.setHeight('111')
+    await expect(request.recheck!(undefined)).rejects.toThrow('stale')
+  })
+  it('does not confirm a reused old ID, wrong content, overwritten receipt or unrelated actor', async () => {
+    const s = setup(), request = await preparePublicNoteRequest(s.options)
+    await request.send(undefined, async () => {})
+    for (const patch of [{ height: '100' }, { body: bytes('Wrong') }, { operationId: '44'.repeat(16) }, { stateRevision: '3' }, { actor: bech32Encode('g', new Uint8Array(20).fill(2)) }]) {
+      s.applied(patch); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(false)
+    }
+    expect((await s.intents.get(s.scope, operationId))?.phase).toBe('submitted')
+  })
+  it.each(['commit', 'rename'] as const)('lets an explicit Public writer %s while retaining note ownership', async kind => {
+    const s = setup(), writer = bech32Encode('g', new Uint8Array(20).fill(2))
+    vi.mocked(s.options.client.writersRaw).mockResolvedValue([writer])
+    s.options.operation = { ...s.options.operation, caller: writer, action: kind === 'commit'
+      ? { kind, revision: '1', epoch: '0', body: 'New' } : { kind, revision: '1', epoch: '0', title: 'New title' } }
+    const request = await preparePublicNoteRequest(s.options)
+    await request.send(undefined, async () => () => true)
+    const scope = { ...s.scope, owner: writer }, intent = await s.intents.get(scope, operationId)
+    expect(intent).toMatchObject({ actor: writer, verification: { owner } })
+    const result = kind === 'commit' ? { actor: writer } : { actor: writer, title: bytes('New title'), titleRevision: '2', bodyRevision: '1', body: bytes('Old') }
+    s.applied({ ...result, owner: writer }); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(false)
+    s.applied(result); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+    expect((await s.intents.get(scope, operationId))?.phase).toBe('confirmed')
+  })
+  it('does not infer public writer rights from membership, PublicOpen, or writer presence for owner-only operations', async () => {
+    const writer = bech32Encode('g', new Uint8Array(20).fill(2))
+    for (const action of [{ kind: 'delete', revision: '1' }, { kind: 'comments', revision: '1', open: true }] as PublicNoteOperation['action'][]) {
+      const s = setup(); vi.mocked(s.options.client.writersRaw).mockResolvedValue([writer])
+      await expect(preparePublicNoteRequest({ ...s.options, operation: { ...s.options.operation, caller: writer, action } })).rejects.toThrow('stale')
+    }
+    for (const note of [{ ...baseNote(), mode: 4 as const }, { ...baseNote(), govWriters: true }]) {
+      const s = setup(); s.setNote(note)
+      vi.mocked(s.options.client.writersRaw).mockResolvedValue(note.mode === 4 ? [writer] : [])
+      await expect(preparePublicNoteRequest({ ...s.options, operation: { ...s.options.operation, caller: writer } })).rejects.toThrow('stale')
+    }
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
+  it('rechecks the explicit ACL before wallet and refuses mixed-revision permission reads', async () => {
+    const writer = bech32Encode('g', new Uint8Array(20).fill(2)), s = setup()
+    s.options.operation = { ...s.options.operation, caller: writer }
+    vi.mocked(s.options.client.writersRaw).mockResolvedValue([writer])
+    const request = await preparePublicNoteRequest(s.options)
+    vi.mocked(s.options.client.writersRaw).mockResolvedValue([])
+    await expect(request.recheck!(undefined)).rejects.toThrow('stale')
+    vi.mocked(s.options.client.writersRaw).mockResolvedValue([writer])
+    vi.mocked(s.options.client.noteMetadata).mockResolvedValue({ ...baseNote(), stateRevision: '2' })
+    await expect(preparePublicNoteRequest(s.options)).rejects.toThrow('stale')
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
+
+})
