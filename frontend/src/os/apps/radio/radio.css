@@ -50,9 +50,14 @@
   .memba-os:has(.meet-stage-pip) .os-radio-widget { left: 16px; bottom: calc(280px + env(safe-area-inset-bottom, 0px)); }
   .memba-os:has(.meet-stage-pip) .os-radio-details { max-height: calc(100dvh - 450px - env(safe-area-inset-bottom, 0px)); }
 }
-/* Short, wide screens have room beside PiP, but not above it. Keep the controls scrollable. */
-@media (min-width: 600px) and (max-width: 1100px) and (max-height: 500px) {
+/* In short landscape layouts, share the width with PiP and reserve the status bar above controls. */
+@media (orientation: landscape) and (max-width: 1100px) and (max-height: 500px) {
   .memba-os:has(.meet-stage-pip) .os-radio-widget { bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
-  .memba-os:has(.meet-stage-pip) .os-radio-details { max-height: calc(100dvh - 260px - env(safe-area-inset-bottom, 0px)); }
+  .memba-os:has(.meet-stage-pip) .os-radio-details { max-height: calc(100dvh - 220px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+}
+@media (orientation: landscape) and (max-width: 599px) and (max-height: 500px) {
+  /* Meet occupies 240px at right:12px; leave a 12px gap and Radio's 16px left margin. */
+  .memba-os:has(.meet-stage-pip) .os-radio-widget { width: calc(100vw - 280px); }
+  .memba-os:has(.meet-stage-pip) .os-radio-details footer { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .memba-os .os-radio-details { animation: none; } }

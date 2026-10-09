@@ -108,7 +108,7 @@ test('locking the shell stops a hidden Radio stream', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Show Radio' })).toHaveCount(0)
 })
 
-for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 375 }, { width: 390, height: 844 }]) {
+for (const viewport of [{ width: 568, height: 320 }, { width: 600, height: 320 }, { width: 844, height: 390 }, { width: 667, height: 375 }, { width: 390, height: 844 }]) {
     test(`Radio controls remain reachable beside Meet PiP at ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
         await radioFixture(page)
         // Exercise the real Meet stage and responsive CSS without joining an external call.
