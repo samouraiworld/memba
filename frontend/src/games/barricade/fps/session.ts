@@ -14,6 +14,7 @@ export function createSession(seed: string) {
     let state = init(seed), previous = state, status: Status = 'ready'
     let yaw = 0, pitch = 0, alpha = 0, firing = false, ready = false, limited = false
     let impact: Impact | undefined, impactId = 0, verified = false
+    let effects: readonly { id: number; impact: Impact }[] = []
     const events: Event[] = [], keys = new Set<string>(), listeners = new Set<() => void>()
     const snapshot = () => ({ state, status, ready, limited, verified })
     let hud = snapshot()
@@ -26,13 +27,13 @@ export function createSession(seed: string) {
         if (result.state === state) return // Rejected/no-op commands cannot flood the log.
         events.push({ ...input, tick: state.tick })
         state = result.state
-        if (result.impact) { impact = result.impact; impactId++ }
+        if (result.impact) { impact = result.impact; impactId++; effects = [...effects.slice(-23), { id: impactId, impact }] }
     }
     const log = (): Replay => ({ ruleset: FPS_RULESET, version: FPS_VERSION, seed, events: events.slice(), finalTick: state.tick })
     return {
         subscribe(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn) } },
         getSnapshot: () => hud,
-        read: () => ({ state, previous, status, yaw, pitch, direction: aimDirection(yaw, pitch), alpha, impact, impactId, eye: EYE }),
+        read: () => ({ state, previous, status, yaw, pitch, direction: aimDirection(yaw, pitch), alpha, impact, impactId, effects, eye: EYE }),
         setReady() { ready = true; notify() },
         start() { if (!ready || limited || terminal(state)) return; status = 'playing'; clear(); notify() },
         pause() { if (status === 'playing') { status = 'paused'; clear(); notify() } },
