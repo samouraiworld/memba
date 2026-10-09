@@ -102,7 +102,7 @@ export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic
     const unavailable = !has3D || failed
     return <section ref={root} className="fps-preview" aria-label="Barricade FPS prototype" data-status={status} data-phase={state.phase}>
         <header className="fps-header">
-            <div><span className="fps-eyebrow">BARRICADE / ÉTUDE JOUABLE C1</span><h1>Tenir la rue.</h1></div>
+            <div><span className="fps-eyebrow">BARRICADE / ÉTUDE JOUABLE C2</span><h1>Tenir la rue.</h1></div>
             <button onClick={onClassic}>Retour à Classic</button>
         </header>
         <div className="fps-hud" aria-label="État de la partie">
@@ -180,7 +180,7 @@ export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic
             <details className="fps-settings"><summary>Réglages</summary><div className="fps-settings-panel">
             <label><input type="checkbox" checked={mutedMotion} onChange={e => setMutedMotion(e.target.checked)} /> Effets réduits</label>
             <label>Lumière <select value={light} onChange={e => setLight(e.target.value as 'dusk' | 'day')}><option value="dusk">Fin de journée</option><option value="day">Jour couvert</option></select></label>
-            <p className="fps-note">Prototype non classé · Trois vagues · Réparation unique · Aucun wallet ni envoi de score. L’ancrage volontaire est prévu après stabilisation.</p>
+            <p className="fps-note">Prototype non classé · Trois vagues · Réparation unique · {freePlay ? 'Sauvegarde onchain facultative en fin de partie, après vérification et confirmation.' : 'Résultat local, sans wallet ni envoi de score.'}</p>
             </div></details>
         </div>
         {lockHint && <p className="fps-notice" role="status">{lockHint}</p>}
