@@ -12,7 +12,7 @@ The worker/envelope must validate the supplied fixtures before activation.
 ## Inject the existing A implementation
 
 Create a stable bridge outside render (A client PR #1586, contract read at
-`179ffcfe55f829ffdaecd63b24008383654614fd`), then pass it as `fpsFreePlay` to Barricade, or `freePlay` to FpsPreview:
+`2bb27005173d9fb2b1a92f19769d11a78c4465f8`), then pass it as `fpsFreePlay` to Barricade, or `freePlay` to FpsPreview:
 
 ```tsx
 const fpsBridge = createFpsFreePlayBridge({
@@ -29,9 +29,7 @@ const fpsBridge = createFpsFreePlayBridge({
 
 The `client` above is A's injected client with its existing trusted endpoint,
 network target and identity adapter. No such client/default endpoint is created
-here. Keep bridge/storage stable for the mounted game; A handles identity changes
-inside its session. Remount to replace configuration, restoring the same local
-run from storage. A alone owns auth, verify/quote/confirm, publication persistence,
+here. Keep storage stable for the mounted game; A handles identity changes inside its session. A bridge replacement or explicit disable disposes the previous result, fences late handles and retains the same game session, UUID and terminal log. A alone owns auth, verify/quote/confirm, publication persistence,
 retry/outbox and receipt validation. Opening its result panel does not call any
 API action. It restores saved receipts as untrusted and requires fresh reads.
 
@@ -178,3 +176,41 @@ uses a local fake HTTP transport. It checks no API/token/hash on recovery, curre
 game preservation, Saved -> explicit refresh -> confirmed through the real client’s
 commitment validation, missing/corrupt/wrong-version records and disposal. No
 wallet, signature, chain publication or live backend is exercised.
+
+## External selection and pending A3 provider integration
+
+`Barricade` accepts `recovery?: {clientRunId,onClose} | null` and nullable
+`fpsFreePlay`. Recovery is a sibling overlay of the current Classic/FPS engine:
+it never changes the query, starts a game or replaces the mounted engine. Existing
+window-activity handling pauses gameplay; closing does not auto-resume. The game
+behind the archive is inert. Selection replacement/unmount disposes A’s session.
+
+Per D’s integration decision, **global provider recovery is ignored**. Arcade >
+Your runs owns its local SavedRunPanel without mounting an engine. These optional
+Barricade props remain a local-only recovery entry for a deliberate owner. There
+is no selection broadcast/listener.
+
+A3 shared files are not yet on this branch. `runtime.tsx.integration-source` is
+staged source, NOT an active provider hookup. After central integration of A3:
+
+1. Materialize it next to this README as `runtime.tsx`.
+2. Add `import { useFpsRuntime } from './fps/freeplay/runtime'` in Barricade.tsx.
+3. Keep the existing props type, name the argument `props`, and at the top of the
+   wrapper call `const { fpsFreePlay, recovery } = useFpsRuntime(props)`.
+4. Leave Shell/WindowBody/runtime lifecycle to D/Lead; no other module here owns it.
+
+The hook uses only `runtime.games.barricade`; exact FPS rules/version are required.
+Explicit bridge props win; null disables fallback. Recovery comes only from the
+explicit local prop, including null. No endpoint/realm/network/flag is invented.
+Without a client the staged adapter still saves to A’s canonical store/index and
+shows an unconfirmed local result; optional wallet connection requires a click.
+With a client it uses A’s actual session and result UI. Existing consent/receipt
+is retained when preparing the same completed run again.
+
+`FPS_A3_TYPES=1 node src/games/barricade/fps/freeplay/real-a3.integration.mjs`
+materializes the staged source in a temporary directory and checks its strict
+types against exact A3 `2bb27005`, plus the real provider/session/client assembly.
+Only import locations are rewritten for that temporary test. It verifies explicit
+null/local priority, ignored global recovery, version filtering, local persistence
+without client, preserved receipts and explicit refresh. No Shell/browser hookup
+is claimed until the central integration applies the three changes above.

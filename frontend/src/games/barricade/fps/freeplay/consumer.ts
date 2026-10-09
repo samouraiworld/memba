@@ -32,6 +32,7 @@ export function createFpsRunConsumer(options: FpsConsumerOptions) {
     let view: ConsumerView = { session, clientRunId, storageError, preparation: 'local' }
     let active = false, generation = 0, unsubscribe: (() => void) | undefined
     let checkpoint = -60, checkpointStatus = '', handle: FpsResultHandle | undefined
+    let bridge = options.bridge
     let terminalLog: Replay | undefined
     const emit = (next: Partial<ConsumerView>) => { view = { ...view, ...next }; listeners.forEach(fn => fn()) }
     function persist(force = false): boolean {
@@ -51,13 +52,13 @@ export function createFpsRunConsumer(options: FpsConsumerOptions) {
         } catch { if (!view.storageError) emit({ storageError: true }); return false }
     }
     function prepare() {
-        if (!active || !options.bridge || session.getSnapshot().status !== 'done' || view.preparation === 'preparing' || handle) return
+        if (!active || !bridge || session.getSnapshot().status !== 'done' || view.preparation === 'preparing' || handle) return
         terminalLog ??= session.log()
         if (!persist(true)) { emit({ preparation: 'unavailable' }); return }
         const epoch = generation, id = clientRunId
         emit({ preparation: 'preparing' })
         let pending: Promise<FpsResultHandle>
-        try { pending = options.bridge.prepare(id, terminalLog) }
+        try { pending = bridge.prepare(id, terminalLog) }
         catch { emit({ preparation: 'unavailable' }); return }
         void pending.then(result => {
             if (!active || generation !== epoch || clientRunId !== id) { result.dispose(); return }
@@ -79,6 +80,13 @@ export function createFpsRunConsumer(options: FpsConsumerOptions) {
             active = true; generation++; unsubscribe = session.subscribe(observe)
             persist(true); observe()
             return detach
+        },
+        setBridge(next: FpsFreePlayBridge | undefined) {
+            if (next === bridge) return
+            bridge = next; generation++
+            handle?.dispose(); handle = undefined
+            emit({ result: undefined, preparation: 'local' })
+            prepare() // A new provider may retain the same result; never starts or replaces gameplay.
         },
         retry() { if (!active) return; persist(true); prepare() },
         restart() {

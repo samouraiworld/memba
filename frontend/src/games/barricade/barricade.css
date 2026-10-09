@@ -616,3 +616,8 @@
     .bar-panel .bar-controls--start > button:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
     .bar-panel .bar-controls--start > .k-btn-primary { border-color: Highlight; }
 }
+
+/* Archive selection overlays the mounted game; it never changes the play route. */
+.bar-recovery-frame { position: relative; min-height: 160px; }
+.bar-recovery-overlay { position: absolute; inset: 0; z-index: 20; overflow: auto; padding: 16px; background: var(--color-k-panel); color: var(--color-k-text); overflow-wrap: anywhere; }
+.bar-recovery-overlay button { min-height: 44px; min-width: 44px; margin: 4px; }

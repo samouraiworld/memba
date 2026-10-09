@@ -36,6 +36,27 @@ function finishWin(session: ReturnType<typeof createSession>) {
     expect(session.read().state.phase).toBe('won')
 }
 describe('real FPS consumer assembly', () => {
+    it('disables or replaces a runtime bridge without replacing the completed run or accepting a late handle', async () => {
+        let complete!: (handle: FpsResultHandle) => void
+        const old = { render: () => null, dispose: vi.fn() }, next = { render: () => null, dispose: vi.fn() }
+        const firstBridge = { prepare: vi.fn(() => new Promise<FpsResultHandle>(resolve => { complete = resolve })) }
+        const secondBridge = { prepare: vi.fn().mockResolvedValue(next) }
+        const owner = createFpsRunConsumer({ seed: 'runtime-switch', storage: memory(), uuid: () => first, bridge: firstBridge })
+        const detach = owner.mount(), game = owner.getSnapshot().session
+        game.setReady(); game.start(); game.advance(10800)
+        const log = game.log()
+        expect(firstBridge.prepare).toHaveBeenCalledOnce()
+        owner.setBridge(undefined); complete(old)
+        await vi.waitFor(() => expect(old.dispose).toHaveBeenCalledOnce())
+        expect(owner.getSnapshot().preparation).toBe('local')
+        owner.setBridge(secondBridge)
+        await vi.waitFor(() => expect(owner.getSnapshot().result).toBe(next))
+        expect(owner.getSnapshot().session).toBe(game)
+        expect(owner.getSnapshot().clientRunId).toBe(first)
+        expect(game.log()).toEqual(log)
+        owner.setBridge(undefined); expect(next.dispose).toHaveBeenCalledOnce()
+        detach()
+    })
     it('passes the real accepted journal, not attempted no-ops, into the injected A snapshot/session', async () => {
         const snapshot = vi.fn(input => ({ schemaVersion: 1, input })), shared = { dispose: vi.fn() }
         const createShared = vi.fn(() => shared)

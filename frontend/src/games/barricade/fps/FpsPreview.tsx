@@ -22,6 +22,7 @@ export default function FpsPreview({ onClassic, freePlay, storage }: { onClassic
     const run = useSyncExternalStore(consumer.subscribe, consumer.getSnapshot)
     const { session } = run
     useEffect(() => consumer.mount(), [consumer])
+    useEffect(() => consumer.setBridge(freePlay), [consumer, freePlay])
     const hud = useSyncExternalStore(session.subscribe, session.getSnapshot)
     const [has3D] = useState(detectHas3D)
     const [failed, setFailed] = useState(false)

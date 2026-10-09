@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WindowActivityContext } from '../../../os/page/WindowActivity'
 import FpsPreview from './FpsPreview'
+import { RecoveryBoundary, type FpsRecoverySelection } from './freeplay/RecoveryBoundary'
 
 vi.mock('../render/three/caps', () => ({ detectHas3D: () => true }))
 vi.mock('../render/three/fps/FpsScene', () => ({ default: function MockScene({ onReady }: { onReady: () => void }) {
@@ -131,6 +132,33 @@ describe('FPS preview lifecycle and explicit capture', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Ouvrir ce résultat' }))
         expect(screen.getByRole('alert')).toHaveTextContent('Résultat introuvable sur cet appareil')
         expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled()
+    })
+    it('opens an external archive over an existing FPS run without recreating or resuming it', async () => {
+        const close = vi.fn(), dispose = vi.fn(), open = vi.fn(() => ({ render: () => <p>Saved receipt from external selection</p>, dispose }))
+        const saved = { list: vi.fn(() => ({ runs: [], unavailable: 0 })), open }
+        const bridge = { prepare: vi.fn(), saved }
+        const view = (recovery?: FpsRecoverySelection) => <RecoveryBoundary recovery={recovery} saved={saved}><FpsPreview onClassic={vi.fn()} freePlay={bridge} /></RecoveryBoundary>
+        const { rerender, unmount, container } = render(view())
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Jouer · visée libre' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Jouer · visée libre' }))
+        fireEvent.keyDown(screen.getByLabelText(/Visée FPS/), { key: ' ' }); act(() => loop.step(10))
+        const id = localStorage.getItem('memba:barricade:fps:active:v1'), hud = screen.getByLabelText('État de la partie').textContent
+        rerender(view({ clientRunId: '55555555-5555-4555-8555-555555555555', onClose: close }))
+        expect(await screen.findByText('Saved receipt from external selection')).toBeInTheDocument()
+        expect(open).toHaveBeenCalledOnce(); expect(saved.list).not.toHaveBeenCalled()
+        expect(container.querySelector('.fps-preview')).toHaveAttribute('data-status', 'paused')
+        expect(localStorage.getItem('memba:barricade:fps:active:v1')).toBe(id)
+        act(() => loop.step(100))
+        expect(screen.getByLabelText('État de la partie').textContent).toBe(hud)
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer le résultat sauvegardé' }))
+        expect(close).toHaveBeenCalledOnce()
+        rerender(view())
+        expect(dispose).toHaveBeenCalledOnce()
+        expect(screen.getByRole('button', { name: 'Reprendre · visée libre' })).toBeEnabled()
+        expect(screen.getByLabelText('État de la partie').textContent).toBe(hud)
+        expect(localStorage.getItem('memba:barricade:fps:active:v1')).toBe(id)
+        expect(bridge.prepare).not.toHaveBeenCalled()
+        unmount()
     })
     it('returns to Classic explicitly without converting the run', async () => {
         const classic = vi.fn(); render(<FpsPreview onClassic={classic} />)
