@@ -22,6 +22,7 @@ export function publicNoteBudget(message: AminoMsg): { gasWanted: number; estima
         case 'Rename': check(args.length === 5); bytes = blob(args[3], 160).length; break
         case 'Delete': check(args.length === 3); break
         case 'SetCommentMode': check(args.length === 4); break
+        case 'SetPublicWrites': check(args.length === 4); break
         default: throw new NotesChainError('format')
     }
     // No expected refund is deducted: an update may allocate fresh index/receipt nodes.
