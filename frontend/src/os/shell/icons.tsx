@@ -38,7 +38,7 @@ export type IconName = keyof typeof PATHS
 const APP_ICON: Record<OsAppId, IconName> = {
     radio: "radio", daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", live: "live", store: "store", arcade: "game", validators: "val",
     settings: "set", tokens: "tok", nft: "nft", market: "tag", quests: "quest", explorer: "exp", profile: "prof", news: "news",
-    devreport: "chart", terminal: "term", learn: "learn", meet: "meet",
+    devreport: "chart", terminal: "term", learn: "learn", meet: "meet", notes: "doc",
 }
 
 export function Icon({ name }: { name: IconName }) {

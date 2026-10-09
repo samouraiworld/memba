@@ -18,6 +18,7 @@ export interface Brick {
 const REPO = "https://github.com/samouraiworld/memba/tree/main/"
 const SAMCREW = "gno.land/r/samcrew/"
 const appInfo: Record<OsAppId, { layer: Layer; detail: string; realm?: string; available?: boolean }> = {
+    notes: { layer: "onchain", detail: "Read public notes on Gno. Comment actions are reviewed before your connected wallet signs; availability depends on the network release." },
     radio: { layer: "hybrid", detail: "Live schedules are read from Gno Radio on Onyx. Music and artwork stream from external providers; listening needs no wallet." },
     daos: { layer: "onchain", detail: "Members, voting rules, proposals and execution live in Gno realms. The browser prepares actions; your wallet signs. Control of each application is handed over separately." },
     wallet: { layer: "hybrid", detail: "Balances and settled transfers are onchain. The OS prepares transactions; your connected wallet holds keys and signs locally." },

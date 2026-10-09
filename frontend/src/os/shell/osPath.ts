@@ -17,6 +17,7 @@ import { nameForRealm } from "../daos/daoNames"
 import { parseDaoSplat } from "../../lib/daoSlug"
 import { OS_APPS, type OsAppId } from "../apps"
 import { EVM_ENABLED } from "../../lib/chain/flag"
+import { NOTE_ID } from "../../lib/notes/config"
 
 export type DaoSection = "overview" | "proposals" | "treasury" | "members"
 
@@ -92,6 +93,7 @@ export function parseOsPath(pathname: string): OsTarget {
 
     const app = OS_APPS.find((a) => a.slug === first)
     if (!app) return { kind: "unknown", path: pathname }
+    if (app.id === "notes" && second !== undefined && (!NOTE_ID.test(second) || third !== undefined)) return { kind: "unknown", path: pathname }
     // Share the direct Visio invite, never a Memba URL carrying its bearer code.
     if (app.id === "meet" && second !== undefined) return { kind: "unknown", path: pathname }
     return { kind: "app", app: app.id, section: second ? [second, third, fourth, ...rest].filter(Boolean).join("/") : null }
