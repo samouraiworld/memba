@@ -140,19 +140,26 @@ func (s *FreePlayStore) Queue(ctx context.Context, id, player, payload, quoteID,
 	if stored != payload {
 		return ErrFreePlayConflict
 	}
-	// An exact publish retry recovers its original authorization, even after expiry.
-	var oldQuote, oldNonce string
-	err = tx.QueryRowContext(ctx, `SELECT quote_id,nonce FROM arcade_freeplay_outbox_v2 WHERE run_id=?`, id).Scan(&oldQuote, &oldNonce)
+	// Exact retries recover their original authorization. Replacing it requires
+	// proof under this writer transaction that no broadcast was ever reserved.
+	var oldQuote, oldNonce, txHash string
+	var attempts int
+	var leaseUntil, expiresAt int64
+	replace := false
+	err = tx.QueryRowContext(ctx, `SELECT o.quote_id,o.nonce,o.tx_hash,o.broadcast_attempts,o.lease_until,q.expires_at
+ FROM arcade_freeplay_outbox_v2 o JOIN arcade_freeplay_quotes_v2 q ON q.quote_id=o.quote_id WHERE o.run_id=?`, id).Scan(&oldQuote, &oldNonce, &txHash, &attempts, &leaseUntil, &expiresAt)
 	if err == nil {
-		if oldQuote != quoteID || oldNonce != nonce {
+		if oldQuote == quoteID && oldNonce == nonce {
+			return tx.Commit()
+		}
+		if status != "queued" || txHash != "" || attempts != 0 || leaseUntil > now || expiresAt > now {
 			return ErrFreePlayConflict
 		}
-		return tx.Commit()
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
+		replace = true
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	if status != "verified" {
+	if status != "verified" && !replace {
 		return ErrFreePlayConflict
 	}
 	res, err := tx.ExecContext(ctx, `UPDATE arcade_freeplay_quotes_v2 SET consumed=1 WHERE quote_id=? AND run_id=? AND payload_hash=? AND nonce=? AND expires_at>? AND consumed=0`, quoteID, id, payload, nonce, now)
@@ -166,7 +173,13 @@ func (s *FreePlayStore) Queue(ctx context.Context, id, player, payload, quoteID,
 	if n != 1 {
 		return ErrFreePlayQuote
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO arcade_freeplay_outbox_v2(run_id,quote_id,nonce) VALUES(?,?,?)`, id, quoteID, nonce)
+	if replace {
+		// Clear the owner token, fencing any expired worker before it can reserve
+		// a broadcast. Never clear an ambiguous marker or reset sent attempts.
+		_, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET quote_id=?,nonce=?,lease_owner='',lease_until=0,operational_failures=0,confirmation_polls=0,next_check_at=0,last_error='' WHERE run_id=?`, quoteID, nonce, id)
+	} else {
+		_, err = tx.ExecContext(ctx, `INSERT INTO arcade_freeplay_outbox_v2(run_id,quote_id,nonce) VALUES(?,?,?)`, id, quoteID, nonce)
+	}
 	if err != nil {
 		return err
 	}
@@ -175,6 +188,17 @@ func (s *FreePlayStore) Queue(ctx context.Context, id, player, payload, quoteID,
 		return err
 	}
 	return tx.Commit()
+}
+
+// ReauthorizationAllowed is an informational view. Queue rechecks the same
+// conditions atomically when explicit consent consumes the new quote.
+func (s *FreePlayStore) ReauthorizationAllowed(ctx context.Context, id string, now int64) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM arcade_freeplay_runs_v2 r
+ JOIN arcade_freeplay_outbox_v2 o ON o.run_id=r.run_id JOIN arcade_freeplay_quotes_v2 q ON q.quote_id=o.quote_id
+ WHERE r.run_id=? AND r.chain_id=? AND r.realm=? AND r.status='queued'
+ AND o.tx_hash='' AND o.broadcast_attempts=0 AND o.lease_until<=? AND q.expires_at<=?`, id, s.target.ChainID, s.target.Realm, now, now).Scan(&count)
+	return count == 1, err
 }
 
 // Lease owns one bounded operation, not a broadcast attempt. Its token fences late workers; an expired

@@ -163,3 +163,31 @@ func TestFreePlaySignerSerializesDifferentRunsAndPinsUnknownOutcome(t *testing.T
 		t.Fatalf("second run not released %+v %v %v", final, ok, err)
 	}
 }
+
+func TestFreePlayRenewalAndExpiredWorkerCannotBothReserve(t *testing.T) {
+	ctx := context.Background()
+	s, run := queuedFreeRun(t)
+	l, ok, err := s.Claim(ctx, run.Entry.Player, strings.Repeat("9", 64), 999, 1060)
+	if err != nil || !ok {
+		t.Fatalf("claim %v %v", ok, err)
+	}
+	q := freeQuote(run)
+	q.ID = strings.Repeat("c", 64)
+	q.Nonce = strings.Repeat("d", 64)
+	q.ExpiresAt = 3000
+	if err = s.PutQuote(ctx, q, 1061); err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	go func() { <-start; results <- s.reserveBroadcast(ctx, l) }()
+	go func() {
+		<-start
+		results <- s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, q.ID, q.Nonce, 1061)
+	}()
+	close(start)
+	a, b := <-results, <-results
+	if (a == nil) == (b == nil) {
+		t.Fatalf("must choose exactly one writer: %v / %v", a, b)
+	}
+}

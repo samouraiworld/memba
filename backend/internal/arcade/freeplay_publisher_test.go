@@ -305,3 +305,80 @@ func TestFreePlayOperationalLimitDoesNotPinSigner(t *testing.T) {
 		t.Fatalf("failed run pinned signer %q %v", pending, err)
 	}
 }
+
+func TestFreePlayExpiredQueuedQuoteRequiresFreshConsentWithoutRespending(t *testing.T) {
+	s, run := queuedFreeRun(t)
+	ctx := context.Background()
+	old, ok, err := s.Claim(ctx, run.Entry.Player, strings.Repeat("8", 64), 999, 1060)
+	if err != nil || !ok {
+		t.Fatalf("old lease %v %v", ok, err)
+	}
+	q := freeQuote(run)
+	q.ID = strings.Repeat("c", 64)
+	q.Nonce = strings.Repeat("d", 64)
+	q.ExpiresAt = 3000
+	if err = s.PutQuote(ctx, q, 1001); err != nil {
+		t.Fatal(err)
+	}
+	if allowed, err := s.ReauthorizationAllowed(ctx, run.Entry.RunID, 1001); err != nil || allowed {
+		t.Fatalf("active lease authorizable %v %v", allowed, err)
+	}
+	if err = s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, q.ID, q.Nonce, 1001); !errors.Is(err, ErrFreePlayConflict) {
+		t.Fatalf("active lease replaced %v", err)
+	}
+	if allowed, err := s.ReauthorizationAllowed(ctx, run.Entry.RunID, 1061); err != nil || !allowed {
+		t.Fatalf("expired unsent run trapped %v %v", allowed, err)
+	}
+	if err = s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, q.ID, q.Nonce, 1061); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.reserveBroadcast(ctx, old); err == nil {
+		t.Fatal("expired worker was not fenced")
+	}
+	chain := &freeChainFake{}
+	spend := &freeSpendingFake{}
+	p := FreePlayPublisher{Enabled: true, Signer: run.Entry.Player, Store: s, Chain: chain, Spending: spend, Now: func() time.Time { return time.Unix(1062, 0) }}
+	if worked, err := p.PublishOne(ctx); err != nil || !worked {
+		t.Fatalf("renewed publication %v %v", worked, err)
+	}
+	got, err := s.Get(ctx, run.Entry.RunID)
+	if err != nil || got.Status != "confirmed" || got.BroadcastAttempts != 1 || chain.broadcasts != 1 || spend.calls != 1 {
+		t.Fatalf("fresh consent %+v sends=%d reserves=%d %v", got, chain.broadcasts, spend.calls, err)
+	}
+	prior := freeQuote(run)
+	if err = s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, prior.ID, prior.Nonce, 1063); !errors.Is(err, ErrFreePlayConflict) {
+		t.Fatal("old consent restored", err)
+	}
+}
+
+func TestFreePlayUnknownOutcomeCannotRenewExpiredQuote(t *testing.T) {
+	s, run := queuedFreeRun(t)
+	ctx := context.Background()
+	l, ok, err := s.Claim(ctx, run.Entry.Player, strings.Repeat("9", 64), 999, 1060)
+	if err != nil || !ok {
+		t.Fatalf("claim %v %v", ok, err)
+	}
+	if err = s.reserveBroadcast(ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.saveAttempt(ctx, l, "unknown", errors.New("lost response"), 1000); err != nil {
+		t.Fatal(err)
+	}
+	q := freeQuote(run)
+	q.ID = strings.Repeat("c", 64)
+	q.Nonce = strings.Repeat("d", 64)
+	q.ExpiresAt = 3000
+	if err = s.PutQuote(ctx, q, 1100); err != nil {
+		t.Fatal(err)
+	}
+	if allowed, err := s.ReauthorizationAllowed(ctx, run.Entry.RunID, 1100); err != nil || allowed {
+		t.Fatalf("unknown offered reauthorization %v %v", allowed, err)
+	}
+	if err = s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, q.ID, q.Nonce, 1100); !errors.Is(err, ErrFreePlayConflict) {
+		t.Fatal("ambiguous send reset", err)
+	}
+	var marker string
+	if err = s.db.QueryRow(`SELECT tx_hash FROM arcade_freeplay_outbox_v2 WHERE run_id=?`, run.Entry.RunID).Scan(&marker); err != nil || marker != "unknown" {
+		t.Fatalf("marker erased %q %v", marker, err)
+	}
+}

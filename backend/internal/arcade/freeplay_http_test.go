@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type freeAuthFake struct{ player, chain string }
@@ -115,5 +116,35 @@ func TestFreePlayBoardReadsOnlyConfirmedGameAndRules(t *testing.T) {
 	path = "boards/all?rules=" + run.Entry.Rules + "&simVersion=1"
 	if w := request(cfg); w.Code != 400 {
 		t.Fatal("global leaderboard accepted")
+	}
+}
+
+type freeQuoteFake struct{ quote FreePlayQuote }
+
+func (f freeQuoteFake) Quote(context.Context, FreePlayRun) (FreePlayQuote, error) {
+	return f.quote, nil
+}
+func TestFreePlayHTTPExpiredUnsentQuoteCanBeReviewedAndReauthorized(t *testing.T) {
+	s, run := queuedFreeRun(t)
+	q := freeQuote(run)
+	q.ID = strings.Repeat("c", 64)
+	q.Nonce = strings.Repeat("d", 64)
+	q.ExpiresAt = 3000
+	cfg := FreePlayHTTPConfig{Enabled: true, Target: run.Target, Store: s, Auth: freeAuthFake{run.Entry.Player, run.Target.ChainID}, Limiter: freeLimitFake(true), Quotes: freeQuoteFake{q}, Now: func() time.Time { return time.Unix(1100, 0) }}
+	h := NewFreePlayHandler(cfg)
+	w := callFree(h, "GET", "runs/"+run.Entry.RunID, "")
+	var view FreePlayRun
+	if err := json.Unmarshal(w.Body.Bytes(), &view); err != nil || w.Code != 200 || !view.CanReauthorize || view.LastError != "quote_expired" {
+		t.Fatalf("recovery view %d %+v %v", w.Code, view, err)
+	}
+	w = callFree(h, "POST", "runs/"+run.Entry.RunID+"/quote", "{}")
+	if w.Code != 200 {
+		t.Fatalf("renew quote %d %s", w.Code, w.Body.String())
+	}
+	raw, _ := json.Marshal(map[string]string{"payloadHash": q.PayloadHash, "quoteId": q.ID, "nonce": q.Nonce})
+	w = callFree(h, "POST", "runs/"+run.Entry.RunID+"/publish", string(raw))
+	view = FreePlayRun{}
+	if err := json.Unmarshal(w.Body.Bytes(), &view); err != nil || w.Code != 202 || view.CanReauthorize || view.Status != "queued" {
+		t.Fatalf("fresh consent %d %+v %v", w.Code, view, err)
 	}
 }

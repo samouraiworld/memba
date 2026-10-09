@@ -124,3 +124,22 @@ Activation additionally requires reviewed limiter/quotas, fee/deposit budget,
 dedicated signer management, concrete v2 transport/board reader, recovery and
 backoff policy, replay resource measurements, frontend consent/receipt UX, and
 network-specific configuration. None is implicitly enabled by merging source.
+
+## Expired unsent authorization
+
+A fresh run view exposes `canReauthorize` only for queued runs whose consumed
+quote expired, with no transaction marker, zero broadcast reservations and no
+active outbox lease. This is informational; Queue repeats all checks under its
+SQLite writer transaction when consuming a new explicitly consented quote. It
+replaces only authorization metadata, clears the old lease owner to fence stale
+workers, and resets pre-send failures/backoff. It never changes the verified
+payload or clears a broadcast marker. Exact old retries remain idempotent until
+a replacement wins; after replacement, obsolete authorization cannot take over.
+
+The existing quote/publish endpoints serve this recovery; no additional write
+route is introduced. Quote refuses queued runs that are not eligible. UI must
+show the new quote and require a fresh explicit click, never renew automatically.
+Submitted, confirmed and unknown outcomes are excluded, even after lease expiry.
+Tests cover the HTTP view/quote/publish sequence, active lease refusal, concurrent
+replacement versus stale reservation, old-worker fencing and one actual send
+following fresh consent. The migration shape is unchanged by this addition.

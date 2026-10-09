@@ -115,6 +115,11 @@ func NewFreePlayHandler(cfg FreePlayHTTPConfig) http.Handler {
 				freePlayHTTPError(w, err)
 				return
 			}
+			run, err = freePlayRecoveryView(r.Context(), cfg.Store, run, now().Unix())
+			if err != nil {
+				freePlayHTTPError(w, err)
+				return
+			}
 			writeJSON(w, 200, run)
 			return
 		}
@@ -133,6 +138,11 @@ func NewFreePlayHandler(cfg FreePlayHTTPConfig) http.Handler {
 			return
 		}
 		if len(parts) == 2 && r.Method == http.MethodGet {
+			run, err = freePlayRecoveryView(r.Context(), cfg.Store, run, now().Unix())
+			if err != nil {
+				freePlayHTTPError(w, err)
+				return
+			}
 			writeJSON(w, 200, run)
 			return
 		}
@@ -146,6 +156,15 @@ func NewFreePlayHandler(cfg FreePlayHTTPConfig) http.Handler {
 		}
 		switch parts[2] {
 		case "quote":
+			run, err = freePlayRecoveryView(r.Context(), cfg.Store, run, now().Unix())
+			if err != nil {
+				freePlayHTTPError(w, err)
+				return
+			}
+			if run.Status != "verified" && !run.CanReauthorize {
+				freePlayHTTPError(w, ErrFreePlayConflict)
+				return
+			}
 			var empty struct{}
 			if !decode(&empty) {
 				return
@@ -190,12 +209,29 @@ func NewFreePlayHandler(cfg FreePlayHTTPConfig) http.Handler {
 				freePlayHTTPError(w, err)
 				return
 			}
+			run, err = freePlayRecoveryView(r.Context(), cfg.Store, run, now().Unix())
+			if err != nil {
+				freePlayHTTPError(w, err)
+				return
+			}
 			writeJSON(w, 202, run)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
+func freePlayRecoveryView(ctx context.Context, store *FreePlayStore, run FreePlayRun, now int64) (FreePlayRun, error) {
+	allowed, err := store.ReauthorizationAllowed(ctx, run.Entry.RunID, now)
+	if err != nil {
+		return FreePlayRun{}, err
+	}
+	run.CanReauthorize = allowed
+	if allowed {
+		run.LastError = "quote_expired"
+	}
+	return run, nil
+}
+
 func freePlayHTTPError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrFreePlayMissing):

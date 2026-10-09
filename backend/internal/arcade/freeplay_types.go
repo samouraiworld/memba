@@ -116,6 +116,7 @@ func FreePlayRunID(t FreePlayTarget, player, game, clientRunID string) (string, 
 }
 
 type FreePlayRun struct {
+	CanReauthorize      bool             `json:"canReauthorize,omitempty"`
 	LastError           string           `json:"lastError,omitempty"`
 	BroadcastAttempts   int              `json:"broadcastAttempts,omitempty"`
 	OperationalFailures int              `json:"operationalFailures,omitempty"`
