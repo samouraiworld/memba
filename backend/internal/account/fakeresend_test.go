@@ -85,11 +85,11 @@ func (f *fakeResend) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.Method == http.MethodGet {
-			var data []topicSubscription
+			data := []topicSubscription{}
 			for id, s := range subs {
 				data = append(data, topicSubscription{ID: id, Subscription: s})
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": data, "has_more": false})
 			return
 		}
 		var m []topicSubscription

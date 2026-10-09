@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -140,8 +141,8 @@ func (r *resend) topics(ctx context.Context, email string) (map[string]string, e
 	after := ""
 	for page := 0; page < 100; page++ {
 		var out struct {
-			Data    []topicSubscription `json:"data"`
-			HasMore bool                `json:"has_more"`
+			Data    *[]topicSubscription `json:"data"`
+			HasMore *bool                `json:"has_more"`
 		}
 		next := path
 		if after != "" {
@@ -150,16 +151,27 @@ func (r *resend) topics(ctx context.Context, email string) (map[string]string, e
 		if err := r.do(ctx, "read topics", http.MethodGet, next, nil, &out); err != nil {
 			return nil, err
 		}
-		for _, t := range out.Data {
+		// Missing/null fields are not evidence of a complete empty list.
+		// Presentation metadata (name/description) is deliberately optional.
+		if out.Data == nil || out.HasMore == nil {
+			return nil, errors.New("resend read topics: missing list fields")
+		}
+		for _, t := range *out.Data {
+			if strings.TrimSpace(t.ID) == "" || (t.Subscription != "opt_in" && t.Subscription != "opt_out") {
+				return nil, errors.New("resend read topics: invalid subscription")
+			}
+			if _, duplicate := subs[t.ID]; duplicate {
+				return nil, errors.New("resend read topics: repeated topic")
+			}
 			subs[t.ID] = t.Subscription
 		}
-		if !out.HasMore {
+		if !*out.HasMore {
 			return subs, nil
 		}
-		if len(out.Data) == 0 {
+		if len(*out.Data) == 0 {
 			break
 		}
-		after = out.Data[len(out.Data)-1].ID
+		after = (*out.Data)[len(*out.Data)-1].ID
 		if after == "" || seen[after] {
 			break
 		}
