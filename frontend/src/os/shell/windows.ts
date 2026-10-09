@@ -38,6 +38,22 @@ export interface WindowSpec {
     target: OsTarget | null
 }
 
+/** Only these local game windows participate in Arcade host actions. */
+export function isArcadePlayWindow(w: Pick<WindowSpec, "key" | "target">): boolean {
+    const t = w.target
+    return t?.kind === "app" && t.app === "arcade" &&
+        ["game", "space-invaders", "barricade"].includes(t.section ?? "") && w.key === `game:${t.section}`
+}
+
+/** First creation only. Utility screens and game instances keep their own policy. */
+function startsMaximised(spec: WindowSpec): boolean {
+    const t = spec.target
+    if (t?.kind !== "app") return false
+    if (t.app === "arcade") return t.section === null || t.section === "runs" || t.section === "daily-board" || !!t.section?.startsWith("g/")
+    return t.app === "store" && (t.section === null || t.section === "ecosystem" || t.section === "extensions" ||
+        !!t.section?.startsWith("apps/") || !!t.section?.startsWith("project/"))
+}
+
 export interface DeskSize {
     w: number
     h: number
@@ -150,7 +166,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
 export interface WindowsState { top: number; seq: number; wins: OsWindow[] }
 
 export type WindowsAction =
-    | { type: "open"; spec: WindowSpec; desk: DeskSize; center?: boolean }
+    | { type: "open"; spec: WindowSpec; desk: DeskSize; center?: boolean; play?: boolean }
     | { type: "focus"; id: string }
     | { type: "move"; id: string; x: number; y: number; desk: DeskSize }
     | { type: "resize"; id: string; width: number; height: number; desk: DeskSize }
@@ -223,11 +239,12 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
             const base = safeZ(s)
             const existing = base.wins.find((w) => w.key === a.spec.key)
             // Reopening keeps the window where it is, but follows the link's section.
-            if (existing) return raise(base, existing.id, { min: false, target: keepQuery(a.spec.target, existing.target) ?? existing.target })
+            const play = a.play === true && isArcadePlayWindow(a.spec)
+            if (existing) return raise(base, existing.id, { min: false, ...(play ? { max: true } : {}), target: keepQuery(a.spec.target, existing.target) ?? existing.target })
             const seq = base.seq + 1
             const top = base.top + 1
             const g = place(a.spec, base.wins.length, a.desk, !!a.center)
-            return { top, seq, wins: [...base.wins, { ...a.spec, ...g, id: `w${seq}`, z: top, min: false, max: false }] }
+            return { top, seq, wins: [...base.wins, { ...a.spec, ...g, id: `w${seq}`, z: top, min: false, max: play || startsMaximised(a.spec) }] }
         }
         case "focus": {
             const w = s.wins.find((x) => x.id === a.id)

@@ -71,29 +71,19 @@ const readyHeading = () => screen.queryByRole("heading", { name: /relay standing
 const pausedHeading = () => screen.queryByRole("heading", { name: /relay paused/i });
 
 describe("Enter", () => {
-  it("picks the daily run from the menu, then launches it as a fire press", () => {
+  it("starts free play with one Enter and consumes the launch on a real step", () => {
     render(<SpaceInvaders seed={7} />);
     surface().focus();
     fireEvent.keyDown(surface(), { key: "Enter" });
-    expect(readyHeading()).toBeInTheDocument();
-    expect(screen.getByText(/^daily signal ·/i)).toBeInTheDocument();
-
-    flushFrame(0);
-    flushFrame(100);
-    expect(advanceSpy).not.toHaveBeenCalled(); // armed idle: no ticks
-
-    fireEvent.keyDown(surface(), { key: "Enter" });
     fireEvent.keyUp(surface(), { key: "Enter" });
-    // A zero-step frame must not swallow the launch.
-    flushFrame(105);
-    expect(advanceSpy).not.toHaveBeenCalled();
-    flushFrame(140);
-    expect(advanceSpy).toHaveBeenCalledWith(expect.anything(), expect.any(Number), { move: 0, fire: true, pause: false });
     expect(readyHeading()).not.toBeInTheDocument();
-
-    // Consumed once: the next step is idle again.
+    flushFrame(0);
+    flushFrame(5);
+    expect(advanceSpy).not.toHaveBeenCalled();
+    flushFrame(40);
+    expect(advanceSpy).toHaveBeenCalledWith(expect.anything(), expect.any(Number), { move: 0, fire: true, pause: false });
     advanceSpy.mockClear();
-    flushFrame(180);
+    flushFrame(80);
     expect(advanceSpy).toHaveBeenCalledWith(expect.anything(), expect.any(Number), { move: 0, fire: false, pause: false });
   });
 
@@ -108,7 +98,7 @@ describe("Enter", () => {
     surface().focus();
     fireEvent.keyDown(surface(), { key: "Enter" });
     expect(screen.queryByRole("heading", { name: /game over/i })).not.toBeInTheDocument();
-    expect(readyHeading()).toBeInTheDocument();
+    expect(readyHeading()).not.toBeInTheDocument();
   });
 
   it("resumes a paused run", () => {
