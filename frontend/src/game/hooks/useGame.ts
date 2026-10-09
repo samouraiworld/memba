@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { initGame, step, type GameState, type Modifier, type Move } from "../engine";
+import { newPracticeRunId } from "../freeplay/round";
 import { setLocalBest } from "../lib/localStore";
 
 export type GameMode = "ranked" | "practice";
 
-type Internal = { game: GameState; log: string; seed: number; mode: GameMode };
+type ReplayState = { game: GameState; log: string; seed: number; mode: GameMode };
+type Internal = ReplayState & { actions: string; runId: string | null };
 
 function fresh(seed: number, modifier: Modifier, mode: GameMode): Internal {
-  return { game: initGame(seed, modifier), log: "", seed, mode };
+  return { game: initGame(seed, modifier), log: "", seed, mode, actions: "", runId: mode === "practice" ? newPracticeRunId() : null };
 }
 
 /**
@@ -16,7 +18,7 @@ function fresh(seed: number, modifier: Modifier, mode: GameMode): Internal {
  * accepted it: no no-op moves, nothing after game over, nothing past the
  * budget. The backend applies the same rules to a submitted replay.
  */
-export function replayLog(seed: number, modifier: Modifier, log: string, budget: number, mode: GameMode = "ranked"): Internal | null {
+export function replayLog(seed: number, modifier: Modifier, log: string, budget: number, mode: GameMode = "ranked"): ReplayState | null {
   let game = initGame(seed, modifier);
   for (let i = 0; i < log.length; i++) {
     const m = log[i];
@@ -40,7 +42,7 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
       if (mode === "ranked" && prev.game.moves >= moveBudget) return prev;
       const next = step(prev.game, m);
       if (next === prev.game) return prev; // no-op: unchanged, not counted, not logged
-      return { game: next, log: prev.log + m, seed: prev.seed, mode: prev.mode };
+      return { ...prev, game: next, log: prev.log + m, actions: prev.mode === "practice" ? prev.actions + m : prev.actions };
     });
   }, [mode, moveBudget]);
 
@@ -53,16 +55,21 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
     const s = seed ?? seedRef.current;
     seedRef.current = s;
     const restored = log ? replayLog(s, modifier, log, mode === "ranked" ? moveBudget : Infinity, mode) : null;
-    setInternal(restored ?? fresh(s, modifier, mode));
+    setInternal(restored ? { ...restored, actions: mode === "practice" ? log : "", runId: mode === "practice" ? newPracticeRunId() : null } : fresh(s, modifier, mode));
     return log === "" || restored !== null;
   }, [modifier, mode, moveBudget]);
 
   /** Practice only: step back one accepted move by replaying the shorter log. */
   const undo = useCallback(() => {
     if (mode !== "practice") return;
+    // Generate outside React's replayable state updater. Undo after a terminal
+    // snapshot starts a new certification identity while preserving the full
+    // action history, so an already-saved result can never be overwritten.
+    const nextRunId = newPracticeRunId();
     setInternal((prev) => {
-      if (prev.log.length === 0) return prev;
-      return replayLog(prev.seed, prev.game.modifier, prev.log.slice(0, -1), Infinity, "practice") ?? prev;
+      if (prev.mode !== "practice" || prev.log.length === 0) return prev;
+      const restored = replayLog(prev.seed, prev.game.modifier, prev.log.slice(0, -1), Infinity, "practice");
+      return restored ? { ...restored, actions: prev.actions + "Z", runId: prev.game.over ? nextRunId : prev.runId } : prev;
     });
   }, [mode]);
 
@@ -85,10 +92,16 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
     movesLeft: mode === "ranked" ? Math.max(0, moveBudget - movesUsed) : Infinity,
     over: game.over || budgetReached,
     moveLog: internal.log,
+    /** Certification journal retains accepted moves AND Undo; moveLog still
+     * describes the current board for legacy resume and deterministic Undo. */
+    actionLog: internal.actions,
+    roundId: internal.runId,
+    roundMode: internal.mode,
+    roundOver: game.over,
     /** The seed and modifier the current round was actually dealt from. */
     roundSeed: internal.seed,
     roundModifier: game.modifier,
-    canUndo: mode === "practice" && internal.log.length > 0,
+    canUndo: mode === "practice" && internal.mode === "practice" && internal.log.length > 0,
     play,
     restart,
     undo,
