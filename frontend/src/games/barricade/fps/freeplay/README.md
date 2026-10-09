@@ -1,3 +1,7 @@
+> **A8 intégré par Git depuis `35c9e9205bb7726e7a47ef913908296cff0de2e2`.**
+> Le wrapper utilise maintenant `runtime.tsx`. Ce delta C attend sa validation ciblée
+> au créneau alloué ; les preuves A3 antérieures ne valident pas A8.
+
 # FPS Free play consumer — injected, no default publication
 
 `FpsPreview` now owns the real run consumer. `Barricade` exposes an optional
@@ -11,21 +15,19 @@ The worker/envelope must validate the supplied fixtures before activation.
 
 ## Inject the existing A implementation
 
-Create a stable bridge outside render (A client PR #1586, contract read at
-`2bb27005173d9fb2b1a92f19769d11a78c4465f8`), then pass it as `fpsFreePlay` to Barricade, or `freePlay` to FpsPreview:
+The wrapper consumes a stable `games.barricade` configuration from the shared
+provider. An explicit stable bridge may also be passed as `fpsFreePlay` to
+Barricade, or `freePlay` to FpsPreview:
 
 ```tsx
-const fpsBridge = createFpsFreePlayBridge({
-    hashFields: hashFreePlayFields,
-    createSnapshot: createFreePlaySnapshot,
-    createSession: snapshot => createFreePlaySession({ snapshot, client, storage }),
-    renderSession: session => <FreePlayResult session={session} />,
-    savedSnapshots: {
-        list: () => listFreePlaySnapshots(storage, { game: 'barricade', offset: 0, limit: 20 }),
-        load: id => loadFreePlaySnapshot(storage, id),
-    },
+const fpsBridge = makeFpsRuntimeBridge({
+    rules: 'barricade-fps-c1', simVersion: 3,
+    storage, client, connect,
 })
 ```
+
+This adapter uses the integrated A8 guard and panels for both terminal and saved
+results. A custom lower-level bridge must preserve the same recovery contract.
 
 The `client` above is A's injected client with its existing trusted endpoint,
 network target and identity adapter. No such client/default endpoint is created
@@ -170,14 +172,14 @@ Run the opt-in real-source assembly with:
 node src/games/barricade/fps/freeplay/real-a3.integration.mjs
 ```
 
-It reads exact A3 Git objects into a temporary directory (removed afterwards),
-bundles against the actual A snapshot/index/session/result/client modules, and
+It verifies the A8 dependency is an ancestor of HEAD, then bundles directly against
+the integrated A snapshot/index/session/result/client modules (no copies), and
 uses a local fake HTTP transport. It checks no API/token/hash on recovery, current
 game preservation, Saved -> explicit refresh -> confirmed through the real client’s
 commitment validation, missing/corrupt/wrong-version records and disposal. No
 wallet, signature, chain publication or live backend is exercised.
 
-## External selection and pending A3 provider integration
+## External selection and integrated A8 provider
 
 `Barricade` accepts `recovery?: {clientRunId,onClose} | null` and nullable
 `fpsFreePlay`. Recovery is a sibling overlay of the current Classic/FPS engine:
@@ -190,27 +192,52 @@ Your runs owns its local SavedRunPanel without mounting an engine. These optiona
 Barricade props remain a local-only recovery entry for a deliberate owner. There
 is no selection broadcast/listener.
 
-A3 shared files are not yet on this branch. `runtime.tsx.integration-source` is
-staged source, NOT an active provider hookup. After central integration of A3:
-
-1. Materialize it next to this README as `runtime.tsx`.
-2. Add `import { useFpsRuntime } from './fps/freeplay/runtime'` in Barricade.tsx.
-3. Keep the existing props type, name the argument `props`, and at the top of the
-   wrapper call `const { fpsFreePlay, recovery } = useFpsRuntime(props)`.
-4. Leave Shell/WindowBody/runtime lifecycle to D/Lead; no other module here owns it.
+A8 is merged normally. `runtime.tsx` is imported by Barricade and
+`useFpsRuntime(props)` supplies the injected bridge. Shell/WindowBody/runtime
+lifecycle remains owned by D/Lead; no other module here owns it.
 
 The hook uses only `runtime.games.barricade`; exact FPS rules/version are required.
 Explicit bridge props win; null disables fallback. Recovery comes only from the
 explicit local prop, including null. No endpoint/realm/network/flag is invented.
-Without a client the staged adapter still saves to A’s canonical store/index and
+Without a client the adapter still saves to A’s canonical store/index and
 shows an unconfirmed local result; optional wallet connection requires a click.
 With a client it uses A’s actual session and result UI. Existing consent/receipt
 is retained when preparing the same completed run again.
 
 `FPS_A3_TYPES=1 node src/games/barricade/fps/freeplay/real-a3.integration.mjs`
-materializes the staged source in a temporary directory and checks its strict
-types against exact A3 `2bb27005`, plus the real provider/session/client assembly.
-Only import locations are rewritten for that temporary test. It verifies explicit
-null/local priority, ignored global recovery, version filtering, local persistence
-without client, preserved receipts and explicit refresh. No Shell/browser hookup
-is claimed until the central integration applies the three changes above.
+checks strict adapter types and the real provider/session/client assembly against
+the integrated sources. `runtime.test.tsx` adds DOM coverage of the consumer's
+Connect wiring and storage failure paths. These commands await the C slot.
+No real Shell/browser or wallet publication is claimed by these tests.
+
+## A8 — résultat terminal avant Connect
+
+Le runtime délègue la persistance canonique/index et sa relecture à
+`prepareFreePlayRecovery`. Plus de comparaison/persistance locale dupliquant ce
+guard. Le constructeur A confirme également la persistance de ses sessions.
+`FreePlayResult` reçoit le callback `connect` explicite et conserve son
+`session.prepareRecovery`/`view.recoveryReady`. Le mode local fournit au composant
+partagé `FreePlayConnect` un callback stable par handle vers le même guard A,
+qui refuse également un handle déjà disposé. Ce callback est reconfirmé par A au
+clic avant de laisser Connect démonter la fenêtre.
+
+`LocalResult` est seulement présentatif : aucun appel Connect, aucune promesse de
+reprise de moteur. Avec connexion disponible, le panneau A possède le message,
+le guard au clic, le coalescing, l’échec et l’export canonique. Sans connexion,
+un échec initial de stockage affiche une explication/export du snapshot local ;
+le résultat n’est pas annoncé sauvegardé. Les conflits restent des erreurs, jamais
+une réattribution de binding/consentement. L’export replay du parent reste distinct.
+
+Validation ciblée, **à exécuter uniquement au créneau C attribué** :
+
+```sh
+FPS_A3_TYPES=1 node src/games/barricade/fps/freeplay/real-a3.integration.mjs
+```
+
+Le script importe directement les modules intégrés et prépare deux cas consumer
+d’écriture silencieuse (canonical/index) : erreur/export, pas de faux succès,
+UUID conservé. Les interactions DOM Connect/quota-au-clic, guest→member/bureaux,
+A→B et maintien du moteur à owner constant restent pour le slot de composition.
+Au premier échec de guard, l’export ne peut contenir que le snapshot effectivement
+capturé ; ne pas promettre la récupération de champs plus récents que le stockage
+n’a pas pu restituer. Vérifier ce cas avec A lors de la composition exacte.

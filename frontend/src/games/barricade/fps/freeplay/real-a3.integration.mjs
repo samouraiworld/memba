@@ -1,37 +1,26 @@
-/** Opt-in assembly against exact A3 Git sources; no shared files copied into the repository. */
+/** Opt-in consumer assembly against the normally merged A8 dependency; no module copies. */
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, mkdir, writeFile, readFile, symlink, rm } from 'node:fs/promises'
+import { mkdtemp, writeFile, symlink, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
-const commit = '2bb27005173d9fb2b1a92f19769d11a78c4465f8'
+const commit = '35c9e9205bb7726e7a47ef913908296cff0de2e2'
 const here = dirname(fileURLToPath(import.meta.url)), frontend = resolve(here, '../../../../..')
-const temporary = await mkdtemp(join(tmpdir(), 'fps-real-a3-'))
+execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], { cwd: frontend })
+const temporary = await mkdtemp(join(tmpdir(), 'fps-real-a8-'))
 try {
-    for (const file of ['lib/arcadeFreePlay.ts', 'games/arcade/freeplay/snapshot.ts', 'games/arcade/freeplay/session.ts', 'games/arcade/freeplay/FreePlayResult.tsx', 'games/arcade/freeplay/useFreePlayResult.ts', 'games/arcade/freeplay/FreePlayRuntimeContext.ts', 'games/arcade/freeplay/FreePlayRuntimeProvider.tsx']) {
-        const path = join(temporary, 'src', file)
-        await mkdir(dirname(path), { recursive: true })
-        await writeFile(path, execFileSync('git', ['show', `${commit}:frontend/src/${file}`], { cwd: frontend }))
-    }
     await symlink(join(frontend, 'node_modules'), join(temporary, 'node_modules'), 'dir')
-    const staged = (await readFile(join(here, 'runtime.tsx.integration-source'), 'utf8'))
-        .replaceAll("'../../../../lib/", "'./src/lib/")
-        .replaceAll("'../../../arcade/", "'./src/games/arcade/")
-        .replace("'./bridge'", JSON.stringify(join(here, 'bridge')))
-        .replace("'./LocalResult'", JSON.stringify(join(here, 'LocalResult')))
-        .replace("'./RecoveryBoundary'", JSON.stringify(join(here, 'RecoveryBoundary')))
-    await writeFile(join(temporary, 'runtime.tsx'), staged)
-    if (process.env.FPS_A3_TYPES === '1') execFileSync(process.execPath, [join(frontend, 'node_modules/typescript/bin/tsc'), '--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--jsx', 'react-jsx', '--lib', 'ES2022,DOM', join(temporary, 'runtime.tsx')], { cwd: temporary, stdio: 'inherit' })
+    if (process.env.FPS_A3_TYPES === '1') execFileSync(process.execPath, [join(frontend, 'node_modules/typescript/bin/tsc'), '--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--jsx', 'react-jsx', '--lib', 'ES2022,DOM', join(here, 'runtime.tsx')], { cwd: frontend, stdio: 'inherit' })
     const source = `
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { makeFpsRuntimeBridge, useFpsRuntime } from './runtime'
-import { FreePlayRuntimeProvider } from './src/games/arcade/freeplay/FreePlayRuntimeProvider'
-import { createFreePlayClient, FREE_PLAY_REALM, hashFreePlayFields, freePlayRunID } from './src/lib/arcadeFreePlay'
-import { createFreePlaySnapshot, saveFreePlaySnapshot, loadFreePlaySnapshot, listFreePlaySnapshots } from './src/games/arcade/freeplay/snapshot'
-import { createFreePlaySession } from './src/games/arcade/freeplay/session'
-import { FreePlayResult } from './src/games/arcade/freeplay/FreePlayResult'
+import { makeFpsRuntimeBridge, useFpsRuntime } from ${JSON.stringify(join(here, 'runtime.tsx'))}
+import { FreePlayRuntimeProvider } from ${JSON.stringify(join(frontend, 'src/games/arcade/freeplay/FreePlayRuntimeProvider'))}
+import { createFreePlayClient, FREE_PLAY_REALM, hashFreePlayFields, freePlayRunID } from ${JSON.stringify(join(frontend, 'src/lib/arcadeFreePlay'))}
+import { createFreePlaySnapshot, saveFreePlaySnapshot, loadFreePlaySnapshot, listFreePlaySnapshots } from ${JSON.stringify(join(frontend, 'src/games/arcade/freeplay/snapshot'))}
+import { createFreePlaySession } from ${JSON.stringify(join(frontend, 'src/games/arcade/freeplay/session'))}
+import { FreePlayResult } from ${JSON.stringify(join(frontend, 'src/games/arcade/freeplay/FreePlayResult'))}
 import { createFpsFreePlayBridge } from ${JSON.stringify(join(here, 'bridge.ts'))}
 import { createFpsRunConsumer } from ${JSON.stringify(join(here, 'consumer.ts'))}
 import vectors from ${JSON.stringify(join(here, 'fixtures/terminal-vectors.json'))}
@@ -74,6 +63,20 @@ const repeatedLocal = await localBridge.prepare(input.clientRunId, wonReplay)
 assert.match(renderToStaticMarkup(repeatedLocal.render()), /Saved receipt/); repeatedLocal.dispose()
 assert.equal(requests, 0); assert.equal(tokens, 0); assert.equal(subscriptions, 0)
 
+// Consumer composition: terminal storage failures must retain an honest export.
+for (const drop of ['all', 'index']) {
+    const rows = new Map()
+    const failing = { getItem: key => rows.get(key) ?? null, setItem: (key, value) => { if (drop === 'all' || key === 'memba:arcade:freeplay:index:v1') return; rows.set(key, value) } }
+    const failingBridge = makeFpsRuntimeBridge({...config, client:undefined, storage:failing})
+    const pending = await failingBridge.prepare('66666666-6666-4666-8666-666666666666', wonReplay)
+    const html = renderToStaticMarkup(pending.render())
+    assert.match(html, /n’a pas pu être confirmée/)
+    assert.match(html, /Export du résultat terminé/)
+    assert.match(html, /66666666-6666-4666-8666-666666666666/)
+    assert.doesNotMatch(html, /Résultat sauvegardé sur cet appareil/)
+    pending.dispose()
+}
+assert.equal(requests, 0); assert.equal(tokens, 0)
 let shared
 const bridge = createFpsFreePlayBridge({ hashFields: async (...fields) => { hashes++; return hashFreePlayFields(...fields) }, createSnapshot: createFreePlaySnapshot, createSession: snapshot => (shared = createFreePlaySession({ snapshot, client, storage })), renderSession: session => <FreePlayResult session={session} />, savedSnapshots: { list: () => listFreePlaySnapshots(storage, { game: 'barricade', offset: 0, limit: 20 }), load: id => loadFreePlaySnapshot(storage, id) } })
 const owner = createFpsRunConsumer({ seed: 'recovery-test', storage, uuid: () => { allocations++; return '22222222-2222-4222-8222-222222222222' }, bridge })
@@ -102,7 +105,7 @@ entries.set('memba:arcade:freeplay:index:v1', '{broken')
 assert.throws(() => bridge.saved.list(), /invalid_snapshot_index/)
 assert.equal(requests, 1); assert.equal(hashes, 0); assert.equal(JSON.stringify(game.session.log()), journal)
 detach()
-console.log('PASS real A3 ${commit}: staged provider adapter, global recovery ignored, explicit-local/null priority, game/version filtering, local-only storage;  saved receipt -> explicit refresh -> confirmed; zero recovery replay/hash/API; existing run preserved; missing/corrupt/wrong-version handling; disposal')
+console.log('PASS integrated A8 ${commit}: provider adapter, global recovery ignored, explicit-local/null priority, game/version filtering, local-only storage;  saved receipt -> explicit refresh -> confirmed; zero recovery replay/hash/API; existing run preserved; missing/corrupt/wrong-version handling; disposal')
 `
     const entry = join(temporary, 'assembly.tsx'), output = join(temporary, 'assembly.mjs')
     await writeFile(entry, source)

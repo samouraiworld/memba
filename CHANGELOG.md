@@ -97,6 +97,7 @@ Full changelogs are split by version range for easier navigation:
 ### The Arcade as a storefront (2026-10-08)
 - Barricade: add an opt-in, unranked fixed-position FPS prototype with deterministic local replays; Classic remains the default.
 - Barricade FPS preview: prepare an original street and articulated silhouettes with instanced rendering, clearer impact/reload feedback, and an injected terminal result consumer with resumable run identities for future voluntary anchoring.
+- Completed FPS results use the shared recovery check before optional wallet connection; failed local storage offers an export without claiming the result is saved.
 - Memba OS Arcade: the lobby is now a dark storefront with a featured-games carousel, a capsule for every game, a Today's daily strip and a "From the community" shelf; Play is its own button on each capsule, and it is absent when a build cannot run the game.
 - Memba OS Arcade: every game has its own page (/os/arcade/g/<game>) with screenshots once media lands, about, how to play, facts, and Play; a game this build cannot run says so instead of offering Play.
 - Memba OS Arcade: ratings and reviews on game pages are on-chain and shared with each game's App Store listing, so a review written in one place shows in the other; reading is open to guests.

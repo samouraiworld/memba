@@ -1,5 +1,6 @@
 import { RecoveryBoundary, type FpsRecoverySelection } from './fps/freeplay/RecoveryBoundary'
 import type { FpsFreePlayBridge } from './fps/freeplay/bridge'
+import { useFpsRuntime } from './fps/freeplay/runtime'
 /**
  * MEMBA: BARRICADE — playable shell (Memba-native visual pass).
  *
@@ -854,7 +855,8 @@ function ClassicBarricade() {
 
 // C1 preview is explicit and local to this game; Classic remains the published default.
 const FpsPreview = lazy(() => import("./fps/FpsPreview"))
-export default function Barricade({ fpsFreePlay, recovery }: { fpsFreePlay?: FpsFreePlayBridge | null; recovery?: FpsRecoverySelection | null } = {}) {
+export default function Barricade(props: { fpsFreePlay?: FpsFreePlayBridge | null; recovery?: FpsRecoverySelection | null } = {}) {
+    const { fpsFreePlay, recovery } = useFpsRuntime(props)
     const location = useLocation()
     const navigate = useNavigate()
     const [previewFailed, setPreviewFailed] = useState(false)
