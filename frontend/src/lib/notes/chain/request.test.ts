@@ -3,10 +3,11 @@ import { IDBFactory, IDBObjectStore } from 'fake-indexeddb'
 import { bech32Encode } from '../../dao/realmAddress'
 import { createDraftSession, createNotesStore } from '../drafts'
 import type { NotesStore } from '../drafts'
-import { createNotesIntents } from '../intents'
+import { createNotesIntents, validPublicVerification } from '../intents'
 import type { NotesReadClient } from './client'
 import { parsePublicCapabilities } from './capabilities'
-import type { PublicNoteOperation } from './messages'
+import { publicNoteMessage, type PublicNoteOperation } from './messages'
+import { recoverPublicIntent } from './recovery'
 import { notesRequestDigest, preparePublicNoteRequest } from './request'
 import type { NotesQuoteProvider, PublicRequestOptions } from './request'
 import { NOTES_REALM } from './schema'
@@ -42,6 +43,52 @@ beforeEach(() => {
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(store => store.close())) })
 
 describe('Notes signing intentions', () => {
+  it.each([true, false])('reviews explicit collective writing=%s and confirms its exact capability', async enabled => {
+    const s = setup(); s.setNote({ ...baseNote(), mode: 4 }); s.setPublicWrites(!enabled)
+    s.options.operation.action = { kind: 'public-writes', revision: '1', enabled }
+    const request = await preparePublicNoteRequest(s.options)
+    expect(request.title).toBe(enabled ? 'Allow everyone to edit' : 'Stop public editing')
+    expect(request.label!(undefined)).toBe(request.title)
+    expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: 'SetPublicWrites', send: '', args: [expect.any(String), '1', String(enabled), expect.any(String)] })
+    await request.send(undefined, async () => () => true)
+    s.applied({ mode: 4, bodyRevision: '1', body: bytes('Old') })
+    expect(await request.verify!(undefined, undefined, undefined)).toBe(false)
+    s.setPublicWrites(enabled)
+    expect(await request.verify!(undefined, undefined, undefined)).toBe(true)
+    const receipt = (await s.intents.get(s.scope, operationId))!
+    expect(receipt.phase).toBe('confirmed'); expect(receipt.verification).toMatchObject({ kind: 'public-v1', owner, allowPublicWrites: enabled })
+    expect(validPublicVerification({ ...receipt.verification, allowPublicWrites: 'true' })).toBe(false)
+    expect(validPublicVerification({ ...receipt.verification, mode: 3 })).toBe(false)
+  })
+  it.each(['nonowner', 'restricted', 'missing', 'noop', 'changed'])('refuses unsafe collective toggle: %s', async reason => {
+    const s = setup(); s.setNote({ ...baseNote(), mode: reason === 'restricted' ? 3 : 4 })
+    s.options.operation.action = { kind: 'public-writes', revision: '1', enabled: true }
+    if (reason === 'nonowner') s.options.operation.caller = bech32Encode('g', new Uint8Array(20).fill(2))
+    if (reason === 'missing') vi.spyOn(s.options.client, 'publicCapabilities').mockResolvedValue(null)
+    if (reason === 'noop') s.setPublicWrites(true)
+    if (reason === 'changed') {
+      const request = await preparePublicNoteRequest(s.options)
+      s.setNote({ ...baseNote(), mode: 4, stateRevision: '2' })
+      await expect(request.recheck!()).rejects.toThrow('stale')
+    } else await expect(preparePublicNoteRequest(s.options)).rejects.toThrow('stale')
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
+  it('recovers a collective toggle only with a matching durable target and same-revision capability', async () => {
+    const s = setup(); s.setNote({ ...baseNote(), mode: 4 })
+    s.options.operation.action = { kind: 'public-writes', revision: '1', enabled: true }
+    const request = await preparePublicNoteRequest(s.options); await request.send(undefined, async () => () => true)
+    await s.intents.settle(s.scope, operationId, 'unknown', s.session)
+    const receipt = (await s.intents.get(s.scope, operationId))!
+    s.applied({ mode: 4, bodyRevision: '1', body: bytes('Old') }); s.setPublicWrites(true)
+    const getter = s.options.client.publicCapabilities.bind(s.options.client)
+    vi.spyOn(s.options.client, 'publicCapabilities').mockResolvedValueOnce({ ...(await getter(noteId))!, stateRevision: '3' })
+    expect(await recoverPublicIntent(s.options.client, s.intents, receipt, s.session)).toBe('unknown')
+    expect(await recoverPublicIntent(s.options.client, s.intents, receipt, s.session)).toBe('confirmed')
+    expect(wallet.send).toHaveBeenCalledOnce()
+    expect((await s.intents.begin({ ...receipt, action: 'comments' }, s.session)).status).toBe('invalid')
+    expect(() => publicNoteMessage({ ...s.options.operation, action: { kind: 'public-writes', revision: '1', enabled: 'true' as unknown as boolean } }, '100')).toThrow()
+  })
+
   it('persists before wallet and signs exact reviewed calls without modifying the draft', async () => {
     const s = setup(), request = await preparePublicNoteRequest(s.options)
     expect(await s.intents.list(s.scope)).toEqual([])
