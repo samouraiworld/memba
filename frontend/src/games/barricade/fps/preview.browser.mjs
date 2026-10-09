@@ -46,7 +46,7 @@ const bundle = await build({
         })
         b.onLoad({ filter: /\/fps\/FpsScene\.tsx$/ }, async ({ path }) => {
             const source = await readFile(path, 'utf8')
-            return { loader: 'tsx', contents: source.replace('const { camera, gl, invalidate } = useThree()', 'const { camera, gl, invalidate } = useThree(); window.__renderer = gl') }
+            return { loader: 'tsx', contents: source.replace('const { camera, gl, invalidate } = useThree()', 'const { camera, gl, invalidate } = useThree(); window.__renderer = gl').replace('actors.update(state, previous, alpha, reducedMotion)', 'actors.update(window.__stress16 ? { ...state, enemies: Array.from({length:16}, (_,i) => ({...state.enemies[i % state.enemies.length], id:100+i, progress:1000+i*450})) } : state, previous, alpha, reducedMotion)') }
         })
         b.onLoad({ filter: /\/hooks\/useGameLoop\.ts$/ }, async ({ path }) => {
             const source = await readFile(path, 'utf8')
@@ -121,11 +121,20 @@ try {
         frames.sort((a,b)=>a-b)
         return { renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable', calls: gl.info.render.calls, triangles: gl.info.render.triangles, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, frameMedianMs: frames[60], frameP95Ms: frames[114], fixtureEnemies: window.__session.read().state.enemies.length }
     })
+    // Synthetic renderer-only stress: the authoritative session remains at its six real enemies.
+    await page.evaluate(() => window.__stress16 = true); await frame()
+    results.stress16 = await page.evaluate(async () => {
+        const gl = window.__renderer, frames = []; let last = performance.now()
+        for (let i=0;i<150;i++) { await new Promise(requestAnimationFrame); const now=performance.now(); if(i>=30)frames.push(now-last); last=now }
+        frames.sort((a,b)=>a-b)
+        return { syntheticRendererOnly: true, calls:gl.info.render.calls, triangles:gl.info.render.triangles, frameMedianMs:frames[60], frameP95Ms:frames[114], actualSimulationEnemies:window.__session.read().state.enemies.length }
+    }); await capture('stress-16-render-only'); await page.evaluate(() => window.__stress16 = false); await frame()
     await page.locator('.fps-settings summary').click(); await page.getByLabel('Lumière').selectOption('day'); await page.locator('.fps-settings summary').click(); await capture('desktop-day')
     for (const [w, h, name] of [[390, 844, 'portrait-390'], [320, 568, 'portrait-320'], [667, 375, 'landscape-667']]) {
         await page.setViewportSize({ width: w, height: h }); await frame(); await layout(name); await capture(name)
     }
     results.checks.push('desktop and compact controls stay visible')
+    await page.setViewportSize({width:1440,height:900}); await step(600); await capture('near-silhouettes'); await page.getByRole('button',{name:'Tirer',exact:true}).click(); await step(1); await page.getByRole('button',{name:'Recharger · R',exact:true}).click(); await step(40); await capture('reload-viewmodel')
     await page.setViewportSize({ width: 1440, height: 900 }); await open(); await start(); await step(600)
     // The same quantized direction drives the actual camera and authority ray.
     async function aim(kind, y) {
@@ -219,6 +228,15 @@ try {
     const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: 'Exporter le replay', exact: true }).click()
     await (await downloadPromise).saveAs(`${output}/winning-replay.json`)
     results.checks.push('controlled-clock complete run, repair, replay parity and exported journal')
+    results.replayResources = []
+    for (let i=0;i<5;i++) {
+        await page.getByRole('button',{name:'Rejouer le prototype',exact:true}).click(); await start(); await step(10800)
+        results.replayResources.push(await page.evaluate(() => ({...window.__renderer.info.memory, id:localStorage.getItem('memba:barricade:fps:active:v1')})))
+    }
+    assert.equal(new Set(results.replayResources.map(r=>r.id)).size,5)
+    assert(results.replayResources.every(r=>r.geometries===results.replayResources[0].geometries && r.textures===results.replayResources[0].textures))
+    results.checks.push('five real restarts keep renderer resource counts stable and fork run IDs')
+
     await open(false); await start(); await page.keyboard.down('Space'); await page.waitForTimeout(500); await page.keyboard.up('Space')
     assert((await page.evaluate(() => window.__session.read().state.shots)) > 0)
     await page.getByRole('button', { name: 'Pause · P', exact: true }).click(); const tick = await page.evaluate(() => window.__session.read().state.tick)

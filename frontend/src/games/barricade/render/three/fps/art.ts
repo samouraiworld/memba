@@ -1,3 +1,5 @@
+import { AXIS_START, AXIS_END, SPAWN_Z, CONTACT_Z } from '../../../sim/fps/types'
+
 /** Original procedural C2 kit. Metres; no simulation input and no external assets. */
 export type V3 = [number, number, number]
 export type Shape = 'box' | 'sphere' | 'cylinder'
@@ -9,7 +11,17 @@ export const batchKey = (p: Part) => `${p.shape}:${p.finish}`
 /** Facades flank the three original approach rays; no collision scenery is introduced. */
 export function streetKit(): Part[] {
     const p: Part[] = [], add = (...parts: Part[]) => p.push(...parts)
-    add(part('asphalt', '#55585a', [0, -.08, -23], [78, .12, 78]))
+    add(part('stone', '#85887e', [0, -.08, -23], [78, .12, 78]))
+    AXIS_START.forEach((start, axis) => {
+        const sx = start / 1000, ex = AXIS_END[axis] / 1000, sz = SPAWN_Z / 1000, ez = CONTACT_Z / 1000
+        const length = Math.hypot(sx - ex, sz - ez), angle = Math.atan2(sx - ex, sz - ez)
+        const x = (sx + ex) / 2, z = (sz + ez) / 2
+        add(part('asphalt', '#414b52', [x, -.005, z], [4.4, .025, length + 12], 'box', [0, angle, 0]))
+        for (const side of [-1, 1]) {
+            const localX = side * 2.3, localZ = 5
+            add(part('stone', '#b2b3a8', [x + Math.cos(angle) * localX + Math.sin(angle) * localZ, .045, z - Math.sin(angle) * localX + Math.cos(angle) * localZ], [.16, .12, length - 10], 'box', [0, angle, 0]))
+        }
+    })
     // Two narrow islands separate the three approaches, with outer street walls behind.
     for (const side of [-1, 1]) {
         facade(side * 4.6, -18, 3.2, 8.8, side < 0 ? '#c3b8a2' : '#cfc6b2', 0)
