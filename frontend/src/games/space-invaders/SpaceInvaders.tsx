@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
 import { newGame, comboMultiplier10, type GameState } from "./engine";
 import { advanceWithEvents, drainAccumulator } from "./hooks/useGameLoop";
 import { useKeyboard } from "./hooks/useKeyboard";
@@ -82,6 +82,10 @@ export default function SpaceInvaders({
   seed?: number;
 }) {
   const windowActive = useWindowActive();
+  // Commit activity before paint: a frame queued by the previous active render
+  // must not consume a launch or input after this window becomes inactive.
+  const windowActiveRef = useRef(windowActive);
+  useLayoutEffect(() => { windowActiveRef.current = windowActive; }, [windowActive]);
   const reducedMotion = prefersReducedMotion();
   // Stable initial seed for this mount (a plain value, safe to read during
   // render). seedRef holds the *current* run's seed and is mutated only in
@@ -129,7 +133,9 @@ export default function SpaceInvaders({
   const howtoRef = useRef<{ open: boolean; shownAt: number }>({ open: false, shownAt: 0 });
   const confirmRef = useRef<() => void>(() => {});
   const launchRef = useRef<() => void>(() => {});
-  const consumedLaunches = useRef(new Set<string>());
+  // The host delivers one pending intent and removes it on acknowledgement.
+  // Remember that current ID, not an unbounded history of user actions.
+  const lastConsumedLaunchId = useRef<string | null>(null);
   const replayReadyRef = useRef(onReplayReady);
   useEffect(() => { replayReadyRef.current = onReplayReady; }, [onReplayReady]);
 
@@ -287,6 +293,7 @@ export default function SpaceInvaders({
     let raf = 0;
     let lastPaintedState: GameState | null = null;
     const tick = (time: number) => {
+      if (!windowActiveRef.current) return;
       launchRef.current();
       if (last.current == null) last.current = time;
       const frameMs = time - last.current;
@@ -516,11 +523,12 @@ export default function SpaceInvaders({
   useEffect(() => {
     confirmRef.current = handleConfirm;
     launchRef.current = () => {
-      if (!launch || launch.game !== "space-invaders" || consumedLaunches.current.has(launch.id)) return;
+      if (!windowActive || !windowActiveRef.current) return;
+      if (!launch || launch.game !== "space-invaders" || lastConsumedLaunchId.current === launch.id) return;
       if (document.visibilityState !== "visible" || document.querySelector('[aria-modal="true"], dialog[open]')) return;
       const surface = areaRef.current;
       if (!surface?.getBoundingClientRect().width) return;
-      consumedLaunches.current.add(launch.id);
+      lastConsumedLaunchId.current = launch.id;
       // Play from the store never discards an existing run OR its result.
       if (runArmedRef.current) {
         const target = stateRef.current.phase === "paused"

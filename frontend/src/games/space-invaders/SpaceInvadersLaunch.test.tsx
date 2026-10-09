@@ -108,4 +108,36 @@ describe("explicit local launch adapter", () => {
     expect(screen.getByText(/free play · relay online/i)).toBeInTheDocument();
   });
 
+  it("leaves the intent pending when a queued active frame arrives after deactivation", () => {
+    const { rerender } = render(view("pending"));
+    const staleFrame = [...callbacks.values()][0];
+    rerender(view("pending", false));
+    act(() => staleFrame(0));
+    expect(acknowledged).not.toHaveBeenCalled();
+    expect(advanceSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /free play/i })).toBeInTheDocument();
+    rerender(view("pending", true)); frame(20); frame(40);
+    expect(acknowledged).toHaveBeenCalledExactlyOnceWith("pending");
+    expect(advanceSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["paused", "gameover"] as const)("does not steal focus or discard %s when an inactive intent arrives", phase => {
+    const outside = document.createElement("button"); document.body.append(outside);
+    const props = { initialState: { phase, score: 321 }, seed: 7 };
+    const renderState = (active: boolean, id: string) => <WindowActivityContext.Provider value={active}>
+      <SpaceInvaders {...props} launch={{ id, game: "space-invaders", mode: "daily" }} onLaunchConsumed={acknowledged} />
+    </WindowActivityContext.Provider>;
+    const { rerender } = render(renderState(true, "old"));
+    const staleFrame = [...callbacks.values()][0];
+    rerender(renderState(false, "new")); outside.focus();
+    act(() => staleFrame(0));
+    expect(outside).toHaveFocus();
+    expect(acknowledged).not.toHaveBeenCalled();
+    rerender(renderState(true, "new")); frame(20); frame(40);
+    expect(acknowledged).toHaveBeenCalledExactlyOnceWith("new");
+    expect(advanceSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: phase === "paused" ? /relay paused/i : /game over/i })).toBeInTheDocument();
+    outside.remove();
+  });
+
 });
