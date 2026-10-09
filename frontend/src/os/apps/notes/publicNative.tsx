@@ -7,6 +7,10 @@ import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import { PublicLibrary } from './PublicLibrary'
 import { PublicNote } from './PublicNote'
 import { PublicCommentPanel } from './PublicCommentPanel'
+import { PublicAuthoring } from './PublicAuthoring'
+import { PublicDraftLibrary } from './PublicDraftLibrary'
+import { PublicOperationStatus } from './PublicOperationStatus'
+import { PublicHistory } from './PublicHistory'
 import './notes-public.css'
 
 const store = createNotesStore()
@@ -16,7 +20,7 @@ type Props = Pick<NativeViewProps, 'session' | 'section' | 'fallback'> & { onOpe
 export function PublicNotesApp(props: Props) {
     if (!NOTES_ENABLED) return props.fallback
     const owner = props.session.status === 'member' ? props.session.address || null : null
-    return <PublicWorkspace key={JSON.stringify([props.session.network.chainId, owner, props.section])} {...props} owner={owner} />
+    return <PublicWorkspace key={JSON.stringify([props.session.network.chainId, owner, props.section, notesDeployment(props.session.network.chainId)])} {...props} owner={owner} />
 }
 function PublicWorkspace({ session, section, owner, onOpenNote }: Props & { owner: string | null }) {
     const chainId = session.network.chainId
@@ -39,11 +43,13 @@ function PublicWorkspace({ session, section, owner, onOpenNote }: Props & { owne
     if (read.error) return <section className="os-notes-welcome"><p role="alert">Notes could not connect to this network.</p><button className="os-btn" onClick={() => retry(value => value + 1)}>Retry connection</button></section>
     if (!read.client) return <p role="status">Loading Notes…</p>
     const client = read.client
+    const partition = { chainId, realm: deployment.realm, owner: owner ?? 'guest' }
     return <div className="os-notes-public">
-        {section === null ? <PublicLibrary client={client} onOpen={id => { if (NOTE_ID.test(id)) onOpenNote(id) }} />
-            : <PublicNote id={section} client={client} owner={owner}
+        {owner && <PublicOperationStatus client={client} store={store} partition={partition} onOpen={onOpenNote} />}
+        {section === null ? <>{owner && <PublicDraftLibrary store={store} partition={partition} onOpen={onOpenNote} />}<PublicLibrary client={client} onOpen={id => { if (NOTE_ID.test(id)) onOpenNote(id) }} /></>
+            : owner ? <PublicAuthoring client={client} store={store} scope={{ ...partition, noteId: section }} /> : <PublicNote id={section} client={client} owner={owner}
                 encrypted={() => <section className="os-notes-welcome"><h1>Encrypted note</h1><p>Encrypted notes are not available in this public view.</p></section>}>
-                {(note, _refresh, previewRoot) => note.mode >= 3 && <PublicCommentPanel note={note} client={client} owner={owner} store={store} previewRoot={previewRoot} />}
+                {(note, _refresh, previewRoot) => note.mode >= 3 && <><PublicCommentPanel note={note} client={client} owner={owner} store={store} previewRoot={previewRoot} /><PublicHistory noteId={section} client={client} /></>}
             </PublicNote>}
     </div>
 }
