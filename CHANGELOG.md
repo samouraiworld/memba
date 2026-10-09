@@ -23,6 +23,7 @@ Full changelogs are split by version range for easier navigation:
 ### Memba realm activity in the watcher channel (2026-10-08)
 - The existing Discord watcher can report confirmed calls, package changes and realm events across the samcrew namespace: governance, games, feed, App Store, escrow and Launchpad. Financial alarms keep the same channel.
 - Activity delivery resumes after restarts, retries outages, and sends a daily heartbeat. It starts with new activity; arguments and post contents are omitted.
+- The backend build uses Go 1.26.9 and the patched HTTP/2 dependency to include the October security fixes.
 ### Connect 4 clock risk and Quick Play consent (#1559, 2026-10-08)
 - The lobby, offer form and live game now explain that block-time deadlines can forfeit a stake after a network halt or stall, even when the player could not act.
 - When the displayed balance leaves too little gas for Quick Play after a stake, Offer and Accept send the stake without adding a Quick Play session, matching the notice shown to the player.
