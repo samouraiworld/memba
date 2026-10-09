@@ -39,7 +39,12 @@ function BoardPage({ client, target, game, rules, simVersion }: FreePlayBoardPro
     const [offset, setOffset] = useState(0)
     const [revision, setRevision] = useState(0)
     const [result, setResult] = useState<Result | null>(null)
-    const request = `${offset}:${revision}`
+    const [reader, setReader] = useState({ client, generation: 0 })
+    // A resolved result must not become current again after A → B/null → A.
+    // Adjust during render so React retries before committing stale rows; an
+    // effect-only reset would leave a frame with the old score and busy=false.
+    if (reader.client !== client) setReader({ client, generation: reader.generation + 1 })
+    const request = `${reader.generation}:${offset}:${revision}`
     // A page/client change must stop displaying old rows during render, before
     // passive-effect cleanup. Context changes remount this component below.
     const current = result?.request === request && result.client === client ? result : null

@@ -12,7 +12,9 @@ its configured target/context matches the returned board, so a valid reader
 for another network cannot render under this page's label. Context changes
 remount the view and reset pagination. Page/client changes hide stale rows during
 render. Cleanup aborts the request; aborted callbacks cannot update state even
-if an injected transport ignores the signal. This also covers A → B → A.
+if an injected transport ignores the signal. This also covers A → B → A. A reader generation changes on every client
+transition, including null, so an already resolved result cannot become current
+again when the same reader instance returns.
 
 Reads use pages of 20, offsets bounded to 100,000 (the shared API limit).
 There is no invented total or background prefetch. A full page enables Next;
@@ -74,6 +76,6 @@ invented completion timestamp.
   D2 catalogue work in the final integration branch. No shared Shell or game
   consumer file is changed by this PR.
 
-Validation: 44 focused tests pass (board 13, GamePage 7, history 9, native 15),
+Validation: 46 focused tests pass (board 15, GamePage 7, history 9, native 15),
 one worker; ESLint passes for changed TSX files. No full build, typecheck,
 browser recipe or live-chain proof is claimed for this branch.

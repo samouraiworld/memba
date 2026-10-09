@@ -69,6 +69,26 @@ describe("Free play leaderboard", () => {
         expect(signal.aborted).toBe(true)
     })
 
+    it.each(["another reader", "null"] as const)("does not reuse resolved rows after reader A → %s → A", middle => {
+        // The first A result is already committed; aborting callbacks cannot
+        // invalidate it when exactly the same reader instance returns.
+        return (async () => {
+            const reload = deferred()
+            const readerA = { board: vi.fn().mockResolvedValueOnce(board([receipt()])).mockReturnValueOnce(reload.promise) }
+            const readerB = middle === "null" ? null : { board: vi.fn(() => new Promise<Board>(() => {})) }
+            const view = render(<FreePlayBoard {...scope} client={readerA} />)
+            expect(await screen.findByLabelText("Score 9876")).toBeVisible()
+            view.rerender(<FreePlayBoard {...scope} client={readerB} />)
+            expect(screen.queryByLabelText("Score 9876")).not.toBeInTheDocument()
+            view.rerender(<FreePlayBoard {...scope} client={readerA} />)
+            expect(screen.queryByLabelText("Score 9876")).not.toBeInTheDocument()
+            expect(screen.getByRole("status")).toHaveTextContent("Loading anchored scores")
+            expect(screen.getByRole("region", { name: "Free play leaderboard" })).toHaveAttribute("aria-busy", "true")
+            await act(async () => reload.resolve(board()))
+            expect(screen.getByText("No anchored scores yet for these rules.")).toBeVisible()
+        })()
+    })
+
     it("does not resurrect an old response after A → B → A", async () => {
         const first = deferred(), last = deferred()
         const client = { board: vi.fn().mockReturnValueOnce(first.promise).mockResolvedValueOnce({ ...board(), rules: "other" }).mockReturnValueOnce(last.promise) }
