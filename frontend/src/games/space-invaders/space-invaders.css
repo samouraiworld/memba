@@ -280,3 +280,32 @@
 @media (forced-colors: active) {
   .si-stage canvas { forced-color-adjust: none; }
 }
+
+
+/* A bounded play surface: its host/viewport owns the height, not canvas width. */
+.si-root.si-root--fitted { width: 100%; max-width: none; height: var(--si-host-height, var(--si-available-height, 80dvh)); min-height: 0; padding: 4px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; overflow: hidden; }
+.si-root--fitted .si-heading { margin: 0; gap: 8px; align-items: center; }
+.si-root--fitted .si-heading h1 { margin: 0; font-size: 1rem; line-height: 1.2; }
+.si-root--fitted .si-eyebrow, .si-root--fitted .si-deck { display: none; }
+.si-root--fitted .si-phase { min-height: 24px; max-width: 60%; flex-shrink: 1; padding: 3px 6px; font-size: .56rem; }
+.si-root--fitted .si-cabinet { display: block; min-height: 0; }
+.si-root--fitted .si-console { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; min-height: 0; padding: 4px; border-radius: 10px; }
+.si-root--fitted .si-hud { min-height: 0; margin-bottom: 4px; }
+.si-playfield { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; }
+.si-root--fitted .si-stage { flex: none; width: min(100%, 320px); aspect-ratio: 4 / 5; border: 0; border-radius: 4px; }
+.si-root--fitted .si-canvas { width: 100%; height: 100%; border-radius: 4px; }
+.si-root--fitted .si-brief { position: absolute; display: block; }
+.si-root--fitted .si-overlay { padding: 10px; justify-content: flex-start; }
+.si-root--fitted .si-overlay > :first-child { margin-top: auto; }
+.si-root--fitted .si-overlay > :last-child { margin-bottom: auto; }
+.si-pause-controls { margin-block: 8px; }
+.si-root--landscape .si-console { grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 8px; }
+.si-root--landscape .si-hud { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "score best" "wave lives" "chain actions"; align-content: center; margin: 0; }
+.si-root--landscape .si-stat > strong { font-size: 1rem; }
+.si-root--landscape .si-stat { padding: 6px; }
+.si-root--landscape .si-actions { padding: 2px; gap: 2px; }
+.si-root--landscape .si-overlay h2 { font-size: 1rem; }
+.si-root--landscape .si-overlay-copy { font-size: .65rem; }
+.si-root--landscape .si-overlay-kicker { font-size: .55rem; }
+.si-root--landscape .si-mode-stack { margin-top: 6px; gap: 4px; }
+.si-root--landscape .si-mode-button { min-height: 44px; padding: 4px 8px; }

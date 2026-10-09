@@ -14,13 +14,13 @@ export function MenuScreen({
       <h2>Defend the Gno relay</h2>
       <p className="si-overlay-copy">One shared signal for the day. The daily run is replay-checked on this device when it ends.</p>
       <div className="si-mode-stack">
-        <button className="si-button si-button--primary si-mode-button" type="button" onClick={onDaily}>
+        <button className="si-button si-button--primary si-mode-button" type="button" onClick={onFree}>
+          <span>Free play</span>
+          <small>Fresh signal · play now</small>
+        </button>
+        <button className="si-button si-button--secondary si-mode-button" type="button" onClick={onDaily}>
           <span>Daily run</span>
           <small>{certifyOn ? "Shared UTC signal · replay eligible" : "Shared UTC signal · same waves for everyone"}</small>
-        </button>
-        <button className="si-button si-button--secondary si-mode-button" type="button" onClick={onFree}>
-          <span>Free play</span>
-          <small>Fresh signal · practice without certification</small>
         </button>
       </div>
     </div>
