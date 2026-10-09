@@ -174,7 +174,7 @@ test.describe('Memba OS desktop items', () => {
         await expect(item(page, 'dao:samcrew.memba_gov')).toBeVisible()
         await expect(item(page, 'app:arcade')).toBeVisible()
         await item(page, 'dao:samcrew.memba_gov').click()
-        await expect(win(page, 'samcrew.memba_gov')).toBeVisible()
+        await expect(win(page, 'Memba DAO')).toBeVisible()
         await expect.poll(() => path(page)).toBe('/os/dao/samcrew.memba_gov')
     })
 

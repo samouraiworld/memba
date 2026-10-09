@@ -1,0 +1,319 @@
+{
+  "checked_at": "2026-10-09T14:48:54.788069+00:00",
+  "chain": "gnoland-1",
+  "rpc": "https://rpc.gno.land:443",
+  "reads": [
+    {
+      "realm": "memba_gov",
+      "expression": "RosterJSON()",
+      "height": "0",
+      "value": "(\"{\\\"weight\\\":6,\\\"persons\\\":5,\\\"members\\\":[{\\\"id\\\":\\\"zxxma\\\",\\\"address\\\":\\\"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c\\\",\\\"weight\\\":2,\\\"lastActive\\\":\\\"1791462783\\\"},{\\\"id\\\":\\\"mikecito\\\",\\\"address\\\":\\\"g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew\\\",\\\"weight\\\":1,\\\"lastActive\\\":\\\"1791462783\\\"},{\\\"id\\\":\\\"david\\\",\\\"address\\\":\\\"g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2\\\",\\\"weight\\\":1,\\\"lastActive\\\":\\\"1791462783\\\"},{\\\"id\\\":\\\"lours\\\",\\\"address\\\":\\\"g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u\\\",\\\"weight\\\":1,\\\"lastActive\\\":\\\"1791462783\\\"},{\\\"id\\\":\\\"mikael\\\",\\\"address\\\":\\\"g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z\\\",\\\"weight\\\":1,\\\"lastActive\\\":\\\"1791462783\\\"}],\\\"invitations\\\":[{\\\"id\\\":\\\"ghost\\\",\\\"address\\\":\\\"g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv\\\",\\\"weight\\\":1,\\\"expires\\\":\\\"1799238783\\\"},{\\\"id\\\":\\\"dadidou\\\",\\\"address\\\":\\\"g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y\\\",\\\"weight\\\":1,\\\"expires\\\":\\\"1799238783\\\"}]}\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_gov",
+      "expression": "ConstantsJSON()",
+      "height": "0",
+      "value": "(\"{\\\"votingPeriod\\\":604800,\\\"executionWindow\\\":604800,\\\"criticalWeightDelay\\\":86400,\\\"criticalHeadcountDelay\\\":259200,\\\"rosterDelay\\\":604800,\\\"inactiveDelay\\\":1209600,\\\"inactiveAfter\\\":15552000,\\\"minSeats\\\":2,\\\"maxSeats\\\":25,\\\"maxListed\\\":20}\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_gov",
+      "expression": "ProposalsJSON(0,20)",
+      "height": "0",
+      "value": "(\"{\\\"total\\\":\\\"0\\\",\\\"proposals\\\":[]}\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_market_config",
+      "expression": "GetAdmin()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_market_config",
+      "expression": "GetPendingAdmin()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "escrow_v4",
+      "expression": "GetAdmin()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" string)",
+      "error": null
+    },
+    {
+      "realm": "escrow_v4",
+      "expression": "GetPendingAdmin()",
+      "height": "0",
+      "value": "(\"\" string)",
+      "error": null
+    },
+    {
+      "realm": "escrow_v4",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "memba_appstore_v3",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_appstore_v3",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_appstore_v3",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "memba_reviews_v2",
+      "expression": "GetModerator()",
+      "height": "0",
+      "value": "(\"g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_reviews_v2",
+      "expression": "GetPendingModerator()",
+      "height": "0",
+      "value": "(\"\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_quest_attestation_v1",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_quest_attestation_v1",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" string)",
+      "error": null
+    },
+    {
+      "realm": "memba_arcade_leaderboard_v1",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_arcade_leaderboard_v1",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_arcade_leaderboard_v1",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "gnobuilders_badges_v2",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "gnobuilders_badges_v2",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "gnobuilders_badges_v2",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "memba_feed_v1",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_feed_v1",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_dao_channels_v2",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_dao_channels_v2",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_feedback_v2",
+      "expression": "GetOwner()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_feedback_v2",
+      "expression": "GetPendingOwner()",
+      "height": "0",
+      "value": "(\"\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_market_config\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"escrow_v4\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_appstore_v3\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_reviews_v2\")",
+      "height": "0",
+      "value": "(1 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_quest_attestation_v1\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_arcade_leaderboard_v1\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"gnobuilders_badges_v2\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_feed_v1\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_dao_channels_v2\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_bridge_v1",
+      "expression": "Tenure(\"memba_feedback_v2\")",
+      "height": "0",
+      "value": "(0 uint64)",
+      "error": null
+    },
+    {
+      "realm": "memba_feed_v1",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "memba_dao_channels_v2",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "memba_feedback_v2",
+      "expression": "IsPaused()",
+      "height": "0",
+      "value": "(false bool)",
+      "error": null
+    },
+    {
+      "realm": "memba_market_config",
+      "expression": "GetTreasury()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_appstore_v3",
+      "expression": "GetTreasury()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" .uverse.address)",
+      "error": null
+    },
+    {
+      "realm": "memba_appstore_v3",
+      "expression": "GetRegistrationFee()",
+      "height": "0",
+      "value": "(1000000 int64)",
+      "error": null
+    },
+    {
+      "realm": "escrow_v4",
+      "expression": "GetFeeRecipient()",
+      "height": "0",
+      "value": "(\"g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf\" string)",
+      "error": null
+    }
+  ],
+  "bridge_address": "g1ejzh9w5z3wuylrrnkc97epjtrdylpmzdj2a0zp",
+  "bridge_address_derivation": "SHA256(pkgPath:gno.land/r/samcrew/memba_bridge_v1)[0:20], bech32 g; matches Reviews GetModerator()",
+  "published_bridge_source_sha256": "97743f3418569a932e6f01863a43aca163ecbb8014a454ada695c27d6c362986",
+  "height_note": "qeval returns Height 0; these are live reads, not an atomic snapshot. RPC status returned gnoland-1 at height 680351 before the audit."
+}

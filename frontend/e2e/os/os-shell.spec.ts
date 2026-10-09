@@ -213,15 +213,17 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await modal.getByRole('button', { name: /Adena/ }).click()
         await expect(modal.getByRole('heading', { name: 'Sign the login message' })).toBeVisible()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
-        await expect(modal.getByRole('heading', { name: 'Activate your address' })).toBeVisible()
+        await expect(modal.getByRole('heading', { name: 'Prepare your wallet to participate' })).toBeVisible()
         // What it does and costs, said truly: a self-send of 0.000001 GNOT, the network fee only.
-        await expect(modal.getByText('Sends 0.000001 GNOT from your address to itself')).toBeVisible()
-        // What Adena renders for a bank send: the message, its type and function, never the recipient or amount.
+        await expect(modal.getByText('0.000001 GNOT · stays in your wallet')).toBeVisible()
+        await expect(modal.getByText('None · 0 GNOT')).toBeVisible()
+        await expect(modal.getByText('/bank.MsgSend')).toBeHidden()
+        await modal.getByText('Technical details', { exact: true }).click()
+        // The same transaction details remain available before approval.
         const adenaShows = modal.getByLabel('Adena should show')
         await expect(adenaShows.getByText('/bank.MsgSend')).toBeVisible()
         await expect(adenaShows.getByText('Memba Network Activation')).toBeVisible()
         await expect(modal.getByText(/Adena does not show a transfer’s recipient or amount/)).toBeVisible()
-        await expect(modal.getByText(/Storage deposit/)).toHaveCount(0)
         // Signed-out guidance, so it can be put off.
         await modal.getByRole('button', { name: 'Later' }).click()
         await expect(connectModal(page)).toHaveCount(0)
@@ -251,12 +253,12 @@ test.describe('Memba OS shell · entry scenarios', () => {
         const modal = connectModal(page)
         await modal.getByRole('button', { name: /Adena/ }).click()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
-        await expect(modal.getByRole('heading', { name: 'Activate your address' })).toBeVisible()
+        await expect(modal.getByRole('heading', { name: 'Prepare your wallet to participate' })).toBeVisible()
         // The chain has no key for this address: Adena was not asked for a login it could only refuse.
         expect(await page.evaluate(() => (window as unknown as { __loginAsked: number }).__loginAsked)).toBe(0)
         await expect(modal.getByText('0.0024 GNOT', { exact: true })).toBeVisible()
         // A double click sends one transaction: the step is left at the first click, with nothing to put it off.
-        await modal.getByRole('button', { name: 'Activate in Adena' }).dblclick()
+        await modal.getByRole('button', { name: 'Continue in Adena' }).dblclick()
         // Adena answered at broadcast: the login step waits for the block that records the key.
         await expect(modal.getByRole('heading', { name: 'Activation sent' })).toBeVisible()
         keyOnChain = true
@@ -296,9 +298,9 @@ test.describe('Memba OS shell · entry scenarios', () => {
         const modal = connectModal(page)
         await modal.getByRole('button', { name: /Adena/ }).click()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
-        await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeEnabled()
+        await expect(modal.getByRole('button', { name: 'Continue in Adena' })).toBeEnabled()
         await page.evaluate(() => { (window as unknown as { __hold: boolean }).__hold = true })
-        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await modal.getByRole('button', { name: 'Continue in Adena' }).click()
         await page.waitForFunction(() => typeof (window as unknown as { __release?: () => void }).__release === 'function')
         await page.evaluate(() => {
             const w = window as unknown as { __hold: boolean; __release: () => void; __accountChanged: () => void }
@@ -327,7 +329,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(modal.getByText('0.0024 GNOT', { exact: true })).toBeVisible()
         // The price doubles before the click: the check before Adena refuses, and the step shows the new fee.
         price = 2
-        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await modal.getByRole('button', { name: 'Continue in Adena' }).click()
         await expect(modal.getByText('0.0048 GNOT', { exact: true })).toBeVisible()
         // Put off and opened again: read again too.
         price = 3
@@ -356,11 +358,11 @@ test.describe('Memba OS shell · entry scenarios', () => {
         const modal = connectModal(page)
         await modal.getByRole('button', { name: /Adena/ }).click()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
-        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await modal.getByRole('button', { name: 'Continue in Adena' }).click()
         await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
         await expect(modal.getByRole('button', { name: 'Later' })).toHaveCount(0)
         await expect(modal.getByText(/Cancelled in Adena\. Your account shows no change/)).toBeVisible({ timeout: 30_000 })
-        await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeEnabled()
+        await expect(modal.getByRole('button', { name: 'Continue in Adena' })).toBeEnabled()
     })
 
     test('activation that Adena never answers moves on once the account shows it sent', async ({ page }) => {
@@ -386,7 +388,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         const modal = connectModal(page)
         await modal.getByRole('button', { name: /Adena/ }).click()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
-        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await modal.getByRole('button', { name: 'Continue in Adena' }).click()
         await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
         await page.waitForTimeout(40_000)
         await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible() // still the wallet's to answer
@@ -420,7 +422,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         const modal = connectModal(page)
         await modal.getByRole('button', { name: /Adena/ }).click()
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
-        await modal.getByRole('button', { name: 'Activate in Adena' }).click()
+        await modal.getByRole('button', { name: 'Continue in Adena' }).click()
         await expect(modal.getByRole('heading', { name: 'Confirm in Adena' })).toBeVisible()
         // Adena has the request: the checks before it, and their reads, are done.
         await page.waitForFunction(() => (window as unknown as { __asked?: boolean }).__asked === true)
@@ -449,7 +451,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await modal.getByRole('button', { name: 'Sign in Adena' }).click()
         // 2,400 ugnot is the fee alone: the 1 ugnot sent to itself must be there too.
         await expect(modal.getByText('Activation needs at least 0.002401 GNOT here: the network fee and the 0.000001 GNOT sent to yourself. Send this address at least that much, then activate.')).toBeVisible()
-        await expect(modal.getByRole('button', { name: 'Activate in Adena' })).toBeDisabled()
+        await expect(modal.getByRole('button', { name: 'Continue in Adena' })).toBeDisabled()
     })
 
     test('a wallet on another network: the login step offers switching Adena, says when it fails, and signs with the key Adena has after the switch', async ({ page }) => {

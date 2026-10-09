@@ -18,8 +18,10 @@ import type { OsSession } from "../shell/useOsSession"
 import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { FolderTabs } from "./FolderTabs"
 import { EmergencyPauses, JoinAction } from "./GovActions"
+import { GovFees } from "./GovFees"
 import { ProposeForm } from "./GovPropose"
 import { useGovernedApps, useGovSnapshot } from "./useGovDao"
+import "./governance.css"
 
 const TABS: { id: DaoSection; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "proposals", label: "Proposals" }, { id: "members", label: "Members" }]
 
@@ -56,7 +58,7 @@ export function GovFolder({ name, section, open, session }: Props) {
                     {/* A later read that fails leaves the previous one on screen, and says so. */}
                     {snapshot.isError && <ErrorState message={`${govReadError(snapshot.error)} This is the previous read.`} onRetry={() => void snapshot.refetch()} />}
                     {tab === "proposals" ? <Proposals data={data} name={name} open={open} session={session} older={(id) => setBefore(id)} newest={() => setBefore("0")} />
-                        : tab === "members" ? <Members data={data} />
+                        : tab === "members" ? <Members data={data} session={session} />
                             : <Overview data={data} name={name} open={open} session={session} />}
                 </>
             )}
@@ -80,37 +82,69 @@ function Seat({ data, session }: { data: GovSnapshot; session: OsSession }) {
     const me = data.roster.members.find((m) => m.address === session.address)
     const invited = data.roster.invitations.find((i) => i.address === session.address)
     if (me) return <p className="os-note">You sit as <b>{me.id}</b>, weight {me.weight}.</p>
-    if (invited) return <p className="os-note">This address is invited as <b>{invited.id}</b> until {formatChainTime(Number(invited.expires))}. It counts once it signs Join.</p>
-    return <p className="os-note">This address holds no seat.</p>
+    if (invited) return <p className="os-note">This address is invited as <b>{invited.id}</b> until {formatChainTime(Number(invited.expires))}. Accept your invitation with this wallet to become a member and take part in votes.</p>
+    return <p className="os-note">This wallet is not a DAO member. If you were invited, connect the wallet listed under Invitations in Members.</p>
 }
 
 function Overview({ data, name, open, session }: { data: GovSnapshot; name: string; open: (spec: WindowSpec) => void; session: OsSession }) {
     const openNow = data.page.proposals.filter(isOpen)
     return (
-        <div className="os-stack">
-            <div>
-                <div className="os-holding-title">Memba DAO</div>
-                <p className="os-sub os-mono os-break os-flush">{GOV_PATH}</p>
-                <p className="os-sub os-flush">{data.roster.persons} seated, total weight {data.roster.weight} · {GNO_CHAIN_ID}</p>
+        <div className="os-stack os-gov-overview">
+            <header className="os-gov-intro">
+                <ThingTile icon="folder" size={44} />
+                <div>
+                    <h2>Memba DAO</h2>
+                    <p>A group of people making decisions together for Memba. Members propose changes and vote on them, from community moderation to app settings and fees. The decisions and votes are public.</p>
+                </div>
+            </header>
+            <dl className="os-gov-facts" aria-label="Current council">
+                <div><dt>Seated members</dt><dd>{data.roster.persons}</dd></div>
+                <div><dt>Voting points</dt><dd>{data.roster.weight}</dd></div>
+                <div><dt>Open invitations</dt><dd>{data.roster.invitations.length}</dd></div>
+            </dl>
+            <p className="os-sub os-flush">Public governance on {GNO_CHAIN_ID}. Anyone can follow along; seated members vote.</p>
+            <div className="os-row">
+                <button type="button" className="os-btn" onClick={() => open(daoSpec(name, "proposals"))}>View proposals</button>
+                <button type="button" className="os-btn os-quiet" onClick={() => open(daoSpec(name, "members"))}>Meet the members</button>
             </div>
             <Seat data={data} session={session} />
             <JoinAction roster={data.roster} session={session} />
-            <section>
-                <h3 className="os-h">How decisions pass</h3>
-                <ul className="os-list">{classRules(data.constants).map((c) => (
-                    <li key={c.name} className="os-it os-top"><span className="os-grow"><b>{c.name}</b><span className="os-sub os-block">Passes with {c.rule}.</span></span></li>
-                ))}</ul>
-                <p className="os-sub">{votingRules(data.constants)} Each app sets the lowest class its actions need; a proposer may only file higher.</p>
-                <p className="os-sub">{rosterRules(data.constants)}</p>
+            <section aria-label="How the DAO works">
+                <h3 className="os-h">How it works</h3>
+                <ol className="os-gov-steps">
+                    <li><b>Propose</b><span>A seated member suggests a change.</span></li>
+                    <li><b>Vote</b><span>Members vote. Bigger decisions need broader agreement and a waiting period.</span></li>
+                    <li><b>Apply</b><span>A member carries out an approved decision once it is ready.</span></li>
+                </ol>
             </section>
+            <GovFees />
+            <GovernedApps />
             <section>
                 <h3 className="os-h">Open proposals</h3>
                 <p className="os-sub">{data.page.total === "0" ? "None: no proposal has been filed yet." : `${openNow.length || "None"} open among the latest ${data.page.proposals.length} of ${data.page.total}.`}</p>
                 {openNow.length > 0 && <ul className="os-list">{openNow.slice(0, 3).map((p) => <li key={p.id}><Row p={p} name={name} open={open} /></li>)}</ul>}
                 {data.page.total !== "0" && <button type="button" className="os-btn os-quiet" onClick={() => open(daoSpec(name, "proposals"))}>All proposals</button>}
             </section>
-            <GovernedApps />
-            <EmergencyPauses roster={data.roster} session={session} />
+            <details className="os-gov-details">
+                <summary>Voting rules and safeguards</summary>
+                <section>
+                    <h3 className="os-h">How decisions pass</h3>
+                    <ul className="os-list">{classRules(data.constants).map((c) => (
+                        <li key={c.name} className="os-it os-top"><span className="os-grow"><b>{c.name}</b><span className="os-sub os-block">Passes with {c.rule}.</span></span></li>
+                    ))}</ul>
+                    <p className="os-sub">{votingRules(data.constants)} Each app sets the lowest class its actions need; a proposer may only file higher.</p>
+                    <p className="os-sub">{rosterRules(data.constants)}</p>
+                </section>
+            </details>
+            <details className="os-gov-details">
+                <summary>Emergency controls</summary>
+                <EmergencyPauses roster={data.roster} session={session} />
+            </details>
+            <details className="os-gov-details">
+                <summary>Contract details</summary>
+                <p className="os-sub os-mono os-break">{GOV_PATH}</p>
+                <p className="os-sub">Network: {GNO_CHAIN_ID}. This is the current governance contract; the old memba_dao remains read-only in Memba.</p>
+            </details>
         </div>
     )
 }
@@ -120,13 +154,28 @@ function GovernedApps() {
     const enabled = bridgePublished()
     const governed = useGovernedApps(enabled)
     if (!enabled) return null
-    const names = (want: boolean) => Object.keys(BRIDGE_APPS).filter((app) => governed.data?.[app] === want).map((app) => BRIDGE_APPS[app].label)
+    const apps = Object.entries(BRIDGE_APPS)
+    const complete = governed.data && apps.every(([app]) => typeof governed.data?.[app] === "boolean")
+    const count = apps.filter(([app]) => governed.data?.[app] === true).length
     return (
-        <section>
-            <h3 className="os-h">Apps the DAO governs</h3>
-            {governed.isError ? <p className="os-note os-err">Couldn't read which apps the DAO governs.</p>
-                : !governed.data ? <p className="os-sub">Reading…</p>
-                    : <p className="os-sub">{names(true).length ? names(true).join(", ") : "None yet"}.{names(false).length > 0 && ` Not governed by the DAO: ${names(false).join(", ")}; each joins when its current admin nominates the DAO's bridge and the handover is accepted.`}</p>}
+        <section className="os-gov-apps" aria-label="Applications governed by Memba DAO">
+            <div className="os-row os-between">
+                <h3 className="os-h">Apps the DAO governs</h3>
+                {complete && !governed.isError && <Pill tone={count === apps.length ? "ok" : "neutral"}>{count} of {apps.length} connected</Pill>}
+            </div>
+            <p className="os-sub">The council can vote today. It can change an app only after that app has been handed over to it.</p>
+            {governed.isError ? <ErrorState message="Couldn't read which apps the DAO governs." onRetry={() => void governed.refetch()} />
+                : !governed.data ? <p className="os-sub" role="status">Reading app ownership…</p>
+                    : <ul className="os-gov-app-grid">{apps.map(([app, { label }]) => (
+                        <li key={app}>
+                            <b>{label}</b>
+                            <span className="os-sub">{governed.data?.[app] === true ? "Governed by the DAO" : governed.data?.[app] === false ? "Handover needed" : "Ownership unknown"}</span>
+                            <span className={`os-gov-dot${governed.data?.[app] === true ? " os-gov-dot-active" : ""}`} aria-hidden="true" />
+                        </li>
+                    ))}</ul>}
+            {complete && !governed.isError && count < apps.length && <p className="os-sub">
+                To connect the remaining apps, their current administrator must nominate the DAO’s bridge, then its Accept call completes the handover. No DAO vote is needed for this acceptance. An app must be unpaused first.
+            </p>}
         </section>
     )
 }
@@ -152,10 +201,12 @@ function Proposals({ data, name, open, session, older, newest }: { data: GovSnap
 }
 
 /** Open invitations: the realm leaves out lapsed ones. */
-function Members({ data }: { data: GovSnapshot }) {
+function Members({ data, session }: { data: GovSnapshot; session: OsSession }) {
     const invitations = data.roster.invitations
     return (
         <div className="os-stack">
+            <Seat data={data} session={session} />
+            <JoinAction roster={data.roster} session={session} />
             <ul className="os-list">{data.roster.members.map((m) => (
                 <li key={m.id} className="os-it">
                     <span className="os-av" aria-hidden="true">{m.id.slice(0, 1).toUpperCase()}</span>
@@ -174,7 +225,7 @@ function Members({ data }: { data: GovSnapshot }) {
                         </li>
                     )
                 })}</ul>}
-                <p className="os-sub">An invited key counts only once it signs Join from its own account.</p>
+                <p className="os-sub">Invited members must connect the wallet listed above and accept their invitation before they can vote. Preparing a wallet for sign-in does not accept the invitation.</p>
             </section>
         </div>
     )

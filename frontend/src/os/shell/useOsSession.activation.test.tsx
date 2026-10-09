@@ -89,7 +89,7 @@ describe("useOsSession activation", () => {
         await act(() => result.current.activate())
         expect(result.current.activationForced).toBe(true)
         expect(result.current.stage).toBe("activate")
-        expect(result.current.error).toBe("Your activation was sent, but the network doesn't show it yet. Select Activate in Adena again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active.")
+        expect(result.current.error).toBe("Your activation was sent, but the network doesn't show it yet. Select Continue in Adena again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active.")
     })
 
     it("still sends the activation when the chain's key cannot be read", async () => {

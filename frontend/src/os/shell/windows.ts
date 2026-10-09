@@ -124,7 +124,8 @@ export function sendSpec(): WindowSpec {
 }
 
 export function daoSpec(name: string, section: DaoSection = "overview"): WindowSpec {
-    return { key: `dao:${name}`, title: name, app: "daos", width: 560, height: 420, target: { kind: "dao", name, section } }
+    const currentMemba = name === "samcrew.memba_gov"
+    return { key: `dao:${name}`, title: currentMemba ? "Memba DAO" : name, app: "daos", width: currentMemba ? 680 : 560, height: currentMemba ? 560 : 420, target: { kind: "dao", name, section } }
 }
 
 /** The window a link opens (null for the bare desktop). */

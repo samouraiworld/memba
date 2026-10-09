@@ -342,8 +342,8 @@
 .memba-os .os-adena summary { cursor: pointer; font-weight: 800; font-size: 12px; margin-bottom: 8px; }
 /* A phone-width sheet puts each label over its value. */
 @media (max-width: 420px) {
-  .memba-os .os-review .os-kv { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
-  .memba-os .os-review .os-kv dd { text-align: left; margin-bottom: 6px; }
+  .memba-os .os-review .os-kv, .memba-os .os-connect-modal .os-kv { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .memba-os .os-review .os-kv dd, .memba-os .os-connect-modal .os-kv dd { text-align: left; margin-bottom: 6px; }
 }
 
 /* wizard windows (mockup .fl .opt .chipset .pvcard, step bar) */

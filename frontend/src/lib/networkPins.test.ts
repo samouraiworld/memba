@@ -105,6 +105,8 @@ const ALLOWLIST: Pin[] = [
     { file: "pages/TokenView.tsx", allow: ["mainnet"], why: "Display-only unavailable-state copy names the absent mainnet token factory; no route, default network or write eligibility changes." },
     { file: "pages/CreateCollectionLaunchpad.tsx", allow: ["mainnet"], why: "Display-only unavailable-state copy names the absent mainnet collection registry; the existing NFT and realm gates still control writes." },
     { file: "lib/dao/weighted.ts", allow: ["gnoland-1"], why: "Mainnet write hold for weighted DAOs and its one exact release (v12 at r/samcrew/memba_dao); does not select a default network." },
+    { file: "lib/dao/govFees.ts", allow: ["gnoland-1"], why: "Read-only fee fields and counter semantics were verified against these exact mainnet deployments. Reject other chains rather than reusing this schema there; does not select the app network or permit writes." },
+    { file: "os/daos/GovFees.tsx", allow: ["gnoland-1"], why: "Shows the deployment-specific fee reader only on its verified chain and binds its public explorer links to that same chain; no network selection or write path." },
     { file: "lib/marketplace/escrowIndexer.ts", allow: ["gnoland-1"], why: "escrow_v4's mainnet publish height (checked against realm-versions.json in escrowIndexer.test.ts); only bounds the freelancer-contracts indexer scan, never selects a network." },
     {
         file: "lib/config.ts",

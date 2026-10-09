@@ -260,7 +260,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
             if (epoch.current !== my) return
             if (!visible) {
                 go(activationForced ? "activate" : "login", `${ACTIVATION_NOT_SEEN} ${activationForced
-                    ? "Select Activate in Adena again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active."
+                    ? "Select Continue in Adena again in a few seconds: Memba checks the network first, and sends nothing if it already shows your address as active."
                     : "Wait a few seconds, then sign in."}`)
                 return
             }
