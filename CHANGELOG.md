@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### A discreet Radio widget (2026-10-09)
+- Radio opens as a compact floating player with artwork, track information and Play/Pause. Volume, stations, attribution and project links are available in its controls popover.
+- Live playback honours the schedule’s starting offset when joining a track already in progress.
+- Hide keeps the stream playing; the top-bar Radio button brings the widget back. Stop radio or locking Memba ends playback. The widget adapts to phones and follows the desktop theme.
+
 ### Security (2026-10-09)
 - Update the backend Go toolchain and both container build stages to Go 1.26.9, and golang.org/x/net to v0.60.0, to address the reported standard-library and networking vulnerabilities.
 
