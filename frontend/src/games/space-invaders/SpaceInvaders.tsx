@@ -757,7 +757,7 @@ export default function SpaceInvaders({
                 reducedMotion={reducedMotion}
                 verification={replayOutcome ? { day: dailyDay, verified: replayOutcome.verified } : null}
                 certifySlot={mode === "free" && publication && replayOutcome ? (
-                  <FreePlayPublication result={replayOutcome} prepared={preparedPublication} issue={publicationIssue} onConnect={publication.connect} />
+                  <FreePlayPublication result={replayOutcome} prepared={preparedPublication} issue={publicationIssue} />
                 ) : certifyOn && mode === "daily" && dailyOutcome?.verified ? (
                   <Suspense fallback={null}>
                     <SpaceInvadersCertify

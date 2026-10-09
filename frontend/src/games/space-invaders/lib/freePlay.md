@@ -1,3 +1,18 @@
+> A8 connection recovery wiring requires A's shared `FreePlayConnect`,
+> `prepareFreePlayRecovery`, and session recovery APIs. Requires A3 commit
+> `35c9e9205bb7726e7a47ef913908296cff0de2e2`. The exact temporary source composition
+> passes 30 focused B tests, changed-file lint and semantic TypeScript checks.
+> This does not establish standalone draft-build or integrated OS/browser coverage.
+>
+> Connection UI belongs to A's guarded result panel. The generic B publication
+> adapter no longer exposes a raw `connect` callback. Local-only results use the
+> same shared guard before showing a recovery notice and immediately before a
+> connection click. Preserve the canonical UUID/input/binding/consent; failures
+> retain local export and never invoke Connect. OS/account window resets remain
+> unchanged; completed results are recovered explicitly through Arcade → Your runs.
+> If an archive loads but session persistence fails, B exposes the loaded canonical
+> snapshot as a read-only JSON export, with no Connect or publication controls.
+
 # Space Invaders Free publication adapter — source preparation
 
 This is a proposed game codec and a dormant consumer of A's shared client.
@@ -54,8 +69,7 @@ import { FreePlayResult } from "../games/arcade/freeplay/FreePlayResult";
 const publication = createSpaceInvadersPublication({
   createSnapshot: createFreePlaySnapshot,
   createSession: snapshot => createFreePlaySession({ snapshot, client, storage }),
-  renderSession: session => <FreePlayResult session={session} />,
-  connect: connectAccount,
+  renderSession: session => <FreePlayResult session={session} connect={connectAccount} />,
   recovery: {
     loadSnapshot: id => loadFreePlaySnapshot(storage, id),
     inputOf: snapshot => snapshot.input,

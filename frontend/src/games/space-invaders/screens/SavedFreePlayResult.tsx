@@ -32,7 +32,6 @@ export function SavedFreePlayResult({ clientRunId, publication, onClose }: {
   return <section className="si-root si-saved-result" aria-label="Saved Space Invaders result">
     <h1>Saved Space Invaders result</h1>
     {!current ? <p role="status">Opening saved result…</p> : current.prepared ? <>
-      {publication?.connect && <button type="button" className="si-button si-button--secondary" onClick={publication.connect}>Connect account</button>}
       {current.prepared.content}
     </> : <p role="alert">This saved result could not be opened. Return to your saved results and try again. No new game has started.</p>}
     <button type="button" className="si-button si-button--secondary" onClick={onClose}>Back to saved results</button>

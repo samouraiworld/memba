@@ -6,11 +6,10 @@ import { MAX_CERTIFY_EVENTS } from "../lib/wire";
 
 /** The shared A panel owns verification/quotes/publication/receipts. This layer
  * only retains an exportable game result if its snapshot cannot be prepared. */
-export function FreePlayPublication({ result, prepared, issue, onConnect }: {
+export function FreePlayPublication({ result, prepared, issue }: {
   result: SpaceInvadersReplayResult;
   prepared: SpaceInvadersPreparedPublication | null;
   issue: "certification_limit" | "replay_not_verified" | "save_unavailable" | null;
-  onConnect?: () => void;
 }) {
   const [copy, setCopy] = useState("");
   const exportReplay = () => {
@@ -30,7 +29,6 @@ export function FreePlayPublication({ result, prepared, issue, onConnect }: {
       : issue === "replay_not_verified"
         ? "This replay did not pass the local check. Your score is kept locally and is not ready to publish."
         : "The publication snapshot could not be saved. Your local result is still here; export it before leaving."}</p>}
-    {onConnect && prepared && <button type="button" className="si-button si-button--secondary" onClick={onConnect}>Connect account</button>}
     {prepared?.content}
     <button type="button" className="si-button si-button--secondary" onClick={exportReplay}>Export replay</button>
     {copy && <label>Copy your replay<textarea readOnly value={copy} aria-label="Replay export" /></label>}

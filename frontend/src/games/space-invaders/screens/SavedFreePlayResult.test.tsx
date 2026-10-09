@@ -9,10 +9,10 @@ vi.mock("../SpaceInvaders", () => ({ default: () => <div data-testid="live-game"
 const input = vectors.valid[0].input as SpaceInvadersFreePlayInput;
 it("opens A's existing snapshot without creating a run, confirming a stored receipt or consuming a launch", async () => {
   const snapshot = { input, receipt: "stored receipt" };
-  const createSnapshot = vi.fn(() => snapshot), loadSnapshot = vi.fn(() => snapshot), dispose = vi.fn(), refresh = vi.fn(), connect = vi.fn(), close = vi.fn(), consume = vi.fn();
+  const createSnapshot = vi.fn(() => snapshot), loadSnapshot = vi.fn(() => snapshot), dispose = vi.fn(), refresh = vi.fn(), close = vi.fn(), consume = vi.fn();
   const createSession = vi.fn((saved: typeof snapshot) => ({ saved, dispose }));
   const publication = createSpaceInvadersPublication({ createSnapshot, createSession,
-    recovery: { loadSnapshot, inputOf: saved => saved.input }, connect,
+    recovery: { loadSnapshot, inputOf: saved => saved.input },
     renderSession: () => <><p>Saved receipt — check it again.</p><button onClick={refresh}>Check saved result</button></>,
   });
   const props = { publication, recovery: { clientRunId: input.clientRunId, onClose: close }, launch: { id: "pending", game: "space-invaders" as const, mode: "free" as const }, onLaunchConsumed: consume };
@@ -23,11 +23,10 @@ it("opens A's existing snapshot without creating a run, confirming a stored rece
   expect(loadSnapshot).toHaveBeenCalledWith(input.clientRunId);
   expect(createSession).toHaveBeenCalledWith(snapshot);
   expect(screen.queryByText(/confirmed/i)).toBeNull();
-  expect(refresh).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
   view.rerender(<SpaceInvadersSavedResult {...props} recovery={{ ...props.recovery }} />);
   expect(createSession).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Check saved result" })); expect(refresh).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole("button", { name: "Connect account" })); expect(connect).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Back to saved results" })); expect(close).toHaveBeenCalledTimes(1);
   view.unmount(); expect(dispose).toHaveBeenCalledTimes(1);
 });

@@ -7,8 +7,6 @@ export interface SpaceInvadersPublication {
   prepare(input: SpaceInvadersFreePlayInput): SpaceInvadersPreparedPublication | Promise<SpaceInvadersPreparedPublication>;
   /** Open an existing A snapshot without creating a run or starting API work. */
   recover?: (clientRunId: string) => SpaceInvadersPreparedPublication | Promise<SpaceInvadersPreparedPublication>;
-  /** Optional host-owned wallet connection, called only from an explicit click. */
-  connect?: () => void;
 }
 
 /** Consume A's snapshot/session/result functions by injection, without another
@@ -18,9 +16,10 @@ export function createSpaceInvadersPublication<Snapshot, Session extends { dispo
   createSnapshot(input: SpaceInvadersFreePlayInput): Snapshot;
   createSession(snapshot: Snapshot): Session;
   renderSession(session: Session): ReactNode;
-  connect?: () => void;
   recovery?: {
     /** A's bounded loader validates the complete stored snapshot. */
+    /** Read-only export of an already validated archive when session persistence fails. */
+    renderUnavailable?: (snapshot: Snapshot) => ReactNode;
     loadSnapshot(clientRunId: string): Snapshot | null | Promise<Snapshot | null>;
     inputOf(snapshot: Snapshot): Pick<SpaceInvadersFreePlayInput, "clientRunId" | "simVersion"> & { game: string; rules: string; replayCodec: string };
   };
@@ -33,7 +32,6 @@ export function createSpaceInvadersPublication<Snapshot, Session extends { dispo
   };
   const recovery = options.recovery;
   return {
-    connect: options.connect,
     prepare: input => prepareSnapshot(options.createSnapshot(input)),
     ...(recovery ? { async recover(clientRunId: string) {
       if (clientRunId.length !== 36 || !SI_FREE_UUID.test(clientRunId)) throw new Error("invalid_run_identity");
@@ -41,7 +39,12 @@ export function createSpaceInvadersPublication<Snapshot, Session extends { dispo
       if (!snapshot) throw new Error("saved_result_unavailable");
       const input = recovery.inputOf(snapshot);
       if (input.clientRunId !== clientRunId || input.game !== "space-invaders" || input.rules !== SI_FREE_RULES || input.simVersion !== SI_FREE_VERSION || input.replayCodec !== SI_FREE_CODEC) throw new Error("saved_result_unavailable");
-      return prepareSnapshot(snapshot);
+      try { return prepareSnapshot(snapshot); }
+      catch (error) {
+        if (!recovery.renderUnavailable) throw error;
+        // No session or publication controls: preserve only the loaded archive.
+        return { content: recovery.renderUnavailable(snapshot), dispose() {} };
+      }
     } } : {}),
   };
 }

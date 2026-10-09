@@ -16,10 +16,10 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 it("prepares A's session once from the finished Free run, keeps it through Menu and disposes it on restart", async () => {
-  const verify = vi.fn(), connect = vi.fn(), dispose = vi.fn();
+  const verify = vi.fn(), dispose = vi.fn();
   const snapshot = vi.fn((input: SpaceInvadersFreePlayInput) => ({ input }));
   const session = vi.fn((saved: { input: SpaceInvadersFreePlayInput }) => ({ saved, dispose }));
-  const publication = createSpaceInvadersPublication({ createSnapshot: snapshot, createSession: session, renderSession: () => <button onClick={verify}>Shared verify</button>, connect });
+  const publication = createSpaceInvadersPublication({ createSnapshot: snapshot, createSession: session, renderSession: () => <button onClick={verify}>Shared verify</button> });
   const completed = vi.fn();
   const view = render(<SpaceInvaders seed={1} publication={publication} onReplayReady={completed} />);
   expect(snapshot).not.toHaveBeenCalled();
@@ -33,13 +33,12 @@ it("prepares A's session once from the finished Free run, keeps it through Menu 
   expect(input.clientRunId).toBe(identity.clientRunId);
   expect(completed.mock.calls[0][0].clientRunId).toBe(identity.clientRunId);
   expect(verifyFreePlayInput(input).score).toBe(input.claimedScore);
-  expect(verify).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Menu", exact: true }));
-  fireEvent.click(screen.getByRole("button", { name: "Back to result", exact: true }));
+  expect(verify).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+  fireEvent.click(screen.getByRole("button", { name: "Back to result" }));
   expect(snapshot).toHaveBeenCalledTimes(1); expect(dispose).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Connect account" })); expect(connect).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Shared verify" })); expect(verify).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole("button", { name: "Play again", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Play again" }));
   expect(dispose).toHaveBeenCalledTimes(1);
   expect(JSON.parse(localStorage.getItem("memba:space-invaders:active-free:v1")!).clientRunId).not.toBe(identity.clientRunId);
   drive(160_000, 600);
