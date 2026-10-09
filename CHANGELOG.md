@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba realm activity in the watcher channel (2026-10-08)
+- The existing Discord watcher can report confirmed calls, package changes and realm events across the samcrew namespace: governance, games, feed, App Store, escrow and Launchpad. Financial alarms keep the same channel.
+- Activity delivery resumes after restarts, retries outages, and sends a daily heartbeat. It starts with new activity; arguments and post contents are omitted.
+- The backend build uses Go 1.26.9 and the patched HTTP/2 dependency to include the October security fixes.
 ### Security (2026-10-09)
 - Update the backend Go toolchain and both container build stages to Go 1.26.9, and golang.org/x/net to v0.60.0, to address the reported standard-library and networking vulnerabilities.
 

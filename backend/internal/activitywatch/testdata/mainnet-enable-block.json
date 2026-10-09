@@ -1,0 +1,70 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "block_meta": {
+      "block_id": {
+        "hash": "bYb6t4B57uQKsuFZGCALkLlUqmxCdwabrDdOGKVTLKc=",
+        "parts": {
+          "total": "1",
+          "hash": "Id2tCDtqIr8r7znMWlbEd/w1ZNGbWdteSN1RFQ8fh5Y="
+        }
+      },
+      "header": {
+        "version": "v1.0.0-rc.0",
+        "chain_id": "gnoland-1",
+        "height": "658489",
+        "time": "2026-10-08T17:58:22.915495075Z",
+        "num_txs": "1",
+        "total_txs": "114376",
+        "app_version": "",
+        "last_block_id": {
+          "hash": "3+qhWFEXA8xPjmMoK5bItQJwxiStIxj1ittpAQsvMnY=",
+          "parts": {
+            "total": "1",
+            "hash": "bLMy3Vp+KYWnc4woQsq7SK+Snv/pd+hXW5xZHgMT4OU="
+          }
+        },
+        "last_commit_hash": "DTYIl3ycDBSsCE3ffvSe6AeSmoBBzo+fOlRi4gJCRJ0=",
+        "data_hash": "eCTSbC3a7iTEGICxYVcKDcLTSSZ9GyGwRbg8mPAq5eo=",
+        "validators_hash": "CYY4BnAdhGsBlTbLDawqB8L41STBYcSAb0wD+XKnVto=",
+        "next_validators_hash": "CYY4BnAdhGsBlTbLDawqB8L41STBYcSAb0wD+XKnVto=",
+        "consensus_hash": "uJmaP/mPzdzmA1t3/6z5QWOFFzl4v14QsTCvjvJoZ7A=",
+        "app_hash": "ql76mIMmHeszraFPQ+60upKzfSpZZYy+hVE/knc57VA=",
+        "last_results_hash": null,
+        "proposer_address": "g1l983yy3kpmapyzcfy53y5charfxupa5czjalea"
+      }
+    },
+    "block": {
+      "header": {
+        "version": "v1.0.0-rc.0",
+        "chain_id": "gnoland-1",
+        "height": "658489",
+        "time": "2026-10-08T17:58:22.915495075Z",
+        "num_txs": "1",
+        "total_txs": "114376",
+        "app_version": "",
+        "last_block_id": {
+          "hash": "3+qhWFEXA8xPjmMoK5bItQJwxiStIxj1ittpAQsvMnY=",
+          "parts": {
+            "total": "1",
+            "hash": "bLMy3Vp+KYWnc4woQsq7SK+Snv/pd+hXW5xZHgMT4OU="
+          }
+        },
+        "last_commit_hash": "DTYIl3ycDBSsCE3ffvSe6AeSmoBBzo+fOlRi4gJCRJ0=",
+        "data_hash": "eCTSbC3a7iTEGICxYVcKDcLTSSZ9GyGwRbg8mPAq5eo=",
+        "validators_hash": "CYY4BnAdhGsBlTbLDawqB8L41STBYcSAb0wD+XKnVto=",
+        "next_validators_hash": "CYY4BnAdhGsBlTbLDawqB8L41STBYcSAb0wD+XKnVto=",
+        "consensus_hash": "uJmaP/mPzdzmA1t3/6z5QWOFFzl4v14QsTCvjvJoZ7A=",
+        "app_hash": "ql76mIMmHeszraFPQ+60upKzfSpZZYy+hVE/knc57VA=",
+        "last_results_hash": null,
+        "proposer_address": "g1l983yy3kpmapyzcfy53y5charfxupa5czjalea"
+      },
+      "data": {
+        "txs": [
+          "CqIBChAvdm0ubV9lbmFibGVfcGtnEo0BCihnMXlhYWE2cmNwNGV3NXlqemRqNHltczU5Nnd4MmR0cmozYTg2NzA0Ehtnbm8ubGFuZC9yL3NhbWNyZXcvY29ubmVjdDQaQGQxNWIxNDc1NzZlNTNmYTNjZjBkN2ExYjNhYTE1Y2U0M2Q3MWM4NWU4ZDllMjVlMGMwMWI1NTNmYWZhZDg4NzQg5rBQEhMIrOPXFxIMMTAwMDAwMHVnbm90GqgBCjoKEy90bS5QdWJLZXlTZWNwMjU2azESIwohAzpb/RJOsbKkaWaYDgkgUysiwThP9ZdIPvjeXRMTAyHqEkA1YyQ+Ol29zXSTG/qsieHSdYXC3ZaZ22rS0uer+3chvmxnA89Q+XBLeN3DqmyMGqIiYCJfI9SZGUHPAiazocDYGihnMXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcWx1dXhl"
+        ]
+      }
+    }
+  }
+}
