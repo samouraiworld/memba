@@ -333,7 +333,11 @@
 .si-icon-button.si-fullscreen-button:focus-visible { background: var(--si-screen); border-color: var(--si-mint); }
 .si-icon-button.si-fullscreen-button:focus-visible { outline: 2px solid var(--si-mint); outline-offset: 2px; box-shadow: 0 0 0 4px var(--si-ink); }
 .si-icon-button.si-fullscreen-button:disabled { background: var(--si-ink); opacity: 1; cursor: wait; }
-.si-fullscreen-error { position: absolute; z-index: 10; top: 100%; right: 0; width: min(240px, 70vw); padding: 10px; border: 1px solid var(--si-mint); border-radius: 8px; background: var(--si-ink); color: var(--si-text-bright); font-size: .8rem; }
+/* Replace the header caption while reporting an error, never float above the
+   HUD/result. Short landscape hosts retain their existing 44px control row. */
+.si-fullscreen-notice { position: static; display: flex; align-items: center; flex: 1; min-width: 0; gap: 6px; padding-left: 8px; border: 1px solid var(--si-mint); border-radius: 8px; background: var(--si-ink); color: var(--si-text-bright); }
+.si-fullscreen-notice p { flex: 1; min-width: 0; margin: 0; font-size: .75rem; line-height: 1.35; }
+.si-fullscreen-notice .si-icon-button { border: 0; }
 .si-root:fullscreen { background: var(--si-ink); color: var(--si-text-bright); }
 /* Reserve a side rail for the touch-sized fullscreen control in short hosts. */
 .si-root.si-root--landscape { position: relative; }

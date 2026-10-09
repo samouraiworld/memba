@@ -664,16 +664,23 @@ export default function SpaceInvaders({
     <section className={`si-root si-root--fitted${fieldSize.landscape ? " si-root--landscape" : ""}`} aria-labelledby="si-title" ref={rootRef}
       style={{ "--si-available-height": fieldSize.availableHeight ? `${fieldSize.availableHeight}px` : undefined } as CSSProperties}>
       <header className="si-heading">
-        <div>
+        <div className={fullscreenError ? "si-sr-only" : undefined}>
           <p className="si-eyebrow">Memba // Gno signal network</p>
           <h1 id="si-title">Space Invaders</h1>
           <p className="si-deck">Signal Defense — hold the relay, clear the swarm, keep the network online.</p>
         </div>
-        <div className={`si-phase si-phase--${state.phase}`}>
+        <div className={`si-phase si-phase--${state.phase}${fullscreenError ? " si-sr-only" : ""}`}>
           <span aria-hidden="true" />
           {runArmed ? `${mode === "daily" ? `Daily · ${dailyDay}` : "Free play"} · ` : ""}{phaseLabel}
         </div>
-        <FullscreenButton root={rootRef} onChange={focusGameSurface} onError={setFullscreenError} showError={!showSpaceGuard} />
+        {fullscreenError && <div className="si-fullscreen-notice">
+          <p role="alert">{fullscreenError}</p>
+          <button type="button" className="si-icon-button" aria-label="Dismiss fullscreen message" onClick={() => {
+            setFullscreenError("");
+            rootRef.current?.querySelector<HTMLButtonElement>(".si-fullscreen-button")?.focus({ preventScroll: true });
+          }}><span aria-hidden="true">×</span></button>
+        </div>}
+        <FullscreenButton root={rootRef} onChange={focusGameSurface} onError={setFullscreenError} />
       </header>
 
       <div className="si-cabinet">
@@ -792,7 +799,6 @@ export default function SpaceInvaders({
           {showSpaceGuard && <div className="si-space-guard" role="region" aria-live="polite" aria-label="More room to play">
             <h2 tabIndex={-1}>More room to play</h2>
             <p>Turn your phone to portrait or enlarge the window. You can also choose Game fullscreen above.</p>
-            {fullscreenError && <p role="alert">{fullscreenError}</p>}
             <p>{state.phase === "gameover" ? "Your result is kept." : runArmed ? "Your run is paused and kept. Resume explicitly once there is more room." : "No run has started. Choose Play once there is more room."}</p>
             {state.phase === "gameover" && <button type="button" className="si-button si-button--primary" onClick={returnToResult}>Back to result</button>}
           </div>}

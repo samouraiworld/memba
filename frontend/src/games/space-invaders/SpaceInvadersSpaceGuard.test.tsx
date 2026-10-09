@@ -52,12 +52,23 @@ it.each(["absent", "rejected"])("freezes run/replay when fullscreen is %s and re
   act(() => stale(60_000));
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Game fullscreen" })); });
   expect(screen.getByRole("alert")).toHaveTextContent(support === "absent" ? "unavailable" : "could not be changed");
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(screen.getByRole("alert").closest(".si-heading")).not.toBeNull();
+  expect(screen.getByRole("alert").closest(".si-cabinet")).toBeNull();
   frame(120_000); expect(advance).toHaveBeenCalledTimes(count); expect(completed).not.toHaveBeenCalled();
   size(false); view.rerender(<SpaceInvaders {...props} />); frame(120_250); frame(120_500);
   expect(advance).toHaveBeenCalledTimes(count);
   expect(screen.getByRole("heading", { name: "Relay paused" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Resume defense" })); frame(120_750);
   expect(advance.mock.calls[count][0][0]).toMatchObject({ seed: saved.seed, tick: saved.tick, score: saved.score, player: saved.player });
+  // D's regression: the error persists after portrait/Resume, but only in the
+  // header flow. Dismissal neither starts a new run nor advances simulation.
+  expect(screen.getByRole("alert").closest(".si-heading")).not.toBeNull();
+  const callsBeforeDismiss = advance.mock.calls.length;
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss fullscreen message" }));
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("button", { name: "Game fullscreen" })).toHaveFocus();
+  expect(advance).toHaveBeenCalledTimes(callsBeforeDismiss);
   act(() => { for (let i = 1; i <= 600; i++) { const pending = [...callbacks.values()]; callbacks.clear(); pending.forEach(cb => cb(120_750 + i * 250)); } });
   expect(completed).toHaveBeenCalledTimes(1);
   expect(completed.mock.calls[0][0]).toMatchObject({ game: "space-invaders", mode: "free", seed: 7, verified: true });
@@ -108,4 +119,26 @@ it("silences an active UFO immediately on protection and restarts audio only aft
   fireEvent.click(screen.getByRole("button", { name: "Resume defense" })); frame(6500);
   expect(advance.mock.calls[count][0][0]).toMatchObject({ tick: saved.tick, seed: saved.seed, score: saved.score, ufo: saved.ufo });
   expect(drone).toHaveBeenLastCalledWith(true);
+});
+
+it.each(["absent", "rejected"])("keeps result Menu and Back available with a %s fullscreen error across rotation", async support => {
+  Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: support === "rejected" });
+  if (support === "rejected") HTMLElement.prototype.requestFullscreen = vi.fn().mockRejectedValue(new Error("not allowed"));
+  const completed = vi.fn();
+  const props = { seed: 7, initialState: { phase: "gameover" as const, score: 1234 }, onReplayReady: completed };
+  const view = render(<SpaceInvaders {...props} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Game fullscreen" })); });
+  size(true); view.rerender(<SpaceInvaders {...props} />);
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(screen.getByRole("alert").closest(".si-heading")).not.toBeNull();
+  expect(screen.getByRole("alert").closest(".si-console")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Menu", exact: true }));
+  expect(screen.getByText("Your result is kept.")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back to result" }));
+  expect(screen.getByTestId("si-final-score").parentElement).toHaveTextContent("1,234");
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss fullscreen message" }));
+  size(false); view.rerender(<SpaceInvaders {...props} />); frame(0); frame(1000);
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByTestId("si-final-score").parentElement).toHaveTextContent("1,234");
+  expect(advance).not.toHaveBeenCalled(); expect(completed).not.toHaveBeenCalled();
 });
