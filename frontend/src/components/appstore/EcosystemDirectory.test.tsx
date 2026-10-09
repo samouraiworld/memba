@@ -43,6 +43,8 @@ describe("ecosystem discovery controls", () => {
     it("shows each project's committed logo in place of its category icon", () => {
         const { container } = renderWithProviders(<EcosystemDirectory standalone />)
         expect(container.querySelector('.ecosystem-app__icon img[src="/store/adena/logo.svg"]')).not.toBeNull()
+        expect(container.querySelector('img[src="/store/gnoswap/logo.svg"]')?.parentElement).toHaveStyle({ backgroundColor: "#F5F7FA" })
+        expect(container.querySelector('img[src="/store/kourt/logo.webp"]')?.parentElement).toHaveStyle({ backgroundColor: "#18232D" })
     })
     it("does not offer disabled explorer routes or nest interactive elements", () => {
         vi.stubEnv("VITE_ENABLE_EXPLORER", "false")

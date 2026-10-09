@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Store logo contrast (2026-10-09)
+- Give transparent GnoSwap, Kourt, Boards and Playground logos contrasting backgrounds in Store cards/details and the ecosystem directory, retaining their original artwork and showing the full mark without cropping.
+
 ### External games in Arcade (2026-10-09)
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
 
