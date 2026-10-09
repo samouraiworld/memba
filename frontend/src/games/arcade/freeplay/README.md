@@ -134,5 +134,11 @@ and an explicit close callback. `subscribeSavedRuns?` belongs to the OS storage
 owner. Explicit game props take priority over the provider; an explicit null can
 disable a game integration. A missing provider keeps local play available.
 Opening an archive must only mount a separate result view while preserving the
-current game engine and its paused state. Shell/Phone/WindowBody integration is
-reserved to D and remains pending its reviewed inventory.
+current game engine and its paused state. The approved integration uses one Shell provider across desktop/phone, owned by
+D; recovery remains local to Your runs rather than broadcast across windows.
+D alone creates/disposes the existing auth bridge and client cache. The pure
+`ArcadeFreePlayConfiguration` contract in runtimeConfiguration.ts supplies
+chainId, one storage instance and per-game rules/version with optional explicit
+remote origin/target. D validates it before construction; null means no runtime.
+No new environment variable, flag, default endpoint, factory or owner hook is
+introduced here.
