@@ -347,3 +347,8 @@
 .si-space-guard h2 { margin: 0 0 6px; font-size: 1rem; line-height: 1.2; }
 .si-space-guard p { margin: 4px 0; font-size: .8rem; line-height: 1.35; }
 .si-space-guard button { margin-top: 6px; }
+
+.si-freeplay-publication { width: 100%; margin-top: 12px; padding: 12px; border: 1px solid rgba(101, 251, 210, .3); border-radius: 8px; }
+.si-freeplay-publication button { min-height: 44px; margin: 4px; }
+.si-freeplay-publication textarea { display: block; width: 100%; min-height: 100px; }
+.si-freeplay-publication code { overflow-wrap: anywhere; }

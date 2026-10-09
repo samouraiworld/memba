@@ -22,7 +22,8 @@ export function advanceSteps(
 
 // Like advanceSteps, but also returns every event emitted across the sub-steps
 // (each step() resets its own events). The cosmetic/audio layer consumes these;
-// the returned state is byte-identical to advanceSteps.
+// the returned state matches advanceSteps while live, but stops at the first
+// terminal tick so a display frame cannot pad a completed replay.
 export function advanceWithEvents(
   state: GameState,
   nSteps: number,
@@ -34,6 +35,7 @@ export function advanceWithEvents(
   for (let i = 0; i < nSteps; i++) {
     s = step(s, fixedMs, input);
     for (const e of s.events) events.push(e);
+    if (s.phase === "gameover") break;
   }
   return { state: s, events };
 }
