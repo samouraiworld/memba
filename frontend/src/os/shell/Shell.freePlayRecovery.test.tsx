@@ -19,7 +19,7 @@ import vectors from "../../games/arcade/freeplay/vectors.json"
 const fixture = vi.hoisted(() => ({ session: null as unknown as OsSession, mounts: 0, unmounts: 0 }))
 vi.mock("./useOsSession", () => ({ useOsSession: () => fixture.session }))
 vi.mock("../../lib/chain/flag", () => ({ EVM_ENABLED: false }))
-vi.mock("../../lib/notes/config", () => ({ NOTES_ENABLED: false }))
+vi.mock("../../lib/notes/config", () => ({ NOTES_ENABLED: false, notesDeployment: () => null }))
 vi.mock("../preferences", () => ({ readSkipIntro: () => true, useLiveWidget: () => false }))
 vi.mock("../boot/boot", () => ({ shouldBoot: () => false, bootLines: () => [] }))
 vi.mock("./useDesk", () => ({ useDesk: () => ({ items: [], resetFromStorage: () => {}, isPinned: () => false }) }))
