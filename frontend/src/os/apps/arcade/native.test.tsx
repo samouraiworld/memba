@@ -73,6 +73,15 @@ describe("Arcade lobby", () => {
         expect(screen.queryByRole("heading", { name: "Top rated by the community" })).not.toBeInTheDocument()
     })
 
+    it("shows injected local history without offering a new launch", () => {
+        const open = vi.fn(), recover = vi.fn()
+        wrap(<ArcadeWindow {...base} section="runs" open={open} savedRuns={{ storage: { getItem: () => null, setItem: vi.fn() }, onOpenSavedRun: recover }} />)
+        expect(screen.getByText("No saved Free play results for this game yet.")).toBeVisible()
+        expect(screen.queryByRole("button", { name: /^Play / })).not.toBeInTheDocument()
+        expect(open).not.toHaveBeenCalled()
+        expect(recover).not.toHaveBeenCalled()
+    })
+
     it("states the limits of runs and the daily board", () => {
         const open = vi.fn()
         const { rerender } = wrap(<ArcadeWindow {...base} section="runs" open={open} />)

@@ -11,6 +11,14 @@ import { specForTarget } from "../../shell/windows"
 import { ARCADE_GAMES, gameById, gameSection, type ArcadeGame } from "./catalogue"
 import { CommunityGames } from "./community"
 import { GamePage } from "./GamePage"
+import type { FreePlayGame } from "../../../lib/arcadeFreePlay"
+import type { FreePlayBoardProps } from "./FreePlayBoard"
+import { YourRuns, type YourRunsProps } from "./YourRuns"
+
+export type ArcadeWindowProps = NativeViewProps & {
+    freePlayBoards?: Partial<Record<FreePlayGame, FreePlayBoardProps>>
+    savedRuns?: YourRunsProps
+}
 
 const sections = [
     { id: "games", name: "Featured", icon: "game" },
@@ -24,7 +32,7 @@ const firstSentence = (text: string) => {
     return (end < 0 ? text : text.slice(0, end + 1)).replace(/\.{2,}$/, ".")
 }
 
-export default function ArcadeWindow({ section, open, push, fallback, session, active }: NativeViewProps) {
+export default function ArcadeWindow({ section, open, push, fallback, session, active, freePlayBoards, savedRuns }: ArcadeWindowProps) {
     const root = useRef<HTMLDivElement>(null)
     const shown = useRef(section)
     /** Set by the controls that leave the view (Details, ← Arcade): the button they leave is gone afterwards. */
@@ -61,7 +69,7 @@ export default function ArcadeWindow({ section, open, push, fallback, session, a
     const summaries = useReviewSummaries(session.network.chainId, ARCADE_GAMES.flatMap((game) => game.reviewSubject ? [game.reviewSubject] : []))
     if (section?.startsWith("g/")) {
         const game = gameById(section.slice(2))
-        return game ? scoped(<CinemaScope tone="arcade"><GamePage game={game} session={session} open={open} toLobby={() => follow(null)} /></CinemaScope>) : <>{fallback}</>
+        return game ? scoped(<CinemaScope tone="arcade"><GamePage game={game} session={session} open={open} toLobby={() => follow(null)} freePlayBoard={game.id === "connect4" ? undefined : freePlayBoards?.[game.id]} /></CinemaScope>) : <>{fallback}</>
     }
     if (section !== null && !sections.some((entry) => entry.id === section)) return <>{fallback}</>
     const current = section ?? "games"
@@ -103,11 +111,11 @@ export default function ArcadeWindow({ section, open, push, fallback, session, a
             {topRated.length > 0 && <Shelf id="arcade-top" title="Top rated by the community"><div className="os-cin-grid">{topRated.map(capsule)}</div></Shelf>}
             <CommunityGames />
         </>}
-        {current === "runs" && <>
+        {current === "runs" && (savedRuns ? <YourRuns {...savedRuns} /> : <>
             <h2>Your runs</h2>
             <div className="os-note" role="status">A combined run history is not available yet. Games may keep their own local progress or results; they are not a certified Arcade record.</div>
             <div className="os-cin-grid">{ARCADE_GAMES.map(capsule)}</div>
-        </>}
+        </>)}
         {current === "daily-board" && <>
             <h2>Daily board</h2>
             <div className="os-note" role="status"><Pill tone="neutral">Not live</Pill>{" "}A combined daily leaderboard and on-chain Arcade attestation are unavailable while Arcade attestation is off. Block Party has its own server-verified Daily leaderboard when Daily is live; open the game to view it.</div>
