@@ -594,6 +594,18 @@ func main() {
 		Limiter:      svc,
 	})))
 
+	// Free play v2 source preparation: explicitly dormant until quota/quote,
+	// transport and migration rollout have been reviewed. No production flag
+	// or key is introduced here; old daily routes retain their own behavior.
+	freePlayTarget := arcade.FreePlayTarget{ChainID: os.Getenv("GNO_CHAIN_ID"), Realm: arcade.FreePlayRealm}
+	freePlayStore, freePlayStoreErr := arcade.NewFreePlayStore(database, freePlayTarget)
+	if freePlayStoreErr == nil {
+		mux.Handle(arcade.FreePlayPrefix, arcade.NewFreePlayHandler(arcade.FreePlayHTTPConfig{
+			Enabled: false, Target: freePlayTarget, Store: freePlayStore, Auth: svc,
+		}))
+	}
+	// No FreePlayPublisher worker starts in this preparation change.
+
 	// BARRICADE day-close attester — writes the competitive board on-chain via a
 	// dedicated low-privilege gnokey key (attester-pays). DORMANT until BOTH
 	// MEMBA_ARCADE_ATTESTER_ENABLED and MEMBA_ARCADE_ATTESTER_KEY are set; the key
