@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Free play budget preparation (#1595, 2026-10-09)
+- Prepare dormant studio-paid quotes and durable daily budgets without activating Free play. Migration043 depends on042 and applies automatically at backend startup even while the feature is disabled; its rollout requires a separate database migration approval.
+
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
 - Notes remains disabled pending deployment and activation. The sushi recipe demonstration and desktop persistence foundations are validated locally; no recipe or Whitepaper is published by this change.
