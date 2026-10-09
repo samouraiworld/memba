@@ -22,8 +22,9 @@ function setup(supported = true) {
     document.dispatchEvent(new Event("fullscreenchange"));
   });
   const onChange = vi.fn();
-  render(<FullscreenButton root={{ current: root }} onChange={onChange} />);
-  return { request, onChange };
+  const onError = vi.fn();
+  render(<FullscreenButton root={{ current: root }} onChange={onChange} onError={onError} />);
+  return { request, onChange, onError };
 }
 
 it("only enters on a click and keeps an explicit exit control", async () => {
@@ -49,16 +50,18 @@ it("tracks browser-initiated exit without another request", async () => {
 });
 
 it("reports rejection and allows retry", async () => {
-  const { request } = setup();
+  const { request, onError } = setup();
   request.mockRejectedValueOnce(new Error("denied"));
   fireEvent.click(screen.getByRole("button", { name: "Game fullscreen" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("could not be changed");
+  await waitFor(() => expect(onError).toHaveBeenLastCalledWith(expect.stringContaining("could not be changed")));
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByRole("button", { name: "Game fullscreen" })).not.toBeDisabled();
 });
 
 it("explains when the browser has no fullscreen support", () => {
-  const { request } = setup(false);
+  const { request, onError } = setup(false);
   fireEvent.click(screen.getByRole("button", { name: "Game fullscreen" }));
   expect(request).not.toHaveBeenCalled();
-  expect(screen.getByRole("alert")).toHaveTextContent("unavailable");
+  expect(onError).toHaveBeenLastCalledWith(expect.stringContaining("unavailable"));
+  expect(screen.queryByRole("alert")).toBeNull();
 });
