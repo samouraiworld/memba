@@ -23,10 +23,10 @@ describe('public publication review', () => {
         const record: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content', base: { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' } } }
         setup(record)
         expect(calls.sign).not.toHaveBeenCalled()
-        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '3.5' } })
+        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '5.0' } })
         fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '3500000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '5000000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
     })
     it('retains a changed local draft instead of opening a stale review', async () => {
         setup(draft, vi.fn(async () => ({ ...draft, localRevision: '5' })))
@@ -34,9 +34,9 @@ describe('public publication review', () => {
         await screen.findByText(/draft, published note or quote changed/)
         expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
     })
-    it('rejects an invalid or inadequate user cap without opening a wallet', async () => {
+    it.each(['0.000001', '3.5'])('rejects the inadequate %s GNOT cap without opening a wallet', async cap => {
         setup()
-        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '0.000001' } })
+        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: cap } })
         fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
         await screen.findByText(/deposit cap of at least/)
         expect(calls.sign).not.toHaveBeenCalled()
