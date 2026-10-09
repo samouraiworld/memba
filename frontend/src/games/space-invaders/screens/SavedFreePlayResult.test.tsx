@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import SpaceInvadersGame from "../../../pages/SpaceInvadersGame";
+import { SpaceInvadersSavedResult } from "./SpaceInvadersSavedResult";
 import { createSpaceInvadersPublication } from "../lib/freePlayPublication";
 import type { SpaceInvadersFreePlayInput } from "../lib/freePlayCodec";
 import vectors from "../lib/testdata/freeplay_vectors.json";
@@ -15,7 +15,7 @@ it("opens A's existing snapshot without creating a run, confirming a stored rece
     renderSession: () => <><p>Saved receipt — check it again.</p><button onClick={refresh}>Check saved result</button></>,
   });
   const props = { publication, recovery: { clientRunId: input.clientRunId, onClose: close }, launch: { id: "pending", game: "space-invaders" as const, mode: "free" as const }, onLaunchConsumed: consume };
-  const view = render(<SpaceInvadersGame {...props} />);
+  const view = render(<SpaceInvadersSavedResult {...props} />);
   await screen.findByRole("button", { name: "Check saved result" });
   expect(screen.queryByTestId("live-game")).toBeNull();
   expect(createSnapshot).not.toHaveBeenCalled(); expect(consume).not.toHaveBeenCalled();
@@ -23,7 +23,7 @@ it("opens A's existing snapshot without creating a run, confirming a stored rece
   expect(createSession).toHaveBeenCalledWith(snapshot);
   expect(screen.queryByText(/confirmed/i)).toBeNull();
   expect(refresh).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled();
-  view.rerender(<SpaceInvadersGame {...props} recovery={{ ...props.recovery }} />);
+  view.rerender(<SpaceInvadersSavedResult {...props} recovery={{ ...props.recovery }} />);
   expect(createSession).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Check saved result" })); expect(refresh).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Connect account" })); expect(connect).toHaveBeenCalledTimes(1);
@@ -33,16 +33,16 @@ it("opens A's existing snapshot without creating a run, confirming a stored rece
 it.each(["missing", "corrupt", "unsupported"])("keeps recovery errors local and never falls through to gameplay: %s", async kind => {
   const recover = kind === "unsupported" ? undefined : vi.fn(() => { throw new Error(kind); });
   const prepare = vi.fn();
-  render(<SpaceInvadersGame publication={{ prepare, recover }} recovery={{ clientRunId: input.clientRunId, onClose: vi.fn() }} />);
+  render(<SpaceInvadersSavedResult publication={{ prepare, recover }} recovery={{ clientRunId: input.clientRunId, onClose: vi.fn() }} />);
   expect(await screen.findByRole("alert")).toHaveTextContent("could not be opened");
   expect(screen.queryByTestId("live-game")).toBeNull(); expect(prepare).not.toHaveBeenCalled();
 });
 it("disposes the previous recovered session when selecting another result", async () => {
   const dispose = vi.fn(), recover = vi.fn(() => ({ content: <p>Saved result</p>, dispose }));
   const publication = { prepare: vi.fn(), recover };
-  const view = render(<SpaceInvadersGame publication={publication} recovery={{ clientRunId: input.clientRunId, onClose: vi.fn() }} />);
+  const view = render(<SpaceInvadersSavedResult publication={publication} recovery={{ clientRunId: input.clientRunId, onClose: vi.fn() }} />);
   await screen.findByText("Saved result");
-  view.rerender(<SpaceInvadersGame publication={publication} recovery={{ clientRunId: vectors.valid[1].input.clientRunId, onClose: vi.fn() }} />);
+  view.rerender(<SpaceInvadersSavedResult publication={publication} recovery={{ clientRunId: vectors.valid[1].input.clientRunId, onClose: vi.fn() }} />);
   await screen.findByText("Saved result");
   expect(dispose).toHaveBeenCalledTimes(1); expect(recover).toHaveBeenCalledTimes(2);
   view.unmount(); expect(dispose).toHaveBeenCalledTimes(2);
@@ -64,7 +64,7 @@ it("disposes a late-loaded session after leaving recovery", async () => {
   const dispose = vi.fn();
   let resolve!: (value: { content: null; dispose(): void }) => void;
   const pending = new Promise<{ content: null; dispose(): void }>(done => { resolve = done; });
-  const view = render(<SpaceInvadersGame publication={{ prepare: vi.fn(), recover: () => pending }} recovery={{ clientRunId: input.clientRunId, onClose: vi.fn() }} />);
+  const view = render(<SpaceInvadersSavedResult publication={{ prepare: vi.fn(), recover: () => pending }} recovery={{ clientRunId: input.clientRunId, onClose: vi.fn() }} />);
   expect(screen.getByRole("status")).toHaveTextContent("Opening saved result");
   view.unmount();
   await act(async () => { resolve({ content: null, dispose }); await pending; });

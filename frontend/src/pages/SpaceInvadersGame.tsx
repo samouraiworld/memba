@@ -1,17 +1,16 @@
 import type { SpaceInvadersPublication } from "../games/space-invaders/lib/freePlayPublication";
-import { SavedFreePlayResult } from "../games/space-invaders/screens/SavedFreePlayResult";
+import { useSpaceInvadersPublication } from "../games/space-invaders/lib/useSpaceInvadersPublication";
 import SpaceInvaders from "../games/space-invaders/SpaceInvaders";
 import type { SpaceInvadersLaunchIntent, SpaceInvadersReplayResult } from "../games/space-invaders/lib/launch";
 
-/** Explicit local boundary for the future Arcade host; no URL launch command. */
-export default function SpaceInvadersGame({ launch, onReplayReady, onLaunchConsumed, publication, recovery }: {
-  publication?: SpaceInvadersPublication;
-  /** Explicit host selection from A's shared saved-results index; not a launch. */
-  recovery?: { clientRunId: string; onClose(): void };
+/** The engine stays mounted when the provider's saved-result selection changes.
+ * Mount SpaceInvadersSavedResult separately in Your runs to inspect an archive. */
+export default function SpaceInvadersGame({ launch, onReplayReady, onLaunchConsumed, publication }: {
+  publication?: SpaceInvadersPublication | null;
   launch?: SpaceInvadersLaunchIntent;
   onLaunchConsumed?: (id: string) => void;
   onReplayReady?: (result: SpaceInvadersReplayResult) => void;
 }) {
-  if (recovery) return <SavedFreePlayResult key={recovery.clientRunId} clientRunId={recovery.clientRunId} publication={publication} onClose={recovery.onClose} />;
-  return <SpaceInvaders publication={publication} launch={launch} onReplayReady={onReplayReady} onLaunchConsumed={onLaunchConsumed} />;
+  const adapter = useSpaceInvadersPublication(publication);
+  return <SpaceInvaders publication={adapter} launch={launch} onReplayReady={onReplayReady} onLaunchConsumed={onLaunchConsumed} />;
 }

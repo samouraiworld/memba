@@ -1,3 +1,4 @@
+import "../space-invaders.css";
 import { useEffect, useState } from "react";
 import type { SpaceInvadersPreparedPublication, SpaceInvadersPublication } from "../lib/freePlayPublication";
 

@@ -12,12 +12,33 @@ B owns these game files and the page's optional `publication` prop. A owns
 `frontend/src/lib/arcadeFreePlay.ts`, `games/arcade/freeplay/**` and all shared
 backend code. D owns the shell and LaunchContext. No `config.ts` or gate changes
 are authorized here; concrete auth/config adaptation is coordinated through the Lead.
-This branch does not copy A's files into its base or import an unresolved shared
-module. It consumes the real A functions through an injected, narrow factory.
+The runtime consumer imports A's shared modules directly. This source lot now
+requires A3 `2bb27005173d9fb2b1a92f19769d11a78c4465f8` to be composed by Lead
+before its standalone build/merge: those modules are not in the older UX base
+of this draft. B does not copy A's sources or merge its branch. Targeted checks
+use an exact temporary B+A3 source composition, not a standalone build claim.
 The shared session remains the sole owner of verify/quote/publish/retry/auth
 invalidation, persistence, receipt checking and publication status.
 
-Binding after A3 is composed (API read at `179ffcfe55f829ffdaecd63b24008383654614fd`):
+## Neutral runtime consumer
+
+After A3 is composed, `SpaceInvadersGame` calls the shared `useFreePlayRuntime()`
+through B's `useSpaceInvadersPublication`. It consumes only
+`runtime.games["space-invaders"]`, requiring the exact supported rules/version.
+No endpoint, auth bridge, client, network or realm is constructed in this hook.
+The host owns stable runtime/client/storage lifetimes. Explicit `publication`
+wins, `null` disables, and `undefined` uses the provider. No provider means the
+existing local game. Changing `runtime.recovery` never replaces/remounts the
+engine: the game page deliberately ignores saved-result selection.
+
+With a client, B uses A's real snapshot/session/result functions. Without a
+client, it still persists via A's `saveFreePlaySnapshot` and shared index, showing
+a local-only result without verification/publication actions or confirmation.
+It does not manufacture a fake client or second publication controller. A stored
+receipt is labelled saved, never freshly confirmed. Recovery under a later
+configured runtime can load that same UUID and request readback explicitly.
+
+Custom injection remains available for explicit props (A3 API at `2bb27005`):
 
 ```tsx
 import { createSpaceInvadersPublication } from "../games/space-invaders/lib/freePlayPublication";
@@ -54,7 +75,8 @@ local gameplay and its score survive. The result offers a local JSON export;
 the cap-plus-one recorder overflow is labelled incomplete in that export.
 Neither a local replay check nor an exported package is a mainnet receipt.
 The shared panel alone may label a score confirmed after its verified readback.
-No adapter prop means no publication panel or service action.
+No explicit adapter and no configured provider means no publication panel or
+service action. Explicit `publication={null}` opts out of the provider.
 
 ## Stable run identity
 
@@ -82,7 +104,8 @@ The consumer exposes `publication.recover(clientRunId)` when the factory receive
 Promise, must be A's bounded validated loader, and returns an existing snapshot
 or null. `inputOf` only projects `snapshot.input` for B's game/rules/version/codec
 and UUID equality checks. Recovery calls the same A `createSession(snapshot)`
-and `FreePlayResult`; it never calls `createSnapshot`, creates an identity,
+and `FreePlayResult` when a client exists (otherwise A's local saved snapshot);
+it never calls `createSnapshot`, creates an identity,
 replays a simulation or sends API work. A alone validates/persists the full
 snapshot and owns receipt state. Its recovered controller starts `saved`, even
 when the stored snapshot contains a confirmed receipt.
@@ -95,17 +118,26 @@ const saved = listFreePlaySnapshots(storage, {
 // The host displays saved.snapshots, unavailable, total and nextOffset.
 // An explicit selection supplies snapshot.input.clientRunId as selectedId.
 // No query-string launch or independent game-owned index.
-<SpaceInvadersGame
-  publication={publication}
+<SpaceInvadersSavedResult
   recovery={{ clientRunId: selectedId, onClose: returnToSavedResults }}
 />
+// Optional publication prop overrides the provider; null disables it.
+// Optional recovery prop overrides provider recovery; null closes this view.
 ```
 
-This explicit page mode mounts only `SavedFreePlayResult`, not the game. Any
-pending `launch` prop is neither consumed nor run while recovery is selected.
-The host must clear stale launch intent before leaving this mode; selecting a
-saved result is not a request to discard a live run. Only offer this transition
-from the saved-results host after explicitly leaving gameplay.
+`SpaceInvadersSavedResult` is exported from
+`screens/SpaceInvadersSavedResult.tsx`. Mount it separately inside Arcade > Your
+runs, never by retargeting an existing `game:*` window. It does not import an
+engine or accept a Play/launch prop. With no explicit recovery it selects only
+`runtime.recovery.game === "space-invaders"`; other games render nothing.
+
+The old `SpaceInvadersGame recovery` prop is removed from this draft contract
+because its conditional return could unmount a live engine. Keep the existing
+game window/key/instance mounted, using the host's existing hidden/inert and
+WindowActivityContext(false) lifecycle while viewing Your runs. Return closes
+only the saved-result view and lets the host restore list focus. Returning to
+the game requires explicit Resume and never synthesizes Play. The consumer
+ships its own styles; no engine import is needed to style the isolated panel.
 
 The adapter must remain stable between renders. The view retains one prepared
 session until UUID/adapter changes or unmount. A session that arrives after
@@ -130,7 +162,7 @@ committed source exported to a temporary directory):
 node src/games/space-invaders/lib/testdata/verify-shared-recovery.mjs /path/to/A/repository
 ```
 
-It exercises the real shared save/index/load/session/result code: selected UUID
+It exercises B's actual runtime adapter and A's real shared save/index/load/session/result code: selected UUID
 opens without a new snapshot or automatic I/O, stored receipt stays unconfirmed,
 explicit refresh validates a fake injected response before confirmation, then
 subscriptions are disposed. No service, browser or transaction is involved.
