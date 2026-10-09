@@ -19,6 +19,7 @@ import type { NativeViewProps } from "../../native/types"
 import { OS_ORIGIN } from "../../osSiteIdentity"
 import { classicForSection, osTargetForClassic, sectionForClassic } from "../../page/classicRoute"
 import { specForTarget, urlForWindow, type WindowSpec } from "../../shell/windows"
+import { CommunityNews } from "../../community/CommunityNews"
 import "./news.css"
 
 const sections = [
@@ -42,7 +43,7 @@ function Tags({ tags }: { tags: readonly string[] }) {
     return <ul className="os-news-tags" aria-label="Tags">{tags.map((tag) => <li key={tag}><Pill tone="neutral">{tag}</Pill></li>)}</ul>
 }
 
-function BlogView({ openArticle }: { openArticle: (slug: string) => void }) {
+function BlogView({ openArticle, active }: { openArticle: (slug: string) => void; active: boolean }) {
     const { articles } = useBlogArticles()
     return <>
         <header className="os-news-head">
@@ -52,10 +53,11 @@ function BlogView({ openArticle }: { openArticle: (slug: string) => void }) {
             </div>
             <a className="os-btn os-quiet" href="/blog.rss" target="_blank" rel="noopener noreferrer">RSS feed <span aria-hidden="true">↗</span></a>
         </header>
+        <CommunityNews active={active} />
         {articles.length === 0
             ? <Empty title="No articles have been published yet." />
             // Newest first; the first one spans the grid (news.css).
-            : <ul className="os-news-grid">{articles.map((article) => <li key={article.slug}>
+            : <ul className="os-news-grid" aria-label="Blog articles">{articles.map((article) => <li key={article.slug}>
                 <Card>
                     <div className="os-news-card">
                         <p className="os-sub">{formatNewsDate(article.date)} <span aria-hidden="true">·</span> {readingTime(article.body)}</p>
@@ -205,7 +207,7 @@ export default function NewsWindow({ section, query, session, active, open, push
             // The Changelogs entry while on the changelog is the current page: no new history entry, and its filter stays.
             onSelect={(id) => { if (id !== "changelogs" || view.kind !== "changelogs") go(id === "blog" ? null : id) }}>
             <div className="os-news" ref={root}>
-                {view.kind === "blog" && <BlogView openArticle={(slug) => follow(sectionForClassic("news", `blog/${slug}`))} />}
+                {view.kind === "blog" && <BlogView active={active} openArticle={(slug) => follow(sectionForClassic("news", `blog/${slug}`))} />}
                 {view.kind === "article" && <ArticleView key={view.slug} slug={view.slug}
                     active={active}
                     openLink={(event) => {

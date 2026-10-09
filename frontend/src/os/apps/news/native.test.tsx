@@ -92,7 +92,7 @@ describe("News window · Blog", () => {
         expect(within(nav).getByRole("button", { name: "Changelogs" })).not.toHaveAttribute("aria-current")
         expect(screen.getByRole("heading", { level: 1, name: "Blog" })).toBeInTheDocument()
 
-        const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)
+        const titles = within(screen.getByRole("list", { name: "Blog articles" })).getAllByRole("heading", { level: 2 }).map((h) => h.textContent)
         expect(titles).toEqual(BLOG_ARTICLES.map((a) => a.title))
         const first = BLOG_ARTICLES[0]
         const card = screen.getByRole("button", { name: first.title }).closest("li")!
@@ -101,7 +101,7 @@ describe("News window · Blog", () => {
         expect(within(card).getByRole("list", { name: "Tags" })).toHaveTextContent(first.tags.join(""))
 
         // Nine articles share the newest date: none of them is called the latest.
-        expect(screen.queryByText(/latest/i)).toBeNull()
+        expect(screen.queryByText(/^latest$/i)).toBeNull()
         expect(screen.queryByRole("button", { name: /connect/i })).toBeNull()
         const rss = screen.getByRole("link", { name: /RSS feed/ })
         expect(rss).toHaveAttribute("href", "/blog.rss")
@@ -113,7 +113,7 @@ describe("News window · Blog", () => {
         serve([])
         renderNews("/os/news")
         expect(screen.getByText("No articles have been published yet.")).toBeInTheDocument()
-        expect(screen.queryByRole("heading", { level: 2 })).toBeNull()
+        expect(screen.queryByRole("list", { name: "Blog articles" })).toBeNull()
     })
 
     it("opens an article in the same window with focus on its title, and goes back to the card it came from", () => {
