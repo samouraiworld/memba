@@ -6,9 +6,10 @@ import type { NotesReadClient } from './client'
 import type { NotesQuoteProvider } from './request'
 
 /**
- * Conservative budgets calibrated against the product keeper on e75fef82c,
+ * Estimates calibrated against public-history source 878cf4f on keeper e75fef82c,
  * at 100 ugnot/byte. These are estimates, not a simulation or a promised refund.
  * The transaction's fee and max_deposit remain the actual spending limits.
+ * Samples do not bound arbitrary future index growth; ante fees are separate.
  * Deployment approval must repeat these measurements against the final source.
  */
 export function publicNoteBudget(message: AminoMsg): { gasWanted: number; estimatedDepositUgnot: string; suggestedCapUgnot: string } {
@@ -25,8 +26,9 @@ export function publicNoteBudget(message: AminoMsg): { gasWanted: number; estima
         case 'SetPublicWrites': check(args.length === 4); break
         default: throw new NotesChainError('format')
     }
-    // No expected refund is deducted: an update may allocate fresh index/receipt nodes.
-    const estimate = (bytes + 18_000) * 100
+    // Current content plus immutable history, with room for metadata/index/receipt nodes.
+    // No expected refund is deducted from this estimate.
+    const estimate = (2 * bytes + 40_000) * 100
     return {
         gasWanted: Math.ceil((60_000_000 + bytes * 2_200) / 1_000_000) * 1_000_000,
         estimatedDepositUgnot: String(estimate),

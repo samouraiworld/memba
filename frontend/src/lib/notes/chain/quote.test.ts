@@ -3,18 +3,45 @@ import { publicNoteBudget, publicNoteQuote, gnotAmount, parseGnotCap } from './q
 import { encode64, NOTES_REALM } from './schema'
 import type { NotesReadClient } from './client'
 import type { AminoMsg } from '../../grc20'
+import { publicCommentBudget } from './commentQuote'
+import measured from './__fixtures__/history-economics.json'
 const io = vi.hoisted(() => ({ price: vi.fn(async () => '"100ugnot"'), fee: vi.fn(async () => 100000) }))
 vi.mock('../../dao/packageStatus', () => ({ abciQueryText: io.price }))
 vi.mock('../../grc20', () => ({ freshFeeForGasWanted: io.fee }))
 vi.mock('../../rpcFallback', () => ({ getRpcUrlsInOrder: () => ['https://rpc.example'] }))
 const create = (size: number): AminoMsg => ({ type: 'vm/MsgCall', value: { caller: '', send: '', pkg_path: NOTES_REALM, func: 'CreateNote', args: ['', '3', encode64(new TextEncoder().encode('Whitepaper')), encode64(new Uint8Array(size)), '', '', '', ''], max_deposit: '20000000ugnot' } })
+function measuredMessage(row: typeof measured.rows[number]): AminoMsg {
+    const first = encode64(new Uint8Array(row.titleOrAnchorBytes)), body = encode64(new Uint8Array(row.bodyBytes))
+    const args: Record<string, string[]> = {
+        CreateNote: ['', '4', first, body, '', '', '', ''],
+        Commit: ['', '1', '0', String((row.titleOrAnchorBytes ? 1 : 0) | (row.bodyBytes ? 2 : 0)), first, body, ''],
+        Rename: ['', '1', '0', first, ''], Delete: ['', '1', ''], SetPublicWrites: ['', '1', 'true', ''],
+        AddComment: ['', '', '1', '0', '', first, body, ''], DeleteComment: ['', '', '1', ''],
+        HideComment: ['', '', '1', 'true', ''], ResolveComment: ['', '', '1', 'true', ''],
+    }
+    if (!args[row.func]) throw new Error('Unsupported measurement')
+    return { type: 'vm/MsgCall', value: { pkg_path: NOTES_REALM, func: row.func, args: args[row.func] } }
+}
 describe('product-calibrated public estimates', () => {
-    it.each([[2048, 27081330, 956500], [40960, 95655915, 4942100], [65536, 139526684, 7398500], [131072, 255660598, 13950900]])('covers observed product create %i bytes without claiming simulation', (bytes, gas, deposit) => {
-        const budget = publicNoteBudget(create(bytes))
-        expect(budget.gasWanted).toBeGreaterThan(gas)
+    it.each(measured.rows)('covers history keeper sample $case without claiming simulation', row => {
+        const message = measuredMessage(row)
+        const budget = row.func.includes('Comment') ? publicCommentBudget(message) : publicNoteBudget(message)
+        expect(budget.gasWanted).toBeGreaterThan(row.keeperGas)
         expect(budget.gasWanted).toBeLessThanOrEqual(500000000)
-        expect(BigInt(budget.estimatedDepositUgnot)).toBeGreaterThan(BigInt(deposit))
+        expect(BigInt(budget.estimatedDepositUgnot)).toBeGreaterThan(BigInt(Math.max(0, row.storageDepositDeltaUgnot)))
         expect(BigInt(budget.suggestedCapUgnot)).toBeGreaterThan(BigInt(budget.estimatedDepositUgnot))
+    })
+    it('rejects the obsolete pre-history cap even for a small public note', async () => {
+        const client = { chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient
+        const message = create(2048); message.value.max_deposit = '2260000ugnot'
+        await expect(publicNoteQuote(client, '2260000')({ chainId: client.chainId, message, requestDigest: 'a'.repeat(64), height: '42' })).rejects.toThrow()
+    })
+    it('does not claim the note/comment profiles cover publication, policy or purge operations', () => {
+        for (const func of ['Publish', 'SetPolicy', 'Purge']) {
+            const message = create(0); message.value.func = func
+            expect(() => publicNoteBudget(message)).toThrow()
+            expect(() => publicCommentBudget(message)).toThrow()
+        }
     })
     it('binds estimates to messages, cap, chain and fresh network price', async () => {
         const client = { chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient
