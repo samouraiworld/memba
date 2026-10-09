@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Escrow panel test isolation (2026-10-09)
+- Keep contract lookup and archive read-back tests independent of live DAO RPC timing by mocking the dispute-routing read in the panel fixture.
+
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
 
