@@ -570,41 +570,55 @@ func main() {
 	// time.
 	arcadeEnabled := os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "true"
 	arcadeGames := arcade.ParseEnabledGames(os.Getenv("MEMBA_ARCADE_GAMES"))
+	// No Free play operator configuration is supplied by this dormant rollout.
+	var freePlayConfiguration *arcadeFreePlayConfig
+	var arcadeParent *arcade.Runner
 	var arcadeVerifier arcade.Verifier
-	if arcadeEnabled {
-		nodeBin := envOr("MEMBA_ARCADE_NODE_BIN", "node")
+	nodeConfig := arcade.Config{NodeBin: envOr("MEMBA_ARCADE_NODE_BIN", "node")}
+	if freePlayConfiguration != nil {
+		if !validArcadeFreePlayNode(freePlayConfiguration.Node) {
+			slog.Error("free play requires explicit worker limits; remains dormant")
+			freePlayConfiguration = nil
+		} else {
+			nodeConfig = freePlayConfiguration.Node
+		}
+	}
+	if arcadeEnabled || freePlayConfiguration != nil {
+		nodeBin := nodeConfig.NodeBin
 		if _, err := exec.LookPath(nodeBin); err != nil {
 			slog.Warn("MEMBA_ARCADE_SUBMIT_ENABLED set but node not on PATH — arcade submit stays disabled", "nodeBin", nodeBin, "error", err)
 			arcadeEnabled = false
-		} else if runner, err := arcade.NewRunner(arcade.Config{NodeBin: nodeBin}); err != nil {
+			freePlayConfiguration = nil
+		} else if runner, err := arcade.NewRunner(nodeConfig); err != nil {
 			slog.Error("arcade verify worker init failed — arcade submit disabled", "error", err)
 			arcadeEnabled = false
+			freePlayConfiguration = nil
 		} else {
+			arcadeParent = runner
 			arcadeVerifier = runner
-			defer func() { _ = runner.Close() }()
 			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin, "games", arcadeGames)
 		}
 	}
-	mux.Handle("/api/arcade/submit", rateLimitMiddleware("arcade_submit", arcade.HandleSubmit(arcade.SubmitConfig{
+	var freePlayRuntime *arcadeFreePlayRuntime
+	legacyArcadeHandler := rateLimitMiddleware("arcade_submit", arcade.HandleSubmit(arcade.SubmitConfig{
 		Enabled:      arcadeEnabled,
 		Store:        arcade.NewStore(database),
 		Auth:         svc,
 		Verifier:     arcadeVerifier,
 		EnabledGames: arcadeGames,
 		Limiter:      svc,
-	})))
+	}))
+	mux.Handle("/api/arcade/submit", legacyArcadeHandler)
 
-	// Free play v2 source preparation: explicitly dormant until quota/quote,
-	// transport and migration rollout have been reviewed. No production flag
-	// or key is introduced here; old daily routes retain their own behavior.
-	freePlayTarget := arcade.FreePlayTarget{ChainID: os.Getenv("GNO_CHAIN_ID"), Realm: arcade.FreePlayRealm}
-	freePlayStore, freePlayStoreErr := arcade.NewFreePlayStore(database, freePlayTarget)
-	if freePlayStoreErr == nil {
-		mux.Handle(arcade.FreePlayPrefix, arcade.NewFreePlayHandler(arcade.FreePlayHTTPConfig{
-			Enabled: false, Target: freePlayTarget, Store: freePlayStore, Auth: svc,
-		}))
+	// Nil config returns 404 without constructing v2 dependencies or doing I/O.
+	// svc is the existing signature/expiry/chain-aware REST authenticator.
+	var freePlayRuntimeErr error
+	freePlayRuntime, freePlayRuntimeErr = newArcadeFreePlayRuntime(ctx, freePlayConfiguration, arcadeFreePlayDependencies{Database: database, Auth: svc, Parent: arcadeParent})
+	if freePlayRuntimeErr != nil {
+		slog.Error("free play configuration refused; remains dormant")
+		freePlayRuntime, _ = newArcadeFreePlayRuntime(ctx, nil, arcadeFreePlayDependencies{})
 	}
-	// No FreePlayPublisher worker starts in this preparation change.
+	mux.Handle(arcade.FreePlayPrefix, freePlayRuntime.handler)
 
 	// BARRICADE day-close attester — writes the competitive board on-chain via a
 	// dedicated low-privilege gnokey key (attester-pays). DORMANT until BOTH
@@ -683,7 +697,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + port,
-		Handler:      c.Handler(mux),
+		Handler:      freePlayRuntime.wrap(c.Handler(mux)),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -731,6 +745,12 @@ func main() {
 
 	<-ctx.Done()
 	slog.Info("shutting down gracefully...")
+	// Stop admission, cancel and drain Arcade/HTTP work before bundle cleanup or
+	// SQLite checkpointing. A drain failure leaves files/WAL intact for recovery.
+	if err := shutdownArcadeHTTP(server, freePlayRuntime, arcadeParent, 10*time.Second); err != nil {
+		slog.Error("shutdown did not drain; preserving bundles and WAL", "error", err)
+		os.Exit(1)
+	}
 
 	// WAL checkpoint before shutdown — ensures all writes are flushed to main DB
 	// file. Skipped under Litestream (same ownership rule as the periodic one:
@@ -742,13 +762,6 @@ func main() {
 		} else {
 			slog.Info("WAL checkpoint completed")
 		}
-	}
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("forced shutdown", "error", err)
 	}
 
 	slog.Info("server stopped")
