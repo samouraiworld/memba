@@ -157,23 +157,17 @@ describe("SpaceInvaders shell", () => {
     expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: false, pause: false });
   });
 
-  it("does not carry menu or old-run taps into a newly armed run", () => {
+  it("does not carry menu taps beyond the one initial launch pulse", () => {
     render(<SpaceInvaders />);
     const surface = screen.getByRole("group", { name: /signal defense game surface/i });
     touch(surface, "pointerdown");
     touch(surface, "pointerup");
-    fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
+    fireEvent.click(screen.getByRole("button", { name: /free play/i }));
     flushFrame(0);
     flushFrame(20);
-    expect(advanceSpy).not.toHaveBeenCalled();
-    touch(surface, "pointerdown");
-    touch(surface, "pointerup");
-    fireEvent.click(screen.getByRole("button", { name: /change transmission/i }));
-    fireEvent.click(screen.getByRole("button", { name: /free play/i }));
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: true, pause: false });
     flushFrame(40);
-    flushFrame(60);
-    expect(advanceSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: /relay standing by/i })).toBeInTheDocument();
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: false, pause: false });
   });
 
   it("renders the HUD and a start prompt", () => {
@@ -205,31 +199,18 @@ describe("SpaceInvaders shell", () => {
     expect(screen.getByRole("button", { name: /play again/i })).toBeInTheDocument();
   });
 
-  it("waits for a mode choice, then starts on input without ticking the menu or armed idle state", () => {
+  it("keeps the menu idle, then starts immediately from Free play", () => {
     render(<SpaceInvaders />);
     flushFrame(0);
     flushFrame(500);
     expect(advanceSpy).not.toHaveBeenCalled();
-
-    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
     fireEvent.click(screen.getByRole("button", { name: /free play/i }));
-    expect(surface).toHaveFocus();
-    expect(screen.getByText(/space fire/i)).toBeInTheDocument();
-
+    expect(screen.getByRole("group", { name: /signal defense game surface/i })).toHaveFocus();
     flushFrame(750);
-    expect(advanceSpy).not.toHaveBeenCalled();
-
-    // hold ArrowRight (and tap Space) — the engine starts on first meaningful input
-    fireEvent.keyDown(surface, { key: "ArrowRight" });
-    fireEvent.keyDown(surface, { key: " " });
-
-    // frame 1 anchors the loop clock (0 elapsed ms → 0 fixed steps);
-    // frame 2 delivers ≥1 fixed step with the held input, starting the run
     flushFrame(800);
-
-    expect(screen.queryByText(/space fire/i)).not.toBeInTheDocument();
     expect(advanceSpy).toHaveBeenCalled();
-    expect(screen.queryByText(/game over/i)).not.toBeInTheDocument(); // playing, not dead
+    expect(screen.queryByRole("heading", { name: /relay standing by/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/game over/i)).not.toBeInTheDocument();
   });
 
   it("restores game-surface focus after mute and pause/resume controls", () => {
@@ -278,13 +259,12 @@ describe("SpaceInvaders shell", () => {
     );
   });
 
-  it("focuses the Daily action when returning to the transmission menu", () => {
-    render(<SpaceInvaders />);
-    fireEvent.click(screen.getByRole("button", { name: /free play/i }));
-    const change = screen.getByRole("button", { name: /change transmission/i });
-    change.focus();
-    fireEvent.click(change);
-    expect(screen.getByRole("button", { name: /daily run/i })).toHaveFocus();
+  it("focuses Free play when returning from results to the menu", () => {
+    render(<SpaceInvaders initialState={{ phase: "gameover" }} />);
+    const menu = screen.getByRole("button", { name: /^menu$/i });
+    menu.focus();
+    fireEvent.click(menu);
+    expect(screen.getByRole("button", { name: /free play/i })).toHaveFocus();
   });
 
   it("does not steal focus back when an interruption auto-pauses the game", () => {
