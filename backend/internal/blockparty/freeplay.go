@@ -77,7 +77,13 @@ func VerifyFreePlay(ctx context.Context, seed, actions string) (FreePlayResult, 
 	h := sha256.New()
 	for _, field := range fields {
 		var size [4]byte
-		binary.BigEndian.PutUint32(size[:], uint32(len(field)))
+		// State fields are decimal integers, a fixed domain or the standard
+		// modifier. Bound the encoding explicitly before narrowing its length.
+		length := len(field)
+		if length > 128 {
+			return FreePlayResult{}, errors.New("invalid_state_field")
+		}
+		binary.BigEndian.PutUint32(size[:], uint32(length))
 		_, _ = h.Write(size[:])
 		_, _ = h.Write([]byte(field))
 	}
