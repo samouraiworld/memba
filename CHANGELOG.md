@@ -28,7 +28,7 @@ Full changelogs are split by version range for easier navigation:
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
 - Notes remains disabled pending deployment and activation. The sushi recipe demonstration and desktop persistence foundations are validated locally; no recipe or Whitepaper is published by this change.
 ### Space Invaders direct play and fitted arena (#1580, 2026-10-09)
-- Start Free play or Daily with one action, fit the arena and HUD to the available area, offer game fullscreen, and retain locally checked replays when returning through the result menu.
+- Start Free play or Daily with one action, fit the arena and HUD to the available area, offer game fullscreen, pause safely when the terrain is too small, and retain locally checked replays when returning through the result menu.
 
 ### Live Radio playback recovery (#1575, 2026-10-09)
 - Play live Audius and Jamendo tracks even when Onyx omits them from the station schedule, using the station's current track instead of incorrectly reporting that nothing is on air.

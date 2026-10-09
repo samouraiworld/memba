@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 /** The browser API runs only in the button's trusted click, never at launch. */
-export function FullscreenButton({ root, onChange }: { root: RefObject<HTMLElement | null>; onChange: () => void }) {
+export function FullscreenButton({ root, onChange, onError, showError = true }: { root: RefObject<HTMLElement | null>; onChange: () => void; onError?: (message: string) => void; showError?: boolean }) {
   const [active, setActive] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -16,9 +16,10 @@ export function FullscreenButton({ root, onChange }: { root: RefObject<HTMLEleme
     return () => document.removeEventListener("fullscreenchange", changed);
   }, [root]);
   const supported = document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function";
+  const reportError = (message: string) => { setError(message); onError?.(message); };
   const toggle = async () => {
-    setError("");
-    if (!supported) { setError("Fullscreen is unavailable in this browser."); return; }
+    reportError("");
+    if (!supported) { reportError("Fullscreen is unavailable in this browser."); return; }
     const target = root.current;
     if (!target) return;
     setPending(true);
@@ -26,7 +27,7 @@ export function FullscreenButton({ root, onChange }: { root: RefObject<HTMLEleme
       if (document.fullscreenElement === target) await document.exitFullscreen();
       else await target.requestFullscreen();
     } catch {
-      setError("Fullscreen could not be changed. Try again or continue here.");
+      reportError("Fullscreen could not be changed. Try again, use portrait, or enlarge the window.");
     } finally { setPending(false); }
   };
   return <div className="si-fullscreen-control">
@@ -37,6 +38,6 @@ export function FullscreenButton({ root, onChange }: { root: RefObject<HTMLEleme
         <path d={active ? "M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6" : "M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6"} />
       </svg>
     </button>
-    {error && <p className="si-fullscreen-error" role="alert">{error}</p>}
+    {error && showError && <p className="si-fullscreen-error" role="alert">{error}</p>}
   </div>;
 }
