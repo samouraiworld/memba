@@ -31,8 +31,8 @@ function makeActorBuffers() {
                 const walk = reducedMotion ? 0 : (state.tick + alpha + e.id * 17) * .13
                 for (const { base, key, posed } of rig) {
                     const side = Math.sign(base.at[0]), swing = reducedMotion ? 0 : Math.sin(walk + (side < 0 ? Math.PI : 0))
-                    const leg = Math.abs(base.at[0]) >= .16 && base.at[1] < .7
-                    const arm = Math.abs(base.at[0]) >= .35 && base.at[1] >= .8 && base.at[1] <= 1.3
+                    const leg = base.motion === 'leg'
+                    const arm = base.motion === 'arm'
                     posed.at[0] = x + base.at[0]; posed.at[1] = base.at[1]
                     posed.at[2] = z + base.at[2] + (leg ? swing * .055 : arm ? -swing * .025 : 0)
                     posed.rotate![0] = (base.rotate?.[0] ?? 0) + (leg ? swing * .16 : arm ? -swing * .08 : 0)
@@ -106,10 +106,10 @@ function Scene({ session, reducedMotion, light, onReady, onFailure, running }: P
     }, -1)
     const dusk = light === 'dusk'
     return <>
-        <color attach="background" args={[dusk ? '#c1b6a9' : '#c8d1d5']} />
-        <fog attach="fog" args={[dusk ? '#c1b6a9' : '#c8d1d5', 29, 68]} />
-        <hemisphereLight args={[dusk ? '#ffe9cb' : '#ecf4ff', '#535852', 1.7]} />
-        <directionalLight position={[-12, 18, 8]} color={dusk ? '#ffd4a4' : '#ffffff'} intensity={2.1} />
+        <color attach="background" args={[dusk ? '#aea99b' : '#bbc9cf']} />
+        <fog attach="fog" args={[dusk ? '#aea99b' : '#bbc9cf', 29, 68]} />
+        <hemisphereLight args={[dusk ? '#ffe9cb' : '#ecf4ff', '#384d52', 1.05]} />
+        <directionalLight position={[-16, 12, 4]} color={dusk ? '#ffd4a4' : '#ffffff'} intensity={2.3} />
         <StaticBatches parts={street} />
         {actorKeys.map(key => {
             const [shape, finish] = key.split(':') as [Shape, Finish]

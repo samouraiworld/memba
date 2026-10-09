@@ -62,7 +62,7 @@ function Batch({ shape, finish, parts, read, capacity }: { shape: Shape; finish:
         mesh.count = items.length
         for (let i = 0; i < items.length; i++) {
             const p = items[i], o = scratch.object
-            o.position.set(...p.at); o.rotation.set(...(p.rotate ?? [0, 0, 0])); o.scale.set(...p.size); o.updateMatrix()
+            o.position.set(...p.at); o.rotation.set(...(p.rotate ?? [0, 0, 0]), p.rotationOrder ?? 'XYZ'); o.scale.set(...p.size); o.updateMatrix()
             mesh.setMatrixAt(i, o.matrix); mesh.setColorAt(i, scratch.color.set(p.color))
         }
         mesh.instanceMatrix.needsUpdate = true
