@@ -93,7 +93,7 @@ const ALLOWLIST: Pin[] = [
     { file: "hooks/useRecentSubmissions.ts", allow: ["mainnet"], why: "The C2b Directory read is intentionally enabled only for the mainnet route, with no polling." },
     { file: "components/directory/RecentSubmissionsSection.tsx", allow: ["mainnet"], why: "Submission rows are omitted on Pearl and other networks; editorial Directory content remains separate." },
     { file: "lib/directorySeeds.ts", allow: ["mainnet"], why: "Date-checked editorial source paths for mainnet, separate from runtime eligibility; historical references remain labeled." },
-    { file: "lib/ecosystemDirectory.ts", allow: ["mainnet", "staging"], why: "Editorial evidence and fixed external realm destinations; not runtime defaults, capability eligibility or backend network pins." },
+    { file: "lib/ecosystemDirectory.ts", allow: ["mainnet", "staging", "onyx"], why: "Gnogolf external Onyx evidence and editorial testnet filter only, additionally pinned to exact reviewed source fragments below; no runtime default, route, RPC or capability allowance." },
     { file: "lib/appCatalogue.ts", allow: ["mainnet", "staging"], why: "Display-only catalogue availability and filters for registry or editorial entries, derived from the selected network and editorial evidence; no runtime network default or write gate." },
     { file: "os/apps/store/native.tsx", allow: ["mainnet"], why: "Display-only availability for a directly opened registry listing; registry reads still use the selected OS network and its allowlisted realm." },
     { file: "components/appstore/EcosystemDirectory.tsx", allow: ["mainnet"], why: "Availability filter option only; does not switch Memba's selected network." },
@@ -225,6 +225,28 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")
 
 const LITERAL = new RegExp(`["'\`](${NETWORK_NAMES.map(escapeRe).join("|")})["'\`]`, "g")
 
+// Onyx is reviewed only for these three exact editorial fragments. Replacing
+// each once keeps additional/default/route/RPC occurrences visible to the guard.
+const REVIEWED_GNOGOLF_ONYX = [
+    `export type EcosystemNetwork = "mainnet" | "staging" | "onyx"`,
+    `    { id: "gnogolf", name: "Gnogolf", category: "Games", kind: "app", networks: ["onyx"], arcade: true,
+        url: "https://gnogolf.xyz/", status: "External mini-golf", availability: "Onyx testnet · external site",
+        description: "Play mini-golf on the Onyx testnet in its own site. The site offers play without a wallet and signed round records.",
+        sourceUrl: "https://github.com/alexiscolin/gno-golf",
+        evidence: { url: "https://gnogolf.xyz/", checkedAt: "2026-10-09" } },`,
+    `export function hasEditorialTestnet(networks: readonly EcosystemNetwork[] = []): boolean {
+    return networks.includes("staging") || networks.includes("onyx")
+}`,
+]
+function unreviewedEditorialOnyx(source: string): string[] {
+    let remaining = stripComments(source)
+    for (const fragment of REVIEWED_GNOGOLF_ONYX) {
+        const reviewed = stripComments(fragment)
+        remaining = remaining.replace(reviewed, reviewed.replace('"onyx"', '"editorial-network-reviewed"'))
+    }
+    return [...remaining.matchAll(LITERAL)].map(match => match[1]).filter(name => name === "onyx")
+}
+
 /** file -> the network names it mentions in real (non-comment) code. */
 const found = new Map<string, Set<string>>()
 for (const rel of walk(SRC)) {
@@ -274,6 +296,18 @@ describe("network-pin drift guard", () => {
             }
         }
         expect(violations, `\n\n  ${violations.join("\n\n  ")}\n`).toEqual([])
+    })
+
+    it("restricts editorial Onyx to the reviewed Gnogolf entry, type and filter", () => {
+        const source = readFileSync(path.join(SRC, "lib/ecosystemDirectory.ts"), "utf8")
+        expect(unreviewedEditorialOnyx(source)).toEqual([])
+        // Same-file additions cannot hide behind the inventory's file allowance.
+        for (const pin of ['const defaultNetwork = "onyx"', 'const routeNetwork = "onyx"', 'const rpcNetwork = "onyx"']) {
+            expect(unreviewedEditorialOnyx(`${source}\n${pin}`)).toEqual(["onyx"])
+        }
+        // A changed external destination is no longer the reviewed evidence.
+        expect(unreviewedEditorialOnyx(source.replace('url: "https://gnogolf.xyz/"', 'url: "https://other.example/"'))).toEqual(["onyx"])
+        expect(unreviewedEditorialOnyx(source + "\n" + REVIEWED_GNOGOLF_ONYX[1])).toEqual(["onyx"])
     })
 
     it("every allowlist entry still exists — no stale pins", () => {

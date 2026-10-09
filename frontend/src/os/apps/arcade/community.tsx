@@ -9,7 +9,7 @@ export function CommunityGames({ games = COMMUNITY_GAMES }: { games?: readonly E
         <div className="os-cin-grid">
             {games.map((game) => {
                 const media = resolveMedia(game.id, null, game.id)
-                return <CoverCapsule key={game.id} title={game.name} pitch={game.description} cover={media.cover} accent={media.accent} tags={[]}
+                return <CoverCapsule key={game.id} title={game.name} pitch={game.description} cover={media.cover} accent={media.accent} tags={[game.availability]}
                     costTag={{ label: "External ↗", tone: "warn" }} href={game.url} linkLabel={`Visit ${game.name} (opens in a new tab)`} />
             })}
         </div>

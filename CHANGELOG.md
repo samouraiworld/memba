@@ -23,6 +23,11 @@ Full changelogs are split by version range for easier navigation:
 ### Escrow panel test isolation (2026-10-09)
 - Keep contract lookup and archive read-back tests independent of live DAO RPC timing by mocking the dispute-routing read in the panel fixture.
 
+### Store logo contrast (2026-10-09)
+- Give transparent GnoSwap, Kourt, Boards and Playground logos contrasting backgrounds in Store cards/details and the ecosystem directory, retaining their original artwork and showing the full mark without cropping.
+
+### External games in Arcade (2026-10-09)
+- Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
 
