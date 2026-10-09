@@ -30,6 +30,12 @@ vi.mock("../../lib/marketplace/escrowState", async (importOriginal) => ({
     readEscrowContract,
     readEscrowPauseState: async () => ({ paused: false, exitsOpen: true, exitsReopenAt: 0, pausedBlocks: 0 }),
 }))
+// The page only presents DAO dispute routing. Do not let this fourth read in
+// ContractDetail's Promise.all reach a real RPC while the other three are mocks.
+vi.mock("../../lib/dao/membaGov", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/dao/membaGov")>()),
+    readEscrowDecidedByDao: async () => false,
+}))
 vi.mock("../../lib/dao/proposalDates", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/dao/proposalDates")>()),
     getCurrentBlock: async () => 1_000,
