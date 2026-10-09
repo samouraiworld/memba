@@ -1,9 +1,16 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type CSSProperties } from "react";
 import { newGame, comboMultiplier10, type GameState } from "./engine";
 import { advanceWithEvents, drainAccumulator } from "./hooks/useGameLoop";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useTouch } from "./hooks/useTouch";
+import { usePlayfieldSize } from "./hooks/usePlayfieldSize";
+import type { SpaceInvadersLaunchIntent, SpaceInvadersReplayResult } from "./lib/launch";
 import { Canvas } from "./render/Canvas";
+import { freePlayInputFromResult, SpaceInvadersFreePlayError } from "./lib/freePlayCodec";
+import { createFreePlayIdentity, persistFreePlayIdentity, type FreePlayRunIdentity } from "./lib/freePlayIdentity";
+import type { SpaceInvadersPublication, SpaceInvadersPreparedPublication } from "./lib/freePlayPublication";
+import { FreePlayPublication } from "./screens/FreePlayPublication";
+import { FullscreenButton } from "./screens/FullscreenButton";
 import { draw } from "./render/draw";
 import { createFx, fxChainCues, fxConsume, fxUpdate, type FxState } from "./render/fx";
 import { loadBest, saveBest } from "./lib/highScore";
@@ -23,7 +30,6 @@ import { simulateReplay, hashState } from "./lib/verify";
 import { combineInput, toWireDeltas, fromWireDeltas, MAX_CERTIFY_FINAL_TICK, MAX_CERTIFY_EVENTS } from "./lib/wire";
 import { isSpaceInvadersEnabled, isSpaceInvadersCertifyEnabled } from "../../lib/config";
 import { MenuScreen } from "./screens/MenuScreen";
-import { ReadyScreen } from "./screens/ReadyScreen";
 import { PausedScreen } from "./screens/PausedScreen";
 import { GameOverScreen } from "./screens/GameOverScreen";
 import type { RunMode } from "./screens/types";
@@ -67,7 +73,16 @@ interface RunResult {
 export default function SpaceInvaders({
   initialState,
   seed,
+  launch,
+  onReplayReady,
+  onLaunchConsumed,
+  publication,
 }: {
+  /** Inject A's shared publication consumer; omitted means no publication UI. */
+  publication?: SpaceInvadersPublication;
+  launch?: SpaceInvadersLaunchIntent;
+  onLaunchConsumed?: (id: string) => void;
+  onReplayReady?: (result: SpaceInvadersReplayResult) => void;
   initialState?: Partial<GameState>;
   // Fixed seed (e.g. tests). Omitted → a fresh random seed per free run, so no
   // two free games are identical. Daily runs derive their seed from the UTC
@@ -75,6 +90,10 @@ export default function SpaceInvaders({
   seed?: number;
 }) {
   const windowActive = useWindowActive();
+  // Commit activity before paint: a frame queued by the previous active render
+  // must not consume a launch or input after this window becomes inactive.
+  const windowActiveRef = useRef(windowActive);
+  useLayoutEffect(() => { windowActiveRef.current = windowActive; }, [windowActive]);
   const reducedMotion = prefersReducedMotion();
   // Stable initial seed for this mount (a plain value, safe to read during
   // render). seedRef holds the *current* run's seed and is mutated only in
@@ -92,12 +111,22 @@ export default function SpaceInvaders({
   const [muted, setMuted] = useState(() => loadMuted());
 
   // Daily-challenge state. The refs feed the rAF loop; mode/day/outcome are
-  // mirrored into React state for render. Free play records NOTHING — the
-  // recorder ref stays null, so the loop's certify path is a single null check.
+  // mirrored into React state for render. Both modes record a bounded replay;
+  // publishing a free run is a separate adapter, never an automatic side effect.
   const [mode, setMode] = useState<RunMode>("free");
   const [runArmed, setRunArmed] = useState(() => initialState?.phase != null && initialState.phase !== "ready");
   const [dailyDay, setDailyDay] = useState("");
+  const [replayOutcome, setReplayOutcome] = useState<SpaceInvadersReplayResult | null>(null);
+  const freeIdentityRef = useRef<FreePlayRunIdentity | null>(null);
+  const publicationRef = useRef(publication);
+  useEffect(() => { publicationRef.current = publication; }, [publication]);
+  const preparedRef = useRef<SpaceInvadersPreparedPublication | null>(null);
+  const [preparedPublication, setPreparedPublication] = useState<SpaceInvadersPreparedPublication | null>(null);
+  const [publicationIssue, setPublicationIssue] = useState<"certification_limit" | "replay_not_verified" | "save_unavailable" | null>(null);
+  useEffect(() => () => { preparedRef.current?.dispose(); }, []);
   const [dailyOutcome, setDailyOutcome] = useState<DailyOutcome | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const resultFocusPendingRef = useRef(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   // Cosmetic chain tracking from step events (the engine keeps only the live
   // combo). Presentation-only: never read by the simulation or the recorder.
@@ -120,6 +149,12 @@ export default function SpaceInvaders({
   const [howtoOpen, setHowtoOpen] = useState(false);
   const howtoRef = useRef<{ open: boolean; shownAt: number }>({ open: false, shownAt: 0 });
   const confirmRef = useRef<() => void>(() => {});
+  const launchRef = useRef<() => void>(() => {});
+  // The host delivers one pending intent and removes it on acknowledgement.
+  // Remember that current ID, not an unbounded history of user actions.
+  const lastConsumedLaunchId = useRef<string | null>(null);
+  const replayReadyRef = useRef(onReplayReady);
+  useEffect(() => { replayReadyRef.current = onReplayReady; }, [onReplayReady]);
 
   // Construct WebAudio inside the effect that owns it. This remains correct
   // under React StrictMode's setup → cleanup → setup development cycle and
@@ -151,14 +186,47 @@ export default function SpaceInvaders({
 
   const rootRef = useRef<HTMLElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const fieldSize = usePlayfieldSize(rootRef, fieldRef);
+  const [fullscreenError, setFullscreenError] = useState("");
+  // Below half the logical bitmap size, steering/targets are not usable.
+  // Protect independently of fullscreen support: browser permission may fail.
+  const measured = fieldSize.availableHeight > 0 || fieldSize.width > 0 || fieldSize.height > 0;
+  const spaceBlocked = measured && (fieldSize.width < 160 || fieldSize.height < 200);
+  const spaceBlockedRef = useRef(spaceBlocked);
+  const resumeReadyRef = useRef(false);
+  const showSpaceGuard = spaceBlocked && (state.phase !== "gameover" || menuOpen);
   const focusGameSurface = useCallback(() => {
     if (windowActive) areaRef.current?.focus({ preventScroll: true });
   }, [windowActive]);
   const onConfirm = useCallback(() => confirmRef.current(), []);
-  const getKeyInput = useKeyboard(areaRef, { onConfirm, active: windowActive });
+  const getKeyInput = useKeyboard(areaRef, { onConfirm, active: windowActive && !spaceBlocked });
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
   const { read: getTouchInput, consumeFire: consumeTouchFire, reset: resetTouchInput } = useTouch(areaRef as RefObject<HTMLElement>);
+
+  useLayoutEffect(() => {
+    spaceBlockedRef.current = spaceBlocked;
+    if (!spaceBlocked) return; // More room never resumes a run automatically.
+    // The protected rAF returns before normal audio reconciliation.
+    audioRef.current?.setDrone(false);
+    accRef.current = 0;
+    last.current = null;
+    resetTouchInput();
+    const cur = stateRef.current;
+    if (cur.phase === "playing" || (cur.phase === "ready" && runArmedRef.current)) {
+      resumeReadyRef.current = cur.phase === "ready";
+      const paused = { ...cur, phase: "paused" as const };
+      stateRef.current = paused;
+      setState(paused);
+    }
+  }, [spaceBlocked, resetTouchInput]);
+
+  useEffect(() => {
+    if (showSpaceGuard && windowActive && rootRef.current?.contains(document.activeElement)) {
+      rootRef.current.querySelector<HTMLElement>(".si-space-guard h2")?.focus({ preventScroll: true });
+    }
+  }, [showSpaceGuard, windowActive]);
 
   // Losing the page is an explicit pause boundary. No ticks or replay inputs
   // are consumed while the player cannot see or control the run.
@@ -194,20 +262,21 @@ export default function SpaceInvaders({
   }, [windowActive, resetTouchInput]);
 
   useEffect(() => {
-    if (!windowActive || (state.phase !== "paused" && state.phase !== "gameover")) return;
+    if (!windowActive || showSpaceGuard || menuOpen || (state.phase !== "paused" && state.phase !== "gameover")) return;
     const surface = areaRef.current;
-    if (!surface || !rootRef.current?.contains(document.activeElement)) return;
+    if (!surface || (!resultFocusPendingRef.current && !rootRef.current?.contains(document.activeElement))) return;
+    resultFocusPendingRef.current = false;
     const target = state.phase === "paused"
       ? surface.querySelector<HTMLElement>(".si-pause-sheet button")
       : surface.querySelector<HTMLElement>(".si-gameover h2");
     target?.focus({ preventScroll: true });
-  }, [windowActive, state.phase]);
+  }, [windowActive, state.phase, menuOpen, showSpaceGuard]);
 
   useEffect(() => {
-    if (!windowActive || state.phase !== "ready" || runArmed || !menuFocusPendingRef.current) return;
+    if (!windowActive || !menuOpen || !menuFocusPendingRef.current) return;
     menuFocusPendingRef.current = false;
     areaRef.current?.querySelector<HTMLElement>(".si-menu button")?.focus({ preventScroll: true });
-  }, [windowActive, state.phase, runArmed]);
+  }, [windowActive, menuOpen]);
 
   // Quantize steering to tenths AT THE INPUT SEAM (combineInput): the live
   // engine, the recorder, and the server's replay (which reconstructs move as
@@ -218,14 +287,14 @@ export default function SpaceInvaders({
     [getKeyInput, getTouchInput],
   );
 
-  // Snapshot the finished daily run: build the recorded log at the gameover
+  // Snapshot any finished run: build the recorded log at the gameover
   // tick, encode it to the certify wire form, and self-verify by re-simulating
   // the DECODED wire — precisely the simulation the server will run. A run past
   // the backend caps (>1h or >10k input changes) can never certify, so the
   // bounded re-sim is skipped and the run stays unverified.
-  const finishDailyRun = useCallback((final: GameState) => {
+  const finishRun = useCallback((final: GameState) => {
     const rec = recorderRef.current;
-    if (modeRef.current !== "daily" || !rec) return;
+    if (!rec) return;
     const seedStr = dailySeedStrRef.current;
     const log = rec.build(final.tick);
     const events = toWireDeltas(log);
@@ -235,11 +304,34 @@ export default function SpaceInvaders({
     if (withinCaps) {
       const sim = simulateReplay({
         version: REPLAY_VERSION,
-        seed: seedFromSeedString(seedStr),
+        seed: seedRef.current,
         finalTick: final.tick,
         inputs: fromWireDeltas(events),
       });
-      verified = sim.score === final.score && sim.hash === hashState(final);
+      verified = sim.state.phase === "gameover" && sim.firstGameoverTick === final.tick && sim.score === final.score && sim.hash === hashState(final);
+    }
+    const outcome: SpaceInvadersReplayResult = {
+      game: "space-invaders",
+      mode: modeRef.current, seed: seedRef.current, simVersion: REPLAY_VERSION,
+      ...(modeRef.current === "free" && freeIdentityRef.current ? { clientRunId: freeIdentityRef.current.clientRunId } : {}),
+      finalTick: final.tick, events, score: final.score,
+      hash: formatStateHash(hashState(final)), verified,
+    };
+    setReplayOutcome(outcome);
+    replayReadyRef.current?.(outcome);
+    if (modeRef.current !== "daily") {
+      const adapter = publicationRef.current;
+      if (adapter) {
+        try {
+          if (!freeIdentityRef.current || freeIdentityRef.current.seed !== outcome.seed) throw new Error("identity_unavailable");
+          const prepared = adapter.prepare(freePlayInputFromResult(freeIdentityRef.current.clientRunId, outcome));
+          preparedRef.current = prepared;
+          setPreparedPublication(prepared);
+        } catch (error) {
+          setPublicationIssue(error instanceof SpaceInvadersFreePlayError && (error.code === "certification_limit" || error.code === "replay_not_verified") ? error.code : "save_unavailable");
+        }
+      }
+      return;
     }
     setDailyOutcome({
       seed: seedStr,
@@ -264,6 +356,14 @@ export default function SpaceInvaders({
     let raf = 0;
     let lastPaintedState: GameState | null = null;
     const tick = (time: number) => {
+      if (!windowActiveRef.current) return;
+      launchRef.current();
+      if (spaceBlockedRef.current) {
+        last.current = null;
+        accRef.current = 0;
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       if (last.current == null) last.current = time;
       const frameMs = time - last.current;
       last.current = time;
@@ -272,14 +372,15 @@ export default function SpaceInvaders({
       if (phaseBeforeInput === "paused" || phaseBeforeInput === "gameover" ||
         (phaseBeforeInput === "ready" && !runArmedRef.current)) resetTouchInput();
       let input = getInput();
-      if (phaseBeforeInput !== "ready" || !runArmedRef.current) launchPendingRef.current = false;
+      if ((phaseBeforeInput !== "ready" && !(phaseBeforeInput === "paused" && resumeReadyRef.current)) || !runArmedRef.current) launchPendingRef.current = false;
       else if (launchPendingRef.current && !input.fire) input = { ...input, fire: true };
 
       // Pause edge handled once per frame (never per sub-step).
       if (input.pause) {
         const cur = stateRef.current;
         if (cur.phase === "playing" || cur.phase === "paused") {
-          const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
+          const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : resumeReadyRef.current ? "ready" : "playing";
+          resumeReadyRef.current = false;
           const next = { ...cur, phase };
           stateRef.current = next;
           setState(next);
@@ -311,7 +412,7 @@ export default function SpaceInvaders({
           launchPendingRef.current = false;
           const prev = stateRef.current;
           const engineInput = { move: input.move, fire: input.fire, pause: false };
-          // Daily mode: record the exact input the engine is about to consume,
+          // Both modes record the exact input the engine is about to consume,
           // stamped with the tick the replay will resolve it at (delta-encoded;
           // it covers all of this frame's sub-steps).
           if (recorderRef.current && prev.phase !== "gameover") {
@@ -353,7 +454,7 @@ export default function SpaceInvaders({
             setRunResult({ previousBest, bestChain: chainRef.current.best });
             audioRef.current?.play("gameOver");
             vibrate(120);
-            finishDailyRun(next);
+            finishRun(next);
           }
         }
       }
@@ -390,12 +491,12 @@ export default function SpaceInvaders({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [windowActive, getInput, finishDailyRun, focusGameSurface, consumeTouchFire, resetTouchInput]);
+  }, [windowActive, getInput, finishRun, focusGameSurface, consumeTouchFire, resetTouchInput]);
 
   // Reset into a fresh run. Daily seeds from the shared UTC day string (a
   // restart within the day REUSES the day's seed — the realm's re-attest only
-  // ever raises a score, so replaying the daily is safe); free play keeps the
-  // crypto-random per-run seed and records nothing. Plain handler (not
+  // ever raises a score, so replaying the daily is safe); free play keeps its
+  // crypto-random per-run seed. Both modes record the same input seam. Plain handler (not
   // memoized) — only ever called from click handlers.
   const closeOverlays = () => {
     launchPendingRef.current = false;
@@ -405,6 +506,18 @@ export default function SpaceInvaders({
   };
 
   const beginRun = (nextMode: RunMode) => {
+    if (spaceBlockedRef.current) {
+      if (stateRef.current.phase === "gameover") setMenuOpen(true);
+      return;
+    }
+    resumeReadyRef.current = false;
+    preparedRef.current?.dispose();
+    preparedRef.current = null;
+    setPreparedPublication(null);
+    setPublicationIssue(null);
+    freeIdentityRef.current = null;
+    setMenuOpen(false);
+    resultFocusPendingRef.current = false;
     resetTouchInput();
     closeOverlays();
     let nextSeed: number;
@@ -412,12 +525,12 @@ export default function SpaceInvaders({
       const seedStr = dailySeedString();
       dailySeedStrRef.current = seedStr;
       nextSeed = seedFromSeedString(seedStr);
-      recorderRef.current = createInputRecorder(nextSeed);
+      recorderRef.current = createInputRecorder(nextSeed, MAX_CERTIFY_EVENTS + 1);
       setDailyDay(seedStr.slice(-10));
     } else {
       dailySeedStrRef.current = "";
-      recorderRef.current = null;
       nextSeed = seed ?? newRunSeed();
+      recorderRef.current = createInputRecorder(nextSeed, MAX_CERTIFY_EVENTS + 1);
       setDailyDay("");
     }
     modeRef.current = nextMode;
@@ -425,8 +538,18 @@ export default function SpaceInvaders({
     runArmedRef.current = true;
     setRunArmed(true);
     setDailyOutcome(null);
+    setReplayOutcome(null);
     setRunResult(null);
     chainRef.current = createChainTracker();
+    if (nextMode === "free") {
+      try {
+        const identity = createFreePlayIdentity(nextSeed, globalThis.crypto);
+        freeIdentityRef.current = identity;
+        // A storage failure does not stop local play. A's terminal session must
+        // persist before it exposes any verification/publication action.
+        try { persistFreePlayIdentity(localStorage, identity); } catch { /* keep identity in memory */ }
+      } catch { /* no secure identity: preserve local play, never invent an ID */ }
+    }
     seedRef.current = nextSeed;
     const fresh = newGame(nextSeed);
     stateRef.current = fresh;
@@ -434,60 +557,85 @@ export default function SpaceInvaders({
     accRef.current = 0;
     fxRef.current = createFx(nextSeed, { reducedMotion });
     setState(fresh);
+    launchPendingRef.current = true;
+    // A browser may scroll the chooser into view on a short classic page.
+    // Starting a run must also bring its HUD back into the visible viewport.
+    if (rootRef.current && rootRef.current.getBoundingClientRect().top < 0) {
+      rootRef.current.scrollIntoView({ block: "start", inline: "nearest", behavior: "instant" });
+    }
     focusGameSurface();
   };
 
   const restart = () => beginRun(modeRef.current);
 
   const openMenu = () => {
+    // The menu is presentation only. Keep the finished snapshot and replay
+    // until the player explicitly starts another run (future publish/retry).
     menuFocusPendingRef.current = true;
     resetTouchInput();
-    closeOverlays();
-    const nextSeed = seed ?? newRunSeed();
-    modeRef.current = "free";
-    runArmedRef.current = false;
-    dailySeedStrRef.current = "";
-    recorderRef.current = null;
-    seedRef.current = nextSeed;
-    last.current = null;
-    accRef.current = 0;
-    fxRef.current = createFx(nextSeed, { reducedMotion });
-    const fresh = newGame(nextSeed);
-    stateRef.current = fresh;
-    setMode("free");
-    setRunArmed(false);
-    setDailyDay("");
-    setDailyOutcome(null);
-    setRunResult(null);
-    chainRef.current = createChainTracker();
-    setState(fresh);
+    setMenuOpen(true);
+  };
+
+  const returnToResult = () => {
+    resultFocusPendingRef.current = true;
+    setMenuOpen(false);
   };
 
   const togglePause = () => {
+    if (spaceBlockedRef.current) return;
     const cur = stateRef.current;
     if (cur.phase !== "playing" && cur.phase !== "paused") return;
     resetTouchInput();
-    const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
+    const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : resumeReadyRef.current ? "ready" : "playing";
+    resumeReadyRef.current = false;
     const next = { ...cur, phase };
     stateRef.current = next;
     setState(next);
     focusGameSurface();
   };
 
-  // Enter on the game surface: pick the primary (daily) transmission from the
+  // Enter on the game surface: pick the primary (free) transmission from the
   // menu, launch an armed run, resume a held one, or play again after game
   // over. Focused buttons keep their native Enter, so nothing fires twice.
   const handleConfirm = () => {
+    if (spaceBlockedRef.current) return;
     const cur = stateRef.current;
-    if (cur.phase === "gameover") restart();
+    if (menuOpen) beginRun("free");
+    else if (cur.phase === "gameover") restart();
     else if (cur.phase === "paused") togglePause();
     else if (cur.phase === "ready") {
-      if (!runArmedRef.current) beginRun("daily");
+      if (!runArmedRef.current) beginRun("free");
       else launchPendingRef.current = true;
     }
   };
   useEffect(() => {
     confirmRef.current = handleConfirm;
+    launchRef.current = () => {
+      if (!windowActive || !windowActiveRef.current) return;
+      if (!launch || launch.game !== "space-invaders" || lastConsumedLaunchId.current === launch.id) return;
+      if (document.visibilityState !== "visible" || document.querySelector('[aria-modal="true"], dialog[open]')) return;
+      const surface = areaRef.current;
+      if (!surface?.getBoundingClientRect().width) return;
+      lastConsumedLaunchId.current = launch.id;
+      if (spaceBlockedRef.current && stateRef.current.phase !== "gameover") {
+        // Acknowledge the store gesture, but require a fresh Play/Resume once
+        // space is available. No deferred auto-start after rotation/fullscreen.
+        rootRef.current?.querySelector<HTMLElement>(".si-space-guard h2")?.focus({ preventScroll: true });
+        onLaunchConsumed?.(launch.id);
+        return;
+      }
+      // Play from the store never discards an existing run OR its result.
+      if (runArmedRef.current) {
+        if (menuOpen) returnToResult();
+        const target = stateRef.current.phase === "paused"
+          ? surface.querySelector<HTMLElement>(".si-pause-sheet button")
+          : stateRef.current.phase === "gameover"
+            ? surface.querySelector<HTMLElement>(".si-gameover h2")
+            : surface;
+        target?.focus({ preventScroll: true });
+      } else beginRun(launch.mode);
+      onLaunchConsumed?.(launch.id);
+    };
   });
 
   const certifyOn = isSpaceInvadersEnabled() && isSpaceInvadersCertifyEnabled();
@@ -509,11 +657,12 @@ export default function SpaceInvaders({
       : state.phase === "gameover"
         ? `Signal lost. Final score ${state.score}.${runResult && isNewBest(state.score, runResult.previousBest) ? " New best." : ""}`
         : runArmed
-          ? `${mode === "daily" ? "Daily signal" : "Free signal"} armed. Use movement or fire to begin.`
+          ? `${mode === "daily" ? "Daily signal" : "Free signal"} starting.`
           : "Choose daily run or free play.";
 
   return (
-    <section className="si-root" aria-labelledby="si-title" ref={rootRef}>
+    <section className={`si-root si-root--fitted${fieldSize.landscape ? " si-root--landscape" : ""}`} aria-labelledby="si-title" ref={rootRef}
+      style={{ "--si-available-height": fieldSize.availableHeight ? `${fieldSize.availableHeight}px` : undefined } as CSSProperties}>
       <header className="si-heading">
         <div>
           <p className="si-eyebrow">Memba // Gno signal network</p>
@@ -522,13 +671,14 @@ export default function SpaceInvaders({
         </div>
         <div className={`si-phase si-phase--${state.phase}`}>
           <span aria-hidden="true" />
-          {phaseLabel}
+          {runArmed ? `${mode === "daily" ? `Daily · ${dailyDay}` : "Free play"} · ` : ""}{phaseLabel}
         </div>
+        <FullscreenButton root={rootRef} onChange={focusGameSurface} onError={setFullscreenError} showError={!showSpaceGuard} />
       </header>
 
       <div className="si-cabinet">
         <section className="si-console" aria-label="Space Invaders: Signal Defense arcade cabinet">
-          <div className="si-hud" aria-label="Current run status">
+          <div className="si-hud" aria-label="Current run status" inert={showSpaceGuard} aria-hidden={showSpaceGuard}>
             <div className="si-stat si-stat--score"><span>Score</span><strong>{state.score.toLocaleString()}</strong></div>
             <div className="si-stat si-stat--best"><span>Best</span><strong>{best.toLocaleString()}</strong></div>
             <div className="si-stat si-stat--wave"><span>Wave</span><strong>{state.wave}</strong></div>
@@ -571,8 +721,10 @@ export default function SpaceInvaders({
             </div>
           </div>
 
+          <div className="si-playfield" ref={fieldRef} inert={showSpaceGuard} aria-hidden={showSpaceGuard}>
           <div
-            className={`si-stage${state.phase === "playing" ? "" : " si-stage--overlay"}`}
+            style={fieldSize.width > 0 ? { width: fieldSize.width, height: fieldSize.height } : undefined}
+            className={`si-stage${state.phase === "playing" ? "" : " si-stage--overlay"}${fieldSize.height > 0 && fieldSize.height < 250 ? " si-stage--compact" : ""}`}
             ref={areaRef}
             role="group"
             tabIndex={0}
@@ -601,14 +753,11 @@ export default function SpaceInvaders({
                 <p className="si-howto-tip">Chain hits without missing to raise your multiplier</p>
               </div>
             )}
-            {state.phase === "ready" && !runArmed && (
-              <MenuScreen certifyOn={certifyOn} onDaily={() => beginRun("daily")} onFree={() => beginRun("free")} />
-            )}
-            {state.phase === "ready" && runArmed && (
-              <ReadyScreen mode={mode} dailyDay={dailyDay} onChangeTransmission={openMenu} />
+            {((state.phase === "ready" && !runArmed) || menuOpen) && (
+              <MenuScreen onReturnResult={menuOpen ? returnToResult : undefined} certifyOn={certifyOn} onDaily={() => beginRun("daily")} onFree={() => beginRun("free")} />
             )}
             {state.phase === "paused" && <PausedScreen onResume={togglePause} />}
-            {state.phase === "gameover" && (
+            {state.phase === "gameover" && !menuOpen && (
               <GameOverScreen
                 mode={mode}
                 day={dailyDay}
@@ -617,8 +766,10 @@ export default function SpaceInvaders({
                 previousBest={runResult?.previousBest ?? null}
                 shareUrl={shareUrlFromLocation(typeof window !== "undefined" ? window.location : undefined)}
                 reducedMotion={reducedMotion}
-                verification={dailyOutcome ? { day: dailyOutcome.day, verified: dailyOutcome.verified } : null}
-                certifySlot={certifyOn && mode === "daily" && dailyOutcome?.verified ? (
+                verification={replayOutcome ? { day: dailyDay, verified: replayOutcome.verified } : null}
+                certifySlot={mode === "free" && publication && replayOutcome ? (
+                  <FreePlayPublication result={replayOutcome} prepared={preparedPublication} issue={publicationIssue} onConnect={publication.connect} />
+                ) : certifyOn && mode === "daily" && dailyOutcome?.verified ? (
                   <Suspense fallback={null}>
                     <SpaceInvadersCertify
                       run={{
@@ -637,13 +788,21 @@ export default function SpaceInvaders({
               />
             )}
           </div>
+          </div>
+          {showSpaceGuard && <div className="si-space-guard" role="region" aria-live="polite" aria-label="More room to play">
+            <h2 tabIndex={-1}>More room to play</h2>
+            <p>Turn your phone to portrait or enlarge the window. You can also choose Game fullscreen above.</p>
+            {fullscreenError && <p role="alert">{fullscreenError}</p>}
+            <p>{state.phase === "gameover" ? "Your result is kept." : runArmed ? "Your run is paused and kept. Resume explicitly once there is more room." : "No run has started. Choose Play once there is more room."}</p>
+            {state.phase === "gameover" && <button type="button" className="si-button si-button--primary" onClick={returnToResult}>Back to result</button>}
+          </div>}
         </section>
 
-        <aside className="si-brief" aria-label="Operator briefing">
+        <aside className="si-brief si-sr-only" aria-label="Operator briefing">
           <section className="si-brief-card si-brief-card--status">
             <p className="si-brief-label">Current link</p>
             <strong>{phaseLabel}</strong>
-            <p>{mode === "daily" && runArmed ? `UTC signal ${dailyDay}` : runArmed ? "Unranked practice signal" : "No transmission selected"}</p>
+            <p>{mode === "daily" && runArmed ? `UTC signal ${dailyDay}` : runArmed ? "Free play signal" : "No transmission selected"}</p>
           </section>
           <section className="si-brief-card" id="si-controls">
             <p className="si-brief-label">Controls</p>
