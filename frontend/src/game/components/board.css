@@ -85,7 +85,18 @@
   );
   transition: transform var(--bp-slide) cubic-bezier(.25, .8, .35, 1);
 }
-.k-bp-tile-pos[data-kind="consumed"] { z-index: 0; }
+/* OS tile fills are translucent: z-index alone cannot hide merged sources.
+ * Keep them only during the slide, then hand off to the result. Hidden is the
+ * base state so reduced motion (or disabled animations) never leaves ghosts. */
+.k-bp-tile-pos[data-kind="consumed"] {
+  z-index: 0;
+  visibility: hidden;
+  animation: k-bp-consume var(--bp-slide) step-end both;
+}
+@keyframes k-bp-consume {
+  from { visibility: visible; }
+  to { visibility: hidden; }
+}
 .k-bp-tile-pos[data-kind="merged"] { z-index: 2; }
 .k-bp-tile-pos > .k-bp-tile { width: 100%; height: 100%; box-sizing: border-box; }
 
@@ -180,7 +191,7 @@
   animation: k-bp-spawn 150ms cubic-bezier(.2, .8, .2, 1) calc(var(--bp-slide) - 20ms) both;
 }
 .k-bp-tile[data-kind="merged"] {
-  animation: k-bp-merge 190ms cubic-bezier(.2, .8, .2, 1) calc(var(--bp-slide) - 30ms) both;
+  animation: k-bp-merge 190ms cubic-bezier(.2, .8, .2, 1) var(--bp-slide) both;
 }
 
 @keyframes k-bp-spawn {
