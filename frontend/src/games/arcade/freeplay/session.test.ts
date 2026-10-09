@@ -17,7 +17,7 @@ function setup() {
         subscribeIdentity: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } },
         bind: () => binding,
         verify: vi.fn(async () => structuredClone(run)), read: vi.fn(async () => structuredClone(run)),
-        quote: vi.fn(async () => structuredClone(quote)), publish: vi.fn(async () => ({ ...structuredClone(run), status: 'queued' as const })),
+        quote: vi.fn(async () => structuredClone(quote)), publish: vi.fn<FreePlayClient['publish']>(async () => ({ ...structuredClone(run), status: 'queued' as const })),
     } satisfies FreePlayClient
     const session = createFreePlaySession({ snapshot: createFreePlaySnapshot(input), storage, client, now: () => 20 })
     return { client, storage, saved, session, changed: () => { for (const listener of listeners) listener() } }
@@ -75,7 +75,7 @@ describe('Free play completed-run snapshots', () => {
         const second = createFreePlaySession({ snapshot: createFreePlaySnapshot({ ...input, clientRunId: '11111111-1111-4111-8111-111111111111' }), storage: s.storage, client: s.client })
         resolve(run); await pending
         expect(second.getSnapshot().snapshot.result).toBeUndefined()
-        expect(s.saved.size).toBe(2)
+        expect([...s.saved.keys()].filter(key => key.startsWith("memba:arcade:freeplay:v1:"))).toHaveLength(2)
         expect(() => createFreePlaySession({ snapshot: createFreePlaySnapshot({ ...input, replay: input.replay + 'Z' }), storage: s.storage, client: s.client })).toThrow('run_conflict')
     })
 })
@@ -114,4 +114,24 @@ it('requires fresh explicit consent for an expired queued quote and never renews
     await s.session.quote()
     expect(s.session.getSnapshot().phase).toBe('pending')
     expect(s.client.quote).toHaveBeenCalledTimes(2)
+})
+
+it('does not send if the shared index fails after consent was saved; reload retries the same consent', async () => {
+    const s = setup(); await s.session.verify(); await s.session.quote()
+    const save = s.storage.setItem
+    s.storage.setItem = (key, raw) => { if (key === 'memba:arcade:freeplay:index:v1') throw new DOMException('full', 'QuotaExceededError'); save(key, raw) }
+    await s.session.publish()
+    expect(s.client.publish).not.toHaveBeenCalled()
+    expect(s.session.getSnapshot().phase).toBe('error')
+    const saved = loadFreePlaySnapshot(s.storage, input.clientRunId)!
+    expect(saved.publication).toEqual({ payloadHash: quote.payloadHash, quoteId: quote.quoteId, nonce: quote.nonce })
+    s.session.dispose()
+    s.storage.setItem = save
+    const resumed = createFreePlaySession({ snapshot: saved, storage: s.storage, client: s.client, now: () => 2000 })
+    expect(resumed.getSnapshot().phase).toBe('saved')
+    await resumed.retryPublication()
+    expect(s.client.publish).toHaveBeenCalledTimes(1)
+    expect(s.client.publish.mock.calls[0][2]).toEqual(saved.publication)
+    expect(s.client.quote).toHaveBeenCalledTimes(1)
+    resumed.dispose()
 })

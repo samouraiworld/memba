@@ -74,3 +74,35 @@ lets the player review a new quote, then explicitly consent again. Until that
 click the old saved request is retained. The server atomically fences expired
 workers when replacing authorization; submitted/unknown outcomes cannot use this
 path. `canReauthorize` is deliberately not trusted or persisted across reload.
+
+### Shared recovery index
+
+`listFreePlaySnapshots(storage, { game?, offset?, limit? })` returns
+`{ snapshots, unavailable, total, nextOffset? }`. The limit defaults to10 and is
+bounded at20. The shared index retains20 recent IDs per game (60 total), with no
+tokens, identity revision, receipt or replay duplicated in it. The canonical
+snapshot keys remain unchanged. Every successful `saveFreePlaySnapshot`, including
+session persistence, updates this index. Consumers must use this API instead of a
+second per-game persistence system.
+
+After a reload or new run, a game or Your runs can list its saved results and pass
+a selected snapshot to `createFreePlaySession`. That session starts as `saved`;
+a stored receipt is never a fresh confirmation. The user requests `refresh` to
+recheck the same account/network. No API request, wallet connect or publication is
+triggered by listing. Resume the same saved publication request after ambiguity;
+do not silently obtain a new quote.
+
+The index is discovery metadata. Eviction only removes its old ID, never the
+canonical snapshot. Earlier unindexed snapshots remain loadable by a known UUID;
+opening/saving one indexes it. Storage provides no transactional cross-tab index
+merge: simultaneous writes may omit an ID from discovery while its canonical
+snapshot remains intact. Callers should refresh their list after storage events.
+A corrupt index fails closed. Missing/corrupt entries in a bounded page increment
+`unavailable` while intact results remain visible. No storage enumeration or
+unbounded migration is performed.
+
+If the snapshot write succeeds but the index write exceeds quota, persistence
+throws before any publication I/O. The canonical snapshot remains loadable by ID
+and may already contain consent; reopening it must preserve and retry that exact
+request. Keep a local export available when storage fails. This is a local saved
+results list, never a cross-game leaderboard.

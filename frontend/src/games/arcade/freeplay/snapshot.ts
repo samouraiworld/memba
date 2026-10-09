@@ -1,6 +1,6 @@
 import {
     FreePlayError, validFreePlayBinding, validFreePlayInput, validFreePlayPublishRequest, validFreePlayRun,
-    type FreePlayBinding, type FreePlayEntry, type FreePlayInput, type FreePlayPublishRequest, type FreePlayReceipt, type FreePlayRun,
+    type FreePlayBinding, type FreePlayEntry, type FreePlayGame, type FreePlayInput, type FreePlayPublishRequest, type FreePlayReceipt, type FreePlayRun,
 } from '../../../lib/arcadeFreePlay'
 
 export interface FreePlaySnapshot {
@@ -43,7 +43,20 @@ export function snapshotRun(snapshot: FreePlaySnapshot): FreePlayRun | undefined
 }
 export function saveFreePlaySnapshot(storage: SnapshotStorage, snapshot: FreePlaySnapshot): void {
     const clean = sanitizeSnapshot(snapshot)
+    // Read the bounded index before writing: corrupt metadata must not silently
+    // replace the list. The canonical snapshot remains the only run storage.
+    const index = readSnapshotIndex(storage)
+    const item = { clientRunId: clean.input.clientRunId, game: clean.input.game }
+    const counts = new Map<FreePlayGame, number>()
+    const recent = [item, ...index.filter(row => row.clientRunId !== item.clientRunId)].filter(row => {
+        const count = (counts.get(row.game) ?? 0) + 1
+        counts.set(row.game, count)
+        return count <= FREE_PLAY_RECENT_PER_GAME
+    })
     storage.setItem(key(clean.input.clientRunId), JSON.stringify(clean))
+    // A quota failure here surfaces to the caller before any publication I/O.
+    // The snapshot already written can still be exported or loaded by its ID.
+    storage.setItem(indexKey, JSON.stringify({ schemaVersion: 1, entries: recent }))
 }
 export function loadFreePlaySnapshot(storage: SnapshotStorage, id: string): FreePlaySnapshot | null {
     if (!/^[0-9a-f-]{36}$/.test(id)) throw new FreePlayError('invalid_snapshot')
@@ -55,4 +68,61 @@ export function loadFreePlaySnapshot(storage: SnapshotStorage, id: string): Free
     const snapshot = sanitizeSnapshot(decoded)
     if (snapshot.input.clientRunId !== id) throw new FreePlayError('invalid_snapshot')
     return snapshot
+}
+
+
+export const FREE_PLAY_RECENT_PER_GAME = 20
+const indexKey = 'memba:arcade:freeplay:index:v1'
+interface SnapshotIndexEntry { clientRunId: string; game: FreePlayGame }
+const games: readonly FreePlayGame[] = ['block-party', 'space-invaders', 'barricade']
+function readSnapshotIndex(storage: SnapshotStorage): SnapshotIndexEntry[] {
+    const raw = storage.getItem(indexKey)
+    if (raw === null) return []
+    if (raw.length > 16384) throw new FreePlayError('invalid_snapshot_index')
+    let decoded: unknown
+    try { decoded = JSON.parse(raw) } catch { throw new FreePlayError('invalid_snapshot_index') }
+    if (!object(decoded) || decoded.schemaVersion !== 1 || !Array.isArray(decoded.entries)
+        || decoded.entries.length > games.length * FREE_PLAY_RECENT_PER_GAME) throw new FreePlayError('invalid_snapshot_index')
+    const seen = new Set<string>()
+    const counts = new Map<FreePlayGame, number>()
+    return decoded.entries.map(row => {
+        if (!object(row) || typeof row.clientRunId !== 'string' || row.clientRunId.length !== 36
+            || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(row.clientRunId)
+            || !games.includes(row.game as FreePlayGame) || seen.has(row.clientRunId)) throw new FreePlayError('invalid_snapshot_index')
+        seen.add(row.clientRunId)
+        const game = row.game as FreePlayGame
+        const count = (counts.get(game) ?? 0) + 1
+        if (count > FREE_PLAY_RECENT_PER_GAME) throw new FreePlayError('invalid_snapshot_index')
+        counts.set(game, count)
+        return { clientRunId: row.clientRunId, game }
+    })
+}
+export interface FreePlaySavedRuns {
+    /** Saved data only. Construct a session and refresh before showing confirmed. */
+    snapshots: FreePlaySnapshot[]
+    /** Count of missing/corrupt snapshots in this page; never silently confirmed. */
+    unavailable: number
+    total: number
+    nextOffset?: number
+}
+/** At most20 snapshots per read; the index retains20 recent IDs per game.
+ * No API call, wallet connection, token access, polling or confirmation occurs.
+ */
+export function listFreePlaySnapshots(storage: SnapshotStorage, options: { game?: FreePlayGame; offset?: number; limit?: number } = {}): FreePlaySavedRuns {
+    const { game, offset = 0, limit = 10 } = options
+    if (game !== undefined && !games.includes(game) || !Number.isSafeInteger(offset) || offset < 0 || offset > 60
+        || !Number.isSafeInteger(limit) || limit < 1 || limit > 20) throw new FreePlayError('invalid_snapshot_query')
+    const rows = readSnapshotIndex(storage).filter(row => game === undefined || row.game === game)
+    const page = rows.slice(offset, offset + limit)
+    const snapshots: FreePlaySnapshot[] = []
+    let unavailable = 0
+    for (const row of page) {
+        try {
+            const snapshot = loadFreePlaySnapshot(storage, row.clientRunId)
+            if (!snapshot || snapshot.input.game !== row.game) { unavailable++; continue }
+            snapshots.push(snapshot)
+        } catch { unavailable++ }
+    }
+    const nextOffset = offset + page.length
+    return { snapshots, unavailable, total: rows.length, ...(nextOffset < rows.length ? { nextOffset } : {}) }
 }
