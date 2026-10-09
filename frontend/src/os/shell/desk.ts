@@ -7,6 +7,7 @@
  * @module os/shell/desk
  */
 import { OS_APPS } from "../apps"
+import { NOTE_ID } from "../../lib/notes/config"
 import { DEFAULT_NETWORK, isRealmValidOn } from "../../lib/config"
 import { GOV_PATH } from "../../lib/dao/govActions"
 import { nameForRealm } from "../daos/daoNames"
@@ -14,7 +15,7 @@ import { isVisibleEvmNetworkKey } from "../../lib/chain/evm/networks"
 import { EVM_ENABLED } from "../../lib/chain/flag"
 import { parseOsPath, type OsTarget } from "./osPath"
 
-export type DeskItemType = "app" | "dao" | "prop" | "msig"
+export type DeskItemType = "app" | "dao" | "prop" | "msig" | "note"
 
 export interface DeskItem {
     ty: DeskItemType
@@ -72,6 +73,7 @@ export function itemTarget(it: Pick<DeskItem, "ty" | "ref">): OsTarget | null {
             t = parseOsPath(`/os/dao/${dao}/proposals/${n}`)
             break
         }
+        case "note": t = parseOsPath(`/os/notes/${it.ref}`); break
         case "msig": t = parseOsPath(`/os/multisig/${it.ref}`); break
         default: return null
     }
@@ -82,7 +84,7 @@ export function itemTarget(it: Pick<DeskItem, "ty" | "ref">): OsTarget | null {
 export function itemForTarget(t: OsTarget | null): Pick<DeskItem, "ty" | "ref"> | null {
     if (!t) return null
     switch (t.kind) {
-        case "app": return { ty: "app", ref: t.app }
+        case "app": return t.app === "notes" && t.section && NOTE_ID.test(t.section) ? { ty: "note", ref: t.section } : { ty: "app", ref: t.app }
         case "dao": return { ty: "dao", ref: t.name }
         case "proposal": return { ty: "prop", ref: `${t.dao}:${t.n}` }
         case "multisig": return { ty: "msig", ref: t.address }
@@ -140,10 +142,10 @@ export function nearestCell(x: number, y: number, deskWidth: number): { c: numbe
     }
 }
 
-const TYPES: readonly DeskItemType[] = ["app", "dao", "prop", "msig"]
+const TYPES: readonly DeskItemType[] = ["app", "dao", "prop", "msig", "note"]
 
 /** A guest's desk before any change: the featured gno.land items, none on an EVM network. */
-function guestDesk(networkKey: string): DeskItem[] {
+export function guestDesk(networkKey: string): DeskItem[] {
     if (EVM_ENABLED && isVisibleEvmNetworkKey(networkKey)) return []
     // Memba DAO's icon opens memba_gov once its publication is recorded, as the DAOs app does.
     return FEATURED_DESK.map((i) => (i.ref === "memba_dao" && isRealmValidOn(networkKey, GOV_PATH) ? { ...i, ref: nameForRealm(GOV_PATH)! } : { ...i }))

@@ -38,6 +38,9 @@ Full changelogs are split by version range for easier navigation:
 - Prepare dormant studio-paid quotes and durable daily budgets without activating Free play. Migration043 depends on042 and applies automatically at backend startup even while the feature is disabled; its rollout requires a separate database migration approval.
 ### Free play chain transport preparation (#1594, 2026-10-09)
 - Prepare bounded reads of saved scores and per-game leaderboards, plus score submission guarded by an explicit studio quote and spending limits. The transport remains dormant; this change does not enable publication or deploy a realm.
+### Independent featured Notes on the desktop (2026-10-09)
+- Prepare separate Sushi and Whitepaper shortcuts with remembered dismissal, fixed labels on desktop and phone, and scoped browser storage that preserves existing pins across account changes and concurrent tabs.
+- Production note IDs and release activation remain pending. This change does not publish a document or enable collaborative editing.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
