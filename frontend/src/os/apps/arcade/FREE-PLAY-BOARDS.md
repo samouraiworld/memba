@@ -1,11 +1,11 @@
 # Per-game Free play boards (D-boards)
 
-Source-only integration boundary; the application does not inject this prop yet.
+Source preparation: Shell accepts an explicit nullable runtime configuration; no application caller supplies it yet.
 `GamePage.freePlayBoard` takes the existing A `client.board` reader, its exact
 `target`, and the selected `game`, `rules`, `simVersion`. The page only mounts
 it for a matching local game and session chain. Connect 4 is excluded. No
 network, endpoint, rule/version default, auth adapter, feature flag, publication
-or global board is introduced. A supplies the final active-runtime contract.
+or global board default is introduced. A supplies the shared runtime and configuration contracts.
 
 The shared reader validates every receipt. The UI additionally verifies that
 its configured target/context matches the returned board, so a valid reader
@@ -36,22 +36,22 @@ These source tests are not a live-chain proof or a completed runtime integration
 is unchanged):
 
 ```ts
-freePlayBoards?: Partial<Record<FreePlayGame, FreePlayBoardProps>>
+freePlayBoards?: Partial<Record<FreePlayGame, FreePlayBoardProps>> | null
 savedRuns?: {
     storage: SnapshotStorage
     onOpenSavedRun(selection: { game: FreePlayGame; clientRunId: string }): void
     subscribe?: (refresh: () => void) => () => void
-}
+} | null
 ```
 
 The native game page selects its own map entry; GamePage still checks game and
-active chain. With no injection the existing lobby remains unchanged. Your runs
+active chain. Explicit props override the shared context, including null to disable. With neither props nor runtime the existing lobby remains unchanged. Your runs
 uses only A3's listFreePlaySnapshots/loadFreePlaySnapshot, with ten results per
 page and the shared twenty-per-game index. Selection re-reads and validates the
 canonical snapshot, then forwards its game and original ID. No Play action,
 new run, publication, connection, credentials or network request is involved.
 Stored scores and even stored confirmed receipts are explicitly local and not
-rechecked. The game consumer owns authenticated recovery/readback.
+rechecked. SavedRunPanel owns a separate result session for authenticated recovery/readback; opening it does not mount or retarget a game engine.
 
 Storage events are supplied by the host; subscribe returns its cleanup. Manual
 refresh is always available and returns to page one. Replacing storage or game
@@ -59,23 +59,38 @@ immediately discards old rows. Corrupt/missing entries and unavailable storage
 have explicit states. The index order is recent saves, not a ranking or an
 invented completion timestamp.
 
-## Future shared wiring inventory — not edited here
+## Workspace runtime and local recovery
 
-- `os/native/types.ts` / native registry boundary: agree with A on a typed Arcade
-  runtime injection, or an Arcade provider; do not add a second client.
-- `os/shell/WindowFrame.tsx` / `WindowBody` (the shared native/classic boundary): pass the runtime board map and saved storage to ArcadeWindow.
-- `os/shell/Shell.tsx` and `os/phone/PhoneShell.tsx`: own the shared recovery
-  selection/lifetime across desktop and phone. Storage subscription must cover
-  cross-tab events and same-tab saves where available; clear/rebind the reader
-  on network/identity changes according to A's runtime contract.
-- The classic game adapter routes the selected `{game, clientRunId}` to each
-  game's recovery prop, with an explicit close callback. B already exposes
-  `recovery: {clientRunId, onClose}`. Confirm A/C consumers before wiring; never
-  invoke D1's Play intent or consume a launch to open an existing result.
-- Compose this branch's `GamePage`/`native` additions with D1's launch props and
-  D2 catalogue work in the final integration branch. No shared Shell or game
-  consumer file is changed by this PR.
+Shell accepts `freePlayConfiguration`, defaulting to null, and owns one
+`useArcadeFreePlayRuntime` instance. A stable FreePlayRuntimeProvider surrounds
+the desktop/phone workspace. The hook validates A's explicit configuration
+before constructing auth subscriptions after commit, shares clients by exact
+origin/target, and shares storage notifications across configured games. It
+refreshes identity after OS commits and disposes the owner on lock, EVM,
+configuration or identity changes. Per-transition generations prevent a disposed
+owner from returning after A → null → A. Disposed connect callbacks are inert.
+No deployment flag, endpoint, rules, version or network is selected implicitly.
 
-Validation: 46 focused tests pass (board 15, GamePage 7, history 9, native 15),
-one worker; ESLint passes for changed TSX files. No full build, typecheck,
-browser recipe or live-chain proof is claimed for this branch.
+Arcade derives board entries and local history from the runtime. Selection lives
+inside Your runs: it opens SavedRunPanel by the original game/ID and never calls
+open, push or Play. The list remains mounted and hidden during recovery. The
+panel creates its controller after commit, disposes and aborts it on replacement
+or close, focuses its heading, and returns focus to the opener. Missing or
+unreadable data does not start a new game. Local-only results remain readable;
+network verification and publication require explicit result actions. Different
+game storage instances produce an unavailable state instead of merging them.
+
+WindowFrame, PhoneShell, ClassicPage, global native types/registry, NotesStages
+and game consumers are unchanged by this delta. Compose native/GamePage and the
+small Shell provider hunks with #1584's launch/Notes work in the final integration
+branch; desktop/phone engine-preservation proof belongs to that composition.
+
+## Validation
+
+60 focused tests pass with one worker: board 15, GamePage 7, history 9, native 17,
+owner 8 and panel 4. After type-only fixture corrections, native's 17 tests were
+rechecked. ESLint passes all eight runtime delta files without warnings. A
+TypeScript program rooted at those eight files, using project options and the
+existing Vite/changelog/test declarations, reports zero diagnostics, including
+transitive dependencies. This is not a full-project build or typecheck. No browser,
+composed Shell engine or live-chain proof is claimed for this runtime delta.

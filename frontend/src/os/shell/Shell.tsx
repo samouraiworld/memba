@@ -35,6 +35,8 @@ import { SignerProvider } from "../sign/SignerProvider"
 import { bumpWalletActionEpoch, setWalletActionGuard } from "../../lib/grc20"
 import { EVM_ENABLED } from "../../lib/chain/flag"
 import { PhoneShell } from "../phone/PhoneShell"
+import { FreePlayRuntimeProvider } from "../../games/arcade/freeplay/FreePlayRuntimeProvider"
+import { useArcadeFreePlayRuntime, type ArcadeFreePlayConfiguration } from "../apps/arcade/useArcadeFreePlayRuntime"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { LiveActivityProvider } from "../apps/live/LiveProvider"
 import { Launcher } from "./Launcher"
@@ -113,7 +115,7 @@ const EVM_SESSION = EVM_ENABLED && activeOsNetwork().family === "evm"
 /** The wallet session for this page's network: Adena on gno.land, an EVM wallet on Base. */
 const useShellSession = EVM_SESSION ? useEvmSession : useOsSession
 
-export function Shell() {
+export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?: ArcadeFreePlayConfiguration | null } = {}) {
     const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
     const location = useLocation()
     const navigate = useNavigate()
@@ -321,6 +323,7 @@ export function Shell() {
     const member = session.status === "member"
     // An EVM network: its own connect flow, and no live activity (that reads a Gno indexer).
     const onEvm = EVM_ENABLED && session.network.family === "evm"
+    const freePlayRuntime = useArcadeFreePlayRuntime({ session, locked, onEvm, configuration: freePlayConfiguration })
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
@@ -491,6 +494,7 @@ export function Shell() {
                 onHide={() => win.minimise(radioWindow.id)} onStop={() => win.close(radioWindow.id)} /></Suspense>}
         <LiveActivityProvider networkKey={session.network.key} active={!onEvm && !locked && (!phone || front?.app === "live")}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <FreePlayRuntimeProvider value={freePlayRuntime}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
             <NotesStageProvider>
@@ -548,6 +552,7 @@ export function Shell() {
             </NotesStageProvider>
             </MeetStageContext.Provider>
             </div>
+            </FreePlayRuntimeProvider>
             <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage && !win.wins.some((w) => w.app === "radio" && !w.min)} openNews={() => openApp("news")} />
             {shared}
         </SignerProvider>

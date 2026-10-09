@@ -57,7 +57,7 @@ export function YourRuns({ storage, onOpenSavedRun, subscribe }: YourRunsProps) 
     }
     const refresh = () => { setFailure(null); store.refresh() }
     return <section className="os-cin-panel os-free-board" aria-labelledby={title}>
-        <h2 id={title}>Your runs</h2>
+        <h2 id={title} tabIndex={-1}>Your runs</h2>
         <p className="os-cin-sub">Recent Free play results saved on this device, up to 20 per game. Scores and saved receipts have not been rechecked online.</p>
         <label htmlFor={select}>Game</label>{" "}
         <select id={select} value={game} onChange={event => setGame(event.target.value as FreePlayGame)}>
