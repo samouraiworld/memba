@@ -30,8 +30,10 @@ was disabled. That validation did not enable production.
 
 Rebuilt once from clean source commit
 48c9792cbfa40ff7cc1d546b2c8f922800ca9289, composing reviewed Arcade lots and
-Notes S4 d3ee6bab on main7a4f5c1a. Node v22.22.2, Go1.24.2 darwin/arm64 and
-esbuild0.28.1, matching the frontend lock. A fresh npm ci attempt failed because
+Notes S4 d3ee6bab on main7a4f5c1a. Node v22.22.2 and esbuild0.28.1,
+matching the frontend lock. The outer Go launcher reports1.24.2; inside the
+backend module, GOTOOLCHAIN=auto selects go1.26.9, confirmed with go env GOVERSION
+after the run. The outer version is not the effective test toolchain. A fresh npm ci attempt failed because
 the registry DNS was unavailable. A private copy of the existing installation
 was then checked against the same package/lock:735 installed package versions
 matched and no required package was missing. This is distinct from a fresh CI install.
