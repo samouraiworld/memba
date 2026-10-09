@@ -341,6 +341,7 @@ jobs:
         run: |
           npx playwright test --config playwright.notes-sushi.config.ts --project=chromium
           npx playwright test --config playwright.notes-sushi-shell.config.ts --project=chromium
+          npx playwright test --config playwright.notes-sushi-desk.config.ts --project=chromium
       - name: Upload E2E artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
