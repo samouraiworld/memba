@@ -2,6 +2,7 @@ package activitywatch
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -282,7 +283,7 @@ func TestFailedCallDoesNotReportRolledBackEvents(t *testing.T) {
 	f.head = 11
 	run(t, f)
 	got := f.sent[1]
-	if !strings.Contains(got, "FAILED") || strings.Contains(got, "Voted") || strings.Contains(got, "SECRET") {
+	if !strings.Contains(got, "FAILED (realm changes reverted; fees may apply)") || strings.Contains(got, "Voted") || strings.Contains(got, "SECRET") {
 		t.Fatal(got)
 	}
 }
@@ -445,5 +446,26 @@ func TestOutboxFailureDoesNotAdvanceCursor(t *testing.T) {
 	run(t, f)
 	if len(f.sent) != 2 || cursor(t, f) != 6 {
 		t.Fatal("did not recover transactionally")
+	}
+}
+
+func TestUnrelatedMainnetBankTransferDoesNotStall(t *testing.T) {
+	f := setup(t)
+	b, err := os.ReadFile("testdata/mainnet-bank-tx.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(b)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := receipt{}
+	r.ResponseBase = &struct {
+		Error  json.RawMessage `json:"Error"`
+		Events []event         `json:"Events"`
+	}{Error: json.RawMessage(`null`)}
+	m, err := f.w.messages(661707, raw, r)
+	if err != nil || len(m) != 0 {
+		t.Fatal(m, err)
 	}
 }

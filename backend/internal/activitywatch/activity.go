@@ -11,6 +11,9 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	// Register bank messages even when this package is used without the API's
+	// multisig service. Unrelated transfers must decode before they are ignored.
+	_ "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -83,7 +86,7 @@ func (w *Watcher) messages(height int64, raw []byte, r receipt) ([]string, error
 	txHash := hex.EncodeToString(hash[:])
 	state := "confirmed"
 	if failed {
-		state = "FAILED (no changes committed)"
+		state = "FAILED (realm changes reverted; fees may apply)"
 	}
 	link := "https://gnoscan.io/transactions/details?txhash=" + txHash + "&chainId=" + url.QueryEscape(w.cfg.ChainID)
 	if w.cfg.ChainID != "gnoland-1" && w.cfg.ChainID != "staging" {

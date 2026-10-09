@@ -13,7 +13,8 @@ One transaction can produce several named actions; long summaries are split.
 
 The relay reports direct calls (even without custom events), package submission,
 enable/rejection, and emitted events with matching realm paths, including storage
-changes. Failed direct calls are marked FAILED; rolled-back events are discarded.
+changes. Failed direct calls are marked FAILED with a fees-may-apply notice;
+realm changes are reverted, but ante fees/sequence can persist. Rolled-back events are discarded.
 Arguments, source, post bodies, event attributes, memos and error details are never
 forwarded. Discord mentions are disabled. Each message has a chain, block and tx link.
 
