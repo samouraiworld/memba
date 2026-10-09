@@ -103,6 +103,7 @@ Full changelogs are split by version range for easier navigation:
 - Memba OS: official logos, covers and screenshots for our four games (Block Party, Space Invaders, BARRICADE, Connect 4) and the ten curated apps, with where each third-party asset came from and when it was taken. The files and the list that points to them ship now; they are not shown anywhere until the Arcade and App Store storefront windows adopt them in the next changes.
 - Memba OS: a script to re-capture storefront screenshots from public pages, and a test that every listed file exists, stays within its size budget and carries no metadata.
 ### The Arcade as a storefront (2026-10-08)
+- Block Party: merged numbers no longer show through translucent tiles after a fusion, including with reduced motion (#1579, 2026-10-09).
 - Memba OS Arcade: the lobby is now a dark storefront with a featured-games carousel, a capsule for every game, a Today's daily strip and a "From the community" shelf; Play is its own button on each capsule, and it is absent when a build cannot run the game.
 - Memba OS Arcade: every game has its own page (/os/arcade/g/<game>) with screenshots once media lands, about, how to play, facts, and Play; a game this build cannot run says so instead of offering Play.
 - Memba OS Arcade: ratings and reviews on game pages are on-chain and shared with each game's App Store listing, so a review written in one place shows in the other; reading is open to guests.
