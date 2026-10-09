@@ -8,7 +8,7 @@ const fire: InputIntent = { move: 0, fire: true, pause: false };
 
 // The render/juice layer needs every event that happened this frame, but a
 // frame can run several fixed sub-steps and each step() resets its events. This
-// aggregates them without changing the resulting state.
+// aggregates them while stopping at the first terminal tick.
 describe("advanceWithEvents", () => {
   it("yields the same final state as advanceSteps", () => {
     const s = { ...newGame(1), phase: "playing" as const };
@@ -20,4 +20,12 @@ describe("advanceWithEvents", () => {
     const { events } = advanceWithEvents(s, 1, fire);
     expect(events.some((e) => e.type === "playerFired")).toBe(true);
   });
+});
+
+it("stops a multi-step display frame at its first gameover", () => {
+  const state = { ...newGame(7), phase: "playing" as const, lives: 0 };
+  const result = advanceWithEvents(state, 15, { move: 0, fire: false, pause: false });
+  expect(result.state.phase).toBe("gameover");
+  expect(result.state.tick).toBe(1);
+  expect(result.state).toEqual(advanceSteps(state, 1, idle));
 });
