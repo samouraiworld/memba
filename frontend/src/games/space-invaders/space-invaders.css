@@ -326,7 +326,13 @@
 .si-stage--compact .si-wave-banner { display: none; }
 
 .si-fullscreen-control { position: relative; flex: none; margin-left: auto; }
-.si-fullscreen-button { background: var(--si-ink); }
+/* This control also sits outside the dark cabinet on light hosts. Override
+   generic translucent hover/disabled styles without changing other HUD buttons. */
+.si-icon-button.si-fullscreen-button { background: var(--si-ink); color: var(--si-text-bright); }
+.si-icon-button.si-fullscreen-button:hover:not(:disabled),
+.si-icon-button.si-fullscreen-button:focus-visible { background: var(--si-screen); border-color: var(--si-mint); }
+.si-icon-button.si-fullscreen-button:focus-visible { outline: 2px solid var(--si-mint); outline-offset: 2px; box-shadow: 0 0 0 4px var(--si-ink); }
+.si-icon-button.si-fullscreen-button:disabled { background: var(--si-ink); opacity: 1; cursor: wait; }
 .si-fullscreen-error { position: absolute; z-index: 10; top: 100%; right: 0; width: min(240px, 70vw); padding: 10px; border: 1px solid var(--si-mint); border-radius: 8px; background: var(--si-ink); color: var(--si-text-bright); font-size: .8rem; }
 .si-root:fullscreen { background: var(--si-ink); color: var(--si-text-bright); }
 /* Reserve a side rail for the touch-sized fullscreen control in short hosts. */
