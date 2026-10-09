@@ -23,7 +23,7 @@ network/realm/block/run, transaction when present, attester and hashes. No
 explorer URL is guessed; a runtime-supplied proof link can be added later if
 there is an approved network-aware resolver.
 
-Tests prepared: loading/error/empty, context mismatch, cancellation and stale
+Board tests cover: loading/error/empty, context mismatch, cancellation and stale
 responses including A → B → A, reader replacement, pagination/reset, all three
 games, and GamePage exclusion of Connect 4 / wrong network / wrong game.
 These source tests are not a live-chain proof or a completed runtime integration.
@@ -61,8 +61,7 @@ invented completion timestamp.
 
 - `os/native/types.ts` / native registry boundary: agree with A on a typed Arcade
   runtime injection, or an Arcade provider; do not add a second client.
-- `os/shell/WindowBody.tsx` (the shared native/classic boundary, re-exported from
-  WindowFrame): pass the runtime board map and saved storage to ArcadeWindow.
+- `os/shell/WindowFrame.tsx` / `WindowBody` (the shared native/classic boundary): pass the runtime board map and saved storage to ArcadeWindow.
 - `os/shell/Shell.tsx` and `os/phone/PhoneShell.tsx`: own the shared recovery
   selection/lifetime across desktop and phone. Storage subscription must cover
   cross-tab events and same-tab saves where available; clear/rebind the reader
