@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security (2026-10-09)
+- Update the backend Go toolchain and both container build stages to Go 1.26.9, and golang.org/x/net to v0.60.0, to address the reported standard-library and networking vulnerabilities.
+
 ### Notes private-link privacy (2026-10-09)
 - Capture eligible Notes link secrets before telemetry, remove their URL fragments, and redact Notes links from analytics and diagnostics. Production CSP permits the exact privacy scripts. This does not enable the Notes app.
 
