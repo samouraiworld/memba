@@ -140,7 +140,7 @@ func TestFreePlaySignerSerializesDifferentRunsAndPinsUnknownOutcome(t *testing.T
 	if _, ok, err = s.Claim(ctx, first.Entry.Player, strings.Repeat("4", 64), 21, 81); err != nil || ok {
 		t.Fatalf("concurrent account lease %v %v", ok, err)
 	}
-	if err = s.reserveBroadcast(ctx, l); err != nil {
+	if err = s.reserveBroadcast(ctx, l, func() int64 { return 20 }); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.saveAttempt(ctx, l, "unknown", errors.New("transport died"), 21); err != nil {
@@ -151,7 +151,7 @@ func TestFreePlaySignerSerializesDifferentRunsAndPinsUnknownOutcome(t *testing.T
 		t.Fatalf("unknown run was not pinned %+v %v %v", next, ok, err)
 	}
 	// A stale worker cannot replace the new owner's durable marker.
-	if err = s.reserveBroadcast(ctx, l); err == nil {
+	if err = s.reserveBroadcast(ctx, l, func() int64 { return 20 }); err == nil {
 		t.Fatal("stale signer published")
 	}
 	receipt := FreePlayReceipt{Target: first.Target, Entry: first.Entry, Height: 42, Attester: first.Entry.Player, SchemaVersion: 2}
@@ -180,7 +180,7 @@ func TestFreePlayRenewalAndExpiredWorkerCannotBothReserve(t *testing.T) {
 	}
 	start := make(chan struct{})
 	results := make(chan error, 2)
-	go func() { <-start; results <- s.reserveBroadcast(ctx, l) }()
+	go func() { <-start; results <- s.reserveBroadcast(ctx, l, func() int64 { return 1061 }) }()
 	go func() {
 		<-start
 		results <- s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, q.ID, q.Nonce, 1061)

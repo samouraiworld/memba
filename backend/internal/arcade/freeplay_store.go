@@ -269,7 +269,7 @@ func (s *FreePlayStore) Claim(ctx context.Context, signer, owner string, now, un
 
 // reserveBroadcast commits the ambiguous-outcome marker BEFORE network I/O.
 // A process death after this commit cannot cause an automatic second spend.
-func (s *FreePlayStore) reserveBroadcast(ctx context.Context, l FreePlayLease) error {
+func (s *FreePlayStore) reserveBroadcast(ctx context.Context, l FreePlayLease, now func() int64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -286,6 +286,11 @@ func (s *FreePlayStore) reserveBroadcast(ctx context.Context, l FreePlayLease) e
 	if n != 1 {
 		return errors.New("signer_lease_lost")
 	}
+	// The first write above may have waited for SQLite's writer. Check the
+	// authorization while holding that lock, not using a pre-wait timestamp.
+	if l.Quote.ExpiresAt <= now() {
+		return ErrFreePlayQuote
+	}
 	res, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET tx_hash='unknown',broadcast_attempts=broadcast_attempts+1 WHERE run_id=? AND lease_owner=? AND tx_hash=''`, l.Run.Entry.RunID, l.Owner)
 	if err != nil {
 		return err
@@ -298,6 +303,47 @@ func (s *FreePlayStore) reserveBroadcast(ctx context.Context, l FreePlayLease) e
 		return errors.New("lease_lost")
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_runs_v2 SET status='submitted' WHERE run_id=? AND status='queued'`, l.Run.Entry.RunID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// cancelUnsentBroadcast is ONLY for the still-running invocation immediately
+// before its first Anchor call. Recovery workers must never call it: after a
+// crash the same marker is ambiguous. Both owners, quote and first intent are
+// checked under SQLite's writer, so a superseded worker cannot clear evidence.
+func (s *FreePlayStore) cancelUnsentBroadcast(ctx context.Context, l FreePlayLease) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	res, err := tx.ExecContext(ctx, `UPDATE arcade_freeplay_signers_v2 SET pending_run_id=''
+ WHERE chain_id=? AND signer=? AND lease_owner=? AND pending_run_id=?`, s.target.ChainID, l.Signer, l.Owner, l.Run.Entry.RunID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errors.New("signer_lease_lost")
+	}
+	res, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_outbox_v2 SET tx_hash='',broadcast_attempts=0
+ WHERE run_id=? AND lease_owner=? AND quote_id=? AND tx_hash='unknown' AND broadcast_attempts=1`, l.Run.Entry.RunID, l.Owner, l.Quote.ID)
+	if err != nil {
+		return err
+	}
+	n, err = res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errors.New("lease_lost")
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE arcade_freeplay_runs_v2 SET status='queued' WHERE run_id=? AND status='submitted'`, l.Run.Entry.RunID)
 	if err != nil {
 		return err
 	}

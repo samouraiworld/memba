@@ -13,6 +13,8 @@ import (
 // FreePlayChain is a committed-state transport, not a client-provided receipt.
 // Lookup must validate the RPC's chain ID and the realm's schema/config getters.
 // Anchor must return only a canonical transaction hash, never arbitrary stdout.
+// Anchor must honor cancellation/deadlines and check them immediately before
+// handing bytes to its broadcaster; a return error after invocation is ambiguous.
 // No production signer is provided by this preparation-only foundation.
 type FreePlayChain interface {
 	Lookup(context.Context, FreePlayTarget, string) (FreePlayReceipt, bool, error)
@@ -21,6 +23,9 @@ type FreePlayChain interface {
 
 // FreePlaySpending must atomically reserve a durable per-day spend allowance
 // before EACH possible broadcast, including retries, within the approved quote.
+// A successful reservation remains charged even if authorization expires before
+// broadcast. This conservative allowance is not a claim of onchain expenditure;
+// no automatic refund can accidentally release a potentially spent allowance.
 // A nil policy cannot broadcast. Budget implementations require separate review.
 type FreePlaySpending interface {
 	ReserveAttempt(context.Context, FreePlayRun, FreePlayQuote) error
@@ -98,16 +103,49 @@ func (p FreePlayPublisher) PublishOne(ctx context.Context) (bool, error) {
 	if lease.TxHash != "" {
 		return recordFailure("", errors.New("confirmation_pending"))
 	}
-	if lease.Quote.ExpiresAt <= now().Unix() {
-		return recordFailure("", ErrFreePlayQuote)
+	checkAuthorization := func() error {
+		if lease.Quote.ExpiresAt <= now().Unix() {
+			return ErrFreePlayQuote
+		}
+		return opCtx.Err()
 	}
-	if err := p.Spending.ReserveAttempt(opCtx, lease.Run, lease.Quote); err != nil {
+	if err := checkAuthorization(); err != nil {
 		return recordFailure("", err)
 	}
-	if err := p.Store.reserveBroadcast(opCtx, lease); err != nil {
-		return true, err
+	// Use the remaining duration so the injectable logical clock and real
+	// context timer have the same budget. In production Now is time.Now.
+	wallStart := time.Now()
+	sendDeadline := wallStart.Add(time.Unix(lease.Quote.ExpiresAt, 0).Sub(now()))
+	sendCtx, stopSend := context.WithDeadline(opCtx, sendDeadline)
+	defer stopSend()
+	if err := p.Spending.ReserveAttempt(sendCtx, lease.Run, lease.Quote); err != nil {
+		if expired := checkAuthorization(); expired != nil {
+			err = expired
+		}
+		return recordFailure("", err)
 	}
-	txHash, err := p.Chain.Anchor(opCtx, lease.Run.Target, lease.Run.Entry, lease.Quote)
+	if err := checkAuthorization(); err != nil {
+		return recordFailure("", err)
+	}
+	if err := p.Store.reserveBroadcast(sendCtx, lease, func() int64 { return now().Unix() }); err != nil {
+		// A failed commit has uncertain persistence. Never erase its marker.
+		return recordFailure("", err)
+	}
+	// SQLite commit may itself cross expiry. Only this live invocation knows
+	// Anchor has not been called, so only it can undo its own fenced intent.
+	err = checkAuthorization()
+	if err == nil {
+		err = sendCtx.Err()
+	}
+	if err != nil {
+		saveCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer stop()
+		if saveErr := p.Store.cancelUnsentBroadcast(saveCtx, lease); saveErr != nil {
+			return true, saveErr
+		}
+		return recordFailure("", err)
+	}
+	txHash, err := p.Chain.Anchor(sendCtx, lease.Run.Target, lease.Run.Entry, lease.Quote)
 	if err != nil {
 		// An ambiguous send MUST be reconciled before another attempt. A sentinel
 		// cannot masquerade as a receipt hash, but blocks automatic rebroadcast.

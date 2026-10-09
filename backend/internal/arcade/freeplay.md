@@ -143,3 +143,26 @@ Submitted, confirmed and unknown outcomes are excluded, even after lease expiry.
 Tests cover the HTTP view/quote/publish sequence, active lease refusal, concurrent
 replacement versus stale reservation, old-worker fencing and one actual send
 following fresh consent. The migration shape is unchanged by this addition.
+
+
+### Authorization deadline, including waits
+
+The publisher rechecks quote expiration after budget reservation, after acquiring
+SQLite's writer and immediately before Anchor. Reservation and Anchor share a
+context deadline bounded by the remaining authorization and the45second operation
+limit. The concrete transport must honor that deadline immediately before its
+actual broadcast. Confirmation readback is independent of the quote deadline.
+
+If the still-running invocation proves it has not called Anchor, it may roll back
+its own first intent, with signer/outbox owner and quote fencing, to queued with
+zero broadcast attempts. The failure then releases its lease and allows a new
+explicit quote after expiry. No recovery worker can infer that proof from a
+marker. After crash, a commit error, or any Anchor invocation, ambiguity remains
+pinned and is never cleared by this cancellation path.
+
+A successful spending reservation is conservatively retained even when no
+broadcast follows. It is a charged allowance, not evidence of an onchain payment.
+The source deliberately does not refund that allowance automatically; a future
+budget implementation must account for this distinction and receive independent
+review. This preserves the spending ceiling without claiming an unimplemented
+atomic refund protocol.

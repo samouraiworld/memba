@@ -256,7 +256,7 @@ func TestFreePlayCrashAfterIntentBeforeAnchorDoesNotBroadcast(t *testing.T) {
 	if err = spend.ReserveAttempt(ctx, run, lease.Quote); err != nil {
 		t.Fatal(err)
 	}
-	if err = s.reserveBroadcast(ctx, lease); err != nil {
+	if err = s.reserveBroadcast(ctx, lease, func() int64 { return 20 }); err != nil {
 		t.Fatal(err)
 	}
 	// Process dies here. No Anchor call happened, but a restarted process cannot
@@ -332,7 +332,7 @@ func TestFreePlayExpiredQueuedQuoteRequiresFreshConsentWithoutRespending(t *test
 	if err = s.Queue(ctx, run.Entry.RunID, run.Entry.Player, run.PayloadHash, q.ID, q.Nonce, 1061); err != nil {
 		t.Fatal(err)
 	}
-	if err = s.reserveBroadcast(ctx, old); err == nil {
+	if err = s.reserveBroadcast(ctx, old, func() int64 { return 20 }); err == nil {
 		t.Fatal("expired worker was not fenced")
 	}
 	chain := &freeChainFake{}
@@ -358,7 +358,7 @@ func TestFreePlayUnknownOutcomeCannotRenewExpiredQuote(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("claim %v %v", ok, err)
 	}
-	if err = s.reserveBroadcast(ctx, l); err != nil {
+	if err = s.reserveBroadcast(ctx, l, func() int64 { return 20 }); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.saveAttempt(ctx, l, "unknown", errors.New("lost response"), 1000); err != nil {
