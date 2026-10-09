@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { ECOSYSTEM_PROJECTS } from "./ecosystemDirectory"
 import { GAME_REVIEW_SUBJECTS } from "./reviewSubjects"
-import { STORE_MEDIA } from "./storeMedia"
+import { resolveMedia, STORE_MEDIA } from "./storeMedia"
 
 const PUBLIC = join(__dirname, "../../public")
 const GAMES = Object.keys(GAME_REVIEW_SUBJECTS)
@@ -21,7 +21,8 @@ function webpChunks(file: Buffer): string[] {
 }
 
 describe("storefront media", () => {
-    it.each([...GAMES, ...APPS])("%s has a logo, a cover, an accent and screenshots", (key) => {
+    // Only Gnogolf awaits artwork permission; existing assets keep the full contract.
+    it.each([...GAMES, ...APPS.filter(key => key !== "gnogolf")])("%s has a logo, a cover, an accent and screenshots", (key) => {
         const media = STORE_MEDIA[key]
         expect(media, key).toBeDefined()
         expect(media.logo).toMatch(new RegExp(`^/store/${key}/logo\\.(svg|webp)$`))
@@ -30,6 +31,11 @@ describe("storefront media", () => {
         expect(media.screenshots.length).toBeGreaterThanOrEqual(GAMES.includes(key) ? 4 : 3)
         expect(media.screenshots.length).toBeLessThanOrEqual(6)
         if (APPS.includes(key)) expect(media.sources.length, `${key} records where its assets came from`).toBeGreaterThan(0)
+    })
+
+    it("uses a text fallback for Gnogolf until artwork rights are established", () => {
+        expect(STORE_MEDIA.gnogolf).toEqual({ screenshots: [], accent: "#276749", sources: [] })
+        expect(resolveMedia("gnogolf", null, "gnogolf")).toEqual({ logo: null, cover: null, screenshots: [], accent: "#276749" })
     })
 
     it("every file exists, stays within its size budget, and carries no metadata", () => {

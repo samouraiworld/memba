@@ -1,6 +1,6 @@
 /** One discovery model for registry listings and independently verified editorial links. */
 import type { AppListing } from "./appStore"
-import type { EcosystemCategory, EcosystemProject } from "./ecosystemDirectory"
+import { hasEditorialTestnet, type EcosystemCategory, type EcosystemProject } from "./ecosystemDirectory"
 
 export type CatalogueCategory = EcosystemCategory | "Governance" | "Validators" | "Other"
 export const CATALOGUE_CATEGORIES: readonly CatalogueCategory[] = [
@@ -94,7 +94,7 @@ export function buildCatalogue(
         id: `editorial:${project.id}`, source: "editorial", name: project.name,
         tagline: project.description, category: project.category, url: project.url,
         realmPath: project.realm?.path ?? null,
-        availability: project.kind === "tool" ? "tools" : project.networks.includes("mainnet") ? "mainnet" : project.networks.includes("staging") ? "testnet" : "unknown",
+        availability: project.kind === "tool" ? "tools" : project.networks.includes("mainnet") ? "mainnet" : hasEditorialTestnet(project.networks) ? "testnet" : "unknown",
         project,
     }))
     return [...registry, ...remaining]
@@ -127,7 +127,7 @@ export function filterCatalogue(entries: readonly CatalogueEntry[], filters: Cat
         const editorialNetworks = entry.source === "editorial" ? entry.project?.networks : undefined
         if (filters.category !== "all" && entry.category !== filters.category) return false
         if (filters.availability === "mainnet" && entry.availability !== "mainnet" && editorialNetworks?.includes("mainnet") !== true) return false
-        if (filters.availability === "testnet" && entry.availability !== "testnet" && editorialNetworks?.includes("staging") !== true) return false
+        if (filters.availability === "testnet" && entry.availability !== "testnet" && !hasEditorialTestnet(editorialNetworks)) return false
         if (filters.availability === "tools" && entry.project?.kind !== "tool") return false
         if (filters.availability === "unknown" && entry.availability !== "unknown") return false
         if (!q) return true
