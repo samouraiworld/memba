@@ -6,8 +6,9 @@ export const RADIO_RPC = "https://rpc.onyx.testnets.gno.land:443"
 export const RADIO_ROOT = "gno.land/r/nym-alexiscolin000/gnoradio"
 const integer = z.number().int().nonnegative()
 export const stationSchema = z.object({ id: integer, name: z.string().max(160) })
+const onAirSchema = stationSchema.extend({ now: z.object({ track: integer, offset: integer }) })
 export const scheduleSchema = z.object({ station: integer, now: integer, entries: z.array(z.object({ track: integer, start: integer, end: integer, offset: integer.optional() })).max(200) })
-export const trackSchema = z.object({ id: integer, title: z.string().max(1000), artistName: z.string().max(1000), audio: z.string().max(4096), cover: z.string().max(4096), license: z.string().max(256), source: z.string().max(4096), attribution: z.string().max(4096) })
+export const trackSchema = z.object({ id: integer, title: z.string().max(1000), artistName: z.string().max(1000), audio: z.string().max(4096), cover: z.string().max(4096), license: z.string().max(256), source: z.string().max(4096), attribution: z.string().max(4096), duration: integer.optional() })
 export type Station = z.infer<typeof stationSchema>
 export type Schedule = z.infer<typeof scheduleSchema>
 export type RadioTrack = z.infer<typeof trackSchema>
@@ -59,12 +60,24 @@ export function entryAt(schedule: Schedule, now: number) {
 }
 export async function loadNow(station: number): Promise<NowPlaying> {
     if (!Number.isSafeInteger(station) || station < 0) throw new Error("Invalid radio station.")
-    const schedule = await read("radio", `ScheduleJSON(${station}, 600)`, scheduleSchema)
+    let schedule = await read("radio", `ScheduleJSON(${station}, 600)`, scheduleSchema)
     if (schedule.station !== station) throw new Error("Radio returned another station.")
     const entry = entryAt(schedule, schedule.now)
-    if (!entry) return { schedule, track: null, urls: [] }
-    let track = await read("catalog", `TrackJSON(${entry.track})`, trackSchema)
-    if (track.id !== entry.track) throw new Error("Radio returned another track.")
+    // Onyx v1 omits untitled Audius/Jamendo pointers from ScheduleJSON, even
+    // while StationsJSON reports them on air. Match Gno Radio's live fallback.
+    const onAir = entry ? undefined : (await read("radio", "StationsJSON()", z.object({ stations: z.array(onAirSchema).max(64) }))).stations.find(s => s.id === station)?.now
+    if (!entry && !onAir) throw new Error("Radio did not return the requested station.")
+    const trackId = entry?.track ?? onAir?.track
+    if (!trackId) return { schedule, track: null, urls: [] }
+    let track = await read("catalog", `TrackJSON(${trackId})`, trackSchema)
+    if (track.id !== trackId) throw new Error("Radio returned another track.")
+    if (!entry && onAir) {
+        if (track.duration === undefined) throw new Error("Radio did not return the live track's duration.")
+        if (track.duration <= onAir.offset) return { schedule, track: null, urls: [] }
+        const start = schedule.now - onAir.offset
+        const nextStart = Math.min(...schedule.entries.filter(e => e.start > schedule.now).map(e => e.start))
+        schedule = { ...schedule, entries: [{ track: trackId, start, end: Math.min(start + track.duration, nextStart), offset: onAir.offset }, ...schedule.entries] }
+    }
     let stream = ""
     if (/^(audius:|jamendo:)/.test(track.audio)) {
         const meta = z.record(z.string(), z.object({ title: z.string(), artist: z.string(), artwork: z.string().optional(), permalink: z.string().optional(), stream: z.string().optional(), streamable: z.boolean() }).nullable())

@@ -22,13 +22,16 @@ describe("radio lifetime and schedule", () => {
         expect(audio.currentTime).toBe(20)
         expect(audio.play).toHaveBeenCalled()
     })
-    it("honours the realm's base offset for a rotation already partway through a track", async () => {
+    it("does not double-count the realm's current offset for a track already on air", async () => {
         const next = result()
+        next.schedule.now = 1000
+        next.schedule.entries[0].start = 863
+        next.schedule.entries[0].end = 1060
         next.schedule.entries[0].offset = 137
         expect(scheduleSchema.parse(next.schedule).entries[0].offset).toBe(137)
         const { audio, player } = fixture(vi.fn(async () => next)); players.push(player)
         player.toggle(); await settle(); audio.onloadedmetadata?.()
-        expect(audio.currentTime).toBe(157)
+        expect(audio.currentTime).toBe(137)
     })
     it("does not autoplay after Pause while metadata is pending", async () => {
         let finish!: (v: NowPlaying) => void

@@ -75,8 +75,9 @@ export class RadioPlayer {
             this.set({ track: next.track, busy: false })
             if (!entry || !next.track) { this.pause(); this.set({ status: "Nothing is on air on this station yet." }); return }
             if (!next.urls.length) { this.pause(); this.set({ error: "This track has no supported audio source." }); return }
-            // Rotation entries can begin partway through a track; the realm supplies that base offset.
-            const offset = (entry.offset ?? 0) + Math.max(0, next.schedule.now - entry.start + (this.clock() - started) / 2000)
+            // `start` already anchors the track's beginning. The realm's offset
+            // is a snapshot of now - start, not an additional seek to add twice.
+            const offset = Math.max(0, next.schedule.now - entry.start + (this.clock() - started) / 2000)
             if (this.state.playing && audio.src && this.urls[0] === next.urls[0]) {
                 if (Math.abs(audio.currentTime - offset) > 5) audio.currentTime = offset
                 this.set({ status: "Live" })
