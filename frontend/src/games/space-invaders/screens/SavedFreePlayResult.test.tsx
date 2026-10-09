@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { SpaceInvadersSavedResult } from "./SpaceInvadersSavedResult";
@@ -69,4 +70,30 @@ it("disposes a late-loaded session after leaving recovery", async () => {
   view.unmount();
   await act(async () => { resolve({ content: null, dispose }); await pending; });
   expect(dispose).toHaveBeenCalledTimes(1);
+});
+
+it("does not revive a disposed recovered receipt when the same adapter returns before a new load finishes", async () => {
+  type Handle = { content: ReactNode; dispose(): void };
+  let resolveA!: (handle: Handle) => void, resolveB!: (handle: Handle) => void;
+  const pendingA = new Promise<Handle>(resolve => { resolveA = resolve; });
+  const pendingB = new Promise<Handle>(resolve => { resolveB = resolve; });
+  const old = { content: <p>Old confirmed receipt</p>, dispose: vi.fn() };
+  const fresh = { content: <p>Current saved receipt — check again</p>, dispose: vi.fn() };
+  const staleB = { content: <p>Stale B</p>, dispose: vi.fn() };
+  const ownerA = { prepare: vi.fn(), recover: vi.fn().mockReturnValueOnce(old).mockReturnValueOnce(pendingA) };
+  const ownerB = { prepare: vi.fn(), recover: () => pendingB };
+  const recovery = { clientRunId: input.clientRunId, onClose: vi.fn() };
+  const view = render(<SpaceInvadersSavedResult publication={ownerA} recovery={recovery} />);
+  await screen.findByText("Old confirmed receipt");
+  view.rerender(<SpaceInvadersSavedResult publication={ownerB} recovery={recovery} />);
+  expect(old.dispose).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText("Old confirmed receipt")).toBeNull();
+  view.rerender(<SpaceInvadersSavedResult publication={ownerA} recovery={recovery} />);
+  expect(screen.queryByText("Old confirmed receipt")).toBeNull();
+  expect(screen.getByRole("status")).toHaveTextContent("Opening saved result");
+  await act(async () => { resolveB(staleB); resolveA(fresh); await Promise.all([pendingA, pendingB]); });
+  expect(staleB.dispose).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Current saved receipt — check again")).toBeVisible();
+  expect(screen.queryByText("Stale B")).toBeNull();
+  view.unmount(); expect(fresh.dispose).toHaveBeenCalledTimes(1);
 });
