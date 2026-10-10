@@ -153,10 +153,14 @@ describe('Notes signing intentions', () => {
     expect(wallet.send).not.toHaveBeenCalled()
   })
   it('refuses changes to owner generation, epoch, revision, fee or quote height before signing', async () => {
-    for (const patch of [{ ownerGeneration: '2' }, { epoch: '1' }, { stateRevision: '2' }]) {
-      const s = setup(), request = await preparePublicNoteRequest(s.options); s.setNote({ ...baseNote(), ...patch })
+    const cases: [Record<string, string>, string][] = [
+      [{ ownerGeneration: '2', stateRevision: '2' }, 'stale'], [{ epoch: '1' }, 'stale'], [{ stateRevision: '2' }, 'stale'],
       // Generation 2 at state revision 1 is impossible and the strict C1 codec rejects it first.
-      await expect(request.recheck!(undefined)).rejects.toThrow('ownerGeneration' in patch ? 'format' : 'stale')
+      [{ ownerGeneration: '2' }, 'format'],
+    ]
+    for (const [patch, expected] of cases) {
+      const s = setup(), request = await preparePublicNoteRequest(s.options); s.setNote({ ...baseNote(), ...patch })
+      await expect(request.recheck!(undefined)).rejects.toThrow(expected)
     }
     const s = setup(), request = await preparePublicNoteRequest(s.options); s.setHeight('111')
     await expect(request.recheck!(undefined)).rejects.toThrow('stale')
