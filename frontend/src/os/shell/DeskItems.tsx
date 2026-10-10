@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
-import { cellPosition, nearestCell, type DeskItem } from "./desk"
+import { cellPosition, nearestCell, sameItem, type DeskItem } from "./desk"
 import { shortAddr } from "./format"
 import { AppTile, ThingTile } from "./icons"
 
@@ -17,8 +17,9 @@ function initials(name: string): string {
     return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase()
 }
 
-function itemLook(it: DeskItem): { label: string; tile: ReactNode } {
+function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>): { label: string; tile: ReactNode } {
     switch (it.ty) {
+        case "note": return { label: noteLabels[it.ref] ?? "Note", tile: <ThingTile icon="doc" /> }
         case "app": return { label: getApp(it.ref as OsAppId).name, tile: <AppTile app={it.ref as OsAppId} /> }
         case "dao": return { label: it.ref, tile: <span className="os-badged"><ThingTile icon="folder" tint={DAO_TINT} /><span className="os-badge2">{initials(it.ref)}</span></span> }
         case "prop": {
@@ -30,15 +31,16 @@ function itemLook(it: DeskItem): { label: string; tile: ReactNode } {
 }
 
 /** A desk item's tile and label, for the phone home screen (tap only). */
-export function DeskIcon({ item }: { item: DeskItem }) {
-    const look = itemLook(item)
+export function DeskIcon({ item, noteLabels = {} }: { item: DeskItem; noteLabels?: Readonly<Record<string, string>> }) {
+    const look = itemLook(item, noteLabels)
     return <>{look.tile}<span className="os-ph-label">{look.label}</span></>
 }
 
-type Drag = { index: number; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; moved: boolean }
+type Drag = { target: Pick<DeskItem, "ty" | "ref">; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; moved: boolean }
 
-export function DeskItems({ items, deskWidth, onOpen, onMove, onMenu }: {
+export function DeskItems({ items, noteLabels = {}, deskWidth, onOpen, onMove, onMenu }: {
     items: readonly DeskItem[]
+    noteLabels?: Readonly<Record<string, string>>
     deskWidth: number
     onOpen: (index: number) => void
     onMove: (index: number, c: number, r: number) => void
@@ -49,8 +51,9 @@ export function DeskItems({ items, deskWidth, onOpen, onMove, onMenu }: {
 
     const down = (index: number, e: ReactPointerEvent<HTMLButtonElement>) => {
         if (e.button !== 0) return
-        const p = cellPosition(items[index].c, items[index].r, deskWidth)
-        drag.current = { index, el: e.currentTarget, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, moved: false }
+        const item = items[index]; if (!item) return
+        const p = cellPosition(item.c, item.r, deskWidth)
+        drag.current = { target: { ty: item.ty, ref: item.ref }, el: e.currentTarget, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, moved: false }
         e.currentTarget.setPointerCapture(e.pointerId)
     }
     const move = (e: ReactPointerEvent<HTMLButtonElement>) => {
@@ -72,13 +75,14 @@ export function DeskItems({ items, deskWidth, onOpen, onMove, onMenu }: {
         d.el.classList.remove("os-dragging")
         Object.assign(d.el.style, { left: `${d.ox}px`, top: `${d.oy}px` }) // React re-renders it into its new cell
         const cell = nearestCell(d.ox + e.clientX - d.sx, d.oy + e.clientY - d.sy, deskWidth)
-        onMove(d.index, cell.c, cell.r)
+        const index = items.findIndex(item => sameItem(item, d.target))
+        if (index >= 0) onMove(index, cell.c, cell.r)
     }
 
     return (
         <>
             {items.map((it, i) => {
-                const { label, tile } = itemLook(it)
+                const { label, tile } = itemLook(it, noteLabels)
                 const p = cellPosition(it.c, it.r, deskWidth)
                 return (
                     <button key={`${it.ty}:${it.ref}`} type="button" className="os-thing" style={{ left: p.x, top: p.y } as CSSProperties}

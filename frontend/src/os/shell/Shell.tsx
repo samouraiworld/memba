@@ -9,11 +9,12 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
-import { NOTES_ENABLED } from "../../lib/notes/config"
+import { featuredNoteReleases } from "../../lib/notes/featuredNoteRelease"
+import { NOTES_ENABLED, notesDeployment } from "../../lib/notes/config"
 import { NotesStages } from "../apps/notes/NotesStages"
 import { NotesStageProvider } from "../apps/notes/stageRegistry"
 import { ConnectModal } from "./ConnectModal"
-import { itemTarget } from "./desk"
+import { itemTarget, sameItem, type DeskItem } from "./desk"
 import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
 import { Dock } from "./Dock"
 import { markLocked, readLocked, resolveEntry } from "./entry"
@@ -324,7 +325,9 @@ export function Shell() {
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
-    const deskItems = useDesk(deskOwner, session.network.key)
+    const featured = notesDeployment(session.network.chainId) ? featuredNoteReleases(session.network.chainId) : []
+    const deskItems = useDesk(deskOwner, session.network.key, { chainId: session.network.chainId,
+        gno: session.network.family === "gno", adopt: NOTES_ENABLED, releases: featured, blocked: locked })
     const { resetFromStorage: resetDeskFromStorage } = deskItems
     // Reset is dispatched by Settings after the saved UI keys are removed. Keep
     // that window on screen, and leave the cleared layout absent until the user
@@ -338,10 +341,10 @@ export function Shell() {
             dispatch({ type: "restore", wins: settings ? [{ ...settings, min: false }] : [] })
         }
         const onLocalReset = () => {
-            applyReset()
             try {
                 localStorage.setItem(LOCAL_UI_RESET_REVISION_KEY, `${Date.now()}:${Math.random()}`)
             } catch { /* local reset still applies if storage refuses the notification */ }
+            applyReset()
         }
         const onStorage = (event: StorageEvent) => {
             if (event.key === LOCAL_UI_RESET_REVISION_KEY && event.newValue !== null) applyReset()
@@ -419,23 +422,30 @@ export function Shell() {
     }, [locked, session.stage, front, closeWin, nextWin, launcher, openLauncher, closeLauncher, toggleFullscreen])
 
     // ── right-click menus ──
-    const [menu, setMenu] = useState<{ x: number; y: number; item: number | null } | null>(null)
+    const menuScope = JSON.stringify([deskItems.scopeKey, locked])
+    const [menu, setMenu] = useState<{ x: number; y: number; item: Pick<DeskItem, "ty" | "ref"> | null; scope: string } | null>(null)
     const [startRequest, setStartRequest] = useState(0)
     const closeMenu = useCallback(() => setMenu(null), [])
     const openMenu = (e: ReactMouseEvent, item: number | null) => {
         const r = deskEl?.getBoundingClientRect()
         if (!r) return
-        setMenu({ x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200), item })
+        const target = item === null ? null : deskItems.items[item]
+        if (item !== null && !target) return
+        setMenu({ x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200),
+            item: target ? { ty: target.ty, ref: target.ref } : null, scope: menuScope })
     }
     const openItem = (i: number) => {
-        const t = itemTarget(deskItems.items[i])
+        const item = deskItems.items[i]; if (!item) return
+        const t = itemTarget(item)
         const spec = t && specForTarget(t)
         if (spec) open(spec)
     }
     let menuEntries: (MenuEntry | "sep")[] = []
-    if (menu && menu.item !== null) {
-        const i = menu.item
-        menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
+    if (menu && menu.scope !== menuScope) setMenu(null)
+    else if (menu && menu.item !== null) {
+        const target = menu.item, i = deskItems.items.findIndex(item => sameItem(item, target))
+        if (i < 0) setMenu(null)
+        else menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
     } else if (menu) {
         menuEntries = [
             { label: "Change wallpaper…", run: () => openApp("settings") },
@@ -468,7 +478,7 @@ export function Shell() {
                 })} />
             )}
             {onEvm ? <EvmConnectModal session={session} /> : <ConnectModal session={session} />}
-            {toast && !locked && <div className="os-toast os-glass" role="status">{toast}</div>}
+            {(toast || deskItems.error) && !locked && <div className="os-toast os-glass" role="status">{toast || deskItems.error}</div>}
             {locked && !session.stage && (
                 <LockScreen
                     resuming={session.status === "resuming"}
@@ -495,7 +505,7 @@ export function Shell() {
             <MeetStageContext.Provider value={setMeetSlot}>
             <NotesStageProvider>
             {phone ? <>
-                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={deskItems.noteLabels} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
@@ -513,7 +523,7 @@ export function Shell() {
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
                 {!locked && liveWidget && !onEvm && <LiveTicker onOpen={() => openApp("live")} />}
-                <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
+                <DeskItems key={menuScope} items={deskItems.items} noteLabels={deskItems.noteLabels} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">
                         <div className="os-getstarted-title">Your desk is empty — let's fill it.</div>
