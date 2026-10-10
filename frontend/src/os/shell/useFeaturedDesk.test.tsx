@@ -68,6 +68,35 @@ describe('one authoritative featured desktop', () => {
         expect(hook.result.current.error).toBeTruthy(); expect(localStorage.getItem(key())).toBeNull()
         expect(localStorage.getItem(deskKey(owner))).toBe(raw)
     })
+    it.each([false, true])('skips stale and malformed legacy entries like the legacy loader, scoped=%s, without changing old bytes', async scoped => {
+        const dao: DeskItem = { ty: 'dao', ref: 'legacy_dao', c: 2, r: 0 }
+        const raw = JSON.stringify([{ ...pin, label: 'extra' }, { ty: 'app', ref: 'removed_app', c: 2, r: 0 }, null, { ty: 'widget', ref: 'x', c: 3, r: 0 },
+            { ty: 'dao', ref: '', c: 4, r: 0 }, { ty: 'dao', ref: 123, c: 5, r: 0 }, dao])
+        const oldKey = scoped ? deskKey(owner) : `memba_os_desk:${owner}`
+        localStorage.setItem(oldKey, raw)
+        const hook = render(); await settled()
+        expect(hook.result.current.error).toBeNull()
+        expect(stored().items).toEqual([pin, dao]); expect(hook.result.current.items).toEqual([pin, dao])
+        expect(localStorage.getItem(oldKey)).toBe(raw)
+    })
+    it('moves only legacy pins with unusable or taken cells into free cells', async () => {
+        const raw = JSON.stringify([{ ty: 'app', ref: 'wallet', c: 'x', r: 0 }, { ty: 'dao', ref: 'legacy_dao', c: 0, r: 0 },
+            { ty: 'app', ref: 'feed', c: 1.5, r: 0 }, { ty: 'dao', ref: 'kept_dao', c: 3, r: 4 }, { ty: 'dao', ref: 'twin_dao', c: 3, r: 4 }])
+        localStorage.setItem(deskKey(owner), raw)
+        const hook = render(); await settled()
+        expect(hook.result.current.error).toBeNull()
+        expect(stored().items).toEqual([{ ty: 'app', ref: 'wallet', c: 0, r: 1 }, { ty: 'dao', ref: 'legacy_dao', c: 0, r: 0 },
+            { ty: 'app', ref: 'feed', c: 0, r: 2 }, { ty: 'dao', ref: 'kept_dao', c: 3, r: 4 }, { ty: 'dao', ref: 'twin_dao', c: 0, r: 3 }])
+        expect(localStorage.getItem(deskKey(owner))).toBe(raw)
+    })
+    it('counts overflow after skipping stale legacy entries', async () => {
+        const valid = Array.from({ length: 48 }, (_, i): DeskItem => ({ ty: 'dao', ref: `legacy_${i}`, c: Math.floor(i / 6), r: i % 6 }))
+        const raw = JSON.stringify([...valid, { ty: 'app', ref: 'removed_app', c: 0, r: 0 }])
+        localStorage.setItem(deskKey(owner), raw)
+        const hook = render(); await settled()
+        expect(hook.result.current.error).toBeNull(); expect(stored().items).toEqual(valid)
+        expect(localStorage.getItem(deskKey(owner))).toBe(raw)
+    })
     it.each([2, 3])('keeps strict geometry checks on v%i records', async version => {
         const items = [{ ...pin, c: 8 }]
         const raw = JSON.stringify(version === 3 ? envelope(items) : { version: 2, partition: { chainId, wallet: owner }, items, whitepaper: { status: 'pending' }, resetToken: null })

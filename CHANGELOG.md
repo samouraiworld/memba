@@ -40,6 +40,7 @@ Full changelogs are split by version range for easier navigation:
 ### Independent featured Notes on the desktop (2026-10-09)
 - Prepare separate Sushi and Whitepaper shortcuts with remembered dismissal, fixed labels on desktop and phone, and scoped browser storage that preserves existing pins across account changes and concurrent tabs.
 - Production note IDs and release activation remain pending. This change does not publish a document or enable collaborative editing.
+- Desktop adoption keeps the pins the previous desktop displayed: shortcuts to apps or targets that no longer exist are skipped instead of blocking the upgrade, misplaced icons move to free cells, and the original browser data stays untouched.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.
