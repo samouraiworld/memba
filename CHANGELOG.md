@@ -35,7 +35,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### External games in Arcade (2026-10-09)
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
-### Public Notes drafts and history preparation (2026-10-09)
+### Public Notes drafts and history preparation (#1601, 2026-10-09)
 - Prepare durable public drafts, explicit revision comparison and permanent public-history browsing, with restoration into a new draft without replacing existing edits.
 - Unknown operations retain their receipts and are never resent automatically. The workspace remains disabled pending reviewed activation.
 ### Public Notes collaboration protocol preparation (#1600, 2026-10-09)
