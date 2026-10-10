@@ -6,13 +6,17 @@ import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { NotesReadContext } from '../../../lib/notes/chain/client'
 import { PublicNotesApp } from './publicNative'
 const mocks = vi.hoisted(() => ({ enabled: true, available: true, fail: false, note: vi.fn(), list: vi.fn(), contexts: [] as NotesReadContext[], panel: vi.fn(),
-    deployment: { realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 } }))
+    scopes: [] as object[], deployment: { realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 } }))
 vi.mock('../../../lib/notes/config', () => ({ get NOTES_ENABLED() { return mocks.enabled }, NOTE_ID: /^[0-9a-f]{32}$/, notesDeployment: () => mocks.available ? mocks.deployment : null }))
 vi.mock('../../../lib/rpcFallback', () => ({ getRpcUrlsInOrder: () => ['https://rpc.invalid'] }))
 vi.mock('../../../lib/notes/chain/client', () => ({ NotesReadClient: class {
     chainId: string; note = mocks.note; publicNotes = mocks.list
     constructor(context: NotesReadContext) { mocks.contexts.push(context); if (mocks.fail) throw new Error('internal diagnostic'); this.chainId = context.chainId }
 } }))
+vi.mock('./PublicHistory', () => ({ PublicHistory: () => <p>Public history</p> }))
+vi.mock('./PublicOperationStatus', () => ({ PublicOperationStatus: () => <p>Public receipts</p> }))
+vi.mock('./PublicDraftLibrary', () => ({ PublicDraftLibrary: () => <button>New note</button> }))
+vi.mock('./PublicAuthoring', () => ({ PublicAuthoring: ({ scope }: { scope: { owner: string; noteId: string } }) => { mocks.scopes.push(scope); return <p>Public authoring for {scope.owner}</p> } }))
 vi.mock('./MarkdownPreview', () => ({ MarkdownPreview: ({ body }: { body: string }) => <article>{body}</article> }))
 vi.mock('./PublicCommentPanel', () => ({ PublicCommentPanel: (props: { owner: string | null; note: ChainNote }) => { mocks.panel(props); return <p>Comments for {props.owner ?? 'guest'}</p> } }))
 const id = 'ab'.repeat(16)
@@ -22,7 +26,7 @@ function props(patch: Partial<NativeViewProps['session']> = {}, section: string 
 }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 beforeEach(() => {
-    vi.clearAllMocks(); mocks.enabled = true; mocks.available = true; mocks.fail = false; mocks.contexts = []
+    vi.clearAllMocks(); mocks.enabled = true; mocks.available = true; mocks.fail = false; mocks.contexts = []; mocks.scopes = []
     mocks.note.mockResolvedValue(note); mocks.list.mockResolvedValue({ items: [note], nextCursor: '' })
 })
 describe('dormant public Notes native view', () => {
@@ -33,11 +37,18 @@ describe('dormant public Notes native view', () => {
         for (const name of ['Edit note', 'Review deletion', 'Write a note', 'Encryption', 'Publish']) expect(screen.queryByRole('button', { name })).toBeNull()
         expect(mocks.contexts[0]).toMatchObject({ chainId: 'test-chain', rpcUrls: ['https://rpc.invalid'] })
     })
-    it('does not give the owner a note editor and forwards only a member account to comment controls', async () => {
+    it('gives authoring only to the current member account and retains the guest reader while resuming', async () => {
         const view = render(<PublicNotesApp {...props({ status: 'member', address: 'owner' })} />)
-        expect(await screen.findByText('Comments for owner')).toBeVisible(); expect(screen.queryByRole('button', { name: 'Edit note' })).toBeNull()
+        expect(await screen.findByText('Public authoring for owner')).toBeVisible(); expect(screen.getByText('Public receipts')).toBeVisible()
         view.rerender(<PublicNotesApp {...props({ status: 'resuming', address: 'owner' })} />)
         expect(await screen.findByText('Comments for guest')).toBeVisible()
+    })
+    it('keeps a stable authoring scope across unrelated parent renders', async () => {
+        const view = render(<PublicNotesApp {...props({ status: 'member', address: 'owner' })} />)
+        expect(await screen.findByText('Public authoring for owner')).toBeVisible()
+        view.rerender(<PublicNotesApp {...props({ status: 'member', address: 'owner' })} />)
+        view.rerender(<PublicNotesApp {...props({ status: 'member', address: 'owner' })} />)
+        expect(mocks.scopes.length).toBeGreaterThan(1); expect(new Set(mocks.scopes).size).toBe(1)
     })
     it('opens a listed public note through the shell-owned callback', async () => {
         const input = props({}, null); render(<PublicNotesApp {...input} />)
@@ -66,7 +77,8 @@ describe('dormant public Notes native view', () => {
         await waitFor(() => expect(mocks.contexts).toHaveLength(1)); const old = mocks.contexts[0]
         const next = change === 'account' ? props({ status: 'member', address: 'member' }) : change === 'network' ? props({ network: { chainId: 'next-chain' } as NativeViewProps['session']['network'] }) : props({}, 'ef'.repeat(16))
         view.rerender(<PublicNotesApp {...next} />); expect(old.isCurrent()).toBe(false)
-        expect(await screen.findByRole('heading', { name: 'Public example' })).toBeVisible()
+        if (change === 'account') expect(await screen.findByText('Public authoring for member')).toBeVisible()
+        else expect(await screen.findByRole('heading', { name: 'Public example' })).toBeVisible()
         await act(async () => delayed.resolve({ ...note, title: new TextEncoder().encode('Stale content') }))
         expect(screen.queryByText('Stale content')).toBeNull()
         view.unmount(); expect(mocks.contexts.at(-1)!.isCurrent()).toBe(false)
