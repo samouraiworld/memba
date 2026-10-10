@@ -9,10 +9,11 @@ import { publicNoteMessage } from './messages'
 import type { PublicNoteOperation } from './messages'
 import { check, decimal, NOTES_REALM, NotesChainError } from './schema'
 import type { ChainNote } from './schema'
+import type { PublicCapabilities } from './capabilities'
 import { publicIntentEvidence, publicVerification } from './recovery'
 import type { NotesReadClient } from './client'
 import { gnotAmount } from './quote'
-import { readPublicWritePermission } from './publicPermissions'
+import { readPublicContentWritePermission } from './publicPermissions'
 
 export interface NotesQuote {
   requestDigest: string; chainId: string; atHeight: string; expiresAtHeight: string; expiresAtMs: number
@@ -53,12 +54,18 @@ async function verifyBase(client: NotesReadClient, operation: PublicNoteOperatio
   if (!note || note.deleted || note.mode < 3 || note.stateRevision !== a.revision
     || (('epoch' in a) && note.epoch !== a.epoch)) throw new NotesChainError('stale')
   const permitted = a.kind === 'commit' || a.kind === 'rename'
-    ? await readPublicWritePermission(client, note, operation.caller) : note.owner === operation.caller
+    ? await readPublicContentWritePermission(client, note, operation.caller) : note.owner === operation.caller
   if (!permitted) throw new NotesChainError('stale')
+  if (a.kind === 'public-writes') {
+    const capability = await client.publicCapabilities(note.id); client.assertCurrent()
+    if (!capability || note.mode !== 4 || capability.id !== note.id || capability.mode !== 4 || capability.deleted
+      || capability.stateRevision !== note.stateRevision || capability.ownerGeneration !== note.ownerGeneration
+      || capability.allowPublicWrites === a.enabled) throw new NotesChainError('stale')
+  }
 }
 /** A later operation or a visually identical note is not evidence for this write. */
-export function publicOperationEvidence(input: NotesIntentInput, operation: PublicNoteOperation, base: ChainNote | null, note: ChainNote | null, afterHeight: string): NotesOperationEvidence | null {
-  return publicIntentEvidence({ ...input, verification: input.verification ?? publicVerification(operation, base, afterHeight) }, note)
+export function publicOperationEvidence(input: NotesIntentInput, operation: PublicNoteOperation, base: ChainNote | null, note: ChainNote | null, afterHeight: string, capabilities?: PublicCapabilities | null): NotesOperationEvidence | null {
+  return publicIntentEvidence({ ...input, verification: input.verification ?? publicVerification(operation, base, afterHeight) }, note, capabilities)
 }
 /** No wallet opens here. The request records its complete intention before invoking the broadcaster. */
 export async function preparePublicNoteRequest(options: PublicRequestOptions): Promise<SignRequest> {
@@ -91,8 +98,10 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
       || JSON.stringify(publicNoteMessage(operation, cap, nextConfig)) !== JSON.stringify(message)) throw new NotesChainError('stale')
     await assertFeeStillCovers(quote.networkFeeUgnot, () => freshFeeForGasWanted(quote.gasWanted)); writeAllowed()
   }
+  const label = operation.action.kind === 'public-writes' ? operation.action.enabled ? 'Allow everyone to edit' : 'Stop public editing'
+    : operation.action.kind === 'create' ? 'Publish note' : 'Update note'
   return {
-    title: operation.action.kind === 'create' ? 'Publish note' : 'Update note',
+    title: label,
     summary: `${operation.action.kind}: public note ${operation.noteId}`,
     lines: () => [
       ['Account', operation.caller], ['Network', client.chainId], ['Realm', NOTES_REALM],
@@ -101,8 +110,9 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Estimated storage deposit', gnotAmount(quote.estimatedDepositUgnot)],
       ['Maximum storage deposit', gnotAmount(cap)], ['Network fee', gnotAmount(quote.networkFeeUgnot)],
     ],
-    warns: ['This note is public. Earlier versions remain in chain history.'],
-    label: () => operation.action.kind === 'create' ? 'Publish note' : 'Update note', prepare: () => ({ msgs: [structuredClone(message)] }), recheck,
+    warns: ['This note is public. Earlier versions remain in chain history.', ...(operation.action.kind === 'public-writes'
+      ? [operation.action.enabled ? 'Any connected wallet will be able to change the title and body. Management and moderation rights stay unchanged.' : 'Collective content editing will stop. Comment permissions stay unchanged.'] : [])],
+    label: () => label, prepare: () => ({ msgs: [structuredClone(message)] }), recheck,
     send: async (_choice, beforeSign) => {
       writeAllowed(); if (sendStarted) throw new NotesChainError('stale'); sendStarted = true
       const pending = await intents.list(input.scope); writeAllowed()
@@ -129,7 +139,8 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
     },
     verify: async (_choice, hash) => {
       current(); const note = await client.note(operation.noteId); current()
-      const evidence = publicOperationEvidence(input, operation, base, note, height)
+      const capabilities = operation.action.kind === 'public-writes' ? await client.publicCapabilities(operation.noteId) : undefined; current()
+      const evidence = publicOperationEvidence(input, operation, base, note, height, capabilities)
       if (!evidence) return false
       if (hash) evidence.txHash = hash
       saved(await intents.confirm(input.scope, input.operationId, evidence, session)); return true

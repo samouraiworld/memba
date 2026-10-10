@@ -8,6 +8,7 @@ export type PublicNoteAction =
   | { kind: 'rename'; revision: string; epoch: string; title: string }
   | { kind: 'delete'; revision: string }
   | { kind: 'comments'; revision: string; open: boolean }
+  | { kind: 'public-writes'; revision: string; enabled: boolean }
 export interface PublicNoteOperation { caller: string; noteId: string; operationId: string; action: PublicNoteAction }
 function idArg(value: string): string { return encode64(Uint8Array.from(id(value).match(/../g)!, byte => parseInt(byte, 16))) }
 function textArg(value: string, title = false): string {
@@ -38,6 +39,8 @@ export function publicNoteMessage(operation: PublicNoteOperation, maxDepositUgno
     case 'delete': func = 'Delete'; args = [note, decimal(a.revision, 64, true), op]; break
     case 'comments':
       check(typeof a.open === 'boolean'); func = 'SetCommentMode'; args = [note, decimal(a.revision, 64, true), String(a.open), op]; break
+    case 'public-writes':
+      check(typeof a.enabled === 'boolean'); func = 'SetPublicWrites'; args = [note, decimal(a.revision, 64, true), String(a.enabled), op]; break
     default: throw new Error('Unknown Notes operation')
   }
   return { type: 'vm/MsgCall', value: { caller, send, pkg_path: NOTES_REALM, func, args, max_deposit: `${deposit}ugnot` } }
