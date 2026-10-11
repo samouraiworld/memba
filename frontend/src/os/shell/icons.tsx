@@ -31,6 +31,8 @@ const PATHS = {
     learn: <><path d="M12 6C9 4.5 5.5 4.5 3 6v13c2.5-1.5 6-1.5 9 0 3-1.5 6.5-1.5 9 0V6c-2.5-1.5-6-1.5-9 0z" /><path d="M12 6v13" /></>,
     meet: <><rect x="3" y="6" width="13" height="12" rx="3" /><path d="m16 10 5-3v10l-5-3" /></>,
     home: <path d="M4 11l8-7 8 7v9H4z" />,
+    pen: <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />,
+    lock: <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></>,
 } as const
 
 export type IconName = keyof typeof PATHS

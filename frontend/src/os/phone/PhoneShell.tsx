@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { appsOn, OS_APPS, runsOn, getApp, type OsAppId } from "../apps"
 import type { DeskItem } from "../shell/desk"
 import { DeskIcon } from "../shell/DeskItems"
+import { noteShortcutName } from "../shell/noteShortcuts"
 import { AppTile, Icon } from "../shell/icons"
 import { useClock } from "../shell/clock"
 import type { OsSession } from "../shell/useOsSession"
@@ -32,6 +33,7 @@ export interface PhoneShellProps {
     wins?: readonly OsWindow[]
     items: readonly DeskItem[]
     noteLabels?: Readonly<Record<string, string>>
+    privateNotes?: ReadonlySet<string>
     open: (spec: WindowSpec) => void
     openApp: (app: OsAppId) => void
     openItem: (index: number) => void
@@ -129,7 +131,8 @@ export function PhoneShell(p: PhoneShellProps) {
                 </div>
                 <div className="os-ph-grid">
                     {p.items.map((it, i) => (
-                        <button key={`${it.ty}:${it.ref}`} type="button" className="os-ph-ic" onClick={() => p.openItem(i)}><DeskIcon item={it} noteLabels={p.noteLabels} /></button>
+                        <button key={`${it.ty}:${it.ref}`} type="button" className="os-ph-ic" onClick={() => p.openItem(i)}
+                            aria-label={it.ty === "note" ? noteShortcutName(p.noteLabels?.[it.ref], !!p.privateNotes?.has(it.ref)) : undefined}><DeskIcon item={it} noteLabels={p.noteLabels} privateNotes={p.privateNotes} /></button>
                     ))}
                     <button type="button" className="os-ph-ic" onClick={() => setSheet("apps")}><span className="os-ph-all" aria-hidden="true">⋯</span><span className="os-ph-label">All apps</span></button>
                 </div>

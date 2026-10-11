@@ -181,15 +181,15 @@ test.describe('Memba OS desktop items', () => {
     test('pin from the start menu and the app menu, remove with right-click; it persists', async ({ page }) => {
         await page.goto(`${OS_ON}/os/dao/memba_dao/proposals/12`)
         await bar(page).getByRole('button', { name: 'Memba menu' }).click()
-        await page.getByRole('menuitem', { name: 'Add Feed to desktop' }).click()
+        await page.getByRole('menuitem', { name: 'Add Feed to Desktop' }).click()
         await expect(item(page, 'app:feed')).toBeVisible()
         await page.keyboard.press('Escape')
         await bar(page).getByRole('button', { name: 'DAOs' }).click()
-        await page.getByRole('menuitem', { name: 'Bookmark to desktop' }).click()
+        await page.getByRole('menuitem', { name: 'Bookmark to Desktop' }).click()
         await expect(item(page, 'prop:memba_dao:12')).toBeVisible()
 
         await item(page, 'app:arcade').click({ button: 'right' })
-        await page.getByRole('menuitem', { name: 'Remove from desktop' }).click()
+        await page.getByRole('menuitem', { name: 'Remove from Desktop' }).click()
         await expect(item(page, 'app:arcade')).toHaveCount(0)
 
         await page.reload()

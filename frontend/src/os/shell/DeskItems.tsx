@@ -4,22 +4,32 @@
  *
  * @module os/shell/DeskItems
  */
-import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { useEffect, useId, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
 import { cellPosition, nearestCell, sameItem, type DeskItem } from "./desk"
 import { shortAddr } from "./format"
-import { AppTile, ThingTile } from "./icons"
+import { noteShortcutName } from "./noteShortcuts"
+import { AppTile, Icon, ThingTile } from "./icons"
 
 const DAO_TINT = ["#5B7CFA", "#3D5BE0"] as const
+const NO_PRIVATE_NOTES: ReadonlySet<string> = new Set()
 
 function initials(name: string): string {
     const parts = name.replace(/[^A-Za-z0-9]+/g, " ").trim().split(" ").filter(Boolean)
     return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase()
 }
 
-function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>): { label: string; tile: ReactNode } {
+/** A document with a small Notes badge; a lock instead for a private note. */
+function noteTile(isPrivate: boolean): ReactNode {
+    return <span className="os-badged"><ThingTile icon="doc" /><span className="os-badge2 os-badge2-note" data-private={isPrivate || undefined}><Icon name={isPrivate ? "lock" : "pen"} /></span></span>
+}
+
+function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>, privateNotes: ReadonlySet<string>): { label: string; tile: ReactNode; name?: string } {
     switch (it.ty) {
-        case "note": return { label: noteLabels[it.ref] ?? "Note", tile: <ThingTile icon="doc" /> }
+        case "note": {
+            const isPrivate = privateNotes.has(it.ref)
+            return { label: noteLabels[it.ref] ?? "Note", tile: noteTile(isPrivate), name: noteShortcutName(noteLabels[it.ref], isPrivate) }
+        }
         case "app": return { label: getApp(it.ref as OsAppId).name, tile: <AppTile app={it.ref as OsAppId} /> }
         case "dao": return { label: it.ref, tile: <span className="os-badged"><ThingTile icon="folder" tint={DAO_TINT} /><span className="os-badge2">{initials(it.ref)}</span></span> }
         case "prop": {
@@ -31,16 +41,17 @@ function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>): {
 }
 
 /** A desk item's tile and label, for the phone home screen (tap only). */
-export function DeskIcon({ item, noteLabels = {} }: { item: DeskItem; noteLabels?: Readonly<Record<string, string>> }) {
-    const look = itemLook(item, noteLabels)
+export function DeskIcon({ item, noteLabels = {}, privateNotes = NO_PRIVATE_NOTES }: { item: DeskItem; noteLabels?: Readonly<Record<string, string>>; privateNotes?: ReadonlySet<string> }) {
+    const look = itemLook(item, noteLabels, privateNotes)
     return <>{look.tile}<span className="os-ph-label">{look.label}</span></>
 }
 
 type Drag = { target: Pick<DeskItem, "ty" | "ref">; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; moved: boolean }
 
-export function DeskItems({ items, noteLabels = {}, deskWidth, onOpen, onMove, onMenu }: {
+export function DeskItems({ items, noteLabels = {}, privateNotes = NO_PRIVATE_NOTES, deskWidth, onOpen, onMove, onMenu }: {
     items: readonly DeskItem[]
     noteLabels?: Readonly<Record<string, string>>
+    privateNotes?: ReadonlySet<string>
     deskWidth: number
     onOpen: (index: number) => void
     onMove: (index: number, c: number, r: number) => void
@@ -82,11 +93,11 @@ export function DeskItems({ items, noteLabels = {}, deskWidth, onOpen, onMove, o
     return (
         <>
             {items.map((it, i) => {
-                const { label, tile } = itemLook(it, noteLabels)
+                const { label, tile, name } = itemLook(it, noteLabels, privateNotes)
                 const p = cellPosition(it.c, it.r, deskWidth)
                 return (
                     <button key={`${it.ty}:${it.ref}`} type="button" className="os-thing" style={{ left: p.x, top: p.y } as CSSProperties}
-                        data-item={`${it.ty}:${it.ref}`}
+                        data-item={`${it.ty}:${it.ref}`} aria-label={name}
                         onPointerDown={(e) => down(i, e)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
                         onClick={() => { if (justDragged.current) { justDragged.current = false; return } onOpen(i) }}
                         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onMenu(e, i) }}>
@@ -100,11 +111,14 @@ export function DeskItems({ items, noteLabels = {}, deskWidth, onOpen, onMove, o
 }
 
 export interface MenuEntry { label: string; run: () => void }
+/** A line of explanation under the entries, not an action. */
+export interface MenuHint { hint: string }
 
 /** A right-click menu at a desk position; closes on Escape or any outside press. */
-export function ContextMenu({ x, y, entries, onClose }: { x: number; y: number; entries: (MenuEntry | "sep")[]; onClose: () => void }) {
+export function ContextMenu({ x, y, entries, onClose }: { x: number; y: number; entries: (MenuEntry | MenuHint | "sep")[]; onClose: () => void }) {
     const ref = useRef<HTMLDivElement>(null)
     const opener = useRef<HTMLElement | null>(null)
+    const hintId = useId()
     useEffect(() => {
         opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
         const onKey = (e: KeyboardEvent) => {
@@ -132,9 +146,14 @@ export function ContextMenu({ x, y, entries, onClose }: { x: number; y: number; 
     }, [onClose])
     return (
         <div ref={ref} className="os-ctx os-glass os-menu" role="menu" style={{ left: x, top: y }}>
-            {entries.map((e, i) => e === "sep"
-                ? <div key={i} className="os-msep" role="separator" />
-                : <button key={i} type="button" role="menuitem" className="os-mi" onClick={() => { onClose(); e.run() }}><span>{e.label}</span></button>)}
+            {entries.map((e, i) => {
+                if (e === "sep") return <div key={i} className="os-msep" role="separator" />
+                if ("hint" in e) return <p key={i} id={`${hintId}-${i}`} role="none" className="os-mhint">{e.hint}</p>
+                // A hint right after an entry describes it for screen readers too.
+                const next = entries[i + 1]
+                const described = next && next !== "sep" && "hint" in next ? `${hintId}-${i + 1}` : undefined
+                return <button key={i} type="button" role="menuitem" className="os-mi" aria-describedby={described} onClick={() => { onClose(); e.run() }}><span>{e.label}</span></button>
+            })}
         </div>
     )
 }
