@@ -1,0 +1,63 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ChainNote } from './schema'
+import { planDraftRebase, type RebaseClient } from './rebase'
+
+const history = vi.hoisted(() => ({ body: vi.fn() }))
+vi.mock('./historyBody', () => ({ readPublicHistoryBody: history.body }))
+const utf8 = (value: string) => new TextEncoder().encode(value)
+const id = 'ab'.repeat(16)
+const latest = { id, owner: 'owner', actor: 'g1747actor', mode: 4, deleted: false, stateRevision: '5', titleRevision: '4', bodyRevision: '3', epoch: '0', ownerGeneration: '1',
+    title: utf8('Groceries'), body: utf8('- milk\n- eggs\n- bread\n- avocados') } as ChainNote
+const base = { stateRevision: '4', epoch: '0', ownerGeneration: '1', titleRevision: '4', bodyRevision: '2' }
+function client(versions: Record<string, { title: Uint8Array | null; bodyRevision: string | null; deleted?: boolean }> = {}) {
+    return {
+        assertCurrent: vi.fn(),
+        publicHistoryInfo: vi.fn(async () => ({ startStateRevision: '1' })),
+        publicHistoryVersion: vi.fn(async (_id: string, revision: string) => versions[revision] ? { deleted: false, ...versions[revision] } : null),
+        publicHistoryBodyChunk: vi.fn(),
+    } as unknown as RebaseClient & { publicHistoryVersion: ReturnType<typeof vi.fn> }
+}
+beforeEach(() => { vi.clearAllMocks(); history.body.mockImplementation(async (_c: unknown, _id: string, revision: string) => revision === '2' ? { text: '- milk\n- eggs\n- bread' } : null) })
+
+describe('draft rebase planning', () => {
+    it('leaves a draft based on the latest revision alone', async () => {
+        expect(await planDraftRebase(client(), { title: 'x', body: 'y', base: { ...base, stateRevision: '5', bodyRevision: '3' } }, latest)).toEqual({ kind: 'current' })
+    })
+    it('starts from the latest revision when the draft has no changes of its own', async () => {
+        const plan = await planDraftRebase(client(), { title: 'Groceries', body: '- milk\n- eggs\n- bread', base }, latest)
+        expect(plan).toMatchObject({ kind: 'replace', title: 'Groceries', body: '- milk\n- eggs\n- bread\n- avocados', latest })
+        expect(history.body).toHaveBeenCalledWith(expect.anything(), id, '2')
+    })
+    it('merges disjoint changes onto the latest revision and fetches only changed base fields', async () => {
+        const c = client()
+        const plan = await planDraftRebase(c, { title: 'Groceries', body: '- MILK\n- eggs\n- bread', base }, latest)
+        expect(plan).toMatchObject({ kind: 'merged', title: 'Groceries', body: '- MILK\n- eggs\n- bread\n- avocados' })
+        expect(c.publicHistoryVersion).not.toHaveBeenCalled()
+    })
+    it('reports overlapping changes as a conflict naming the field and who published', async () => {
+        const plan = await planDraftRebase(client(), { title: 'Groceries', body: '- milk\n- eggs\n- bread\n- butter', base }, latest)
+        expect(plan).toMatchObject({ kind: 'conflict', fields: ['body'], baseRevision: '4', latest: { stateRevision: '5', actor: 'g1747actor' }, theirs: { body: '- milk\n- eggs\n- bread\n- avocados' } })
+    })
+    it('keeps own edits across a revision that changed no content', async () => {
+        const c = client()
+        const plan = await planDraftRebase(c, { title: 'Mine', body: 'anything', base: { ...base, titleRevision: '4', bodyRevision: '3' } }, latest)
+        expect(plan).toMatchObject({ kind: 'merged', title: 'Mine', body: 'anything' })
+        expect(history.body).not.toHaveBeenCalled(); expect(c.publicHistoryVersion).not.toHaveBeenCalled()
+    })
+    it('reads the older title from the base version when the title changed on chain', async () => {
+        const c = client({ '4': { title: utf8('Old'), bodyRevision: '2' } })
+        const plan = await planDraftRebase(c, { title: 'Old', body: '- milk\n- eggs\n- bread\n- cheese', base: { ...base, titleRevision: '3', bodyRevision: '3' } }, latest)
+        expect(c.publicHistoryVersion).toHaveBeenCalledWith(id, '4')
+        expect(plan).toMatchObject({ kind: 'merged', title: 'Groceries', body: '- milk\n- eggs\n- bread\n- cheese' })
+    })
+    it('treats a creation draft on an existing note as based on the first public version', async () => {
+        const c = client({ '1': { title: utf8('Groceries'), bodyRevision: '2' } })
+        expect(await planDraftRebase(c, { title: 'Groceries', body: '- milk\n- eggs\n- bread' }, latest)).toMatchObject({ kind: 'replace', latest })
+        expect(await planDraftRebase(c, { title: 'Groceries', body: 'Intro\n- milk\n- eggs\n- bread' }, latest)).toMatchObject({ kind: 'merged', body: 'Intro\n- milk\n- eggs\n- bread\n- avocados' })
+    })
+    it('never merges against a redacted base', async () => {
+        history.body.mockResolvedValue(null)
+        expect(await planDraftRebase(client(), { title: 'Groceries', body: 'mine', base }, latest)).toMatchObject({ kind: 'conflict', fields: ['body'] })
+        expect(await planDraftRebase(client(), { title: 'Groceries', body: '- milk\n- eggs\n- bread\n- avocados', base }, latest)).toMatchObject({ kind: 'replace' })
+    })
+})
