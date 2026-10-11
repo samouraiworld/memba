@@ -8,7 +8,7 @@ async function desktop(page: Page, query = '') {
 function icon(page: Page, label: string) { return page.getByRole('button', { name: label, exact: true }).filter({ has: page.locator('.os-tile') }) }
 async function dismiss(page: Page, label: string) {
     await icon(page, label).click({ button: 'right' })
-    await page.getByRole('menuitem', { name: 'Remove from desktop', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Remove from Desktop', exact: true }).click()
     await expect(icon(page, label)).toHaveCount(0)
 }
 async function desk(page: Page, guest = false) {
