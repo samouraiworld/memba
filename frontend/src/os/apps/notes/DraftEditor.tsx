@@ -3,7 +3,7 @@ import { createDraftSession, type DraftBase, type DraftRecord, type NotesScope, 
 import { MAX_NOTE_BODY_BYTES, newNoteId } from "../../../lib/notes/config"
 import { MarkdownPreview } from "./MarkdownPreview"
 import { CodeEditor } from "../terminal/CodeEditor"
-import { registerCloseGuard } from "../../shell/closeGuards"
+import { useNotesPane, useUnsavedText } from "./notesPane"
 import { noteExportFilename } from "../../../lib/notes/exportFilename"
 import { publicTitleProblem, trimPublicTitle } from "../../../lib/notes/publicFields"
 
@@ -11,6 +11,9 @@ type SaveState = "loading" | "saved" | "dirty" | "saving" | "deleting" | "confli
 
 export function DraftEditor({ store, scope, onSaved, remote, actions }: { store: NotesStore; scope: NotesScope; onSaved(): void; remote?: ReactNode; actions?: (record: DraftRecord, published: (base: DraftBase, fromRevision: string) => Promise<boolean>) => ReactNode }) {
     const [session] = useState(createDraftSession)
+    // Text saves use a lease the unmount never aborts: switching notes or closing Notes must not lose typed text.
+    const [keep] = useState(createDraftSession)
+    const pane = useNotesPane()
     const [title, setTitle] = useState("")
     const [body, setBody] = useState("")
     const [state, setState] = useState<SaveState>("loading")
@@ -26,18 +29,34 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
     const draft = useRef({ title: "", body: "", changes: 0 })
     const saved = useRef(onSaved)
     const inflight = useRef(false)
-    /** Settles when the save in flight has been handled, so a baseline move can queue behind it. */
+    /** The save in flight: a baseline move and the unmount flush queue behind it. */
     const running = useRef<Promise<unknown> | null>(null)
+    /** Edit count already stored, and whether this editor holds an editable public draft. */
+    const stored = useRef(0), editable = useRef(false)
+    const titleInput = useRef<HTMLInputElement>(null)
     const descriptionId = useId(), titleHintId = useId()
-    useLayoutEffect(() => registerCloseGuard(`notes:${scope.noteId}`, () =>
-        !["dirty", "saving", "conflict", "unavailable"].includes(state)
-            || window.confirm("This note has unsaved edits. Close it and discard those edits?")), [scope.noteId, state])
-    useEffect(() => { saved.current = onSaved }, [onSaved])
-    useEffect(() => () => session.invalidate(), [session])
+    // Pending edits are stored on unmount; only text that could not be stored keeps the pane and asks before closing.
+    useUnsavedText(state === "conflict" || state === "unavailable", "This note has edits that could not be saved on this device. Leave without saving them? Choose Cancel to keep editing.")
+    useEffect(() => { saved.current = () => { onSaved(); pane?.saved() } }, [onSaved, pane])
+    useLayoutEffect(() => () => {
+        session.invalidate()
+        // Another note, Explore, Back or closing the window: store what was typed and not yet saved.
+        void (async () => {
+            while (inflight.current && running.current) await running.current.catch(() => {})
+            if (!editable.current || inflight.current || draft.current.changes === stored.current) return
+            const snapshot = { ...draft.current }
+            const result = await Promise.resolve().then(() => store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, keep)).catch(() => null)
+            if (result?.status === "saved") saved.current()
+        })()
+        // The editor is keyed by its scope and store; this cleanup runs once, at unmount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session])
+    const focusTitle = !!pane?.focusTitle && state === "saved"
+    useEffect(() => { if (focusTitle) { titleInput.current?.focus(); pane?.titleFocused() } }, [focusTitle, pane])
     useEffect(() => {
         let alive = true
         const load = () => {
-            setState("loading")
+            setState("loading"); editable.current = false
             void store.getDraft(scope).then(record => {
                 if (!alive) return
                 if (!record) { setState("missing"); return }
@@ -45,7 +64,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
                 setDurable(record)
                 if (record.payload.kind !== "public") { setState("locked"); return }
                 base.current = record.payload.base
-                draft.current = { title: record.payload.title, body: record.payload.body, changes: 0 }
+                draft.current = { title: record.payload.title, body: record.payload.body, changes: 0 }; stored.current = 0; editable.current = true
                 setTitle(record.payload.title); setBody(record.payload.body); setState("saved"); setNotice("")
             }).catch(() => { if (alive) setState("load-error") })
         }
@@ -58,13 +77,13 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         if (inflight.current || !["dirty", "unavailable"].includes(state)) return
         inflight.current = true; setState("saving")
         const snapshot = { ...draft.current }
-        const pending = store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, session)
+        const pending = store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, keep)
         running.current = pending
         const result = await pending
         inflight.current = false
         if (result.status === "session-changed") return
         if (result.status === "saved") {
-            revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision)
+            revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision); stored.current = snapshot.changes
             setDurable(result.value)
             setState(draft.current.changes === snapshot.changes ? "saved" : "dirty")
             saved.current()
@@ -103,7 +122,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         if (!armed) { setArmed(true); return }
         setState("deleting")
         const result = await store.deleteDraft(scope, revision.current, session)
-        if (result.status === "saved") { setTitle(""); setBody(""); draft.current = { title: "", body: "", changes: 0 }; setState("missing"); saved.current() }
+        if (result.status === "saved") { editable.current = false; setTitle(""); setBody(""); draft.current = { title: "", body: "", changes: 0 }; setState("missing"); saved.current(); pane?.deleted(!!base.current) }
         else if (result.status !== "session-changed") { setState("conflict"); setArmed(false) }
     }
     async function keepCopy() {
@@ -130,7 +149,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         inflight.current = false
         if (result.status === "session-changed") return false
         if (result.status !== "saved") { setState(result.status === "conflict" ? "conflict" : "unavailable"); return false }
-        revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision); setDurable(result.value)
+        revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision); stored.current = snapshot.changes; setDurable(result.value)
         setState(snapshot.changes === draft.current.changes ? "saved" : "dirty"); saved.current()
         return true
     }
@@ -155,7 +174,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
             <button className="os-btn os-quiet" onClick={() => void keepCopy()}>Save a separate copy</button>
             <button className="os-btn os-quiet" onClick={() => { setArmed(false); setReload(v => v + 1) }}>Discard these edits and reload</button>
         </div>}
-        <input className="os-notes-title" aria-label="Note title" value={title} maxLength={160} aria-invalid={!!titleProblem} aria-describedby={titleProblem ? titleHintId : undefined} onChange={event => edit("title", event.target.value)} />
+        <input ref={titleInput} className="os-notes-title" aria-label="Note title" placeholder="Title" value={title} maxLength={160} aria-invalid={!!titleProblem} aria-describedby={titleProblem ? titleHintId : undefined} onChange={event => edit("title", event.target.value)} />
         {titleProblem && <p id={titleHintId} className="os-notes-message" aria-live="polite">{titleProblem}</p>}
         <p id={descriptionId} className="os-notes-hint">Local draft · Stored unencrypted on this device · Markdown · 128 KiB maximum</p>
         {notice && <p className="os-notes-message" role="status">{notice}</p>}

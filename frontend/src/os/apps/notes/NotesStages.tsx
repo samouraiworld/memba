@@ -16,7 +16,7 @@ type Props = Pick<NativeViewProps, "session" | "open" | "openApp" | "toast"> & {
 
 /** Mount outside the desktop/phone branch. Feature gating belongs to the caller. */
 export function NotesStages({ wins, activeWindowId, App, close, focus, push, ...actions }: Props) {
-    return wins.filter(win => win.key === "app:notes" || win.key.startsWith("notes:")).map(win => {
+    return wins.filter(win => win.key === "app:notes").map(win => {
         const section = win.target?.kind === "app" ? win.target.section : null
         const props: NativeViewProps = {
             ...actions, section, active: !win.min && win.id === activeWindowId,

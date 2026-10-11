@@ -7,6 +7,7 @@ import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { PublicComment } from '../../../lib/notes/chain/comments'
 import { PublicCommentPanel } from './PublicCommentPanel'
 import { announceNoteChange } from '../../../lib/notes/freshness'
+import { mayCloseWindow } from '../../shell/closeGuards'
 const mocks = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), recover: vi.fn(), list: vi.fn(), sign: vi.fn(), dismiss: vi.fn(), settle: vi.fn(), version: 0, next: 0 }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: mocks.sign, version: mocks.version }) }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({}), newNoteId: () => (++mocks.next).toString(16).padStart(32, '0') }))
@@ -43,6 +44,13 @@ describe('public-only comment controls', () => {
         await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[0][0].session.capture().signal.aborted).toBe(false)
         expect(mocks.prepare.mock.calls[0][0].operation.caller).toBe('owner')
+    })
+    it('asks before the Notes window closes while a comment is unsent', async () => {
+        setup('owner'); await compose()
+        const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+        expect(mayCloseWindow('app:notes')).toBe(false); expect(confirm).toHaveBeenCalledOnce()
+        fireEvent.change(screen.getByLabelText('Comment'), { target: { value: '' } })
+        expect(mayCloseWindow('app:notes')).toBe(true); confirm.mockRestore()
     })
     it('lets a guest read without touching receipts or preparing a signature', async () => {
         setup(null); expect(await screen.findByText('Public comment')).toBeVisible()

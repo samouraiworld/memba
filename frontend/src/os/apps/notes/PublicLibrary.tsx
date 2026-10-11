@@ -5,8 +5,9 @@ import { publicText, type ChainNote } from "../../../lib/notes/chain/schema"
 type Client = Pick<NotesReadClient, "publicNotes">
 type Listing = { client: Client; version: number; items: ChainNote[]; cursor: string; loading: boolean; error: boolean }
 const PAGE_SIZE = 20
+const title = (note: ChainNote) => publicText(note.title, true)
 
-export function PublicLibrary({ client, onOpen }: { client: Client; onOpen(id: string): void }) {
+export function PublicLibrary({ client, filter = "", onOpen }: { client: Client; filter?: string; onOpen(id: string): void }) {
     const [listing, setListing] = useState<Listing>({ client, version: 0, items: [], cursor: "", loading: true, error: false })
     const [reload, setReload] = useState(0)
     const lifetime = useRef<AbortController | null>(null)
@@ -45,16 +46,18 @@ export function PublicLibrary({ client, onOpen }: { client: Client; onOpen(id: s
         } finally { if (!controller.signal.aborted) busy.current = false }
     }
     const visible = listing.client === client && listing.version === reload ? listing : { items: [], cursor: "", loading: true, error: false }
+    const needle = filter.trim().toLocaleLowerCase()
+    const items = needle ? visible.items.filter(note => title(note).toLocaleLowerCase().includes(needle)) : visible.items
     return <section className="os-notes-library" aria-label="Public notes">
         <header><h2>Public notes</h2><button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh</button></header>
         <p className="os-sub">Published on chain · Read without connecting</p>
-        <ul>{visible.items.map(note => <li key={note.id}><button onClick={() => onOpen(note.id)}>
-            <span>{publicText(note.title, true)}</span><small>Revision {note.stateRevision}</small>
+        <ul>{items.map(note => <li key={note.id}><button onClick={() => onOpen(note.id)}>
+            <span>{title(note)}</span><small>Revision {note.stateRevision}</small>
         </button></li>)}</ul>
         {visible.loading && <p role="status">Loading public notes…</p>}
         {visible.error && <div role="alert"><p>Public notes could not be loaded. Please try again.</p>
             <button className="os-btn" onClick={() => visible.cursor ? void more() : setReload(value => value + 1)}>Retry</button></div>}
-        {!visible.loading && !visible.error && !visible.items.length && <p className="os-sub">No public notes have been listed yet.</p>}
+        {!visible.loading && !visible.error && !items.length && <p className="os-sub">{needle && visible.items.length ? "No loaded public note matches this search." : "No public notes have been listed yet."}</p>}
         {visible.cursor && !visible.error && <button className="os-btn" disabled={visible.loading} onClick={() => void more()}>Load more</button>}
     </section>
 }

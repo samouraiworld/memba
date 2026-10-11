@@ -1,0 +1,50 @@
+/* One Notes window: the list on the left, the open note on the right; one pane at a time when narrow. */
+.os-notes-public.os-notes-app { display:grid; grid-template-columns:minmax(220px, 290px) minmax(0, 1fr); grid-template-rows:minmax(0, 1fr); padding:0; overflow:hidden; container:notes-app / inline-size; }
+.os-notes-app .os-notes-sidebar { display:flex; flex-direction:column; gap:2px; min-height:0; overflow:auto; padding:12px 10px; background:var(--os-opaque); border-right:1px solid var(--os-line); }
+.os-notes-app .os-notes-sidebar-head { display:flex; gap:8px; align-items:center; }
+.os-notes-app input.os-notes-search { flex:1; min-width:0; height:36px; box-sizing:border-box; padding:0 12px; border-radius:var(--os-radius-ctl); font:500 13px var(--os-font); }
+.os-notes-app .os-notes-new { width:36px; height:36px; padding:0; justify-content:center; flex:none; background:var(--os-hover); color:var(--os-ink); border-radius:var(--os-radius-ctl); }
+.os-notes-app .os-notes-group { margin:0; padding:14px 12px 4px; font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--os-mut); }
+.os-notes-app .os-notes-rows { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+.os-notes-app .os-notes-row { display:flex; flex-direction:column; gap:3px; width:100%; min-width:0; padding:10px 12px; border:0; border-radius:var(--os-radius-ctl); background:transparent; color:var(--os-ink); font:inherit; text-align:left; cursor:pointer; }
+.os-notes-app .os-notes-row:hover { background:var(--os-hover); }
+.os-notes-app .os-notes-row[aria-current="true"] { background:var(--os-chip); }
+.os-notes-app .os-notes-row:focus-visible, .os-notes-app .os-notes-new:focus-visible, .os-notes-app .os-notes-back:focus-visible { outline:2px solid var(--os-acc); outline-offset:1px; }
+.os-notes-app .os-notes-row-title { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.os-notes-app .os-notes-row-meta { display:flex; align-items:center; gap:6px; min-width:0; font-size:12px; color:var(--os-mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.os-notes-app .os-notes-pill { flex:none; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:800; background:var(--os-hover); color:var(--os-ink); }
+.os-notes-app .os-notes-pill[data-state="draft"] { background:var(--os-warn-bg); color:var(--os-warn); }
+.os-notes-app .os-notes-pill[data-state="public"] { background:var(--os-ok-bg); color:var(--os-ok); }
+.os-notes-app .os-notes-list-note { margin:0; padding:6px 12px; font-size:12.5px; color:var(--os-mut); }
+.os-notes-app .os-notes-main { display:flex; flex-direction:column; min-width:0; min-height:0; overflow:auto; padding:16px 28px 24px; container-type:size; }
+.os-notes-app .os-notes-back { display:none; align-self:flex-start; margin-bottom:8px; }
+.os-notes-app .os-notes-main .os-notes-document { width:100%; }
+
+/* The editor fills the pane (it scrolls inside), instead of growing from one line. */
+.os-notes-app .os-notes-main .os-notes-content { height:max(260px, calc(100cqh - 190px)); grid-template-rows:minmax(0, 1fr); }
+.os-notes-app .os-notes-content > * { min-height:0; overflow:auto; }
+.os-notes-app .os-notes-main .os-notes-code { min-height:0; display:flex; flex-direction:column; border:1px solid var(--os-line); border-radius:var(--os-radius-ctl); }
+.os-notes-app .os-notes-code .cm-editor { flex:1; height:100%; min-height:0; background:transparent; color:var(--os-ink); }
+/* Focus shows on the editor frame: the global ring on the text area would cover the first characters. */
+.os-notes-app .os-notes-code .cm-editor.cm-focused, .os-notes-app .os-notes-code .cm-content:focus-visible { outline:none; }
+.os-notes-app .os-notes-main .os-notes-code:focus-within { border-color:var(--os-acc); }
+.os-notes-app .os-notes-code .cm-scroller { font:14px/1.65 var(--os-mono); font-variant-ligatures:none; }
+.os-notes-app .os-notes-code .cm-gutters { background:transparent; border-right:1px solid var(--os-line); color:var(--os-mut); }
+.os-notes-app .os-notes-code .cm-activeLine, .os-notes-app .os-notes-code .cm-activeLineGutter { background:var(--os-hover); }
+.os-notes-app .os-notes-code .cm-cursor { border-left-color:var(--os-ink); }
+.os-notes-app .os-notes-main input.os-notes-title { padding:6px 0; border:0; border-radius:0; background:transparent; color:var(--os-ink); font:800 28px/1.2 var(--os-font); }
+.os-notes-app .os-notes-main input.os-notes-title::placeholder { color:var(--os-mut); }
+.os-notes-app .os-notes-main input.os-notes-title:focus { outline:none; box-shadow:0 2px 0 var(--os-chip); }
+
+/* Phone and narrow windows: the list is the first screen; a note opens full screen with Back. */
+@container notes-app (max-width: 640px) {
+    .os-notes-app .os-notes-sidebar, .os-notes-app .os-notes-main { grid-column:1 / -1; grid-row:1; }
+    .os-notes-app[data-pane="list"] .os-notes-main, .os-notes-app[data-pane="note"] .os-notes-sidebar { display:none; }
+    .os-notes-app .os-notes-sidebar { border-right:0; padding:12px; }
+    .os-notes-app .os-notes-back { display:inline-flex; min-height:44px; }
+    /* A phone window grows with its content: no size containment, the editor follows the screen height. */
+    .os-notes-app .os-notes-main { padding:8px 16px 20px; container-type:normal; }
+    .os-notes-app .os-notes-row { padding:14px 12px; }
+    .os-notes-app input.os-notes-search, .os-notes-app .os-notes-new { height:44px; }
+    .os-notes-app .os-notes-new { width:44px; }
+}

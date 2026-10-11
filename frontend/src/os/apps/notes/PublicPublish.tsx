@@ -11,6 +11,7 @@ import { NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema
 import { announceNoteChange, NotesTimeoutError, withTimeout } from '../../../lib/notes/freshness'
 import { publicBodyProblem, publicTitleProblem } from '../../../lib/notes/publicFields'
 import { useSigner } from '../../sign/signerContext'
+import { PUBLISHING, useNotesPane } from './notesPane'
 
 type PublicPublishProps = {
     draft: DraftRecord; client: NotesReadClient; store: NotesStore
@@ -39,6 +40,7 @@ export function PublicPublish(props: PublicPublishProps) {
     return <PublicPublishSession key={JSON.stringify([lease.id, client.chainId, props.draft.scope.chainId, props.draft.scope.realm, props.draft.scope.owner, props.draft.scope.noteId, props.draft.localRevision])} {...props} />
 }
 function PublicPublishSession({ draft, client, store, requestSession, beforeReview, onPublished }: PublicPublishProps) {
+    const pane = useNotesPane()
     const signer = useSigner()
     const [session] = useState(createDraftSession)
     const [mode, setMode] = useState<3 | 4>(3)
@@ -99,6 +101,12 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
                 else if (outcome === 'unknown') setNotice('The outcome is unknown. Your draft and operation receipt were kept. Check the receipt before another attempt.')
             }
             request.warns = [...request.warns ?? [], 'Storage and gas are conservative estimates. A refused execution can still consume its transaction fee.']
+            // Until it settles, the publication is verified with the note pane's session: the pane stays mounted
+            // (hidden) when another note opens, so the confirmation and baseline move still complete.
+            const hold = `${PUBLISHING}${newNoteId()}`, release = () => pane?.hold(hold, false), settled = request.onSettled, dismissed = request.onDismissed
+            request.onSettled = (outcome, choice) => { try { settled?.(outcome, choice) } finally { release() } }
+            request.onDismissed = () => { try { dismissed?.() } finally { release() } }
+            pane?.hold(hold, true)
             if (signer.sign(request)) setNotice('Review the publication and its spending limits in the signature sheet.')
             else { request.onDismissed?.(); setNotice('The signature window could not open. Close any other signature request, then select Review publication again. Your text is kept.') }
         } catch (error) {

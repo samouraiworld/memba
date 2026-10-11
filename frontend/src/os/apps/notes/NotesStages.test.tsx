@@ -7,7 +7,7 @@ import { NotesStages } from "./NotesStages"
 import { NotesSlot, NotesStageProvider } from "./stageRegistry"
 
 const section = "0123456789abcdef0123456789abcdef"
-const win = { id: "w1", key: `notes:${section}`, min: false, target: { kind: "app", app: "notes", section } } as unknown as OsWindow
+const win = { id: "w1", key: "app:notes", min: false, target: { kind: "app", app: "notes", section } } as unknown as OsWindow
 const session = { address: "account-a", network: { chainId: "test-chain" } } as NativeViewProps["session"]
 const actions = { open: vi.fn(), openApp: vi.fn(), toast: vi.fn(), close: vi.fn(), focus: vi.fn() }
 const base: NativeViewProps = { ...actions, session, section, active: true, push: actions.open, fallback: null }
@@ -78,6 +78,36 @@ describe("stable Notes stages", () => {
         expect(cleanup).toHaveBeenCalled()
         view.rerender(<Harness />)
         expect(screen.getByRole("textbox")).toHaveValue("")
+    })
+
+    it("keeps the same mounted workspace when the window shows another note", () => {
+        const cleanup = vi.fn(), mount = vi.fn(), sections: (string | null)[] = []
+        function App({ section: shown }: NativeViewProps) {
+            const [text, setText] = useState("")
+            useEffect(() => { mount(); return cleanup }, [])
+            sections.push(shown)
+            return <input aria-label="search" value={text} onChange={event => setText(event.target.value)} />
+        }
+        const other = "fedcba9876543210fedcba9876543210"
+        function Harness({ shown }: { shown: string | null }) {
+            const current = { ...win, target: { kind: "app", app: "notes", section: shown } } as unknown as OsWindow
+            return <NotesStageProvider>
+                <NotesSlot {...base} section={shown} />
+                <NotesStages {...actions} session={session} wins={[current]} activeWindowId={win.id} App={App} />
+            </NotesStageProvider>
+        }
+        const view = render(<Harness shown={section} />)
+        const field = screen.getByRole("textbox")
+        fireEvent.change(field, { target: { value: "sushi" } })
+        view.rerender(<Harness shown={other} />)
+        view.rerender(<Harness shown={null} />)
+        expect(screen.getByRole("textbox")).toBe(field)
+        expect(field).toHaveValue("sushi")
+        expect(mount).toHaveBeenCalledTimes(1)
+        expect(cleanup).not.toHaveBeenCalled()
+        expect(sections.at(-1)).toBeNull()
+        expect(sections).toContain(other)
+        view.unmount()
     })
 
     it("restores window focus for portal interactions and forwards native actions", () => {

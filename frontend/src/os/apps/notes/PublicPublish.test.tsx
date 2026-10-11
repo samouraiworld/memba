@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { PublicPublish } from './PublicPublish'
+import { NotesPaneContext, type NotesPane } from './notesPane'
 import { useNoteFreshness } from '../../../lib/notes/freshness'
 const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), budget: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
@@ -22,6 +23,19 @@ function setup(record = draft, getDraft = vi.fn(async () => record)) {
 }
 beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ warns: [] }); calls.sign.mockReturnValue(true) })
 describe('public publication review', () => {
+    it('keeps its note pane mounted while the publication is verified, then releases it', async () => {
+        const hold = vi.fn(), pane = { hold, saved: vi.fn(), deleted: vi.fn(), focusTitle: false, titleFocused: vi.fn() } satisfies NotesPane
+        const settled = vi.fn(); calls.prepare.mockResolvedValue({ warns: [], onSettled: settled })
+        const client = { chainId: 'gnoland-1', note: vi.fn(async () => null), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
+        const fresh: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content' } }
+        render(<NotesPaneContext.Provider value={pane}><PublicPublish draft={fresh} client={client} store={{ getDraft: vi.fn(async () => fresh) } as unknown as NotesStore} /></NotesPaneContext.Provider>)
+        fireEvent.click(screen.getByText('Publish', { selector: 'summary' })); fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        expect(hold).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^publishing:/), true)
+        const source = hold.mock.calls[0][0]
+        act(() => calls.sign.mock.calls[0][0].onSettled('confirmed'))
+        expect(settled).toHaveBeenCalledWith('confirmed', undefined); expect(hold).toHaveBeenLastCalledWith(source, false)
+    })
     it('requests no signature until review and uses the durable baseline and explicit deposit cap', async () => {
         const record: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content', base: { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' } } }
         setup(record)

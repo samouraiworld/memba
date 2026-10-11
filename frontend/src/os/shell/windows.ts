@@ -87,6 +87,7 @@ function daoPageTitle(splat: string): string {
 }
 
 export function appSpec(app: OsAppId, section: string | null = null, query?: string): WindowSpec {
+    // Notes is one window: opening a note shows it in that window (the key ignores the section).
     // Games open beside the lobby. BARRICADE's stage and side panel need the
     // desk's available space rather than the standard 960 px page window.
     const connect4 = app === "arcade" && (section === "connect4" || /^connect4\/\d{1,9}$/.test(section ?? ""))
@@ -97,7 +98,7 @@ export function appSpec(app: OsAppId, section: string | null = null, query?: str
     const storefront = (app === "arcade" && (section === null || section === "runs" || section === "daily-board" || section.startsWith("g/"))) || (app === "store" && !section?.startsWith("apps/") && !section?.startsWith("project/"))
     const [width, height] = app === "radio" ? [420, 560] : app === "daos" && !daoPage ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "meet" ? [1040, 720] : app === "arcade" && section === "barricade" ? [1600, 1000] : storefront ? [1120, 760] : [960, 660]
     const storeDetail = app === "store" && !!section && (section.startsWith("apps/") || section.startsWith("project/"))
-    return { key: connect4 ? "game:connect4" : game ? `game:${section}` : storeDetail ? `store:${section}` : daoPage ? `daos:${section}` : app === "notes" && section ? `notes:${section}` : `app:${app}`, title: game ? `${connect4 ? "Connect 4" : section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : storeDetail ? "App details · App Store" : daoPage ?? getApp(app).name, app, width: storeDetail ? 1040 : width, height: storeDetail ? 760 : height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
+    return { key: connect4 ? "game:connect4" : game ? `game:${section}` : storeDetail ? `store:${section}` : daoPage ? `daos:${section}` : `app:${app}`, title: game ? `${connect4 ? "Connect 4" : section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : storeDetail ? "App details · App Store" : daoPage ?? getApp(app).name, app, width: storeDetail ? 1040 : width, height: storeDetail ? 760 : height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 
 /** Distinguish an Apply window from the ordinary Feed window in URL/session state. */
@@ -316,7 +317,15 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
         case "navigate": return windowsForNavigation(s, a.specs, a.desk, a.exact)
         case "restore": {
             const seq = a.wins.reduce((m, w) => Math.max(m, Number(w.id.replace(/^w/, "")) || 0), 0)
-            return compactZ({ top: 0, seq, wins: a.wins })
+            // A key is one window. Sessions saved before a view became single-window may hold several:
+            // keep a visible copy over a minimised one, then the front-most.
+            const front = new Map<string, OsWindow>()
+            const rank = (w: OsWindow) => [w.min ? 0 : 1, w.z]
+            for (const w of a.wins) {
+                const kept = front.get(w.key), [visible, z] = rank(w)
+                if (!kept || visible > rank(kept)[0] || (visible === rank(kept)[0] && z >= rank(kept)[1])) front.set(w.key, w)
+            }
+            return compactZ({ top: 0, seq, wins: a.wins.filter((w) => front.get(w.key) === w) })
         }
     }
 }

@@ -36,7 +36,7 @@ vi.mock("../apps/meet/MeetStage", () => ({ MeetStage: () => null }))
 vi.mock("../apps/notes/stageRegistry", () => ({ NotesStageProvider: ({ children }: { children: ReactNode }) => children }))
 // Stands in for an open Notes window showing `other`: the real button, through the Shell's desk.
 vi.mock("../apps/notes/NotesStages", () => ({ NotesStages: () => <section aria-label="Notes window"><NoteDeskButton noteId={"cd".repeat(16)} /></section> }))
-vi.mock("./WindowFrame", () => ({ WindowFrame: ({ win }: { win: OsWindow }) => <output data-testid={win.key}>{win.title}</output> }))
+vi.mock("./WindowFrame", () => ({ WindowFrame: ({ win }: { win: OsWindow }) => <output data-testid={win.key} data-section={win.target?.kind === "app" ? win.target.section ?? "" : ""}>{win.title}</output> }))
 
 function member(): OsSession {
     return { status: "member", address: "g1alpha", walletAddress: "g1alpha", walletChainId: "gnoland-1",
@@ -69,7 +69,8 @@ it("labels note shortcuts with their known title, or Note with a lock for a priv
 it("opens the note in the Notes window from its shortcut", () => {
     mountShell()
     fireEvent.click(within(desktop()).getByRole("button", { name: "Note shortcut: Sushi" }))
-    expect(screen.getByTestId(`notes:${pinned}`)).toBeInTheDocument()
+    // One Notes window: the shortcut shows its note there.
+    expect(screen.getByTestId("app:notes")).toHaveAttribute("data-section", pinned)
 })
 
 it("right-click offers Open and Remove from Desktop, and removing keeps the note", () => {

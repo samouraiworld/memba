@@ -6,7 +6,6 @@ import { createDraftSession, createNotesStore, type NotesStore } from '../../../
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import { PublicAuthoring } from './PublicAuthoring'
-import { PublicDraftLibrary } from './PublicDraftLibrary'
 import { announceNoteChange } from '../../../lib/notes/freshness'
 const mocks = vi.hoisted(() => ({ permission: vi.fn(), note: null as ChainNote | null, plan: vi.fn(), actual: null as null | ((...args: unknown[]) => unknown), timeoutMs: undefined as number | undefined, reviewed: vi.fn(), publish: null as null | { onPublished?: (note: ChainNote) => void; requestSession?: { capture(): { signal: AbortSignal } } } }))
 vi.mock('../../../lib/notes/chain/publicPermissions', () => ({ readPublicContentWritePermission: mocks.permission }))
@@ -45,25 +44,6 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 beforeEach(() => { vi.clearAllMocks(); mocks.note = note; mocks.permission.mockResolvedValue(true); mocks.plan.mockImplementation((...args: unknown[]) => mocks.actual!(...args)); mocks.timeoutMs = undefined })
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(store => store.close())) })
 describe('public authoring durable workspace', () => {
-    it('creates only after durable revision0 save and resumes the same ID after reload', async () => {
-        const { store } = setup(), open = vi.fn()
-        const view = render(<PublicDraftLibrary store={store} partition={scope} onOpen={open} />)
-        fireEvent.click(screen.getByRole('button', { name: 'New note' })); await waitFor(() => expect(open).toHaveBeenCalledOnce())
-        const id = open.mock.calls[0][0], saved = await store.getDraft({ ...scope, noteId: id })
-        expect(saved).toMatchObject({ localRevision: '1', payload: { kind: 'public' } })
-        view.unmount(); render(<PublicDraftLibrary store={store} partition={scope} onOpen={open} />)
-        fireEvent.click(await screen.findByRole('button', { name: 'Untitled note' })); expect(open).toHaveBeenLastCalledWith(id)
-    })
-    it('never navigates after failed creation or a late save from a closed generation', async () => {
-        const { store } = setup(), open = vi.fn(), pending = deferred<Awaited<ReturnType<NotesStore['saveDraft']>>>()
-        vi.spyOn(store, 'saveDraft').mockReturnValue(pending.promise)
-        const view = render(<PublicDraftLibrary store={store} partition={scope} onOpen={open} />)
-        fireEvent.click(screen.getByRole('button', { name: 'New note' })); view.unmount()
-        await act(async () => pending.resolve({ status: 'conflict' })); expect(open).not.toHaveBeenCalled()
-        vi.mocked(store.saveDraft).mockResolvedValue({ status: 'unavailable' })
-        render(<PublicDraftLibrary store={store} partition={scope} onOpen={open} />)
-        fireEvent.click(screen.getByRole('button', { name: 'New note' })); await screen.findByText(/new draft was not saved/); expect(open).not.toHaveBeenCalled()
-    })
     it('uses an authoritative null to resume a public local draft, but does not infer absence from RPC failure', async () => {
         const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
         vi.mocked(client.note).mockRejectedValue(new Error('RPC unavailable'))
