@@ -11,6 +11,7 @@ import { PublicAuthoring } from './PublicAuthoring'
 import { PublicDraftLibrary } from './PublicDraftLibrary'
 import { PublicOperationStatus } from './PublicOperationStatus'
 import { PublicHistory } from './PublicHistory'
+import { NoteDeskButton } from './NoteDeskButton'
 import './notes-public.css'
 
 const store = createNotesStore()
@@ -49,6 +50,7 @@ function PublicWorkspace({ session, section, owner, onOpenNote }: Props & { owne
     const client = read.client
     return <div className="os-notes-public">
         {owner && <PublicOperationStatus client={client} store={store} partition={partition} onOpen={onOpenNote} />}
+        {scope && <div className="os-notes-desk-action"><NoteDeskButton noteId={scope.noteId} /></div>}
         {section === null || !scope ? <>{owner && <PublicDraftLibrary store={store} partition={partition} onOpen={onOpenNote} />}<PublicLibrary client={client} onOpen={id => { if (NOTE_ID.test(id)) onOpenNote(id) }} /></>
             : owner ? <PublicAuthoring client={client} store={store} scope={scope} /> : <PublicNote id={section} client={client} owner={owner}
                 encrypted={() => <section className="os-notes-welcome"><h1>Encrypted note</h1><p>Encrypted notes are not available in this public view.</p></section>}>

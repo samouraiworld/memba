@@ -126,6 +126,17 @@ describe('bound network reads', () => {
     expect(rpc.identity).toHaveBeenCalledWith(rpc.url, 'test-chain')
     expect(rpc.query).toHaveBeenCalledWith('vm/qeval', `${NOTES_REALM}.NoteMetaJSON("${noteId}")`, expect.any(Function))
   })
+  it('reads note metadata alone for desktop shortcuts', async () => {
+    const meta = await client().noteMeta(noteId)
+    expect(meta?.id).toBe(noteId); expect(new TextDecoder().decode(meta!.title)).toBe('Résumé 🐱'); expect(meta!.body).toBeUndefined()
+    expect(rpc.query).toHaveBeenCalledExactlyOnceWith('vm/qeval', `${NOTES_REALM}.NoteMetaJSON("${noteId}")`, expect.any(Function))
+    rpc.query.mockImplementation(async (_path: string, _data: string, verify: (url: string) => Promise<void>) => { await verify(rpc.url); return { kind: 'ok', text: quote(null) } })
+    expect(await client().noteMeta(noteId)).toBeNull()
+    rpc.query.mockImplementation(chunkReplies(noteJSON(), value => ({ ...value, id: '03'.repeat(16) })))
+    await expect(client().noteMeta(noteId)).rejects.toThrow()
+    rpc.query.mockClear()
+    await expect(client().noteMeta('");Attack()')).rejects.toThrow(); expect(rpc.query).not.toHaveBeenCalled()
+  })
   it('refuses arbitrary realms, chains, endpoints and injected expressions before IO', async () => {
     const context = { chainId: 'test-chain', deployment: { realm: NOTES_REALM, version: 1 as const }, rpcUrls: [rpc.url], isCurrent: () => true }
     expect(() => new NotesReadClient({ ...context, chainId: 'other' })).toThrow()

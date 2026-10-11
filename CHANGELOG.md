@@ -34,6 +34,9 @@ Full changelogs are split by version range for easier navigation:
 - Explain titles the network would refuse (slash, line breaks, invisible characters, more than 80 characters) in the editor and before review, and remove spaces at the start or end of a title when publishing instead of stalling.
 - Exported Markdown files are named after the note title, made safe for every operating system.
 - Recalibrate public note storage estimates per operation to measured costs: changing community editing is now estimated at 1.2 GNOT (measured 1.1531) instead of 4 GNOT, with a separate, larger maximum deposit. Notes remains disabled in production.
+### Note shortcuts on the Desktop (2026-10-11)
+- An open note offers Add to Desktop, or Remove from Desktop when it is already there. Shortcuts use the existing desk, kept in this browser for each wallet and network.
+- A note shortcut is a document with a Notes badge, or a lock badge for a private note. It is labelled with the note's public title, read from the chain and cached, or "Note" when the title is not known. Clicking the shortcut opens the note. Right-clicking offers Open and Remove from Desktop, and removing a shortcut never deletes the note. Notes remains disabled pending deployment and reviewed activation.
 
 ### Notes moderation takedowns and single-copy costs (#1603, 2026-10-11)
 - Read moderator redactions from the Notes realm: removed versions and comments show as removed by moderation with their hash, are never offered for restoration, and the history reports redactable retention.

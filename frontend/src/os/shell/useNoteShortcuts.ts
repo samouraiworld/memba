@@ -1,0 +1,59 @@
+import { useEffect, useMemo, useRef, useState } from "react"
+import { notesDeployment } from "../../lib/notes/config"
+import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
+import { readNoteShortcuts, shortcutFromChain, writeNoteShortcuts, type NoteShortcut } from "./noteShortcuts"
+
+type Options = { chainId: string; owner: string | null | undefined; ids: readonly string[]; enabled: boolean }
+
+/**
+ * Labels for the note shortcuts on this desk: cached titles at once, then each
+ * shortcut's metadata read once from the chain per desk. Private notes get a
+ * lock and no title; unknown or deleted notes keep their last known label.
+ */
+export function useNoteShortcuts({ chainId, owner, ids, enabled }: Options) {
+    const scope = JSON.stringify([chainId, owner])
+    const idsKey = [...new Set(ids)].sort().join(",")
+    const [state, setState] = useState(() => ({ scope, facts: owner === undefined ? {} : readNoteShortcuts(chainId, owner) }))
+    if (state.scope !== scope) setState({ scope, facts: owner === undefined ? {} : readNoteShortcuts(chainId, owner) })
+    const read = useRef({ scope, done: new Set<string>() })
+    useEffect(() => {
+        if (!enabled || owner === undefined || !idsKey) return
+        const deployment = notesDeployment(chainId)
+        if (!deployment) return
+        if (read.current.scope !== scope) read.current = { scope, done: new Set() }
+        const done = read.current.done
+        const wanted = idsKey.split(",").filter((id) => !done.has(id))
+        if (!wanted.length) return
+        let alive = true
+        void (async () => {
+            const { NotesReadClient } = await import("../../lib/notes/chain/client")
+            if (!alive) return
+            let client
+            try {
+                client = new NotesReadClient({ chainId, deployment, rpcUrls: getRpcUrlsInOrder(), isCurrent: () => alive })
+            } catch { return }
+            for (const id of wanted) {
+                let note
+                try { note = await client.noteMeta(id) } catch { if (!alive) return; continue }
+                if (!alive) return
+                done.add(id)
+                const cached = readNoteShortcuts(chainId, owner)
+                const info: NoteShortcut = shortcutFromChain(note, cached[id])
+                writeNoteShortcuts(chainId, owner, { ...cached, [id]: info }, idsKey.split(","))
+                setState((s) => (s.scope === scope ? { scope, facts: { ...s.facts, [id]: info } } : s))
+            }
+        })()
+        return () => { alive = false }
+    }, [enabled, chainId, owner, scope, idsKey])
+    return useMemo(() => {
+        const facts: Readonly<Record<string, NoteShortcut>> = state.scope === scope ? state.facts : {}
+        const labels: Record<string, string> = {}
+        const privateNotes = new Set<string>()
+        for (const id of idsKey ? idsKey.split(",") : []) {
+            const info = facts[id]
+            if (info?.title) labels[id] = info.title
+            if (info?.private) privateNotes.add(id)
+        }
+        return { labels, privateNotes: privateNotes as ReadonlySet<string> }
+    }, [state, scope, idsKey])
+}

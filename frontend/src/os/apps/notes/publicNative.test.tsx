@@ -5,6 +5,7 @@ import type { NativeViewProps } from '../../native/types'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { NotesReadContext } from '../../../lib/notes/chain/client'
 import { PublicNotesApp } from './publicNative'
+import { DeskShortcutsContext } from '../../shell/deskShortcuts'
 const mocks = vi.hoisted(() => ({ enabled: true, available: true, fail: false, note: vi.fn(), list: vi.fn(), contexts: [] as NotesReadContext[], panel: vi.fn(),
     scopes: [] as object[], deployment: { realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 } }))
 vi.mock('../../../lib/notes/config', () => ({ get NOTES_ENABLED() { return mocks.enabled }, NOTE_ID: /^[0-9a-f]{32}$/, notesDeployment: () => mocks.available ? mocks.deployment : null }))
@@ -54,6 +55,16 @@ describe('dormant public Notes native view', () => {
         const input = props({}, null); render(<PublicNotesApp {...input} />)
         fireEvent.click(await screen.findByRole('button', { name: /Public example/ }))
         expect(input.onOpenNote).toHaveBeenCalledExactlyOnceWith(id)
+    })
+    it('offers Add to Desktop for the open note only, for guests and members alike', async () => {
+        const desk = { isPinned: vi.fn(() => false), pin: vi.fn(), unpin: vi.fn() }
+        const view = render(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props()} /></DeskShortcutsContext.Provider>)
+        fireEvent.click(await screen.findByRole('button', { name: 'Add to Desktop' }))
+        expect(desk.pin).toHaveBeenCalledExactlyOnceWith({ ty: 'note', ref: id })
+        view.rerender(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props({ status: 'member', address: 'owner' })} /></DeskShortcutsContext.Provider>)
+        expect(await screen.findByText('Public authoring for owner')).toBeVisible(); expect(screen.getByRole('button', { name: 'Add to Desktop' })).toBeVisible()
+        view.rerender(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props({}, null)} /></DeskShortcutsContext.Provider>)
+        expect(await screen.findByRole('button', { name: /Public example/ })).toBeVisible(); expect(screen.queryByRole('button', { name: 'Add to Desktop' })).toBeNull()
     })
     it('stays dormant or unavailable without instantiating a client', () => {
         mocks.enabled = false; const view = render(<PublicNotesApp {...props()} />)

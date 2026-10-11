@@ -15,7 +15,8 @@ import { NotesStages } from "../apps/notes/NotesStages"
 import { NotesStageProvider } from "../apps/notes/stageRegistry"
 import { ConnectModal } from "./ConnectModal"
 import { itemTarget, sameItem, type DeskItem } from "./desk"
-import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
+import { ContextMenu, DeskItems, type MenuEntry, type MenuHint } from "./DeskItems"
+import { DeskShortcutsContext, type DeskShortcuts } from "./deskShortcuts"
 import { Dock } from "./Dock"
 import { markLocked, readLocked, resolveEntry } from "./entry"
 import { shortAddr } from "./format"
@@ -29,6 +30,7 @@ import { activeOsNetwork, takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
 import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken, windowsStorageKey } from "./urlSync"
 import { useDesk } from "./useDesk"
+import { useNoteShortcuts } from "./useNoteShortcuts"
 import { useOsSession } from "./useOsSession"
 import { useEvmSession } from "../evm/useEvmSession"
 import { EvmConnectModal } from "../evm/EvmConnectModal"
@@ -335,6 +337,19 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
     const deskItems = useDesk(deskOwner, session.network.key, { chainId: session.network.chainId,
         gno: session.network.family === "gno", adopt: NOTES_ENABLED, releases: featured, blocked: locked })
     const { resetFromStorage: resetDeskFromStorage } = deskItems
+    // Note shortcuts: titles from the chain (cached per wallet and network), featured labels first.
+    const noteShortcuts = useNoteShortcuts({ chainId: session.network.chainId, owner: deskOwner,
+        ids: deskItems.items.filter((item) => item.ty === "note").map((item) => item.ref), enabled: NOTES_ENABLED && session.network.family === "gno" && !locked })
+    const noteLabels = useMemo(() => ({ ...noteShortcuts.labels, ...deskItems.noteLabels }), [noteShortcuts.labels, deskItems.noteLabels])
+    // Windows place and remove their own shortcuts through this same desk (the menu bar's "Add to desktop" path).
+    const deskShortcuts: DeskShortcuts = {
+        isPinned: deskItems.isPinned,
+        pin: deskItems.pin,
+        unpin: (item) => {
+            const i = deskItems.items.findIndex((it) => sameItem(it, item))
+            if (i >= 0) deskItems.unpin(i)
+        },
+    }
     // Reset is dispatched by Settings after the saved UI keys are removed. Keep
     // that window on screen, and leave the cleared layout absent until the user
     // opens another window. The revision notifies other open OS tabs; their
@@ -446,11 +461,13 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
         const spec = t && specForTarget(t)
         if (spec) open(spec)
     }
-    let menuEntries: (MenuEntry | "sep")[] = []
+    let menuEntries: (MenuEntry | MenuHint | "sep")[] = []
     if (menu && menu.scope !== menuScope) setMenu(null)
     else if (menu && menu.item !== null) {
         const target = menu.item, i = deskItems.items.findIndex(item => sameItem(item, target))
         if (i < 0) setMenu(null)
+        // Removing a note shortcut never deletes the note: the menu says so.
+        else if (target.ty === "note") menuEntries = [{ label: "Open", run: () => openItem(i) }, { label: "Remove from Desktop", run: () => deskItems.unpin(i) }, { hint: "The note itself is not deleted." }]
         else menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
     } else if (menu) {
         menuEntries = [
@@ -511,8 +528,9 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
             <NotesStageProvider>
+            <DeskShortcutsContext.Provider value={deskShortcuts}>
             {phone ? <>
-                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={deskItems.noteLabels} open={open} openApp={openApp} openItem={openItem}
+                <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={noteLabels} privateNotes={noteShortcuts.privateNotes} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
                     play={arcadeLaunch.play} launchFor={arcadeLaunch.launchFor} consumeLaunch={arcadeLaunch.consume} returnToArcade={arcadeLaunch.returnToArcade}
                     home={(id) => {
@@ -531,7 +549,7 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
                 {!locked && liveWidget && !onEvm && <LiveTicker onOpen={() => openApp("live")} />}
-                <DeskItems key={menuScope} items={deskItems.items} noteLabels={deskItems.noteLabels} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
+                <DeskItems key={menuScope} items={deskItems.items} noteLabels={noteLabels} privateNotes={noteShortcuts.privateNotes} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">
                         <div className="os-getstarted-title">Your desk is empty — let's fill it.</div>
@@ -564,6 +582,7 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
                 activeWindowId={!modalBlocked ? front?.id : null} App={LazyPublicNotes} open={open} push={open}
                 openApp={openApp} close={win.close} focus={win.focus} toast={showToast} />}
             {meetStage}
+            </DeskShortcutsContext.Provider>
             </NotesStageProvider>
             </MeetStageContext.Provider>
             </div>
