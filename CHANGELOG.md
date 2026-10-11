@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes: Share menu, and History and Comments beside the note (#PRNUM, 2026-10-12)
+### Notes: Share menu, and History and Comments beside the note (#1610, 2026-10-12)
 - A Share button in the note header opens one menu: the note's link with Copy, who can read it, who can edit it and who can comment. The owner switches editing between "Only me" and "Everyone with a wallet" there, sees the expected storage deposit (large) and the signed cap (small) before signing, both from the Notes quote module, applies it with Adena and follows the change to its confirmation in the menu. Everyone else sees the same facts, read-only.
 - History and Comments are tabs in a panel on the right of the note; on a phone they open full screen with Back. History lists revisions newest first in plain words ("Revision 5 · body edited", "renamed", "editing opened to everyone", comments added, removals by moderation), who made them and when, with View and Use as draft (copied into a draft, nothing signed). It refreshes after every confirmed change.
 - Comments show who wrote them, on which revision, and the passage they quote. Select text in the note to quote it, write in the box at the bottom and press Comment. The wallet sheet asks for one confirmation, shows the comment and its cost, and folds identifiers and the raw call under Technical details. Refreshing the list keeps the page you are reading.
