@@ -1,9 +1,10 @@
 import { StrictMode, useLayoutEffect } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DraftRecord, NotesStore } from '../../../lib/notes/drafts'
+import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { PublicPublish } from './PublicPublish'
+import { useNoteFreshness } from '../../../lib/notes/freshness'
 const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), budget: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
@@ -64,7 +65,7 @@ describe('public publication review', () => {
     it('retains a changed local draft instead of opening a stale review', async () => {
         setup(draft, vi.fn(async () => ({ ...draft, localRevision: '5' })))
         fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
-        await screen.findByText(/draft, published note or quote changed/)
+        await screen.findByText(/your draft changed, while the review was prepared/)
         expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
     })
     it.each(['0.000001', '2.4'])('rejects the inadequate %s GNOT cap without opening a wallet', async cap => {
@@ -119,25 +120,65 @@ describe('public publication view lifetime', () => {
         render(<StrictMode><PublicPublish {...publicationProps()} /></StrictMode>); openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
     })
-    it('dismisses a request refused by the signature sheet', async () => {
+    it('dismisses a request refused by the signature sheet and says so', async () => {
         const dismiss = vi.fn(); calls.prepare.mockResolvedValue({ onDismissed: dismiss }); calls.sign.mockReturnValue(false)
         render(<PublicPublish {...publicationProps()} />); openReview()
         await waitFor(() => expect(dismiss).toHaveBeenCalledOnce())
+        expect(screen.getByText(/signature window could not open/)).toBeVisible()
+    })
+    it('lets the editor update a stale draft before any review is prepared', async () => {
+        const beforeReview = vi.fn(async () => false)
+        render(<PublicPublish {...publicationProps()} beforeReview={beforeReview} />); openReview()
+        await waitFor(() => expect(beforeReview).toHaveBeenCalledOnce())
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Review publication' })).toBeEnabled())
+        expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+    })
+    it('never stays on Preparing review when a step does not answer', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+        try {
+            const props = publicationProps(); vi.mocked(props.client.config).mockReturnValue(new Promise(() => {}))
+            render(<PublicPublish {...props} />); openReview()
+            expect(screen.getByRole('button', { name: 'Preparing review…' })).toBeDisabled()
+            await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+            expect(screen.getByText(/network did not answer in time/)).toBeVisible()
+            expect(screen.getByRole('button', { name: 'Review publication' })).toBeEnabled(); expect(calls.sign).not.toHaveBeenCalled()
+        } finally { vi.useRealTimers() }
     })
 })
 
 describe('publication baseline and receipt boundaries', () => {
-    it.each(['confirmed', 'unknown'])('retains the durable draft on a %s settlement', async outcome => {
-        const props = publicationProps(), saveDraft = vi.fn()
-        render(<PublicPublish {...props} store={{ ...props.store, saveDraft } as unknown as NotesStore} />); openReview()
+    it('retains the durable draft on an unknown settlement', async () => {
+        const props = publicationProps(), saveDraft = vi.fn(), onPublished = vi.fn()
+        render(<PublicPublish {...props} onPublished={onPublished} store={{ ...props.store, saveDraft } as unknown as NotesStore} />); openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        await act(async () => calls.sign.mock.calls[0][0].onSettled(outcome))
-        expect(saveDraft).not.toHaveBeenCalled(); expect(props.client.note).toBeUndefined()
-        expect(await screen.findByText(outcome === 'confirmed' ? /baseline was kept/ : /outcome is unknown/)).toBeVisible()
+        await act(async () => calls.sign.mock.calls[0][0].onSettled('unknown'))
+        expect(saveDraft).not.toHaveBeenCalled(); expect(onPublished).not.toHaveBeenCalled()
+        expect(await screen.findByText(/outcome is unknown/)).toBeVisible()
+    })
+    it('keeps a signed publication confirmable after the panel unmounts when the workspace owns the request', async () => {
+        const props = publicationProps(), onPublished = vi.fn(), requestSession = createDraftSession()
+        const view = render(<PublicPublish {...props} requestSession={requestSession} onPublished={onPublished} />); openReview()
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        const input = calls.prepare.mock.calls[0][0]; expect(input.session).toBe(requestSession)
+        view.unmount()
+        expect(input.session.capture().signal.aborted).toBe(false)
+        const confirmed = { id: draft.scope.noteId, stateRevision: '8' }
+        await act(async () => { input.onConfirmed(confirmed); calls.sign.mock.calls[0][0].onSettled('confirmed') })
+        expect(onPublished).toHaveBeenCalledExactlyOnceWith(confirmed)
+    })
+    it('hands the confirmed revision to the editor and refreshes every view of the note', async () => {
+        const props = publicationProps(), onPublished = vi.fn(), announced = vi.fn()
+        function Listener() { useNoteFreshness('gnoland-1', draft.scope.noteId, announced); return null }
+        render(<><Listener /><PublicPublish {...props} onPublished={onPublished} /></>); openReview()
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        const confirmed = { id: draft.scope.noteId, stateRevision: '8' }
+        await act(async () => { calls.prepare.mock.calls[0][0].onConfirmed(confirmed); calls.sign.mock.calls[0][0].onSettled('confirmed') })
+        expect(onPublished).toHaveBeenCalledExactlyOnceWith(confirmed); expect(announced).toHaveBeenCalledWith({ stateRevision: '8' })
+        expect(screen.getByText('Published as revision 8.')).toBeVisible()
     })
     it('rejects a mismatched network or realm without asking for a signature', async () => {
         const props = publicationProps()
         render(<PublicPublish {...props} draft={{ ...draft, scope: { ...draft.scope, chainId: 'other-chain' } }} />); openReview()
-        await screen.findByText(/draft, published note or quote changed/); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
+        await screen.findByText(/belongs to another network/); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
     })
 })

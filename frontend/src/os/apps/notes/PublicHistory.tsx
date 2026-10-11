@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newNoteId } from '../../../lib/notes/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { HistoryAction, PublicHistoryEntry } from '../../../lib/notes/chain/history'
 import { check } from '../../../lib/notes/chain/schema'
+import { readFresh, useNoteRefresh } from '../../../lib/notes/freshness'
 import { PublicHistoryCommentView, PublicHistoryVersions, useHistoryRead, type HistoryRestore } from './PublicHistoryContent'
 import './notes-history.css'
 
@@ -28,15 +29,30 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
     const [cursor, setCursor] = useState({ after: '0', through: '0', generation: 0 })
     const [selected, setSelected] = useState<string | null>(null)
     const [versions, setVersions] = useState<string[]>([])
+    const { tick, minimum } = useNoteRefresh(client.chainId, noteId)
     const read = useCallback(async () => {
         client.assertCurrent()
-        const info = await client.publicHistoryInfo(noteId); client.assertCurrent()
+        const info = await readFresh(() => client.publicHistoryInfo(noteId), value => value?.latestStateRevision ?? null, minimum(), () => true); client.assertCurrent()
+        if (info === undefined) return null
         if (info === null) return null
         const page = await client.publicHistory(noteId, cursor.after, cursor.through, 20)
         client.assertCurrent(); check(page !== null)
         return { info, page }
-    }, [client, noteId, cursor])
+    }, [client, noteId, cursor, minimum])
     const { state } = useHistoryRead(read), data = state.data
+    const reload = useCallback(() => { setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 })) }, [])
+    // Confirmed changes and refocus re-check the history head; a new event reloads from the head.
+    const head = useRef<string | null>(null)
+    useEffect(() => { head.current = data ? data.info.headSeq : null }, [data])
+    useEffect(() => {
+        if (tick === 0) return
+        let alive = true
+        // Only a newer head reloads: an announced revision makes a lagging answer wait, and an older head is ignored.
+        void readFresh(() => client.publicHistoryInfo(noteId), value => value?.latestStateRevision ?? null, minimum(), () => alive)
+            .then(info => { if (alive && info && (head.current === null || BigInt(info.headSeq) > BigInt(head.current))) reload() })
+            .catch(() => { /* The next check or Refresh history retries. */ })
+        return () => { alive = false }
+    }, [tick, client, noteId, minimum, reload])
     function navigate(after: string) {
         if (!data || state.loading) return
         setSelected(null); setVersions([])
@@ -46,9 +62,7 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
         setVersions(old => compare && old.length ? [old[0], revision] : [revision])
     }
     return <section className="os-notes-history" aria-label="Public history">
-        <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={() => {
-            setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 }))
-        }}>Refresh history</button></header>
+        <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={reload}>Refresh history</button></header>
         <p>Public versions are retained, including after deletion, unless a moderator removes them; a removal keeps the content hash and is recorded here. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
         {state.loading && <p role="status">Loading public history…</p>}
         {state.error && <p role="alert">Public history could not be verified. Refresh to try again.</p>}

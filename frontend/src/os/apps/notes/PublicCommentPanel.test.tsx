@@ -6,6 +6,7 @@ import type { NotesStore } from '../../../lib/notes/drafts'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { PublicComment } from '../../../lib/notes/chain/comments'
 import { PublicCommentPanel } from './PublicCommentPanel'
+import { announceNoteChange } from '../../../lib/notes/freshness'
 const mocks = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), recover: vi.fn(), list: vi.fn(), sign: vi.fn(), dismiss: vi.fn(), settle: vi.fn(), version: 0, next: 0 }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: mocks.sign, version: mocks.version }) }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({}), newNoteId: () => (++mocks.next).toString(16).padStart(32, '0') }))
@@ -19,7 +20,7 @@ const note = { id: noteId, owner: 'owner', mode: 4, epoch: '0', bodyRevision: '1
 const row = (patch: Partial<PublicComment> = {}): PublicComment => ({ id: cid, author: 'owner', parent: '', anchor: '', body: 'Public comment', epoch: '0', bodyRevision: '1', revision: '1', deleted: false, hidden: false, resolved: false, encrypted: false, operationId: 'ef'.repeat(16), actor: 'owner', createdHeight: '1', height: '1', ...patch })
 const pending = { phase: 'unknown', operationId: 'aa'.repeat(16), verification: { kind: 'comment-v1' } }
 function setup(owner: string | null = 'owner', value = note, strict = false) {
-    const props = { note: value, owner, client: { chainId: 'test-chain' } as NotesReadClient, store: {} as NotesStore }
+    const props = { note: value, owner, client: { chainId: 'test-chain', note: vi.fn(async () => value) } as unknown as NotesReadClient, store: {} as NotesStore }
     const element = <PublicCommentPanel {...props} />
     const view = render(strict ? <StrictMode>{element}</StrictMode> : element)
     const composer = screen.queryByText('Write a public comment'); if (composer) fireEvent.click(composer)
@@ -164,5 +165,35 @@ describe('public-only comment controls', () => {
         fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Newer unsent edit' } })
         act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
         expect(screen.getByLabelText('Comment')).toHaveValue('Newer unsent edit')
+    })
+})
+
+describe('comment freshness', () => {
+    const text = (value: string) => new TextEncoder().encode(value)
+    it('reloads comments after a confirmed change without blanking the list', async () => {
+        setup('member'); await screen.findByText('Public comment')
+        const later = deferred<{ items: PublicComment[]; nextCursor: string }>(); mocks.read.mockReturnValueOnce(later.promise)
+        act(() => announceNoteChange({ chainId: 'test-chain', noteId }))
+        await waitFor(() => expect(mocks.read).toHaveBeenCalledTimes(2))
+        expect(screen.getByText('Public comment')).toBeVisible(); expect(screen.queryByText('Loading comments…')).toBeNull()
+        await act(async () => later.resolve({ items: [row(), row({ id: 'ee'.repeat(16), body: 'Another comment' })], nextCursor: '' }))
+        expect(screen.getByText('Another comment')).toBeVisible()
+    })
+    it('anchors a still-present quote to the current body revision after the note changes', async () => {
+        const view = setup('member', { ...note, body: text('Intro. Quoted passage here.') }); await compose()
+        fireEvent.change(screen.getByLabelText('Quoted passage (optional)'), { target: { value: 'Quoted passage' } })
+        view.rerender(<PublicCommentPanel {...view.props} note={{ ...note, stateRevision: '2', bodyRevision: '2', body: text('Edited intro. Quoted passage here.') }} />)
+        expect(screen.queryByRole('button', { name: 'Keep original quote' })).toBeNull(); expect(screen.getByText('Quote from body revision 2.')).toBeVisible()
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Review comment' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
+        expect(mocks.prepare.mock.calls[0][0].operation.action).toMatchObject({ bodyRevision: '2', anchor: 'Quoted passage' })
+    })
+    it('never anchors a comment to a body revision older than the chain, keeping the composer', async () => {
+        const view = setup('member'); vi.mocked(view.props.client.note).mockResolvedValue({ ...note, stateRevision: '3', bodyRevision: '3' })
+        await compose(); fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        expect(await screen.findByText(/note was updated to body revision 3/)).toBeVisible()
+        expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.sign).not.toHaveBeenCalled()
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
     })
 })

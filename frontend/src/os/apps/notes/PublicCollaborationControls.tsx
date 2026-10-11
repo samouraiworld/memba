@@ -8,6 +8,7 @@ import { publicNoteMessage } from '../../../lib/notes/chain/messages'
 import { gnotAmount, parseGnotCap, publicNoteBudget, publicNoteQuote } from '../../../lib/notes/chain/quote'
 import { preparePublicNoteRequest } from '../../../lib/notes/chain/request'
 import { NOTES_REALM, NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema'
+import { announceNoteChange } from '../../../lib/notes/freshness'
 import { useSigner } from '../../sign/signerContext'
 
 type Props = { note: ChainNote; client: NotesReadClient; store: NotesStore; owner: string | null; hidden?: boolean; onChanged(): void }
@@ -64,7 +65,7 @@ function Controls({ note, client, store, owner, onChanged }: Props & { owner: st
             request.onSettled = (outcome, choice) => {
                 settle?.(outcome, choice)
                 if (guard.signal.aborted) return
-                if (outcome === 'confirmed') { setBlocked(true); setNotice('Community editing change confirmed. Refreshing the published note.'); onChanged() }
+                if (outcome === 'confirmed') { setBlocked(true); setNotice('Community editing change confirmed. Refreshing the published note.'); onChanged(); announceNoteChange({ chainId: client.chainId, noteId: note.id, stateRevision: (BigInt(note.stateRevision) + 1n).toString() }) }
                 else if (outcome === 'unknown') { setBlocked(true); setNotice('Outcome unknown. The operation receipt was kept. Check it before another change; nothing was resent.') }
                 else if (outcome === 'submitted') { setBlocked(true); setNotice('Submitted, not yet seen on chain. The operation receipt was kept. Check it before another change; nothing was resent.') }
             }

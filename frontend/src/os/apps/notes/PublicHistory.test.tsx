@@ -11,6 +11,7 @@ import versionFixture from '../../../lib/notes/chain/__fixtures__/history/versio
 import commentFixture from '../../../lib/notes/chain/__fixtures__/history/comment.json'
 import { PublicHistory } from './PublicHistory'
 import { PublicHistoryCommentView, PublicHistoryVersions } from './PublicHistoryContent'
+import { announceNoteChange } from '../../../lib/notes/freshness'
 
 const noteId = infoFixture.id, info = parseHistoryInfo(infoFixture, noteId)!
 const commentId = commentFixture.comment_id
@@ -210,5 +211,23 @@ describe('moderator redaction', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Show archived comment' }))
         await screen.findByText('This comment was removed by moderation. Only its record remains in the public archive.')
         expect(document.querySelector('pre')).toBeNull()
+    })
+})
+
+describe('public history freshness', () => {
+    it('reloads from the head after a confirmed change, but not when nothing new was recorded', async () => {
+        const s = setup(); render(<PublicHistory client={s.client} noteId={noteId} />)
+        await screen.findByText(/Page snapshot through event 21/)
+        act(() => announceNoteChange({ chainId: 'test-chain', noteId }))
+        await waitFor(() => expect(s.mocks.publicHistoryInfo).toHaveBeenCalledTimes(2))
+        expect(s.mocks.publicHistory).toHaveBeenCalledOnce()
+        s.mocks.publicHistoryInfo.mockResolvedValueOnce(info).mockResolvedValue({ ...info, headSeq: String(BigInt(info.headSeq) + 1n), latestStateRevision: '2' })
+        s.mocks.publicHistory.mockImplementation(async (_id: string, after = '0') => ({ id: noteId, throughSeq: '22', nextCursor: null, items: [{ seq: String(BigInt(after) + 1n), action: 'comment-add' as const,
+            stateRevision: '1', height: '3', actor: s.version.owner, executor: null, operationId: 'bb'.repeat(16), proposalId: null, commentId: 'cc'.repeat(16) }] }))
+        act(() => announceNoteChange({ chainId: 'test-chain', noteId, stateRevision: '2' }))
+        expect(await screen.findByText(/Page snapshot through event 22/, {}, { timeout: 3000 })).toBeVisible()
+        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '0', 20)
+        // The first answer lagged behind the announced revision 2 and was read again.
+        expect(s.mocks.publicHistoryInfo.mock.calls.length).toBeGreaterThanOrEqual(4)
     })
 })

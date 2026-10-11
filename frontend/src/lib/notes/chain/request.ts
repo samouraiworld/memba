@@ -29,6 +29,8 @@ export interface PublicRequestOptions {
   session: DraftSession; intents: NotesIntents; quote: NotesQuoteProvider
   /** Central deployment/rollout gate, checked again immediately before wallet access. */
   isWriteEnabled: () => boolean
+  /** Receives the verified note at the resulting revision once this operation is confirmed. */
+  onConfirmed?: (note: ChainNote) => void
 }
 export function notesRequestDigest(chainId: string, message: AminoMsg): string {
   return bytesToHex(sha256(new TextEncoder().encode(JSON.stringify(['memba-notes/v1/transaction', chainId, message]))))
@@ -147,7 +149,9 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
       const evidence = publicOperationEvidence(input, operation, base, note, height, capabilities)
       if (!evidence) return false
       if (hash) evidence.txHash = hash
-      saved(await intents.confirm(input.scope, input.operationId, evidence, session)); return true
+      saved(await intents.confirm(input.scope, input.operationId, evidence, session))
+      if (note) options.onConfirmed?.(structuredClone(note))
+      return true
     },
     onSettled: outcome => {
       if (begun && outcome === 'unknown') {

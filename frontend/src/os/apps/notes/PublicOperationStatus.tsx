@@ -5,6 +5,7 @@ import { NotesIntents, type NotesIntent } from '../../../lib/notes/intents'
 import { recoverPublicIntent } from '../../../lib/notes/chain/recovery'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { useSigner } from '../../sign/signerContext'
+import { announceNoteChange } from '../../../lib/notes/freshness'
 
 type Props = { client: NotesReadClient; store: NotesStore; partition: NotesPartition; onOpen(id: string): void }
 export function PublicOperationStatus(props: Props) {
@@ -33,7 +34,8 @@ function Receipts({ client, store, partition, onOpen }: Props) {
         try {
             const result = await recoverPublicIntent(client, new NotesIntents(store), intent, session)
             if (guard.signal.aborted) return
-            setNotice(result === 'confirmed' ? 'Publication confirmed. Your draft baseline was kept. Compare it with the published note.' : 'The outcome remains unknown. The receipt and draft were kept; nothing was resent.')
+            if (result === 'confirmed') announceNoteChange({ chainId: intent.scope.chainId, noteId: intent.scope.noteId, stateRevision: intent.resultingStateRevision })
+            setNotice(result === 'confirmed' ? 'Publication confirmed. Your local draft was kept; it is updated to the latest revision when you edit it.' : 'The outcome remains unknown. The receipt and draft were kept; nothing was resent.')
             refresh(value => value + 1)
         } catch { if (!guard.signal.aborted) setNotice('The outcome could not be checked. Nothing was resent.') }
         finally { if (!guard.signal.aborted) { working.current = false; setBusy(false) } }

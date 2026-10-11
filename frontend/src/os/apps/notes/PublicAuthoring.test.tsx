@@ -7,11 +7,27 @@ import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import { PublicAuthoring } from './PublicAuthoring'
 import { PublicDraftLibrary } from './PublicDraftLibrary'
-const mocks = vi.hoisted(() => ({ permission: vi.fn(), note: null as ChainNote | null }))
+import { announceNoteChange } from '../../../lib/notes/freshness'
+const mocks = vi.hoisted(() => ({ permission: vi.fn(), note: null as ChainNote | null, plan: vi.fn(), actual: null as null | ((...args: unknown[]) => unknown), timeoutMs: undefined as number | undefined, reviewed: vi.fn(), publish: null as null | { onPublished?: (note: ChainNote) => void; requestSession?: { capture(): { signal: AbortSignal } } } }))
 vi.mock('../../../lib/notes/chain/publicPermissions', () => ({ readPublicContentWritePermission: mocks.permission }))
 vi.mock('../terminal/CodeEditor', () => ({ CodeEditor: ({ value, onChange }: { value: string; onChange(value: string): void }) => <textarea aria-label="Markdown editor" value={value} onChange={e => onChange(e.target.value)} /> }))
 vi.mock('./MarkdownPreview', () => ({ MarkdownPreview: () => <span>Preview</span> }))
-vi.mock('./PublicPublish', () => ({ PublicPublish: () => <span>Publication controls</span> }))
+vi.mock('./PublicPublish', () => ({ PublicPublish: (props: { draft: { payload: { base?: unknown } }; beforeReview?: () => Promise<boolean>; onPublished?: (note: ChainNote) => void; requestSession?: { capture(): { signal: AbortSignal } } }) => {
+    const { draft, beforeReview } = props
+    mocks.publish = props
+    return <>
+    <span>{draft.payload.base ? 'Update controls' : 'Creation controls'}</span>
+    {beforeReview && <button onClick={() => void beforeReview().then(ready => { if (ready) mocks.reviewed() })}>Review publication</button>}
+</> } }))
+vi.mock('../../../lib/notes/freshness', async original => {
+    const actual = await original<typeof import('../../../lib/notes/freshness')>()
+    return { ...actual, withTimeout: <T,>(promise: Promise<T>, ms?: number) => actual.withTimeout(promise, mocks.timeoutMs ?? ms) }
+})
+vi.mock('../../../lib/notes/chain/rebase', async original => {
+    const actual = await original<typeof import('../../../lib/notes/chain/rebase')>()
+    mocks.actual = actual.planDraftRebase as (...args: unknown[]) => unknown
+    return { ...actual, planDraftRebase: mocks.plan }
+})
 vi.mock('./PublicCollaborationControls', () => ({ PublicCollaborationControls: () => <span>Community editing controls</span> }))
 vi.mock('./PublicCommentPanel', () => ({ PublicCommentPanel: () => <span>Comments</span> }))
 vi.mock('./PublicHistory', () => ({ PublicHistory: ({ onRestore }: { onRestore?: (draft: unknown) => void }) => <button onClick={() => onRestore?.({ noteId: mocks.note!.id, sourceStateRevision: '1', title: 'Archived title', body: 'Archived body' })}>Restore archived draft</button> }))
@@ -20,10 +36,13 @@ const scope = { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1'
 const utf8 = (value: string) => new TextEncoder().encode(value)
 const note = { id: scope.noteId, owner: 'other', mode: 4, deleted: false, stateRevision: '3', titleRevision: '2', bodyRevision: '3', epoch: '0', ownerGeneration: '1', title: utf8('Published title'), body: utf8('Published body') } as ChainNote
 const payload = { kind: 'public' as const, title: 'My title', body: 'My text', base: { stateRevision: '1', epoch: '0', titleRevision: '1', bodyRevision: '1', ownerGeneration: '1' } }
+/** Same content revisions as the live note: only a non-content change (for example a permission toggle) happened since. */
+const sameContentBase = { stateRevision: '2', epoch: '0', titleRevision: '2', bodyRevision: '3', ownerGeneration: '1' }
+const currentBase = { ...sameContentBase, stateRevision: '3' }
 const stores: NotesStore[] = []
 function setup() { const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store); return { store, session: createDraftSession(), client: { chainId: scope.chainId, assertCurrent: vi.fn(), note: vi.fn(async () => mocks.note) } as unknown as NotesReadClient } }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
-beforeEach(() => { vi.clearAllMocks(); mocks.note = note; mocks.permission.mockResolvedValue(true) })
+beforeEach(() => { vi.clearAllMocks(); mocks.note = note; mocks.permission.mockResolvedValue(true); mocks.plan.mockImplementation((...args: unknown[]) => mocks.actual!(...args)); mocks.timeoutMs = undefined })
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(store => store.close())) })
 describe('public authoring durable workspace', () => {
     it('creates only after durable revision0 save and resumes the same ID after reload', async () => {
@@ -54,16 +73,83 @@ describe('public authoring durable workspace', () => {
         view.unmount(); vi.mocked(client.note).mockResolvedValue(null)
         render(<PublicAuthoring store={store} client={client} scope={scope} />); expect(await screen.findByLabelText('Note title')).toHaveValue('My title')
     })
-    it('opens an existing draft without replacing its text/base and preserves unsaved text on reader switches', async () => {
-        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+    it('opens a draft of the latest revision unchanged and preserves unsaved text on reader switches', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
         const save = vi.spyOn(store, 'saveDraft')
         render(<PublicAuthoring store={store} client={client} scope={scope} />)
         fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
         expect(await screen.findByLabelText('Note title')).toHaveValue('My title'); expect(save).not.toHaveBeenCalled()
+        expect(screen.getByText(/unpublished changes to revision 3/)).toBeVisible()
         fireEvent.change(screen.getByLabelText('Markdown editor'), { target: { value: 'Unsaved words' } })
         fireEvent.click(screen.getByRole('button', { name: 'Read published note' })); expect(screen.getByText('Community editing controls')).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'Open local draft' }))
         expect(screen.getByLabelText('Markdown editor')).toHaveValue('Unsaved words'); expect(screen.queryByText('Community editing controls')).toBeNull()
-        expect((await store.getDraft(scope))?.payload).toMatchObject({ base: payload.base })
+        expect((await store.getDraft(scope))?.payload).toMatchObject({ base: currentBase })
+    })
+    it('starts from the latest revision when an older draft has no unpublished changes', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, title: 'Published title', body: 'Published body', base: sameContentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        await screen.findByText(/latest published revision \(3\)/)
+        expect(await screen.findByLabelText('Note title')).toHaveValue('Published title')
+        expect((await store.getDraft(scope))?.payload).toMatchObject({ body: 'Published body', base: { stateRevision: '3' } })
+        expect(await screen.findByText('Update controls')).toBeVisible()
+    })
+    it('rebases an older draft automatically when its changes do not overlap', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: sameContentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        expect(await screen.findByText('Updated to revision 3 — your changes were kept.')).toBeVisible()
+        expect(await screen.findByLabelText('Note title')).toHaveValue('My title')
+        expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'My title', body: 'My text', base: { stateRevision: '3' } })
+    })
+    it('keeps the user text on overlapping changes and explains who published what', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+        const actor = 'g1747xyzxyzxyzxyzxyzxyzxyzxyzxyzxyzxyzabcd'
+        mocks.plan.mockResolvedValue({ kind: 'conflict', latest: { ...note, actor }, fields: ['body'], baseRevision: '1', theirs: { title: 'Published title', body: 'Published body' } })
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        expect(await screen.findByText('Someone published a newer version (revision 3 by g1747…abcd). Your text is kept.')).toBeVisible()
+        expect(await screen.findByLabelText('Note title')).toHaveValue('My title')
+        expect((await store.getDraft(scope))?.localRevision).toBe('1')
+        const keep = screen.getByRole('button', { name: 'Put my version on top of revision 3' }); expect(keep).toBeDisabled()
+        fireEvent.click(screen.getByRole('button', { name: 'See their changes' }))
+        expect(screen.getByText('Published body')).toBeVisible(); expect(keep).toBeEnabled()
+        fireEvent.click(keep)
+        await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'My title', body: 'My text', base: { stateRevision: '3' } }))
+        expect(await screen.findByText(/Your version now follows revision 3/)).toBeVisible()
+        expect(screen.queryByText(/Someone published a newer version/)).toBeNull()
+    })
+    it('can start from the latest revision while saving the conflicting text as a separate draft', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+        mocks.plan.mockResolvedValue({ kind: 'conflict', latest: { ...note, actor: 'wallet' }, fields: ['title', 'body'], baseRevision: '1', theirs: { title: 'Published title', body: 'Published body' } })
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        expect(await screen.findByText(/You published a newer version \(revision 3\) from another window or device\. Your text is kept\./)).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'Start from revision 3' }))
+        await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'Published title', body: 'Published body', base: { stateRevision: '3' } }))
+        const copies = (await store.listDrafts(scope)).filter(draft => draft.scope.noteId !== scope.noteId)
+        expect(copies).toHaveLength(1); expect(copies[0].payload).toEqual({ kind: 'public', title: 'My title', body: 'My text' })
+    })
+    it('never offers the creation panel for a note that already exists', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { kind: 'public', title: 'Draft before creation', body: 'Different text' }, session)
+        mocks.plan.mockResolvedValue({ kind: 'conflict', latest: { ...note, actor: 'other' }, fields: ['title', 'body'], baseRevision: null, theirs: { title: 'Published title', body: 'Published body' } })
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Open local draft' }))
+        await screen.findByText(/Someone published a newer version/)
+        expect(await screen.findByLabelText('Note title')).toHaveValue('Draft before creation')
+        expect(screen.queryByText('Creation controls')).toBeNull()
+    })
+    it('opens a creation draft directly while its note is not published yet', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { kind: 'public', title: 'New', body: 'Text' }, session); mocks.note = null
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        expect(await screen.findByLabelText('Note title')).toHaveValue('New'); expect(await screen.findByText('Creation controls')).toBeVisible()
+    })
+    it('ends a stuck preparation with a visible message', async () => {
+        const { store, client } = setup(); render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        const button = await screen.findByRole('button', { name: 'Edit note' }); vi.mocked(client.note).mockReturnValue(new Promise(() => {}))
+        mocks.timeoutMs = 200; fireEvent.click(button)
+        expect(await screen.findByText(/network did not answer in time/)).toBeVisible(); expect(screen.queryByText('Preparing local draft…')).toBeNull()
+        expect(await store.getDraft(scope)).toBeNull()
     })
     it('permits community editing only after the content guard and saves the exact fresh baseline', async () => {
         const { store, client } = setup(); render(<StrictMode><PublicAuthoring store={store} client={client} scope={scope} /></StrictMode>)
@@ -75,7 +161,7 @@ describe('public authoring durable workspace', () => {
     it('refuses a capability revoked between Edit visibility and preparation', async () => {
         const { store, client } = setup(); render(<PublicAuthoring store={store} client={client} scope={scope} />)
         const button = await screen.findByRole('button', { name: 'Edit note' }); mocks.permission.mockResolvedValue(false); fireEvent.click(button)
-        await screen.findByText(/safe editing baseline could not/); expect(await store.getDraft(scope)).toBeNull()
+        await screen.findByText(/cannot be edited from your account/); expect(await store.getDraft(scope)).toBeNull()
     })
     it('does not overwrite an intervening tab draft between slot read and fresh note read', async () => {
         const { store, session, client } = setup()
@@ -101,25 +187,88 @@ describe('public authoring durable workspace', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Restore archived draft' })); await screen.findByText(/already exists/)
         expect((await store.getDraft(scope))?.localRevision).toBe('1')
     })
-    it('advances the baseline only after explicit comparison and CAS, keeping saved local text', async () => {
-        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+    it('rebases a stale draft when its publication is reviewed, without opening a review', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
         render(<PublicAuthoring store={store} client={client} scope={scope} />)
-        fireEvent.click(await screen.findByRole('button', { name: 'Open local draft' })); await screen.findByLabelText('Note title')
-        fireEvent.click(screen.getByText('Compare with published revision')); fireEvent.click(screen.getByRole('button', { name: 'Load comparison' }))
-        await screen.findByText('Published revision 3'); expect((await store.getDraft(scope))?.payload).toMatchObject({ base: payload.base })
-        fireEvent.click(screen.getByRole('button', { name: 'Keep my saved text against revision 3' }))
-        await waitFor(async () => expect((await store.getDraft(scope))?.localRevision).toBe('2'))
-        expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'My title', body: 'My text', base: { stateRevision: '3' } })
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' })); await screen.findByText('Update controls')
+        mocks.note = { ...note, stateRevision: '4' }
+        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        expect(await screen.findByText('Updated to revision 4 — your changes were kept. Check it, then select Review publication again.')).toBeVisible()
+        expect(mocks.reviewed).not.toHaveBeenCalled()
+        fireEvent.click(await screen.findByRole('button', { name: 'Review publication' }))
+        await waitFor(() => expect(mocks.reviewed).toHaveBeenCalledOnce())
     })
-    it('keeps the original baseline when the published revision moves after comparison', async () => {
-        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+    it('explains a conflict found at review time instead of preparing forever', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
         render(<PublicAuthoring store={store} client={client} scope={scope} />)
-        fireEvent.click(await screen.findByRole('button', { name: 'Open local draft' })); await screen.findByLabelText('Note title')
-        fireEvent.click(screen.getByText('Compare with published revision')); fireEvent.click(screen.getByRole('button', { name: 'Load comparison' }))
-        await screen.findByText('Published revision 3'); vi.mocked(client.note).mockResolvedValue({ ...note, stateRevision: '4' })
-        fireEvent.click(screen.getByRole('button', { name: 'Keep my saved text against revision 3' }))
-        await screen.findByText(/Comparison or baseline save failed/)
-        expect((await store.getDraft(scope))?.payload).toEqual(payload); expect((await store.getDraft(scope))?.localRevision).toBe('1')
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' })); await screen.findByText('Update controls')
+        mocks.note = { ...note, stateRevision: '5', actor: 'g1747xyzxyzxyzxyzxyzxyzxyzxyzxyzxyzxyzabcd' }
+        mocks.plan.mockResolvedValue({ kind: 'conflict', latest: mocks.note, fields: ['body'], baseRevision: '3', theirs: { title: 'Published title', body: 'A: buy avocados' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        expect(await screen.findByText('Someone published a newer version (revision 5 by g1747…abcd). Your text is kept.')).toBeVisible()
+        expect(screen.getByLabelText('Note title')).toHaveValue('My title'); expect(mocks.reviewed).not.toHaveBeenCalled()
+        expect(screen.queryByRole('button', { name: 'Review publication' })).toBeNull()
+    })
+    it('never moves a draft backward when the network answers with an older revision', async () => {
+        const { store, session, client } = setup(); const sixth = { ...currentBase, stateRevision: '6' }
+        await store.saveDraft(scope, '0', { ...payload, base: sixth }, session); mocks.note = { ...note, stateRevision: '5' }
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        expect(await screen.findByText(/has not caught up with revision 6 of your draft yet/)).toBeVisible()
+        expect(await screen.findByLabelText('Note title')).toHaveValue('My title')
+        expect(await store.getDraft(scope)).toMatchObject({ localRevision: '1', payload: { title: 'My title', body: 'My text', base: sixth } })
+        expect(screen.queryByRole('button', { name: /Update my draft/ })).toBeNull(); expect(screen.queryByRole('button', { name: /Start from revision/ })).toBeNull()
+        fireEvent.click(await screen.findByRole('button', { name: 'Review publication' }))
+        expect(await screen.findByText(/Nothing was published and your text is kept/)).toBeVisible()
+        expect(mocks.reviewed).not.toHaveBeenCalled(); expect((await store.getDraft(scope))?.localRevision).toBe('1')
+    })
+    it('opens the saved draft as it is when the latest revision cannot be checked', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+        mocks.plan.mockRejectedValue(new Error('history unavailable'))
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        expect(await screen.findByText(/latest revision could not be checked\. Your draft was opened as it is/)).toBeVisible()
+        expect(await screen.findByLabelText('Note title')).toHaveValue('My title'); expect((await store.getDraft(scope))?.localRevision).toBe('1')
+    })
+    it('confirms a publication and moves the baseline even when typing remounted the publish panel', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' })); await screen.findByText('Update controls')
+        const signing = mocks.publish!, requestSignal = signing.requestSession!.capture().signal
+        // The wallet closed and verification runs; the user keeps typing, which unmounts the panel.
+        fireEvent.change(screen.getByLabelText('Markdown editor'), { target: { value: 'My text, typed while verifying' } })
+        expect(screen.queryByText('Update controls')).toBeNull(); expect(requestSignal.aborted).toBe(false)
+        const confirmed = { ...note, stateRevision: '4', bodyRevision: '4', body: utf8('My text') }
+        await act(async () => signing.onPublished!(confirmed))
+        await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ body: 'My text, typed while verifying', base: { stateRevision: '4', bodyRevision: '4' } }))
+        expect(await screen.findByText(/Published as revision 4\. Your draft now follows it/)).toBeVisible()
+        expect(screen.getByLabelText('Markdown editor')).toHaveValue('My text, typed while verifying')
+    })
+    it('keeps the newest answer for the live note: a later lagging read never moves it backward', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' })); await screen.findByText('Update controls')
+        const slow = deferred<ChainNote | null>()
+        vi.mocked(client.note).mockReturnValueOnce(slow.promise).mockResolvedValueOnce({ ...note, stateRevision: '5' })
+        act(() => announceNoteChange({ chainId: scope.chainId, noteId: scope.noteId }))
+        act(() => announceNoteChange({ chainId: scope.chainId, noteId: scope.noteId }))
+        expect(await screen.findByText(/Revision 5 was published after your draft started/)).toBeVisible()
+        await act(async () => slow.resolve({ ...note, stateRevision: '4' }))
+        mocks.note = note
+        act(() => announceNoteChange({ chainId: scope.chainId, noteId: scope.noteId }))
+        await waitFor(() => expect(vi.mocked(client.note).mock.calls.length).toBeGreaterThanOrEqual(5))
+        expect(screen.getByText(/Revision 5 was published after your draft started/)).toBeVisible()
+    })
+    it('notices a newer revision while editing and updates the draft with one button', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit note' })); await screen.findByText('Update controls')
+        mocks.note = { ...note, stateRevision: '4' }
+        act(() => announceNoteChange({ chainId: scope.chainId, noteId: scope.noteId, stateRevision: '4' }))
+        expect(await screen.findByText(/Revision 4 was published after your draft started \(revision 3\)/)).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'Update my draft to revision 4' }))
+        expect(await screen.findByText('Updated to revision 4 — your changes were kept.')).toBeVisible()
+        expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'My title', body: 'My text', base: { stateRevision: '4' } })
     })
 
 })

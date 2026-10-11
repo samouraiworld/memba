@@ -31,7 +31,7 @@ function setup() {
   const client = { publicCapabilities: vi.fn(async () => current ? parsePublicCapabilities({ schema: 'memba-notes/public-capabilities/v1', id: current.id, state_revision: current.stateRevision, owner_generation: current.ownerGeneration, mode: current.mode, deleted: current.deleted, allow_public_writes: publicWrites }) : null), writersRaw: vi.fn(async () => []), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => height), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
   const operation: PublicNoteOperation = { caller: owner, noteId, operationId, action: { kind: 'commit', revision: '1', epoch: '0', body: 'New' } }
   const quote: NotesQuoteProvider = async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: (BigInt(input.height) + 10n).toString(), expiresAtMs: Date.now() + 60000, source: 'bounded-estimate', estimatedDepositUgnot: '100', maxDepositUgnot: '1000', gasWanted: 100000, networkFeeUgnot: 1000 })
-  const options: PublicRequestOptions = { client, operation, maxDepositUgnot: '1000', draftLocalRevision: '5', session, intents, quote, isWriteEnabled: () => enabled }
+  const options: PublicRequestOptions = { client, operation, maxDepositUgnot: '1000', draftLocalRevision: '5', session, intents, quote, isWriteEnabled: () => enabled, onConfirmed: vi.fn() }
   const scope = { chainId: client.chainId, realm: NOTES_REALM, owner, noteId }
   const applied = (patch: Partial<ChainNote> = {}) => { current = { ...baseNote(), operationId, stateRevision: '2', bodyRevision: '2', body: bytes('New'), height: '101', ...patch } }
   return { options, store, intents, session, scope, applied, setPublicWrites: (value: boolean) => { publicWrites = value }, setNote: (note: ChainNote | null) => { current = note }, disable: () => { enabled = false }, setHeight: (value: string) => { height = value } }
@@ -103,6 +103,7 @@ describe('Notes signing intentions', () => {
     expect((await s.intents.get(s.scope, operationId))?.phase).toBe('submitted')
     s.applied(); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
     expect((await s.intents.get(s.scope, operationId))?.phase).toBe('confirmed')
+    expect(s.options.onConfirmed).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ stateRevision: '2', operationId }))
     expect((await s.store.getDraft(s.scope))?.payload.kind).toBe('public')
     await expect(request.send(undefined, async () => {})).rejects.toThrow('stale')
   })
