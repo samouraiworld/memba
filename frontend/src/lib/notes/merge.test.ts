@@ -18,10 +18,23 @@ describe('line-based three-way merge', () => {
         const base = lines('one', 'two', 'three')
         expect(mergeLines(base, lines('one', 'mine', 'three'), lines('one', 'theirs', 'three'))).toEqual({ status: 'conflict' })
     })
-    it('refuses to merge edits of adjacent lines and insertions at the same place', () => {
+    it('merges edits of adjacent but different lines', () => {
         const base = lines('one', 'two', 'three')
-        expect(mergeLines(base, lines('ONE', 'two', 'three'), lines('one', 'TWO', 'three'))).toEqual({ status: 'conflict' })
+        expect(mergeLines(base, lines('ONE', 'two', 'three'), lines('one', 'TWO', 'three'))).toEqual({ status: 'clean', value: lines('ONE', 'TWO', 'three') })
+        expect(mergeLines(base, lines('two', 'three'), lines('one', 'TWO', 'three'))).toEqual({ status: 'clean', value: lines('TWO', 'three') })
+    })
+    it('refuses insertions at the same place and insertions at the edge of the other side\'s change', () => {
+        const base = lines('one', 'two', 'three')
         expect(mergeLines(base, lines('one', 'two', 'three', 'mine'), lines('one', 'two', 'three', 'theirs'))).toEqual({ status: 'conflict' })
+        expect(mergeLines(base, lines('one', 'mine', 'two', 'three'), lines('one', 'TWO', 'three'))).toEqual({ status: 'conflict' })
+        expect(mergeLines(base, lines('one', 'two', 'mine', 'three'), lines('one', 'TWO', 'three'))).toEqual({ status: 'conflict' })
+        expect(mergeLines(base, lines('one', 'mine', 'two', 'three'), lines('one', 'three'))).toEqual({ status: 'conflict' })
+    })
+    it('keeps both sides\' lines when a repeated line makes the position ambiguous', () => {
+        // Documented limit: with identical neighbouring lines either placement is a valid reading; nothing is lost.
+        const result = mergeLines(lines('b', 'c', 'c'), lines('b', 'c', 'X', 'c'), lines('B', 'c', 'c'))
+        expect(result.status).toBe('clean')
+        if (result.status === 'clean') { expect(result.value.split('\n')).toContain('X'); expect(result.value.split('\n')).toContain('B'); expect(result.value.split('\n')).not.toContain('b') }
     })
     it('accepts identical changes once', () => {
         const base = lines('one', 'two', 'three'), same = lines('one', 'changed', 'three', 'added')
@@ -72,5 +85,41 @@ describe('note merge', () => {
             .toEqual({ status: 'conflict', fields: ['body'] })
         expect(mergeNoteText({ title: null, body: null }, { title: 'Same', body: 'same' }, { title: 'Same', body: 'same' }))
             .toEqual({ status: 'clean', title: 'Same', body: 'same' })
+    })
+})
+
+describe('merge properties', () => {
+    /** Small deterministic PRNG so failures reproduce. */
+    function prng(seed: number) { return () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 } }
+    type Side = 'A' | 'B' | null
+    function scenario(random: () => number, round: number) {
+        const n = 1 + Math.floor(random() * 12), base = Array.from({ length: n }, (_, i) => `base-${i}`)
+        const owner: Side[] = base.map(() => (random() < 0.5 ? null : random() < 0.5 ? 'A' : 'B'))
+        const remove = base.map(() => random() < 0.3)
+        // Gap p sits before line p; an insertion there must not touch the other side's lines p-1 or p.
+        const gap: Side[] = Array.from({ length: n + 1 }, (_, p) => {
+            const side: Side = random() < 0.6 ? null : random() < 0.5 ? 'A' : 'B'
+            const other = side === 'A' ? 'B' : 'A'
+            return side && owner[p - 1] !== other && owner[p] !== other ? side : null
+        })
+        const render = (side: 'A' | 'B' | 'both') => {
+            const out: string[] = []
+            for (let p = 0; p <= n; p++) {
+                if (gap[p] && (side === 'both' || gap[p] === side)) out.push(`ins-${round}-${gap[p]}-${p}`)
+                if (p === n) break
+                const mine = owner[p] && (side === 'both' || owner[p] === side)
+                if (!mine) out.push(base[p]); else if (!remove[p]) out.push(`mod-${round}-${owner[p]}-${p}`)
+            }
+            return out.join('\n')
+        }
+        return { base: base.join('\n'), a: render('A'), b: render('B'), expected: render('both') }
+    }
+    it('merges random non-touching edits completely, in order and symmetrically', () => {
+        const random = prng(20261011)
+        for (let round = 0; round < 500; round++) {
+            const { base, a, b, expected } = scenario(random, round)
+            expect(mergeLines(base, a, b), `round ${round}`).toEqual({ status: 'clean', value: expected })
+            expect(mergeLines(base, b, a), `round ${round} swapped`).toEqual({ status: 'clean', value: expected })
+        }
     })
 })
