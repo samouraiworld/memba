@@ -4,12 +4,13 @@ import type { NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { NotesIntent } from '../../../lib/notes/intents'
 import { PublicOperationStatus } from './PublicOperationStatus'
+import { useNoteFreshness } from '../../../lib/notes/freshness'
 const calls = vi.hoisted(() => ({ list: vi.fn(), recover: vi.fn() }))
 vi.mock('../../../lib/notes/intents', () => ({ NotesIntents: class { list = calls.list } }))
 vi.mock('../../../lib/notes/chain/recovery', () => ({ recoverPublicIntent: calls.recover }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ version: 1 }) }))
 const partition = { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: 'wallet' }
-const receipt = { scope: { ...partition, noteId: 'ab'.repeat(16) }, operationId: 'cd'.repeat(16), phase: 'unknown', verification: { kind: 'public-v1' } } as NotesIntent
+const receipt = { scope: { ...partition, noteId: 'ab'.repeat(16) }, operationId: 'cd'.repeat(16), phase: 'unknown', resultingStateRevision: '4', verification: { kind: 'public-v1' } } as NotesIntent
 const props = { partition, client: {} as NotesReadClient, store: {} as NotesStore, onOpen: vi.fn() }
 beforeEach(() => { vi.clearAllMocks(); calls.list.mockResolvedValue([receipt]); calls.recover.mockResolvedValue('unknown') })
 describe('public receipts are read-only recovery', () => {
@@ -25,10 +26,12 @@ describe('public receipts are read-only recovery', () => {
         render(<PublicOperationStatus {...props} />); await screen.findByText(/unsupported in this public view/)
         expect(screen.queryByRole('button', { name: 'Check outcome' })).toBeNull(); expect(calls.recover).not.toHaveBeenCalled()
     })
-    it('confirmation asks for comparison without touching the local baseline', async () => {
-        calls.recover.mockResolvedValue('confirmed'); render(<PublicOperationStatus {...props} />)
-        fireEvent.click(await screen.findByRole('button', { name: 'Check outcome' })); await screen.findByText(/draft baseline was kept/)
-        expect(calls.recover).toHaveBeenCalledOnce()
+    it('confirmation refreshes the note views and explains the draft update, without touching the local draft', async () => {
+        const announced = vi.fn()
+        function Listener() { useNoteFreshness(receipt.scope.chainId, receipt.scope.noteId, announced); return null }
+        calls.recover.mockResolvedValue('confirmed'); render(<><Listener /><PublicOperationStatus {...props} /></>)
+        fireEvent.click(await screen.findByRole('button', { name: 'Check outcome' })); await screen.findByText(/updated to the latest revision when you edit it/)
+        expect(calls.recover).toHaveBeenCalledOnce(); expect(announced).toHaveBeenCalledWith({ stateRevision: receipt.resultingStateRevision })
     })
     it('suppresses a late result from an old account generation', async () => {
         let resolve!: (value: string) => void; calls.recover.mockImplementationOnce(() => new Promise(done => { resolve = done }))

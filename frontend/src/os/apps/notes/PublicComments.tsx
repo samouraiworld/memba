@@ -7,6 +7,8 @@ export interface PublicCommentsProps {
   client: CommentsClient; noteId: string; epoch: string; bodyRevision: string; viewer?: string | null
   previewRoot?: HTMLElement | null
   canResolve?: boolean; canHide?: boolean
+  /** A change re-reads the first page while the current list stays visible. */
+  refreshToken?: number
   /** Existing full controls remain enabled unless a public-only consumer opts out. */
   allowEncryptedActions?: boolean
   onReply?(comment: PublicComment): void; onDelete?(comment: PublicComment): void
@@ -15,7 +17,7 @@ export interface PublicCommentsProps {
 type Page = { key: string; client: CommentsClient; items: PublicComment[]; cursor: string; next: string; history: string[]; loading: boolean; error: boolean }
 /** No wallet or local persistence: callbacks only prepare an explicitly chosen action elsewhere. */
 export function PublicComments(props: PublicCommentsProps) {
-  const { client, noteId, epoch, bodyRevision, viewer } = props
+  const { client, noteId, epoch, bodyRevision, viewer, refreshToken = 0 } = props
   const [reload, setReload] = useState(0)
   const key = JSON.stringify([noteId, epoch, bodyRevision, reload])
   const empty = (): Page => ({ key, client, items: [], cursor: '', next: '', history: [], loading: true, error: false })
@@ -29,7 +31,7 @@ export function PublicComments(props: PublicCommentsProps) {
     }).catch(() => { if (!controller.signal.aborted) setPage({ key, client, items: [], cursor: '', next: '', history: [], loading: false, error: true }) })
       .finally(() => { if (!controller.signal.aborted) busy.current = false })
     return () => controller.abort()
-  }, [client, noteId, epoch, bodyRevision, key])
+  }, [client, noteId, epoch, bodyRevision, key, refreshToken])
   async function navigate(cursor: string, history: string[]) {
     const controller = lifetime.current
     if (!controller || controller.signal.aborted || busy.current || page.key !== key || page.client !== client) return

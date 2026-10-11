@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { expect, it, vi } from 'vitest'
+import { useNoteFreshness } from '../../../lib/notes/freshness'
+import { afterEach, expect, it, vi } from 'vitest'
 import type { NativeViewProps } from '../../native/types'
 import { PublicNotesView } from './native'
 vi.mock('../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../lib/notes/config')>(), NOTES_ENABLED: true }))
@@ -11,4 +12,14 @@ it('routes a valid public note through the native push action without accepting 
     fireEvent.click(screen.getByRole('button', { name: 'Open valid' }))
     expect(push).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ key: `notes:${'ab'.repeat(16)}`, app: 'notes', target: { kind: 'app', app: 'notes', section: 'ab'.repeat(16) } }))
     expect(open).not.toHaveBeenCalled()
+})
+afterEach(() => { vi.useRealTimers() })
+it('asks open notes to re-check the chain when a Notes window comes back to the front', () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(1_000)
+    const seen = vi.fn(), id = 'ab'.repeat(16)
+    function Listener() { useNoteFreshness('onyx-1', id, seen); return null }
+    const props = { push: vi.fn(), open: vi.fn(), session: { network: { chainId: 'onyx-1' } }, section: id, fallback: null, active: false } as unknown as NativeViewProps
+    const view = render(<><Listener /><PublicNotesView {...props} /></>)
+    vi.setSystemTime(60_000); view.rerender(<><Listener /><PublicNotesView {...props} active={false} /></>); expect(seen).not.toHaveBeenCalled()
+    view.rerender(<><Listener /><PublicNotesView {...props} active /></>); expect(seen).toHaveBeenCalledExactlyOnceWith({})
 })

@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newNoteId } from '../../../lib/notes/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { HistoryAction, PublicHistoryEntry } from '../../../lib/notes/chain/history'
 import { check } from '../../../lib/notes/chain/schema'
+import { useNoteFreshness } from '../../../lib/notes/freshness'
 import { PublicHistoryCommentView, PublicHistoryVersions, useHistoryRead, type HistoryRestore } from './PublicHistoryContent'
 import './notes-history.css'
 
@@ -37,6 +38,14 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
         return { info, page }
     }, [client, noteId, cursor])
     const { state } = useHistoryRead(read), data = state.data
+    const reload = useCallback(() => { setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 })) }, [])
+    // Confirmed changes and refocus re-check the history head; a new event reloads from the head.
+    const head = useRef<string | null>(null)
+    useEffect(() => { head.current = data ? data.info.headSeq : null }, [data])
+    const changed = useCallback(() => {
+        void client.publicHistoryInfo(noteId).then(info => { if (info && info.headSeq !== head.current) reload() }).catch(() => { /* The next check or Refresh history retries. */ })
+    }, [client, noteId, reload])
+    useNoteFreshness(client.chainId, noteId, changed)
     function navigate(after: string) {
         if (!data || state.loading) return
         setSelected(null); setVersions([])
@@ -46,9 +55,7 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
         setVersions(old => compare && old.length ? [old[0], revision] : [revision])
     }
     return <section className="os-notes-history" aria-label="Public history">
-        <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={() => {
-            setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 }))
-        }}>Refresh history</button></header>
+        <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={reload}>Refresh history</button></header>
         <p>Public versions are retained, including after deletion, unless a moderator removes them; a removal keeps the content hash and is recorded here. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
         {state.loading && <p role="status">Loading public history…</p>}
         {state.error && <p role="alert">Public history could not be verified. Refresh to try again.</p>}

@@ -5,6 +5,7 @@ import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { NotesStore } from '../../../lib/notes/drafts'
 import { PublicCollaborationControls } from './PublicCollaborationControls'
+import { useNoteFreshness } from '../../../lib/notes/freshness'
 const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), pending: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
@@ -84,9 +85,12 @@ describe('owner community editing consent', () => {
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce()); expect(calls.prepare).toHaveBeenCalledOnce()
     })
     it('refreshes only on confirmed settlement and dismisses a refused signature sheet', async () => {
-        const input = props(), view = render(<PublicCollaborationControls {...input} />); await review()
+        const announced = vi.fn()
+        function Listener() { useNoteFreshness('gnoland-1', note.id, announced); return null }
+        const input = props(), view = render(<><Listener /><PublicCollaborationControls {...input} /></>); await review()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         await act(async () => calls.sign.mock.calls[0][0].onSettled('confirmed')); expect(input.onChanged).toHaveBeenCalledOnce()
+        expect(announced).toHaveBeenCalledExactlyOnceWith({ stateRevision: '5' })
         view.unmount(); calls.sign.mockReturnValue(false)
         const dismissed = vi.fn(); calls.prepare.mockResolvedValue({ onDismissed: dismissed })
         render(<PublicCollaborationControls {...props()} />); await review(); await waitFor(() => expect(dismissed).toHaveBeenCalledOnce())
