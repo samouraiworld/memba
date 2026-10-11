@@ -12,6 +12,7 @@ vi.mock('../../../lib/notes/chain/publicPermissions', () => ({ readPublicContent
 vi.mock('../terminal/CodeEditor', () => ({ CodeEditor: ({ value, onChange }: { value: string; onChange(value: string): void }) => <textarea aria-label="Markdown editor" value={value} onChange={e => onChange(e.target.value)} /> }))
 vi.mock('./MarkdownPreview', () => ({ MarkdownPreview: () => <span>Preview</span> }))
 vi.mock('./PublicPublish', () => ({ PublicPublish: () => <span>Publication controls</span> }))
+vi.mock('./PublicCollaborationControls', () => ({ PublicCollaborationControls: () => <span>Community editing controls</span> }))
 vi.mock('./PublicCommentPanel', () => ({ PublicCommentPanel: () => <span>Comments</span> }))
 vi.mock('./PublicHistory', () => ({ PublicHistory: ({ onRestore }: { onRestore?: (draft: unknown) => void }) => <button onClick={() => onRestore?.({ noteId: mocks.note!.id, sourceStateRevision: '1', title: 'Archived title', body: 'Archived body' })}>Restore archived draft</button> }))
 vi.mock('./PublicNote', () => ({ PublicNote: ({ editAction, children }: { editAction?: (note: ChainNote) => ReactNode; children?: (note: ChainNote) => ReactNode }) => <section aria-label="Published note"><h1>Published reader</h1>{mocks.note && <>{editAction?.(mocks.note)}{children?.(mocks.note)}</>}</section> }))
@@ -60,8 +61,8 @@ describe('public authoring durable workspace', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
         expect(await screen.findByLabelText('Note title')).toHaveValue('My title'); expect(save).not.toHaveBeenCalled()
         fireEvent.change(screen.getByLabelText('Markdown editor'), { target: { value: 'Unsaved words' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Read published note' })); fireEvent.click(screen.getByRole('button', { name: 'Open local draft' }))
-        expect(screen.getByLabelText('Markdown editor')).toHaveValue('Unsaved words')
+        fireEvent.click(screen.getByRole('button', { name: 'Read published note' })); expect(screen.getByText('Community editing controls')).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'Open local draft' }))
+        expect(screen.getByLabelText('Markdown editor')).toHaveValue('Unsaved words'); expect(screen.queryByText('Community editing controls')).toBeNull()
         expect((await store.getDraft(scope))?.payload).toMatchObject({ base: payload.base })
     })
     it('permits community editing only after the content guard and saves the exact fresh baseline', async () => {
