@@ -12,6 +12,7 @@ import { gnotAmount, parseGnotCap } from '../../../lib/notes/chain/quote'
 import type { PublicComment } from '../../../lib/notes/chain/comments'
 import { useSigner } from '../../sign/signerContext'
 import { PublicComments } from './PublicComments'
+import { useUnsavedText } from './notesPane'
 
 type PublicCommentPanelProps = { note: ChainNote; client: NotesReadClient; owner: string | null; store: NotesStore; previewRoot?: HTMLElement | null }
 export function PublicCommentPanel(props: PublicCommentPanelProps) {
@@ -29,6 +30,7 @@ function useCommentDraft() {
 }
 function PublicCommentScope(props: PublicCommentPanelProps) {
     const draft = useCommentDraft(), n = props.note
+    useUnsavedText(!!draft.body.trim(), 'A comment you wrote is not posted yet. Leave without posting it? Choose Cancel to keep editing.')
     return <PublicCommentPanelSession key={JSON.stringify([n.owner, n.stateRevision, n.ownerGeneration, n.mode, n.epoch, n.deleted])} {...props} draft={draft} />
 }
 function PublicCommentPanelSession({ note, client, owner, store, previewRoot, draft }: PublicCommentPanelProps & { draft: ReturnType<typeof useCommentDraft> }) {

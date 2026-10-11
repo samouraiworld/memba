@@ -1,11 +1,15 @@
 /** In-memory callbacks only. Never serialize a draft or its contents with windows. */
-const guards = new Map<string, () => boolean>()
+const guards = new Map<string, Set<() => boolean>>()
 
+/** Several parts of one window may hold unsaved text; each registers its own guard. */
 export function registerCloseGuard(key: string, guard: () => boolean): () => void {
-    guards.set(key, guard)
-    return () => { if (guards.get(key) === guard) guards.delete(key) }
+    const set = guards.get(key) ?? new Set()
+    guards.set(key, set); set.add(guard)
+    return () => { set.delete(guard); if (!set.size && guards.get(key) === set) guards.delete(key) }
 }
 
+/** Asks each guard in turn; the first refusal keeps the window open. */
 export function mayCloseWindow(key: string): boolean {
-    return guards.get(key)?.() ?? true
+    for (const guard of [...guards.get(key) ?? []]) if (!guard()) return false
+    return true
 }

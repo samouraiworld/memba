@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes in one window, ready to write (#1609, 2026-10-11)
+- Open Notes as a single window: the launcher, Dock, links and Desktop shortcuts bring it forward and show the chosen note there. Note links stay validated as before.
+- Show your notes on the left (search, New note, and one list of local drafts, published and private notes with their state) and the open note on the right. Notes published by others are under Explore.
+- Reopen the last note you had open on this network and account; the first time, start a blank local draft with the cursor in its title. Drafts still save only on this device until you publish.
+- Let the draft editor fill the window. On a phone, show the list first and open a note full screen with Back. Notes remains disabled pending deployment and reviewed activation.
+- Switching notes, opening Explore or going Back stores what you just typed; a note whose edits could not be stored, or with an unsent comment, stays open in the background and Notes asks before its window closes.
+
 ### Note shortcuts on the Desktop (#1608, 2026-10-11)
 - An open note offers Add to Desktop, or Remove from Desktop when it is already there. Shortcuts use the existing desk, kept in this browser for each wallet and network. Desktop actions now read "Add to Desktop" and "Remove from Desktop" everywhere.
 - A note shortcut is a document with a Notes badge, or a lock badge for a private note. It is labelled with the note's public title, read from the chain and cached, or "Note" when the title is not known. A private note is never looked up again once known, and a note taken down by moderation shows "Note". Removing a shortcut or resetting local app data also clears its cached title. Clicking the shortcut opens the note. Right-clicking offers Open and Remove from Desktop, and removing a shortcut never deletes the note. Notes remains disabled pending deployment and reviewed activation.

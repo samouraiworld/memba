@@ -375,7 +375,7 @@ describe("Arcade presentation policy", () => {
     })
 
     it.each([
-        ["notes", "first"], ["notes", "second"], ["radio", null], ["store", "submit"], ["store", "review"], ["store", "my-submissions"],
+        ["notes", null], ["notes", "ab".repeat(16)], ["radio", null], ["store", "submit"], ["store", "review"], ["store", "my-submissions"],
         ["arcade", "connect4"], ["arcade", "connect4/12"], ["arcade", "space-invaders"], ["wallet", null],
     ] as const)("does not apply catalogue presentation to %s/%s", (app, section) => {
         expect(run(open(appSpec(app, section))).wins[0].max).toBe(false)
@@ -400,9 +400,31 @@ describe("Arcade presentation policy", () => {
         expect(played.wins[0]).toMatchObject({ id: w.id, x: w.x, y: w.y, width: 500, height: 350, min: false, max: true })
     })
 
-    it("ignores Play presentation for Connect 4 and retains independent Notes identities", () => {
-        const s = run({ type: "open", spec: appSpec("arcade", "connect4/12"), desk, play: true }, open(appSpec("notes", "first")), open(appSpec("notes", "second")))
-        expect(s.wins.map((w) => w.key)).toEqual(["game:connect4", "notes:first", "notes:second"])
+    it("ignores Play presentation for Connect 4 and keeps one Notes window that follows the opened note", () => {
+        const first = "ab".repeat(16), second = "cd".repeat(16)
+        const s = run({ type: "open", spec: appSpec("arcade", "connect4/12"), desk, play: true }, open(appSpec("notes", first)), open(appSpec("notes", second)))
+        expect(s.wins.map((w) => w.key)).toEqual(["game:connect4", "app:notes"])
+        expect(s.wins[1].target).toEqual({ kind: "app", app: "notes", section: second })
         expect(s.wins.every((w) => !w.max)).toBe(true)
+        const launcher = windowsReducer(s, open(appSpec("notes")))
+        expect(launcher.wins).toHaveLength(2)
+        expect(frontWindow(launcher.wins)).toMatchObject({ id: s.wins[1].id, key: "app:notes" })
+    })
+})
+
+describe("saved windows", () => {
+    it("restores one window per identity, keeping the front-most copy", () => {
+        const a = { ...appSpec("notes", "ab".repeat(16)), id: "w1", x: 10, y: 10, z: 1, min: false, max: false }
+        const b = { ...appSpec("feed"), id: "w2", x: 20, y: 20, z: 2, min: false, max: false }
+        const c = { ...appSpec("notes", "cd".repeat(16)), id: "w3", x: 30, y: 30, z: 3, min: false, max: false }
+        const s = windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: [a, b, c] })
+        expect(s.wins.map((w) => w.id)).toEqual(["w2", "w3"])
+        expect(byKey(s, "app:notes").target).toEqual({ kind: "app", app: "notes", section: "cd".repeat(16) })
+    })
+    it("prefers a visible copy over a minimised one with a higher z", () => {
+        const shown = { ...appSpec("notes", "ab".repeat(16)), id: "w1", x: 10, y: 10, z: 1, min: false, max: false }
+        const parked = { ...appSpec("notes", "cd".repeat(16)), id: "w2", x: 20, y: 20, z: 5, min: true, max: false }
+        expect(windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: [shown, parked] }).wins.map((w) => w.id)).toEqual(["w1"])
+        expect(windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: [parked, shown] }).wins.map((w) => w.id)).toEqual(["w1"])
     })
 })

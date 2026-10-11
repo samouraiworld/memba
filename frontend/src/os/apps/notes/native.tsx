@@ -12,5 +12,5 @@ export function PublicNotesView(props: NativeViewProps) {
     // Bringing a Notes window to the front re-checks its note on chain (throttled per view).
     useEffect(() => { if (props.active) announceNotesFocus(chainId, section && NOTE_ID.test(section) ? section : undefined) }, [props.active, chainId, section])
     return <PublicNotesApp session={props.session} section={props.section} fallback={props.fallback}
-        onOpenNote={id => { if (NOTE_ID.test(id)) props.push(appSpec('notes', id)) }} />
+        onOpenNote={id => { if (NOTE_ID.test(id)) props.push(appSpec('notes', id)) }} onShowList={() => props.push(appSpec('notes'))} active={props.active} />
 }

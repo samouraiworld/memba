@@ -25,7 +25,7 @@ describe('Notes registration, paths and saved windows', () => {
             expect(target).toEqual({ kind: 'app', app: 'notes', section })
             const token = urls.windowToken(target); expect(token).toBe(section ? `notes.${id}` : 'app.notes')
             expect(urls.tokenToTarget(token!)).toEqual(target)
-            expect(windows.appSpec('notes', section)).toMatchObject({ key: section ? `notes:${id}` : 'app:notes', target })
+            expect(windows.appSpec('notes', section)).toMatchObject({ key: 'app:notes', target })
         }
         for (const path of ['/os/radio', '/os/meet', '/os/news']) expect(paths.parseOsPath(path).kind).toBe('app')
     })

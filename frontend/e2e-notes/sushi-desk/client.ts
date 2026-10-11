@@ -16,6 +16,7 @@ export class NotesReadClient {
         return id === NOTE_ID || id === PAPER_ID ? { id, owner: TEST_OWNER, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0', title: bytes(id === NOTE_ID ? 'Sushi Shell demonstration' : 'Future Whitepaper demonstration'), body: bytes(id === NOTE_ID ? recipe : '# Independent document\n\nFuture Whitepaper demonstration.'), commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '1', operationId: '75'.repeat(16), actor: TEST_OWNER, height: '1' } : null
     }
     async publicNotes() { return { items: [await this.note(NOTE_ID)], nextCursor: '' } }
+    async byOwner(owner: string) { const note = await this.note(NOTE_ID); return { items: note && note.owner === owner ? [note] : [], nextCursor: '' } }
     async noteMetadata(id: string) { return this.note(id) }
     async publicCapabilities(id: string) {
         const note = await this.note(id)

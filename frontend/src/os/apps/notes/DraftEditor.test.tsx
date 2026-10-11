@@ -7,6 +7,25 @@ vi.mock("../../../lib/notes/render", () => ({ createNotesRenderer: () => ({ rend
 const scope: NotesScope = { chainId: "gnoland-1", realm: "gno.land/r/samcrew/memba_notes_v1", owner: "guest", noteId: "0123456789abcdef0123456789abcdef" }
 const record: DraftRecord = { schema: 1, scope, localRevision: "1", payload: { kind: "public", title: "Saved", body: "Saved body" }, updatedAt: 1 }
 describe("Draft editor asynchronous boundaries", () => {
+    it("stores edits typed just before it unmounts, after a save already in flight, which unmounting never aborts", async () => {
+        let finish!: (value: unknown) => void
+        const saveDraft = vi.fn((_scope, revision: string, payload, guard: { signal: AbortSignal }) => saveDraft.mock.calls.length === 1
+            ? new Promise(resolve => { finish = resolve }).then(() => ({ status: guard.signal.aborted ? "session-changed" : "saved", value: { ...record, localRevision: "2", payload } }))
+            : Promise.resolve({ status: "saved", value: { ...record, localRevision: String(BigInt(revision) + 1n), payload } }))
+        const store = { getDraft: vi.fn(async () => record), saveDraft } as unknown as NotesStore
+        const view = render(<DraftEditor store={store} scope={scope} onSaved={() => {}} />)
+        fireEvent.change(await screen.findByRole("textbox", { name: "Note title" }), { target: { value: "Shopping" } })
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 700)) })
+        expect(saveDraft).toHaveBeenCalledOnce()
+        fireEvent.change(screen.getByRole("textbox", { name: "Note title" }), { target: { value: "Shopping list" } })
+        view.unmount()
+        await act(async () => { finish(undefined); await new Promise(resolve => setTimeout(resolve, 0)) })
+        await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(2))
+        expect(saveDraft.mock.calls[1][1]).toBe("2")
+        expect(saveDraft.mock.calls[1][2]).toMatchObject({ title: "Shopping list", body: "Saved body" })
+        expect(saveDraft.mock.calls[0][3].signal.aborted).toBe(false)
+    })
+
     it("retains the published baseline while autosaving and exposes only durable snapshots", async () => {
         const base = { stateRevision: "7", epoch: "0", ownerGeneration: "1", titleRevision: "2", bodyRevision: "4" }
         const initial = { ...record, payload: { kind: "public" as const, title: "Saved", body: "Saved body", base } }

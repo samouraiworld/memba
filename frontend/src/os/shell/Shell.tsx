@@ -29,6 +29,7 @@ import { MenuBar } from "./MenuBar"
 import { activeOsNetwork, takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
 import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken, windowsStorageKey } from "./urlSync"
+import { mayCloseWindow } from "./closeGuards"
 import { useDesk } from "./useDesk"
 import { useNoteShortcuts } from "./useNoteShortcuts"
 import { forgetNoteShortcut } from "./noteShortcuts"
@@ -323,7 +324,13 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
     const openApp = useCallback((app: OsAppId) => open(appSpec(app)), [open])
     const move = useCallback((id: string, x: number, y: number) => dispatch({ type: "move", id, x, y, desk: deskNow.current }), [dispatch])
     const resize = useCallback((id: string, width: number, height: number) => dispatch({ type: "resize", id, width, height, desk: deskNow.current }), [dispatch])
-    const frame: FrameActions = { focus: win.focus, close: win.close, minimise: win.minimise, toggleMax: win.toggleMax, move, resize,
+    // A window holding unsaved text (a Notes edit that could not be stored, an unsent comment) asks before closing.
+    const { wins: currentWins, close: closeNow } = win
+    const closeWindow = useCallback((id: string) => {
+        const w = currentWins.find((x) => x.id === id)
+        if (!w || mayCloseWindow(w.key)) closeNow(id)
+    }, [currentWins, closeNow])
+    const frame: FrameActions = { focus: win.focus, close: closeWindow, minimise: win.minimise, toggleMax: win.toggleMax, move, resize,
         retarget: (id, spec) => dispatch({ type: "retarget", id, spec }) }
     const tile = useCallback(() => dispatch({ type: "tile", desk: placeDesk() }), [dispatch, placeDesk])
 
@@ -404,7 +411,7 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
 
     // ── ⌥ shortcuts (D13) ──
     const front = win.front
-    const { close: closeWin, next: nextWin } = win
+    const { next: nextWin } = win, closeWin = closeWindow
     const [launcher, setLauncher] = useState(false)
     const launcherOpener = useRef<HTMLElement | null>(null)
     const openLauncher = useCallback(() => {
@@ -540,7 +547,7 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
             <DeskShortcutsContext.Provider value={deskShortcuts}>
             {phone ? <>
                 <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={noteLabels} privateNotes={noteShortcuts.privateNotes} open={open} openApp={openApp} openItem={openItem}
-                    close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
+                    close={closeWindow} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
                     play={arcadeLaunch.play} launchFor={arcadeLaunch.launchFor} consumeLaunch={arcadeLaunch.consume} returnToArcade={arcadeLaunch.returnToArcade}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
@@ -552,8 +559,8 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
                     }} />
                 {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </> : <>
-            <MenuBar locked={modalBlocked} session={session} wins={windowWins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
-                closeAll={() => windowWins.forEach((w) => win.close(w.id))} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
+            <MenuBar locked={modalBlocked} session={session} wins={windowWins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={closeWindow}
+                closeAll={() => windowWins.forEach((w) => closeWindow(w.id))} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
@@ -589,7 +596,7 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
             </>}
             {NOTES_ENABLED && !locked && session.status !== "resuming" && <NotesStages wins={windowWins} session={session}
                 activeWindowId={!modalBlocked ? front?.id : null} App={LazyPublicNotes} open={open} push={open}
-                openApp={openApp} close={win.close} focus={win.focus} toast={showToast} />}
+                openApp={openApp} close={closeWindow} focus={win.focus} toast={showToast} />}
             {meetStage}
             </DeskShortcutsContext.Provider>
             </NotesStageProvider>

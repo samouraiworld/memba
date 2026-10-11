@@ -34,8 +34,9 @@ export function NotesStageProvider({ children }: { children: ReactNode }) {
 export function useNotesStageRegistry() { return useContext(RegistryContext) }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function notesStageKey({ session, section }: Pick<NativeViewProps, "session" | "section">): string {
-    return JSON.stringify([session.network.chainId, session.address || "guest", section])
+export function notesStageKey({ session }: Pick<NativeViewProps, "session">): string {
+    // One Notes window per account: the shown note is the workspace's state, not its identity.
+    return JSON.stringify([session.network.chainId, session.address || "guest"])
 }
 
 /** Window chrome owns this replaceable slot; the public reader remains mounted elsewhere. */
