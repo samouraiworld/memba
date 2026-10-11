@@ -167,11 +167,11 @@ func validArcadeFreePlayPath(path string) bool {
 func openArcadeFreePlayConfig(path string) (io.ReadCloser, error) {
 	// Reject special files before opening; this is an operator-controlled mount,
 	// not a request-supplied path. Check again on the opened descriptor.
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) // #nosec G703 -- operator-set deployment env (same trust as DB_PATH), validated absolute, never request input
 	if err != nil || !info.Mode().IsRegular() || info.Size() > arcadeFreePlayConfigMaxSize {
 		return nil, errArcadeFreePlayConfig
 	}
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G703 -- operator-set deployment env (same trust as DB_PATH), validated absolute, never request input
 	if err != nil {
 		return nil, errArcadeFreePlayConfig
 	}
