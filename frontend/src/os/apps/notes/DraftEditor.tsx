@@ -26,6 +26,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
     const draft = useRef({ title: "", body: "", changes: 0 })
     const saved = useRef(onSaved)
     const inflight = useRef(false)
+    /** Settles when the save in flight has been handled, so a baseline move can queue behind it. */
+    const running = useRef<Promise<unknown> | null>(null)
     const descriptionId = useId(), titleHintId = useId()
     useLayoutEffect(() => registerCloseGuard(`notes:${scope.noteId}`, () =>
         !["dirty", "saving", "conflict", "unavailable"].includes(state)
@@ -56,7 +58,9 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         if (inflight.current || !["dirty", "unavailable"].includes(state)) return
         inflight.current = true; setState("saving")
         const snapshot = { ...draft.current }
-        const result = await store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, session)
+        const pending = store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, session)
+        running.current = pending
+        const result = await pending
         inflight.current = false
         if (result.status === "session-changed") return
         if (result.status === "saved") {
@@ -115,11 +119,14 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         if (!lineage.current.has(fromRevision)) return false
         base.current = nextBase
         draft.current = { ...draft.current, changes: draft.current.changes + 1 }
-        // A running save finishes as "dirty", so the autosave then writes the new baseline.
-        if (inflight.current) return true
+        // Queue behind a running save; success is reported only once this baseline is stored.
+        while (inflight.current && running.current) await running.current.catch(() => {})
+        if (inflight.current || session.signal.aborted) return false
         const snapshot = { ...draft.current }
         inflight.current = true; setState("saving")
-        const result = await store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, base: nextBase }, session)
+        const pending = store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, base: nextBase }, session)
+        running.current = pending
+        const result = await pending
         inflight.current = false
         if (result.status === "session-changed") return false
         if (result.status !== "saved") { setState(result.status === "conflict" ? "conflict" : "unavailable"); return false }

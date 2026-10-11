@@ -3,7 +3,7 @@ import { newNoteId } from '../../../lib/notes/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { HistoryAction, PublicHistoryEntry } from '../../../lib/notes/chain/history'
 import { check } from '../../../lib/notes/chain/schema'
-import { useNoteFreshness } from '../../../lib/notes/freshness'
+import { readFresh, useNoteRefresh } from '../../../lib/notes/freshness'
 import { PublicHistoryCommentView, PublicHistoryVersions, useHistoryRead, type HistoryRestore } from './PublicHistoryContent'
 import './notes-history.css'
 
@@ -29,23 +29,30 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
     const [cursor, setCursor] = useState({ after: '0', through: '0', generation: 0 })
     const [selected, setSelected] = useState<string | null>(null)
     const [versions, setVersions] = useState<string[]>([])
+    const { tick, minimum } = useNoteRefresh(client.chainId, noteId)
     const read = useCallback(async () => {
         client.assertCurrent()
-        const info = await client.publicHistoryInfo(noteId); client.assertCurrent()
+        const info = await readFresh(() => client.publicHistoryInfo(noteId), value => value?.latestStateRevision ?? null, minimum(), () => true); client.assertCurrent()
+        if (info === undefined) return null
         if (info === null) return null
         const page = await client.publicHistory(noteId, cursor.after, cursor.through, 20)
         client.assertCurrent(); check(page !== null)
         return { info, page }
-    }, [client, noteId, cursor])
+    }, [client, noteId, cursor, minimum])
     const { state } = useHistoryRead(read), data = state.data
     const reload = useCallback(() => { setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 })) }, [])
     // Confirmed changes and refocus re-check the history head; a new event reloads from the head.
     const head = useRef<string | null>(null)
     useEffect(() => { head.current = data ? data.info.headSeq : null }, [data])
-    const changed = useCallback(() => {
-        void client.publicHistoryInfo(noteId).then(info => { if (info && info.headSeq !== head.current) reload() }).catch(() => { /* The next check or Refresh history retries. */ })
-    }, [client, noteId, reload])
-    useNoteFreshness(client.chainId, noteId, changed)
+    useEffect(() => {
+        if (tick === 0) return
+        let alive = true
+        // Only a newer head reloads: an announced revision makes a lagging answer wait, and an older head is ignored.
+        void readFresh(() => client.publicHistoryInfo(noteId), value => value?.latestStateRevision ?? null, minimum(), () => alive)
+            .then(info => { if (alive && info && (head.current === null || BigInt(info.headSeq) > BigInt(head.current))) reload() })
+            .catch(() => { /* The next check or Refresh history retries. */ })
+        return () => { alive = false }
+    }, [tick, client, noteId, minimum, reload])
     function navigate(after: string) {
         if (!data || state.loading) return
         setSelected(null); setVersions([])

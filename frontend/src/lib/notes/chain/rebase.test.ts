@@ -60,4 +60,16 @@ describe('draft rebase planning', () => {
         expect(await planDraftRebase(client(), { title: 'Groceries', body: 'mine', base }, latest)).toMatchObject({ kind: 'conflict', fields: ['body'] })
         expect(await planDraftRebase(client(), { title: 'Groceries', body: '- milk\n- eggs\n- bread\n- avocados', base }, latest)).toMatchObject({ kind: 'replace' })
     })
+    it('never moves a draft backward onto a lagging read', async () => {
+        const c = client()
+        const lagging = { ...latest, stateRevision: '5' }
+        for (const draft of [{ title: 'Groceries', body: '- milk' }, { title: 'Groceries', body: '- milk\n- eggs\n- bread\n- avocados' }]) {
+            expect(await planDraftRebase(c, { ...draft, base: { ...base, stateRevision: '6' } }, lagging)).toEqual({ kind: 'behind', latest: lagging, baseRevision: '6' })
+        }
+        expect(history.body).not.toHaveBeenCalled(); expect(c.publicHistoryVersion).not.toHaveBeenCalled()
+    })
+    it('compares titles the way they are published, without edge spaces', async () => {
+        expect(await planDraftRebase(client(), { title: '  Groceries ', body: '- milk\n- eggs\n- bread\n- avocados', base }, latest)).toMatchObject({ kind: 'replace' })
+        expect(await planDraftRebase(client(), { title: ' Groceries', body: '- milk\n- eggs\n- bread', base }, latest)).toMatchObject({ kind: 'replace', title: 'Groceries' })
+    })
 })

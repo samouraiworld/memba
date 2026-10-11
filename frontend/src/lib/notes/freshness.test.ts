@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { announceNoteChange, announceNotesFocus, NotesTimeoutError, useNoteFreshness, withTimeout } from './freshness'
+import { announceNoteChange, announceNotesFocus, NotesTimeoutError, readFresh, useNoteFreshness, useNoteRefresh, withTimeout } from './freshness'
 
 const id = 'ab'.repeat(16)
 afterEach(() => { vi.useRealTimers() })
@@ -44,5 +44,30 @@ describe('bounded steps', () => {
         await expect(late).rejects.toBeInstanceOf(NotesTimeoutError)
         await expect(withTimeout(Promise.resolve('ok'), 1000)).resolves.toBe('ok')
         await expect(withTimeout(Promise.reject(new Error('boom')), 1000)).rejects.toThrow('boom')
+    })
+})
+
+describe('lag-tolerant reads', () => {
+    it('re-reads until the announced revision is visible, a bounded number of times', async () => {
+        const read = vi.fn().mockResolvedValueOnce({ rev: '4' }).mockResolvedValueOnce(null).mockResolvedValue({ rev: '5' })
+        expect(await readFresh(read, value => value?.rev ?? null, '5', () => true, 4, 1)).toEqual({ rev: '5' })
+        expect(read).toHaveBeenCalledTimes(3)
+        const stuck = vi.fn(async () => ({ rev: '4' }))
+        expect(await readFresh(stuck, value => value.rev, '5', () => true, 2, 1)).toEqual({ rev: '4' }); expect(stuck).toHaveBeenCalledTimes(3)
+        const once = vi.fn(async () => ({ rev: '1' }))
+        await readFresh(once, value => value.rev, undefined, () => true, 4, 1); expect(once).toHaveBeenCalledOnce()
+    })
+    it('stops when its reader is gone', async () => {
+        let alive = true
+        const read = vi.fn(async () => { alive = false; return { rev: '1' } })
+        expect(await readFresh(read, value => value.rev, '5', () => alive, 4, 1)).toBeUndefined(); expect(read).toHaveBeenCalledOnce()
+    })
+    it('counts refresh requests and remembers the highest announced revision', () => {
+        const view = renderHook(() => useNoteRefresh('onyx-1', id))
+        expect(view.result.current.tick).toBe(0); expect(view.result.current.minimum()).toBeUndefined()
+        act(() => announceNoteChange({ chainId: 'onyx-1', noteId: id, stateRevision: '7' }))
+        act(() => announceNoteChange({ chainId: 'onyx-1', noteId: id, stateRevision: '6' }))
+        expect(view.result.current.tick).toBe(2); expect(view.result.current.minimum()).toBe('7')
+        act(() => view.result.current.bump()); expect(view.result.current.tick).toBe(3)
     })
 })

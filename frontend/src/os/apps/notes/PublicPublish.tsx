@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
+import { createDraftSession, type DraftRecord, type DraftSession, type NotesStore } from '../../../lib/notes/drafts'
 import { NotesIntents } from '../../../lib/notes/intents'
 import { notesDeployment, newNoteId } from '../../../lib/notes/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
@@ -14,6 +14,11 @@ import { useSigner } from '../../sign/signerContext'
 
 type PublicPublishProps = {
     draft: DraftRecord; client: NotesReadClient; store: NotesStore
+    /**
+     * Lifetime of the signing request (send, verification, receipt). Owned by the workspace so typing,
+     * which remounts this panel, never cancels the confirmation of a transaction already signed.
+     */
+    requestSession?: DraftSession
     /** Resolves true when the saved draft already follows the latest revision (it may rebase it otherwise). */
     beforeReview?(): Promise<boolean>
     /** The verified note at the revision this publication created. */
@@ -33,7 +38,7 @@ export function PublicPublish(props: PublicPublishProps) {
     const lease = useMemo(() => ({ client, store, id: newNoteId() }), [client, store])
     return <PublicPublishSession key={JSON.stringify([lease.id, client.chainId, props.draft.scope.chainId, props.draft.scope.realm, props.draft.scope.owner, props.draft.scope.noteId, props.draft.localRevision])} {...props} />
 }
-function PublicPublishSession({ draft, client, store, beforeReview, onPublished }: PublicPublishProps) {
+function PublicPublishSession({ draft, client, store, requestSession, beforeReview, onPublished }: PublicPublishProps) {
     const signer = useSigner()
     const [session] = useState(createDraftSession)
     const [mode, setMode] = useState<3 | 4>(3)
@@ -76,7 +81,7 @@ function PublicPublishSession({ draft, client, store, beforeReview, onPublished 
             if (!durable || durable.localRevision !== draft.localRevision) throw new NotesChainError('stale')
             let confirmed: ChainNote | null = null
             const pending = preparePublicNoteRequest({ client, operation, maxDepositUgnot: amount, draftLocalRevision: draft.localRevision,
-                session, intents: new NotesIntents(store), quote: publicNoteQuote(client, amount), isWriteEnabled: () => !!notesDeployment(client.chainId),
+                session: requestSession ?? session, intents: new NotesIntents(store), quote: publicNoteQuote(client, amount), isWriteEnabled: () => !!notesDeployment(client.chainId),
                 onConfirmed: note => { confirmed = note } })
             // A late request after a timeout is dismissed; it has recorded nothing and opened no wallet.
             const request = await withTimeout(pending).catch(error => { void pending.then(late => late.onDismissed?.(), () => {}); throw error })

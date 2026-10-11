@@ -20,7 +20,7 @@ const note = { id: noteId, owner: 'owner', mode: 4, epoch: '0', bodyRevision: '1
 const row = (patch: Partial<PublicComment> = {}): PublicComment => ({ id: cid, author: 'owner', parent: '', anchor: '', body: 'Public comment', epoch: '0', bodyRevision: '1', revision: '1', deleted: false, hidden: false, resolved: false, encrypted: false, operationId: 'ef'.repeat(16), actor: 'owner', createdHeight: '1', height: '1', ...patch })
 const pending = { phase: 'unknown', operationId: 'aa'.repeat(16), verification: { kind: 'comment-v1' } }
 function setup(owner: string | null = 'owner', value = note, strict = false) {
-    const props = { note: value, owner, client: { chainId: 'test-chain', note: vi.fn(async () => note) } as unknown as NotesReadClient, store: {} as NotesStore }
+    const props = { note: value, owner, client: { chainId: 'test-chain', note: vi.fn(async () => value) } as unknown as NotesReadClient, store: {} as NotesStore }
     const element = <PublicCommentPanel {...props} />
     const view = render(strict ? <StrictMode>{element}</StrictMode> : element)
     const composer = screen.queryByText('Write a public comment'); if (composer) fireEvent.click(composer)

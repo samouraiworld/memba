@@ -1,7 +1,7 @@
 import { StrictMode, useLayoutEffect } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DraftRecord, NotesStore } from '../../../lib/notes/drafts'
+import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { PublicPublish } from './PublicPublish'
 import { useNoteFreshness } from '../../../lib/notes/freshness'
@@ -154,6 +154,17 @@ describe('publication baseline and receipt boundaries', () => {
         await act(async () => calls.sign.mock.calls[0][0].onSettled('unknown'))
         expect(saveDraft).not.toHaveBeenCalled(); expect(onPublished).not.toHaveBeenCalled()
         expect(await screen.findByText(/outcome is unknown/)).toBeVisible()
+    })
+    it('keeps a signed publication confirmable after the panel unmounts when the workspace owns the request', async () => {
+        const props = publicationProps(), onPublished = vi.fn(), requestSession = createDraftSession()
+        const view = render(<PublicPublish {...props} requestSession={requestSession} onPublished={onPublished} />); openReview()
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        const input = calls.prepare.mock.calls[0][0]; expect(input.session).toBe(requestSession)
+        view.unmount()
+        expect(input.session.capture().signal.aborted).toBe(false)
+        const confirmed = { id: draft.scope.noteId, stateRevision: '8' }
+        await act(async () => { input.onConfirmed(confirmed); calls.sign.mock.calls[0][0].onSettled('confirmed') })
+        expect(onPublished).toHaveBeenCalledExactlyOnceWith(confirmed)
     })
     it('hands the confirmed revision to the editor and refreshes every view of the note', async () => {
         const props = publicationProps(), onPublished = vi.fn(), announced = vi.fn()

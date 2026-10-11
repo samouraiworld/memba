@@ -221,11 +221,13 @@ describe('public history freshness', () => {
         act(() => announceNoteChange({ chainId: 'test-chain', noteId }))
         await waitFor(() => expect(s.mocks.publicHistoryInfo).toHaveBeenCalledTimes(2))
         expect(s.mocks.publicHistory).toHaveBeenCalledOnce()
-        s.mocks.publicHistoryInfo.mockResolvedValue({ ...info, headSeq: String(BigInt(info.headSeq) + 1n) })
+        s.mocks.publicHistoryInfo.mockResolvedValueOnce(info).mockResolvedValue({ ...info, headSeq: String(BigInt(info.headSeq) + 1n), latestStateRevision: '2' })
         s.mocks.publicHistory.mockImplementation(async (_id: string, after = '0') => ({ id: noteId, throughSeq: '22', nextCursor: null, items: [{ seq: String(BigInt(after) + 1n), action: 'comment-add' as const,
             stateRevision: '1', height: '3', actor: s.version.owner, executor: null, operationId: 'bb'.repeat(16), proposalId: null, commentId: 'cc'.repeat(16) }] }))
         act(() => announceNoteChange({ chainId: 'test-chain', noteId, stateRevision: '2' }))
-        expect(await screen.findByText(/Page snapshot through event 22/)).toBeVisible()
+        expect(await screen.findByText(/Page snapshot through event 22/, {}, { timeout: 3000 })).toBeVisible()
         expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '0', 20)
+        // The first answer lagged behind the announced revision 2 and was read again.
+        expect(s.mocks.publicHistoryInfo.mock.calls.length).toBeGreaterThanOrEqual(4)
     })
 })

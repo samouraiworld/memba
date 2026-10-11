@@ -54,6 +54,15 @@ describe('published document freshness', () => {
     await act(async () => later.resolve(note))
     expect(screen.getByRole('heading', { name: 'Title' })).toBeVisible()
   })
+  it('never replaces the shown revision with an older or absent answer from a lagging node', async () => {
+    const client = { chainId, note: vi.fn().mockResolvedValueOnce({ ...note, stateRevision: '2' }).mockResolvedValueOnce(note).mockResolvedValueOnce(null) }
+    render(<PublicNote id={note.id} client={client} owner="owner" />)
+    await screen.findByText('On chain · Revision 2')
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' })); await waitFor(() => expect(client.note).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()); expect(screen.getByText('On chain · Revision 2')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' })); await waitFor(() => expect(client.note).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()); expect(screen.getByText('On chain · Revision 2')).toBeVisible()
+  })
   it('ignores changes to other notes and networks', async () => {
     const client = { chainId, note: vi.fn(async () => note) }
     render(<PublicNote id={note.id} client={client} owner="owner" />)

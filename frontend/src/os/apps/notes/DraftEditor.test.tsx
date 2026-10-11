@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { DraftBase, DraftRecord, NotesScope, NotesStore } from "../../../lib/notes/drafts"
 import { DraftEditor } from "./DraftEditor"
@@ -49,6 +49,26 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(screen.getByText("Titles cannot contain “/”.")).toBeVisible()
         fireEvent.change(title, { target: { value: " Recipes " } })
         expect(screen.queryByText(/Titles cannot/)).toBeNull()
+    })
+    it("reports a baseline move only after its own save has settled, even behind a running autosave", async () => {
+        let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
+        let finishAutosave!: () => void
+        const saveDraft = vi.fn()
+            .mockImplementationOnce((_scope, revision, payload) => new Promise(resolve => { finishAutosave = () => resolve({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }) }))
+            .mockImplementation(async (_scope, revision, payload) => ({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }))
+        const store = { getDraft: vi.fn(async () => record), saveDraft } as unknown as NotesStore
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, published) => { confirm = published; return <button>Publish saved snapshot</button> }} />)
+        await screen.findByRole("button", { name: "Publish saved snapshot" })
+        const publishedConfirm = confirm
+        fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "Typed while signing" } })
+        await waitFor(() => expect(saveDraft).toHaveBeenCalledOnce())
+        const next = { stateRevision: "2", epoch: "0", ownerGeneration: "1", titleRevision: "1", bodyRevision: "2" }
+        let settled: boolean | undefined
+        void publishedConfirm(next, "1").then(value => { settled = value })
+        await act(async () => { await Promise.resolve() }); expect(settled).toBeUndefined()
+        await act(async () => finishAutosave())
+        await waitFor(() => expect(settled).toBe(true))
+        expect(saveDraft).toHaveBeenLastCalledWith(scope, "2", { kind: "public", title: "Saved", body: "Typed while signing", base: next }, expect.anything())
     })
     it("never moves the baseline of a draft that was replaced from another window", async () => {
         let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
