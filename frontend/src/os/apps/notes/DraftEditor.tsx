@@ -9,7 +9,7 @@ import { publicTitleProblem, trimPublicTitle } from "../../../lib/notes/publicFi
 
 type SaveState = "loading" | "saved" | "dirty" | "saving" | "deleting" | "conflict" | "unavailable" | "missing" | "locked" | "load-error"
 
-export function DraftEditor({ store, scope, onSaved, remote, actions }: { store: NotesStore; scope: NotesScope; onSaved(): void; remote?: ReactNode; actions?: (record: DraftRecord, published: (base: DraftBase) => Promise<boolean>) => ReactNode }) {
+export function DraftEditor({ store, scope, onSaved, remote, actions }: { store: NotesStore; scope: NotesScope; onSaved(): void; remote?: ReactNode; actions?: (record: DraftRecord, published: (base: DraftBase, fromRevision: string) => Promise<boolean>) => ReactNode }) {
     const [session] = useState(createDraftSession)
     const [title, setTitle] = useState("")
     const [body, setBody] = useState("")
@@ -19,6 +19,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
     const [armed, setArmed] = useState(false)
     const [reload, setReload] = useState(0)
     const revision = useRef("0")
+    /** Local revisions this editor loaded or wrote since its last load: the text it holds descends from them. */
+    const lineage = useRef(new Set<string>())
     const base = useRef<DraftBase | undefined>(undefined)
     const [durable, setDurable] = useState<DraftRecord | null>(null)
     const draft = useRef({ title: "", body: "", changes: 0 })
@@ -37,7 +39,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
             void store.getDraft(scope).then(record => {
                 if (!alive) return
                 if (!record) { setState("missing"); return }
-                revision.current = record.localRevision
+                revision.current = record.localRevision; lineage.current = new Set([record.localRevision])
                 setDurable(record)
                 if (record.payload.kind !== "public") { setState("locked"); return }
                 base.current = record.payload.base
@@ -58,7 +60,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         inflight.current = false
         if (result.status === "session-changed") return
         if (result.status === "saved") {
-            revision.current = result.value.localRevision
+            revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision)
             setDurable(result.value)
             setState(draft.current.changes === snapshot.changes ? "saved" : "dirty")
             saved.current()
@@ -105,18 +107,24 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         if (result.status === "saved") { saved.current(); setNotice("A separate copy was saved in your library. This draft remains open.") }
         else if (result.status !== "session-changed") setNotice("The copy could not be saved. Export Markdown to keep these edits.")
     }
-    async function published(nextBase: DraftBase): Promise<boolean> {
-        if (!durable || durable.payload.kind !== "public" || inflight.current || revision.current !== durable.localRevision
-            || draft.current.title !== durable.payload.title || draft.current.body !== durable.payload.body) return false
+    /**
+     * Moves the baseline to a chain revision that already holds local revision `fromRevision`'s text (a confirmed
+     * publication) or that the user chose to write over. Later edits here descend from that text, so they stay.
+     */
+    async function published(nextBase: DraftBase, fromRevision: string): Promise<boolean> {
+        if (!lineage.current.has(fromRevision)) return false
+        base.current = nextBase
+        draft.current = { ...draft.current, changes: draft.current.changes + 1 }
+        // A running save finishes as "dirty", so the autosave then writes the new baseline.
+        if (inflight.current) return true
         const snapshot = { ...draft.current }
         inflight.current = true; setState("saving")
-        const result = await store.saveDraft(scope, durable.localRevision, { ...durable.payload, base: nextBase }, session)
+        const result = await store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, base: nextBase }, session)
         inflight.current = false
         if (result.status === "session-changed") return false
         if (result.status !== "saved") { setState(result.status === "conflict" ? "conflict" : "unavailable"); return false }
-        base.current = nextBase; revision.current = result.value.localRevision; setDurable(result.value)
+        revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision); setDurable(result.value)
         setState(snapshot.changes === draft.current.changes ? "saved" : "dirty"); saved.current()
-        setNotice("Publication confirmed. Further edits remain local until you publish them.")
         return true
     }
     // An empty title is only reported when publishing; edge spaces are trimmed then.

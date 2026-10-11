@@ -19,15 +19,16 @@ describe("Draft editor asynchronous boundaries", () => {
         await screen.findByRole("button", { name: "Review revision 2" })
         expect(saveDraft.mock.calls[0][2]).toEqual({ kind: "public", title: "Saved", body: "My changes", base })
     })
-    it("does not advance the baseline over edits made after publication was requested", async () => {
-        let confirm!: (base: DraftBase) => Promise<boolean>
-        const saveDraft = vi.fn()
+    it("moves the baseline to the published revision and keeps edits made after publication was requested", async () => {
+        let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
+        const saveDraft = vi.fn(async (_scope, revision, payload) => ({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }))
         const store = { getDraft: vi.fn(async () => record), saveDraft } as unknown as NotesStore
         render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, published) => { confirm = published; return <button>Publish saved snapshot</button> }} />)
         await screen.findByRole("button", { name: "Publish saved snapshot" })
         fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "Newer unsaved edits" } })
-        expect(await confirm({ stateRevision: "1", epoch: "0", ownerGeneration: "1", titleRevision: "1", bodyRevision: "1" })).toBe(false)
-        expect(saveDraft).not.toHaveBeenCalled()
+        const next = { stateRevision: "1", epoch: "0", ownerGeneration: "1", titleRevision: "1", bodyRevision: "1" }
+        let moved = false; await act(async () => { moved = await confirm(next, "1") }); expect(moved).toBe(true)
+        expect(saveDraft).toHaveBeenLastCalledWith(scope, "1", { kind: "public", title: "Saved", body: "Newer unsaved edits", base: next }, expect.anything())
         expect(screen.getByRole("textbox", { name: "Markdown editor" })).toHaveValue("Newer unsaved edits")
     })
     it("exports the draft under a file name derived from its title", async () => {
@@ -48,6 +49,15 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(screen.getByText("Titles cannot contain “/”.")).toBeVisible()
         fireEvent.change(title, { target: { value: " Recipes " } })
         expect(screen.queryByText(/Titles cannot/)).toBeNull()
+    })
+    it("never moves the baseline of a draft that was replaced from another window", async () => {
+        let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
+        const saveDraft = vi.fn()
+        const store = { getDraft: vi.fn(async () => ({ ...record, localRevision: "3" })), saveDraft } as unknown as NotesStore
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, published) => { confirm = published; return <button>Publish saved snapshot</button> }} />)
+        await screen.findByRole("button", { name: "Publish saved snapshot" })
+        expect(await confirm({ stateRevision: "1", epoch: "0", ownerGeneration: "1", titleRevision: "1", bodyRevision: "1" }, "2")).toBe(false)
+        expect(saveDraft).not.toHaveBeenCalled()
     })
     it("offers public reading when local storage is unavailable", async () => {
         const store = { getDraft: vi.fn(async () => { throw new Error("storage failed") }) } as unknown as NotesStore
