@@ -5,7 +5,7 @@ export const NOTES_REALM = 'gno.land/r/samcrew/memba_notes_v1'
 export const NOTES_REGISTRY = 'gno.land/r/samcrew/enckeys_v1'
 export const KEY_SUITE = 'xwing-v1'
 export class NotesChainError extends Error {
-  constructor(readonly code: 'format' | 'network' | 'session' | 'unavailable' | 'disabled' | 'stale' | 'storage') {
+  constructor(readonly code: 'format' | 'network' | 'session' | 'unavailable' | 'disabled' | 'stale' | 'storage' | 'unchanged') {
     super(`Notes chain: ${code}`); this.name = 'NotesChainError'
   }
 }

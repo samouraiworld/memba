@@ -3,11 +3,12 @@ import { createDraftSession, type DraftRecord, type NotesStore } from '../../../
 import { NotesIntents } from '../../../lib/notes/intents'
 import { notesDeployment, newNoteId } from '../../../lib/notes/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import { draftPublicOperation } from '../../../lib/notes/chain/draftOperation'
+import { changedPublicFields, draftPublicOperation } from '../../../lib/notes/chain/draftOperation'
 import { publicNoteMessage } from '../../../lib/notes/chain/messages'
 import { gnotAmount, parseGnotCap, publicNoteBudget, publicNoteQuote } from '../../../lib/notes/chain/quote'
 import { preparePublicNoteRequest } from '../../../lib/notes/chain/request'
 import { NotesChainError } from '../../../lib/notes/chain/schema'
+import { publicBodyProblem, publicTitleProblem } from '../../../lib/notes/publicFields'
 import { useSigner } from '../../sign/signerContext'
 
 type PublicPublishProps = { draft: DraftRecord; client: NotesReadClient; store: NotesStore }
@@ -31,11 +32,20 @@ function PublicPublishSession({ draft, client, store }: PublicPublishProps) {
         const guard = session.capture()
         setBusy(true); setNotice('')
         try {
+            const invalid = draft.payload.kind === 'public' ? publicTitleProblem(draft.payload.title) ?? publicBodyProblem(draft.payload.body) : null
+            if (invalid) { setNotice(invalid); return }
             client.assertCurrent()
             if (client.chainId !== draft.scope.chainId || notesDeployment(client.chainId)?.realm !== draft.scope.realm) throw new NotesChainError('stale')
             const config = await client.config()
             if (guard.signal.aborted) return
-            const operation = draftPublicOperation(draft, newNoteId(), mode, config.createFeeUgnot)
+            let operation = draftPublicOperation(draft, newNoteId(), mode, config.createFeeUgnot)
+            if (operation.action.kind === 'commit') {
+                // Price and send only the fields that differ from the published revision.
+                const published = await client.note(draft.scope.noteId)
+                if (guard.signal.aborted) return
+                if (!published || published.stateRevision !== operation.action.revision) throw new NotesChainError('stale')
+                operation = changedPublicFields(operation, published)
+            }
             const budget = publicNoteBudget(publicNoteMessage(operation, '0', config))
             const amount = cap === '' ? budget.suggestedCapUgnot : parseGnotCap(cap)
             if (amount === null || BigInt(amount) < BigInt(budget.estimatedDepositUgnot)) {
@@ -59,7 +69,9 @@ function PublicPublishSession({ draft, client, store }: PublicPublishProps) {
             if (signer.sign(request)) setNotice('Review the publication and its spending limits in the signature sheet.')
             else request.onDismissed?.()
         } catch (error) {
-            if (!guard.signal.aborted) setNotice(error instanceof NotesChainError && error.code === 'stale'
+            if (!guard.signal.aborted) setNotice(error instanceof NotesChainError && error.code === 'unchanged'
+                ? 'Nothing to publish: the title and body match the published note.'
+                : error instanceof NotesChainError && error.code === 'stale'
                 ? 'The draft, published note or quote changed. Your edits were kept. Refresh and compare before publishing.'
                 : 'A safe publication review could not be prepared. Check the title, network and local storage, then try again.')
         } finally { if (!guard.signal.aborted) { working.current = false; setBusy(false) } }

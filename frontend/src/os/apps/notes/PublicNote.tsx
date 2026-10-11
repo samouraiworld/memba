@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import type { NotesReadClient } from "../../../lib/notes/chain/client"
 import { publicText, type ChainNote } from "../../../lib/notes/chain/schema"
 import { MarkdownPreview } from "./MarkdownPreview"
+import { noteExportFilename } from "../../../lib/notes/exportFilename"
 
 type Client = Pick<NotesReadClient, "note">
 type Read = { client: Client; id: string; version: number; phase: "loading" | "ready" | "error"; note: ChainNote | null }
@@ -25,7 +26,7 @@ export function PublicNote({ id, client, owner, onEdit, editAction, children, en
     const title = publicText(note.title, true), body = publicText(note.body!)
     function exportMarkdown() {
         const url = URL.createObjectURL(new Blob([`# ${title}\n\n${body}`], { type: "text/markdown;charset=utf-8" }))
-        const link = document.createElement("a"); link.href = url; link.download = "note.md"; link.click()
+        const link = document.createElement("a"); link.href = url; link.download = noteExportFilename(title); link.click()
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
     return <section className="os-notes-document os-notes-reader" aria-label="Published note">

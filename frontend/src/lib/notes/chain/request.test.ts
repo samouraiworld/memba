@@ -106,6 +106,23 @@ describe('Notes signing intentions', () => {
     expect((await s.store.getDraft(s.scope))?.payload.kind).toBe('public')
     await expect(request.send(undefined, async () => {})).rejects.toThrow('stale')
   })
+  it.each([
+    ['title only', { title: 'Renamed', body: 'Old' }, '1', { titleRevision: '2', bodyRevision: '1', title: bytes('Renamed'), body: bytes('Old') }],
+    ['body only', { title: 'Title', body: 'New' }, '2', {}],
+    ['both', { title: 'Renamed', body: 'New' }, '3', { titleRevision: '2', title: bytes('Renamed') }],
+  ] as const)('commits only the changed fields against the published bytes: %s', async (_case, fields, mask, result) => {
+    const s = setup(); s.options.operation = { ...s.options.operation, action: { kind: 'commit', revision: '1', epoch: '0', ...fields } }
+    const request = await preparePublicNoteRequest(s.options), args = request.prepare(undefined).msgs[0].value.args as string[]
+    expect(args[3]).toBe(mask)
+    expect([args[4] !== '', args[5] !== '']).toEqual([mask !== '2', mask !== '1'])
+    await request.send(undefined, async () => () => true)
+    s.applied(result); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+  })
+  it('refuses an update whose title and body equal the published note before any receipt or wallet', async () => {
+    const s = setup(); s.options.operation = { ...s.options.operation, action: { kind: 'commit', revision: '1', epoch: '0', title: 'Title', body: 'Old' } }
+    await expect(preparePublicNoteRequest(s.options)).rejects.toMatchObject({ code: 'unchanged' })
+    expect(await s.intents.list(s.scope)).toEqual([]); expect(wallet.send).not.toHaveBeenCalled()
+  })
   it('rejects a quote that expires while the broadcaster waits after beforeSign', async () => {
     const s = setup(), request = await preparePublicNoteRequest(s.options)
     wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => {

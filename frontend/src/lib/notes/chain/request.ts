@@ -14,6 +14,7 @@ import { publicIntentEvidence, publicVerification } from './recovery'
 import type { NotesReadClient } from './client'
 import { gnotAmount } from './quote'
 import { readPublicContentWritePermission } from './publicPermissions'
+import { changedPublicFields } from './draftOperation'
 
 export interface NotesQuote {
   requestDigest: string; chainId: string; atHeight: string; expiresAtHeight: string; expiresAtMs: number
@@ -69,13 +70,16 @@ export function publicOperationEvidence(input: NotesIntentInput, operation: Publ
 }
 /** No wallet opens here. The request records its complete intention before invoking the broadcaster. */
 export async function preparePublicNoteRequest(options: PublicRequestOptions): Promise<SignRequest> {
-  const operation = structuredClone(options.operation), { client, intents } = options
+  let operation = structuredClone(options.operation)
+  const { client, intents } = options
   const session = options.session.capture(), { signal } = session
   const current = () => { if (signal.aborted) throw new NotesChainError('session'); client.assertCurrent() }
   const writeAllowed = () => { current(); if (!options.isWriteEnabled()) throw new NotesChainError('disabled') }
   current(); const draftLocalRevision = decimal(options.draftLocalRevision)
   const cap = decimal(options.maxDepositUgnot, 63)
   const [base, config] = await Promise.all([client.note(operation.noteId), client.config()]); current(); await verifyBase(client, operation, base); current()
+  // verifyBase pinned base to the commit's revision: unchanged fields are omitted, never re-stored.
+  if (base) operation = changedPublicFields(operation, base)
   const message = publicNoteMessage(operation, cap, config)
   const height = await client.height(); current()
   const quoteInput = { chainId: client.chainId, message, requestDigest: notesRequestDigest(client.chainId, message), height }
