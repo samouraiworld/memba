@@ -5,7 +5,11 @@ export const NOTES_REALM = "gno.land/r/samcrew/memba_notes_v1"
 export const MAX_NOTE_BODY_BYTES = 131_072
 
 /** Publishing needs a reviewed deployment entry as well as its release switch. */
-const DEPLOYMENTS: Readonly<Record<string, { realm: string; version: 1 }>> = {}
+const DEPLOYMENTS: Readonly<Record<string, { realm: string; version: 1 }>> = Object.freeze({
+    // Testnet canary: published 2026-10-11 at h330932 from samcrew-deployer c20e8e6c
+    // (payload 84bcef70…, 23 files), read back byte-identical. No mainnet entry yet.
+    "onyx-1": Object.freeze({ realm: NOTES_REALM, version: 1 as const }),
+})
 export function notesDeployment(chainId: string): { realm: string; version: 1 } | null {
     return NOTES_ENABLED && import.meta.env.VITE_ENABLE_NOTES_CHAIN === "true" && Object.hasOwn(DEPLOYMENTS, chainId) ? DEPLOYMENTS[chainId] ?? null : null
 }

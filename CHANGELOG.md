@@ -53,6 +53,8 @@ Full changelogs are split by version range for easier navigation:
 - Explain titles the network would refuse (slash, line breaks, invisible characters, more than 80 characters) in the editor and before review, and remove spaces at the start or end of a title when publishing instead of stalling.
 - Exported Markdown files are named after the note title, made safe for every operating system.
 - Recalibrate public note storage estimates per operation to measured costs: changing community editing is now estimated at 1.2 GNOT (measured 1.1531) instead of 4 GNOT, with a separate, larger maximum deposit. Notes remains disabled in production.
+### Notes Onyx deployment selection (2026-10-11)
+- Select the Notes realm published on the Onyx testnet for the two-wallet canary. It only takes effect in builds where both Notes release switches are on; production keeps Notes disabled and has no mainnet deployment entry.
 
 ### Notes moderation takedowns and single-copy costs (#1603, 2026-10-11)
 - Read moderator redactions from the Notes realm: removed versions and comments show as removed by moderation with their hash, are never offered for restoration, and the history reports redactable retention.
