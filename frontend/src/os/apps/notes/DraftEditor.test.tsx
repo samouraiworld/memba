@@ -30,6 +30,25 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(saveDraft).not.toHaveBeenCalled()
         expect(screen.getByRole("textbox", { name: "Markdown editor" })).toHaveValue("Newer unsaved edits")
     })
+    it("exports the draft under a file name derived from its title", async () => {
+        const names: string[] = [], click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
+        Object.assign(URL, { createObjectURL: vi.fn(() => "blob:draft"), revokeObjectURL: vi.fn() })
+        const store = { getDraft: vi.fn(async () => ({ ...record, payload: { kind: "public" as const, title: "Plans/2026  Q4", body: "Body" } })) } as unknown as NotesStore
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} />)
+        fireEvent.click(await screen.findByRole("button", { name: "Export" }))
+        expect(names).toEqual(["Plans-2026 Q4.md"])
+        click.mockRestore()
+    })
+    it("explains a title the realm would refuse while the draft is edited", async () => {
+        const store = { getDraft: vi.fn(async () => record), saveDraft: vi.fn(async () => ({ status: "saved", value: record })) } as unknown as NotesStore
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} />)
+        const title = await screen.findByRole("textbox", { name: "Note title" })
+        expect(screen.queryByText(/Titles cannot/)).toBeNull()
+        fireEvent.change(title, { target: { value: "Recipes/sushi" } })
+        expect(screen.getByText("Titles cannot contain “/”.")).toBeVisible()
+        fireEvent.change(title, { target: { value: " Recipes " } })
+        expect(screen.queryByText(/Titles cannot/)).toBeNull()
+    })
     it("offers public reading when local storage is unavailable", async () => {
         const store = { getDraft: vi.fn(async () => { throw new Error("storage failed") }) } as unknown as NotesStore
         render(<DraftEditor store={store} scope={scope} onSaved={() => {}} remote={<p>Public reading</p>} />)

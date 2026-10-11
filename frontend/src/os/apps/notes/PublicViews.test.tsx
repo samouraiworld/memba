@@ -65,6 +65,14 @@ describe("public note reading", () => {
         expect(screen.queryByText("Public body")).toBeNull()
         expect(screen.queryByRole("button", { name: "Edit note" })).toBeNull()
     })
+    it("exports the published note under a file name derived from its title", async () => {
+        const names: string[] = [], click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
+        Object.assign(URL, { createObjectURL: vi.fn(() => "blob:note"), revokeObjectURL: vi.fn() })
+        render(<PublicNote id={noteId} client={{ note: vi.fn().mockResolvedValue(note({ title: new TextEncoder().encode("Sushi: rice & nori") })) }} owner={null} />)
+        fireEvent.click(await screen.findByRole("button", { name: "Export Markdown" }))
+        expect(names).toEqual(["Sushi- rice & nori.md"])
+        click.mockRestore()
+    })
     it("allows guests to read, restricts editing to the owner and transfers a defensive baseline", async () => {
         const original = note(), client = { note: vi.fn().mockResolvedValue(original) }, edit = vi.fn()
         const view = render(<PublicNote id={noteId} client={client} owner={null} onEdit={edit} />)

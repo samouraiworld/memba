@@ -28,8 +28,33 @@ describe('product-calibrated public estimates', () => {
         const budget = row.func.includes('Comment') ? publicCommentBudget(message) : publicNoteBudget(message)
         expect(budget.gasWanted).toBeGreaterThan(row.keeperGas)
         expect(budget.gasWanted).toBeLessThanOrEqual(500000000)
-        expect(BigInt(budget.estimatedDepositUgnot)).toBeGreaterThan(BigInt(Math.max(0, row.storageDepositDeltaUgnot)))
+        // The cap is the transaction's max_deposit: it must cover every measured sample, including 32 writers and fresh authors.
+        expect(BigInt(budget.suggestedCapUgnot)).toBeGreaterThan(BigInt(Math.max(0, row.storageDepositDeltaUgnot)))
         expect(BigInt(budget.suggestedCapUgnot)).toBeGreaterThan(BigInt(budget.estimatedDepositUgnot))
+        // The expected deposit covers samples without writer lists.
+        if (!row.case.includes('writers')) expect(BigInt(budget.estimatedDepositUgnot)).toBeGreaterThanOrEqual(BigInt(Math.max(0, row.storageDepositDeltaUgnot)))
+    })
+    // Pinned to the merged-realm keeper receipts (history-economics.json); the Onyx canary's
+    // SetPublicWrites(true) cost 1,153,100 ugnot on chain, identical to the keeper sample.
+    it.each([
+        ['public_create_2048_title160', 2_629_700, 5_100_000],
+        ['public_create_131072_title160', 16_048_200, 19_200_000],
+        ['collective_enable', 1_200_000, 2_400_000],
+        ['collective_disable', 1_200_000, 2_400_000],
+        ['collective_title_only160', 1_416_000, 2_900_000],
+        ['collective_grow_2048_to_131072', 14_507_200, 16_600_000],
+        ['collective_shrink_131072_to2048', 1_604_800, 3_100_000],
+        ['collective_mask3_title160_body131072', 14_873_200, 17_300_000],
+        ['public_delete_after_shrink', 850_000, 1_700_000],
+    ])('prices %s close to its measured receipt with a separate safe cap', (name, expected, cap) => {
+        const row = measured.rows.find(item => item.case === name)!
+        const budget = publicNoteBudget(measuredMessage(row))
+        expect(budget).toMatchObject({ estimatedDepositUgnot: String(expected), suggestedCapUgnot: String(cap) })
+        expect(expected - row.storageDepositDeltaUgnot).toBeLessThanOrEqual(Math.max(row.storageDepositDeltaUgnot * 0.05, 300_000))
+    })
+    it('prices the comment-mode switch like the measured public-writes switch', () => {
+        const message = create(0); message.value.func = 'SetCommentMode'; message.value.args = ['', '1', 'true', '']
+        expect(publicNoteBudget(message)).toMatchObject({ estimatedDepositUgnot: '1200000', suggestedCapUgnot: '2400000' })
     })
     it('rejects the obsolete pre-history cap even for a small public note', async () => {
         const client = { chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient

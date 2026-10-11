@@ -4,6 +4,8 @@ import { MAX_NOTE_BODY_BYTES, newNoteId } from "../../../lib/notes/config"
 import { MarkdownPreview } from "./MarkdownPreview"
 import { CodeEditor } from "../terminal/CodeEditor"
 import { registerCloseGuard } from "../../shell/closeGuards"
+import { noteExportFilename } from "../../../lib/notes/exportFilename"
+import { publicTitleProblem, trimPublicTitle } from "../../../lib/notes/publicFields"
 
 type SaveState = "loading" | "saved" | "dirty" | "saving" | "deleting" | "conflict" | "unavailable" | "missing" | "locked" | "load-error"
 
@@ -22,7 +24,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
     const draft = useRef({ title: "", body: "", changes: 0 })
     const saved = useRef(onSaved)
     const inflight = useRef(false)
-    const descriptionId = useId()
+    const descriptionId = useId(), titleHintId = useId()
     useLayoutEffect(() => registerCloseGuard(`notes:${scope.noteId}`, () =>
         !["dirty", "saving", "conflict", "unavailable"].includes(state)
             || window.confirm("This note has unsaved edits. Close it and discard those edits?")), [scope.noteId, state])
@@ -88,7 +90,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
     }
     function exportDraft() {
         const url = URL.createObjectURL(new Blob([`# ${title}\n\n${body}`], { type: "text/markdown;charset=utf-8" }))
-        const a = document.createElement("a"); a.href = url; a.download = "note.md"; a.click()
+        const a = document.createElement("a"); a.href = url; a.download = noteExportFilename(title); a.click()
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
     async function remove() {
@@ -117,6 +119,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         setNotice("Publication confirmed. Further edits remain local until you publish them.")
         return true
     }
+    // An empty title is only reported when publishing; edge spaces are trimmed then.
+    const titleProblem = trimPublicTitle(title) ? publicTitleProblem(title) : null
     if (state === "loading") return <section className="os-notes-welcome" role="status">Loading draft…</section>
     if (state === "deleting") return <section className="os-notes-welcome" role="status">Deleting draft…</section>
     if ((state === "missing" || state === "load-error") && remote) return remote
@@ -136,7 +140,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
             <button className="os-btn os-quiet" onClick={() => void keepCopy()}>Save a separate copy</button>
             <button className="os-btn os-quiet" onClick={() => { setArmed(false); setReload(v => v + 1) }}>Discard these edits and reload</button>
         </div>}
-        <input className="os-notes-title" aria-label="Note title" value={title} maxLength={160} onChange={event => edit("title", event.target.value)} />
+        <input className="os-notes-title" aria-label="Note title" value={title} maxLength={160} aria-invalid={!!titleProblem} aria-describedby={titleProblem ? titleHintId : undefined} onChange={event => edit("title", event.target.value)} />
+        {titleProblem && <p id={titleHintId} className="os-notes-message" aria-live="polite">{titleProblem}</p>}
         <p id={descriptionId} className="os-notes-hint">Local draft · Stored unencrypted on this device · Markdown · 128 KiB maximum</p>
         {notice && <p className="os-notes-message" role="status">{notice}</p>}
         <div className="os-notes-content" data-view={view}>
