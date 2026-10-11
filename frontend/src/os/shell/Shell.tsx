@@ -559,8 +559,8 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
                     }} />
                 {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
             </> : <>
-            <MenuBar locked={modalBlocked} session={session} wins={windowWins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
-                closeAll={() => windowWins.forEach((w) => win.close(w.id))} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
+            <MenuBar locked={modalBlocked} session={session} wins={windowWins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={closeWindow}
+                closeAll={() => windowWins.forEach((w) => closeWindow(w.id))} minimiseAll={win.minimiseAll} tile={tile} fullScreen={toggleFullscreen} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
