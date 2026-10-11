@@ -100,7 +100,7 @@ export function PublicHistoryVersions({ client, noteId, revisions, onRestore }: 
             {data.versions.length === 2 && <p>{!data.versions[0].draft || !data.versions[1].draft ? 'At least one version has no content to compare.' : data.versions[0].draft.title === data.versions[1].draft.title && data.versions[0].draft.body === data.versions[1].draft.body ? 'The content is identical.' : 'The content differs. Compare the versions below.'}</p>}
             <div className="os-notes-history-comparison">{data.versions.map(({ version, draft }, index) => <article key={`${index}:${version.stateRevision}`} aria-label={`Version ${version.stateRevision}`}>
                 <h4>State revision {version.stateRevision}</h4>
-                <p>Owner {version.owner} · Body revision {version.bodyRevision ?? 'none'} · {version.bodyBytes} bytes</p>
+                <p>Owner {version.owner} · Body revision {version.bodyRevision ?? 'none'} · {version.bodyRedacted ? 'body removed' : `${version.bodyBytes} bytes`}</p>
                 <details><summary>Version permissions and visibility</summary><dl>
                     <dt>Owner generation</dt><dd>{version.ownerGeneration}</dd>
                     <dt>Pending owner</dt><dd>{version.pendingOwner ?? 'None'}</dd>

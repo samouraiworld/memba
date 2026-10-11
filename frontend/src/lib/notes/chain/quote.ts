@@ -27,7 +27,7 @@ export function publicNoteBudget(message: AminoMsg): { gasWanted: number; estima
         default: throw new NotesChainError('format')
     }
     // History shares the committed bytes, so content is stored once; the rest is room
-    // for metadata/index/receipt nodes (max-size create measured 16,198,800 ugnot).
+    // for metadata/index/receipt nodes (max-size create measured 15,997,900 ugnot).
     // No expected refund is deducted from this estimate.
     const estimate = (bytes + 40_000) * 100
     return {

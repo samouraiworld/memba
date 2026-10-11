@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnchorQuote } from './AnchorQuote'
 import { check } from '../../../lib/notes/chain/schema'
-import { readPublicComments, type CommentsClient, type PublicComment } from '../../../lib/notes/chain/comments'
+import { isRedactedComment, readPublicComments, type CommentsClient, type PublicComment } from '../../../lib/notes/chain/comments'
 
 export interface PublicCommentsProps {
   client: CommentsClient; noteId: string; epoch: string; bodyRevision: string; viewer?: string | null
@@ -51,12 +51,12 @@ export function PublicComments(props: PublicCommentsProps) {
   const copy = (comment: PublicComment) => ({ ...comment })
   return <section className="os-notes-comments" aria-label="Public comments">
     <header><h2>Comments</h2><button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh comments</button></header>
-    <p className="os-sub">Oldest first · Public comments remain in chain history.</p>
+    <p className="os-sub">Oldest first · Public comments remain in chain history unless a moderator removes them.</p>
     <ol>{visible.items.map(comment => <li key={comment.id}>
       <article aria-label={`Comment by ${comment.author}`}>
         <header><span>{comment.author}</span> · <span>Body revision {comment.bodyRevision}</span>{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <strong> · Resolved</strong>}</header>
         {comment.parent && <p className="os-sub">Reply to {comment.parent}</p>}
-        {comment.deleted ? <p>Deleted by the author</p> : comment.hidden ? <p>Hidden by moderation</p> : comment.encrypted ? <p>Encrypted comment</p> : <>
+        {comment.deleted ? <p>Deleted by the author</p> : isRedactedComment(comment) ? <p>Removed by moderation</p> : comment.hidden ? <p>Hidden by moderation</p> : comment.encrypted ? <p>Encrypted comment</p> : <>
           {comment.anchor && <AnchorQuote quote={comment.anchor} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}
           <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{comment.body}</p>
         </>}
@@ -64,7 +64,7 @@ export function PublicComments(props: PublicCommentsProps) {
           {!comment.deleted && !comment.hidden && !comment.encrypted && props.onReply && <button className="os-btn os-quiet" onClick={() => props.onReply?.(copy(comment))}>Reply</button>}
           {(!comment.encrypted || props.allowEncryptedActions !== false) && !comment.deleted && viewer === comment.author && props.onDelete && <button className="os-btn os-quiet" onClick={() => props.onDelete?.(copy(comment))}>Delete comment</button>}
           {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canResolve && props.onResolve && <button className="os-btn os-quiet" onClick={() => props.onResolve?.(copy(comment), !comment.resolved)}>{comment.resolved ? 'Reopen thread' : 'Resolve thread'}</button>}
-          {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canHide && props.onHide && <button className="os-btn os-quiet" onClick={() => props.onHide?.(copy(comment), !comment.hidden)}>{comment.hidden ? 'Unhide comment' : 'Hide comment'}</button>}
+          {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canHide && props.onHide && !isRedactedComment(comment) && <button className="os-btn os-quiet" onClick={() => props.onHide?.(copy(comment), !comment.hidden)}>{comment.hidden ? 'Unhide comment' : 'Hide comment'}</button>}
         </footer>}
       </article>
     </li>)}</ol>

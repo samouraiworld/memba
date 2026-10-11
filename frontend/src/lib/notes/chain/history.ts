@@ -89,7 +89,7 @@ const GOV_ACTION: Partial<Record<HistoryAction, readonly string[]>> = {
 }
 function parseDetail(value: unknown, action: HistoryAction, stateRevision: string) {
   // A moderator can redact the archive of a comment whose live record was already purged.
-  if (action === 'comment-redact' && typeof value === 'object' && value !== null && 'purged' in value) {
+  if (action === 'comment-redact' && typeof value === 'object' && value !== null && Object.hasOwn(value, 'purged')) {
     const v = record(value, ['comment_id', 'purged'])
     check(v.purged === true)
     return { kind: 'comment-purged' as const, commentId: id(v.comment_id) }
@@ -120,7 +120,8 @@ function parseDetail(value: unknown, action: HistoryAction, stateRevision: strin
   const policyOp = action === 'policy-set' ? v.policy_op : null
   check(policyOp === null || policyOp === 0 || policyOp === 1 || policyOp === 2)
   const redaction = action === 'content-redact' ? { field: v.field, fieldRevision: historyRevision(v.field_revision), sha256: v.sha256 } : null
-  check(redaction === null || ((redaction.field === 'title' || redaction.field === 'body') && typeof redaction.sha256 === 'string' && /^[a-f0-9]{64}$/.test(redaction.sha256)))
+  check(redaction === null || ((redaction.field === 'title' || redaction.field === 'body') && BigInt(redaction.fieldRevision) <= BigInt(snapshotRevision)
+    && typeof redaction.sha256 === 'string' && /^[a-f0-9]{64}$/.test(redaction.sha256)))
   return { kind: 'note' as const, snapshotRevision, previousStateRevision, fieldMask: fieldMask as 1 | 2 | 3 | null,
     redaction: redaction as { field: 'title' | 'body'; fieldRevision: string; sha256: string } | null,
     policyOp: policyOp as 0 | 1 | 2 | null, policyKey: action === 'policy-set' ? historyPolicyKey(v.policy_key) : null,

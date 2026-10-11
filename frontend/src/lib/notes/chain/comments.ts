@@ -19,6 +19,10 @@ export function commentText(bytes: Uint8Array, anchor = false): string {
   try { value = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes) } catch { check(false) }
   check(anchor || (bytes.length > 0 && [...value!].length <= 1000)); return value!
 }
+/** Only a moderator redaction leaves a live public comment hidden and empty; it cannot be shown again. */
+export function isRedactedComment(c: PublicComment): boolean {
+  return c.hidden && !c.deleted && !c.encrypted && !c.body && !c.anchor
+}
 export function parsePublicComment(raw: unknown): PublicComment {
   const v = record(raw, KEYS)
   check(['encrypted', 'deleted', 'hidden', 'resolved'].every(key => typeof v[key] === 'boolean'))

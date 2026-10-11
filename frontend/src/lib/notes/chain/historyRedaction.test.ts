@@ -11,6 +11,7 @@ import commentEntry from './__fixtures__/history/redaction/comment-redact-entry.
 import purgedEntry from './__fixtures__/history/redaction/comment-redact-purged-entry.json'
 import archivedComment from './__fixtures__/history/redaction/redacted-comment.json'
 import liveComment from './__fixtures__/history/redaction/redacted-live-comment.json'
+import purgedComment from './__fixtures__/history/redaction/redacted-purged-comment.json'
 
 // Fixtures are exported by the merged Notes realm (samcrew-deployer c20e8e6c) on keeper e75fef82c.
 const wanted = info.id
@@ -35,6 +36,7 @@ describe('moderator redaction in the public history', () => {
     expect(e.executor).toBeNull()
     expect(() => parseHistoryEntry({ ...contentEntry, detail: { ...contentEntry.detail, field: 'owner' } }, wanted, contentEntry.seq)).toThrow('format')
     expect(() => parseHistoryEntry({ ...contentEntry, detail: { ...contentEntry.detail, sha256: 'x' } }, wanted, contentEntry.seq)).toThrow('format')
+    expect(() => parseHistoryEntry({ ...contentEntry, detail: { ...contentEntry.detail, field_revision: '4' } }, wanted, contentEntry.seq)).toThrow('format')
   })
   it('parses live and purged comment redactions', () => {
     expect(parseHistoryEntry(commentEntry, wanted, commentEntry.seq)!.detail).toMatchObject({ kind: 'comment', hidden: true })
@@ -47,6 +49,9 @@ describe('moderator redaction in the public history', () => {
     const c = parseHistoryComment(archivedComment, wanted, archivedComment.comment_id)!
     expect(c.presentation).toMatchObject({ redacted: true, hidden: true }); expect(c.content.body.length).toBe(0)
     expect(() => parseHistoryComment({ ...archivedComment, presentation: { ...archivedComment.presentation, redacted: false } }, wanted, archivedComment.comment_id)).toThrow('format')
+    expect(() => parseHistoryComment({ ...archivedComment, content: { ...archivedComment.content, body_blob: 'YQ==' } }, wanted, archivedComment.comment_id)).toThrow('format')
+    // Redacted after its note was purged: the realm leaves presentation.hidden false.
+    expect(parseHistoryComment(purgedComment, wanted, purgedComment.comment_id)!.presentation).toMatchObject({ redacted: true, hidden: false })
     expect(parsePublicComment(liveComment)).toMatchObject({ hidden: true, deleted: false, body: '', anchor: '' })
     expect(() => parsePublicComment({ ...liveComment, hidden: false })).toThrow('format')
   })

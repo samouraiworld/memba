@@ -50,7 +50,8 @@ export function parseHistoryComment(value: unknown, wanted: string, commentId: s
   const c = record(v.content, ['author', 'created_height', 'epoch', 'anchor_blob', 'body_blob', 'reference'])
   const p = record(v.presentation, ['latest_seq', 'deleted', 'hidden', 'resolved', 'redacted']), reference = parseHistoryCommentReference(c.reference)
   const body = blob(c.body_blob, 4000), anchor = blob(c.anchor_blob, 600), redacted = historyBoolean(p.redacted)
-  if (redacted) check(body.length === 0 && anchor.length === 0 && p.hidden === true)
+  // A redaction after purge leaves presentation.hidden unchanged; only emptiness is guaranteed.
+  if (redacted) check(body.length === 0 && anchor.length === 0)
   else { check(body.length > 0 && [...publicText(body)].length <= 1000); publicText(anchor) }
   check(reference.commentId === commentId && reference.commentRevision === '1' && !reference.deleted && !reference.hidden && !reference.resolved)
   return { id: wanted, commentId, content: { author: address(c.author), createdHeight: decimal(c.created_height, 63, true), epoch: decimal(c.epoch, 32), body, anchor, reference },

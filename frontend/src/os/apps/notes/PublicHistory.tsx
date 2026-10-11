@@ -49,7 +49,7 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
         <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={() => {
             setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 }))
         }}>Refresh history</button></header>
-        <p>Public versions are retained permanently, including after deletion. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
+        <p>Public versions are retained, including after deletion, unless a moderator removes them; a removal keeps the content hash and is recorded here. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
         {state.loading && <p role="status">Loading public history…</p>}
         {state.error && <p role="alert">Public history could not be verified. Refresh to try again.</p>}
         {!state.loading && !state.error && data === null && <p>No public history is available for this note.</p>}

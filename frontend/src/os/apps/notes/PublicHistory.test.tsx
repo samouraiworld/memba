@@ -51,7 +51,7 @@ describe('public history navigation', () => {
         expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '21', 20)
         fireEvent.click(screen.getByRole('button', { name: 'Refresh history' }))
         await waitFor(() => expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '0', 20))
-        expect(screen.getByText(/Public versions are retained permanently/)).toBeVisible()
+        expect(screen.getByText(/Public versions are retained, including after deletion, unless a moderator removes them/)).toBeVisible()
     })
     it('reads explicit policy detail and governance provenance', async () => {
         const s = setup(); render(<PublicHistory client={s.client} noteId={noteId} />)
