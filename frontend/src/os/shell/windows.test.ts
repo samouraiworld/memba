@@ -361,3 +361,48 @@ describe("retarget", () => {
         expect(s.wins.map((w) => w.key).sort()).toEqual(["app:feed", "dao:alice.team"])
     })
 })
+
+describe("Arcade presentation policy", () => {
+    it.each([
+        ["arcade", null], ["arcade", "g/space-invaders"], ["arcade", "runs"], ["arcade", "daily-board"],
+        ["store", null], ["store", "ecosystem"], ["store", "extensions"], ["store", "project/gnofly"], ["store", "apps/r/test/app"],
+    ] as const)("starts the rich view %s/%s maximised and keeps its restore geometry", (app, section) => {
+        const state = run(open(appSpec(app, section)))
+        const w = state.wins[0]
+        expect(w.max).toBe(true)
+        const restored = windowsReducer(state, { type: "toggleMax", id: w.id }).wins[0]
+        expect(restored).toMatchObject({ max: false, x: w.x, y: w.y, width: w.width, height: w.height })
+    })
+
+    it.each([
+        ["notes", "first"], ["notes", "second"], ["radio", null], ["store", "submit"], ["store", "review"], ["store", "my-submissions"],
+        ["arcade", "connect4"], ["arcade", "connect4/12"], ["arcade", "space-invaders"], ["wallet", null],
+    ] as const)("does not apply catalogue presentation to %s/%s", (app, section) => {
+        expect(run(open(appSpec(app, section))).wins[0].max).toBe(false)
+    })
+
+    it("does not maximise an existing catalogue after restore, focus or navigation", () => {
+        const spec = appSpec("arcade")
+        const s = run(open(spec), { type: "toggleMax", id: "w1" }, { type: "minimise", id: "w1" })
+        const original = s.wins[0]
+        for (const action of [open(spec), { type: "focus", id: "w1" }, { type: "restore", wins: s.wins },
+            { type: "navigate", specs: [spec], desk, exact: true }] as WindowsAction[]) {
+            expect(windowsReducer(s, action).wins[0]).toMatchObject({ max: false, x: original.x, y: original.y, width: original.width, height: original.height })
+        }
+    })
+
+    it.each(["game", "space-invaders", "barricade"])("Play maximises the same %s instance without discarding its geometry", (section) => {
+        const spec = appSpec("arcade", section)
+        const s = run(open(spec), { type: "resize", id: "w1", width: 500, height: 350, desk }, { type: "minimise", id: "w1" })
+        const w = s.wins[0]
+        const played = windowsReducer(s, { type: "open", spec, desk, play: true })
+        expect(played.wins).toHaveLength(1)
+        expect(played.wins[0]).toMatchObject({ id: w.id, x: w.x, y: w.y, width: 500, height: 350, min: false, max: true })
+    })
+
+    it("ignores Play presentation for Connect 4 and retains independent Notes identities", () => {
+        const s = run({ type: "open", spec: appSpec("arcade", "connect4/12"), desk, play: true }, open(appSpec("notes", "first")), open(appSpec("notes", "second")))
+        expect(s.wins.map((w) => w.key)).toEqual(["game:connect4", "notes:first", "notes:second"])
+        expect(s.wins.every((w) => !w.max)).toBe(true)
+    })
+})

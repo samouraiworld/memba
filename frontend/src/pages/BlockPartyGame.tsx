@@ -24,6 +24,8 @@ import { clearRun, loadRun, saveRun } from "../game/lib/runStore";
 import { haptic, HAPTIC_GAME_OVER, HAPTIC_MERGE } from "../game/lib/haptics";
 import { seedScoreCeiling, type Modifier } from "../game/engine";
 import { useWindowActive } from "../os/page/WindowActivity";
+import { BlockPartyCompletedRound, BlockPartyRecoveredRun, BlockPartySavedRuns } from "../game/freeplay/BlockPartyPublication";
+import { useFreePlayRuntime, type FreePlayGameRuntime } from "../games/arcade/freeplay/FreePlayRuntimeContext";
 import "./blockparty.css";
 
 // First-visit intro, shown once per browser. Versioned: the pre-mainnet
@@ -68,7 +70,40 @@ function useUtcDate(): string {
   return date;
 }
 
-export default function BlockPartyGame() {
+const localFreePlay: FreePlayGameRuntime = {
+  storage: {
+    getItem: (key) => window.localStorage.getItem(key),
+    setItem: (key, value) => window.localStorage.setItem(key, value),
+  },
+  rules: "bp-free-standard-undo-v1",
+  simVersion: 1,
+};
+export interface BlockPartyGameProps {
+  freePlay?: FreePlayGameRuntime | null;
+  recovery?: { clientRunId: string; onClose(): void } | null;
+}
+
+export default function BlockPartyGame({ freePlay, recovery }: BlockPartyGameProps = {}) {
+  const sharedRuntime = useFreePlayRuntime();
+  const configured = freePlay === undefined ? sharedRuntime?.games["block-party"] ?? localFreePlay : freePlay;
+  const runtime = configured?.rules === "bp-free-standard-undo-v1" && configured.simVersion === 1 ? configured : null;
+  const externalRecovery = recovery === undefined
+    ? sharedRuntime?.recovery?.game === "block-party" ? sharedRuntime.recovery : null
+    : recovery;
+  const [localRecoveryId, setLocalRecoveryId] = useState<string | null>(null);
+  const recoveredId = runtime ? externalRecovery?.clientRunId ?? localRecoveryId : null;
+  const recoveryHeadingRef = useRef<HTMLHeadingElement>(null);
+  const recoveryWasOpen = useRef(false);
+  useEffect(() => {
+    if (recoveredId) {
+      recoveryWasOpen.current = true;
+      recoveryHeadingRef.current?.focus({ preventScroll: true });
+    } else if (recoveryWasOpen.current) {
+      recoveryWasOpen.current = false;
+      gamePageRef.current?.querySelector<HTMLElement>('[role="grid"]')?.focus({ preventScroll: true });
+    }
+  }, [recoveredId]);
+  const closeRecovery = () => { setLocalRecoveryId(null); externalRecovery?.onClose(); };
   const gamePageRef = useRef<HTMLDivElement>(null);
   const practiceResultHeadingRef = useRef<HTMLHeadingElement>(null);
   const windowActive = useWindowActive();
@@ -88,6 +123,7 @@ export default function BlockPartyGame() {
 
   const [mode, setMode] = useState<GameMode>("ranked");
   const [practiceSeed, setPracticeSeed] = useState<number>(() => randomSeed());
+  const [practiceGeneration, setPracticeGeneration] = useState(0);
   const [practiceModifier, setPracticeModifier] = useState<Modifier>("standard");
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
@@ -172,7 +208,7 @@ export default function BlockPartyGame() {
     ? challenge.par
     : undefined;
 
-  const { board, score, movesLeft, over, moveLog, roundSeed, roundModifier, canUndo, play, restart, undo } = useGame({
+  const { board, score, movesLeft, over, moveLog, actionLog, roundId, roundMode, roundOver, roundSeed, roundModifier, canUndo, play, restart, undo } = useGame({
     seed,
     modifier,
     mode,
@@ -180,11 +216,11 @@ export default function BlockPartyGame() {
   });
 
   useEffect(() => {
-    if (!over || ranked || !windowActive) return;
+    if (!over || ranked || !windowActive || recoveredId) return;
     if (document.activeElement === document.body || gamePageRef.current?.contains(document.activeElement)) {
       practiceResultHeadingRef.current?.focus({ preventScroll: true });
     }
-  }, [over, ranked, windowActive]);
+  }, [over, ranked, windowActive, recoveredId]);
 
   // A locked Daily board has no budget to show — "0 remaining" reads as spent.
   const shownMovesLeft = ranked && !canPlayRanked ? Infinity : movesLeft;
@@ -197,7 +233,7 @@ export default function BlockPartyGame() {
   // The log a Daily round was restored with; a finished restored run is not auto-posted.
   const [restoredLog, setRestoredLog] = useState<string | null>(null);
   useEffect(() => {
-    const key = ranked ? dailyKey : `practice:${practiceSeed}:${practiceModifier}`;
+    const key = ranked ? dailyKey : `practice:${practiceSeed}:${practiceModifier}:${practiceGeneration}`;
     if (key && appliedRound.current !== key) {
       appliedRound.current = key;
       // A Daily run in progress (or finished but not yet posted) survives a
@@ -209,7 +245,7 @@ export default function BlockPartyGame() {
       if (!restored && challenge?.ready) clearRun(chainId, challenge.date);
       setRestoredLog(restored && saved ? saved : null);
     }
-  }, [ranked, dailyKey, chainId, challenge, practiceSeed, practiceModifier, restart, seed]);
+  }, [ranked, dailyKey, chainId, challenge, practiceSeed, practiceModifier, practiceGeneration, restart, seed]);
 
   // Persist every accepted Daily move, once the hook holds the round for THIS
   // challenge. Re-entering with the challenge already in memory can briefly
@@ -232,18 +268,18 @@ export default function BlockPartyGame() {
 
   const onMove = useCallback(
     (m: Parameters<typeof play>[0]) => {
-      if (ranked && !canPlayRanked) return;
+      if (recoveredId || ranked && !canPlayRanked) return;
       dismissIntro();
       play(m);
     },
-    [ranked, canPlayRanked, dismissIntro, play]
+    [ranked, canPlayRanked, dismissIntro, play, recoveredId]
   );
 
-  useKeyboard(onMove, windowActive && !over && (ranked ? canPlayRanked : true), gamePageRef);
+  useKeyboard(onMove, windowActive && !recoveredId && !over && (ranked ? canPlayRanked : true), gamePageRef);
 
   // Practice-only undo. Ranked never registers the shortcut.
   useEffect(() => {
-    if (ranked || !windowActive) return;
+    if (ranked || !windowActive || recoveredId) return;
     const onKey = (e: KeyboardEvent) => {
       if (!isGameKeyEvent(e, gamePageRef.current)) return;
       if (!isUndoKey(e)) return;
@@ -252,7 +288,7 @@ export default function BlockPartyGame() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ranked, undo, windowActive]);
+  }, [ranked, undo, windowActive, recoveredId]);
 
   const refreshAfterVerify = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["bp", "leaderboard"] });
@@ -330,7 +366,7 @@ export default function BlockPartyGame() {
     <div className="k-bp-page" ref={gamePageRef}>
       <div className="k-bp-orbit k-bp-orbit--one" aria-hidden="true" />
       <div className="k-bp-orbit k-bp-orbit--two" aria-hidden="true" />
-      <header className="k-bp-header">
+      <header className="k-bp-header" inert={!!recoveredId}>
         <p className="k-bp-kicker">Gno signal lab · daily merge protocol</p>
         <div className="k-bp-header-row">
           <div>
@@ -357,7 +393,16 @@ export default function BlockPartyGame() {
         </div>
       </header>
 
-      <div className="k-bp-layout">
+      {runtime && recoveredId && <section aria-label="Saved Block Party result">
+        <h2 ref={recoveryHeadingRef} tabIndex={-1}>Saved Block Party result</h2>
+        <p>Your current board is paused while you review this result.</p>
+        <button type="button" onClick={closeRecovery}>Close saved result</button>
+        <BlockPartyRecoveredRun key={recoveredId} clientRunId={recoveredId} storage={runtime.storage} client={runtime.client} connect={runtime.connect} />
+      </section>}
+      {runtime && <div>
+        <BlockPartySavedRuns storage={runtime.storage} client={runtime.client} connect={runtime.connect} onOpen={setLocalRecoveryId} />
+      </div>}
+      <div className="k-bp-layout" inert={!!recoveredId}>
         <section className="k-bp-play" aria-label={ranked ? "Daily game" : "Practice game"}>
           <div className="k-bp-mission">
             <span className="k-bp-mission-mark" aria-hidden="true">⌁</span>
@@ -432,7 +477,7 @@ export default function BlockPartyGame() {
           )}
 
           <div className={`k-bp-board-wrap ${ranked && !canPlayRanked ? "k-bp-board-wrap--locked" : ""}`}>
-            <Board board={board} moveLog={moveLog} onMove={onMove} disabled={ranked && !canPlayRanked} />
+            <Board board={board} moveLog={moveLog} onMove={onMove} disabled={!!recoveredId || ranked && !canPlayRanked} />
           </div>
 
           <ScoreBar score={score} par={reachablePar} movesLeft={shownMovesLeft} />
@@ -442,7 +487,7 @@ export default function BlockPartyGame() {
                 type="button"
                 className="k-bp-btn k-bp-undo"
                 onClick={undo}
-                disabled={!canUndo}
+                disabled={!!recoveredId || !canUndo}
                 aria-keyshortcuts="U Control+Z Meta+Z"
               >
                 <span aria-hidden="true">↶</span> Undo
@@ -482,7 +527,7 @@ export default function BlockPartyGame() {
               <p className="k-bp-over-note">Your best practice score: {Math.max(score, getLocalBest("practice")).toLocaleString()}</p>
               <ShareCard kind="practice" date="" board={board} streak={0} modifier={modifier} />
               <div className="k-bp-over-actions">
-                <button className="k-bp-btn" type="button" onClick={undo} disabled={!canUndo}>
+                <button className="k-bp-btn" type="button" onClick={undo} disabled={!!recoveredId || !canUndo}>
                   Undo last move
                 </button>
                 <button
@@ -491,11 +536,16 @@ export default function BlockPartyGame() {
                   onClick={() => {
                     setPracticeSeed(randomSeed());
                     setPracticeModifier("standard");
+                    setPracticeGeneration(value => value + 1);
                   }}
                 >
                   New practice board
                 </button>
               </div>
+              {runtime && <BlockPartyCompletedRound
+                round={{ roundId, roundMode, roundSeed, roundModifier, actionLog, score, roundOver }}
+                storage={runtime.storage} client={runtime.client} connect={runtime.connect}
+              />}
               <NextBoardCountdown />
             </div>
           )}
@@ -512,7 +562,7 @@ export default function BlockPartyGame() {
             </ol>
             {ranked
               ? <p>Daily: everyone gets the same board and the same number of moves. Sign in with your wallet and your first finished run of the day is checked and posted. A new board arrives at 00:00 UTC.</p>
-              : <p>Practice: a random board, no move limit, and undo. Nothing is posted.</p>}
+              : <p>Practice: a random board, no move limit, and undo. Save a completed score locally and choose whether to publish it.</p>}
           </div>
           <div className="k-bp-panels">
             {challenge?.ready && (

@@ -13,10 +13,9 @@ import { APP_VERSION } from "../../lib/config"
 import { ACTIVATION_REQUIRED_CODE, ACTIVATION_LOGIN_MSG } from "../../lib/loginErrors"
 import { signInWithWallet } from "../../os/shell/walletLogin"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
-import { DesktopShell } from "./DesktopShell"
+import { ResponsiveShell } from "./ResponsiveShell"
 import { PRO_APP_ENABLED, PRO_SHELL_ENABLED } from "../../lib/config"
 import "./professional-shell.css"
-import { MobileShell } from "./MobileShell"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
 import { useIsMobile } from "../../hooks/useIsMobile"
@@ -412,25 +411,19 @@ export function Layout() {
                     Skip to content
                 </a>
 
-                {/* ── Shell: desktop renders the Sidebar + main column; mobile
-                    renders the main column alone (no desktop chrome). Both wrap
-                    the same `mainColumnContent`, so the desktop tree is byte-
-                    identical to before the split. ── */}
-                {isMobile ? (
-                    <MobileShell>{mainColumnContent}</MobileShell>
-                ) : (
-                    <DesktopShell
-                        connected={adena.connected}
-                        address={auth.address || adena.address}
-                        unvotedCount={unvotedCount}
-                        notifUnreadCount={notifs.unreadCount}
-                        feedReplyUnread={feedReplyUnread}
-                        collapsed={sidebarCollapsed}
-                        onToggleCollapse={handleToggleCollapse}
-                    >
-                        {mainColumnContent}
-                    </DesktopShell>
-                )}
+                {/* Keep route content mounted while the responsive chrome changes. */}
+                <ResponsiveShell
+                    mobile={isMobile}
+                    connected={adena.connected}
+                    address={auth.address || adena.address}
+                    unvotedCount={unvotedCount}
+                    notifUnreadCount={notifs.unreadCount}
+                    feedReplyUnread={feedReplyUnread}
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapse={handleToggleCollapse}
+                >
+                    {mainColumnContent}
+                </ResponsiveShell>
 
                 {/* ── Mobile Tab Bar ────────────────────────────────── */}
                 <MobileTabBar

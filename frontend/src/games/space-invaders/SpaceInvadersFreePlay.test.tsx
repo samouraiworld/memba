@@ -1,0 +1,71 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import SpaceInvaders from "./SpaceInvaders";
+import { createSpaceInvadersPublication } from "./lib/freePlayPublication";
+import { verifyFreePlayInput, type SpaceInvadersFreePlayInput } from "./lib/freePlayCodec";
+vi.mock("./render/draw", () => ({ draw: vi.fn() }));
+vi.mock("./hooks/usePlayfieldSize", () => ({ usePlayfieldSize: () => ({ width: 320, height: 400, availableHeight: 600, landscape: false }) }));
+let callbacks: Map<number, FrameRequestCallback>;
+let seq: number;
+function drive(start: number, count: number) { act(() => { for (let n = 0; n < count; n++) { const batch = [...callbacks.values()]; callbacks.clear(); batch.forEach(cb => cb(start + n * 250)); } }); }
+beforeEach(() => {
+  callbacks = new Map(); seq = 0; localStorage.clear();
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => { callbacks.set(++seq, cb); return seq; });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => callbacks.delete(id));
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as CanvasRenderingContext2D);
+});
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+it("prepares A's session once from the finished Free run, keeps it through Menu and disposes it on restart", async () => {
+  const verify = vi.fn(), dispose = vi.fn();
+  const snapshot = vi.fn((input: SpaceInvadersFreePlayInput) => ({ input }));
+  const session = vi.fn((saved: { input: SpaceInvadersFreePlayInput }) => ({ saved, dispose }));
+  const publication = createSpaceInvadersPublication({ createSnapshot: snapshot, createSession: session, renderSession: () => <button onClick={verify}>Shared verify</button> });
+  const completed = vi.fn();
+  const view = render(<SpaceInvaders seed={1} publication={publication} onReplayReady={completed} />);
+  expect(snapshot).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: /free play/i }));
+  const identity = JSON.parse(localStorage.getItem("memba:space-invaders:active-free:v1")!);
+  expect(identity.seed).toBe("si1:00000001");
+  drive(0, 600);
+  await screen.findByRole("button", { name: "Shared verify" });
+  expect(snapshot).toHaveBeenCalledTimes(1); expect(session).toHaveBeenCalledTimes(1);
+  const input = snapshot.mock.calls[0][0];
+  expect(input.clientRunId).toBe(identity.clientRunId);
+  expect(completed.mock.calls[0][0].clientRunId).toBe(identity.clientRunId);
+  expect(verifyFreePlayInput(input).score).toBe(input.claimedScore);
+  expect(verify).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+  fireEvent.click(screen.getByRole("button", { name: "Back to result" }));
+  expect(snapshot).toHaveBeenCalledTimes(1); expect(dispose).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Shared verify" })); expect(verify).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Play again" }));
+  expect(dispose).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(localStorage.getItem("memba:space-invaders:active-free:v1")!).clientRunId).not.toBe(identity.clientRunId);
+  drive(160_000, 600);
+  await screen.findByRole("button", { name: "Shared verify" });
+  expect(snapshot).toHaveBeenCalledTimes(2);
+  view.unmount(); expect(dispose).toHaveBeenCalledTimes(2);
+});
+it("keeps a result exportable when shared snapshot persistence fails", async () => {
+  const prepare = vi.fn(() => { throw new Error("storage quota"); });
+  render(<SpaceInvaders seed={1} publication={{ prepare }} />);
+  fireEvent.click(screen.getByRole("button", { name: /free play/i })); drive(0, 600);
+  expect(screen.getByRole("heading", { name: "Game Over" })).toBeVisible();
+  expect(await screen.findByText(/snapshot could not be saved/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Export replay" })).toBeVisible();
+  expect(prepare).toHaveBeenCalledTimes(1);
+});
+it("does not route a Daily result into the Free publisher", () => {
+  const prepare = vi.fn();
+  render(<SpaceInvaders publication={{ prepare }} />);
+  fireEvent.click(screen.getByRole("button", { name: /daily run/i })); drive(0, 450);
+  expect(screen.getByRole("heading", { name: "Game Over" })).toBeVisible();
+  expect(prepare).not.toHaveBeenCalled();
+  expect(localStorage.getItem("memba:space-invaders:active-free:v1")).toBeNull();
+});
+it("disposes A's session if its presentation cannot be mounted", () => {
+  const dispose = vi.fn();
+  const publication = createSpaceInvadersPublication({ createSnapshot: (input: SpaceInvadersFreePlayInput) => input, createSession: () => ({ dispose }), renderSession: () => { throw new Error("render failure"); } });
+  expect(() => publication.prepare({} as SpaceInvadersFreePlayInput)).toThrow("render failure");
+  expect(dispose).toHaveBeenCalledTimes(1);
+});

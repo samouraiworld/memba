@@ -1,3 +1,6 @@
+import { RecoveryBoundary, type FpsRecoverySelection } from './fps/freeplay/RecoveryBoundary'
+import type { FpsFreePlayBridge } from './fps/freeplay/bridge'
+import { useFpsRuntime } from './fps/freeplay/runtime'
 /**
  * MEMBA: BARRICADE — playable shell (Memba-native visual pass).
  *
@@ -14,7 +17,7 @@
  */
 
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { isBarricade25DEnabled, isBarricadeCertifyEnabled } from "../../lib/config"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
@@ -145,7 +148,7 @@ function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, vi
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
-export default function Barricade() {
+function ClassicBarricade() {
     const windowActive = useWindowActive()
     const shellRef = useRef<HTMLDivElement | null>(null)
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -848,4 +851,26 @@ export default function Barricade() {
             )}
         </div>
     )
+}
+
+// C1 preview is explicit and local to this game; Classic remains the published default.
+const FpsPreview = lazy(() => import("./fps/FpsPreview"))
+export default function Barricade(props: { fpsFreePlay?: FpsFreePlayBridge | null; recovery?: FpsRecoverySelection | null } = {}) {
+    const { fpsFreePlay, recovery } = useFpsRuntime(props)
+    const location = useLocation()
+    const navigate = useNavigate()
+    const [previewFailed, setPreviewFailed] = useState(false)
+    const preview = new URLSearchParams(location.search).get("barricadePreview") === "fps"
+    const classic = () => {
+        const search = new URLSearchParams(location.search)
+        search.delete("barricadePreview")
+        navigate({ pathname: location.pathname, search: search.toString(), hash: location.hash }, { replace: true })
+    }
+    return <RecoveryBoundary recovery={recovery} saved={fpsFreePlay?.saved}>
+        {!preview ? <ClassicBarricade /> : previewFailed ? <div role="alert"><p>Chargement FPS indisponible. Classic reste accessible.</p><button onClick={classic}>Retour à Classic</button></div> : <RendererBoundary onFailure={() => setPreviewFailed(true)}>
+        <Suspense fallback={<p role="status">Chargement du prototype FPS…</p>}>
+            <FpsPreview freePlay={fpsFreePlay ?? undefined} onClassic={classic} />
+        </Suspense>
+    </RendererBoundary>}
+    </RecoveryBoundary>
 }

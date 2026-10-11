@@ -1,0 +1,13 @@
+.memba-os .os-free-board { min-width: 0; }
+.memba-os .os-free-board summary { cursor: pointer; }
+.memba-os .os-free-board-entries { margin: 16px 0; padding-inline-start: 28px; }
+.memba-os .os-free-board-entries > li { padding: 12px 0; border-bottom: 1px solid var(--cin-rim); }
+.memba-os .os-free-board-row { display: flex; align-items: baseline; gap: 12px; justify-content: space-between; }
+.memba-os .os-free-board-row > code { min-width: 0; overflow-wrap: anywhere; }
+.memba-os .os-free-board-row > strong { flex: none; font-variant-numeric: tabular-nums; }
+.memba-os .os-free-board-proof { margin-top: 8px; }
+.memba-os .os-free-board-proof dl { margin: 12px 0 0; }
+.memba-os .os-free-board-proof dt { color: var(--cin-muted); }
+.memba-os .os-free-board-proof dd { margin: 0 0 8px; overflow-wrap: anywhere; }
+.memba-os .os-free-board-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.memba-os .os-free-board :is(button, summary):focus-visible { outline: 2px solid var(--cin-accent); outline-offset: 3px; }

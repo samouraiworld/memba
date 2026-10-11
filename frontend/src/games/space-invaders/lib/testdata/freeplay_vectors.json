@@ -1,0 +1,403 @@
+{
+  "status": "PROPOSED GAME ADAPTER CONTRACT; not yet verified in Go or enabled by A",
+  "sourceSha": "84b228e4a18578bf0b8151ae3176222ec380e6c3",
+  "encoding": "si-deltas-v1 canonical ASCII; SHA256 LP commitments as A contract",
+  "valid": [
+    {
+      "name": "one-shot-terminal-0",
+      "target": {
+        "chainId": "gnoland-1",
+        "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+      },
+      "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000001",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000000",
+        "replayCodec": "si-deltas-v1",
+        "replay": "2315;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "engineSeed": 0,
+      "events": [
+        [
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0
+        ]
+      ],
+      "finalTick": 2315,
+      "firstGameoverTick": 2315,
+      "score": 510,
+      "stateHash": "9557bc22",
+      "runID": "fddad9b06bad54afd71a6b7de71915ed69837b9ff2f7b08e8a1ba7090fec3701",
+      "replayHash": "bc7b4607395f9fc4d95823b6fb25c72bb6abd6e7106b043d88bf44cb3bb863bf",
+      "payloadHash": "3c2151106d9bb098f866615b94f1196ae9185dafcbe81fa77c348da7e0cf3303"
+    },
+    {
+      "name": "one-shot-terminal-1",
+      "target": {
+        "chainId": "gnoland-1",
+        "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+      },
+      "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "engineSeed": 1,
+      "events": [
+        [
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0
+        ]
+      ],
+      "finalTick": 1872,
+      "firstGameoverTick": 1872,
+      "score": 510,
+      "stateHash": "1018c264",
+      "runID": "0ef5920cbe485b5a00488e9283d3df27fe848c29b6c3321f86a314d5a057a1e5",
+      "replayHash": "3c7fb0cb2ba686f48520d4fffdead9aab309127dddc264edc9c62dfea09a8854",
+      "payloadHash": "be65bf5496c4f9605049f680ed27767b13c3bd5f7356a0602620f232984e9d56"
+    },
+    {
+      "name": "fractional-steering-terminal",
+      "target": {
+        "chainId": "gnoland-1",
+        "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+      },
+      "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000003",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00001092",
+        "replayCodec": "si-deltas-v1",
+        "replay": "2088;0|3|1|0;60|-7|1|0;120|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 328
+      },
+      "engineSeed": 4242,
+      "events": [
+        [
+          0,
+          3,
+          1,
+          0
+        ],
+        [
+          60,
+          -7,
+          1,
+          0
+        ],
+        [
+          120,
+          0,
+          0,
+          0
+        ]
+      ],
+      "finalTick": 2088,
+      "firstGameoverTick": 2088,
+      "score": 328,
+      "stateHash": "beba2b22",
+      "runID": "5adf23793c301736339d7a4d9dbd1d1c513f0f6a6334f8052cdd71389896a180",
+      "replayHash": "b460403bfd995e5b76acdcc70d9c6be4e5dcae34bad89eec93245fcdd7f0f65e",
+      "payloadHash": "dd99ed6e8669f8eec8c88314c6f2fbf889bb459efcc1b6a636dbd467fc3dd58b"
+    },
+    {
+      "name": "one-shot-terminal-4294967295",
+      "target": {
+        "chainId": "gnoland-1",
+        "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+      },
+      "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000004",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:ffffffff",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1110;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "engineSeed": 4294967295,
+      "events": [
+        [
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0
+        ]
+      ],
+      "finalTick": 1110,
+      "firstGameoverTick": 1110,
+      "score": 510,
+      "stateHash": "16998001",
+      "runID": "34907ef8ec9ebdc5f8e4986101a5fc6da3d350080c5138fea8b07c7b8a325c2c",
+      "replayHash": "87368b8d22586ba5e874e8827270bcaf366539c25ceca0a2b7e64fcd99036c6a",
+      "payloadHash": "8333039ad6e46d4a7287c0b9722c6e9da4bdf9dd8fa03d89488ecc544d0963f7"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "zero-final-tick",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "0;0|0|1|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "not-terminal",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1;0|0|1|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "not_terminal"
+    },
+    {
+      "name": "padded-after-terminal",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1873;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "not_terminal"
+    },
+    {
+      "name": "duplicate-tick",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;0|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "pause-step",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|1",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "fractional-wire-move",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0.3|1|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "noncanonical-leading-zero",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "01872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "noncanonical-negative-zero",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|-0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "out-of-range-move",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|11|1|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "uppercase-seed",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:FFFFFFFF",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "legacy-daily-seed",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "invaders-2026-10-09",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "invalid_replay"
+    },
+    {
+      "name": "wrong-version",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 2,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "unsupported_version"
+    },
+    {
+      "name": "wrong-rules",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-daily-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 510
+      },
+      "expectedError": "unsupported_rules"
+    },
+    {
+      "name": "wrong-score",
+      "base": "one-shot-terminal-1",
+      "input": {
+        "clientRunId": "00000000-0000-4000-8000-000000000002",
+        "game": "space-invaders",
+        "rules": "si-free-standard-v1",
+        "simVersion": 1,
+        "seed": "si1:00000001",
+        "replayCodec": "si-deltas-v1",
+        "replay": "1872;0|0|1|0;1|0|0|0",
+        "finishReason": "game-over",
+        "claimedScore": 511
+      },
+      "expectedError": "claimed_result_mismatch"
+    }
+  ]
+}

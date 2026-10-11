@@ -8,7 +8,7 @@
  * esbuild is resolved from the frontend workspace (the only place it's installed),
  * so this runs from anywhere: `node backend/internal/arcade/worker/build.mjs`.
  *
- * The output (bundle/verify-worker.cjs) is COMMITTED (the dir is `bundle/`, not
+ * Both outputs (legacy verify-worker.cjs and freeplay-worker.cjs) are COMMITTED (the dir is `bundle/`, not
  * `dist/`, so the repo-wide dist/ gitignore doesn't swallow it). CI rebuilds it
  * and fails on any diff (see .github/workflows/ci.yml) — a stale bundle can never
  * ship a sim that disagrees with the frontend's.
@@ -22,9 +22,10 @@ const repoRoot = path.join(here, "../../../..")
 const frontendReq = createRequire(path.join(repoRoot, "frontend/package.json"))
 const esbuild = frontendReq("esbuild")
 
+for (const [entry, output] of [["verify_worker.ts", "verify-worker.cjs"], ["freeplay_worker.ts", "freeplay-worker.cjs"]]) {
 await esbuild.build({
-    entryPoints: [path.join(here, "verify_worker.ts")],
-    outfile: path.join(here, "bundle/verify-worker.cjs"),
+    entryPoints: [path.join(here, entry)],
+    outfile: path.join(here, "bundle", output),
     // Pin the working dir to the repo root so esbuild's embedded source-path
     // comments (e.g. "// frontend/src/games/barricade/sim/rng.ts") are always
     // relative to the SAME base — otherwise the bytes depend on the cwd the
@@ -43,4 +44,5 @@ await esbuild.build({
     },
 })
 
-console.log("verify-worker.cjs rebuilt")
+console.log(`${output} rebuilt`)
+}

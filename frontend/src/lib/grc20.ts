@@ -137,6 +137,38 @@ let _walletAddress: string | null = null
 // Bumped whenever the connected account or the OS session changes (see walletActionTicket).
 let _walletEpoch = 0
 
+// Read-only identity observation for clients that do not themselves sign.
+// This revision is independent of the existing signing epoch above.
+let _walletRpcRevision = 0
+const walletRpcListeners = new Set<() => void>()
+let walletRpcNotifying = false
+export interface WalletRpcContextSnapshot {
+    readonly revision: number
+    readonly address: string | null
+    readonly chainId: string | null
+    readonly trusted: boolean
+}
+export function getWalletRpcContext(): WalletRpcContextSnapshot {
+    return Object.freeze({ revision: _walletRpcRevision, address: _walletAddress, chainId: _walletChainId, trusted: _walletRpcTrusted })
+}
+export function onWalletRpcContextChanged(listener: () => void): () => void {
+    walletRpcListeners.add(listener)
+    return () => { walletRpcListeners.delete(listener) }
+}
+function notifyWalletRpcContext(): void {
+    // Nested writes still update the context and revision synchronously. Their
+    // callbacks are coalesced into this dispatch so a reentrant observer cannot
+    // recursively call itself forever. Readers always see the latest revision.
+    if (walletRpcNotifying) return
+    walletRpcNotifying = true
+    try {
+        for (const listener of [...walletRpcListeners]) {
+            if (!walletRpcListeners.has(listener)) continue
+            try { listener() } catch { /* one observer cannot block invalidation */ }
+        }
+    } finally { walletRpcNotifying = false }
+}
+
 /** Called by useAdena to sync the wallet's active RPC validation state +
  *  the wallet's active chainId (used to block wrong-chain broadcasts) + the
  *  connected account (the live check refuses when Adena's account differs). */
@@ -146,6 +178,8 @@ export function setWalletRpcContext(url: string | null, trusted: boolean, chainI
     _walletChainId = chainId
     if (address !== _walletAddress) _walletEpoch++
     _walletAddress = address
+    _walletRpcRevision++
+    notifyWalletRpcContext()
 }
 
 /**

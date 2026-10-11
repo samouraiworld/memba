@@ -324,3 +324,18 @@ describe("replay input is unchanged for equivalent keys", () => {
     }
   });
 });
+
+
+it("clears held keys when focus leaves the surface for a native control", () => {
+  const surface = document.createElement("div"); surface.tabIndex = 0;
+  const button = document.createElement("button");
+  document.body.append(surface, button);
+  const { result, unmount } = renderHook(() => useKeyboard({ current: surface }));
+  surface.focus();
+  key("keydown", "ArrowRight", false, surface);
+  key("keydown", " ", false, surface);
+  expect(result.current()).toMatchObject({ move: 1, fire: true });
+  button.focus();
+  expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  unmount(); surface.remove(); button.remove();
+});

@@ -11,7 +11,7 @@ vi.mock("./render/draw", () => ({ draw: vi.fn() }));
 // Daily/Free mode wiring: the daily run seeds from the shared UTC day string,
 // records the quantized input log, self-verifies it at game over, and only
 // then (and only with both flags on) offers the on-chain certify control.
-// Free play is the untouched default — starts on first input, records nothing.
+// Free play records the same replay without using the legacy Daily publisher.
 
 // The lazy certify chunk pulls in wallet hooks — stub it with a recognizable
 // control so these tests assert the RENDER GATE, not the submit flow
@@ -89,20 +89,19 @@ describe("SpaceInvaders daily mode", () => {
     expect(screen.queryByText(/space fire/i)).toBeNull();
   });
 
-  it("arms the day's shared seed on Daily: the chip names the UTC day and the run awaits first input", () => {
+  it("starts the shared UTC Daily without a second input", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
-    expect(screen.getByText(/daily signal · 2026-09-01/i)).toBeInTheDocument();
-    // Still on the ready overlay — the engine starts on first meaningful input
-    // (never forced from the shell, so the replay reproduces the start too).
-    expect(screen.getByText(/space fire/i)).toBeInTheDocument();
+    expect(screen.getByText(/daily · 2026-09-01.*relay standing by/i)).toBeInTheDocument();
+    // No second prompt: the next fixed step consumes the recorded launch pulse.
+    expect(screen.queryByRole("heading", { name: /relay standing by/i })).not.toBeInTheDocument();
   });
 
   it("self-verifies the recorded daily run at game over (Verified badge, day pinned)", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     nudgeAndDie();
-    expect(screen.getByText(/daily · 2026-09-01/i)).toBeInTheDocument();
+    expect(screen.getByText(/daily · 2026-09-01 · replay checked/i)).toBeInTheDocument();
     expect(screen.getByText(/replay checked on this device/i)).toBeInTheDocument();
     // Certify flags are OFF here — the wallet surface must not render.
     expect(screen.queryByText(/certify on-chain/i)).toBeNull();
@@ -135,31 +134,38 @@ describe("SpaceInvaders daily mode", () => {
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     nudgeAndDie();
     fireEvent.click(screen.getByRole("button", { name: /play again/i }));
-    // Back on the ready overlay, still armed for the SAME day (re-attest can
-    // only raise a score, so replaying the daily is safe).
-    expect(screen.getByText(/daily signal · 2026-09-01/i)).toBeInTheDocument();
-    expect(screen.getByText(/space fire/i)).toBeInTheDocument();
+    // Restart keeps the day and immediately queues the next launch pulse.
+    expect(screen.getByText(/daily · 2026-09-01.*relay standing by/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /relay standing by/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/game over/i)).toBeNull();
   });
 
-  it("free play stays the no-recording default: no daily chip, no verify badge, no certify", () => {
+  it("free play emits a locally verified replay without a Daily publisher", () => {
     // A fixed prop seed makes the free run deterministic for the drive loop.
-    render(<SpaceInvaders seed={3070363140} />);
+    const onReplayReady = vi.fn();
+    render(<SpaceInvaders seed={3070363140} onReplayReady={onReplayReady} />);
     fireEvent.click(screen.getByRole("button", { name: /free play/i }));
     nudgeAndDie();
     expect(screen.getByText(/game over/i)).toBeInTheDocument();
     expect(screen.queryByText(/daily ·/i)).toBeNull();
     expect(screen.queryByText(/verified/i)).toBeNull();
-    expect(screen.queryByText(/replay check pending/i)).toBeNull();
+    expect(screen.queryByText(/replay not verified/i)).toBeNull();
+    expect(screen.getByText(/free play · replay checked on this device/i)).toBeInTheDocument();
     expect(screen.queryByText(/certify/i)).toBeNull();
+    expect(onReplayReady).toHaveBeenCalledTimes(1);
+    expect(onReplayReady).toHaveBeenCalledWith(expect.objectContaining({ mode: "free", seed: 3070363140, verified: true, simVersion: 1 }));
+    expect(onReplayReady.mock.calls[0][0].events[0]).toEqual(expect.arrayContaining([0]));
   });
 
-  it("Menu from a daily game over returns to the free-mode chooser", () => {
+  it("Menu preserves the completed daily snapshot and can return to its result", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     nudgeAndDie();
     fireEvent.click(screen.getByRole("button", { name: /menu/i }));
     expect(screen.getByRole("button", { name: /daily run/i })).toBeInTheDocument();
-    expect(screen.queryByText(/daily · 2026-09-01/i)).toBeNull();
+    expect(screen.queryByRole("heading", { name: /game over/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /back to result/i }));
+    expect(screen.getByRole("heading", { name: /game over/i })).toHaveFocus();
+    expect(screen.getByText(/daily · 2026-09-01 · replay checked/i)).toBeInTheDocument();
   });
 });

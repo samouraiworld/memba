@@ -35,7 +35,10 @@ import { EvmConnectModal } from "../evm/EvmConnectModal"
 import { SignerProvider } from "../sign/SignerProvider"
 import { bumpWalletActionEpoch, setWalletActionGuard } from "../../lib/grc20"
 import { EVM_ENABLED } from "../../lib/chain/flag"
+import { useArcadeLaunch } from "../apps/arcade/useArcadeLaunch"
 import { PhoneShell } from "../phone/PhoneShell"
+import { FreePlayRuntimeProvider } from "../../games/arcade/freeplay/FreePlayRuntimeProvider"
+import { useArcadeFreePlayRuntime, type ArcadeFreePlayConfiguration } from "../apps/arcade/useArcadeFreePlayRuntime"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { LiveActivityProvider } from "../apps/live/LiveProvider"
 import { Launcher } from "./Launcher"
@@ -114,7 +117,7 @@ const EVM_SESSION = EVM_ENABLED && activeOsNetwork().family === "evm"
 /** The wallet session for this page's network: Adena on gno.land, an EVM wallet on Base. */
 const useShellSession = EVM_SESSION ? useEvmSession : useOsSession
 
-export function Shell() {
+export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?: ArcadeFreePlayConfiguration | null } = {}) {
     const phone = useSyncExternalStore(subscribePhoneLayout, phoneLayout, () => false)
     const location = useLocation()
     const navigate = useNavigate()
@@ -193,7 +196,9 @@ export function Shell() {
     const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
 
     const win = useWindows(() => arrivalWindows(arrival, fromLink, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }, storageOwner, explicitlyLocked))
-    const { dispatch } = win
+    const arcadeLaunch = useArcadeLaunch({ wins: win.wins, scope: `${session.network.chainId}:${session.status}:${session.address}`,
+        blocked: locked || Boolean(session.stage) || session.status === "resuming", dispatch: win.dispatch, desk: placeDesk })
+    const { dispatch } = arcadeLaunch
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
     const skipNextOwnerWrite = useRef<string | null>(null)
@@ -322,6 +327,7 @@ export function Shell() {
     const member = session.status === "member"
     // An EVM network: its own connect flow, and no live activity (that reads a Gno indexer).
     const onEvm = EVM_ENABLED && session.network.family === "evm"
+    const freePlayRuntime = useArcadeFreePlayRuntime({ session, locked, onEvm, configuration: freePlayConfiguration })
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
@@ -501,12 +507,14 @@ export function Shell() {
                 onHide={() => win.minimise(radioWindow.id)} onStop={() => win.close(radioWindow.id)} /></Suspense>}
         <LiveActivityProvider networkKey={session.network.key} active={!onEvm && !locked && (!phone || front?.app === "live")}>
         <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <FreePlayRuntimeProvider value={freePlayRuntime}>
             <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
             <MeetStageContext.Provider value={setMeetSlot}>
             <NotesStageProvider>
             {phone ? <>
                 <PhoneShell locked={modalBlocked} session={session} front={front} wins={windowWins} items={deskItems.items} noteLabels={deskItems.noteLabels} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher} sheetReset={sheetReset}
+                    play={arcadeLaunch.play} launchFor={arcadeLaunch.launchFor} consumeLaunch={arcadeLaunch.consume} returnToArcade={arcadeLaunch.returnToArcade}
                     home={(id) => {
                         // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
                         // minimising all sheets then rewrites this new entry to /os.
@@ -537,7 +545,8 @@ export function Shell() {
                     </div>
                 )}
                 {windowWins.filter((w) => !w.min || w.key.startsWith("game:")).map((w) => (
-                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                    <WindowFrame key={w.id} win={w} active={!modalBlocked && !w.min && w.id === front?.id} parked={w.min} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast}
+                        play={arcadeLaunch.play} launch={arcadeLaunch.launchFor(w)} onLaunchConsumed={(id) => arcadeLaunch.consume(w.id, id)} returnToArcade={() => arcadeLaunch.returnToArcade(w.id)} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} family={session.network.family} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
@@ -558,6 +567,7 @@ export function Shell() {
             </NotesStageProvider>
             </MeetStageContext.Provider>
             </div>
+            </FreePlayRuntimeProvider>
             <CommunityNewsPrompt enabled={!phone && !modalBlocked && !booting && session.status !== "resuming" && !meetStage && !win.wins.some((w) => w.app === "radio" && !w.min)} openNews={() => openApp("news")} />
             {shared}
         </SignerProvider>

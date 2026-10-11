@@ -165,3 +165,10 @@ describe("GameOverScreen sharing", () => {
     expect(screen.getByText(/82% accuracy/)).toBeInTheDocument();
   });
 });
+
+
+it("labels an unsuccessful completed check without promising pending work", () => {
+  render(<GameOverScreen {...props({ mode: "free", day: "", verification: { day: "", verified: false } })} />);
+  expect(screen.getByText(/free play · replay not verified/i)).toBeInTheDocument();
+  expect(screen.queryByText(/pending|confirmed onchain/i)).not.toBeInTheDocument();
+});

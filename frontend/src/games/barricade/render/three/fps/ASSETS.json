@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "createdFor": "Memba Barricade FPS C2",
+  "license": "MIT",
+  "licenseFile": "../../../../../../../LICENSE",
+  "externalAssets": [],
+  "assets": [
+    { "id": "street-kit", "source": "art.ts:streetKit", "origin": "Original procedural geometry", "description": "French facades, roof slopes, windows, shutters, balconies, cafe canopy, lamps and barricade; metre units" },
+    { "id": "crs-robot", "source": "art.ts:actorKit", "origin": "Original procedural geometry and articulation", "description": "Fixed hull/sensor alignment; decorative limbs pose independently of simulation" },
+    { "id": "viewmodel", "source": "art.ts:weaponKit", "origin": "Original procedural geometry", "description": "Fictional unbranded weapon and gloved hands" },
+    { "id": "surface-noise", "source": "Batches.tsx:surfacePixels", "origin": "Original deterministic texture recipe", "description": "64x64 RGBA stone, asphalt, wood and cloth grain; generated in memory, no image download" },
+    { "id": "impacts", "source": "FpsScene.tsx", "origin": "Original procedural geometry", "description": "Cool blocked-hit ring, amber damage marker and local viewmodel muzzle flash" }
+  ],
+  "externalAssetPolicy": "Before introducing an external asset, record exact source URL, author, license/version, acquisition date, file checksum and attribution obligations. No external assets are used in this revision."
+}

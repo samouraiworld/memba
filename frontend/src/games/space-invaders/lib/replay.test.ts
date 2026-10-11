@@ -58,3 +58,11 @@ describe("input recorder", () => {
     expect(inputAtTick(log, 0)).toEqual(idle);
   });
 });
+
+
+it("bounds recorded changes while retaining the caller's overflow marker", () => {
+  const rec = createInputRecorder(42, 4);
+  for (let tick = 0; tick < 100; tick++) rec.record(tick, { move: tick % 2 ? 1 : -1, fire: false, pause: false });
+  expect(rec.build(100).inputs).toHaveLength(4);
+  expect(rec.build(100).inputs[3].tick).toBe(3);
+});

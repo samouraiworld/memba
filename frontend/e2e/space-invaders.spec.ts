@@ -24,7 +24,7 @@ test.describe('Space Invaders', () => {
 		await page.setViewportSize({ width: 1280, height: 800 })
 	})
 
-	test('renders the Space Invaders cabinet and starts a daily run from the focused surface', async ({ page }) => {
+	test('starts a daily run in one click and retains keyboard pause controls', async ({ page }) => {
 		const network = await resolveNetwork(page)
 
 		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })
@@ -33,20 +33,11 @@ test.describe('Space Invaders', () => {
 		await expect(page.getByRole('heading', { name: 'Space Invaders' })).toBeVisible({ timeout: 10_000 })
 		await expect(page.getByLabel(/space invaders play area/i)).toBeVisible()
 
-		// Daily is the primary entry. Selecting it arms the deterministic run and
-		// moves focus to the keyboard-owned surface without starting simulation.
 		await page.getByRole('button', { name: /daily run/i }).click()
 		const surface = page.getByRole('group', { name: /signal defense game surface/i })
 		await expect(surface).toBeFocused()
-		const readyPrompt = page.getByRole('heading', { name: /relay standing by/i })
-		await expect(readyPrompt).toBeVisible()
-
-		// Hold Space long enough for the rAF loop to sample the held key.
-		await page.keyboard.press('Space', { delay: 150 })
-
-		// First input starts the run: the armed overlay clears and status updates.
-		await expect(readyPrompt).toBeHidden({ timeout: 10_000 })
-		await expect(page.getByText(/relay online/i).first()).toBeVisible()
+		await expect(page.locator('.si-phase--playing')).toContainText('Daily')
+		await expect(page.getByRole('heading', { name: /relay standing by/i })).toHaveCount(0)
 
 		// Keyboard pause moves focus to the Resume action; activating it returns
 		// control to the game surface for movement and fire.
@@ -62,7 +53,7 @@ test.describe('Space Invaders', () => {
 		await expect(page.getByText(/relay online/i).first()).toBeVisible()
 	})
 
-	test('Enter launches, Esc holds and resumes, and a six-digit best fits the HUD', async ({ page }) => {
+	test('Free play launches directly, Esc pauses and resumes, and a six-digit best fits', async ({ page }) => {
 		await page.addInitScript(() => localStorage.setItem('memba.space-invaders.best', '999999'))
 		const network = await resolveNetwork(page)
 		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })
@@ -75,12 +66,8 @@ test.describe('Space Invaders', () => {
 		await page.getByRole('button', { name: /free play/i }).click()
 		const surface = page.getByRole('group', { name: /signal defense game surface/i })
 		await expect(surface).toBeFocused()
-		const readyPrompt = page.getByRole('heading', { name: /relay standing by/i })
-		await expect(readyPrompt).toBeVisible()
-
-		await surface.press('Enter')
-		await expect(readyPrompt).toBeHidden({ timeout: 10_000 })
-		await expect(page.getByTestId('si-wave-banner')).toContainText(/wave 1/i)
+		await expect(page.locator('.si-phase--playing')).toContainText('Free play')
+		await expect(page.getByRole('heading', { name: /relay standing by/i })).toHaveCount(0)
 
 		await surface.press('Escape')
 		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeVisible()

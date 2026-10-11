@@ -1,0 +1,50 @@
+[
+  {
+    "name": "won-repair",
+    "target": {
+      "chainId": "gnoland-1",
+      "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+    },
+    "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+    "input": {
+      "clientRunId": "d22adcc5-32d3-4fe3-85ec-4cb545ca070a",
+      "game": "barricade",
+      "rules": "barricade-fps-c1",
+      "simVersion": 3,
+      "seed": "fps-c1-preview",
+      "replayCodec": "barricade-fps-inputs-v1",
+      "replay": "[5477,[[2000,\"F\",4402,0,-8979],[2009,\"F\",4405,0,-8978],[2018,\"F\",-4514,-304,-8918],[2027,\"F\",0,0,-10000],[2036,\"F\",0,0,-10000],[2045,\"F\",4417,-211,-8969],[2046,\"P\"],[2046,\"C\"],[2054,\"F\",0,0,-10000],[2063,\"F\",0,0,-10000],[2226,\"F\",4304,-103,-9026],[2406,\"F\",-4252,0,-9051],[2415,\"F\",-4252,0,-9051],[2586,\"F\",0,-114,-9999],[2766,\"F\",4252,0,-9051],[2775,\"F\",4252,0,-9051],[2946,\"F\",-4304,-103,-9026],[3126,\"F\",0,0,-10000],[3135,\"F\",0,0,-10000],[3306,\"F\",4304,-103,-9026],[3307,\"R\"],[3486,\"F\",-4252,0,-9051],[3495,\"F\",-4252,0,-9051],[3496,\"C\"],[3504,\"F\",4252,0,-9051],[3513,\"F\",4253,0,-9051],[3676,\"F\",-4304,-103,-9026],[3856,\"F\",0,0,-10000],[3865,\"F\",0,0,-10000],[4036,\"F\",4304,-103,-9026],[4216,\"F\",-4252,0,-9051],[4225,\"F\",-4252,0,-9051],[4396,\"F\",0,-114,-9999],[4576,\"F\",4252,0,-9051],[4585,\"F\",4252,0,-9051],[4756,\"F\",-4304,-103,-9026],[4757,\"R\"],[4936,\"F\",0,0,-10000],[4945,\"F\",0,0,-10000],[5116,\"F\",4304,-103,-9026],[5296,\"F\",-4252,0,-9051],[5305,\"F\",-4252,0,-9051],[5476,\"F\",0,-114,-9999]]]",
+      "finishReason": "won",
+      "claimedScore": 4050
+    },
+    "score": 4050,
+    "runID": "f5b76984349603edd4b818d4e4801ae679aba191bc83058e9b01be2e88a68294",
+    "stateHash": "1dd44daa51989fa2b4ae12dae75d811dc502010e51cd459968c9b9e3651927a7",
+    "replayHash": "a42b70bcae5d53710c842b1c685ea07e0ff9398dbe6a6eeb41a9f61a2f12cc57",
+    "payloadHash": "77770ac0be5ab4034860eddb9d26865774bfd93a9e7a4aa18cd8f2199f8aaa2a"
+  },
+  {
+    "name": "lost-unattended",
+    "target": {
+      "chainId": "gnoland-1",
+      "realm": "gno.land/r/samcrew/memba_arcade_scores_v2"
+    },
+    "player": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+    "input": {
+      "clientRunId": "7c2a410e-fd50-4e44-9065-8c20b2d9b720",
+      "game": "barricade",
+      "rules": "barricade-fps-c1",
+      "simVersion": 3,
+      "seed": "fps-c2-fixture",
+      "replayCodec": "barricade-fps-inputs-v1",
+      "replay": "[5465,[]]",
+      "finishReason": "lost",
+      "claimedScore": 200
+    },
+    "score": 200,
+    "runID": "58407e04aa1d663b6a5a73170ca277347e1ce1c5c4ac23ce7f9500085df2c062",
+    "stateHash": "a86d00db98889196173b78b7591957b01067c62eab0863c4e5c213b9c1fd6df9",
+    "replayHash": "4287c055af26fc5347b2d63189b6d594994b4ef6df045434baf5fe98f5154570",
+    "payloadHash": "a7cdad02cff46b2e327827b781cd35e6e7c730db0213cf8b78e186fb6efc1aad"
+  }
+]

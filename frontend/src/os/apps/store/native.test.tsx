@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { NativeViewProps } from "../../native/types"
 import type { AppListing } from "../../../lib/appStore"
 import type { ReviewAct } from "../../../components/reviews/ReviewCard"
 import type { SignRequest } from "../../sign/signer"
@@ -63,10 +64,10 @@ const listing = (over: Partial<AppListing>): AppListing => ({
     publisher: "", status: "live", flagCount: 0, createdAt: 0, ...over,
 })
 
-function show(section = "apps/r/samcrew/app", session = guest) {
+function show(section = "apps/r/samcrew/app", session = guest, actions: Partial<Pick<NativeViewProps, "open" | "play">> = {}) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(<QueryClientProvider client={client}><SignerContext.Provider value={signer}>
-        <StoreWindow section={section} session={session} open={vi.fn()} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} />
+        <StoreWindow section={section} session={session} open={vi.fn()} openApp={vi.fn()} close={vi.fn()} toast={vi.fn()} fallback={null} {...actions} />
     </SignerContext.Provider></QueryClientProvider>)
 }
 
@@ -685,5 +686,46 @@ describe("Store: discover home", () => {
     it("shows the committed logo for a curated app", () => {
         home("q=adena")
         expect(screen.getByRole("button", { name: "Details for Adena" }).querySelector("img")).toHaveAttribute("src", "/store/adena/logo.svg")
+    })
+})
+
+
+describe("Store game launch boundary", () => {
+    it("launches a playable internal Space Invaders link through the host", async () => {
+        const play = vi.fn(), open = vi.fn()
+        mocks.fetchAppStrict.mockResolvedValue(listing({ appURL: "/game/space-invaders" }))
+        show(undefined, guest, { play, open })
+        fireEvent.click(await screen.findByRole("button", { name: "Open in Memba OS" }))
+        expect(play).toHaveBeenCalledWith(expect.objectContaining({ key: "game:space-invaders" }))
+        expect(open).not.toHaveBeenCalled()
+    })
+
+    it.each(["/game/connect4", "/game/connect4/12"])("keeps %s on ordinary open", async (appURL) => {
+        const play = vi.fn(), open = vi.fn()
+        mocks.fetchAppStrict.mockResolvedValue(listing({ appURL }))
+        show(undefined, guest, { play, open })
+        fireEvent.click(await screen.findByRole("button", { name: "Open in Memba OS" }))
+        expect(play).not.toHaveBeenCalled()
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "game:connect4" }))
+    })
+
+    it("does not enqueue a disabled game's command", async () => {
+        mocks.space = false
+        const play = vi.fn(), open = vi.fn()
+        mocks.fetchAppStrict.mockResolvedValue(listing({ appURL: "/game/space-invaders" }))
+        show(undefined, guest, { play, open })
+        fireEvent.click(await screen.findByRole("button", { name: "Open in Memba OS" }))
+        expect(play).not.toHaveBeenCalled()
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "game:space-invaders" }))
+    })
+
+    it("keeps external destinations as links without a host launch", async () => {
+        const play = vi.fn()
+        mocks.fetchAppStrict.mockResolvedValue(listing({ appURL: "https://gnogolf.xyz/" }))
+        show(undefined, guest, { play })
+        const link = await screen.findByRole("link", { name: "Open external site ↗" })
+        expect(link).toHaveAttribute("href", "https://gnogolf.xyz/")
+        expect(link).toHaveAttribute("rel", "noopener noreferrer")
+        expect(play).not.toHaveBeenCalled()
     })
 })

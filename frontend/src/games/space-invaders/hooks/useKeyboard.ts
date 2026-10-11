@@ -114,14 +114,20 @@ export function useKeyboard(scopeRef?: RefObject<HTMLElement | null>, options?: 
       const action = keyAction(e.key);
       if (action === "left" || action === "right" || action === "fire") keys[action].delete(e.key.toLowerCase());
     };
+    const focusOut = (e: FocusEvent) => {
+      const scope = scopeRef?.current;
+      if (scope && (!(e.relatedTarget instanceof Node) || !scope.contains(e.relatedTarget) || isInteractiveTarget(e.relatedTarget))) reset();
+    };
     const visibility = () => {
       if (document.visibilityState !== "visible") reset();
     };
+    window.addEventListener("focusout", focusOut);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", reset);
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      window.removeEventListener("focusout", focusOut);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", reset);

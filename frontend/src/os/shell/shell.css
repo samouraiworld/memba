@@ -170,6 +170,9 @@
 .memba-os .os-win.os-inactive .os-tb { opacity: .65; }
 .memba-os .os-tb { height: 38px; flex: none; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--os-line); position: relative; }
 .memba-os .os-tb-title { position: absolute; left: 80px; right: 80px; text-align: center; font-size: 12.5px; font-weight: 800; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Keep the title outside the return action hit area, including narrow windows. */
+.memba-os .os-tb-return { flex: none; margin-left: 12px; }
+.memba-os .os-tb-return + .os-tb-title { position: static; flex: 1; min-width: 0; margin-left: 8px; }
 .memba-os .os-tb { cursor: grab; touch-action: none; }
 .memba-os .os-tb:active { cursor: grabbing; }
 .memba-os .os-win.os-max .os-tb { cursor: default; }
