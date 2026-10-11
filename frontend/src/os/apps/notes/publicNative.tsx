@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import type { NativeViewProps } from '../../native/types'
 import { createDraftSession, createNotesStore, type NotesPartition } from '../../../lib/notes/drafts'
 import { NOTE_ID, NOTES_ENABLED, notesDeployment } from '../../../lib/notes/config'
@@ -6,10 +6,10 @@ import { NotesReadClient } from '../../../lib/notes/chain/client'
 import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import { PublicLibrary } from './PublicLibrary'
 import { PublicNote } from './PublicNote'
-import { PublicCommentPanel } from './PublicCommentPanel'
 import { PublicAuthoring } from './PublicAuthoring'
 import { PublicOperationStatus } from './PublicOperationStatus'
-import { PublicHistory } from './PublicHistory'
+import { NoteSharePopover } from './NoteSharePopover'
+import { NoteSidePanel } from './NoteSidePanel'
 import { NoteDeskButton } from './NoteDeskButton'
 import { DraftEditor } from './DraftEditor'
 import { NotesList } from './NotesList'
@@ -135,27 +135,40 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
             {exploring && <PublicLibrary client={reader} filter={query} onOpen={open} />}
             {!exploring && !selected && <p className="os-notes-welcome" role="status">Preparing a new note…</p>}
             {/* Keyed by note: hidden panes keep their text; a pane unmounts only once nothing in it is unsaved. */}
-            {panes.map(id => <div key={id} className="os-notes-pane" hidden={exploring || id !== selected}>
+            {panes.map(id => <PaneFrame key={id} hidden={exploring || id !== selected}>{side => <>
                 <div className="os-notes-desk-action"><NoteDeskButton noteId={id} /></div>
                 <NotePane client={reader} partition={partition} noteId={id} owner={owner} focusTitle={active && focusNote === id}
-                    hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} />
-            </div>)}
+                    hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} side={side} />
+            </>}</PaneFrame>)}
         </section>
     </div>
 }
-type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean
+/**
+ * One note's pane: the note, and beside it the slot its History and Comments panel renders into.
+ * The slot exists from the first render, so the pane context never changes identity for it.
+ */
+function PaneFrame({ hidden, children }: { hidden: boolean; children(side: HTMLElement): ReactNode }) {
+    const [side] = useState(() => Object.assign(document.createElement('div'), { className: 'os-notes-pane-side' }))
+    const host = useCallback((element: HTMLDivElement | null) => { if (element && side.parentNode !== element) element.append(side) }, [side])
+    return <div className="os-notes-pane" hidden={hidden}>
+        <div className="os-notes-pane-note">{children(side)}</div>
+        <div className="os-notes-pane-side-host" ref={host} />
+    </div>
+}
+type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean; side: HTMLElement
     hold(note: string, source: string, unsaved: boolean): void; saved(bump: (value: number) => number): void; removed(note: string, published: boolean): void; titleFocused(value: null): void }
-function NotePane({ client, partition, noteId, owner, focusTitle, hold, saved, removed, titleFocused }: PaneProps) {
+function NotePane({ client, partition, noteId, owner, focusTitle, side, hold, saved, removed, titleFocused }: PaneProps) {
     const scope = useMemo(() => ({ ...partition, noteId }), [partition, noteId])
     const pane = useMemo<NotesPane>(() => ({
         hold: (source, unsaved) => hold(noteId, source, unsaved), saved: () => saved(value => value + 1),
-        deleted: published => removed(noteId, published), focusTitle, titleFocused: () => titleFocused(null),
-    }), [noteId, focusTitle, hold, saved, removed, titleFocused])
+        deleted: published => removed(noteId, published), focusTitle, titleFocused: () => titleFocused(null), side,
+    }), [noteId, focusTitle, side, hold, saved, removed, titleFocused])
     // Guests write local drafts too; a note without one opens in the public reader.
     return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} />
         : <DraftEditor store={store} scope={scope} onSaved={noop} remote={<PublicNote id={noteId} client={client} owner={null}
-            encrypted={() => <section className="os-notes-welcome"><h1>Encrypted note</h1><p>Encrypted notes are not available in this public view.</p></section>}>
-            {(note, _refresh, previewRoot) => note.mode >= 3 && <><PublicCommentPanel note={note} client={client} owner={null} store={store} previewRoot={previewRoot} /><PublicHistory noteId={noteId} client={client} /></>}
+            encrypted={() => <section className="os-notes-welcome"><h1>Encrypted note</h1><p>Encrypted notes are not available in this public view.</p></section>}
+            editAction={note => <NoteSharePopover note={note} client={client} store={store} owner={null} onChanged={noop} />}>
+            {(note, _refresh, previewRoot) => note.mode >= 3 && <NoteSidePanel note={note} client={client} owner={null} store={store} previewRoot={previewRoot} />}
         </PublicNote>} />}</NotesPaneContext.Provider>
 }
 const noop = () => {}

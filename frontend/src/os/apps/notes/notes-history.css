@@ -5,3 +5,104 @@
 .os-notes-history pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; max-height: 28rem; overflow: auto; }
 .os-notes-history-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
 .os-notes-history-comparison article { min-width: 0; border: 1px solid currentColor; border-radius: .5rem; padding: 1rem; }
+
+/* ── The note pane: the note, and its History | Comments panel on the right ── */
+.os-notes-app .os-notes-pane:not([hidden]) { display:flex; gap:24px; align-items:flex-start; min-height:0; }
+.os-notes-app .os-notes-pane-note { flex:1; min-width:0; display:flex; flex-direction:column; }
+.os-notes-app .os-notes-pane-side-host { display:contents; }
+.os-notes-app .os-notes-pane-side { flex:none; width:clamp(260px, 34%, 360px); position:sticky; top:0; height:max(320px, calc(100cqh - 8px)); display:flex; }
+.os-notes-app .os-notes-pane-side:empty { display:none; }
+
+.os-notes-side { --os-notes-sheet:0; display:flex; flex-direction:column; width:100%; min-height:0; background:var(--os-opaque); color:var(--os-ink); border:1px solid var(--os-line); border-radius:var(--os-radius-win); overflow:hidden; }
+.os-notes-side[hidden], .os-notes-side-body[hidden] { display:none; }
+.os-notes-side .os-notes-side-back.os-btn { display:none; }
+.os-notes-side-tabs { display:flex; flex:none; border-bottom:1px solid var(--os-line); }
+.os-notes-side-tabs [role="tab"] { flex:1; height:44px; padding:0 8px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--os-mut); font:700 13.5px var(--os-font); cursor:pointer; }
+.os-notes-side-tabs [role="tab"][aria-selected="true"] { color:var(--os-ink); border-bottom-color:var(--os-acc); }
+.os-notes-side-tabs [role="tab"]:focus-visible { outline:2px solid var(--os-acc); outline-offset:-2px; }
+.os-notes-side-body { flex:1; min-height:0; overflow:auto; padding:4px 16px 16px; }
+.os-notes-side-body:has(> .os-notes-comment-panel) { display:flex; flex-direction:column; overflow:hidden; padding:0; }
+.os-notes-side-body[hidden]:has(> .os-notes-comment-panel) { display:none; }
+/* The tab names the section: section titles stay for screen readers only. */
+.os-notes-side .os-notes-history > header, .os-notes-side .os-notes-comments > header { justify-content:flex-end; }
+.os-notes-side .os-notes-history > header h2, .os-notes-side .os-notes-comments > header h2 { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.os-notes-side p { overflow-wrap:anywhere; }
+
+/* ── History timeline ── */
+.os-notes-history .os-notes-timeline { list-style:none; margin:0; padding:0; }
+.os-notes-timeline > li { position:relative; display:grid; grid-template-columns:18px minmax(0, 1fr); gap:10px; margin:0; padding:10px 0; }
+.os-notes-timeline > li::before { content:""; position:absolute; left:8px; top:24px; bottom:-6px; width:2px; background:var(--os-line); }
+.os-notes-timeline > li:last-child::before { display:none; }
+.os-notes-timeline-dot { width:10px; height:10px; margin:5px auto 0; border-radius:50%; background:var(--os-acc); }
+.os-notes-timeline > li[data-kind="comment"] .os-notes-timeline-dot { background:var(--os-mut); }
+.os-notes-timeline strong { font-size:13.5px; }
+.os-notes-timeline p { margin:2px 0 0; font-size:12.5px; color:var(--os-mut); }
+.os-notes-timeline-actions, .os-notes-timeline-pages { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.os-notes-timeline-actions .os-btn, .os-notes-timeline-pages .os-btn { height:30px; padding:0 10px; font-size:12.5px; }
+.os-notes-history-note { font-size:12px; color:var(--os-mut); }
+
+/* ── Comments: the list scrolls, the composer stays at the bottom ── */
+.os-notes-comment-panel { display:flex; flex-direction:column; flex:1; min-height:0; }
+.os-notes-comment-list { flex:1; min-height:0; overflow:auto; padding:4px 16px 12px; }
+.os-notes-side .os-notes-comments { border-top:0; margin-top:0; padding-top:0; }
+.os-notes-comments ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.os-notes-public .os-notes-side .os-notes-comments li { padding:0; border:0; }
+.os-notes-comment { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:12px; background:var(--os-card); box-shadow:0 0 0 1px var(--os-line); font-size:14px; line-height:1.5; }
+.os-notes-comment > header { font-size:12.5px; color:var(--os-mut); }
+.os-notes-comment > header strong { color:var(--os-ink); }
+.os-notes-comment p { margin:0; }
+.os-notes-anchor { margin:0; }
+.os-notes-anchor blockquote { margin:0; padding:6px 8px; border-radius:6px; background:var(--os-hover); color:var(--os-ink); font-size:12.5px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.os-notes-anchor figcaption { font-size:12px; color:var(--os-mut); }
+.os-notes-composer { flex:none; display:flex; flex-direction:column; gap:8px; padding:12px 16px 14px; border-top:1px solid var(--os-line); background:var(--os-opaque); }
+.os-notes-composer-hint { margin:0; font-size:12.5px; color:var(--os-mut); }
+.os-notes-public .os-notes-composer textarea { min-height:64px; border-radius:var(--os-radius-ctl); font:14px/1.5 var(--os-font); resize:none; }
+.os-notes-composer-foot { display:flex; align-items:center; gap:10px; }
+.os-notes-cost { flex:1; margin:0; font-size:12px; color:var(--os-mut); }
+.os-notes-cost b { color:var(--os-ink); }
+.os-notes-cost small { display:block; font-size:11.5px; }
+
+/* ── Share menu ── */
+.os-notes-share { position:relative; display:inline-flex; }
+.os-notes-share-pop { position:absolute; right:0; top:calc(100% + 8px); z-index:20; width:min(420px, calc(100cqw - 32px)); box-sizing:border-box; display:flex; flex-direction:column; gap:16px; padding:18px 20px;
+    background:var(--os-opaque); color:var(--os-ink); border-radius:var(--os-radius-win); box-shadow:0 24px 60px -16px var(--os-shadow), 0 0 0 1px var(--os-line); text-align:left; font-size:14px; }
+.os-notes-share-pop[hidden] { display:none; }
+.os-notes-share-pop:focus { outline:none; }
+.os-notes-share-k { margin:0 0 6px; padding:0; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--os-mut); }
+.os-notes-share-part p { margin:0; }
+.os-notes-share-note { font-size:12.5px; color:var(--os-mut); }
+.os-notes-share-link { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+.os-notes-share-link code { flex:1; min-width:0; padding:9px 10px; border-radius:8px; background:var(--os-hover); font:12.5px var(--os-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.os-notes-share-options { display:flex; flex-direction:column; gap:4px; min-width:0; margin:0; padding:0; border:0; }
+.os-notes-share-option { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:var(--os-radius-ctl); line-height:1.4; cursor:pointer; }
+.os-notes-share-option:has(input:checked) { background:var(--os-chip); box-shadow:inset 0 0 0 1.5px var(--os-acc); }
+.os-notes-share-option small { display:block; font-size:12.5px; color:var(--os-mut); }
+.os-notes-share-option input { margin-top:3px; accent-color:var(--os-acc); }
+.os-notes-share-foot { display:flex; flex-direction:column; gap:10px; margin-top:12px; padding-top:14px; border-top:1px solid var(--os-line); }
+.os-notes-share-actions { display:flex; justify-content:flex-end; gap:8px; }
+.os-notes-share-progress, .os-notes-share-done { display:flex; align-items:center; gap:8px; margin:10px 0 0; font-size:13px; }
+.os-notes-share-done { color:var(--os-ok); font-weight:700; }
+.os-notes-share-done svg { flex:none; animation:os-notes-check .35s ease-out both; }
+@keyframes os-notes-check { from { transform:scale(.4); opacity:0; } to { transform:scale(1); opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .os-notes-share-done svg { animation:none; } }
+
+/*
+ * A narrow note column (a small window, a phone): the tabs stay at the bottom of the note column and
+ * open a sheet with Back that fills the visible column; it stays in the column's flow (sticky), so it
+ * follows the note's scrolling and never covers the list or the window frame.
+ */
+@container (max-width: 720px) {
+    .os-notes-app .os-notes-pane:not([hidden]) { flex-direction:column; align-items:stretch; gap:0; }
+    .os-notes-app .os-notes-pane-side { width:auto; height:auto; top:auto; bottom:0; z-index:5; }
+    /* The note column scrolls with its padding (16px above, 24px below): the sheet fills all of it. */
+    .os-notes-app .os-notes-pane-side:has(> .os-notes-side[data-sheet]) { top:0; height:max(360px, calc(100cqh + 32px)); }
+    /* Read by the panel: a tab opens the sheet only in this layout. */
+    .os-notes-side { --os-notes-sheet:1; border-width:1px 0 0; border-radius:0; }
+    .os-notes-side:not([data-sheet]) .os-notes-side-body { display:none; }
+    .os-notes-side[data-sheet] { border-width:1px; border-radius:var(--os-radius-win); }
+    .os-notes-side[data-sheet] .os-notes-side-back.os-btn { display:inline-flex; align-self:flex-start; min-height:44px; margin:8px 8px 0; }
+    .os-notes-side-tabs [role="tab"] { height:48px; }
+}
+@container notes-app (max-width: 640px) {
+    .os-notes-share-pop { position:fixed; left:16px; right:16px; top:56px; width:auto; max-height:calc(100% - 72px); overflow:auto; }
+}

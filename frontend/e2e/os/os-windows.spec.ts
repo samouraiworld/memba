@@ -219,7 +219,7 @@ test.describe('Memba OS desktop items', () => {
         await page.goto(`${OS_ON}/os/feed`)
         await settled(page, 'Feed')
         await page.mouse.click(1200, 650, { button: 'right' }) // empty desk, right of the window
-        await page.getByRole('menuitem', { name: 'Show desktop' }).click()
+        await page.getByRole('menuitem', { name: 'Show Desktop' }).click()
         await expect(page.locator('.os-win')).toHaveCount(0)
     })
 })

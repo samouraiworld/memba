@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { notesDeployment } from "../../lib/notes/config"
 import { getRpcUrlsInOrder } from "../../lib/rpcFallback"
-import { readNoteShortcuts, shortcutFromChain, writeNoteShortcuts, type NoteShortcut } from "./noteShortcuts"
+import { forgetNoteShortcut, readNoteShortcuts, shortcutFromChain, writeNoteShortcuts, type NoteShortcut } from "./noteShortcuts"
 
 type Options = { chainId: string; owner: string | null | undefined; ids: readonly string[]; enabled: boolean }
 
@@ -48,7 +48,24 @@ export function useNoteShortcuts({ chainId, owner, ids, enabled }: Options) {
         })()
         return () => { alive = false }
     }, [enabled, chainId, owner, scope, idsKey])
-    return useMemo(() => {
+    // A removed shortcut's facts are dropped at once, and again once the desk confirms the removal:
+    // a featured desk confirms asynchronously, and a read in flight may have cached the title meanwhile.
+    const leaving = useRef({ scope, ids: new Set<string>() })
+    const forget = useCallback((id: string) => {
+        if (owner === undefined) return
+        forgetNoteShortcut(chainId, owner, id)
+        if (leaving.current.scope !== scope) leaving.current = { scope, ids: new Set() }
+        leaving.current.ids.add(id)
+    }, [chainId, owner, scope])
+    useEffect(() => {
+        if (owner === undefined || leaving.current.scope !== scope || !leaving.current.ids.size) return
+        const shown = new Set(idsKey ? idsKey.split(",") : [])
+        for (const id of [...leaving.current.ids]) {
+            if (shown.has(id)) continue
+            forgetNoteShortcut(chainId, owner, id); leaving.current.ids.delete(id)
+        }
+    }, [chainId, owner, scope, idsKey])
+    const shortcuts = useMemo(() => {
         const facts: Readonly<Record<string, NoteShortcut>> = state.scope === scope ? state.facts : {}
         const labels: Record<string, string> = {}
         const privateNotes = new Set<string>()
@@ -59,4 +76,5 @@ export function useNoteShortcuts({ chainId, owner, ids, enabled }: Options) {
         }
         return { labels, privateNotes: privateNotes as ReadonlySet<string> }
     }, [state, scope, idsKey])
+    return useMemo(() => ({ ...shortcuts, forget }), [shortcuts, forget])
 }

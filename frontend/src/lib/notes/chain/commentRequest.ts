@@ -11,6 +11,7 @@ import { readPublicComment, type PublicComment } from './comments'
 import { notesRequestDigest, type NotesQuote, type NotesQuoteProvider } from './request'
 import { check, decimal, NOTES_REALM, NotesChainError, type ChainNote } from './schema'
 import { readPublicWritePermission } from './publicPermissions'
+import { gnotAmount } from './quote'
 
 type Client = Pick<NotesReadClient, 'chainId' | 'assertCurrent' | 'note' | 'noteMetadata' | 'writersRaw' | 'config' | 'height' | 'getCommentRaw'>
 export interface CommentRequestOptions {
@@ -89,11 +90,14 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     : op.action.kind === 'hide' ? [['Visibility after confirmation', op.action.hidden ? 'Hidden' : 'Visible']] : []
   return {
     title: label, summary: label, label: () => label,
-    lines: () => [['Account', op.caller], ['Network', client.chainId], ['Note', op.noteId], ['Comment', op.commentId], ['Operation', op.operationId], ...targetState,
-      [quote.source === 'simulation' ? 'Simulated deposit (ugnot)' : 'Estimated deposit (ugnot)', quote.estimatedDepositUgnot], ['Maximum deposit (ugnot)', cap], ['Network fee (ugnot)', String(quote.networkFeeUgnot)],
-      ...(op.action.kind === 'add' ? [['Body revision', op.action.bodyRevision], ['Quoted passage', op.action.anchor || '(none)'], ['Comment text', op.action.body]] as [string, string][] : [])],
+    // One confirmation: what is posted and what it costs; identifiers and the raw call are folded away.
+    lines: () => [
+      ...(op.action.kind === 'add' ? [['Comment', op.action.body], ...(op.action.anchor ? [['Quote', op.action.anchor]] : []), ['On revision', op.action.bodyRevision]] as [string, string][] : []),
+      ...targetState,
+      [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Expected storage deposit', gnotAmount(quote.estimatedDepositUgnot)], ['Maximum storage deposit', gnotAmount(cap)], ['Network fee', gnotAmount(quote.networkFeeUgnot)]],
+    technical: () => [['Account', op.caller], ['Network', client.chainId], ['Note', op.noteId], ['Comment ID', op.commentId], ['Operation', op.operationId]],
     warns: ['Public comments and earlier versions remain in chain history.'],
-    ...(op.action.kind === 'add' ? { acks: ['I have reviewed the comment and its quoted passage.', 'I understand this comment is public and remains in chain history.'], note: 'The quoted passage belongs to its recorded body revision. One comment per account per note every 10 blocks.' } : {}),
+    ...(op.action.kind === 'add' ? { note: 'One comment per account per note every 10 blocks.' } : {}),
     prepare: () => ({ msgs: [structuredClone(message)] }), recheck,
     send: async (_choice, beforeSign) => {
       allowed(); if (started) throw new NotesChainError('stale'); started = true

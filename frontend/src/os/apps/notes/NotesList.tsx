@@ -5,7 +5,7 @@ import type { DraftRecord, NotesPartition, NotesStore } from '../../../lib/notes
 import { formatRelativeTime } from '../../../lib/blockTime'
 
 type Client = Pick<NotesReadClient, 'byOwner'>
-type State = 'Draft' | 'Public' | 'Private'
+type State = 'Draft' | 'Public' | 'Private' | 'Unsaved'
 type Row = { id: string; title: string; state: State; meta: string }
 type Drafts = { items: DraftRecord[]; now: number; error: boolean }
 type Published = { client: Client; owner: string; version: number; items: ChainNote[]; cursor: string; loading: boolean; error: boolean }
@@ -15,7 +15,7 @@ function chainTitle(note: ChainNote): string {
     if (note.mode < 3) return 'Private note'
     try { return publicText(note.title, true) } catch { return 'Untitled note' }
 }
-function rows({ items, now }: Drafts, published: ChainNote[], unsaved: ReadonlySet<string>): Row[] {
+function rows({ items, now }: Drafts, published: ChainNote[], unsaved: ReadonlySet<string>, complete: boolean): Row[] {
     const onChain = new Map(published.map(note => [note.id, note]))
     // Most recent first; drafts saved in the same millisecond keep a stable order.
     const recent = [...items].sort((a, b) => b.updatedAt - a.updatedAt || (a.scope.noteId < b.scope.noteId ? -1 : 1))
@@ -29,7 +29,10 @@ function rows({ items, now }: Drafts, published: ChainNote[], unsaved: ReadonlyS
     })
     const drafted = new Set(local.map(row => row.id))
     const all = [...local, ...published.filter(note => !drafted.has(note.id)).map((note): Row => ({ id: note.id, title: chainTitle(note), state: note.mode >= 3 ? 'Public' : 'Private', meta: `Revision ${note.stateRevision}` }))]
-    return all.map(row => unsaved.has(row.id) ? { ...row, meta: `Unsaved changes · ${row.meta}` } : row)
+    // Unsent text on a note not listed here (a comment on someone else's note) stays one click away.
+    const listed = new Set(all.map(row => row.id))
+    const held = complete ? [...unsaved].filter(id => !listed.has(id)).map((id): Row => ({ id, title: 'Unsaved text', state: 'Unsaved', meta: 'A comment or edit not sent yet' })) : []
+    return [...held, ...all.map(row => unsaved.has(row.id) ? { ...row, meta: `Unsaved changes · ${row.meta}` } : row)]
 }
 
 /** "My notes": local drafts first, then the account's notes from the chain index. Encrypted titles are never decoded here. */
@@ -87,7 +90,7 @@ export function NotesList({ store, partition, client, owner, query, selected, un
         } finally { if (!controller.signal.aborted) busy.current = false }
     }
     const needle = query.trim().toLocaleLowerCase()
-    const all = rows(drafts, chain.items, new Set(unsaved)), shown = needle ? all.filter(row => row.title.toLocaleLowerCase().includes(needle)) : all
+    const all = rows(drafts, chain.items, new Set(unsaved), !chain.loading), shown = needle ? all.filter(row => row.title.toLocaleLowerCase().includes(needle)) : all
     return <>
         <ul className="os-notes-rows">{shown.map(row => <li key={row.id}>
             <button type="button" className="os-notes-row" aria-current={row.id === selected ? 'true' : undefined} onClick={() => onOpen(row.id)}>

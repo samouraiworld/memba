@@ -1,46 +1,76 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newNoteId } from '../../../lib/notes/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import type { HistoryAction, PublicHistoryEntry } from '../../../lib/notes/chain/history'
-import { check } from '../../../lib/notes/chain/schema'
+import type { HistoryAction, PublicHistoryPage } from '../../../lib/notes/chain/history'
+import type { PublicHistoryVersion } from '../../../lib/notes/chain/historyContent'
+import { readRestorableVersion } from '../../../lib/notes/chain/historyDraft'
+import { check, publicText } from '../../../lib/notes/chain/schema'
 import { readFresh, useNoteRefresh } from '../../../lib/notes/freshness'
 import { PublicHistoryCommentView, PublicHistoryVersions, useHistoryRead, type HistoryRestore } from './PublicHistoryContent'
+import { useBlockTimes } from './blockTimes'
 import './notes-history.css'
 
 export type { ArchivedPublicDraft } from './PublicHistoryContent'
-export type PublicHistoryProps = { noteId: string; client: NotesReadClient; onRestore?: HistoryRestore }
+export type PublicHistoryProps = { noteId: string; client: NotesReadClient; onRestore?: HistoryRestore; viewer?: string | null }
+type Item = PublicHistoryPage['items'][number]
+const PAGE = 20
 const actions: Record<HistoryAction, string> = {
-    create: 'Public note created', publish: 'Note made public', 'content-commit': 'Content updated', 'comment-mode': 'Comment permissions changed',
-    'public-writes': 'Community editing changed', 'writer-add': 'Writer added', 'writer-remove': 'Writer removed',
-    'owner-propose': 'Ownership proposed', 'owner-cancel': 'Ownership proposal cancelled', 'owner-accept': 'Ownership accepted',
-    'policy-set': 'Policy set', 'gov-writers': 'Governance writers changed', 'owner-listing': 'Public listing changed',
-    'listing-moderation': 'Listing moderated', 'note-delete': 'Note deleted', 'legacy-epoch-reveal': 'Earlier epoch revealed',
-    'comment-add': 'Comment added', 'comment-delete': 'Comment deleted', 'comment-visibility': 'Comment visibility changed',
-    'comment-resolution': 'Comment resolution changed', cleanup: 'Current storage cleaned up',
-    'content-redact': 'Content removed by moderation', 'comment-redact': 'Comment removed by moderation',
+    create: 'created', publish: 'made public', 'content-commit': 'edited', 'comment-mode': 'comment permissions changed',
+    'public-writes': 'community editing changed', 'writer-add': 'writer added', 'writer-remove': 'writer removed',
+    'owner-propose': 'ownership offered', 'owner-cancel': 'ownership offer cancelled', 'owner-accept': 'ownership accepted',
+    'policy-set': 'access policy set', 'gov-writers': 'governance writers changed', 'owner-listing': 'listing changed',
+    'listing-moderation': 'listing moderated', 'note-delete': 'deleted', 'legacy-epoch-reveal': 'earlier epoch revealed',
+    'comment-add': 'Comment added', 'comment-delete': 'Comment deleted', 'comment-visibility': 'Comment hidden or shown',
+    'comment-resolution': 'Comment thread resolved or reopened', cleanup: 'Old records cleaned up',
+    'content-redact': 'redacted by moderation', 'comment-redact': 'Comment removed by moderation',
 }
-/** Guest-readable and read-only; restoration delegates copied content, never a signature. */
+const COMMENT_EVENTS: readonly HistoryAction[] = ['comment-add', 'comment-delete', 'comment-visibility', 'comment-resolution', 'comment-redact', 'cleanup']
+/** Events whose recorded version is read to say what changed (title, body, editing, comments). */
+const DESCRIBED: readonly HistoryAction[] = ['content-commit', 'public-writes', 'comment-mode']
+/** Events that leave content worth reading again or restoring. */
+const CONTENT: readonly HistoryAction[] = ['create', 'publish', 'content-commit']
+const short = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
+
+/** What happened, in plain words: "Revision 5 · body edited". */
+function headline(item: Item, version: PublicHistoryVersion | undefined): string {
+    if (COMMENT_EVENTS.includes(item.action)) return actions[item.action]
+    const revision = `Revision ${item.stateRevision}`
+    if (item.action === 'content-commit' && version) {
+        const title = version.titleRevision === item.stateRevision, body = version.bodyRevision === item.stateRevision
+        return `${revision} · ${title && body ? 'title and body edited' : title ? 'renamed' : 'body edited'}`
+    }
+    if (item.action === 'public-writes' && version) return `${revision} · ${version.allowPublicWrites ? 'editing opened to everyone' : 'editing closed'}`
+    if (item.action === 'comment-mode' && version) return `${revision} · ${version.mode === 4 ? 'comments opened to everyone' : 'comments limited to editors'}`
+    return `${revision} · ${actions[item.action]}`
+}
+function renamedTo(item: Item, version: PublicHistoryVersion | undefined): string {
+    if (item.action !== 'content-commit' || !version?.title || version.titleRevision !== item.stateRevision) return ''
+    try { return publicText(version.title, true) } catch { return '' }
+}
+
+/** Guest-readable timeline, newest first; restoring copies archived content into a draft, never signs. */
 export function PublicHistory(props: PublicHistoryProps) {
     const { client, noteId } = props
     const lease = useMemo(() => ({ client, noteId, id: newNoteId() }), [client, noteId])
     return <HistorySession key={lease.id} {...props} />
 }
-function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
-    const [cursor, setCursor] = useState({ after: '0', through: '0', generation: 0 })
-    const [selected, setSelected] = useState<string | null>(null)
-    const [versions, setVersions] = useState<string[]>([])
+function HistorySession({ client, noteId, onRestore, viewer }: PublicHistoryProps) {
+    // `after` null: the newest page. Older pages keep the head they started from.
+    const [cursor, setCursor] = useState<{ after: string | null; through: string; generation: number }>({ after: null, through: '0', generation: 0 })
+    const [viewing, setViewing] = useState<string | null>(null)
     const { tick, minimum } = useNoteRefresh(client.chainId, noteId)
     const read = useCallback(async () => {
         client.assertCurrent()
         const info = await readFresh(() => client.publicHistoryInfo(noteId), value => value?.latestStateRevision ?? null, minimum(), () => true); client.assertCurrent()
-        if (info === undefined) return null
-        if (info === null) return null
-        const page = await client.publicHistory(noteId, cursor.after, cursor.through, 20)
+        if (!info) return null
+        const through = cursor.through === '0' ? info.headSeq : cursor.through
+        const after = cursor.after ?? (BigInt(through) > BigInt(PAGE) ? (BigInt(through) - BigInt(PAGE)).toString() : '0')
+        const page = await client.publicHistory(noteId, after, through, PAGE)
         client.assertCurrent(); check(page !== null)
-        return { info, page }
+        return { info, page, after }
     }, [client, noteId, cursor, minimum])
     const { state } = useHistoryRead(read), data = state.data
-    const reload = useCallback(() => { setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 })) }, [])
+    const reload = useCallback(() => { setViewing(null); setCursor(value => ({ after: null, through: '0', generation: value.generation + 1 })) }, [])
     // Confirmed changes and refocus re-check the history head; a new event reloads from the head.
     const head = useRef<string | null>(null)
     useEffect(() => { head.current = data ? data.info.headSeq : null }, [data])
@@ -50,75 +80,92 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
         // Only a newer head reloads: an announced revision makes a lagging answer wait, and an older head is ignored.
         void readFresh(() => client.publicHistoryInfo(noteId), value => value?.latestStateRevision ?? null, minimum(), () => alive)
             .then(info => { if (alive && info && (head.current === null || BigInt(info.headSeq) > BigInt(head.current))) reload() })
-            .catch(() => { /* The next check or Refresh history retries. */ })
+            .catch(() => { /* The next check or Refresh retries. */ })
         return () => { alive = false }
     }, [tick, client, noteId, minimum, reload])
-    function navigate(after: string) {
+    const items = useMemo(() => data ? [...data.page.items].reverse() : [], [data])
+    const versions = useVersions(client, noteId, items)
+    const when = useBlockTimes(client, items.map(item => item.height))
+    const [restoring, setRestoring] = useState<string | null>(null), [notice, setNotice] = useState('')
+    const mounted = useRef(false)
+    useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+    async function restoreAsDraft(revision: string) {
+        if (!onRestore || restoring) return
+        setRestoring(revision); setNotice('')
+        try {
+            const draft = await readRestorableVersion(client, noteId, revision)
+            if (!mounted.current) return
+            if (!draft) { setNotice(`Revision ${revision} has no content to restore: it was removed by moderation.`); return }
+            await onRestore({ ...draft })
+            if (mounted.current) setNotice(`Revision ${revision} was copied into a draft. Nothing was signed.`)
+        } catch { if (mounted.current) setNotice('That version could not be checked against the current history. Nothing was changed; try again.') }
+        finally { if (mounted.current) setRestoring(null) }
+    }
+    function page(after: string) {
         if (!data || state.loading) return
-        setSelected(null); setVersions([])
-        setCursor(value => ({ ...value, after, through: data.page.throughSeq }))
+        setViewing(null); setCursor(value => ({ ...value, after, through: data.page.throughSeq }))
     }
-    function chooseVersion(revision: string, compare = false) {
-        setVersions(old => compare && old.length ? [old[0], revision] : [revision])
-    }
+    const older = data && data.after !== '0' ? (BigInt(data.after) > BigInt(PAGE) ? (BigInt(data.after) - BigInt(PAGE)).toString() : '0') : null
+    // Newer pages end at the head they started from, so the newest page is always a full one.
+    const newestAfter = data ? (BigInt(data.page.throughSeq) > BigInt(PAGE) ? BigInt(data.page.throughSeq) - BigInt(PAGE) : 0n) : 0n
+    const newer = data && BigInt(data.after) < newestAfter ? (BigInt(data.after) + BigInt(PAGE) < newestAfter ? BigInt(data.after) + BigInt(PAGE) : newestAfter).toString() : null
     return <section className="os-notes-history" aria-label="Public history">
-        <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={reload}>Refresh history</button></header>
-        <p>Public versions are retained, including after deletion, unless a moderator removes them; a removal keeps the content hash and is recorded here. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
-        {state.loading && <p role="status">Loading public history…</p>}
-        {state.error && <p role="alert">Public history could not be verified. Refresh to try again.</p>}
+        <header><h2>History</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={reload}>Refresh</button></header>
+        {state.loading && !data && <p role="status">Loading history…</p>}
+        {state.error && <p role="alert">History could not be verified. Refresh to try again.</p>}
         {!state.loading && !state.error && data === null && <p>No public history is available for this note.</p>}
         {data && <>
-            <p>From state revision {data.info.startStateRevision} · Page snapshot through event {data.page.throughSeq} · Oldest first</p>
             {(data.info.deleted || data.info.moderatorHidden) && <p>This note is currently hidden or deleted. Archived content requires an explicit reveal.</p>}
-            <ol>{data.page.items.map(item => <li key={item.seq}>
-                <button className="os-btn os-quiet" aria-pressed={selected === item.seq} onClick={() => setSelected(item.seq)}>Event {item.seq}: {actions[item.action]}</button>
-                <p>Actor {item.actor} · Height {item.height} · State revision {item.stateRevision}</p>
-                {item.executor && <p>Executed by {item.executor} · Governance proposal {item.proposalId}</p>}
-            </li>)}</ol>
-            {cursor.after !== '0' && <button className="os-btn" disabled={state.loading} onClick={() => navigate((BigInt(cursor.after) > 20n ? BigInt(cursor.after) - 20n : 0n).toString())}>Previous history</button>}
-            {data.page.nextCursor && <button className="os-btn" disabled={state.loading} onClick={() => navigate(data.page.nextCursor!)}>Next history</button>}
-        </>}
-        {selected && <HistoryDetail key={selected} client={client} noteId={noteId} seq={selected} chooseVersion={chooseVersion} canCompare={versions.length > 0} />}
-        {!!versions.length && <PublicHistoryVersions key={`${selected}:${versions.join(':')}`} client={client} noteId={noteId} revisions={versions} onRestore={onRestore} />}
-    </section>
-}
-function HistoryDetail({ client, noteId, seq, chooseVersion, canCompare }: {
-    client: NotesReadClient; noteId: string; seq: string; chooseVersion(revision: string, compare?: boolean): void; canCompare: boolean
-}) {
-    const read = useCallback(async () => {
-        client.assertCurrent()
-        const entry = await client.publicHistoryEntry(noteId, seq)
-        client.assertCurrent(); check(entry !== null)
-        return entry
-    }, [client, noteId, seq])
-    const { state } = useHistoryRead(read), entry = state.data
-    return <section aria-label={`History event ${seq}`}>
-        {state.loading && <p role="status">Loading event…</p>}
-        {state.error && <p role="alert">This history event could not be verified.</p>}
-        {entry && <>
-            <h3>{actions[entry.action]} · Event {entry.seq}</h3>
-            <p>Actor {entry.actor} · Height {entry.height}</p>
-            {entry.operationId && <p>Operation {entry.operationId}</p>}
-            {entry.executor && <p>Executor {entry.executor} · Proposal {entry.proposalId} · {entry.governanceAction}</p>}
-            <HistoryDetailFields entry={entry} />
-            {entry.detail.kind === 'note' && <>
-                <button className="os-btn" onClick={() => chooseVersion(entry.detail.kind === 'note' ? entry.detail.snapshotRevision : '')}>Read version {entry.stateRevision}</button>
-                {canCompare && <button className="os-btn os-quiet" onClick={() => chooseVersion(entry.stateRevision, true)}>Compare with version {entry.stateRevision}</button>}
-            </>}
-            {entry.detail.kind === 'comment' && <PublicHistoryCommentView client={client} noteId={noteId} commentId={entry.detail.commentId} />}
+            <ol className="os-notes-timeline">{items.map(item => {
+                const version = versions[item.stateRevision], who = viewer && viewer === item.actor ? 'You' : short(item.actor)
+                const renamed = renamedTo(item, version), ago = when(item.height), comment = COMMENT_EVENTS.includes(item.action)
+                const restorable = CONTENT.includes(item.action) && !(version && (version.titleRedacted || version.bodyRedacted || version.deleted))
+                return <li key={item.seq} data-kind={comment ? 'comment' : 'revision'}>
+                    <span className="os-notes-timeline-dot" aria-hidden="true" />
+                    <div>
+                        <strong>{headline(item, version)}</strong>
+                        <p>{[who, renamed && `“${renamed}”`, item.executor && 'via governance', ago].filter(Boolean).join(' · ')}</p>
+                        {restorable && <div className="os-notes-timeline-actions">
+                            <button className="os-btn os-quiet" aria-pressed={viewing === item.seq} aria-label={`View revision ${item.stateRevision}`}
+                                onClick={() => setViewing(value => value === item.seq ? null : item.seq)}>View</button>
+                            {onRestore && <button className="os-btn os-quiet" disabled={!!restoring || data.info.deleted} aria-label={`Use revision ${item.stateRevision} as a draft`}
+                                onClick={() => void restoreAsDraft(item.stateRevision)}>{restoring === item.stateRevision ? 'Copying…' : 'Use as draft'}</button>}
+                        </div>}
+                        {item.commentId && <div className="os-notes-timeline-actions">
+                            <button className="os-btn os-quiet" aria-pressed={viewing === item.seq} aria-label={`View archived comment of event ${item.seq}`}
+                                onClick={() => setViewing(value => value === item.seq ? null : item.seq)}>View</button>
+                        </div>}
+                        {viewing === item.seq && (item.commentId ? <PublicHistoryCommentView client={client} noteId={noteId} commentId={item.commentId} />
+                            : <PublicHistoryVersions key={item.stateRevision} client={client} noteId={noteId} revisions={[item.stateRevision]} onRestore={onRestore} />)}
+                    </div>
+                </li>
+            })}</ol>
+            {notice && <p role="status">{notice}</p>}
+            {(newer || older) && <div className="os-notes-timeline-pages">
+                {newer && <button className="os-btn os-quiet" disabled={state.loading} onClick={() => page(newer)}>Newer</button>}
+                {older && <button className="os-btn os-quiet" disabled={state.loading} onClick={() => page(older)}>Older</button>}
+            </div>}
+            <p className="os-notes-history-note">From revision {data.info.startStateRevision}, when the note became public. Earlier versions stay readable here unless a moderator removes them.</p>
         </>}
     </section>
 }
-function HistoryDetailFields({ entry }: { entry: PublicHistoryEntry }) {
-    const d = entry.detail
-    if (d.kind === 'cleanup') return <p>Removed {d.total} current records: {d.commentIndex} comment index, {d.comments} comments, {d.cooldowns} cooldowns, {d.epochs} epochs, {d.requests} requests. Public archives remain.</p>
-    if (d.kind === 'comment-purged') return <p>The archived copy of purged comment {d.commentId} was removed by moderation.</p>
-    if (d.kind === 'comment') return <p>Comment revision {d.commentRevision} · {d.deleted ? 'Deleted' : 'Retained'} · {d.hidden ? 'Hidden' : 'Visible'} · {d.resolved ? 'Resolved' : 'Open'}</p>
-    return <>
-        <p>State revision {d.snapshotRevision}{d.previousStateRevision && `, following ${d.previousStateRevision}`}</p>
-        {d.fieldMask && <p>Changed: {d.fieldMask === 1 ? 'title' : d.fieldMask === 2 ? 'body' : 'title and body'}. A title-only change may be Commit or Rename.</p>}
-        {d.policyOp !== null && <p>Policy: {['read', 'write', 'comment'][d.policyOp]} · {d.policyKey || 'cleared'}</p>}
-        {d.targetEpoch && <p>Earlier epoch {d.targetEpoch}; private key material is excluded from this archive.</p>}
-        {d.redaction && <p>Removed {d.redaction.field} revision {d.redaction.fieldRevision} from public storage. SHA-256 kept: {d.redaction.sha256}</p>}
-    </>
+/** The recorded version behind each described event, read a few at a time; absent until read (or when unreadable). */
+function useVersions(client: NotesReadClient, noteId: string, items: readonly Item[]) {
+    const wanted = [...new Set(items.filter(item => DESCRIBED.includes(item.action)).map(item => item.stateRevision))].join(',')
+    const [read, setRead] = useState<{ client: NotesReadClient; noteId: string; at: Readonly<Record<string, PublicHistoryVersion>> }>({ client, noteId, at: {} })
+    useEffect(() => {
+        if (!wanted) return
+        let alive = true
+        void Promise.resolve().then(async () => {
+            const revisions = wanted.split(','), found: Record<string, PublicHistoryVersion> = {}
+            for (let i = 0; i < revisions.length && alive; i += 4) {
+                await Promise.all(revisions.slice(i, i + 4).map(async revision => {
+                    try { const version = await client.publicHistoryVersion(noteId, revision); if (version) found[revision] = version } catch { /* described generically */ }
+                }))
+                if (alive) setRead(value => ({ client, noteId, at: { ...(value.client === client && value.noteId === noteId ? value.at : {}), ...found } }))
+            }
+        })
+        return () => { alive = false }
+    }, [client, noteId, wanted])
+    return read.client === client && read.noteId === noteId ? read.at : {}
 }

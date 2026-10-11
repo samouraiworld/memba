@@ -8,7 +8,7 @@ test.beforeEach(async ({ page, context }) => {
     await page.goto('/e2e-notes/sushi-shell/index.html')
     await expect(page.getByRole('heading', { name: 'Sushi Shell demonstration', exact: true })).toBeVisible()
     await expect(page.getByRole('article', { name: 'Note preview' })).toHaveAttribute('data-rendered', 'html')
-    await page.getByText('Write a public comment', { exact: true }).click()
+    await page.getByRole('tab', { name: /^Comments/ }).click()
     await page.getByRole('textbox', { name: 'Comment', exact: true }).fill(text)
 })
 test.afterEach(() => { expect(errors).toEqual([]) })
@@ -28,7 +28,7 @@ test('real public stage survives desktop/mobile changes and minimize restore wit
     await expect(composer).toHaveValue(text); await expect(composer).toHaveAttribute('data-lifecycle-test', 'same-composer')
     expect((await audit(page)).clients).toBe(before.clients)
 })
-test('disconnect and lock destroys the parked public comment stage and reconnect starts empty', async ({ page }) => {
+test('disconnect and lock destroys the parked public comment stage; the unsent comment returns for the same account', async ({ page }) => {
     await page.getByRole('button', { name: 'Minimise Notes', exact: true }).click()
     await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toBeHidden()
     await page.getByRole('button', { name: 'Memba menu', exact: true }).click()
@@ -42,9 +42,9 @@ test('disconnect and lock destroys the parked public comment stage and reconnect
     await page.getByRole('button', { name: 'Memba menu', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Notes', exact: true }).click()
     await page.getByRole('button', { name: /Sushi Shell demonstration/ }).click()
-    await page.getByText('Write a public comment', { exact: true }).click()
-    await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveValue('')
-    expect(await page.locator('body').textContent()).not.toContain(text)
+    // The unsent comment was parked in this tab's session storage, never on the page while locked: it comes back for the same account.
+    await page.getByRole('tab', { name: /^Comments/ }).click()
+    await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveValue(text)
 })
 test('Notes is one window: opening it again keeps the same note; a phone shows the list first, then the note with Back', async ({ page }) => {
     const composer = page.getByRole('textbox', { name: 'Comment', exact: true })
@@ -61,6 +61,9 @@ test('Notes is one window: opening it again keeps the same note; a phone shows t
     await list.getByRole('button', { name: /Sushi Shell demonstration/ }).click()
     await expect(list).toBeHidden()
     await expect(composer).toHaveValue(text); await expect(composer).toHaveAttribute('data-lifecycle-test', 'same-composer')
+    // A narrow window opened the comments as a sheet over the note: its Back returns to the note first.
+    const sheetBack = page.getByRole('button', { name: 'Back to the note', exact: true })
+    if (await sheetBack.isVisible()) { await sheetBack.click(); await expect(composer).toBeHidden() }
     await page.getByRole('button', { name: 'Back to notes', exact: true }).click()
     await expect(list).toBeVisible(); await expect(composer).toBeHidden()
 })

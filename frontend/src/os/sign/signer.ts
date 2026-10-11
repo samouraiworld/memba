@@ -37,6 +37,8 @@ export interface SignRequest<C extends string = string> {
     /** Plain-language facts for the chosen option: effect, network, fee, deposit cap. */
     lines: (choice: C | undefined) => [string, string][]
     warns?: string[]
+    /** Identifiers and raw details: folded, with the wallet checklist, under "Technical details". */
+    technical?: (choice: C | undefined) => [string, string][]
     /** Each one must be ticked before signing. */
     acks?: string[]
     note?: string

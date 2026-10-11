@@ -28,14 +28,29 @@ test.beforeEach(async ({ page, context }) => {
     })
 })
 test.afterEach(() => { expect(errors).toEqual([]) })
+/** History and Comments are tabs beside the note; at phone width each opens a sheet with Back. */
+async function sideTab(page: Page, name: RegExp) {
+    await page.getByRole('tab', { name }).click()
+}
+async function leaveSheet(page: Page) {
+    const back = page.getByRole('button', { name: 'Back to the note', exact: true })
+    if (await back.isVisible()) await back.click()
+}
 async function healthyPublicWorkspace(page: Page, guest: boolean) {
+    await sideTab(page, /^History$/)
     const history = page.getByRole('region', { name: 'Public history', exact: true })
     await expect(history.getByText('No public history is available for this note.', { exact: true })).toBeVisible()
+    await leaveSheet(page)
     await expect(page.getByRole('button', { name: 'Edit note', exact: true })).toHaveCount(guest ? 0 : 1)
-    const settings = page.getByRole('region', { name: 'Community editing settings', exact: true })
-    if (guest) await expect(settings).toHaveCount(0)
-    else await expect(settings.getByText('Public content editing is disabled.', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Share', exact: true }).click()
+    const share = page.getByRole('dialog', { name: /^Share / })
+    if (guest) await expect(share.getByText('Only the owner.', { exact: true })).toBeVisible()
+    else await expect(share.getByRole('radio', { name: /Only me/ })).toBeChecked()
+    await page.keyboard.press('Escape')
+    await expect(share).toBeHidden()
+    await sideTab(page, /^Comments/)
     await expect(page.getByText('No comments on this page.', { exact: true })).toBeVisible()
+    await leaveSheet(page)
     await expect(page.getByRole('alert')).toHaveCount(0)
 }
 for (const guest of [false, true]) test(`${guest ? 'guest' : 'member'} real desktop icon opens the reader and keeps its label on phone`, async ({ page }, info) => {

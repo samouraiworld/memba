@@ -12,7 +12,7 @@ type Adapter = ReturnType<typeof createFeaturedNoteStorage>
 type Active = { alive: boolean; generation: object; adapter: Adapter; scope: FeaturedDesk['partition']; releases: readonly FeaturedNoteRelease[] }
 const CHANGED = 'memba-featured-desk-changed'
 const RESET = 'memba_os_ui_reset_revision'
-const ERROR = 'The desktop could not be saved safely. Existing browser data was preserved. Reload or reset local UI data explicitly to retry.'
+const ERROR = 'The Desktop could not be saved safely. Existing browser data was preserved. Reload or reset local UI data explicitly to retry.'
 const EMPTY: DeskItem[] = []
 const NO_RELEASES: readonly FeaturedNoteRelease[] = []
 const rules = { cols: GRID.cols, rows: GRID.rows, validItem: (item: Pin) => (item.ty === 'note' && NOTE_ID.test(item.ref)) || (item.ty === 'app' && item.ref === 'notes') || itemTarget(item) !== null }

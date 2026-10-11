@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import type { PublicHistoryInfo } from '../../../lib/notes/chain/history'
-import type { PublicHistoryComment, PublicHistoryVersion } from '../../../lib/notes/chain/historyContent'
-import { readPublicHistoryBody } from '../../../lib/notes/chain/historyBody'
+import type { PublicHistoryComment } from '../../../lib/notes/chain/historyContent'
 import { check, publicText } from '../../../lib/notes/chain/schema'
+import { currentHistoryInfo as currentInfo, readArchivedVersion as versionContent, restrictedHistory as restricted, sameHistoryHead as sameHead, type ArchivedPublicDraft, type LoadedVersion } from '../../../lib/notes/chain/historyDraft'
 
-export type ArchivedPublicDraft = { noteId: string; sourceStateRevision: string; title: string; body: string }
+export type { ArchivedPublicDraft } from '../../../lib/notes/chain/historyDraft'
 export type HistoryRestore = (draft: ArchivedPublicDraft) => void | Promise<void>
 type ReadState<T> = { read?: (reveal: boolean) => Promise<T>; data?: T; loading: boolean; error: boolean }
 
@@ -35,28 +34,6 @@ export function useHistoryRead<T>(read: (reveal: boolean) => Promise<T>) {
     }
     const visible: ReadState<T> = state.read === read ? state : { loading: true, error: false }
     return { state: visible, refresh, capture, fail: () => setState({ read, loading: false, error: true }) }
-}
-function restricted(info: PublicHistoryInfo) { return info.deleted || info.moderatorHidden }
-async function currentInfo(client: NotesReadClient, noteId: string) {
-    client.assertCurrent()
-    const info = await client.publicHistoryInfo(noteId)
-    client.assertCurrent(); check(info !== null)
-    return info
-}
-function sameHead(before: PublicHistoryInfo, after: PublicHistoryInfo) {
-    check(before.headSeq === after.headSeq && before.deleted === after.deleted && before.moderatorHidden === after.moderatorHidden)
-}
-type LoadedVersion = { version: PublicHistoryVersion; draft: ArchivedPublicDraft | null }
-async function versionContent(client: NotesReadClient, noteId: string, revision: string): Promise<LoadedVersion> {
-    const version = await client.publicHistoryVersion(noteId, revision)
-    client.assertCurrent(); check(version !== null)
-    // Redacted bytes are gone from the realm; such a version cannot be shown or restored.
-    if (version.deleted || version.titleRedacted || version.bodyRedacted) return { version, draft: null }
-    check(version.title !== null && version.bodyRevision !== null)
-    const body = await readPublicHistoryBody(client, noteId, version.bodyRevision)
-    client.assertCurrent()
-    check(body !== null && body.id === version.id && body.bodyRevision === version.bodyRevision && body.sha256 === version.bodySha256 && new TextEncoder().encode(body.text).length === version.bodyBytes)
-    return { version, draft: { noteId, sourceStateRevision: revision, title: publicText(version.title, true), body: body.text } }
 }
 
 export function PublicHistoryVersions({ client, noteId, revisions, onRestore }: {

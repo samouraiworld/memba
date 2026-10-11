@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: Share menu, and History and Comments beside the note (#PRNUM, 2026-10-12)
+- A Share button in the note header opens one menu: the note's link with Copy, who can read it, who can edit it and who can comment. The owner switches editing between "Only me" and "Everyone with a wallet" there, sees the expected storage deposit (large) and the signed cap (small) before signing, both from the Notes quote module, applies it with Adena and follows the change to its confirmation in the menu. Everyone else sees the same facts, read-only.
+- History and Comments are tabs in a panel on the right of the note; on a phone they open full screen with Back. History lists revisions newest first in plain words ("Revision 5 · body edited", "renamed", "editing opened to everyone", comments added, removals by moderation), who made them and when, with View and Use as draft (copied into a draft, nothing signed). It refreshes after every confirmed change.
+- Comments show who wrote them, on which revision, and the passage they quote. Select text in the note to quote it, write in the box at the bottom and press Comment. The wallet sheet asks for one confirmation, shows the comment and its cost, and folds identifiers and the raw call under Technical details. Refreshing the list keeps the page you are reading.
+- An unsent comment survives a lock, an account or network switch and a reload in this tab: it is kept in this tab's session storage, per note and account (never in local storage), and cleared once posted. The browser asks before a reload or leaving the page while Notes holds unsaved text, and a note holding an unsent comment that is not in your list appears as "Unsaved text".
+- Reopening a note right after leaving it no longer reports a conflict with your own last save. Removing a note shortcut while its title is being read no longer brings the title back. "Show Desktop" and the other Desktop labels are capitalised. Notes remains disabled pending deployment and reviewed activation.
+
 ### Notes in one window, ready to write (#1609, 2026-10-11)
 - Open Notes as a single window: the launcher, Dock, links and Desktop shortcuts bring it forward and show the chosen note there. Note links stay validated as before.
 - Show your notes on the left (search, New note, and one list of local drafts, published and private notes with their state) and the open note on the right. Notes published by others are under Explore.

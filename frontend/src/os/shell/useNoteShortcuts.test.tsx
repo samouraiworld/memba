@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { ChainNote } from '../../lib/notes/chain/schema'
-import { writeNoteShortcuts } from './noteShortcuts'
+import { readNoteShortcuts, writeNoteShortcuts } from './noteShortcuts'
 import { useNoteShortcuts } from './useNoteShortcuts'
 
 const mocks = vi.hoisted(() => ({ meta: vi.fn(), contexts: [] as { isCurrent(): boolean }[], deployed: true }))
@@ -68,4 +68,19 @@ it('drops a late answer after the wallet changes', async () => {
     expect(mocks.contexts[0].isCurrent()).toBe(false)
     await act(async () => resolve(meta(pub, { title: new TextEncoder().encode('Stale') })))
     await waitFor(() => expect(result.current.labels[pub]).toBe('Sushi'))
+})
+
+it('forgets a removed shortcut again once the desk confirms the removal, even if a read landed in between', async () => {
+    let resolve!: (value: ChainNote) => void
+    mocks.meta.mockReturnValueOnce(new Promise<ChainNote>(done => { resolve = done }))
+    const { result, rerender } = renderHook(({ ids }) => useNoteShortcuts({ chainId: 'test-chain', owner: 'g1me', ids, enabled: true }), { initialProps: { ids: [pub, priv] } })
+    await waitFor(() => expect(mocks.meta).toHaveBeenCalledOnce())
+    // Unpinning forgets the title at once; a featured desk confirms the removal only later, and the read lands in between.
+    act(() => result.current.forget(pub))
+    expect(readNoteShortcuts('test-chain', 'g1me')[pub]).toBeUndefined()
+    await act(async () => resolve(meta(pub)))
+    await waitFor(() => expect(readNoteShortcuts('test-chain', 'g1me')[pub]).toBeDefined())
+    rerender({ ids: [priv] })
+    await waitFor(() => expect(readNoteShortcuts('test-chain', 'g1me')[pub]).toBeUndefined())
+    expect(readNoteShortcuts('test-chain', 'g1me')[priv]).toEqual({ title: null, private: true, missing: false })
 })

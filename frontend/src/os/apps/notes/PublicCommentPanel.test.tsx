@@ -19,28 +19,39 @@ vi.mock('../../../lib/notes/intents', () => ({ NotesIntents: class { list = mock
 const noteId = 'ab'.repeat(16), cid = 'cd'.repeat(16)
 const note = { id: noteId, owner: 'owner', mode: 4, epoch: '0', bodyRevision: '1', stateRevision: '1', ownerGeneration: '1', deleted: false } as ChainNote
 const row = (patch: Partial<PublicComment> = {}): PublicComment => ({ id: cid, author: 'owner', parent: '', anchor: '', body: 'Public comment', epoch: '0', bodyRevision: '1', revision: '1', deleted: false, hidden: false, resolved: false, encrypted: false, operationId: 'ef'.repeat(16), actor: 'owner', createdHeight: '1', height: '1', ...patch })
+const text = (value: string) => new TextEncoder().encode(value)
 const pending = { phase: 'unknown', operationId: 'aa'.repeat(16), verification: { kind: 'comment-v1' } }
-function setup(owner: string | null = 'owner', value = note, strict = false) {
-    const props = { note: value, owner, client: { chainId: 'test-chain', note: vi.fn(async () => value) } as unknown as NotesReadClient, store: {} as NotesStore }
+function setup(owner: string | null = 'owner', value = note, strict = false, previewRoot: HTMLElement | null = null) {
+    const props = { note: value, owner, client: { chainId: 'test-chain', note: vi.fn(async () => value) } as unknown as NotesReadClient, store: {} as NotesStore, previewRoot }
     const element = <PublicCommentPanel {...props} />
     const view = render(strict ? <StrictMode>{element}</StrictMode> : element)
-    const composer = screen.queryByText('Write a public comment'); if (composer) fireEvent.click(composer)
     return { ...view, props }
 }
 async function compose() {
     fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'My public reply' } })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Review comment' })).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).toBeEnabled())
+}
+/** The rendered note, with `text` selected in it the way a reader selects a passage. */
+function preview(text: string) {
+    const root = document.createElement('article'); root.dataset.testPreview = ''; root.textContent = text; document.body.append(root)
+    return root
+}
+function select(root: HTMLElement, passage: string) {
+    const node = root.firstChild!, start = node.textContent!.indexOf(passage), range = document.createRange()
+    range.setStart(node, start); range.setEnd(node, start + passage.length)
+    window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(range)
+    fireEvent.mouseUp(root)
 }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 beforeEach(() => {
-    vi.clearAllMocks(); mocks.next = 0; mocks.version = 0
+    vi.clearAllMocks(); mocks.next = 0; mocks.version = 0; sessionStorage.clear(); document.querySelectorAll('article[data-test-preview]').forEach(node => node.remove())
     mocks.read.mockResolvedValue({ items: [row()], nextCursor: '' }); mocks.list.mockResolvedValue([]); mocks.recover.mockResolvedValue('unknown')
     mocks.prepare.mockResolvedValue({ onDismissed: mocks.dismiss, onSettled: mocks.settle }); mocks.sign.mockReturnValue(true)
 })
 describe('public-only comment controls', () => {
     it('can prepare a fresh comment review after StrictMode effect replay', async () => {
         setup('owner', note, true); await compose()
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[0][0].session.capture().signal.aborted).toBe(false)
         expect(mocks.prepare.mock.calls[0][0].operation.caller).toBe('owner')
@@ -57,14 +68,16 @@ describe('public-only comment controls', () => {
         expect(screen.getByText('Connect your wallet to comment.')).toBeVisible()
         expect(screen.queryByLabelText('Comment')).toBeNull(); expect(mocks.list).not.toHaveBeenCalled(); expect(mocks.sign).not.toHaveBeenCalled()
     })
-    it('lets a connected nonowner comment in PublicOpen with a distinct ID, reply and explicit cap', async () => {
-        setup('member'); fireEvent.click(await screen.findByRole('button', { name: 'Reply' })); await compose()
-        fireEvent.change(screen.getByLabelText('Quoted passage (optional)'), { target: { value: 'Quoted passage' } })
-        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '3' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+    it('lets a connected nonowner comment in PublicOpen with a distinct ID, a reply, a quote selected in the note and the quoted cap', async () => {
+        const root = preview('Intro. Quoted passage here.')
+        setup('member', { ...note, body: text('Intro. Quoted passage here.') }, false, root); fireEvent.click(await screen.findByRole('button', { name: 'Reply' })); await compose()
+        select(root, 'Quoted passage')
+        expect(screen.getByText('Quoted passage', { selector: 'blockquote' })).toBeVisible()
+        expect(screen.getByText('≈ 2.26 GNOT')).toBeVisible(); expect(screen.getByText(/at most 2.8 GNOT/)).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
         const input = mocks.prepare.mock.calls[0][0]
-        expect(input.maxDepositUgnot).toBe('3000000'); expect(input.operation.commentId).not.toBe(input.operation.operationId)
+        expect(input.maxDepositUgnot).toBe('2800000'); expect(input.operation.commentId).not.toBe(input.operation.operationId)
         expect(input.operation).toMatchObject({ caller: 'member', noteId, action: { kind: 'add', parent: cid, bodyRevision: '1', epoch: '0', body: 'My public reply', anchor: 'Quoted passage' } })
         expect(screen.queryByRole('button', { name: 'Delete comment' })).toBeNull()
         expect(screen.queryByRole('button', { name: 'Resolve thread' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Hide comment' })).toBeNull()
@@ -93,26 +106,26 @@ describe('public-only comment controls', () => {
         fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Keep this thought' } })
         fireEvent.click(await screen.findByRole('button', { name: 'Check comment outcome' }))
         expect(await screen.findByText('The outcome remains unknown. Nothing was resent.')).toBeVisible()
-        expect(screen.getByLabelText('Comment')).toHaveValue('Keep this thought'); expect(screen.getByRole('button', { name: 'Review comment' })).toBeDisabled()
+        expect(screen.getByLabelText('Comment')).toHaveValue('Keep this thought'); expect(screen.getByRole('button', { name: 'Comment' })).toBeDisabled()
         expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.sign).not.toHaveBeenCalled()
     })
     it('retains unsupported private receipts without routing them to a public recovery function', async () => {
         mocks.list.mockResolvedValue([{ ...pending, verification: { kind: 'private-comment-v1' } }]); setup()
         expect(await screen.findByText(/This saved operation is not supported/)).toBeVisible()
         expect(screen.queryByRole('button', { name: 'Check comment outcome' })).toBeNull()
-        expect(screen.getByRole('button', { name: 'Review comment' })).toBeDisabled(); expect(mocks.recover).not.toHaveBeenCalled()
+        expect(screen.getByRole('button', { name: 'Comment' })).toBeDisabled(); expect(mocks.recover).not.toHaveBeenCalled()
     })
     it('rechecks durable receipts before posting and fails closed if storage cannot be read', async () => {
         mocks.list.mockResolvedValueOnce([]).mockResolvedValue([pending]); const view = setup(); await compose()
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         expect(await screen.findByText('Check the unresolved comment receipt before posting again.')).toBeVisible()
         expect(mocks.prepare).not.toHaveBeenCalled(); view.unmount(); mocks.list.mockRejectedValue(new Error('sensitive storage diagnostic')); setup()
         expect(await screen.findByText(/Saved comment receipts could not be read/)).toBeVisible()
-        expect(screen.getByRole('button', { name: 'Review comment' })).toBeDisabled(); expect(screen.queryByText('sensitive storage diagnostic')).toBeNull()
+        expect(screen.getByRole('button', { name: 'Comment' })).toBeDisabled(); expect(screen.queryByText('sensitive storage diagnostic')).toBeNull()
     })
     it.each(['account', 'network', 'note', 'unmount'])('invalidates a delayed review on %s change before it reaches the signer', async change => {
         const delayed = deferred<object>(); mocks.prepare.mockReturnValueOnce(delayed.promise)
-        const view = setup(); await compose(); fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        const view = setup(); await compose(); fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
         const guard = mocks.prepare.mock.calls[0][0].session.capture()
         if (change === 'unmount') view.unmount()
@@ -123,53 +136,63 @@ describe('public-only comment controls', () => {
     })
     it('keeps a draft across a community edit while invalidating the previous review', async () => {
         const delayed = deferred<object>(); mocks.prepare.mockReturnValueOnce(delayed.promise)
-        const view = setup('member'); await compose()
-        fireEvent.change(screen.getByLabelText('Quoted passage (optional)'), { target: { value: 'Original passage' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        const root = preview('An Original passage here.')
+        const view = setup('member', note, false, root); await compose()
+        select(root, 'Original passage')
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
         const oldGuard = mocks.prepare.mock.calls[0][0].session.capture()
         view.rerender(<PublicCommentPanel {...view.props} note={{ ...note, stateRevision: '2', bodyRevision: '2' }} />)
         expect(oldGuard.signal.aborted).toBe(true)
         expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
-        expect(screen.getByLabelText('Quoted passage (optional)')).toHaveValue('Original passage')
-        expect(screen.getByRole('button', { name: 'Review comment' })).toBeDisabled()
+        expect(screen.getByText('Original passage', { selector: 'blockquote' })).toBeVisible()
+        expect(screen.getByRole('button', { name: 'Comment' })).toBeDisabled()
         await act(async () => delayed.resolve({ onDismissed: mocks.dismiss }))
         expect(mocks.sign).not.toHaveBeenCalled(); expect(mocks.dismiss).toHaveBeenCalledOnce()
         fireEvent.click(screen.getByRole('button', { name: 'Keep original quote' }))
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Review comment' })).toBeEnabled())
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[1][0].operation.action).toMatchObject({ bodyRevision: '1', anchor: 'Original passage', body: 'My public reply' })
         view.rerender(<PublicCommentPanel {...view.props} note={{ ...note, stateRevision: '3', bodyRevision: '3' }} />)
-        expect(screen.getByRole('button', { name: 'Review comment' })).toBeDisabled()
+        expect(screen.getByRole('button', { name: 'Comment' })).toBeDisabled()
         fireEvent.click(screen.getByRole('button', { name: 'Clear quote' }))
-        expect(screen.getByLabelText('Quoted passage (optional)')).toHaveValue('')
+        expect(screen.queryByText('Original passage', { selector: 'blockquote' })).toBeNull()
         expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
     })
     it('keeps unanchored text and reply identity through refresh without moving a quote', async () => {
         const view = setup('member'); fireEvent.click(await screen.findByRole('button', { name: 'Reply' })); await compose()
         view.rerender(<PublicCommentPanel {...view.props} note={{ ...note, stateRevision: '2', bodyRevision: '2' }} />)
         expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Review comment' })).toBeEnabled())
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[0][0].operation.action).toMatchObject({ bodyRevision: '2', parent: cid, anchor: '' })
     })
-    it.each(['account', 'client', 'store', 'note'])('clears the retained draft at the %s boundary', async change => {
+    it.each(['account', 'network', 'note'])('never shows a draft across the %s boundary, and gives it back on return', async change => {
         const view = setup(); await compose()
-        const patch = change === 'account' ? { owner: 'other' } : change === 'client' ? { client: { chainId: 'test-chain' } as NotesReadClient }
-            : change === 'store' ? { store: {} as NotesStore } : { note: { ...note, id: 'ff'.repeat(16) } }
+        const patch = change === 'account' ? { owner: 'other' } : change === 'network' ? { client: { chainId: 'other-chain', note: vi.fn() } as unknown as NotesReadClient } : { note: { ...note, id: 'ff'.repeat(16) } }
         view.rerender(<PublicCommentPanel {...view.props} {...patch} />)
         expect(screen.getByLabelText('Comment')).toHaveValue('')
         view.rerender(<PublicCommentPanel {...view.props} />)
-        expect(screen.getByLabelText('Comment')).toHaveValue('')
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
     })
-    it('rejects an insufficient cap and keeps newer composer edits after confirmation', async () => {
-        setup(); await compose(); fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '1' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' })); await screen.findByText('Enter a deposit cap of at least 2.26 GNOT.')
-        expect(mocks.sign).not.toHaveBeenCalled()
-        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '3' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' })); await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+    it('keeps an unsent comment through a lock or reload in this tab only, and forgets it once posted', async () => {
+        const view = setup(); await compose(); view.unmount()
+        expect(localStorage.length).toBe(0)
+        setup(); expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' })); await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+        act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue(''); expect(sessionStorage.length).toBe(0)
+    })
+    it('signs once in the wallet sheet, with no confirmation boxes in the composer', async () => {
+        setup(); await compose()
+        expect(screen.queryByRole('checkbox')).toBeNull(); expect(screen.queryByLabelText(/deposit/i)).toBeNull()
+    })
+    it('keeps newer composer edits after confirmation', async () => {
+        setup(); await compose()
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' })); await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
         fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Newer unsent edit' } })
         act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
         expect(screen.getByLabelText('Comment')).toHaveValue('Newer unsent edit')
@@ -177,7 +200,6 @@ describe('public-only comment controls', () => {
 })
 
 describe('comment freshness', () => {
-    const text = (value: string) => new TextEncoder().encode(value)
     it('reloads comments after a confirmed change without blanking the list', async () => {
         setup('member'); await screen.findByText('Public comment')
         const later = deferred<{ items: PublicComment[]; nextCursor: string }>(); mocks.read.mockReturnValueOnce(later.promise)
@@ -188,18 +210,19 @@ describe('comment freshness', () => {
         expect(screen.getByText('Another comment')).toBeVisible()
     })
     it('anchors a still-present quote to the current body revision after the note changes', async () => {
-        const view = setup('member', { ...note, body: text('Intro. Quoted passage here.') }); await compose()
-        fireEvent.change(screen.getByLabelText('Quoted passage (optional)'), { target: { value: 'Quoted passage' } })
+        const root = preview('Intro. Quoted passage here.')
+        const view = setup('member', { ...note, body: text('Intro. Quoted passage here.') }, false, root); await compose()
+        select(root, 'Quoted passage')
         view.rerender(<PublicCommentPanel {...view.props} note={{ ...note, stateRevision: '2', bodyRevision: '2', body: text('Edited intro. Quoted passage here.') }} />)
-        expect(screen.queryByRole('button', { name: 'Keep original quote' })).toBeNull(); expect(screen.getByText('Quote from body revision 2.')).toBeVisible()
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Review comment' })).toBeEnabled())
-        fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        expect(screen.queryByRole('button', { name: 'Keep original quote' })).toBeNull(); expect(screen.getByText(/Quote from revision 2/)).toBeVisible()
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[0][0].operation.action).toMatchObject({ bodyRevision: '2', anchor: 'Quoted passage' })
     })
     it('never anchors a comment to a body revision older than the chain, keeping the composer', async () => {
         const view = setup('member'); vi.mocked(view.props.client.note).mockResolvedValue({ ...note, stateRevision: '3', bodyRevision: '3' })
-        await compose(); fireEvent.click(screen.getByRole('button', { name: 'Review comment' }))
+        await compose(); fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
         expect(await screen.findByText(/note was updated to body revision 3/)).toBeVisible()
         expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.sign).not.toHaveBeenCalled()
         expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')

@@ -27,7 +27,6 @@ vi.mock('../../../lib/notes/chain/rebase', async original => {
     mocks.actual = actual.planDraftRebase as (...args: unknown[]) => unknown
     return { ...actual, planDraftRebase: mocks.plan }
 })
-vi.mock('./PublicCollaborationControls', () => ({ PublicCollaborationControls: () => <span>Community editing controls</span> }))
 vi.mock('./PublicCommentPanel', () => ({ PublicCommentPanel: () => <span>Comments</span> }))
 vi.mock('./PublicHistory', () => ({ PublicHistory: ({ onRestore }: { onRestore?: (draft: unknown) => void }) => <button onClick={() => onRestore?.({ noteId: mocks.note!.id, sourceStateRevision: '1', title: 'Archived title', body: 'Archived body' })}>Restore archived draft</button> }))
 vi.mock('./PublicNote', () => ({ PublicNote: ({ editAction, children }: { editAction?: (note: ChainNote) => ReactNode; children?: (note: ChainNote) => ReactNode }) => <section aria-label="Published note"><h1>Published reader</h1>{mocks.note && <>{editAction?.(mocks.note)}{children?.(mocks.note)}</>}</section> }))
@@ -61,8 +60,8 @@ describe('public authoring durable workspace', () => {
         expect(await screen.findByLabelText('Note title')).toHaveValue('My title'); expect(save).not.toHaveBeenCalled()
         expect(screen.getByText(/unpublished changes to revision 3/)).toBeVisible()
         fireEvent.change(screen.getByLabelText('Markdown editor'), { target: { value: 'Unsaved words' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Read published note' })); expect(screen.getByText('Community editing controls')).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'Open local draft' }))
-        expect(screen.getByLabelText('Markdown editor')).toHaveValue('Unsaved words'); expect(screen.queryByText('Community editing controls')).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Read published note' })); expect(screen.getByRole('button', { name: 'Share' })).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'Open local draft' }))
+        expect(screen.getByLabelText('Markdown editor')).toHaveValue('Unsaved words'); expect(screen.queryByRole('button', { name: 'Share' })).toBeNull()
         expect((await store.getDraft(scope))?.payload).toMatchObject({ base: currentBase })
     })
     it('starts from the latest revision when an older draft has no unpublished changes', async () => {

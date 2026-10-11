@@ -323,10 +323,20 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                             {(req.acks ?? []).map((a, i) => (
                                 <label key={i} className="os-ack"><input type="checkbox" checked={review.acked[i]} onChange={(e) => onAck(i, e.target.checked)} /> {a}</label>
                             ))}
-                            <details className="os-card os-adena" open>
-                                <summary>Adena should show</summary>
-                                {prepareError ? <p className="os-note os-err">{prepareError}</p> : <Rows rows={checklist} />}
-                            </details>
+                            {req.technical ? (<>
+                                {/* A preparation error blocks signing, so it is never folded away. */}
+                                {prepareError && <p className="os-note os-err">{prepareError}</p>}
+                                <details className="os-card os-adena">
+                                    <summary>Technical details</summary>
+                                    <Rows rows={req.technical(choice).map(([label, value]) => ({ label, value }))} />
+                                    {!prepareError && <Rows rows={checklist} />}
+                                </details>
+                            </>) : (
+                                <details className="os-card os-adena" open>
+                                    <summary>Adena should show</summary>
+                                    {prepareError ? <p className="os-note os-err">{prepareError}</p> : <Rows rows={checklist} />}
+                                </details>
+                            )}
                             {wrongNet && (
                                 <p className="os-note os-err" role="alert">Adena is on {session.walletChainId}, but Memba is on {chain}. Switch Adena to {chain} before signing.</p>
                             )}

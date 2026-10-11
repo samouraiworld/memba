@@ -60,7 +60,9 @@ describe('dormant public Notes native view', () => {
     it('renders the real public reader for guests without exposing note or private operations', async () => {
         render(<PublicNotesApp {...props()} />)
         expect(await screen.findByRole('heading', { name: 'Public example' })).toBeVisible()
-        expect(screen.getByText('Readable example body')).toBeVisible(); expect(screen.getByText('Comments for guest')).toBeVisible()
+        expect(screen.getByText('Readable example body')).toBeVisible(); expect(screen.getByText('Public history')).toBeVisible()
+        fireEvent.click(screen.getByRole('tab', { name: /Comments/ })); expect(screen.getByText('Comments for guest')).toBeVisible()
+        expect(screen.getByRole('button', { name: 'Share' })).toBeVisible()
         for (const name of ['Edit note', 'Review deletion', 'Write a note', 'Encryption', 'Publish']) expect(screen.queryByRole('button', { name })).toBeNull()
         expect(mocks.contexts[0]).toMatchObject({ chainId: 'test-chain', rpcUrls: ['https://rpc.invalid'] })
     })
@@ -68,7 +70,7 @@ describe('dormant public Notes native view', () => {
         const view = render(<PublicNotesApp {...props({ status: 'member', address: 'owner' })} />)
         expect(await screen.findByText('Public authoring for owner')).toBeVisible(); expect(screen.getByText('Public receipts')).toBeVisible()
         view.rerender(<PublicNotesApp {...props({ status: 'resuming', address: 'owner' })} />)
-        expect(await screen.findByText('Comments for guest')).toBeVisible()
+        fireEvent.click(await screen.findByRole('tab', { name: /Comments/ })); expect(await screen.findByText('Comments for guest')).toBeVisible()
     })
     it('keeps a stable authoring scope across unrelated parent renders', async () => {
         const view = render(<PublicNotesApp {...props({ status: 'member', address: 'owner' })} />)
@@ -182,6 +184,7 @@ describe('dormant public Notes native view', () => {
     })
     it('keeps an unsent comment when another note opens', async () => {
         const input = props(), view = render(<PublicNotesApp {...input} />)
+        fireEvent.click(await screen.findByRole('tab', { name: /Comments/ }))
         fireEvent.change(await screen.findByRole('textbox', { name: 'Comment' }), { target: { value: 'Lovely recipe' } })
         view.rerender(<PublicNotesApp {...input} section={'cd'.repeat(16)} />)
         await waitFor(() => expect(mocks.note).toHaveBeenCalledWith('cd'.repeat(16)))

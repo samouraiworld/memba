@@ -26,6 +26,30 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(saveDraft.mock.calls[0][3].signal.aborted).toBe(false)
     })
 
+    it("reopened on the same note before the closing save lands, reads the draft only after that save (X, Y, X)", async () => {
+        let finish!: () => void
+        let stored: DraftRecord = record
+        const saveDraft = vi.fn((_scope, revision: string, payload) => {
+            const save = () => { stored = { ...record, localRevision: String(BigInt(revision) + 1n), payload }; return { status: "saved", value: stored } }
+            return saveDraft.mock.calls.length === 1 ? new Promise(resolve => { finish = () => resolve(save()) }) : Promise.resolve(save())
+        })
+        const getDraft = vi.fn(async () => stored)
+        const store = { getDraft, saveDraft } as unknown as NotesStore
+        const first = render(<DraftEditor store={store} scope={scope} onSaved={() => {}} />)
+        fireEvent.change(await screen.findByRole("textbox", { name: "Note title" }), { target: { value: "Typed before switching" } })
+        first.unmount()
+        await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledOnce())
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} />)
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+        expect(getDraft).toHaveBeenCalledOnce()
+        await act(async () => { finish(); await new Promise(resolve => setTimeout(resolve, 0)) })
+        expect(await screen.findByRole("textbox", { name: "Note title" })).toHaveValue("Typed before switching")
+        fireEvent.change(screen.getByRole("textbox", { name: "Note title" }), { target: { value: "Typed after coming back" } })
+        await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(2), { timeout: 2000 })
+        expect(saveDraft.mock.calls[1][1]).toBe("2")
+        expect(screen.queryByText(/changed in another window/)).toBeNull()
+    })
+
     it("retains the published baseline while autosaving and exposes only durable snapshots", async () => {
         const base = { stateRevision: "7", epoch: "0", ownerGeneration: "1", titleRevision: "2", bodyRevision: "4" }
         const initial = { ...record, payload: { kind: "public" as const, title: "Saved", body: "Saved body", base } }

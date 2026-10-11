@@ -28,6 +28,25 @@ const session = (status: "member" | "guest", address = "g1alpha") => ({
     status, address, network: { chainId: "gnoland-1" }, walletChainId: "gnoland-1", openConnect: vi.fn(),
 }) as unknown as OsSession
 
+describe("technical details", () => {
+    it("folds identifiers and the wallet checklist under Technical details when a request supplies them", () => {
+        const folded = { ...request, lines: () => [["Comment", "I can bring the mat"]] as [string, string][], technical: () => [["Operation", "0123abcd"]] as [string, string][] }
+        function FoldedReview() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(folded)}>Open folded review</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><FoldedReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open folded review" }))
+        expect(screen.getByText("I can bring the mat")).toBeVisible()
+        const details = screen.getByText("Technical details").closest("details")!
+        expect(details.open).toBe(false)
+        expect(details).toHaveTextContent("0123abcd")
+        expect(screen.queryByText("Adena should show")).toBeNull()
+        expect(screen.getByRole("button", { name: "Sign in Adena" })).toBeEnabled()
+        cleanup()
+    })
+})
+
 describe("OS signing session boundary", () => {
     it("releases a durable governance receipt after chain verification succeeds", async () => {
         const receipt = { chainId: "gnoland-1", realmPath: "gno.land/r/test/dao", caller: "g1alpha", operation: "vote:51" }

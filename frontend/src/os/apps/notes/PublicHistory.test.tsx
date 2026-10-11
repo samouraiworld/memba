@@ -39,29 +39,59 @@ function setup(bodyText = 'Body') {
     }
     return { mocks, client: mocks as unknown as NotesReadClient, version, comment }
 }
-describe('public history navigation', () => {
-    it('works for a guest and fixes through_seq across next/previous pages', async () => {
-        const s = setup(); render(<PublicHistory client={s.client} noteId={noteId} />)
-        await screen.findByRole('button', { name: 'Next history' })
-        expect(screen.getAllByRole('button', { name: /^Event/ })).toHaveLength(20)
-        fireEvent.click(screen.getByRole('button', { name: 'Next history' }))
-        await screen.findByRole('button', { name: 'Event 21: Content updated' })
-        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '20', '21', 20)
-        fireEvent.click(screen.getByRole('button', { name: 'Previous history' }))
-        await screen.findByRole('button', { name: 'Event 1: Content updated' })
-        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '21', 20)
-        fireEvent.click(screen.getByRole('button', { name: 'Refresh history' }))
-        await waitFor(() => expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '0', 20))
-        expect(screen.getByText(/Public versions are retained, including after deletion, unless a moderator removes them/)).toBeVisible()
+const head = (seq: string) => ({ ...info, headSeq: seq, latestStateRevision: seq })
+function timeline(s: ReturnType<typeof setup>, last = '21', action: 'content-commit' | 'public-writes' = 'content-commit') {
+    s.mocks.publicHistoryInfo.mockResolvedValue(head(last))
+    s.mocks.publicHistory.mockImplementation(async (_id: string, after = '0', through = '0') => {
+        const end = through === '0' ? last : through, count = Math.min(20, Number(BigInt(end) - BigInt(after)))
+        return { id: noteId, throughSeq: end, nextCursor: BigInt(after) + BigInt(count) < BigInt(end) ? String(BigInt(after) + BigInt(count)) : null,
+            items: Array.from({ length: count }, (_, i) => { const seq = String(BigInt(after) + BigInt(i) + 1n); return { seq, action: seq === '1' ? 'create' as const : action,
+                stateRevision: seq, height: String(100 + Number(seq)), actor: s.version.owner, executor: null, operationId: 'aa'.repeat(16), proposalId: null, commentId: null } }) }
     })
-    it('reads explicit policy detail and governance provenance', async () => {
-        const s = setup(); render(<PublicHistory client={s.client} noteId={noteId} />)
-        fireEvent.click(await screen.findByRole('button', { name: 'Event 1: Content updated' }))
-        await screen.findByText('Policy: write · cleared')
-        expect(screen.getByText(/Executor .*Proposal 7.*SetPolicy/)).toBeVisible()
-        fireEvent.click(screen.getByRole('button', { name: 'Read version 1' }))
+    s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...s.version, stateRevision: revision, bodyRevision: revision, allowPublicWrites: true }))
+}
+const events = () => screen.getAllByRole('listitem').map(item => item.querySelector('strong')?.textContent)
+describe('public history timeline', () => {
+    it('lists the newest revisions first in plain words, and pages to older ones under a fixed head', async () => {
+        const s = setup(); timeline(s); render(<PublicHistory client={s.client} noteId={noteId} />)
+        await waitFor(() => expect(events()[0]).toBe('Revision 21 · body edited'))
+        expect(events()).toHaveLength(20); expect(events().at(-1)).toBe('Revision 2 · body edited')
+        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '1', '21', 20)
+        expect(screen.queryByRole('button', { name: 'Newer' })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Older' }))
+        await waitFor(() => expect(events().at(-1)).toBe('Revision 1 · created'))
+        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '21', 20)
+        fireEvent.click(screen.getByRole('button', { name: 'Newer' }))
+        await waitFor(() => expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '1', '21', 20))
+        expect(screen.getByText(/Earlier versions stay readable here unless a moderator removes them/)).toBeVisible()
+    })
+    it('names the person, the new title of a rename and the editing setting a change chose', async () => {
+        const s = setup(); timeline(s, '3', 'public-writes')
+        render(<PublicHistory client={s.client} noteId={noteId} viewer={s.version.owner} />)
+        await waitFor(() => expect(events()).toEqual(['Revision 3 · editing opened to everyone', 'Revision 2 · editing opened to everyone', 'Revision 1 · created']))
+        expect(screen.getAllByText('You')).toHaveLength(3)
+        const r = setup(); timeline(r, '2')
+        r.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...r.version, stateRevision: revision, titleRevision: revision, bodyRevision: '1' }))
+        render(<PublicHistory client={r.client} noteId={'ee'.repeat(16)} />)
+        expect(await screen.findByText('Revision 2 · renamed')).toBeVisible()
+        expect(screen.getByText(/“Comments”/)).toBeVisible()
+    })
+    it('views an archived revision and uses it as a draft without signing anything', async () => {
+        const s = setup(), onRestore = vi.fn(); timeline(s, '2')
+        render(<PublicHistory client={s.client} noteId={noteId} onRestore={onRestore} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'View revision 1' }))
         await screen.findByText('Body', { selector: 'pre' })
-        expect(screen.getByRole('button', { name: 'Use version 1 as a new draft' })).toBeDisabled()
+        fireEvent.click(screen.getByRole('button', { name: 'Use revision 2 as a draft' }))
+        await waitFor(() => expect(onRestore).toHaveBeenCalledWith({ noteId, sourceStateRevision: '2', title: 'Comments', body: 'Body' }))
+        expect(await screen.findByText('Revision 2 was copied into a draft. Nothing was signed.')).toBeVisible()
+    })
+    it('restores nothing when the history moved during the read', async () => {
+        const s = setup(), onRestore = vi.fn(); timeline(s, '2')
+        render(<PublicHistory client={s.client} noteId={noteId} onRestore={onRestore} />)
+        const button = await screen.findByRole('button', { name: 'Use revision 2 as a draft' })
+        s.mocks.publicHistoryInfo.mockResolvedValueOnce(head('2')).mockResolvedValueOnce(head('3'))
+        fireEvent.click(button)
+        expect(await screen.findByText(/could not be checked against the current history/)).toBeVisible(); expect(onRestore).not.toHaveBeenCalled()
     })
     it('handles authoritative null without requesting pages', async () => {
         const s = setup(); s.mocks.publicHistoryInfo.mockResolvedValue(null as never)
@@ -70,27 +100,27 @@ describe('public history navigation', () => {
         expect(s.mocks.publicHistory).not.toHaveBeenCalled()
     })
     it('fails closed for a missing page and retries explicitly', async () => {
-        const s = setup(); s.mocks.publicHistory.mockResolvedValueOnce(null as never)
+        const s = setup(); timeline(s); s.mocks.publicHistory.mockResolvedValueOnce(null as never)
         render(<PublicHistory client={s.client} noteId={noteId} />)
-        await screen.findByRole('alert'); expect(screen.queryByRole('button', { name: /^Event/ })).toBeNull()
-        fireEvent.click(screen.getByRole('button', { name: 'Refresh history' }))
-        await screen.findByRole('button', { name: 'Next history' })
+        await screen.findByRole('alert'); expect(screen.queryByRole('listitem')).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+        await screen.findByRole('button', { name: 'Older' })
     })
     it('drops late results across note/client ABA changes', async () => {
-        const s = setup(), pending = deferred<typeof info>()
+        const s = setup(), pending = deferred<typeof info>(); timeline(s)
         s.mocks.publicHistoryInfo.mockReturnValueOnce(pending.promise)
         const view = render(<PublicHistory client={s.client} noteId={noteId} />)
-        const newer = setup(); view.rerender(<PublicHistory client={newer.client} noteId={'ff'.repeat(16)} />)
-        await screen.findByRole('button', { name: 'Next history' })
-        await act(async () => pending.resolve(info))
-        expect(screen.getAllByRole('button', { name: /^Event/ })).toHaveLength(20)
+        const newer = setup(); timeline(newer); view.rerender(<PublicHistory client={newer.client} noteId={'ff'.repeat(16)} />)
+        await screen.findByRole('button', { name: 'Older' })
+        await act(async () => pending.resolve(head('21')))
+        expect(events()).toHaveLength(20)
         expect(s.mocks.publicHistory).toHaveBeenCalledTimes(1)
         view.rerender(<PublicHistory client={s.client} noteId={noteId} />)
-        await screen.findByRole('button', { name: 'Next history' })
+        await screen.findByRole('button', { name: 'Older' })
     })
     it('loads safely under StrictMode replay', async () => {
-        const s = setup(); render(<StrictMode><PublicHistory client={s.client} noteId={noteId} /></StrictMode>)
-        await screen.findByRole('button', { name: 'Next history' })
+        const s = setup(); timeline(s); render(<StrictMode><PublicHistory client={s.client} noteId={noteId} /></StrictMode>)
+        await screen.findByRole('button', { name: 'Older' })
         expect(screen.queryByRole('alert')).toBeNull()
     })
 })
@@ -216,18 +246,17 @@ describe('moderator redaction', () => {
 
 describe('public history freshness', () => {
     it('reloads from the head after a confirmed change, but not when nothing new was recorded', async () => {
-        const s = setup(); render(<PublicHistory client={s.client} noteId={noteId} />)
-        await screen.findByText(/Page snapshot through event 21/)
+        const s = setup(); timeline(s, '21'); render(<PublicHistory client={s.client} noteId={noteId} />)
+        await waitFor(() => expect(events()[0]).toBe('Revision 21 · body edited'))
         act(() => announceNoteChange({ chainId: 'test-chain', noteId }))
         await waitFor(() => expect(s.mocks.publicHistoryInfo).toHaveBeenCalledTimes(2))
         expect(s.mocks.publicHistory).toHaveBeenCalledOnce()
-        s.mocks.publicHistoryInfo.mockResolvedValueOnce(info).mockResolvedValue({ ...info, headSeq: String(BigInt(info.headSeq) + 1n), latestStateRevision: '2' })
-        s.mocks.publicHistory.mockImplementation(async (_id: string, after = '0') => ({ id: noteId, throughSeq: '22', nextCursor: null, items: [{ seq: String(BigInt(after) + 1n), action: 'comment-add' as const,
-            stateRevision: '1', height: '3', actor: s.version.owner, executor: null, operationId: 'bb'.repeat(16), proposalId: null, commentId: 'cc'.repeat(16) }] }))
-        act(() => announceNoteChange({ chainId: 'test-chain', noteId, stateRevision: '2' }))
-        expect(await screen.findByText(/Page snapshot through event 22/, {}, { timeout: 3000 })).toBeVisible()
-        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '0', '0', 20)
-        // The first answer lagged behind the announced revision 2 and was read again.
-        expect(s.mocks.publicHistoryInfo.mock.calls.length).toBeGreaterThanOrEqual(4)
+        s.mocks.publicHistoryInfo.mockReset(); s.mocks.publicHistoryInfo.mockResolvedValueOnce(head('21')).mockResolvedValue(head('22'))
+        timeline(s, '22'); s.mocks.publicHistoryInfo.mockReset(); s.mocks.publicHistoryInfo.mockResolvedValueOnce(head('21')).mockResolvedValue(head('22'))
+        act(() => announceNoteChange({ chainId: 'test-chain', noteId, stateRevision: '22' }))
+        await waitFor(() => expect(events()[0]).toBe('Revision 22 · body edited'), { timeout: 3000 })
+        expect(s.mocks.publicHistory).toHaveBeenLastCalledWith(noteId, '2', '22', 20)
+        // The first answer lagged behind the announced revision 22 and was read again.
+        expect(s.mocks.publicHistoryInfo.mock.calls.length).toBeGreaterThanOrEqual(3)
     })
 })

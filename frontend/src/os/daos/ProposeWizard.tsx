@@ -26,7 +26,7 @@ import { useDaoConfig, useDaoMembers } from "./useOsDao"
 const STEPS = ["Type", "Details", "Review"] as const
 const TARGET_TYPES = [
     { name: "Spend from treasury", what: "Pay GNOT or tokens from the DAO.", tag: "Target · contract v3" },
-    { name: "Update shared desk", what: "Change the DAO’s shared desktop.", tag: "Target · v1.1" },
+    { name: "Update shared desk", what: "Change the DAO’s shared Desktop.", tag: "Target · v1.1" },
 ] as const
 
 function Gate({ children }: { children: ReactNode }) {

@@ -17,6 +17,14 @@ afterEach(async () => { vi.useRealTimers(); await Promise.all(stores.splice(0).m
 const list = () => screen.getAllByRole('listitem').map(item => item.textContent)
 
 describe('My notes list', () => {
+    it('keeps a note with unsent text reachable even when it is not one of mine (a comment on someone else\'s note)', async () => {
+        const { store, client } = setup(), onOpen = vi.fn(), theirs = 'ee'.repeat(16)
+        client.byOwner.mockResolvedValue(page([note('cc'.repeat(16))]))
+        render(<NotesList store={store} partition={partition} client={client} owner="owner" query="" selected={null} unsaved={[theirs, 'cc'.repeat(16)]} refresh={0} onOpen={onOpen} />)
+        await waitFor(() => expect(list()).toEqual(['Unsaved textUnsavedA comment or edit not sent yet', 'SushiPublicUnsaved changes · Revision 6']))
+        fireEvent.click(screen.getByRole('button', { name: /Unsaved text/ }))
+        expect(onOpen).toHaveBeenCalledExactlyOnceWith(theirs)
+    })
     it('mixes local drafts, published and private notes with a state and one line of context', async () => {
         const { store, session, client } = setup(), onOpen = vi.fn()
         const draft = 'aa'.repeat(16), edited = 'bb'.repeat(16), published = 'cc'.repeat(16), locked = 'dd'.repeat(16)

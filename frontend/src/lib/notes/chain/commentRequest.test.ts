@@ -46,6 +46,15 @@ describe('public comment intentions', () => {
     expect(await recoverPublicIntent(s.client, s.intents, receipt, s.session)).toBe('unknown')
     expect(JSON.stringify(receipt)).not.toContain('Reply')
   })
+  it('asks for one confirmation: plain facts first, identifiers and raw arguments folded under technical details', async () => {
+    const s = setup(), request = await preparePublicCommentRequest(s.options)
+    expect(request.acks).toBeUndefined()
+    const lines = request.lines(undefined), technical = request.technical!(undefined)
+    expect(lines.map(([label]) => label)).toEqual(expect.arrayContaining(['Comment', 'On revision', 'Expected storage deposit', 'Maximum storage deposit', 'Network fee']))
+    expect(lines.find(([label]) => label === 'Expected storage deposit')![1]).toMatch(/ GNOT$/)
+    for (const [, value] of lines) expect(value).not.toContain(operationId)
+    expect(technical).toEqual(expect.arrayContaining([['Operation', operationId], ['Comment ID', commentId], ['Note', noteId], ['Account', owner]]))
+  })
   it('permits author deletion after note deletion/pausing and verifies the exact empty tombstone', async () => {
     const s = setup({ kind: 'delete', revision: '1' }); s.setNote({ deleted: true }); s.pause()
     const request = await preparePublicCommentRequest(s.options); await request.send(undefined, async () => {})

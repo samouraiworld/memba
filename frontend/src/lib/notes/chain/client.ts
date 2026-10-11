@@ -104,6 +104,24 @@ export class NotesReadClient {
     }
     throw new NotesChainError('unavailable')
   }
+  /**
+   * When a block was made, for "10 minutes ago" labels only: never a basis for a decision. A node
+   * whose block header names another chain is not believed; any doubt answers null.
+   */
+  async blockTimeMs(height: string): Promise<number | null> {
+    this.assertCurrent(); decimal(height, 63, true)
+    for (const url of getRpcUrlsInOrder().filter(url => this.rpcUrls.has(url))) {
+      try {
+        const value = await directRpcCall(url, 'block', { height }) as { block?: { header?: { chain_id?: unknown; height?: unknown; time?: unknown } } }
+        this.assertCurrent()
+        const header = value?.block?.header
+        if (header?.chain_id !== this.chainId || header.height !== height || typeof header.time !== 'string') continue
+        const ms = Date.parse(header.time)
+        if (Number.isFinite(ms)) return ms
+      } catch { this.assertCurrent() }
+    }
+    return null
+  }
   async key(owner: string) {
     const who = address(owner)
     return parseKey(await this.query(NOTES_REGISTRY, `KeyJSON(address("${who}"),"${KEY_SUITE}")`), who)
