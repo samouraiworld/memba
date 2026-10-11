@@ -5,6 +5,8 @@ import { isNotesRevision, notesKey, notesPartitionKey, notesRead, notesRequest, 
 export interface PublicIntentVerification {
     /** Absent only on legacy owner-authored receipts. */
     owner?: string
+    /** Present only for an explicit owner change to collective content permission. */
+    allowPublicWrites?: boolean
     kind: "public-v1"
     mode: 3 | 4
     epoch: string
@@ -108,9 +110,10 @@ const VERIFICATION_KEYS = ["kind", "mode", "epoch", "titleSha256", "bodySha256",
 export function validPublicVerification(value: unknown): value is PublicIntentVerification {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false
     const v = value as PublicIntentVerification
-    return Object.keys(v).length === VERIFICATION_KEYS.length + (Object.hasOwn(v, "owner") ? 1 : 0)
-        && Object.keys(v).every(key => VERIFICATION_KEYS.includes(key) || key === "owner")
+    return Object.keys(v).length === VERIFICATION_KEYS.length + (Object.hasOwn(v, "owner") ? 1 : 0) + (Object.hasOwn(v, "allowPublicWrites") ? 1 : 0)
+        && Object.keys(v).every(key => VERIFICATION_KEYS.includes(key) || key === "owner" || key === "allowPublicWrites")
         && (!Object.hasOwn(v, "owner") || (typeof v.owner === "string" && v.owner.length > 0 && v.owner.length <= 128))
+        && (!Object.hasOwn(v, "allowPublicWrites") || (typeof v.allowPublicWrites === "boolean" && v.mode === 4 && v.deleted === false && typeof v.owner === "string" && v.owner.length > 0))
         && v.kind === "public-v1" && (v.mode === 3 || v.mode === 4) && typeof v.deleted === "boolean"
         && typeof v.titleSha256 === "string" && HASH.test(v.titleSha256) && typeof v.bodySha256 === "string" && HASH.test(v.bodySha256)
         && [v.epoch, v.quoteHeight, v.ownerGeneration, v.titleRevision, v.bodyRevision].every(isNotesRevision)
@@ -172,7 +175,8 @@ function validInput(value: NotesIntentInput): boolean {
         && typeof value.actor === "string" && value.actor === value.scope.owner && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(value.action)
         && [value.expectedStateRevision, value.resultingStateRevision, value.expectedEpoch, value.ownerGeneration, value.draftLocalRevision].every(isNotesRevision)
         && (value.verification === undefined || (validPublicVerification(value.verification)
-            && ["create", "commit", "rename", "delete", "comments"].includes(value.action)
+            && ["create", "commit", "rename", "delete", "comments", "public-writes"].includes(value.action)
+            && (value.action === "public-writes") === Object.hasOwn(value.verification, "allowPublicWrites")
             && value.verification.deleted === (value.action === "delete") && value.verification.epoch === value.expectedEpoch
             && value.verification.ownerGeneration === value.ownerGeneration
             && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n

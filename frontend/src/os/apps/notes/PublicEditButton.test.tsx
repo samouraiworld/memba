@@ -4,7 +4,7 @@ import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import { PublicEditButton } from './PublicEditButton'
 const permission = vi.hoisted(() => vi.fn())
-vi.mock('../../../lib/notes/chain/publicPermissions', () => ({ readPublicWritePermission: permission }))
+vi.mock('../../../lib/notes/chain/publicPermissions', () => ({ readPublicContentWritePermission: permission }))
 const note = { id: 'ab'.repeat(16), stateRevision: '2', owner: 'owner', mode: 3 } as ChainNote
 const client = {} as NotesReadClient
 beforeEach(() => vi.clearAllMocks())
@@ -16,6 +16,11 @@ describe('public writer edit entry', () => {
         expect(screen.queryByRole('button')).toBeNull()
         resolve(true); fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
         expect(edit.mock.calls[0][0]).toEqual(note); expect(edit.mock.calls[0][0]).not.toBe(note)
+    })
+    it.each([false, null])('does not expose protected Whitepaper editing without a content grant (%s)', async allowed => {
+        permission.mockResolvedValue(allowed)
+        render(<PublicEditButton note={note} owner="reader" client={client} onEdit={vi.fn()} />)
+        await waitFor(() => expect(permission).toHaveBeenCalledOnce()); expect(screen.queryByRole('button')).toBeNull()
     })
     it('ignores a late permission from the previous account', async () => {
         let resolve!: (allowed: boolean) => void
