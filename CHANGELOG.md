@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes moderation takedowns and single-copy costs (2026-10-11)
+### Notes moderation takedowns and single-copy costs (#1603, 2026-10-11)
 - Read moderator redactions from the Notes realm: removed versions and comments show as removed by moderation with their hash, are never offered for restoration, and the history reports redactable retention.
 - Recalibrate note and comment storage estimates to the merged realm, which stores each public version once. Notes remains disabled pending deployment and reviewed activation.
 
