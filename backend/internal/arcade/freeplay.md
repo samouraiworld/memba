@@ -1,16 +1,85 @@
-# Free play v2 foundation
+# Free play v2
 
-This is dormant source preparation, not an enabled score service. The main
-router mounts `/api/arcade/free-play/v1/` only for a valid configured chain and
-sets `Enabled: false`. No new environment flag, signer, RPC transport, budget
-policy, limiter, board reader or publisher loop is installed. Existing daily
-routes and their realm v1 keep their contracts.
+Free play is playable without a wallet. A completed run may be verified and,
+after explicit consent, anchored with its own receipt and per-game leaderboard.
+The source supports Block Party Free, Space Invaders Free and Barricade FPS
+through their exact versioned replay adapters. Daily/Classic contracts remain
+separate. External games and Connect4 are outside this service.
 
-The game is playable without a wallet. This backend foundation only handles
-verification and optional publication after a completed run. It currently
-verifies Block Party `bp-free-standard-undo-v1`, simulation 1, `bp-actions-v1`.
-Space Invaders and Barricade require separately reviewed replay adapters; their
-slugs are not aliases for the existing daily verifier. No global board exists.
+The service is dormant by default: the backend configuration path is empty and
+the public OS deployment manifest is `null`. The backend mounts a 404 handler
+until an explicit valid configuration is supplied. Runtime, transport, budget,
+limiter, board reader and publisher composition are implemented, but merging
+this source does not deploy a realm, configure a signer or activate publication.
+
+## Trusted deployment configuration
+
+The only backend configuration entry point is
+`MEMBA_ARCADE_FREEPLAY_CONFIG_PATH`. Empty or absent returns a nil configuration
+without file, secret, Node, RPC or v2 runtime work. A nonempty value must be an
+absolute local path. The regular UTF-8 JSON file is read once at startup and is
+limited to 64 KiB. Invalid or unreadable configuration leaves the v2 route
+disabled and emits a constant diagnostic, without the path or file contents.
+Existing services and the general database migration sequence continue.
+
+The document requires these exact case-sensitive fields, including explicit
+`publish: false` when publication is disabled. Objects must contain every listed
+field; unknown/duplicate keys, nulls, trailing values, numeric strings, fractional
+or exponent-form integers and incomplete objects are rejected.
+
+| Object | Required fields |
+|---|---|
+| root | `cost`, `budget`, `rpcUrl`, `rpcBlockAge`, `rpcTimeout`, `publishInterval`, `publish`, `limits`, `node` |
+| `cost.target` | `chainId`, `realm` |
+| `cost` | `target`, `gasWanted`, `storageBytes`, `feeMarginNumerator`, `feeMarginDenominator`, `maxFeeUgnot`, `maxDepositUgnot`, `maxPriceAge`, `quoteLifetime` |
+| `budget` | `signer`, `maxAttempts`, `maxFeeUgnot`, `maxDepositUgnot` |
+| `limits` | `ipRequests`, `walletRequests`, `maxEntries`, `window` |
+| `node` | `nodeBin`, `timeout`, `concurrency`, `maxOutputBytes` |
+
+Duration fields use positive integer unit segments such as `30s` or `1m30s`,
+with units `ns`, `us`, `ms`, `s`, `m`, `h`. Signs, spaces, decimals, overflow and
+zero are refused. Integer resource and monetary fields must fit their declared
+Go integer type and pass the existing runtime validators. No economic or
+resource defaults are provided by this loader. Test fixtures are synthetic
+validation inputs, not recommended production limits.
+
+`cost.target.chainId` must exactly match the server's `GNO_CHAIN_ID`; the realm
+is fixed to `gno.land/r/samcrew/memba_arcade_scores_v2`. `budget.signer` is a
+canonical Gno address, required even when publication is disabled. Transaction
+fee/deposit caps must fit the daily budget. The existing RPC URL, freshness,
+cost, budget and timeout validation remains authoritative; chain identity and
+realm configuration are checked again by the concrete transport before use.
+Legacy daily flags, signer variables and password defaults do not configure v2.
+
+With `publish: false`, omit both `gnokeyBinary` and `keyringHome`; supplying
+either is an error, even as an empty string. No secret accessor, gnokey command
+or publisher is used. This mode still admits authenticated verification, quotes
+and explicitly consented queueing: it is **not a read-only API mode**.
+
+With `publish: true`, both paths are required and absolute. The dedicated
+`MEMBA_ARCADE_FREEPLAY_KEYRING_PW` secret is looked up only by the broadcast
+callback at send time. It must be present, nonempty, at most 1024 bytes, and
+contain no CR, LF or NUL; canceled contexts refuse access. It is sent to gnokey
+through stdin, never argv, config JSON or logs. Loader failures use
+`invalid_freeplay_configuration`; secret failures use
+`freeplay_secret_unavailable`. A missing secret at send time prevents emission;
+parsing success does not prove key availability, funding or onchain roles.
+Keyring provisioning is a separate operator action. This source does not import,
+generate or finance keys, and does not promise secure erasure of Go strings.
+
+The OS host imports `ARCADE_FREE_PLAY_DEPLOYMENT` from
+`frontend/src/os/arcadeFreePlayDeployment.ts`, which remains `null`. A future
+reviewed build may supply public chain/game/rules/version/origin/target fields.
+The adapter validates those fields before lazily acquiring host storage, then
+passes one stable configuration to the existing Shell runtime owner. It does
+not read snapshots, create auth/clients or contact a network. Null never
+acquires storage. Invalid manifests or unavailable storage return null; later
+persistence failures remain visible to the existing result-saving flow.
+
+There is no VITE flag, URL parameter, saved result or remote endpoint that can
+supply this authority. Activation requires a separately reviewed public
+manifest and rebuild as well as explicit backend operator configuration and
+the release conditions below.
 
 ## Protocol
 
@@ -81,8 +150,9 @@ across workers/restarts. Only pre-send operational failures stop at eight and
 expose `retry_limit_operator_review_required`; they never pin the signer.
 Pending confirmation continues without that limit and retains its actual error
 or `confirmation_pending`, even if inclusion takes many polls. Exact readback
-confirms the run and releases the signer in one transaction. No worker loop is
-installed yet; the caller should respect `nextCheckAt` to avoid useless DB work.
+confirms the run and releases the signer in one transaction. When explicitly
+configured with publication enabled, the runtime installs one publisher loop.
+The store honors `nextCheckAt` on every claim across restarts.
 
 An unknown broadcast that never becomes readable intentionally remains pinned.
 RPC not-found alone cannot prove a transaction was never broadcast, including a
@@ -99,31 +169,43 @@ validate RPC network and realm config getters and must not use transaction
 stdout as evidence. A transaction hash may be absent when only readback is
 available; the API does not invent one. Each run has its own receipt, including
 scores below a personal best. The separate realm maintains the per-game best
-index. No production transport or realm deployment is part of this change.
+index. The concrete RPC/gnokey transport is implemented; no live signer,
+production activation or realm deployment is supplied by the configuration
+wiring.
 
 ## Migration and rollout
 
-`042_arcade_freeplay_v2.sql` adds four independent tables: runs, quotes, outbox,
-and signer leases, plus one lookup index. No existing tables or migration names
-change, no old scores are imported, and there is no dependency on unfinished
-account migrations. **The existing migration runner applies 042 on startup even
-while Free play is disabled.** Deployment therefore needs explicit migration
-approval and a consistent database backup; route disablement is not a migration
-gate.
+`042_arcade_freeplay_v2.sql` adds independent runs, quotes, outbox and signer
+lease tables and one lookup index. `043_arcade_freeplay_spending_v2.sql` adds
+budget and spending tables and one index. Existing scores are not imported.
+**The existing migration runner applies both migrations on startup even while
+Free play is disabled.** Route disablement is not a migration gate. Deployment
+therefore needs the release owner's migration decision and a fresh consistent
+database backup.
 
-Before deployment, verify fresh migration, an existing database containing
-legacy scores, repeat migration and reopening a consistent pre-042 backup.
-Tests reconstruct the existing schema from the branch SQL files and use SQLite
-`VACUUM INTO` to prove that restore retains the old score without 042. They do
-not touch a production database. Keep the old binary and its database backup;
-rollback can use the old binary with additive tables retained, or restore the
-backup after stopping writers. Restoring a backup discards writes since that
-backup, so it is an operator decision, not an automatic down migration.
+Tests reconstruct chronological schema prefixes before 042 and before 043,
+assert migration ledgers/tables/indexes, migrate twice and reopen SQLite
+`VACUUM INTO` backups. They preserve the full legacy run and, where present, a
+v2 run; they do not create historical spending or touch a production database.
+These fixture proofs do not replace a fresh deployment backup/restore check.
 
-Activation additionally requires reviewed limiter/quotas, fee/deposit budget,
-dedicated signer management, concrete v2 transport/board reader, recovery and
-backoff policy, replay resource measurements, frontend consent/receipt UX, and
-network-specific configuration. None is implicitly enabled by merging source.
+Rollback may retain additive tables with the previous compatible binary. A
+backup restore needs stopped writers and an explicit operator decision: it
+loses writes since the backup. Reconcile queued, unknown or potentially
+broadcast runs before reactivating any restored publisher; restoring an old
+outbox is not authorization to send again.
+
+Activation requires reviewed identities and economic/resource limits, a
+provisioned dedicated signer, the correct realm, exact binary qualification,
+recovery procedures, frontend consent and a release Go. Two separate blockers
+remain outside this wiring:
+
+- The HTTP service and publisher have no game/player allowlist. Selecting games
+  in the UI cannot restrict direct API submissions or an existing outbox. A
+  limited canary needs separately reviewed server enforcement.
+- The Dockerfile installs `gnokey@v1.1.0`, while the v2 transport proof used e75.
+  Qualify the exact served executable or review a separate image pin before any
+  live broadcast. This wiring does not change the image or key provisioning.
 
 ## Expired unsent authorization
 
@@ -176,9 +258,10 @@ implementation. It does not dispatch to Daily/Classic or reimplement either sim.
 The two committed bundles are rebuilt together and checked independently in CI.
 
 `FreePlayHTTPConfig.Verifier` is optional. Nil keeps SI/FPS ineligible; Block
-Party always uses its existing Go verifier. Main supplies no new runner and
-retains the disabled route. Construction requires an explicit legacy runner;
-there is no fallback network, engine, game, version or signer. Close removes the
+Party always uses its existing Go verifier. When explicitly configured, main
+constructs the shared parent and the Free play runtime owns a dedicated child.
+With no configuration it constructs neither for Free play. Construction requires
+an explicit parent; there is no fallback network, engine, game, version or signer. Close removes the
 private extracted bundle. Request deadlines include the shared queue wait; the
 subprocess timeout bounds execution after admission.
 
@@ -191,5 +274,5 @@ from a rejected replay (422). A verified response is not onchain confirmation.
 Validation evidence:6 positive fixture envelopes,14SI+9FPS rejections, legacy
 loops, shared capacity/cancellation, actual child kill/reap, stdout/stderr caps,
 private permissions and cleanup. See testdata/freeplay/worker-provenance.md.
-No live signing/broadcast, transport budget or production activation is provided
-by this worker preparation.
+Worker tests use fixture envelopes and no live signing/broadcast. They do not
+authorize production activation or establish production resource/economic limits.

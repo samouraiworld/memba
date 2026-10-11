@@ -552,3 +552,100 @@ func TestArcadeFreePlayRuntimePublicationCycle(t *testing.T) {
 		})
 	}
 }
+
+func TestArcadeFreePlayRuntimeLoaderContract(t *testing.T) {
+	for _, publish := range []bool{false, true} {
+		t.Run(fmt.Sprintf("publish=%t", publish), func(t *testing.T) {
+			doc := freePlayConfigDocumentForTest(t)
+			doc.Publish = publish
+			if publish {
+				binary, home := "/synthetic/gnokey", "/synthetic/keyring"
+				doc.GnokeyBinary, doc.KeyringHome = &binary, &home
+			}
+			var secretReads, rpcReads, broadcasts atomic.Int64
+			cfg, broadcast, err := loadArcadeFreePlayConfig("/synthetic/config.json", doc.Cost.Target.ChainID, arcadeFreePlayConfigIO{
+				Open:      freePlayConfigReaderForTest(freePlayConfigRawForTest(t, doc)),
+				LookupEnv: func(string) (string, bool) { secretReads.Add(1); return "SYNTHETIC_TEST_SECRET", true },
+				BroadcastFactory: func(string, string, func(context.Context) (string, error)) (arcade.FreePlayBroadcastFunc, error) {
+					if !publish {
+						t.Fatal("Publish=false constructed signer")
+					}
+					return func(context.Context, []string) (string, error) {
+						broadcasts.Add(1)
+						return "", errors.New("unexpected synthetic broadcast")
+					}, nil
+				},
+			})
+			if err != nil || cfg == nil || (broadcast != nil) != publish || secretReads.Load() != 0 {
+				t.Fatal("loader contract", err)
+			}
+			database, err := db.Open(t.TempDir() + "/loader.sqlite")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = database.Close() }()
+			if err = db.Migrate(database); err != nil {
+				t.Fatal(err)
+			}
+			seed := bytes.Repeat([]byte{0x44}, ed25519.SeedSize) // Deterministic test key only.
+			t.Setenv("ED25519_SEED", hex.EncodeToString(seed))
+			t.Setenv("GNO_CHAIN_ID", cfg.Cost.Target.ChainID)
+			t.Setenv("MEMBA_ACCEPTED_CHAIN_IDS", cfg.Cost.Target.ChainID)
+			auth, err := service.NewMultisigService(database)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parent, err := arcade.NewRunner(cfg.Node) // Extracts a bundle; never runs Node for BP.
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = parent.Close() }()
+			runtime, err := newArcadeFreePlayRuntime(context.Background(), cfg, arcadeFreePlayDependencies{Database: database, Auth: auth, Parent: parent, Broadcast: broadcast, HTTP: &http.Client{Transport: arcadeRuntimeTransportFunc(func(*http.Request) (*http.Response, error) {
+				rpcReads.Add(1)
+				return nil, errors.New("synthetic offline RPC")
+			})}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { runtime.stop(); _ = runtime.drain(context.Background()); _ = runtime.child.Close() }()
+			if (runtime.publisher != nil) != publish {
+				t.Fatal("loaded publish flag diverged")
+			}
+			if publish && (runtime.publisher.Store != runtime.store || runtime.publisher.Chain != runtime.chain || runtime.publisher.Spending != runtime.spending || runtime.publisher.Signer != doc.Budget.Signer) {
+				t.Fatal("loaded identity or shared instances diverged")
+			}
+			raw, err := os.ReadFile("../../internal/arcade/testdata/freeplay/vectors.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fixture struct {
+				Runs []struct {
+					Input arcade.FreePlayInput
+					Score int64
+				}
+			}
+			if err = json.Unmarshal(raw, &fixture); err != nil || len(fixture.Runs) == 0 {
+				t.Fatal("fixture unavailable", err)
+			}
+			input := fixture.Runs[0].Input
+			input.ClaimedScore = &fixture.Runs[0].Score
+			payload, err := json.Marshal(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			token := &membav1.Token{Nonce: strings.Repeat("a", 64), UserAddress: doc.Budget.Signer, ChainId: cfg.Cost.Target.ChainID, Expiration: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
+			unsigned, err := proto.Marshal(token)
+			if err != nil {
+				t.Fatal(err)
+			}
+			token.ServerSignature = base64.StdEncoding.EncodeToString(ed25519.Sign(ed25519.NewKeyFromSeed(seed), unsigned))
+			request := httptest.NewRequest("POST", arcade.FreePlayPrefix+"verify", bytes.NewReader(payload))
+			request.Header.Set("Authorization", "Bearer "+protojson.Format(token))
+			response := httptest.NewRecorder()
+			runtime.wrap(runtime.handler).ServeHTTP(response, request)
+			if response.Code != 200 || secretReads.Load() != 0 || broadcasts.Load() != 0 || rpcReads.Load() != 0 {
+				t.Fatalf("loaded runtime unexpectedly read/signs or failed verify: %d", response.Code)
+			}
+		})
+	}
+}

@@ -570,8 +570,11 @@ func main() {
 	// time.
 	arcadeEnabled := os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "true"
 	arcadeGames := arcade.ParseEnabledGames(os.Getenv("MEMBA_ARCADE_GAMES"))
-	// No Free play operator configuration is supplied by this dormant rollout.
-	var freePlayConfiguration *arcadeFreePlayConfig
+	// An absent operator path preserves the dormant nil configuration without I/O.
+	freePlayConfiguration, freePlayBroadcast, freePlayConfigErr := loadArcadeFreePlayConfig(os.Getenv(arcadeFreePlayConfigPathEnv), os.Getenv("GNO_CHAIN_ID"), arcadeFreePlayConfigIO{})
+	if freePlayConfigErr != nil {
+		slog.Error("free play configuration refused; remains dormant")
+	}
 	var arcadeParent *arcade.Runner
 	var arcadeVerifier arcade.Verifier
 	nodeConfig := arcade.Config{NodeBin: envOr("MEMBA_ARCADE_NODE_BIN", "node")}
@@ -586,17 +589,29 @@ func main() {
 	if arcadeEnabled || freePlayConfiguration != nil {
 		nodeBin := nodeConfig.NodeBin
 		if _, err := exec.LookPath(nodeBin); err != nil {
-			slog.Warn("MEMBA_ARCADE_SUBMIT_ENABLED set but node not on PATH — arcade submit stays disabled", "nodeBin", nodeBin, "error", err)
+			if freePlayConfiguration != nil {
+				slog.Warn("configured arcade replay worker unavailable; free play remains dormant")
+			} else {
+				slog.Warn("MEMBA_ARCADE_SUBMIT_ENABLED set but node not on PATH — arcade submit stays disabled", "nodeBin", nodeBin, "error", err)
+			}
 			arcadeEnabled = false
 			freePlayConfiguration = nil
 		} else if runner, err := arcade.NewRunner(nodeConfig); err != nil {
-			slog.Error("arcade verify worker init failed — arcade submit disabled", "error", err)
+			if freePlayConfiguration != nil {
+				slog.Error("configured arcade replay worker initialization failed; free play remains dormant")
+			} else {
+				slog.Error("arcade verify worker init failed — arcade submit disabled", "error", err)
+			}
 			arcadeEnabled = false
 			freePlayConfiguration = nil
 		} else {
 			arcadeParent = runner
 			arcadeVerifier = runner
-			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin, "games", arcadeGames)
+			if freePlayConfiguration != nil {
+				slog.Info("configured arcade replay worker initialized")
+			} else {
+				slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin, "games", arcadeGames)
+			}
 		}
 	}
 	var freePlayRuntime *arcadeFreePlayRuntime
@@ -613,7 +628,7 @@ func main() {
 	// Nil config returns 404 without constructing v2 dependencies or doing I/O.
 	// svc is the existing signature/expiry/chain-aware REST authenticator.
 	var freePlayRuntimeErr error
-	freePlayRuntime, freePlayRuntimeErr = newArcadeFreePlayRuntime(ctx, freePlayConfiguration, arcadeFreePlayDependencies{Database: database, Auth: svc, Parent: arcadeParent})
+	freePlayRuntime, freePlayRuntimeErr = newArcadeFreePlayRuntime(ctx, freePlayConfiguration, arcadeFreePlayDependencies{Database: database, Auth: svc, Parent: arcadeParent, Broadcast: freePlayBroadcast})
 	if freePlayRuntimeErr != nil {
 		slog.Error("free play configuration refused; remains dormant")
 		freePlayRuntime, _ = newArcadeFreePlayRuntime(ctx, nil, arcadeFreePlayDependencies{})
