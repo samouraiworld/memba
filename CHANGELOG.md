@@ -20,11 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Memba OS favicon on the dev server (#1606, 2026-10-11)
-- The local dev server now shows the approved Memba OS mark as the tab and touch icon whenever Memba OS is on, served from the same committed artwork and URLs as memba.club. Builds are unchanged: the classic build keeps its icon and the beta build its identity.
-### Note shortcuts on the Desktop (2026-10-11)
+### Note shortcuts on the Desktop (#1608, 2026-10-11)
 - An open note offers Add to Desktop, or Remove from Desktop when it is already there. Shortcuts use the existing desk, kept in this browser for each wallet and network. Desktop actions now read "Add to Desktop" and "Remove from Desktop" everywhere.
 - A note shortcut is a document with a Notes badge, or a lock badge for a private note. It is labelled with the note's public title, read from the chain and cached, or "Note" when the title is not known. A private note is never looked up again once known, and a note taken down by moderation shows "Note". Removing a shortcut or resetting local app data also clears its cached title. Clicking the shortcut opens the note. Right-clicking offers Open and Remove from Desktop, and removing a shortcut never deletes the note. Notes remains disabled pending deployment and reviewed activation.
+
+### Memba OS favicon on the dev server (#1606, 2026-10-11)
+- The local dev server now shows the approved Memba OS mark as the tab and touch icon whenever Memba OS is on, served from the same committed artwork and URLs as memba.club. Builds are unchanged: the classic build keeps its icon and the beta build its identity.
 
 ### Notes stay current and keep your text across newer versions (#1607, 2026-10-11)
 - Published notes, their public history, community-editing status and comments refresh as soon as a change is confirmed, and again when a Notes window comes back to the front. A note being reloaded shows "Loading note…" instead of a brief "Note not found".
