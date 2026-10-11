@@ -2,7 +2,8 @@ import { address, check, decimal, id, record } from './schema'
 
 export const HISTORY_ACTIONS = ['create', 'publish', 'content-commit', 'comment-mode', 'public-writes', 'writer-add', 'writer-remove',
   'owner-propose', 'owner-cancel', 'owner-accept', 'policy-set', 'gov-writers', 'owner-listing', 'listing-moderation',
-  'note-delete', 'legacy-epoch-reveal', 'comment-add', 'comment-delete', 'comment-visibility', 'comment-resolution', 'cleanup'] as const
+  'note-delete', 'legacy-epoch-reveal', 'comment-add', 'comment-delete', 'comment-visibility', 'comment-resolution', 'cleanup',
+  'content-redact', 'comment-redact'] as const
 export type HistoryAction = typeof HISTORY_ACTIONS[number]
 export function historyBoolean(value: unknown): boolean { check(typeof value === 'boolean'); return value }
 export function historyNullable<T>(value: unknown, parse: (v: unknown) => T): T | null { return value === null ? null : parse(value) }
@@ -28,13 +29,13 @@ export function parseHistoryInfo(value: unknown, wanted: string) {
   const headSeq = historyRevision(v.head_seq), latestStateRevision = historyRevision(v.latest_state_revision)
   check(BigInt(startBodyRevision) <= BigInt(startStateRevision) && BigInt(startStateRevision) <= BigInt(latestStateRevision))
   check(BigInt(headSeq) >= BigInt(latestStateRevision) - BigInt(startStateRevision) + 1n)
-  check(v.retention === 'permanent-public' && v.coverage === 'public-since-publication-v1')
+  check(v.retention === 'public-moderator-redactable' && v.coverage === 'public-since-publication-v1')
   return { id: wanted, startStateRevision, startBodyRevision, headSeq, latestStateRevision,
-    retention: 'permanent-public' as const, coverage: 'public-since-publication-v1' as const,
+    retention: 'public-moderator-redactable' as const, coverage: 'public-since-publication-v1' as const,
     deleted: historyBoolean(v.deleted), moderatorHidden: historyBoolean(v.moderator_hidden) }
 }
 const ENTRY_FIELDS = ['seq', 'action', 'height', 'state_revision', 'actor', 'executor', 'op_id', 'proposal_id']
-const COMMENT_ACTIONS: readonly string[] = ['comment-add', 'comment-delete', 'comment-visibility', 'comment-resolution']
+const COMMENT_ACTIONS: readonly string[] = ['comment-add', 'comment-delete', 'comment-visibility', 'comment-resolution', 'comment-redact']
 function entryFields(v: Record<string, unknown>) {
   check(typeof v.action === 'string' && (HISTORY_ACTIONS as readonly string[]).includes(v.action))
   const action = v.action as HistoryAction, executor = historyNullable(v.executor, address)
@@ -87,11 +88,18 @@ const GOV_ACTION: Partial<Record<HistoryAction, readonly string[]>> = {
   'comment-visibility': ['HideComment'], 'comment-resolution': ['ResolveComment'], cleanup: ['Purge'],
 }
 function parseDetail(value: unknown, action: HistoryAction, stateRevision: string) {
+  // A moderator can redact the archive of a comment whose live record was already purged.
+  if (action === 'comment-redact' && typeof value === 'object' && value !== null && Object.hasOwn(value, 'purged')) {
+    const v = record(value, ['comment_id', 'purged'])
+    check(v.purged === true)
+    return { kind: 'comment-purged' as const, commentId: id(v.comment_id) }
+  }
   if (COMMENT_ACTIONS.includes(action)) {
     const comment = parseHistoryCommentReference(value)
     if (action === 'comment-add') check(comment.commentRevision === '1' && !comment.deleted && !comment.hidden && !comment.resolved)
     else check(BigInt(comment.commentRevision) > 1n)
     if (action === 'comment-delete') check(comment.deleted)
+    if (action === 'comment-redact') check(comment.hidden)
     return { kind: 'comment' as const, ...comment }
   }
   if (action === 'cleanup') {
@@ -100,7 +108,8 @@ function parseDetail(value: unknown, action: HistoryAction, stateRevision: strin
     check(amounts.every(n => n <= 50) && amounts[5] > 0 && amounts.slice(0, 5).reduce((a, b) => a + b, 0) === amounts[5])
     return { kind: 'cleanup' as const, commentIndex: amounts[0], comments: amounts[1], cooldowns: amounts[2], epochs: amounts[3], requests: amounts[4], total: amounts[5] }
   }
-  const extra = action === 'content-commit' ? ['field_mask'] : action === 'legacy-epoch-reveal' ? ['target_epoch'] : action === 'policy-set' ? ['policy_op', 'policy_key'] : []
+  const extra = action === 'content-commit' ? ['field_mask'] : action === 'legacy-epoch-reveal' ? ['target_epoch'] : action === 'policy-set' ? ['policy_op', 'policy_key']
+    : action === 'content-redact' ? ['field', 'field_revision', 'sha256'] : []
   const v = record(value, ['snapshot_revision', 'previous_state_revision', ...extra])
   const snapshotRevision = historyRevision(v.snapshot_revision), previousStateRevision = historyNullable(v.previous_state_revision, historyRevision)
   check(snapshotRevision === stateRevision)
@@ -110,7 +119,11 @@ function parseDetail(value: unknown, action: HistoryAction, stateRevision: strin
   check(fieldMask === null || fieldMask === 1 || fieldMask === 2 || fieldMask === 3)
   const policyOp = action === 'policy-set' ? v.policy_op : null
   check(policyOp === null || policyOp === 0 || policyOp === 1 || policyOp === 2)
+  const redaction = action === 'content-redact' ? { field: v.field, fieldRevision: historyRevision(v.field_revision), sha256: v.sha256 } : null
+  check(redaction === null || ((redaction.field === 'title' || redaction.field === 'body') && BigInt(redaction.fieldRevision) <= BigInt(snapshotRevision)
+    && typeof redaction.sha256 === 'string' && /^[a-f0-9]{64}$/.test(redaction.sha256)))
   return { kind: 'note' as const, snapshotRevision, previousStateRevision, fieldMask: fieldMask as 1 | 2 | 3 | null,
+    redaction: redaction as { field: 'title' | 'body'; fieldRevision: string; sha256: string } | null,
     policyOp: policyOp as 0 | 1 | 2 | null, policyKey: action === 'policy-set' ? historyPolicyKey(v.policy_key) : null,
     targetEpoch: action === 'legacy-epoch-reveal' ? decimal(v.target_epoch, 32, true) : null }
 }

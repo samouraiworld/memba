@@ -16,6 +16,7 @@ const actions: Record<HistoryAction, string> = {
     'listing-moderation': 'Listing moderated', 'note-delete': 'Note deleted', 'legacy-epoch-reveal': 'Earlier epoch revealed',
     'comment-add': 'Comment added', 'comment-delete': 'Comment deleted', 'comment-visibility': 'Comment visibility changed',
     'comment-resolution': 'Comment resolution changed', cleanup: 'Current storage cleaned up',
+    'content-redact': 'Content removed by moderation', 'comment-redact': 'Comment removed by moderation',
 }
 /** Guest-readable and read-only; restoration delegates copied content, never a signature. */
 export function PublicHistory(props: PublicHistoryProps) {
@@ -48,7 +49,7 @@ function HistorySession({ client, noteId, onRestore }: PublicHistoryProps) {
         <header><h2>Public history</h2><button className="os-btn os-quiet" disabled={state.loading} onClick={() => {
             setSelected(null); setVersions([]); setCursor(value => ({ after: '0', through: '0', generation: value.generation + 1 }))
         }}>Refresh history</button></header>
-        <p>Public versions are retained permanently, including after deletion. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
+        <p>Public versions are retained, including after deletion, unless a moderator removes them; a removal keeps the content hash and is recorded here. Coverage starts at public publication; earlier private content, access maintenance and global administration are excluded.</p>
         {state.loading && <p role="status">Loading public history…</p>}
         {state.error && <p role="alert">Public history could not be verified. Refresh to try again.</p>}
         {!state.loading && !state.error && data === null && <p>No public history is available for this note.</p>}
@@ -97,11 +98,13 @@ function HistoryDetail({ client, noteId, seq, chooseVersion, canCompare }: {
 function HistoryDetailFields({ entry }: { entry: PublicHistoryEntry }) {
     const d = entry.detail
     if (d.kind === 'cleanup') return <p>Removed {d.total} current records: {d.commentIndex} comment index, {d.comments} comments, {d.cooldowns} cooldowns, {d.epochs} epochs, {d.requests} requests. Public archives remain.</p>
+    if (d.kind === 'comment-purged') return <p>The archived copy of purged comment {d.commentId} was removed by moderation.</p>
     if (d.kind === 'comment') return <p>Comment revision {d.commentRevision} · {d.deleted ? 'Deleted' : 'Retained'} · {d.hidden ? 'Hidden' : 'Visible'} · {d.resolved ? 'Resolved' : 'Open'}</p>
     return <>
         <p>State revision {d.snapshotRevision}{d.previousStateRevision && `, following ${d.previousStateRevision}`}</p>
         {d.fieldMask && <p>Changed: {d.fieldMask === 1 ? 'title' : d.fieldMask === 2 ? 'body' : 'title and body'}. A title-only change may be Commit or Rename.</p>}
         {d.policyOp !== null && <p>Policy: {['read', 'write', 'comment'][d.policyOp]} · {d.policyKey || 'cleared'}</p>}
         {d.targetEpoch && <p>Earlier epoch {d.targetEpoch}; private key material is excluded from this archive.</p>}
+        {d.redaction && <p>Removed {d.redaction.field} revision {d.redaction.fieldRevision} from public storage. SHA-256 kept: {d.redaction.sha256}</p>}
     </>
 }

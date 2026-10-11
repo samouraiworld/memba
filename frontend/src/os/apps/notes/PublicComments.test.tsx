@@ -78,4 +78,11 @@ describe('public comments', () => {
     expect(props.onDelete).not.toHaveBeenCalled(); expect(props.onHide).not.toHaveBeenCalled(); expect(props.onResolve).not.toHaveBeenCalled()
   })
 
+  it('shows a moderator-removed comment as removed and never offers to unhide it', async () => {
+    const client = { commentsRaw: vi.fn(async () => page([{ ...row(), hidden: true, body_blob: '', anchor_blob: '' }, { ...row(2), hidden: true }])) }
+    render(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" viewer={owner} canHide onHide={vi.fn()} />)
+    expect(await screen.findByText('Removed by moderation')).toBeVisible()
+    expect(screen.getByText('Hidden by moderation')).toBeVisible()
+    expect(screen.getAllByRole('button', { name: 'Unhide comment' })).toHaveLength(1)
+  })
 })

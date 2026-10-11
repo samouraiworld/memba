@@ -77,7 +77,7 @@ describe('strict public history keeper fixtures', () => {
     for (const patch of [{ body_revision: '2' }, { offset: '1' }, { total: '131073' }, { next_offset: '0' }, { chunk_blob: '' }, { chunk_blob: '!!!!' }]) expect(() => parseHistoryBodyChunk({ ...body, ...patch }, wanted, '1', 0, 8192)).toThrow('format')
     const parsed = parseHistoryComment(comment, wanted, cid)!
     expect(parsed.content.body.length).toBe(4000); expect(parsed.content.anchor.length).toBe(600)
-    expect(parseHistoryComment({ ...comment, presentation: { latest_seq: '9', deleted: true, hidden: true, resolved: true } }, wanted, cid)?.content.reference.deleted).toBe(false)
+    expect(parseHistoryComment({ ...comment, presentation: { latest_seq: '9', deleted: true, hidden: true, resolved: true, redacted: false } }, wanted, cid)?.content.reference.deleted).toBe(false)
     for (const patch of [{ body_blob: encode64(new Uint8Array(4001)) }, { anchor_blob: encode64(new Uint8Array(601)) }, { body_blob: '/w==' }, { body_blob: encode64(new TextEncoder().encode('a'.repeat(1001))) }, { reference: { ...comment.content.reference, comment_revision: '2' } }]) expect(() => parseHistoryComment({ ...comment, content: { ...comment.content, ...patch } }, wanted, cid)).toThrow('format')
   })
 })

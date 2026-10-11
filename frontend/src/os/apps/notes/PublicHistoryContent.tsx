@@ -50,7 +50,8 @@ type LoadedVersion = { version: PublicHistoryVersion; draft: ArchivedPublicDraft
 async function versionContent(client: NotesReadClient, noteId: string, revision: string): Promise<LoadedVersion> {
     const version = await client.publicHistoryVersion(noteId, revision)
     client.assertCurrent(); check(version !== null)
-    if (version.deleted) return { version, draft: null }
+    // Redacted bytes are gone from the realm; such a version cannot be shown or restored.
+    if (version.deleted || version.titleRedacted || version.bodyRedacted) return { version, draft: null }
     check(version.title !== null && version.bodyRevision !== null)
     const body = await readPublicHistoryBody(client, noteId, version.bodyRevision)
     client.assertCurrent()
@@ -96,10 +97,10 @@ export function PublicHistoryVersions({ client, noteId, revisions, onRestore }: 
             <button className="os-btn" onClick={() => void refresh(true)}>Show archived content</button></div>}
         {data && !data.gated && <>
             {restricted(data.info) && <p>Explicit historical view of a currently hidden or deleted note.</p>}
-            {data.versions.length === 2 && <p>{data.versions[0].draft?.title === data.versions[1].draft?.title && data.versions[0].draft?.body === data.versions[1].draft?.body ? 'The content is identical.' : 'The content differs. Compare the versions below.'}</p>}
+            {data.versions.length === 2 && <p>{!data.versions[0].draft || !data.versions[1].draft ? 'At least one version has no content to compare.' : data.versions[0].draft.title === data.versions[1].draft.title && data.versions[0].draft.body === data.versions[1].draft.body ? 'The content is identical.' : 'The content differs. Compare the versions below.'}</p>}
             <div className="os-notes-history-comparison">{data.versions.map(({ version, draft }, index) => <article key={`${index}:${version.stateRevision}`} aria-label={`Version ${version.stateRevision}`}>
                 <h4>State revision {version.stateRevision}</h4>
-                <p>Owner {version.owner} · Body revision {version.bodyRevision ?? 'none'} · {version.bodyBytes} bytes</p>
+                <p>Owner {version.owner} · Body revision {version.bodyRevision ?? 'none'} · {version.bodyRedacted ? 'body removed' : `${version.bodyBytes} bytes`}</p>
                 <details><summary>Version permissions and visibility</summary><dl>
                     <dt>Owner generation</dt><dd>{version.ownerGeneration}</dd>
                     <dt>Pending owner</dt><dd>{version.pendingOwner ?? 'None'}</dd>
@@ -115,7 +116,8 @@ export function PublicHistoryVersions({ client, noteId, revisions, onRestore }: 
                 </dl></details>
                 {draft ? <><h5>{draft.title}</h5><pre tabIndex={0} aria-label={`Body of version ${version.stateRevision}`}>{draft.body}</pre>
                     <button className="os-btn" disabled={!onRestore || data.info.deleted} onClick={() => void restore(draft)}>Use version {version.stateRevision} as a new draft</button></>
-                    : <p>This revision records deletion. Earlier versions remain available.</p>}
+                    : version.deleted ? <p>This revision records deletion. Earlier versions remain available.</p>
+                    : <p>The {version.titleRedacted && version.bodyRedacted ? 'title and body' : version.titleRedacted ? 'title' : 'body'} of this version {version.titleRedacted && version.bodyRedacted ? 'were' : 'was'} removed by moderation. Body SHA-256 kept: {version.bodySha256}</p>}
             </article>)}</div>
             {!onRestore && <p>Creating a draft is unavailable in this view.</p>}
             {data.info.deleted && <p>A deleted note cannot receive a restored version.</p>}
@@ -145,7 +147,8 @@ export function PublicHistoryCommentView({ client, noteId, commentId }: { client
         {state.error && <p role="alert">Current visibility is unavailable. Archived comment content is not shown.</p>}
         {data?.gated && <div><p>This comment or note is currently hidden or deleted.</p>
             <button className="os-btn" onClick={() => void refresh(true)}>Show archived comment</button></div>}
-        {comment && <>
+        {comment?.presentation.redacted && <p>This comment was removed by moderation. Only its record remains in the public archive.</p>}
+        {comment && !comment.presentation.redacted && <>
             {data?.hidden && <p>Explicit historical view of hidden or deleted content.</p>}
             <p>Author {comment.content.author} · Body revision {comment.content.reference.bodyRevision}</p>
             {comment.content.reference.anchorHistoryBodyRevision === null && <p>The referenced body version is unavailable in the public archive.</p>}
@@ -159,5 +162,5 @@ export function PublicHistoryCommentView({ client, noteId, commentId }: { client
 }
 function samePresentation(a: PublicHistoryComment, b: PublicHistoryComment) {
     return a.presentation.latestSeq === b.presentation.latestSeq && a.presentation.hidden === b.presentation.hidden
-        && a.presentation.deleted === b.presentation.deleted && a.presentation.resolved === b.presentation.resolved
+        && a.presentation.deleted === b.presentation.deleted && a.presentation.resolved === b.presentation.resolved && a.presentation.redacted === b.presentation.redacted
 }

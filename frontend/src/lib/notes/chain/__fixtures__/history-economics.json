@@ -1,8 +1,8 @@
 {
-  "candidate": "878cf4f81ea544fb1a049b958495b0119b68409d",
+  "candidate": "c20e8e6c6945720505991f5a8262877248bbf8f1",
   "runtime": "e75fef82c02876a4df92ad6e325c5479b9532168",
-  "sourceSha256": "cc4b908241522382fd35cd8d7cdc760fcaab472b31dd7329a23d2cf6352c093d",
-  "freshAuthorsSourceSha256": "483eee77d036b75d7b8b8157edaad92a95535a665abafaee7bd0b67355f0a674",
+  "sourceSha256": "85de7f372568175aef5e5bd68a52ba2aa4d385f864a0994270c5c6e334e628a4",
+  "freshAuthorsSourceSha256": "e698bdf7a6de99ff4197873315471d238cfe51ffaeae06d3d24c25c0ea9fc2b5",
   "storagePriceUgnotPerByte": 100,
   "limits": "Synthetic keeper; excludes ante and unbounded future indexes. Refunds are not quote credits. Only supported client operations selected.",
   "rows": [
@@ -11,15 +11,15 @@
       "func": "CreateNote",
       "titleOrAnchorBytes": 160,
       "bodyBytes": 2048,
-      "keeperGas": 39465379,
-      "storageDepositDeltaUgnot": 2846700
+      "keeperGas": 39920140,
+      "storageDepositDeltaUgnot": 2597100
     },
     {
       "case": "collective_enable",
       "func": "SetPublicWrites",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 24789612,
+      "keeperGas": 24858922,
       "storageDepositDeltaUgnot": 1153100
     },
     {
@@ -27,47 +27,47 @@
       "func": "Commit",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 131072,
-      "keeperGas": 271460204,
-      "storageDepositDeltaUgnot": 27388200
+      "keeperGas": 269319321,
+      "storageDepositDeltaUgnot": 14490000
     },
     {
       "case": "collective_same_size_131072",
       "func": "Commit",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 131072,
-      "keeperGas": 275854985,
-      "storageDepositDeltaUgnot": 14484800
+      "keeperGas": 275907561,
+      "storageDepositDeltaUgnot": 14489300
     },
     {
       "case": "collective_title_only160",
       "func": "Rename",
       "titleOrAnchorBytes": 160,
       "bodyBytes": 0,
-      "keeperGas": 40630370,
-      "storageDepositDeltaUgnot": 1395800
+      "keeperGas": 41230020,
+      "storageDepositDeltaUgnot": 1400200
     },
     {
       "case": "collective_mask3_title160_body131072",
       "func": "Commit",
       "titleOrAnchorBytes": 160,
       "bodyBytes": 131072,
-      "keeperGas": 282290148,
-      "storageDepositDeltaUgnot": 14834300
+      "keeperGas": 282809203,
+      "storageDepositDeltaUgnot": 14843200
     },
     {
       "case": "collective_shrink_131072_to2048",
       "func": "Commit",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 2048,
-      "keeperGas": 46007907,
-      "storageDepositDeltaUgnot": -11318400
+      "keeperGas": 48793077,
+      "storageDepositDeltaUgnot": 1588700
     },
     {
       "case": "collective_disable",
       "func": "SetPublicWrites",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 28297442,
+      "keeperGas": 28366752,
       "storageDepositDeltaUgnot": 940300
     },
     {
@@ -75,55 +75,55 @@
       "func": "Delete",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 28784333,
-      "storageDepositDeltaUgnot": 568400
+      "keeperGas": 29391671,
+      "storageDepositDeltaUgnot": 826800
     },
     {
       "case": "public_create_131072_title160",
       "func": "CreateNote",
       "titleOrAnchorBytes": 160,
       "bodyBytes": 131072,
-      "keeperGas": 279471214,
-      "storageDepositDeltaUgnot": 29150100
+      "keeperGas": 277193367,
+      "storageDepositDeltaUgnot": 15997900
     },
     {
       "case": "public_delete_131072_restricted",
       "func": "Delete",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 33023207,
-      "storageDepositDeltaUgnot": -12356500
+      "keeperGas": 35541299,
+      "storageDepositDeltaUgnot": 804600
     },
     {
       "case": "title160_with_32writers_3keys",
       "func": "Rename",
       "titleOrAnchorBytes": 160,
       "bodyBytes": 0,
-      "keeperGas": 44837242,
-      "storageDepositDeltaUgnot": 1790300
+      "keeperGas": 45436827,
+      "storageDepositDeltaUgnot": 1794500
     },
     {
       "case": "comment_max_4000_anchor600_at_1",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 61225379,
-      "storageDepositDeltaUgnot": 2574200
+      "keeperGas": 61628126,
+      "storageDepositDeltaUgnot": 2081600
     },
     {
       "case": "comment_max_4000_anchor600_at_51",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 75725394,
-      "storageDepositDeltaUgnot": 2784200
+      "keeperGas": 76128039,
+      "storageDepositDeltaUgnot": 2291000
     },
     {
       "case": "comment_hide",
       "func": "HideComment",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 28863818,
+      "keeperGas": 29115576,
       "storageDepositDeltaUgnot": 440200
     },
     {
@@ -131,7 +131,7 @@
       "func": "ResolveComment",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 29083352,
+      "keeperGas": 29152535,
       "storageDepositDeltaUgnot": 436000
     },
     {
@@ -139,56 +139,56 @@
       "func": "Delete",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 28604864,
-      "storageDepositDeltaUgnot": 765200
+      "keeperGas": 29174819,
+      "storageDepositDeltaUgnot": 803700
     },
     {
       "case": "delete_comment_after_note_delete",
       "func": "DeleteComment",
       "titleOrAnchorBytes": 0,
       "bodyBytes": 0,
-      "keeperGas": 28970081,
-      "storageDepositDeltaUgnot": -88100
+      "keeperGas": 29619496,
+      "storageDepositDeltaUgnot": 409500
     },
     {
       "case": "comment_max_fresh_author_1",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 62654144,
-      "storageDepositDeltaUgnot": 2574200
+      "keeperGas": 63056891,
+      "storageDepositDeltaUgnot": 2081600
     },
     {
       "case": "comment_max_fresh_author_2",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 64186525,
-      "storageDepositDeltaUgnot": 2983600
+      "keeperGas": 64589272,
+      "storageDepositDeltaUgnot": 2491000
     },
     {
       "case": "comment_max_fresh_author_3",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 66655593,
-      "storageDepositDeltaUgnot": 2983600
+      "keeperGas": 67058340,
+      "storageDepositDeltaUgnot": 2491000
     },
     {
       "case": "comment_max_fresh_author_4",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 68928012,
-      "storageDepositDeltaUgnot": 2984200
+      "keeperGas": 69330759,
+      "storageDepositDeltaUgnot": 2491600
     },
     {
       "case": "comment_max_fresh_author_5",
       "func": "AddComment",
       "titleOrAnchorBytes": 600,
       "bodyBytes": 4000,
-      "keeperGas": 69519527,
-      "storageDepositDeltaUgnot": 2986000
+      "keeperGas": 69922274,
+      "storageDepositDeltaUgnot": 2493400
     }
   ]
 }

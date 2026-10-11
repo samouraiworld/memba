@@ -5,29 +5,31 @@ export function historyHash(value: unknown): string { check(typeof value === 'st
 export function parseHistoryVersion(value: unknown, wanted: string, stateRevision: string) {
   id(wanted); historyRevision(stateRevision); if (value === null) return null
   const v = historyRecord(value, 'version', ['state_revision', 'recorded_seq', 'owner', 'pending_owner', 'owner_is_realm', 'owner_generation',
-    'mode', 'epoch', 'title_revision', 'title_blob', 'body_revision', 'body_bytes', 'body_sha256', 'writers', 'policies', 'gov_writers',
+    'mode', 'epoch', 'title_revision', 'title_blob', 'title_redacted', 'body_revision', 'body_bytes', 'body_sha256', 'body_redacted', 'writers', 'policies', 'gov_writers',
     'allow_public_writes', 'owner_listed', 'moderator_hidden', 'deleted'], wanted)
   check(historyRevision(v.state_revision) === stateRevision && (v.mode === 3 || v.mode === 4))
   const owner = address(v.owner), pendingOwner = historyNullable(v.pending_owner, address), ownerGeneration = historyRevision(v.owner_generation)
   const titleRevision = historyNullable(v.title_revision, historyRevision), bodyRevision = historyNullable(v.body_revision, historyRevision)
   const title = historyNullable(v.title_blob, b => blob(b, 160)), bodyBytes = Number(decimal(v.body_bytes, 32))
   const bodySha256 = historyNullable(v.body_sha256, historyHash), deleted = historyBoolean(v.deleted)
+  const titleRedacted = historyBoolean(v.title_redacted), bodyRedacted = historyBoolean(v.body_redacted)
   const ownerListed = historyBoolean(v.owner_listed), allowPublicWrites = historyBoolean(v.allow_public_writes), govWriters = historyBoolean(v.gov_writers)
   check(BigInt(ownerGeneration) <= BigInt(stateRevision) && pendingOwner !== owner && bodyBytes <= 131072)
   check(Array.isArray(v.writers) && v.writers.length <= 32)
   const writers = v.writers.map(w => address(w)); check(new Set(writers).size === writers.length)
   const rawPolicies = record(v.policies, ['read', 'write', 'comment'])
   const policies = { read: historyPolicyKey(rawPolicies.read), write: historyPolicyKey(rawPolicies.write), comment: historyPolicyKey(rawPolicies.comment) }
-  if (deleted) check(titleRevision === null && title === null && bodyRevision === null && bodySha256 === null && bodyBytes === 0
+  if (deleted) check(titleRevision === null && title === null && bodyRevision === null && bodySha256 === null && bodyBytes === 0 && !titleRedacted && !bodyRedacted
     && !ownerListed && !allowPublicWrites && !govWriters && pendingOwner === null && writers.length === 0 && Object.values(policies).every(p => !p))
   else {
-    check(titleRevision !== null && title !== null && bodyRevision !== null && bodySha256 !== null)
-    check(BigInt(titleRevision) <= BigInt(stateRevision) && BigInt(bodyRevision) <= BigInt(stateRevision)); publicText(title, true)
+    // A moderator redaction removes the bytes but keeps the revision and the body hash.
+    check(titleRevision !== null && (title === null) === titleRedacted && bodyRevision !== null && bodySha256 !== null && (!bodyRedacted || bodyBytes === 0))
+    check(BigInt(titleRevision) <= BigInt(stateRevision) && BigInt(bodyRevision) <= BigInt(stateRevision)); if (title !== null) publicText(title, true)
   }
   check(!allowPublicWrites || (v.mode === 4 && !deleted))
   return { id: wanted, stateRevision, recordedSeq: historyRevision(v.recorded_seq), owner, pendingOwner,
     ownerIsRealm: historyBoolean(v.owner_is_realm), ownerGeneration, mode: v.mode, epoch: decimal(v.epoch, 32),
-    titleRevision, title, bodyRevision, bodyBytes, bodySha256, writers, policies, govWriters, allowPublicWrites,
+    titleRevision, title, titleRedacted, bodyRevision, bodyBytes, bodySha256, bodyRedacted, writers, policies, govWriters, allowPublicWrites,
     ownerListed, moderatorHidden: historyBoolean(v.moderator_hidden), deleted }
 }
 export function historyChunkArgs(offset: number, limit: number): void {
@@ -46,12 +48,14 @@ export function parseHistoryComment(value: unknown, wanted: string, commentId: s
   const v = historyRecord(value, 'comment', ['comment_id', 'content', 'presentation'], wanted)
   check(id(v.comment_id) === commentId)
   const c = record(v.content, ['author', 'created_height', 'epoch', 'anchor_blob', 'body_blob', 'reference'])
-  const p = record(v.presentation, ['latest_seq', 'deleted', 'hidden', 'resolved']), reference = parseHistoryCommentReference(c.reference)
-  const body = blob(c.body_blob, 4000), anchor = blob(c.anchor_blob, 600)
-  check(body.length > 0 && [...publicText(body)].length <= 1000); publicText(anchor)
+  const p = record(v.presentation, ['latest_seq', 'deleted', 'hidden', 'resolved', 'redacted']), reference = parseHistoryCommentReference(c.reference)
+  const body = blob(c.body_blob, 4000), anchor = blob(c.anchor_blob, 600), redacted = historyBoolean(p.redacted)
+  // A redaction after purge leaves presentation.hidden unchanged; only emptiness is guaranteed.
+  if (redacted) check(body.length === 0 && anchor.length === 0)
+  else { check(body.length > 0 && [...publicText(body)].length <= 1000); publicText(anchor) }
   check(reference.commentId === commentId && reference.commentRevision === '1' && !reference.deleted && !reference.hidden && !reference.resolved)
   return { id: wanted, commentId, content: { author: address(c.author), createdHeight: decimal(c.created_height, 63, true), epoch: decimal(c.epoch, 32), body, anchor, reference },
-    presentation: { latestSeq: historyRevision(p.latest_seq), deleted: historyBoolean(p.deleted), hidden: historyBoolean(p.hidden), resolved: historyBoolean(p.resolved) } }
+    presentation: { latestSeq: historyRevision(p.latest_seq), deleted: historyBoolean(p.deleted), hidden: historyBoolean(p.hidden), resolved: historyBoolean(p.resolved), redacted } }
 }
 export type PublicHistoryVersion = NonNullable<ReturnType<typeof parseHistoryVersion>>
 export type PublicHistoryBodyChunk = NonNullable<ReturnType<typeof parseHistoryBodyChunk>>
