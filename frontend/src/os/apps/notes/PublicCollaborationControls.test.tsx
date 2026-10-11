@@ -5,9 +5,10 @@ import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { NotesStore } from '../../../lib/notes/drafts'
 import { PublicCollaborationControls } from './PublicCollaborationControls'
-const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn() }))
+const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), pending: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
+vi.mock('../../../lib/notes/intents', () => ({ NotesIntents: class { list = calls.pending } }))
 vi.mock('../../../lib/notes/config', () => ({ newNoteId: () => crypto.randomUUID().replaceAll('-', ''), notesDeployment: () => ({ realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 }) }))
 const owner = 'g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0'
 const note = { id: 'ab'.repeat(16), owner, stateRevision: '4', ownerGeneration: '1', mode: 4, epoch: '0', deleted: false, listed: true } as ChainNote
@@ -17,7 +18,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 async function review(enabled = false) {
     fireEvent.click(await screen.findByRole('button', { name: enabled ? 'Review stopping public editing' : 'Review allowing everyone to edit' }))
 }
-beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ onDismissed: vi.fn(), onSettled: vi.fn() }); calls.sign.mockReturnValue(true) })
+beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ onDismissed: vi.fn(), onSettled: vi.fn() }); calls.sign.mockReturnValue(true); calls.pending.mockResolvedValue([]) })
 describe('owner community editing consent', () => {
     it.each([false, true])('reviews the exact target boolean opposite to enabled=%s without signing on render', async enabled => {
         const input = props(enabled); render(<PublicCollaborationControls {...input} />)
@@ -57,6 +58,30 @@ describe('owner community editing consent', () => {
         await act(async () => calls.sign.mock.calls[0][0].onSettled('unknown'))
         expect(screen.getByRole('button', { name: 'Review allowing everyone to edit' })).toBeDisabled()
         expect(screen.getByText(/operation receipt was kept/)).toBeVisible(); expect(input.onChanged).not.toHaveBeenCalled(); expect(calls.prepare).toHaveBeenCalledOnce()
+    })
+    it('retains and blocks a submitted outcome that is not yet seen on chain', async () => {
+        const input = props(); render(<PublicCollaborationControls {...input} />); await review()
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        await act(async () => calls.sign.mock.calls[0][0].onSettled('submitted'))
+        expect(screen.getByRole('button', { name: 'Review allowing everyone to edit' })).toBeDisabled()
+        expect(screen.getByText(/not yet seen on chain/)).toBeVisible(); expect(input.onChanged).not.toHaveBeenCalled()
+    })
+    it.each(['prepared', 'submitted', 'unknown'])('blocks before preparing while a %s receipt for this note is unresolved', async phase => {
+        calls.pending.mockResolvedValue([{ scope: { noteId: 'cd'.repeat(16) }, phase }, { scope: { noteId: note.id }, phase }])
+        render(<PublicCollaborationControls {...props()} />); await review()
+        await screen.findByText(/unresolved receipt/); expect(calls.prepare).not.toHaveBeenCalled()
+        expect(calls.pending).toHaveBeenCalledWith({ chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner })
+        expect(screen.getByRole('button', { name: 'Review allowing everyone to edit' })).toBeDisabled()
+    })
+    it('ignores settled receipts and receipts for other notes', async () => {
+        calls.pending.mockResolvedValue([{ scope: { noteId: note.id }, phase: 'confirmed' }, { scope: { noteId: note.id }, phase: 'not-sent' }, { scope: { noteId: 'cd'.repeat(16) }, phase: 'unknown' }])
+        render(<PublicCollaborationControls {...props()} />); await review(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+    })
+    it('prepares once for a double click', async () => {
+        render(<PublicCollaborationControls {...props()} />)
+        const button = await screen.findByRole('button', { name: 'Review allowing everyone to edit' })
+        fireEvent.click(button); fireEvent.click(button)
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce()); expect(calls.prepare).toHaveBeenCalledOnce()
     })
     it('refreshes only on confirmed settlement and dismisses a refused signature sheet', async () => {
         const input = props(), view = render(<PublicCollaborationControls {...input} />); await review()

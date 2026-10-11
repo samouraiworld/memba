@@ -7,7 +7,7 @@ import type { PublicCapabilities } from '../../../lib/notes/chain/capabilities'
 import { publicNoteMessage } from '../../../lib/notes/chain/messages'
 import { gnotAmount, parseGnotCap, publicNoteBudget, publicNoteQuote } from '../../../lib/notes/chain/quote'
 import { preparePublicNoteRequest } from '../../../lib/notes/chain/request'
-import { NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema'
+import { NOTES_REALM, NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema'
 import { useSigner } from '../../sign/signerContext'
 
 type Props = { note: ChainNote; client: NotesReadClient; store: NotesStore; owner: string | null; hidden?: boolean; onChanged(): void }
@@ -48,6 +48,11 @@ function Controls({ note, client, store, owner, onChanged }: Props & { owner: st
             const current = await readCapability()
             if (guard.signal.aborted) return
             if (current.allowPublicWrites !== capability.allowPublicWrites) throw new NotesChainError('stale')
+            const pending = await new NotesIntents(store).list({ chainId: client.chainId, realm: NOTES_REALM, owner })
+            if (guard.signal.aborted) return
+            if (pending.some(item => item.scope.noteId === note.id && ['prepared', 'submitted', 'unknown'].includes(item.phase))) {
+                setBlocked(true); setNotice('An earlier change to this note has an unresolved receipt. Check it before another change; nothing was resent.'); return
+            }
             const operation = { caller: owner, noteId: note.id, operationId: newNoteId(), action: { kind: 'public-writes' as const, revision: note.stateRevision, enabled } }
             const budget = publicNoteBudget(publicNoteMessage(operation, '0'))
             const amount = cap === '' ? budget.suggestedCapUgnot : parseGnotCap(cap)
@@ -61,6 +66,7 @@ function Controls({ note, client, store, owner, onChanged }: Props & { owner: st
                 if (guard.signal.aborted) return
                 if (outcome === 'confirmed') { setBlocked(true); setNotice('Community editing change confirmed. Refreshing the published note.'); onChanged() }
                 else if (outcome === 'unknown') { setBlocked(true); setNotice('Outcome unknown. The operation receipt was kept. Check it before another change; nothing was resent.') }
+                else if (outcome === 'submitted') { setBlocked(true); setNotice('Submitted, not yet seen on chain. The operation receipt was kept. Check it before another change; nothing was resent.') }
             }
             if (signer.sign(request)) setNotice(enabled ? 'Review allowing every connected wallet to edit this note.' : 'Review stopping public editing of this note.')
             else request.onDismissed?.()
