@@ -44,8 +44,11 @@ for (const view of [
         await page.goto(`${OS_ON}/os/about`)
         const about = page.getByRole('region', { name: 'About Memba OS', exact: true })
         await expect(about.getByRole('note')).toContainText('Public Beta')
-        // The dev server does not emit beta-only art; its local fallback must be visible.
-        await expect(about.locator('.os-about-mark')).toBeVisible()
+        // With Memba OS on, the dev server serves the beta mark from its committed art, as memba.club does.
+        const mark = about.locator('img[src="/brand/os/favicon.svg"]')
+        await expect(mark).toBeVisible()
+        expect(await mark.evaluate((img) => (img as HTMLImageElement).naturalWidth > 0)).toBe(true)
+        await expect(about.locator('.os-about-mark')).toHaveCount(0)
         if ('windowWidth' in view) {
             await about.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
         }

@@ -9,7 +9,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { assertOsFlagAllowed } from './src/os/osBuildGate'
-import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES, OS_ORIGIN } from './src/os/osSiteIdentity'
+import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES, OS_BRAND_PATH, OS_ORIGIN, osDevIconsEnabled, osIconHtml, osDevBrandFile } from './src/os/osSiteIdentity'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
 import { readdirSync } from 'node:fs'
 import { parseBlogArticles, buildRssXml } from './src/lib/blogParser'
@@ -97,12 +97,28 @@ function professionalBrandPlugin(): PluginOption {
 }
 
 // Emit stable URLs from committed source art only for an explicitly allowed beta build.
+// The dev server builds no artifact: with Memba OS on, it serves the same favicon URLs
+// straight from the source art, so /os never shows the classic icon locally.
 function osIdentityPlugin(mode: string): PluginOption {
-  const enabled = osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env })
+  const env = { ...loadEnv(mode, '..', 'VITE_'), ...process.env }
+  const enabled = osIdentityAllowed(env)
+  const devIcons = osDevIconsEnabled(env)
   return {
     name: 'beta-site-identity',
-    apply: 'build',
-    transformIndexHtml(html, ctx) { return enabled && !ctx.filename.includes('/labs/') ? osSiteHtml(html) : html },
+    configureServer(server) {
+      if (!devIcons) return
+      server.middlewares.use(OS_BRAND_PATH, (req, res, next) => {
+        const name = osDevBrandFile(req.url)
+        if (!name) return next()
+        res.setHeader('Content-Type', name.endsWith('.svg') ? 'image/svg+xml' : 'image/png')
+        res.end(readFileSync(new URL(`./src/os/brand/${name}`, import.meta.url)))
+      })
+    },
+    transformIndexHtml(html, ctx) {
+      if (ctx.filename.includes('/labs/')) return html
+      if (ctx.server) return devIcons ? osIconHtml(html) : html
+      return enabled ? osSiteHtml(html) : html
+    },
     generateBundle() {
       if (!enabled) return
       for (const name of OS_BRAND_FILES) {

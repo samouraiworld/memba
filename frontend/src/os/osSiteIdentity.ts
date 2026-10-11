@@ -13,6 +13,30 @@ export function osIdentityAllowed(env: Record<string, string | undefined>): bool
     return env.VITE_MEMBA_OS === 'true' && env.MEMBA_OS_BETA_SITE === 'true'
 }
 
+/** The dev server builds no artifact, so it may show the OS mark whenever Memba OS is on. */
+export function osDevIconsEnabled(env: Record<string, string | undefined>): boolean {
+    return env.VITE_MEMBA_OS === 'true'
+}
+
+/** Dev server: the requested file under OS_BRAND_PATH, only when it is a listed brand file. */
+export function osDevBrandFile(url: string | undefined): (typeof OS_BRAND_FILES)[number] | null {
+    const name = url?.split('?')[0].replace(/^\//, '')
+    return OS_BRAND_FILES.find(file => file === name) ?? null
+}
+
+const ICON_LINKS = `
+  <link rel="icon" type="image/svg+xml" href="${OS_BRAND_PATH}favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="${OS_BRAND_PATH}favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="${OS_BRAND_PATH}favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="${OS_BRAND_PATH}apple-touch-icon-180.png" />`
+const ICON_LINK = /<link\b[^>]*rel="(?:icon|apple-touch-icon)"[^>]*>/g
+
+/** Replace only the favicon links with the OS mark (dev server; the beta build uses osSiteHtml). */
+export function osIconHtml(html: string): string {
+    return html.replace(ICON_LINK, '').replace('</head>', `${ICON_LINKS}
+</head>`)
+}
+
 const title = 'Memba OS — A home for gno.land.'
 const description = 'A home for gno.land. Explore apps, communities and tools in Memba OS. Public Beta on mainnet.'
 const share = `${OS_ORIGIN}${OS_BRAND_PATH}share-1200x630.png`
@@ -23,7 +47,8 @@ export function osSiteHtml(html: string): string {
     return html
         .replace(/<title>[\s\S]*?<\/title>/, '')
         .replace(/<meta\b[^>]*(?:name="(?:description|theme-color|apple-mobile-web-app-title|twitter:[^"]+)"|property="og:[^"]+")[^>]*>/g, '')
-        .replace(/<link\b[^>]*rel="(?:icon|apple-touch-icon|canonical)"[^>]*>/g, '')
+        .replace(ICON_LINK, '')
+        .replace(/<link\b[^>]*rel="canonical"[^>]*>/g, '')
         .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, '')
         .replace('</head>', `
   <title>${title}</title>
@@ -47,11 +72,7 @@ export function osSiteHtml(html: string): string {
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${description}" />
   <meta name="twitter:image" content="${share}" />
-  <meta name="twitter:image:alt" content="${shareAlt}" />
-  <link rel="icon" type="image/svg+xml" href="${OS_BRAND_PATH}favicon.svg" />
-  <link rel="icon" type="image/png" sizes="32x32" href="${OS_BRAND_PATH}favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="${OS_BRAND_PATH}favicon-16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="${OS_BRAND_PATH}apple-touch-icon-180.png" />
+  <meta name="twitter:image:alt" content="${shareAlt}" />${ICON_LINKS}
   <script type="application/ld+json">${JSON.stringify({
             '@context': 'https://schema.org', '@type': 'WebApplication',
             name: 'Memba OS', url: `${OS_ORIGIN}/`, description,
