@@ -40,6 +40,15 @@ Full changelogs are split by version range for easier navigation:
 
 ### External games in Arcade (2026-10-09)
 - Arcade lists Gnogolf and Akkadia alongside gnofly as external sites, with Onyx testnet and builder-preview availability stated explicitly. Gnogolf uses a capture of its official homepage as its cover and gallery image. Existing project identities and reviews are preserved.
+### Owner consent for collaborative Notes (#1602, 2026-10-09)
+- Prepare explicit owner controls to allow or revoke community content editing, with verified permissions and a separate signature review for each change.
+- Keep unresolved operation receipts, refuse a new change while one is pending, and stop pending requests when the reader or account changes. Production Notes activation remains separate.
+### Public Notes drafts and history preparation (#1601, 2026-10-09)
+- Prepare durable public drafts, explicit revision comparison and permanent public-history browsing, with restoration into a new draft without replacing existing edits.
+- Unknown operations retain their receipts and are never resent automatically. The workspace remains disabled pending reviewed activation.
+### Public Notes collaboration protocol preparation (#1600, 2026-10-09)
+- Prepare verified per-note editing permissions, permanent public-history reads and owner consent for community editing; keep comment drafts while collaborators update a note.
+- Account for public history in storage estimates. Notes remains disabled pending contract deployment and reviewed activation.
 ### Escrow page test isolation (2026-10-09)
 - Keep contract-page unit tests independent of live DAO RPC timing by mocking the dispute-routing read alongside the other contract reads.
 ### Free play runtime preparation (#1597, 2026-10-09)
@@ -50,15 +59,16 @@ Full changelogs are split by version range for easier navigation:
 - Prepare dormant studio-paid quotes and durable daily budgets without activating Free play. Migration043 depends on042 and applies automatically at backend startup even while the feature is disabled; its rollout requires a separate database migration approval.
 ### Free play chain transport preparation (#1594, 2026-10-09)
 - Prepare bounded reads of saved scores and per-game leaderboards, plus score submission guarded by an explicit studio quote and spending limits. The transport remains dormant; this change does not enable publication or deploy a realm.
-### Independent featured Notes on the desktop (2026-10-09)
-- Prepare separate Sushi and Whitepaper shortcuts with remembered dismissal, fixed labels on desktop and phone, and scoped browser storage that preserves existing pins across account changes and concurrent tabs.
-- Production note IDs and release activation remain pending. This change does not publish a document or enable collaborative editing.
 ### Arcade window launch host (2026-10-09)
 - Open rich Arcade and Store views maximised on first creation, retaining user geometry when restoring existing windows.
 - Deliver transient Free play commands to Space Invaders and a separate return-to-Arcade action that keeps local game windows mounted; preserve Connect 4 and external game links.
 ### Arcade per-game boards and local result history (2026-10-09)
 - Prepare separate Free play scoreboards with anchoring details for Block Party, Space Invaders and BARRICADE, using the shared public reader.
 - Add injected local result history with bounded pagination and recovery by saved run ID. Saved scores and receipts remain explicitly unverified until explicitly rechecked. An opt-in workspace runtime shares game clients and opens saved results locally without launching another game; activation remains off by default. Confirm local recovery before connecting, and offer a canonical result export when storage fails, including when connection is unavailable.
+### Independent featured Notes on the desktop (2026-10-09)
+- Prepare separate Sushi and Whitepaper shortcuts with remembered dismissal, fixed labels on desktop and phone, and scoped browser storage that preserves existing pins across account changes and concurrent tabs.
+- Production note IDs and release activation remain pending. This change does not publish a document or enable collaborative editing.
+- Desktop adoption keeps the pins the previous desktop displayed: shortcuts to apps or targets that no longer exist are skipped instead of blocking the upgrade, misplaced icons move to free cells, and the original browser data stays untouched.
 
 ### Public Notes reader preparation (#1577, 2026-10-09)
 - Prepare a read-only Notes window with public comments, document links and draft preservation when minimising or switching between desktop and phone layouts. Locking closes the document session.

@@ -142,6 +142,18 @@ describe('public comment intentions', () => {
     }
     expect(wallet.send).not.toHaveBeenCalled()
   })
+  it('does not consult a community content grant for Resolve/Reopen or Hide/Unhide', async () => {
+    for (const action of [
+      { kind: 'resolve', revision: '1', resolved: true }, { kind: 'resolve', revision: '1', resolved: false },
+      { kind: 'hide', revision: '1', hidden: true }, { kind: 'hide', revision: '1', hidden: false },
+    ] as const) {
+      const s = setup(action), publicCapabilities = vi.fn(async () => ({ id: noteId, stateRevision: '5', ownerGeneration: '1', mode: 4, deleted: false, allowPublicWrites: true }))
+      Object.assign(s.client, { publicCapabilities }); s.options.operation.caller = other
+      await expect(preparePublicCommentRequest(s.options)).rejects.toThrow('stale')
+      expect(publicCapabilities).not.toHaveBeenCalled()
+    }
+    expect(wallet.send).not.toHaveBeenCalled()
+  })
   it('retains unknown on wallet uncertainty and never retries the same comment revision', async () => {
     const s = setup(), request = await preparePublicCommentRequest(s.options)
     wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('wallet closed') })

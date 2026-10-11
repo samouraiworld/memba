@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_NETWORK } from '../../lib/config'
 import { NOTE_ID } from '../../lib/notes/config'
-import { check, record } from '../../lib/notes/chain/schema'
+import { check } from '../../lib/notes/chain/schema'
 import { createFeaturedNoteStorage } from '../../lib/notes/featuredNoteStorage'
 import { FEATURED_MAX_CHARS, featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, type FeaturedDesk, type FeaturedNoteRelease } from '../../lib/notes/featuredNoteSeed'
 import { GRID, cleanUp, deskKey, guestDesk, itemTarget, moveItem, sameItem, type DeskItem } from './desk'
@@ -17,22 +17,44 @@ const EMPTY: DeskItem[] = []
 const NO_RELEASES: readonly FeaturedNoteRelease[] = []
 const rules = { cols: GRID.cols, rows: GRID.rows, validItem: (item: Pin) => (item.ty === 'note' && NOTE_ID.test(item.ref)) || (item.ty === 'app' && item.ref === 'notes') || itemTarget(item) !== null }
 
-/** Historical tidy used five rows and could place valid pins outside the current grid. */
+const LEGACY_TYPES: readonly string[] = ['app', 'dao', 'prop', 'msig', 'note']
+
+/**
+ * Adopts the desktop the legacy loader actually displayed. Historical tidy used five rows and could place valid pins
+ * outside the current grid; old builds also kept entries that `loadDesk` silently skipped (removed apps, unparsable refs).
+ * Unreadable or non-array bytes still fail closed: they are preserved for an explicit reset instead of adopted as empty.
+ */
 function normalizedLegacy(raw: string | null): string | null {
     if (raw === null) return null
     check(raw.length <= FEATURED_MAX_CHARS)
     const value: unknown = JSON.parse(raw)
-    check(Array.isArray(value) && value.length <= GRID.cols * GRID.rows)
-    const cells = new Set<string>(); let repack = false
-    const items = value.map(rawItem => {
-        const item = record(rawItem, ['ty', 'ref', 'c', 'r'])
-        check(Number.isInteger(item.c) && Number.isInteger(item.r))
-        const cell = `${item.c}:${item.r}`
-        if (Number(item.c) < 0 || Number(item.c) >= GRID.cols || Number(item.r) < 0 || Number(item.r) >= GRID.rows || cells.has(cell)) repack = true
-        cells.add(cell); return item
+    check(Array.isArray(value))
+    const items = value.flatMap((rawItem: unknown) => {
+        if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) return []
+        const { ty, ref, c, r } = rawItem as Record<string, unknown>
+        if (typeof ty !== 'string' || !LEGACY_TYPES.includes(ty) || typeof ref !== 'string' || ref.length === 0 || ref.length > 256) return []
+        const pin = { ty, ref } as Pin
+        // Same identity rule as v3, so hidden note pins survive while stale targets are skipped like `loadDesk` did.
+        if (!rules.validItem(pin)) return []
+        return [{ ...pin, c: Number.isInteger(c) ? c as number : -1, r: Number.isInteger(r) ? r as number : -1 }]
     })
-    // Repack geometry only. Strict adapter validation still checks every identity; no pin is dropped.
-    return repack ? JSON.stringify(items.map((item, i) => ({ ...item, c: Math.floor(i / GRID.rows), r: i % GRID.rows }))) : raw
+    // Overflow of displayable pins still refuses migration: old bytes are kept intact rather than truncated.
+    check(items.length <= GRID.cols * GRID.rows)
+    const cells = new Set<string>(), misplaced: number[] = []
+    items.forEach((item, i) => {
+        const cell = `${item.c}:${item.r}`
+        if (item.c < 0 || item.c >= GRID.cols || item.r < 0 || item.r >= GRID.rows || cells.has(cell)) misplaced.push(i)
+        else cells.add(cell)
+    })
+    // Keep every valid position; move only misplaced pins to the first free cells, column by column.
+    let next = 0
+    for (const i of misplaced) {
+        while (cells.has(`${Math.floor(next / GRID.rows)}:${next % GRID.rows}`)) next++
+        items[i] = { ...items[i], c: Math.floor(next / GRID.rows), r: next % GRID.rows }
+        cells.add(`${items[i].c}:${items[i].r}`)
+    }
+    // Old bytes are never rewritten; strict adapter validation still checks every adopted identity.
+    return JSON.stringify(items)
 }
 
 /** A selected v3 authority never falls back to a legacy writer in this scope. */

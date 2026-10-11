@@ -3,6 +3,9 @@ import { assertRpcChain } from '../../dao/chainIdentity'
 import { directRpcCall, getRpcUrlsInOrder, resilientAbciQueryDetailed } from '../../rpcFallback'
 import { address, blob, check, cursor, decimal, decodeResponse, encode64, id, KEY_SUITE, NOTES_REALM, NOTES_REGISTRY, NotesChainError, parseConfig, parseKey, parseNote, parsePage, record } from './schema'
 import type { ChainNote, NotesPage } from './schema'
+import { parsePublicCapabilities } from './capabilities'
+import { historyPageArgs, parseHistoryEntry, parseHistoryInfo, parseHistoryPage } from './history'
+import { historyChunkArgs, parseHistoryBodyChunk, parseHistoryComment, parseHistoryVersion } from './historyContent'
 
 export interface NotesDeployment { realm: string; version: 1 }
 export interface NotesReadContext {
@@ -124,6 +127,36 @@ export class NotesReadClient {
   }
   async writersRaw(noteId: string): Promise<unknown> {
     return this.query(NOTES_REALM, `WritersJSON("${id(noteId)}")`)
+  }
+  async publicCapabilities(noteId: string) {
+    const wanted = id(noteId), value = await this.query(NOTES_REALM, `PublicCapabilitiesJSON("${wanted}")`)
+    const capabilities = parsePublicCapabilities(value)
+    check(capabilities === null || capabilities.id === wanted)
+    return capabilities
+  }
+  async publicHistoryInfo(noteId: string) {
+    const wanted = id(noteId)
+    return parseHistoryInfo(await this.query(NOTES_REALM, `PublicHistoryInfoJSON("${wanted}")`), wanted)
+  }
+  async publicHistory(noteId: string, afterSeq = '0', throughSeq = '0', limit = 20) {
+    const wanted = id(noteId); historyPageArgs(afterSeq, throughSeq, limit)
+    return parseHistoryPage(await this.query(NOTES_REALM, `PublicHistoryJSON("${wanted}",${afterSeq},${throughSeq},${limit})`), wanted, afterSeq, throughSeq, limit)
+  }
+  async publicHistoryEntry(noteId: string, seq: string) {
+    const wanted = id(noteId), sequence = decimal(seq, 64, true)
+    return parseHistoryEntry(await this.query(NOTES_REALM, `PublicHistoryEntryJSON("${wanted}",${sequence})`), wanted, sequence)
+  }
+  async publicHistoryVersion(noteId: string, stateRevision: string) {
+    const wanted = id(noteId), revision = decimal(stateRevision, 64, true)
+    return parseHistoryVersion(await this.query(NOTES_REALM, `PublicHistoryVersionJSON("${wanted}",${revision})`), wanted, revision)
+  }
+  async publicHistoryBodyChunk(noteId: string, bodyRevision: string, offset = 0, limit = 8192) {
+    const wanted = id(noteId), revision = decimal(bodyRevision, 64, true); historyChunkArgs(offset, limit)
+    return parseHistoryBodyChunk(await this.query(NOTES_REALM, `PublicHistoryBodyChunkJSON("${wanted}",${revision},${offset},${limit})`), wanted, revision, offset, limit)
+  }
+  async publicHistoryComment(noteId: string, commentId: string) {
+    const wanted = id(noteId), cid = id(commentId)
+    return parseHistoryComment(await this.query(NOTES_REALM, `PublicHistoryCommentJSON("${wanted}","${cid}")`), wanted, cid)
   }
   async readersRaw(noteId: string): Promise<unknown> {
     return this.query(NOTES_REALM, `ReadersJSON("${id(noteId)}")`)

@@ -1,0 +1,194 @@
+{
+  "candidate": "878cf4f81ea544fb1a049b958495b0119b68409d",
+  "runtime": "e75fef82c02876a4df92ad6e325c5479b9532168",
+  "sourceSha256": "cc4b908241522382fd35cd8d7cdc760fcaab472b31dd7329a23d2cf6352c093d",
+  "freshAuthorsSourceSha256": "483eee77d036b75d7b8b8157edaad92a95535a665abafaee7bd0b67355f0a674",
+  "storagePriceUgnotPerByte": 100,
+  "limits": "Synthetic keeper; excludes ante and unbounded future indexes. Refunds are not quote credits. Only supported client operations selected.",
+  "rows": [
+    {
+      "case": "public_create_2048_title160",
+      "func": "CreateNote",
+      "titleOrAnchorBytes": 160,
+      "bodyBytes": 2048,
+      "keeperGas": 39465379,
+      "storageDepositDeltaUgnot": 2846700
+    },
+    {
+      "case": "collective_enable",
+      "func": "SetPublicWrites",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 24789612,
+      "storageDepositDeltaUgnot": 1153100
+    },
+    {
+      "case": "collective_grow_2048_to_131072",
+      "func": "Commit",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 131072,
+      "keeperGas": 271460204,
+      "storageDepositDeltaUgnot": 27388200
+    },
+    {
+      "case": "collective_same_size_131072",
+      "func": "Commit",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 131072,
+      "keeperGas": 275854985,
+      "storageDepositDeltaUgnot": 14484800
+    },
+    {
+      "case": "collective_title_only160",
+      "func": "Rename",
+      "titleOrAnchorBytes": 160,
+      "bodyBytes": 0,
+      "keeperGas": 40630370,
+      "storageDepositDeltaUgnot": 1395800
+    },
+    {
+      "case": "collective_mask3_title160_body131072",
+      "func": "Commit",
+      "titleOrAnchorBytes": 160,
+      "bodyBytes": 131072,
+      "keeperGas": 282290148,
+      "storageDepositDeltaUgnot": 14834300
+    },
+    {
+      "case": "collective_shrink_131072_to2048",
+      "func": "Commit",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 2048,
+      "keeperGas": 46007907,
+      "storageDepositDeltaUgnot": -11318400
+    },
+    {
+      "case": "collective_disable",
+      "func": "SetPublicWrites",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 28297442,
+      "storageDepositDeltaUgnot": 940300
+    },
+    {
+      "case": "public_delete_after_shrink",
+      "func": "Delete",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 28784333,
+      "storageDepositDeltaUgnot": 568400
+    },
+    {
+      "case": "public_create_131072_title160",
+      "func": "CreateNote",
+      "titleOrAnchorBytes": 160,
+      "bodyBytes": 131072,
+      "keeperGas": 279471214,
+      "storageDepositDeltaUgnot": 29150100
+    },
+    {
+      "case": "public_delete_131072_restricted",
+      "func": "Delete",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 33023207,
+      "storageDepositDeltaUgnot": -12356500
+    },
+    {
+      "case": "title160_with_32writers_3keys",
+      "func": "Rename",
+      "titleOrAnchorBytes": 160,
+      "bodyBytes": 0,
+      "keeperGas": 44837242,
+      "storageDepositDeltaUgnot": 1790300
+    },
+    {
+      "case": "comment_max_4000_anchor600_at_1",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 61225379,
+      "storageDepositDeltaUgnot": 2574200
+    },
+    {
+      "case": "comment_max_4000_anchor600_at_51",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 75725394,
+      "storageDepositDeltaUgnot": 2784200
+    },
+    {
+      "case": "comment_hide",
+      "func": "HideComment",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 28863818,
+      "storageDepositDeltaUgnot": 440200
+    },
+    {
+      "case": "comment_resolve",
+      "func": "ResolveComment",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 29083352,
+      "storageDepositDeltaUgnot": 436000
+    },
+    {
+      "case": "delete_note_with_51_comments",
+      "func": "Delete",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 28604864,
+      "storageDepositDeltaUgnot": 765200
+    },
+    {
+      "case": "delete_comment_after_note_delete",
+      "func": "DeleteComment",
+      "titleOrAnchorBytes": 0,
+      "bodyBytes": 0,
+      "keeperGas": 28970081,
+      "storageDepositDeltaUgnot": -88100
+    },
+    {
+      "case": "comment_max_fresh_author_1",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 62654144,
+      "storageDepositDeltaUgnot": 2574200
+    },
+    {
+      "case": "comment_max_fresh_author_2",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 64186525,
+      "storageDepositDeltaUgnot": 2983600
+    },
+    {
+      "case": "comment_max_fresh_author_3",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 66655593,
+      "storageDepositDeltaUgnot": 2983600
+    },
+    {
+      "case": "comment_max_fresh_author_4",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 68928012,
+      "storageDepositDeltaUgnot": 2984200
+    },
+    {
+      "case": "comment_max_fresh_author_5",
+      "func": "AddComment",
+      "titleOrAnchorBytes": 600,
+      "bodyBytes": 4000,
+      "keeperGas": 69519527,
+      "storageDepositDeltaUgnot": 2986000
+    }
+  ]
+}

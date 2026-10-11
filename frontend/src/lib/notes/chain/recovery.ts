@@ -5,6 +5,7 @@ import { validPublicVerification } from '../intents'
 import type { NotesIntent, NotesIntentInput, NotesIntents, NotesOperationEvidence, PublicIntentVerification } from '../intents'
 import type { NotesReadClient } from './client'
 import type { PublicNoteOperation } from './messages'
+import type { PublicCapabilities } from './capabilities'
 import { check, decimal, NOTES_REALM } from './schema'
 import type { ChainNote } from './schema'
 
@@ -18,6 +19,7 @@ export function publicVerification(operation: PublicNoteOperation, base: ChainNo
   const title = a.kind === 'create' || a.kind === 'rename' || a.kind === 'commit' ? a.title : undefined
   const body = a.kind === 'create' || a.kind === 'commit' ? a.body : undefined
   const value = {
+    ...(a.kind === 'public-writes' ? { allowPublicWrites: a.enabled } : {}),
     kind: 'public-v1' as const, mode: creating ? a.mode : a.kind === 'comments' ? (a.open ? 4 : 3) : base!.mode,
     epoch: creating ? '0' : base!.epoch, deleted, quoteHeight, owner: creating ? operation.caller : base!.owner,
     titleSha256: hash(deleted ? new Uint8Array() : title === undefined ? base!.title : utf8(title)),
@@ -29,7 +31,7 @@ export function publicVerification(operation: PublicNoteOperation, base: ChainNo
   check(validPublicVerification(value)); return value
 }
 /** A receipt alone is insufficient: match the reviewed public result, including tombstone bytes. */
-export function publicIntentEvidence(input: NotesIntentInput, note: ChainNote | null): NotesOperationEvidence | null {
+export function publicIntentEvidence(input: NotesIntentInput, note: ChainNote | null, capabilities?: PublicCapabilities | null): NotesOperationEvidence | null {
   const v = input.verification
   if (!validPublicVerification(v) || !note || input.scope.realm !== NOTES_REALM || note.id !== input.scope.noteId
     || note.operationId !== input.operationId || note.actor !== input.actor || note.owner !== (v.owner ?? input.actor)
@@ -39,6 +41,9 @@ export function publicIntentEvidence(input: NotesIntentInput, note: ChainNote | 
     || note.body === undefined || note.commitment.length !== 0 || BigInt(note.height) <= BigInt(v.quoteHeight)
     || hash(note.title) !== v.titleSha256 || hash(note.body) !== v.bodySha256
     || (v.deleted && (note.listed || note.pendingOwner || note.title.length || note.body.length))) return null
+  if (Object.hasOwn(v, 'allowPublicWrites') && (!capabilities || capabilities.id !== note.id || capabilities.stateRevision !== note.stateRevision
+    || capabilities.ownerGeneration !== note.ownerGeneration || capabilities.mode !== note.mode || capabilities.deleted !== note.deleted
+    || capabilities.allowPublicWrites !== v.allowPublicWrites)) return null
   return { scope: { ...input.scope }, operationId: note.operationId, actor: note.actor, stateRevision: note.stateRevision, height: note.height, outcome: 'applied' }
 }
 
@@ -47,7 +52,7 @@ export function publicIntentEvidence(input: NotesIntentInput, note: ChainNote | 
  * A later last-operation receipt cannot establish an earlier operation; it needs future historical proof.
  */
 export async function recoverPublicIntent(
-  client: Pick<NotesReadClient, 'chainId' | 'assertCurrent' | 'note'>,
+  client: Pick<NotesReadClient, 'chainId' | 'assertCurrent' | 'note'> & Partial<Pick<NotesReadClient, 'publicCapabilities'>>,
   intents: NotesIntents, intent: NotesIntent, session: DraftSession,
 ): Promise<'confirmed' | 'unknown'> {
   const guard = session.capture(), scope = { ...intent.scope }, operationId = intent.operationId
@@ -60,7 +65,8 @@ export async function recoverPublicIntent(
     if (stored.phase === 'confirmed') return 'confirmed'
     if (!['prepared', 'submitted', 'unknown'].includes(stored.phase)) return 'unknown'
     const note = await client.note(scope.noteId); current()
-    const evidence = publicIntentEvidence(stored, note)
+    const capabilities = Object.hasOwn(stored.verification, 'allowPublicWrites') ? await client.publicCapabilities?.(scope.noteId) : undefined; current()
+    const evidence = publicIntentEvidence(stored, note, capabilities)
     if (!evidence) return 'unknown'
     const result = await intents.confirm(scope, operationId, evidence, guard); current()
     return result.status === 'saved' ? 'confirmed' : 'unknown'
