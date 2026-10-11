@@ -31,6 +31,7 @@ import type { OsTarget } from "./osPath"
 import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken, windowsStorageKey } from "./urlSync"
 import { useDesk } from "./useDesk"
 import { useNoteShortcuts } from "./useNoteShortcuts"
+import { forgetNoteShortcut } from "./noteShortcuts"
 import { useOsSession } from "./useOsSession"
 import { useEvmSession } from "../evm/useEvmSession"
 import { EvmConnectModal } from "../evm/EvmConnectModal"
@@ -341,15 +342,23 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
     const noteShortcuts = useNoteShortcuts({ chainId: session.network.chainId, owner: deskOwner,
         ids: deskItems.items.filter((item) => item.ty === "note").map((item) => item.ref), enabled: NOTES_ENABLED && session.network.family === "gno" && !locked })
     const noteLabels = useMemo(() => ({ ...noteShortcuts.labels, ...deskItems.noteLabels }), [noteShortcuts.labels, deskItems.noteLabels])
-    // Windows place and remove their own shortcuts through this same desk (the menu bar's "Add to desktop" path).
-    const deskShortcuts: DeskShortcuts = {
-        isPinned: deskItems.isPinned,
-        pin: deskItems.pin,
+    // Removing a note shortcut also drops its cached title: nothing about an unpinned note lingers.
+    const chainId = session.network.chainId
+    const { items: deskList, pin: deskPin, unpin: deskUnpin } = deskItems
+    const unpinItem = useCallback((index: number) => {
+        const item = deskList[index]
+        if (item?.ty === "note" && deskOwner !== undefined) forgetNoteShortcut(chainId, deskOwner, item.ref)
+        deskUnpin(index)
+    }, [deskList, deskUnpin, deskOwner, chainId])
+    // Windows place and remove their own shortcuts through this same desk (the menu bar's "Add to Desktop" path).
+    const deskShortcuts = useMemo<DeskShortcuts>(() => ({
+        isPinned: (item) => deskList.some((it) => sameItem(it, item)),
+        pin: deskPin,
         unpin: (item) => {
-            const i = deskItems.items.findIndex((it) => sameItem(it, item))
-            if (i >= 0) deskItems.unpin(i)
+            const i = deskList.findIndex((it) => sameItem(it, item))
+            if (i >= 0) unpinItem(i)
         },
-    }
+    }), [deskList, deskPin, unpinItem])
     // Reset is dispatched by Settings after the saved UI keys are removed. Keep
     // that window on screen, and leave the cleared layout absent until the user
     // opens another window. The revision notifies other open OS tabs; their
@@ -467,8 +476,8 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
         const target = menu.item, i = deskItems.items.findIndex(item => sameItem(item, target))
         if (i < 0) setMenu(null)
         // Removing a note shortcut never deletes the note: the menu says so.
-        else if (target.ty === "note") menuEntries = [{ label: "Open", run: () => openItem(i) }, { label: "Remove from Desktop", run: () => deskItems.unpin(i) }, { hint: "The note itself is not deleted." }]
-        else menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
+        else if (target.ty === "note") menuEntries = [{ label: "Open", run: () => openItem(i) }, { label: "Remove from Desktop", run: () => unpinItem(i) }, { hint: "The note itself is not deleted." }]
+        else menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from Desktop", run: () => unpinItem(i) }]
     } else if (menu) {
         menuEntries = [
             { label: "Change wallpaper…", run: () => openApp("settings") },

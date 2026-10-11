@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { ChainNote } from '../../lib/notes/chain/schema'
-import { noteShortcutCacheKey, noteShortcutLabel, readNoteShortcuts, shortcutFromChain, writeNoteShortcuts } from './noteShortcuts'
+import { forgetNoteShortcut, noteShortcutCacheKey, noteShortcutLabel, readNoteShortcuts, shortcutFromChain, writeNoteShortcuts } from './noteShortcuts'
 
 const id = 'ab'.repeat(16), other = 'cd'.repeat(16)
 const meta = (patch: Partial<ChainNote> = {}): ChainNote => ({ id, owner: 'g1owner', pendingOwner: '', ownerGeneration: '1', mode: 3, stateRevision: '2', titleRevision: '1', bodyRevision: '1', epoch: '0',
@@ -20,6 +20,11 @@ describe('note shortcut facts', () => {
         expect(shortcutFromChain(meta({ deleted: true }), known)).toEqual({ title: 'Sushi', private: false, missing: true })
         expect(shortcutFromChain(null, known)).toEqual({ title: 'Sushi', private: false, missing: true })
         expect(shortcutFromChain(null)).toEqual({ title: null, private: false, missing: true })
+    })
+    it('never shows or keeps the title of a note taken down by moderation', () => {
+        const known = { title: 'Sushi', private: false, missing: false }
+        expect(shortcutFromChain(meta({ moderatorHidden: true, ownerListed: true, listed: false }), known)).toEqual({ title: null, private: false, missing: true })
+        expect(noteShortcutLabel(undefined, shortcutFromChain(meta({ moderatorHidden: true }), known))).toBe('Note')
     })
     it('keeps the previous title when the chain title cannot be decoded', () => {
         expect(shortcutFromChain(meta({ title: new Uint8Array([0xff]) }), { title: 'Old', private: false, missing: false }).title).toBe('Old')
@@ -48,6 +53,12 @@ describe('note shortcut cache', () => {
         const raw = localStorage.getItem(noteShortcutCacheKey('gnoland-1', null)) ?? ''
         expect(raw).not.toContain('Secret plan'); expect(raw).not.toContain('Gone')
         expect(readNoteShortcuts('gnoland-1', null)).toEqual({ [id]: { title: null, private: true, missing: false } })
+    })
+    it('forgets an unpinned shortcut and keeps the others', () => {
+        writeNoteShortcuts('gnoland-1', 'g1a', { [id]: { title: 'Sushi', private: false, missing: false }, [other]: { title: 'Ramen', private: false, missing: false } }, [id, other])
+        forgetNoteShortcut('gnoland-1', 'g1a', id)
+        expect(localStorage.getItem(noteShortcutCacheKey('gnoland-1', 'g1a'))).not.toContain('Sushi')
+        expect(readNoteShortcuts('gnoland-1', 'g1a')).toEqual({ [other]: { title: 'Ramen', private: false, missing: false } })
     })
     it('ignores malformed or hostile cache contents', () => {
         const key = noteShortcutCacheKey('gnoland-1', null)

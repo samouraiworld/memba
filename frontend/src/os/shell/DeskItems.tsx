@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, type CSSProperties, type MouseEvent as ReactM
 import { getApp, type OsAppId } from "../apps"
 import { cellPosition, nearestCell, sameItem, type DeskItem } from "./desk"
 import { shortAddr } from "./format"
+import { noteShortcutName } from "./noteShortcuts"
 import { AppTile, Icon, ThingTile } from "./icons"
 
 const DAO_TINT = ["#5B7CFA", "#3D5BE0"] as const
@@ -23,9 +24,12 @@ function noteTile(isPrivate: boolean): ReactNode {
     return <span className="os-badged"><ThingTile icon="doc" /><span className="os-badge2 os-badge2-note" data-private={isPrivate || undefined}><Icon name={isPrivate ? "lock" : "pen"} /></span></span>
 }
 
-function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>, privateNotes: ReadonlySet<string>): { label: string; tile: ReactNode } {
+function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>, privateNotes: ReadonlySet<string>): { label: string; tile: ReactNode; name?: string } {
     switch (it.ty) {
-        case "note": return { label: noteLabels[it.ref] ?? "Note", tile: noteTile(privateNotes.has(it.ref)) }
+        case "note": {
+            const isPrivate = privateNotes.has(it.ref)
+            return { label: noteLabels[it.ref] ?? "Note", tile: noteTile(isPrivate), name: noteShortcutName(noteLabels[it.ref], isPrivate) }
+        }
         case "app": return { label: getApp(it.ref as OsAppId).name, tile: <AppTile app={it.ref as OsAppId} /> }
         case "dao": return { label: it.ref, tile: <span className="os-badged"><ThingTile icon="folder" tint={DAO_TINT} /><span className="os-badge2">{initials(it.ref)}</span></span> }
         case "prop": {
@@ -89,11 +93,11 @@ export function DeskItems({ items, noteLabels = {}, privateNotes = NO_PRIVATE_NO
     return (
         <>
             {items.map((it, i) => {
-                const { label, tile } = itemLook(it, noteLabels, privateNotes)
+                const { label, tile, name } = itemLook(it, noteLabels, privateNotes)
                 const p = cellPosition(it.c, it.r, deskWidth)
                 return (
                     <button key={`${it.ty}:${it.ref}`} type="button" className="os-thing" style={{ left: p.x, top: p.y } as CSSProperties}
-                        data-item={`${it.ty}:${it.ref}`}
+                        data-item={`${it.ty}:${it.ref}`} aria-label={name}
                         onPointerDown={(e) => down(i, e)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
                         onClick={() => { if (justDragged.current) { justDragged.current = false; return } onOpen(i) }}
                         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onMenu(e, i) }}>
@@ -144,7 +148,7 @@ export function ContextMenu({ x, y, entries, onClose }: { x: number; y: number; 
         <div ref={ref} className="os-ctx os-glass os-menu" role="menu" style={{ left: x, top: y }}>
             {entries.map((e, i) => {
                 if (e === "sep") return <div key={i} className="os-msep" role="separator" />
-                if ("hint" in e) return <p key={i} id={`${hintId}-${i}`} className="os-mhint">{e.hint}</p>
+                if ("hint" in e) return <p key={i} id={`${hintId}-${i}`} role="none" className="os-mhint">{e.hint}</p>
                 // A hint right after an entry describes it for screen readers too.
                 const next = entries[i + 1]
                 const described = next && next !== "sep" && "hint" in next ? `${hintId}-${i + 1}` : undefined

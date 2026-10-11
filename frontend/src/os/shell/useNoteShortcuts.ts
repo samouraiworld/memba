@@ -22,7 +22,10 @@ export function useNoteShortcuts({ chainId, owner, ids, enabled }: Options) {
         if (!deployment) return
         if (read.current.scope !== scope) read.current = { scope, done: new Set() }
         const done = read.current.done
-        const wanted = idsKey.split(",").filter((id) => !done.has(id))
+        // A note already known to be private is never read again from here: that would tie this
+        // browser to private note ids at the RPC on every desktop load.
+        const cached = readNoteShortcuts(chainId, owner)
+        const wanted = idsKey.split(",").filter((id) => !done.has(id) && !cached[id]?.private)
         if (!wanted.length) return
         let alive = true
         void (async () => {
@@ -34,12 +37,12 @@ export function useNoteShortcuts({ chainId, owner, ids, enabled }: Options) {
             } catch { return }
             for (const id of wanted) {
                 let note
-                try { note = await client.noteMeta(id) } catch { if (!alive) return; continue }
+                try { note = await client.noteMetadata(id) } catch { if (!alive) return; continue }
                 if (!alive) return
                 done.add(id)
-                const cached = readNoteShortcuts(chainId, owner)
-                const info: NoteShortcut = shortcutFromChain(note, cached[id])
-                writeNoteShortcuts(chainId, owner, { ...cached, [id]: info }, idsKey.split(","))
+                const latest = readNoteShortcuts(chainId, owner)
+                const info: NoteShortcut = shortcutFromChain(note, latest[id])
+                writeNoteShortcuts(chainId, owner, { ...latest, [id]: info }, idsKey.split(","))
                 setState((s) => (s.scope === scope ? { scope, facts: { ...s.facts, [id]: info } } : s))
             }
         })()

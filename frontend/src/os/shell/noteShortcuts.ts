@@ -20,11 +20,18 @@ export function noteShortcutCacheKey(chainId: string, owner: string | null): str
 
 /** A note's shortcut facts from its chain metadata; an absent or deleted note keeps its last known label. */
 export function shortcutFromChain(note: ChainNote | null, previous?: NoteShortcut): NoteShortcut {
+    // A note taken down by moderation never shows or keeps its title.
+    if (note?.moderatorHidden) return { title: null, private: false, missing: true }
     if (!note || note.deleted) return { title: previous?.title ?? null, private: previous?.private ?? false, missing: true }
     if (note.mode < 3) return { title: null, private: true, missing: false }
     let title = previous?.title ?? null
     try { title = publicText(note.title, true) } catch { /* keep the last readable title */ }
     return { title, private: false, missing: false }
+}
+
+/** The shortcut's accessible name says it is a note shortcut, and whether the note is private. */
+export function noteShortcutName(title: string | undefined, isPrivate: boolean): string {
+    return `${isPrivate ? "Private note shortcut" : "Note shortcut"}${title ? `: ${title}` : ""}`
 }
 
 export function noteShortcutLabel(featured: string | undefined, info: NoteShortcut | undefined): string {
@@ -48,6 +55,13 @@ export function readNoteShortcuts(chainId: string, owner: string | null): Record
     } catch {
         return {}
     }
+}
+
+/** Drops one shortcut's cached facts: an unpinned note leaves nothing behind. */
+export function forgetNoteShortcut(chainId: string, owner: string | null, noteId: string): void {
+    const facts = readNoteShortcuts(chainId, owner)
+    if (!(noteId in facts)) return
+    writeNoteShortcuts(chainId, owner, facts, Object.keys(facts).filter((id) => id !== noteId))
 }
 
 /** Keeps the facts for the shortcuts still on the desk; private titles are never written. */

@@ -1,6 +1,6 @@
 /**
  * The shell's desk, offered to app windows so they can place and remove their
- * own shortcuts through the same store as the menu bar's "Add to desktop".
+ * own shortcuts through the same store as the menu bar's "Add to Desktop".
  *
  * @module os/shell/deskShortcuts
  */

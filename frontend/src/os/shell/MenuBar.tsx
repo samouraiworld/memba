@@ -154,7 +154,7 @@ export function MenuBar(p: MenuBarProps) {
                         </div>
                         {guest && <button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button>}
                     </div>
-                    <div className="os-mhd">All apps · ＋ adds to desktop</div>
+                    <div className="os-mhd">All apps · ＋ adds to Desktop</div>
                     <div className="os-pins" role="menu" aria-label="All apps">
                         {appsOn(OS_APPS, net.family).map((a) => {
                             const on = p.isPinned({ ty: "app", ref: a.id })
@@ -163,7 +163,7 @@ export function MenuBar(p: MenuBarProps) {
                                     <button type="button" role="menuitem" className="os-pin" onClick={run(() => p.openApp(a.id))}>
                                         <AppTile app={a.id} size={38} /><span>{a.name}</span>
                                     </button>
-                                    <button type="button" role="menuitem" className={`os-pn${on ? " os-done" : ""}`} aria-label={on ? `${a.name} is on the desktop` : `Add ${a.name} to desktop`}
+                                    <button type="button" role="menuitem" className={`os-pn${on ? " os-done" : ""}`} aria-label={on ? `${a.name} is on the Desktop` : `Add ${a.name} to Desktop`}
                                         disabled={on} onClick={() => p.pin({ ty: "app", ref: a.id })}>{on ? "✓" : "+"}</button>
                                 </div>
                             )
@@ -206,8 +206,8 @@ export function MenuBar(p: MenuBarProps) {
                             <Item onClick={run(() => p.openSpec(specForTarget({ kind: "new-proposal", dao: (f.target as { name: string }).name })!))}>New proposal</Item>
                         )}
                         {pinnable && (
-                            <Item onClick={run(() => { p.pin(pinnable); p.toast("Added to your desktop") })} disabled={p.isPinned(pinnable)}>
-                                {f.target?.kind === "proposal" ? "Bookmark to desktop" : "Add to desktop"}
+                            <Item onClick={run(() => { p.pin(pinnable); p.toast("Added to your Desktop") })} disabled={p.isPinned(pinnable)}>
+                                {f.target?.kind === "proposal" ? "Bookmark to Desktop" : "Add to Desktop"}
                             </Item>
                         )}
                         <Item onClick={copy(`${window.location.origin}${urlForWindow(f)}`, "the link")}>Copy link to this window</Item>

@@ -5,7 +5,7 @@ async function desktop(page: Page, query = '') {
     await page.goto(url + query)
     await expect(page.getByText('Simulated local Notes desk — no wallet or RPC', { exact: true })).toBeVisible()
 }
-function icon(page: Page, label: string) { return page.getByRole('button', { name: label, exact: true }).filter({ has: page.locator('.os-tile') }) }
+function icon(page: Page, label: string) { return page.getByRole('button', { name: `Note shortcut: ${label}`, exact: true }).filter({ has: page.locator('.os-tile') }) }
 async function dismiss(page: Page, label: string) {
     await icon(page, label).click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Remove from Desktop', exact: true }).click()
@@ -96,7 +96,7 @@ test('full real desktop keeps every pin until removal frees a seed cell; Setting
     }, initial)
     await page.reload(); await expect(page.locator('.os-thing')).toHaveCount(48); await expect(icon(page, 'Sushi recipe')).toHaveCount(0)
     await page.getByRole('button', { name: 'SL slot0', exact: true }).click({ button: 'right' })
-    await page.getByRole('menuitem', { name: 'Remove from desktop', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Remove from Desktop', exact: true }).click()
     await expect(icon(page, 'Sushi recipe')).toBeVisible(); await expect(page.locator('.os-thing')).toHaveCount(48)
     const after = await desk(page); expect(after.items.filter((item: { ty: string }) => item.ty === 'dao')).toHaveLength(47)
     const peer = await context.newPage(); await desktop(peer); await expect(peer.locator('.os-thing')).toHaveCount(48)

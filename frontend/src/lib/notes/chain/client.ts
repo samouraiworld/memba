@@ -66,14 +66,6 @@ export class NotesReadClient {
       return parseNote({ ...(value as Record<string, unknown>), body_blob: encode64(body) })
     } finally { body.fill(0) }
   }
-  /** Metadata only (title, mode, deletion): enough to label a desktop shortcut without reading the body. */
-  async noteMeta(noteId: string): Promise<ChainNote | null> {
-    const wanted = id(noteId)
-    const value = await this.query(NOTES_REALM, `NoteMetaJSON("${wanted}")`)
-    if (value === null) return null
-    const note = parseNote(value, false); check(note.id === wanted)
-    return note
-  }
   async sharedWith(owner: string, pageCursor = '', limit = 20): Promise<NotesPage> {
     const who = address(owner); this.pageArgs(pageCursor, limit)
     const page = parsePage(await this.query(NOTES_REALM, `ListSharedWithJSON(address("${who}"),"${pageCursor}",${limit})`), limit)

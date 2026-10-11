@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({ meta: vi.fn(), contexts: [] as { isCurrent(): 
 vi.mock('../../lib/notes/config', () => ({ NOTE_ID: /^[0-9a-f]{32}$/, notesDeployment: () => mocks.deployed ? { realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 } : null }))
 vi.mock('../../lib/rpcFallback', () => ({ getRpcUrlsInOrder: () => ['https://rpc.invalid'] }))
 vi.mock('../../lib/notes/chain/client', () => ({ NotesReadClient: class {
-    noteMeta = mocks.meta
+    noteMetadata = mocks.meta
     constructor(context: { isCurrent(): boolean }) { mocks.contexts.push(context) }
 } }))
 
@@ -40,6 +40,14 @@ it('shows the cached title at once and reads each shortcut only once per desk', 
     rerender({ ids: [pub, priv] })
     await waitFor(() => expect(result.current.privateNotes.has(priv)).toBe(true))
     expect(mocks.meta.mock.calls.map(call => call[0])).toEqual([pub, priv])
+})
+
+it('never re-reads a note already cached as private', async () => {
+    writeNoteShortcuts('test-chain', 'g1me', { [priv]: { title: null, private: true, missing: false } }, [priv, pub])
+    const { result } = renderHook(() => useNoteShortcuts({ chainId: 'test-chain', owner: 'g1me', ids: [priv, pub], enabled: true }))
+    expect(result.current.privateNotes.has(priv)).toBe(true)
+    await waitFor(() => expect(result.current.labels[pub]).toBe('Sushi'))
+    expect(mocks.meta.mock.calls.map(call => call[0])).toEqual([pub])
 })
 
 it('reads nothing when Notes is off for this network or the desk owner is unknown', async () => {
