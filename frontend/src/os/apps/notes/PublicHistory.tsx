@@ -16,6 +16,7 @@ const actions: Record<HistoryAction, string> = {
     'listing-moderation': 'Listing moderated', 'note-delete': 'Note deleted', 'legacy-epoch-reveal': 'Earlier epoch revealed',
     'comment-add': 'Comment added', 'comment-delete': 'Comment deleted', 'comment-visibility': 'Comment visibility changed',
     'comment-resolution': 'Comment resolution changed', cleanup: 'Current storage cleaned up',
+    'content-redact': 'Content removed by moderation', 'comment-redact': 'Comment removed by moderation',
 }
 /** Guest-readable and read-only; restoration delegates copied content, never a signature. */
 export function PublicHistory(props: PublicHistoryProps) {
@@ -97,11 +98,13 @@ function HistoryDetail({ client, noteId, seq, chooseVersion, canCompare }: {
 function HistoryDetailFields({ entry }: { entry: PublicHistoryEntry }) {
     const d = entry.detail
     if (d.kind === 'cleanup') return <p>Removed {d.total} current records: {d.commentIndex} comment index, {d.comments} comments, {d.cooldowns} cooldowns, {d.epochs} epochs, {d.requests} requests. Public archives remain.</p>
+    if (d.kind === 'comment-purged') return <p>The archived copy of purged comment {d.commentId} was removed by moderation.</p>
     if (d.kind === 'comment') return <p>Comment revision {d.commentRevision} · {d.deleted ? 'Deleted' : 'Retained'} · {d.hidden ? 'Hidden' : 'Visible'} · {d.resolved ? 'Resolved' : 'Open'}</p>
     return <>
         <p>State revision {d.snapshotRevision}{d.previousStateRevision && `, following ${d.previousStateRevision}`}</p>
         {d.fieldMask && <p>Changed: {d.fieldMask === 1 ? 'title' : d.fieldMask === 2 ? 'body' : 'title and body'}. A title-only change may be Commit or Rename.</p>}
         {d.policyOp !== null && <p>Policy: {['read', 'write', 'comment'][d.policyOp]} · {d.policyKey || 'cleared'}</p>}
         {d.targetEpoch && <p>Earlier epoch {d.targetEpoch}; private key material is excluded from this archive.</p>}
+        {d.redaction && <p>Removed {d.redaction.field} revision {d.redaction.fieldRevision} from public storage. SHA-256 kept: {d.redaction.sha256}</p>}
     </>
 }

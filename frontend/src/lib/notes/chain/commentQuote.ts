@@ -3,7 +3,7 @@ import type { NotesReadClient } from './client'
 import { blob, check, NOTES_REALM, NotesChainError } from './schema'
 import { boundedNotesQuote } from './quote'
 
-/** History source 878cf4f / keeper e75 at 100 ugnot/B; sampled index sizes, no refunds assumed. */
+/** Merged Notes realm c20e8e6c (single-copy history) / keeper e75 at 100 ugnot/B; sampled index sizes, no refunds assumed. */
 export function publicCommentBudget(message: AminoMsg) {
     check(message.type === 'vm/MsgCall' && message.value.pkg_path === NOTES_REALM)
     const { func, args } = message.value
@@ -13,7 +13,7 @@ export function publicCommentBudget(message: AminoMsg) {
     else if (func === 'DeleteComment') check(args.length === 4)
     else if (func === 'HideComment' || func === 'ResolveComment') check(args.length === 5)
     else throw new NotesChainError('format')
-    const estimate = (2 * bytes + 30_000) * 100
+    const estimate = (bytes + 30_000) * 100
     return { gasWanted: 100_000_000, estimatedDepositUgnot: String(estimate), suggestedCapUgnot: String(Math.ceil(estimate * 1.2 / 100_000) * 100_000) }
 }
 export const publicCommentQuote = (client: NotesReadClient, cap: string) => boundedNotesQuote(client, cap, publicCommentBudget)

@@ -27,10 +27,12 @@ export function parsePublicComment(raw: unknown): PublicComment {
   const anchor = blob(v.anchor_blob, 600), body = blob(v.body_blob, v.encrypted ? 5687 : 4000)
   if (v.deleted) check(!anchor.length && !body.length)
   else if (v.encrypted) check(!anchor.length && body.length >= 59)
+  // Only a moderator redaction leaves a live public comment hidden and empty.
+  const redacted = !v.deleted && !v.encrypted && v.hidden === true && !anchor.length && !body.length
   const value: PublicComment = {
     id: commentId, parent, author: address(v.author), encrypted: v.encrypted as boolean,
     bodyRevision: decimal(v.body_revision, 64, true), epoch: decimal(v.epoch, 32), revision: decimal(v.revision, 64, true),
-    anchor: v.deleted || v.encrypted ? '' : commentText(anchor, true), body: v.deleted || v.encrypted ? '' : commentText(body),
+    anchor: v.deleted || v.encrypted || redacted ? '' : commentText(anchor, true), body: v.deleted || v.encrypted || redacted ? '' : commentText(body),
     createdHeight: decimal(v.created_height, 63, true), operationId: id(v.op_id), actor: address(v.actor), height: decimal(v.height, 63, true),
     deleted: v.deleted as boolean, hidden: v.hidden as boolean, resolved: v.resolved as boolean,
   }

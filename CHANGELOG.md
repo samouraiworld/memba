@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes moderation takedowns and single-copy costs (2026-10-11)
+- Read moderator redactions from the Notes realm: removed versions and comments show as removed by moderation with their hash, are never offered for restoration, and the history reports redactable retention.
+- Recalibrate note and comment storage estimates to the merged realm, which stores each public version once. Notes remains disabled pending deployment and reviewed activation.
+
 ### Explicit Arcade deployment configuration (2026-10-09)
 - Add a validated operator configuration path and a reviewed public OS manifest for Free play score services. Both remain disabled by default; production publication requires a separate release decision.
 

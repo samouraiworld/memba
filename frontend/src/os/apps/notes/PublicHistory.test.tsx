@@ -192,3 +192,23 @@ describe('public archived comment presentation', () => {
         await screen.findByRole('alert'); expect(document.querySelector('pre')).toBeNull()
     })
 })
+describe('moderator redaction', () => {
+    it('shows a redacted version as removed, keeps its hash and offers no restore', async () => {
+        const s = setup(), onRestore = vi.fn()
+        s.mocks.publicHistoryVersion.mockResolvedValue({ ...s.version, title: null, titleRedacted: true, bodyRedacted: true, bodyBytes: 0 })
+        render(<PublicHistoryVersions client={s.client} noteId={noteId} revisions={['1']} onRestore={onRestore} />)
+        await screen.findByText(`The title and body of this version were removed by moderation. Body SHA-256 kept: ${s.version.bodySha256}`)
+        expect(s.mocks.publicHistoryBodyChunk).not.toHaveBeenCalled()
+        expect(screen.queryByRole('button', { name: /as a new draft/ })).toBeNull()
+        expect(document.querySelector('pre')).toBeNull()
+    })
+    it('never shows archived content for a redacted comment, even when revealed', async () => {
+        const s = setup()
+        s.mocks.publicHistoryComment.mockResolvedValue({ ...s.comment, content: { ...s.comment.content, body: new Uint8Array(), anchor: new Uint8Array() },
+            presentation: { ...s.comment.presentation, hidden: true, redacted: true } })
+        render(<PublicHistoryCommentView client={s.client} noteId={noteId} commentId={commentId} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Show archived comment' }))
+        await screen.findByText('This comment was removed by moderation. Only its record remains in the public archive.')
+        expect(document.querySelector('pre')).toBeNull()
+    })
+})
