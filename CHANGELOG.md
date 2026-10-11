@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes publishes only what changed (2026-10-11)
+### Notes publishes only what changed (#1605, 2026-10-11)
 - Note updates send and pay for only the edited field: a rename no longer re-stores the body and a body edit no longer re-stores the title. When nothing differs from the published note, the editor says there is nothing to publish.
 - Explain titles the network would refuse (slash, line breaks, invisible characters, more than 80 characters) in the editor and before review, and remove spaces at the start or end of a title when publishing instead of stalling.
 - Exported Markdown files are named after the note title, made safe for every operating system.
