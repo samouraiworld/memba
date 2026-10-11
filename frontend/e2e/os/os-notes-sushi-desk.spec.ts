@@ -35,6 +35,7 @@ async function healthyPublicWorkspace(page: Page, guest: boolean) {
     const settings = page.getByRole('region', { name: 'Community editing settings', exact: true })
     if (guest) await expect(settings).toHaveCount(0)
     else await expect(settings.getByText('Public content editing is disabled.', { exact: true })).toBeVisible()
+    await expect(page.getByText('No comments on this page.', { exact: true })).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
 }
 for (const guest of [false, true]) test(`${guest ? 'guest' : 'member'} real desktop icon opens the reader and keeps its label on phone`, async ({ page }, info) => {
