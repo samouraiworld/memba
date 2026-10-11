@@ -23,6 +23,8 @@ export function noteExportFilename(title: string): string {
         .replace(/ {2,}/g, ' ')
     stem = trimEdges(boundedBytes(trimEdges(stem), MAX_STEM_BYTES))
     if (!stem) return 'note.md'
-    if (RESERVED_WINDOWS_NAME.test(stem.split('.')[0])) stem += '-note'
+    // Windows reads the part before the first dot as the device name, so the suffix goes there.
+    const [head, ...rest] = stem.split('.')
+    if (RESERVED_WINDOWS_NAME.test(head.trimEnd())) stem = [`${head.trimEnd()}-note`, ...rest].join('.')
     return `${stem}.md`
 }
