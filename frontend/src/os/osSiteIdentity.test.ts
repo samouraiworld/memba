@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
-import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES } from './osSiteIdentity'
+import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES, osDevIconsEnabled, osIconHtml, osDevBrandFile } from './osSiteIdentity'
 
 const source = readFileSync('index.html', 'utf8')
 const brand = resolve('src/os/brand')
@@ -14,6 +14,36 @@ describe('beta identity', () => {
         [{ VITE_MEMBA_OS: 'false', MEMBA_OS_BETA_SITE: 'true' }, false],
         [{ VITE_MEMBA_OS: 'true', MEMBA_OS_BETA_SITE: 'true' }, true],
     ])('requires both explicit flags: %j', (env, expected) => expect(osIdentityAllowed(env)).toBe(expected))
+
+    it.each([
+        [{}, false], [{ VITE_MEMBA_OS: 'false' }, false], [{ MEMBA_OS_BETA_SITE: 'true' }, false],
+        [{ VITE_MEMBA_OS: 'true' }, true],
+    ])('serves the OS icons on the dev server whenever Memba OS is on: %j', (env, expected) => expect(osDevIconsEnabled(env)).toBe(expected))
+
+    it('swaps only the favicon links to the OS mark on the dev server', () => {
+        const html = osIconHtml(source)
+        const doc = new DOMParser().parseFromString(html, 'text/html')
+        const original = new DOMParser().parseFromString(source, 'text/html')
+        const icons = [...doc.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]')].map(l => l.getAttribute('href'))
+        expect(icons).toEqual(['/brand/os/favicon.svg', '/brand/os/favicon-32.png', '/brand/os/favicon-16.png', '/brand/os/apple-touch-icon-180.png'])
+        expect(html).not.toMatch(/<link\b[^>]*href="\/(?:memba-icon|apple-touch-icon)\.png"/)
+        expect(doc.title).toBe(original.title)
+        expect(doc.querySelector('[http-equiv="Content-Security-Policy"]')?.outerHTML).toBe(original.querySelector('[http-equiv="Content-Security-Policy"]')?.outerHTML)
+        expect(doc.body.innerHTML).toBe(original.body.innerHTML)
+        // The beta build serves the very same links.
+        const beta = new DOMParser().parseFromString(osSiteHtml(source), 'text/html')
+        expect([...beta.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]')].map(l => l.outerHTML))
+            .toEqual([...doc.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]')].map(l => l.outerHTML))
+    })
+
+    it('resolves only the listed OS brand files for the dev server', () => {
+        expect(osDevBrandFile('/favicon.svg')).toBe('favicon.svg')
+        expect(osDevBrandFile('/favicon-32.png?v=1')).toBe('favicon-32.png')
+        expect(osDevBrandFile('/apple-touch-icon-180.png')).toBe('apple-touch-icon-180.png')
+        for (const url of ['/', '/README.md', '/icons.html', '/../osSiteIdentity.ts', '/%2e%2e/osSiteIdentity.ts', '/x/favicon.svg', undefined]) {
+            expect(osDevBrandFile(url), String(url)).toBeNull()
+        }
+    })
 
     it('replaces identity without changing security, analytics or the body', () => {
         const html = osSiteHtml(source)

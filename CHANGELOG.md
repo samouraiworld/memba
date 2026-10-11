@@ -31,6 +31,8 @@ Full changelogs are split by version range for easier navigation:
 - Explain titles the network would refuse (slash, line breaks, invisible characters, more than 80 characters) in the editor and before review, and remove spaces at the start or end of a title when publishing instead of stalling.
 - Exported Markdown files are named after the note title, made safe for every operating system.
 - Recalibrate public note storage estimates per operation to measured costs: changing community editing is now estimated at 1.2 GNOT (measured 1.1531) instead of 4 GNOT, with a separate, larger maximum deposit. Notes remains disabled in production.
+### Memba OS favicon on the dev server (2026-10-11)
+- The local dev server now shows the approved Memba OS mark as the tab and touch icon whenever Memba OS is on, served from the same committed artwork and URLs as memba.club. Builds are unchanged: the classic build keeps its icon and the beta build its identity.
 
 ### Notes moderation takedowns and single-copy costs (#1603, 2026-10-11)
 - Read moderator redactions from the Notes realm: removed versions and comments show as removed by moderation with their hash, are never offered for restoration, and the history reports redactable retention.
