@@ -42,6 +42,29 @@ describe('public comments', () => {
     expect(await screen.findByText('Comment 1')).toBeVisible(); expect(screen.queryByText('Comment 6')).toBeNull()
     expect(client.commentsRaw.mock.calls.map(args => args[1])).toEqual(['', cursor, cursor, ''])
   })
+  it('keeps the page being read when a refocus or confirmed change refreshes the list', async () => {
+    const rows = Array.from({ length: 5 }, (_, i) => row(i + 1)), cursor = '00000000000000000005:' + row(5).id
+    const client = { commentsRaw: vi.fn(async (_id: string, at: string) => at ? page([row(6)]) : page(rows, cursor)) }
+    const view = render(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" refreshToken={0} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Next comments' }))
+    expect(await screen.findByText('Comment 6')).toBeVisible()
+    view.rerender(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" refreshToken={1} />)
+    await vi.waitFor(() => expect(client.commentsRaw).toHaveBeenCalledTimes(3))
+    expect(client.commentsRaw.mock.calls[2][1]).toBe(cursor)
+    expect(screen.getByText('Comment 6')).toBeVisible(); expect(screen.getByRole('button', { name: 'Previous comments' })).toBeVisible()
+  })
+  it('reports how many comments the first page shows, and whether more follow', async () => {
+    const onCount = vi.fn(), cursor = '00000000000000000005:' + row(5).id
+    const rows = [...Array.from({ length: 4 }, (_, i) => row(i + 1)), { ...row(5), deleted: true, body_blob: '', anchor_blob: '' }]
+    render(<PublicComments client={{ commentsRaw: vi.fn(async () => page(rows, cursor)) }} noteId={noteId} epoch="0" bodyRevision="1" onCount={onCount} />)
+    await vi.waitFor(() => expect(onCount).toHaveBeenCalledWith(4, true))
+  })
+  it('says who wrote each comment, on which revision, and quotes the passage it is about', async () => {
+    render(<PublicComments client={{ commentsRaw: vi.fn(async () => page([row()])) }} noteId={noteId} epoch="0" bodyRevision="2" viewer={owner} />)
+    const article = await screen.findByRole('article', { name: 'Comment by You' })
+    expect(within(article).getByText(/on revision 1/)).toBeVisible()
+    expect(within(article).getByText('Passage')).toBeVisible()
+  })
   it('ignores stale responses after note/network/version changes and unmount', async () => {
     const pending = deferred<ReturnType<typeof page>>(), client = { commentsRaw: vi.fn(() => pending.promise) }
     const next = { commentsRaw: vi.fn(async () => page([])) }

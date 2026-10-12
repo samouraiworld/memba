@@ -17,54 +17,68 @@ const capability = { id: note.id, stateRevision: '4', ownerGeneration: '1', mode
 function props(enabled = false) { return { note, owner, store: {} as NotesStore, onChanged: vi.fn(), client: { chainId: 'gnoland-1', assertCurrent: vi.fn(), publicCapabilities: vi.fn(async () => ({ ...capability, allowPublicWrites: enabled })) } as unknown as NotesReadClient } }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 async function review(enabled = false) {
-    fireEvent.click(await screen.findByRole('button', { name: enabled ? 'Review stopping public editing' : 'Review allowing everyone to edit' }))
+    fireEvent.click(await screen.findByRole('radio', { name: enabled ? /Only me/ : /Everyone with a wallet/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply with Adena' }))
 }
+const apply = () => screen.getByRole('button', { name: 'Apply with Adena' })
 beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ onDismissed: vi.fn(), onSettled: vi.fn() }); calls.sign.mockReturnValue(true); calls.pending.mockResolvedValue([]) })
 describe('owner community editing consent', () => {
-    it.each([false, true])('reviews the exact target boolean opposite to enabled=%s without signing on render', async enabled => {
+    it.each([false, true])('applies the exact target boolean opposite to enabled=%s with the quoted cap, never on render', async enabled => {
         const input = props(enabled); render(<PublicCollaborationControls {...input} />)
-        await screen.findByText(enabled ? 'Every connected wallet can edit this note.' : 'Public content editing is disabled.')
+        expect(await screen.findByRole('radio', { name: enabled ? /Everyone with a wallet/ : /Only me/ })).toBeChecked()
+        expect(screen.queryByRole('button', { name: 'Apply with Adena' })).toBeNull()
         expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
-        fireEvent.change(screen.getByLabelText('Maximum permission-change deposit (GNOT)'), { target: { value: '100' } })
-        await review(enabled); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '100000000', draftLocalRevision: '0', operation: { caller: owner, noteId: note.id, action: { kind: 'public-writes', revision: '4', enabled: !enabled } } })
+        fireEvent.click(screen.getByRole('radio', { name: enabled ? /Only me/ : /Everyone with a wallet/ }))
+        expect(screen.getByText('≈ 1.2 GNOT')).toBeVisible(); expect(screen.getByText(/at most 2.4 GNOT/)).toBeVisible()
+        fireEvent.click(apply()); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '2400000', draftLocalRevision: '0', operation: { caller: owner, noteId: note.id, action: { kind: 'public-writes', revision: '4', enabled: !enabled } } })
         expect(input.onChanged).not.toHaveBeenCalled()
+        expect(screen.getByText(/Waiting for your signature/)).toBeVisible()
     })
-    it.each([{ owner: null }, { owner: 'collaborator' }, { note: { ...note, deleted: true } }, { note: { ...note, mode: 3 } }, { hidden: true }])('does not offer owner administration outside a live visible owner mode4 session (%j)', patch => {
+    it('lets Cancel put the choice back without preparing anything', async () => {
+        render(<PublicCollaborationControls {...props()} />)
+        fireEvent.click(await screen.findByRole('radio', { name: /Everyone with a wallet/ }))
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+        expect(screen.getByRole('radio', { name: /Only me/ })).toBeChecked(); expect(screen.queryByRole('button', { name: 'Apply with Adena' })).toBeNull()
+        expect(calls.prepare).not.toHaveBeenCalled()
+    })
+    it.each([{ owner: null }, { owner: 'collaborator' }])('shows the setting read-only to everyone else (%j)', async patch => {
+        const input = props(true); render(<PublicCollaborationControls {...input} {...patch} />)
+        expect(await screen.findByText(/^Everyone with a wallet\./)).toBeVisible()
+        expect(screen.queryByRole('radio')).toBeNull(); expect(screen.queryByRole('button')).toBeNull(); expect(calls.sign).not.toHaveBeenCalled()
+    })
+    it.each([{ note: { ...note, deleted: true } }, { note: { ...note, mode: 3 } }, { hidden: true }])('offers no community editing outside a live visible mode4 note (%j)', patch => {
         const input = props(); render(<PublicCollaborationControls {...input} {...patch} />)
-        expect(screen.queryByRole('button')).toBeNull(); expect(input.client.publicCapabilities).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+        expect(screen.queryByRole('button')).toBeNull(); expect(screen.queryByRole('radio')).toBeNull(); expect(input.client.publicCapabilities).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
     })
     it.each([null, { ...capability, id: 'cd'.repeat(16) }, { ...capability, stateRevision: '5' }, { ...capability, ownerGeneration: '2' }, { ...capability, mode: 3 }, { ...capability, deleted: true }])('fails closed for missing or mismatched capability (%j)', value => {
         const input = props(); vi.mocked(input.client.publicCapabilities).mockResolvedValue(value as typeof capability | null)
         render(<PublicCollaborationControls {...input} />)
-        return screen.findByRole('alert').then(alert => { expect(alert).toHaveTextContent('could not be verified'); expect(screen.queryByRole('button', { name: /Review/ })).toBeNull(); expect(calls.prepare).not.toHaveBeenCalled() })
+        return screen.findByRole('alert').then(alert => { expect(alert).toHaveTextContent('could not be checked'); expect(screen.queryByRole('radio')).toBeNull(); expect(calls.prepare).not.toHaveBeenCalled() })
     })
     it('can retry a failed getter without preparing a request', async () => {
         const input = props(); vi.mocked(input.client.publicCapabilities).mockRejectedValueOnce(new Error('RPC failure'))
-        render(<PublicCollaborationControls {...input} />); fireEvent.click(await screen.findByRole('button', { name: 'Retry permissions' }))
-        await screen.findByText('Public content editing is disabled.'); expect(calls.prepare).not.toHaveBeenCalled()
+        render(<PublicCollaborationControls {...input} />); fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+        expect(await screen.findByRole('radio', { name: /Only me/ })).toBeChecked(); expect(calls.prepare).not.toHaveBeenCalled()
     })
-    it('refuses a changed grant during review and an insufficient explicit cap', async () => {
+    it('refuses a grant that changed on chain before the review', async () => {
         const input = props(); render(<PublicCollaborationControls {...input} />)
-        await screen.findByText('Public content editing is disabled.')
+        await screen.findByRole('radio', { name: /Only me/ })
         vi.mocked(input.client.publicCapabilities).mockResolvedValue({ ...capability, allowPublicWrites: true })
         await review(); await screen.findByText(/permission or note changed/); expect(calls.prepare).not.toHaveBeenCalled()
-        vi.mocked(input.client.publicCapabilities).mockResolvedValue(capability)
-        fireEvent.change(screen.getByLabelText('Maximum permission-change deposit (GNOT)'), { target: { value: '0' } })
-        await review(); await screen.findByText(/deposit cap of at least/); expect(calls.sign).not.toHaveBeenCalled()
     })
     it('retains and blocks an unknown outcome without refresh or resend', async () => {
         const input = props(); render(<PublicCollaborationControls {...input} />); await review()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         await act(async () => calls.sign.mock.calls[0][0].onSettled('unknown'))
-        expect(screen.getByRole('button', { name: 'Review allowing everyone to edit' })).toBeDisabled()
+        expect(apply()).toBeDisabled()
         expect(screen.getByText(/operation receipt was kept/)).toBeVisible(); expect(input.onChanged).not.toHaveBeenCalled(); expect(calls.prepare).toHaveBeenCalledOnce()
     })
     it('retains and blocks a submitted outcome that is not yet seen on chain', async () => {
         const input = props(); render(<PublicCollaborationControls {...input} />); await review()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         await act(async () => calls.sign.mock.calls[0][0].onSettled('submitted'))
-        expect(screen.getByRole('button', { name: 'Review allowing everyone to edit' })).toBeDisabled()
+        expect(apply()).toBeDisabled()
         expect(screen.getByText(/not yet seen on chain/)).toBeVisible(); expect(input.onChanged).not.toHaveBeenCalled()
     })
     it.each(['prepared', 'submitted', 'unknown'])('blocks before preparing while a %s receipt for this note is unresolved', async phase => {
@@ -72,7 +86,7 @@ describe('owner community editing consent', () => {
         render(<PublicCollaborationControls {...props()} />); await review()
         await screen.findByText(/unresolved receipt/); expect(calls.prepare).not.toHaveBeenCalled()
         expect(calls.pending).toHaveBeenCalledWith({ chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner })
-        expect(screen.getByRole('button', { name: 'Review allowing everyone to edit' })).toBeDisabled()
+        expect(apply()).toBeDisabled()
     })
     it('ignores settled receipts and receipts for other notes', async () => {
         calls.pending.mockResolvedValue([{ scope: { noteId: note.id }, phase: 'confirmed' }, { scope: { noteId: note.id }, phase: 'not-sent' }, { scope: { noteId: 'cd'.repeat(16) }, phase: 'unknown' }])
@@ -80,7 +94,8 @@ describe('owner community editing consent', () => {
     })
     it('prepares once for a double click', async () => {
         render(<PublicCollaborationControls {...props()} />)
-        const button = await screen.findByRole('button', { name: 'Review allowing everyone to edit' })
+        fireEvent.click(await screen.findByRole('radio', { name: /Everyone with a wallet/ }))
+        const button = apply()
         fireEvent.click(button); fireEvent.click(button)
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce()); expect(calls.prepare).toHaveBeenCalledOnce()
     })
@@ -90,6 +105,7 @@ describe('owner community editing consent', () => {
         const input = props(), view = render(<><Listener /><PublicCollaborationControls {...input} /></>); await review()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         await act(async () => calls.sign.mock.calls[0][0].onSettled('confirmed')); expect(input.onChanged).toHaveBeenCalledOnce()
+        expect(screen.getByText(/Editing is open: every wallet can now edit this note/)).toBeVisible()
         expect(announced).toHaveBeenCalledExactlyOnceWith({ stateRevision: '5' })
         view.unmount(); calls.sign.mockReturnValue(false)
         const dismissed = vi.fn(); calls.prepare.mockResolvedValue({ onDismissed: dismissed })

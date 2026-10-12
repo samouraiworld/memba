@@ -222,6 +222,9 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     )
 }
 
+/** Checklist rows a request with technical details folds away: the call's raw arguments. */
+const RAW_ARGUMENTS: readonly string[] = ["Argument", "Arguments"]
+
 function Rows({ rows }: { rows: readonly SignRow[] }) {
     return (
         <dl className="os-kv">
@@ -323,10 +326,22 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                             {(req.acks ?? []).map((a, i) => (
                                 <label key={i} className="os-ack"><input type="checkbox" checked={review.acked[i]} onChange={(e) => onAck(i, e.target.checked)} /> {a}</label>
                             ))}
-                            <details className="os-card os-adena" open>
-                                <summary>Adena should show</summary>
-                                {prepareError ? <p className="os-note os-err">{prepareError}</p> : <Rows rows={checklist} />}
-                            </details>
+                            {req.technical ? (<>
+                                {/* Only raw arguments fold away: network, realm, function, sends and deposit cap stay in view. */}
+                                <details className="os-card os-adena" open>
+                                    <summary>Adena should show</summary>
+                                    {prepareError ? <p className="os-note os-err">{prepareError}</p> : <Rows rows={checklist.filter((row) => !RAW_ARGUMENTS.includes(row.label))} />}
+                                </details>
+                                <details className="os-card os-adena">
+                                    <summary>Technical details</summary>
+                                    <Rows rows={[...req.technical(choice).map(([label, value]) => ({ label, value })), ...checklist.filter((row) => RAW_ARGUMENTS.includes(row.label))]} />
+                                </details>
+                            </>) : (
+                                <details className="os-card os-adena" open>
+                                    <summary>Adena should show</summary>
+                                    {prepareError ? <p className="os-note os-err">{prepareError}</p> : <Rows rows={checklist} />}
+                                </details>
+                            )}
                             {wrongNet && (
                                 <p className="os-note os-err" role="alert">Adena is on {session.walletChainId}, but Memba is on {chain}. Switch Adena to {chain} before signing.</p>
                             )}

@@ -45,7 +45,7 @@ function ResetSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: 
     return <dialog ref={dialogRef} className="os-set-dialog os-glass" aria-modal="true" aria-label="Reset local app data"
         onCancel={(event) => { event.preventDefault(); onCancel() }}>
             <h3>Reset local app data?</h3>
-            <p>This closes other open windows and resets desktop layout, appearance, gas defaults, network preference and cached names on this device. Settings stays open.</p>
+            <p>This closes other open windows and resets Desktop layout, appearance, gas defaults, network preference and cached names on this device. Settings stays open.</p>
             <p><strong>Kept:</strong> unsent DAO and Terminal drafts, saved recipients, send locks, wallet sessions and on-chain data.</p>
             <div className="os-set-actions">
                 <button ref={cancelRef} type="button" className="os-btn os-quiet" onClick={onCancel}>Cancel</button>
@@ -193,7 +193,7 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
                 </div>
                 <div className="os-set-card">
                     <h3>Desktop icons</h3>
-                    <p className="os-sub">Change the size of desktop tiles. Phone home icons keep their own size.</p>
+                    <p className="os-sub">Change the size of Desktop tiles. Phone home icons keep their own size.</p>
                     <div className="os-set-choice" role="group" aria-label="Desktop icon size">
                         {(["small", "medium", "large"] as OsIconSize[]).map((value) => <button key={value} type="button" aria-label={`${value[0].toUpperCase()}${value.slice(1)} icons`}
                             aria-pressed={appearance.iconSize === value} onClick={() => appearance.setIconSize(value)}>{value[0].toUpperCase()}{value.slice(1)}</button>)}
@@ -201,7 +201,7 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
                 </div>
                 <div className="os-set-card">
                     <h3>Live activity</h3>
-                    <p className="os-sub">Hover or focus the network in the menu bar to check Live activity. Add the widget if you also want it on your desktop.</p>
+                    <p className="os-sub">Hover or focus the network in the menu bar to check Live activity. Add the widget if you also want it on your Desktop.</p>
                     <label className="os-set-toggle"><input type="checkbox" checked={liveWidget} onChange={(event) => setLiveWidget(event.target.checked)} />Add the Widget</label>
                 </div>
                 <div className="os-set-card">
@@ -221,7 +221,7 @@ export default function SettingsWindow({ section: asked, session, open, openApp,
             {current === "safety" && <>
                 <header><h2>Safety</h2><p className="os-sub">Local data controls affect only this browser.</p></header>
                 <div className="os-set-card"><h3>Before you sign</h3><p>Check the transaction details Memba shows, then verify the account, network and gas in {WALLET} before approving. Memba never changes on-chain data from Settings.</p></div>
-                <div className="os-set-card"><h3>Reset local app data</h3><p>Close other open windows and reset desktop layout, appearance, gas defaults and cached names. Unsent drafts and send locks remain saved.</p>
+                <div className="os-set-card"><h3>Reset local app data</h3><p>Close other open windows and reset Desktop layout, appearance, gas defaults and cached names. Unsent drafts and send locks remain saved.</p>
                     <button ref={resetTrigger} type="button" className="os-btn os-quiet" onClick={() => { setResetStatus(""); setConfirmReset(true) }}>Reset local app data</button>
                     {resetStatus && <p role="status" className="os-note">{resetStatus}</p>}
                 </div>

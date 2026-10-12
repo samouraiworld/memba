@@ -28,6 +28,28 @@ const session = (status: "member" | "guest", address = "g1alpha") => ({
     status, address, network: { chainId: "gnoland-1" }, walletChainId: "gnoland-1", openConnect: vi.fn(),
 }) as unknown as OsSession
 
+describe("technical details", () => {
+    it("folds identifiers and raw arguments only: network, realm, function and deposit cap stay visible", () => {
+        const msg = { type: "vm/MsgCall", value: { caller: "g1alpha", send: "", pkg_path: "gno.land/r/samcrew/memba_notes_v1", func: "AddComment", args: ["QUJD", "REVG"], max_deposit: "2500000ugnot" } }
+        const folded = { ...request, lines: () => [["Comment", "I can bring the mat"]] as [string, string][], technical: () => [["Operation", "0123abcd"]] as ["Operation", string][], prepare: () => ({ msgs: [msg] }) }
+        function FoldedReview() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(folded)}>Open folded review</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><FoldedReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open folded review" }))
+        expect(screen.getByText("I can bring the mat")).toBeVisible()
+        const shown = screen.getByText("Adena should show").closest("details")!, technical = screen.getByText("Technical details").closest("details")!
+        expect(shown.open).toBe(true); expect(technical.open).toBe(false)
+        for (const value of ["gnoland-1", "gno.land/r/samcrew/memba_notes_v1", "AddComment"]) expect(shown).toHaveTextContent(value)
+        expect(shown).toHaveTextContent(/2\.5 GNOT|2500000/)
+        expect(shown).not.toHaveTextContent("QUJD")
+        expect(technical).toHaveTextContent("0123abcd"); expect(technical).toHaveTextContent("QUJD")
+        expect(screen.getByRole("button", { name: "Sign in Adena" })).toBeEnabled()
+        cleanup()
+    })
+})
+
 describe("OS signing session boundary", () => {
     it("releases a durable governance receipt after chain verification succeeds", async () => {
         const receipt = { chainId: "gnoland-1", realmPath: "gno.land/r/test/dao", caller: "g1alpha", operation: "vote:51" }

@@ -6,6 +6,7 @@ import { CodeEditor } from "../terminal/CodeEditor"
 import { useNotesPane, useUnsavedText } from "./notesPane"
 import { noteExportFilename } from "../../../lib/notes/exportFilename"
 import { publicTitleProblem, trimPublicTitle } from "../../../lib/notes/publicFields"
+import { draftFlushed, trackDraftFlush } from "../../../lib/notes/draftFlush"
 
 type SaveState = "loading" | "saved" | "dirty" | "saving" | "deleting" | "conflict" | "unavailable" | "missing" | "locked" | "load-error"
 
@@ -41,13 +42,14 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
     useLayoutEffect(() => () => {
         session.invalidate()
         // Another note, Explore, Back or closing the window: store what was typed and not yet saved.
-        void (async () => {
+        // An editor reopened on this note meanwhile reads its draft only after this save.
+        trackDraftFlush(scope, (async () => {
             while (inflight.current && running.current) await running.current.catch(() => {})
             if (!editable.current || inflight.current || draft.current.changes === stored.current) return
             const snapshot = { ...draft.current }
             const result = await Promise.resolve().then(() => store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, keep)).catch(() => null)
             if (result?.status === "saved") saved.current()
-        })()
+        })())
         // The editor is keyed by its scope and store; this cleanup runs once, at unmount.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session])
@@ -57,7 +59,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         let alive = true
         const load = () => {
             setState("loading"); editable.current = false
-            void store.getDraft(scope).then(record => {
+            let late = false
+            void draftFlushed(scope).then(settled => { late = !settled; return store.getDraft(scope) }).then(record => {
                 if (!alive) return
                 if (!record) { setState("missing"); return }
                 revision.current = record.localRevision; lineage.current = new Set([record.localRevision])
@@ -65,7 +68,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
                 if (record.payload.kind !== "public") { setState("locked"); return }
                 base.current = record.payload.base
                 draft.current = { title: record.payload.title, body: record.payload.body, changes: 0 }; stored.current = 0; editable.current = true
-                setTitle(record.payload.title); setBody(record.payload.body); setState("saved"); setNotice("")
+                setTitle(record.payload.title); setBody(record.payload.body); setState("saved")
+                setNotice(late ? "An earlier save of this note is still running on this device. The stored draft was opened; if that save lands later, Notes shows a conflict instead of overwriting either version." : "")
             }).catch(() => { if (alive) setState("load-error") })
         }
         load()

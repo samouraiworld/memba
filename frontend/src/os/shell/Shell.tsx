@@ -32,7 +32,6 @@ import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowTok
 import { mayCloseWindow } from "./closeGuards"
 import { useDesk } from "./useDesk"
 import { useNoteShortcuts } from "./useNoteShortcuts"
-import { forgetNoteShortcut } from "./noteShortcuts"
 import { useOsSession } from "./useOsSession"
 import { useEvmSession } from "../evm/useEvmSession"
 import { EvmConnectModal } from "../evm/EvmConnectModal"
@@ -350,13 +349,13 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
         ids: deskItems.items.filter((item) => item.ty === "note").map((item) => item.ref), enabled: NOTES_ENABLED && session.network.family === "gno" && !locked })
     const noteLabels = useMemo(() => ({ ...noteShortcuts.labels, ...deskItems.noteLabels }), [noteShortcuts.labels, deskItems.noteLabels])
     // Removing a note shortcut also drops its cached title: nothing about an unpinned note lingers.
-    const chainId = session.network.chainId
     const { items: deskList, pin: deskPin, unpin: deskUnpin } = deskItems
+    const { forget: forgetShortcut } = noteShortcuts
     const unpinItem = useCallback((index: number) => {
         const item = deskList[index]
-        if (item?.ty === "note" && deskOwner !== undefined) forgetNoteShortcut(chainId, deskOwner, item.ref)
+        if (item?.ty === "note") forgetShortcut(item.ref)
         deskUnpin(index)
-    }, [deskList, deskUnpin, deskOwner, chainId])
+    }, [deskList, deskUnpin, forgetShortcut])
     // Windows place and remove their own shortcuts through this same desk (the menu bar's "Add to Desktop" path).
     const deskShortcuts = useMemo<DeskShortcuts>(() => ({
         isPinned: (item) => deskList.some((it) => sameItem(it, item)),
@@ -491,7 +490,7 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
             { label: "Add an app…", run: () => setStartRequest((n) => n + 1) },
             { label: "Clean up icons", run: deskItems.tidy },
             "sep",
-            { label: "Show desktop", run: win.minimiseAll },
+            { label: "Show Desktop", run: win.minimiseAll },
         ]
     }
 

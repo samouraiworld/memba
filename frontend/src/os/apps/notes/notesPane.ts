@@ -15,6 +15,8 @@ export interface NotesPane {
     /** The caret should start in the title (New note or first open, and only while Notes is in front). */
     readonly focusTitle: boolean
     titleFocused(): void
+    /** Where the note's History and Comments panel goes, right of the note (inline when absent). */
+    readonly side?: HTMLElement | null
 }
 /** Hold sources for a publication being verified: the pane stays mounted, but nothing is unsaved. */
 export const PUBLISHING = 'publishing:'
@@ -27,4 +29,11 @@ export function useUnsavedText(unsaved: boolean, question: string): void {
     useEffect(() => { pane?.hold(source, unsaved) }, [pane, source, unsaved])
     useEffect(() => () => pane?.hold(source, false), [pane, source])
     useLayoutEffect(() => unsaved ? registerCloseGuard(NOTES_WINDOW_KEY, () => window.confirm(question)) : undefined, [unsaved, question])
+    // A reload or leaving the page bypasses the window's close guard: the browser asks instead.
+    useEffect(() => {
+        if (!unsaved) return
+        const ask = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+        window.addEventListener('beforeunload', ask)
+        return () => window.removeEventListener('beforeunload', ask)
+    }, [unsaved])
 }

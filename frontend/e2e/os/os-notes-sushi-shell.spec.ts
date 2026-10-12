@@ -8,7 +8,7 @@ test.beforeEach(async ({ page, context }) => {
     await page.goto('/e2e-notes/sushi-shell/index.html')
     await expect(page.getByRole('heading', { name: 'Sushi Shell demonstration', exact: true })).toBeVisible()
     await expect(page.getByRole('article', { name: 'Note preview' })).toHaveAttribute('data-rendered', 'html')
-    await page.getByText('Write a public comment', { exact: true }).click()
+    await page.getByRole('tab', { name: /^Comments/ }).click()
     await page.getByRole('textbox', { name: 'Comment', exact: true }).fill(text)
 })
 test.afterEach(() => { expect(errors).toEqual([]) })
@@ -42,8 +42,10 @@ test('disconnect and lock destroys the parked public comment stage and reconnect
     await page.getByRole('button', { name: 'Memba menu', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Notes', exact: true }).click()
     await page.getByRole('button', { name: /Sushi Shell demonstration/ }).click()
-    await page.getByText('Write a public comment', { exact: true }).click()
+    // An explicit disconnect also forgets the unsent comment kept in this tab's session storage.
+    await page.getByRole('tab', { name: /^Comments/ }).click()
     await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveValue('')
+    expect(await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith('memba_notes_comment:')))).toEqual([])
     expect(await page.locator('body').textContent()).not.toContain(text)
 })
 test('Notes is one window: opening it again keeps the same note; a phone shows the list first, then the note with Back', async ({ page }) => {
@@ -61,6 +63,9 @@ test('Notes is one window: opening it again keeps the same note; a phone shows t
     await list.getByRole('button', { name: /Sushi Shell demonstration/ }).click()
     await expect(list).toBeHidden()
     await expect(composer).toHaveValue(text); await expect(composer).toHaveAttribute('data-lifecycle-test', 'same-composer')
+    // A narrow window opened the comments as a sheet over the note: its Back returns to the note first.
+    const sheetBack = page.getByRole('button', { name: 'Back to the note', exact: true })
+    if (await sheetBack.isVisible()) { await sheetBack.click(); await expect(composer).toBeHidden() }
     await page.getByRole('button', { name: 'Back to notes', exact: true }).click()
     await expect(list).toBeVisible(); await expect(composer).toBeHidden()
 })

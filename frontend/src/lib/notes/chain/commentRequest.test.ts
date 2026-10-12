@@ -7,6 +7,8 @@ import { commentIntentRealm, preparePublicCommentRequest, recoverPublicCommentIn
 import { recoverPublicIntent } from './recovery'
 import { encode64, NOTES_REALM, type ChainNote } from './schema'
 import type { CommentOperation } from './commentMessages'
+import { publicCommentBudget } from './commentQuote'
+import measured from './__fixtures__/comment-economics.json'
 
 const wallet = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn() }))
 vi.mock('../../grc20', () => ({ MAX_GAS_WANTED: 500000000, doContractBroadcast: (...args: unknown[]) => wallet.send(...args), freshFeeForGasWanted: () => wallet.fee(), assertFeeStillCovers: async (fee: number, fresh: () => Promise<number>) => { if (await fresh() > fee) throw new Error('fee changed') } }))
@@ -45,6 +47,49 @@ describe('public comment intentions', () => {
     expect(await recoverPublicCommentIntent(s.client, createNotesIntents(s.store), receipt, s.session)).toBe('confirmed')
     expect(await recoverPublicIntent(s.client, s.intents, receipt, s.session)).toBe('unknown')
     expect(JSON.stringify(receipt)).not.toContain('Reply')
+  })
+  it('asks for one confirmation: plain facts first, identifiers and raw arguments folded under technical details', async () => {
+    const s = setup(), request = await preparePublicCommentRequest(s.options)
+    expect(request.acks).toBeUndefined()
+    const lines = request.lines(undefined), technical = request.technical!(undefined)
+    expect(lines.map(([label]) => label)).toEqual(expect.arrayContaining(['Note', 'Comment', 'On revision', 'Expected storage deposit', 'Maximum storage deposit', 'Network fee']))
+    expect(lines).toContainEqual(['Note', 'Title'])
+    expect(lines.find(([label]) => label === 'Expected storage deposit')![1]).toMatch(/ GNOT$/)
+    for (const [, value] of lines) expect(value).not.toContain(operationId)
+    expect(technical).toEqual(expect.arrayContaining([['Operation', operationId], ['Comment ID', commentId], ['Note ID', noteId], ['Account', owner]]))
+    expect(technical.map(([label]) => label)).not.toContain('Network')
+  })
+  it.each([
+    [{ kind: 'hide', revision: '1', hidden: true }], [{ kind: 'resolve', revision: '1', resolved: true }], [{ kind: 'delete', revision: '1' }],
+  ] as const)('names the comment a %j review acts on, and the comment it replies to', async action => {
+    const s = setup(action); s.setComment({ parent: '05'.repeat(16) })
+    const parentRow = { ...row(), id: '05'.repeat(16), op_id: '06'.repeat(16), author: other, body_blob: b64('The original question') }
+    s.client.getCommentRaw.mockImplementation(async (_note: string, id: string) => id === '05'.repeat(16) ? structuredClone(parentRow) : structuredClone({ ...row(), created_height: '90', height: '99', op_id: '11'.repeat(16), parent: '05'.repeat(16) }))
+    const request = await preparePublicCommentRequest(s.options), lines = request.lines(undefined)
+    expect(lines).toContainEqual(['Note', 'Title'])
+    expect(lines).toContainEqual(['Comment by', `${owner.slice(0, 5)}…${owner.slice(-4)}`])
+    expect(lines).toContainEqual(['Comment', 'Reply'])
+    expect(lines).toContainEqual(['Reply to', `${other.slice(0, 5)}…${other.slice(-4)}: The original question`])
+  })
+  it('says which comment a new reply answers', async () => {
+    const s = setup({ kind: 'add', bodyRevision: '2', epoch: '0', anchor: '', body: 'Agreed', parent: '05'.repeat(16) })
+    s.client.getCommentRaw.mockImplementation(async (_note: string, id: string) => id === '05'.repeat(16) ? structuredClone({ ...row(), id: '05'.repeat(16), op_id: '06'.repeat(16), author: other, body_blob: b64('Bring a mat?') }) : null)
+    const request = await preparePublicCommentRequest(s.options)
+    expect(request.lines(undefined)).toContainEqual(['Reply to', `${other.slice(0, 5)}…${other.slice(-4)}: Bring a mat?`])
+  })
+  it('signs a one-line comment at the price calibrated on measured receipts (comment-economics.json)', async () => {
+    const s = setup({ kind: 'add', bodyRevision: '2', epoch: '0', anchor: '', body: 'I can bring a bamboo mat for rolling.' })
+    const request = await preparePublicCommentRequest(s.options), message = request.prepare(undefined).msgs[0]
+    const budget = publicCommentBudget(message), worst = Math.max(...measured.rows.filter(r => r.func === 'AddComment' && r.anchorBytes === 0 && r.bodyBytes === 37).map(r => r.storageDepositDeltaUgnot))
+    expect(budget).toMatchObject({ estimatedDepositUgnot: '2053700', suggestedCapUgnot: '2500000', gasWanted: 81000000 })
+    expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(worst * 1.24)
+    for (const [kind, rowName] of [['hide', 'comment_hide'], ['resolve', 'comment_resolve'], ['delete', 'delete_comment_after_note_delete']] as const) {
+      const action = kind === 'hide' ? { kind, revision: '1', hidden: true } as const : kind === 'resolve' ? { kind, revision: '1', resolved: true } as const : { kind, revision: '1' } as const
+      const other = setup(action); if (kind === 'delete') other.setNote({ deleted: true })
+      const priced = publicCommentBudget((await preparePublicCommentRequest(other.options)).prepare(undefined).msgs[0])
+      expect(priced).toMatchObject({ estimatedDepositUgnot: '500000', suggestedCapUgnot: '600000' })
+      expect(Number(priced.suggestedCapUgnot)).toBeGreaterThanOrEqual(measured.rows.find(r => r.case === rowName)!.storageDepositDeltaUgnot * 1.24)
+    }
   })
   it('permits author deletion after note deletion/pausing and verifies the exact empty tombstone', async () => {
     const s = setup({ kind: 'delete', revision: '1' }); s.setNote({ deleted: true }); s.pause()

@@ -13,9 +13,9 @@ import { DraftEditor } from './DraftEditor'
 import { PublicPublish } from './PublicPublish'
 import { PublicNote } from './PublicNote'
 import { PublicEditButton } from './PublicEditButton'
-import { PublicCommentPanel } from './PublicCommentPanel'
-import { PublicCollaborationControls } from './PublicCollaborationControls'
-import { PublicHistory, type ArchivedPublicDraft } from './PublicHistory'
+import type { ArchivedPublicDraft } from './PublicHistory'
+import { NoteSharePopover } from './NoteSharePopover'
+import { NoteSidePanel } from './NoteSidePanel'
 import './notes-authoring.css'
 
 async function writable(client: NotesReadClient, noteId: string, owner: string) {
@@ -42,6 +42,7 @@ function rebaseMessage(plan: Extract<RebasePlan, { kind: 'replace' | 'merged' }>
 }
 
 type Props = { client: NotesReadClient; store: NotesStore; scope: NotesScope }
+const settled = () => {}
 export function PublicAuthoring(props: Props) {
     const { client, store } = props
     const lease = useMemo(() => ({ client, store, id: newNoteId() }), [client, store])
@@ -150,12 +151,13 @@ function Workspace({ client, store, scope }: Props) {
         <div hidden={editing}>
             <PublicNote id={scope.noteId} client={client} owner={scope.owner}
                 encrypted={() => <p>Encrypted notes are not available in this public view.</p>}
-                editAction={note => !editing && <PublicEditButton note={note} owner={scope.owner} client={client} onEdit={() => opened ? setEditing(true) : void prepare()} />}>
-                {(note, refresh, previewRoot) => <>
-                    {!editing && <PublicCollaborationControls note={note} client={client} owner={scope.owner} store={store} onChanged={refresh} />}
-                    {!editing && note.mode >= 3 && <PublicCommentPanel note={note} client={client} owner={scope.owner} store={store} previewRoot={previewRoot} />}
-                    {note.mode >= 3 && <PublicHistory noteId={scope.noteId} client={client} onRestore={draft => prepare(draft)} />}
-                </>}
+                editAction={note => !editing && <>
+                    {/* A confirmed change announces the note's new revision, which re-reads this reader. */}
+                    <NoteSharePopover note={note} client={client} store={store} owner={scope.owner} onChanged={settled} />
+                    <PublicEditButton note={note} owner={scope.owner} client={client} onEdit={() => opened ? setEditing(true) : void prepare()} />
+                </>}>
+                {(note, _refresh, previewRoot) => note.mode >= 3 && <NoteSidePanel note={note} client={client} owner={scope.owner} store={store} previewRoot={previewRoot}
+                    hidden={editing} onRestore={draft => prepare(draft)} />}
             </PublicNote>
         </div>
         {opened && <div hidden={!editing}>

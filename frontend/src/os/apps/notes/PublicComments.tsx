@@ -1,20 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnchorQuote } from './AnchorQuote'
+import { useBlockTimes } from './blockTimes'
 import { check } from '../../../lib/notes/chain/schema'
+import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { isRedactedComment, readPublicComments, type CommentsClient, type PublicComment } from '../../../lib/notes/chain/comments'
 
+/** Block times are optional: a client without them shows comments without "… ago". */
+type Client = CommentsClient & Partial<Pick<NotesReadClient, 'chainId' | 'blockTimeMs'>>
 export interface PublicCommentsProps {
-  client: CommentsClient; noteId: string; epoch: string; bodyRevision: string; viewer?: string | null
+  client: Client; noteId: string; epoch: string; bodyRevision: string; viewer?: string | null
   previewRoot?: HTMLElement | null
   canResolve?: boolean; canHide?: boolean
   /** A change re-reads the first page while the current list stays visible. */
   refreshToken?: number
+  /** Comments shown on the first page (deleted ones excluded), and whether more pages follow. */
+  onCount?(count: number, more: boolean): void
   /** Existing full controls remain enabled unless a public-only consumer opts out. */
   allowEncryptedActions?: boolean
   onReply?(comment: PublicComment): void; onDelete?(comment: PublicComment): void
   onResolve?(comment: PublicComment, resolved: boolean): void; onHide?(comment: PublicComment, hidden: boolean): void
 }
-type Page = { key: string; client: CommentsClient; items: PublicComment[]; cursor: string; next: string; history: string[]; loading: boolean; error: boolean }
+type Page = { key: string; client: Client; items: PublicComment[]; cursor: string; next: string; history: string[]; loading: boolean; error: boolean }
+const short = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
 /** No wallet or local persistence: callbacks only prepare an explicitly chosen action elsewhere. */
 export function PublicComments(props: PublicCommentsProps) {
   const { client, noteId, epoch, bodyRevision, viewer, refreshToken = 0 } = props
@@ -24,12 +31,25 @@ export function PublicComments(props: PublicCommentsProps) {
   const [page, setPage] = useState<Page>(empty)
   const lifetime = useRef<AbortController | null>(null), busy = useRef(false)
   const retry = useRef<{ cursor: string; history: string[] } | null>(null)
+  /** The page being read: a refocus or a confirmed change re-reads it instead of jumping back to the first one. */
+  const at = useRef<{ key: string; client: Client | null; cursor: string; history: string[] }>({ key: '', client: null, cursor: '', history: [] })
+  const counted = useRef(props.onCount)
+  useEffect(() => { counted.current = props.onCount }, [props.onCount])
   useEffect(() => {
     const controller = new AbortController(); lifetime.current = controller; busy.current = true; retry.current = null
-    void readPublicComments(client, noteId, epoch, bodyRevision).then(result => {
-      if (!controller.signal.aborted) setPage({ key, client, items: result.items, cursor: '', next: result.nextCursor, history: [], loading: false, error: false })
-    }).catch(() => { if (!controller.signal.aborted) setPage({ key, client, items: [], cursor: '', next: '', history: [], loading: false, error: true }) })
-      .finally(() => { if (!controller.signal.aborted) busy.current = false })
+    const same = at.current.key === key && at.current.client === client
+    const cursor = same ? at.current.cursor : '', history = same ? at.current.history : []
+    void readPublicComments(client, noteId, epoch, bodyRevision, cursor).then(result => {
+      if (controller.signal.aborted) return
+      at.current = { key, client, cursor, history }
+      setPage({ key, client, items: result.items, cursor, next: result.nextCursor, history, loading: false, error: false })
+      if (!cursor) counted.current?.(result.items.filter(item => !item.deleted).length, !!result.nextCursor)
+    }).catch(() => {
+      if (controller.signal.aborted) return
+      retry.current = { cursor, history }
+      // A failed refresh keeps the comments already shown.
+      setPage(value => same && value.key === key && value.client === client ? { ...value, loading: false, error: true } : { key, client, items: [], cursor, next: '', history, loading: false, error: true })
+    }).finally(() => { if (!controller.signal.aborted) busy.current = false })
     return () => controller.abort()
   }, [client, noteId, epoch, bodyRevision, key, refreshToken])
   async function navigate(cursor: string, history: string[]) {
@@ -45,18 +65,21 @@ export function PublicComments(props: PublicCommentsProps) {
           const previous = new Set(page.items.map(item => item.id)); check(result.items.every(item => !previous.has(item.id)))
         }
         setPage({ key, client, items: result.items, cursor, next: result.nextCursor, history, loading: false, error: false }); retry.current = null
+        at.current = { key, client, cursor, history }
+        if (!cursor) counted.current?.(result.items.filter(item => !item.deleted).length, !!result.nextCursor)
       }
     } catch { if (!controller.signal.aborted) setPage(value => ({ ...value, loading: false, error: true })) }
     finally { if (!controller.signal.aborted) busy.current = false }
   }
   const visible = page.key === key && page.client === client ? page : empty()
+  const when = useBlockTimes(client, visible.items.map(comment => comment.createdHeight))
   const copy = (comment: PublicComment) => ({ ...comment })
   return <section className="os-notes-comments" aria-label="Public comments">
-    <header><h2>Comments</h2><button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh comments</button></header>
-    <p className="os-sub">Oldest first · Public comments remain in chain history unless a moderator removes them.</p>
-    <ol>{visible.items.map(comment => <li key={comment.id}>
-      <article aria-label={`Comment by ${comment.author}`}>
-        <header><span>{comment.author}</span> · <span>Body revision {comment.bodyRevision}</span>{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <strong> · Resolved</strong>}</header>
+    <header><h2>Comments</h2><button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh</button></header>
+    <p className="os-sub">Oldest first · Public: comments stay in chain history unless a moderator removes them.</p>
+    <ol>{visible.items.map(comment => { const who = viewer && viewer === comment.author ? 'You' : short(comment.author), ago = when(comment.createdHeight); return <li key={comment.id}>
+      <article className="os-notes-comment" aria-label={`Comment by ${who}`}>
+        <header><strong title={comment.author}>{who}</strong><span> · on revision {comment.bodyRevision}</span>{ago && <span> · {ago}</span>}{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
         {comment.parent && <p className="os-sub">Reply to {comment.parent}</p>}
         {comment.deleted ? <p>Deleted by the author</p> : isRedactedComment(comment) ? <p>Removed by moderation</p> : comment.hidden ? <p>Hidden by moderation</p> : comment.encrypted ? <p>Encrypted comment</p> : <>
           {comment.anchor && <AnchorQuote quote={comment.anchor} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}
@@ -69,7 +92,7 @@ export function PublicComments(props: PublicCommentsProps) {
           {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canHide && props.onHide && !isRedactedComment(comment) && <button className="os-btn os-quiet" onClick={() => props.onHide?.(copy(comment), !comment.hidden)}>{comment.hidden ? 'Unhide comment' : 'Hide comment'}</button>}
         </footer>}
       </article>
-    </li>)}</ol>
+    </li> })}</ol>
     {visible.loading && <p role="status">Loading comments…</p>}
     {!visible.loading && !visible.error && !visible.items.length && <p>No comments on this page.</p>}
     {visible.error && <div role="alert"><p>Comments could not be loaded. Please try again.</p><button className="os-btn" onClick={() => retry.current ? void navigate(retry.current.cursor, retry.current.history) : setReload(value => value + 1)}>Retry comments</button></div>}
