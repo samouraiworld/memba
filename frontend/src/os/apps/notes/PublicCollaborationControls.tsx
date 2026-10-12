@@ -30,7 +30,8 @@ export function PublicCollaborationControls(props: Props) {
     if (note.deleted || note.mode < 3 || hidden) return null
     if (note.mode === 3) return <section className="os-notes-share-part" aria-label="Who can edit">
         <h3 className="os-notes-share-k">Who can edit</h3>
-        <p>The owner, and the writers the owner named.</p>
+        {/* As the realm's write check: owner, named writers, governance members of a governance-owned note, the write policy. */}
+        <p>The owner, the writers the owner named, governance members when governance owns the note, and wallets the note's write policy allows.</p>
     </section>
     return <Controls key={JSON.stringify([lease.id, client.chainId, owner, note.id, note.owner, note.stateRevision, note.ownerGeneration, note.mode, note.epoch, note.deleted, note.listed])}
         {...props} manage={!!owner && owner === note.owner} done={done} setDone={setDone} />

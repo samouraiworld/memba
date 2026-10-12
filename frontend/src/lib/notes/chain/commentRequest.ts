@@ -9,7 +9,7 @@ import type { NotesReadClient } from './client'
 import { publicCommentMessage, type CommentOperation } from './commentMessages'
 import { readPublicComment, type PublicComment } from './comments'
 import { notesRequestDigest, type NotesQuote, type NotesQuoteProvider } from './request'
-import { check, decimal, NOTES_REALM, NotesChainError, type ChainNote } from './schema'
+import { check, decimal, NOTES_REALM, NotesChainError, publicText, type ChainNote } from './schema'
 import { readPublicWritePermission } from './publicPermissions'
 import { gnotAmount } from './quote'
 
@@ -18,6 +18,9 @@ export interface CommentRequestOptions {
   client: Client; operation: CommentOperation; maxDepositUgnot: string; session: DraftSession
   intents: NotesIntents; quote: NotesQuoteProvider; isWriteEnabled(): boolean
 }
+const shortAddress = (value: string) => value.length > 12 ? `${value.slice(0, 5)}…${value.slice(-4)}` : value
+/** A comment's first words, enough to recognise it. */
+const excerpt = (value: string) => { const line = value.replace(/\s+/g, ' ').trim(); return [...line].length > 80 ? `${[...line].slice(0, 79).join('')}…` : line }
 const hash = (value: string) => bytesToHex(sha256(new TextEncoder().encode(value)))
 const saved = <T,>(value: NotesWriteResult<T>): T => { if (value.status !== 'saved') throw new NotesChainError('storage'); return value.value }
 export const commentIntentRealm = (noteId: string) => `${NOTES_REALM}/comments/${noteId}`
@@ -69,6 +72,11 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     return { note: note!, comment }
   }
   const base = await read(), height = decimal(await client.height(), 63, true); allowed()
+  // What the review names: the note, and the comment being replied to or acted on (display only, not verified again).
+  const parentId = op.action.kind === 'add' ? op.action.parent : base.comment?.parent
+  const parent = parentId ? await readPublicComment(client, op.noteId, parentId).catch(() => null) : null; allowed()
+  let noteTitle = 'Deleted note'
+  try { if (!base.note.deleted) noteTitle = publicText(base.note.title, true) } catch { noteTitle = 'Untitled note' }
   const digest = notesRequestDigest(client.chainId, message)
   const quote = structuredClone(await options.quote({ chainId: client.chainId, message: structuredClone(message), requestDigest: digest, height })); allowed()
   validateQuote(quote, client.chainId, digest, height, cap)
@@ -90,12 +98,15 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     : op.action.kind === 'hide' ? [['Visibility after confirmation', op.action.hidden ? 'Hidden' : 'Visible']] : []
   return {
     title: label, summary: label, label: () => label,
-    // One confirmation: what is posted and what it costs; identifiers and the raw call are folded away.
+    // One confirmation: which note and comment, what changes and what it costs; only identifiers and raw arguments fold away.
     lines: () => [
-      ...(op.action.kind === 'add' ? [['Comment', op.action.body], ...(op.action.anchor ? [['Quote', op.action.anchor]] : []), ['On revision', op.action.bodyRevision]] as [string, string][] : []),
+      ['Note', noteTitle],
+      ...(op.action.kind === 'add' ? [['Comment', op.action.body], ...(op.action.anchor ? [['Quote', op.action.anchor]] : []), ['On revision', op.action.bodyRevision]] as [string, string][]
+        : base.comment ? [['Comment by', shortAddress(base.comment.author)], ['Comment', excerpt(base.comment.body) || (base.comment.deleted ? 'Deleted comment' : 'Comment without text')]] as [string, string][] : []),
+      ...(parentId ? [['Reply to', parent ? `${shortAddress(parent.author)}: ${excerpt(parent.body) || 'deleted comment'}` : 'a comment that is no longer available']] as [string, string][] : []),
       ...targetState,
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Expected storage deposit', gnotAmount(quote.estimatedDepositUgnot)], ['Maximum storage deposit', gnotAmount(cap)], ['Network fee', gnotAmount(quote.networkFeeUgnot)]],
-    technical: () => [['Account', op.caller], ['Network', client.chainId], ['Note', op.noteId], ['Comment ID', op.commentId], ['Operation', op.operationId]],
+    technical: () => [['Account', op.caller], ['Note ID', op.noteId], ['Comment ID', op.commentId], ['Operation', op.operationId]],
     warns: ['Public comments and earlier versions remain in chain history.'],
     ...(op.action.kind === 'add' ? { note: 'One comment per account per note every 10 blocks.' } : {}),
     prepare: () => ({ msgs: [structuredClone(message)] }), recheck,

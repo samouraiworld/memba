@@ -25,6 +25,7 @@ const signInWithWallet = vi.fn()
 vi.mock("./walletLogin", () => ({ signInWithWallet: (...a: unknown[]) => signInWithWallet(...a) }))
 
 import { useOsSession } from "./useOsSession"
+import { readCommentDraft, writeCommentDraft } from "../../lib/notes/commentDraftStorage"
 
 function pending<T>() {
     let resolve!: (v: T) => void
@@ -179,5 +180,17 @@ describe("useOsSession · sign-in", () => {
         expect(result.current.error).toBe(ADENA_NO_ANSWER_MESSAGE)
         expect(result.current.errorKind).toBe("no-answer")
         expect(result.current.slow).toBe(false)
+    })
+})
+
+describe("useOsSession · disconnect", () => {
+    it("forgets unsent Notes comments kept in this tab, and nothing else", () => {
+        writeCommentDraft({ chainId: "gnoland-1", owner: ADDR, noteId: "01".repeat(16) }, { body: "Unsent", quote: { text: "", bodyRevision: "", confirmedFor: "" } })
+        sessionStorage.setItem("unrelated", "kept")
+        const { result } = renderHook(() => useOsSession())
+        act(() => result.current.disconnect())
+        expect(readCommentDraft({ chainId: "gnoland-1", owner: ADDR, noteId: "01".repeat(16) })).toBeNull()
+        expect(sessionStorage.getItem("unrelated")).toBe("kept")
+        sessionStorage.clear()
     })
 })

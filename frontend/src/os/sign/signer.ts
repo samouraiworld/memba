@@ -25,6 +25,9 @@ import { friendlyDaoError } from "../../lib/dao/errors"
 import { sameMsgs } from "./decode"
 import { isAdenaUnlockOpen, subscribeAdenaUnlock, WalletNetworkError } from "../../lib/walletNetworkGuard"
 
+/** What a request may fold away from the review: identifiers only. */
+export type TechnicalLabel = "Account" | "Note ID" | "Comment ID" | "Operation"
+
 export interface SignChoice<C extends string> { label: string; options: readonly C[]; initial: C }
 
 export interface SignRequest<C extends string = string> {
@@ -37,8 +40,11 @@ export interface SignRequest<C extends string = string> {
     /** Plain-language facts for the chosen option: effect, network, fee, deposit cap. */
     lines: (choice: C | undefined) => [string, string][]
     warns?: string[]
-    /** Identifiers and raw details: folded, with the wallet checklist, under "Technical details". */
-    technical?: (choice: C | undefined) => [string, string][]
+    /**
+     * Identifiers, folded under "Technical details" with the call's raw arguments. Only these labels can be
+     * folded: the network, realm, function, sends and deposit cap always stay visible in the wallet checklist.
+     */
+    technical?: (choice: C | undefined) => [TechnicalLabel, string][]
     /** Each one must be ticked before signing. */
     acks?: string[]
     note?: string

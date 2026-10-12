@@ -26,6 +26,7 @@ import { chainPublicKey } from "../../lib/account"
 import { activationRequest } from "./activation"
 import type { EvmConnect } from "../evm/useEvmSession"
 import { ADENA_CLOSED_MESSAGE, ADENA_NO_ANSWER_MESSAGE, type PromptWatch } from "../../lib/adenaCall"
+import { clearCommentDrafts } from "../../lib/notes/commentDraftStorage"
 
 export type ConnectStage = "pick" | "missing" | "waking" | "approve" | "login" | "loginwait" | "activate" | "activatewait" | "activatesent"
 
@@ -295,6 +296,8 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         watch.current?.abort()
         adena.disconnect()
         auth.logout()
+        // An explicit disconnect leaves no unsent Notes comment behind in this tab (a lock or switch keeps them).
+        clearCommentDrafts()
         go(null)
         setNote(null)
     }, [adena, auth, go])

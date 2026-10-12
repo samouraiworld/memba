@@ -105,7 +105,8 @@ describe('dormant public Notes native view', () => {
     it('opens ready to write the first time: one blank local draft, caret in the title, nothing signed', async () => {
         const view = render(<PublicNotesApp {...props({}, null)} />)
         const title = await screen.findByRole('textbox', { name: 'Note title' })
-        expect(title).toHaveValue(''); expect(title).toHaveFocus()
+        // The caret moves in after the draft is stored and rendered: wait for that commit rather than racing it.
+        expect(title).toHaveValue(''); await waitFor(() => expect(title).toHaveFocus())
         expect(await screen.findByRole('button', { name: /New note.*Draft.*On this device/ })).toHaveAttribute('aria-current', 'true')
         const drafts = await mocks.store.listDrafts({ ...partition, owner: 'guest' })
         expect(drafts).toHaveLength(1); expect(drafts[0].payload).toEqual({ kind: 'public', title: '', body: '' })

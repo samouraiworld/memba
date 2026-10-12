@@ -21,4 +21,9 @@ describe('pending draft flushes', () => {
         expect(await settled(waiting)).toBe(true)
         expect(await settled(draftFlushed(scope))).toBe(true)
     })
+    it('stops waiting for a save that never settles', async () => {
+        const stuck = deferred(); trackDraftFlush({ ...scope, noteId: '03'.repeat(16) }, stuck.promise)
+        expect(await draftFlushed({ ...scope, noteId: '03'.repeat(16) }, 10)).toBe(false)
+        expect(await draftFlushed(scope, 10)).toBe(true)
+    })
 })

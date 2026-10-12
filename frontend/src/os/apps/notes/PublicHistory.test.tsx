@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import { parseHistoryInfo } from '../../../lib/notes/chain/history'
+import { parseHistoryInfo, type HistoryAction } from '../../../lib/notes/chain/history'
 import { parseHistoryComment, parseHistoryVersion } from '../../../lib/notes/chain/historyContent'
 import infoFixture from '../../../lib/notes/chain/__fixtures__/history/info.json'
 import versionFixture from '../../../lib/notes/chain/__fixtures__/history/version.json'
@@ -48,7 +48,34 @@ function timeline(s: ReturnType<typeof setup>, last = '21', action: 'content-com
             items: Array.from({ length: count }, (_, i) => { const seq = String(BigInt(after) + BigInt(i) + 1n); return { seq, action: seq === '1' ? 'create' as const : action,
                 stateRevision: seq, height: String(100 + Number(seq)), actor: s.version.owner, executor: null, operationId: 'aa'.repeat(16), proposalId: null, commentId: null } }) }
     })
-    s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...s.version, stateRevision: revision, bodyRevision: revision, allowPublicWrites: true }))
+    // Every edit here is a body edit: the body counter follows, the title counter stays at 1 (as in the realm).
+    s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...s.version, stateRevision: revision, titleRevision: '1', bodyRevision: revision, allowPublicWrites: true }))
+    s.mocks.publicHistoryEntry.mockImplementation(async (_id: string, seq: string) => entry(s, seq, seq === '1' ? 'create' : action, seq, action === 'content-commit' ? 2 : null))
+}
+function entry(s: ReturnType<typeof setup>, seq: string, action: HistoryAction, stateRevision: string, fieldMask: 1 | 2 | 3 | null) {
+    return { id: noteId, seq, action, stateRevision, height: String(100 + Number(seq)), actor: s.version.owner, executor: null, operationId: 'aa'.repeat(16), proposalId: null, governanceAction: null,
+        detail: { kind: 'note' as const, snapshotRevision: stateRevision, previousStateRevision: stateRevision === '1' ? null : String(Number(stateRevision) - 1), fieldMask, policyOp: null, policyKey: null, targetEpoch: null, redaction: null } }
+}
+/**
+ * The realm's counters, replayed: title and body revisions start at 1 and move only when their own field
+ * changes, independently of the state revision. create → body edit → SetPublicWrites → Rename → body edit.
+ */
+function realmSequence(s: ReturnType<typeof setup>) {
+    const steps: { action: HistoryAction; mask: 1 | 2 | 3 | null; title: string; titleRevision: string; bodyRevision: string; writes: boolean }[] = [
+        { action: 'create', mask: null, title: 'Sushi', titleRevision: '1', bodyRevision: '1', writes: false },
+        { action: 'content-commit', mask: 2, title: 'Sushi', titleRevision: '1', bodyRevision: '2', writes: false },
+        { action: 'public-writes', mask: null, title: 'Sushi', titleRevision: '1', bodyRevision: '2', writes: true },
+        { action: 'content-commit', mask: 1, title: 'Sushi (edited by B)', titleRevision: '2', bodyRevision: '2', writes: true },
+        { action: 'content-commit', mask: 2, title: 'Sushi (edited by B)', titleRevision: '2', bodyRevision: '3', writes: true },
+    ]
+    s.mocks.publicHistoryInfo.mockResolvedValue(head(String(steps.length)))
+    s.mocks.publicHistory.mockImplementation(async (_id: string, after = '0', through = '0') => ({ id: noteId, throughSeq: through === '0' ? '5' : through, nextCursor: null,
+        items: steps.slice(Number(after)).map((step, i) => { const seq = String(Number(after) + i + 1); return { seq, action: step.action, stateRevision: seq, height: String(100 + i), actor: s.version.owner, executor: null, operationId: 'aa'.repeat(16), proposalId: null, commentId: null } }) }))
+    s.mocks.publicHistoryEntry.mockImplementation(async (_id: string, seq: string) => entry(s, seq, steps[Number(seq) - 1].action, seq, steps[Number(seq) - 1].mask))
+    s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => {
+        const step = steps[Number(revision) - 1]
+        return { ...s.version, stateRevision: revision, title: new TextEncoder().encode(step.title), titleRevision: step.titleRevision, bodyRevision: step.bodyRevision, allowPublicWrites: step.writes }
+    })
 }
 const events = () => screen.getAllByRole('listitem').map(item => item.querySelector('strong')?.textContent)
 describe('public history timeline', () => {
@@ -70,11 +97,13 @@ describe('public history timeline', () => {
         render(<PublicHistory client={s.client} noteId={noteId} viewer={s.version.owner} />)
         await waitFor(() => expect(events()).toEqual(['Revision 3 · editing opened to everyone', 'Revision 2 · editing opened to everyone', 'Revision 1 · created']))
         expect(screen.getAllByText('You')).toHaveLength(3)
-        const r = setup(); timeline(r, '2')
-        r.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...r.version, stateRevision: revision, titleRevision: revision, bodyRevision: '1' }))
-        render(<PublicHistory client={r.client} noteId={'ee'.repeat(16)} />)
-        expect(await screen.findByText('Revision 2 · renamed')).toBeVisible()
-        expect(screen.getByText(/“Comments”/)).toBeVisible()
+    })
+    it('names each edit by the field it changed, with counters that move independently (create, body, editing, rename, body)', async () => {
+        const s = setup(); realmSequence(s)
+        render(<PublicHistory client={s.client} noteId={noteId} />)
+        await waitFor(() => expect(events()).toEqual(['Revision 5 · body edited', 'Revision 4 · renamed', 'Revision 3 · editing opened to everyone', 'Revision 2 · body edited', 'Revision 1 · created']))
+        expect(screen.getByText(/“Sushi \(edited by B\)”/)).toBeVisible()
+        expect(screen.getAllByText(/“/)).toHaveLength(1)
     })
     it('views an archived revision and uses it as a draft without signing anything', async () => {
         const s = setup(), onRestore = vi.fn(); timeline(s, '2')

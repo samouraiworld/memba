@@ -27,6 +27,7 @@ describe('Share menu', () => {
         expect(screen.getByText(/anyone, with or without a wallet, can read it/)).toBeVisible()
         expect(await screen.findByRole('radio', { name: /Only me/ })).toBeChecked()
         expect(screen.getByText('Everyone with a wallet', { selector: 'p > strong' })).toBeVisible()
+        expect(screen.getByText(/restricting comments also stops community editing/)).toBeVisible()
         fireEvent.keyDown(dialog, { key: 'Escape' })
         expect(screen.queryByRole('dialog')).toBeNull(); expect(share()).toHaveFocus()
     })
@@ -37,6 +38,14 @@ describe('Share menu', () => {
         expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/mainnet/os/notes/${note.id}`)
         expect(screen.getByRole('button', { name: 'Copied' })).toBeVisible()
     })
+    it('closes when the focus leaves it', async () => {
+        setup(); fireEvent.click(share())
+        const outside = document.createElement('button'); document.body.append(outside)
+        fireEvent.blur(screen.getByRole('button', { name: 'Copy link' }), { relatedTarget: share() })
+        expect(screen.getByRole('dialog')).toBeVisible()
+        fireEvent.blur(screen.getByRole('button', { name: 'Copy link' }), { relatedTarget: outside })
+        expect(screen.queryByRole('dialog')).toBeNull(); outside.remove()
+    })
     it('closes on a click outside, but not on a click inside', async () => {
         setup(); fireEvent.click(share())
         fireEvent.mouseDown(screen.getByRole('dialog')); expect(screen.getByRole('dialog')).toBeVisible()
@@ -44,8 +53,8 @@ describe('Share menu', () => {
     })
     it('shows a guest the same facts read-only, and restricted comments as such', async () => {
         setup(null, { ...note, mode: 3 }); fireEvent.click(share())
-        expect(screen.getByText('The owner, and the writers the owner named.')).toBeVisible()
-        expect(screen.getByText('People who can edit', { selector: 'p > strong' })).toBeVisible()
+        expect(screen.getByText(/^The owner, the writers the owner named, governance members when governance owns the note, and wallets the note's write policy allows/)).toBeVisible()
+        expect(screen.getByText(/comment policy allows$/, { selector: 'p > strong' })).toBeVisible()
         expect(screen.queryByRole('radio')).toBeNull()
     })
 })

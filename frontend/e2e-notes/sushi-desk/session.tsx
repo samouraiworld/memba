@@ -4,6 +4,7 @@ import type { OsSession } from '../../src/os/shell/useOsSession'
 import { activeOsNetwork } from '../../src/os/shell/network'
 import { bech32Encode } from '../../src/lib/dao/realmAddress'
 import { audit } from '../sushi-shell/audit'
+import { clearCommentDrafts } from '../../src/lib/notes/commentDraftStorage'
 export const TEST_OWNER = bech32Encode('g', new Uint8Array(20).fill(81))
 let member = new URLSearchParams(location.search).get('guest') !== '1'
 const listeners = new Set<() => void>()
@@ -11,7 +12,8 @@ const subscribe = (listener: () => void) => { listeners.add(listener); return ()
 const setMember = (value: boolean) => { member = value; listeners.forEach(listener => listener()) }
 export function useOsSession(opts: { onSignedIn?: (address: string) => void } = {}): OsSession {
     const connected = useSyncExternalStore(subscribe, () => member, () => member), network = activeOsNetwork()
-    const disconnect = () => { audit.disconnects++; setMember(false) }
+    // Like the real session: an explicit disconnect forgets unsent Notes comments kept in this tab.
+    const disconnect = () => { audit.disconnects++; clearCommentDrafts(); setMember(false) }
     const connect = () => { setMember(true); opts.onSignedIn?.(TEST_OWNER) }
     const noop = () => {}
     return {

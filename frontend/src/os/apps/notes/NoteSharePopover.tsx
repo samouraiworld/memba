@@ -39,7 +39,11 @@ export function NoteSharePopover({ note, client, store, owner, networkKey = ACTI
     async function copy() {
         try { await navigator.clipboard.writeText(link); setCopied('yes') } catch { setCopied('no') }
     }
-    return <div className="os-notes-share" ref={box}>
+    return <div className="os-notes-share" ref={box} onBlur={event => {
+        // Focus leaving the menu closes it, unless it moved into the review sheet the menu opened.
+        const next = event.relatedTarget as Element | null
+        if (open && next && !box.current?.contains(next) && !next.closest?.('[role="dialog"], .os-scrim')) setOpen(false)
+    }}>
         <button ref={button} type="button" className="os-btn os-quiet" aria-haspopup="dialog" aria-expanded={open} aria-controls={id}
             onClick={() => { setOpen(value => !value); setUsed(true); setCopied('') }}>Share</button>
         <div ref={panel} id={id} className="os-notes-share-pop" role="dialog" aria-label={`Share ${noteTitle(note)}`} tabIndex={-1} hidden={!open}
@@ -56,7 +60,9 @@ export function NoteSharePopover({ note, client, store, owner, networkKey = ACTI
             {used && <PublicCollaborationControls note={note} client={client} store={store} owner={owner} onChanged={onChanged} />}
             {!note.deleted && <section className="os-notes-share-part" aria-label="Who can comment">
                 <h3 className="os-notes-share-k">Who can comment</h3>
-                <p><strong>{note.mode === 4 ? 'Everyone with a wallet' : 'People who can edit'}</strong> <span className="os-notes-share-note">· chosen when the note was created</span></p>
+                {/* As the realm's comment check (mayComment). Restricting comments also closes community editing there. */}
+                <p><strong>{note.mode === 4 ? 'Everyone with a wallet' : 'The owner, the named writers, governance members when governance owns the note, and wallets the note\'s comment policy allows'}</strong></p>
+                <p className="os-notes-share-note">The owner can change this later; restricting comments also stops community editing. Memba does not offer that change yet.</p>
             </section>}
         </div>
     </div>

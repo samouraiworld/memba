@@ -25,27 +25,26 @@ const actions: Record<HistoryAction, string> = {
     'content-redact': 'redacted by moderation', 'comment-redact': 'Comment removed by moderation',
 }
 const COMMENT_EVENTS: readonly HistoryAction[] = ['comment-add', 'comment-delete', 'comment-visibility', 'comment-resolution', 'comment-redact', 'cleanup']
-/** Events whose recorded version is read to say what changed (title, body, editing, comments). */
+/** Events read once more to say what changed: an edit's field mask (and new title), a setting's new value. */
 const DESCRIBED: readonly HistoryAction[] = ['content-commit', 'public-writes', 'comment-mode']
+/** What an event changed. Title and body revisions are separate counters, so only the entry's field mask says which field an edit touched. */
+type Detail = { fieldMask?: 1 | 2 | 3 | null; version?: PublicHistoryVersion }
 /** Events that leave content worth reading again or restoring. */
 const CONTENT: readonly HistoryAction[] = ['create', 'publish', 'content-commit']
 const short = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
 
 /** What happened, in plain words: "Revision 5 · body edited". */
-function headline(item: Item, version: PublicHistoryVersion | undefined): string {
+function headline(item: Item, detail: Detail | undefined): string {
     if (COMMENT_EVENTS.includes(item.action)) return actions[item.action]
-    const revision = `Revision ${item.stateRevision}`
-    if (item.action === 'content-commit' && version) {
-        const title = version.titleRevision === item.stateRevision, body = version.bodyRevision === item.stateRevision
-        return `${revision} · ${title && body ? 'title and body edited' : title ? 'renamed' : 'body edited'}`
-    }
+    const revision = `Revision ${item.stateRevision}`, mask = detail?.fieldMask, version = detail?.version
+    if (item.action === 'content-commit' && mask) return `${revision} · ${mask === 3 ? 'title and body edited' : mask === 1 ? 'renamed' : 'body edited'}`
     if (item.action === 'public-writes' && version) return `${revision} · ${version.allowPublicWrites ? 'editing opened to everyone' : 'editing closed'}`
     if (item.action === 'comment-mode' && version) return `${revision} · ${version.mode === 4 ? 'comments opened to everyone' : 'comments limited to editors'}`
     return `${revision} · ${actions[item.action]}`
 }
-function renamedTo(item: Item, version: PublicHistoryVersion | undefined): string {
-    if (item.action !== 'content-commit' || !version?.title || version.titleRevision !== item.stateRevision) return ''
-    try { return publicText(version.title, true) } catch { return '' }
+function renamedTo(item: Item, detail: Detail | undefined): string {
+    if (item.action !== 'content-commit' || !detail?.fieldMask || !(detail.fieldMask & 1) || !detail.version?.title) return ''
+    try { return publicText(detail.version.title, true) } catch { return '' }
 }
 
 /** Guest-readable timeline, newest first; restoring copies archived content into a draft, never signs. */
@@ -84,7 +83,7 @@ function HistorySession({ client, noteId, onRestore, viewer }: PublicHistoryProp
         return () => { alive = false }
     }, [tick, client, noteId, minimum, reload])
     const items = useMemo(() => data ? [...data.page.items].reverse() : [], [data])
-    const versions = useVersions(client, noteId, items)
+    const details = useDetails(client, noteId, items)
     const when = useBlockTimes(client, items.map(item => item.height))
     const [restoring, setRestoring] = useState<string | null>(null), [notice, setNotice] = useState('')
     const mounted = useRef(false)
@@ -117,13 +116,13 @@ function HistorySession({ client, noteId, onRestore, viewer }: PublicHistoryProp
         {data && <>
             {(data.info.deleted || data.info.moderatorHidden) && <p>This note is currently hidden or deleted. Archived content requires an explicit reveal.</p>}
             <ol className="os-notes-timeline">{items.map(item => {
-                const version = versions[item.stateRevision], who = viewer && viewer === item.actor ? 'You' : short(item.actor)
-                const renamed = renamedTo(item, version), ago = when(item.height), comment = COMMENT_EVENTS.includes(item.action)
+                const detail = details[item.seq], version = detail?.version, who = viewer && viewer === item.actor ? 'You' : short(item.actor)
+                const renamed = renamedTo(item, detail), ago = when(item.height), comment = COMMENT_EVENTS.includes(item.action)
                 const restorable = CONTENT.includes(item.action) && !(version && (version.titleRedacted || version.bodyRedacted || version.deleted))
                 return <li key={item.seq} data-kind={comment ? 'comment' : 'revision'}>
                     <span className="os-notes-timeline-dot" aria-hidden="true" />
                     <div>
-                        <strong>{headline(item, version)}</strong>
+                        <strong>{headline(item, detail)}</strong>
                         <p>{[who, renamed && `“${renamed}”`, item.executor && 'via governance', ago].filter(Boolean).join(' · ')}</p>
                         {restorable && <div className="os-notes-timeline-actions">
                             <button className="os-btn os-quiet" aria-pressed={viewing === item.seq} aria-label={`View revision ${item.stateRevision}`}
@@ -149,18 +148,27 @@ function HistorySession({ client, noteId, onRestore, viewer }: PublicHistoryProp
         </>}
     </section>
 }
-/** The recorded version behind each described event, read a few at a time; absent until read (or when unreadable). */
-function useVersions(client: NotesReadClient, noteId: string, items: readonly Item[]) {
-    const wanted = [...new Set(items.filter(item => DESCRIBED.includes(item.action)).map(item => item.stateRevision))].join(',')
-    const [read, setRead] = useState<{ client: NotesReadClient; noteId: string; at: Readonly<Record<string, PublicHistoryVersion>> }>({ client, noteId, at: {} })
+/** What each described event changed, read a few at a time; absent until read (or when unreadable). */
+function useDetails(client: NotesReadClient, noteId: string, items: readonly Item[]) {
+    const wanted = items.filter(item => DESCRIBED.includes(item.action)).map(item => `${item.seq}:${item.action}:${item.stateRevision}`).join(',')
+    const [read, setRead] = useState<{ client: NotesReadClient; noteId: string; at: Readonly<Record<string, Detail>> }>({ client, noteId, at: {} })
     useEffect(() => {
         if (!wanted) return
         let alive = true
+        const one = async (seq: string, action: string, revision: string): Promise<Detail | null> => {
+            if (action !== 'content-commit') { const version = await client.publicHistoryVersion(noteId, revision); return version ? { version } : null }
+            const entry = await client.publicHistoryEntry(noteId, seq)
+            if (!entry || entry.detail.kind !== 'note') return null
+            const fieldMask = entry.detail.fieldMask
+            // A rename names the new title, which only the version recorded at that revision holds.
+            const version = fieldMask && fieldMask & 1 ? await client.publicHistoryVersion(noteId, revision) ?? undefined : undefined
+            return { fieldMask, version }
+        }
         void Promise.resolve().then(async () => {
-            const revisions = wanted.split(','), found: Record<string, PublicHistoryVersion> = {}
-            for (let i = 0; i < revisions.length && alive; i += 4) {
-                await Promise.all(revisions.slice(i, i + 4).map(async revision => {
-                    try { const version = await client.publicHistoryVersion(noteId, revision); if (version) found[revision] = version } catch { /* described generically */ }
+            const events = wanted.split(',').map(value => value.split(':')), found: Record<string, Detail> = {}
+            for (let i = 0; i < events.length && alive; i += 4) {
+                await Promise.all(events.slice(i, i + 4).map(async ([seq, action, revision]) => {
+                    try { const detail = await one(seq, action, revision); if (detail) found[seq] = detail } catch { /* described generically */ }
                 }))
                 if (alive) setRead(value => ({ client, noteId, at: { ...(value.client === client && value.noteId === noteId ? value.at : {}), ...found } }))
             }

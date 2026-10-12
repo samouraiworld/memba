@@ -5,6 +5,7 @@ import type { NotesReadClient } from './client'
 import type { AminoMsg } from '../../grc20'
 import { publicCommentBudget } from './commentQuote'
 import measured from './__fixtures__/history-economics.json'
+import comments from './__fixtures__/comment-economics.json'
 const io = vi.hoisted(() => ({ price: vi.fn(async () => '"100ugnot"'), fee: vi.fn(async () => 100000) }))
 vi.mock('../../dao/packageStatus', () => ({ abciQueryText: io.price }))
 vi.mock('../../grc20', () => ({ freshFeeForGasWanted: io.fee }))
@@ -51,6 +52,30 @@ describe('product-calibrated public estimates', () => {
         const budget = publicNoteBudget(measuredMessage(row))
         expect(budget).toMatchObject({ estimatedDepositUgnot: String(expected), suggestedCapUgnot: String(cap) })
         expect(expected - row.storageDepositDeltaUgnot).toBeLessThanOrEqual(Math.max(row.storageDepositDeltaUgnot * 0.05, 300_000))
+    })
+    // Comment receipts measured for the PR 1610 review (comment-economics.json): a calibrated expected deposit,
+    // and a cap 1.2x that, rounded up to 0.1 GNOT, which stays above every measured receipt.
+    function commentMessage(func: string, anchorBytes: number, bodyBytes: number): AminoMsg {
+        const args = func === 'AddComment' ? ['', '', '1', '0', '', encode64(new Uint8Array(anchorBytes)), encode64(new Uint8Array(bodyBytes)), '']
+            : func === 'DeleteComment' ? ['', '', '1', ''] : ['', '', '1', 'true', '']
+        return { type: 'vm/MsgCall', value: { pkg_path: NOTES_REALM, func, args } }
+    }
+    it.each(comments.rows)('covers measured comment receipt $case with its cap and gas', row => {
+        const budget = publicCommentBudget(commentMessage(row.func, row.anchorBytes, row.bodyBytes))
+        expect(BigInt(budget.estimatedDepositUgnot)).toBeGreaterThanOrEqual(BigInt(row.storageDepositDeltaUgnot))
+        expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(row.storageDepositDeltaUgnot * 1.2)
+        expect(budget.gasWanted).toBeGreaterThanOrEqual(row.keeperGas * 1.5)
+        expect(budget.gasWanted).toBeLessThanOrEqual(500000000)
+    })
+    it.each([
+        ['one-line comment', 'AddComment', 0, 37, 2_053_700, 2_500_000, 81_000_000],
+        ['one-line comment with a 120 B quote', 'AddComment', 120, 37, 2_065_700, 2_500_000, 82_000_000],
+        ['largest comment', 'AddComment', 600, 4000, 2_510_000, 3_100_000, 126_000_000],
+        ['hide', 'HideComment', 0, 0, 500_000, 600_000, 60_000_000],
+        ['resolve', 'ResolveComment', 0, 0, 500_000, 600_000, 60_000_000],
+        ['delete', 'DeleteComment', 0, 0, 500_000, 600_000, 60_000_000],
+    ] as const)('prices a %s from the measured receipts', (_name, func, anchor, body, expected, cap, gas) => {
+        expect(publicCommentBudget(commentMessage(func, anchor, body))).toEqual({ estimatedDepositUgnot: String(expected), suggestedCapUgnot: String(cap), gasWanted: gas })
     })
     it('prices the comment-mode switch like the measured public-writes switch', () => {
         const message = create(0); message.value.func = 'SetCommentMode'; message.value.args = ['', '1', 'true', '']

@@ -15,7 +15,15 @@ export function trackDraftFlush(scope: NotesScope, flush: Promise<unknown>): voi
     })
     pending.set(id, all)
 }
-/** Resolves once no save of a closed editor of this note is in flight (immediately when none is). */
-export function draftFlushed(scope: NotesScope): Promise<void> {
-    return pending.get(key(scope)) ?? Promise.resolve()
+/** How long a reopened editor waits for a closing save before opening the stored draft anyway. */
+export const DRAFT_FLUSH_WAIT_MS = 5_000
+/**
+ * Resolves true once no save of a closed editor of this note is in flight (at once when none is), or false
+ * when one is still running after `ms`: storage that never answers must not leave the editor loading forever.
+ */
+export function draftFlushed(scope: NotesScope, ms = DRAFT_FLUSH_WAIT_MS): Promise<boolean> {
+    const flush = pending.get(key(scope))
+    if (!flush) return Promise.resolve(true)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    return Promise.race([flush.then(() => true), new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), ms) })]).finally(() => clearTimeout(timer))
 }

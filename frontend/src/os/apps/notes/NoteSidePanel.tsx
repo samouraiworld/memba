@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
@@ -25,7 +25,13 @@ type Props = {
 export function NoteSidePanel({ note, client, store, owner, previewRoot, onRestore, hidden }: Props) {
     const [tab, setTab] = useState<Tab>('history'), [sheet, setSheet] = useState(false)
     const [count, setCount] = useState<{ n: number; more: boolean } | null>(null)
-    const id = useId(), side = useNotesPane()?.side, aside = useRef<HTMLElement>(null)
+    const id = useId(), side = useNotesPane()?.side, aside = useRef<HTMLElement>(null), back = useRef<HTMLButtonElement>(null)
+    // An opened sheet takes the focus (its Back first); closing it returns the focus to the tab that opened it.
+    useEffect(() => { if (sheet) back.current?.focus() }, [sheet])
+    function closeSheet() {
+        setSheet(false)
+        aside.current?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${id}-${tab}`)}`)?.focus()
+    }
     const comments = note.mode >= 3
     const tabs: Tab[] = comments ? ['history', 'comments'] : ['history']
     // The sheet only exists in a narrow note column (the stylesheet says which): a wide one never keeps one open for later.
@@ -39,8 +45,9 @@ export function NoteSidePanel({ note, client, store, owner, previewRoot, onResto
         event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${id}-${next}`)}`)?.focus()
     }
     const label = (value: Tab) => value === 'history' ? 'History' : `Comments${count ? ` · ${count.n}${count.more ? '+' : ''}` : ''}`
-    const panel = <aside ref={aside} className="os-notes-side" aria-label="History and comments" data-sheet={sheet ? 'open' : undefined} hidden={hidden}>
-        <button type="button" className="os-btn os-quiet os-notes-side-back" aria-label="Back to the note" onClick={() => setSheet(false)}>
+    const panel = <aside ref={aside} className="os-notes-side" aria-label="History and comments" data-sheet={sheet ? 'open' : undefined} hidden={hidden}
+        onKeyDown={event => { if (sheet && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSheet() } }}>
+        <button ref={back} type="button" className="os-btn os-quiet os-notes-side-back" aria-label="Back to the note" onClick={closeSheet}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>Note
         </button>
         <div className="os-notes-side-tabs" role="tablist" aria-label="History and comments">

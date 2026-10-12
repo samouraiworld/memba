@@ -43,7 +43,18 @@ function useCommentDraft(chainId: string, owner: string | null, noteId: string) 
     /** Survives the session remount that follows a note refresh. */
     const [carried, setCarried] = useState('')
     useEffect(() => { if (scope) writeCommentDraft(scope, { body, quote }) }, [scope, body, quote])
-    return { body, setBody, quote, setQuote, parent, setParent, carried, setCarried }
+    /**
+     * A confirmed post forgets its text, also when the review outlived the panel that started it (a note refresh
+     * remounted it, or the window closed): the stored copy is cleared directly, the composer through its setters.
+     */
+    const posted = useCallback((text: string, anchor: string) => {
+        if (scope) {
+            const stored = readCommentDraft(scope)
+            if (stored?.body === text) writeCommentDraft(scope, { body: '', quote: stored.quote.text === anchor ? NO_QUOTE : stored.quote })
+        }
+        setBody(value => value === text ? '' : value); setQuote(value => value.text === anchor ? NO_QUOTE : value); setParent(null)
+    }, [scope])
+    return { body, setBody, quote, setQuote, parent, setParent, carried, setCarried, posted }
 }
 function PublicCommentScope(props: PublicCommentPanelProps) {
     const n = props.note, draft = useCommentDraft(props.client.chainId, props.owner, n.id)
@@ -84,17 +95,21 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
         return () => { alive = false }
     }, [client, store, realm, owner, receiptsKey, session])
     // Selecting text in the note quotes it in the composer (the anchor stays checked against the rendered note).
+    // An existing quote is only replaced on an explicit choice.
+    const [offer, setOffer] = useState('')
     useEffect(() => {
         if (!canPost || !previewRoot) return
         const take = () => {
             const text = selectedQuote(previewRoot)
-            if (!text) return
+            if (!text || text === anchor) return
             if (new TextEncoder().encode(text).length > MAX_QUOTE_BYTES) { setNotice('That selection is too long to quote. Select a shorter passage (up to 600 bytes).'); return }
-            setQuote({ text, bodyRevision: note.bodyRevision, confirmedFor: note.bodyRevision }); setNotice('')
+            setNotice('')
+            if (anchor) { setOffer(text); return }
+            setQuote({ text, bodyRevision: note.bodyRevision, confirmedFor: note.bodyRevision })
         }
         previewRoot.addEventListener('mouseup', take); previewRoot.addEventListener('keyup', take)
         return () => { previewRoot.removeEventListener('mouseup', take); previewRoot.removeEventListener('keyup', take) }
-    }, [canPost, previewRoot, note.bodyRevision, setQuote])
+    }, [canPost, previewRoot, note.bodyRevision, anchor, setQuote])
     const addAction = (): Extract<CommentAction, { kind: 'add' }> => ({ kind: 'add', bodyRevision: anchor ? quoteRevision : note.bodyRevision, epoch: note.epoch, parent: parent?.id, anchor, body })
     /** Expected deposit and the cap that is signed, from the quote module for this comment; null when it cannot be priced. Identifiers have a fixed size. */
     function budget(action: CommentAction) {
@@ -128,9 +143,9 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
             const settle = request.onSettled
             request.onSettled = (outcome, choice) => {
                 settle?.(outcome, choice)
+                if (outcome === 'confirmed' && action.kind === 'add') draft.posted(action.body, action.anchor)
                 if (guard.signal.aborted) return
                 if (outcome === 'confirmed') {
-                    if (action.kind === 'add') { setBody(value => value === action.body ? '' : value); setQuote(value => value.text === action.anchor ? NO_QUOTE : value); setParent(null) }
                     setNotice(action.kind === 'add' ? 'Comment posted.' : 'Comment action confirmed.'); refresh(value => value + 1)
                     announceNoteChange({ chainId: client.chainId, noteId: note.id })
                 } else if (outcome === 'unknown') { setNotice('Outcome unknown. Check the retained receipt before posting again.'); refresh(value => value + 1) }
@@ -174,6 +189,9 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
                 <blockquote>{anchor}</blockquote>
                 <figcaption>Quote from revision {quoteRevision} <button type="button" className="os-btn os-quiet" onClick={() => setQuote(NO_QUOTE)}>Remove quote</button></figcaption>
             </figure>}
+            {offer && offer !== anchor && <p role="status">Replace the quote with “{[...offer].length > 60 ? `${[...offer].slice(0, 59).join('')}…` : offer}”?{' '}
+                <button type="button" className="os-btn os-quiet" onClick={() => { setQuote({ text: offer, bodyRevision: note.bodyRevision, confirmedFor: note.bodyRevision }); setOffer('') }}>Replace quote</button>{' '}
+                <button type="button" className="os-btn os-quiet" onClick={() => setOffer('')}>Keep current quote</button></p>}
             {quoteNeedsReview && <p role="status">The note changed and your quote is no longer in the latest text. Keep it anchored to the older revision {quote.bodyRevision}, or clear it. <button type="button" className="os-btn os-quiet" onClick={() => setQuote(value => ({ ...value, confirmedFor: note.bodyRevision }))}>Keep original quote</button> <button type="button" className="os-btn os-quiet" onClick={() => setQuote(NO_QUOTE)}>Clear quote</button></p>}
             <textarea aria-label="Comment" placeholder="Add a comment" rows={2} value={body} onChange={event => setBody(event.target.value)} maxLength={4000} />
             <div className="os-notes-composer-foot">

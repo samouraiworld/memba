@@ -7,7 +7,8 @@
 export interface CommentDraftScope { chainId: string; owner: string; noteId: string }
 export interface StoredCommentDraft { body: string; quote: { text: string; bodyRevision: string; confirmedFor: string } }
 
-const key = ({ chainId, owner, noteId }: CommentDraftScope) => `memba_notes_comment:v1:${chainId}:${owner}:${noteId}`
+const PREFIX = 'memba_notes_comment:v1:'
+const key = ({ chainId, owner, noteId }: CommentDraftScope) => `${PREFIX}${chainId}:${owner}:${noteId}`
 const revision = (value: unknown) => typeof value === 'string' && /^(|0|[1-9][0-9]{0,19})$/.test(value)
 
 export function readCommentDraft(scope: CommentDraftScope): StoredCommentDraft | null {
@@ -28,4 +29,12 @@ export function writeCommentDraft(scope: CommentDraftScope, draft: StoredComment
         if (!draft.body && !draft.quote.text) sessionStorage.removeItem(key(scope))
         else sessionStorage.setItem(key(scope), JSON.stringify({ body: draft.body, quote: draft.quote }))
     } catch { /* Storage refused: the text stays in memory and the window asks before closing. */ }
+}
+/** An explicit disconnect forgets every unsent comment kept in this tab, for every account. */
+export function clearCommentDrafts(): void {
+    try {
+        const keys: string[] = []
+        for (let i = 0; i < sessionStorage.length; i++) { const name = sessionStorage.key(i); if (name?.startsWith(PREFIX)) keys.push(name) }
+        for (const name of keys) sessionStorage.removeItem(name)
+    } catch { /* Storage unavailable: nothing was kept there. */ }
 }

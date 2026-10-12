@@ -28,7 +28,7 @@ test('real public stage survives desktop/mobile changes and minimize restore wit
     await expect(composer).toHaveValue(text); await expect(composer).toHaveAttribute('data-lifecycle-test', 'same-composer')
     expect((await audit(page)).clients).toBe(before.clients)
 })
-test('disconnect and lock destroys the parked public comment stage; the unsent comment returns for the same account', async ({ page }) => {
+test('disconnect and lock destroys the parked public comment stage and reconnect starts empty', async ({ page }) => {
     await page.getByRole('button', { name: 'Minimise Notes', exact: true }).click()
     await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toBeHidden()
     await page.getByRole('button', { name: 'Memba menu', exact: true }).click()
@@ -42,9 +42,11 @@ test('disconnect and lock destroys the parked public comment stage; the unsent c
     await page.getByRole('button', { name: 'Memba menu', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Notes', exact: true }).click()
     await page.getByRole('button', { name: /Sushi Shell demonstration/ }).click()
-    // The unsent comment was parked in this tab's session storage, never on the page while locked: it comes back for the same account.
+    // An explicit disconnect also forgets the unsent comment kept in this tab's session storage.
     await page.getByRole('tab', { name: /^Comments/ }).click()
-    await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveValue(text)
+    await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveValue('')
+    expect(await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith('memba_notes_comment:')))).toEqual([])
+    expect(await page.locator('body').textContent()).not.toContain(text)
 })
 test('Notes is one window: opening it again keeps the same note; a phone shows the list first, then the note with Back', async ({ page }) => {
     const composer = page.getByRole('textbox', { name: 'Comment', exact: true })

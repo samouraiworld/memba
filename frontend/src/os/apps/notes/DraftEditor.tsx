@@ -59,7 +59,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
         let alive = true
         const load = () => {
             setState("loading"); editable.current = false
-            void draftFlushed(scope).then(() => store.getDraft(scope)).then(record => {
+            let late = false
+            void draftFlushed(scope).then(settled => { late = !settled; return store.getDraft(scope) }).then(record => {
                 if (!alive) return
                 if (!record) { setState("missing"); return }
                 revision.current = record.localRevision; lineage.current = new Set([record.localRevision])
@@ -67,7 +68,8 @@ export function DraftEditor({ store, scope, onSaved, remote, actions }: { store:
                 if (record.payload.kind !== "public") { setState("locked"); return }
                 base.current = record.payload.base
                 draft.current = { title: record.payload.title, body: record.payload.body, changes: 0 }; stored.current = 0; editable.current = true
-                setTitle(record.payload.title); setBody(record.payload.body); setState("saved"); setNotice("")
+                setTitle(record.payload.title); setBody(record.payload.body); setState("saved")
+                setNotice(late ? "An earlier save of this note is still running on this device. The stored draft was opened; if that save lands later, Notes shows a conflict instead of overwriting either version." : "")
             }).catch(() => { if (alive) setState("load-error") })
         }
         load()

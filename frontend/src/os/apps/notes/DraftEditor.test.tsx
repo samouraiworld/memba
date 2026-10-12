@@ -50,6 +50,24 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(screen.queryByText(/changed in another window/)).toBeNull()
     })
 
+    it("opens the stored draft with a notice when the closing save never settles", async () => {
+        const stuckScope = { ...scope, noteId: "fedcba9876543210fedcba9876543210" }, stuckRecord = { ...record, scope: stuckScope }
+        const saveDraft = vi.fn(() => new Promise(() => {}))
+        const getDraft = vi.fn(async () => stuckRecord)
+        const store = { getDraft, saveDraft } as unknown as NotesStore
+        const first = render(<DraftEditor store={store} scope={stuckScope} onSaved={() => {}} />)
+        fireEvent.change(await screen.findByRole("textbox", { name: "Note title" }), { target: { value: "Typed" } })
+        first.unmount()
+        await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledOnce())
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        try {
+            render(<DraftEditor store={store} scope={stuckScope} onSaved={() => {}} />)
+            await act(async () => { await vi.advanceTimersByTimeAsync(5_100) })
+            expect(await screen.findByRole("textbox", { name: "Note title" })).toHaveValue("Saved")
+            expect(screen.getByText(/An earlier save of this note is still running/)).toBeVisible()
+        } finally { vi.useRealTimers() }
+    })
+
     it("retains the published baseline while autosaving and exposes only durable snapshots", async () => {
         const base = { stateRevision: "7", epoch: "0", ownerGeneration: "1", titleRevision: "2", bodyRevision: "4" }
         const initial = { ...record, payload: { kind: "public" as const, title: "Saved", body: "Saved body", base } }
