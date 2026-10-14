@@ -197,7 +197,7 @@ test.describe('Memba OS DAOs', () => {
         expect(calls).toHaveLength(1)
         expect(calls[0].messages[0].value).toMatchObject({ func: 'MustVoteOnProposalSimple', args: ['4', 'NO'] })
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Submitted · Vote No on #4')).toBeVisible()
+        await expect(page.getByText('Submitted · Vote No on #4', { exact: true })).toBeVisible()
     })
 
     test('an unknown outcome locks the vote until the member checks it', async ({ page }) => {

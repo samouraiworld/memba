@@ -110,7 +110,7 @@ test.describe('Memba OS profile, as its owner', () => {
         ])
         expect(call).toMatchObject({ gasWanted: 16_000_000, gasFee: 19_200, memo: 'Memba profile' })
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Confirmed · Publish profile')).toBeVisible()
+        await expect(page.getByText('Confirmed · Publish profile', { exact: true })).toBeVisible()
         await expect(profile.getByText('Hello', { exact: true })).toBeVisible()
     })
 
@@ -240,7 +240,7 @@ test.describe('Memba OS profile, as its owner', () => {
         const [call] = await calls(page)
         expect(call.messages).toEqual([{ type: '/vm.m_call', value: { caller: OWNER, send: '', pkg_path: PROFILE, func: 'SetStringField', args: ['Bio', 'A new bio'], max_deposit: '20000ugnot' } }])
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Confirmed · Publish profile')).toBeVisible()
+        await expect(page.getByText('Confirmed · Publish profile', { exact: true })).toBeVisible()
     })
 
     test('username registration states every cost and sends the measured gas limit', async ({ page }) => {
@@ -261,7 +261,7 @@ test.describe('Memba OS profile, as its owner', () => {
         expect(call.messages).toEqual([{ type: '/vm.m_call', value: { caller: OWNER, send: '', pkg_path: REGISTRAR, func: 'Register', args: ['nym-builder042'], max_deposit: '660000ugnot' } }])
         expect(call).toMatchObject({ gasWanted: 90_000_000, gasFee: 108_000 })
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Confirmed · Register @nym-builder042')).toBeVisible()
+        await expect(page.getByText('Confirmed · Register @nym-builder042', { exact: true })).toBeVisible()
     })
 
     test('a paid registration states the price and sends exactly that amount', async ({ page }) => {

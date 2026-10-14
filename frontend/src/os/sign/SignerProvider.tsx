@@ -156,6 +156,8 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         }
         if (res.outcome === "unknown") {
             closeReview()
+            // A known hash is kept so the notice can link it, but the transaction may not be on
+            // chain (yet): the card says gnoscan may not list it.
             notify({ kind: "warn", title: `Outcome unknown · ${label}`, sub: res.error || "Check before trying again.", ...(res.hash ? { tx: { hash: res.hash, chainId } } : {}) })
             toast(`Outcome unknown: ${label}. Check before retrying.`)
             settle(req, choice, "unknown")

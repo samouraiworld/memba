@@ -322,10 +322,12 @@
 .memba-os .os-nc-tx { position: relative; }
 .memba-os .os-nc-tx:hover { background: var(--os-hover); }
 .memba-os .os-nc-link { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--os-acc-ink); text-decoration: none; }
-.memba-os .os-nc-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.memba-os .os-nc-link::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
 .memba-os .os-nc-link:hover { text-decoration: underline; }
 .memba-os .os-nc-link:focus-visible { outline: none; }
-.memba-os .os-nc-link:focus-visible::after { outline: 2px solid var(--os-acc); outline-offset: 2px; }
+/* Inside the card: .os-nl scrolls with no top padding and would clip an outer ring on the first card. */
+.memba-os .os-nc-link:focus-visible::after { outline: 2px solid var(--os-acc); outline-offset: -2px; }
+.memba-os .os-nc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* DAO folder and proposal windows */
 .memba-os .os-folder { display: grid; gap: 14px; min-width: 0; }

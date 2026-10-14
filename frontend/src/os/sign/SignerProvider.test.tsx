@@ -84,6 +84,19 @@ describe("OS signing session boundary", () => {
         expect(await screen.findByText(`Confirmed · Publish note | onyx-1 · 6035ba06ef… | onyx-1 | ${hash}`)).toBeInTheDocument()
     })
 
+    it("keeps the transaction with a notice the chain ran and refused", async () => {
+        const hash = "fa11ed00".padEnd(64, "1")
+        const refusedOnChain = { ...request, label: () => "Vote", send: vi.fn(async () => ({ hash })), verify: vi.fn(async () => "failed" as const) }
+        function Notices() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(refusedOnChain)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.kind} | {n.tx?.chainId} | {n.tx?.hash}</li>)}</ul></>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><Notices /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        expect(await screen.findByText(`fail | gnoland-1 | ${hash}`)).toBeInTheDocument()
+    })
+
     it("retains a confirmed proposal ID after verification so a reload remains locked", async () => {
         const receipt = { chainId: "gnoland-1", realmPath: "gno.land/r/test/dao", caller: "g1alpha", operation: "proposal" }
         const verified = {

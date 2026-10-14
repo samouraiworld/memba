@@ -6,10 +6,10 @@ import { TxNoticeCard } from "./TxNoticeCard"
 const HEX = "6035ba06ef" + "0123456789abcdef".repeat(3) + "012345"
 // The same 32 bytes as base64, the shape older Adena and broadcast_tx_commit return.
 const B64 = btoa(String.fromCharCode(...HEX.match(/../g)!.map((b) => parseInt(b, 16))))
-const LINK = { name: "View transaction on Gnoscan" }
+const LINK = { name: "View on Gnoscan (transaction: Confirmed · Publish note, opens in a new tab)" }
 
-const notice = (tx?: TxNotice["tx"]): TxNotice => ({
-    id: 1, kind: "ok", title: "Confirmed · Publish note", sub: `${tx?.chainId ?? "gnoland-1"} · ${HEX.slice(0, 10)}…`, tx,
+const notice = (tx?: TxNotice["tx"], kind: TxNotice["kind"] = "ok"): TxNotice => ({
+    id: 1, kind, title: "Confirmed · Publish note", sub: `${tx?.chainId ?? "gnoland-1"} · ${HEX.slice(0, 10)}…`, tx,
 })
 
 afterEach(cleanup)
@@ -23,6 +23,22 @@ describe("TxNoticeCard", () => {
         expect(link).toHaveAttribute("rel", "noopener noreferrer")
         expect(screen.getByText("Confirmed · Publish note")).toBeInTheDocument()
         expect(screen.getByText(`gnoland-1 · ${HEX.slice(0, 10)}…`)).toBeInTheDocument()
+    })
+
+    it("names the link with its visible text first, then which transaction it opens", () => {
+        render(<><TxNoticeCard notice={notice({ hash: HEX, chainId: "gnoland-1" })} /><TxNoticeCard notice={{ ...notice({ hash: HEX, chainId: "gnoland-1" }), id: 2, title: "Confirmed · Send 1 GNOT" }} /></>)
+        expect(screen.getByRole("link", { name: "View on Gnoscan (transaction: Confirmed · Publish note, opens in a new tab)" })).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: "View on Gnoscan (transaction: Confirmed · Send 1 GNOT, opens in a new tab)" })).toBeInTheDocument()
+        for (const a of screen.getAllByRole("link")) expect(a).not.toHaveAttribute("aria-label")
+    })
+
+    it("says a transaction whose outcome is not known yet may not be listed on Gnoscan yet", () => {
+        render(<TxNoticeCard notice={notice({ hash: HEX, chainId: "gnoland-1" }, "warn")} />)
+        expect(screen.getByRole("link", LINK)).toBeInTheDocument()
+        expect(screen.getByText(/may not be listed there yet/)).toBeInTheDocument()
+        cleanup()
+        render(<TxNoticeCard notice={notice({ hash: HEX, chainId: "gnoland-1" })} />)
+        expect(screen.queryByText(/may not be listed there yet/)).toBeNull()
     })
 
     it("converts a base64 wallet hash to the hex gnoscan expects", () => {

@@ -308,7 +308,7 @@ test.describe('Memba OS wizards', () => {
         await expect(proposal.getByRole('button', { name: 'Execute…' })).toHaveCount(0)
         // Confirmed by its own transaction, not only by the proposal's status.
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Confirmed · Execute #2')).toBeVisible()
+        await expect(page.getByText('Confirmed · Execute #2', { exact: true })).toBeVisible()
         const [call] = await adenaCalls(page)
         expect(call.messages[0].value).toMatchObject({ pkg_path: V2_DAO, func: 'Execute', args: ['2'], caller: ALICE })
         expect([call.gasWanted, call.gasFee]).toEqual([25_000_000, 30_000])
