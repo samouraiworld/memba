@@ -9,6 +9,8 @@ import { publicIntentEvidence, publicVerification, recoverPublicIntent } from '.
 import type { PublicNoteOperation } from './messages'
 import { NOTES_REALM } from './__fixtures__/deployment'
 import type { ChainNote } from './schema'
+// These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
+vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), noteId = 'ab'.repeat(16), operationId = 'cd'.repeat(16)
 const scope = { chainId: 'gnoland-1', realm: NOTES_REALM, owner, noteId }, bytes = (value: string) => new TextEncoder().encode(value)

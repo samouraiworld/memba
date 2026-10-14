@@ -12,6 +12,8 @@ import { createNotesIntents } from '../intents'
 import { preparePublicCommentRequest, commentIntentRealm, type CommentRequestOptions } from './commentRequest'
 import { encode64, type ChainNote } from './schema'
 import { NOTES_REALM } from './__fixtures__/deployment'
+// These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
+vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
 vi.mock('@sentry/react', async original => ({ ...await original<typeof import('@sentry/react')>(), captureException: vi.fn() }))
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), noteId = '11'.repeat(16), commentId = '22'.repeat(16), operationId = '33'.repeat(16), txHash = 'aa'.repeat(32)

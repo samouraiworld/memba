@@ -1,5 +1,6 @@
 /** Durable signing intentions. Unknown is preserved until matching evidence exists. */
-import { NOTES_REGISTRY, validNotesRealm } from "./chain/schema"
+import { NOTES_REGISTRY } from "./chain/schema"
+import { deploymentRealm } from "./config"
 import { isNotesRevision, notesKey, notesPartitionKey, notesRead, notesRequest, notesWrite, validNotesPartition, validNotesScope, type DraftWriteGuard, type NotesPartition, type NotesScope, type NotesStore, type NotesWriteResult } from "./drafts"
 
 /** Hashes describe PUBLIC bytes only; never attach this to encrypted or identity operations. */
@@ -170,15 +171,16 @@ export function validIdentityVerification(value: unknown): value is IdentityInte
         && v.generation !== "0" && v.backupRevision !== "0" && v.quoteHeight !== "0" && BigInt(v.quoteHeight) <= 0x7fffffffffffffffn
 }
 const key = (scope: NotesScope, operationId: string) => JSON.stringify([notesKey(scope), operationId])
-/** Each network's deployment entry names its Notes realm path; a stored receipt keeps the path it was made for. */
-const notesRealmScope = (realm: string) => validNotesRealm(realm) && realm !== NOTES_REGISTRY && !realm.includes("/comments/")
-const commentRealmScope = (realm: string, noteId: string) => realm.endsWith(`/comments/${noteId}`) && notesRealmScope(realm.slice(0, -`/comments/${noteId}`.length))
+/** A note receipt is scoped to the realm path its network's deployment entry names; a comment receipt to `<that path>/comments/<note>`. */
+const notesRealmScope = (scope: NotesScope) => { const realm = deploymentRealm(scope.chainId); return realm !== null && scope.realm === realm }
+const commentRealmScope = (scope: NotesScope, noteId: string) => { const realm = deploymentRealm(scope.chainId); return realm !== null && scope.realm === `${realm}/comments/${noteId}` }
 function validInput(value: NotesIntentInput): boolean {
     return !!value.scope && validNotesScope(value.scope) && value.scope.owner !== "guest" && HEX_ID.test(value.operationId)
         && typeof value.requestDigest === "string" && /^[a-f0-9]{64}$/.test(value.requestDigest)
         && typeof value.actor === "string" && value.actor === value.scope.owner && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(value.action)
         && [value.expectedStateRevision, value.resultingStateRevision, value.expectedEpoch, value.ownerGeneration, value.draftLocalRevision].every(isNotesRevision)
         && (value.verification === undefined || (validPublicVerification(value.verification)
+            && notesRealmScope(value.scope)
             && ["create", "commit", "rename", "delete", "comments", "public-writes"].includes(value.action)
             && (value.action === "public-writes") === Object.hasOwn(value.verification, "allowPublicWrites")
             && value.verification.deleted === (value.action === "delete") && value.verification.epoch === value.expectedEpoch
@@ -188,16 +190,16 @@ function validInput(value: NotesIntentInput): boolean {
             && BigInt(value.verification.bodyRevision) <= BigInt(value.resultingStateRevision))
             || (validCommentVerification(value.verification)
                 && ["addComment", "deleteComment", "resolveComment", "hideComment"].includes(value.action)
-                && commentRealmScope(value.scope.realm, value.verification.noteId)
+                && commentRealmScope(value.scope, value.verification.noteId)
                 && value.verification.epoch === value.expectedEpoch
                 && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n)
             || (validPrivateCommentVerification(value.verification)
                 && ["addPrivateComment", "deletePrivateComment", "resolvePrivateComment", "hidePrivateComment"].includes(value.action)
-                && commentRealmScope(value.scope.realm, value.verification.noteId)
+                && commentRealmScope(value.scope, value.verification.noteId)
                 && value.verification.epoch === value.expectedEpoch
                 && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n)
             || (validPrivateVerification(value.verification)
-                && notesRealmScope(value.scope.realm)
+                && notesRealmScope(value.scope)
                 && ["private-create", "private-commit", "private-rotate", "private-access", "private-refresh", "private-reveal", "private-publish"].includes(value.action)
                 && value.verification.ownerGeneration === value.ownerGeneration
                 && (value.action === "private-publish" ? value.verification.mode >= 3 && value.verification.titleBlobSha256 === "" && value.verification.bodyBlobSha256 === "" : HASH.test(value.verification.titleBlobSha256) && HASH.test(value.verification.bodyBlobSha256) && (value.action === "private-reveal" || value.verification.mode <= 2))
@@ -209,7 +211,7 @@ function validInput(value: NotesIntentInput): boolean {
                 && BigInt(value.verification.titleRevision) <= BigInt(value.resultingStateRevision)
                 && BigInt(value.verification.bodyRevision) <= BigInt(value.resultingStateRevision))
             || (validAccessVerification(value.verification)
-                && notesRealmScope(value.scope.realm)
+                && notesRealmScope(value.scope)
                 && ["access-addWriter", "access-removeWriter", "access-proposeOwner", "access-cancelOwner", "access-acceptOwner", "access-delete"].includes(value.action)
                 && value.expectedStateRevision !== "0" && value.ownerGeneration !== "0" && value.draftLocalRevision === "0"
                 && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n)

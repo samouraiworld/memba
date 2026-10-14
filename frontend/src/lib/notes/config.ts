@@ -15,7 +15,12 @@ const DEPLOYMENTS: Readonly<Record<string, NotesDeploymentEntry>> = Object.freez
     "onyx-1": Object.freeze({ realm: "gno.land/r/samcrew/memba_notes_v1", version: 1 as const }),
 })
 export function notesDeployment(chainId: string): NotesDeploymentEntry | null {
-    return NOTES_ENABLED && import.meta.env.VITE_ENABLE_NOTES_CHAIN === "true" && Object.hasOwn(DEPLOYMENTS, chainId) ? DEPLOYMENTS[chainId] ?? null : null
+    return NOTES_ENABLED && import.meta.env.VITE_ENABLE_NOTES_CHAIN === "true" ? deploymentRealmEntry(chainId) : null
+}
+/** The reviewed realm path of a network, whatever the release switches say: durable receipts are checked against it. */
+export function deploymentRealm(chainId: string): string | null { return deploymentRealmEntry(chainId)?.realm ?? null }
+function deploymentRealmEntry(chainId: string): NotesDeploymentEntry | null {
+    return Object.hasOwn(DEPLOYMENTS, chainId) ? DEPLOYMENTS[chainId] ?? null : null
 }
 
 export function newNoteId(): string {
