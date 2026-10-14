@@ -9,9 +9,13 @@ export interface NotesDeploymentEntry { realm: string; version: 1 }
  * its own realm path: every read, message, signing sheet and receipt uses the entry's path.
  */
 export const DEPLOYMENTS: Readonly<Record<string, NotesDeploymentEntry>> = Object.freeze({
+    // Mainnet: published 2026-10-14 at h806211 from samcrew-deployer e485e2ab (key registry
+    // gno.land/r/samcrew/enckeys_v1 at h806205), admin the samcrew 2-of-3. Its 23 files match
+    // onyx-1's memba_notes_rc1 except the module path.
+    "gnoland-1": Object.freeze({ realm: "gno.land/r/samcrew/memba_notes_v1", version: 1 as const }),
     // Testnet release candidate: published 2026-10-14 at h398276 from samcrew-deployer a5d6082
     // (rc1 path variant of the mainnet Notes source, payload cc8e7e5e…, 23 files), read back
-    // byte-identical. No mainnet entry yet (mainnet will use gno.land/r/samcrew/memba_notes_v1).
+    // byte-identical.
     "onyx-1": Object.freeze({ realm: "gno.land/r/samcrew/memba_notes_rc1", version: 1 as const }),
 })
 export function notesDeployment(chainId: string): NotesDeploymentEntry | null {
