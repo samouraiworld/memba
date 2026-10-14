@@ -55,7 +55,7 @@ describe('version3 featured desk migration and transaction boundaries', () => {
     f.values.set(f.adapter.key, raw)
     expect(f.adapter.peek()).toEqual({ version: 3, partition: scope, items, releases: { 'sushi-v1': { status: 'seeded', noteId: sushi.noteId } } })
     expect(f.storage.setItem).not.toHaveBeenCalled(); expect(f.values.get(f.adapter.key)).toBe(raw)
-    await f.adapter.mutate(d => planFeaturedNoteSeeds(d, scope, rules, [sushi]).desk)
+    await f.adapter.mutate(d => planFeaturedNoteSeeds(d, scope, rules, [sushi], NOTES_REALM).desk)
     expect(JSON.parse(f.values.get(f.adapter.key)!).releases).toEqual({ 'sushi-v1': { status: 'seeded', noteId: sushi.noteId } })
     await f.adapter.mutate(d => removeFeaturedDeskItem(d, scope, rules, 0))
     expect(f.adapter.peek().items).toEqual([items[1]]); expect(f.adapter.peek().releases['sushi-v1'].status).toBe('seeded')
@@ -63,7 +63,7 @@ describe('version3 featured desk migration and transaction boundaries', () => {
   it('seeds and dismisses Sushi beside a retired seeded note from v2', async () => {
     const f = setup(), note: FeaturedDeskItem = { ty: 'note', ref: other, c: 0, r: 0 }
     f.values.set(v2Key, old({ status: 'seeded', noteId: other }, [note]))
-    const seed = (d: FeaturedDesk) => planFeaturedNoteSeeds(d, scope, rules, [sushi]).desk
+    const seed = (d: FeaturedDesk) => planFeaturedNoteSeeds(d, scope, rules, [sushi], NOTES_REALM).desk
     await f.adapter.mutate(seed); expect(f.adapter.peek().items.map(i => i.ref)).toEqual([other, sushi.noteId])
     await f.adapter.mutate(d => removeFeaturedDeskItem(d, scope, rules, 1)); await f.adapter.mutate(seed)
     expect(f.adapter.peek().items).toEqual([note]); expect(f.adapter.peek().releases).toEqual({ 'sushi-v1': { status: 'dismissed' } })
@@ -93,7 +93,7 @@ describe('version3 featured desk migration and transaction boundaries', () => {
   it('preserves full legacy desks and fails on malformed items instead of truncating', async () => {
     const full = [0, 1, 2, 3].map(n => ({ ...pin, ref: `app${n}`, c: n % 2, r: Math.floor(n / 2) }))
     const f = setup(); f.values.set(f.oldKey, JSON.stringify(full))
-    const result = await f.adapter.mutate(d => planFeaturedNoteSeeds(d, scope, rules, [sushi]).desk)
+    const result = await f.adapter.mutate(d => planFeaturedNoteSeeds(d, scope, rules, [sushi], NOTES_REALM).desk)
     expect(result.items).toEqual(full); expect(result.releases['sushi-v1'].status).toBe('pending')
     for (const items of [[...full, pin], [{ ...pin, c: 100 }], [{ ...pin, extra: true }]]) {
       const bad = setup(); const raw = JSON.stringify(items); bad.values.set(bad.oldKey, raw)

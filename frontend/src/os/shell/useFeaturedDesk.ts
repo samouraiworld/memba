@@ -7,9 +7,10 @@ import { FEATURED_MAX_CHARS, FEATURED_RELEASE_KEYS, featuredNoteLabel, planFeatu
 import { GRID, cleanUp, deskKey, guestDesk, itemTarget, moveItem, sameItem, type DeskItem } from './desk'
 
 type Pin = Pick<DeskItem, 'ty' | 'ref'>
-export type FeaturedDeskOptions = { chainId: string; gno: boolean; adopt: boolean; releases: readonly FeaturedNoteRelease[]; blocked?: boolean }
+/** `realm` is the network deployment's Notes realm path; featured releases must name it. */
+export type FeaturedDeskOptions = { chainId: string; gno: boolean; adopt: boolean; releases: readonly FeaturedNoteRelease[]; realm?: string | null; blocked?: boolean }
 type Adapter = ReturnType<typeof createFeaturedNoteStorage>
-type Active = { alive: boolean; generation: object; adapter: Adapter; scope: FeaturedDesk['partition']; releases: readonly FeaturedNoteRelease[] }
+type Active = { alive: boolean; generation: object; adapter: Adapter; scope: FeaturedDesk['partition']; releases: readonly FeaturedNoteRelease[]; realm: string | null }
 const CHANGED = 'memba-featured-desk-changed'
 const RESET = 'memba_os_ui_reset_revision'
 const ERROR = 'The Desktop could not be saved safely. Existing browser data was preserved. Reload or reset local UI data explicitly to retry.'
@@ -60,7 +61,7 @@ function normalizedLegacy(raw: string | null): string | null {
 /** A selected v3 authority never falls back to a legacy writer in this scope. */
 export function useFeaturedDesk(owner: string | null | undefined, networkKey: string, options?: FeaturedDeskOptions) {
     const chainId = options?.chainId ?? '', eligible = !!options?.gno && owner !== undefined
-    const adopt = !!options?.adopt, blocked = !!options?.blocked
+    const adopt = !!options?.adopt, blocked = !!options?.blocked, realm = options?.realm ?? null
     const scopeKey = JSON.stringify([owner, networkKey, chainId, eligible])
     const storageKey = eligible ? `memba_os_desk:v3:${chainId}:${owner ?? 'guest'}` : null
     const previousKey = eligible ? `memba_os_desk:v2:${chainId}:${owner ?? 'guest'}` : null
@@ -76,7 +77,7 @@ export function useFeaturedDesk(owner: string | null | undefined, networkKey: st
     const [epoch, setEpoch] = useState(0)
     const serialized = JSON.stringify(options?.releases ?? NO_RELEASES)
     const releases = useMemo<readonly FeaturedNoteRelease[]>(() => JSON.parse(serialized), [serialized])
-    const key = JSON.stringify([scopeKey, enabled, blocked, serialized, epoch])
+    const key = JSON.stringify([scopeKey, enabled, blocked, serialized, realm, epoch])
     const generation = useMemo(() => ({ key }), [key])
     const active = useRef<Active | null>(null)
     const [state, setState] = useState<{ key: string; desk: FeaturedDesk | null; error: string | null }>({ key, desk: null, error: null })
@@ -126,9 +127,9 @@ export function useFeaturedDesk(owner: string | null | undefined, networkKey: st
             const adapter = createFeaturedNoteStorage({ scope, rules, storage, locks: navigator.locks ?? null, readLegacy,
                 initial: owner === null ? guestDesk(networkKey) : [], getResetToken: () => storage.getItem(RESET),
                 isCurrent: () => a !== null && current(a) })
-            a = { alive: true, generation, adapter, scope, releases }; active.current = a
+            a = { alive: true, generation, adapter, scope, releases, realm }; active.current = a
             const live = a
-            void adapter.mutate(latest => planFeaturedNoteSeeds(latest, scope, rules, releases).desk)
+            void adapter.mutate(latest => planFeaturedNoteSeeds(latest, scope, rules, releases, realm).desk)
                 .then(() => saved(live), () => publish(live, ERROR))
             return () => { live.alive = false; if (active.current === live) active.current = null }
         } catch {
@@ -137,13 +138,13 @@ export function useFeaturedDesk(owner: string | null | undefined, networkKey: st
             queueMicrotask(() => { if (!cancelled) setState({ key, desk: null, error: ERROR }) })
             return () => { cancelled = true }
         }
-    }, [enabled, blocked, owner, chainId, networkKey, generation, releases, key, current, saved, publish])
+    }, [enabled, blocked, owner, chainId, networkKey, generation, releases, realm, key, current, saved, publish])
     const update = useCallback((change: (desk: FeaturedDesk, a: Active) => FeaturedDesk) => {
         const a = active.current
         if (!a || a.generation !== generation || !current(a)) return
         void a.adapter.mutate(latest => {
             if (!current(a)) throw new Error('Desktop session changed')
-            return planFeaturedNoteSeeds(change(latest, a), a.scope, rules, a.releases).desk
+            return planFeaturedNoteSeeds(change(latest, a), a.scope, rules, a.releases, a.realm).desk
         }).then(() => saved(a), () => publish(a, ERROR))
     }, [generation, current, saved, publish])
     const desk = state.key === key && enabled && !blocked ? state.desk : null

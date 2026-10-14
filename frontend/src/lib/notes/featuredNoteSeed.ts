@@ -1,4 +1,4 @@
-import { address, check, id, record, validNotesRealm } from './chain/schema'
+import { address, check, id, realmPath, record } from './chain/schema'
 
 export type FeaturedReleaseKey = 'sushi-v1'
 export const FEATURED_RELEASE_KEYS = ['sushi-v1'] as const
@@ -65,17 +65,22 @@ export function decodeFeaturedDesk(raw: string, scope: FeaturedPartition, rules:
 export function encodeFeaturedDesk(desk: FeaturedDesk, scope: FeaturedPartition, rules: FeaturedDeskRules): string {
   const raw = JSON.stringify(validateFeaturedDesk(desk, scope, rules)); check(raw.length <= FEATURED_MAX_CHARS); return raw
 }
-/** Structural validation only: publication/owner/content evidence is reviewed separately. */
-export function validateFeaturedRelease(value: unknown, chainId: string): FeaturedNoteRelease {
+/**
+ * Structural validation, bound to the network and to its deployment's realm path (a release naming
+ * another path must never seed a note id read from this realm). Publication/owner/content evidence
+ * is reviewed separately.
+ */
+export function validateFeaturedRelease(value: unknown, chainId: string, realm: string): FeaturedNoteRelease {
   const r = record(value, ['releaseKey', 'chainId', 'realm', 'version', 'noteId', 'mode', 'deleted', 'owner'])
   check(FEATURED_RELEASE_KEYS.includes(r.releaseKey as FeaturedReleaseKey) && r.chainId === chainId
-    && validNotesRealm(r.realm) && r.version === 1 && r.mode === 4 && r.deleted === false)
-  return { releaseKey: r.releaseKey as FeaturedReleaseKey, chainId, realm: r.realm, version: 1,
+    && r.realm === realmPath(realm) && r.version === 1 && r.mode === 4 && r.deleted === false)
+  return { releaseKey: r.releaseKey as FeaturedReleaseKey, chainId, realm, version: 1,
     noteId: id(r.noteId), mode: 4, deleted: false, owner: address(r.owner) }
 }
-export function planFeaturedNoteSeeds(input: FeaturedDesk, scope: FeaturedPartition, rules: FeaturedDeskRules, reviewed: readonly FeaturedNoteRelease[]) {
+/** `realm` is the network deployment's realm path; null (no deployment) admits no release. */
+export function planFeaturedNoteSeeds(input: FeaturedDesk, scope: FeaturedPartition, rules: FeaturedDeskRules, reviewed: readonly FeaturedNoteRelease[], realm: string | null) {
   const desk = validateFeaturedDesk(input, scope, rules)
-  const releases = reviewed.map(value => validateFeaturedRelease(value, desk.partition.chainId))
+  const releases = reviewed.map(value => validateFeaturedRelease(value, desk.partition.chainId, realm ?? ''))
   check(releases.length <= FEATURED_RELEASE_KEYS.length && new Set(releases.map(r => r.releaseKey)).size === releases.length
     && new Set(releases.map(r => r.noteId)).size === releases.length)
   const outcomes: Partial<Record<FeaturedReleaseKey, 'dismissed' | 'already-seeded' | 'seeded' | 'pending-full'>> = {}

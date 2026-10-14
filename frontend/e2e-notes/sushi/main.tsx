@@ -39,7 +39,7 @@ function Fixture() {
             readLegacy: () => null, isCurrent: () => lease.alive, getResetToken: () => null })
         active.current = lease
         const refresh = () => { if (lease.alive) { try { setDesk(lease.adapter.peek()) } catch { setError('The local demonstration desk could not be read.') } } }
-        void lease.adapter.mutate(latest => planFeaturedNoteSeeds(latest, scope, rules, [sushi]).desk)
+        void lease.adapter.mutate(latest => planFeaturedNoteSeeds(latest, scope, rules, [sushi], realm).desk)
             .then(refresh, () => { if (lease.alive) setError('The local demonstration desk could not be saved.') })
         const onStorage = (event: StorageEvent) => { if (event.key === lease.adapter.key || event.key === null) refresh() }
         window.addEventListener('storage', onStorage)
