@@ -9,6 +9,7 @@ import { planDraftRebase, type RebasePlan } from '../../../lib/notes/chain/rebas
 import { NotesChainError, publicText, type ChainNote } from '../../../lib/notes/chain/schema'
 import { NotesTimeoutError, readFresh, useNoteRefresh, withTimeout } from '../../../lib/notes/freshness'
 import { copyTitle, trimPublicTitle } from '../../../lib/notes/publicFields'
+import type { ConflictLine } from '../../../lib/notes/merge'
 import { DraftEditor, type EditorActions } from './DraftEditor'
 import { PublicDelete, PublicPublish, PublishProgressSheet, type PublishProgress } from './PublicPublish'
 import { NoteSkeleton, PublicNote } from './PublicNote'
@@ -312,6 +313,12 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
     </div>
 }
 
+/** The draft's overlapping lines, named in the banner (F25): at most three, each clipped. */
+function overlapText(lines: ConflictLine[]): string {
+    const clip = (text: string) => !text.trim() ? '(empty)' : `“${[...text].length > 40 ? `${[...text].slice(0, 39).join('')}…` : text}”`
+    const named = lines.slice(0, 3).map(({ line, text }) => text === null ? `${line} (removed)` : `${line} ${clip(text)}`)
+    return named.length ? `: your line${lines.length > 1 ? 's' : ''} ${named.join(', ')}${lines.length > 3 ? ` and ${lines.length - 3} more` : ''}` : ''
+}
 /**
  * Overlap: the user's text stays untouched until they choose, after seeing the other version.
  * Rendered with the editor's saved snapshot, so a choice never races unsaved typing.
@@ -355,7 +362,7 @@ function RebaseConflict({ plan, draft, store, published, onResolved }: {
     // differingLines(mine, theirs): each column shows its own side of the overlap.
     const lines = differingLines(mine.body, plan.theirs.body), titles = plan.fields.includes('title')
     return <div className="os-notes-conflict">
-        <NoteBanner notice={{ tone: 'warn', title: 'Someone published a newer version', text: `(revision ${revision} by ${who}) that changes ${fields} as you. ${kept} Choose which version to publish.`,
+        <NoteBanner notice={{ tone: 'warn', title: 'Someone published a newer version', text: `(revision ${revision} by ${who}) that changes ${fields} as you${overlapText(plan.lines ?? [])}. ${kept} Choose which version to publish.`,
             actions: !seen && <button className="os-btn" onClick={() => setSeen(true)}>See changes</button> }} />
         {seen && <section className="os-notes-chooser" aria-label="Choose a version">
             <div className="os-notes-version">

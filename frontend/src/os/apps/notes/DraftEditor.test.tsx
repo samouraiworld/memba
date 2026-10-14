@@ -21,8 +21,10 @@ describe("a separate copy (F26)", () => {
         expect(await screen.findByText("Copy of your text from “Sushi”, not published. Publishing it creates a new public note; the original note is unchanged.")).toBeVisible()
         expect(screen.getByText(/^Unpublished copy · /)).toBeVisible()
         fireEvent.change(screen.getByRole("textbox", { name: "Note title" }), { target: { value: "Sushi, mine" } })
-        await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledOnce(), { timeout: 2000 })
+        // The autosave timer and the save's answer update the editor: both land inside act.
+        await act(async () => { await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledOnce(), { timeout: 2000 }) })
         expect(saveDraft.mock.calls[0][2]).toEqual({ kind: "public", title: "Sushi, mine", body: "Mine", copyOf: { noteId: "ab".repeat(16), title: "Sushi" } })
+        expect(screen.getByText(/^Unpublished copy · /)).toBeVisible()
     })
 })
 describe("Draft editor asynchronous boundaries", () => {

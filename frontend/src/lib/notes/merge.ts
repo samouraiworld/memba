@@ -50,6 +50,29 @@ export function mergeLines(base: string | null, ours: string, theirs: string): T
     return { status: 'clean', value: result.join('\n') }
 }
 
+/** A line of `ours` that overlaps a change on the other side: its 1-based number, and its text (null for removed lines). */
+export interface ConflictLine { line: number; text: string | null }
+/**
+ * The lines of `ours` that make `mergeLines` conflict, to name them to the user: each of our changes
+ * that touches a different change of theirs. Empty when the base is unknown or the texts cannot be compared.
+ */
+export function conflictingLines(base: string | null, ours: string, theirs: string): ConflictLine[] {
+    if (base === null) return []
+    const original = base.split('\n'), mine = hunks(original, ours.split('\n')), other = hunks(original, theirs.split('\n'))
+    if (!mine || !other) return []
+    const out: ConflictLine[] = []
+    let shift = 0
+    for (const hunk of mine) {
+        const at = hunk.start + shift + 1
+        if (other.some(change => touches(hunk, change) && !same(hunk, change))) {
+            if (hunk.lines.length) hunk.lines.forEach((text, i) => out.push({ line: at + i, text }))
+            else out.push({ line: at, text: null })
+        }
+        shift += hunk.lines.length - (hunk.end - hunk.start)
+    }
+    return out
+}
+
 export function mergeNoteText(base: NoteBaseText, ours: NoteText, theirs: NoteText): NoteMerge {
     const title = mergeTitle(base.title, ours.title, theirs.title), body = mergeLines(base.body, ours.body, theirs.body)
     if (title.status === 'clean' && body.status === 'clean') return { status: 'clean', title: title.value, body: body.value }

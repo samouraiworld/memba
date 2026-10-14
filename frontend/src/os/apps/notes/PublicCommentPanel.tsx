@@ -27,6 +27,8 @@ const MAX_QUOTE_BYTES = 600
 /** Pricing only: a comment's storage does not depend on its identifiers' values. */
 const PRICE_ID = 'f1'.repeat(16)
 const short = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
+/** A plain confirmation goes away by itself (F15/F24); a message that asks for a step stays until the next action. */
+const PASSING = new Set(['Comment posted.', 'Comment action confirmed.']), PASSING_MS = 6000
 
 export function PublicCommentPanel(props: PublicCommentPanelProps) {
     const { client, store } = props
@@ -86,6 +88,11 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
     const [fresh, setFresh] = useState(0)
     useNoteFreshness(client.chainId, note.id, useCallback(() => setFresh(value => value + 1), []))
     const [busy, setBusy] = useState(false), [notice, setNotice] = useState('')
+    useEffect(() => {
+        if (!PASSING.has(notice)) return
+        const timer = setTimeout(() => setNotice(value => value === notice ? '' : value), PASSING_MS)
+        return () => clearTimeout(timer)
+    }, [notice])
     const [receipts, setReceipts] = useState<NotesIntent[]>([]), [reload, refresh] = useState(0)
     const [receiptsReady, setReceiptsReady] = useState('')
     const receiptsKey = JSON.stringify([owner, note.id, signer.version, reload, draft.changed])

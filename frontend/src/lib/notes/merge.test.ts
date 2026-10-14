@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeLines, mergeNoteText, mergeTitle } from './merge'
+import { conflictingLines, mergeLines, mergeNoteText, mergeTitle } from './merge'
 
 const lines = (...values: string[]) => values.join('\n')
 
@@ -53,6 +53,20 @@ describe('line-based three-way merge', () => {
         const base = Array.from({ length: 3000 }, (_, i) => `line ${i}`)
         const ours = base.map(line => `${line} mine`), theirs = base.map(line => `${line} theirs`)
         expect(mergeLines(base.join('\n'), ours.join('\n'), theirs.join('\n'))).toEqual({ status: 'conflict' })
+    })
+})
+
+describe('conflicting lines (F25)', () => {
+    const base = lines('Sushi', '- milk', '- nori', '- rice')
+    it('names our overlapping line by its number in our text, after our earlier non-overlapping changes', () => {
+        const ours = lines('Intro', 'Sushi', '- milk', '- nori (B)', '- rice'), theirs = lines('Sushi', '- milk', '- nori (A)', '- rice')
+        expect(mergeLines(base, ours, theirs)).toEqual({ status: 'conflict' })
+        expect(conflictingLines(base, ours, theirs)).toEqual([{ line: 4, text: '- nori (B)' }])
+    })
+    it('names a removal by where it was, and nothing when the base is unknown or the edits do not overlap', () => {
+        expect(conflictingLines(base, lines('Sushi', '- milk', '- rice'), lines('Sushi', '- milk', '- nori (A)', '- rice'))).toEqual([{ line: 3, text: null }])
+        expect(conflictingLines(null, 'mine', 'theirs')).toEqual([])
+        expect(conflictingLines(base, lines('Sushi!', '- milk', '- nori', '- rice'), lines('Sushi', '- milk', '- nori', '- rice', '- wasabi'))).toEqual([])
     })
 })
 

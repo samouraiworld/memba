@@ -26,6 +26,17 @@ export function onNoteChange(listener: (change: NoteChange) => void): () => void
     return () => { listeners.delete(relay) }
 }
 
+/** Calls `listener`, at most once per focus interval, when a Notes window on this network comes to the front; returns the unsubscribe. */
+export function onNotesFocus(chainId: string, listener: () => void): () => void {
+    let last = Date.now()
+    const relay = (signal: Signal) => {
+        if (signal.kind !== 'focus' || (signal.chainId && signal.chainId !== chainId) || Date.now() - last < FOCUS_INTERVAL_MS) return
+        last = Date.now(); listener()
+    }
+    listeners.add(relay)
+    return () => { listeners.delete(relay) }
+}
+
 export function useNoteFreshness(chainId: string, noteId: string, onChange: (change: { stateRevision?: string }) => void): void {
     const callback = useRef(onChange)
     useEffect(() => { callback.current = onChange }, [onChange])

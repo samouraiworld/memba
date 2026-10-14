@@ -210,6 +210,27 @@ describe('public-only comment controls', () => {
         act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
         expect(screen.getByLabelText('Comment')).toHaveValue(''); expect(sessionStorage.length).toBe(0)
     })
+    it('says "Comment posted." for a few seconds only, in a polite status (F15/F24)', async () => {
+        setup(); await compose(); await post()
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+        try {
+            act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
+            expect(screen.getByText('Comment posted.')).toHaveAttribute('role', 'status')
+            await act(async () => { await vi.advanceTimersByTimeAsync(5_999) })
+            expect(screen.getByText('Comment posted.')).toBeVisible()
+            await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+            expect(screen.queryByText('Comment posted.')).toBeNull()
+        } finally { vi.useRealTimers() }
+    })
+    it('keeps a message that asks for a step: an unknown outcome stays', async () => {
+        setup(); await compose(); await post()
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+        try {
+            act(() => mocks.sign.mock.calls[0][0].onSettled('unknown', undefined))
+            await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+            expect(screen.getByText(/Outcome unknown\. Check the retained receipt/)).toBeVisible()
+        } finally { vi.useRealTimers() }
+    })
     it.each(['note refresh', 'window close'])('forgets a posted comment even when a %s happened while it was being signed', async change => {
         const view = setup(); await compose()
         fireEvent.click(screen.getByRole('button', { name: 'Comment' })); await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
@@ -382,5 +403,12 @@ describe('comment freshness', () => {
         expect(await screen.findByText(/note was updated to revision 3\./)).toBeVisible()
         expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.sign).not.toHaveBeenCalled()
         expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+    })
+    it('posts on the current text when only the title or a setting moved on chain: the body revision decides', async () => {
+        const view = setup('member'); vi.mocked(view.props.client.note).mockResolvedValue({ ...note, stateRevision: '3', bodyRevision: '1' })
+        await compose(); fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
+        await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+        expect(mocks.prepare.mock.calls[0][0].operation.action).toMatchObject({ kind: 'add', bodyRevision: '1', body: 'My public reply' })
+        expect(screen.queryByText(/note was updated/)).toBeNull()
     })
 })

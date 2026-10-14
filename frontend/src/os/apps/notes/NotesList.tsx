@@ -3,7 +3,7 @@ import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { check, cursor, publicText, type ChainNote } from '../../../lib/notes/chain/schema'
 import type { DraftRecord, NotesPartition, NotesStore } from '../../../lib/notes/drafts'
 import { formatRelativeTime } from '../../../lib/blockTime'
-import { onNoteChange } from '../../../lib/notes/freshness'
+import { onNoteChange, onNotesFocus } from '../../../lib/notes/freshness'
 import { trimPublicTitle } from '../../../lib/notes/publicFields'
 
 /**
@@ -27,6 +27,11 @@ function chainTitle(note: ChainNote): string {
 function clean(payload: DraftRecord['payload'], note: ChainNote, text: Text | undefined): boolean {
     if (payload.kind !== 'public' || !payload.base || payload.base.stateRevision !== note.stateRevision || note.mode < 3 || !text) return false
     return trimPublicTitle(payload.title) === text.title && payload.body === text.body
+}
+/** A read never moves a row back: a lagging node can answer with an older revision than one already shown. */
+function newer(known: ReadonlyMap<string, ChainNote>, note: ChainNote): ReadonlyMap<string, ChainNote> {
+    const shown = known.get(note.id)
+    return shown && BigInt(shown.stateRevision) > BigInt(note.stateRevision) ? known : new Map(known).set(note.id, note)
 }
 /** An untouched blank draft (first open, New note): listed only while it is the note on screen (F12). */
 const blank = (draft: DraftRecord) => draft.payload.kind === 'public' && !draft.payload.title && !draft.payload.body && !draft.payload.base
@@ -74,6 +79,7 @@ export function NotesList({ store, partition, client, owner, query, selected, un
     const [texts, setTexts] = useState<ReadonlyMap<string, Text>>(new Map())
     /** What was already asked of this client: drafts reload on every autosave and focus, the reads do not repeat. */
     const asked = useRef({ client: null as Client | null, meta: new Set<string>(), text: new Set<string>() })
+    const [focused, setFocused] = useState(0)
     const mounted = useRef(false)
     useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
     const lifetime = useRef<AbortController | null>(null), busy = useRef(false)
@@ -94,7 +100,7 @@ export function NotesList({ store, partition, client, owner, query, selected, un
         if (!meta) return
         const read = (id: string) => void Promise.resolve().then(() => meta(id)).then(note => {
             // An absent answer or a failed read keeps what was shown: it never proves deletion.
-            if (mounted.current && asked.current.client === client && note && note.id === id) setFresh(value => new Map(value).set(id, note))
+            if (mounted.current && asked.current.client === client && note && note.id === id) setFresh(value => newer(value, note))
         }).catch(() => {})
         for (const draft of drafts.items) {
             const id = draft.scope.noteId
@@ -102,14 +108,16 @@ export function NotesList({ store, partition, client, owner, query, selected, un
         }
         // Unsent text on a note without a draft here (a comment on someone else's note): its row is named after the note.
         for (const id of heldIds ? heldIds.split(',') : []) if (!drafts.items.some(draft => draft.scope.noteId === id) && !asked.current.meta.has(id)) { asked.current.meta.add(id); read(id) }
-    }, [drafts.items, client, heldIds])
+    }, [drafts.items, client, heldIds, focused])
+    // Bringing Notes to the front reads those notes again (another device or window may have changed them).
+    useEffect(() => onNotesFocus(chainId, () => { asked.current.meta.clear(); setFocused(value => value + 1) }), [chainId])
     useEffect(() => {
         const meta = client.noteMetadata?.bind(client)
         if (!meta) return
         return onNoteChange(change => {
             if (change.chainId !== chainId) return
             void Promise.resolve().then(() => meta(change.noteId)).then(note => {
-                if (mounted.current && note && note.id === change.noteId) setFresh(value => new Map(value).set(change.noteId, note))
+                if (mounted.current && note && note.id === change.noteId) setFresh(value => newer(value, note))
             }).catch(() => {})
         })
     }, [chainId, client])
