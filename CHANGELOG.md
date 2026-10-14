@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: mainnet deployment entry (#1629, 2026-10-14)
+- Name the Notes realm published on gnoland-1, `gno.land/r/samcrew/memba_notes_v1` (h806211, key registry `gno.land/r/samcrew/enckeys_v1` at h806205), as the mainnet deployment. Same code as the Onyx rehearsal realm; same deposit caps. It takes effect only in builds with both Notes release switches, and VITE_ENABLE_NOTES_CHAIN stays safety-gated out of production builds, so Notes remains disabled in production.
+
 ### Notes: canary follow-ups: comment menus, posted message, conflicting lines (#1628, 2026-10-14)
 - A comment card's ⋯ menu opens upward when it would leave the bottom of the comment list (the last comment), so its items show without scrolling.
 - "Comment posted." and "Comment action confirmed." go away after a few seconds; messages that ask for a step (an unknown outcome, a kept comment) stay.
