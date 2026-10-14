@@ -6,7 +6,8 @@ import { NoteDeskButton } from './NoteDeskButton'
 import { useNotesPane } from './notesPane'
 import './notes-page.css'
 
-export interface NoteMenuItem { label: string; hint?: string; danger?: boolean; run(): void }
+/** A disabled item stays in the menu (and focusable, as `aria-disabled`) but does nothing. */
+export interface NoteMenuItem { label: string; hint?: string; danger?: boolean; disabled?: boolean; run(): void }
 /** One message at the top of a note: what happened, that the text is kept, what to do next. */
 export interface Notice { tone: 'info' | 'warn' | 'error' | 'pending'; text: string; title?: string; actions?: ReactNode }
 
@@ -78,7 +79,7 @@ export function ActionMenu({ label, items, danger = [], className, children }: {
         else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); all[event.key === 'Home' ? 0 : all.length - 1]?.focus() }
         else if (event.key === 'Tab') setOpen(false)
     }
-    const entry = (item: NoteMenuItem) => <button key={item.label} type="button" role="menuitem" className="os-notes-menu-item" data-danger={item.danger || undefined} onClick={() => { close(); item.run() }}>
+    const entry = (item: NoteMenuItem) => <button key={item.label} type="button" role="menuitem" className="os-notes-menu-item" data-danger={item.danger || undefined} aria-disabled={item.disabled || undefined} onClick={() => { if (item.disabled) return; close(); item.run() }}>
         {item.label}{item.hint && <small>{item.hint}</small>}
     </button>
     return <div className={className ? `os-notes-more ${className}` : 'os-notes-more'} ref={root} onKeyDown={open ? keys : undefined}>

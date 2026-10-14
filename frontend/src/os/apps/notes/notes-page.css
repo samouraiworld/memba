@@ -32,6 +32,7 @@
 .os-notes-menu-item:hover, .os-notes-menu-item:focus-visible { background:var(--os-hover); outline:none; }
 .os-notes-menu-item small { font-size:12px; font-weight:500; color:var(--os-mut); }
 .os-notes-menu-item[data-danger] { color:var(--os-err); }
+.os-notes-menu-item[aria-disabled="true"] { opacity:.5; cursor:not-allowed; }
 .os-notes-menu-sep { height:1px; margin:4px 6px; background:var(--os-line); }
 
 /* Banners: what happened, that the text is kept, what to do next */

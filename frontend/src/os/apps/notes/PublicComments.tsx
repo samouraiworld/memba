@@ -16,6 +16,8 @@ export interface PublicCommentsProps {
   refreshToken?: number
   /** Comments shown on the first page (deleted ones excluded), and whether more pages follow. */
   onCount?(count: number, more: boolean): void
+  /** While an action is being prepared: the card menus stay (the focus stays in them) with their items disabled. */
+  actionsDisabled?: boolean
   /** Existing full controls remain enabled unless a public-only consumer opts out. */
   allowEncryptedActions?: boolean
   onReply?(comment: PublicComment): void; onDelete?(comment: PublicComment): void
@@ -102,9 +104,10 @@ function CommentActions({ comment, who, ago, viewer, props, copy }: { comment: P
   const allowed = !comment.encrypted || props.allowEncryptedActions !== false
   const reply = !comment.deleted && !comment.hidden && !comment.encrypted && props.onReply
   const items: NoteMenuItem[] = [], danger: NoteMenuItem[] = []
-  if (allowed && props.canResolve && props.onResolve) items.push({ label: comment.resolved ? 'Reopen thread' : 'Resolve thread', run: () => props.onResolve?.(copy(comment), !comment.resolved) })
-  if (allowed && props.canHide && props.onHide && !isRedactedComment(comment)) items.push({ label: comment.hidden ? 'Unhide comment' : 'Hide comment', run: () => props.onHide?.(copy(comment), !comment.hidden) })
-  if (allowed && !comment.deleted && viewer === comment.author && props.onDelete) danger.push({ label: 'Delete comment', danger: true, run: () => props.onDelete?.(copy(comment)) })
+  const disabled = !!props.actionsDisabled
+  if (allowed && props.canResolve && props.onResolve) items.push({ label: comment.resolved ? 'Reopen thread' : 'Resolve thread', disabled, run: () => props.onResolve?.(copy(comment), !comment.resolved) })
+  if (allowed && props.canHide && props.onHide && !isRedactedComment(comment)) items.push({ label: comment.hidden ? 'Unhide comment' : 'Hide comment', disabled, run: () => props.onHide?.(copy(comment), !comment.hidden) })
+  if (allowed && !comment.deleted && viewer === comment.author && props.onDelete) danger.push({ label: 'Delete comment', danger: true, disabled, run: () => props.onDelete?.(copy(comment)) })
   if (!reply && !items.length && !danger.length) return null
   return <footer className="os-notes-comment-actions">
     {reply && <button className="os-btn os-quiet" onClick={() => props.onReply?.(copy(comment))}>Reply</button>}

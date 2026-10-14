@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Notes: visual polish from the two-wallet canary (#1627, 2026-10-14)
 - The note header is a clean toolbar (a light translucent fill over the window's glass), so it no longer reads as a dark box narrower than the note; the status sits on the left as a subtitle and Share, Edit and ⋯ on the right, in one row on a phone with 44px targets.
-- Comment cards keep Reply visible and group Resolve thread, Hide comment and Delete comment under a ⋯ menu (arrow keys, Home/End, Escape returns the focus). A quoted passage reads as a quotation with a small "Show in note" link; on a phone the sheet steps aside to show it. No empty rule above Refresh, and "Comment posted." stays just above the composer.
+- Comment cards keep Reply visible and group Resolve thread, Hide comment and Delete comment under a ⋯ menu (arrow keys, Home/End, Escape returns the focus); while an action is prepared the menu stays, its items disabled, so the focus never drops to the page. A quoted passage reads as a quotation with a small "Show in note" link; on a phone the sheet steps aside to show it. No empty rule above Refresh, and "Comment posted." stays just above the composer.
 - Explore → Public notes lists notes like the sidebar rows: title, author, revision and date, with hover and focus states and a centred empty state.
 - My notes names unsent text on someone else's note after that note ("Not sent yet"; a private note stays "Private note") and opens it.
 - Publish and delete sheets: the cost cap is its own line under the estimate, each changed field is on its own line, "Who can comment" is a select in the OS colours, and "Delete with Adena" is red again (the shell's button style was overriding it).
