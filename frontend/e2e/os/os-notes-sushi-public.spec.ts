@@ -51,10 +51,13 @@ test('a dismissal in one tab reaches a concurrent tab and survives reload', asyn
     const peer = await context.newPage(); await monitor(peer); await peer.goto(url)
     await expect(peer.getByRole('button', { name: 'Open Sushi recipe', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Dismiss Sushi recipe', exact: true }).click()
-    await Promise.all([page.reload(), peer.reload()])
-    for (const tab of [page, peer]) {
+    // The concurrent tab sees the stored dismissal without a reload; then both keep it after one.
+    const dismissed = async () => { for (const tab of [page, peer]) {
         await expect(tab.getByLabel('Seed state')).toHaveText('{"sushi-v1":{"status":"dismissed"}}')
         await expect(tab.getByRole('button', { name: 'Open Sushi recipe', exact: true })).toHaveCount(0)
-    }
+    } }
+    await dismissed()
+    await Promise.all([page.reload(), peer.reload()])
+    await dismissed()
     await peer.close()
 })
