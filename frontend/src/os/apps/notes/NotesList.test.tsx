@@ -11,6 +11,7 @@ const utf8 = (value: string) => new TextEncoder().encode(value)
 function note(id: string, patch: Partial<ChainNote> = {}): ChainNote {
     return { id, owner: 'owner', pendingOwner: '', ownerGeneration: '1', mode: 3, stateRevision: '6', titleRevision: '1', bodyRevision: '1', epoch: '0', title: utf8('Sushi'), commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '1', operationId: 'cd'.repeat(16), actor: 'owner', height: '2', ...patch }
 }
+const noteOf = (id: string) => note(id)
 const page = (items: ChainNote[], nextCursor = ''): NotesPage => ({ items, nextCursor })
 const stores: NotesStore[] = []
 function setup() { const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store); return { store, session: createDraftSession(), client: { byOwner: vi.fn().mockResolvedValue(page([])) } } }
@@ -25,6 +26,23 @@ describe('My notes list', () => {
         await waitFor(() => expect(list()).toEqual(['Unsaved textUnsavedA comment or edit not sent yet', 'SushiPublicUnsaved changes · Revision 6']))
         fireEvent.click(screen.getByRole('button', { name: /Unsaved text/ }))
         expect(onOpen).toHaveBeenCalledExactlyOnceWith(theirs)
+    })
+    it('names unsent text on someone else\'s note after that note, from its metadata only', async () => {
+        const { store, client } = setup(), onOpen = vi.fn(), theirs = 'ee'.repeat(16)
+        const noteMetadata = vi.fn(async (id: string) => id === theirs ? { ...noteOf(theirs), owner: 'someone', title: utf8('Sushi (rc1 canary)') } : null), note = vi.fn()
+        const reader = { ...client, noteMetadata, note }
+        render(<NotesList store={store} partition={partition} client={reader} owner="owner" query="" selected={null} unsaved={[theirs]} refresh={0} onOpen={onOpen} />)
+        await waitFor(() => expect(list()).toEqual(['Sushi (rc1 canary)UnsavedNot sent yet']))
+        expect(noteMetadata).toHaveBeenCalledExactlyOnceWith(theirs); expect(note).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: /Sushi \(rc1 canary\)/ }))
+        expect(onOpen).toHaveBeenCalledExactlyOnceWith(theirs)
+    })
+    it('names unsent text on a private note "Private note" without decoding its title', async () => {
+        const { store, client } = setup(), theirs = 'ee'.repeat(16)
+        const reader = { ...client, noteMetadata: vi.fn(async (id: string) => ({ ...noteOf(id), owner: 'someone', mode: 1, title: utf8('ciphertext must stay hidden') })) }
+        render(<NotesList store={store} partition={partition} client={reader} owner="owner" query="" selected={null} unsaved={[theirs]} refresh={0} onOpen={vi.fn()} />)
+        await waitFor(() => expect(list()).toEqual(['Private noteUnsavedNot sent yet']))
+        expect(document.body.textContent).not.toContain('ciphertext')
     })
     it('mixes local drafts, published and private notes with a state and one line of context', async () => {
         const { store, session, client } = setup(), onOpen = vi.fn()

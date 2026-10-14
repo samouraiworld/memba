@@ -45,6 +45,19 @@ export function NoteHeader({ noteId, status, actions, primary, share, menu = [],
 }
 
 function NoteMenu({ noteId, items }: { noteId: string; items: NoteMenuItem[] }) {
+    const danger = items.filter(item => item.danger), plain = items.filter(item => !item.danger)
+    return <ActionMenu label="More actions" items={plain} danger={danger}>
+        {close => <NoteDeskButton noteId={noteId} role="menuitem" className="os-notes-menu-item" onDone={close} />}
+    </ActionMenu>
+}
+
+/**
+ * A ⋯ button and its menu: arrow keys move between items, Escape closes and returns the focus,
+ * Tab or a click outside closes. Danger items come last, after a separator.
+ */
+export function ActionMenu({ label, items, danger = [], className, children }: {
+    label: string; items: NoteMenuItem[]; danger?: NoteMenuItem[]; className?: string; children?(close: () => void): ReactNode
+}) {
     const [open, setOpen] = useState(false), id = useId(), root = useRef<HTMLDivElement>(null), button = useRef<HTMLButtonElement>(null)
     useEffect(() => {
         if (!open) return
@@ -56,24 +69,24 @@ function NoteMenu({ noteId, items }: { noteId: string; items: NoteMenuItem[] }) 
     const close = () => { setOpen(false); button.current?.focus() }
     function keys(event: KeyboardEvent) {
         const all = [...root.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []], at = all.indexOf(document.activeElement as HTMLElement)
-        if (event.key === 'Escape') { event.preventDefault(); close() }
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close() }
         else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
             const down = event.key === 'ArrowDown'
             all[at < 0 ? (down ? 0 : all.length - 1) : (at + (down ? 1 : all.length - 1)) % all.length]?.focus()
         }
+        else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); all[event.key === 'Home' ? 0 : all.length - 1]?.focus() }
         else if (event.key === 'Tab') setOpen(false)
     }
-    const danger = items.filter(item => item.danger), plain = items.filter(item => !item.danger)
-    const entry = (item: NoteMenuItem) => <button key={item.label} type="button" role="menuitem" className="os-notes-menu-item" data-danger={item.danger || undefined} onClick={() => { setOpen(false); item.run() }}>
+    const entry = (item: NoteMenuItem) => <button key={item.label} type="button" role="menuitem" className="os-notes-menu-item" data-danger={item.danger || undefined} onClick={() => { close(); item.run() }}>
         {item.label}{item.hint && <small>{item.hint}</small>}
     </button>
-    return <div className="os-notes-more" ref={root} onKeyDown={open ? keys : undefined}>
-        <button ref={button} type="button" className="os-btn os-quiet os-notes-icon" aria-label="More actions" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>{icons.more}</button>
-        {open && <div id={id} className="os-notes-menu" role="menu" aria-label="More actions">
-            {plain.map(entry)}
-            <NoteDeskButton noteId={noteId} role="menuitem" className="os-notes-menu-item" onDone={() => setOpen(false)} />
-            {danger.length > 0 && <div className="os-notes-menu-sep" role="separator" />}
+    return <div className={className ? `os-notes-more ${className}` : 'os-notes-more'} ref={root} onKeyDown={open ? keys : undefined}>
+        <button ref={button} type="button" className="os-btn os-quiet os-notes-icon" aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>{icons.more}</button>
+        {open && <div id={id} className="os-notes-menu" role="menu" aria-label={label}>
+            {items.map(entry)}
+            {children?.(() => setOpen(false))}
+            {danger.length > 0 && (items.length > 0 || !!children) && <div className="os-notes-menu-sep" role="separator" />}
             {danger.map(entry)}
         </div>}
     </div>

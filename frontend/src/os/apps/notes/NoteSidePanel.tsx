@@ -1,10 +1,11 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal, flushSync } from 'react-dom'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import type { NotesStore } from '../../../lib/notes/drafts'
 import { PublicCommentPanel } from './PublicCommentPanel'
 import { PublicHistory } from './PublicHistory'
+import { REVEAL_QUOTE } from './AnchorQuote'
 import type { HistoryRestore } from './PublicHistoryContent'
 import { useNotesPane } from './notesPane'
 import './notes-history.css'
@@ -26,16 +27,40 @@ export function NoteSidePanel({ note, client, store, owner, previewRoot, onResto
     const [tab, setTab] = useState<Tab>('history'), [sheet, setSheet] = useState(false)
     const [count, setCount] = useState<{ n: number; more: boolean } | null>(null)
     const id = useId(), side = useNotesPane()?.side, aside = useRef<HTMLElement>(null), back = useRef<HTMLButtonElement>(null)
-    // An opened sheet takes the focus (its Back first); closing it returns the focus to the tab that opened it.
-    useEffect(() => { if (sheet) back.current?.focus() }, [sheet])
+    /** Where the note was scrolled when the sheet opened: closing the sheet goes back there. */
+    const saved = useRef<{ scroller: HTMLElement; top: number } | null>(null)
+    // An opened sheet takes the focus (its Back first) and opens at its top; closing it returns the focus to the tab that opened it.
+    useEffect(() => {
+        if (!sheet || !aside.current) return
+        back.current?.focus({ preventScroll: true })
+        const scroller = scrollingParent(aside.current)
+        if (scroller) scroller.scrollTop += aside.current.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+    }, [sheet])
+    useLayoutEffect(() => {
+        if (sheet || !saved.current) return
+        const { scroller, top } = saved.current
+        saved.current = null; scroller.scrollTop = top
+    }, [sheet])
+    // "Show in note" on a comment: the sheet steps aside (synchronously), so the quote can be shown in the note.
+    useEffect(() => {
+        const element = aside.current
+        if (!element) return
+        const reveal = () => { if (element.hasAttribute('data-sheet')) { saved.current = null; flushSync(() => setSheet(false)) } }
+        element.addEventListener(REVEAL_QUOTE, reveal)
+        return () => element.removeEventListener(REVEAL_QUOTE, reveal)
+    }, [])
     function closeSheet() {
         setSheet(false)
-        aside.current?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${id}-${tab}`)}`)?.focus()
+        aside.current?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${id}-${tab}`)}`)?.focus({ preventScroll: true })
     }
     const comments = note.mode >= 3
     const tabs: Tab[] = comments ? ['history', 'comments'] : ['history']
     // The sheet only exists in a narrow note column (the stylesheet says which): a wide one never keeps one open for later.
-    function choose(next: Tab) { setTab(next); setSheet(!!aside.current && getComputedStyle(aside.current).getPropertyValue('--os-notes-sheet').trim() === '1') }
+    function choose(next: Tab) {
+        const open = !!aside.current && getComputedStyle(aside.current).getPropertyValue('--os-notes-sheet').trim() === '1'
+        if (open && !sheet && aside.current) { const scroller = scrollingParent(aside.current); saved.current = scroller && { scroller, top: scroller.scrollTop } }
+        setTab(next); setSheet(open)
+    }
     function keys(event: KeyboardEvent<HTMLButtonElement>) {
         const index = tabs.indexOf(tab)
         const next = event.key === 'ArrowRight' ? tabs[(index + 1) % tabs.length] : event.key === 'ArrowLeft' ? tabs[(index + tabs.length - 1) % tabs.length]
@@ -62,4 +87,13 @@ export function NoteSidePanel({ note, client, store, owner, previewRoot, onResto
         </div>}
     </aside>
     return side ? createPortal(panel, side) : panel
+}
+
+/** The element that scrolls the sheet: the note column in a window, the screen on a phone. */
+function scrollingParent(element: HTMLElement): HTMLElement | null {
+    for (let node = element.parentElement; node; node = node.parentElement) {
+        const overflow = getComputedStyle(node).overflowY
+        if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) return node
+    }
+    return null
 }

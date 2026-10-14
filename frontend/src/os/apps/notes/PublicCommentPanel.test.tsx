@@ -90,17 +90,17 @@ describe('public-only comment controls', () => {
         const input = mocks.prepare.mock.calls[0][0]
         expect(input.maxDepositUgnot).toBe('2800000'); expect(input.operation.commentId).not.toBe(input.operation.operationId)
         expect(input.operation).toMatchObject({ caller: 'member', noteId, action: { kind: 'add', parent: cid, bodyRevision: '1', epoch: '0', body: 'My public reply', anchor: 'Quoted passage' } })
-        expect(screen.queryByRole('button', { name: 'Delete comment' })).toBeNull()
-        expect(screen.queryByRole('button', { name: 'Resolve thread' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Hide comment' })).toBeNull()
+        expect(screen.queryByRole('button', { name: /^More actions for the comment by / })).toBeNull()
     })
     it.each([[false, 'Resolve thread', 'resolve', true], [true, 'Reopen thread', 'resolve', false], [false, 'Hide comment', 'hide', true], [true, 'Unhide comment', 'hide', false]] as const)('binds moderation target %s / %s', async (initial, button, kind, target) => {
         mocks.read.mockResolvedValue({ items: [row({ resolved: initial, hidden: initial })], nextCursor: '' }); setup()
-        fireEvent.click(await screen.findByRole('button', { name: button }))
+        fireEvent.click(await screen.findByRole('button', { name: /^More actions for the comment by / })); fireEvent.click(screen.getByRole('menuitem', { name: button }))
         await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[0][0].operation.action).toEqual({ kind, revision: '1', [kind === 'resolve' ? 'resolved' : 'hidden']: target })
     })
     it('allows author deletion while retaining a tombstone and forbids posting outside PublicOpen', async () => {
-        setup('owner', { ...note, deleted: true }); fireEvent.click(await screen.findByRole('button', { name: 'Delete comment' }))
+        setup('owner', { ...note, deleted: true }); fireEvent.click(await screen.findByRole('button', { name: /^More actions for the comment by / }))
+        expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Delete comment']); fireEvent.click(screen.getByRole('menuitem', { name: 'Delete comment' }))
         await waitFor(() => expect(mocks.prepare).toHaveBeenCalledOnce())
         expect(mocks.prepare.mock.calls[0][0].operation.action).toEqual({ kind: 'delete', revision: '1' })
         expect(screen.queryByLabelText('Comment')).toBeNull(); expect(screen.queryByRole('button', { name: 'Hide comment' })).toBeNull()
@@ -109,7 +109,7 @@ describe('public-only comment controls', () => {
         mocks.read.mockResolvedValue({ items: [row({ encrypted: true, body: '' })], nextCursor: '' }); setup('owner', { ...note, mode: 3 })
         expect(await screen.findByText('Encrypted comment')).toBeVisible()
         expect(screen.queryByLabelText('Comment')).toBeNull()
-        for (const name of ['Delete comment', 'Resolve thread', 'Hide comment']) expect(screen.queryByRole('button', { name })).toBeNull()
+        expect(screen.queryByRole('button', { name: /^More actions for the comment by / })).toBeNull()
         expect(mocks.prepare).not.toHaveBeenCalled()
     })
     it('keeps unknown receipts and composer text, checks explicitly, and never resends', async () => {

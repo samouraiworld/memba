@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
@@ -8,7 +8,11 @@ import { NoteSidePanel } from './NoteSidePanel'
 
 const seen = vi.hoisted(() => ({ count: undefined as undefined | ((n: number, more: boolean) => void), restore: undefined as unknown }))
 vi.mock('./PublicHistory', () => ({ PublicHistory: (props: { onRestore?: unknown; viewer?: string | null }) => { seen.restore = props.onRestore; return <p>History for {props.viewer ?? 'guest'}</p> } }))
-vi.mock('./PublicCommentPanel', () => ({ PublicCommentPanel: (props: { onCount(n: number, more: boolean): void }) => { seen.count = props.onCount; return <textarea aria-label="Comment" /> } }))
+vi.mock('./PublicCommentPanel', async () => {
+    const { AnchorQuote } = await vi.importActual<typeof import('./AnchorQuote')>('./AnchorQuote')
+    return { PublicCommentPanel: (props: { onCount(n: number, more: boolean): void; previewRoot: HTMLElement | null }) => { seen.count = props.onCount
+        return <><textarea aria-label="Comment" />{props.previewRoot && <AnchorQuote quote="nori" bodyRevision="1" currentBodyRevision="1" previewRoot={props.previewRoot} />}</> } }
+})
 const note = { id: 'ab'.repeat(16), owner: 'g1owner', mode: 4, deleted: false } as ChainNote
 const props = { note, client: {} as NotesReadClient, store: {} as NotesStore, owner: 'g1owner', previewRoot: null }
 
@@ -56,5 +60,34 @@ describe('History and comments panel', () => {
         render(<NoteSidePanel {...props} note={{ ...note, mode: 1 }} onRestore={onRestore} />)
         expect(seen.restore).toBe(onRestore)
         expect(screen.queryByRole('tab', { name: /Comments/ })).toBeNull()
+    })
+    it('opens the sheet at its top and, on Back, returns the note to where it was scrolled', () => {
+        let top = 300
+        const scroller = document.createElement('div'); scroller.style.overflowY = 'auto'; document.body.append(scroller)
+        Object.defineProperties(scroller, { scrollHeight: { value: 2000 }, clientHeight: { value: 500 }, scrollTop: { get: () => top, set: (value: number) => { top = value } } })
+        scroller.getBoundingClientRect = () => ({ top: 40 }) as DOMRect
+        render(<NoteSidePanel {...props} />, { container: scroller.appendChild(document.createElement('div')) })
+        const panel = screen.getByRole('complementary', { name: 'History and comments' })
+        panel.style.setProperty('--os-notes-sheet', '1'); panel.getBoundingClientRect = () => ({ top: 940 }) as DOMRect
+        fireEvent.click(screen.getByRole('tab', { name: 'History' }))
+        expect(panel).toHaveAttribute('data-sheet', 'open'); expect(top).toBe(1200)
+        fireEvent.click(screen.getByRole('button', { name: 'Back to the note' }))
+        expect(panel).not.toHaveAttribute('data-sheet'); expect(top).toBe(300)
+        scroller.remove()
+    })
+    it('"Show in note" closes the sheet and selects the quote; a quote that is gone keeps the sheet open with the reason', async () => {
+        const root = document.createElement('article'); root.dataset.rendered = 'html'; root.innerHTML = '<p>Four nori sheets</p>'; document.body.append(root)
+        render(<NoteSidePanel {...props} previewRoot={root} />)
+        const panel = screen.getByRole('complementary', { name: 'History and comments' }); panel.style.setProperty('--os-notes-sheet', '1')
+        fireEvent.click(screen.getByRole('tab', { name: 'Comments' }))
+        fireEvent.click(await screen.findByRole('button', { name: 'Show in note' }))
+        expect(panel).not.toHaveAttribute('data-sheet'); expect(window.getSelection()?.toString()).toBe('nori')
+        fireEvent.click(screen.getByRole('tab', { name: 'Comments' }))
+        expect(panel).toHaveAttribute('data-sheet', 'open')
+        const show = await screen.findByRole('button', { name: 'Show in note' })
+        root.innerHTML = '<p>Four sheets</p>'; fireEvent.click(show)
+        expect(panel).toHaveAttribute('data-sheet', 'open')
+        await waitFor(() => expect(within(panel).getByText(/Quote not found in the current text/)).toBeVisible())
+        window.getSelection()?.removeAllRanges(); root.remove()
     })
 })

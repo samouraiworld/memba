@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: visual polish from the two-wallet canary (#1627, 2026-10-14)
+- The note header is a clean toolbar (a light translucent fill over the window's glass), so it no longer reads as a dark box narrower than the note; the status sits on the left as a subtitle and Share, Edit and ⋯ on the right, in one row on a phone with 44px targets.
+- Comment cards keep Reply visible and group Resolve thread, Hide comment and Delete comment under a ⋯ menu (arrow keys, Home/End, Escape returns the focus). A quoted passage reads as a quotation with a small "Show in note" link; on a phone the sheet steps aside to show it. No empty rule above Refresh, and "Comment posted." stays just above the composer.
+- Explore → Public notes lists notes like the sidebar rows: title, author, revision and date, with hover and focus states and a centred empty state.
+- My notes names unsent text on someone else's note after that note ("Not sent yet"; a private note stays "Private note") and opens it.
+- Publish and delete sheets: the cost cap is its own line under the estimate, each changed field is on its own line, "Who can comment" is a select in the OS colours, and "Delete with Adena" is red again (the shell's button style was overriding it).
+- On a phone, History and Comments open as a full screen sheet at their first entry, with nothing of the note around them, and Back returns to where the note was scrolled; in a narrow window the History | Comments tabs stay at the bottom of the window instead of leaving an empty area under a short note.
+
 ### Notes: canary fixes before mainnet: prices, expired quotes, revision wording, local drafts (#1626, 2026-10-14)
 - Prices follow the storage-cut realm (samcrew-deployer#363) measured per operation: a note of about 1.3 KB now shows ≈ 2.05 GNOT (was 2.41), a body edit ≈ 0.81 (1.53), a rename ≈ 0.68 (1.40), opening or closing editing ≈ 0.67 / 0.46 (1.2), a comment ≈ 1.93 (2.05), a deletion ≈ 0.29 (0.85). Each figure is at or just above the keeper receipt, or the projected cost for the two cases not sampled (a new author's reply, opening comments); the signed cap stays at least 1.2x above it and above the earlier layout's large-note receipts, and gas limits are unchanged.
 - The publish sheet, the comment composer and the editing switch say the storage deposit is not returned; the cap sits in its own element.
