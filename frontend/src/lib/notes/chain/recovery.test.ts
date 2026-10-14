@@ -64,6 +64,17 @@ describe('exact public intent recovery', () => {
     expect(await recoverPublicIntent(s.client, s.intents, (await s.intents.get(scope, operationId))!, s.session)).toBe('confirmed')
   })
 
+  it('never confirms a receipt made under another realm path, nor reads the chain for it', async () => {
+    const s = setup(), other = 'gno.land/r/samcrew/memba_notes_rehearsal'
+    await s.intents.begin(input(), s.session); await s.intents.settle(scope, operationId, 'unknown', s.session)
+    const receipt = (await s.intents.get(scope, operationId))!
+    expect(await recoverPublicIntent({ ...s.client, realm: other }, s.intents, receipt, s.session)).toBe('unknown')
+    expect(s.client.note).not.toHaveBeenCalled()
+    expect(publicIntentEvidence(other, receipt, applied())).toBeNull()
+    expect(publicIntentEvidence(NOTES_REALM, receipt, applied())).not.toBeNull()
+    expect(await recoverPublicIntent(s.client, s.intents, receipt, s.session)).toBe('confirmed')
+  })
+
   it('predicts creation, rename, partial commit and comment-mode component revisions', () => {
     const descriptor = (action: PublicNoteOperation['action']) => publicVerification({ ...operation, action }, action.kind === 'create' ? null : base(), '100')
     expect(descriptor({ kind: 'create', title: 'Title', body: '', mode: 4, maxFeeUgnot: '0' })).toMatchObject({ mode: 4, titleRevision: '1', bodyRevision: '1', epoch: '0' })

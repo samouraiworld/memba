@@ -18,6 +18,8 @@ describe('atomic identity budget', () => {
         const input = { chainId: client.chainId, messages, requestDigest: 'a'.repeat(64), height: '42' }
         const quote = identityQuote(client)
         expect(await quote(input)).toMatchObject({ source: 'bounded-estimate', gasWanted: 60000000, estimatedDepositUgnot: '1200000', maxDepositUgnot: '2000000', networkFeeUgnot: 72000 })
+        // The backup call must target the client's deployment realm path.
+        await expect(identityQuote({ ...client, realm: 'gno.land/r/samcrew/memba_notes_rehearsal' } as NotesReadClient)(input)).rejects.toThrow('format')
         io.price.mockResolvedValueOnce('"101ugnot"'); await expect(quote(input)).rejects.toThrow()
         messages[1].value.max_deposit = '1000001ugnot'; await expect(quote(input)).rejects.toThrow()
     })

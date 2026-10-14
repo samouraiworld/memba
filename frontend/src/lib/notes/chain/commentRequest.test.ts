@@ -3,7 +3,8 @@ import { IDBFactory } from 'fake-indexeddb'
 import { bech32Encode } from '../../dao/realmAddress'
 import { createDraftSession, createNotesStore, type NotesStore } from '../drafts'
 import { createNotesIntents } from '../intents'
-import { commentIntentRealm, preparePublicCommentRequest, recoverPublicCommentIntent, type CommentRequestOptions } from './commentRequest'
+import { commentIntentRealm, preparePublicCommentRequest, publicCommentEvidence, recoverPublicCommentIntent, type CommentRequestOptions } from './commentRequest'
+import { readPublicComment } from './comments'
 import { recoverPublicIntent } from './recovery'
 import { encode64, type ChainNote } from './schema'
 import { NOTES_REALM } from './__fixtures__/deployment'
@@ -214,6 +215,18 @@ describe('public comment intentions', () => {
     expect(await recoverPublicCommentIntent(s.client, s.intents, (await s.intents.get(s.scope, operationId))!, s.session)).toBe('unknown')
     s.setComment({})
     expect(await recoverPublicCommentIntent(s.client, s.intents, (await s.intents.get(s.scope, operationId))!, s.session)).toBe('confirmed')
+  })
+  it('never confirms a comment receipt made under another realm path, nor reads the chain for it', async () => {
+    const s = setup(), request = await preparePublicCommentRequest(s.options), other = 'gno.land/r/samcrew/memba_notes_rehearsal'
+    wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('wallet closed') })
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('wallet closed')
+    s.setComment({}); s.client.getCommentRaw.mockClear(); const receipt = (await s.intents.get(s.scope, operationId))!
+    expect(await recoverPublicCommentIntent({ ...s.client, realm: other }, s.intents, receipt, s.session)).toBe('unknown')
+    expect(s.client.getCommentRaw).not.toHaveBeenCalled()
+    const comment = await readPublicComment(s.client, noteId, commentId)
+    expect(publicCommentEvidence(other, receipt, comment)).toBeNull()
+    expect(publicCommentEvidence(NOTES_REALM, receipt, comment)).not.toBeNull()
+    expect(await recoverPublicCommentIntent(s.client, s.intents, receipt, s.session)).toBe('confirmed')
   })
   it('rechecks note/comment revisions, account lifetime, fee and final quote expiry', async () => {
     const s = setup(), request = await preparePublicCommentRequest(s.options); s.setNote({ stateRevision: '6' })

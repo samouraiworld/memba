@@ -112,6 +112,8 @@ describe('product-calibrated public estimates', () => {
         const provider = publicNoteQuote(client, '20000000')
         expect(await provider(input)).toMatchObject({ source: 'bounded-estimate', requestDigest: input.requestDigest, expiresAtHeight: '62', maxDepositUgnot: '20000000', networkFeeUgnot: 100000 })
         await expect(provider({ ...input, chainId: 'onyx-1' })).rejects.toThrow()
+        // A message for another realm path than the client's deployment is never priced.
+        await expect(publicNoteQuote({ ...client, realm: 'gno.land/r/samcrew/memba_notes_rehearsal' } as NotesReadClient, '20000000')(input)).rejects.toThrow('format')
         await expect(publicNoteQuote(client, '1')(input)).rejects.toThrow()
         io.price.mockResolvedValueOnce('"101ugnot"'); await expect(provider(input)).rejects.toThrow()
         io.fee.mockRejectedValueOnce(new Error('unavailable')); await expect(provider(input)).rejects.toThrow()
