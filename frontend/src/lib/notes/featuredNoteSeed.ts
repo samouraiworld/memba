@@ -78,10 +78,6 @@ export function planFeaturedNoteSeeds(input: FeaturedDesk, scope: FeaturedPartit
   const releases = reviewed.map(value => validateFeaturedRelease(value, desk.partition.chainId))
   check(releases.length <= FEATURED_RELEASE_KEYS.length && new Set(releases.map(r => r.releaseKey)).size === releases.length
     && new Set(releases.map(r => r.noteId)).size === releases.length)
-  for (const target of releases) for (const key of FEATURED_RELEASE_KEYS) {
-    const other = desk.releases[key]
-    check(key === target.releaseKey || other.status !== 'seeded' || other.noteId !== target.noteId)
-  }
   const outcomes: Partial<Record<FeaturedReleaseKey, 'dismissed' | 'already-seeded' | 'seeded' | 'pending-full'>> = {}
   let changed = false
   for (const target of releases) {
