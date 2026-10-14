@@ -19,7 +19,7 @@ const OVERHEAD_BYTES = {
     both: 7_900, // Commit field_mask 3: 9,100 B (19 + 1,310 B); a restore of 32 + 1,272 B: 9,081 B
     writesOn: 6_700, // SetPublicWrites(true): 6,684 B (a 32-writer list adds nothing measurable)
     writesOff: 4_600, // SetPublicWrites(false): 4,562 B
-    commentsOn: 6_700, // SetCommentMode(true): not sampled; priced like opening editing, the larger toggle
+    commentsOn: 7_700, // SetCommentMode(true): not sampled; projected at ~7.7 KB (review of #1626), opening editing's records plus the mode's
     commentsOff: 5_600, // SetCommentMode(false): 5,574 B
     delete: 2_900, // Delete: 2,872 B
 } as const

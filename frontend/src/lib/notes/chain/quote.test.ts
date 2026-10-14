@@ -43,9 +43,10 @@ describe('product-calibrated public estimates', () => {
     })
     // F2/F14 of the rc1 canary: the old profile showed 2.41 GNOT for a creation that cost 1.64 in all. What the sheet
     // shows (expected deposit plus create fee) now stays within 35% of what the account spent, and the cap above it.
+    // A comment is shown at the dearest case (a new author's reply), so the canary's first comment, the cheapest case, gets 50%.
     it.each(layout.onyxCanary.rows)('stays close to the Onyx canary charge for $case', row => {
         const budget = budgetOf(measuredMessage(row)), shown = Number(budget.estimatedDepositUgnot) + row.createFeeUgnot
-        expect(shown).toBeLessThanOrEqual(row.totalSpentUgnot * 1.35)
+        expect(shown).toBeLessThanOrEqual(row.totalSpentUgnot * (row.func === 'AddComment' ? 1.5 : 1.35))
         expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(row.totalSpentUgnot)
     })
     // Large bodies were not sampled on #363. The earlier layout (history-economics.json, c20e8e6c) stored more for
@@ -87,18 +88,18 @@ describe('product-calibrated public estimates', () => {
         expect(budget.gasWanted).toBeGreaterThanOrEqual(worst.keeperGas * 1.5)
     })
     it.each([
-        ['one-line comment', 'AddComment', 0, 37, 1_773_700, 2_200_000, 87_000_000],
-        ['one-line comment with a 120 B quote', 'AddComment', 120, 37, 1_785_700, 2_200_000, 88_000_000],
-        ['largest comment', 'AddComment', 600, 4000, 2_230_000, 2_700_000, 142_000_000],
+        ['one-line comment', 'AddComment', 0, 37, 1_933_700, 2_400_000, 87_000_000],
+        ['one-line comment with a 120 B quote', 'AddComment', 120, 37, 1_945_700, 2_400_000, 88_000_000],
+        ['largest comment', 'AddComment', 600, 4000, 2_390_000, 2_900_000, 142_000_000],
         ['hide', 'HideComment', 0, 0, 390_000, 500_000, 60_000_000],
         ['resolve', 'ResolveComment', 0, 0, 390_000, 500_000, 60_000_000],
         ['delete', 'DeleteComment', 0, 0, 390_000, 500_000, 60_000_000],
     ] as const)('prices a %s from the #363 receipts', (_name, func, anchor, body, expected, cap, gas) => {
         expect(publicCommentBudget(commentMessage(func, anchor, body))).toEqual({ estimatedDepositUgnot: String(expected), suggestedCapUgnot: String(cap), gasWanted: gas })
     })
-    it('prices opening comments like opening editing, and closing them from its own receipt', () => {
+    it('prices opening comments at its projected cost, and closing them from its own receipt', () => {
         const message = create(0); message.value.func = 'SetCommentMode'; message.value.args = ['', '1', 'true', '']
-        expect(publicNoteBudget(message)).toMatchObject({ estimatedDepositUgnot: '670000', suggestedCapUgnot: '1400000' })
+        expect(publicNoteBudget(message)).toMatchObject({ estimatedDepositUgnot: '770000', suggestedCapUgnot: '1600000' })
         message.value.args = ['', '1', 'false', '']
         expect(publicNoteBudget(message)).toMatchObject({ estimatedDepositUgnot: '560000', suggestedCapUgnot: '1200000' })
         message.value.args = ['', '1', 'maybe', '']

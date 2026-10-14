@@ -88,7 +88,7 @@ describe('public comment intentions', () => {
     const s = setup({ kind: 'add', bodyRevision: '2', epoch: '0', anchor: '', body: 'I can bring a bamboo mat for rolling.' })
     const request = await preparePublicCommentRequest(s.options), message = request.prepare(undefined).msgs[0]
     const budget = publicCommentBudget(message), worst = Math.max(...measured.rows.filter(r => r.func === 'AddComment').map(r => r.storageDepositDeltaUgnot))
-    expect(budget).toMatchObject({ estimatedDepositUgnot: '1773700', suggestedCapUgnot: '2200000', gasWanted: 87000000 })
+    expect(budget).toMatchObject({ estimatedDepositUgnot: '1933700', suggestedCapUgnot: '2400000', gasWanted: 87000000 })
     expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(worst * 1.24)
     for (const [kind, rowName] of [['hide', 'HideComment'], ['resolve', 'ResolveComment'], ['delete', 'DeleteComment (author)']] as const) {
       const action = kind === 'hide' ? { kind, revision: '1', hidden: true } as const : kind === 'resolve' ? { kind, revision: '1', resolved: true } as const : { kind, revision: '1' } as const

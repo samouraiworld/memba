@@ -6,10 +6,10 @@ import { boundedNotesQuote } from './quote'
 /**
  * Calibrated on keeper receipts for the compact-history Notes realm (samcrew-deployer b8c48a8, #363) at 100 ugnot/byte,
  * steady state (__fixtures__/notes-storage-363.json):
- * - AddComment stores its anchor and body plus up to ~17,700 bytes of comment, index and author records
+ * - AddComment stores its anchor and body plus up to ~19,300 bytes of comment, index and author records
  *   (an author's first comment on a note 13,587 B, another new author 17,729 B, the same author again 15,188 B,
- *   each with 29-41 content bytes). The expected deposit covers the largest of these, a new author on a note
- *   that already has comments.
+ *   each with 29-41 content bytes; a new author's reply, which stores both the author record and the reply index,
+ *   is projected at ~19,300 B). The expected deposit covers the dearest of these, so it is never below what is charged.
  * - Hide/Resolve/DeleteComment store at most ~3,900 bytes (3,893 / 3,899 / 3,856 measured).
  * The signed cap is 1.2x the expected deposit, rounded up to 0.1 GNOT: at least 20% above every #363 receipt, and
  * above every receipt of the earlier layout (comment-economics.json), which stored 11-16% more per comment, also
@@ -21,7 +21,7 @@ import { boundedNotesQuote } from './quote'
  * on busier notes (at that rate 142M is reached after roughly 2,000 more).
  * Hide/Resolve/DeleteComment get 60M (29.6M measured on the earlier layout, 28.1M on #363).
  */
-const ADD_OVERHEAD_BYTES = 17_700
+const ADD_OVERHEAD_BYTES = 19_300
 const ACTION_OVERHEAD_BYTES = 3_900
 const STORAGE_PRICE_UGNOT = 100
 const CAP_STEP_UGNOT = 100_000
