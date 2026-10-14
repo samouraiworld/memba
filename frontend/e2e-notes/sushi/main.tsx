@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createFeaturedNoteStorage } from '../../src/lib/notes/featuredNoteStorage'
 import { featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, type FeaturedDesk, type FeaturedDeskRules, type FeaturedNoteRelease } from '../../src/lib/notes/featuredNoteSeed'
-import { NOTES_REALM, type ChainNote } from '../../src/lib/notes/chain/schema'
+import type { ChainNote } from '../../src/lib/notes/chain/schema'
 import { bech32Encode } from '../../src/lib/dao/realmAddress'
 import { PublicNote } from '../../src/os/apps/notes/PublicNote'
 import { PublicComments } from '../../src/os/apps/notes/PublicComments'
@@ -12,12 +12,13 @@ import '../../src/os/apps/notes/notes-public.css'
 import './fixture.css'
 
 if (!import.meta.env.DEV) throw new Error('Local development fixture only')
-const scope = { chainId: 'local-sushi-demonstration', wallet: null }
+const scope = { chainId: 'local-sushi-demonstration', wallet: null }, realm = 'gno.land/r/samcrew/memba_notes_v1'
 const owner = bech32Encode('g', new Uint8Array(20).fill(91))
-const sushi: FeaturedNoteRelease = { releaseKey: 'sushi-v1', chainId: scope.chainId, realm: NOTES_REALM, version: 1, noteId: '71'.repeat(16), mode: 4, deleted: false, owner }
+const sushi: FeaturedNoteRelease = { releaseKey: 'sushi-v1', chainId: scope.chainId, realm, version: 1, noteId: '71'.repeat(16), mode: 4, deleted: false, owner }
 const rules: FeaturedDeskRules = { cols: 4, rows: 3, validItem: item => item.ty === 'note' && item.ref === sushi.noteId }
 const bytes = (text: string) => new TextEncoder().encode(text)
 const client = {
+    realm,
     note: async (id: string): Promise<ChainNote | null> => {
         return id === sushi.noteId ? { id, owner, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0',
             title: bytes('Sushi recipe — local demonstration'), body: bytes(recipe),

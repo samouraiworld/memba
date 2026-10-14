@@ -1,6 +1,6 @@
 import type { AminoMsg } from '../../grc20'
 import type { NotesReadClient } from './client'
-import { blob, check, NOTES_REALM, NotesChainError } from './schema'
+import { blob, check, NotesChainError, validNotesRealm } from './schema'
 import { boundedNotesQuote } from './quote'
 
 /**
@@ -22,7 +22,7 @@ const ACTION_OVERHEAD_BYTES = 5_000
 const STORAGE_PRICE_UGNOT = 100
 const CAP_STEP_UGNOT = 100_000
 export function publicCommentBudget(message: AminoMsg) {
-    check(message.type === 'vm/MsgCall' && message.value.pkg_path === NOTES_REALM)
+    check(message.type === 'vm/MsgCall' && validNotesRealm(message.value.pkg_path))
     const { func, args } = message.value
     check(Array.isArray(args))
     let bytes = 0, overhead = ACTION_OVERHEAD_BYTES, gasWanted = 60_000_000

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bech32Encode } from '../../dao/realmAddress'
 import { NotesReadClient } from './client'
 import { commentText, parsePublicComment, readPublicComment, readPublicComments } from './comments'
-import { decodeResponse, encode64, NOTES_REALM } from './schema'
+import { decodeResponse, encode64 } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 
 import keeper from './__fixtures__/keeper-comments.json'
 

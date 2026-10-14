@@ -10,7 +10,8 @@ import { __resetGasPriceCache, setWalletRpcContext, setTxConfirmationCallback, s
 import { createDraftSession, createNotesStore, type NotesStore } from '../drafts'
 import { createNotesIntents } from '../intents'
 import { preparePublicCommentRequest, commentIntentRealm, type CommentRequestOptions } from './commentRequest'
-import { encode64, NOTES_REALM, type ChainNote } from './schema'
+import { encode64, type ChainNote } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 
 vi.mock('@sentry/react', async original => ({ ...await original<typeof import('@sentry/react')>(), captureException: vi.fn() }))
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), noteId = '11'.repeat(16), commentId = '22'.repeat(16), operationId = '33'.repeat(16), txHash = 'aa'.repeat(32)
@@ -21,13 +22,13 @@ function setup() {
   const session = createDraftSession(), intents = createNotesIntents(store)
   let comment: ReturnType<typeof applied> | null = null
   const note: ChainNote = { id: noteId, owner, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '2', titleRevision: '1', bodyRevision: '2', epoch: '0', title: bytes('Title'), body: bytes('Body'), commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '90', operationId: '44'.repeat(16), actor: owner, height: '99' }
-  const client = { chainId: GNO_CHAIN_ID, assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(note)), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '0', paused: false })), height: vi.fn(async () => '100'), getCommentRaw: vi.fn(async () => structuredClone(comment)) }
+  const client = { realm: NOTES_REALM, chainId: GNO_CHAIN_ID, assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(note)), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '0', paused: false })), height: vi.fn(async () => '100'), getCommentRaw: vi.fn(async () => structuredClone(comment)) }
   const options: CommentRequestOptions = { client, session, intents, maxDepositUgnot: '3000000', isWriteEnabled: () => true,
     operation: { caller: owner, noteId, commentId, operationId, action: { kind: 'add', bodyRevision: '2', epoch: '0', anchor: 'Quoted', body: 'Reply' } },
     quote: async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: '110', expiresAtMs: Date.now() + 60000, source: 'bounded-estimate', estimatedDepositUgnot: '2000000', maxDepositUgnot: '3000000', gasWanted: 80000000, networkFeeUgnot: 100000 }) }
   const wallet = { ...liveWallet({ address: owner }), DoContract: vi.fn(async () => ({ status: 'success', data: { hash: txHash } })) }
   Object.assign(window, { adena: wallet })
-  return { options, session, intents, wallet, scope: { chainId: GNO_CHAIN_ID, realm: commentIntentRealm(noteId), owner, noteId: commentId }, apply: (patch = {}) => { comment = { ...applied(), ...patch } } }
+  return { options, session, intents, wallet, scope: { chainId: GNO_CHAIN_ID, realm: commentIntentRealm(NOTES_REALM, noteId), owner, noteId: commentId }, apply: (patch = {}) => { comment = { ...applied(), ...patch } } }
 }
 beforeEach(() => {
   clearRpcChainChecks(); __resetGasPriceCache(); setWalletRpcContext(STUB_WALLET_RPC, true, GNO_CHAIN_ID, owner); setTxConfirmationCallback(null); setWalletActionGuard(null)

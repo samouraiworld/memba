@@ -3,7 +3,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { bech32Encode } from '../../dao/realmAddress'
 import { createDraftSession } from '../drafts'
-import { blob, NOTES_REALM } from '../chain/schema'
+import { blob } from '../chain/schema'
+import { NOTES_REALM } from '../chain/__fixtures__/deployment'
 import { parseBackup } from '../crypto/backup'
 import { NotesIdentityController } from './controller'
 import type { IdentityChainState } from './controller'
@@ -79,7 +80,7 @@ describe('RAM-only identity lifecycle', () => {
     expect(s.controller.getSnapshot()).toMatchObject({ phase: 'prepared', recoveryConfirmed: false })
     expect(() => s.controller.preparedPlan()).toThrow()
     s.controller.confirmRecovery(output.phrase)
-    const plan = s.controller.preparedPlan(), messages = identitySetupMessages(plan, who, golden.chainId, { registryUgnot: '1000000', backupUgnot: '500000' })
+    const plan = s.controller.preparedPlan(), messages = identitySetupMessages(plan, who, { chainId: golden.chainId, realm: NOTES_REALM }, { registryUgnot: '1000000', backupUgnot: '500000' })
     expect(messages.map(message => message.value.func)).toEqual(['RegisterKey', 'SetSeedBackup'])
     expect(messages[0].value.args).toEqual(['xwing-v1', '0', expect.any(String), expect.any(String)])
     expect((messages[1].value.args as string[])[0]).toBe('0')
@@ -142,7 +143,7 @@ describe('RAM-only identity lifecycle', () => {
     const records = readRecoveryFile(output.exportText)
     expect(records.map(value => parseBackup(value.backup).binding.generation)).toEqual([2n, 1n])
     expect(parseBackup(plan.backup).binding.mode).toBe('vault')
-    expect(() => identitySetupMessages({ ...plan, generation: 3n }, who, golden.chainId, { registryUgnot: '0', backupUgnot: '0' })).toThrow()
+    expect(() => identitySetupMessages({ ...plan, generation: 3n }, who, { chainId: golden.chainId, realm: NOTES_REALM }, { registryUgnot: '0', backupUgnot: '0' })).toThrow()
   })
   it('fails closed for missing backups, invalid recovery files and disposed controllers', async () => {
     const s = setup({ ...registered(), backup: null }); await s.controller.refresh()

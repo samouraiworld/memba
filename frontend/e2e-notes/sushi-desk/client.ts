@@ -8,7 +8,8 @@ import recipe from '../sushi/recipe.md?raw'
 const bytes = (text: string) => new TextEncoder().encode(text)
 export class NotesReadClient {
     readonly chainId: string
-    constructor(private context: NotesReadContext) { this.chainId = context.chainId; audit.clients.push(context) }
+    readonly realm: string
+    constructor(private context: NotesReadContext) { this.chainId = context.chainId; this.realm = context.deployment.realm; audit.clients.push(context) }
     assertCurrent() { if (!this.context.isCurrent()) throw new Error('Fixture read lifetime ended') }
     async note(id: string): Promise<ChainNote | null> {
         this.assertCurrent()

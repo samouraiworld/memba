@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createFeaturedNoteStorage, type FeaturedLocks, type FeaturedStorageOptions } from './featuredNoteStorage'
 import { planFeaturedNoteSeeds, removeFeaturedDeskItem, resetFeaturedDesk, type FeaturedDesk, type FeaturedDeskItem, type FeaturedDeskRules, type FeaturedNoteRelease } from './featuredNoteSeed'
-import { NOTES_REALM } from './chain/schema'
+import { NOTES_REALM } from './chain/__fixtures__/deployment'
 import { bech32Encode } from '../dao/realmAddress'
 
 const scope = { chainId: 'test-chain', wallet: null }

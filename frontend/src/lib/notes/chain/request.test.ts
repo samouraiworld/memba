@@ -10,7 +10,7 @@ import { publicNoteMessage, type PublicNoteOperation } from './messages'
 import { recoverPublicIntent } from './recovery'
 import { notesRequestDigest, preparePublicNoteRequest } from './request'
 import type { NotesQuoteProvider, PublicRequestOptions } from './request'
-import { NOTES_REALM } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 import type { ChainNote } from './schema'
 
 const wallet = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn() }))
@@ -28,7 +28,7 @@ function setup() {
   const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store)
   const session = createDraftSession(), intents = createNotesIntents(store)
   let current: ChainNote | null = baseNote(), enabled = true, height = '100', publicWrites = false
-  const client = { publicCapabilities: vi.fn(async () => current ? parsePublicCapabilities({ schema: 'memba-notes/public-capabilities/v1', id: current.id, state_revision: current.stateRevision, owner_generation: current.ownerGeneration, mode: current.mode, deleted: current.deleted, allow_public_writes: publicWrites }) : null), writersRaw: vi.fn(async () => []), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => height), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
+  const client = { realm: NOTES_REALM, publicCapabilities: vi.fn(async () => current ? parsePublicCapabilities({ schema: 'memba-notes/public-capabilities/v1', id: current.id, state_revision: current.stateRevision, owner_generation: current.ownerGeneration, mode: current.mode, deleted: current.deleted, allow_public_writes: publicWrites }) : null), writersRaw: vi.fn(async () => []), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => height), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
   const operation: PublicNoteOperation = { caller: owner, noteId, operationId, action: { kind: 'commit', revision: '1', epoch: '0', body: 'New' } }
   const quote: NotesQuoteProvider = async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: (BigInt(input.height) + 10n).toString(), expiresAtMs: Date.now() + 60000, source: 'bounded-estimate', estimatedDepositUgnot: '100', maxDepositUgnot: '1000', gasWanted: 100000, networkFeeUgnot: 1000 })
   const options: PublicRequestOptions = { client, operation, maxDepositUgnot: '1000', draftLocalRevision: '5', session, intents, quote, isWriteEnabled: () => enabled, onConfirmed: vi.fn() }
@@ -86,7 +86,7 @@ describe('Notes signing intentions', () => {
     expect(await recoverPublicIntent(s.options.client, s.intents, receipt, s.session)).toBe('confirmed')
     expect(wallet.send).toHaveBeenCalledOnce()
     expect((await s.intents.begin({ ...receipt, action: 'comments' }, s.session)).status).toBe('invalid')
-    expect(() => publicNoteMessage({ ...s.options.operation, action: { kind: 'public-writes', revision: '1', enabled: 'true' as unknown as boolean } }, '100')).toThrow()
+    expect(() => publicNoteMessage({ ...s.options.operation, action: { kind: 'public-writes', revision: '1', enabled: 'true' as unknown as boolean } }, '100', { realm: NOTES_REALM })).toThrow()
   })
 
   it('persists before wallet and signs exact reviewed calls without modifying the draft', async () => {

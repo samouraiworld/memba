@@ -1,4 +1,4 @@
-import { address, check, id, NOTES_REALM, record } from './chain/schema'
+import { address, check, id, record, validNotesRealm } from './chain/schema'
 
 export type FeaturedReleaseKey = 'sushi-v1'
 export const FEATURED_RELEASE_KEYS = ['sushi-v1'] as const
@@ -69,8 +69,8 @@ export function encodeFeaturedDesk(desk: FeaturedDesk, scope: FeaturedPartition,
 export function validateFeaturedRelease(value: unknown, chainId: string): FeaturedNoteRelease {
   const r = record(value, ['releaseKey', 'chainId', 'realm', 'version', 'noteId', 'mode', 'deleted', 'owner'])
   check(FEATURED_RELEASE_KEYS.includes(r.releaseKey as FeaturedReleaseKey) && r.chainId === chainId
-    && r.realm === NOTES_REALM && r.version === 1 && r.mode === 4 && r.deleted === false)
-  return { releaseKey: r.releaseKey as FeaturedReleaseKey, chainId, realm: NOTES_REALM, version: 1,
+    && validNotesRealm(r.realm) && r.version === 1 && r.mode === 4 && r.deleted === false)
+  return { releaseKey: r.releaseKey as FeaturedReleaseKey, chainId, realm: r.realm, version: 1,
     noteId: id(r.noteId), mode: 4, deleted: false, owner: address(r.owner) }
 }
 export function planFeaturedNoteSeeds(input: FeaturedDesk, scope: FeaturedPartition, rules: FeaturedDeskRules, reviewed: readonly FeaturedNoteRelease[]) {

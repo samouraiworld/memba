@@ -58,7 +58,7 @@ describe('draft rebase planning', () => {
         await expect(planDraftRebase(client({ '4': { title: utf8('Groceries'), bodyRevision: '2', recordedSeq: '6', bodySha256: 'f'.repeat(64) } }), mine, latest)).rejects.toThrow('format')
     })
     it('treats a deleted or missing base version as unverifiable, never as empty text', async () => {
-        for (const versions of [{}, { '4': { title: null, bodyRevision: null, deleted: true } }]) {
+        for (const versions of [{}, { '4': { title: null, bodyRevision: null, deleted: true } }] as Record<string, Version>[]) {
             expect(await planDraftRebase(client(versions), { title: 'Groceries', body: 'mine', base }, latest)).toMatchObject({ kind: 'conflict', fields: ['body'] })
         }
         expect(history.body).not.toHaveBeenCalled()

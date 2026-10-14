@@ -1,7 +1,6 @@
 import { isValidGnoAddressChecksum } from '../../dao/address'
 import { decodeGoQuoted } from '../../goQuote'
 
-export const NOTES_REALM = 'gno.land/r/samcrew/memba_notes_v1'
 export const NOTES_REGISTRY = 'gno.land/r/samcrew/enckeys_v1'
 export const KEY_SUITE = 'xwing-v1'
 export class NotesChainError extends Error {
@@ -10,6 +9,12 @@ export class NotesChainError extends Error {
   }
 }
 export function check(ok: unknown): asserts ok { if (!ok) throw new NotesChainError('format') }
+/** A realm path such as gno.land/r/samcrew/memba_notes_v1 (at most 128 bytes, as the crypto bindings encode it). */
+export function validNotesRealm(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 128 && /^gno\.land\/r\/[a-z0-9_]+(?:\/[a-z0-9_]+)+$/.test(value)
+}
+/** The Notes realm path of a deployment entry; there is no default path. */
+export function realmPath(value: unknown): string { check(validNotesRealm(value)); return value }
 export function record(value: unknown, keys: string[], optional: string[] = []): Record<string, unknown> {
   check(value && typeof value === 'object' && !Array.isArray(value))
   const object = value as Record<string, unknown>
@@ -101,10 +106,10 @@ export function parsePage(value: unknown, limit: number): NotesPage {
   return { items, nextCursor }
 }
 export interface ChainConfig { realm: string; admin: string; pendingAdmin: string; treasury: string; createFeeUgnot: string; paused: boolean }
-export function parseConfig(value: unknown): ChainConfig {
+export function parseConfig(value: unknown, realm: string): ChainConfig {
   const v = record(value, ['realm', 'admin', 'pending_admin', 'treasury', 'create_fee_ugnot', 'paused'])
-  check(v.realm === NOTES_REALM && typeof v.paused === 'boolean')
-  return { realm: NOTES_REALM, admin: address(v.admin), pendingAdmin: address(v.pending_admin, true), treasury: address(v.treasury), createFeeUgnot: decimal(v.create_fee_ugnot, 63), paused: v.paused }
+  check(v.realm === realmPath(realm) && typeof v.paused === 'boolean')
+  return { realm, admin: address(v.admin), pendingAdmin: address(v.pending_admin, true), treasury: address(v.treasury), createFeeUgnot: decimal(v.create_fee_ugnot, 63), paused: v.paused }
 }
 export interface ChainKey { address: string; generation: string; active: boolean; publicKey: Uint8Array; operationId: string; height: string }
 export function parseKey(value: unknown, expectedAddress: string): ChainKey {

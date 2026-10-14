@@ -1,6 +1,6 @@
 import type { AminoMsg } from '../../grc20'
 import { commentText } from './comments'
-import { address, check, decimal, encode64, id, NOTES_REALM } from './schema'
+import { address, check, decimal, encode64, id, realmPath } from './schema'
 
 export type CommentAction =
   | { kind: 'add'; bodyRevision: string; epoch: string; parent?: string; anchor: string; body: string }
@@ -13,8 +13,9 @@ function textArg(value: string, anchor = false): string {
   check(typeof value === 'string' && value.length <= (anchor ? 600 : 4000))
   const bytes = new TextEncoder().encode(value); check(commentText(bytes, anchor) === value); return encode64(bytes)
 }
-export function publicCommentMessage(operation: CommentOperation, maxDepositUgnot: string): AminoMsg {
-  const caller = address(operation.caller), note = idArg(operation.noteId), comment = idArg(operation.commentId), op = idArg(operation.operationId)
+/** `realm` is the deployment's Notes realm path. */
+export function publicCommentMessage(operation: CommentOperation, maxDepositUgnot: string, realm: string): AminoMsg {
+  const notesRealm = realmPath(realm), caller = address(operation.caller), note = idArg(operation.noteId), comment = idArg(operation.commentId), op = idArg(operation.operationId)
   const a = operation.action; let func: string, args: string[]
   switch (a.kind) {
     case 'add':
@@ -25,5 +26,5 @@ export function publicCommentMessage(operation: CommentOperation, maxDepositUgno
     case 'hide': check(typeof a.hidden === 'boolean'); func = 'HideComment'; args = [note, comment, decimal(a.revision, 64, true), String(a.hidden), op]; break
     default: throw new Error('Unknown comment operation')
   }
-  return { type: 'vm/MsgCall', value: { caller, send: '', pkg_path: NOTES_REALM, func, args, max_deposit: `${decimal(maxDepositUgnot, 63)}ugnot` } }
+  return { type: 'vm/MsgCall', value: { caller, send: '', pkg_path: notesRealm, func, args, max_deposit: `${decimal(maxDepositUgnot, 63)}ugnot` } }
 }

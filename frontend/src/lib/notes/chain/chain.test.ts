@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bech32Encode } from '../../dao/realmAddress'
 import { NotesReadClient } from './client'
 import { publicNoteMessage } from './messages'
-import { blob, decodeResponse, encode64, NOTES_REALM, parseConfig, parseKey, parseNote, parsePage } from './schema'
+import { blob, decodeResponse, encode64, parseConfig, parseKey, parseNote, parsePage } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 import keeper from './__fixtures__/keeper-public.json'
 
 const rpc = vi.hoisted(() => ({ query: vi.fn(), identity: vi.fn(), direct: vi.fn(), url: 'https://rpc.test' }))
@@ -43,7 +44,7 @@ it('bounds private metadata/wrap expressions and rejects query injection before 
 })
 describe('strict getter schemas', () => {
   it('parses actual keeper e75 qeval outputs from the realm integration suite', () => {
-    const note = parseNote(decodeResponse(keeper.note)), config = parseConfig(decodeResponse(keeper.config))
+    const note = parseNote(decodeResponse(keeper.note)), config = parseConfig(decodeResponse(keeper.config), NOTES_REALM)
     expect(new TextDecoder().decode(note.title)).toBe('Fixture title 😀')
     expect(new TextDecoder().decode(note.body)).toBe('Public fixture body')
     expect(note.height).toBe('42'); expect(note.mode).toBe(3)
@@ -156,10 +157,28 @@ describe('bound network reads', () => {
     const context = { chainId: 'test-chain', deployment: { realm: NOTES_REALM, version: 1 as const }, rpcUrls: [rpc.url], isCurrent: () => true }
     expect(() => new NotesReadClient({ ...context, chainId: 'other' })).toThrow()
     expect(() => new NotesReadClient({ ...context, rpcUrls: ['https://evil.test'] })).toThrow()
-    expect(() => new NotesReadClient({ ...context, deployment: { realm: 'gno.land/r/evil', version: 1 } })).toThrow()
+    for (const realm of ['', 'gno.land/r/evil', 'gno.land/p/samcrew/memba_notes_v1', 'gno.land/r/samcrew/Notes', 'gno.land/r/samcrew/notes/', 'gno.land/r/samcrew/notes")']) {
+      expect(() => new NotesReadClient({ ...context, deployment: { realm, version: 1 } })).toThrow('format')
+    }
     await expect(client().note('");Attack()')).rejects.toThrow()
     await expect(client().byOwner(owner, '"', 50)).rejects.toThrow()
     expect(rpc.query).not.toHaveBeenCalled()
+  })
+  it('reads, checks the config and builds messages under the realm path of its deployment entry', async () => {
+    const rehearsal = 'gno.land/r/samcrew/memba_notes_rehearsal'
+    const c = new NotesReadClient({ chainId: 'test-chain', deployment: { realm: rehearsal, version: 1 }, rpcUrls: [rpc.url], isCurrent: () => true })
+    expect(c.realm).toBe(rehearsal)
+    rpc.query.mockResolvedValueOnce({ kind: 'ok', text: quote({ ...configJSON(), realm: rehearsal }) })
+    await expect(c.config()).resolves.toMatchObject({ realm: rehearsal })
+    expect(rpc.query.mock.calls.at(-1)?.[1]).toBe(`${rehearsal}.ConfigJSON()`)
+    // A config that names another realm is not this deployment.
+    rpc.query.mockResolvedValueOnce({ kind: 'ok', text: quote(configJSON()) })
+    await expect(c.config()).rejects.toThrow('format')
+    rpc.query.mockResolvedValueOnce({ kind: 'ok', text: quote([]) })
+    await c.readersRaw(noteId); expect(rpc.query.mock.calls.at(-1)?.[1]).toBe(`${rehearsal}.ReadersJSON("${noteId}")`)
+    const op = { caller: owner, noteId, operationId, action: { kind: 'delete' as const, revision: '1' } }
+    expect(publicNoteMessage(op, '1000', c).value.pkg_path).toBe(rehearsal)
+    expect(() => publicNoteMessage(op, '1000', { realm: 'gno.land/p/samcrew/memba_notes_v1' })).toThrow('format')
   })
   it('rechecks session after the endpoint probe and after the query', async () => {
     let current = true
@@ -209,23 +228,23 @@ describe('bound network reads', () => {
 })
 describe('canonical public messages', () => {
   it('encodes exact keeper args, exact fee and explicit storage cap', () => {
-    expect(publicNoteMessage({ caller: owner, noteId, operationId, action: { kind: 'create', mode: 3, title: 'Note', body: 'é', maxFeeUgnot: '100000' } }, '220000', parseConfig(configJSON()))).toEqual({
+    expect(publicNoteMessage({ caller: owner, noteId, operationId, action: { kind: 'create', mode: 3, title: 'Note', body: 'é', maxFeeUgnot: '100000' } }, '220000', parseConfig(configJSON(), NOTES_REALM))).toEqual({
       type: 'vm/MsgCall', value: { caller: owner, pkg_path: NOTES_REALM, func: 'CreateNote', send: '100000ugnot', max_deposit: '220000ugnot', args: ['AQEBAQEBAQEBAQEBAQEBAQ==', '3', 'Tm90ZQ==', 'w6k=', '', '', '100000', 'AgICAgICAgICAgICAgICAg=='] },
     })
   })
   it('retains title/body CAS distinctions and never sends funds on edits', () => {
     const action = { kind: 'commit' as const, revision: '9007199254740993', epoch: '7', body: '' }
-    const message = publicNoteMessage({ caller: owner, noteId, operationId, action }, '1000')
+    const message = publicNoteMessage({ caller: owner, noteId, operationId, action }, '1000', { realm: NOTES_REALM })
     expect(message.value.args).toEqual(['AQEBAQEBAQEBAQEBAQEBAQ==', '9007199254740993', '7', '2', '', '', 'AgICAgICAgICAgICAgICAg=='])
     expect(message.value.send).toBe('')
   })
   it('rejects fee changes beyond cap, invalid Unicode/title and unsafe deposit', () => {
     const action = { kind: 'create' as const, mode: 3 as const, title: 'Note', body: '', maxFeeUgnot: '99999' }
     const op = { caller: owner, noteId, operationId, action }
-    expect(() => publicNoteMessage(op, '0', parseConfig(configJSON()))).toThrow()
+    expect(() => publicNoteMessage(op, '0', parseConfig(configJSON(), NOTES_REALM))).toThrow()
     for (const title of ['\u0085Note', 'Note\u0085', 'Note\u200b', 'a/b', '\ud800', 'é'.repeat(81)]) {
-      expect(() => publicNoteMessage({ ...op, action: { ...action, title, maxFeeUgnot: '100000' } }, '0', parseConfig(configJSON()))).toThrow()
+      expect(() => publicNoteMessage({ ...op, action: { ...action, title, maxFeeUgnot: '100000' } }, '0', parseConfig(configJSON(), NOTES_REALM))).toThrow()
     }
-    expect(() => publicNoteMessage({ ...op, action: { kind: 'delete', revision: '1' } }, '9223372036854775808')).toThrow()
+    expect(() => publicNoteMessage({ ...op, action: { kind: 'delete', revision: '1' } }, '9223372036854775808', { realm: NOTES_REALM })).toThrow()
   })
 })

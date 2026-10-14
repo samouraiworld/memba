@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bech32Encode } from '../dao/realmAddress'
-import { NOTES_REALM } from './chain/schema'
+import { NOTES_REALM } from './chain/__fixtures__/deployment'
 import { decodeFeaturedDesk, encodeFeaturedDesk, featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, resetFeaturedDesk, validateFeaturedRelease, type FeaturedDeskItem, type FeaturedDeskRules, type FeaturedNoteRelease, type FeaturedReleaseKey } from './featuredNoteSeed'
 
 const scope = { chainId: 'test-chain', wallet: null }

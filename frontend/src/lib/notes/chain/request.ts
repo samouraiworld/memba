@@ -7,7 +7,7 @@ import type { DraftSession, NotesWriteResult } from '../drafts'
 import type { NotesIntentInput, NotesIntents, NotesOperationEvidence } from '../intents'
 import { publicNoteMessage } from './messages'
 import type { PublicNoteOperation } from './messages'
-import { check, decimal, NOTES_REALM, NotesChainError } from './schema'
+import { check, decimal, NotesChainError } from './schema'
 import type { ChainNote } from './schema'
 import type { PublicCapabilities } from './capabilities'
 import { publicIntentEvidence, publicVerification } from './recovery'
@@ -67,8 +67,8 @@ async function verifyBase(client: NotesReadClient, operation: PublicNoteOperatio
   }
 }
 /** A later operation or a visually identical note is not evidence for this write. */
-export function publicOperationEvidence(input: NotesIntentInput, operation: PublicNoteOperation, base: ChainNote | null, note: ChainNote | null, afterHeight: string, capabilities?: PublicCapabilities | null): NotesOperationEvidence | null {
-  return publicIntentEvidence({ ...input, verification: input.verification ?? publicVerification(operation, base, afterHeight) }, note, capabilities)
+export function publicOperationEvidence(realm: string, input: NotesIntentInput, operation: PublicNoteOperation, base: ChainNote | null, note: ChainNote | null, afterHeight: string, capabilities?: PublicCapabilities | null): NotesOperationEvidence | null {
+  return publicIntentEvidence(realm, { ...input, verification: input.verification ?? publicVerification(operation, base, afterHeight) }, note, capabilities)
 }
 /** No wallet opens here. The request records its complete intention before invoking the broadcaster. */
 export async function preparePublicNoteRequest(options: PublicRequestOptions): Promise<SignRequest> {
@@ -88,7 +88,7 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
   const quote = structuredClone(await options.quote(structuredClone(quoteInput))); current(); validateNotesQuote(quote, quoteInput, cap)
   const resultingRevision = decimal((BigInt(expectedRevision(operation)) + 1n).toString(), 64, true)
   const input = {
-    scope: { chainId: client.chainId, realm: NOTES_REALM, owner: operation.caller, noteId: operation.noteId },
+    scope: { chainId: client.chainId, realm: client.realm, owner: operation.caller, noteId: operation.noteId },
     operationId: operation.operationId, actor: operation.caller, action: operation.action.kind, requestDigest: quoteInput.requestDigest,
     expectedStateRevision: expectedRevision(operation), resultingStateRevision: resultingRevision, expectedEpoch: base?.epoch ?? '0',
     ownerGeneration: base?.ownerGeneration ?? '1', draftLocalRevision,
@@ -110,7 +110,7 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
     title: label,
     summary: `${operation.action.kind}: public note ${operation.noteId}`,
     lines: () => [
-      ['Account', operation.caller], ['Network', client.chainId], ['Realm', NOTES_REALM],
+      ['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm],
       ['Operation', operation.operationId], ['Note', operation.noteId],
       ['Publication fee', gnotAmount(operation.action.kind === 'create' ? config.createFeeUgnot : '0')],
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Estimated storage deposit', gnotAmount(quote.estimatedDepositUgnot)],
@@ -146,7 +146,7 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
     verify: async (_choice, hash) => {
       current(); const note = await client.note(operation.noteId); current()
       const capabilities = operation.action.kind === 'public-writes' ? await client.publicCapabilities(operation.noteId) : undefined; current()
-      const evidence = publicOperationEvidence(input, operation, base, note, height, capabilities)
+      const evidence = publicOperationEvidence(client.realm, input, operation, base, note, height, capabilities)
       if (!evidence) return false
       if (hash) evidence.txHash = hash
       saved(await intents.confirm(input.scope, input.operationId, evidence, session))

@@ -141,6 +141,17 @@ describe("F02 durable verification descriptors", () => {
         expect(await second.intents.settle(fixture.scope, fixture.operationId, "not-sent", second.session)).toEqual({ status: "conflict" })
     })
 
+    it("keeps receipts under the realm path of whichever deployment made them, scoped by kind", async () => {
+        const { intents, session } = setup(), other = "gno.land/r/samcrew/memba_notes_rehearsal"
+        const access = descriptors.find(d => d.name === "access")!.fixture, comment = descriptors.find(d => d.name === "private-comment")!.fixture
+        expect(await intents.begin({ ...access, scope: { ...access.scope, realm: other } }, session)).toMatchObject({ status: "saved" })
+        expect(await intents.begin({ ...comment, scope: { ...comment.scope, realm: `${other}/comments/${"ef".repeat(16)}` } }, session)).toMatchObject({ status: "saved" })
+        for (const realm of [`${other}/comments/${"ab".repeat(16)}`, `${other}/comments/${"ef".repeat(16)}/comments/${"ef".repeat(16)}`, "gno.land/r/samcrew/enckeys_v1"]) {
+            expect(await intents.begin({ ...comment, operationId: "77".repeat(16), scope: { ...comment.scope, realm } }, session)).toEqual({ status: "invalid" })
+        }
+        expect(await intents.begin({ ...access, operationId: "77".repeat(16), scope: { ...access.scope, realm: "gno.land/r/samcrew/enckeys_v1" } }, session)).toEqual({ status: "invalid" })
+    })
+
     it.each(descriptors)("rejects malformed $name without changing durable receipts", async ({ fixture }) => {
         const { intents, store, session } = setup()
         await intents.begin(input, session)
@@ -148,7 +159,8 @@ describe("F02 durable verification descriptors", () => {
         const before = await rawReceipts(store)
         const changeProof = (patch: Record<string, unknown>): NotesIntentInput => ({ ...fixture, verification: { ...fixture.verification!, ...patch } as NotesIntentInput["verification"] })
         const rejected: NotesIntentInput[] = [
-            { ...fixture, scope: { ...fixture.scope, realm: "gno.land/r/wrong/realm" } }, { ...fixture, action: "wrongAction" },
+            // Each network names its own realm path, so a receipt is checked for a realm path of its kind, not one fixed path.
+            { ...fixture, scope: { ...fixture.scope, realm: "gno.land/p/wrong/realm" } }, { ...fixture, scope: { ...fixture.scope, realm: "gno.land/r/Wrong realm" } }, { ...fixture, action: "wrongAction" },
             { ...fixture, expectedEpoch: "01" }, { ...fixture, resultingStateRevision: String(BigInt(fixture.expectedStateRevision) + 2n) },
             changeProof({ secret: "must never persist" }), changeProof({ quoteHeight: "0" }), changeProof({ quoteHeight: "9223372036854775808" }),
         ]
