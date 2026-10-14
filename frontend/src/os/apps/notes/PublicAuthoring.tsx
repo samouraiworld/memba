@@ -289,7 +289,8 @@ function RebaseConflict({ plan, draft, store, published, onResolved }: {
                 : error instanceof DraftWriteUnknownError ? 'This device did not confirm whether your draft was updated. Your text is still in the editor.' : `Your draft could not be updated. Nothing was replaced. ${kept}`)
         } finally { if (!guard.signal.aborted) { working.current = false; setBusy(false) } }
     }
-    const theirs = differingLines(plan.theirs.body, mine.body), titles = plan.fields.includes('title')
+    // differingLines(mine, theirs): each column shows its own side of the overlap.
+    const lines = differingLines(mine.body, plan.theirs.body), titles = plan.fields.includes('title')
     return <div className="os-notes-conflict">
         <NoteBanner notice={{ tone: 'warn', title: 'Someone published a newer version', text: `(revision ${revision} by ${who}) that changes ${fields} as you. ${kept} Choose which version to publish.`,
             actions: !seen && <button className="os-btn" onClick={() => setSeen(true)}>See changes</button> }} />
@@ -297,13 +298,13 @@ function RebaseConflict({ plan, draft, store, published, onResolved }: {
             <div className="os-notes-version">
                 <h4>Revision {revision} · {latest.actor === owner ? 'you' : shortAddress(latest.actor)}</h4>
                 {titles && <p className="os-notes-version-title">{plan.theirs.title}</p>}
-                {plan.fields.includes('body') && <pre data-side="theirs">{theirs.theirs.join('\n') || '(lines removed)'}</pre>}
+                {plan.fields.includes('body') && <pre data-side="theirs">{lines.theirs.join('\n') || '(lines removed)'}</pre>}
                 <button className="os-btn os-quiet" disabled={busy} onClick={() => void choose(false)}>Use this version</button>
             </div>
             <div className="os-notes-version">
                 <h4>Your version</h4>
                 {titles && <p className="os-notes-version-title">{mine.title}</p>}
-                {plan.fields.includes('body') && <pre data-side="mine">{theirs.mine.join('\n') || '(lines removed)'}</pre>}
+                {plan.fields.includes('body') && <pre data-side="mine">{lines.mine.join('\n') || '(lines removed)'}</pre>}
                 <button className="os-btn os-quiet" disabled={busy} onClick={() => void choose(true)}>Use my version</button>
             </div>
             <p className="os-notes-hint">“Use this version” keeps your text as a separate note on this device. You can edit by hand after choosing; nothing is published until you press Publish.</p>

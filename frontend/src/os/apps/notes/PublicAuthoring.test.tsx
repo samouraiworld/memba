@@ -139,7 +139,12 @@ describe('public authoring durable workspace', () => {
         // Their version is shown before either choice exists.
         expect(screen.queryByRole('button', { name: 'Use my version' })).toBeNull(); expect(screen.queryByText('Published body')).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: 'See changes' }))
-        expect(screen.getByText('Published body')).toBeVisible()
+        // Each column shows its own side: their published lines under their revision, the user's lines under "Your version".
+        const column = (heading: RegExp) => screen.getByRole('heading', { name: heading }).closest('.os-notes-version') as HTMLElement
+        expect(within(column(/^Revision 3 · g1747…abcd$/)).getByText('Published body')).toBeVisible()
+        expect(within(column(/^Revision 3 · g1747…abcd$/)).queryByText('My text')).toBeNull()
+        expect(within(column(/^Your version$/)).getByText('My text')).toBeVisible()
+        expect(within(column(/^Your version$/)).queryByText('Published body')).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: 'Use my version' }))
         await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'My title', body: 'My text', base: { stateRevision: '3' } }))
         expect(await screen.findByText(/Your version now follows revision 3/)).toBeVisible()

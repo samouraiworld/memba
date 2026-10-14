@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: the version chooser shows each side in its own column (#1623, 2026-10-14)
+- When a newer published version overlaps your edit, "See changes" showed your lines under the other author's revision and theirs under "Your version". The choices themselves were right; the columns now show the right text. Found in the Onyx canary. Notes remains disabled in production.
+
 ### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
 - Notes history reads follow the storage-cut Notes realm (samcrew-deployer#363): an archived body is read by the history event that recorded its version (`public-history-body/v2`) and stays bound to that version's body revision and digest; draft rebasing reads the base version first, then its body.
 - The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts, featured-note releases and digests all use it, and a receipt or release naming another path is refused; there is no default path. The Onyx canary now reads the release candidate `gno.land/r/samcrew/memba_notes_rc1`; mainnet will use `gno.land/r/samcrew/memba_notes_v1`. Notes remains disabled pending deployment and reviewed activation.
