@@ -97,6 +97,54 @@ describe('public authoring durable workspace', () => {
         expect(screen.queryByRole('dialog', { name: 'Published' })).toBeNull(); expect(screen.getByRole('heading', { name: 'Published reader' })).toBeVisible()
         expect(screen.getByText(message)).toBeVisible()
     })
+    it('returns to the read page once the publication is confirmed, before View note (F19)', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        await edit(); await screen.findByText('Update controls')
+        expect(editor()).toBeVisible()
+        const confirmed = { ...note, stateRevision: '4', bodyRevision: '4', title: utf8('My title'), body: utf8('My text') }
+        mocks.note = confirmed
+        await act(async () => { mocks.publish!.onPublished!(confirmed); mocks.publish!.onProgress!({ kind: 'publish', title: 'My title', chainId: scope.chainId, step: 'done', revision: '4' }) })
+        expect(screen.getByRole('heading', { name: 'Published reader' })).toBeVisible()
+        expect(screen.queryByRole('region', { name: 'Draft editor' })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'View note' }))
+        expect(screen.queryByRole('dialog', { name: 'Published' })).toBeNull(); expect(screen.getByRole('heading', { name: 'Published reader' })).toBeVisible()
+    })
+    describe('a draft based on an older revision than the published one (F21)', () => {
+        it('never calls the newer published text unpublished changes, and offers to open or discard the draft', async () => {
+            const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+            mocks.plan.mockResolvedValue({ kind: 'conflict', latest: note, fields: ['body'], baseRevision: '1', theirs: { title: 'Published title', body: 'Published body' } })
+            render(<PublicAuthoring store={store} client={client} scope={scope} />)
+            expect(await screen.findByText('Your draft on this device is based on revision 1 — revision 3 is published.')).toBeVisible()
+            expect(screen.queryByText(/Unpublished changes/)).toBeNull()
+            expect(screen.getByText(/^Draft on this device · based on revision 1$/)).toBeVisible()
+            expect(screen.getByRole('button', { name: 'Open my draft' })).toBeEnabled()
+            const ask = vi.spyOn(window, 'confirm').mockReturnValue(true)
+            fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+            await waitFor(async () => expect(await store.getDraft(scope)).toBeNull()); expect(ask).toHaveBeenCalledOnce()
+            await waitFor(() => expect(screen.queryByText(/Your draft on this device is based on revision 1/)).toBeNull())
+            expect(screen.queryByText(/Draft on this device/)).toBeNull()
+        })
+        it('says a deleted note keeps its draft here and offers to remove it (F32)', async () => {
+            const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
+            mocks.note = { ...note, stateRevision: '4', deleted: true, body: new Uint8Array() }
+            render(<PublicAuthoring store={store} client={client} scope={scope} />)
+            expect(await screen.findByText('This note was deleted. Your draft of it is still on this device.')).toBeVisible()
+            expect(screen.queryByText(/Unpublished changes/)).toBeNull()
+            vi.spyOn(window, 'confirm').mockReturnValue(true)
+            fireEvent.click(screen.getByRole('button', { name: 'Remove my draft' }))
+            await waitFor(async () => expect(await store.getDraft(scope)).toBeNull())
+            await waitFor(() => expect(screen.queryByText(/This note was deleted/)).toBeNull())
+        })
+        it('follows the published text silently when the draft holds nothing of its own', async () => {
+            const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, title: 'Old title', body: 'Old body' }, session)
+            mocks.plan.mockResolvedValue({ kind: 'replace', latest: note, title: 'Published title', body: 'Published body' })
+            render(<PublicAuthoring store={store} client={client} scope={scope} />)
+            await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'Published title', body: 'Published body', base: { stateRevision: '3' } }))
+            await screen.findByRole('heading', { name: 'Published reader' })
+            expect(screen.queryByText(/Unpublished changes|based on revision 1/)).toBeNull()
+        })
+    })
     it('opens a draft of the latest revision unchanged and never drops unpublished text when leaving the editor', async () => {
         const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
         const save = vi.spyOn(store, 'saveDraft')
@@ -159,7 +207,8 @@ describe('public authoring durable workspace', () => {
         fireEvent.click(screen.getByRole('button', { name: 'See changes' })); fireEvent.click(screen.getByRole('button', { name: 'Use this version' }))
         await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'Published title', body: 'Published body', base: { stateRevision: '3' } }))
         const copies = (await store.listDrafts(scope)).filter(draft => draft.scope.noteId !== scope.noteId)
-        expect(copies).toHaveLength(1); expect(copies[0].payload).toEqual({ kind: 'public', title: 'My title', body: 'My text' })
+        // F26: the copy is told apart from the note in the list, and its page says where it came from.
+        expect(copies).toHaveLength(1); expect(copies[0].payload).toEqual({ kind: 'public', title: 'My title (my version)', body: 'My text', copyOf: { noteId: scope.noteId, title: 'Published title' } })
     })
     it('never offers the creation panel for a note that already exists', async () => {
         const { store, session, client } = setup(); await store.saveDraft(scope, '0', { kind: 'public', title: 'Draft before creation', body: 'Different text' }, session)

@@ -12,6 +12,7 @@ import { notesRequestDigest, type NotesQuote, type NotesQuoteProvider } from './
 import { check, decimal, NotesChainError, publicText, realmPath, type ChainNote } from './schema'
 import { readPublicWritePermission } from './publicPermissions'
 import { gnotAmount } from './quote'
+import { QuoteExpiredError } from '../../../os/sign/expired'
 
 type Client = Pick<NotesReadClient, 'chainId' | 'realm' | 'assertCurrent' | 'note' | 'noteMetadata' | 'writersRaw' | 'config' | 'height' | 'getCommentRaw'>
 export interface CommentRequestOptions {
@@ -90,7 +91,9 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
   const recheck = async () => {
     allowed(); const [now, h] = await Promise.all([read(), client.height()]); allowed()
     if (op.action.kind !== 'delete' && (now.note.stateRevision !== base.note.stateRevision || now.note.ownerGeneration !== base.note.ownerGeneration)) throw new NotesChainError('stale')
-    if (Date.now() >= quote.expiresAtMs || BigInt(h) > BigInt(quote.expiresAtHeight) || BigInt(h) < BigInt(height)) throw new NotesChainError('stale')
+    if (BigInt(h) < BigInt(height)) throw new NotesChainError('stale')
+    // Safe, and said plainly (F7): nothing was sent, the comment is kept.
+    if (Date.now() >= quote.expiresAtMs || BigInt(h) > BigInt(quote.expiresAtHeight)) throw new QuoteExpiredError()
     await assertFeeStillCovers(quote.networkFeeUgnot, () => freshFeeForGasWanted(quote.gasWanted)); allowed()
   }
   const label = op.action.kind === 'add' ? 'Post public comment' : op.action.kind === 'delete' ? 'Delete comment'
@@ -102,7 +105,7 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     // One confirmation: which note and comment, what changes and what it costs; only identifiers and raw arguments fold away.
     lines: () => [
       ['Note', noteTitle],
-      ...(op.action.kind === 'add' ? [['Comment', op.action.body], ...(op.action.anchor ? [['Quote', op.action.anchor]] : []), ['On revision', op.action.bodyRevision]] as [string, string][]
+      ...(op.action.kind === 'add' ? [['Comment', op.action.body], ...(op.action.anchor ? [['Quote', op.action.anchor]] : []), ['On', op.action.bodyRevision === base.note.bodyRevision ? `The current text (revision ${base.note.stateRevision})` : 'An earlier text of the note']] as [string, string][]
         : base.comment ? [['Comment by', shortAddress(base.comment.author)], ['Comment', excerpt(base.comment.body) || (base.comment.deleted ? 'Deleted comment' : 'Comment without text')]] as [string, string][] : []),
       ...(parentId ? [['Reply to', parent ? `${shortAddress(parent.author)}: ${excerpt(parent.body) || 'deleted comment'}` : 'a comment that is no longer available']] as [string, string][] : []),
       ...targetState,

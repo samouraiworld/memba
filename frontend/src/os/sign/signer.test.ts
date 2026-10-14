@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { clearGovernanceMemory, readGovernanceReceipt, type GovernanceScope } from "../../lib/dao/governanceRecovery"
 import { ChainRejectedError, doContractBroadcast, setTxConfirmationCallback, type AminoMsg } from "../../lib/grc20"
 import { executeSignature, verifyWithRetries, WALLET_QUIET_MS, WALLET_SILENT_MS, WATCH_MS, type SignRequest } from "./signer"
+import { QuoteExpiredError } from "./expired"
 
 const msg: AminoMsg = { type: "vm/MsgCall", value: { caller: "g1x", send: "", pkg_path: "gno.land/r/alice/team", func: "Vote", args: ["1", "YES"] } }
 const scope: GovernanceScope = { chainId: "gnoland-1", realmPath: "gno.land/r/alice/team", caller: "g1x", operation: "vote:1" }
@@ -340,6 +341,14 @@ describe("executeSignature", () => {
         expect(said).toEqual({ outcome: "failed", error: "This offer has closed. Nothing was sent." })
         const unlabelled = await executeSignature({ ...request({}), label: () => { throw new Error("The draft is incomplete.") } }, "YES", [msg], () => {})
         expect(unlabelled).toEqual({ outcome: "failed", error: "The draft is incomplete. Nothing was sent." })
+    })
+
+    it("says in plain words that an expired price quote stopped the request, and marks it so the review can quote again", async () => {
+        const onNothingSent = vi.fn()
+        const res = await executeSignature(request({ recheck: async () => { throw new QuoteExpiredError() }, onNothingSent }), "YES", [msg], () => {})
+        expect(res).toEqual({ outcome: "failed", error: "The price quote expired. Nothing was sent.", expired: true })
+        expect(onNothingSent).toHaveBeenCalledOnce()
+        expect(readGovernanceReceipt(scope)).toBeNull()
     })
 
     it("calls onNothingSent when the request stopped before the wallet, and not for an unknown or sent outcome", async () => {

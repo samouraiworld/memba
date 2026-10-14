@@ -9,7 +9,7 @@ describe('accessible quote location', () => {
         const root = preview('<p>A <strong>private quote</strong> here</p>')
         render(<AnchorQuote quote="private quote" bodyRevision="1" currentBodyRevision="2" previewRoot={root} />)
         const button = await screen.findByRole('button', { name: 'Show quoted text' })
-        expect(screen.getByRole('status')).toHaveTextContent('earlier body revision'); fireEvent.click(button)
+        expect(screen.getByRole('status')).toHaveTextContent('Comment on an earlier text of the note.'); fireEvent.click(button)
         expect(window.getSelection()?.toString()).toBe('private quote')
         expect(root.querySelector('strong')).toHaveFocus()
         button.focus(); expect(root.querySelector('strong')).not.toHaveAttribute('tabindex')

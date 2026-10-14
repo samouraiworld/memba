@@ -79,7 +79,7 @@ export function PublicComments(props: PublicCommentsProps) {
     <p className="os-sub">Oldest first · Public: comments stay in chain history unless a moderator removes them.</p>
     <ol>{visible.items.map(comment => { const who = viewer && viewer === comment.author ? 'You' : short(comment.author), ago = when(comment.createdHeight); return <li key={comment.id}>
       <article className="os-notes-comment" aria-label={`Comment by ${who}`}>
-        <header><strong title={comment.author}>{who}</strong><span> · on revision {comment.bodyRevision}</span>{ago && <span> · {ago}</span>}{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
+        <header><strong title={comment.author}>{who}</strong><span> · {comment.bodyRevision === bodyRevision ? 'on the current text' : 'on an earlier text'}</span>{ago && <span> · {ago}</span>}{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
         {comment.parent && <p className="os-sub">Reply to {comment.parent}</p>}
         {comment.deleted ? <p>Deleted by the author</p> : isRedactedComment(comment) ? <p>Removed by moderation</p> : comment.hidden ? <p>Hidden by moderation</p> : comment.encrypted ? <p>Encrypted comment</p> : <>
           {comment.anchor && <AnchorQuote quote={comment.anchor} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}

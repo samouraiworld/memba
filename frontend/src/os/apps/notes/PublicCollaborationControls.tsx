@@ -114,7 +114,7 @@ function Controls({ note, client, store, owner, onChanged, manage, done, setDone
             </fieldset>
             : <><h3 className="os-notes-share-k">Who can edit</h3><p>{enabled ? 'Everyone with a wallet. Each edit is signed and kept in History.' : 'Only the owner.'}</p></>}
         {manage && changing && <footer className="os-notes-share-foot">
-            <p className="os-notes-cost">{budget ? <><b>≈ {approxGnot(budget.estimatedDepositUgnot)}</b> storage deposit {target ? 'to open editing' : 'to close editing'} <small>· at most {gnotAmount(budget.suggestedCapUgnot)}, plus the network fee</small></> : 'This change cannot be priced right now.'}</p>
+            <p className="os-notes-cost">{budget ? <><b>≈ {approxGnot(budget.estimatedDepositUgnot)}</b> storage deposit, not returned, {target ? 'to open editing' : 'to close editing'} <small>At most {gnotAmount(budget.suggestedCapUgnot)}, plus the network fee</small></> : 'This change cannot be priced right now.'}</p>
             <div className="os-notes-share-actions">
                 <button className="os-btn os-quiet" disabled={busy || signing} onClick={() => { setChoice(null); setNotice('') }}>Cancel</button>
                 <button className="os-btn" disabled={busy || blocked || signing || !budget} onClick={() => void apply()}>{busy ? 'Preparing…' : 'Apply with Adena'}</button>

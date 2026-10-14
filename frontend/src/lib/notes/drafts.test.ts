@@ -24,6 +24,14 @@ describe("transactional Notes drafts", () => {
         }
         expect((await first.getDraft(scope))?.localRevision).toBe("1")
     })
+    it("keeps which note a separate copy came from, and refuses a malformed origin", async () => {
+        const first = store(), session = createDraftSession(), copyOf = { noteId: "cd".repeat(16), title: "Sushi" }
+        expect((await first.saveDraft(scope, "0", { ...payload, copyOf }, session)).status).toBe("saved")
+        expect((await first.getDraft(scope))?.payload).toEqual({ ...payload, copyOf })
+        for (const bad of [{ noteId: "x", title: "Sushi" }, { noteId: "cd".repeat(16), title: "a".repeat(321) }, { noteId: "cd".repeat(16) }]) {
+            expect(await first.saveDraft(scope, "1", { ...payload, copyOf: bad as typeof copyOf }, session)).toEqual({ status: "invalid" })
+        }
+    })
     it("persists a public draft across connections and scopes account, realm and chain", async () => {
         const factory = new IDBFactory(), session = createDraftSession(), first = store(factory)
         const saved = await first.saveDraft(scope, "0", payload, session)

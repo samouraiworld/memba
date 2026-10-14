@@ -1,0 +1,34 @@
+{
+  "source": "samcrew-deployer b8c48a8 (#363), docs/evidence/notes-history-storage-2026-10-14.md, column 'after': TestNotesRealmPublicStorageDeposits on keeper runtime e75fef82, 100 ugnot/B, a warm-up note created first (steady state). Byte shapes are the test's: titles 'Sushi (Onyx canary)' (19 B) and 'Sushi (Onyx canary, edited by B)' (32 B), bodies 1,272 / 1,300 / 1,310 B, comment anchor 12 B and body 29 B. keeperGas is the upper end of the evidence's 'after' gas column.",
+  "realmLayout": "gno.land/r/samcrew/memba_notes_v1 at samcrew-deployer b8c48a8 (payload d12957a7); the Onyx rehearsal memba_notes_rc1 (payload cc8e7e5e) differs by 25 identity lines only",
+  "storagePriceUgnotPerByte": 100,
+  "limits": "Keeper level, no ante. Steady state means a few notes per tree; gas grows with tree depth, the deposit per insert stays about constant. Bodies above ~1.3 KB were not sampled on this layout.",
+  "rows": [
+    { "case": "create (steady state, highest of 4 runs)", "func": "CreateNote", "titleOrAnchorBytes": 19, "bodyBytes": 1272, "keeperGas": 39000000, "storageDepositDeltaUgnot": 2044500 },
+    { "case": "create (steady state, lowest of 4 runs)", "func": "CreateNote", "titleOrAnchorBytes": 19, "bodyBytes": 1272, "keeperGas": 39000000, "storageDepositDeltaUgnot": 2040300 },
+    { "case": "create (second note)", "func": "CreateNote", "titleOrAnchorBytes": 19, "bodyBytes": 1272, "keeperGas": 32200000, "storageDepositDeltaUgnot": 2042700 },
+    { "case": "SetPublicWrites on", "func": "SetPublicWrites", "args": ["true"], "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 23600000, "storageDepositDeltaUgnot": 668400 },
+    { "case": "Commit, body only", "func": "Commit", "titleOrAnchorBytes": 0, "bodyBytes": 1300, "keeperGas": 32000000, "storageDepositDeltaUgnot": 798000 },
+    { "case": "Rename", "func": "Rename", "titleOrAnchorBytes": 32, "bodyBytes": 0, "keeperGas": 29900000, "storageDepositDeltaUgnot": 672700 },
+    { "case": "Commit, title and body", "func": "Commit", "titleOrAnchorBytes": 19, "bodyBytes": 1310, "keeperGas": 33900000, "storageDepositDeltaUgnot": 910000 },
+    { "case": "Restore an earlier version (Commit, both fields)", "func": "Commit", "titleOrAnchorBytes": 32, "bodyBytes": 1272, "keeperGas": 34300000, "storageDepositDeltaUgnot": 908100 },
+    { "case": "AddComment, author's first on the note", "func": "AddComment", "titleOrAnchorBytes": 12, "bodyBytes": 29, "keeperGas": 27600000, "storageDepositDeltaUgnot": 1358700 },
+    { "case": "AddComment, another new author", "func": "AddComment", "titleOrAnchorBytes": 12, "bodyBytes": 29, "keeperGas": 28600000, "storageDepositDeltaUgnot": 1772900 },
+    { "case": "AddComment, same author again (reply)", "func": "AddComment", "titleOrAnchorBytes": 0, "bodyBytes": 29, "keeperGas": 31400000, "storageDepositDeltaUgnot": 1518800 },
+    { "case": "HideComment", "func": "HideComment", "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 26700000, "storageDepositDeltaUgnot": 389300 },
+    { "case": "ResolveComment", "func": "ResolveComment", "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 27000000, "storageDepositDeltaUgnot": 389900 },
+    { "case": "DeleteComment (author)", "func": "DeleteComment", "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 28100000, "storageDepositDeltaUgnot": 385600 },
+    { "case": "SetPublicWrites off", "func": "SetPublicWrites", "args": ["false"], "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 25600000, "storageDepositDeltaUgnot": 456200 },
+    { "case": "SetCommentMode off", "func": "SetCommentMode", "args": ["false"], "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 25200000, "storageDepositDeltaUgnot": 557400 },
+    { "case": "Delete note", "func": "Delete", "titleOrAnchorBytes": 0, "bodyBytes": 0, "keeperGas": 27200000, "storageDepositDeltaUgnot": 287200 }
+  ],
+  "onyxCanary": {
+    "source": "Owner two-wallet canary on onyx-1, gno.land/r/samcrew/memba_notes_rc1, 2026-10-14 (memba-mainnet-ceremony/onyx-notes-rc1-2026-10-14/UX_FEEDBACK.md). Each total is what the account spent for the transaction: storage deposit, network fee and, for a creation, the 0.1 GNOT create fee.",
+    "rows": [
+      { "case": "create, first note on the realm (body size not recorded: priced at title only)", "func": "CreateNote", "titleOrAnchorBytes": 18, "bodyBytes": 0, "createFeeUgnot": 100000, "totalSpentUgnot": 1637195 },
+      { "case": "first comment on the note ('Testing!')", "func": "AddComment", "titleOrAnchorBytes": 0, "bodyBytes": 8, "createFeeUgnot": 0, "totalSpentUgnot": 1332467 },
+      { "case": "SetPublicWrites on", "func": "SetPublicWrites", "args": ["true"], "titleOrAnchorBytes": 0, "bodyBytes": 0, "createFeeUgnot": 0, "totalSpentUgnot": 680336 },
+      { "case": "SetPublicWrites off", "func": "SetPublicWrites", "args": ["false"], "titleOrAnchorBytes": 0, "bodyBytes": 0, "createFeeUgnot": 0, "totalSpentUgnot": 473857 }
+    ]
+  }
+}

@@ -24,6 +24,7 @@ import {
 import { friendlyDaoError } from "../../lib/dao/errors"
 import { sameMsgs } from "./decode"
 import { isAdenaUnlockOpen, subscribeAdenaUnlock, WalletNetworkError } from "../../lib/walletNetworkGuard"
+import { QuoteExpiredError } from "./expired"
 
 /** What a request may fold away from the review: identifiers only. */
 export type TechnicalLabel = "Account" | "Note ID" | "Comment ID" | "Operation"
@@ -56,8 +57,13 @@ export interface SignRequest<C extends string = string> {
     retainConfirmedReceipt?: boolean
     /** The exact messages for this choice (pure; throws with a user message if it can't). */
     prepare: (choice: C | undefined) => { msgs: AminoMsg[] }
-    /** Fresh on-chain checks right before the wallet opens; throws to stop. */
+    /** Fresh on-chain checks right before the wallet opens; throws to stop (QuoteExpiredError when the price quote expired). */
     recheck?: (choice: C | undefined) => Promise<void>
+    /**
+     * After an expired price quote (nothing was sent): prices the same action again in place, with fresh chain reads,
+     * so `lines` and `prepare` show the new figures for another review. Throws a plain-language reason when it cannot.
+     */
+    requote?: (choice: C | undefined) => Promise<void>
     /** Sends exactly the prepared messages; must pass `beforeSign` to the broadcaster. */
     send: (choice: C | undefined, beforeSign: () => Promise<void | (() => boolean)>) => Promise<{ hash: string; result?: unknown }>
     /** After sending: what the chain shows. `true`: the result is there; `false`: not yet; `"failed"`: the chain ran
@@ -82,7 +88,8 @@ export interface SignRequest<C extends string = string> {
 export type SignResult =
     /** `seenOnChain`: the wallet never answered, but the account sent a transaction while it was open (`hash` is then ""). */
     | { outcome: "sent"; hash: string; result?: unknown; seenOnChain?: true }
-    | { outcome: "failed" | "cancelled"; error: string }
+    /** `expired`: the price quote expired before the wallet opened; the review can quote again (`requote`). */
+    | { outcome: "failed" | "cancelled"; error: string; expired?: true }
     /** Signed, sent, and refused by the node: final. `error` carries the node's reason. */
     | { outcome: "refused"; error: string }
     /** `hash` when the transaction is known to exist (an EVM wallet error can leave it unknown). */
@@ -296,6 +303,7 @@ export async function executeSignature<C extends string>(
             // After the wallet opened, only what was observed is said: an accepted transaction has no deadline to be included.
             if (walletStarted && rejected) return { outcome: "cancelled", error: "Cancelled in Adena. Your account shows no change three blocks later." }
             if (/cancelled/i.test(raw) || rejected) return { outcome: "cancelled", error: "Cancelled. Nothing was sent." }
+            if (err instanceof QuoteExpiredError) return { outcome: "failed", error: err.message, expired: true }
             return nothingSentFailure(err)
         }
         return { outcome: "unknown", error: friendlyDaoError(err), hash }

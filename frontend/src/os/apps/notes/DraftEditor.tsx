@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react"
-import { createDraftSession, type DraftBase, type DraftRecord, type NotesScope, type NotesStore } from "../../../lib/notes/drafts"
+import { createDraftSession, type DraftBase, type DraftCopyOrigin, type DraftRecord, type NotesScope, type NotesStore } from "../../../lib/notes/drafts"
 import { MAX_NOTE_BODY_BYTES, newNoteId } from "../../../lib/notes/config"
 import { saveDraftBounded } from "../../../lib/notes/draftSlot"
 import { withTimeout } from "../../../lib/notes/freshness"
@@ -7,7 +7,7 @@ import { MarkdownPreview } from "./MarkdownPreview"
 import { CodeEditor } from "../terminal/CodeEditor"
 import { useNotesPane, useUnsavedText } from "./notesPane"
 import { noteExportFilename } from "../../../lib/notes/exportFilename"
-import { MAX_PUBLIC_TITLE_BYTES, MAX_PUBLIC_TITLE_CHARACTERS, publicTitleProblem, trimPublicTitle } from "../../../lib/notes/publicFields"
+import { copyTitle, MAX_PUBLIC_TITLE_BYTES, MAX_PUBLIC_TITLE_CHARACTERS, publicTitleProblem, trimPublicTitle } from "../../../lib/notes/publicFields"
 import { draftFlushed, trackDraftFlush } from "../../../lib/notes/draftFlush"
 import { NoteBanner, NoteHeader, NoteStatus, type NoteMenuItem } from "./NoteHeader"
 import { NoteSkeleton } from "./PublicNote"
@@ -53,6 +53,9 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     /** Local revisions this editor loaded or wrote since its last load: the text it holds descends from them. */
     const lineage = useRef(new Set<string>())
     const base = useRef<DraftBase | undefined>(undefined)
+    /** A separate copy keeps where it came from until it is published (F26). */
+    const copyOf = useRef<DraftCopyOrigin | undefined>(undefined)
+    const kept = () => base.current ? { base: base.current } : copyOf.current ? { copyOf: copyOf.current } : {}
     const [durable, setDurable] = useState<DraftRecord | null>(null)
     const draft = useRef({ title: "", body: "", changes: 0 })
     const saved = useRef(onSaved)
@@ -74,7 +77,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
             while (inflight.current && running.current) await running.current.catch(() => {})
             if (!editable.current || inflight.current || draft.current.changes === stored.current) return
             const snapshot = { ...draft.current }
-            const result = await Promise.resolve().then(() => store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, keep)).catch(() => null)
+            const result = await Promise.resolve().then(() => store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...kept() }, keep)).catch(() => null)
             if (result?.status === "saved") saved.current()
         })())
         // The editor is keyed by its scope and store; this cleanup runs once, at unmount.
@@ -101,7 +104,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
                 revision.current = record.localRevision; lineage.current = new Set([record.localRevision])
                 setDurable(record)
                 if (record.payload.kind !== "public") { setState("locked"); return }
-                base.current = record.payload.base
+                base.current = record.payload.base; copyOf.current = record.payload.copyOf
                 draft.current = { title: record.payload.title, body: record.payload.body, changes: 0 }; stored.current = 0; editable.current = true
                 setTitle(record.payload.title); setBody(record.payload.body); setState("saved")
                 setNotice(late ? "An earlier save of this note is still running on this device. The stored draft was opened; if that save lands later, Notes shows a conflict instead of overwriting either version." : "")
@@ -116,7 +119,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
         if (inflight.current || !["dirty", "unavailable"].includes(state)) return
         inflight.current = true; setState("saving")
         const snapshot = { ...draft.current }
-        const pending = store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...(base.current ? { base: base.current } : {}) }, keep)
+        const pending = store.saveDraft(scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, ...kept() }, keep)
         running.current = pending
         const result = await pending
         inflight.current = false
@@ -174,7 +177,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     function togglePreview() { const next = !preview; setPreview(next); writePreviewChoice(next) }
     function showTitleProblem(message: string) { setTitleNotice(message); titleInput.current?.focus() }
     async function keepCopy() {
-        const result = await store.saveDraft({ ...scope, noteId: newNoteId() }, "0", { kind: "public", title, body }, session)
+        const result = await store.saveDraft({ ...scope, noteId: newNoteId() }, "0", { kind: "public", title: copyTitle(title), body, copyOf: { noteId: scope.noteId, title: trimPublicTitle(title) || "Untitled note" } }, session)
         if (result.status === "saved") { saved.current(); setNotice("A separate copy was saved in your library. This draft remains open.") }
         else if (result.status !== "session-changed") setNotice("The copy could not be saved. Export Markdown to keep these edits.")
     }
@@ -188,7 +191,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
         // and the baseline only moves once the wait is over: a timeout leaves the draft exactly as it was.
         await withTimeout((async () => { while (inflight.current && running.current) await running.current.catch(() => {}) })())
         if (inflight.current || session.signal.aborted) return false
-        base.current = nextBase
+        base.current = nextBase; copyOf.current = undefined
         draft.current = { ...draft.current, changes: draft.current.changes + 1 }
         const snapshot = { ...draft.current }
         inflight.current = true; setState("saving")
@@ -220,9 +223,10 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     const changed = !basis || trimPublicTitle(title) !== basis.title || body !== basis.body
     // The baseline as last stored: a move only shows once it is durable.
     const baseline = durable?.payload.kind === "public" ? durable.payload.base : undefined
+    const origin = !baseline && durable?.payload.kind === "public" ? durable.payload.copyOf : undefined
     const status = baseline
         ? <NoteStatus kind={changed ? "changes" : "published"}>{changed ? "Unpublished changes" : "No unpublished changes"} · {saving} · based on revision {baseline.stateRevision}</NoteStatus>
-        : <NoteStatus kind="draft">Draft · {saving}</NoteStatus>
+        : <NoteStatus kind="draft">{origin ? "Unpublished copy" : "Draft"} · {saving}</NoteStatus>
     return <section className="os-notes-document os-notes-editing" aria-label="Draft editor">
         <NoteHeader noteId={scope.noteId} status={status} published={!!baseline}
             actions={<>
@@ -237,6 +241,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
                 <button className="os-btn os-quiet" onClick={() => void keepCopy()}>Save a separate copy</button>
                 <button className="os-btn os-quiet" onClick={() => setReload(v => v + 1)}>Discard these edits and reload</button></> }} />}
         {banner}{controls?.banner}
+        {origin && <NoteBanner notice={{ tone: "info", text: `Copy of your text from “${origin.title}”, not published. Publishing it creates a new public note; the original note is unchanged.` }} />}
         {notice && <NoteBanner notice={{ tone: "info", text: notice }} />}
         <input ref={titleInput} className="os-notes-title" aria-label="Note title" placeholder="Title" value={title} maxLength={160} aria-invalid={!!titleProblem} aria-describedby={titleProblem ? titleHintId : undefined} onChange={event => edit("title", event.target.value)} />
         <div className="os-notes-field">

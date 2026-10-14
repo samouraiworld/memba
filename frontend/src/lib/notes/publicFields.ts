@@ -30,6 +30,15 @@ export function publicTitleProblem(title: string): string | null {
     return null
 }
 
+const COPY_SUFFIX = ' (my version)'
+/** The title of a separate copy of a note's text (F26): the same title marked as yours, still within the realm's limits. */
+export function copyTitle(title: string): string {
+    let base = [...(trimPublicTitle(title) || 'Untitled note')]
+    const fits = (chars: string[]) => chars.length + COPY_SUFFIX.length <= MAX_PUBLIC_TITLE_CHARACTERS && new TextEncoder().encode(chars.join('') + COPY_SUFFIX).length <= MAX_PUBLIC_TITLE_BYTES
+    while (base.length && !fits(base)) base = base.slice(0, -1)
+    return trimPublicTitle(base.join('')) + COPY_SUFFIX
+}
+
 /** Returns why the realm would refuse this public body, or null when it is accepted. */
 export function publicBodyProblem(body: string): string | null {
     if (LONE_SURROGATE.test(body)) return 'The note contains an unsupported character. Retype the affected text and try again.'

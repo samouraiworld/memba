@@ -6,20 +6,22 @@ import type { NotesReadClient } from './client'
 import type { NotesQuoteProvider } from './request'
 
 /**
- * Storage beyond the stored title/body bytes (note state snapshot, history entry and
- * index nodes), in bytes, from the merged Notes realm (samcrew-deployer c20e8e6c,
- * single-copy history) on keeper e75fef82c at 100 ugnot/byte
- * (__fixtures__/history-economics.json). Each value is the largest sample for a note
- * without a writer list, rounded up; creation also adds ~3.9% of its content bytes.
- * The Onyx canary's SetPublicWrites(true) cost 1,153,100 ugnot, matching the sample.
+ * Storage beyond the stored title/body bytes (note state, history record and index nodes), in bytes, for the
+ * compact-history realm layout (samcrew-deployer b8c48a8, #363; Onyx rehearsal memba_notes_rc1 is the same code)
+ * on keeper e75fef82 at 100 ugnot/byte, steady state (__fixtures__/notes-storage-363.json). Each value is the
+ * largest sample minus its content bytes, rounded up to 100 B; creation also adds ~3.9% of its content bytes
+ * (large-body sample of the earlier layout, which stored no less per byte).
  */
 const OVERHEAD_BYTES = {
-    create: 24_000, // 23,763 @ 2,208 B and 28,747 @ 131,232 B with the per-byte share below
-    title: 14_000, // Rename / Commit field_mask 1: 13,842
-    body: 14_000, // Commit field_mask 2: 13,821..13,839 at 2 KiB and 128 KiB
-    both: 17_500, // Commit field_mask 3: 17,200
-    setting: 12_000, // SetPublicWrites 11,531 / 9,403; SetCommentMode stores the same records (not sampled)
-    delete: 8_500, // 8,037..8,268
+    create: 19_200, // 20,445 B for 1,291 content bytes (4 runs: 20,403..20,445; second note 20,427)
+    title: 6_800, // Rename: 6,727 B with a 32 B title
+    body: 6_800, // Commit field_mask 2: 7,980 B with a 1,300 B body
+    both: 7_900, // Commit field_mask 3: 9,100 B (19 + 1,310 B); a restore of 32 + 1,272 B: 9,081 B
+    writesOn: 6_700, // SetPublicWrites(true): 6,684 B (a 32-writer list adds nothing measurable)
+    writesOff: 4_600, // SetPublicWrites(false): 4,562 B
+    commentsOn: 6_700, // SetCommentMode(true): not sampled; priced like opening editing, the larger toggle
+    commentsOff: 5_600, // SetCommentMode(false): 5,574 B
+    delete: 2_900, // Delete: 2,872 B
 } as const
 const CREATE_PER_MILLE = 40
 const STORAGE_PRICE_UGNOT = 100
@@ -29,9 +31,9 @@ const CAP_STEP_UGNOT = 100_000
  * Two figures, never a simulation or a promised refund:
  * - estimatedDepositUgnot: the expected deposit for a typical note (no writer list).
  * - suggestedCapUgnot: the transaction's max_deposit, a safe upper bound. It allows
- *   twice the measured overhead (32 writers measured +28%, fresh comment authors +25%,
- *   index growth) and +5% on the content bytes, rounded up to 0.1 GNOT. An undersized
- *   max_deposit fails the transaction, so this margin stays generous.
+ *   twice the measured overhead (writer lists, index growth) and +5% on the content
+ *   bytes, rounded up to 0.1 GNOT. An undersized max_deposit fails the transaction,
+ *   so this margin stays generous: at least 1.2x every steady-state sample.
  * Samples do not bound arbitrary future index growth; ante fees are separate.
  * Deployment approval must repeat these measurements against the final source.
  */
@@ -49,8 +51,8 @@ export function publicNoteBudget(message: AminoMsg): { gasWanted: number; estima
         }
         case 'Rename': check(args.length === 5); bytes = blob(args[3], 160).length; overhead = OVERHEAD_BYTES.title; break
         case 'Delete': check(args.length === 3); overhead = OVERHEAD_BYTES.delete; break
-        case 'SetCommentMode': check(args.length === 4); overhead = OVERHEAD_BYTES.setting; break
-        case 'SetPublicWrites': check(args.length === 4); overhead = OVERHEAD_BYTES.setting; break
+        case 'SetCommentMode': check(args.length === 4 && ['true', 'false'].includes(args[2])); overhead = args[2] === 'true' ? OVERHEAD_BYTES.commentsOn : OVERHEAD_BYTES.commentsOff; break
+        case 'SetPublicWrites': check(args.length === 4 && ['true', 'false'].includes(args[2])); overhead = args[2] === 'true' ? OVERHEAD_BYTES.writesOn : OVERHEAD_BYTES.writesOff; break
         default: throw new NotesChainError('format')
     }
     // History shares the committed bytes, so content is stored once. No refund is deducted.

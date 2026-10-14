@@ -224,7 +224,7 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
                 <div><dt>What changes</dt><dd>{changeLines(shown.operation, shown.published).map(line => <span key={line}>{line}</span>)}</dd></div>
                 <div><dt>Who sees it</dt><dd>{a.kind === 'create' ? 'Everyone with the link, and the public notes list. It becomes revision 1.'
                     : `Everyone. This becomes revision ${BigInt(a.kind === 'commit' ? a.revision : '0') + 1n}; earlier revisions stay in History.`}</dd></div>
-                <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {gnotAmount(shown.expected)}</strong> storage deposit{shown.fee !== '0' && <> plus a {gnotAmount(shown.fee)} publication fee</>}
+                <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {gnotAmount(shown.expected)}</strong> storage deposit{shown.fee !== '0' && <> plus a {gnotAmount(shown.fee)} publication fee</>}, not returned: every version stays in the note&rsquo;s history.
                     <small>At most {gnotAmount(shown.cap)}, written in the transaction. Adena shows the network fee.</small></dd></div>
             </dl>
             {a.kind === 'create' && <fieldset className="os-notes-choices">

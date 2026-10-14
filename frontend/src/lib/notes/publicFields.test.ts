@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { publicBodyProblem, publicTitleProblem, trimPublicTitle } from './publicFields'
+import { publicBodyProblem, publicTitleProblem, trimPublicTitle, copyTitle } from './publicFields'
 import { publicText } from './chain/schema'
 
 const accepted = (title: string) => { try { publicText(new TextEncoder().encode(title), true); return true } catch { return false } }
@@ -35,6 +35,14 @@ describe('public title rules mirror the realm validateTitle', () => {
         })
 })
 
+describe('a separate copy is told apart from its note (F26)', () => {
+    it('suffixes the title and keeps it publishable', () => {
+        expect(copyTitle('Sushi (rc1 canary)')).toBe('Sushi (rc1 canary) (my version)')
+        expect(copyTitle('  ')).toBe('Untitled note (my version)')
+        const long = copyTitle('é'.repeat(80))
+        expect(long.endsWith(' (my version)')).toBe(true); expect(publicTitleProblem(long)).toBeNull()
+    })
+})
 describe('public body rules mirror the realm validatePublic', () => {
     it('accepts an empty body and exactly 128 KiB, refuses one byte more and unpaired surrogates', () => {
         expect(publicBodyProblem('')).toBeNull()

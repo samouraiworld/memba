@@ -7,6 +7,7 @@ import { accountMark, accountMarkAfterBlocks } from "./accountMark"
 import { useSigner } from "./signerContext"
 import { WALLET_QUIET_MS, WATCH_MS } from "./signer"
 import { SignerProvider } from "./SignerProvider"
+import { QuoteExpiredError } from "./expired"
 
 const warm = vi.hoisted(() => vi.fn(async () => undefined))
 vi.mock("../../lib/dao/chainIdentity", async (orig) => ({ ...(await orig<typeof import("../../lib/dao/chainIdentity")>()), assertActiveRpcChain: warm }))
@@ -737,5 +738,64 @@ describe("OS signing session boundary", () => {
         await waitFor(() => expect(onSettled).toHaveBeenCalledWith("confirmed", undefined))
         expect(screen.queryAllByRole("listitem")).toHaveLength(0)
         expect(toast).not.toHaveBeenCalled()
+    })
+})
+
+describe("an expired price quote (F7)", () => {
+    function expiring(extra: Record<string, unknown> = {}) {
+        let expired = true, fee = "0.1 GNOT"
+        const req = {
+            ...request, title: "Publish note", summary: "Publish “Sushi”",
+            lines: () => [["Network fee", fee]] as [string, string][],
+            recheck: vi.fn(async () => { if (expired) throw new QuoteExpiredError() }),
+            // As doContractBroadcast: the confirmation callback (the OS sheet stands in for it), then beforeSign, then the wallet.
+            send: vi.fn(async (_choice: unknown, beforeSign: () => Promise<unknown>) => {
+                const confirm = setTxConfirmationCallback(null) ?? (async () => true)
+                setTxConfirmationCallback(confirm)
+                if (!(await confirm([], "memo"))) throw new Error("Transaction cancelled by user")
+                await beforeSign(); return { hash: "FRESH_HASH" }
+            }),
+            requote: vi.fn(async () => { expired = false; fee = "0.2 GNOT" }),
+            onNothingSent: vi.fn(),
+            ...extra,
+        }
+        function ExpiringReview() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(req)}>Open expiring review</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><ExpiringReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open expiring review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        return req
+    }
+    afterEach(() => cleanup())
+    it("says it in plain words and quotes again in place, then signs the fresh figures", async () => {
+        const req = expiring()
+        expect(await screen.findByText("The price quote expired. Nothing was sent.")).toBeVisible()
+        expect(screen.queryByText(/Notes chain/)).toBeNull()
+        // Signing again would only fail the same way: the fresh quote comes first.
+        expect(screen.queryByRole("button", { name: "Sign in Adena" })).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "Get a fresh quote" }))
+        await waitFor(() => expect(req.requote).toHaveBeenCalledOnce())
+        expect(await screen.findByRole("button", { name: "Sign in Adena" })).toBeEnabled()
+        expect(screen.getByText("0.2 GNOT")).toBeVisible()
+        expect(screen.queryByText("The price quote expired. Nothing was sent.")).toBeNull()
+        expect(screen.getByRole("dialog", { name: "Review · Publish note" })).toBeVisible()
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        await waitFor(() => expect(screen.queryByRole("dialog", { name: "Review · Publish note" })).toBeNull())
+        expect(req.send).toHaveBeenCalledTimes(2)
+    })
+    it("says why when a fresh quote cannot be given, and leaves only Cancel", async () => {
+        const req = expiring({ requote: vi.fn(async () => { throw new Error("The note changed since this review. Nothing was sent. Cancel, then start again.") }) })
+        fireEvent.click(await screen.findByRole("button", { name: "Get a fresh quote" }))
+        expect(await screen.findByText("The note changed since this review. Nothing was sent. Cancel, then start again.")).toBeVisible()
+        expect(req.requote).toHaveBeenCalledOnce()
+        expect(screen.queryByRole("button", { name: "Get a fresh quote" })).toBeNull()
+        expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled()
+    })
+    it("asks to start again when the request cannot quote again by itself", async () => {
+        expiring({ requote: undefined })
+        expect(await screen.findByText("The price quote expired. Nothing was sent. Cancel, then start again.")).toBeVisible()
+        expect(screen.queryByRole("button", { name: "Get a fresh quote" })).toBeNull()
     })
 })
