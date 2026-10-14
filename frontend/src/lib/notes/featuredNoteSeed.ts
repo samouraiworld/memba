@@ -1,7 +1,9 @@
 import { address, check, id, NOTES_REALM, record } from './chain/schema'
 
-export type FeaturedReleaseKey = 'sushi-v1' | 'whitepaper-v1'
-export const FEATURED_RELEASE_KEYS = ['sushi-v1', 'whitepaper-v1'] as const
+export type FeaturedReleaseKey = 'sushi-v1'
+export const FEATURED_RELEASE_KEYS = ['sushi-v1'] as const
+/** Retired release keys stay readable so a stored desk keeps its items; the entry is dropped on the next write. */
+const RETIRED_RELEASE_KEYS = ['whitepaper-v1']
 export interface FeaturedNoteRelease {
   releaseKey: FeaturedReleaseKey; chainId: string; realm: string; version: 1
   noteId: string; mode: 4; deleted: false; owner: string
@@ -19,7 +21,7 @@ export interface FeaturedDesk {
 }
 export const FEATURED_MAX_CHARS = 65_536
 export function featuredNoteLabel(key: FeaturedReleaseKey): string {
-  check(FEATURED_RELEASE_KEYS.includes(key)); return key === 'sushi-v1' ? 'Sushi recipe' : 'Whitepaper'
+  check(FEATURED_RELEASE_KEYS.includes(key)); return 'Sushi recipe'
 }
 export function featuredPartition(value: unknown): FeaturedPartition {
   const p = record(value, ['chainId', 'wallet'])
@@ -49,14 +51,12 @@ export function validateFeaturedDesk(value: unknown, scope: FeaturedPartition, r
   const v = record(value, ['version', 'partition', 'items', 'releases'])
   const expected = featuredPartition(scope), actual = featuredPartition(v.partition)
   check(v.version === 3 && actual.chainId === expected.chainId && actual.wallet === expected.wallet)
-  const states = record(v.releases, [...FEATURED_RELEASE_KEYS])
-  const sushi = featuredSeedState(states['sushi-v1']), whitepaper = featuredSeedState(states['whitepaper-v1'])
-  check(sushi.status !== 'seeded' || whitepaper.status !== 'seeded' || sushi.noteId !== whitepaper.noteId)
-  return { version: 3, partition: actual, items: deskItems(v.items, rules), releases: { 'sushi-v1': sushi, 'whitepaper-v1': whitepaper } }
+  const states = record(v.releases, [...FEATURED_RELEASE_KEYS], RETIRED_RELEASE_KEYS)
+  return { version: 3, partition: actual, items: deskItems(v.items, rules), releases: { 'sushi-v1': featuredSeedState(states['sushi-v1']) } }
 }
 export function resetFeaturedDesk(scope: FeaturedPartition, rules: FeaturedDeskRules, initial: readonly FeaturedDeskItem[] = []): FeaturedDesk {
   return validateFeaturedDesk({ version: 3, partition: scope, items: initial,
-    releases: { 'sushi-v1': { status: 'pending' }, 'whitepaper-v1': { status: 'pending' } } }, scope, rules)
+    releases: { 'sushi-v1': { status: 'pending' } } }, scope, rules)
 }
 export function decodeFeaturedDesk(raw: string, scope: FeaturedPartition, rules: FeaturedDeskRules): FeaturedDesk {
   check(typeof raw === 'string' && raw.length <= FEATURED_MAX_CHARS)
@@ -76,7 +76,7 @@ export function validateFeaturedRelease(value: unknown, chainId: string): Featur
 export function planFeaturedNoteSeeds(input: FeaturedDesk, scope: FeaturedPartition, rules: FeaturedDeskRules, reviewed: readonly FeaturedNoteRelease[]) {
   const desk = validateFeaturedDesk(input, scope, rules)
   const releases = reviewed.map(value => validateFeaturedRelease(value, desk.partition.chainId))
-  check(releases.length <= 2 && new Set(releases.map(r => r.releaseKey)).size === releases.length
+  check(releases.length <= FEATURED_RELEASE_KEYS.length && new Set(releases.map(r => r.releaseKey)).size === releases.length
     && new Set(releases.map(r => r.noteId)).size === releases.length)
   for (const target of releases) for (const key of FEATURED_RELEASE_KEYS) {
     const other = desk.releases[key]

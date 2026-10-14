@@ -3,7 +3,7 @@ import { DEFAULT_NETWORK } from '../../lib/config'
 import { NOTE_ID } from '../../lib/notes/config'
 import { check } from '../../lib/notes/chain/schema'
 import { createFeaturedNoteStorage } from '../../lib/notes/featuredNoteStorage'
-import { FEATURED_MAX_CHARS, featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, type FeaturedDesk, type FeaturedNoteRelease } from '../../lib/notes/featuredNoteSeed'
+import { FEATURED_MAX_CHARS, FEATURED_RELEASE_KEYS, featuredNoteLabel, planFeaturedNoteSeeds, removeFeaturedDeskItem, type FeaturedDesk, type FeaturedNoteRelease } from '../../lib/notes/featuredNoteSeed'
 import { GRID, cleanUp, deskKey, guestDesk, itemTarget, moveItem, sameItem, type DeskItem } from './desk'
 
 type Pin = Pick<DeskItem, 'ty' | 'ref'>
@@ -150,7 +150,7 @@ export function useFeaturedDesk(owner: string | null | undefined, networkKey: st
     const items = useMemo(() => desk ? desk.items.filter(item => itemTarget(item) !== null) : EMPTY, [desk])
     const noteLabels = useMemo(() => {
         const labels: Record<string, string> = {}
-        if (desk) for (const releaseKey of ['sushi-v1', 'whitepaper-v1'] as const) {
+        if (desk) for (const releaseKey of FEATURED_RELEASE_KEYS) {
             const entry = desk.releases[releaseKey]
             if (entry.status === 'seeded') labels[entry.noteId] = featuredNoteLabel(releaseKey)
         }

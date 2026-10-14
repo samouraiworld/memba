@@ -10,7 +10,7 @@ const io = vi.hoisted(() => ({ price: vi.fn(async () => '"100ugnot"'), fee: vi.f
 vi.mock('../../dao/packageStatus', () => ({ abciQueryText: io.price }))
 vi.mock('../../grc20', () => ({ freshFeeForGasWanted: io.fee }))
 vi.mock('../../rpcFallback', () => ({ getRpcUrlsInOrder: () => ['https://rpc.example'] }))
-const create = (size: number): AminoMsg => ({ type: 'vm/MsgCall', value: { caller: '', send: '', pkg_path: NOTES_REALM, func: 'CreateNote', args: ['', '3', encode64(new TextEncoder().encode('Whitepaper')), encode64(new Uint8Array(size)), '', '', '', ''], max_deposit: '20000000ugnot' } })
+const create = (size: number): AminoMsg => ({ type: 'vm/MsgCall', value: { caller: '', send: '', pkg_path: NOTES_REALM, func: 'CreateNote', args: ['', '3', encode64(new TextEncoder().encode('Field guide')), encode64(new Uint8Array(size)), '', '', '', ''], max_deposit: '20000000ugnot' } })
 function measuredMessage(row: typeof measured.rows[number]): AminoMsg {
     const first = encode64(new Uint8Array(row.titleOrAnchorBytes)), body = encode64(new Uint8Array(row.bodyBytes))
     const args: Record<string, string[]> = {

@@ -15,15 +15,12 @@ if (!import.meta.env.DEV) throw new Error('Local development fixture only')
 const scope = { chainId: 'local-sushi-demonstration', wallet: null }
 const owner = bech32Encode('g', new Uint8Array(20).fill(91))
 const sushi: FeaturedNoteRelease = { releaseKey: 'sushi-v1', chainId: scope.chainId, realm: NOTES_REALM, version: 1, noteId: '71'.repeat(16), mode: 4, deleted: false, owner }
-const paper: FeaturedNoteRelease = { ...sushi, releaseKey: 'whitepaper-v1', noteId: '72'.repeat(16) }
-const all = [sushi, paper], rules: FeaturedDeskRules = { cols: 4, rows: 3, validItem: item => item.ty === 'note' && all.some(release => release.noteId === item.ref) }
+const rules: FeaturedDeskRules = { cols: 4, rows: 3, validItem: item => item.ty === 'note' && item.ref === sushi.noteId }
 const bytes = (text: string) => new TextEncoder().encode(text)
 const client = {
     note: async (id: string): Promise<ChainNote | null> => {
-        const release = all.find(value => value.noteId === id)
-        return release ? { id, owner, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0',
-            title: bytes(release === sushi ? 'Sushi recipe — local demonstration' : 'Whitepaper — local demonstration'),
-            body: bytes(release === sushi ? recipe : '# Future Whitepaper demonstration\n\nA separate simulated document. Nothing has been published.'),
+        return id === sushi.noteId ? { id, owner, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0',
+            title: bytes('Sushi recipe — local demonstration'), body: bytes(recipe),
             commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '1', operationId: '73'.repeat(16), actor: owner, height: '1' } : null
     },
     commentsRaw: async () => ({ items: [], next_cursor: '' }),
@@ -32,7 +29,7 @@ type Adapter = ReturnType<typeof createFeaturedNoteStorage>
 // Standalone test bootstrap mounts this component directly; it exposes no production module API.
 // eslint-disable-next-line react-refresh/only-export-components
 function Fixture() {
-    const [whitepaper, setWhitepaper] = useState(false), [desk, setDesk] = useState<FeaturedDesk | null>(null)
+    const [desk, setDesk] = useState<FeaturedDesk | null>(null)
     const [opened, setOpened] = useState<string | null>(null), [error, setError] = useState('')
     const active = useRef<{ adapter: Adapter; alive: boolean } | null>(null)
     useEffect(() => {
@@ -41,12 +38,12 @@ function Fixture() {
             readLegacy: () => null, isCurrent: () => lease.alive, getResetToken: () => null })
         active.current = lease
         const refresh = () => { if (lease.alive) { try { setDesk(lease.adapter.peek()) } catch { setError('The local demonstration desk could not be read.') } } }
-        void lease.adapter.mutate(latest => planFeaturedNoteSeeds(latest, scope, rules, whitepaper ? [sushi, paper] : [sushi]).desk)
+        void lease.adapter.mutate(latest => planFeaturedNoteSeeds(latest, scope, rules, [sushi]).desk)
             .then(refresh, () => { if (lease.alive) setError('The local demonstration desk could not be saved.') })
         const onStorage = (event: StorageEvent) => { if (event.key === lease.adapter.key || event.key === null) refresh() }
         window.addEventListener('storage', onStorage)
         return () => { lease.alive = false; if (active.current === lease) active.current = null; window.removeEventListener('storage', onStorage) }
-    }, [whitepaper])
+    }, [])
     async function dismiss(id: string) {
         const lease = active.current
         if (!lease?.alive) return
@@ -62,13 +59,11 @@ function Fixture() {
         <header className="demo-notice"><h1>Local demonstration / simulated network</h1>
             <p>The recipe and comments below are simulated. Nothing has been published. Reader status labels refer to this simulated data.</p>
             <p>Guest reading only — no wallet or signature.</p>
-            <label><input type="checkbox" checked={whitepaper} onChange={event => setWhitepaper(event.target.checked)} />Include future Whitepaper demonstration</label>
         </header>
         {error && <p role="alert">{error}</p>}
         <nav aria-label="Demonstration desktop">{desk?.items.map(item => {
-            const release = all.find(value => value.noteId === item.ref)!
-            const label = featuredNoteLabel(release.releaseKey)
-            return <div key={item.ref}><button className="demo-icon" aria-label={`Open ${label}`} onClick={() => setOpened(item.ref)}><span aria-hidden="true">{release === sushi ? '🍣' : '📄'}</span>{label}</button>
+            const label = featuredNoteLabel(sushi.releaseKey)
+            return <div key={item.ref}><button className="demo-icon" aria-label={`Open ${label}`} onClick={() => setOpened(item.ref)}><span aria-hidden="true">🍣</span>{label}</button>
                 <button onClick={() => void dismiss(item.ref)}>Dismiss {label}</button></div>
         })}</nav>
         <output aria-label="Seed state">{desk ? JSON.stringify(desk.releases) : 'Loading local desk…'}</output>

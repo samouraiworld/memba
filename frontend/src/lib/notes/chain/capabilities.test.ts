@@ -57,7 +57,7 @@ describe('strict C1 capability codec and transport', () => {
 })
 
 describe('content-only public permission', () => {
-  it('allows a third-party Sushi editor but not a Whitepaper editor or resolver', async () => {
+  it('allows a third-party editor of an open note but not of a protected note, nor a resolver', async () => {
     const n = note(), c = permission(n)
     await expect(readPublicContentWritePermission(c, n, other)).resolves.toBe(true)
     await expect(readPublicWritePermission(c, n, other)).resolves.toBe(false)

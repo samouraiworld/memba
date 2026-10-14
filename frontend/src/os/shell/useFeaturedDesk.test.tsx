@@ -15,10 +15,10 @@ const owner = bech32Encode('g', new Uint8Array(20).fill(1)), other = bech32Encod
 const chainId = 'test-chain', key = (wallet: string | null = owner, version = 3) => `memba_os_desk:v${version}:${chainId}:${wallet ?? 'guest'}`
 const pin: DeskItem = { ty: 'app', ref: 'wallet', c: 0, r: 0 }
 const sushi: FeaturedNoteRelease = { releaseKey: 'sushi-v1', chainId, realm: NOTES_REALM, version: 1, noteId: 'ab'.repeat(16), mode: 4, deleted: false, owner }
-const paper: FeaturedNoteRelease = { ...sushi, releaseKey: 'whitepaper-v1', noteId: 'cd'.repeat(16) }
+const retired = 'cd'.repeat(16)
 const options: FeaturedDeskOptions = { chainId, gno: true, adopt: true, releases: [] }
 const envelope = (items: DeskItem[], wallet: string | null = owner) => ({ version: 3, partition: { chainId, wallet }, items,
-    releases: { 'sushi-v1': { status: 'pending' }, 'whitepaper-v1': { status: 'pending' } }, resetToken: null })
+    releases: { 'sushi-v1': { status: 'pending' } }, resetToken: null })
 function serialLocks() {
     let tail: Promise<unknown> = Promise.resolve(), next: Promise<void> | null = null
     const locks: FeaturedLocks = { request: (_name, _options, work) => {
@@ -133,22 +133,26 @@ describe('one authoritative featured desktop', () => {
         expect(localStorage.getItem(badKey)).toBe('{corrupt')
         if (kind !== 'v3') expect(localStorage.getItem(key())).toBeNull()
     })
-    it('imports v2 Whitepaper into its own marker, then independently seeds Sushi', async () => {
-        localStorage.setItem(key(owner, 2), JSON.stringify({ version: 2, partition: { chainId, wallet: owner }, items: [], whitepaper: { status: 'dismissed' }, resetToken: null }))
-        const hook = render(owner, { ...options, releases: [sushi, paper] }); await settled()
-        expect(stored().releases).toEqual({ 'sushi-v1': { status: 'seeded', noteId: sushi.noteId }, 'whitepaper-v1': { status: 'dismissed' } })
-        expect(hook.result.current.noteLabels[sushi.noteId]).toBe('Sushi recipe')
-        expect(localStorage.getItem(key(owner, 2))).not.toBeNull()
+    it.each([2, 3])('drops a retired release from v%i, keeps its note as an ordinary shortcut and seeds Sushi', async version => {
+        const note: DeskItem = { ty: 'note', ref: retired, c: 0, r: 0 }, partition = { chainId, wallet: owner }
+        localStorage.setItem(key(owner, version), JSON.stringify(version === 2
+            ? { version: 2, partition, items: [note], whitepaper: { status: 'seeded', noteId: retired }, resetToken: null }
+            : { ...envelope([note]), releases: { 'sushi-v1': { status: 'pending' }, 'whitepaper-v1': { status: 'seeded', noteId: retired } } }))
+        const hook = render(owner, { ...options, releases: [sushi] }); await settled()
+        expect(hook.result.current.error).toBeNull()
+        expect(stored().releases).toEqual({ 'sushi-v1': { status: 'seeded', noteId: sushi.noteId } })
+        expect(stored().items.map((item: DeskItem) => item.ref)).toEqual([retired, sushi.noteId])
+        expect(hook.result.current.noteLabels).toEqual({ [sushi.noteId]: 'Sushi recipe' })
+        if (version === 2) expect(localStorage.getItem(key(owner, 2))).not.toBeNull()
     })
-    it('serialises two mounts and keeps dismissal separate from a later Whitepaper release', async () => {
+    it('serialises two mounts and keeps a dismissal across remounts', async () => {
         const a = render(owner, { ...options, releases: [sushi] }), b = render(owner, { ...options, releases: [sushi] })
         await settled(); await waitFor(() => expect(a.result.current.items).toHaveLength(1))
         expect(stored().items).toHaveLength(1)
         act(() => a.result.current.unpin(0)); await settled()
         expect(b.result.current.items).toEqual([])
-        b.rerender({ account: owner, config: { ...options, releases: [sushi, paper] }, networkKey: DEFAULT_NETWORK }); await settled()
-        expect(stored().items.map((item: DeskItem) => item.ref)).toEqual([paper.noteId])
-        expect(b.result.current.noteLabels[paper.noteId]).toBe('Whitepaper')
+        b.unmount(); const c = render(owner, { ...options, releases: [sushi] }); await settled()
+        expect(stored().items).toEqual([]); expect(c.result.current.noteLabels).toEqual({})
         expect(stored().releases['sushi-v1'].status).toBe('dismissed')
     })
     it('keeps a full desk pending and seeds only after a real cell is freed', async () => {
