@@ -102,8 +102,8 @@ describe('public publication review', () => {
     it('writes the cap the review states, never below its estimated deposit, into the transaction', async () => {
         setup()
         const sheet = await reviewSheet()
-        // A creation of 23 bytes: ≈ 2.4024 GNOT expected (the old 2.4 GNOT cap would fail it), at most 4.9 GNOT.
-        expect(sheet).toHaveTextContent('≈ 2.4024 GNOT storage deposit plus a 0.1 GNOT publication fee'); expect(sheet).toHaveTextContent('At most 4.9 GNOT')
+        // A creation of 24 bytes: ≈ 2.4025 GNOT expected (the old 2.4 GNOT cap would fail it), at most 4.9 GNOT.
+        expect(sheet).toHaveTextContent('≈ 2.4025 GNOT storage deposit plus a 0.1 GNOT publication fee'); expect(sheet).toHaveTextContent('At most 4.9 GNOT')
         expect(calls.sign).not.toHaveBeenCalled()
         await approve(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         expect(calls.prepare.mock.calls[0][0].maxDepositUgnot).toBe('4900000')
@@ -221,12 +221,12 @@ describe('publication baseline and receipt boundaries', () => {
     })
 })
 
-const live = { id: draft.scope.noteId, owner, mode: 4, deleted: false, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Whitepaper'), body: bytes('Published content') } as unknown as ChainNote
+const live = { id: draft.scope.noteId, owner, mode: 4, deleted: false, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Field guide'), body: bytes('Published content') } as unknown as ChainNote
 /** The page that opens the delete sheet: closing it unmounts it, as the authoring workspace does. */
 function DeletePage({ requestSession = createDraftSession(), walletChainId, order = [] as string[] }: { requestSession?: ReturnType<typeof createDraftSession>; walletChainId?: string; order?: string[] }) {
     const [open, setOpen] = useState(true), [notice, setNotice] = useState<Notice | null>(null)
     const client = useState(() => ({ chainId: 'gnoland-1', assertCurrent() {} }) as unknown as NotesReadClient)[0]
-    return <><NoteBanner notice={notice} />{open && <PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Whitepaper" requestSession={requestSession}
+    return <><NoteBanner notice={notice} />{open && <PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Field guide" requestSession={requestSession}
         walletChainId={walletChainId} onClose={() => { order.push('close'); setOpen(false) }} onNotice={setNotice} />}</>
 }
 describe('published note deletion', () => {
@@ -239,7 +239,7 @@ describe('published note deletion', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce()); expect(order).toEqual(['close', 'sign'])
         expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '1700000', operation: { noteId: live.id, action: { kind: 'delete', revision: '7' } } })
-        expect(calls.sign.mock.calls[0][0].summary).toBe('Delete “Whitepaper”')
+        expect(calls.sign.mock.calls[0][0].summary).toBe('Delete “Field guide”')
     })
     it('prepares its request in the page session, so closing the sheet never aborts it', async () => {
         const requestSession = createDraftSession()
@@ -268,7 +268,7 @@ describe('published note deletion', () => {
         calls.prepare.mockRejectedValueOnce(new Error('offline'))
         // The same sheet, kept open by its page, tries twice.
         const client = { chainId: 'gnoland-1', assertCurrent() {} } as unknown as NotesReadClient, onClose = vi.fn()
-        render(<PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Whitepaper" requestSession={createDraftSession()} onClose={onClose} />)
+        render(<PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Field guide" requestSession={createDraftSession()} onClose={onClose} />)
         fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' })); await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
         await waitFor(() => expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeEnabled())
         fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' })); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
