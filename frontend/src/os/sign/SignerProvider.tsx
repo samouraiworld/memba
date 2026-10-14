@@ -26,8 +26,11 @@ interface Review {
     acked: boolean[]
     stage: Stage
     error: string | null
-    /** The price quote expired before the wallet opened: the review offers a fresh quote instead of signing. */
-    expired?: boolean
+    /**
+     * The price quote expired before the wallet opened, so this request can no longer be signed: "offer" a fresh quote
+     * (the request can requote), or "none" (it cannot, or a fresh quote failed) and only Cancel remains.
+     */
+    expired?: "offer" | "none"
     /** A fresh quote is being prepared. */
     requoting?: boolean
 }
@@ -149,7 +152,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
             if (res.outcome === "cancelled") { closeReview(); toast(res.error); settle(req, choice, "cancelled"); return }
             const expired = res.outcome === "failed" && !!res.expired
             const error = expired && !req.requote ? `${res.error} Cancel, then start again.` : res.error
-            setReview((r) => r && { ...r, stage: "review", error, expired: expired && !!req.requote })
+            setReview((r) => r && { ...r, stage: "review", error, expired: expired ? (req.requote ? "offer" : "none") : undefined })
             return
         }
         if (res.outcome === "refused") {
@@ -213,7 +216,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
 
     // The same action priced again in place: fresh chain reads and figures, every acknowledgement asked again.
     const requote = useCallback(async () => {
-        if (!review || busy.current || !review.expired || !review.req.requote) return
+        if (!review || busy.current || review.expired !== "offer" || !review.req.requote) return
         const { req, choice } = review
         const requestOwner = ownerRef.current
         busy.current = true
@@ -222,7 +225,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         try { await req.requote?.(choice) } catch (err) { error = err instanceof Error ? err.message : String(err) }
         busy.current = false
         if (ownerRef.current !== requestOwner) return
-        setReview((r) => r && r.req === req ? { ...r, requoting: false, expired: false, error, acked: r.acked.map(() => false) } : r)
+        setReview((r) => r && r.req === req ? { ...r, requoting: false, expired: error === null ? undefined : "none", error, acked: r.acked.map(() => false) } : r)
     }, [review])
 
     const cancel = useCallback(() => {
@@ -278,7 +281,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onRequote, onCanc
     try { checklist = adenaChecklist(req.prepare(choice).msgs, chain) } catch (err) { prepareError = err instanceof Error ? err.message : String(err) }
     const lines = req.lines(choice)
     const allAcked = review.acked.every(Boolean)
-    const canGo = stage === "review" && session.status === "member" && !wrongNet && !prepareError && allAcked
+    const canGo = stage === "review" && session.status === "member" && !wrongNet && !prepareError && allAcked && !review.expired
     // Adena's unlock window, whichever wallet check opened it (before or after Memba's rechecks).
     const unlocking = useSyncExternalStore(subscribeAdenaUnlock, isAdenaUnlockOpen) && stage !== "review"
     // While the person reads: the wallet, so a locked or switched one shows before the click, and the
@@ -379,7 +382,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onRequote, onCanc
                         </div>
                         <div className="os-rvf">
                             <button type="button" className="os-btn os-quiet" onClick={onCancel} disabled={review.requoting}>Cancel</button>
-                            {review.expired
+                            {review.expired === "none" ? null : review.expired === "offer"
                                 ? <button type="button" className="os-btn" onClick={onRequote} disabled={review.requoting} autoFocus>{review.requoting ? "Getting a fresh quote…" : "Get a fresh quote"}</button>
                                 : wrongNet
                                 ? <button type="button" className="os-btn" onClick={() => { void session.switchWallet() }}>Switch Adena to {chain}</button>

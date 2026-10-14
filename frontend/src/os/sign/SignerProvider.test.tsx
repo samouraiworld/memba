@@ -791,11 +791,25 @@ describe("an expired price quote (F7)", () => {
         expect(await screen.findByText("The note changed since this review. Nothing was sent. Cancel, then start again.")).toBeVisible()
         expect(req.requote).toHaveBeenCalledOnce()
         expect(screen.queryByRole("button", { name: "Get a fresh quote" })).toBeNull()
+        // Signing the expired request again could only fail: Cancel is the one way on.
+        expect(screen.queryByRole("button", { name: "Sign in Adena" })).toBeNull()
         expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled()
     })
     it("asks to start again when the request cannot quote again by itself", async () => {
         expiring({ requote: undefined })
         expect(await screen.findByText("The price quote expired. Nothing was sent. Cancel, then start again.")).toBeVisible()
         expect(screen.queryByRole("button", { name: "Get a fresh quote" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Sign in Adena" })).toBeNull()
+        expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled()
+    })
+    it("asks every acknowledgement again for the fresh figures", async () => {
+        const req = expiring({ acks: ["I understand the note is public."] })
+        // The first attempt: the acknowledgement must be ticked before signing.
+        fireEvent.click(screen.getByRole("checkbox", { name: /I understand the note is public/ }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        fireEvent.click(await screen.findByRole("button", { name: "Get a fresh quote" }))
+        await waitFor(() => expect(req.requote).toHaveBeenCalledOnce())
+        expect(await screen.findByRole("checkbox", { name: /I understand the note is public/ })).not.toBeChecked()
+        expect(screen.getByRole("button", { name: "Sign in Adena" })).toBeDisabled()
     })
 })
