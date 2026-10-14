@@ -150,9 +150,14 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     }
     /** Deletes this device's draft once its running save settled; the text in memory goes with it. */
     async function discard(): Promise<boolean> {
-        while (inflight.current && running.current) await running.current.catch(() => {})
-        if (inflight.current || session.signal.aborted) return false
+        // A save that does not answer ends in "could not be discarded", never in silence.
+        // Locked from the confirmation on: nothing typed while a running save settles is deleted unseen.
         setState("deleting")
+        if (inflight.current && running.current) {
+            const settled = await withTimeout((async () => { while (inflight.current && running.current) await running.current.catch(() => {}) })()).then(() => true, () => false)
+            if (!settled) { if (!session.signal.aborted) setState("saving"); return false }
+        }
+        if (inflight.current || session.signal.aborted) { if (!session.signal.aborted) setState("saving"); return false }
         const result = await store.deleteDraft(scope, revision.current, session)
         if (result.status === "saved") { editable.current = false; setTitle(""); setBody(""); draft.current = { title: "", body: "", changes: 0 }; setState("missing"); saved.current(); pane?.deleted(!!base.current); return true }
         if (result.status !== "session-changed") setState("conflict")
@@ -174,11 +179,12 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
      */
     async function published(nextBase: DraftBase, fromRevision: string): Promise<boolean> {
         if (!lineage.current.has(fromRevision)) return false
-        base.current = nextBase
-        draft.current = { ...draft.current, changes: draft.current.changes + 1 }
-        // Queue behind a running save; success is reported only once this baseline is stored. Both waits are bounded.
+        // Queue behind a running save; success is reported only once this baseline is stored. Both waits are bounded,
+        // and the baseline only moves once the wait is over: a timeout leaves the draft exactly as it was.
         await withTimeout((async () => { while (inflight.current && running.current) await running.current.catch(() => {}) })())
         if (inflight.current || session.signal.aborted) return false
+        base.current = nextBase
+        draft.current = { ...draft.current, changes: draft.current.changes + 1 }
         const snapshot = { ...draft.current }
         inflight.current = true; setState("saving")
         const pending = saveDraftBounded(store, scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, base: nextBase }, session)
@@ -220,7 +226,7 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
             </>}
             primary={actions && (controls ? controls.primary : <button type="button" className="os-btn" disabled>Publish</button>)}
             menu={[{ label: "Export", hint: noteExportFilename(title), run: () => downloadMarkdown(title, body) }, ...menu,
-                ...!baseline && state === "saved" ? [{ label: "Delete note…", danger: true, run: remove }] : []]} />
+                ...!baseline && !basis && state === "saved" ? [{ label: "Delete note…", danger: true, run: remove }] : []]} />
         {(state === "conflict" || state === "unavailable") && <NoteBanner notice={{ tone: "error", text: state === "conflict" ? "This draft changed in another window. Your edits are still here but have not replaced its saved copy." : "This device could not save your edits. They are still here: keep this window open, retry or export them.",
             actions: <>{state === "unavailable" && <button className="os-btn" onClick={() => void save()}>Retry save</button>}
                 <button className="os-btn os-quiet" onClick={() => void keepCopy()}>Save a separate copy</button>

@@ -87,7 +87,7 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
     useEffect(() => {
         const guard = session.capture(); let alive = true
         const live = () => alive && !guard.signal.aborted
-        void store.getDraft(scope).then(async draft => {
+        void withTimeout(store.getDraft(scope)).then(async draft => {
             if (!live()) return
             const payload = draft?.payload.kind === 'public' ? draft.payload : null
             setSaved(payload)
@@ -183,6 +183,8 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
     }
     function cancel({ title, body, discard }: { title: string; body: string; discard(): Promise<boolean> }) {
         const published = live.note
+        // The published text is not known (its read failed or has not answered yet): back to the page, the draft kept as it is.
+        if (published === undefined) { setEditing(false); return }
         // Leaving without changes keeps the (identical) draft; changes are discarded only once confirmed.
         if (!published || !sameText({ title, body }, published)) {
             if (!window.confirm('Discard your unpublished changes? They are deleted from this device. Choose Cancel to keep editing.')) return
@@ -194,7 +196,8 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         }
         setEditing(false); setNotice(null)
     }
-    const view = () => { setProgress(null); setEditing(false); setNotice(null); reread(value => value + 1) }
+    // A message set by the confirmation (e.g. the draft changed meanwhile) stays; a new publication clears old ones itself.
+    const view = () => { setProgress(null); setEditing(false); reread(value => value + 1) }
     const basis = live.note && !live.note.deleted && live.note.body ? { revision: live.note.stateRevision, title: publicText(live.note.title, true), body: publicText(live.note.body) } : null
     function actions(draft: DraftRecord, editor: EditorActions): { primary?: ReactNode; banner?: ReactNode } {
         if (live.note === undefined) return {
@@ -226,7 +229,7 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         ? <NoteStatus kind="changes">Unpublished changes{saved.base ? ` · based on revision ${saved.base.stateRevision}` : ''}</NoteStatus> : undefined
     if (start === 'checking') return <NoteSkeleton />
     return <div className="os-notes-authoring">
-        {!editing && unread && saved && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',
+        {!editing && saved && (unread || (opened && live.failed)) && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',
             actions: <button type="button" className="os-btn" disabled={busy} onClick={() => opened ? setEditing(true) : void prepare()}>Open my draft</button> }} />}
         <div hidden={editing}>
             <PublicNote id={scope.noteId} client={client} owner={scope.owner} banner={!editing && <NoteBanner notice={notice} />} status={changes}
@@ -240,10 +243,10 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         </div>
         {opened && <div hidden={!editing}>
             <DraftEditor key={generation} scope={scope} store={store} onSaved={() => reread(value => value + 1)} basis={basis} banner={editing && <NoteBanner notice={notice} />}
-                onCancel={basis ? cancel : undefined} actions={editing ? actions : undefined} />
+                onCancel={basis || saved?.base ? cancel : undefined} actions={editing ? actions : undefined} />
         </div>}
         {progress && <PublishProgressSheet progress={progress} onHide={() => setProgress(null)} onView={view} />}
-        {deleting && <PublicDelete note={deleting} client={client} store={store} owner={scope.owner} title={publicText(deleting.title, true)} onClose={() => setDeleting(null)} onNotice={setNotice} onProgress={setProgress} />}
+        {deleting && <PublicDelete note={deleting} client={client} store={store} owner={scope.owner} title={publicText(deleting.title, true)} requestSession={session} walletChainId={walletChainId} onClose={() => setDeleting(null)} onNotice={setNotice} onProgress={setProgress} />}
     </div>
 }
 

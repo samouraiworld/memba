@@ -31,6 +31,19 @@ describe('published document refresh lifetime', () => {
   })
 })
 
+describe('page messages', () => {
+  it.each([
+    ['while the note loads', () => new Promise<never>(() => {}), () => screen.getByRole('status')],
+    ['when it cannot be read', () => Promise.reject(new Error('offline')), () => screen.findByRole('alert')],
+    ['when it is not found', () => Promise.resolve(null), () => screen.findByRole('heading', { name: 'Note not found' })],
+    ['on a tombstone', () => Promise.resolve({ ...note, deleted: true, title: new Uint8Array(), body: new Uint8Array() }), () => screen.findByRole('heading', { name: 'Deleted note' })],
+    ['on a private note', () => Promise.resolve({ ...note, mode: 1 as const }), () => screen.findByRole('region', { name: 'Private note' })],
+  ])('shows the page message %s', async (_state, read, shown) => {
+    render(<PublicNote id={note.id} client={{ note: vi.fn(read) }} owner="owner" banner={<p>Your draft could not be opened. It is kept.</p>} />)
+    expect(await shown()).toBeVisible(); expect(screen.getByText('Your draft could not be opened. It is kept.')).toBeVisible()
+  })
+})
+
 describe('published document freshness', () => {
   const chainId = 'onyx-1'
   it('re-reads after a confirmed change to this note without a manual refresh', async () => {

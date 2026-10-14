@@ -3,18 +3,18 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import type { ChainNote } from '../../../lib/notes/chain/schema'
-import { PublicPublish, PublishProgressSheet, type PublishProgress } from './PublicPublish'
+import { NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema'
+import { PublicDelete, PublicPublish, PublishProgressSheet, type PublishProgress } from './PublicPublish'
 import { NoteBanner, type Notice } from './NoteHeader'
 import { NotesPaneContext, type NotesPane } from './notesPane'
 import { useNoteFreshness } from '../../../lib/notes/freshness'
-const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), receipts: vi.fn() }))
+const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), receipts: vi.fn(), balance: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
 vi.mock('../../../lib/notes/intents', () => ({ NotesIntents: class { list = calls.receipts } }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({ realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 }), newNoteId: () => crypto.randomUUID().replaceAll('-', '') }))
-// The balance read never reaches a network in tests: an unknown balance blocks nothing.
-vi.mock('../../../lib/dao/packageStatus', () => ({ abciQueryText: vi.fn(async () => { throw new Error('offline') }) }))
+// The balance read never reaches a network in tests: unknown by default, which blocks nothing.
+vi.mock('../../../lib/dao/packageStatus', () => ({ abciQueryText: calls.balance }))
 const owner = 'g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0'
 const bytes = (value: string) => new TextEncoder().encode(value)
 const base = { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' }
@@ -37,7 +37,7 @@ function setup(record = draft, getDraft = vi.fn(async () => record)) {
     return { client, getDraft, beforeReview, titleProblem }
 }
 const approve = async () => fireEvent.click(await screen.findByRole('button', { name: 'Publish with Adena' }))
-beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ warns: [] }); calls.sign.mockReturnValue(true); calls.receipts.mockResolvedValue([]) })
+beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ warns: [] }); calls.sign.mockReturnValue(true); calls.receipts.mockResolvedValue([]); calls.balance.mockRejectedValue(new Error('offline')) })
 /** The review sheet, once the latest revision was checked (the checking sheet carries the same name). */
 const reviewSheet = async () => (await screen.findByRole('heading', { name: /^Publish/ })).closest('[role="dialog"]') as HTMLElement
 describe('public publication review', () => {
@@ -218,5 +218,71 @@ describe('publication baseline and receipt boundaries', () => {
         const props = publicationProps()
         render(<Page {...props} draft={{ ...draft, scope: { ...draft.scope, chainId: 'other-chain' } }} />); fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
         await screen.findByText(/belongs to another network/); expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
+    })
+})
+
+const live = { id: draft.scope.noteId, owner, mode: 4, deleted: false, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Whitepaper'), body: bytes('Published content') } as unknown as ChainNote
+/** The page that opens the delete sheet: closing it unmounts it, as the authoring workspace does. */
+function DeletePage({ requestSession = createDraftSession(), walletChainId, order = [] as string[] }: { requestSession?: ReturnType<typeof createDraftSession>; walletChainId?: string; order?: string[] }) {
+    const [open, setOpen] = useState(true), [notice, setNotice] = useState<Notice | null>(null)
+    const client = useState(() => ({ chainId: 'gnoland-1', assertCurrent() {} }) as unknown as NotesReadClient)[0]
+    return <><NoteBanner notice={notice} />{open && <PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Whitepaper" requestSession={requestSession}
+        walletChainId={walletChainId} onClose={() => { order.push('close'); setOpen(false) }} onNotice={setNotice} />}</>
+}
+describe('published note deletion', () => {
+    it('states the deposit it keeps and the cap it writes, then closes the sheet before signing', async () => {
+        const order: string[] = []; calls.sign.mockImplementation(() => { order.push('sign'); return true })
+        render(<DeletePage order={order} />)
+        const sheet = screen.getByRole('dialog', { name: 'Delete note' })
+        expect(sheet).toHaveTextContent('≈ 0.85 GNOT storage deposit, not returned'); expect(sheet).toHaveTextContent('At most 1.7 GNOT')
+        expect(calls.prepare).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce()); expect(order).toEqual(['close', 'sign'])
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '1700000', operation: { noteId: live.id, action: { kind: 'delete', revision: '7' } } })
+        expect(calls.sign.mock.calls[0][0].summary).toBe('Delete “Whitepaper”')
+    })
+    it('prepares its request in the page session, so closing the sheet never aborts it', async () => {
+        const requestSession = createDraftSession()
+        render(<DeletePage requestSession={requestSession} />)
+        fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
+        await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        const input = calls.prepare.mock.calls[0][0]; expect(input.session).toBe(requestSession)
+        // Taken before the sheet closed: capture() after an invalidation would hand out a fresh signal.
+        const signal = input.session.capture().signal as AbortSignal
+        expect(screen.queryByRole('dialog', { name: 'Delete note' })).toBeNull(); expect(signal.aborted).toBe(false)
+    })
+    it('refuses to start while Adena is on another network', async () => {
+        render(<DeletePage walletChainId="other-1" />)
+        expect(screen.getByRole('alert')).toHaveTextContent('Adena is on other-1, this note lives on gnoland-1.')
+        const remove = screen.getByRole('button', { name: 'Delete with Adena' }); expect(remove).toBeDisabled(); fireEvent.click(remove)
+        await act(async () => {}); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+    })
+    it('refuses to start when the balance does not cover the deposit', async () => {
+        calls.balance.mockResolvedValue(JSON.stringify('100000ugnot'))
+        render(<DeletePage />)
+        expect(await screen.findByRole('alert')).toHaveTextContent('This costs ≈ 0.85 GNOT; your balance is 0.1 GNOT.')
+        const remove = screen.getByRole('button', { name: 'Delete with Adena' }); expect(remove).toBeDisabled(); fireEvent.click(remove)
+        await act(async () => {}); expect(calls.prepare).not.toHaveBeenCalled()
+    })
+    it('uses a fresh operation id for each attempt', async () => {
+        calls.prepare.mockRejectedValueOnce(new Error('offline'))
+        // The same sheet, kept open by its page, tries twice.
+        const client = { chainId: 'gnoland-1', assertCurrent() {} } as unknown as NotesReadClient, onClose = vi.fn()
+        render(<PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Whitepaper" requestSession={createDraftSession()} onClose={onClose} />)
+        fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' })); await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' })); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        const [first, second] = calls.prepare.mock.calls.map(call => call[0].operation.operationId)
+        expect(first).toMatch(/^[0-9a-f]{32}$/); expect(second).toMatch(/^[0-9a-f]{32}$/); expect(second).not.toBe(first)
+    })
+    it.each([
+        [new NotesChainError('stale'), 'The note changed meanwhile. Nothing was sent; read the latest revision first.'],
+        [new Error('offline'), 'The publication could not be prepared. Nothing was sent. Try again.'],
+    ])('closes and explains a preparation that fails (%s)', async (error, message) => {
+        calls.prepare.mockRejectedValueOnce(error)
+        render(<DeletePage />)
+        fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
+        expect(await screen.findByText(message)).toBeVisible()
+        expect(screen.queryByRole('dialog', { name: 'Delete note' })).toBeNull(); expect(calls.sign).not.toHaveBeenCalled()
     })
 })

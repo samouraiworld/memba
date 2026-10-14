@@ -36,6 +36,14 @@ describe('note header', () => {
         await act(async () => fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link' })))
         expect(writeText).toHaveBeenCalledWith(`${location.origin}/${ACTIVE_NETWORK_KEY}/os/notes/${id}`); expect(screen.getByRole('status')).toHaveTextContent('Link copied.')
     })
+    it('moves to the last item on ArrowUp when no item has the focus', () => {
+        render(<NoteHeader noteId={id} published status="Published" menu={[{ label: 'Export', run: vi.fn() }, { label: 'Delete note…', danger: true, run: vi.fn() }]} />)
+        const more = screen.getByRole('button', { name: 'More actions' }); fireEvent.click(more)
+        more.focus(); fireEvent.keyDown(more, { key: 'ArrowUp' })
+        expect(screen.getByRole('menuitem', { name: 'Delete note…' })).toHaveFocus()
+        more.focus(); fireEvent.keyDown(more, { key: 'ArrowDown' })
+        expect(screen.getByRole('menuitem', { name: 'Copy link' })).toHaveFocus()
+    })
     it('offers no link for a draft that only exists on this device', () => {
         render(<NoteHeader noteId={id} status="Draft saved on this device" />)
         expect(screen.queryByRole('button', { name: 'Share' })).toBeNull()
@@ -59,5 +67,17 @@ describe('note banner and sheet', () => {
         fireEvent.keyDown(dialog, { key: 'Escape' }); expect(close).toHaveBeenCalledOnce()
         view.rerender(<NotesPaneContext.Provider value={pane({ shown: false, overlay })}><NoteSheet label="Publish"><button>Keep editing</button></NoteSheet></NotesPaneContext.Provider>)
         expect(screen.queryByRole('dialog')).toBeNull(); overlay.remove()
+    })
+    it('returns the focus where it was when the sheet closes', () => {
+        const view = render(<><button>Publish</button></>)
+        const opener = screen.getByRole('button', { name: 'Publish' }); opener.focus()
+        view.rerender(<><button>Publish</button><NoteSheet label="Publish"><button>Keep editing</button></NoteSheet></>)
+        expect(screen.getByRole('dialog', { name: 'Publish' })).toHaveFocus()
+        view.rerender(<><button>Publish</button></>)
+        expect(opener).toHaveFocus()
+    })
+    it('leaves the focus on a control in the sheet that took it', () => {
+        render(<NoteSheet label="Published"><p>Everyone now sees your change.</p><button autoFocus>View note</button></NoteSheet>)
+        expect(screen.getByRole('button', { name: 'View note' })).toHaveFocus()
     })
 })

@@ -252,20 +252,35 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
     </>
 }
 
-/** Deletes a published note (owner only), with the same sheet and progress as a publication. */
-export function PublicDelete({ note, client, store, owner, title, onClose, onProgress, onNotice }: Report & { note: ChainNote; client: NotesReadClient; store: NotesStore; owner: string; title: string; onClose(): void }) {
+/**
+ * Deletes a published note (owner only): the same sheet as a publication says what it costs, checks Adena's network
+ * and the balance, then signs. The request lives in the page's session, so closing this sheet never aborts it.
+ */
+export function PublicDelete({ note, client, store, owner, title, requestSession, walletChainId, onClose, onProgress, onNotice }: Report & {
+    note: ChainNote; client: NotesReadClient; store: NotesStore; owner: string; title: string; requestSession: DraftSession; walletChainId?: string; onClose(): void
+}) {
     const pane = useNotesPane(), signer = useSigner()
     const [session] = useState(createDraftSession), [busy, setBusy] = useState(false)
+    // Priced once; each attempt gets its own operation id.
+    const operation = useMemo<PublicNoteOperation>(() => ({ caller: owner, noteId: note.id, operationId: newNoteId(), action: { kind: 'delete', revision: note.stateRevision } }), [owner, note.id, note.stateRevision])
+    const budget = useMemo(() => publicNoteBudget(publicNoteMessage(operation, '0')), [operation])
+    const [balance, setBalance] = useState<bigint | null | undefined>(undefined)
     useLayoutEffect(() => () => session.invalidate(), [session])
+    useEffect(() => {
+        const guard = session.capture()
+        void balanceOf(client.chainId, owner).then(value => { if (!guard.signal.aborted) setBalance(value) })
+    }, [session, client.chainId, owner])
+    const wrongNetwork = !!walletChainId && walletChainId !== client.chainId
+    const short = typeof balance === 'bigint' && balance < BigInt(budget.estimatedDepositUgnot)
     async function remove() {
-        if (busy) return
+        if (busy || wrongNetwork || short) return
         setBusy(true)
         const guard = session.capture()
         try {
-            const operation: PublicNoteOperation = { caller: owner, noteId: note.id, operationId: newNoteId(), action: { kind: 'delete', revision: note.stateRevision } }
-            const cap = publicNoteBudget(publicNoteMessage(operation, '0')).suggestedCapUgnot
-            const request = await withTimeout(preparePublicNoteRequest({ client, operation, maxDepositUgnot: cap, draftLocalRevision: '0', session, intents: new NotesIntents(store),
-                quote: publicNoteQuote(client, cap), isWriteEnabled: () => !!notesDeployment(client.chainId) }))
+            const pending = preparePublicNoteRequest({ client, operation: { ...operation, operationId: newNoteId() }, maxDepositUgnot: budget.suggestedCapUgnot, draftLocalRevision: '0', session: requestSession, intents: new NotesIntents(store),
+                quote: publicNoteQuote(client, budget.suggestedCapUgnot), isWriteEnabled: () => !!notesDeployment(client.chainId) })
+            // A late request after a timeout is dismissed; it has recorded nothing and opened no wallet.
+            const request = await withTimeout(pending).catch(error => { void pending.then(late => late.onDismissed?.(), () => {}); throw error })
             if (guard.signal.aborted) { request.onDismissed?.(); return }
             request.summary = `Delete “${title}”`
             onClose()
@@ -276,10 +291,16 @@ export function PublicDelete({ note, client, store, owner, title, onClose, onPro
     }
     return <NoteSheet label="Delete note" onClose={busy ? undefined : onClose}>
         <h2>Delete “{title}”?</h2>
-        <p>Readers will see that the note was deleted. Earlier versions remain in chain history, and comments stay as they are. This cannot be undone.</p>
+        <dl className="os-notes-facts">
+            <div><dt>What happens</dt><dd>Readers will see that the note was deleted. Earlier versions remain in chain history, and comments stay as they are. This cannot be undone.</dd></div>
+            <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {gnotAmount(budget.estimatedDepositUgnot)}</strong> storage deposit, not returned: deleting records the deletion in the note&apos;s history.
+                <small>At most {gnotAmount(budget.suggestedCapUgnot)}, written in the transaction. Adena shows the network fee.</small></dd></div>
+        </dl>
+        {wrongNetwork && <p className="os-notes-field-error" role="alert"><b>Adena is on {walletChainId}, this note lives on {client.chainId}.</b> Switch Adena to {client.chainId}, then delete.</p>}
+        {short && <p className="os-notes-field-error" role="alert"><b>This costs ≈ {gnotAmount(budget.estimatedDepositUgnot)}; your balance is {gnotAmount(String(balance))}.</b> Nothing was sent.</p>}
         <div className="os-notes-sheet-actions">
             <button type="button" className="os-btn os-quiet" disabled={busy} onClick={onClose}>Keep the note</button>
-            <button type="button" className="os-btn os-notes-danger" disabled={busy} onClick={() => void remove()}>{busy ? 'Preparing…' : 'Delete with Adena'}</button>
+            <button type="button" className="os-btn os-notes-danger" disabled={busy || wrongNetwork || short} onClick={() => void remove()}>{busy ? 'Preparing…' : 'Delete with Adena'}</button>
         </div>
     </NoteSheet>
 }

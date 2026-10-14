@@ -6,8 +6,9 @@ import { createDraftSession, createNotesStore, type NotesStore } from '../../../
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
 import { PublicAuthoring } from './PublicAuthoring'
+import type { PublishProgress } from './PublicPublish'
 import { announceNoteChange } from '../../../lib/notes/freshness'
-const mocks = vi.hoisted(() => ({ permission: vi.fn(), note: null as ChainNote | null, plan: vi.fn(), actual: null as null | ((...args: unknown[]) => unknown), timeoutMs: undefined as number | undefined, reviewed: vi.fn(), answered: vi.fn(), publish: null as null | { onPublished?: (note: ChainNote) => void; requestSession?: { capture(): { signal: AbortSignal } } } }))
+const mocks = vi.hoisted(() => ({ permission: vi.fn(), note: null as ChainNote | null, plan: vi.fn(), actual: null as null | ((...args: unknown[]) => unknown), timeoutMs: undefined as number | undefined, reviewed: vi.fn(), answered: vi.fn(), publish: null as null | { onPublished?: (note: ChainNote) => void; onProgress?: (progress: PublishProgress | null) => void; requestSession?: { capture(): { signal: AbortSignal } } } }))
 vi.mock('../../../lib/notes/chain/publicPermissions', () => ({ readPublicContentWritePermission: mocks.permission }))
 vi.mock('../terminal/CodeEditor', () => ({ CodeEditor: ({ value, onChange }: { value: string; onChange(value: string): void }) => <textarea aria-label="Markdown editor" value={value} onChange={e => onChange(e.target.value)} /> }))
 vi.mock('./MarkdownPreview', () => ({ MarkdownPreview: () => <span>Preview</span> }))
@@ -31,12 +32,13 @@ vi.mock('../../../lib/notes/chain/rebase', async original => {
 vi.mock('./PublicCommentPanel', () => ({ PublicCommentPanel: () => <span>Comments</span> }))
 vi.mock('./PublicHistory', () => ({ PublicHistory: ({ onRestore }: { onRestore?: (draft: unknown) => void }) => <button onClick={() => onRestore?.({ noteId: mocks.note!.id, sourceStateRevision: '1', title: 'Archived title', body: 'Archived body' })}>Restore archived draft</button> }))
 type Reader = { primary?(note: ChainNote): ReactNode; status?(note: ChainNote): ReactNode; share?(note: ChainNote, refresh: () => void): ReactNode; menu?(note: ChainNote): { label: string; run(): void }[]; banner?: ReactNode; children?(note: ChainNote, refresh: () => void, root: null): ReactNode }
-// The reader shows `mocks.note` as read; like the real one, its banner and actions exist only once a note is shown.
+// The reader shows `mocks.note` as read; like the real one, its actions exist only once a note is shown, and its
+// banner (the page's message) shows in every state (PublicNote.lifecycle.test covers that).
 vi.mock('./PublicNote', () => ({
     NoteSkeleton: ({ label = 'Loading note…' }: { label?: string }) => <p role="status">{label}</p>,
-    PublicNote: ({ primary, status, share, menu, banner, children }: Reader) => <section aria-label="Published note"><h1>Published reader</h1>{mocks.note && <>
+    PublicNote: ({ primary, status, share, menu, banner, children }: Reader) => <section aria-label="Published note"><h1>Published reader</h1>{banner}{mocks.note && <>
         {status?.(mocks.note)}{share?.(mocks.note, () => {})}{primary?.(mocks.note)}{menu?.(mocks.note).map(item => <button key={item.label} onClick={item.run}>{item.label}</button>)}
-        {banner}{children?.(mocks.note, () => {}, null)}</>}</section>,
+        {children?.(mocks.note, () => {}, null)}</>}</section>,
 }))
 const scope = { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: 'wallet', noteId: 'ab'.repeat(16) }
 const utf8 = (value: string) => new TextEncoder().encode(value)
@@ -72,6 +74,28 @@ describe('public authoring durable workspace', () => {
         render(<PublicAuthoring store={store} client={client} scope={scope} />)
         expect(await screen.findByText(/published note could not be read/)).toBeVisible()
         fireEvent.click(screen.getByRole('button', { name: /draft|edit/i })); expect(await screen.findByLabelText('Note title')).toHaveValue('My title')
+    })
+    it('leaves the loading page when this device does not answer, and says its drafts could not be read', async () => {
+        const { store, client } = setup(); vi.spyOn(store, 'getDraft').mockReturnValue(new Promise(() => {})); mocks.timeoutMs = 200
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        expect(await screen.findByText('Drafts on this device could not be read. Their saved copies were kept.')).toBeVisible()
+        expect(screen.getByRole('heading', { name: 'Published reader' })).toBeVisible(); expect(screen.queryByText('Loading note…')).toBeNull()
+        expect(await screen.findByRole('button', { name: 'Edit' })).toBeEnabled()
+    })
+    it('keeps the message a confirmation set after Published → View note', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        await edit(); await screen.findByText('Update controls')
+        const signing = mocks.publish!
+        // Another window replaced the draft: the baseline cannot move, and the confirmation says so.
+        vi.spyOn(store, 'saveDraft').mockResolvedValueOnce({ status: 'conflict' })
+        const confirmed = { ...note, stateRevision: '4', bodyRevision: '4', body: utf8('My text') }
+        await act(async () => { signing.onPublished!(confirmed); signing.onProgress!({ kind: 'publish', title: 'My title', chainId: scope.chainId, step: 'done', revision: '4' }) })
+        const message = /Published as revision 4\. Your draft changed meanwhile/
+        expect(await screen.findByText(message)).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'View note' }))
+        expect(screen.queryByRole('dialog', { name: 'Published' })).toBeNull(); expect(screen.getByRole('heading', { name: 'Published reader' })).toBeVisible()
+        expect(screen.getByText(message)).toBeVisible()
     })
     it('opens a draft of the latest revision unchanged and never drops unpublished text when leaving the editor', async () => {
         const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)

@@ -128,7 +128,7 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
                 <span className="os-notes-row-title">Public notes</span><span className="os-notes-row-meta">Read what others published</span>
             </button>
         </nav>
-        <div className="os-notes-stage">
+        <div className="os-notes-viewport">
             <section className="os-notes-main" aria-label="Note">
                 <button type="button" className="os-btn os-quiet os-notes-back" aria-label="Back to notes" onClick={() => { setExploring(false); if (noteId) onShowList() }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>Notes

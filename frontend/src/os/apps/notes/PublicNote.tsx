@@ -51,21 +51,22 @@ export function PublicNote({ id, client, owner, primary, status, menu, share, ba
     }, [client, id, reload, minimum])
     const refreshing = read.version !== reload
     // An absent note is only reported once no newer read is pending: never flash "not found" while loading.
-    if (read.client !== client || read.id !== id || read.phase === "loading" || (refreshing && !read.note)) return <NoteSkeleton />
-    if (read.phase === "error" && !read.note) return <section className="os-notes-welcome"><p role="alert">This note could not be read. Please try again.</p><button className="os-btn" onClick={() => bump()}>Retry</button></section>
+    if (read.client !== client || read.id !== id || read.phase === "loading" || (refreshing && !read.note)) return <>{banner}<NoteSkeleton /></>
+    if (read.phase === "error" && !read.note) return <section className="os-notes-welcome">{banner}<p role="alert">This note could not be read. Please try again.</p><button className="os-btn" onClick={() => bump()}>Retry</button></section>
     const note = read.note
-    if (!note) return <section className="os-notes-welcome"><h1>Note not found</h1><p>No note was found at this address on the current network.</p></section>
+    if (!note) return <section className="os-notes-welcome">{banner}<h1>Note not found</h1><p>No note was found at this address on the current network.</p></section>
     const refresh = () => bump(), root = note.deleted ? null : previewRoot
     const by = owner && note.actor === owner ? "you" : shortAddress(note.actor)
     const failed = read.phase === "error" && <NoteBanner notice={{ tone: "warn", text: "The latest revision could not be read. The last loaded revision is still displayed.", actions: <button className="os-btn os-quiet" onClick={refresh}>Try again</button> }} />
     if (note.deleted) return <section className="os-notes-document os-notes-reader" aria-label="Deleted note">
         <NoteHeader noteId={id} status={<NoteStatus kind="published">Deleted · revision {note.stateRevision} · by {by}</NoteStatus>} />
-        {failed}
+        {failed}{banner}
         <h1 className="os-notes-title">Deleted note</h1><p>The owner deleted this note. Earlier versions remain in chain history.</p>{children?.(note, refresh, null)}
     </section>
     // A deleted note shows its tombstone whatever its mode: its comment controls stay reachable.
     if (note.mode < 3) return encrypted?.(note, refresh) ?? <section className="os-notes-document os-notes-reader" aria-label="Private note">
         <NoteHeader noteId={id} status={<NoteStatus kind="private">Private · revision {note.stateRevision}</NoteStatus>} />
+        {failed}{banner}
         <p className="os-notes-hint">This private note is encrypted. Opening private notes is not available in this version.</p>
     </section>
     const title = publicText(note.title, true), body = publicText(note.body!)

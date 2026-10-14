@@ -18,7 +18,7 @@
 .os-notes-app .os-notes-pill[data-state="unsaved"] { background:var(--os-warn-bg); color:var(--os-warn); }
 .os-notes-app .os-notes-list-note { margin:0; padding:6px 12px; font-size:12.5px; color:var(--os-mut); }
 /* The note side: the scrolling note, and the overlay its sheets (publish, progress) cover it with. */
-.os-notes-app .os-notes-stage { position:relative; display:flex; flex-direction:column; min-width:0; min-height:0; }
+.os-notes-app .os-notes-viewport { position:relative; display:flex; flex-direction:column; min-width:0; min-height:0; }
 .os-notes-app .os-notes-overlay { position:absolute; inset:0; z-index:20; pointer-events:none; }
 .os-notes-app .os-notes-overlay:empty { display:none; }
 .os-notes-app .os-notes-main { flex:1; display:flex; flex-direction:column; min-width:0; min-height:0; overflow:auto; padding:16px 28px 24px; container-type:size; }
@@ -43,8 +43,8 @@
 
 /* Phone and narrow windows: the list is the first screen; a note opens full screen with Back. */
 @container notes-app (max-width: 640px) {
-    .os-notes-app .os-notes-sidebar, .os-notes-app .os-notes-stage { grid-column:1 / -1; grid-row:1; }
-    .os-notes-app[data-pane="list"] .os-notes-stage, .os-notes-app[data-pane="note"] .os-notes-sidebar { display:none; }
+    .os-notes-app .os-notes-sidebar, .os-notes-app .os-notes-viewport { grid-column:1 / -1; grid-row:1; }
+    .os-notes-app[data-pane="list"] .os-notes-viewport, .os-notes-app[data-pane="note"] .os-notes-sidebar { display:none; }
     .os-notes-app .os-notes-sidebar { border-right:0; padding:12px; }
     .os-notes-app .os-notes-back { display:inline-flex; min-height:44px; }
     /* A phone window grows with its content: no size containment, the editor follows the screen height. */

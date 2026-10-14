@@ -1,9 +1,16 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import type { DraftBase, DraftRecord, NotesScope, NotesStore } from "../../../lib/notes/drafts"
 import { DraftEditor } from "./DraftEditor"
 vi.mock("../terminal/CodeEditor", () => ({ CodeEditor: ({ value, onChange }: { value: string; onChange(value: string): void }) => <textarea aria-label="Markdown editor" value={value} onChange={event => onChange(event.target.value)} /> }))
 vi.mock("../../../lib/notes/render", () => ({ createNotesRenderer: () => ({ render: async (text: string) => ({ kind: "text", text }), dispose() {} }) }))
+const bound = vi.hoisted(() => ({ ms: undefined as number | undefined }))
+// Bounded waits, shortened per test: a step that never answers ends quickly.
+vi.mock("../../../lib/notes/freshness", async original => {
+    const actual = await original<typeof import("../../../lib/notes/freshness")>()
+    return { ...actual, withTimeout: <T,>(promise: Promise<T>, ms?: number) => actual.withTimeout(promise, bound.ms ?? ms) }
+})
+afterEach(() => { bound.ms = undefined })
 const scope: NotesScope = { chainId: "gnoland-1", realm: "gno.land/r/samcrew/memba_notes_v1", owner: "guest", noteId: "0123456789abcdef0123456789abcdef" }
 const record: DraftRecord = { schema: 1, scope, localRevision: "1", payload: { kind: "public", title: "Saved", body: "Saved body" }, updatedAt: 1 }
 describe("Draft editor asynchronous boundaries", () => {
@@ -158,11 +165,52 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(store.deleteDraft).not.toHaveBeenCalled(); expect(screen.getByRole("textbox", { name: "Markdown editor" })).toBeVisible()
         fireEvent.click(screen.getByRole("button", { name: "More actions" })); fireEvent.click(screen.getByRole("menuitem", { name: "Delete note…" }))
         expect(ask).toHaveBeenCalledTimes(2); ask.mockRestore()
-        expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+        await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument())
         expect(screen.getByRole("status")).toHaveTextContent("Deleting draft")
         await act(async () => finish({ status: "saved", value: null }))
         expect(screen.getByRole("heading", { name: "No local draft" })).toBeInTheDocument()
         expect(onSaved).toHaveBeenCalledOnce()
+    })
+    it("leaves the baseline as it was when the wait for a running save times out", async () => {
+        const old = { stateRevision: "7", epoch: "0", ownerGeneration: "1", titleRevision: "2", bodyRevision: "4" }, next = { ...old, stateRevision: "8", bodyRevision: "8" }
+        let finishAutosave!: () => void
+        const saveDraft = vi.fn()
+            .mockImplementationOnce((_scope, revision, payload) => new Promise(resolve => { finishAutosave = () => resolve({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }) }))
+            .mockImplementation(async (_scope, revision, payload) => ({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }))
+        const store = { getDraft: vi.fn(async () => ({ ...record, payload: { kind: "public" as const, title: "Saved", body: "Saved body", base: old } })), saveDraft } as unknown as NotesStore
+        let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, editor) => { confirm = editor.published; return { primary: <button>Publish saved snapshot</button> } }} />)
+        await screen.findByRole("button", { name: "Publish saved snapshot" }); const publishedConfirm = confirm
+        fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "Typed while signing" } })
+        await waitFor(() => expect(saveDraft).toHaveBeenCalledOnce())
+        bound.ms = 50
+        await act(async () => { await expect(publishedConfirm(next, "1")).rejects.toThrow() })
+        // The stuck save lands afterwards, then more typing is saved: nothing stored may carry the baseline never confirmed here.
+        await act(async () => finishAutosave())
+        fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "Typed afterwards" } })
+        await waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(2))
+        expect(saveDraft.mock.calls[1][2]).toEqual({ kind: "public", title: "Saved", body: "Typed afterwards", base: old })
+        expect(screen.getByText(/based on revision 7$/)).toBeVisible()
+    })
+    it("ends a discard behind a save that never settles with a refusal, not a wait without end", async () => {
+        // Its own note: the save that never settles also holds this note's closing flush.
+        const stuck = { ...scope, noteId: "11".repeat(16) }, saveDraft = vi.fn(() => new Promise(() => {})), deleteDraft = vi.fn()
+        const store = { getDraft: vi.fn(async () => ({ ...record, scope: stuck })), saveDraft, deleteDraft } as unknown as NotesStore
+        const outcome = vi.fn()
+        render(<DraftEditor store={store} scope={stuck} onSaved={() => {}} onCancel={({ discard }) => void discard().then(outcome)} />)
+        fireEvent.change(await screen.findByRole("textbox", { name: "Markdown editor" }), { target: { value: "Unsaved" } })
+        await waitFor(() => expect(saveDraft).toHaveBeenCalledOnce())
+        bound.ms = 50; fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+        await waitFor(() => expect(outcome).toHaveBeenCalledExactlyOnceWith(false))
+        expect(deleteDraft).not.toHaveBeenCalled(); expect(screen.getByRole("textbox", { name: "Markdown editor" })).toHaveValue("Unsaved")
+    })
+    it("offers Delete note… for a creation draft only while its note is not on chain", async () => {
+        const store = { getDraft: vi.fn(async () => record) } as unknown as NotesStore
+        const view = render(<DraftEditor store={store} scope={scope} onSaved={() => {}} basis={null} />)
+        fireEvent.click(await screen.findByRole("button", { name: "More actions" }))
+        expect(screen.getByRole("menuitem", { name: "Delete note…" })).toBeVisible()
+        view.rerender(<DraftEditor store={store} scope={scope} onSaved={() => {}} basis={{ revision: "3", title: "Saved", body: "Published body" }} />)
+        expect(screen.getByRole("menuitem", { name: /^Export/ })).toBeVisible(); expect(screen.queryByRole("menuitem", { name: "Delete note…" })).toBeNull()
     })
     it("never exposes a blank editable draft after its stored copy fails to load", async () => {
         const store = { getDraft: vi.fn(async () => { throw new Error("storage failed") }) } as unknown as NotesStore

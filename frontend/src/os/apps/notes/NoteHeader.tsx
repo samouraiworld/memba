@@ -57,7 +57,11 @@ function NoteMenu({ noteId, items }: { noteId: string; items: NoteMenuItem[] }) 
     function keys(event: KeyboardEvent) {
         const all = [...root.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []], at = all.indexOf(document.activeElement as HTMLElement)
         if (event.key === 'Escape') { event.preventDefault(); close() }
-        else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); all[(at + (event.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus() }
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            const down = event.key === 'ArrowDown'
+            all[at < 0 ? (down ? 0 : all.length - 1) : (at + (down ? 1 : all.length - 1)) % all.length]?.focus()
+        }
         else if (event.key === 'Tab') setOpen(false)
     }
     const danger = items.filter(item => item.danger), plain = items.filter(item => !item.danger)
@@ -99,7 +103,13 @@ export function NoteSheet({ label, onClose, children }: { label: string; onClose
     const pane = useNotesPane(), dialog = useRef<HTMLDivElement>(null)
     const shown = pane?.shown ?? true
     useDialogKeys(dialog, shown, 'button:not(:disabled), input:not(:disabled), summary, select:not(:disabled)', onClose)
-    useEffect(() => { if (shown) dialog.current?.focus({ preventScroll: true }) }, [shown])
+    // Focus moves into the sheet (unless a control in it took it, e.g. autoFocus) and returns where it was on close.
+    useEffect(() => {
+        if (!shown) return
+        const before = document.activeElement as HTMLElement | null
+        if (!dialog.current?.contains(document.activeElement)) dialog.current?.focus({ preventScroll: true })
+        return () => { if (before?.isConnected) before.focus({ preventScroll: true }) }
+    }, [shown])
     if (!shown) return null
     const sheet = <div className="os-notes-scrim">
         <div ref={dialog} className="os-notes-sheet" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
