@@ -42,6 +42,9 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     const [title, setTitle] = useState("")
     const [body, setBody] = useState("")
     const [state, setState] = useState<SaveState>("loading")
+    /** A confirmed discard holds the editor locked: a save landing meanwhile never shows it again. */
+    const discarding = useRef(false)
+    const settle = (next: SaveState) => { if (!discarding.current) setState(next) }
     const [preview, setPreview] = useState(readPreviewChoice)
     const [notice, setNotice] = useState("")
     const [titleNotice, setTitleNotice] = useState("")
@@ -121,9 +124,9 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
         if (result.status === "saved") {
             revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision); stored.current = snapshot.changes
             setDurable(result.value)
-            setState(draft.current.changes === snapshot.changes ? "saved" : "dirty")
+            settle(draft.current.changes === snapshot.changes ? "saved" : "dirty")
             saved.current()
-        } else setState(result.status === "conflict" ? "conflict" : "unavailable")
+        } else settle(result.status === "conflict" ? "conflict" : "unavailable")
     }
     useEffect(() => {
         if (state !== "dirty") return
@@ -152,14 +155,16 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     async function discard(): Promise<boolean> {
         // A save that does not answer ends in "could not be discarded", never in silence.
         // Locked from the confirmation on: nothing typed while a running save settles is deleted unseen.
-        setState("deleting")
+        discarding.current = true; setState("deleting")
+        const unlock = () => { discarding.current = false; if (!session.signal.aborted) setState(inflight.current ? "saving" : "dirty"); return false }
         if (inflight.current && running.current) {
             const settled = await withTimeout((async () => { while (inflight.current && running.current) await running.current.catch(() => {}) })()).then(() => true, () => false)
-            if (!settled) { if (!session.signal.aborted) setState("saving"); return false }
+            if (!settled) return unlock()
         }
-        if (inflight.current || session.signal.aborted) { if (!session.signal.aborted) setState("saving"); return false }
+        if (inflight.current || session.signal.aborted) return unlock()
         const result = await store.deleteDraft(scope, revision.current, session)
-        if (result.status === "saved") { editable.current = false; setTitle(""); setBody(""); draft.current = { title: "", body: "", changes: 0 }; setState("missing"); saved.current(); pane?.deleted(!!base.current); return true }
+        if (result.status === "saved") { discarding.current = false; editable.current = false; setTitle(""); setBody(""); draft.current = { title: "", body: "", changes: 0 }; setState("missing"); saved.current(); pane?.deleted(!!base.current); return true }
+        discarding.current = false
         if (result.status !== "session-changed") setState("conflict")
         return false
     }
@@ -190,12 +195,12 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
         const pending = saveDraftBounded(store, scope, revision.current, { kind: "public", title: snapshot.title, body: snapshot.body, base: nextBase }, session)
         running.current = pending
         let result: Awaited<typeof pending>
-        try { result = await pending } catch (error) { inflight.current = false; if (!session.signal.aborted) setState("unavailable"); throw error }
+        try { result = await pending } catch (error) { inflight.current = false; if (!session.signal.aborted) settle("unavailable"); throw error }
         inflight.current = false
         if (result.status === "session-changed") return false
-        if (result.status !== "saved") { setState(result.status === "conflict" ? "conflict" : "unavailable"); return false }
+        if (result.status !== "saved") { settle(result.status === "conflict" ? "conflict" : "unavailable"); return false }
         revision.current = result.value.localRevision; lineage.current.add(result.value.localRevision); stored.current = snapshot.changes; setDurable(result.value)
-        setState(snapshot.changes === draft.current.changes ? "saved" : "dirty"); saved.current()
+        settle(snapshot.changes === draft.current.changes ? "saved" : "dirty"); saved.current()
         return true
     }
     // An empty title is only reported when publishing; edge spaces are trimmed then.

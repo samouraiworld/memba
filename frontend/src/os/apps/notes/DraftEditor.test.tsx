@@ -171,6 +171,22 @@ describe("Draft editor asynchronous boundaries", () => {
         expect(screen.getByRole("heading", { name: "No local draft" })).toBeInTheDocument()
         expect(onSaved).toHaveBeenCalledOnce()
     })
+    it("keeps a confirmed discard locked when the running save lands meanwhile", async () => {
+        let finishAutosave!: () => void, finishDelete!: (result: { status: "saved"; value: null }) => void
+        const saveDraft = vi.fn((_scope, revision, payload) => new Promise(resolve => { finishAutosave = () => resolve({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }) }))
+        const store = { getDraft: vi.fn(async () => record), saveDraft, deleteDraft: vi.fn(() => new Promise(resolve => { finishDelete = resolve })) } as unknown as NotesStore
+        // Cancel → discard (confirmed by the page) while the autosave of the last keystrokes is still running.
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} onCancel={({ discard }) => void discard()} />)
+        fireEvent.change(await screen.findByRole("textbox", { name: "Markdown editor" }), { target: { value: "Typed before deleting" } })
+        await waitFor(() => expect(saveDraft).toHaveBeenCalledOnce())
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+        await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument())
+        await act(async () => finishAutosave())
+        await waitFor(() => expect(store.deleteDraft).toHaveBeenCalledOnce())
+        expect(screen.queryByRole("textbox")).not.toBeInTheDocument(); expect(screen.getByRole("status")).toHaveTextContent("Deleting draft")
+        await act(async () => finishDelete({ status: "saved", value: null }))
+        expect(screen.getByRole("heading", { name: "No local draft" })).toBeInTheDocument()
+    })
     it("leaves the baseline as it was when the wait for a running save times out", async () => {
         const old = { stateRevision: "7", epoch: "0", ownerGeneration: "1", titleRevision: "2", bodyRevision: "4" }, next = { ...old, stateRevision: "8", bodyRevision: "8" }
         let finishAutosave!: () => void
