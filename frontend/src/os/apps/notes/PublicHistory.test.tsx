@@ -5,7 +5,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { parseHistoryInfo, type HistoryAction } from '../../../lib/notes/chain/history'
-import { parseHistoryComment, parseHistoryVersion } from '../../../lib/notes/chain/historyContent'
+import { parseHistoryComment, parseHistoryVersion, type PublicHistoryVersion } from '../../../lib/notes/chain/historyContent'
 import infoFixture from '../../../lib/notes/chain/__fixtures__/history/info.json'
 import versionFixture from '../../../lib/notes/chain/__fixtures__/history/version.json'
 import commentFixture from '../../../lib/notes/chain/__fixtures__/history/comment.json'
@@ -20,6 +20,7 @@ function setup(bodyText = 'Body') {
     const bytes = new TextEncoder().encode(bodyText), hash = bytesToHex(sha256(bytes))
     const version = { ...parseHistoryVersion(versionFixture, noteId, '1')!, bodyBytes: bytes.length, bodySha256: hash }
     const comment = parseHistoryComment(commentFixture, noteId, commentId)!
+    const publicHistoryVersion = vi.fn(async (_id: string, revision: string): Promise<PublicHistoryVersion> => ({ ...version, stateRevision: revision }))
     const mocks = {
         assertCurrent: vi.fn(), chainId: 'test-chain', publicHistoryInfo: vi.fn(async () => info),
         publicHistory: vi.fn(async (_id: string, after = '0', through = '0') => {
@@ -32,8 +33,10 @@ function setup(bodyText = 'Body') {
         publicHistoryEntry: vi.fn(async (_id: string, seq: string) => ({ id: noteId, seq, action: 'policy-set' as const, stateRevision: '1',
             height: '2', actor: version.owner, executor: version.owner, operationId: 'aa'.repeat(16), proposalId: '7', governanceAction: 'SetPolicy',
             detail: { kind: 'note' as const, snapshotRevision: '1', previousStateRevision: null, fieldMask: null, policyOp: 1 as const, policyKey: '', targetEpoch: null } })),
-        publicHistoryVersion: vi.fn(async (_id: string, revision: string) => ({ ...version, stateRevision: revision })),
-        publicHistoryBodyChunk: vi.fn(async (_id: string, revision: string, offset: number, limit: number) => ({ id: noteId, bodyRevision: revision,
+        publicHistoryVersion,
+        // The body of the version recorded by event `seq`: these mocks record state revision N at seq N.
+        publicHistoryBodyChunk: vi.fn(async (_id: string, seq: string, offset: number, limit: number) => ({ id: noteId, seq,
+            bodyRevision: (await publicHistoryVersion.getMockImplementation()!(_id, seq)).bodyRevision,
             sha256: hash, offset, total: bytes.length, nextOffset: Math.min(offset + limit, bytes.length), chunk: bytes.slice(offset, offset + limit) })),
         publicHistoryComment: vi.fn(async () => comment),
     }
@@ -49,7 +52,7 @@ function timeline(s: ReturnType<typeof setup>, last = '21', action: 'content-com
                 stateRevision: seq, height: String(100 + Number(seq)), actor: s.version.owner, executor: null, operationId: 'aa'.repeat(16), proposalId: null, commentId: null } }) }
     })
     // Every edit here is a body edit: the body counter follows, the title counter stays at 1 (as in the realm).
-    s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...s.version, stateRevision: revision, titleRevision: '1', bodyRevision: revision, allowPublicWrites: true }))
+    s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...s.version, stateRevision: revision, recordedSeq: revision, titleRevision: '1', bodyRevision: revision, allowPublicWrites: true }))
     s.mocks.publicHistoryEntry.mockImplementation(async (_id: string, seq: string) => entry(s, seq, seq === '1' ? 'create' : action, seq, action === 'content-commit' ? 2 : null))
 }
 function entry(s: ReturnType<typeof setup>, seq: string, action: HistoryAction, stateRevision: string, fieldMask: 1 | 2 | 3 | null) {
@@ -74,7 +77,7 @@ function realmSequence(s: ReturnType<typeof setup>) {
     s.mocks.publicHistoryEntry.mockImplementation(async (_id: string, seq: string) => entry(s, seq, steps[Number(seq) - 1].action, seq, steps[Number(seq) - 1].mask))
     s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => {
         const step = steps[Number(revision) - 1]
-        return { ...s.version, stateRevision: revision, title: new TextEncoder().encode(step.title), titleRevision: step.titleRevision, bodyRevision: step.bodyRevision, allowPublicWrites: step.writes }
+        return { ...s.version, stateRevision: revision, recordedSeq: revision, title: new TextEncoder().encode(step.title), titleRevision: step.titleRevision, bodyRevision: step.bodyRevision, allowPublicWrites: step.writes }
     })
 }
 const events = () => screen.getAllByRole('listitem').map(item => item.querySelector('strong')?.textContent)
@@ -160,6 +163,19 @@ describe('archived versions and restoration boundary', () => {
         await waitFor(() => expect(document.querySelector('pre')?.textContent).toBe(text))
         expect(s.mocks.publicHistoryBodyChunk).toHaveBeenCalledTimes(2)
         expect(document.querySelector('pre script')).toBeNull()
+    })
+    it('reads an archived body by the event that recorded the version and binds its body revision', async () => {
+        // Comment events can sit between note events, so a version's recorded seq differs from its state revision.
+        const s = setup(); s.mocks.publicHistoryVersion.mockImplementation(async (_id: string, revision: string) => ({ ...s.version, stateRevision: revision, recordedSeq: '5' }))
+        const view = render(<PublicHistoryVersions client={s.client} noteId={noteId} revisions={['3']} />)
+        await waitFor(() => expect(document.querySelector('pre')?.textContent).toBe('Body'))
+        expect(s.mocks.publicHistoryBodyChunk).toHaveBeenCalledExactlyOnceWith(noteId, '5', 0, 8192)
+        view.unmount()
+        // A body that is not the version's revision is never shown.
+        s.mocks.publicHistoryBodyChunk.mockImplementation(async (_id: string, seq: string, offset: number) => ({ id: noteId, seq, bodyRevision: '2', sha256: s.version.bodySha256!,
+            offset, total: 4, nextOffset: 4, chunk: new TextEncoder().encode('Body') }))
+        render(<PublicHistoryVersions client={s.client} noteId={noteId} revisions={['3']} />)
+        await screen.findByRole('alert'); expect(document.querySelector('pre')).toBeNull()
     })
     it('binds the body helper digest to the selected snapshot', async () => {
         const s = setup(); s.mocks.publicHistoryVersion.mockResolvedValue({ ...s.version, bodySha256: '0'.repeat(64) })

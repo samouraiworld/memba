@@ -16,6 +16,15 @@ const cases: [string, unknown, (value: unknown) => unknown][] = [
   ['body', body, value => parseHistoryBodyChunk(value, wanted, '1', 0, 8192)], ['comment', comment, value => parseHistoryComment(value, wanted, cid)],
 ]
 describe('strict public history keeper fixtures', () => {
+  it('addresses an archived body by the event that recorded it and reports its field revision', () => {
+    // A body kept by a later event (a rename, a setting) has a newer seq than its own revision.
+    expect(parseHistoryBodyChunk({ ...body, seq: '7', body_revision: '3' }, wanted, '7', 0, 8192)).toMatchObject({ id: wanted, seq: '7', bodyRevision: '3' })
+    expect(() => parseHistoryBodyChunk(body, wanted, '2', 0, 8192)).toThrow('format')
+    // The previous realm addressed bodies by revision; its replies must never be read as a seq.
+    const v1 = { ...body, schema: 'memba.notes.public-history-body/v1' } as Record<string, unknown>; delete v1.seq
+    expect(() => parseHistoryBodyChunk(v1, wanted, '1', 0, 8192)).toThrow('format')
+    expect(() => parseHistoryBodyChunk({ ...body, schema: 'memba.notes.public-history-body/v1' }, wanted, '1', 0, 8192)).toThrow('format')
+  })
   it.each(cases)('parses the real %s response and explicit private/absent null', (_name, fixture, parse) => {
     expect(parse(fixture)).toMatchObject({ id: wanted }); expect(parse(null)).toBeNull()
   })
@@ -74,7 +83,7 @@ describe('strict public history keeper fixtures', () => {
   })
   it('bounds immutable chunks and maximally-sized public comment content/presentation separately', () => {
     expect(parseHistoryBodyChunk(body, wanted, '1', 0, 8192)?.chunk.length).toBe(4)
-    for (const patch of [{ body_revision: '2' }, { offset: '1' }, { total: '131073' }, { next_offset: '0' }, { chunk_blob: '' }, { chunk_blob: '!!!!' }]) expect(() => parseHistoryBodyChunk({ ...body, ...patch }, wanted, '1', 0, 8192)).toThrow('format')
+    for (const patch of [{ seq: '2' }, { body_revision: '0' }, { offset: '1' }, { total: '131073' }, { next_offset: '0' }, { chunk_blob: '' }, { chunk_blob: '!!!!' }]) expect(() => parseHistoryBodyChunk({ ...body, ...patch }, wanted, '1', 0, 8192)).toThrow('format')
     const parsed = parseHistoryComment(comment, wanted, cid)!
     expect(parsed.content.body.length).toBe(4000); expect(parsed.content.anchor.length).toBe(600)
     expect(parseHistoryComment({ ...comment, presentation: { latest_seq: '9', deleted: true, hidden: true, resolved: true, redacted: false } }, wanted, cid)?.content.reference.deleted).toBe(false)

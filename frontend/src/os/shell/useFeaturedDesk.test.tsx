@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_NETWORK, NETWORKS } from '../../lib/config'
 import { bech32Encode } from '../../lib/dao/realmAddress'
-import { NOTES_REALM } from '../../lib/notes/config'
+import { NOTES_REALM } from '../../lib/notes/chain/__fixtures__/deployment'
 import type { FeaturedNoteRelease } from '../../lib/notes/featuredNoteSeed'
 import type { FeaturedLocks } from '../../lib/notes/featuredNoteStorage'
 import { deskKey, type DeskItem } from './desk'
@@ -16,7 +16,7 @@ const chainId = 'test-chain', key = (wallet: string | null = owner, version = 3)
 const pin: DeskItem = { ty: 'app', ref: 'wallet', c: 0, r: 0 }
 const sushi: FeaturedNoteRelease = { releaseKey: 'sushi-v1', chainId, realm: NOTES_REALM, version: 1, noteId: 'ab'.repeat(16), mode: 4, deleted: false, owner }
 const retired = 'cd'.repeat(16)
-const options: FeaturedDeskOptions = { chainId, gno: true, adopt: true, releases: [] }
+const options: FeaturedDeskOptions = { chainId, gno: true, adopt: true, releases: [], realm: NOTES_REALM }
 const envelope = (items: DeskItem[], wallet: string | null = owner) => ({ version: 3, partition: { chainId, wallet }, items,
     releases: { 'sushi-v1': { status: 'pending' } }, resetToken: null })
 function serialLocks() {

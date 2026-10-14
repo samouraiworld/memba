@@ -7,7 +7,7 @@ import { changedPublicFields, draftPublicOperation } from '../../../lib/notes/ch
 import { publicNoteMessage, type PublicNoteOperation } from '../../../lib/notes/chain/messages'
 import { gnotAmount, publicNoteBudget, publicNoteQuote } from '../../../lib/notes/chain/quote'
 import { preparePublicNoteRequest } from '../../../lib/notes/chain/request'
-import { NOTES_REALM, NotesChainError, publicText, type ChainNote } from '../../../lib/notes/chain/schema'
+import { NotesChainError, publicText, type ChainNote } from '../../../lib/notes/chain/schema'
 import { announceNoteChange, NotesTimeoutError, withTimeout } from '../../../lib/notes/freshness'
 import { publicBodyProblem, publicTitleProblem, trimPublicTitle } from '../../../lib/notes/publicFields'
 import { abciQueryText } from '../../../lib/dao/packageStatus'
@@ -239,7 +239,7 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
                 <button type="button" className="os-btn os-quiet" onClick={() => void navigator.clipboard?.writeText(draft.scope.owner).then(() => setCopied(true), () => {})}>{copied ? 'Address copied' : 'Copy my address'}</button></p>}
             <button type="button" className="os-notes-link" aria-expanded={details} onClick={() => setDetails(value => !value)}>{details ? 'Hide technical details' : 'Technical details'}</button>
             {details && <dl className="os-notes-tech">
-                <div><dt>Realm</dt><dd>{NOTES_REALM} · {a.kind === 'create' ? 'CreateNote' : 'Commit'}</dd></div>
+                <div><dt>Realm</dt><dd>{client.realm} · {a.kind === 'create' ? 'CreateNote' : 'Commit'}</dd></div>
                 <div><dt>Note</dt><dd>{draft.scope.noteId}</dd></div>
                 {a.kind === 'commit' && <div><dt>Based on</dt><dd>revision {a.revision} · fields: {fieldMask(a)}</dd></div>}
                 <div><dt>Network</dt><dd>{client.chainId}</dd></div>
@@ -263,7 +263,7 @@ export function PublicDelete({ note, client, store, owner, title, requestSession
     const [session] = useState(createDraftSession), [busy, setBusy] = useState(false)
     // Priced once; each attempt gets its own operation id.
     const operation = useMemo<PublicNoteOperation>(() => ({ caller: owner, noteId: note.id, operationId: newNoteId(), action: { kind: 'delete', revision: note.stateRevision } }), [owner, note.id, note.stateRevision])
-    const budget = useMemo(() => publicNoteBudget(publicNoteMessage(operation, '0')), [operation])
+    const budget = useMemo(() => publicNoteBudget(publicNoteMessage(operation, '0', { realm: client.realm })), [operation, client.realm])
     const [balance, setBalance] = useState<bigint | null | undefined>(undefined)
     useLayoutEffect(() => () => session.invalidate(), [session])
     useEffect(() => {

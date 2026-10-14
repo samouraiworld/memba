@@ -94,6 +94,9 @@ describe('Canonical content and comment encryption', () => {
     expect(() => decodeComment(concat(bytes, u8(0)))).toThrow()
     expect(() => decodeComment(u32(0xffffffff))).toThrow()
   })
+  it('refuses a non-Notes realm path in the authenticated network binding', () => {
+    for (const realm of ['gno.land/r/samcrew/enckeys_v1', 'gno.land/r/samcrew/Memba_notes', `${base.realm}/comments/${'ab'.repeat(16)}`, 'gno.land/r/notes']) expect(() => keyCommitment(randomBytes(32), { ...base, realm })).toThrow('format')
+  })
   it('binds an epoch commitment to its realm, note and epoch', () => {
     expect(keyCommitment(key, base)).toEqual(keyCommitment(key, base))
     for (const change of [{ epoch: 3 }, { noteId: randomBytes(16) }, { realm: base.realm + '2' }]) expect(keyCommitment(key, { ...base, ...change })).not.toEqual(keyCommitment(key, base))

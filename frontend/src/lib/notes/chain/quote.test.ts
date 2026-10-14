@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { publicNoteBudget, publicNoteQuote, gnotAmount, parseGnotCap } from './quote'
-import { encode64, NOTES_REALM } from './schema'
+import { encode64 } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 import type { NotesReadClient } from './client'
 import type { AminoMsg } from '../../grc20'
 import { publicCommentBudget } from './commentQuote'
@@ -94,7 +95,7 @@ describe('product-calibrated public estimates', () => {
         expect(publicNoteBudget(message)).toMatchObject({ estimatedDepositUgnot: '1200000', suggestedCapUgnot: '2400000' })
     })
     it('rejects the obsolete pre-history cap even for a small public note', async () => {
-        const client = { chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient
+        const client = { realm: NOTES_REALM, chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient
         const message = create(2048); message.value.max_deposit = '2260000ugnot'
         await expect(publicNoteQuote(client, '2260000')({ chainId: client.chainId, message, requestDigest: 'a'.repeat(64), height: '42' })).rejects.toThrow()
     })
@@ -106,11 +107,13 @@ describe('product-calibrated public estimates', () => {
         }
     })
     it('binds estimates to messages, cap, chain and fresh network price', async () => {
-        const client = { chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient
+        const client = { realm: NOTES_REALM, chainId: 'gnoland-1', assertCurrent: vi.fn() } as unknown as NotesReadClient
         const input = { chainId: client.chainId, message: create(2048), requestDigest: 'a'.repeat(64), height: '42' }
         const provider = publicNoteQuote(client, '20000000')
         expect(await provider(input)).toMatchObject({ source: 'bounded-estimate', requestDigest: input.requestDigest, expiresAtHeight: '62', maxDepositUgnot: '20000000', networkFeeUgnot: 100000 })
         await expect(provider({ ...input, chainId: 'onyx-1' })).rejects.toThrow()
+        // A message for another realm path than the client's deployment is never priced.
+        await expect(publicNoteQuote({ ...client, realm: 'gno.land/r/samcrew/memba_notes_rehearsal' } as NotesReadClient, '20000000')(input)).rejects.toThrow('format')
         await expect(publicNoteQuote(client, '1')(input)).rejects.toThrow()
         io.price.mockResolvedValueOnce('"101ugnot"'); await expect(provider(input)).rejects.toThrow()
         io.fee.mockRejectedValueOnce(new Error('unavailable')); await expect(provider(input)).rejects.toThrow()

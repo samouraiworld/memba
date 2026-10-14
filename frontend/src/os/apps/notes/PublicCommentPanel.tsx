@@ -90,7 +90,7 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
     const [receiptsReady, setReceiptsReady] = useState('')
     const receiptsKey = JSON.stringify([owner, note.id, signer.version, reload, draft.changed])
     const working = useRef(false)
-    const realm = commentIntentRealm(note.id), canPost = !!owner && !note.deleted && note.mode === 4
+    const realm = commentIntentRealm(client.realm, note.id), canPost = !!owner && !note.deleted && note.mode === 4
     useLayoutEffect(() => () => session.invalidate(), [session])
     useEffect(() => {
         const guard = session.capture(); let alive = true
@@ -120,7 +120,7 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
     /** Expected deposit and the cap that is signed, from the quote module for this comment; null when it cannot be priced. Identifiers have a fixed size. */
     function budget(action: CommentAction) {
         if (!owner) return null
-        try { return publicCommentBudget(publicCommentMessage({ caller: owner, noteId: note.id, commentId: PRICE_ID, operationId: PRICE_ID, action }, '0')) } catch { return null }
+        try { return publicCommentBudget(publicCommentMessage({ caller: owner, noteId: note.id, commentId: PRICE_ID, operationId: PRICE_ID, action }, '0', client.realm)) } catch { return null }
     }
     async function review(action: CommentAction, commentId = newNoteId()) {
         if (!owner || working.current || receiptsReady !== receiptsKey || (action.kind === 'add' && (!canPost || quoteNeedsReview))) return

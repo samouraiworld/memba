@@ -3,7 +3,8 @@ import { bech32Encode } from '../../dao/realmAddress'
 import { NotesReadClient } from './client'
 import { parsePublicCapabilities } from './capabilities'
 import { readPublicContentWritePermission, readPublicWritePermission } from './publicPermissions'
-import { NOTES_REALM, type ChainNote } from './schema'
+import { type ChainNote } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 
 const rpc = vi.hoisted(() => ({ query: vi.fn(), identity: vi.fn(), url: 'https://rpc.test' }))
 vi.mock('../../config', () => ({ GNO_CHAIN_ID: 'test-chain' }))

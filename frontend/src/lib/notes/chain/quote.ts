@@ -1,7 +1,7 @@
 import { abciQueryText } from '../../dao/packageStatus'
 import { freshFeeForGasWanted, type AminoMsg } from '../../grc20'
 import { getRpcUrlsInOrder } from '../../rpcFallback'
-import { blob, check, decimal, NOTES_REALM, NotesChainError } from './schema'
+import { blob, check, decimal, NotesChainError, validNotesRealm } from './schema'
 import type { NotesReadClient } from './client'
 import type { NotesQuoteProvider } from './request'
 
@@ -36,7 +36,7 @@ const CAP_STEP_UGNOT = 100_000
  * Deployment approval must repeat these measurements against the final source.
  */
 export function publicNoteBudget(message: AminoMsg): { gasWanted: number; estimatedDepositUgnot: string; suggestedCapUgnot: string } {
-    check(message.type === 'vm/MsgCall' && message.value.pkg_path === NOTES_REALM)
+    check(message.type === 'vm/MsgCall' && validNotesRealm(message.value.pkg_path))
     const { func, args } = message.value
     check(Array.isArray(args))
     let bytes = 0, overhead: number
@@ -69,7 +69,7 @@ export function publicNoteQuote(client: NotesReadClient, maxDepositUgnot: string
 export function boundedNotesQuote(client: NotesReadClient, maxDepositUgnot: string, estimate: typeof publicNoteBudget): NotesQuoteProvider {
     const cap = decimal(maxDepositUgnot, 63)
     return async input => {
-        client.assertCurrent(); check(input.chainId === client.chainId)
+        client.assertCurrent(); check(input.chainId === client.chainId && input.message.value.pkg_path === client.realm)
         check(input.message.value.max_deposit === `${cap}ugnot`)
         const budget = estimate(input.message)
         if (BigInt(cap) < BigInt(budget.estimatedDepositUgnot)) throw new NotesChainError('format')

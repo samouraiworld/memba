@@ -43,7 +43,7 @@ export async function prepareIdentitySetupRequest(options: IdentityRequestOption
     plan = controller.renewPreparedOperation(plan.operationId)
   }
   const reviewed = () => { enabled(); if (controller.preparedPlan().operationId !== plan.operationId) throw new NotesChainError('stale') }
-  const messages = identitySetupMessages(plan, owner, client.chainId, caps)
+  const messages = identitySetupMessages(plan, owner, client, caps)
   const totalCap = decimal((BigInt(caps.registryUgnot) + BigInt(caps.backupUgnot)).toString(), 63)
   const checkBase = async () => {
     const state = await readChainIdentity(client, owner); reviewed()

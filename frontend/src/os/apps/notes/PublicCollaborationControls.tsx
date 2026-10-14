@@ -8,7 +8,7 @@ import { publicNoteMessage } from '../../../lib/notes/chain/messages'
 import { gnotAmount, publicNoteBudget, publicNoteQuote } from '../../../lib/notes/chain/quote'
 import { approxGnot } from '../../../lib/notes/chain/costText'
 import { preparePublicNoteRequest } from '../../../lib/notes/chain/request'
-import { NOTES_REALM, NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema'
+import { NotesChainError, type ChainNote } from '../../../lib/notes/chain/schema'
 import { announceNoteChange } from '../../../lib/notes/freshness'
 import { useSigner } from '../../sign/signerContext'
 
@@ -62,8 +62,8 @@ function Controls({ note, client, store, owner, onChanged, manage, done, setDone
     const enabled = capability?.allowPublicWrites ?? false, target = choice ?? enabled, changing = !!capability && target !== enabled
     const budget = useMemo(() => {
         if (!manage || !owner || !changing) return null
-        try { return publicNoteBudget(publicNoteMessage({ caller: owner, noteId: note.id, operationId: PRICE_ID, action: { kind: 'public-writes', revision: note.stateRevision, enabled: target } }, '0')) } catch { return null }
-    }, [manage, owner, changing, note.id, note.stateRevision, target])
+        try { return publicNoteBudget(publicNoteMessage({ caller: owner, noteId: note.id, operationId: PRICE_ID, action: { kind: 'public-writes', revision: note.stateRevision, enabled: target } }, '0', { realm: client.realm })) } catch { return null }
+    }, [manage, owner, changing, note.id, note.stateRevision, target, client.realm])
     async function apply() {
         if (working.current || !capability || blocked || !owner || !changing || !budget) return
         working.current = true; setBusy(true); setNotice(''); setDone(null)
@@ -72,7 +72,7 @@ function Controls({ note, client, store, owner, onChanged, manage, done, setDone
             const current = await readCapability()
             if (guard.signal.aborted) return
             if (current.allowPublicWrites !== capability.allowPublicWrites) throw new NotesChainError('stale')
-            const pending = await new NotesIntents(store).list({ chainId: client.chainId, realm: NOTES_REALM, owner })
+            const pending = await new NotesIntents(store).list({ chainId: client.chainId, realm: client.realm, owner })
             if (guard.signal.aborted) return
             if (pending.some(item => item.scope.noteId === note.id && ['prepared', 'submitted', 'unknown'].includes(item.phase))) {
                 setBlocked(true); setNotice('An earlier change to this note has an unresolved receipt. Check it before another change; nothing was resent.'); return

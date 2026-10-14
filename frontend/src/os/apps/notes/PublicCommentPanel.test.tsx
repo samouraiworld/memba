@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), recover: vi.f
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: mocks.sign, version: mocks.version }) }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({}), newNoteId: () => (++mocks.next).toString(16).padStart(32, '0') }))
 vi.mock('../../../lib/notes/chain/comments', async importOriginal => ({ ...await importOriginal<typeof import('../../../lib/notes/chain/comments')>(), readPublicComments: mocks.read }))
-vi.mock('../../../lib/notes/chain/commentRequest', () => ({ preparePublicCommentRequest: mocks.prepare, recoverPublicCommentIntent: mocks.recover, commentIntentRealm: (id: string) => `notes/comments/${id}` }))
+vi.mock('../../../lib/notes/chain/commentRequest', () => ({ preparePublicCommentRequest: mocks.prepare, recoverPublicCommentIntent: mocks.recover, commentIntentRealm: (_realm: string, id: string) => `notes/comments/${id}` }))
 vi.mock('../../../lib/notes/chain/commentMessages', () => ({ publicCommentMessage: () => ({}) }))
 vi.mock('../../../lib/notes/chain/commentQuote', () => ({ publicCommentBudget: () => ({ estimatedDepositUgnot: '2260000', suggestedCapUgnot: '2800000' }), publicCommentQuote: () => vi.fn() }))
 vi.mock('../../../lib/notes/intents', () => ({ NotesIntents: class { list = mocks.list } }))

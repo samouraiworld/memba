@@ -35,13 +35,18 @@ export function parseHistoryVersion(value: unknown, wanted: string, stateRevisio
 export function historyChunkArgs(offset: number, limit: number): void {
   check(Number.isInteger(offset) && offset >= 0 && offset <= 131072 && Number.isInteger(limit) && limit >= 1 && limit <= 8192)
 }
-export function parseHistoryBodyChunk(value: unknown, wanted: string, bodyRevision: string, offset: number, limit: number) {
-  id(wanted); historyRevision(bodyRevision); historyChunkArgs(offset, limit); if (value === null) return null
-  const v = historyRecord(value, 'body', ['body_revision', 'sha256', 'offset', 'total', 'next_offset', 'chunk_blob'], wanted)
+/**
+ * One chunk of an archived public body, addressed by the history event `seq` that recorded its
+ * version (a version's recorded_seq, or a later event that kept that body). The realm reports the
+ * body's field revision, which callers bind to the version they read.
+ */
+export function parseHistoryBodyChunk(value: unknown, wanted: string, seq: string, offset: number, limit: number) {
+  id(wanted); historyRevision(seq); historyChunkArgs(offset, limit); if (value === null) return null
+  const v = historyRecord(value, 'body', ['seq', 'body_revision', 'sha256', 'offset', 'total', 'next_offset', 'chunk_blob'], wanted, 2)
   const total = Number(decimal(v.total, 32)), nextOffset = Number(decimal(v.next_offset, 32)), chunk = blob(v.chunk_blob, 8192)
-  check(historyRevision(v.body_revision) === bodyRevision && decimal(v.offset, 32) === String(offset))
+  check(historyRevision(v.seq) === seq && decimal(v.offset, 32) === String(offset))
   check(total <= 131072 && offset <= total && chunk.length === Math.min(limit, total - offset) && nextOffset === offset + chunk.length)
-  return { id: wanted, bodyRevision, sha256: historyHash(v.sha256), offset, total, nextOffset, chunk }
+  return { id: wanted, seq, bodyRevision: historyRevision(v.body_revision), sha256: historyHash(v.sha256), offset, total, nextOffset, chunk }
 }
 export function parseHistoryComment(value: unknown, wanted: string, commentId: string) {
   id(wanted); id(commentId); if (value === null) return null

@@ -68,9 +68,9 @@ describe('Versioned identity backup and fail-closed recovery', () => {
     expect(await recovery).toEqual(seed)
   })
   it('enforces exact maxima, nonzero generation and a full realm path', async () => {
-    const longest: BackupBinding = { ...binding, chainId: 'n'.repeat(64), realm: 'gno.land/r/' + 'r'.repeat(117) }
+    const longest: BackupBinding = { ...binding, chainId: 'n'.repeat(64), realm: 'gno.land/r/' + 'r'.repeat(58) + '/' + 'r'.repeat(58) }
     expect((await sealBackup(seed, walletMaterial, longest)).length).toBe(365)
-    for (const change of [{ chainId: 'n'.repeat(65) }, { realm: 'gno.land/r/' + 'r'.repeat(118) }, { realm: 'gno.land/r/' }, { generation: 0n }]) await expect(sealBackup(seed, walletMaterial, { ...binding, ...change })).rejects.toThrow()
+    for (const change of [{ chainId: 'n'.repeat(65) }, { realm: 'gno.land/r/' + 'r'.repeat(59) + '/' + 'r'.repeat(58) }, { realm: 'gno.land/r/' + 'r'.repeat(117) }, { realm: 'gno.land/r/' }, { generation: 0n }]) await expect(sealBackup(seed, walletMaterial, { ...binding, ...change })).rejects.toThrow()
   })
   it('protects future epochs only after creating an independent identity and rotating the note key', async () => {
     const recoveredHistoricalSeed = await recoverIdentity(standardRecord, walletMaterial, binding, identity.publicKey)

@@ -14,7 +14,7 @@ vi.mock('../../../lib/notes/config', () => ({ newNoteId: () => crypto.randomUUID
 const owner = 'g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0'
 const note = { id: 'ab'.repeat(16), owner, stateRevision: '4', ownerGeneration: '1', mode: 4, epoch: '0', deleted: false, listed: true } as ChainNote
 const capability = { id: note.id, stateRevision: '4', ownerGeneration: '1', mode: 4 as const, deleted: false, allowPublicWrites: false }
-function props(enabled = false) { return { note, owner, store: {} as NotesStore, onChanged: vi.fn(), client: { chainId: 'gnoland-1', assertCurrent: vi.fn(), publicCapabilities: vi.fn(async () => ({ ...capability, allowPublicWrites: enabled })) } as unknown as NotesReadClient } }
+function props(enabled = false) { return { note, owner, store: {} as NotesStore, onChanged: vi.fn(), client: { realm: 'gno.land/r/samcrew/memba_notes_v1', chainId: 'gnoland-1', assertCurrent: vi.fn(), publicCapabilities: vi.fn(async () => ({ ...capability, allowPublicWrites: enabled })) } as unknown as NotesReadClient } }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 async function review(enabled = false) {
     fireEvent.click(await screen.findByRole('radio', { name: enabled ? /Only me/ : /Everyone with a wallet/ }))

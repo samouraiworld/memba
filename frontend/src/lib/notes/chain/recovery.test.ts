@@ -7,8 +7,10 @@ import { createNotesIntents } from '../intents'
 import type { NotesIntentInput, PublicIntentVerification } from '../intents'
 import { publicIntentEvidence, publicVerification, recoverPublicIntent } from './recovery'
 import type { PublicNoteOperation } from './messages'
-import { NOTES_REALM } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 import type { ChainNote } from './schema'
+// These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
+vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), noteId = 'ab'.repeat(16), operationId = 'cd'.repeat(16)
 const scope = { chainId: 'gnoland-1', realm: NOTES_REALM, owner, noteId }, bytes = (value: string) => new TextEncoder().encode(value)
@@ -19,7 +21,7 @@ const input = (): NotesIntentInput => ({ scope: { ...scope }, operationId, reque
 const stores: NotesStore[] = []
 function setup(factory = new IDBFactory()) {
   const store = createNotesStore({ indexedDB: factory }); stores.push(store)
-  return { store, intents: createNotesIntents(store), session: createDraftSession(), client: { chainId: scope.chainId, assertCurrent: vi.fn(), note: vi.fn(async (): Promise<ChainNote | null> => applied()) } }
+  return { store, intents: createNotesIntents(store), session: createDraftSession(), client: { realm: NOTES_REALM, chainId: scope.chainId, assertCurrent: vi.fn(), note: vi.fn(async (): Promise<ChainNote | null> => applied()) } }
 }
 afterEach(async () => { await Promise.all(stores.splice(0).map(store => store.close())) })
 
@@ -56,10 +58,21 @@ describe('exact public intent recovery', () => {
     const op: PublicNoteOperation = { ...operation, action: { kind: 'delete', revision: '5' } }
     const value = { ...input(), action: 'delete', verification: publicVerification(op, base(), '100') }
     const tombstone = applied({ deleted: true, listed: false, title: new Uint8Array(), body: new Uint8Array(), bodyRevision: '3' })
-    expect(publicIntentEvidence(value, tombstone)).not.toBeNull()
-    for (const patch of [{ listed: true }, { body: bytes('retained') }, { title: bytes('retained') }, { pendingOwner: owner }, { bodyRevision: '4' }, { deleted: false }]) expect(publicIntentEvidence(value, { ...tombstone, ...patch })).toBeNull()
+    expect(publicIntentEvidence(NOTES_REALM, value, tombstone)).not.toBeNull()
+    for (const patch of [{ listed: true }, { body: bytes('retained') }, { title: bytes('retained') }, { pendingOwner: owner }, { bodyRevision: '4' }, { deleted: false }]) expect(publicIntentEvidence(NOTES_REALM, value, { ...tombstone, ...patch })).toBeNull()
     const s = setup(); await s.intents.begin(value, s.session); s.client.note.mockResolvedValue(tombstone)
     expect(await recoverPublicIntent(s.client, s.intents, (await s.intents.get(scope, operationId))!, s.session)).toBe('confirmed')
+  })
+
+  it('never confirms a receipt made under another realm path, nor reads the chain for it', async () => {
+    const s = setup(), other = 'gno.land/r/samcrew/memba_notes_rehearsal'
+    await s.intents.begin(input(), s.session); await s.intents.settle(scope, operationId, 'unknown', s.session)
+    const receipt = (await s.intents.get(scope, operationId))!
+    expect(await recoverPublicIntent({ ...s.client, realm: other }, s.intents, receipt, s.session)).toBe('unknown')
+    expect(s.client.note).not.toHaveBeenCalled()
+    expect(publicIntentEvidence(other, receipt, applied())).toBeNull()
+    expect(publicIntentEvidence(NOTES_REALM, receipt, applied())).not.toBeNull()
+    expect(await recoverPublicIntent(s.client, s.intents, receipt, s.session)).toBe('confirmed')
   })
 
   it('predicts creation, rename, partial commit and comment-mode component revisions', () => {
@@ -120,11 +133,11 @@ describe('exact public intent recovery', () => {
     expect(await recoverPublicIntent(s.client, s.intents, receipt, s.session)).toBe('confirmed')
     const legacy = { ...value, verification: { ...value.verification } }
     delete legacy.verification.owner
-    expect(publicIntentEvidence(legacy, applied({ actor: writer }))).toBeNull()
+    expect(publicIntentEvidence(NOTES_REALM, legacy, applied({ actor: writer }))).toBeNull()
     const oldOwner = { ...input(), verification: { ...input().verification } as PublicIntentVerification }
     delete oldOwner.verification.owner
-    expect(publicIntentEvidence(oldOwner, applied())).not.toBeNull()
-    expect(publicIntentEvidence(value, applied({ actor: writer, ownerGeneration: '2' }))).toBeNull()
+    expect(publicIntentEvidence(NOTES_REALM, oldOwner, applied())).not.toBeNull()
+    expect(publicIntentEvidence(NOTES_REALM, value, applied({ actor: writer, ownerGeneration: '2' }))).toBeNull()
   })
 
 })

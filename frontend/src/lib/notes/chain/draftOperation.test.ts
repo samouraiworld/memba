@@ -23,7 +23,7 @@ const base = { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevisi
 const published = { title: enc('Sushi'), body: enc('Rice\n\nNori') } as ChainNote
 const author = { ...draft.scope, owner: 'g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0' }
 const edit = (title: string, body: string) => draftPublicOperation({ ...draft, scope: author, payload: { kind: 'public', title, body, base } }, 'cd'.repeat(16), 3, '100000')
-const sent = (title: string, body: string) => publicNoteMessage(changedPublicFields(edit(title, body), published), '1000').value.args
+const sent = (title: string, body: string) => publicNoteMessage(changedPublicFields(edit(title, body), published), '1000', { realm: draft.scope.realm }).value.args
 describe('field_mask sends only fields whose stored bytes change', () => {
     it.each([
         ['title only', 'Sushi rolls', 'Rice\n\nNori', '1', 'Sushi rolls', ''],
@@ -43,7 +43,7 @@ describe('field_mask sends only fields whose stored bytes change', () => {
     })
     it('compares exact UTF-8 bytes, not rendering: canonically equivalent text in another encoding is a change', () => {
         const composed = { ...published, body: enc('Caf\u00e9') } as ChainNote
-        expect(publicNoteMessage(changedPublicFields(edit('Sushi', 'Cafe\u0301'), composed), '1000').value.args[3]).toBe('2')
+        expect(publicNoteMessage(changedPublicFields(edit('Sushi', 'Cafe\u0301'), composed), '1000', { realm: draft.scope.realm }).value.args[3]).toBe('2')
         expect(() => changedPublicFields(edit('Sushi', 'Caf\u00e9'), composed)).toThrow(expect.objectContaining({ code: 'unchanged' }))
     })
     it('trims a new title and leaves create and other operations untouched', () => {

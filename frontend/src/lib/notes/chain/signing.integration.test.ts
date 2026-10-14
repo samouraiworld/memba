@@ -14,8 +14,10 @@ import type { NotesReadClient } from './client'
 import { parsePublicCapabilities } from './capabilities'
 import { notesRequestDigest, preparePublicNoteRequest } from './request'
 import type { PublicRequestOptions } from './request'
-import { NOTES_REALM } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 import type { ChainNote } from './schema'
+// These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
+vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
 vi.mock('@sentry/react', async original => ({ ...await original<typeof import('@sentry/react')>(), captureException: vi.fn() }))
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), other = bech32Encode('g', new Uint8Array(20).fill(2))
@@ -27,7 +29,7 @@ function setup() {
   const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store)
   const session = createDraftSession(), intents = createNotesIntents(store)
   let current = baseNote()
-  const client = { publicCapabilities: vi.fn(async () => parsePublicCapabilities({ schema: 'memba-notes/public-capabilities/v1', id: current.id, state_revision: current.stateRevision, owner_generation: current.ownerGeneration, mode: current.mode, deleted: current.deleted, allow_public_writes: false })), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: GNO_CHAIN_ID, assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => '100'), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
+  const client = { realm: NOTES_REALM, publicCapabilities: vi.fn(async () => parsePublicCapabilities({ schema: 'memba-notes/public-capabilities/v1', id: current.id, state_revision: current.stateRevision, owner_generation: current.ownerGeneration, mode: current.mode, deleted: current.deleted, allow_public_writes: false })), noteMetadata: vi.fn(async () => structuredClone(current)), chainId: GNO_CHAIN_ID, assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(current)), height: vi.fn(async () => '100'), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false })) } as unknown as NotesReadClient
   const options: PublicRequestOptions = {
     client, session, intents, isWriteEnabled: () => true, maxDepositUgnot: '1000', draftLocalRevision: '1',
     operation: { caller: owner, noteId, operationId, action: { kind: 'commit', revision: '1', epoch: '0', body: 'New' } },

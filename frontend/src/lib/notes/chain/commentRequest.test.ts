@@ -3,12 +3,16 @@ import { IDBFactory } from 'fake-indexeddb'
 import { bech32Encode } from '../../dao/realmAddress'
 import { createDraftSession, createNotesStore, type NotesStore } from '../drafts'
 import { createNotesIntents } from '../intents'
-import { commentIntentRealm, preparePublicCommentRequest, recoverPublicCommentIntent, type CommentRequestOptions } from './commentRequest'
+import { commentIntentRealm, preparePublicCommentRequest, publicCommentEvidence, recoverPublicCommentIntent, type CommentRequestOptions } from './commentRequest'
+import { readPublicComment } from './comments'
 import { recoverPublicIntent } from './recovery'
-import { encode64, NOTES_REALM, type ChainNote } from './schema'
+import { encode64, type ChainNote } from './schema'
+import { NOTES_REALM } from './__fixtures__/deployment'
 import type { CommentOperation } from './commentMessages'
 import { publicCommentBudget } from './commentQuote'
 import measured from './__fixtures__/comment-economics.json'
+// These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
+vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
 const wallet = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn() }))
 vi.mock('../../grc20', () => ({ MAX_GAS_WANTED: 500000000, doContractBroadcast: (...args: unknown[]) => wallet.send(...args), freshFeeForGasWanted: () => wallet.fee(), assertFeeStillCovers: async (fee: number, fresh: () => Promise<number>) => { if (await fresh() > fee) throw new Error('fee changed') } }))
@@ -21,10 +25,10 @@ function setup(action: CommentOperation['action'] = { kind: 'add', bodyRevision:
   const store = createNotesStore({ indexedDB: new IDBFactory() }); stores.push(store)
   const session = createDraftSession(), intents = createNotesIntents(store)
   let note = baseNote(), comment: ReturnType<typeof row> | null = action.kind === 'add' ? null : { ...row(), created_height: '90', height: '99', op_id: '11'.repeat(16) }, paused = false
-  const client = { chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(note)), noteMetadata: vi.fn(async () => structuredClone(note)), writersRaw: vi.fn(async () => [] as string[]), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '0', paused })), height: vi.fn(async () => '100'), getCommentRaw: vi.fn(async () => structuredClone(comment)) }
+  const client = { realm: NOTES_REALM, chainId: 'test-chain', assertCurrent: vi.fn(), note: vi.fn(async () => structuredClone(note)), noteMetadata: vi.fn(async () => structuredClone(note)), writersRaw: vi.fn(async () => [] as string[]), config: vi.fn(async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '0', paused })), height: vi.fn(async () => '100'), getCommentRaw: vi.fn(async () => structuredClone(comment)) }
   const options: CommentRequestOptions = { client, operation: { caller: owner, noteId, commentId, operationId, action }, maxDepositUgnot: '3000000', session, intents, isWriteEnabled: () => true,
     quote: async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: '110', expiresAtMs: Date.now() + 60000, source: 'bounded-estimate', estimatedDepositUgnot: '2000000', maxDepositUgnot: '3000000', gasWanted: 80000000, networkFeeUgnot: 100000 }) }
-  const scope = { chainId: client.chainId, realm: commentIntentRealm(noteId), owner, noteId: commentId }
+  const scope = { chainId: client.chainId, realm: commentIntentRealm(NOTES_REALM, noteId), owner, noteId: commentId }
   return { options, store, intents, session, client, scope, setNote: (patch: Partial<ChainNote>) => { note = { ...note, ...patch } }, setComment: (patch: Partial<ReturnType<typeof row>> | null) => { comment = patch === null ? null : { ...row(), ...patch } }, pause: () => { paused = true } }
 }
 beforeEach(() => { vi.clearAllMocks(); wallet.fee.mockResolvedValue(96000); wallet.send.mockImplementation(async (_msgs, _memo, options) => { await options.beforeSign(); return { hash } }) })
@@ -211,6 +215,18 @@ describe('public comment intentions', () => {
     expect(await recoverPublicCommentIntent(s.client, s.intents, (await s.intents.get(s.scope, operationId))!, s.session)).toBe('unknown')
     s.setComment({})
     expect(await recoverPublicCommentIntent(s.client, s.intents, (await s.intents.get(s.scope, operationId))!, s.session)).toBe('confirmed')
+  })
+  it('never confirms a comment receipt made under another realm path, nor reads the chain for it', async () => {
+    const s = setup(), request = await preparePublicCommentRequest(s.options), other = 'gno.land/r/samcrew/memba_notes_rehearsal'
+    wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('wallet closed') })
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('wallet closed')
+    s.setComment({}); s.client.getCommentRaw.mockClear(); const receipt = (await s.intents.get(s.scope, operationId))!
+    expect(await recoverPublicCommentIntent({ ...s.client, realm: other }, s.intents, receipt, s.session)).toBe('unknown')
+    expect(s.client.getCommentRaw).not.toHaveBeenCalled()
+    const comment = await readPublicComment(s.client, noteId, commentId)
+    expect(publicCommentEvidence(other, receipt, comment)).toBeNull()
+    expect(publicCommentEvidence(NOTES_REALM, receipt, comment)).not.toBeNull()
+    expect(await recoverPublicCommentIntent(s.client, s.intents, receipt, s.session)).toBe('confirmed')
   })
   it('rechecks note/comment revisions, account lifetime, fee and final quote expiry', async () => {
     const s = setup(), request = await preparePublicCommentRequest(s.options); s.setNote({ stateRevision: '6' })

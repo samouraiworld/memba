@@ -3,6 +3,10 @@ import { IDBFactory, IDBObjectStore } from "fake-indexeddb"
 import { createDraftSession, createNotesStore, notesKey, notesPartitionKey, notesRead, notesWrite, type NotesStore } from "./drafts"
 import { createNotesIntents, reconcileNotesIntent, type NotesIntent, type NotesIntentInput, type NotesOperationEvidence } from "./intents"
 
+// The deployment table names one realm path per network; this suite's network is gnoland-1.
+vi.mock("./config", async importOriginal => ({ ...await importOriginal<typeof import("./config")>(),
+    deploymentRealm: (chainId: string) => chainId === "gnoland-1" ? "gno.land/r/samcrew/memba_notes_v1" : null }))
+
 const scope = { chainId: "gnoland-1", realm: "gno.land/r/example/notes", owner: "alice", noteId: "ab".repeat(16) }
 const input: NotesIntentInput = { scope, operationId: "cd".repeat(16), requestDigest: "ab".repeat(32), actor: "alice", action: "Commit", expectedStateRevision: "9007199254740993", resultingStateRevision: "9007199254740994", expectedEpoch: "1", ownerGeneration: "1", draftLocalRevision: "7" }
 const evidence: NotesOperationEvidence = { scope, operationId: input.operationId, actor: "alice", stateRevision: input.resultingStateRevision, height: "9007199254740995", outcome: "applied" }
@@ -141,6 +145,21 @@ describe("F02 durable verification descriptors", () => {
         expect(await second.intents.settle(fixture.scope, fixture.operationId, "not-sent", second.session)).toEqual({ status: "conflict" })
     })
 
+    it("accepts receipts only under the realm path the network's deployment names, scoped by kind", async () => {
+        const { intents, session } = setup(), other = "gno.land/r/samcrew/memba_notes_rehearsal", op = "77".repeat(16)
+        const access = descriptors.find(d => d.name === "access")!.fixture, comment = descriptors.find(d => d.name === "private-comment")!.fixture
+        const publicReceipt: NotesIntentInput = { ...input, operationId: op, scope: { ...scope, realm: other }, action: "commit", expectedStateRevision: "1", resultingStateRevision: "2", expectedEpoch: "0",
+            verification: { kind: "public-v1", mode: 3, epoch: "0", titleSha256: digest, bodySha256: digest, deleted: false, quoteHeight: "10", ownerGeneration: "1", titleRevision: "1", bodyRevision: "2" } }
+        const rejected: NotesIntentInput[] = [
+            // Another well-formed path, or a network without a deployment entry.
+            { ...access, operationId: op, scope: { ...access.scope, realm: other } }, { ...access, operationId: op, scope: { ...access.scope, chainId: "test-elsewhere" } },
+            { ...access, operationId: op, scope: { ...access.scope, realm: "gno.land/r/samcrew/enckeys_v1" } }, publicReceipt,
+            ...[`${other}/comments/${"ef".repeat(16)}`, `${notesRealm}/comments/${"ab".repeat(16)}`, "gno.land/r/samcrew/enckeys_v1", notesRealm].map(realm => ({ ...comment, operationId: op, scope: { ...comment.scope, realm } })),
+        ]
+        for (const candidate of rejected) expect(await intents.begin(candidate, session)).toEqual({ status: "invalid" })
+        expect(await intents.begin({ ...publicReceipt, scope: { ...scope, realm: notesRealm } }, session)).toMatchObject({ status: "saved" })
+    })
+
     it.each(descriptors)("rejects malformed $name without changing durable receipts", async ({ fixture }) => {
         const { intents, store, session } = setup()
         await intents.begin(input, session)
@@ -148,7 +167,8 @@ describe("F02 durable verification descriptors", () => {
         const before = await rawReceipts(store)
         const changeProof = (patch: Record<string, unknown>): NotesIntentInput => ({ ...fixture, verification: { ...fixture.verification!, ...patch } as NotesIntentInput["verification"] })
         const rejected: NotesIntentInput[] = [
-            { ...fixture, scope: { ...fixture.scope, realm: "gno.land/r/wrong/realm" } }, { ...fixture, action: "wrongAction" },
+            // Each network names its own realm path, so a receipt is checked for a realm path of its kind, not one fixed path.
+            { ...fixture, scope: { ...fixture.scope, realm: "gno.land/p/wrong/realm" } }, { ...fixture, scope: { ...fixture.scope, realm: "gno.land/r/Wrong realm" } }, { ...fixture, action: "wrongAction" },
             { ...fixture, expectedEpoch: "01" }, { ...fixture, resultingStateRevision: String(BigInt(fixture.expectedStateRevision) + 2n) },
             changeProof({ secret: "must never persist" }), changeProof({ quoteHeight: "0" }), changeProof({ quoteHeight: "9223372036854775808" }),
         ]
@@ -185,7 +205,7 @@ describe("F02 durable verification descriptors", () => {
 
     it.each([false, true])("reloads public receipts with explicit owner=%s and rejects ambiguous extras", async explicitOwner => {
         const factory = new IDBFactory(), first = setup(factory)
-        const fixture: NotesIntentInput = { ...input, action: "commit", expectedStateRevision: "1", resultingStateRevision: "2", expectedEpoch: "0",
+        const fixture: NotesIntentInput = { ...input, scope: { ...scope, realm: notesRealm }, action: "commit", expectedStateRevision: "1", resultingStateRevision: "2", expectedEpoch: "0",
             verification: { kind: "public-v1", mode: 3, epoch: "0", titleSha256: digest, bodySha256: digest, deleted: false,
                 quoteHeight: "10", ownerGeneration: "1", titleRevision: "1", bodyRevision: "2", ...(explicitOwner ? { owner: "note-owner" } : {}) } }
         expect(await first.intents.begin(fixture, first.session)).toMatchObject({ status: "saved" })

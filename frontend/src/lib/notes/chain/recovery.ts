@@ -6,7 +6,7 @@ import type { NotesIntent, NotesIntentInput, NotesIntents, NotesOperationEvidenc
 import type { NotesReadClient } from './client'
 import type { PublicNoteOperation } from './messages'
 import type { PublicCapabilities } from './capabilities'
-import { check, decimal, NOTES_REALM } from './schema'
+import { check, decimal } from './schema'
 import type { ChainNote } from './schema'
 
 const hash = (bytes: Uint8Array) => bytesToHex(sha256(bytes))
@@ -30,10 +30,10 @@ export function publicVerification(operation: PublicNoteOperation, base: ChainNo
   }
   check(validPublicVerification(value)); return value
 }
-/** A receipt alone is insufficient: match the reviewed public result, including tombstone bytes. */
-export function publicIntentEvidence(input: NotesIntentInput, note: ChainNote | null, capabilities?: PublicCapabilities | null): NotesOperationEvidence | null {
+/** A receipt alone is insufficient: match the reviewed public result, including tombstone bytes. `realm` is the deployment's. */
+export function publicIntentEvidence(realm: string, input: NotesIntentInput, note: ChainNote | null, capabilities?: PublicCapabilities | null): NotesOperationEvidence | null {
   const v = input.verification
-  if (!validPublicVerification(v) || !note || input.scope.realm !== NOTES_REALM || note.id !== input.scope.noteId
+  if (!validPublicVerification(v) || !note || input.scope.realm !== realm || note.id !== input.scope.noteId
     || note.operationId !== input.operationId || note.actor !== input.actor || note.owner !== (v.owner ?? input.actor)
     || note.stateRevision !== input.resultingStateRevision || note.ownerGeneration !== input.ownerGeneration
     || note.ownerGeneration !== v.ownerGeneration || note.mode !== v.mode || note.epoch !== v.epoch
@@ -52,13 +52,13 @@ export function publicIntentEvidence(input: NotesIntentInput, note: ChainNote | 
  * A later last-operation receipt cannot establish an earlier operation; it needs future historical proof.
  */
 export async function recoverPublicIntent(
-  client: Pick<NotesReadClient, 'chainId' | 'assertCurrent' | 'note'> & Partial<Pick<NotesReadClient, 'publicCapabilities'>>,
+  client: Pick<NotesReadClient, 'chainId' | 'realm' | 'assertCurrent' | 'note'> & Partial<Pick<NotesReadClient, 'publicCapabilities'>>,
   intents: NotesIntents, intent: NotesIntent, session: DraftSession,
 ): Promise<'confirmed' | 'unknown'> {
   const guard = session.capture(), scope = { ...intent.scope }, operationId = intent.operationId
   const current = () => { if (guard.signal.aborted) throw new Error('Session changed.'); client.assertCurrent() }
   try {
-    current(); if (client.chainId !== scope.chainId || scope.realm !== NOTES_REALM) return 'unknown'
+    current(); if (client.chainId !== scope.chainId || scope.realm !== client.realm) return 'unknown'
     // Read the durable snapshot instead of a caller-owned object or a possibly changed local draft.
     const stored = await intents.get(scope, operationId); current()
     if (!stored || !validPublicVerification(stored.verification)) return 'unknown'
@@ -66,7 +66,7 @@ export async function recoverPublicIntent(
     if (!['prepared', 'submitted', 'unknown'].includes(stored.phase)) return 'unknown'
     const note = await client.note(scope.noteId); current()
     const capabilities = Object.hasOwn(stored.verification, 'allowPublicWrites') ? await client.publicCapabilities?.(scope.noteId) : undefined; current()
-    const evidence = publicIntentEvidence(stored, note, capabilities)
+    const evidence = publicIntentEvidence(client.realm, stored, note, capabilities)
     if (!evidence) return 'unknown'
     const result = await intents.confirm(scope, operationId, evidence, guard); current()
     return result.status === 'saved' ? 'confirmed' : 'unknown'

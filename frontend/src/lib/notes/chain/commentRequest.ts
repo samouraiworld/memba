@@ -9,11 +9,11 @@ import type { NotesReadClient } from './client'
 import { publicCommentMessage, type CommentOperation } from './commentMessages'
 import { readPublicComment, type PublicComment } from './comments'
 import { notesRequestDigest, type NotesQuote, type NotesQuoteProvider } from './request'
-import { check, decimal, NOTES_REALM, NotesChainError, publicText, type ChainNote } from './schema'
+import { check, decimal, NotesChainError, publicText, realmPath, type ChainNote } from './schema'
 import { readPublicWritePermission } from './publicPermissions'
 import { gnotAmount } from './quote'
 
-type Client = Pick<NotesReadClient, 'chainId' | 'assertCurrent' | 'note' | 'noteMetadata' | 'writersRaw' | 'config' | 'height' | 'getCommentRaw'>
+type Client = Pick<NotesReadClient, 'chainId' | 'realm' | 'assertCurrent' | 'note' | 'noteMetadata' | 'writersRaw' | 'config' | 'height' | 'getCommentRaw'>
 export interface CommentRequestOptions {
   client: Client; operation: CommentOperation; maxDepositUgnot: string; session: DraftSession
   intents: NotesIntents; quote: NotesQuoteProvider; isWriteEnabled(): boolean
@@ -23,7 +23,8 @@ const shortAddress = (value: string) => value.length > 12 ? `${value.slice(0, 5)
 const excerpt = (value: string) => { const line = value.replace(/\s+/g, ' ').trim(); return [...line].length > 80 ? `${[...line].slice(0, 79).join('')}…` : line }
 const hash = (value: string) => bytesToHex(sha256(new TextEncoder().encode(value)))
 const saved = <T,>(value: NotesWriteResult<T>): T => { if (value.status !== 'saved') throw new NotesChainError('storage'); return value.value }
-export const commentIntentRealm = (noteId: string) => `${NOTES_REALM}/comments/${noteId}`
+/** Comment receipts are scoped under the deployment's realm path, per note. */
+export const commentIntentRealm = (realm: string, noteId: string) => `${realmPath(realm)}/comments/${noteId}`
 function verifyBase(op: CommentOperation, note: ChainNote | null, comment: PublicComment | null): void {
   const a = op.action
   if (!note || note.mode < 3 || (note.deleted && a.kind !== 'delete')) throw new NotesChainError('stale')
@@ -39,9 +40,9 @@ function descriptor(op: CommentOperation, base: PublicComment | null, height: st
     anchorSha256: hash(deleted ? '' : add ? a.anchor : base!.anchor), bodySha256: hash(deleted ? '' : add ? a.body : base!.body),
     deleted, hidden: a.kind === 'hide' ? a.hidden : base?.hidden ?? false, resolved: a.kind === 'resolve' ? a.resolved : base?.resolved ?? false, quoteHeight: height }
 }
-export function publicCommentEvidence(input: NotesIntentInput, comment: PublicComment | null): NotesOperationEvidence | null {
+export function publicCommentEvidence(realm: string, input: NotesIntentInput, comment: PublicComment | null): NotesOperationEvidence | null {
   const v = input.verification
-  if (!validCommentVerification(v) || !comment || comment.encrypted || input.scope.realm !== commentIntentRealm(v.noteId)
+  if (!validCommentVerification(v) || !comment || comment.encrypted || input.scope.realm !== commentIntentRealm(realm, v.noteId)
     || comment.id !== input.scope.noteId || comment.operationId !== input.operationId || comment.actor !== input.actor
     || comment.revision !== input.resultingStateRevision || BigInt(comment.height) <= BigInt(v.quoteHeight)
     || comment.author !== v.author || comment.parent !== v.parent || comment.bodyRevision !== v.bodyRevision || comment.epoch !== v.epoch
@@ -60,7 +61,7 @@ function validateQuote(q: NotesQuote, chainId: string, digest: string, height: s
 export async function preparePublicCommentRequest(options: CommentRequestOptions): Promise<SignRequest> {
   const op = structuredClone(options.operation), { client, intents } = options, guard = options.session.capture()
   const allowed = () => { if (guard.signal.aborted) throw new NotesChainError('session'); client.assertCurrent(); if (!options.isWriteEnabled()) throw new NotesChainError('disabled') }
-  allowed(); const cap = decimal(options.maxDepositUgnot, 63), message = publicCommentMessage(op, cap)
+  allowed(); const cap = decimal(options.maxDepositUgnot, 63), message = publicCommentMessage(op, cap, client.realm)
   const read = async () => {
     const [note, comment, config, parent] = await Promise.all([client.note(op.noteId), readPublicComment(client, op.noteId, op.commentId), client.config(),
       op.action.kind === 'add' && op.action.parent ? readPublicComment(client, op.noteId, op.action.parent) : null])
@@ -81,7 +82,7 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
   const quote = structuredClone(await options.quote({ chainId: client.chainId, message: structuredClone(message), requestDigest: digest, height })); allowed()
   validateQuote(quote, client.chainId, digest, height, cap)
   const revision = op.action.kind === 'add' ? '0' : op.action.revision
-  const input: NotesIntentInput = { scope: { chainId: client.chainId, realm: commentIntentRealm(op.noteId), owner: op.caller, noteId: op.commentId },
+  const input: NotesIntentInput = { scope: { chainId: client.chainId, realm: commentIntentRealm(client.realm, op.noteId), owner: op.caller, noteId: op.commentId },
     operationId: op.operationId, requestDigest: digest, actor: op.caller, action: `${op.action.kind}Comment`, expectedStateRevision: revision,
     resultingStateRevision: decimal((BigInt(revision) + 1n).toString(), 64, true), expectedEpoch: base.comment?.epoch ?? base.note.epoch,
     ownerGeneration: base.note.ownerGeneration, draftLocalRevision: '0', verification: descriptor(op, base.comment, height) }
@@ -124,7 +125,7 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
     },
     verify: async (_choice, txHash) => {
       allowed(); const comment = await readPublicComment(client, op.noteId, op.commentId); allowed()
-      const evidence = publicCommentEvidence(input, comment); if (!evidence) return false
+      const evidence = publicCommentEvidence(client.realm, input, comment); if (!evidence) return false
       if (txHash) evidence.txHash = txHash
       saved(await intents.confirm(input.scope, input.operationId, evidence, guard)); return true
     },
@@ -133,17 +134,17 @@ export async function preparePublicCommentRequest(options: CommentRequestOptions
   }
 }
 /** Explicit Check outcome; does not resubmit or infer failure from absence. */
-export async function recoverPublicCommentIntent(client: Pick<Client, 'chainId' | 'assertCurrent' | 'getCommentRaw'>, intents: NotesIntents, intent: NotesIntent, session: DraftSession): Promise<'confirmed' | 'unknown'> {
+export async function recoverPublicCommentIntent(client: Pick<Client, 'chainId' | 'realm' | 'assertCurrent' | 'getCommentRaw'>, intents: NotesIntents, intent: NotesIntent, session: DraftSession): Promise<'confirmed' | 'unknown'> {
   const guard = session.capture(), scope = { ...intent.scope }, operationId = intent.operationId
   const current = () => { if (guard.signal.aborted) throw new NotesChainError('session'); client.assertCurrent() }
   try {
     current(); if (client.chainId !== scope.chainId) return 'unknown'
     const stored = await intents.get(scope, operationId); current()
-    if (!stored || !validCommentVerification(stored.verification) || scope.realm !== commentIntentRealm(stored.verification.noteId)) return 'unknown'
+    if (!stored || !validCommentVerification(stored.verification) || scope.realm !== commentIntentRealm(client.realm, stored.verification.noteId)) return 'unknown'
     if (stored.phase === 'confirmed') return 'confirmed'
     if (!['prepared', 'submitted', 'unknown'].includes(stored.phase)) return 'unknown'
     const comment = await readPublicComment(client, stored.verification.noteId, scope.noteId); current()
-    const evidence = publicCommentEvidence(stored, comment); if (!evidence) return 'unknown'
+    const evidence = publicCommentEvidence(client.realm, stored, comment); if (!evidence) return 'unknown'
     const result = await intents.confirm(scope, operationId, evidence, guard); current()
     return result.status === 'saved' ? 'confirmed' : 'unknown'
   } catch { return 'unknown' }

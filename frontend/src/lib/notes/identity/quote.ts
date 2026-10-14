@@ -2,7 +2,7 @@ import { abciQueryText } from '../../dao/packageStatus'
 import { freshFeeForGasWanted } from '../../grc20'
 import { getRpcUrlsInOrder } from '../../rpcFallback'
 import type { NotesReadClient } from '../chain/client'
-import { check, decimal, NOTES_REALM, NOTES_REGISTRY } from '../chain/schema'
+import { check, decimal, NOTES_REGISTRY } from '../chain/schema'
 import type { IdentityQuoteProvider } from './request'
 
 /** Product keeper measurement: ~1.01 GNOT storage and 34M gas; keep separate per-call caps. */
@@ -13,7 +13,7 @@ export function identityQuote(client: NotesReadClient): IdentityQuoteProvider {
         const [registry, backup] = input.messages
         check(registry.type === 'vm/MsgCall' && registry.value.pkg_path === NOTES_REGISTRY && registry.value.func === 'RegisterKey'
             && registry.value.max_deposit === '1000000ugnot' && registry.value.send === '')
-        check(backup.type === 'vm/MsgCall' && backup.value.pkg_path === NOTES_REALM && backup.value.func === 'SetSeedBackup'
+        check(backup.type === 'vm/MsgCall' && backup.value.pkg_path === client.realm && backup.value.func === 'SetSeedBackup'
             && backup.value.max_deposit === '1000000ugnot' && backup.value.send === '')
         const urls = getRpcUrlsInOrder(), gasWanted = 60_000_000
         const [price, networkFeeUgnot] = await Promise.all([

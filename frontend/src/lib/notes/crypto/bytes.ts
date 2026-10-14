@@ -1,4 +1,6 @@
 /** Canonical encodings for Notes v1. No implicit string concatenation in authenticated data. */
+import { validNotesRealm } from '../chain/schema'
+
 export class NotesCryptoError extends Error {
   constructor(readonly code: 'format' | 'decrypt' | 'identity' | 'signature' | 'busy' | 'wallet') {
     super(`Notes crypto: ${code}`)
@@ -46,7 +48,7 @@ export function asciiText(value: string, max: number): Uint8Array {
 }
 export interface NetworkContext { chainId: string; realm: string }
 export function networkBytes(c: NetworkContext): Uint8Array {
-  if (!/^gno\.land\/r\/[a-zA-Z0-9_]+(?:\/[a-zA-Z0-9_]+)*$/.test(c.realm)) throw new NotesCryptoError('format')
+  if (!validNotesRealm(c.realm)) throw new NotesCryptoError('format')
   return concat(asciiText(c.chainId, 64), asciiText(c.realm, 128))
 }
 export function requireEpoch(epoch: number): void {

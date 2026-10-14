@@ -340,9 +340,10 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
-    const featured = notesDeployment(session.network.chainId) ? featuredNoteReleases(session.network.chainId) : []
+    const notesRealm = notesDeployment(session.network.chainId)?.realm ?? null
+    const featured = notesRealm ? featuredNoteReleases(session.network.chainId, notesRealm) : []
     const deskItems = useDesk(deskOwner, session.network.key, { chainId: session.network.chainId,
-        gno: session.network.family === "gno", adopt: NOTES_ENABLED, releases: featured, blocked: locked })
+        gno: session.network.family === "gno", adopt: NOTES_ENABLED, releases: featured, realm: notesRealm, blocked: locked })
     const { resetFromStorage: resetDeskFromStorage } = deskItems
     // Note shortcuts: titles from the chain (cached per wallet and network), featured labels first.
     const noteShortcuts = useNoteShortcuts({ chainId: session.network.chainId, owner: deskOwner,
