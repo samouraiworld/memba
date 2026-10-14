@@ -1,10 +1,12 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { bech32Encode } from '../../../lib/dao/realmAddress'
 import { encode64 } from '../../../lib/notes/chain/schema'
 import { PublicComments } from './PublicComments'
 
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), noteId = '01'.repeat(16)
+/** Opens a card's ⋯ menu. */
+const menu = (article: HTMLElement) => fireEvent.click(within(article).getByRole('button', { name: /^More actions for the comment by / }))
 const b64 = (value: string) => encode64(new TextEncoder().encode(value))
 const row = (n = 1) => ({ id: n.toString(16).padStart(32, '0'), parent: '0'.repeat(32), author: owner, encrypted: false, body_revision: '1', epoch: '0', revision: '1', anchor_blob: b64('Passage'), body_blob: b64(`Comment ${n}`), created_height: String(n), op_id: '03'.repeat(16), actor: owner, height: String(n), deleted: false, hidden: false, resolved: false })
 const page = (items = [row()], next_cursor = '') => ({ items, next_cursor })
@@ -81,9 +83,10 @@ describe('public comments', () => {
     render(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" viewer={owner} canHide canResolve onReply={onReply} onDelete={onDelete} onHide={onHide} onResolve={onResolve} />)
     const article = await screen.findByRole('article')
     fireEvent.click(within(article).getByRole('button', { name: 'Reply' }))
-    fireEvent.click(within(article).getByRole('button', { name: 'Delete comment' }))
-    fireEvent.click(within(article).getByRole('button', { name: 'Resolve thread' }))
-    fireEvent.click(within(article).getByRole('button', { name: 'Hide comment' }))
+    // Reply stays on the card; the other actions are in its ⋯ menu, which closes after each choice.
+    expect(within(article).queryByRole('button', { name: 'Delete comment' })).toBeNull()
+    for (const name of ['Delete comment', 'Resolve thread', 'Hide comment']) { menu(article); fireEvent.click(within(article).getByRole('menuitem', { name })) }
+    expect(within(article).queryByRole('menu')).toBeNull()
     expect(onDelete).toHaveBeenCalledOnce(); expect(onResolve.mock.calls[0][1]).toBe(true); expect(onHide.mock.calls[0][1]).toBe(true)
     onReply.mock.calls[0][0].body = 'Mutated'
     expect(screen.getByText('Comment 1')).toBeVisible()
@@ -93,12 +96,12 @@ describe('public comments', () => {
     const props = { client: { commentsRaw: vi.fn(async () => page([encrypted])) }, noteId, epoch: '0', bodyRevision: '1', viewer: owner,
       canHide: true, canResolve: true, onDelete: vi.fn(), onHide: vi.fn(), onResolve: vi.fn() }
     const view = render(<PublicComments {...props} />)
-    expect(await screen.findByRole('button', { name: 'Delete comment' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Resolve thread' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Hide comment' })).toBeVisible()
+    menu(await screen.findByRole('article'))
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Resolve thread', 'Hide comment', 'Delete comment'])
     view.rerender(<PublicComments {...props} allowEncryptedActions={false} />)
     expect(screen.getByText('Encrypted comment')).toBeVisible()
-    for (const name of ['Delete comment', 'Resolve thread', 'Hide comment']) expect(screen.queryByRole('button', { name })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^More actions for the comment/ })).toBeNull()
+    for (const name of ['Delete comment', 'Resolve thread', 'Hide comment']) expect(screen.queryByRole('menuitem', { name })).toBeNull()
     expect(props.onDelete).not.toHaveBeenCalled(); expect(props.onHide).not.toHaveBeenCalled(); expect(props.onResolve).not.toHaveBeenCalled()
   })
 
@@ -107,6 +110,31 @@ describe('public comments', () => {
     render(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" viewer={owner} canHide onHide={vi.fn()} />)
     expect(await screen.findByText('Removed by moderation')).toBeVisible()
     expect(screen.getByText('Hidden by moderation')).toBeVisible()
-    expect(screen.getAllByRole('button', { name: 'Unhide comment' })).toHaveLength(1)
+    const [removed, hidden] = screen.getAllByRole('article')
+    expect(within(removed).queryByRole('button', { name: /^More actions/ })).toBeNull()
+    menu(hidden); expect(within(hidden).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Unhide comment'])
+  })
+
+  it('opens the card menu from the keyboard, moves with the arrows and returns the focus on Escape', async () => {
+    const client = { commentsRaw: vi.fn(async () => page([row()])) }
+    render(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" viewer={owner} canHide canResolve onDelete={vi.fn()} onHide={vi.fn()} onResolve={vi.fn()} />)
+    const article = await screen.findByRole('article'), button = within(article).getByRole('button', { name: 'More actions for the comment by You' })
+    expect(button).toHaveAttribute('aria-haspopup', 'menu'); expect(button).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(button)
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(within(article).getByRole('menu', { name: 'More actions for the comment by You' })).toBeVisible()
+    expect(within(article).getByRole('menuitem', { name: 'Resolve thread' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' }); expect(within(article).getByRole('menuitem', { name: 'Hide comment' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement!, { key: 'End' }); expect(within(article).getByRole('menuitem', { name: 'Delete comment' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' }); expect(within(article).getByRole('menuitem', { name: 'Resolve thread' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(within(article).queryByRole('menu')).toBeNull(); expect(button).toHaveFocus()
+    fireEvent.click(button); fireEvent.click(within(article).getByRole('menuitem', { name: 'Hide comment' }))
+    expect(within(article).queryByRole('menu')).toBeNull(); expect(button).toHaveFocus()
+  })
+  it('names each card menu with the author and the comment\'s time, so two cards by one author differ', async () => {
+    const client = { chainId: 'times-test', commentsRaw: vi.fn(async () => page([row(1), row(2)])), blockTimeMs: vi.fn(async (height: string) => Date.now() - Number(height) * 3_600_000) }
+    render(<PublicComments client={client} noteId={noteId} epoch="0" bodyRevision="1" viewer={owner} onDelete={vi.fn()} />)
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^More actions for the comment by You, / }).map(button => button.getAttribute('aria-label'))).toEqual(['More actions for the comment by You, 1 hour ago', 'More actions for the comment by You, 2 hours ago']))
   })
 })

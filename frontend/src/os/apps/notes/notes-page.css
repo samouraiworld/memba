@@ -1,18 +1,24 @@
-/* ── A note's page: header (status, Share, one primary action, ⋯), banners, sheets ── */
-.os-notes-head { position:sticky; top:-16px; z-index:3; display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:-16px 0 16px; padding:12px 0; background:var(--os-opaque); border-bottom:1px solid var(--os-line); }
-.os-notes-status { flex:1; min-width:min(100%, 220px); display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-size:13px; font-weight:600; color:var(--os-mut); }
+/*
+ * A note's page: a toolbar (the status as a subtitle on the left; Share, one primary action and ⋯ on the right),
+ * banners, sheets. The toolbar is mostly the window's glass (a light translucent fill, blurring the text that
+ * scrolls under it): it never reads as a box inside the window, and its text keeps its contrast over the note.
+ */
+.os-notes-head { position:sticky; top:-16px; z-index:3; display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; min-height:56px; box-sizing:border-box; margin:-16px 0 16px; padding:10px 0;
+    background:color-mix(in srgb, var(--os-opaque) 70%, transparent); -webkit-backdrop-filter:var(--os-blur); backdrop-filter:var(--os-blur); border-bottom:1px solid var(--os-line); }
+.os-notes-status { flex:1 1 140px; min-width:0; display:flex; flex-wrap:wrap; align-items:center; gap:2px 4px; font-size:12.5px; font-weight:600; line-height:1.4; color:var(--os-mut); }
 .os-notes-state { display:inline-flex; align-items:center; gap:8px; color:var(--os-ink); }
 .os-notes-state[data-kind="published"] svg { color:var(--os-ok); }
 .os-notes-state[data-kind="private"] svg { color:var(--os-mut); }
 .os-notes-dot { width:9px; height:9px; border-radius:50%; background:var(--os-mut); flex:none; }
 .os-notes-state[data-kind="changes"] .os-notes-dot { background:var(--os-warn-fill); }
 .os-notes-copied { color:var(--os-ok); }
-.os-notes-head-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-.os-notes-icon { width:36px; padding:0; justify-content:center; }
-.os-notes-icon[aria-expanded="true"] { background:var(--os-chip); }
+.os-notes-head-actions { display:flex; flex:0 1 auto; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px; min-width:0; margin-left:auto; }
+.memba-os .os-notes-head-actions .os-btn { min-height:32px; padding:0 12px; font-size:12.5px; }
+.memba-os .os-notes-icon.os-btn { width:32px; min-height:32px; padding:0; justify-content:center; }
+.memba-os .os-notes-icon[aria-expanded="true"] { background:var(--os-chip); }
 
 /* Preview switch */
-.os-notes-switch { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:0 6px; border:0; background:transparent; color:var(--os-ink); font:700 13px var(--os-font); cursor:pointer; border-radius:var(--os-radius-ctl); }
+.memba-os .os-notes-switch { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:0 6px; border:0; background:transparent; color:var(--os-ink); font:700 13px var(--os-font); cursor:pointer; border-radius:var(--os-radius-ctl); }
 .os-notes-switch > span { position:relative; width:34px; height:20px; border-radius:999px; background:var(--os-line); transition:background .15s; }
 .os-notes-switch > span::after { content:""; position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%; background:var(--os-solid, #fff); box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .15s; }
 .os-notes-switch[aria-checked="true"] > span { background:var(--os-acc); }
@@ -21,11 +27,12 @@
 
 /* ⋯ menu */
 .os-notes-more { position:relative; }
-.os-notes-menu { position:absolute; right:0; top:calc(100% + 6px); z-index:10; min-width:240px; display:flex; flex-direction:column; padding:6px; background:var(--os-opaque); border:1px solid var(--os-line); border-radius:12px; box-shadow:var(--os-shadow); }
-.os-notes-menu-item { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--os-ink); font:600 13.5px var(--os-font); text-align:left; cursor:pointer; }
+.os-notes-menu { position:absolute; right:0; top:calc(100% + 6px); z-index:10; min-width:min(240px, calc(100cqw - 32px)); display:flex; flex-direction:column; padding:6px; background:var(--os-opaque); border:1px solid var(--os-line); border-radius:12px; box-shadow:var(--os-shadow); }
+.memba-os .os-notes-menu-item { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--os-ink); font:600 13.5px var(--os-font); text-align:left; cursor:pointer; }
 .os-notes-menu-item:hover, .os-notes-menu-item:focus-visible { background:var(--os-hover); outline:none; }
 .os-notes-menu-item small { font-size:12px; font-weight:500; color:var(--os-mut); }
 .os-notes-menu-item[data-danger] { color:var(--os-err); }
+.os-notes-menu-item[aria-disabled="true"] { opacity:.5; cursor:not-allowed; }
 .os-notes-menu-sep { height:1px; margin:4px 6px; background:var(--os-line); }
 
 /* Banners: what happened, that the text is kept, what to do next */
@@ -60,14 +67,28 @@
 .os-notes-facts { display:flex; flex-direction:column; gap:12px; margin:0; }
 .os-notes-facts > div { display:grid; grid-template-columns:130px minmax(0, 1fr); gap:12px; font-size:14px; line-height:1.5; }
 .os-notes-facts dt { color:var(--os-mut); font-weight:700; }
-.os-notes-facts dd { margin:0; }
-.os-notes-cost { font-weight:800; }
+.os-notes-facts dd { margin:0; min-width:0; }
+/* Each changed field on its own line; the cap is its own small line under the estimate. */
+.os-notes-facts dd > span { display:block; }
+.os-notes-facts dd small { display:block; margin-top:2px; font-size:12.5px; color:var(--os-mut); }
+.os-notes-facts .os-notes-cost { font-size:inherit; font-weight:800; color:var(--os-ink); }
 .os-notes-choices { display:flex; flex-direction:column; gap:10px; margin:0; padding:0; border:0; }
-.os-notes-select { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:700; color:var(--os-mut); }
-.os-notes-link { align-self:flex-start; padding:0; border:0; background:none; color:var(--os-acc); font:700 13px var(--os-font); cursor:pointer; }
+.os-notes-select { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:var(--os-mut); }
+/* A native select in the OS colours: the menu stays the platform's (it follows the theme's color-scheme). */
+.os-notes-select select { appearance:none; -webkit-appearance:none; min-height:40px; box-sizing:border-box; padding:0 36px 0 12px; border:1px solid var(--os-line); border-radius:var(--os-radius-ctl);
+    background-color:var(--os-card); color:var(--os-ink); font:600 14px var(--os-font); cursor:pointer;
+    background-image:linear-gradient(45deg, transparent 50%, var(--os-mut) 50%), linear-gradient(135deg, var(--os-mut) 50%, transparent 50%);
+    background-position:calc(100% - 19px) 50%, calc(100% - 14px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
+.os-notes-select select:hover:not(:disabled) { background-color:var(--os-hover); }
+.os-notes-select select:focus-visible { outline:2px solid var(--os-acc); outline-offset:1px; }
+.os-notes-select select:disabled { opacity:.55; cursor:not-allowed; }
+.os-notes-select option { background:var(--os-opaque); color:var(--os-ink); }
+.memba-os .os-notes-link { align-self:flex-start; padding:0; border:0; background:none; color:var(--os-acc-ink); font:700 13px var(--os-font); cursor:pointer; }
+.memba-os .os-notes-link:hover { text-decoration:underline; }
+.memba-os .os-notes-link:focus-visible { outline:2px solid var(--os-acc); outline-offset:2px; border-radius:4px; }
 .os-notes-tech { display:flex; flex-direction:column; gap:6px; margin:0; padding:12px 14px; border-radius:10px; background:var(--os-hover); font:12px/1.5 var(--os-mono); overflow-wrap:anywhere; }
 .os-notes-tech dd { margin:0 0 4px; }
-.os-notes-danger { background:var(--os-err); border-color:var(--os-err); color:#fff; }
+.memba-os .os-notes-danger.os-btn { background:var(--os-err); border-color:var(--os-err); color:var(--os-solid-ink); }
 
 /* Progress: Review → Approve in Adena → Sending → Published */
 .os-notes-steps { list-style:none; display:flex; flex-direction:column; gap:14px; margin:0; padding:0; }
@@ -100,9 +121,13 @@ li[data-step="done"] > .os-notes-step-mark::after { content:""; width:10px; heig
 .os-notes-chooser > .os-notes-hint, .os-notes-chooser > .os-notes-field-error { grid-column:1 / -1; margin:0; font-size:13px; }
 
 @container notes-app (max-width: 640px) {
-    .os-notes-head { top:-8px; margin-top:-8px; }
-    .os-notes-head-actions .os-btn, .os-notes-switch, .os-notes-menu-item { min-height:44px; }
-    .os-notes-icon { width:44px; }
+    /* One row when the actions fit beside a short status (reading); while editing they move under it, right-aligned. */
+    .os-notes-head { top:-8px; margin-top:-8px; gap:6px 8px; padding:6px 0; }
+    .os-notes-status { flex:1 1 112px; font-size:12px; }
+    .memba-os .os-notes-head-actions .os-btn, .memba-os .os-notes-switch, .memba-os .os-notes-menu-item { min-height:44px; }
+    .memba-os .os-notes-head-actions .os-btn { padding:0 12px; }
+    .memba-os .os-notes-icon.os-btn { width:44px; min-height:44px; }
+    .os-notes-select select { min-height:44px; }
     .os-notes-facts > div { grid-template-columns:minmax(0, 1fr); gap:2px; }
     .os-notes-sheet { padding:20px 18px 16px; }
 }

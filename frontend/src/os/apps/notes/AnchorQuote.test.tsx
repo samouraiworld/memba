@@ -8,7 +8,7 @@ describe('accessible quote location', () => {
     it('shows the quote as text, reports old revisions and selects a unique rendered match', async () => {
         const root = preview('<p>A <strong>private quote</strong> here</p>')
         render(<AnchorQuote quote="private quote" bodyRevision="1" currentBodyRevision="2" previewRoot={root} />)
-        const button = await screen.findByRole('button', { name: 'Show quoted text' })
+        const button = await screen.findByRole('button', { name: 'Show in note' })
         expect(screen.getByRole('status')).toHaveTextContent('Comment on an earlier text of the note.'); fireEvent.click(button)
         expect(window.getSelection()?.toString()).toBe('private quote')
         expect(root.querySelector('strong')).toHaveFocus()
@@ -20,7 +20,7 @@ describe('accessible quote location', () => {
         render(<AnchorQuote quote="quote" bodyRevision="1" currentBodyRevision="1" previewRoot={root} />)
         expect(screen.getByRole('status')).toHaveTextContent('has not been checked')
         await act(async () => { root.innerHTML = '<p>quote</p>'; root.dataset.rendered = 'html' })
-        await screen.findByRole('button', { name: 'Show quoted text' })
+        await screen.findByRole('button', { name: 'Show in note' })
         await act(async () => { root.innerHTML = '<p>removed</p>' })
         await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('not found'))
         await act(async () => { root.innerHTML = '<pre>quote</pre>'; root.dataset.rendered = 'text' })
@@ -30,7 +30,7 @@ describe('accessible quote location', () => {
     it('rechecks synchronously at click so stale match ranges never select replacement text', async () => {
         const root = preview('<p>quote</p>')
         render(<AnchorQuote quote="quote" bodyRevision="1" currentBodyRevision="1" previewRoot={root} />)
-        const button = await screen.findByRole('button', { name: 'Show quoted text' })
+        const button = await screen.findByRole('button', { name: 'Show in note' })
         root.innerHTML = '<p>replacement</p>'; fireEvent.click(button)
         expect(window.getSelection()?.toString()).toBe(''); expect(screen.getByRole('status')).toHaveTextContent('not found')
     })
@@ -45,7 +45,7 @@ describe('accessible quote location', () => {
     it('disconnects observers when unmounted so private preview updates are no longer inspected', async () => {
         const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect'), root = preview('<p>quote</p>')
         const view = render(<AnchorQuote quote="quote" bodyRevision="1" currentBodyRevision="1" previewRoot={root} />)
-        await screen.findByRole('button', { name: 'Show quoted text' }); view.unmount()
+        await screen.findByRole('button', { name: 'Show in note' }); view.unmount()
         expect(disconnect).toHaveBeenCalled(); disconnect.mockRestore()
     })
 })

@@ -197,9 +197,11 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
             <PublicComments previewRoot={previewRoot} key={reload} refreshToken={fresh} client={client} noteId={note.id} epoch={note.epoch} bodyRevision={note.bodyRevision} viewer={owner}
                 allowEncryptedActions={false} canResolve={!note.deleted && owner === note.owner} canHide={!note.deleted && owner === note.owner} onCount={onCount}
                 onReply={canPost ? comment => { setParent(comment); setNotice('') } : undefined}
-                onDelete={actionsReady ? comment => void review({ kind: 'delete', revision: comment.revision }, comment.id) : undefined}
-                onResolve={actionsReady ? (comment, resolved) => void review({ kind: 'resolve', revision: comment.revision, resolved }, comment.id) : undefined}
-                onHide={actionsReady ? (comment, hidden) => void review({ kind: 'hide', revision: comment.revision, hidden }, comment.id) : undefined} />
+                // While busy the menus stay with disabled items, so the focus never falls back to the page.
+                actionsDisabled={!actionsReady}
+                onDelete={owner ? comment => void review({ kind: 'delete', revision: comment.revision }, comment.id) : undefined}
+                onResolve={owner ? (comment, resolved) => void review({ kind: 'resolve', revision: comment.revision, resolved }, comment.id) : undefined}
+                onHide={owner ? (comment, hidden) => void review({ kind: 'hide', revision: comment.revision, hidden }, comment.id) : undefined} />
             {receipts.map(intent => <div key={intent.operationId} className="os-notes-message"><p>A comment you sent earlier has no confirmed outcome yet.</p>{intent.verification?.kind === 'comment-v1'
                 ? <button className="os-btn" disabled={busy} onClick={() => void check(intent)}>Check comment outcome</button>
                 : <p>This saved operation is not supported in this public view. Its receipt was kept; nothing was resent.</p>}</div>)}

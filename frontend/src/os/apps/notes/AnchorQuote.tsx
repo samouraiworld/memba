@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { commentAnchorRevision, findCommentAnchor, type CommentQuote } from '../../../lib/notes/commentAnchor'
 
+/** Dispatched (bubbling) by "Show in note" once the quote is found, just before it is shown in the note. */
+export const REVEAL_QUOTE = 'os-notes-reveal-quote'
 export interface AnchorQuoteProps extends CommentQuote { bodyRevision: string; currentBodyRevision: string; previewRoot?: HTMLElement | null }
 /** No DOM identifiers contain private text. Unavailable/fallback rendering never proves orphanhood. */
 export function AnchorQuote(props: AnchorQuoteProps) {
@@ -20,11 +22,13 @@ export function AnchorQuote(props: AnchorQuoteProps) {
     const status = revision !== 'unchecked' && result?.key === key && result.root === previewRoot ? result.status : 'unchecked'
     const explanation = status === 'present' ? 'Quote found in the current text.' : status === 'absent' ? 'Quote not found in the current text. The reference is kept with this comment.'
         : status === 'ambiguous' ? 'Quote occurs more than once; its location is ambiguous.' : 'Quote location has not been checked against the rendered text.'
-    function showQuote() {
+    function showQuote(button: HTMLElement) {
         // The DOM may have changed since the last observer callback. Never use an old Range.
         const match = findCommentAnchor(previewRoot, { quote, prefix, suffix })
         setResult({ root: previewRoot, key, status: match.status })
         if (match.status !== 'present') return
+        // A sheet over the note (phone) steps aside first; when the quote is gone it stays, showing why.
+        button.dispatchEvent(new CustomEvent(REVEAL_QUOTE, { bubbles: true }))
         const selection = previewRoot?.ownerDocument.defaultView?.getSelection()
         const target = match.range.startContainer.parentElement
         if (target) {
@@ -39,7 +43,7 @@ export function AnchorQuote(props: AnchorQuoteProps) {
     return <figure className="os-notes-anchor">
         <blockquote style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{quote}</blockquote>
         <figcaption><span role="status">{revision === 'earlier' ? 'Comment on an earlier text of the note. ' : ''}{explanation}</span>
-            {status === 'present' && <button className="os-btn os-quiet" onClick={showQuote}>Show quoted text</button>}
+            {status === 'present' && <> <button type="button" className="os-notes-link" onClick={event => showQuote(event.currentTarget)}>Show in note</button></>}
         </figcaption>
     </figure>
 }

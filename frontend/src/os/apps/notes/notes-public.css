@@ -2,7 +2,6 @@
 .os-notes-public .os-notes-reader { max-width:860px; margin:0 auto; }
 .os-notes-public .os-notes-title { overflow-wrap:anywhere; }
 .os-notes-public .os-notes-library ul { list-style:none; padding:0; }
-.os-notes-public .os-notes-library li button { display:flex; flex-direction:column; gap:4px; padding:10px; width:100%; text-align:left; }
 .os-notes-public .os-notes-comments { border-top:1px solid var(--os-line); margin-top:24px; padding-top:16px; }
 .os-notes-public .os-notes-comments ol { list-style:none; padding:0; }
 .os-notes-public .os-notes-comments li { padding:12px 0; border-bottom:1px solid var(--os-line); }

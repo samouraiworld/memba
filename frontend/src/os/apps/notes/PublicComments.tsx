@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnchorQuote } from './AnchorQuote'
+import { ActionMenu, type NoteMenuItem } from './NoteHeader'
 import { useBlockTimes } from './blockTimes'
 import { check } from '../../../lib/notes/chain/schema'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
@@ -15,6 +16,8 @@ export interface PublicCommentsProps {
   refreshToken?: number
   /** Comments shown on the first page (deleted ones excluded), and whether more pages follow. */
   onCount?(count: number, more: boolean): void
+  /** While an action is being prepared: the card menus stay (the focus stays in them) with their items disabled. */
+  actionsDisabled?: boolean
   /** Existing full controls remain enabled unless a public-only consumer opts out. */
   allowEncryptedActions?: boolean
   onReply?(comment: PublicComment): void; onDelete?(comment: PublicComment): void
@@ -75,8 +78,8 @@ export function PublicComments(props: PublicCommentsProps) {
   const when = useBlockTimes(client, visible.items.map(comment => comment.createdHeight))
   const copy = (comment: PublicComment) => ({ ...comment })
   return <section className="os-notes-comments" aria-label="Public comments">
-    <header><h2>Comments</h2><button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh</button></header>
-    <p className="os-sub">Oldest first · Public: comments stay in chain history unless a moderator removes them.</p>
+    <header><h2>Comments</h2><p className="os-sub">Oldest first · Public: comments stay in chain history unless a moderator removes them.</p>
+      <button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh</button></header>
     <ol>{visible.items.map(comment => { const who = viewer && viewer === comment.author ? 'You' : short(comment.author), ago = when(comment.createdHeight); return <li key={comment.id}>
       <article className="os-notes-comment" aria-label={`Comment by ${who}`}>
         <header><strong title={comment.author}>{who}</strong><span> · {comment.bodyRevision === bodyRevision ? 'on the current text' : 'on an earlier text'}</span>{ago && <span> · {ago}</span>}{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
@@ -85,12 +88,7 @@ export function PublicComments(props: PublicCommentsProps) {
           {comment.anchor && <AnchorQuote quote={comment.anchor} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}
           <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{comment.body}</p>
         </>}
-        {viewer && <footer>
-          {!comment.deleted && !comment.hidden && !comment.encrypted && props.onReply && <button className="os-btn os-quiet" onClick={() => props.onReply?.(copy(comment))}>Reply</button>}
-          {(!comment.encrypted || props.allowEncryptedActions !== false) && !comment.deleted && viewer === comment.author && props.onDelete && <button className="os-btn os-quiet" onClick={() => props.onDelete?.(copy(comment))}>Delete comment</button>}
-          {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canResolve && props.onResolve && <button className="os-btn os-quiet" onClick={() => props.onResolve?.(copy(comment), !comment.resolved)}>{comment.resolved ? 'Reopen thread' : 'Resolve thread'}</button>}
-          {(!comment.encrypted || props.allowEncryptedActions !== false) && props.canHide && props.onHide && !isRedactedComment(comment) && <button className="os-btn os-quiet" onClick={() => props.onHide?.(copy(comment), !comment.hidden)}>{comment.hidden ? 'Unhide comment' : 'Hide comment'}</button>}
-        </footer>}
+        {viewer && <CommentActions comment={comment} who={who} ago={ago} viewer={viewer} props={props} copy={copy} />}
       </article>
     </li> })}</ol>
     {visible.loading && <p role="status">Loading comments…</p>}
@@ -99,4 +97,20 @@ export function PublicComments(props: PublicCommentsProps) {
     {!!visible.history.length && <button className="os-btn" disabled={visible.loading} onClick={() => void navigate(visible.history.at(-1)!, visible.history.slice(0, -1))}>Previous comments</button>}
     {visible.next && <button className="os-btn" disabled={visible.loading} onClick={() => void navigate(visible.next, [...visible.history, visible.cursor].slice(-50))}>Next comments</button>}
   </section>
+}
+
+/** Reply stays one click away; the author's and the owner's actions sit in the card's ⋯ menu. */
+function CommentActions({ comment, who, ago, viewer, props, copy }: { comment: PublicComment; who: string; ago: string; viewer: string; props: PublicCommentsProps; copy(comment: PublicComment): PublicComment }) {
+  const allowed = !comment.encrypted || props.allowEncryptedActions !== false
+  const reply = !comment.deleted && !comment.hidden && !comment.encrypted && props.onReply
+  const items: NoteMenuItem[] = [], danger: NoteMenuItem[] = []
+  const disabled = !!props.actionsDisabled
+  if (allowed && props.canResolve && props.onResolve) items.push({ label: comment.resolved ? 'Reopen thread' : 'Resolve thread', disabled, run: () => props.onResolve?.(copy(comment), !comment.resolved) })
+  if (allowed && props.canHide && props.onHide && !isRedactedComment(comment)) items.push({ label: comment.hidden ? 'Unhide comment' : 'Hide comment', disabled, run: () => props.onHide?.(copy(comment), !comment.hidden) })
+  if (allowed && !comment.deleted && viewer === comment.author && props.onDelete) danger.push({ label: 'Delete comment', danger: true, disabled, run: () => props.onDelete?.(copy(comment)) })
+  if (!reply && !items.length && !danger.length) return null
+  return <footer className="os-notes-comment-actions">
+    {reply && <button className="os-btn os-quiet" onClick={() => props.onReply?.(copy(comment))}>Reply</button>}
+    {(items.length > 0 || danger.length > 0) && <ActionMenu label={`More actions for the comment by ${who}${ago ? `, ${ago}` : ''}`} items={items} danger={danger} />}
+  </footer>
 }

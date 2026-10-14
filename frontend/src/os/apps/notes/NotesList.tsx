@@ -54,7 +54,9 @@ function rows({ items, now }: Drafts, published: ChainNote[], unsaved: ReadonlyS
     })]
     // Unsent text on a note not listed here (a comment on someone else's note) stays one click away.
     const listed = new Set(all.map(row => row.id))
-    const held = complete ? [...unsaved].filter(id => !listed.has(id)).map((id): Row => ({ id, title: 'Unsaved text', state: 'Unsaved', meta: 'A comment or edit not sent yet' })) : []
+    // Named after its note once the note's metadata is read (a private note stays "Private note"; nothing is decoded).
+    const held = complete ? [...unsaved].filter(id => !listed.has(id)).map((id): Row => { const note = fresh.get(id)
+        return note && !note.deleted ? { id, title: chainTitle(note), state: 'Unsaved', meta: 'Not sent yet' } : { id, title: 'Unsaved text', state: 'Unsaved', meta: 'A comment or edit not sent yet' } }) : []
     return [...held, ...all.map(row => unsaved.has(row.id) ? { ...row, meta: `Unsaved changes · ${row.meta}` } : row)]
 }
 
@@ -84,7 +86,8 @@ export function NotesList({ store, partition, client, owner, query, selected, un
         load(); window.addEventListener('focus', load)
         return () => { alive = false; window.removeEventListener('focus', load) }
     }, [store, chainId, realm, account, refresh])
-    // The note behind each draft that follows a published revision, and every note a change is announced for on this network.
+    const heldIds = unsaved.join(',')
+    // The note behind each draft that follows a published revision, behind unsent text, and every note a change is announced for on this network.
     useEffect(() => {
         if (asked.current.client !== client) asked.current = { client, meta: new Set(), text: new Set() }
         const meta = client.noteMetadata?.bind(client)
@@ -97,7 +100,9 @@ export function NotesList({ store, partition, client, owner, query, selected, un
             const id = draft.scope.noteId
             if (draft.payload.kind === 'public' && draft.payload.base && !asked.current.meta.has(id)) { asked.current.meta.add(id); read(id) }
         }
-    }, [drafts.items, client])
+        // Unsent text on a note without a draft here (a comment on someone else's note): its row is named after the note.
+        for (const id of heldIds ? heldIds.split(',') : []) if (!drafts.items.some(draft => draft.scope.noteId === id) && !asked.current.meta.has(id)) { asked.current.meta.add(id); read(id) }
+    }, [drafts.items, client, heldIds])
     useEffect(() => {
         const meta = client.noteMetadata?.bind(client)
         if (!meta) return
