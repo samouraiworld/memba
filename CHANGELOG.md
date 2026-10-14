@@ -20,11 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes: the version chooser shows each side in its own column (#1623, 2026-10-14)
-- When a newer published version overlaps your edit, "See changes" showed your lines under the other author's revision and theirs under "Your version". The choices themselves were right; the columns now show the right text. Found in the Onyx canary. Notes remains disabled in production.
-### Notes: "Use as draft" restores over a draft with nothing unpublished (2026-10-14)
 ### Notes: "Use as draft" restores over a draft with nothing unpublished (#1624, 2026-10-14)
 - History's "Use as draft" refused whenever this device held a draft of the note, even one identical to the published text, so restoring an earlier version was impossible after any edit. It now replaces a draft that has no unpublished changes; a draft with unpublished changes is still kept and the message says how to publish or discard it first. Found in the Onyx canary. Notes remains disabled in production.
+
+### Notes: the version chooser shows each side in its own column (#1623, 2026-10-14)
+- When a newer published version overlaps your edit, "See changes" showed your lines under the other author's revision and theirs under "Your version". The choices themselves were right; the columns now show the right text. Found in the Onyx canary. Notes remains disabled in production.
 
 ### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
 - Notes history reads follow the storage-cut Notes realm (samcrew-deployer#363): an archived body is read by the history event that recorded its version (`public-history-body/v2`) and stays bound to that version's body revision and digest; draft rebasing reads the base version first, then its body.
