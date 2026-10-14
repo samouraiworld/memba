@@ -4,6 +4,7 @@ import { ACTIVE_NETWORK_KEY } from '../../../lib/config'
 import { useDialogKeys } from '../../shell/useDialogKeys'
 import { NoteDeskButton } from './NoteDeskButton'
 import { useNotesPane } from './notesPane'
+import './notes-page.css'
 
 export interface NoteMenuItem { label: string; hint?: string; danger?: boolean; run(): void }
 /** One message at the top of a note: what happened, that the text is kept, what to do next. */

@@ -73,7 +73,7 @@ describe("Draft editor asynchronous boundaries", () => {
         const initial = { ...record, payload: { kind: "public" as const, title: "Saved", body: "Saved body", base } }
         const saveDraft = vi.fn(async (_scope, _revision, payload) => ({ status: "saved", value: { ...initial, localRevision: "2", payload } }))
         const store = { getDraft: vi.fn(async () => initial), saveDraft } as unknown as NotesStore
-        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={value => <button>Review revision {value.localRevision}</button>} />)
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={value => ({ primary: <button>Review revision {value.localRevision}</button> })} />)
         await screen.findByRole("button", { name: "Review revision 1" })
         fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "My changes" } })
         expect(screen.queryByRole("button", { name: /Review revision/ })).not.toBeInTheDocument()
@@ -84,7 +84,7 @@ describe("Draft editor asynchronous boundaries", () => {
         let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
         const saveDraft = vi.fn(async (_scope, revision, payload) => ({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }))
         const store = { getDraft: vi.fn(async () => record), saveDraft } as unknown as NotesStore
-        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, published) => { confirm = published; return <button>Publish saved snapshot</button> }} />)
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, editor) => { confirm = editor.published; return { primary: <button>Publish saved snapshot</button> } }} />)
         await screen.findByRole("button", { name: "Publish saved snapshot" })
         fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "Newer unsaved edits" } })
         const next = { stateRevision: "1", epoch: "0", ownerGeneration: "1", titleRevision: "1", bodyRevision: "1" }
@@ -97,7 +97,8 @@ describe("Draft editor asynchronous boundaries", () => {
         Object.assign(URL, { createObjectURL: vi.fn(() => "blob:draft"), revokeObjectURL: vi.fn() })
         const store = { getDraft: vi.fn(async () => ({ ...record, payload: { kind: "public" as const, title: "Plans/2026  Q4", body: "Body" } })) } as unknown as NotesStore
         render(<DraftEditor store={store} scope={scope} onSaved={() => {}} />)
-        fireEvent.click(await screen.findByRole("button", { name: "Export" }))
+        fireEvent.click(await screen.findByRole("button", { name: "More actions" }))
+        fireEvent.click(screen.getByRole("menuitem", { name: /^Export/ }))
         expect(names).toEqual(["Plans-2026 Q4.md"])
         click.mockRestore()
     })
@@ -118,7 +119,7 @@ describe("Draft editor asynchronous boundaries", () => {
             .mockImplementationOnce((_scope, revision, payload) => new Promise(resolve => { finishAutosave = () => resolve({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }) }))
             .mockImplementation(async (_scope, revision, payload) => ({ status: "saved", value: { ...record, localRevision: String(Number(revision) + 1), payload } }))
         const store = { getDraft: vi.fn(async () => record), saveDraft } as unknown as NotesStore
-        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, published) => { confirm = published; return <button>Publish saved snapshot</button> }} />)
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, editor) => { confirm = editor.published; return { primary: <button>Publish saved snapshot</button> } }} />)
         await screen.findByRole("button", { name: "Publish saved snapshot" })
         const publishedConfirm = confirm
         fireEvent.change(screen.getByRole("textbox", { name: "Markdown editor" }), { target: { value: "Typed while signing" } })
@@ -135,7 +136,7 @@ describe("Draft editor asynchronous boundaries", () => {
         let confirm!: (base: DraftBase, fromRevision: string) => Promise<boolean>
         const saveDraft = vi.fn()
         const store = { getDraft: vi.fn(async () => ({ ...record, localRevision: "3" })), saveDraft } as unknown as NotesStore
-        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, published) => { confirm = published; return <button>Publish saved snapshot</button> }} />)
+        render(<DraftEditor store={store} scope={scope} onSaved={() => {}} actions={(_value, editor) => { confirm = editor.published; return { primary: <button>Publish saved snapshot</button> } }} />)
         await screen.findByRole("button", { name: "Publish saved snapshot" })
         expect(await confirm({ stateRevision: "1", epoch: "0", ownerGeneration: "1", titleRevision: "1", bodyRevision: "1" }, "2")).toBe(false)
         expect(saveDraft).not.toHaveBeenCalled()
@@ -152,8 +153,11 @@ describe("Draft editor asynchronous boundaries", () => {
         const onSaved = vi.fn()
         render(<DraftEditor store={store} scope={scope} onSaved={onSaved} />)
         await screen.findByRole("textbox", { name: "Markdown editor" })
-        fireEvent.click(screen.getByRole("button", { name: "Delete", exact: true }))
-        fireEvent.click(screen.getByRole("button", { name: "Delete this draft?", exact: true }))
+        const ask = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true)
+        fireEvent.click(screen.getByRole("button", { name: "More actions" })); fireEvent.click(screen.getByRole("menuitem", { name: "Delete note…" }))
+        expect(store.deleteDraft).not.toHaveBeenCalled(); expect(screen.getByRole("textbox", { name: "Markdown editor" })).toBeVisible()
+        fireEvent.click(screen.getByRole("button", { name: "More actions" })); fireEvent.click(screen.getByRole("menuitem", { name: "Delete note…" }))
+        expect(ask).toHaveBeenCalledTimes(2); ask.mockRestore()
         expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
         expect(screen.getByRole("status")).toHaveTextContent("Deleting draft")
         await act(async () => finish({ status: "saved", value: null }))

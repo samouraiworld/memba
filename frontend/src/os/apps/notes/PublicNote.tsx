@@ -58,14 +58,15 @@ export function PublicNote({ id, client, owner, primary, status, menu, share, ba
     const refresh = () => bump(), root = note.deleted ? null : previewRoot
     const by = owner && note.actor === owner ? "you" : shortAddress(note.actor)
     const failed = read.phase === "error" && <NoteBanner notice={{ tone: "warn", text: "The latest revision could not be read. The last loaded revision is still displayed.", actions: <button className="os-btn os-quiet" onClick={refresh}>Try again</button> }} />
-    if (note.mode < 3) return encrypted?.(note, refresh) ?? <section className="os-notes-document os-notes-reader" aria-label="Private note">
-        <NoteHeader noteId={id} status={<NoteStatus kind="private">Private · revision {note.stateRevision}</NoteStatus>} />
-        <p className="os-notes-hint">This private note is encrypted. Opening private notes is not available in this version.</p>
-    </section>
     if (note.deleted) return <section className="os-notes-document os-notes-reader" aria-label="Deleted note">
         <NoteHeader noteId={id} status={<NoteStatus kind="published">Deleted · revision {note.stateRevision} · by {by}</NoteStatus>} />
         {failed}
         <h1 className="os-notes-title">Deleted note</h1><p>The owner deleted this note. Earlier versions remain in chain history.</p>{children?.(note, refresh, null)}
+    </section>
+    // A deleted note shows its tombstone whatever its mode: its comment controls stay reachable.
+    if (note.mode < 3) return encrypted?.(note, refresh) ?? <section className="os-notes-document os-notes-reader" aria-label="Private note">
+        <NoteHeader noteId={id} status={<NoteStatus kind="private">Private · revision {note.stateRevision}</NoteStatus>} />
+        <p className="os-notes-hint">This private note is encrypted. Opening private notes is not available in this version.</p>
     </section>
     const title = publicText(note.title, true), body = publicText(note.body!)
     const action = primary ? primary(note) : owner === note.owner && onEdit && <button className="os-btn" onClick={() => onEdit(structuredClone(note))}>Edit</button>

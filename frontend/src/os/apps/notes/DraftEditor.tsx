@@ -207,18 +207,20 @@ export function DraftEditor({ store, scope, onSaved, remote, actions, basis, men
     const controls = ready ? actions?.(durable, { published, titleProblem: showTitleProblem }) : undefined
     const saving = state === "saved" ? "saved on this device" : state === "saving" ? "saving…" : "edits not saved yet"
     const changed = !basis || trimPublicTitle(title) !== basis.title || body !== basis.body
-    const status = base.current
-        ? <NoteStatus kind={changed ? "changes" : "published"}>{changed ? "Unpublished changes" : "No unpublished changes"} · {saving} · based on revision {base.current.stateRevision}</NoteStatus>
+    // The baseline as last stored: a move only shows once it is durable.
+    const baseline = durable?.payload.kind === "public" ? durable.payload.base : undefined
+    const status = baseline
+        ? <NoteStatus kind={changed ? "changes" : "published"}>{changed ? "Unpublished changes" : "No unpublished changes"} · {saving} · based on revision {baseline.stateRevision}</NoteStatus>
         : <NoteStatus kind="draft">Draft · {saving}</NoteStatus>
     return <section className="os-notes-document os-notes-editing" aria-label="Draft editor">
-        <NoteHeader noteId={scope.noteId} status={status} published={!!base.current}
+        <NoteHeader noteId={scope.noteId} status={status} published={!!baseline}
             actions={<>
                 <button type="button" role="switch" aria-checked={preview} className="os-notes-switch" onClick={togglePreview}><span aria-hidden="true" />Preview</button>
                 {onCancel && <button type="button" className="os-btn os-quiet" onClick={() => onCancel({ title: draft.current.title, body: draft.current.body, discard })}>Cancel</button>}
             </>}
             primary={actions && (controls ? controls.primary : <button type="button" className="os-btn" disabled>Publish</button>)}
             menu={[{ label: "Export", hint: noteExportFilename(title), run: () => downloadMarkdown(title, body) }, ...menu,
-                ...!base.current && state === "saved" ? [{ label: "Delete note…", danger: true, run: remove }] : []]} />
+                ...!baseline && state === "saved" ? [{ label: "Delete note…", danger: true, run: remove }] : []]} />
         {(state === "conflict" || state === "unavailable") && <NoteBanner notice={{ tone: "error", text: state === "conflict" ? "This draft changed in another window. Your edits are still here but have not replaced its saved copy." : "This device could not save your edits. They are still here: keep this window open, retry or export them.",
             actions: <>{state === "unavailable" && <button className="os-btn" onClick={() => void save()}>Retry save</button>}
                 <button className="os-btn os-quiet" onClick={() => void keepCopy()}>Save a separate copy</button>

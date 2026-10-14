@@ -67,6 +67,8 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
     const [opened, setOpened] = useState(false), [editing, setEditing] = useState(false)
     const [generation, reloadEditor] = useState(0), [notice, setNotice] = useState<Notice | null>(null), [busy, setBusy] = useState(false), [checking, setChecking] = useState(false)
     const [conflict, setConflict] = useState<Conflict | null>(null)
+    /** The published note could not be read while this device holds a draft: the draft must stay one click away. */
+    const [unread, setUnread] = useState(false)
     const [progress, setProgress] = useState<PublishProgress | null>(null), [deleting, setDeleting] = useState<ChainNote | null>(null)
     /** Live note while the editor is open, re-read after confirmed changes and refocus. */
     const [live, setLive] = useState<Live>({ note: undefined, failed: false }), latestRead = useRef(0)
@@ -89,11 +91,12 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
             if (!live()) return
             const payload = draft?.payload.kind === 'public' ? draft.payload : null
             setSaved(payload)
+            setUnread(false)
             if (!payload || savedTick) { setStart('ready'); return }
             try {
                 const note = await withTimeout(client.note(scope.noteId))
                 if (live() && note === null) { setOpened(true); setEditing(true) }
-            } catch { if (live()) setNotice({ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.' }) }
+            } catch { if (live()) setUnread(true) }
             if (live()) setStart('ready')
         }).catch(() => { if (live()) { setStart('ready'); setNotice({ tone: 'warn', text: 'Drafts on this device could not be read. Their saved copies were kept.' }) } })
         return () => { alive = false }
@@ -223,6 +226,8 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         ? <NoteStatus kind="changes">Unpublished changes{saved.base ? ` · based on revision ${saved.base.stateRevision}` : ''}</NoteStatus> : undefined
     if (start === 'checking') return <NoteSkeleton />
     return <div className="os-notes-authoring">
+        {!editing && unread && saved && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',
+            actions: <button type="button" className="os-btn" disabled={busy} onClick={() => opened ? setEditing(true) : void prepare()}>Open my draft</button> }} />}
         <div hidden={editing}>
             <PublicNote id={scope.noteId} client={client} owner={scope.owner} banner={!editing && <NoteBanner notice={notice} />} status={changes}
                 primary={note => !editing && <PublicEditButton note={note} owner={scope.owner} client={client} busy={busy} onEdit={() => opened ? setEditing(true) : void prepare()} />}

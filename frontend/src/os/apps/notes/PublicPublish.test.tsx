@@ -1,93 +1,112 @@
-import { StrictMode, useLayoutEffect } from 'react'
+import { StrictMode, useLayoutEffect, useState, type ComponentProps } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import { PublicPublish } from './PublicPublish'
+import type { ChainNote } from '../../../lib/notes/chain/schema'
+import { PublicPublish, PublishProgressSheet, type PublishProgress } from './PublicPublish'
+import { NoteBanner, type Notice } from './NoteHeader'
 import { NotesPaneContext, type NotesPane } from './notesPane'
 import { useNoteFreshness } from '../../../lib/notes/freshness'
-const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), budget: vi.fn() }))
+const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), receipts: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
+vi.mock('../../../lib/notes/intents', () => ({ NotesIntents: class { list = calls.receipts } }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({ realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 }), newNoteId: () => crypto.randomUUID().replaceAll('-', '') }))
+// The balance read never reaches a network in tests: an unknown balance blocks nothing.
+vi.mock('../../../lib/dao/packageStatus', () => ({ abciQueryText: vi.fn(async () => { throw new Error('offline') }) }))
 const owner = 'g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0'
 const bytes = (value: string) => new TextEncoder().encode(value)
 const base = { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' }
 const draft: DraftRecord = { schema: 1, scope: { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner, noteId: 'cd'.repeat(16) }, localRevision: '4', updatedAt: 1, payload: { kind: 'public', title: 'Field guide', body: 'Saved content' } }
 const config = { realm: draft.scope.realm, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false }
-function setup(record = draft, getDraft = vi.fn(async () => record)) {
-    const client = { chainId: 'gnoland-1', note: vi.fn(async () => ({ owner, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Field guide'), body: bytes('Published content') })), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
-    render(<PublicPublish draft={record} client={client} store={{ getDraft } as unknown as NotesStore} />)
-    fireEvent.click(screen.getByText(record.payload.kind === 'public' && record.payload.base ? 'Publish changes' : 'Publish', { selector: 'summary' }))
-    return { client, getDraft }
+const published = { owner, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Field guide'), body: bytes('Published content') } as unknown as ChainNote
+/** The page around the control: its banner and progress sheet show what the control reports. */
+function Page(props: ComponentProps<typeof PublicPublish>) {
+    const [notice, setNotice] = useState<Notice | null>(null), [progress, setProgress] = useState<PublishProgress | null>(null)
+    return <><NoteBanner notice={notice} />
+        {progress && <PublishProgressSheet progress={progress} onHide={() => setProgress(null)} onView={() => setProgress(null)} />}
+        <PublicPublish onNotice={setNotice} onProgress={setProgress} {...props} /></>
 }
-beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ warns: [] }); calls.sign.mockReturnValue(true) })
+/** Opens the review; a draft based on a revision is checked by the editor, which here finds it current. */
+function setup(record = draft, getDraft = vi.fn(async () => record)) {
+    const client = { chainId: 'gnoland-1', note: vi.fn(async () => published), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
+    const beforeReview = vi.fn(() => client.note(record.scope.noteId)), titleProblem = vi.fn()
+    render(<Page draft={record} client={client} store={{ getDraft } as unknown as NotesStore} beforeReview={beforeReview} titleProblem={titleProblem} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    return { client, getDraft, beforeReview, titleProblem }
+}
+const approve = async () => fireEvent.click(await screen.findByRole('button', { name: 'Publish with Adena' }))
+beforeEach(() => { vi.clearAllMocks(); calls.prepare.mockResolvedValue({ warns: [] }); calls.sign.mockReturnValue(true); calls.receipts.mockResolvedValue([]) })
+/** The review sheet, once the latest revision was checked (the checking sheet carries the same name). */
+const reviewSheet = async () => (await screen.findByRole('heading', { name: /^Publish/ })).closest('[role="dialog"]') as HTMLElement
 describe('public publication review', () => {
     it('keeps its note pane mounted while the publication is verified, then releases it', async () => {
         const hold = vi.fn(), pane = { hold, saved: vi.fn(), deleted: vi.fn(), focusTitle: false, titleFocused: vi.fn() } satisfies NotesPane
         const settled = vi.fn(); calls.prepare.mockResolvedValue({ warns: [], onSettled: settled })
         const client = { chainId: 'gnoland-1', note: vi.fn(async () => null), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
         const fresh: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content' } }
-        render(<NotesPaneContext.Provider value={pane}><PublicPublish draft={fresh} client={client} store={{ getDraft: vi.fn(async () => fresh) } as unknown as NotesStore} /></NotesPaneContext.Provider>)
-        fireEvent.click(screen.getByText('Publish', { selector: 'summary' })); fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        render(<NotesPaneContext.Provider value={pane}><Page draft={fresh} client={client} store={{ getDraft: vi.fn(async () => fresh) } as unknown as NotesStore} /></NotesPaneContext.Provider>)
+        fireEvent.click(screen.getByRole('button', { name: 'Publish' })); await approve()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         expect(hold).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^publishing:/), true)
         const source = hold.mock.calls[0][0]
         act(() => calls.sign.mock.calls[0][0].onSettled('confirmed'))
         expect(settled).toHaveBeenCalledWith('confirmed', undefined); expect(hold).toHaveBeenLastCalledWith(source, false)
     })
-    it('requests no signature until review and uses the durable baseline and explicit deposit cap', async () => {
-        const record: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content', base: { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' } } }
-        setup(record)
-        expect(calls.sign).not.toHaveBeenCalled()
-        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '5.0' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+    it('requests no signature until review and uses the durable baseline and the deposit cap it states', async () => {
+        setup({ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content', base } })
+        const sheet = await reviewSheet()
+        expect(sheet).toHaveTextContent('At most 2.9 GNOT'); expect(sheet).toHaveTextContent('Body: 1 line changed.')
+        expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+        await approve()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '5000000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '2900000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
     })
     it('publishes only the changed body, priced without the unchanged title', async () => {
         setup({ ...draft, payload: { kind: 'public', title: 'Field guide ', body: 'Saved content', base } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        expect(await reviewSheet()).toHaveTextContent('Title unchanged, so it is not stored again.')
+        await approve()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         const { operation, maxDepositUgnot } = calls.prepare.mock.calls[0][0]
         expect(operation.action).toEqual({ kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' })
         expect(maxDepositUgnot).toBe('2900000')
     })
     it('says there is nothing to publish when the draft matches the published note', async () => {
-        const { client } = setup({ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Published content', base } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        const { beforeReview } = setup({ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Published content', base } })
         expect(await screen.findByText('Nothing to publish: the title and body match the published note.')).toBeVisible()
-        expect(client.note).toHaveBeenCalledOnce(); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+        expect(beforeReview).toHaveBeenCalledOnce(); expect(screen.queryByRole('dialog')).toBeNull()
+        expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
     })
     it.each([
         ['Recipes/sushi', 'Titles cannot contain “/”.'],
         ['   ', 'Add a title before publishing.'],
         ['a'.repeat(81), 'The title is too long: use at most 80 characters.'],
     ])('explains the refused title %j before any network or wallet step', async (title, message) => {
-        const { client } = setup({ ...draft, payload: { kind: 'public', title, body: 'Saved content' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
-        expect(await screen.findByText(message)).toBeVisible()
-        expect(screen.getByRole('button', { name: 'Review publication' })).toBeEnabled()
+        const { client, titleProblem } = setup({ ...draft, payload: { kind: 'public', title, body: 'Saved content' } })
+        expect(titleProblem).toHaveBeenCalledExactlyOnceWith(message)
+        expect(screen.getByRole('button', { name: 'Publish' })).toBeEnabled(); expect(screen.queryByRole('dialog')).toBeNull()
         expect(client.config).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
     })
     it('trims edge spaces from a new title instead of letting the realm refuse it', async () => {
-        setup({ ...draft, payload: { kind: 'public', title: '  Field guide\u00a0', body: 'Saved content' } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+        setup({ ...draft, payload: { kind: 'public', title: '  Field guide ', body: 'Saved content' } })
+        await approve()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         expect(calls.prepare.mock.calls[0][0].operation.action).toMatchObject({ kind: 'create', title: 'Field guide' })
     })
     it('retains a changed local draft instead of opening a stale review', async () => {
         setup(draft, vi.fn(async () => ({ ...draft, localRevision: '5' })))
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
-        await screen.findByText(/your draft changed, while the review was prepared/)
-        expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
+        await screen.findByText(/Your draft changed in another window, or the note changed, while the publication was prepared. Nothing was sent./)
+        expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
     })
-    it.each(['0.000001', '2.4'])('rejects the inadequate %s GNOT cap without opening a wallet', async cap => {
+    it('writes the cap the review states, never below its estimated deposit, into the transaction', async () => {
         setup()
-        fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: cap } })
-        fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
-        await screen.findByText(/deposit cap of at least/)
+        const sheet = await reviewSheet()
+        // A creation of 23 bytes: ≈ 2.4024 GNOT expected (the old 2.4 GNOT cap would fail it), at most 4.9 GNOT.
+        expect(sheet).toHaveTextContent('≈ 2.4024 GNOT storage deposit plus a 0.1 GNOT publication fee'); expect(sheet).toHaveTextContent('At most 4.9 GNOT')
         expect(calls.sign).not.toHaveBeenCalled()
+        await approve(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        expect(calls.prepare.mock.calls[0][0].maxDepositUgnot).toBe('4900000')
     })
 })
 
@@ -95,20 +114,20 @@ function publicationProps() {
     return { draft, client: { chainId: 'gnoland-1', assertCurrent() {}, config: vi.fn(async () => config) } as unknown as NotesReadClient,
         store: { getDraft: vi.fn(async () => draft) } as unknown as NotesStore }
 }
-function openReview() {
-    fireEvent.click(screen.getByText('Publish', { selector: 'summary' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
+async function openReview() {
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    await approve()
 }
 describe('public publication view lifetime', () => {
     it.each(['draft', 'client', 'store'] as const)('dismisses a late prepared request when %s changes', async field => {
         let resolve!: (value: object) => void
         calls.prepare.mockImplementationOnce(() => new Promise(done => { resolve = done }))
-        const props = publicationProps(), view = render(<PublicPublish {...props} />)
-        openReview(); await waitFor(() => expect(calls.prepare).toHaveBeenCalledOnce())
+        const props = publicationProps(), view = render(<Page {...props} />)
+        await openReview(); await waitFor(() => expect(calls.prepare).toHaveBeenCalledOnce())
         const signal = calls.prepare.mock.calls[0][0].session.capture().signal as AbortSignal
         const patch = field === 'draft' ? { draft: { ...draft, scope: { ...draft.scope, noteId: 'ef'.repeat(16) } } }
             : field === 'client' ? { client: { ...props.client } } : { store: { ...props.store } }
-        view.rerender(<PublicPublish {...props} {...patch} />)
+        view.rerender(<Page {...props} {...patch} />)
         expect(signal.aborted).toBe(true)
         const dismiss = vi.fn(); await act(async () => resolve({ onDismissed: dismiss }))
         expect(calls.sign).not.toHaveBeenCalled(); expect(dismiss).toHaveBeenCalledOnce()
@@ -116,7 +135,7 @@ describe('public publication view lifetime', () => {
     it('aborts the old operation before a replacement layout effect runs', async () => {
         const props = publicationProps(), probes: boolean[] = []
         function Probe() { useLayoutEffect(() => { probes.push(signal.aborted) }, []); return null }
-        const view = render(<PublicPublish {...props} />); openReview()
+        const view = render(<Page {...props} />); await openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         const signal = calls.prepare.mock.calls[0][0].session.capture().signal
         view.rerender(<Probe />)
@@ -126,36 +145,38 @@ describe('public publication view lifetime', () => {
         let resolve!: (value: typeof config) => void
         const props = publicationProps()
         vi.mocked(props.client.config).mockImplementationOnce(() => new Promise(done => { resolve = done }))
-        const view = render(<PublicPublish {...props} />); openReview()
-        view.rerender(<PublicPublish {...props} client={{ ...props.client }} />)
+        const view = render(<Page {...props} />); fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+        await waitFor(() => expect(props.client.config).toHaveBeenCalledOnce())
+        view.rerender(<Page {...props} client={{ ...props.client }} />)
         await act(async () => resolve(config))
-        expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+        expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
         view.unmount()
-        render(<StrictMode><PublicPublish {...publicationProps()} /></StrictMode>); openReview()
+        render(<StrictMode><Page {...publicationProps()} /></StrictMode>); await openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
     })
     it('dismisses a request refused by the signature sheet and says so', async () => {
         const dismiss = vi.fn(); calls.prepare.mockResolvedValue({ onDismissed: dismiss }); calls.sign.mockReturnValue(false)
-        render(<PublicPublish {...publicationProps()} />); openReview()
+        render(<Page {...publicationProps()} />); await openReview()
         await waitFor(() => expect(dismiss).toHaveBeenCalledOnce())
         expect(screen.getByText(/signature window could not open/)).toBeVisible()
     })
     it('lets the editor update a stale draft before any review is prepared', async () => {
-        const beforeReview = vi.fn(async () => false)
-        render(<PublicPublish {...publicationProps()} beforeReview={beforeReview} />); openReview()
+        const beforeReview = vi.fn(async () => null)
+        render(<Page {...publicationProps()} draft={{ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content', base } }} beforeReview={beforeReview} />)
+        fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
         await waitFor(() => expect(beforeReview).toHaveBeenCalledOnce())
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Review publication' })).toBeEnabled())
-        expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeEnabled())
+        expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
     })
-    it('never stays on Preparing review when a step does not answer', async () => {
+    it('never stays on Checking the latest revision when a step does not answer', async () => {
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
         try {
             const props = publicationProps(); vi.mocked(props.client.config).mockReturnValue(new Promise(() => {}))
-            render(<PublicPublish {...props} />); openReview()
-            expect(screen.getByRole('button', { name: 'Preparing review…' })).toBeDisabled()
+            render(<Page {...props} />); fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+            expect(screen.getByRole('button', { name: 'Publish' })).toBeDisabled(); expect(screen.getByRole('dialog', { name: 'Publish' })).toHaveTextContent('Checking the latest revision…')
             await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
-            expect(screen.getByText(/network did not answer in time/)).toBeVisible()
-            expect(screen.getByRole('button', { name: 'Review publication' })).toBeEnabled(); expect(calls.sign).not.toHaveBeenCalled()
+            expect(screen.getByText(/network did not answer in time/)).toBeVisible(); expect(screen.queryByRole('dialog')).toBeNull()
+            expect(screen.getByRole('button', { name: 'Publish' })).toBeEnabled(); expect(calls.sign).not.toHaveBeenCalled()
         } finally { vi.useRealTimers() }
     })
 })
@@ -163,19 +184,22 @@ describe('public publication view lifetime', () => {
 describe('publication baseline and receipt boundaries', () => {
     it('retains the durable draft on an unknown settlement', async () => {
         const props = publicationProps(), saveDraft = vi.fn(), onPublished = vi.fn()
-        render(<PublicPublish {...props} onPublished={onPublished} store={{ ...props.store, saveDraft } as unknown as NotesStore} />); openReview()
+        render(<Page {...props} onPublished={onPublished} store={{ ...props.store, saveDraft } as unknown as NotesStore} />); await openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         await act(async () => calls.sign.mock.calls[0][0].onSettled('unknown'))
         expect(saveDraft).not.toHaveBeenCalled(); expect(onPublished).not.toHaveBeenCalled()
-        expect(await screen.findByText(/outcome is unknown/)).toBeVisible()
+        expect(await screen.findByText(/Do not publish again: check whether revision 1 exists first/)).toBeVisible()
+        expect(screen.queryByRole('dialog', { name: 'Publishing' })).toBeNull()
     })
     it('keeps a signed publication confirmable after the panel unmounts when the workspace owns the request', async () => {
         const props = publicationProps(), onPublished = vi.fn(), requestSession = createDraftSession()
-        const view = render(<PublicPublish {...props} requestSession={requestSession} onPublished={onPublished} />); openReview()
+        const view = render(<Page {...props} requestSession={requestSession} onPublished={onPublished} />); await openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         const input = calls.prepare.mock.calls[0][0]; expect(input.session).toBe(requestSession)
+        // The guard the request holds is taken before unmounting: capture() after an invalidation returns a fresh, never-aborted signal.
+        const signal = input.session.capture().signal as AbortSignal
         view.unmount()
-        expect(input.session.capture().signal.aborted).toBe(false)
+        expect(signal.aborted).toBe(false)
         const confirmed = { id: draft.scope.noteId, stateRevision: '8' }
         await act(async () => { input.onConfirmed(confirmed); calls.sign.mock.calls[0][0].onSettled('confirmed') })
         expect(onPublished).toHaveBeenCalledExactlyOnceWith(confirmed)
@@ -183,16 +207,16 @@ describe('publication baseline and receipt boundaries', () => {
     it('hands the confirmed revision to the editor and refreshes every view of the note', async () => {
         const props = publicationProps(), onPublished = vi.fn(), announced = vi.fn()
         function Listener() { useNoteFreshness('gnoland-1', draft.scope.noteId, announced); return null }
-        render(<><Listener /><PublicPublish {...props} onPublished={onPublished} /></>); openReview()
+        render(<><Listener /><Page {...props} onPublished={onPublished} /></>); await openReview()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         const confirmed = { id: draft.scope.noteId, stateRevision: '8' }
         await act(async () => { calls.prepare.mock.calls[0][0].onConfirmed(confirmed); calls.sign.mock.calls[0][0].onSettled('confirmed') })
         expect(onPublished).toHaveBeenCalledExactlyOnceWith(confirmed); expect(announced).toHaveBeenCalledWith({ stateRevision: '8' })
-        expect(screen.getByText('Published as revision 8.')).toBeVisible()
+        expect(screen.getByRole('heading', { name: 'Published · revision 8' })).toBeVisible()
     })
     it('rejects a mismatched network or realm without asking for a signature', async () => {
         const props = publicationProps()
-        render(<PublicPublish {...props} draft={{ ...draft, scope: { ...draft.scope, chainId: 'other-chain' } }} />); openReview()
-        await screen.findByText(/belongs to another network/); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
+        render(<Page {...props} draft={{ ...draft, scope: { ...draft.scope, chainId: 'other-chain' } }} />); fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+        await screen.findByText(/belongs to another network/); expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
     })
 })
