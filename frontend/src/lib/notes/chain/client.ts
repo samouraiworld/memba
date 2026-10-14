@@ -168,9 +168,10 @@ export class NotesReadClient {
     const wanted = id(noteId), revision = decimal(stateRevision, 64, true)
     return parseHistoryVersion(await this.query(NOTES_REALM, `PublicHistoryVersionJSON("${wanted}",${revision})`), wanted, revision)
   }
-  async publicHistoryBodyChunk(noteId: string, bodyRevision: string, offset = 0, limit = 8192) {
-    const wanted = id(noteId), revision = decimal(bodyRevision, 64, true); historyChunkArgs(offset, limit)
-    return parseHistoryBodyChunk(await this.query(NOTES_REALM, `PublicHistoryBodyChunkJSON("${wanted}",${revision},${offset},${limit})`), wanted, revision, offset, limit)
+  /** `seq` is the history event that recorded the version (PublicHistoryVersion.recordedSeq). */
+  async publicHistoryBodyChunk(noteId: string, seq: string, offset = 0, limit = 8192) {
+    const wanted = id(noteId), event = decimal(seq, 64, true); historyChunkArgs(offset, limit)
+    return parseHistoryBodyChunk(await this.query(NOTES_REALM, `PublicHistoryBodyChunkJSON("${wanted}",${event},${offset},${limit})`), wanted, event, offset, limit)
   }
   async publicHistoryComment(noteId: string, commentId: string) {
     const wanted = id(noteId), cid = id(commentId)

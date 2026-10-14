@@ -17,9 +17,9 @@ export function historyPolicyKey(value: unknown): string {
   }
   return value
 }
-export function historyRecord(value: unknown, name: string, keys: string[], wanted: string) {
+export function historyRecord(value: unknown, name: string, keys: string[], wanted: string, version = 1) {
   const v = record(value, ['schema', 'id', ...keys])
-  check(v.schema === `memba.notes.public-history-${name}/v1` && id(v.id) === id(wanted))
+  check(v.schema === `memba.notes.public-history-${name}/v${version}` && id(v.id) === id(wanted))
   return v
 }
 export function parseHistoryInfo(value: unknown, wanted: string) {

@@ -3,7 +3,7 @@ import { mergeNoteText, type NoteBaseText, type NoteText } from '../merge'
 import { trimPublicTitle } from '../publicFields'
 import type { NotesReadClient } from './client'
 import { readPublicHistoryBody } from './historyBody'
-import { publicText, type ChainNote } from './schema'
+import { check, publicText, type ChainNote } from './schema'
 
 export type RebaseClient = Pick<NotesReadClient, 'assertCurrent' | 'publicHistoryInfo' | 'publicHistoryVersion' | 'publicHistoryBodyChunk'>
 export type RebasePlan =
@@ -44,22 +44,28 @@ async function baseText(client: RebaseClient, latest: ChainNote, theirs: NoteTex
     if (!base) {
         client.assertCurrent()
         const info = await client.publicHistoryInfo(latest.id); client.assertCurrent()
-        return info ? versionText(client, latest.id, info.startStateRevision) : { title: null, body: null }
+        return info ? versionText(client, latest.id, info.startStateRevision, true) : { title: null, body: null }
     }
-    const title = base.titleRevision === latest.titleRevision ? theirs.title : (await versionText(client, latest.id, base.stateRevision, false)).title
-    const body = base.bodyRevision === latest.bodyRevision ? theirs.body : await bodyText(client, latest.id, base.bodyRevision)
-    return { title, body }
+    const titleChanged = base.titleRevision !== latest.titleRevision, bodyChanged = base.bodyRevision !== latest.bodyRevision
+    // One version read covers both fields; the body is read only when it changed on chain.
+    const archived = titleChanged || bodyChanged ? await versionText(client, latest.id, base.stateRevision, bodyChanged, base) : null
+    return { title: titleChanged ? archived!.title : theirs.title, body: bodyChanged ? archived!.body : theirs.body }
 }
-async function versionText(client: RebaseClient, noteId: string, stateRevision: string, withBody = true): Promise<NoteBaseText> {
+/**
+ * The archived text of the public version at `stateRevision`. Its body is addressed by the event that
+ * recorded the version and must be that version's body revision and digest. `expected` pins the field
+ * revisions a draft was based on. Deleted, missing or redacted content is null (unverifiable).
+ */
+async function versionText(client: RebaseClient, noteId: string, stateRevision: string, withBody: boolean, expected?: Pick<DraftBase, 'titleRevision' | 'bodyRevision'>): Promise<NoteBaseText> {
     client.assertCurrent()
     const version = await client.publicHistoryVersion(noteId, stateRevision); client.assertCurrent()
     if (!version || version.deleted) return { title: null, body: null }
-    return {
-        title: version.title === null ? null : publicText(version.title, true),
-        body: withBody && version.bodyRevision !== null && !version.bodyRedacted ? await bodyText(client, noteId, version.bodyRevision) : null,
+    check(!expected || (version.titleRevision === expected.titleRevision && version.bodyRevision === expected.bodyRevision))
+    let body: string | null = null
+    if (withBody && version.bodyRevision !== null && !version.bodyRedacted) {
+        const read = await readPublicHistoryBody(client, noteId, version.recordedSeq); client.assertCurrent()
+        check(read === null || (read.bodyRevision === version.bodyRevision && read.sha256 === version.bodySha256))
+        body = read?.text ?? null
     }
-}
-async function bodyText(client: RebaseClient, noteId: string, bodyRevision: string): Promise<string | null> {
-    const body = await readPublicHistoryBody(client, noteId, bodyRevision); client.assertCurrent()
-    return body?.text ?? null
+    return { title: version.title === null ? null : publicText(version.title, true), body }
 }

@@ -25,7 +25,8 @@ export async function readArchivedVersion(client: NotesReadClient, noteId: strin
     // Redacted bytes are gone from the realm; such a version cannot be shown or restored.
     if (version.deleted || version.titleRedacted || version.bodyRedacted) return { version, draft: null }
     check(version.title !== null && version.bodyRevision !== null)
-    const body = await readPublicHistoryBody(client, noteId, version.bodyRevision)
+    // The body is addressed by the event that recorded this version, then bound to its revision and digest.
+    const body = await readPublicHistoryBody(client, noteId, version.recordedSeq)
     client.assertCurrent()
     check(body !== null && body.id === version.id && body.bodyRevision === version.bodyRevision && body.sha256 === version.bodySha256 && new TextEncoder().encode(body.text).length === version.bodyBytes)
     return { version, draft: { noteId, sourceStateRevision: revision, title: publicText(version.title, true), body: body.text } }

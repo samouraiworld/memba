@@ -24,10 +24,10 @@ const calls = (c: NotesReadClient) => [() => c.publicHistoryInfo(wanted), () => 
 function bodyReplies(bytes: Uint8Array, patch: (raw: Record<string, unknown>, offset: number) => unknown = raw => raw) {
   return async (_path: string, expression: string, verify: (url: string) => Promise<void>) => {
     await verify(rpc.url)
-    const m = expression.match(/\.PublicHistoryBodyChunkJSON\("[a-f0-9]{32}",1,([0-9]+),8192\)$/)
+    const m = expression.match(/\.PublicHistoryBodyChunkJSON\("[a-f0-9]{32}",([1-9][0-9]*),([0-9]+),8192\)$/)
     if (!m) throw new Error('unexpected/unbounded history expression')
-    const offset = Number(m[1]), chunk = bytes.slice(offset, offset + 8192)
-    return response(patch({ ...body, sha256: bytesToHex(sha256(bytes)), total: String(bytes.length), offset: String(offset), next_offset: String(offset + chunk.length), chunk_blob: encode64(chunk) }, offset))
+    const offset = Number(m[2]), chunk = bytes.slice(offset, offset + 8192)
+    return response(patch({ ...body, seq: m[1], sha256: bytesToHex(sha256(bytes)), total: String(bytes.length), offset: String(offset), next_offset: String(offset + chunk.length), chunk_blob: encode64(chunk) }, offset))
   }
 }
 beforeEach(() => {
@@ -64,9 +64,14 @@ describe('history client methods and bounded assembly', () => {
     expect(rpc.query).not.toHaveBeenCalled()
   })
   it('does not reuse live-note revisions or require a current note for immutable bodies', async () => {
-    await expect(readPublicHistoryBody(client(), wanted, '1')).resolves.toEqual({ id: wanted, bodyRevision: '1', sha256: body.sha256, text: 'Body' })
+    await expect(readPublicHistoryBody(client(), wanted, '1')).resolves.toEqual({ id: wanted, seq: '1', bodyRevision: '1', sha256: body.sha256, text: 'Body' })
     expect(rpc.query).toHaveBeenCalledOnce()
     expect(rpc.query.mock.calls[0][1]).not.toContain('.Note')
+  })
+  it('reads a body by the event seq that recorded it and takes its revision from the realm', async () => {
+    rpc.query.mockImplementation(bodyReplies(new TextEncoder().encode('Kept'), raw => ({ ...raw, body_revision: '3' })))
+    await expect(readPublicHistoryBody(client(), wanted, '9')).resolves.toMatchObject({ seq: '9', bodyRevision: '3', text: 'Kept' })
+    expect(rpc.query.mock.calls[0][1]).toBe(`${NOTES_REALM}.PublicHistoryBodyChunkJSON("${wanted}",9,0,8192)`)
   })
   it('assembles exactly sixteen chunks at128KiB and decodes UTF8 after split code points', async () => {
     const text = 'a'.repeat(8191) + '😸' + 'b'.repeat(131072 - 8195)
@@ -82,7 +87,8 @@ describe('history client methods and bounded assembly', () => {
   it('refuses chunk substitution, disappearance and nonprogress without looping', async () => {
     const bytes = new Uint8Array(8193).fill(97)
     for (const patch of [(raw: Record<string, unknown>) => ({ ...raw, total: '8194' }), (raw: Record<string, unknown>) => ({ ...raw, sha256: 'f'.repeat(64) }),
-      () => null, (raw: Record<string, unknown>) => ({ ...raw, next_offset: '8192', chunk_blob: '' }), (raw: Record<string, unknown>) => ({ ...raw, body_revision: '2' })]) {
+      () => null, (raw: Record<string, unknown>) => ({ ...raw, next_offset: '8192', chunk_blob: '' }), (raw: Record<string, unknown>) => ({ ...raw, body_revision: '2' }),
+      (raw: Record<string, unknown>) => ({ ...raw, seq: '2' })]) {
       rpc.query.mockClear().mockImplementation(bodyReplies(bytes, (raw, offset) => offset ? patch(raw) : raw))
       await expect(readPublicHistoryBody(client(), wanted, '1')).rejects.toThrow()
       expect(rpc.query).toHaveBeenCalledTimes(2)
