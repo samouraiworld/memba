@@ -36,7 +36,7 @@ Full changelogs are split by version range for easier navigation:
 - Every problem is a message at the top of the note that says what happened, that the text is kept and what to do next: a newer version is merged automatically when lines do not overlap, otherwise both versions are shown side by side to choose from. A draft stays reachable while the published note cannot be read, and a deleted note keeps its tombstone whatever its mode. Notes remains disabled pending deployment and reviewed activation.
 ### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
 - Notes history reads follow the storage-cut Notes realm (samcrew-deployer#363): an archived body is read by the history event that recorded its version (`public-history-body/v2`) and stays bound to that version's body revision and digest; draft rebasing reads the base version first, then its body.
-- The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts and digests all use it; there is no default path. Notes remains disabled pending deployment and reviewed activation.
+- The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts, featured-note releases and digests all use it, and a receipt or release naming another path is refused; there is no default path. Notes remains disabled pending deployment and reviewed activation.
 
 ### Notes: the Whitepaper leaves the release (#1618, 2026-10-14)
 - The Notes release now prepares a single featured Desktop shortcut, the Sushi recipe. The Whitepaper shortcut, its release key and its unused seed module are removed; the Whitepaper is not planned.
