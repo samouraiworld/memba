@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Notes: the Sushi recipe is the featured note on gnoland-1 (#1630, 2026-10-14)
 - Register the owner's "Avocado & cucumber maki" note (`4251ea96d68d64737ce7a829f4af22c5` in `gno.land/r/samcrew/memba_notes_v1`, created at h806987, owner `g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c`) as the `sushi-v1` featured release for gnoland-1, so the desktop shows it as a shortcut until it is removed. Like the deployment entry, it takes effect only in builds with both Notes release switches; with them off nothing changes. No Onyx entry.
+- Desktop note shortcuts end their chain read once every title is read, so a finished read no longer counts as a live Notes reader.
 
 ### Notes: mainnet deployment entry (#1629, 2026-10-14)
 - Name the Notes realm published on gnoland-1, `gno.land/r/samcrew/memba_notes_v1` (h806211, key registry `gno.land/r/samcrew/enckeys_v1` at h806205), as the mainnet deployment. Same code as the Onyx rehearsal realm; same deposit caps. It takes effect only in builds with both Notes release switches, and VITE_ENABLE_NOTES_CHAIN stays safety-gated out of production builds, so Notes remains disabled in production.
