@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
+- Notes history reads follow the storage-cut Notes realm (samcrew-deployer#363): an archived body is read by the history event that recorded its version (`public-history-body/v2`) and stays bound to that version's body revision and digest; draft rebasing reads the base version first, then its body.
+- The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts, featured-note releases and digests all use it, and a receipt or release naming another path is refused; there is no default path. Notes remains disabled pending deployment and reviewed activation.
+
 ### Desktop: a note shortcut follows its published title (#1622, 2026-10-14)
 - A note shortcut pinned before its note was published, or while the note was private, now takes the note's public title as soon as this tab confirms the publication or a rename, instead of showing "Note" until the next visit. The read waits for the announced revision when the network node is behind. A note that is still private keeps its lock and never shows or stores a title.
 - A shortcut label never goes back to an older revision: a lagging node's older answer (for example after posting a comment) is ignored instead of replacing a newer title, and a publication the node has not caught up with stays pending, so the next announcement or visit reads it again.
@@ -28,9 +32,6 @@ Full changelogs are split by version range for easier navigation:
 ### Notes: a posted comment is never offered again (#1619, 2026-10-14)
 - Once the wallet has sent a comment, its text leaves every comment box for that note in the tab, including one opened before the comment is confirmed, so it cannot be posted and paid for twice. If the comment is not confirmed, the text comes back, above anything written meanwhile and without replacing a quote chosen meanwhile, and its receipt still blocks a resend until it is checked. Checking a receipt that confirms a comment clears it from every box that holds it.
 - A comment's gas limit now covers 1.5× the gas measured with about 410 comments on a note (87M for a one-line comment, 142M for the largest, up from 81M and 126M). The comment cost tests include that growth run: the signed cap stays at least 1.2× every measured deposit.
-### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
-- Notes history reads follow the storage-cut Notes realm (samcrew-deployer#363): an archived body is read by the history event that recorded its version (`public-history-body/v2`) and stays bound to that version's body revision and digest; draft rebasing reads the base version first, then its body.
-- The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts, featured-note releases and digests all use it, and a receipt or release naming another path is refused; there is no default path. Notes remains disabled pending deployment and reviewed activation.
 
 ### Notes: read page, edit mode and publish sheet (#1620, 2026-10-14)
 - A published note opens as a page: one status line ("Published · revision 6 · by you"), Share, Edit and a ⋯ menu with Copy link, Export, Add to Desktop and, for the owner, Delete note. A skeleton shows while it loads, never "not found" before the network answers.
