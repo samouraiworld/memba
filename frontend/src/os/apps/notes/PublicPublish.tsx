@@ -93,10 +93,12 @@ function sign(request: SignRequest, context: Report & { signer: SignerApi; pane:
     const { send, onSettled, onDismissed } = request
     let expiredShown = false
     request.send = async (choice, beforeSign) => {
-        progress('approve', { walletSince: Date.now() })
+        progress('approve')
         if (expiredShown) { expiredShown = false; onNotice?.(null) }
+        // The 30 s Adena wait counts from the wallet opening, once the checks before signing are done (F7).
+        const opened = async () => { const guard = await beforeSign(); progress('approve', { walletSince: Date.now() }); return guard }
         let result: Awaited<ReturnType<typeof send>>
-        try { result = await send(choice, beforeSign) } catch (error) {
+        try { result = await send(choice, opened) } catch (error) {
             // The signature sheet stays open to quote again: the progress says what happened instead of waiting on Adena.
             if (error instanceof QuoteExpiredError) {
                 expiredShown = true; onProgress?.(null)

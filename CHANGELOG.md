@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: canary follow-ups: comment menus, posted message, conflicting lines (#1628, 2026-10-14)
+- A comment card's ⋯ menu opens upward when it would leave the bottom of the comment list (the last comment), so its items show without scrolling.
+- "Comment posted." and "Comment action confirmed." go away after a few seconds; messages that ask for a step (an unknown outcome, a kept comment) stay.
+- When someone published over the same lines, the banner names your overlapping lines ("your line 3 “- nori (B)”"), up to three, before "See changes".
+- "No answer from Adena after 30 seconds" counts from the moment Adena is asked, after the checks before signing (and an Adena password), not from the click.
+- My notes never moves a row back to an older revision when a lagging node answers, and reads the notes behind its rows again when Notes comes to the front. The unused `AccountLibrary` component is removed. Notes remains disabled in production.
+
 ### Notes: visual polish from the two-wallet canary (#1627, 2026-10-14)
 - The note header is a clean toolbar (a light translucent fill over the window's glass), so it no longer reads as a dark box narrower than the note; the status sits on the left as a subtitle and Share, Edit and ⋯ on the right, in one row on a phone with 44px targets.
 - Comment cards keep Reply visible and group Resolve thread, Hide comment and Delete comment under a ⋯ menu (arrow keys, Home/End, Escape returns the focus); while an action is prepared the menu stays, its items disabled, so the focus never drops to the page. A quoted passage reads as a quotation with a small "Show in note" link; on a phone the sheet steps aside to show it. No empty rule above Refresh, and "Comment posted." stays just above the composer.

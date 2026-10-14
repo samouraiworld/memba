@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ACTIVE_NETWORK_KEY } from '../../../lib/config'
 import { useDialogKeys } from '../../shell/useDialogKeys'
@@ -59,7 +59,17 @@ function NoteMenu({ noteId, items }: { noteId: string; items: NoteMenuItem[] }) 
 export function ActionMenu({ label, items, danger = [], className, children }: {
     label: string; items: NoteMenuItem[]; danger?: NoteMenuItem[]; className?: string; children?(close: () => void): ReactNode
 }) {
-    const [open, setOpen] = useState(false), id = useId(), root = useRef<HTMLDivElement>(null), button = useRef<HTMLButtonElement>(null)
+    const [open, setOpen] = useState(false), id = useId(), root = useRef<HTMLDivElement>(null), button = useRef<HTMLButtonElement>(null), list = useRef<HTMLDivElement>(null)
+    // Before it is painted and focused: a menu that would leave the scrolling area it sits in (the last comment's ⋯)
+    // opens upward when there is more room above.
+    useLayoutEffect(() => {
+        const menu = list.current, anchor = root.current
+        if (!open || !menu || !anchor) return
+        let area = anchor.parentElement
+        while (area && !/(auto|scroll)/.test(getComputedStyle(area).overflowY)) area = area.parentElement
+        const bounds = area?.getBoundingClientRect() ?? { top: 0, bottom: document.documentElement.clientHeight }, at = anchor.getBoundingClientRect()
+        if (menu.getBoundingClientRect().bottom > bounds.bottom && at.top - bounds.top > bounds.bottom - at.bottom) menu.dataset.placement = 'up'
+    }, [open])
     useEffect(() => {
         if (!open) return
         const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false) }
@@ -84,7 +94,7 @@ export function ActionMenu({ label, items, danger = [], className, children }: {
     </button>
     return <div className={className ? `os-notes-more ${className}` : 'os-notes-more'} ref={root} onKeyDown={open ? keys : undefined}>
         <button ref={button} type="button" className="os-btn os-quiet os-notes-icon" aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>{icons.more}</button>
-        {open && <div id={id} className="os-notes-menu" role="menu" aria-label={label}>
+        {open && <div ref={list} id={id} className="os-notes-menu" role="menu" aria-label={label}>
             {items.map(entry)}
             {children?.(() => setOpen(false))}
             {danger.length > 0 && (items.length > 0 || !!children) && <div className="os-notes-menu-sep" role="separator" />}

@@ -117,6 +117,24 @@ describe('public publication review', () => {
         await act(async () => { await request.send(undefined, async () => () => true) })
         expect(screen.getByRole('dialog', { name: 'Publishing' })).toBeVisible(); expect(screen.queryByText(/price quote expired/)).toBeNull()
     })
+    it('counts the 30 s Adena wait from the wallet opening, not from the checks before it (F7)', async () => {
+        let checked!: () => void
+        const checks = new Promise<void>(done => { checked = done })
+        const send = vi.fn(async (_choice: unknown, beforeSign: () => Promise<unknown>) => { await checks; await beforeSign(); return new Promise(() => {}) })
+        calls.prepare.mockResolvedValue({ warns: [], send })
+        setup(); await approve(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+        try {
+            act(() => { void calls.sign.mock.calls[0][0].send(undefined, async () => () => true) })
+            // The rechecks (or an Adena password) take longer than 30 s: the wallet was not asked yet.
+            await act(async () => { await vi.advanceTimersByTimeAsync(45_000) })
+            expect(screen.getByRole('dialog', { name: 'Publishing' })).not.toHaveTextContent(/No answer from Adena/)
+            await act(async () => { checked(); await vi.advanceTimersByTimeAsync(29_000) })
+            expect(screen.getByRole('dialog', { name: 'Publishing' })).not.toHaveTextContent(/No answer from Adena/)
+            await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
+            expect(screen.getByRole('dialog', { name: 'Publishing' })).toHaveTextContent('No answer from Adena after 30 seconds.')
+        } finally { vi.useRealTimers() }
+    })
     it('writes the cap the review states, never below its estimated deposit, into the transaction', async () => {
         setup()
         const sheet = await reviewSheet()

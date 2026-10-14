@@ -211,6 +211,14 @@ describe('public authoring durable workspace', () => {
         expect(await screen.findByText(/Your version now follows revision 3/)).toBeVisible()
         expect(screen.queryByText(/Someone published a newer version/)).toBeNull()
     })
+    it('names the overlapping lines of the user text in the banner (F25)', async () => {
+        const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
+        const overlap = [{ line: 3, text: '- nori (B)' }, { line: 5, text: null }, { line: 9, text: 'x'.repeat(50) }, { line: 12, text: '' }]
+        mocks.plan.mockResolvedValue({ kind: 'conflict', latest: { ...note, actor: 'other' }, fields: ['body'], baseRevision: '1', theirs: { title: 'Published title', body: 'Published body' }, lines: overlap })
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        await edit()
+        expect(await screen.findByRole('alert')).toHaveTextContent(`that changes the same lines as you: your lines 3 “- nori (B)”, 5 (removed), 9 “${'x'.repeat(39)}…” and 1 more. Your text is kept.`)
+    })
     it('can start from the latest revision while saving the conflicting text as a separate draft', async () => {
         const { store, session, client } = setup(); await store.saveDraft(scope, '0', payload, session)
         mocks.plan.mockResolvedValue({ kind: 'conflict', latest: { ...note, actor: 'wallet' }, fields: ['title', 'body'], baseRevision: '1', theirs: { title: 'Published title', body: 'Published body' } })

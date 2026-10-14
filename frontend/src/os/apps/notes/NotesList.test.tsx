@@ -4,7 +4,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { createDraftSession, createNotesStore, type NotesStore } from '../../../lib/notes/drafts'
 import type { ChainNote, NotesPage } from '../../../lib/notes/chain/schema'
 import { NotesList } from './NotesList'
-import { announceNoteChange } from '../../../lib/notes/freshness'
+import { announceNoteChange, announceNotesFocus } from '../../../lib/notes/freshness'
 
 const partition = { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: 'owner' }
 const utf8 = (value: string) => new TextEncoder().encode(value)
@@ -110,6 +110,36 @@ describe('My notes list', () => {
             act(() => announceNoteChange({ chainId: 'other-1', noteId: id }))
             // Revision 7 is not the draft's base: its body is never fetched.
             expect(chain.noteMetadata).toHaveBeenCalledTimes(2); expect(chain.note).toHaveBeenCalledOnce()
+        })
+        it('keeps the higher revision when a lagging node answers an announcement with an older one', async () => {
+            const { store, session, client } = setup(); await draftOf(store, session)
+            let live = note(id)
+            const chain = reads(() => live, () => ({ ...live, body: utf8('Rice') }))
+            render(<NotesList store={store} partition={partition} client={{ ...client, ...chain }} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 6']))
+            live = note(id, { stateRevision: '7' })
+            act(() => announceNoteChange({ chainId: partition.chainId, noteId: id, stateRevision: '7' }))
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 7 · draft on this device']))
+            live = note(id)
+            act(() => announceNoteChange({ chainId: partition.chainId, noteId: id }))
+            await waitFor(() => expect(chain.noteMetadata).toHaveBeenCalledTimes(3)); await act(async () => {})
+            expect(list()).toEqual(['SushiPublicRevision 7 · draft on this device'])
+        })
+        it('reads the notes behind its rows again when Notes comes to the front, at most once per interval', async () => {
+            vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(10_000)
+            const { store, session, client } = setup(); await draftOf(store, session)
+            let live = note(id)
+            const chain = reads(() => live, () => ({ ...live, body: utf8('Rice') }))
+            render(<NotesList store={store} partition={partition} client={{ ...client, ...chain }} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 6']))
+            live = note(id, { stateRevision: '8' })
+            // Just read: an immediate focus, or one for another network, reads nothing.
+            act(() => { announceNotesFocus(partition.chainId); vi.setSystemTime(20_000); announceNotesFocus('other-1') })
+            await act(async () => {})
+            expect(chain.noteMetadata).toHaveBeenCalledOnce()
+            act(() => announceNotesFocus(partition.chainId, 'ee'.repeat(16)))
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 8 · draft on this device']))
+            expect(chain.noteMetadata).toHaveBeenCalledTimes(2)
         })
         it('reads each note once, not again on every autosave or focus (drafts reload)', async () => {
             const { store, session, client } = setup(); await draftOf(store, session)

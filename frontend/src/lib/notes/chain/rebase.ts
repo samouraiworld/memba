@@ -1,5 +1,5 @@
 import type { DraftBase } from '../drafts'
-import { mergeNoteText, type NoteBaseText, type NoteText } from '../merge'
+import { conflictingLines, mergeNoteText, type ConflictLine, type NoteBaseText, type NoteText } from '../merge'
 import { trimPublicTitle } from '../publicFields'
 import type { NotesReadClient } from './client'
 import { readPublicHistoryBody } from './historyBody'
@@ -15,8 +15,8 @@ export type RebasePlan =
     | { kind: 'replace'; latest: ChainNote; title: string; body: string }
     /** The draft's changes apply cleanly on top of the latest revision. */
     | { kind: 'merged'; latest: ChainNote; title: string; body: string }
-    /** Overlapping or unverifiable changes: the caller must keep the draft text untouched. */
-    | { kind: 'conflict'; latest: ChainNote; fields: ('title' | 'body')[]; baseRevision: string | null; theirs: NoteText }
+    /** Overlapping or unverifiable changes: the caller must keep the draft text untouched. `lines`: the draft's overlapping lines, when known. */
+    | { kind: 'conflict'; latest: ChainNote; fields: ('title' | 'body')[]; baseRevision: string | null; theirs: NoteText; lines?: ConflictLine[] }
 
 /**
  * Plans moving a public draft onto `latest`, a verified live note. Base text comes from public
@@ -35,7 +35,7 @@ export async function planDraftRebase(client: RebaseClient, saved: { title: stri
     const original = await baseText(client, latest, theirs, base)
     if (original.title === draft.title && original.body === draft.body) return replace
     const merged = mergeNoteText(original, draft, theirs)
-    if (merged.status === 'conflict') return { kind: 'conflict', latest, fields: merged.fields, baseRevision: base?.stateRevision ?? null, theirs }
+    if (merged.status === 'conflict') return { kind: 'conflict', latest, fields: merged.fields, baseRevision: base?.stateRevision ?? null, theirs, lines: merged.fields.includes('body') ? conflictingLines(original.body, draft.body, theirs.body) : [] }
     if (merged.title === theirs.title && merged.body === theirs.body) return replace
     return { kind: 'merged', latest, title: merged.title, body: merged.body }
 }

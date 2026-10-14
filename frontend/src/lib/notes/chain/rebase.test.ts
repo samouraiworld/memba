@@ -70,7 +70,7 @@ describe('draft rebase planning', () => {
     })
     it('reports overlapping changes as a conflict naming the field and who published', async () => {
         const plan = await planDraftRebase(client(), { title: 'Groceries', body: '- milk\n- eggs\n- bread\n- butter', base }, latest)
-        expect(plan).toMatchObject({ kind: 'conflict', fields: ['body'], baseRevision: '4', latest: { stateRevision: '5', actor: 'g1747actor' }, theirs: { body: '- milk\n- eggs\n- bread\n- avocados' } })
+        expect(plan).toMatchObject({ kind: 'conflict', fields: ['body'], baseRevision: '4', latest: { stateRevision: '5', actor: 'g1747actor' }, theirs: { body: '- milk\n- eggs\n- bread\n- avocados' }, lines: [{ line: 4, text: '- butter' }] })
     })
     it('keeps own edits across a revision that changed no content', async () => {
         const c = client()

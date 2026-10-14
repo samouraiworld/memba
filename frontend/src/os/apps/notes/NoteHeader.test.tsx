@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ACTIVE_NETWORK_KEY } from '../../../lib/config'
 import { DeskShortcutsContext } from '../../shell/deskShortcuts'
-import { NoteBanner, NoteHeader, NoteSheet } from './NoteHeader'
+import { ActionMenu, NoteBanner, NoteHeader, NoteSheet } from './NoteHeader'
 import { NotesPaneContext, type NotesPane } from './notesPane'
 
 const id = 'ab'.repeat(16)
@@ -49,6 +49,28 @@ describe('note header', () => {
         expect(screen.queryByRole('button', { name: 'Share' })).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
         expect(screen.queryByRole('menuitem', { name: 'Copy link' })).toBeNull()
+    })
+})
+
+describe('⋯ menu placement', () => {
+    /** A scrolling list 0–400 px high with the ⋯ button at `top`; the menu is 120 px tall below it. */
+    function place(top: number) {
+        vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+            if (this.dataset.testArea !== undefined) return DOMRect.fromRect({ x: 0, y: 0, width: 300, height: 400 })
+            if (this.classList.contains('os-notes-more')) return DOMRect.fromRect({ x: 260, y: top, width: 30, height: 30 })
+            if (this.getAttribute('role') === 'menu') return DOMRect.fromRect({ x: 60, y: top + 36, width: 240, height: 120 })
+            return DOMRect.fromRect()
+        })
+        render(<div data-test-area="" style={{ overflowY: 'auto' }}><ActionMenu label="More actions for the comment" items={[{ label: 'Hide comment', run: vi.fn() }]} /></div>)
+        fireEvent.click(screen.getByRole('button', { name: 'More actions for the comment' }))
+        return screen.getByRole('menu')
+    }
+    it('opens upward when it would leave the bottom of its scrolling list (the last comment)', () => {
+        const menu = place(330)
+        expect(menu).toHaveAttribute('data-placement', 'up'); expect(within(menu).getByRole('menuitem', { name: 'Hide comment' })).toHaveFocus()
+    })
+    it('opens downward when it fits below', () => {
+        expect(place(100)).not.toHaveAttribute('data-placement')
     })
 })
 
