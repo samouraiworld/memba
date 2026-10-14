@@ -7,8 +7,8 @@ it('uses fixed release labels with a neutral label for ordinary notes', () => {
     const note: DeskItem = { ty: 'note', ref: 'ab'.repeat(16), c: 0, r: 0 }
     const view = render(<DeskIcon item={note} noteLabels={{ [note.ref]: 'Sushi recipe' }} />)
     expect(screen.getByText('Sushi recipe')).toBeTruthy()
-    view.rerender(<DeskIcon item={note} noteLabels={{ [note.ref]: 'Whitepaper' }} />)
-    expect(screen.getByText('Whitepaper')).toBeTruthy()
+    view.rerender(<DeskIcon item={note} noteLabels={{ [note.ref]: 'Meeting notes' }} />)
+    expect(screen.getByText('Meeting notes')).toBeTruthy()
     view.rerender(<DeskIcon item={note} />); expect(screen.getByText('Note')).toBeTruthy()
 })
 it('moves the captured item after the rendered list changes rather than the old numeric index', () => {

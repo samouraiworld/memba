@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-const url = '/e2e-notes/sushi-desk/index.html', sushi = '74'.repeat(16), paper = '76'.repeat(16)
+const url = '/e2e-notes/sushi-desk/index.html', sushi = '74'.repeat(16)
 const errors: string[] = []
 async function desktop(page: Page, query = '') {
     await page.goto(url + query)
@@ -73,7 +73,7 @@ for (const guest of [false, true]) test(`${guest ? 'guest' : 'member'} real desk
     expect((await desk(page, guest)).releases['sushi-v1']).toEqual({ status: 'seeded', noteId: sushi })
     await page.screenshot({ path: info.outputPath('real-phone-sushi.png'), animations: 'disabled' })
 })
-test('dismiss survives reload and real Shell disconnect/reconnect; Whitepaper is independent', async ({ page }) => {
+test('dismiss survives reload and real Shell disconnect/reconnect', async ({ page }) => {
     await desktop(page); await dismiss(page, 'Sushi recipe'); await page.reload()
     await expect.poll(async () => (await desk(page))?.releases['sushi-v1'].status).toBe('dismissed')
     await expect(icon(page, 'Sushi recipe')).toHaveCount(0)
@@ -82,22 +82,18 @@ test('dismiss survives reload and real Shell disconnect/reconnect; Whitepaper is
     await page.getByRole('button', { name: 'Connect wallet', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Welcome to Memba' })).toHaveCount(0)
     await expect(icon(page, 'Sushi recipe')).toHaveCount(0)
-    await desktop(page, '?paper=1'); await expect(icon(page, 'Whitepaper')).toHaveCount(1)
-    await expect(icon(page, 'Sushi recipe')).toHaveCount(0)
-    await icon(page, 'Whitepaper').click()
-    await expect(page.getByRole('heading', { name: 'Future Whitepaper demonstration', exact: true })).toBeVisible()
-    expect((await desk(page)).releases).toEqual({ 'sushi-v1': { status: 'dismissed' }, 'whitepaper-v1': { status: 'seeded', noteId: paper } })
+    expect((await desk(page)).releases).toEqual({ 'sushi-v1': { status: 'dismissed' } })
 })
-test('two real Shell tabs retain both concurrent dismissals', async ({ page, context }) => {
-    await desktop(page, '?paper=1'); const peer = await context.newPage(); await desktop(peer)
-    for (const tab of [page, peer]) { await expect(icon(tab, 'Sushi recipe')).toBeVisible(); await expect(icon(tab, 'Whitepaper')).toBeVisible() }
-    await Promise.all([dismiss(page, 'Sushi recipe'), dismiss(peer, 'Whitepaper')])
+test('a dismissal in one real Shell tab reaches the other tab', async ({ page, context }) => {
+    await desktop(page); const peer = await context.newPage(); await desktop(peer)
+    for (const tab of [page, peer]) await expect(icon(tab, 'Sushi recipe')).toBeVisible()
+    await dismiss(page, 'Sushi recipe')
     for (const tab of [page, peer]) {
-        await expect.poll(async () => (await desk(tab))?.releases).toEqual({ 'sushi-v1': { status: 'dismissed' }, 'whitepaper-v1': { status: 'dismissed' } })
-        await expect(icon(tab, 'Sushi recipe')).toHaveCount(0); await expect(icon(tab, 'Whitepaper')).toHaveCount(0)
+        await expect.poll(async () => (await desk(tab))?.releases).toEqual({ 'sushi-v1': { status: 'dismissed' } })
+        await expect(icon(tab, 'Sushi recipe')).toHaveCount(0)
     }
     await Promise.all([page.reload(), peer.reload()])
-    for (const tab of [page, peer]) { await expect(icon(tab, 'Sushi recipe')).toHaveCount(0); await expect(icon(tab, 'Whitepaper')).toHaveCount(0) }
+    for (const tab of [page, peer]) await expect(icon(tab, 'Sushi recipe')).toHaveCount(0)
     await peer.close()
 })
 test('full real desktop keeps every pin until removal frees a seed cell; Settings reset propagates', async ({ page, context }) => {
@@ -107,7 +103,7 @@ test('full real desktop keeps every pin until removal frees a seed cell; Setting
     await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: oldKey, value: oldBytes })
     await page.evaluate(({ key, partition }) => {
         const items = Array.from({ length: 48 }, (_, index) => ({ ty: 'dao', ref: `slot${index}`, c: Math.floor(index / 6), r: index % 6 }))
-        localStorage.setItem(key, JSON.stringify({ version: 3, partition, items, releases: { 'sushi-v1': { status: 'pending' }, 'whitepaper-v1': { status: 'pending' } }, resetToken: null }))
+        localStorage.setItem(key, JSON.stringify({ version: 3, partition, items, releases: { 'sushi-v1': { status: 'pending' } }, resetToken: null }))
     }, initial)
     await page.reload(); await expect(page.locator('.os-thing')).toHaveCount(48); await expect(icon(page, 'Sushi recipe')).toHaveCount(0)
     await page.getByRole('button', { name: 'SL slot0', exact: true }).click({ button: 'right' })

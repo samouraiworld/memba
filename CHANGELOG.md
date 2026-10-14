@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: the Whitepaper leaves the release (#1618, 2026-10-14)
+- The Notes release now prepares a single featured Desktop shortcut, the Sushi recipe. The Whitepaper shortcut, its release key and its unused seed module are removed; the Whitepaper is not planned.
+- A Desktop saved by a development or canary build that still records the Whitepaper is read as before: the obsolete entry is dropped on the next save, every shortcut stays where it was (a Whitepaper note shortcut remains as an ordinary note shortcut) and the Sushi recipe keeps its state. Notes remains disabled pending deployment and reviewed activation.
+
 ### Notes Onyx deployment selection (#1604, 2026-10-14)
 - Select the Notes realm published on the Onyx testnet for the two-wallet canary. It only takes effect in builds where both Notes release switches are on; production keeps Notes disabled and has no mainnet deployment entry.
 

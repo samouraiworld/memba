@@ -8,7 +8,7 @@ it('keeps hidden pins and fixed labels in the v3 ledger while the Notes UI is ro
     const noteId = 'ab'.repeat(16), key = 'memba_os_desk:v3:test-chain:guest'
     const raw = { version: 3, partition: { chainId: 'test-chain', wallet: null }, resetToken: null,
         items: [{ ty: 'note', ref: noteId, c: 0, r: 0 }],
-        releases: { 'sushi-v1': { status: 'seeded', noteId }, 'whitepaper-v1': { status: 'pending' } } }
+        releases: { 'sushi-v1': { status: 'seeded', noteId } } }
     localStorage.setItem(key, JSON.stringify(raw))
     vi.stubGlobal('navigator', { locks: { request: async (_key: string, _options: unknown, callback: () => unknown) => callback() } })
     const hook = renderHook(() => useDesk(null, DEFAULT_NETWORK, { chainId: 'test-chain', gno: true, adopt: false, releases: [] }))

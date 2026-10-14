@@ -13,10 +13,10 @@ vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({ realm: '
 const owner = 'g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0'
 const bytes = (value: string) => new TextEncoder().encode(value)
 const base = { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' }
-const draft: DraftRecord = { schema: 1, scope: { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner, noteId: 'cd'.repeat(16) }, localRevision: '4', updatedAt: 1, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content' } }
+const draft: DraftRecord = { schema: 1, scope: { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner, noteId: 'cd'.repeat(16) }, localRevision: '4', updatedAt: 1, payload: { kind: 'public', title: 'Field guide', body: 'Saved content' } }
 const config = { realm: draft.scope.realm, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false }
 function setup(record = draft, getDraft = vi.fn(async () => record)) {
-    const client = { chainId: 'gnoland-1', note: vi.fn(async () => ({ owner, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Whitepaper'), body: bytes('Published content') })), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
+    const client = { chainId: 'gnoland-1', note: vi.fn(async () => ({ owner, stateRevision: '7', epoch: '2', ownerGeneration: '1', title: bytes('Field guide'), body: bytes('Published content') })), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
     render(<PublicPublish draft={record} client={client} store={{ getDraft } as unknown as NotesStore} />)
     fireEvent.click(screen.getByText(record.payload.kind === 'public' && record.payload.base ? 'Publish changes' : 'Publish', { selector: 'summary' }))
     return { client, getDraft }
@@ -27,7 +27,7 @@ describe('public publication review', () => {
         const hold = vi.fn(), pane = { hold, saved: vi.fn(), deleted: vi.fn(), focusTitle: false, titleFocused: vi.fn() } satisfies NotesPane
         const settled = vi.fn(); calls.prepare.mockResolvedValue({ warns: [], onSettled: settled })
         const client = { chainId: 'gnoland-1', note: vi.fn(async () => null), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
-        const fresh: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content' } }
+        const fresh: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content' } }
         render(<NotesPaneContext.Provider value={pane}><PublicPublish draft={fresh} client={client} store={{ getDraft: vi.fn(async () => fresh) } as unknown as NotesStore} /></NotesPaneContext.Provider>)
         fireEvent.click(screen.getByText('Publish', { selector: 'summary' })); fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
@@ -37,7 +37,7 @@ describe('public publication review', () => {
         expect(settled).toHaveBeenCalledWith('confirmed', undefined); expect(hold).toHaveBeenLastCalledWith(source, false)
     })
     it('requests no signature until review and uses the durable baseline and explicit deposit cap', async () => {
-        const record: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content', base: { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' } } }
+        const record: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content', base: { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' } } }
         setup(record)
         expect(calls.sign).not.toHaveBeenCalled()
         fireEvent.change(screen.getByLabelText('Maximum storage deposit (GNOT)'), { target: { value: '5.0' } })
@@ -46,7 +46,7 @@ describe('public publication review', () => {
         expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '5000000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
     })
     it('publishes only the changed body, priced without the unchanged title', async () => {
-        setup({ ...draft, payload: { kind: 'public', title: 'Whitepaper ', body: 'Saved content', base } })
+        setup({ ...draft, payload: { kind: 'public', title: 'Field guide ', body: 'Saved content', base } })
         fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         const { operation, maxDepositUgnot } = calls.prepare.mock.calls[0][0]
@@ -54,7 +54,7 @@ describe('public publication review', () => {
         expect(maxDepositUgnot).toBe('2900000')
     })
     it('says there is nothing to publish when the draft matches the published note', async () => {
-        const { client } = setup({ ...draft, payload: { kind: 'public', title: 'Whitepaper', body: 'Published content', base } })
+        const { client } = setup({ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Published content', base } })
         fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
         expect(await screen.findByText('Nothing to publish: the title and body match the published note.')).toBeVisible()
         expect(client.note).toHaveBeenCalledOnce(); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
@@ -71,10 +71,10 @@ describe('public publication review', () => {
         expect(client.config).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
     })
     it('trims edge spaces from a new title instead of letting the realm refuse it', async () => {
-        setup({ ...draft, payload: { kind: 'public', title: '  Whitepaper\u00a0', body: 'Saved content' } })
+        setup({ ...draft, payload: { kind: 'public', title: '  Field guide\u00a0', body: 'Saved content' } })
         fireEvent.click(screen.getByRole('button', { name: 'Review publication' }))
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0].operation.action).toMatchObject({ kind: 'create', title: 'Whitepaper' })
+        expect(calls.prepare.mock.calls[0][0].operation.action).toMatchObject({ kind: 'create', title: 'Field guide' })
     })
     it('retains a changed local draft instead of opening a stale review', async () => {
         setup(draft, vi.fn(async () => ({ ...draft, localRevision: '5' })))

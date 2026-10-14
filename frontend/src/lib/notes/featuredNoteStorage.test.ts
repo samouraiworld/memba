@@ -8,7 +8,7 @@ const scope = { chainId: 'test-chain', wallet: null }
 const rules: FeaturedDeskRules = { cols: 2, rows: 2, validItem: item => item.ty === 'app' || item.ty === 'note' }
 const pin: FeaturedDeskItem = { ty: 'app', ref: 'wallet', c: 0, r: 0 }
 const sushi: FeaturedNoteRelease = { releaseKey: 'sushi-v1', chainId: scope.chainId, realm: NOTES_REALM, version: 1, noteId: 'ab'.repeat(16), mode: 4, deleted: false, owner: bech32Encode('g', new Uint8Array(20).fill(1)) }
-const paper: FeaturedNoteRelease = { ...sushi, releaseKey: 'whitepaper-v1', noteId: 'cd'.repeat(16) }
+const other = 'cd'.repeat(16)
 const v2Key = 'memba_os_desk:v2:test-chain:guest'
 const empty = () => resetFeaturedDesk(scope, rules)
 const append = (item: FeaturedDeskItem) => (desk: FeaturedDesk): FeaturedDesk => ({ ...desk, items: [...desk.items, item] })
@@ -39,22 +39,34 @@ describe('version3 featured desk migration and transaction boundaries', () => {
     f.values.set(f.oldKey, 'bad rewrite'); f.readLegacy.mockClear()
     expect(f.adapter.peek().items).toEqual([pin]); expect(f.readLegacy).not.toHaveBeenCalled()
   })
-  it.each([{ status: 'pending' }, { status: 'dismissed' }, { status: 'seeded', noteId: paper.noteId }])('imports old Whitepaper marker only into Whitepaper: %j', async marker => {
-    const f = setup(), items: FeaturedDeskItem[] = marker.status === 'seeded' ? [{ ty: 'note', ref: paper.noteId, c: 1, r: 1 }] : [pin]
-    const previous = old(marker, items); f.values.set(v2Key, previous); f.values.set(f.oldKey, '{bad')
+  it.each([{ status: 'pending' }, { status: 'dismissed' }, { status: 'seeded', noteId: other }, { status: 'dismissed', noteId: other }, undefined])('ignores a retired v2 marker and keeps every item: %j', async marker => {
+    const f = setup(), items: FeaturedDeskItem[] = [pin, { ty: 'note', ref: other, c: 1, r: 1 }]
+    const previous = marker === undefined ? JSON.stringify({ version: 2, partition: scope, items }) : old(marker, items)
+    f.values.set(v2Key, previous); f.values.set(f.oldKey, '{bad')
     const desk = await f.adapter.mutate(d => d)
-    expect(desk.releases).toEqual({ 'sushi-v1': { status: 'pending' }, 'whitepaper-v1': marker })
+    expect(desk.releases).toEqual({ 'sushi-v1': { status: 'pending' } })
     expect(desk.items).toEqual(items); expect(f.readLegacy).not.toHaveBeenCalled(); expect(f.values.get(v2Key)).toBe(previous)
+    expect(JSON.parse(f.values.get(f.adapter.key)!)).toEqual({ ...desk, resetToken: null })
   })
-  it('preserves Whitepaper dismissal while seeding and dismissing sushi independently', async () => {
-    const f = setup(); f.values.set(v2Key, old({ status: 'dismissed' }))
-    const seed = (d: FeaturedDesk) => planFeaturedNoteSeeds(d, scope, rules, [sushi, paper]).desk
-    await f.adapter.mutate(seed); expect(f.adapter.peek().items.map(i => i.ref)).toEqual([sushi.noteId])
+  it('keeps a retired seeded note as an ordinary item in a stored v3 desk and drops its entry on write', async () => {
+    const f = setup(), items: FeaturedDeskItem[] = [{ ty: 'note', ref: other, c: 0, r: 0 }, { ty: 'note', ref: sushi.noteId, c: 0, r: 1 }]
+    const raw = JSON.stringify({ version: 3, partition: scope, items, resetToken: null,
+      releases: { 'sushi-v1': { status: 'seeded', noteId: sushi.noteId }, 'whitepaper-v1': { status: 'seeded', noteId: other } } })
+    f.values.set(f.adapter.key, raw)
+    expect(f.adapter.peek()).toEqual({ version: 3, partition: scope, items, releases: { 'sushi-v1': { status: 'seeded', noteId: sushi.noteId } } })
+    expect(f.storage.setItem).not.toHaveBeenCalled(); expect(f.values.get(f.adapter.key)).toBe(raw)
+    await f.adapter.mutate(d => planFeaturedNoteSeeds(d, scope, rules, [sushi]).desk)
+    expect(JSON.parse(f.values.get(f.adapter.key)!).releases).toEqual({ 'sushi-v1': { status: 'seeded', noteId: sushi.noteId } })
     await f.adapter.mutate(d => removeFeaturedDeskItem(d, scope, rules, 0))
-    f.values.set(v2Key, old({ status: 'pending' })); f.values.set(f.oldKey, JSON.stringify([pin]))
-    await createFeaturedNoteStorage(f.options).mutate(seed)
-    expect(f.adapter.peek().items).toEqual([])
-    expect(f.adapter.peek().releases).toEqual({ 'sushi-v1': { status: 'dismissed' }, 'whitepaper-v1': { status: 'dismissed' } })
+    expect(f.adapter.peek().items).toEqual([items[1]]); expect(f.adapter.peek().releases['sushi-v1'].status).toBe('seeded')
+  })
+  it('seeds and dismisses Sushi beside a retired seeded note from v2', async () => {
+    const f = setup(), note: FeaturedDeskItem = { ty: 'note', ref: other, c: 0, r: 0 }
+    f.values.set(v2Key, old({ status: 'seeded', noteId: other }, [note]))
+    const seed = (d: FeaturedDesk) => planFeaturedNoteSeeds(d, scope, rules, [sushi]).desk
+    await f.adapter.mutate(seed); expect(f.adapter.peek().items.map(i => i.ref)).toEqual([other, sushi.noteId])
+    await f.adapter.mutate(d => removeFeaturedDeskItem(d, scope, rules, 1)); await f.adapter.mutate(seed)
+    expect(f.adapter.peek().items).toEqual([note]); expect(f.adapter.peek().releases).toEqual({ 'sushi-v1': { status: 'dismissed' } })
   })
   it.each(['{bad', '[]', 'null', JSON.stringify({ ...empty(), version: 2, resetToken: null }), JSON.stringify({ ...empty(), resetToken: null, extra: true }), JSON.stringify({ ...empty(), resetToken: null, partition: { ...scope, chainId: 'other' } })])('refuses corrupt v3 without v2/legacy fallback: %s', async raw => {
     const f = setup(); f.values.set(f.adapter.key, raw); f.values.set(v2Key, old({ status: 'pending' })); f.values.set(f.oldKey, JSON.stringify([pin]))
@@ -63,7 +75,7 @@ describe('version3 featured desk migration and transaction boundaries', () => {
     expect(f.storage.setItem).not.toHaveBeenCalled(); expect(f.values.get(f.adapter.key)).toBe(raw)
   })
   it.each([
-    '{bad', '[]', old({ status: 'dismissed', noteId: paper.noteId }),
+    '{bad', '[]', JSON.stringify({ version: 2, partition: scope, items: [], whitepaper: { status: 'pending' }, extra: true }),
     JSON.stringify({ version: 2, partition: { ...scope, chainId: 'other' }, items: [], whitepaper: { status: 'pending' } }),
     JSON.stringify({ version: 2, partition: { ...scope, wallet: sushi.owner }, items: [], whitepaper: { status: 'pending' } }),
     JSON.stringify({ version: 2, partition: scope, items: [], whitepaper: { status: 'pending' }, resetToken: false }),

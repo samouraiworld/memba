@@ -5,7 +5,6 @@ import { parsePublicCapabilities } from '../../src/lib/notes/chain/capabilities'
 import { audit, NOTE_ID } from '../sushi-shell/audit'
 import { TEST_OWNER } from './session'
 import recipe from '../sushi/recipe.md?raw'
-import { PAPER_ID } from './releases'
 const bytes = (text: string) => new TextEncoder().encode(text)
 export class NotesReadClient {
     readonly chainId: string
@@ -13,7 +12,7 @@ export class NotesReadClient {
     assertCurrent() { if (!this.context.isCurrent()) throw new Error('Fixture read lifetime ended') }
     async note(id: string): Promise<ChainNote | null> {
         this.assertCurrent()
-        return id === NOTE_ID || id === PAPER_ID ? { id, owner: TEST_OWNER, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0', title: bytes(id === NOTE_ID ? 'Sushi Shell demonstration' : 'Future Whitepaper demonstration'), body: bytes(id === NOTE_ID ? recipe : '# Independent document\n\nFuture Whitepaper demonstration.'), commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '1', operationId: '75'.repeat(16), actor: TEST_OWNER, height: '1' } : null
+        return id === NOTE_ID ? { id, owner: TEST_OWNER, pendingOwner: '', ownerGeneration: '1', mode: 4, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '0', title: bytes('Sushi Shell demonstration'), body: bytes(recipe), commitment: new Uint8Array(), deleted: false, listed: true, createdHeight: '1', operationId: '75'.repeat(16), actor: TEST_OWNER, height: '1' } : null
     }
     async publicNotes() { return { items: [await this.note(NOTE_ID)], nextCursor: '' } }
     async byOwner(owner: string) { const note = await this.note(NOTE_ID); return { items: note && note.owner === owner ? [note] : [], nextCursor: '' } }

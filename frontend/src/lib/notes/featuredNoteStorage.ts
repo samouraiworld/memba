@@ -1,5 +1,5 @@
 import { check, record } from './chain/schema'
-import { decodeFeaturedDesk, encodeFeaturedDesk, featuredSeedState, resetFeaturedDesk, FEATURED_MAX_CHARS } from './featuredNoteSeed'
+import { decodeFeaturedDesk, encodeFeaturedDesk, resetFeaturedDesk, FEATURED_MAX_CHARS } from './featuredNoteSeed'
 import type { FeaturedDesk, FeaturedDeskItem, FeaturedDeskRules, FeaturedPartition } from './featuredNoteSeed'
 
 export interface FeaturedLocks {
@@ -36,11 +36,12 @@ export function createFeaturedNoteStorage(options: FeaturedStorageOptions) {
     }
     const previous = storage.getItem(previousKey)
     if (previous !== null) {
-      const value = record(parse(previous), ['version', 'partition', 'items', 'whitepaper'], ['resetToken'])
+      // The retired `whitepaper` marker is ignored; its note item, if any, stays an ordinary shortcut.
+      const value = record(parse(previous), ['version', 'partition', 'items'], ['whitepaper', 'resetToken'])
       check(value.version === 2)
-      const marker = featuredSeedState(value.whitepaper), storedToken = token(value.resetToken ?? null)
+      const storedToken = token(value.resetToken ?? null)
       const migrated = decodeFeaturedDesk(JSON.stringify({ version: 3, partition: value.partition, items: value.items,
-        releases: { 'sushi-v1': { status: 'pending' }, 'whitepaper-v1': marker } }), scope, rules)
+        releases: { 'sushi-v1': { status: 'pending' } } }), scope, rules)
       return storedToken === resetToken ? migrated : resetFeaturedDesk(scope, rules, initial.items)
     }
     // A non-null reset token prohibits resurrecting unversioned pre-reset data.

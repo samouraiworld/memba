@@ -3,10 +3,10 @@ import type { DraftRecord } from '../drafts'
 import { changedPublicFields, draftPublicOperation } from './draftOperation'
 import { publicNoteMessage } from './messages'
 import { encode64, type ChainNote } from './schema'
-const draft: DraftRecord = { schema: 1, scope: { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: 'alice', noteId: 'ab'.repeat(16) }, localRevision: '4', updatedAt: 0, payload: { kind: 'public', title: 'Whitepaper', body: 'Saved content' } }
+const draft: DraftRecord = { schema: 1, scope: { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: 'alice', noteId: 'ab'.repeat(16) }, localRevision: '4', updatedAt: 0, payload: { kind: 'public', title: 'Field guide', body: 'Saved content' } }
 describe('published draft baselines', () => {
     it('creates when there is no explicit chain baseline, never silently updates a current note', () => {
-        expect(draftPublicOperation(draft, 'cd'.repeat(16), 3, '100000').action).toEqual({ kind: 'create', mode: 3, title: 'Whitepaper', body: 'Saved content', maxFeeUgnot: '100000' })
+        expect(draftPublicOperation(draft, 'cd'.repeat(16), 3, '100000').action).toEqual({ kind: 'create', mode: 3, title: 'Field guide', body: 'Saved content', maxFeeUgnot: '100000' })
     })
     it('uses the old saved revision rather than a revision fetched when opening the wallet', () => {
         const current = { ...draft, payload: { kind: 'public' as const, title: 'Changed title', body: 'Changes', base: { stateRevision: '7', epoch: '2', ownerGeneration: '1', titleRevision: '5', bodyRevision: '6' } } }
