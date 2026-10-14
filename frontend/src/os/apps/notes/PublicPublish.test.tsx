@@ -30,7 +30,7 @@ function Page(props: ComponentProps<typeof PublicPublish>) {
 }
 /** Opens the review; a draft based on a revision is checked by the editor, which here finds it current. */
 function setup(record = draft, getDraft = vi.fn(async () => record)) {
-    const client = { chainId: 'gnoland-1', note: vi.fn(async () => published), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
+    const client = { realm: 'gno.land/r/samcrew/memba_notes_v1', chainId: 'gnoland-1', note: vi.fn(async () => published), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
     const beforeReview = vi.fn(() => client.note(record.scope.noteId)), titleProblem = vi.fn()
     render(<Page draft={record} client={client} store={{ getDraft } as unknown as NotesStore} beforeReview={beforeReview} titleProblem={titleProblem} />)
     fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
@@ -44,7 +44,7 @@ describe('public publication review', () => {
     it('keeps its note pane mounted while the publication is verified, then releases it', async () => {
         const hold = vi.fn(), pane = { hold, saved: vi.fn(), deleted: vi.fn(), focusTitle: false, titleFocused: vi.fn() } satisfies NotesPane
         const settled = vi.fn(); calls.prepare.mockResolvedValue({ warns: [], onSettled: settled })
-        const client = { chainId: 'gnoland-1', note: vi.fn(async () => null), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
+        const client = { realm: 'gno.land/r/samcrew/memba_notes_v1', chainId: 'gnoland-1', note: vi.fn(async () => null), config: vi.fn(async () => config), assertCurrent() {} } as unknown as NotesReadClient
         const fresh: DraftRecord = { ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content' } }
         render(<NotesPaneContext.Provider value={pane}><Page draft={fresh} client={client} store={{ getDraft: vi.fn(async () => fresh) } as unknown as NotesStore} /></NotesPaneContext.Provider>)
         fireEvent.click(screen.getByRole('button', { name: 'Publish' })); await approve()
@@ -111,7 +111,7 @@ describe('public publication review', () => {
 })
 
 function publicationProps() {
-    return { draft, client: { chainId: 'gnoland-1', assertCurrent() {}, config: vi.fn(async () => config) } as unknown as NotesReadClient,
+    return { draft, client: { realm: 'gno.land/r/samcrew/memba_notes_v1', chainId: 'gnoland-1', assertCurrent() {}, config: vi.fn(async () => config) } as unknown as NotesReadClient,
         store: { getDraft: vi.fn(async () => draft) } as unknown as NotesStore }
 }
 async function openReview() {
@@ -225,7 +225,7 @@ const live = { id: draft.scope.noteId, owner, mode: 4, deleted: false, stateRevi
 /** The page that opens the delete sheet: closing it unmounts it, as the authoring workspace does. */
 function DeletePage({ requestSession = createDraftSession(), walletChainId, order = [] as string[] }: { requestSession?: ReturnType<typeof createDraftSession>; walletChainId?: string; order?: string[] }) {
     const [open, setOpen] = useState(true), [notice, setNotice] = useState<Notice | null>(null)
-    const client = useState(() => ({ chainId: 'gnoland-1', assertCurrent() {} }) as unknown as NotesReadClient)[0]
+    const client = useState(() => ({ realm: 'gno.land/r/samcrew/memba_notes_v1', chainId: 'gnoland-1', assertCurrent() {} }) as unknown as NotesReadClient)[0]
     return <><NoteBanner notice={notice} />{open && <PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Field guide" requestSession={requestSession}
         walletChainId={walletChainId} onClose={() => { order.push('close'); setOpen(false) }} onNotice={setNotice} />}</>
 }
@@ -267,7 +267,7 @@ describe('published note deletion', () => {
     it('uses a fresh operation id for each attempt', async () => {
         calls.prepare.mockRejectedValueOnce(new Error('offline'))
         // The same sheet, kept open by its page, tries twice.
-        const client = { chainId: 'gnoland-1', assertCurrent() {} } as unknown as NotesReadClient, onClose = vi.fn()
+        const client = { realm: 'gno.land/r/samcrew/memba_notes_v1', chainId: 'gnoland-1', assertCurrent() {} } as unknown as NotesReadClient, onClose = vi.fn()
         render(<PublicDelete note={live} client={client} store={{} as NotesStore} owner={owner} title="Field guide" requestSession={createDraftSession()} onClose={onClose} />)
         fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' })); await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
         await waitFor(() => expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeEnabled())
