@@ -14,7 +14,7 @@ const base = { stateRevision: '4', epoch: '0', ownerGeneration: '1', titleRevisi
 const digest = (value: string) => bytesToHex(sha256(utf8(value)))
 /** Archived bodies by the event seq that recorded them; seq and field revision differ on purpose. */
 const bodies: Record<string, { bodyRevision: string; text: string }> = { '1': { bodyRevision: '1', text: '- milk\n- eggs\n- bread' }, '6': { bodyRevision: '2', text: '- milk\n- eggs\n- bread' } }
-type Version = { title: Uint8Array | null; titleRevision?: string | null; bodyRevision: string | null; recordedSeq?: string; deleted?: boolean; bodySha256?: string }
+type Version = { title: Uint8Array | null; titleRevision?: string | null; bodyRevision: string | null; recordedSeq?: string; deleted?: boolean; bodyRedacted?: boolean; bodySha256?: string }
 function client(versions: Record<string, Version> = { '4': { title: utf8('Groceries'), bodyRevision: '2', recordedSeq: '6' } }) {
     return {
         assertCurrent: vi.fn(),
@@ -56,6 +56,11 @@ describe('draft rebase planning', () => {
         // The body read by seq must be that revision, with the digest the version recorded.
         await expect(planDraftRebase(client({ '4': { title: utf8('Groceries'), bodyRevision: '2', recordedSeq: '1' } }), mine, latest)).rejects.toThrow('format')
         await expect(planDraftRebase(client({ '4': { title: utf8('Groceries'), bodyRevision: '2', recordedSeq: '6', bodySha256: 'f'.repeat(64) } }), mine, latest)).rejects.toThrow('format')
+    })
+    it('treats a moderator-redacted base body as unverifiable without reading it', async () => {
+        const c = client({ '4': { title: utf8('Groceries'), bodyRevision: '2', recordedSeq: '6', bodyRedacted: true } })
+        expect(await planDraftRebase(c, { title: 'Groceries', body: 'mine', base }, latest)).toMatchObject({ kind: 'conflict', fields: ['body'] })
+        expect(c.publicHistoryVersion).toHaveBeenCalledExactlyOnceWith(id, '4'); expect(history.body).not.toHaveBeenCalled()
     })
     it('treats a deleted or missing base version as unverifiable, never as empty text', async () => {
         for (const versions of [{}, { '4': { title: null, bodyRevision: null, deleted: true } }] as Record<string, Version>[]) {

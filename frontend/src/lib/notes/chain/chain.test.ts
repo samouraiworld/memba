@@ -157,7 +157,9 @@ describe('bound network reads', () => {
     const context = { chainId: 'test-chain', deployment: { realm: NOTES_REALM, version: 1 as const }, rpcUrls: [rpc.url], isCurrent: () => true }
     expect(() => new NotesReadClient({ ...context, chainId: 'other' })).toThrow()
     expect(() => new NotesReadClient({ ...context, rpcUrls: ['https://evil.test'] })).toThrow()
-    for (const realm of ['', 'gno.land/r/evil', 'gno.land/p/samcrew/memba_notes_v1', 'gno.land/r/samcrew/Notes', 'gno.land/r/samcrew/notes/', 'gno.land/r/samcrew/notes")']) {
+    // Neither the key registry nor a comment receipt scope is a Notes realm path.
+    for (const realm of ['', 'gno.land/r/evil', 'gno.land/p/samcrew/memba_notes_v1', 'gno.land/r/samcrew/Notes', 'gno.land/r/samcrew/notes/', 'gno.land/r/samcrew/notes")',
+      'gno.land/r/samcrew/enckeys_v1', `${NOTES_REALM}/comments/${noteId}`, `${NOTES_REALM}/comments`]) {
       expect(() => new NotesReadClient({ ...context, deployment: { realm, version: 1 } })).toThrow('format')
     }
     await expect(client().note('");Attack()')).rejects.toThrow()

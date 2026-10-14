@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { notesDeployment, validNoteTitle } from "./config"
+import { DEPLOYMENTS, deploymentRealm, notesDeployment, validNoteTitle } from "./config"
+import { validNotesRealm } from "./chain/schema"
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 describe("Notes release and title boundaries", () => {
     it.each([["false", "false"], ["true", "false"], ["false", "true"], ["true", "true"]])("opens only the reviewed onyx-1 deployment, and only with local=%s and chain=%s both true", async (local, chain) => {
@@ -11,6 +12,14 @@ describe("Notes release and title boundaries", () => {
         const open = local === "true" && chain === "true"
         expect(config.notesDeployment("onyx-1")).toEqual(open ? { realm: "gno.land/r/samcrew/memba_notes_v1", version: 1 } : null)
         for (const id of ["gnoland-1", "unknown", "__proto__", "constructor", "toString", "hasOwnProperty"]) expect(config.notesDeployment(id)).toBeNull()
+    })
+    it("names a valid Notes realm path in every deployment entry, read back unflagged for receipts", () => {
+        expect(Object.keys(DEPLOYMENTS).length).toBeGreaterThan(0)
+        for (const [chainId, entry] of Object.entries(DEPLOYMENTS)) {
+            expect(validNotesRealm(entry.realm)).toBe(true); expect(entry.version).toBe(1)
+            expect(deploymentRealm(chainId)).toBe(entry.realm)
+        }
+        for (const id of ["gnoland-1", "unknown", "__proto__", "constructor"]) expect(deploymentRealm(id)).toBeNull()
     })
     it("never invents a deployment without both release switches", () => {
         for (const chain of ["gnoland-1", "onyx-1", "test"]) expect(notesDeployment(chain)).toBeNull()

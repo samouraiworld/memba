@@ -8,7 +8,7 @@ export interface NotesDeploymentEntry { realm: string; version: 1 }
  * Publishing needs a reviewed deployment entry as well as its release switch. Each network names
  * its own realm path: every read, message, signing sheet and receipt uses the entry's path.
  */
-const DEPLOYMENTS: Readonly<Record<string, NotesDeploymentEntry>> = Object.freeze({
+export const DEPLOYMENTS: Readonly<Record<string, NotesDeploymentEntry>> = Object.freeze({
     // Testnet canary: published 2026-10-11 at h330932 from samcrew-deployer c20e8e6c
     // (payload 84bcef70…, 23 files), read back byte-identical. No mainnet entry yet
     // (mainnet will be gno.land/r/samcrew/memba_notes_v1).

@@ -9,9 +9,13 @@ export class NotesChainError extends Error {
   }
 }
 export function check(ok: unknown): asserts ok { if (!ok) throw new NotesChainError('format') }
-/** A realm path such as gno.land/r/samcrew/memba_notes_v1 (at most 128 bytes, as the crypto bindings encode it). */
+/**
+ * A Notes realm path such as gno.land/r/samcrew/memba_notes_v1 (at most 128 bytes, as the crypto bindings
+ * encode it). The key registry and comment receipt scopes (`<realm>/comments/<note>`) are not Notes realms.
+ */
 export function validNotesRealm(value: unknown): value is string {
   return typeof value === 'string' && value.length <= 128 && /^gno\.land\/r\/[a-z0-9_]+(?:\/[a-z0-9_]+)+$/.test(value)
+    && value !== NOTES_REGISTRY && !/\/comments(?:\/|$)/.test(value)
 }
 /** The Notes realm path of a deployment entry; there is no default path. */
 export function realmPath(value: unknown): string { check(validNotesRealm(value)); return value }
