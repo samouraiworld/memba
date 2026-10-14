@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { Board } from "./Board"
-import { cell, columnFull, winLine } from "./rules"
+import { cell, columnFull, mayEnd, winLine } from "./rules"
 import type { Game } from "../../lib/connect4"
 
 const empty = "0".repeat(42)
@@ -66,5 +66,17 @@ describe("Board", () => {
         expect(screen.getByRole("button", { name: "Drop in column 3: red, yellow, 4 empty" })).toBeDisabled()
         expect(screen.getByRole("button", { name: "Drop in column 1: 6 empty" })).toBeInTheDocument()
         expect(screen.getByText("Last move: yellow in column 3.")).toHaveAttribute("aria-live", "polite")
+    })
+})
+
+describe("mayEnd", () => {
+    it("is true only where a piece of either colour makes four, or the last cell fills", () => {
+        let b = empty
+        for (const r of [0, 1, 2]) b = put(b, 0, r, "2")
+        expect(mayEnd(b, 1)).toBe(true) // either colour: blocking counts too
+        expect(mayEnd(b, 2)).toBe(false)
+        expect(mayEnd(empty, 4)).toBe(false)
+        const full = "12".repeat(21)
+        expect(mayEnd(full.slice(0, 41) + "0", 7)).toBe(true)
     })
 })

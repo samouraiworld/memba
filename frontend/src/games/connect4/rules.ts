@@ -23,3 +23,17 @@ export function winLine(board: string): Array<[number, number]> {
     }
     return []
 }
+
+/**
+ * Whether a piece dropped in column (1-7) may end the game: it fills the board,
+ * or either colour there makes four. Either colour, so a blocking move counts
+ * too: it then gets the settling gas limit, which costs more but never runs out.
+ */
+export function mayEnd(board: string, column: number): boolean {
+    const c = column - 1
+    let r = 0
+    while (r < ROWS && cell(board, c, r) !== "0") r++
+    if (r === ROWS || board.indexOf("0") === board.lastIndexOf("0")) return true
+    const i = c * ROWS + r
+    return ["1", "2"].some((p) => winLine(board.slice(0, i) + p + board.slice(i + 1)).length > 0)
+}

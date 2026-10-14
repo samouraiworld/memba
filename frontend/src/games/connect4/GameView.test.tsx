@@ -44,7 +44,7 @@ describe("GameView", () => {
         view("g1alice", g)
         expect(await screen.findByText(/Your move/)).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: /^Drop in column 5:/ }))
-        await waitFor(() => expect(lib.play).toHaveBeenCalledWith("g1alice", 4, 5, 0, {}))
+        await waitFor(() => expect(lib.play).toHaveBeenCalledWith("g1alice", 4, 5, 0, { mayEnd: false }))
     })
 
     it("disables the board off-turn and shows Resign", async () => {

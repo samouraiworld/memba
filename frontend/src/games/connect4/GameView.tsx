@@ -4,6 +4,7 @@ import { QUICKPLAY_FALLBACK_EVENT, cancel, claimTimeout, getGame, play, resign, 
 import { quickPlayOn, quickPlayStatus } from "../../lib/quickPlay"
 import { Empty, Loading, Pill, type PillTone } from "../../os/kit"
 import { Board } from "./Board"
+import { mayEnd } from "./rules"
 import { TxError } from "./TxError"
 import { QuickPlay } from "./QuickPlay"
 import { useWalletBroadcast } from "./osWallet"
@@ -176,7 +177,7 @@ export function GameView({ id, me, connected, onBack }: { id: number; me: string
         {myReveal && !expired && !key && <div className="os-note os-err" role="alert">Your reveal key isn't on this device; you'll forfeit when the 90s runs out.</div>}
 
         <div className="c4-arena">
-            <Board game={g} piece={piece} canPlay={myTurn && !tx.pending} onPlay={(c) => void run(() => play(me, g.id, c, g.moves, plain), () => play(me, g.id, c, g.moves, wallet), canPlay)} />
+            <Board game={g} piece={piece} canPlay={myTurn && !tx.pending} onPlay={(c) => void run(() => play(me, g.id, c, g.moves, { ...plain, mayEnd: mayEnd(g.board, c) }), () => play(me, g.id, c, g.moves, { ...wallet, mayEnd: mayEnd(g.board, c) }), canPlay)} />
             <div className="c4-side">
                 {live && <div className="c4-turn" role="status" data-mine={myTurn}>{quick && <span aria-label="Signed by Quick play" title="Signed by Quick play">⚡ </span>}{turnText}<small>{expired ? "clock ran out" : `${fmtSeconds(left)} left`}</small></div>}
                 <PlayerCard colour="red" label="Creator" addr={g.creator} me={me} active={live && g.turn === 1} left={left} />

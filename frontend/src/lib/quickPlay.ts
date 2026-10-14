@@ -244,7 +244,7 @@ export async function quickPlayStatus(master: string): Promise<QuickPlayStatus |
     return s.status
 }
 
-export async function quickPlayCall(master: string, func: "Reveal" | "RevealSeed" | "Play" | "ClaimTimeout", args: string[]): Promise<{ hash: string }> {
+export async function quickPlayCall(master: string, func: "Reveal" | "RevealSeed" | "Play" | "ClaimTimeout", args: string[], gas = GAS_WANTED): Promise<{ hash: string }> {
     checkMaster(master)
     if (!FUNCS.has(func)) throw new Error(`Quick play can't sign ${func}`)
     // Signed without the wallet, so the OS session that started the move is checked here instead.
@@ -253,7 +253,7 @@ export async function quickPlayCall(master: string, func: "Reveal" | "RevealSeed
     if (signEachMove()) throw new QuickPlayUnavailable("rejected", "Quick play is paused — confirm in your wallet.")
     const mine = local(master)
     if (!mine) throw new QuickPlayUnavailable("ended", "Quick play isn't on for this account.")
-    const fee = feeForGasWanted(GAS_WANTED, await networkGasPrice())
+    const fee = feeForGasWanted(gas, await networkGasPrice())
     for (let attempt = 0; attempt < 2; attempt++) {
         let s: ChainSession | null
         try { s = await chainSession(master, mine.sessionAddr) }
@@ -264,7 +264,7 @@ export async function quickPlayCall(master: string, func: "Reveal" | "RevealSeed
         if (s.status.spendUsedUgnot + fee > s.status.spendLimitUgnot) throw new QuickPlayUnavailable("budget", "Quick play budget used up for today.")
         stillAllowed()
         const bytes = signSessionTx({
-            key: mine.key, chainId: GNO_CHAIN_ID, accountNumber: s.accountNumber, sequence: s.sequence, gas: GAS_WANTED, feeUgnot: fee,
+            key: mine.key, chainId: GNO_CHAIN_ID, accountNumber: s.accountNumber, sequence: s.sequence, gas, feeUgnot: fee,
             memo: `Connect 4: ${func}`,
             msg: { caller: master, send: "", max_deposit: MAX_DEPOSIT, pkg_path: mine.allowPath.slice("vm/exec:".length), func, args },
         })
