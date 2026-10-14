@@ -100,7 +100,11 @@ test.describe('Memba OS wallet', () => {
         expect(call.memo).toBe('thanks')
         await expect(win(page, 'Send')).toHaveCount(0)
         await page.getByRole('button', { name: /Notifications, 1 new/ }).click()
-        await expect(page.getByText('Confirmed · Send 1.5 GNOT')).toBeVisible()
+        await expect(page.getByText('Confirmed · Send 1.5 GNOT', { exact: true })).toBeVisible()
+        const onGnoscan = page.getByRole('link', { name: 'View on Gnoscan (transaction: Confirmed · Send 1.5 GNOT, opens in a new tab)' })
+        await expect(onGnoscan).toHaveAttribute('href', `https://gnoscan.io/transactions/details?txhash=${HASH}&chainId=gnoland-1`)
+        await expect(onGnoscan).toHaveAttribute('target', '_blank')
+        await expect(onGnoscan).toHaveAttribute('rel', 'noopener noreferrer')
     })
 
     test('an @name is looked up in the user registry, shown with its address, signed to that address, and checked again before Adena', async ({ page }) => {

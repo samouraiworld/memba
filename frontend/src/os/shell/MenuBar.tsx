@@ -16,6 +16,7 @@ import type { OsSession } from "./useOsSession"
 import { itemForTarget, type DeskItemType } from "./desk"
 import { specForTarget, urlForWindow, type OsWindow, type WindowSpec } from "./windows"
 import { useSigner } from "../sign/signerContext"
+import { TxNoticeCard } from "../sign/TxNoticeCard"
 import { LiveTicker } from "../apps/live/LiveTicker"
 import { newRoomId } from "../apps/meet/rooms"
 import { appSpec } from "./windows"
@@ -256,11 +257,7 @@ export function MenuBar(p: MenuBarProps) {
                     <div className="os-nl">
                         <CommunityNews />
                         <AwaitingSignatures awaiting={awaiting} onOpen={run(() => p.openApp("multisig"))} />
-                        {signer.notices.map((n) => (
-                            <div key={n.id} className={`os-nc os-nc-${n.kind}`}>
-                                <span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span>
-                            </div>
-                        ))}
+                        {signer.notices.map((n) => <TxNoticeCard key={n.id} notice={n} />)}
                         {guest
                             ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
                             : signer.notices.length === 0 && waiting === 0 && <p className="os-sub os-pad">No signing activity in this session.</p>}
