@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Connect 4: lower gas fees on moves (PRNUM, 2026-10-14)
+### Connect 4: lower gas fees on moves (#1617, 2026-10-14)
 - A gno.land transaction pays its whole gas limit, used or not, and every Connect 4 call had a 20M limit. Reveal, Reveal seed and a Play that cannot end the game now sign with 12M, cutting their fee by 40%. Measured on the realm's code: Reveal 5.6M, a Play that doesn't settle at most 5.9M.
 - A Play that may end the game (it fills the board, or a piece of either colour there makes four), Claim timeout, and the stake, Cancel and Resign calls keep 20M: a winning move that ran out of gas would forfeit. Quick play signs with the same limits.
 
