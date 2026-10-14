@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Desktop: a note shortcut follows its published title (#1622, 2026-10-14)
 - A note shortcut pinned before its note was published, or while the note was private, now takes the note's public title as soon as this tab confirms the publication or a rename, instead of showing "Note" until the next visit. The read waits for the announced revision when the network node is behind. A note that is still private keeps its lock and never shows or stores a title.
+- A shortcut label never goes back to an older revision: a lagging node's older answer (for example after posting a comment) is ignored instead of replacing a newer title, and a publication the node has not caught up with stays pending, so the next announcement or visit reads it again.
 - A test now covers the featured Desktop: removing a note shortcut while its title is still being read leaves no cached title once the Desktop confirms the removal.
 
 ### Notes: a posted comment is never offered again (#1619, 2026-10-14)
