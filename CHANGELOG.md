@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: read page, edit mode and publish sheet (#1620, 2026-10-14)
+- A published note opens as a page: one status line ("Published · revision 6 · by you"), Share, Edit and a ⋯ menu with Copy link, Export, Add to Desktop and, for the owner, Delete note. A skeleton shows while it loads, never "not found" before the network answers.
+- Edit turns the same page into its editor: the status says whether there are unpublished changes and which revision they are based on, Preview is a switch remembered on this device, title problems show under the title as you type, and Cancel asks before discarding changes.
+- Publish opens a sheet that says what changes, who sees it and what it costs (storage deposit and fee, with the signed cap), then follows the publication step by step (Review, Approve in Adena, Sending, Published) with a confirmation; the wrong Adena network and an insufficient balance are explained before any signature.
+- Every problem is a message at the top of the note that says what happened, that the text is kept and what to do next: a newer version is merged automatically when lines do not overlap, otherwise both versions are shown side by side to choose from. A draft stays reachable while the published note cannot be read, and a deleted note keeps its tombstone whatever its mode. Notes remains disabled pending deployment and reviewed activation.
+
 ### Notes: the Whitepaper leaves the release (#1618, 2026-10-14)
 - The Notes release now prepares a single featured Desktop shortcut, the Sushi recipe. The Whitepaper shortcut, its release key and its unused seed module are removed; the Whitepaper is not planned.
 - A Desktop saved by a development or canary build that still records the Whitepaper is read as before: the obsolete entry is dropped on the next save, every shortcut stays where it was (a Whitepaper note shortcut remains as an ordinary note shortcut) and the Sushi recipe keeps its state. Notes remains disabled pending deployment and reviewed activation.

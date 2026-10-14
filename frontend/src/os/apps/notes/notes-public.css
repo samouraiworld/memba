@@ -1,8 +1,5 @@
 .os-notes-public { height:100%; overflow:auto; padding:16px; box-sizing:border-box; }
 .os-notes-public .os-notes-reader { max-width:860px; margin:0 auto; }
-.os-notes-public .os-notes-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-.os-notes-public .os-notes-desk-action { max-width:860px; margin:0 auto 8px; display:flex; justify-content:flex-end; }
-.os-notes-public .os-notes-desk-action:empty { display:none; }
 .os-notes-public .os-notes-title { overflow-wrap:anywhere; }
 .os-notes-public .os-notes-library ul { list-style:none; padding:0; }
 .os-notes-public .os-notes-library li button { display:flex; flex-direction:column; gap:4px; padding:10px; width:100%; text-align:left; }

@@ -10,7 +10,6 @@ import { PublicAuthoring } from './PublicAuthoring'
 import { PublicOperationStatus } from './PublicOperationStatus'
 import { NoteSharePopover } from './NoteSharePopover'
 import { NoteSidePanel } from './NoteSidePanel'
-import { NoteDeskButton } from './NoteDeskButton'
 import { DraftEditor } from './DraftEditor'
 import { NotesList } from './NotesList'
 import { clearLastNote, openBlankDraft, readLastNote, writeLastNote } from './notesWorkspace'
@@ -59,6 +58,8 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
     const [held, setHeld] = useState<Readonly<Record<string, readonly string[]>>>({})
     // The caret goes to the title of a note just created, once Notes is the front window.
     const [focusNote, setFocusNote] = useState<string | null>(null), [verified, setVerified] = useState<string | null>(null)
+    // Sheets (publish, progress) cover the note side of the window, not the scrolling note.
+    const [overlay, setOverlay] = useState<HTMLDivElement | null>(null)
     useLayoutEffect(() => () => drafts.invalidate(), [drafts])
     useEffect(() => { if (partition && noteId) writeLastNote(partition, noteId) }, [partition, noteId])
     useEffect(() => {
@@ -127,20 +128,22 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
                 <span className="os-notes-row-title">Public notes</span><span className="os-notes-row-meta">Read what others published</span>
             </button>
         </nav>
-        <section className="os-notes-main" aria-label="Note">
-            <button type="button" className="os-btn os-quiet os-notes-back" aria-label="Back to notes" onClick={() => { setExploring(false); if (noteId) onShowList() }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>Notes
-            </button>
-            {owner && <PublicOperationStatus client={reader} store={store} partition={partition} onOpen={open} />}
-            {exploring && <PublicLibrary client={reader} filter={query} onOpen={open} />}
-            {!exploring && !selected && <p className="os-notes-welcome" role="status">Preparing a new note…</p>}
-            {/* Keyed by note: hidden panes keep their text; a pane unmounts only once nothing in it is unsaved. */}
-            {panes.map(id => <PaneFrame key={id} hidden={exploring || id !== selected}>{side => <>
-                <div className="os-notes-desk-action"><NoteDeskButton noteId={id} /></div>
-                <NotePane client={reader} partition={partition} noteId={id} owner={owner} focusTitle={active && focusNote === id}
-                    hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} side={side} />
-            </>}</PaneFrame>)}
-        </section>
+        <div className="os-notes-viewport">
+            <section className="os-notes-main" aria-label="Note">
+                <button type="button" className="os-btn os-quiet os-notes-back" aria-label="Back to notes" onClick={() => { setExploring(false); if (noteId) onShowList() }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>Notes
+                </button>
+                {owner && <PublicOperationStatus client={reader} store={store} partition={partition} onOpen={open} />}
+                {exploring && <PublicLibrary client={reader} filter={query} onOpen={open} />}
+                {!exploring && !selected && <p className="os-notes-welcome" role="status">Preparing a new note…</p>}
+                {/* Keyed by note: hidden panes keep their text; a pane unmounts only once nothing in it is unsaved. */}
+                {panes.map(id => <PaneFrame key={id} hidden={exploring || id !== selected}>{side =>
+                    <NotePane client={reader} partition={partition} noteId={id} owner={owner} focusTitle={active && focusNote === id} shown={!exploring && id === selected}
+                        side={side} overlay={overlay} walletChainId={session.walletChainId} hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} />
+                }</PaneFrame>)}
+            </section>
+            <div ref={setOverlay} className="os-notes-overlay" />
+        </div>
     </div>
 }
 /**
@@ -155,19 +158,19 @@ function PaneFrame({ hidden, children }: { hidden: boolean; children(side: HTMLE
         <div className="os-notes-pane-side-host" ref={host} />
     </div>
 }
-type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean; side: HTMLElement
+type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean; shown: boolean
+    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string
     hold(note: string, source: string, unsaved: boolean): void; saved(bump: (value: number) => number): void; removed(note: string, published: boolean): void; titleFocused(value: null): void }
-function NotePane({ client, partition, noteId, owner, focusTitle, side, hold, saved, removed, titleFocused }: PaneProps) {
+function NotePane({ client, partition, noteId, owner, focusTitle, shown, side, overlay, walletChainId, hold, saved, removed, titleFocused }: PaneProps) {
     const scope = useMemo(() => ({ ...partition, noteId }), [partition, noteId])
     const pane = useMemo<NotesPane>(() => ({
         hold: (source, unsaved) => hold(noteId, source, unsaved), saved: () => saved(value => value + 1),
-        deleted: published => removed(noteId, published), focusTitle, titleFocused: () => titleFocused(null), side,
-    }), [noteId, focusTitle, side, hold, saved, removed, titleFocused])
+        deleted: published => removed(noteId, published), focusTitle, titleFocused: () => titleFocused(null), shown, side, overlay,
+    }), [noteId, focusTitle, shown, side, overlay, hold, saved, removed, titleFocused])
     // Guests write local drafts too; a note without one opens in the public reader.
-    return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} />
+    return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} walletChainId={walletChainId} />
         : <DraftEditor store={store} scope={scope} onSaved={noop} remote={<PublicNote id={noteId} client={client} owner={null}
-            encrypted={() => <section className="os-notes-welcome"><h1>Encrypted note</h1><p>Encrypted notes are not available in this public view.</p></section>}
-            editAction={note => <NoteSharePopover note={note} client={client} store={store} owner={null} onChanged={noop} />}>
+            share={note => <NoteSharePopover note={note} client={client} store={store} owner={null} onChanged={noop} />}>
             {(note, _refresh, previewRoot) => note.mode >= 3 && <NoteSidePanel note={note} client={client} owner={null} store={store} previewRoot={previewRoot} />}
         </PublicNote>} />}</NotesPaneContext.Provider>
 }

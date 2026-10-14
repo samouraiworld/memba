@@ -31,7 +31,7 @@ test('guest opens the real reader and Worker-rendered full recipe without a sign
     await expect(preview.getByText('This recipe is a demonstration document.', { exact: false })).toBeVisible()
     await expect(preview.locator('a[href^="#"]')).not.toHaveCount(0)
     await expect(page.getByText('No comments on this page.', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Review comment|Edit note|Delete comment|Resolve thread|Hide comment/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^(Review comment|Edit|Delete comment|Resolve thread|Hide comment)$/ })).toHaveCount(0)
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.getByText('Guest reading only — no wallet or signature.', { exact: true })).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath('sushi-reading.png'), fullPage: true })

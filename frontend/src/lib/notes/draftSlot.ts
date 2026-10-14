@@ -7,10 +7,15 @@ export async function readDraftSlot(store: NotesStore, scope: NotesScope, guard:
     const draft = await store.getDraft(scope); current()
     return { revision, draft }
 }
+/** Storage did not answer the check that follows an aborted save: the save may or may not have landed. */
+export class DraftWriteUnknownError extends Error {
+    constructor() { super('Draft save outcome unknown'); this.name = 'DraftWriteUnknownError' }
+}
 /**
  * A draft save bounded in time that never lands after it was reported as not done: on timeout the
  * write is aborted (an IndexedDB transaction that has not committed rolls back), then what actually
- * happened is settled. A NotesTimeoutError always means nothing was written.
+ * happened is settled. A NotesTimeoutError always means nothing was written; a DraftWriteUnknownError
+ * means the check could not tell.
  */
 export async function saveDraftBounded(store: NotesStore, scope: NotesScope, expectedRevision: string, payload: DraftPayload, guard: DraftWriteGuard, ms = NOTES_STEP_TIMEOUT_MS, graceMs = 2000): Promise<NotesWriteResult<DraftRecord>> {
     const controller = new AbortController(), forward = () => controller.abort()
@@ -25,9 +30,10 @@ export async function saveDraftBounded(store: NotesStore, scope: NotesScope, exp
         if (late.status === 'saved') return late
         if (late.status !== 'session-changed') throw error
         // An abort racing the commit reports "session-changed": read what is stored.
-        const revision = await withTimeout(store.getDraftRevision(scope), graceMs)
+        const unknown = () => { throw new DraftWriteUnknownError() }
+        const revision = await withTimeout(store.getDraftRevision(scope), graceMs).catch(unknown)
         if (revision === expectedRevision) throw error
-        const stored = await withTimeout(store.getDraft(scope), graceMs)
+        const stored = await withTimeout(store.getDraft(scope), graceMs).catch(unknown)
         const ours = !!stored && stored.localRevision === String(BigInt(expectedRevision) + 1n) && samePublicPayload(stored.payload, payload)
         return ours ? { status: 'saved', value: stored } : { status: 'conflict' }
     } finally { guard.signal.removeEventListener('abort', forward) }

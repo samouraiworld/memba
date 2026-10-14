@@ -32,7 +32,9 @@ vi.mock('./PublicAuthoring', async () => {
     // Stands in for a publication being verified with the authoring workspace's own session.
     function Publishing({ noteId }: { noteId: string }) {
         const pane = useNotesPane()
-        useEffect(() => { pane?.hold('publishing:test', true); return () => mocks.unmounted(noteId) }, [pane, noteId])
+        // The pane context changes with what is on screen; only a real unmount ends the publication.
+        useEffect(() => { pane?.hold('publishing:test', true) }, [pane])
+        useEffect(() => () => mocks.unmounted(noteId), [noteId])
         return null
     }
     return { PublicAuthoring: ({ scope }: { scope: { owner: string; noteId: string } }) => { mocks.scopes.push(scope); return <><p>Public authoring for {scope.owner}</p>{mocks.publishing === scope.noteId && <Publishing noteId={scope.noteId} />}</> } }
@@ -63,7 +65,8 @@ describe('dormant public Notes native view', () => {
         expect(screen.getByText('Readable example body')).toBeVisible(); expect(screen.getByText('Public history')).toBeVisible()
         fireEvent.click(screen.getByRole('tab', { name: /Comments/ })); expect(screen.getByText('Comments for guest')).toBeVisible()
         expect(screen.getByRole('button', { name: 'Share' })).toBeVisible()
-        for (const name of ['Edit note', 'Review deletion', 'Write a note', 'Encryption', 'Publish']) expect(screen.queryByRole('button', { name })).toBeNull()
+        for (const name of ['Edit', 'Edit note', 'Review deletion', 'Write a note', 'Encryption', 'Publish']) expect(screen.queryByRole('button', { name })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'More actions' })); expect(screen.queryByRole('menuitem', { name: /Delete/ })).toBeNull()
         expect(mocks.contexts[0]).toMatchObject({ chainId: 'test-chain', rpcUrls: ['https://rpc.invalid'] })
     })
     it('gives authoring only to the current member account and retains the guest reader while resuming', async () => {
@@ -88,18 +91,19 @@ describe('dormant public Notes native view', () => {
         fireEvent.click(await screen.findByRole('button', { name: /Public example/ }))
         expect(input.onOpenNote).toHaveBeenCalledExactlyOnceWith(id)
     })
-    it('offers Add to Desktop for the open note only, for guests and members alike', async () => {
+    it('offers Add to Desktop for the open note only, in its menu', async () => {
+        // Members' note views (PublicAuthoring, mocked here) use the same note header menu (NoteHeader.test).
         const desk = { isPinned: vi.fn(() => false), pin: vi.fn(), unpin: vi.fn() }
         const view = render(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props()} /></DeskShortcutsContext.Provider>)
-        fireEvent.click(await screen.findByRole('button', { name: 'Add to Desktop' }))
+        fireEvent.click(await screen.findByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Add to Desktop' }))
         expect(desk.pin).toHaveBeenCalledExactlyOnceWith({ ty: 'note', ref: id })
-        view.rerender(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props({ status: 'member', address: 'owner' })} /></DeskShortcutsContext.Provider>)
-        expect(await screen.findByText('Public authoring for owner')).toBeVisible(); expect(screen.getByRole('button', { name: 'Add to Desktop' })).toBeVisible()
-        // The shown note may be the remembered one (no note in the address); Explore shows no note, so no button.
-        view.rerender(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props({ status: 'member', address: 'owner' }, null)} /></DeskShortcutsContext.Provider>)
-        fireEvent.click(screen.getByRole('button', { name: 'Add to Desktop' })); expect(desk.pin).toHaveBeenLastCalledWith({ ty: 'note', ref: id })
+        // The shown note may be the remembered one (no note in the address); Explore shows no note, so no menu.
+        view.rerender(<DeskShortcutsContext.Provider value={desk}><PublicNotesApp {...props({}, null)} /></DeskShortcutsContext.Provider>)
+        fireEvent.click(await screen.findByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Add to Desktop' }))
+        expect(desk.pin).toHaveBeenCalledTimes(2); expect(desk.pin).toHaveBeenLastCalledWith({ ty: 'note', ref: id })
         fireEvent.click(screen.getByRole('button', { name: /Public notes/ }))
-        expect(await screen.findByRole('button', { name: /Public example/ })).toBeVisible(); expect(screen.queryByRole('button', { name: 'Add to Desktop' })).toBeNull()
+        expect(await screen.findByRole('button', { name: /Public example/ })).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull(); expect(screen.queryByRole('menuitem', { name: 'Add to Desktop' })).toBeNull()
     })
 
     it('opens ready to write the first time: one blank local draft, caret in the title, nothing signed', async () => {
@@ -162,7 +166,7 @@ describe('dormant public Notes native view', () => {
         const title = await screen.findByRole('textbox', { name: 'Note title' })
         vi.spyOn(mocks.store, 'saveDraft').mockResolvedValue({ status: 'unavailable' })
         fireEvent.change(title, { target: { value: 'Shopping list' } })
-        expect(await screen.findByText(/Device storage is unavailable/)).toBeInTheDocument()
+        expect(await screen.findByText(/This device could not save your edits/)).toBeInTheDocument()
         view.rerender(<PublicNotesApp {...input} section={id} />)
         expect(await screen.findByRole('heading', { name: 'Public example' })).toBeVisible()
         expect(within(screen.getByRole('navigation', { name: 'Notes list' })).getByRole('button', { name: /Unsaved changes/ })).toBeVisible()
@@ -258,10 +262,10 @@ describe('dormant public Notes native view', () => {
         expect(await screen.findByRole('heading', { name: 'Public example' })).toBeVisible()
         expect(mocks.contexts.length).toBeGreaterThan(1); expect(mocks.contexts[0].isCurrent()).toBe(false); expect(mocks.contexts.at(-1)!.isCurrent()).toBe(true)
     })
-    it.each([[null, 'Note not found'], [{ ...note, deleted: true }, 'Deleted note'], [{ ...note, mode: 1 }, 'Encrypted note']] as const)('renders absent/deleted/encrypted state without editing or private controls', async (value, heading) => {
+    it.each([[null, 'heading', 'Note not found'], [{ ...note, deleted: true }, 'heading', 'Deleted note'], [{ ...note, mode: 1 }, 'region', 'Private note']] as const)('renders absent/deleted/encrypted state without editing or private controls', async (value, role, name) => {
         mocks.note.mockResolvedValue(value); render(<PublicNotesApp {...props()} />)
-        expect(await screen.findByRole('heading', { name: heading })).toBeVisible(); expect(screen.queryByText('Readable example body')).toBeNull()
-        expect(screen.queryByText(/encryption settings/i)).toBeNull()
-        if (heading === 'Encrypted note') { expect(screen.getByText('Encrypted notes are not available in this public view.')).toBeVisible(); expect(mocks.panel).not.toHaveBeenCalled() }
+        expect(await screen.findByRole(role, { name })).toBeVisible(); expect(screen.queryByText('Readable example body')).toBeNull()
+        expect(screen.queryByText(/encryption settings/i)).toBeNull(); expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Share' })).toBeNull()
+        if (name === 'Private note') { expect(screen.getByText(/Opening private notes is not available in this version/)).toBeVisible(); expect(mocks.panel).not.toHaveBeenCalled() }
     })
 })

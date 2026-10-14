@@ -56,20 +56,21 @@ describe("public Notes library", () => {
 
 describe("public note reading", () => {
     it.each([
-        [null, "Note not found"],
-        [note({ deleted: true, title: new Uint8Array(), body: new Uint8Array() }), "Deleted note"],
-        [note({ mode: 1 }), "Encrypted note"],
-    ])("renders the explicit nonpublic state without exposing payloads", async (value, heading) => {
-        render(<PublicNote id={noteId} client={{ note: vi.fn().mockResolvedValue(value) }} owner={null} onEdit={vi.fn()} />)
-        expect(await screen.findByRole("heading", { name: heading as string })).toBeVisible()
-        expect(screen.queryByText("Public body")).toBeNull()
-        expect(screen.queryByRole("button", { name: "Edit note" })).toBeNull()
+        [null, "heading", "Note not found"],
+        [note({ deleted: true, title: new Uint8Array(), body: new Uint8Array() }), "heading", "Deleted note"],
+        [note({ mode: 1 }), "region", "Private note"],
+    ] as const)("renders the explicit nonpublic state without exposing payloads", async (value, role, name) => {
+        render(<PublicNote id={noteId} client={{ note: vi.fn().mockResolvedValue(value) }} owner="owner" onEdit={vi.fn()} />)
+        expect(await screen.findByRole(role, { name })).toBeVisible()
+        expect(screen.queryByText("Public body")).toBeNull(); expect(screen.queryByText("Published title")).toBeNull()
+        expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
     })
     it("exports the published note under a file name derived from its title", async () => {
         const names: string[] = [], click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
         Object.assign(URL, { createObjectURL: vi.fn(() => "blob:note"), revokeObjectURL: vi.fn() })
         render(<PublicNote id={noteId} client={{ note: vi.fn().mockResolvedValue(note({ title: new TextEncoder().encode("Sushi: rice & nori") })) }} owner={null} />)
-        fireEvent.click(await screen.findByRole("button", { name: "Export Markdown" }))
+        fireEvent.click(await screen.findByRole("button", { name: "More actions" }))
+        fireEvent.click(screen.getByRole("menuitem", { name: /^Export/ }))
         expect(names).toEqual(["Sushi- rice & nori.md"])
         click.mockRestore()
     })
@@ -79,12 +80,13 @@ describe("public note reading", () => {
         expect(await screen.findByRole("heading", { name: "Published title" })).toBeVisible()
         expect(screen.getByText("Public body")).toBeVisible()
         expect(screen.getByRole("status")).toHaveTextContent("9007199254740993")
-        expect(screen.getByRole("button", { name: "Export Markdown" })).toBeVisible()
-        expect(screen.queryByRole("button", { name: "Edit note" })).toBeNull()
+        fireEvent.click(screen.getByRole("button", { name: "More actions" }))
+        expect(screen.getByRole("menuitem", { name: /^Export/ })).toBeVisible()
+        expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
         view.rerender(<PublicNote id={noteId} client={client} owner="other" onEdit={edit} />)
-        expect(screen.queryByRole("button", { name: "Edit note" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
         view.rerender(<PublicNote id={noteId} client={client} owner="owner" onEdit={edit} />)
-        fireEvent.click(screen.getByRole("button", { name: "Edit note" }))
+        fireEvent.click(screen.getByRole("button", { name: "Edit" }))
         const baseline = edit.mock.calls[0][0] as ChainNote
         expect(JSON.stringify(baseline)).toBe(JSON.stringify(original))
         expect(baseline).not.toBe(original)
