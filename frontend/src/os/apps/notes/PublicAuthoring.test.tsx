@@ -136,6 +136,19 @@ describe('public authoring durable workspace', () => {
             await waitFor(async () => expect(await store.getDraft(scope)).toBeNull())
             await waitFor(() => expect(screen.queryByText(/This note was deleted/)).toBeNull())
         })
+        it('never follows silently over text typed while the comparison ran (another window)', async () => {
+            const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, title: 'Old title', body: 'Old body' }, session)
+            const compared = deferred<void>()
+            mocks.plan.mockImplementation(async () => {
+                const stored = await store.getDraft(scope)
+                await store.saveDraft(scope, stored!.localRevision, { ...payload, title: 'Old title', body: 'Typed meanwhile' }, session); compared.resolve()
+                return { kind: 'replace', latest: note, title: 'Published title', body: 'Published body' }
+            })
+            render(<PublicAuthoring store={store} client={client} scope={scope} />)
+            let done = false; void compared.promise.then(() => { done = true })
+            await waitFor(() => expect(done).toBe(true)); await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)) })
+            expect((await store.getDraft(scope))?.payload).toMatchObject({ body: 'Typed meanwhile', base: { stateRevision: '1' } })
+        })
         it('follows the published text silently when the draft holds nothing of its own', async () => {
             const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, title: 'Old title', body: 'Old body' }, session)
             mocks.plan.mockResolvedValue({ kind: 'replace', latest: note, title: 'Published title', body: 'Published body' })

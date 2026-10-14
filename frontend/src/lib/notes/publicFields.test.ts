@@ -41,6 +41,9 @@ describe('a separate copy is told apart from its note (F26)', () => {
         expect(copyTitle('  ')).toBe('Untitled note (my version)')
         const long = copyTitle('é'.repeat(80))
         expect(long.endsWith(' (my version)')).toBe(true); expect(publicTitleProblem(long)).toBeNull()
+        // 40 four-byte emoji: 40 characters but already 160 bytes, the byte limit decides.
+        const emoji = copyTitle('🍣'.repeat(40))
+        expect(emoji).toBe(`${'🍣'.repeat(36)} (my version)`); expect(new TextEncoder().encode(emoji).length).toBeLessThanOrEqual(160); expect(publicTitleProblem(emoji)).toBeNull()
     })
 })
 describe('public body rules mirror the realm validatePublic', () => {

@@ -113,9 +113,9 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
       ownerGeneration: base?.ownerGeneration ?? '1', draftLocalRevision,
       verification: publicVerification(operation, base, height),
     }
-    return { operation, message, height, quote, input }
+    return { operation, config: nextConfig, message, height, quote, input }
   }
-  let { message, height, quote, input } = await priced(operation, config)
+  let { config: shownConfig, message, height, quote, input } = await priced(operation, config)
   let begun = false, sendStarted = false, walletMayHaveOpened = false
   const recheck = async () => {
     writeAllowed()
@@ -137,7 +137,7 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
       if (base && (!now || now.epoch !== base.epoch || now.ownerGeneration !== base.ownerGeneration)) throw new NotesChainError('stale')
       // An attempt that recorded its intention keeps it (as not sent): the new attempt is another operation.
       const next = await priced(sendStarted ? { ...operation, operationId: newNoteId() } : operation, nextConfig); writeAllowed()
-      ;({ operation, message, height, quote, input } = next)
+      ;({ operation, config: shownConfig, message, height, quote, input } = next)
       sendStarted = false; begun = false
     } catch (error) {
       if (error instanceof NotesChainError && error.code === 'stale') throw new Error(NOT_REPRICED)
@@ -151,7 +151,7 @@ export async function preparePublicNoteRequest(options: PublicRequestOptions): P
     lines: () => [
       ['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm],
       ['Operation', operation.operationId], ['Note', operation.noteId],
-      ['Publication fee', gnotAmount(operation.action.kind === 'create' ? config.createFeeUgnot : '0')],
+      ['Publication fee', gnotAmount(operation.action.kind === 'create' ? shownConfig.createFeeUgnot : '0')],
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Estimated storage deposit', gnotAmount(quote.estimatedDepositUgnot)],
       ['Maximum storage deposit', gnotAmount(cap)], ['Network fee', gnotAmount(quote.networkFeeUgnot)],
     ],

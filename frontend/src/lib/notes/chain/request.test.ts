@@ -176,6 +176,18 @@ describe('Notes signing intentions', () => {
       s.applied({ operationId: sent.operationId, height: '112' })
       expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
     })
+    it('shows the publication fee of the fresh quote, not the first one', async () => {
+      const s = setup(); s.setNote(null)
+      s.options.operation = { ...s.options.operation, action: { kind: 'create', mode: 3, title: 'Fresh', body: 'Text', maxFeeUgnot: '100000' } }
+      const request = await preparePublicNoteRequest(s.options)
+      expect(request.lines(undefined)).toContainEqual(['Publication fee', '0.1 GNOT'])
+      s.setHeight('111')
+      await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError)
+      vi.mocked(s.options.client.config).mockResolvedValue({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '50000', paused: false })
+      await request.requote!(undefined)
+      expect(request.lines(undefined)).toContainEqual(['Publication fee', '0.05 GNOT'])
+      expect(request.prepare(undefined).msgs[0].value.send).toBe('50000ugnot')
+    })
     it('refuses to quote again once the note moved on, in plain words', async () => {
       const s = setup(), request = await preparePublicNoteRequest(s.options); s.setHeight('111')
       await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError)
