@@ -119,6 +119,11 @@ const MAX_DEPOSIT_UGNOT = 2_000_000
 // Offer simulated at 8.24M gas; the 10M app default leaves too little room for a
 // settling Play (payout + Stats writes), and an out-of-gas winning move forfeits.
 const GAS_WANTED = 20_000_000
+// The whole gas fee is paid whatever is used, so a move that cannot end the game
+// gets a smaller limit. Measured 2026-10-13 on an integration node: Reveal and
+// RevealSeed 5.6M, a Play that doesn't settle at most 5.9M (a winning one 9.8M,
+// Resign 11.1M); twice that, rounded up.
+const MOVE_GAS_WANTED = 12_000_000
 
 export function buildCall(func: Connect4Func, args: string[], caller: string, sendUgnot?: number): AminoMsg {
     const path = realmPath()
@@ -132,27 +137,29 @@ export function buildCall(func: Connect4Func, args: string[], caller: string, se
 /** Who asks the wallet: doContractBroadcast by default; Memba OS passes its review sheet's (games/connect4/osWallet). */
 export type Broadcast = typeof doContractBroadcast
 
-function submit(func: Connect4Func, args: string[], caller: string, sendUgnot?: number, broadcast: Broadcast = doContractBroadcast, beforeSign?: () => Promise<void>) {
-    return broadcast([buildCall(func, args, caller, sendUgnot)], `Connect 4: ${func}`, { gasWanted: GAS_WANTED, beforeSign })
+function submit(func: Connect4Func, args: string[], caller: string, sendUgnot?: number, broadcast: Broadcast = doContractBroadcast, beforeSign?: () => Promise<void>, gasWanted = GAS_WANTED) {
+    return broadcast([buildCall(func, args, caller, sendUgnot)], `Connect 4: ${func}`, { gasWanted, beforeSign })
 }
 
 export const QUICKPLAY_FALLBACK_EVENT = "memba:quickplay-fallback"
 type MoveFunc = "Reveal" | "RevealSeed" | "Play" | "ClaimTimeout"
-/** `beforeSign` runs right before the wallet opens and throws to stop (nothing is sent). */
-export interface MoveOptions { viaWallet?: boolean; broadcast?: Broadcast; beforeSign?: () => Promise<void> }
+/** `beforeSign` runs right before the wallet opens and throws to stop (nothing is sent).
+ * `mayEnd: false` says a Play cannot end the game (rules.mayEnd), so it gets the smaller gas limit. */
+export interface MoveOptions { viaWallet?: boolean; broadcast?: Broadcast; beforeSign?: () => Promise<void>; mayEnd?: boolean }
 
 // Coin-free moves sign through the Quick play session when one is active; if the
 // session can't be used, the same call goes to Adena at once.
 async function move(func: MoveFunc, args: string[], caller: string, opts?: MoveOptions) {
+    const gas = func === "ClaimTimeout" || (func === "Play" && opts?.mayEnd !== false) ? GAS_WANTED : MOVE_GAS_WANTED
     if (!opts?.viaWallet && quickPlayOn(caller)) {
-        try { return await quickPlayCall(caller, func, args) }
+        try { return await quickPlayCall(caller, func, args, gas) }
         catch (e) {
             if (!(e instanceof QuickPlayUnavailable)) throw e
             // Tell the UI why, without delaying the wallet call.
             window.dispatchEvent(new CustomEvent(QUICKPLAY_FALLBACK_EVENT, { detail: e.message }))
         }
     }
-    return submit(func, args, caller, undefined, opts?.broadcast, opts?.beforeSign)
+    return submit(func, args, caller, undefined, opts?.broadcast, opts?.beforeSign, gas)
 }
 
 function assertIndex(n: number) {

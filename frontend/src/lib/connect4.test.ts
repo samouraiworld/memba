@@ -13,7 +13,7 @@ vi.mock("./config", async (orig) => ({
 }))
 
 import { QuickPlayUnavailable } from "./quickPlay"
-import { accept, buildCall, cancel, getActive, getGame, isGame, getLeaders, offer, play, resign, revealSeed, revealKey, sha256Hex, type Game } from "./connect4"
+import { accept, buildCall, cancel, claimTimeout, getActive, getGame, isGame, getLeaders, offer, play, resign, reveal, revealSeed, revealKey, sha256Hex, type Game } from "./connect4"
 
 export const sample: Game = {
     id: 3, creator: "g1creator", opponent: "", acceptor: "g1acceptor", stake: 2_000_000, fee: 100_000,
@@ -117,6 +117,14 @@ describe("writes", () => {
         expect(mine).toHaveBeenCalledTimes(2)
     })
 
+    it("gives moves that cannot end the game the smaller gas limit", async () => {
+        await play("g1me", 3, 4, 0, { mayEnd: false })
+        await reveal("g1me", 3, "p")
+        await play("g1me", 3, 4, 0, { mayEnd: true })
+        await claimTimeout("g1me", 3)
+        expect(broadcast.mock.calls.map((c) => c[2].gasWanted)).toEqual([12_000_000, 12_000_000, 20_000_000, 20_000_000])
+    })
+
     it("rejects out-of-range columns before signing", async () => {
         await expect(play("g1me", 3, 0, 0)).rejects.toThrow()
         await expect(play("g1me", 3, 8, 0)).rejects.toThrow()
@@ -182,7 +190,7 @@ describe("Quick play routing", () => {
         qp.quickPlayOn.mockReturnValue(true)
         qp.quickPlayCall.mockResolvedValue({ hash: "H" })
         await play("g1me", 3, 4, 0)
-        expect(qp.quickPlayCall).toHaveBeenCalledWith("g1me", "Play", ["3", "4", "0"])
+        expect(qp.quickPlayCall).toHaveBeenCalledWith("g1me", "Play", ["3", "4", "0"], 20_000_000)
         expect(broadcast).not.toHaveBeenCalled()
         qp.quickPlayOn.mockReturnValue(false)
         await play("g1me", 3, 5, 0)
@@ -192,7 +200,7 @@ describe("Quick play routing", () => {
         qp.quickPlayOn.mockReturnValue(true)
         qp.quickPlayCall.mockResolvedValue({ hash: "H" })
         await revealSeed("g1me", 3, "s")
-        expect(qp.quickPlayCall).toHaveBeenCalledWith("g1me", "RevealSeed", ["3", "s"])
+        expect(qp.quickPlayCall).toHaveBeenCalledWith("g1me", "RevealSeed", ["3", "s"], 12_000_000)
     })
     it("never routes stakes, Cancel or Resign through Quick play", async () => {
         qp.quickPlayOn.mockReturnValue(true)
