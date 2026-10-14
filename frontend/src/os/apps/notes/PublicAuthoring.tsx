@@ -114,7 +114,6 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
             // From here on a failure opens the saved draft unchanged: its text is never out of reach.
             opensAsIs = !!payload
             if (draft && !payload) throw new Error('Unavailable draft')
-            if (draft && archived) { setNotice(info('A draft of this note already exists on this device. It was not replaced by the older version.')); return }
             // A creation draft whose note is not published yet opens as it is.
             if (payload && !payload.base && await withTimeout(client.note(scope.noteId)) === null) { if (!guard.signal.aborted) show(); return }
             if (guard.signal.aborted) return
@@ -128,8 +127,13 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
                 return
             }
             if (guard.signal.aborted) return
-            if (!draft) {
-                const result = await saveDraftBounded(store, scope, slot.revision, { kind: 'public', title: archived?.title ?? publicText(note.title, true), body: archived?.body ?? publicText(note.body!), base: draftBase(note) }, guard)
+            // An earlier version replaces a draft only when that draft holds nothing unpublished.
+            if (draft && archived && (!payload || !sameText(payload, note))) {
+                setNotice({ tone: 'warn', text: `Your draft of this note has unpublished changes, so it was not replaced by revision ${archived.sourceStateRevision}. Publish or discard it first (Edit, then Cancel), then use this version again.` })
+                return
+            }
+            if (!draft || archived) {
+                const result = await saveDraftBounded(store, scope, draft ? draft.localRevision : slot.revision, { kind: 'public', title: archived?.title ?? publicText(note.title, true), body: archived?.body ?? publicText(note.body!), base: draftBase(note) }, guard)
                 if (guard.signal.aborted) return
                 if (result.status !== 'saved') { setNotice({ tone: 'warn', text: 'Another window changed this draft or storage is unavailable. No saved draft was replaced.' }); return }
                 show(); setConflict(null); reloadEditor(value => value + 1); reread(value => value + 1)

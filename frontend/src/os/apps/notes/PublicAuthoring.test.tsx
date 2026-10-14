@@ -218,8 +218,18 @@ describe('public authoring durable workspace', () => {
         expect(await screen.findByLabelText('Note title')).toHaveValue('Archived title')
         expect((await store.getDraft(scope))?.payload).toMatchObject({ body: 'Archived body', base: { stateRevision: '3' } })
         view.unmount(); render(<PublicAuthoring store={store} client={client} scope={scope} />)
-        fireEvent.click(await screen.findByRole('button', { name: 'Restore archived draft' })); await screen.findByText(/already exists/)
+        // The restored draft now differs from the published note: it is never replaced by another restore.
+        fireEvent.click(await screen.findByRole('button', { name: 'Restore archived draft' })); await screen.findByText(/has unpublished changes, so it was not replaced/)
         expect((await store.getDraft(scope))?.localRevision).toBe('1')
+    })
+    it('restores over a draft that has no unpublished changes', async () => {
+        const { store, session, client } = setup()
+        await store.saveDraft(scope, '0', { kind: 'public', title: 'Published title', body: 'Published body', base: currentBase }, session)
+        render(<PublicAuthoring store={store} client={client} scope={scope} />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Restore archived draft' }))
+        expect(await screen.findByLabelText('Note title')).toHaveValue('Archived title')
+        await waitFor(async () => expect((await store.getDraft(scope))?.payload).toMatchObject({ title: 'Archived title', body: 'Archived body', base: { stateRevision: '3' } }))
+        expect((await store.getDraft(scope))?.localRevision).toBe('2')
     })
     it('rebases a stale draft when its publication is reviewed, without opening a review', async () => {
         const { store, session, client } = setup(); await store.saveDraft(scope, '0', { ...payload, base: currentBase }, session)
