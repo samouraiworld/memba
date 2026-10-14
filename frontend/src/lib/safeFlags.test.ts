@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { assertSafeFlags, assertSecureApiUrls, SAFETY_GATED_FLAGS, shouldEnforceFlagGate } from "./safeFlags"
+import { assertNotesChainContext, assertSafeFlags, assertSecureApiUrls, SAFETY_GATED_FLAGS, shouldEnforceFlagGate } from "./safeFlags"
 
 describe("assertSafeFlags", () => {
     it("lets a release build carry native multisig (de-gated 2026-10-01, owner)", () => {
@@ -32,7 +32,6 @@ describe("assertSafeFlags", () => {
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
-            "VITE_ENABLE_NOTES_CHAIN",
             "VITE_ENABLE_NOTES_ENCRYPTED",
             "VITE_ENABLE_NOTES_VAULT_REVEAL",
             "VITE_ENABLE_TREASURY_SPEND",
@@ -41,13 +40,40 @@ describe("assertSafeFlags", () => {
         ])
     })
 
-    it.each(["VITE_ENABLE_NOTES_CHAIN", "VITE_ENABLE_NOTES_ENCRYPTED", "VITE_ENABLE_NOTES_VAULT_REVEAL"])("keeps %s out of release builds", flag => {
+    it.each(["VITE_ENABLE_NOTES_ENCRYPTED", "VITE_ENABLE_NOTES_VAULT_REVEAL"])("keeps %s out of release builds", flag => {
         expect(() => assertSafeFlags({ [flag]: "true" })).toThrow(flag)
         expect(() => assertSafeFlags({ [flag]: "false" })).not.toThrow()
     })
 
     it("keeps the EVM network out of release builds until launch", () => {
         expect(() => assertSafeFlags({ VITE_ENABLE_EVM: "true" })).toThrow(/VITE_ENABLE_EVM/)
+    })
+})
+
+describe("VITE_ENABLE_NOTES_CHAIN (de-gated 2026-10-14 — public Notes released on gnoland-1)", () => {
+    it("is no longer gated, so true does not fail the build", () => {
+        expect(SAFETY_GATED_FLAGS).not.toContain("VITE_ENABLE_NOTES_CHAIN")
+        expect(() => assertSafeFlags({ VITE_ENABLE_NOTES: "true", VITE_ENABLE_NOTES_CHAIN: "true" })).not.toThrow()
+    })
+
+    it("still fails the build when private notes are enabled alongside it", () => {
+        expect(() => assertSafeFlags({ VITE_ENABLE_NOTES_CHAIN: "true", VITE_ENABLE_NOTES_ENCRYPTED: "true" })).toThrow(/VITE_ENABLE_NOTES_ENCRYPTED/)
+        expect(() => assertSafeFlags({ VITE_ENABLE_NOTES_CHAIN: "true", VITE_ENABLE_NOTES_ENCRYPTED: "true" })).not.toThrow(/VITE_ENABLE_NOTES_CHAIN/)
+    })
+})
+
+describe("assertNotesChainContext (public Notes writes only from the production context)", () => {
+    const chain = { VITE_ENABLE_NOTES: "true", VITE_ENABLE_NOTES_CHAIN: "true" }
+    it.each(["deploy-preview", "branch-deploy"])("fails a %s build with VITE_ENABLE_NOTES_CHAIN on", context => {
+        expect(() => assertNotesChainContext(chain, context)).toThrow(/VITE_ENABLE_NOTES_CHAIN.*production context/)
+    })
+    it("passes the production context and builds without a Netlify CONTEXT (CI, local)", () => {
+        expect(() => assertNotesChainContext(chain, "production")).not.toThrow()
+        expect(() => assertNotesChainContext(chain, undefined)).not.toThrow()
+    })
+    it("passes a preview when the flag is unset or not exactly true", () => {
+        expect(() => assertNotesChainContext({ VITE_ENABLE_NOTES: "true" }, "deploy-preview")).not.toThrow()
+        expect(() => assertNotesChainContext({ VITE_ENABLE_NOTES_CHAIN: "false" }, "branch-deploy")).not.toThrow()
     })
 })
 

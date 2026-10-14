@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
-import { assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
+import { assertNotesChainContext, assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { assertOsFlagAllowed } from './src/os/osBuildGate'
 import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES, OS_BRAND_PATH, OS_ORIGIN, osDevIconsEnabled, osIconHtml, osDevBrandFile } from './src/os/osSiteIdentity'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
@@ -61,6 +61,8 @@ function safeFlagsPlugin(): PluginOption {
   return {
     name: 'memba-safe-flags',
     config(_config, { command, mode }) {
+      // Public Notes writes only from the production context, previews included (see safeFlags.ts).
+      assertNotesChainContext({ ...process.env, ...loadEnv(mode, '..', 'VITE_') }, process.env.CONTEXT)
       // Netlify sets CONTEXT (production / deploy-preview / branch-deploy); CI/local
       // leave it unset. Enforce on CI + the production build, skip ephemeral previews.
       if (shouldEnforceFlagGate(command, process.env.CONTEXT)) {

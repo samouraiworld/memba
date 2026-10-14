@@ -11,8 +11,15 @@
 // To enable a flag legitimately: remove it from SAFETY_GATED_FLAGS AND pass code
 // review (the build fails otherwise).
 export const SAFETY_GATED_FLAGS = [
-    // Notes transactions and encryption require their independent release reviews.
-    "VITE_ENABLE_NOTES_CHAIN",
+    // VITE_ENABLE_NOTES_CHAIN de-gated 2026-10-14 (owner): public Notes transactions are
+    // released after the realm cost cuts (samcrew-deployer#363) and the Onyx rehearsal
+    // memba_notes_rc1 (h398276), whose 11-step two-wallet canary passed. Mainnet
+    // gno.land/r/samcrew/memba_notes_v1 (h806211) + enckeys_v1 (h806205) are published by
+    // the samcrew 2-of-3 (samcrew-deployer#365), read back byte-identical; the client
+    // entry is memba#1629 and the official Sushi note is live on gnoland-1. Never set
+    // VITE_ENABLE_NOTES_CHAIN outside the production context: previews are built from
+    // unreviewed PR code and gnoland-1 is the default network (assertNotesChainContext).
+    // Private (encrypted) notes and the vault reveal still need their own release review.
     "VITE_ENABLE_NOTES_ENCRYPTED",
     "VITE_ENABLE_NOTES_VAULT_REVEAL",
     // VITE_ENABLE_NFT DE-GATED by the pearl §6 completion PR: the combined
@@ -51,6 +58,20 @@ export function assertSafeFlags(env: Record<string, string | undefined>): void {
             `SAFETY GATE FAILED — ${enabled.join(", ")}="true". ` +
                 `These flags gate features with incomplete on-chain enforcement. ` +
                 `To enable: remove from SAFETY_GATED_FLAGS in frontend/src/lib/safeFlags.ts AND pass code review.`,
+        )
+    }
+}
+
+/**
+ * Throws (failing the build) if public Notes transactions are on in a Netlify deploy-preview or
+ * branch-deploy. Those builds run unreviewed PR code against gnoland-1, the default network, and
+ * shouldEnforceFlagGate skips them, so this check runs on its own. No CONTEXT (CI, local) passes.
+ */
+export function assertNotesChainContext(env: Record<string, string | undefined>, context: string | undefined): void {
+    if (env.VITE_ENABLE_NOTES_CHAIN === "true" && (context === "deploy-preview" || context === "branch-deploy")) {
+        throw new Error(
+            `NOTES GATE FAILED — VITE_ENABLE_NOTES_CHAIN="true" in a Netlify ${context} build. ` +
+                `Previews are built from unreviewed code and default to gnoland-1: set this flag only in the production context.`,
         )
     }
 }
