@@ -70,6 +70,20 @@ describe("OS signing session boundary", () => {
         await waitFor(() => expect(readGovernanceReceipt(receipt)).toBeNull())
     })
 
+    it("keeps the transaction hash and the chain it was sent on with its notice", async () => {
+        const hash = "6035ba06ef".padEnd(64, "0")
+        const verified = { ...request, label: () => "Publish note", send: vi.fn(async () => ({ hash })), verify: vi.fn(async () => true) }
+        function Notices() {
+            const signer = useSigner()
+            return <><button type="button" onClick={() => signer.sign(verified)}>Open review</button><ul>{signer.notices.map((n) => <li key={n.id}>{n.title} | {n.sub} | {n.tx?.chainId} | {n.tx?.hash}</li>)}</ul></>
+        }
+        const onyx = { ...session("member"), network: { chainId: "onyx-1" }, walletChainId: "onyx-1" } as unknown as OsSession
+        render(<SignerProvider session={onyx} toast={vi.fn()}><Notices /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open review" }))
+        fireEvent.click(screen.getByRole("button", { name: "Sign in Adena" }))
+        expect(await screen.findByText(`Confirmed · Publish note | onyx-1 · 6035ba06ef… | onyx-1 | ${hash}`)).toBeInTheDocument()
+    })
+
     it("retains a confirmed proposal ID after verification so a reload remains locked", async () => {
         const receipt = { chainId: "gnoland-1", realmPath: "gno.land/r/test/dao", caller: "g1alpha", operation: "proposal" }
         const verified = {

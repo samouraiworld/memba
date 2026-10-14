@@ -1,7 +1,14 @@
 import { createContext, useContext } from "react"
 import type { SignRequest } from "./signer"
 
-export interface TxNotice { id: number; kind: "ok" | "warn" | "fail"; title: string; sub: string }
+export interface TxNotice {
+    id: number
+    kind: "ok" | "warn" | "fail"
+    title: string
+    sub: string
+    /** The transaction the notice is about, as the wallet returned its hash, and the chain it was sent on. */
+    tx?: { hash: string; chainId: string }
+}
 
 export interface SignerApi {
     /** False when no review opened: not connected, or another review is on screen (the member is told). */

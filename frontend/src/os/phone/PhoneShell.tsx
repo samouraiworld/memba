@@ -19,6 +19,7 @@ import { WindowBody } from "../shell/WindowFrame"
 import type { ArcadeLaunchIntent } from "../../games/arcade/LaunchContext"
 import { isArcadePlayWindow, sendSpec, specForTarget, type OsWindow, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
+import { TxNoticeCard } from "../sign/TxNoticeCard"
 import { CommunityNews } from "../community/CommunityNews"
 import { AwaitingSignatures } from "../multisig/AwaitingSignatures"
 import { notificationsLabel, useAwaiting } from "../multisig/useOsMultisig"
@@ -89,9 +90,7 @@ export function PhoneShell(p: PhoneShellProps) {
                 <div className="os-stack os-tight">
                     <CommunityNews />
                     <AwaitingSignatures awaiting={awaiting} onOpen={go(() => p.openApp("multisig"))} />
-                    {signer.notices.map((n) => (
-                        <div key={n.id} className={`os-nc os-nc-${n.kind}`}><span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span></div>
-                    ))}
+                    {signer.notices.map((n) => <TxNoticeCard key={n.id} notice={n} />)}
                     {!member
                         ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={session.openConnect}>Connect</button></div>
                         : signer.notices.length === 0 && waiting === 0 && <p className="os-sub">No signing activity in this session.</p>}

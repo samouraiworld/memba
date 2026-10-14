@@ -122,6 +122,8 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         setReview((r) => r && { ...r, stage: "checking", error: null })
         const label = req.label(choice)
         const signerAddress = session.address
+        // The chain this request is signed on; the owner check below ends the flow if it changes.
+        const chainId = session.network.chainId
         const sameOwner = () => ownerRef.current === requestOwner
         const res = await executeSignature(req, choice, msgs, () => {
             if (sameOwner()) setReview((r) => r && { ...r, stage: "wallet" })
@@ -154,7 +156,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         }
         if (res.outcome === "unknown") {
             closeReview()
-            notify({ kind: "warn", title: `Outcome unknown · ${label}`, sub: res.error || "Check before trying again." })
+            notify({ kind: "warn", title: `Outcome unknown · ${label}`, sub: res.error || "Check before trying again.", ...(res.hash ? { tx: { hash: res.hash, chainId } } : {}) })
             toast(`Outcome unknown: ${label}. Check before retrying.`)
             settle(req, choice, "unknown")
             return
@@ -185,16 +187,17 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         if (ok === true && req.receipt && !req.retainConfirmedReceipt) {
             try { clearGovernanceReceipt(req.receipt) } catch { /* retain the conservative lock if storage refuses */ }
         }
-        const where = `${session.network.chainId} · ${hash.slice(0, 10)}…`
+        const where = `${chainId} · ${hash.slice(0, 10)}…`
         const pendingNote = ok === false ? req.pendingNote?.() : undefined
         const failedTitle = ok === "failed" ? req.failedTitle?.() : undefined
+        const tx = { hash, chainId }
         notify(ok === true
-            ? { kind: "ok", title: `Confirmed · ${label}`, sub: where }
+            ? { kind: "ok", title: `Confirmed · ${label}`, sub: where, tx }
             : ok === "failed"
-                ? { kind: "fail", title: `${failedTitle ?? "Refused by the network"} · ${label}`, sub: `${where}: ${req.failedNote?.() ?? "the chain ran it and refused it. It did not take effect; the network fee was still charged."}` }
+                ? { kind: "fail", title: `${failedTitle ?? "Refused by the network"} · ${label}`, sub: `${where}: ${req.failedNote?.() ?? "the chain ran it and refused it. It did not take effect; the network fee was still charged."}`, tx }
                 : ok === null
-                    ? { kind: "ok", title: `Submitted · ${label}`, sub: where }
-                    : { kind: "warn", title: `Submitted · ${label}`, sub: pendingNote ?? "The chain hasn't shown it yet. Don't send it again." })
+                    ? { kind: "ok", title: `Submitted · ${label}`, sub: where, tx }
+                    : { kind: "warn", title: `Submitted · ${label}`, sub: pendingNote ?? "The chain hasn't shown it yet. Don't send it again.", tx })
         if (ok === false) toast(`Submitted: ${label}. ${pendingNote ?? "Not visible on chain yet."}`)
         if (ok === "failed") toast(failedTitle ? `${failedTitle}: ${label}. Your transaction went through; the details are in Notifications.` : `Refused by the network: ${label}. It did not take effect; the network fee was still charged.`)
         settle(req, choice, ok === true ? "confirmed" : ok === "failed" ? "failed" : "submitted")
