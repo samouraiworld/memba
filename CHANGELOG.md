@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes: the version chooser shows each side in its own column (2026-10-14)
+### Notes: the version chooser shows each side in its own column (#1623, 2026-10-14)
 - When a newer published version overlaps your edit, "See changes" showed your lines under the other author's revision and theirs under "Your version". The choices themselves were right; the columns now show the right text. Found in the Onyx canary. Notes remains disabled in production.
 
 ### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
