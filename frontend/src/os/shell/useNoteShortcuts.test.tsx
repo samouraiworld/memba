@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { ChainNote } from '../../lib/notes/chain/schema'
+import { announceNoteChange } from '../../lib/notes/freshness'
 import { readNoteShortcuts, writeNoteShortcuts } from './noteShortcuts'
 import { useNoteShortcuts } from './useNoteShortcuts'
 
@@ -83,4 +84,38 @@ it('forgets a removed shortcut again once the desk confirms the removal, even if
     rerender({ ids: [priv] })
     await waitFor(() => expect(readNoteShortcuts('test-chain', 'g1me')[pub]).toBeUndefined())
     expect(readNoteShortcuts('test-chain', 'g1me')[priv]).toEqual({ title: null, private: true, missing: false })
+})
+
+it('follows a note that becomes public once its change is announced, without ever showing a private title', async () => {
+    writeNoteShortcuts('test-chain', 'g1me', { [priv]: { title: null, private: true, missing: false } }, [priv])
+    const { result } = renderHook(() => useNoteShortcuts({ chainId: 'test-chain', owner: 'g1me', ids: [priv], enabled: true }))
+    expect(result.current.privateNotes.has(priv)).toBe(true)
+    await new Promise(done => setTimeout(done, 20))
+    expect(mocks.meta).not.toHaveBeenCalled()
+    // Another note's change, or the same id on another network, reads nothing.
+    act(() => { announceNoteChange({ chainId: 'test-chain', noteId: pub }); announceNoteChange({ chainId: 'other-chain', noteId: priv }) })
+    await new Promise(done => setTimeout(done, 20))
+    expect(mocks.meta).not.toHaveBeenCalled()
+    // Still private after a change: the lock stays and no title is shown or stored.
+    act(() => announceNoteChange({ chainId: 'test-chain', noteId: priv }))
+    await waitFor(() => expect(mocks.meta).toHaveBeenCalledOnce())
+    expect(result.current.privateNotes.has(priv)).toBe(true); expect(result.current.labels[priv]).toBeUndefined()
+    expect(localStorage.getItem('memba_os_note_shortcuts:v1:test-chain:g1me')).not.toContain('Sushi')
+    // Published: the shortcut takes the public title.
+    mocks.meta.mockResolvedValueOnce(meta(priv, { title: new TextEncoder().encode('Now public'), stateRevision: '3' }))
+    act(() => announceNoteChange({ chainId: 'test-chain', noteId: priv, stateRevision: '3' }))
+    await waitFor(() => expect(result.current.labels[priv]).toBe('Now public'))
+    expect(result.current.privateNotes.has(priv)).toBe(false)
+    expect(readNoteShortcuts('test-chain', 'g1me')[priv]).toEqual({ title: 'Now public', private: false, missing: false })
+})
+
+it('labels a shortcut pinned before its note was published once the publication is announced, waiting out a lagging node', async () => {
+    mocks.meta.mockResolvedValueOnce(null)
+    const { result } = renderHook(() => useNoteShortcuts({ chainId: 'test-chain', owner: 'g1me', ids: [gone], enabled: true }))
+    await waitFor(() => expect(readNoteShortcuts('test-chain', 'g1me')[gone]).toEqual({ title: null, private: false, missing: true }))
+    // The first node answer is still behind the announced revision.
+    mocks.meta.mockResolvedValueOnce(null).mockResolvedValueOnce(meta(gone, { title: new TextEncoder().encode('Fresh note'), stateRevision: '1' }))
+    act(() => announceNoteChange({ chainId: 'test-chain', noteId: gone, stateRevision: '1' }))
+    await waitFor(() => expect(result.current.labels[gone]).toBe('Fresh note'), { timeout: 3000 })
+    expect(mocks.meta).toHaveBeenCalledTimes(3)
 })

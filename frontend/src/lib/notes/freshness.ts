@@ -19,6 +19,12 @@ function emit(signal: Signal) {
 export function announceNoteChange(change: NoteChange): void { emit({ kind: 'change', change: { ...change } }) }
 /** A Notes window came to the front; omit the note to re-check every open note. */
 export function announceNotesFocus(chainId?: string, noteId?: string): void { emit({ kind: 'focus', chainId, noteId }) }
+/** Calls `listener` for every confirmed note change in this page; returns the unsubscribe. */
+export function onNoteChange(listener: (change: NoteChange) => void): () => void {
+    const relay = (signal: Signal) => { if (signal.kind === 'change') listener({ ...signal.change }) }
+    listeners.add(relay)
+    return () => { listeners.delete(relay) }
+}
 
 export function useNoteFreshness(chainId: string, noteId: string, onChange: (change: { stateRevision?: string }) => void): void {
     const callback = useRef(onChange)
