@@ -14,7 +14,7 @@ describe('public writer edit entry', () => {
         permission.mockReturnValue(new Promise<boolean>(done => { resolve = done }))
         const edit = vi.fn(); render(<PublicEditButton note={note} owner="writer" client={client} onEdit={edit} />)
         expect(screen.queryByRole('button')).toBeNull()
-        resolve(true); fireEvent.click(await screen.findByRole('button', { name: 'Edit note' }))
+        resolve(true); fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
         expect(edit.mock.calls[0][0]).toEqual(note); expect(edit.mock.calls[0][0]).not.toBe(note)
     })
     it.each([false, null])('does not expose protected Whitepaper editing without a content grant (%s)', async allowed => {
