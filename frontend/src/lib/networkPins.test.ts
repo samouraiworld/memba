@@ -88,7 +88,7 @@ interface Pin {
 }
 
 const ALLOWLIST: Pin[] = [
-    { file: "lib/notes/config.ts", allow: ["gnoland-1", "onyx-1"], why: "The reviewed Notes deployment registry: an entry opens Notes writes on that chain only in builds with both Notes release switches, and VITE_ENABLE_NOTES_CHAIN is safety-gated out of production builds. It never selects the app network." },
+    { file: "lib/notes/config.ts", allow: ["gnoland-1", "onyx-1"], why: "The reviewed Notes deployment registry: an entry opens public Notes writes on that chain only in builds with both Notes release switches (VITE_ENABLE_NOTES and VITE_ENABLE_NOTES_CHAIN). It never selects the app network." },
     { file: "lib/notes/featuredNoteRelease.ts", allow: ["gnoland-1"], why: "The reviewed featured-note table, keyed by chain: every entry is validated against that chain's Notes deployment realm, which exists only in builds with both Notes release switches. It attests no capability and never selects the app network." },
     { file: "os/apps/radio/client.ts", allow: ["onyx-1"], why: "Gno Radio is an independent read-only Onyx service. Its RPC chain is verified against that deployment, never Memba's selected network; there is no radio write path." },
     { file: "lib/recentSubmissions.ts", allow: ["gnoland-1"], why: "The C2b read accepts only the backend's fixed official mainnet submission source; it does not select the app network or permit writes." },

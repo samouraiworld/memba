@@ -32,7 +32,6 @@ describe("assertSafeFlags", () => {
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
-            "VITE_ENABLE_NOTES_CHAIN",
             "VITE_ENABLE_NOTES_ENCRYPTED",
             "VITE_ENABLE_NOTES_VAULT_REVEAL",
             "VITE_ENABLE_TREASURY_SPEND",
@@ -41,13 +40,25 @@ describe("assertSafeFlags", () => {
         ])
     })
 
-    it.each(["VITE_ENABLE_NOTES_CHAIN", "VITE_ENABLE_NOTES_ENCRYPTED", "VITE_ENABLE_NOTES_VAULT_REVEAL"])("keeps %s out of release builds", flag => {
+    it.each(["VITE_ENABLE_NOTES_ENCRYPTED", "VITE_ENABLE_NOTES_VAULT_REVEAL"])("keeps %s out of release builds", flag => {
         expect(() => assertSafeFlags({ [flag]: "true" })).toThrow(flag)
         expect(() => assertSafeFlags({ [flag]: "false" })).not.toThrow()
     })
 
     it("keeps the EVM network out of release builds until launch", () => {
         expect(() => assertSafeFlags({ VITE_ENABLE_EVM: "true" })).toThrow(/VITE_ENABLE_EVM/)
+    })
+})
+
+describe("VITE_ENABLE_NOTES_CHAIN (de-gated 2026-10-14 — public Notes released on gnoland-1)", () => {
+    it("is no longer gated, so true does not fail the build", () => {
+        expect(SAFETY_GATED_FLAGS).not.toContain("VITE_ENABLE_NOTES_CHAIN")
+        expect(() => assertSafeFlags({ VITE_ENABLE_NOTES: "true", VITE_ENABLE_NOTES_CHAIN: "true" })).not.toThrow()
+    })
+
+    it("still fails the build when private notes are enabled alongside it", () => {
+        expect(() => assertSafeFlags({ VITE_ENABLE_NOTES_CHAIN: "true", VITE_ENABLE_NOTES_ENCRYPTED: "true" })).toThrow(/VITE_ENABLE_NOTES_ENCRYPTED/)
+        expect(() => assertSafeFlags({ VITE_ENABLE_NOTES_CHAIN: "true", VITE_ENABLE_NOTES_ENCRYPTED: "true" })).not.toThrow(/VITE_ENABLE_NOTES_CHAIN/)
     })
 })
 
