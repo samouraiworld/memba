@@ -17,6 +17,10 @@ export interface NotesPane {
     titleFocused(): void
     /** Where the note's History and Comments panel goes, right of the note (inline when absent). */
     readonly side?: HTMLElement | null
+    /** This note is the one on screen (hidden panes keep their state but show no sheet). */
+    readonly shown?: boolean
+    /** Where sheets over the note side of the window are placed. */
+    readonly overlay?: HTMLElement | null
 }
 /** Hold sources for a publication being verified: the pane stays mounted, but nothing is unsaved. */
 export const PUBLISHING = 'publishing:'

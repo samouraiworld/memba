@@ -4,6 +4,8 @@ import { publicText, type ChainNote } from "../../../lib/notes/chain/schema"
 import { readFresh, useNoteRefresh } from "../../../lib/notes/freshness"
 import { MarkdownPreview } from "./MarkdownPreview"
 import { noteExportFilename } from "../../../lib/notes/exportFilename"
+import { downloadMarkdown, shortAddress } from "./notesFormat"
+import { NoteBanner, NoteHeader, NoteStatus, type NoteMenuItem } from "./NoteHeader"
 
 type Client = Pick<NotesReadClient, "note"> & Partial<Pick<NotesReadClient, "chainId">>
 type Read = { client: Client; id: string; version: number; phase: "loading" | "ready" | "error"; note: ChainNote | null }
@@ -12,8 +14,30 @@ function newest(previous: Read, client: Client, id: string, note: ChainNote | nu
     const shown = previous.client === client && previous.id === id ? previous.note : null
     return shown && (!note || BigInt(note.stateRevision) < BigInt(shown.stateRevision)) ? shown : note
 }
+/** A skeleton while the note is read: never "Note not found" before a definitive answer. */
+export function NoteSkeleton({ label = "Loading note…" }: { label?: string }) {
+    return <section className="os-notes-document os-notes-skeleton" role="status" aria-busy="true">
+        <span className="os-notes-sr">{label}</span>
+        <i style={{ width: "34%" }} /><b style={{ width: "55%" }} /><i /><i style={{ width: "88%" }} /><i style={{ width: "72%" }} />
+    </section>
+}
 
-export function PublicNote({ id, client, owner, onEdit, editAction, children, encrypted }: { id: string; client: Client; owner: string | null; onEdit?(note: ChainNote): void; editAction?(note: ChainNote): ReactNode; children?(note: ChainNote, refresh: () => void, previewRoot: HTMLElement | null): ReactNode; encrypted?(note: ChainNote, refresh: () => void): ReactNode }) {
+type Props = {
+    id: string; client: Client; owner: string | null
+    /** The primary action (Edit) for this revision. */
+    primary?(note: ChainNote): ReactNode
+    /** Replaces the status line, e.g. when this device holds unpublished changes. */
+    status?(note: ChainNote): ReactNode
+    menu?(note: ChainNote): NoteMenuItem[]
+    /** The Share menu for this revision. */
+    share?(note: ChainNote, refresh: () => void): ReactNode
+    banner?: ReactNode
+    /** Legacy owner-only edit callback, used when no primary action is given. */
+    onEdit?(note: ChainNote): void
+    children?(note: ChainNote, refresh: () => void, previewRoot: HTMLElement | null): ReactNode
+    encrypted?(note: ChainNote, refresh: () => void): ReactNode
+}
+export function PublicNote({ id, client, owner, primary, status, menu, share, banner, onEdit, children, encrypted }: Props) {
     const [read, setRead] = useState<Read>({ client, id, version: 0, phase: "loading", note: null })
     const [previewRoot, setPreviewRoot] = useState<HTMLElement | null>(null)
     // Confirmed changes and refocus re-read; an announced revision makes older answers count as node lag.
@@ -27,29 +51,32 @@ export function PublicNote({ id, client, owner, onEdit, editAction, children, en
     }, [client, id, reload, minimum])
     const refreshing = read.version !== reload
     // An absent note is only reported once no newer read is pending: never flash "not found" while loading.
-    if (read.client !== client || read.id !== id || read.phase === "loading" || (refreshing && !read.note)) return <section className="os-notes-welcome" role="status">Loading note…</section>
+    if (read.client !== client || read.id !== id || read.phase === "loading" || (refreshing && !read.note)) return <NoteSkeleton />
     if (read.phase === "error" && !read.note) return <section className="os-notes-welcome"><p role="alert">This note could not be read. Please try again.</p><button className="os-btn" onClick={() => bump()}>Retry</button></section>
     const note = read.note
     if (!note) return <section className="os-notes-welcome"><h1>Note not found</h1><p>No note was found at this address on the current network.</p></section>
-    if (note.deleted) return <section className="os-notes-document os-notes-reader"><h1>Deleted note</h1><p>The owner deleted this note. Earlier versions remain in chain history.</p>{children?.(note, () => bump(), note.deleted ? null : previewRoot)}</section>
-    if (note.mode < 3) return encrypted?.(note, () => bump()) ?? <section className="os-notes-welcome"><h1>Encrypted note</h1><p>Open the encryption settings to unlock your Notes identity.</p></section>
+    const refresh = () => bump(), root = note.deleted ? null : previewRoot
+    const by = owner && note.actor === owner ? "you" : shortAddress(note.actor)
+    const failed = read.phase === "error" && <NoteBanner notice={{ tone: "warn", text: "The latest revision could not be read. The last loaded revision is still displayed.", actions: <button className="os-btn os-quiet" onClick={refresh}>Try again</button> }} />
+    if (note.mode < 3) return encrypted?.(note, refresh) ?? <section className="os-notes-document os-notes-reader" aria-label="Private note">
+        <NoteHeader noteId={id} status={<NoteStatus kind="private">Private · revision {note.stateRevision}</NoteStatus>} />
+        <p className="os-notes-hint">This private note is encrypted. Opening private notes is not available in this version.</p>
+    </section>
+    if (note.deleted) return <section className="os-notes-document os-notes-reader" aria-label="Deleted note">
+        <NoteHeader noteId={id} status={<NoteStatus kind="published">Deleted · revision {note.stateRevision} · by {by}</NoteStatus>} />
+        {failed}
+        <h1 className="os-notes-title">Deleted note</h1><p>The owner deleted this note. Earlier versions remain in chain history.</p>{children?.(note, refresh, null)}
+    </section>
     const title = publicText(note.title, true), body = publicText(note.body!)
-    function exportMarkdown() {
-        const url = URL.createObjectURL(new Blob([`# ${title}\n\n${body}`], { type: "text/markdown;charset=utf-8" }))
-        const link = document.createElement("a"); link.href = url; link.download = noteExportFilename(title); link.click()
-        setTimeout(() => URL.revokeObjectURL(url), 1000)
-    }
+    const action = primary ? primary(note) : owner === note.owner && onEdit && <button className="os-btn" onClick={() => onEdit(structuredClone(note))}>Edit</button>
     return <section className="os-notes-document os-notes-reader" aria-label="Published note">
-        <header className="os-notes-toolbar">
-            <span role="status">On chain · Revision {note.stateRevision}</span>
-            <button className="os-btn os-quiet" disabled={read.version !== reload} onClick={() => bump()}>{read.version !== reload ? 'Refreshing…' : 'Refresh'}</button>
-            <button className="os-btn os-quiet" onClick={exportMarkdown}>Export Markdown</button>
-            {editAction ? editAction(note) : owner === note.owner && onEdit && <button className="os-btn" onClick={() => onEdit(structuredClone(note))}>Edit note</button>}
-        </header>
-        {read.phase === 'error' && <p role="alert">Refresh failed. The last loaded revision is still displayed.</p>}
+        <NoteHeader noteId={id} published share={share?.(note, refresh)} primary={action}
+            status={status?.(note) ?? <NoteStatus kind="published">Published · revision {note.stateRevision} · by {by}</NoteStatus>}
+            menu={[{ label: "Export", hint: noteExportFilename(title), run: () => downloadMarkdown(title, body) }, ...menu?.(note) ?? []]} />
+        {failed}{banner}
         <h1 className="os-notes-title">{title}</h1>
-        <p className="os-notes-hint">Public note · {note.mode === 4 ? "Open comments" : "Restricted comments"} · Earlier versions remain in chain history</p>
+        <p className="os-notes-hint">Everyone can read · {note.mode === 4 ? "everyone can comment" : "comments restricted to writers"}</p>
         <MarkdownPreview key={id} onRoot={setPreviewRoot} body={body} noteId={id} />
-        {children?.(note, () => bump(), note.deleted ? null : previewRoot)}
+        {children?.(note, refresh, root)}
     </section>
 }

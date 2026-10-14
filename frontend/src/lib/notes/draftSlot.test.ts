@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import { createDraftSession, createNotesStore, type NotesStore } from './drafts'
-import { readDraftSlot, saveDraftBounded } from './draftSlot'
+import { DraftWriteUnknownError, readDraftSlot, saveDraftBounded } from './draftSlot'
 import { NotesTimeoutError } from './freshness'
 import { bech32Encode } from '../dao/realmAddress'
 const scope = { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: bech32Encode('g', new Uint8Array(20).fill(1)), noteId: 'ab'.repeat(16) }
@@ -64,6 +64,15 @@ describe('time-limited draft saves', () => {
     it('never waits forever for storage after the abort', async () => {
         const store = stalled(() => new Promise(() => {}))
         await expect(saveDraftBounded(store, scope, '1', next, createDraftSession().capture(), 20, 20)).rejects.toBeInstanceOf(NotesTimeoutError)
+    })
+    it('reports an unknown outcome, never "nothing written", when the check after the abort does not answer', async () => {
+        const revisionHangs = stalled(async () => ({ status: 'session-changed' }))
+        vi.mocked(revisionHangs.getDraftRevision).mockReturnValue(new Promise(() => {}))
+        await expect(saveDraftBounded(revisionHangs, scope, '1', next, createDraftSession().capture(), 20, 20)).rejects.toBeInstanceOf(DraftWriteUnknownError)
+        const draftHangs = stalled(async () => ({ status: 'session-changed' }), '2')
+        vi.mocked(draftHangs.getDraft).mockReturnValue(new Promise(() => {}))
+        const error = await saveDraftBounded(draftHangs, scope, '1', next, createDraftSession().capture(), 20, 20).catch(value => value)
+        expect(error).toBeInstanceOf(DraftWriteUnknownError); expect(error).not.toBeInstanceOf(NotesTimeoutError)
     })
     it('saves normally within the bound', async () => {
         const { store, session } = setup()
