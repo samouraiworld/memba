@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: a posted comment is never offered again (#1619, 2026-10-14)
+- Once the wallet has sent a comment, its text leaves every comment box for that note in the tab, including one opened before the comment is confirmed, so it cannot be posted and paid for twice. If the comment is not confirmed, the text comes back, above anything written meanwhile and without replacing a quote chosen meanwhile, and its receipt still blocks a resend until it is checked. Checking a receipt that confirms a comment clears it from every box that holds it.
+- A comment's gas limit now covers 1.5× the gas measured with about 410 comments on a note (87M for a one-line comment, 142M for the largest, up from 81M and 126M). The comment cost tests include that growth run: the signed cap stays at least 1.2× every measured deposit.
+
 ### Notes: read page, edit mode and publish sheet (#1620, 2026-10-14)
 - A published note opens as a page: one status line ("Published · revision 6 · by you"), Share, Edit and a ⋯ menu with Copy link, Export, Add to Desktop and, for the owner, Delete note. A skeleton shows while it loads, never "not found" before the network answers.
 - Edit turns the same page into its editor: the status says whether there are unpublished changes and which revision they are based on, Preview is a switch remembered on this device, title problems show under the title as you type, and Cancel asks before discarding changes.

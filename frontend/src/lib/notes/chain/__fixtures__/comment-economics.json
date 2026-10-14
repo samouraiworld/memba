@@ -392,5 +392,319 @@
    "keeperGas": 29619496,
    "storageDepositDeltaUgnot": 409500
   }
- ]
+ ],
+ "growth": {
+  "source": "Keeper receipts from the PR 1610 growth run (TestPR1610Growth): 400 one-line comments (37 B) by fresh authors on one note; at the 1st-3rd and every 50th, also a largest comment (600 B quote, 4,000 B body) on that note and a one-line comment on a second note (422 calls). commentsBefore counts the comments already on the note. Synthetic keeper; excludes ante.",
+  "runtime": "e75fef82c02876a4df92ad6e325c5479b9532168",
+  "realm": "samouraiworld/samcrew-deployer 6d2739b449afde7717781858ac753668e644100c (projects/memba/realms/memba_notes_v1)",
+  "harness": "gnolang/gno at runtime, extracted with git archive; samcrew-deployer at realm as NOTES_DEPLOYER_ROOT; its projects/memba/tests/notes_v1/notes_realms_test.go (nrHarness helpers) and a TestPR1610Growth test added to gno.land/pkg/sdk/vm. Each call runs vm.Call in a cache context with a 500M gas meter and MaxDeposit 9000000ugnot at StoragePrice 100ugnot, then commits; the receipt is the change of the realm's storage-deposit address balance and the gas consumed.",
+  "reproduce": "cd <gno at runtime> && NOTES_DEPLOYER_ROOT=<samcrew-deployer at realm> GOPROXY=off GOTOOLCHAIN=go1.25.9 go test -count=1 -timeout 30m -run '^TestPR1610Growth$' -v ./gno.land/pkg/sdk/vm",
+  "logSha256": "0875812b508b6bbcea58bb80815c0dd7da93e8abd678d05dd4313e2cfe5e9755",
+  "oneLineMax": {
+   "of": 400,
+   "anchorBytes": 0,
+   "bodyBytes": 37,
+   "keeperGas": 56788107,
+   "storageDepositDeltaUgnot": 2032800
+  },
+  "rows": [
+   {
+    "case": "growth one-line #1",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 0,
+    "keeperGas": 28088171,
+    "storageDepositDeltaUgnot": 1580600
+   },
+   {
+    "case": "growth max after one-line #1",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 1,
+    "keeperGas": 65790135,
+    "storageDepositDeltaUgnot": 2491000
+   },
+   {
+    "case": "growth other note after one-line #1",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 0,
+    "keeperGas": 31509107,
+    "storageDepositDeltaUgnot": 1994200
+   },
+   {
+    "case": "growth one-line #2",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 2,
+    "keeperGas": 34058928,
+    "storageDepositDeltaUgnot": 1988800
+   },
+   {
+    "case": "growth max after one-line #2",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 3,
+    "keeperGas": 70538994,
+    "storageDepositDeltaUgnot": 2492800
+   },
+   {
+    "case": "growth other note after one-line #2",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 1,
+    "keeperGas": 34448074,
+    "storageDepositDeltaUgnot": 1989400
+   },
+   {
+    "case": "growth one-line #3",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 4,
+    "keeperGas": 36188956,
+    "storageDepositDeltaUgnot": 1988800
+   },
+   {
+    "case": "growth max after one-line #3",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 5,
+    "keeperGas": 73301242,
+    "storageDepositDeltaUgnot": 2492800
+   },
+   {
+    "case": "growth other note after one-line #3",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 2,
+    "keeperGas": 36656744,
+    "storageDepositDeltaUgnot": 1988800
+   },
+   {
+    "case": "growth one-line #50",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 52,
+    "keeperGas": 47316257,
+    "storageDepositDeltaUgnot": 2002600
+   },
+   {
+    "case": "growth max after one-line #50",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 53,
+    "keeperGas": 83411139,
+    "storageDepositDeltaUgnot": 2505100
+   },
+   {
+    "case": "growth other note after one-line #50",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 3,
+    "keeperGas": 44842515,
+    "storageDepositDeltaUgnot": 2005000
+   },
+   {
+    "case": "growth one-line #100",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 103,
+    "keeperGas": 50452812,
+    "storageDepositDeltaUgnot": 2017000
+   },
+   {
+    "case": "growth max after one-line #100",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 104,
+    "keeperGas": 86825774,
+    "storageDepositDeltaUgnot": 2516800
+   },
+   {
+    "case": "growth other note after one-line #100",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 4,
+    "keeperGas": 48223870,
+    "storageDepositDeltaUgnot": 2021200
+   },
+   {
+    "case": "growth one-line #150",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 154,
+    "keeperGas": 50375440,
+    "storageDepositDeltaUgnot": 2015700
+   },
+   {
+    "case": "growth max after one-line #150",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 155,
+    "keeperGas": 87046387,
+    "storageDepositDeltaUgnot": 2519600
+   },
+   {
+    "case": "growth other note after one-line #150",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 5,
+    "keeperGas": 47091280,
+    "storageDepositDeltaUgnot": 2015100
+   },
+   {
+    "case": "growth one-line #200",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 205,
+    "keeperGas": 53410962,
+    "storageDepositDeltaUgnot": 2015600
+   },
+   {
+    "case": "growth max after one-line #200",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 206,
+    "keeperGas": 89403069,
+    "storageDepositDeltaUgnot": 2517700
+   },
+   {
+    "case": "growth other note after one-line #200",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 6,
+    "keeperGas": 51852446,
+    "storageDepositDeltaUgnot": 2015600
+   },
+   {
+    "case": "growth one-line #250",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 256,
+    "keeperGas": 53274820,
+    "storageDepositDeltaUgnot": 2015100
+   },
+   {
+    "case": "growth max after one-line #250",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 257,
+    "keeperGas": 89423550,
+    "storageDepositDeltaUgnot": 2517900
+   },
+   {
+    "case": "growth other note after one-line #250",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 7,
+    "keeperGas": 50236594,
+    "storageDepositDeltaUgnot": 2017800
+   },
+   {
+    "case": "growth one-line #300",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 307,
+    "keeperGas": 53897834,
+    "storageDepositDeltaUgnot": 2014900
+   },
+   {
+    "case": "growth max after one-line #300",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 308,
+    "keeperGas": 88980510,
+    "storageDepositDeltaUgnot": 2517000
+   },
+   {
+    "case": "growth other note after one-line #300",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 8,
+    "keeperGas": 49788101,
+    "storageDepositDeltaUgnot": 2014200
+   },
+   {
+    "case": "growth one-line #350",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 358,
+    "keeperGas": 53893790,
+    "storageDepositDeltaUgnot": 2014900
+   },
+   {
+    "case": "growth max after one-line #350",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 359,
+    "keeperGas": 90566412,
+    "storageDepositDeltaUgnot": 2517700
+   },
+   {
+    "case": "growth other note after one-line #350",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 9,
+    "keeperGas": 50145247,
+    "storageDepositDeltaUgnot": 2012800
+   },
+   {
+    "case": "growth one-line #400",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 409,
+    "keeperGas": 56237886,
+    "storageDepositDeltaUgnot": 2014900
+   },
+   {
+    "case": "growth max after one-line #400",
+    "func": "AddComment",
+    "anchorBytes": 600,
+    "bodyBytes": 4000,
+    "commentsBefore": 410,
+    "keeperGas": 92802236,
+    "storageDepositDeltaUgnot": 2517700
+   },
+   {
+    "case": "growth other note after one-line #400",
+    "func": "AddComment",
+    "anchorBytes": 0,
+    "bodyBytes": 37,
+    "commentsBefore": 10,
+    "keeperGas": 54690236,
+    "storageDepositDeltaUgnot": 2015600
+   }
+  ]
+ }
 }

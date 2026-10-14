@@ -11,7 +11,7 @@ import { publicCommentBudget, publicCommentQuote } from '../../../lib/notes/chai
 import { gnotAmount } from '../../../lib/notes/chain/quote'
 import { approxGnot } from '../../../lib/notes/chain/costText'
 import type { PublicComment } from '../../../lib/notes/chain/comments'
-import { readCommentDraft, writeCommentDraft, type StoredCommentDraft } from '../../../lib/notes/commentDraftStorage'
+import { commentPosted, holdSentComment, isPostedComment, mergeReturned, settleSentComment, subscribeCommentText, takeCommentDraft, writeCommentDraft, type StoredCommentDraft } from '../../../lib/notes/commentDraftStorage'
 import { useSigner } from '../../sign/signerContext'
 import { PublicComments } from './PublicComments'
 import { useUnsavedText } from './notesPane'
@@ -36,25 +36,31 @@ export function PublicCommentPanel(props: PublicCommentPanelProps) {
 function useCommentDraft(chainId: string, owner: string | null, noteId: string) {
     // An unsent comment survives a lock, an account or network switch and a reload in this tab (session storage only).
     const scope = useMemo(() => owner ? { chainId, owner, noteId } : null, [chainId, owner, noteId])
-    const [initial] = useState(() => scope ? readCommentDraft(scope) : null)
+    const [initial] = useState(() => scope ? takeCommentDraft(scope) : null)
     const [body, setBody] = useState(initial?.body ?? '')
     const [quote, setQuote] = useState<Quote>(initial?.quote ?? NO_QUOTE)
     const [parent, setParent] = useState<PublicComment | null>(null)
     /** Survives the session remount that follows a note refresh. */
     const [carried, setCarried] = useState('')
+    /** Bumped when a comment for this note was sent, posted or given back in this tab: receipts are read again. */
+    const [changed, setChanged] = useState(0)
+    const current = useRef({ body, quote })
+    useLayoutEffect(() => { current.current = { body, quote } }, [body, quote])
     useEffect(() => { if (scope) writeCommentDraft(scope, { body, quote }) }, [scope, body, quote])
-    /**
-     * A confirmed post forgets its text, also when the review outlived the panel that started it (a note refresh
-     * remounted it, or the window closed): the stored copy is cleared directly, the composer through its setters.
-     */
-    const posted = useCallback((text: string, anchor: string) => {
-        if (scope) {
-            const stored = readCommentDraft(scope)
-            if (stored?.body === text) writeCommentDraft(scope, { body: '', quote: stored.quote.text === anchor ? NO_QUOTE : stored.quote })
+    // Sent text leaves this composer (also when another composer for the note sent it), and so does a posted comment's
+    // (same body and quote digests). Text that was not posted comes back, above anything written meanwhile.
+    useEffect(() => scope ? subscribeCommentText(scope, event => {
+        const now = current.current
+        if (event.kind === 'returned') {
+            const merged = mergeReturned(now, event.draft)
+            setBody(merged.body); setQuote(merged.quote); setParent(value => value ?? (event.draft.parent as PublicComment | null | undefined) ?? null)
+        } else if (event.kind === 'sent' ? now.body === event.draft.body : isPostedComment(now, event.digests)) {
+            const sentQuote = event.kind === 'sent' ? event.draft.quote.text : now.quote.text
+            setBody(''); setQuote(value => value.text === sentQuote ? NO_QUOTE : value); setParent(null)
         }
-        setBody(value => value === text ? '' : value); setQuote(value => value.text === anchor ? NO_QUOTE : value); setParent(null)
-    }, [scope])
-    return { body, setBody, quote, setQuote, parent, setParent, carried, setCarried, posted }
+        setChanged(value => value + 1)
+    }) : undefined, [scope])
+    return { scope, body, setBody, quote, setQuote, parent, setParent, carried, setCarried, changed }
 }
 function PublicCommentScope(props: PublicCommentPanelProps) {
     const n = props.note, draft = useCommentDraft(props.client.chainId, props.owner, n.id)
@@ -82,7 +88,7 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
     const [busy, setBusy] = useState(false), [notice, setNotice] = useState('')
     const [receipts, setReceipts] = useState<NotesIntent[]>([]), [reload, refresh] = useState(0)
     const [receiptsReady, setReceiptsReady] = useState('')
-    const receiptsKey = JSON.stringify([owner, note.id, signer.version, reload])
+    const receiptsKey = JSON.stringify([owner, note.id, signer.version, reload, draft.changed])
     const working = useRef(false)
     const realm = commentIntentRealm(note.id), canPost = !!owner && !note.deleted && note.mode === 4
     useLayoutEffect(() => () => session.invalidate(), [session])
@@ -140,10 +146,23 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
             const common = { client, maxDepositUgnot: priced.suggestedCapUgnot, session, intents: new NotesIntents(store), isWriteEnabled: () => !!notesDeployment(client.chainId) }
             const request = await preparePublicCommentRequest({ ...common, operation, quote: publicCommentQuote(client, priced.suggestedCapUgnot) })
             if (guard.signal.aborted) { request.onDismissed?.(); return }
-            const settle = request.onSettled
+            let settled = false
+            const settle = request.onSettled, scope = draft.scope, sent = { body: action.kind === 'add' ? action.body : '', quote }
+            if (action.kind === 'add' && scope) {
+                // Sent is not confirmed, but from here the text must not be offered again: it is held aside until the outcome.
+                const send = request.send, replyTo = parent
+                request.send = async (choice, beforeSign) => {
+                    const result = await send(choice, beforeSign)
+                    // A hash the wallet returns after the outcome was given (the chain watch answered first) holds nothing.
+                    if (!settled) holdSentComment(scope, operation.operationId, { ...sent, parent: replyTo })
+                    return result
+                }
+            }
             request.onSettled = (outcome, choice) => {
+                settled = true
                 settle?.(outcome, choice)
-                if (outcome === 'confirmed' && action.kind === 'add') draft.posted(action.body, action.anchor)
+                // Also when the review outlived the panel that started it (a note refresh remounted it, or the window closed).
+                if (action.kind === 'add' && scope) settleSentComment(scope, operation.operationId, sent, outcome === 'confirmed')
                 if (guard.signal.aborted) return
                 if (outcome === 'confirmed') {
                     setNotice(action.kind === 'add' ? 'Comment posted.' : 'Comment action confirmed.'); refresh(value => value + 1)
@@ -161,7 +180,12 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
         try {
             const result = await recoverPublicCommentIntent(client, new NotesIntents(store), intent, session)
             if (guard.signal.aborted) return
-            setNotice(result === 'confirmed' ? 'Comment action confirmed. The text in your composer was kept; compare it before posting again.' : 'The outcome remains unknown. Nothing was resent.')
+            const v = intent.verification, scope = draft.scope, posted = result === 'confirmed' && intent.action === 'addComment'
+            const digests = { bodySha256: v.bodySha256, anchorSha256: v.anchorSha256 }, mine = posted && isPostedComment({ body, quote }, digests)
+            // Every composer for the note holding the confirmed comment lets it go, not only this one: it is never posted twice.
+            if (posted && scope) commentPosted(scope, digests, intent.operationId)
+            setNotice(mine ? 'Comment posted. It was the text in your composer, which was cleared.'
+                : result === 'confirmed' ? 'Comment action confirmed. The text in your composer was kept; compare it before posting again.' : 'The outcome remains unknown. Nothing was resent.')
             refresh(value => value + 1)
         } catch { if (!guard.signal.aborted) setNotice('The outcome could not be checked. The receipt was kept; nothing was resent.') }
         finally { if (!guard.signal.aborted) { working.current = false; setBusy(false) } }
