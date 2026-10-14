@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { announceNoteChange, announceNotesFocus, NotesTimeoutError, readFresh, useNoteFreshness, useNoteRefresh, withTimeout } from './freshness'
+import { announceNoteChange, announceNotesFocus, NotesTimeoutError, onNoteChange, readFresh, useNoteFreshness, useNoteRefresh, withTimeout } from './freshness'
 
 const id = 'ab'.repeat(16)
 afterEach(() => { vi.useRealTimers() })
@@ -15,6 +15,14 @@ describe('note freshness signals', () => {
         announceNoteChange({ chainId: 'onyx-1', noteId: id, stateRevision: '5' })
         expect(seen).toHaveBeenCalledWith({ stateRevision: '5' })
         view.unmount(); announceNoteChange({ chainId: 'onyx-1', noteId: id }); expect(seen).toHaveBeenCalledOnce()
+    })
+    it('tells a page-wide listener every confirmed change, never a focus check, until it unsubscribes', () => {
+        const seen = vi.fn()
+        const stop = onNoteChange(seen)
+        announceNotesFocus('onyx-1', id)
+        announceNoteChange({ chainId: 'onyx-1', noteId: id, stateRevision: '4' })
+        expect(seen).toHaveBeenCalledExactlyOnceWith({ chainId: 'onyx-1', noteId: id, stateRevision: '4' })
+        stop(); announceNoteChange({ chainId: 'onyx-1', noteId: id }); expect(seen).toHaveBeenCalledOnce()
     })
     it('re-checks when the window or the note window regains focus, at most every few seconds after its own read', () => {
         vi.useFakeTimers(); vi.setSystemTime(10_000)

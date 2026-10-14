@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Desktop: a note shortcut follows its published title (#1622, 2026-10-14)
+- A note shortcut pinned before its note was published, or while the note was private, now takes the note's public title as soon as this tab confirms the publication or a rename, instead of showing "Note" until the next visit. The read waits for the announced revision when the network node is behind. A note that is still private keeps its lock and never shows or stores a title.
+- A shortcut label never goes back to an older revision: a lagging node's older answer (for example after posting a comment) is ignored instead of replacing a newer title, and a publication the node has not caught up with stays pending, so the next announcement or visit reads it again.
+- A test now covers the featured Desktop: removing a note shortcut while its title is still being read leaves no cached title once the Desktop confirms the removal.
+
 ### Notes: a posted comment is never offered again (#1619, 2026-10-14)
 - Once the wallet has sent a comment, its text leaves every comment box for that note in the tab, including one opened before the comment is confirmed, so it cannot be posted and paid for twice. If the comment is not confirmed, the text comes back, above anything written meanwhile and without replacing a quote chosen meanwhile, and its receipt still blocks a resend until it is checked. Checking a receipt that confirms a comment clears it from every box that holds it.
 - A comment's gas limit now covers 1.5× the gas measured with about 410 comments on a note (87M for a one-line comment, 142M for the largest, up from 81M and 126M). The comment cost tests include that growth run: the signed cap stays at least 1.2× every measured deposit.
