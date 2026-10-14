@@ -41,7 +41,7 @@ async function healthyPublicWorkspace(page: Page, guest: boolean) {
     const history = page.getByRole('region', { name: 'Public history', exact: true })
     await expect(history.getByText('No public history is available for this note.', { exact: true })).toBeVisible()
     await leaveSheet(page)
-    await expect(page.getByRole('button', { name: 'Edit note', exact: true })).toHaveCount(guest ? 0 : 1)
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(guest ? 0 : 1)
     await page.getByRole('button', { name: 'Share', exact: true }).click()
     const share = page.getByRole('dialog', { name: /^Share / })
     if (guest) await expect(share.getByText('Only the owner.', { exact: true })).toBeVisible()

@@ -26,6 +26,11 @@ Full changelogs are split by version range for easier navigation:
 
 ### Notes Onyx deployment selection (#1604, 2026-10-14)
 - Select the Notes realm published on the Onyx testnet for the two-wallet canary. It only takes effect in builds where both Notes release switches are on; production keeps Notes disabled and has no mainnet deployment entry.
+### Notes: read page, edit mode and publish sheet (2026-10-14)
+- A published note opens as a page: one status line ("Published · revision 6 · by you"), Share, Edit and a ⋯ menu with Copy link, Export, Add to Desktop and, for the owner, Delete note. A skeleton shows while it loads, never "not found" before the network answers.
+- Edit turns the same page into its editor: the status says whether there are unpublished changes and which revision they are based on, Preview is a switch remembered on this device, title problems show under the title as you type, and Cancel asks before discarding changes.
+- Publish opens a sheet that says what changes, who sees it and what it costs (storage deposit and fee, with the signed cap), then follows the publication step by step (Review, Approve in Adena, Sending, Published) with a confirmation; the wrong Adena network and an insufficient balance are explained before any signature.
+- Every problem is a message at the top of the note that says what happened, that the text is kept and what to do next: a newer version is merged automatically when lines do not overlap, otherwise both versions are shown side by side to choose from. A draft stays reachable while the published note cannot be read, and a deleted note keeps its tombstone whatever its mode. Notes remains disabled pending deployment and reviewed activation.
 
 ### Notes: Share menu, and History and Comments beside the note (#1610, 2026-10-12)
 - A Share button in the note header opens one menu: the note's link with Copy, who can read it, who can edit it and who can comment. The owner switches editing between "Only me" and "Everyone with a wallet" there, sees the expected storage deposit (large) and the signed cap (small) before signing, both from the Notes quote module, applies it with Adena and follows the change to its confirmation in the menu. Everyone else sees the same facts, read-only.
