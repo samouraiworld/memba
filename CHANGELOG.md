@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes Onyx deployment selection (#1604, 2026-10-14)
+- Select the Notes realm published on the Onyx testnet for the two-wallet canary. It only takes effect in builds where both Notes release switches are on; production keeps Notes disabled and has no mainnet deployment entry.
+
 ### Notes: Share menu, and History and Comments beside the note (#1610, 2026-10-12)
 - A Share button in the note header opens one menu: the note's link with Copy, who can read it, who can edit it and who can comment. The owner switches editing between "Only me" and "Everyone with a wallet" there, sees the expected storage deposit (large) and the signed cap (small) before signing, both from the Notes quote module, applies it with Adena and follows the change to its confirmation in the menu. Everyone else sees the same facts, read-only.
 - History and Comments are tabs in a panel on the right of the note; in a narrow window or on a phone they open as a sheet with Back (Escape closes it and the focus returns to its tab). History lists revisions newest first in plain words, named from each edit's recorded field ("Revision 5 · body edited", "renamed" with the new title, "editing opened to everyone", comments added, removals by moderation), who made them and when, with View and Use as draft (copied into a draft, nothing signed). It refreshes after every confirmed change.
@@ -53,9 +56,6 @@ Full changelogs are split by version range for easier navigation:
 - Explain titles the network would refuse (slash, line breaks, invisible characters, more than 80 characters) in the editor and before review, and remove spaces at the start or end of a title when publishing instead of stalling.
 - Exported Markdown files are named after the note title, made safe for every operating system.
 - Recalibrate public note storage estimates per operation to measured costs: changing community editing is now estimated at 1.2 GNOT (measured 1.1531) instead of 4 GNOT, with a separate, larger maximum deposit. Notes remains disabled in production.
-### Notes Onyx deployment selection (2026-10-11)
-- Select the Notes realm published on the Onyx testnet for the two-wallet canary. It only takes effect in builds where both Notes release switches are on; production keeps Notes disabled and has no mainnet deployment entry.
-
 ### Notes moderation takedowns and single-copy costs (#1603, 2026-10-11)
 - Read moderator redactions from the Notes realm: removed versions and comments show as removed by moderation with their hash, are never offered for restoration, and the history reports redactable retention.
 - Recalibrate note and comment storage estimates to the merged realm, which stores each public version once. Notes remains disabled pending deployment and reviewed activation.
