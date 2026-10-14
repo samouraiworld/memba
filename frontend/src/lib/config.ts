@@ -229,8 +229,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // In the network menu since Connect 4 went live there (owner, 2026-10-07):
     // Memba OS only runs on a network the menu offers. The Launchpad realms
     // (frozen release bytes, rehearsed before the mainnet ceremony) and
-    // gno.land/r/samcrew/connect4 are published there; nothing else of Memba's
-    // is (no DAO factory dependencies either, hence `userDaos.create: false`).
+    // gno.land/r/samcrew/connect4 are published there, and since 2026-10-11 the
+    // Notes realm and its key registry for the two-wallet canary (Notes selects
+    // its deployment in lib/notes/config.ts). No DAO factory dependencies, hence
+    // `userDaos.create: false`.
     // The backend refuses an `onyx-1` sign-in unless the owner lists it in
     // MEMBA_ACCEPTED_CHAIN_IDS. List a realm in REALM_ALLOWLIST.onyx when it is
     // published there.
