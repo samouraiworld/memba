@@ -76,6 +76,8 @@ export function useNoteShortcuts({ chainId, owner, ids, enabled }: Options) {
                 writeNoteShortcuts(chainId, owner, { ...latest, [id]: info }, idsKey.split(","))
                 setState((s) => (s.scope === scope ? { scope, facts: { ...s.facts, [id]: info } } : s))
             }
+            // Every read is done: the client no longer counts as live (an early return above already means it is not).
+            alive = false
         })()
         return () => { alive = false }
     }, [enabled, chainId, owner, scope, idsKey, changes])

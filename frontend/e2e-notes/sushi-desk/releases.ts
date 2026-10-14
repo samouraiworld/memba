@@ -1,4 +1,4 @@
-/** Fixture-only IDs; no production release table is modified. */
+/** Fixture-only IDs, aliased over the production release table (src/lib/notes/featuredNoteRelease.ts), which is not modified. */
 import type { FeaturedNoteRelease } from '../../src/lib/notes/featuredNoteSeed'
 import { NOTE_ID } from '../sushi-shell/audit'
 import { TEST_OWNER } from './session'

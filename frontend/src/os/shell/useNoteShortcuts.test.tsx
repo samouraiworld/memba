@@ -38,6 +38,14 @@ it('labels public shortcuts from the chain and marks private ones', async () => 
     expect(mocks.meta).toHaveBeenCalledTimes(3)
 })
 
+it('ends the read lifetime once every shortcut has been read', async () => {
+    const { result } = renderHook(() => useNoteShortcuts({ chainId: 'test-chain', owner: 'g1me', ids: [pub, priv, gone], enabled: true }))
+    await waitFor(() => expect(result.current.privateNotes.has(priv)).toBe(true))
+    expect(mocks.contexts).toHaveLength(1)
+    await waitFor(() => expect(mocks.contexts[0].isCurrent()).toBe(false))
+    expect(result.current.labels[pub]).toBe('Sushi')
+})
+
 it('shows the cached title at once and reads each shortcut only once per desk', async () => {
     writeNoteShortcuts('test-chain', 'g1me', { [pub]: { title: 'Cached sushi', private: false, missing: false } }, [pub])
     let resolve!: (value: ChainNote) => void
