@@ -3,7 +3,9 @@ export interface NotesPartition { chainId: string; realm: string; owner: string 
 export interface NotesScope extends NotesPartition { noteId: string }
 /** Frozen when editing a chain revision; never advance it just to make a publish succeed. */
 export interface DraftBase { stateRevision: string; epoch: string; ownerGeneration: string; titleRevision: string; bodyRevision: string }
-export type DraftPayload = { kind: "public"; title: string; body: string; base?: DraftBase } | { kind: "encrypted"; envelope: Uint8Array }
+/** A separate copy of someone's text kept on this device (F26): the note it was taken from, and that note's title then. */
+export interface DraftCopyOrigin { noteId: string; title: string }
+export type DraftPayload = { kind: "public"; title: string; body: string; base?: DraftBase; copyOf?: DraftCopyOrigin } | { kind: "encrypted"; envelope: Uint8Array }
 export interface DraftRecord { schema: 1; scope: NotesScope; localRevision: string; payload: DraftPayload; updatedAt: number }
 export type NotesWriteResult<T> = { status: "saved"; value: T } | { status: "conflict" | "unavailable" | "session-changed" | "invalid" }
 export interface DraftWriteGuard { readonly signal: AbortSignal }
@@ -30,6 +32,7 @@ export function createDraftSession(): DraftSession {
 function validPayload(payload: DraftPayload): boolean {
     return payload?.kind === "public"
         ? typeof payload.title === "string" && encoder.encode(payload.title).length <= 320 && typeof payload.body === "string" && encoder.encode(payload.body).length <= MAX_NOTE_BODY_BYTES && (payload.base === undefined || validBase(payload.base))
+            && (payload.copyOf === undefined || (!!payload.copyOf && /^[a-f0-9]{32}$/.test(payload.copyOf.noteId) && typeof payload.copyOf.title === "string" && encoder.encode(payload.copyOf.title).length <= 320))
         : payload?.kind === "encrypted" && ArrayBuffer.isView(payload.envelope) && Object.prototype.toString.call(payload.envelope) === "[object Uint8Array]" && payload.envelope.length > 0 && payload.envelope.length <= MAX_ENVELOPE_BYTES
 }
 function validBase(base: DraftBase): boolean {
@@ -42,7 +45,7 @@ function copyPayload(payload: DraftPayload): DraftPayload {
     return { kind: "public", title: payload.title, body: payload.body, ...(base ? { base: {
         stateRevision: base.stateRevision, epoch: base.epoch, ownerGeneration: base.ownerGeneration,
         titleRevision: base.titleRevision, bodyRevision: base.bodyRevision,
-    } } : {}) }
+    } } : {}), ...(payload.copyOf ? { copyOf: { noteId: payload.copyOf.noteId, title: payload.copyOf.title } } : {}) }
 }
 function copyScope(scope: NotesScope): NotesScope { return { chainId: scope.chainId, realm: scope.realm, owner: scope.owner, noteId: scope.noteId } }
 function validDraft(value: unknown): value is DraftRecord {

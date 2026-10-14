@@ -62,7 +62,8 @@ describe('public comments', () => {
   it('says who wrote each comment, on which revision, and quotes the passage it is about', async () => {
     render(<PublicComments client={{ commentsRaw: vi.fn(async () => page([row()])) }} noteId={noteId} epoch="0" bodyRevision="2" viewer={owner} />)
     const article = await screen.findByRole('article', { name: 'Comment by You' })
-    expect(within(article).getByText(/on revision 1/)).toBeVisible()
+    // F20: the card never shows the body counter as "revision"; this comment is on body revision 1, the note's is 2.
+    expect(within(article).getByText(/^· on an earlier text$/)).toBeVisible(); expect(within(article).queryByText(/revision/)).toBeNull()
     expect(within(article).getByText('Passage')).toBeVisible()
   })
   it('ignores stale responses after note/network/version changes and unmount', async () => {

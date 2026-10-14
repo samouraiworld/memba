@@ -12,6 +12,7 @@ import { notesRequestDigest, preparePublicNoteRequest } from './request'
 import type { NotesQuoteProvider, PublicRequestOptions } from './request'
 import { NOTES_REALM } from './__fixtures__/deployment'
 import type { ChainNote } from './schema'
+import { QuoteExpiredError } from '../../../os/sign/expired'
 // These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
 vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
@@ -49,7 +50,9 @@ describe('Notes signing intentions', () => {
     const s = setup(); s.setNote({ ...baseNote(), mode: 4 }); s.setPublicWrites(!enabled)
     s.options.operation.action = { kind: 'public-writes', revision: '1', enabled }
     const request = await preparePublicNoteRequest(s.options)
-    expect(request.title).toBe(enabled ? 'Allow everyone to edit' : 'Stop public editing')
+    expect(request.title).toBe(enabled ? 'Allow everyone to edit' : 'Stop community editing')
+    // F17: the sheet names the note by its title, never by the raw action kind and id.
+    expect(request.summary).toBe(enabled ? 'Allow everyone to edit “Title”' : 'Stop community editing on “Title”')
     expect(request.label!(undefined)).toBe(request.title)
     expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: 'SetPublicWrites', send: '', args: [expect.any(String), '1', String(enabled), expect.any(String)] })
     await request.send(undefined, async () => () => true)
@@ -136,6 +139,68 @@ describe('Notes signing intentions', () => {
     })
     await expect(request.send(undefined, async () => () => true)).rejects.toThrow('final guard')
   })
+  it.each([
+    ['commit', { kind: 'commit', revision: '1', epoch: '0', body: 'New' }, 'Publish changes', 'Publish changes to “Title”'],
+    ['rename', { kind: 'rename', revision: '1', epoch: '0', title: 'Renamed' }, 'Rename note', 'Rename “Title” to “Renamed”'],
+    ['delete', { kind: 'delete', revision: '1' }, 'Delete note', 'Delete “Title”'],
+    ['create', { kind: 'create', mode: 3, title: 'Fresh', body: 'Text', maxFeeUgnot: '100000' }, 'Publish note', 'Publish “Fresh”'],
+  ] as const)('names a %s by the note title in the signing sheet (F17)', async (_kind, action, title, summary) => {
+    const s = setup(); if (action.kind === 'create') s.setNote(null)
+    s.options.operation = { ...s.options.operation, action: structuredClone(action) as PublicNoteOperation['action'] }
+    const request = await preparePublicNoteRequest(s.options)
+    expect(request.title).toBe(title); expect(request.summary).toBe(summary); expect(request.label(undefined)).toBe(title)
+    expect(request.summary).not.toMatch(/public note|[0-9a-f]{32}/)
+  })
+  describe('an expired price quote (F7)', () => {
+    it.each([['time', (s: ReturnType<typeof setup>) => { void s; vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120000) }], ['blocks', (s: ReturnType<typeof setup>) => s.setHeight('111')]] as const)(
+      'is said in plain words when it expired by %s, before any wallet', async (_by, expire) => {
+        const s = setup(), request = await preparePublicNoteRequest(s.options); expire(s)
+        await expect(request.send(undefined, async () => () => true)).rejects.toThrow('The price quote expired. Nothing was sent.')
+        expect((await s.intents.get(s.scope, operationId))?.phase).toBe('not-sent')
+      })
+    it('quotes the same change again in place under a new operation, then sends and confirms it', async () => {
+      const s = setup(), quote = vi.fn(s.options.quote), request = await preparePublicNoteRequest({ ...s.options, quote })
+      const first = request.prepare(undefined).msgs[0]
+      s.setHeight('111')
+      await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError)
+      await request.requote!(undefined)
+      const fresh = request.prepare(undefined).msgs[0]
+      expect(quote).toHaveBeenCalledTimes(2); expect(quote.mock.calls[1][0]).toMatchObject({ height: '111', message: fresh })
+      expect(fresh.value.func).toBe(first.value.func); expect(fresh.value.args.slice(0, 6)).toEqual(first.value.args.slice(0, 6))
+      expect(fresh.value.args[6]).not.toBe(first.value.args[6])
+      await request.send(undefined, async () => () => true)
+      expect(wallet.send).toHaveBeenLastCalledWith([fresh], '', expect.anything())
+      const receipts = await s.intents.list(s.scope)
+      expect(receipts.map(r => r.phase).sort()).toEqual(['not-sent', 'submitted'])
+      const sent = receipts.find(r => r.phase === 'submitted')!
+      s.applied({ operationId: sent.operationId, height: '112' })
+      expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+    })
+    it('shows the publication fee of the fresh quote, not the first one', async () => {
+      const s = setup(); s.setNote(null)
+      s.options.operation = { ...s.options.operation, action: { kind: 'create', mode: 3, title: 'Fresh', body: 'Text', maxFeeUgnot: '100000' } }
+      const request = await preparePublicNoteRequest(s.options)
+      expect(request.lines(undefined)).toContainEqual(['Publication fee', '0.1 GNOT'])
+      s.setHeight('111')
+      await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError)
+      vi.mocked(s.options.client.config).mockResolvedValue({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '50000', paused: false })
+      await request.requote!(undefined)
+      expect(request.lines(undefined)).toContainEqual(['Publication fee', '0.05 GNOT'])
+      expect(request.prepare(undefined).msgs[0].value.send).toBe('50000ugnot')
+    })
+    it('refuses to quote again once the note moved on, in plain words', async () => {
+      const s = setup(), request = await preparePublicNoteRequest(s.options); s.setHeight('111')
+      await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError)
+      s.setNote({ ...baseNote(), stateRevision: '2' })
+      await expect(request.requote!(undefined)).rejects.toThrow('The note changed since this review. Nothing was sent. Cancel, then start again.')
+    })
+    it('never quotes again after the wallet may have opened', async () => {
+      const s = setup(), request = await preparePublicNoteRequest(s.options)
+      wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('wallet closed') })
+      await expect(request.send(undefined, async () => () => true)).rejects.toThrow('wallet closed')
+      await expect(request.requote!(undefined)).rejects.toThrow(/cannot be priced again/)
+    })
+  })
   it('refuses storage failures before invoking the broadcaster', async () => {
     const s = setup(), request = await preparePublicNoteRequest(s.options)
     vi.spyOn(IDBObjectStore.prototype, 'add').mockImplementationOnce(() => { throw new DOMException('full', 'QuotaExceededError') })
@@ -183,7 +248,7 @@ describe('Notes signing intentions', () => {
       await expect(request.recheck!(undefined)).rejects.toThrow(expected)
     }
     const s = setup(), request = await preparePublicNoteRequest(s.options); s.setHeight('111')
-    await expect(request.recheck!(undefined)).rejects.toThrow('stale')
+    await expect(request.recheck!(undefined)).rejects.toThrow(QuoteExpiredError)
   })
   it('does not confirm a reused old ID, wrong content, overwritten receipt or unrelated actor', async () => {
     const s = setup(), request = await preparePublicNoteRequest(s.options)

@@ -1,5 +1,5 @@
 import { StrictMode, useLayoutEffect, useState, type ComponentProps } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDraftSession, type DraftRecord, type NotesStore } from '../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
@@ -8,6 +8,7 @@ import { PublicDelete, PublicPublish, PublishProgressSheet, type PublishProgress
 import { NoteBanner, type Notice } from './NoteHeader'
 import { NotesPaneContext, type NotesPane } from './notesPane'
 import { useNoteFreshness } from '../../../lib/notes/freshness'
+import { QuoteExpiredError } from '../../sign/expired'
 const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), receipts: vi.fn(), balance: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
@@ -57,11 +58,14 @@ describe('public publication review', () => {
     it('requests no signature until review and uses the durable baseline and the deposit cap it states', async () => {
         setup({ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Saved content', base } })
         const sheet = await reviewSheet()
-        expect(sheet).toHaveTextContent('At most 2.9 GNOT'); expect(sheet).toHaveTextContent('Body: 1 line changed.')
+        expect(sheet).toHaveTextContent('At most 1.4 GNOT'); expect(sheet).toHaveTextContent('Body: 1 line changed.')
+        // F3: the deposit is kept by the realm, as the delete sheet says; the cap is its own element (its own line).
+        expect(sheet).toHaveTextContent('≈ 0.6813 GNOT storage deposit, not returned: every version stays in the note’s history.')
+        expect(within(sheet).getByText(/^At most 1\.4 GNOT/).tagName).toBe('SMALL')
         expect(calls.prepare).not.toHaveBeenCalled(); expect(calls.sign).not.toHaveBeenCalled()
         await approve()
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '2900000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '1400000', draftLocalRevision: '4', operation: { action: { kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' } } })
     })
     it('publishes only the changed body, priced without the unchanged title', async () => {
         setup({ ...draft, payload: { kind: 'public', title: 'Field guide ', body: 'Saved content', base } })
@@ -70,7 +74,7 @@ describe('public publication review', () => {
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
         const { operation, maxDepositUgnot } = calls.prepare.mock.calls[0][0]
         expect(operation.action).toEqual({ kind: 'commit', revision: '7', epoch: '2', body: 'Saved content' })
-        expect(maxDepositUgnot).toBe('2900000')
+        expect(maxDepositUgnot).toBe('1400000')
     })
     it('says there is nothing to publish when the draft matches the published note', async () => {
         const { beforeReview } = setup({ ...draft, payload: { kind: 'public', title: 'Field guide', body: 'Published content', base } })
@@ -99,14 +103,28 @@ describe('public publication review', () => {
         await screen.findByText(/Your draft changed in another window, or the note changed, while the publication was prepared. Nothing was sent./)
         expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
     })
+    it('says an expired quote instead of leaving the progress on Approve in Adena, and resumes after a fresh quote', async () => {
+        let expired = true
+        const send = vi.fn(async () => { if (expired) throw new QuoteExpiredError(); return { hash: 'aa'.repeat(32) } })
+        calls.prepare.mockResolvedValue({ warns: [], send })
+        setup(); await approve(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        expect(await screen.findByRole('dialog', { name: 'Publishing' })).toBeVisible()
+        const request = calls.sign.mock.calls[0][0]
+        await act(async () => { await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError) })
+        expect(screen.queryByRole('dialog', { name: 'Publishing' })).toBeNull()
+        expect(screen.getByRole('alert')).toHaveTextContent('The price quote expired. Nothing was sent. Your text is kept. Get a fresh quote in the signature sheet, or cancel it.')
+        expired = false
+        await act(async () => { await request.send(undefined, async () => () => true) })
+        expect(screen.getByRole('dialog', { name: 'Publishing' })).toBeVisible(); expect(screen.queryByText(/price quote expired/)).toBeNull()
+    })
     it('writes the cap the review states, never below its estimated deposit, into the transaction', async () => {
         setup()
         const sheet = await reviewSheet()
-        // A creation of 24 bytes: ≈ 2.4025 GNOT expected (the old 2.4 GNOT cap would fail it), at most 4.9 GNOT.
-        expect(sheet).toHaveTextContent('≈ 2.4025 GNOT storage deposit plus a 0.1 GNOT publication fee'); expect(sheet).toHaveTextContent('At most 4.9 GNOT')
+        // A creation of 24 bytes on the #363 layout: ≈ 1.9225 GNOT expected, at most 3.9 GNOT.
+        expect(sheet).toHaveTextContent('≈ 1.9225 GNOT storage deposit plus a 0.1 GNOT publication fee, not returned: every version stays in the note’s history.'); expect(sheet).toHaveTextContent('At most 3.9 GNOT')
         expect(calls.sign).not.toHaveBeenCalled()
         await approve(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0].maxDepositUgnot).toBe('4900000')
+        expect(calls.prepare.mock.calls[0][0].maxDepositUgnot).toBe('3900000')
     })
 })
 
@@ -234,11 +252,12 @@ describe('published note deletion', () => {
         const order: string[] = []; calls.sign.mockImplementation(() => { order.push('sign'); return true })
         render(<DeletePage order={order} />)
         const sheet = screen.getByRole('dialog', { name: 'Delete note' })
-        expect(sheet).toHaveTextContent('≈ 0.85 GNOT storage deposit, not returned'); expect(sheet).toHaveTextContent('At most 1.7 GNOT')
+        expect(sheet).toHaveTextContent('≈ 0.29 GNOT storage deposit, not returned'); expect(sheet).toHaveTextContent('At most 0.6 GNOT')
+        expect(within(sheet).getByText(/^At most 0\.6 GNOT/).tagName).toBe('SMALL')
         expect(calls.prepare).not.toHaveBeenCalled()
         fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
         await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce()); expect(order).toEqual(['close', 'sign'])
-        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '1700000', operation: { noteId: live.id, action: { kind: 'delete', revision: '7' } } })
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '600000', operation: { noteId: live.id, action: { kind: 'delete', revision: '7' } } })
         expect(calls.sign.mock.calls[0][0].summary).toBe('Delete “Field guide”')
     })
     it('prepares its request in the page session, so closing the sheet never aborts it', async () => {
@@ -260,7 +279,7 @@ describe('published note deletion', () => {
     it('refuses to start when the balance does not cover the deposit', async () => {
         calls.balance.mockResolvedValue(JSON.stringify('100000ugnot'))
         render(<DeletePage />)
-        expect(await screen.findByRole('alert')).toHaveTextContent('This costs ≈ 0.85 GNOT; your balance is 0.1 GNOT.')
+        expect(await screen.findByRole('alert')).toHaveTextContent('This costs ≈ 0.29 GNOT; your balance is 0.1 GNOT.')
         const remove = screen.getByRole('button', { name: 'Delete with Adena' }); expect(remove).toBeDisabled(); fireEvent.click(remove)
         await act(async () => {}); expect(calls.prepare).not.toHaveBeenCalled()
     })

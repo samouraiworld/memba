@@ -29,9 +29,11 @@ describe('owner community editing consent', () => {
         expect(screen.queryByRole('button', { name: 'Apply with Adena' })).toBeNull()
         expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
         fireEvent.click(screen.getByRole('radio', { name: enabled ? /Only me/ : /Everyone with a wallet/ }))
-        expect(screen.getByText('≈ 1.2 GNOT')).toBeVisible(); expect(screen.getByText(/at most 2.4 GNOT/)).toBeVisible()
+        // #363 receipts: opening editing 0.67 GNOT, closing it 0.46; the deposit is not returned.
+        expect(screen.getByText(enabled ? '≈ 0.46 GNOT' : '≈ 0.67 GNOT')).toBeVisible(); expect(screen.getByText(enabled ? /At most 1 GNOT/ : /At most 1\.4 GNOT/)).toBeVisible()
+        expect(screen.getByText(/storage deposit, not returned,/)).toBeVisible()
         fireEvent.click(apply()); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
-        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: '2400000', draftLocalRevision: '0', operation: { caller: owner, noteId: note.id, action: { kind: 'public-writes', revision: '4', enabled: !enabled } } })
+        expect(calls.prepare.mock.calls[0][0]).toMatchObject({ maxDepositUgnot: enabled ? '1000000' : '1400000', draftLocalRevision: '0', operation: { caller: owner, noteId: note.id, action: { kind: 'public-writes', revision: '4', enabled: !enabled } } })
         expect(input.onChanged).not.toHaveBeenCalled()
         expect(screen.getByText(/Waiting for your signature/)).toBeVisible()
     })

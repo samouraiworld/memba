@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import { createDraftSession, createNotesStore, type NotesStore } from '../../../lib/notes/drafts'
 import type { ChainNote, NotesPage } from '../../../lib/notes/chain/schema'
 import { NotesList } from './NotesList'
+import { announceNoteChange } from '../../../lib/notes/freshness'
 
 const partition = { chainId: 'gnoland-1', realm: 'gno.land/r/samcrew/memba_notes_v1', owner: 'owner' }
 const utf8 = (value: string) => new TextEncoder().encode(value)
@@ -37,15 +38,83 @@ describe('My notes list', () => {
         render(<NotesList store={store} partition={partition} client={client} owner="owner" query="" selected={published} refresh={0} onOpen={onOpen} />)
         vi.useRealTimers()
         // Drafts (device) and published notes (chain) load independently: wait for both.
-        await waitFor(() => expect(list()).toEqual(['Packing listPublicRevision 3 · draft on this device', 'New noteDraftOn this device · just now', 'SushiPublicRevision 6', 'Private notePrivateRevision 6']))
+        // F12: an untouched blank draft is not listed unless it is the note on screen.
+        await waitFor(() => expect(list()).toEqual(['Packing listPublicRevision 3 · draft on this device', 'SushiPublicRevision 6', 'Private notePrivateRevision 6']))
         expect(screen.queryByText(/ciphertext/)).toBeNull()
         expect(screen.getByRole('button', { name: /Sushi/ })).toHaveAttribute('aria-current', 'true')
-        expect(screen.getByRole('button', { name: /New note/ })).not.toHaveAttribute('aria-current')
+        expect(screen.queryByRole('button', { name: /New note/ })).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: /Private note/ }))
         expect(onOpen).toHaveBeenCalledExactlyOnceWith(locked)
         expect(client.byOwner).toHaveBeenCalledExactlyOnceWith('owner', '', 20)
     })
 
+    it('lists an untouched blank draft only while it is the note on screen (F12)', async () => {
+        const { store, session, client } = setup(), blank = 'aa'.repeat(16)
+        await store.saveDraft({ ...partition, noteId: blank }, '0', { kind: 'public', title: '', body: '' }, session)
+        const view = render(<NotesList store={store} partition={partition} client={client} owner="owner" query="" selected={blank} refresh={0} onOpen={vi.fn()} />)
+        expect(await screen.findByRole('button', { name: /New note/ })).toHaveAttribute('aria-current', 'true')
+        view.rerender(<NotesList store={store} partition={partition} client={client} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+        expect(await screen.findByText('No notes yet.')).toBeVisible(); expect(screen.queryByRole('button', { name: /New note/ })).toBeNull()
+    })
+    it('keeps a blank draft listed while it holds unsaved text, even when another note is open (F12)', async () => {
+        const { store, session, client } = setup(), blank = 'aa'.repeat(16)
+        await store.saveDraft({ ...partition, noteId: blank }, '0', { kind: 'public', title: '', body: '' }, session)
+        render(<NotesList store={store} partition={partition} client={client} owner="owner" query="" selected={null} unsaved={[blank]} refresh={0} onOpen={vi.fn()} />)
+        expect(await screen.findByRole('button', { name: /New note/ })).toHaveTextContent('Unsaved changes')
+    })
+    describe('a row with a draft of a published note', () => {
+        const id = 'bb'.repeat(16), base = { stateRevision: '6', epoch: '0', ownerGeneration: '1', titleRevision: '1', bodyRevision: '1' }
+        async function draftOf(store: NotesStore, session: ReturnType<typeof createDraftSession>, owner = 'owner', patch = {}) {
+            await store.saveDraft({ ...partition, owner, noteId: id }, '0', { kind: 'public', title: 'Sushi', body: 'Rice', base, ...patch }, session)
+        }
+        /** Metadata (no body) for every row; the body only to compare a draft that follows the published revision. */
+        function reads(meta: () => ChainNote | null, full: () => ChainNote | null = meta) {
+            return { noteMetadata: vi.fn<(id: string) => Promise<ChainNote | null>>(async () => meta()), note: vi.fn<(id: string) => Promise<ChainNote | null>>(async () => full()) }
+        }
+        it('says nothing about the draft when it holds no unpublished changes (F8)', async () => {
+            const { store, session, client } = setup(); await draftOf(store, session)
+            const live = note(id), chain = reads(() => live, () => ({ ...live, body: utf8('Rice') }))
+            client.byOwner.mockResolvedValue(page([live]))
+            render(<NotesList store={store} partition={partition} client={{ ...client, ...chain }} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            // The draft was compared with the published text, then said nothing.
+            await waitFor(() => expect(chain.note).toHaveBeenCalledWith(id)); await act(async () => {})
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 6']))
+        })
+        it('follows the revision the note-change announcement brings, also for a note of someone else (F18)', async () => {
+            const { store, session, client } = setup(), b = { ...partition, owner: 'b' }; await draftOf(store, session, 'b')
+            let live = note(id, { owner: 'a' })
+            const chain = reads(() => live, () => ({ ...live, body: utf8('Rice') }))
+            render(<NotesList store={store} partition={b} client={{ ...client, ...chain }} owner="b" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 6']))
+            live = note(id, { owner: 'a', stateRevision: '7' })
+            act(() => announceNoteChange({ chainId: partition.chainId, noteId: id, stateRevision: '7' }))
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 7 · draft on this device']))
+            act(() => announceNoteChange({ chainId: 'other-1', noteId: id }))
+            // Revision 7 is not the draft's base: its body is never fetched.
+            expect(chain.noteMetadata).toHaveBeenCalledTimes(2); expect(chain.note).toHaveBeenCalledOnce()
+        })
+        it('reads each note once, not again on every autosave or focus (drafts reload)', async () => {
+            const { store, session, client } = setup(); await draftOf(store, session)
+            const live = note(id), chain = reads(() => live, () => ({ ...live, body: utf8('Rice') })), reader = { ...client, ...chain }
+            const view = render(<NotesList store={store} partition={partition} client={reader} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            await waitFor(() => expect(list()).toEqual(['SushiPublicRevision 6']))
+            for (const refresh of [1, 2, 3]) { view.rerender(<NotesList store={store} partition={partition} client={reader} owner="owner" query="" selected={null} refresh={refresh} onOpen={vi.fn()} />); await act(async () => { window.dispatchEvent(new Event('focus')) }) }
+            await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)) })
+            expect(chain.noteMetadata).toHaveBeenCalledOnce(); expect(chain.note).toHaveBeenCalledOnce()
+        })
+        it('says Deleted for a deleted note that still has a draft here (F32)', async () => {
+            const { store, session, client } = setup(); await draftOf(store, session, 'owner', { title: 'Sushi (rc1 canary)' })
+            render(<NotesList store={store} partition={partition} client={{ ...client, ...reads(() => note(id, { stateRevision: '9', deleted: true })) }} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            await waitFor(() => expect(list()).toEqual(['Sushi (rc1 canary)DeletedDraft on this device · open it to remove it']))
+        })
+        it('never takes an absent answer for a deletion: a node may lag, and notes are never removed', async () => {
+            const { store, session, client } = setup(); await draftOf(store, session)
+            const chain = reads(() => null)
+            render(<NotesList store={store} partition={partition} client={{ ...client, ...chain }} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
+            await waitFor(() => expect(chain.noteMetadata).toHaveBeenCalledWith(id)); await act(async () => {})
+            expect(list()).toEqual(['SushiPublicRevision 6 · draft on this device'])
+        })
+    })
     it('orders drafts saved in the same millisecond deterministically and marks unsaved ones', async () => {
         const { store, session, client } = setup(), guest = { ...partition, owner: 'guest' }
         vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(5_000)

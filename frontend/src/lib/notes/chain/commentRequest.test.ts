@@ -10,7 +10,8 @@ import { encode64, type ChainNote } from './schema'
 import { NOTES_REALM } from './__fixtures__/deployment'
 import type { CommentOperation } from './commentMessages'
 import { publicCommentBudget } from './commentQuote'
-import measured from './__fixtures__/comment-economics.json'
+import measured from './__fixtures__/notes-storage-363.json'
+import { QuoteExpiredError } from '../../../os/sign/expired'
 // These suites sign on a test network; the deployment table names the realm path receipts are scoped to.
 vi.mock('../config', async importOriginal => ({ ...await importOriginal<typeof import('../config')>(), deploymentRealm: () => 'gno.land/r/samcrew/memba_notes_v1' }))
 
@@ -56,7 +57,9 @@ describe('public comment intentions', () => {
     const s = setup(), request = await preparePublicCommentRequest(s.options)
     expect(request.acks).toBeUndefined()
     const lines = request.lines(undefined), technical = request.technical!(undefined)
-    expect(lines.map(([label]) => label)).toEqual(expect.arrayContaining(['Note', 'Comment', 'On revision', 'Expected storage deposit', 'Maximum storage deposit', 'Network fee']))
+    expect(lines.map(([label]) => label)).toEqual(expect.arrayContaining(['Note', 'Comment', 'On', 'Expected storage deposit', 'Maximum storage deposit', 'Network fee']))
+    // F20: the note is at revision 5 (its body at body revision 2): the sheet names the note's revision, never the body counter.
+    expect(lines).toContainEqual(['On', 'The current text (revision 5)'])
     expect(lines).toContainEqual(['Note', 'Title'])
     expect(lines.find(([label]) => label === 'Expected storage deposit')![1]).toMatch(/ GNOT$/)
     for (const [, value] of lines) expect(value).not.toContain(operationId)
@@ -81,19 +84,25 @@ describe('public comment intentions', () => {
     const request = await preparePublicCommentRequest(s.options)
     expect(request.lines(undefined)).toContainEqual(['Reply to', `${other.slice(0, 5)}…${other.slice(-4)}: Bring a mat?`])
   })
-  it('signs a one-line comment at the price calibrated on measured receipts (comment-economics.json)', async () => {
+  it('signs a one-line comment at the price calibrated on the #363 receipts (notes-storage-363.json)', async () => {
     const s = setup({ kind: 'add', bodyRevision: '2', epoch: '0', anchor: '', body: 'I can bring a bamboo mat for rolling.' })
     const request = await preparePublicCommentRequest(s.options), message = request.prepare(undefined).msgs[0]
-    const budget = publicCommentBudget(message), worst = Math.max(...measured.rows.filter(r => r.func === 'AddComment' && r.anchorBytes === 0 && r.bodyBytes === 37).map(r => r.storageDepositDeltaUgnot))
-    expect(budget).toMatchObject({ estimatedDepositUgnot: '2053700', suggestedCapUgnot: '2500000', gasWanted: 87000000 })
+    const budget = publicCommentBudget(message), worst = Math.max(...measured.rows.filter(r => r.func === 'AddComment').map(r => r.storageDepositDeltaUgnot))
+    expect(budget).toMatchObject({ estimatedDepositUgnot: '1933700', suggestedCapUgnot: '2400000', gasWanted: 87000000 })
     expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(worst * 1.24)
-    for (const [kind, rowName] of [['hide', 'comment_hide'], ['resolve', 'comment_resolve'], ['delete', 'delete_comment_after_note_delete']] as const) {
+    for (const [kind, rowName] of [['hide', 'HideComment'], ['resolve', 'ResolveComment'], ['delete', 'DeleteComment (author)']] as const) {
       const action = kind === 'hide' ? { kind, revision: '1', hidden: true } as const : kind === 'resolve' ? { kind, revision: '1', resolved: true } as const : { kind, revision: '1' } as const
       const other = setup(action); if (kind === 'delete') other.setNote({ deleted: true })
       const priced = publicCommentBudget((await preparePublicCommentRequest(other.options)).prepare(undefined).msgs[0])
-      expect(priced).toMatchObject({ estimatedDepositUgnot: '500000', suggestedCapUgnot: '600000' })
+      expect(priced).toMatchObject({ estimatedDepositUgnot: '390000', suggestedCapUgnot: '500000' })
       expect(Number(priced.suggestedCapUgnot)).toBeGreaterThanOrEqual(measured.rows.find(r => r.case === rowName)!.storageDepositDeltaUgnot * 1.24)
     }
+  })
+  it('says an expired price quote in plain words before any wallet (F7)', async () => {
+    const s = setup({ kind: 'add', bodyRevision: '2', epoch: '0', anchor: '', body: 'Late comment' })
+    const request = await preparePublicCommentRequest(s.options); s.client.height.mockResolvedValue('111')
+    await expect(request.recheck!(undefined)).rejects.toThrow(QuoteExpiredError)
+    await expect(request.recheck!(undefined)).rejects.toThrow('The price quote expired. Nothing was sent.')
   })
   it('permits author deletion after note deletion/pausing and verifies the exact empty tombstone', async () => {
     const s = setup({ kind: 'delete', revision: '1' }); s.setNote({ deleted: true }); s.pause()

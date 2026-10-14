@@ -132,7 +132,7 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
                 const latest = await withTimeout(client.note(note.id))
                 if (guard.signal.aborted) return
                 if (!latest || latest.deleted || latest.epoch !== note.epoch || BigInt(latest.bodyRevision) > BigInt(note.bodyRevision)) {
-                    setCarried(latest && !latest.deleted ? `The note was updated to body revision ${latest.bodyRevision}. Your comment is kept: check it against the latest text, then send it again.` : 'The note changed on chain. Your comment is kept.')
+                    setCarried(latest && !latest.deleted ? `The note was updated to revision ${latest.stateRevision}. Your comment is kept: check it against the latest text, then send it again.` : 'The note changed on chain. Your comment is kept.')
                     announceNoteChange({ chainId: client.chainId, noteId: note.id, ...(latest ? { stateRevision: latest.stateRevision } : {}) })
                     return
                 }
@@ -208,18 +208,18 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
         </div>
         {canPost && <form className="os-notes-composer" aria-label="Write a comment" onSubmit={event => { event.preventDefault(); void review(addAction()) }}>
             <p className="os-notes-composer-hint">{parent ? <>Reply to {short(parent.author)} <button type="button" className="os-btn os-quiet" onClick={() => setParent(null)}>Cancel reply</button></>
-                : <>Comment on revision {note.bodyRevision} · select text in the note to quote it</>}</p>
+                : <>Comment on the current text (revision {note.stateRevision}) · select text in the note to quote it</>}</p>
             {anchor && <figure className="os-notes-anchor">
                 <blockquote>{anchor}</blockquote>
-                <figcaption>Quote from revision {quoteRevision} <button type="button" className="os-btn os-quiet" onClick={() => setQuote(NO_QUOTE)}>Remove quote</button></figcaption>
+                <figcaption>{quoteRevision === note.bodyRevision ? 'Quote from the current text' : 'Quote from an earlier text'} <button type="button" className="os-btn os-quiet" onClick={() => setQuote(NO_QUOTE)}>Remove quote</button></figcaption>
             </figure>}
             {offer && offer !== anchor && <p role="status">Replace the quote with “{[...offer].length > 60 ? `${[...offer].slice(0, 59).join('')}…` : offer}”?{' '}
                 <button type="button" className="os-btn os-quiet" onClick={() => { setQuote({ text: offer, bodyRevision: note.bodyRevision, confirmedFor: note.bodyRevision }); setOffer('') }}>Replace quote</button>{' '}
                 <button type="button" className="os-btn os-quiet" onClick={() => setOffer('')}>Keep current quote</button></p>}
-            {quoteNeedsReview && <p role="status">The note changed and your quote is no longer in the latest text. Keep it anchored to the older revision {quote.bodyRevision}, or clear it. <button type="button" className="os-btn os-quiet" onClick={() => setQuote(value => ({ ...value, confirmedFor: note.bodyRevision }))}>Keep original quote</button> <button type="button" className="os-btn os-quiet" onClick={() => setQuote(NO_QUOTE)}>Clear quote</button></p>}
+            {quoteNeedsReview && <p role="status">The note changed and your quote is no longer in the latest text. Keep it anchored to the earlier text, or clear it. <button type="button" className="os-btn os-quiet" onClick={() => setQuote(value => ({ ...value, confirmedFor: note.bodyRevision }))}>Keep original quote</button> <button type="button" className="os-btn os-quiet" onClick={() => setQuote(NO_QUOTE)}>Clear quote</button></p>}
             <textarea aria-label="Comment" placeholder="Add a comment" rows={2} value={body} onChange={event => setBody(event.target.value)} maxLength={4000} />
             <div className="os-notes-composer-foot">
-                <span className="os-notes-cost">{cost ? <>Signed with Adena · <b>≈ {approxGnot(cost.estimatedDepositUgnot)}</b><small>Storage deposit; at most {gnotAmount(cost.suggestedCapUgnot)}</small></> : 'Public, kept in chain history · signed with Adena'}</span>
+                <span className="os-notes-cost">{cost ? <>Signed with Adena · <b>≈ {approxGnot(cost.estimatedDepositUgnot)}</b><small>Storage deposit, not returned</small><small>At most {gnotAmount(cost.suggestedCapUgnot)}</small></> : 'Public, kept in chain history · signed with Adena'}</span>
                 <button type="submit" className="os-btn" disabled={busy || quoteNeedsReview || !body.trim() || !!receipts.length || receiptsReady !== receiptsKey}>{busy ? 'Preparing…' : 'Comment'}</button>
             </div>
         </form>}

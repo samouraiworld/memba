@@ -13,6 +13,18 @@ vi.mock("../../../lib/notes/freshness", async original => {
 afterEach(() => { bound.ms = undefined })
 const scope: NotesScope = { chainId: "gnoland-1", realm: "gno.land/r/samcrew/memba_notes_v1", owner: "guest", noteId: "0123456789abcdef0123456789abcdef" }
 const record: DraftRecord = { schema: 1, scope, localRevision: "1", payload: { kind: "public", title: "Saved", body: "Saved body" }, updatedAt: 1 }
+describe("a separate copy (F26)", () => {
+    it("says it is an unpublished copy of the note, and keeps that through edits", async () => {
+        const copy: DraftRecord = { ...record, payload: { kind: "public", title: "Sushi (my version)", body: "Mine", copyOf: { noteId: "ab".repeat(16), title: "Sushi" } } }
+        const saveDraft = vi.fn(async (_scope, revision: string, payload) => ({ status: "saved", value: { ...copy, localRevision: String(BigInt(revision) + 1n), payload } }))
+        render(<DraftEditor store={{ getDraft: vi.fn(async () => copy), saveDraft } as unknown as NotesStore} scope={scope} onSaved={() => {}} />)
+        expect(await screen.findByText("Copy of your text from “Sushi”, not published. Publishing it creates a new public note; the original note is unchanged.")).toBeVisible()
+        expect(screen.getByText(/^Unpublished copy · /)).toBeVisible()
+        fireEvent.change(screen.getByRole("textbox", { name: "Note title" }), { target: { value: "Sushi, mine" } })
+        await vi.waitFor(() => expect(saveDraft).toHaveBeenCalledOnce(), { timeout: 2000 })
+        expect(saveDraft.mock.calls[0][2]).toEqual({ kind: "public", title: "Sushi, mine", body: "Mine", copyOf: { noteId: "ab".repeat(16), title: "Sushi" } })
+    })
+})
 describe("Draft editor asynchronous boundaries", () => {
     it("stores edits typed just before it unmounts, after a save already in flight, which unmounting never aborts", async () => {
         let finish!: (value: unknown) => void

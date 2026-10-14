@@ -8,7 +8,7 @@ import { readPublicContentWritePermission } from '../../../lib/notes/chain/publi
 import { planDraftRebase, type RebasePlan } from '../../../lib/notes/chain/rebase'
 import { NotesChainError, publicText, type ChainNote } from '../../../lib/notes/chain/schema'
 import { NotesTimeoutError, readFresh, useNoteRefresh, withTimeout } from '../../../lib/notes/freshness'
-import { trimPublicTitle } from '../../../lib/notes/publicFields'
+import { copyTitle, trimPublicTitle } from '../../../lib/notes/publicFields'
 import { DraftEditor, type EditorActions } from './DraftEditor'
 import { PublicDelete, PublicPublish, PublishProgressSheet, type PublishProgress } from './PublicPublish'
 import { NoteSkeleton, PublicNote } from './PublicNote'
@@ -17,6 +17,7 @@ import type { ArchivedPublicDraft } from './PublicHistory'
 import { NoteSharePopover } from './NoteSharePopover'
 import { NoteSidePanel } from './NoteSidePanel'
 import { NoteBanner, NoteStatus, type Notice } from './NoteHeader'
+import { useNotesPane } from './notesPane'
 import { differingLines, shortAddress } from './notesFormat'
 import './notes-authoring.css'
 
@@ -62,7 +63,7 @@ export function PublicAuthoring(props: Props) {
 }
 /** The published note is the page; Edit turns the same page into its editor, Publish brings it back. */
 function Workspace({ client, store, scope, walletChainId }: Props) {
-    const [session] = useState(createDraftSession), working = useRef(false), updating = useRef(false)
+    const [session] = useState(createDraftSession), working = useRef(false), updating = useRef(false), pane = useNotesPane()
     const [start, setStart] = useState<'checking' | 'ready'>('checking'), [saved, setSaved] = useState<Saved | null>(null), [savedTick, reread] = useState(0)
     const [opened, setOpened] = useState(false), [editing, setEditing] = useState(false)
     const [generation, reloadEditor] = useState(0), [notice, setNotice] = useState<Notice | null>(null), [busy, setBusy] = useState(false), [checking, setChecking] = useState(false)
@@ -101,6 +102,51 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         }).catch(() => { if (live()) { setStart('ready'); setNotice({ tone: 'warn', text: 'Drafts on this device could not be read. Their saved copies were kept.' }) } })
         return () => { alive = false }
     }, [store, client, scope, session, savedTick])
+    /** This device's draft follows an older revision than the published one (F21): what to say about it on the read page. */
+    const [stale, setStale] = useState<{ for: Saved; state: { base: string; latest: string } | { deleted: true } | null } | null>(null)
+    useEffect(() => {
+        const base = saved?.base
+        // After the start check, and not while the published note cannot be read (that banner already offers the draft).
+        if (!saved || !base || opened || start !== 'ready' || unread) return
+        const guard = session.capture(); let alive = true
+        const live = () => alive && !guard.signal.aborted
+        const setBehind = (state: { base: string; latest: string } | { deleted: true } | null) => setStale({ for: saved, state })
+        void (async () => {
+            const note = await withTimeout(client.note(scope.noteId))
+            if (!live()) return
+            // A deleted note keeps nothing to publish to: its draft here can be removed (F32).
+            if (note?.deleted) { setBehind({ deleted: true }); return }
+            if (!note || !note.body || BigInt(note.stateRevision) <= BigInt(base.stateRevision)) { setBehind(null); return }
+            const plan = await withTimeout(planDraftRebase(client, saved, note)).catch(() => null)
+            if (!live()) return
+            if (plan?.kind === 'replace') {
+                // The draft holds nothing of its own: it follows the published text without a word.
+                const slot = await withTimeout(readDraftSlot(store, scope, guard))
+                const payload = slot.draft?.payload.kind === 'public' ? slot.draft.payload : null
+                if (!live() || !slot.draft || !payload || payload.title !== saved.title || payload.body !== saved.body) return
+                const result = await saveDraftBounded(store, scope, slot.draft.localRevision, { kind: 'public', title: plan.title, body: plan.body, base: draftBase(plan.latest) }, guard)
+                if (live() && result.status === 'saved') { setBehind(null); reread(value => value + 1); pane?.saved() }
+                return
+            }
+            setBehind({ base: base.stateRevision, latest: note.stateRevision })
+        })().catch(() => { if (live()) setBehind(null) })
+        return () => { alive = false }
+    }, [saved, opened, start, unread, client, store, scope, session, liveCheck, pane])
+    async function discardBehind(question: string) {
+        if (working.current || !window.confirm(question)) return
+        working.current = true; setBusy(true)
+        const guard = session.capture()
+        try {
+            const slot = await withTimeout(readDraftSlot(store, scope, guard))
+            const result = slot.draft ? await withTimeout(store.deleteDraft(scope, slot.draft.localRevision, guard)) : null
+            if (guard.signal.aborted) return
+            if (result && result.status !== 'saved') { setNotice({ tone: 'warn', text: 'Your draft could not be discarded. It is kept on this device.' }); return }
+            setStale(null); setNotice(null); reread(value => value + 1); pane?.saved()
+        } catch { if (!guard.signal.aborted) setNotice({ tone: 'warn', text: 'Your draft could not be discarded. It is kept on this device.' }) }
+        finally { if (!guard.signal.aborted) { working.current = false; setBusy(false) } }
+    }
+    // Only for the draft as last read, while the read page shows it.
+    const behind = stale && stale.for === saved && !opened && start === 'ready' && !unread ? stale.state : null
     const show = () => { setOpened(true); setEditing(true); recheckLive() }
     /** Opens the editor on the latest revision: a fresh copy, an untouched draft, a clean rebase, or an explicit conflict. */
     async function prepare(archived?: ArchivedPublicDraft) {
@@ -202,6 +248,8 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
     }
     // A message set by the confirmation (e.g. the draft changed meanwhile) stays; a new publication clears old ones itself.
     const view = () => { setProgress(null); setEditing(false); reread(value => value + 1) }
+    // A confirmed publication returns to the read page at once (F19): "Published" is shown over the note, not the editor.
+    const report = useCallback((next: PublishProgress | null) => { setProgress(next); if (next?.step === 'done' && next.kind === 'publish') setEditing(false) }, [])
     const basis = live.note && !live.note.deleted && live.note.body ? { revision: live.note.stateRevision, title: publicText(live.note.title, true), body: publicText(live.note.body) } : null
     function actions(draft: DraftRecord, editor: EditorActions): { primary?: ReactNode; banner?: ReactNode } {
         if (live.note === undefined) return {
@@ -219,7 +267,7 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         return {
             // A draft without a baseline is a creation: never offer it for a note that already exists.
             primary: (base || !exists) && <PublicPublish draft={draft} client={client} store={store} requestSession={session} walletChainId={walletChainId}
-                beforeReview={base ? () => update(draft, true) : undefined} titleProblem={editor.titleProblem} onNotice={setNotice} onProgress={setProgress}
+                beforeReview={base ? () => update(draft, true) : undefined} titleProblem={editor.titleProblem} onNotice={setNotice} onProgress={report}
                 onPublished={confirmed => {
                     void editor.published(draftBase(confirmed), draft.localRevision).then(done => { if (!done) setNotice(info(`Published as revision ${confirmed.stateRevision}. Your draft changed meanwhile; it is updated to the latest revision before your next publication.`)) },
                         () => setNotice(info(`Published as revision ${confirmed.stateRevision}. This device did not confirm the draft update; your text is kept.`)))
@@ -229,14 +277,24 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
                 actions: <button className="os-btn" disabled={checking} onClick={() => void update(draft)}>Bring in revision {note.stateRevision}</button> }} />,
         }
     }
-    const changes = (note: ChainNote) => saved && !sameText(saved, note)
-        ? <NoteStatus kind="changes">Unpublished changes{saved.base ? ` · based on revision ${saved.base.stateRevision}` : ''}</NoteStatus> : undefined
+    // Newer text published by someone else is never called this device's unpublished changes (F21).
+    const changes = (note: ChainNote) => !saved || (!note.deleted && sameText(saved, note)) ? undefined
+        : note.deleted ? <NoteStatus kind="draft">Draft on this device</NoteStatus>
+        : saved.base && BigInt(note.stateRevision) > BigInt(saved.base.stateRevision) ? <NoteStatus kind="draft">Draft on this device · based on revision {saved.base.stateRevision}</NoteStatus>
+        : <NoteStatus kind="changes">Unpublished changes{saved.base ? ` · based on revision ${saved.base.stateRevision}` : ''}</NoteStatus>
     if (start === 'checking') return <NoteSkeleton />
     return <div className="os-notes-authoring">
         {!editing && saved && (unread || (opened && live.failed)) && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',
             actions: <button type="button" className="os-btn" disabled={busy} onClick={() => opened ? setEditing(true) : void prepare()}>Open my draft</button> }} />}
         <div hidden={editing}>
-            <PublicNote id={scope.noteId} client={client} owner={scope.owner} banner={!editing && <NoteBanner notice={notice} />} status={changes}
+            <PublicNote id={scope.noteId} client={client} owner={scope.owner} status={changes}
+                banner={!editing && <><NoteBanner notice={notice} />{behind && ('deleted' in behind
+                    ? <NoteBanner notice={{ tone: 'info', text: 'This note was deleted. Your draft of it is still on this device.',
+                        actions: <><button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => void prepare()}>Open my draft</button>
+                            <button type="button" className="os-btn" disabled={busy} onClick={() => void discardBehind('Remove your draft of this deleted note from this device? Export it first if you want to keep the text.')}>Remove my draft</button></> }} />
+                    : <NoteBanner notice={{ tone: 'info', text: `Your draft on this device is based on revision ${behind.base} — revision ${behind.latest} is published.`,
+                        actions: <><button type="button" className="os-btn" disabled={busy} onClick={() => void prepare()}>Open my draft</button>
+                            <button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => void discardBehind(`Discard your draft on this device? It is based on revision ${behind.base}; the published note does not change.`)}>Discard</button></> }} />)}</>}
                 primary={note => !editing && <PublicEditButton note={note} owner={scope.owner} client={client} busy={busy} onEdit={() => opened ? setEditing(true) : void prepare()} />}
                 /* A confirmed change announces the note's new revision, which re-reads this reader. */
                 share={note => !editing && <NoteSharePopover note={note} client={client} store={store} owner={scope.owner} onChanged={settled} />}
@@ -281,7 +339,8 @@ function RebaseConflict({ plan, draft, store, published, onResolved }: {
                 onResolved(info(`Your version now follows revision ${revision}. Publishing it replaces their change, so read it once more first.`), false)
                 return
             }
-            const copy = await saveDraftBounded(store, { ...draft.scope, noteId: newNoteId() }, '0', { kind: 'public', title: mine.title, body: mine.body }, guard)
+            // Told apart from the note in the list, and its page says where it came from (F26).
+            const copy = await saveDraftBounded(store, { ...draft.scope, noteId: newNoteId() }, '0', { kind: 'public', title: copyTitle(mine.title), body: mine.body, copyOf: { noteId: draft.scope.noteId, title: plan.theirs.title } }, guard)
             if (guard.signal.aborted) return
             if (copy.status !== 'saved') { setProblem('Your text could not be saved as a separate draft, so nothing was replaced. Export it or try again.'); return }
             const result = await saveDraftBounded(store, draft.scope, draft.localRevision, { kind: 'public', ...plan.theirs, base: draftBase(latest) }, guard)

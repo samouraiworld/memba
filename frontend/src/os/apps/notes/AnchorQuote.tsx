@@ -38,7 +38,7 @@ export function AnchorQuote(props: AnchorQuoteProps) {
     }
     return <figure className="os-notes-anchor">
         <blockquote style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{quote}</blockquote>
-        <figcaption><span role="status">{revision === 'earlier' ? 'Comment on an earlier body revision. ' : ''}{explanation}</span>
+        <figcaption><span role="status">{revision === 'earlier' ? 'Comment on an earlier text of the note. ' : ''}{explanation}</span>
             {status === 'present' && <button className="os-btn os-quiet" onClick={showQuote}>Show quoted text</button>}
         </figcaption>
     </figure>
