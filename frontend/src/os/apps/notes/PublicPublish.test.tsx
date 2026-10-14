@@ -8,6 +8,7 @@ import { PublicDelete, PublicPublish, PublishProgressSheet, type PublishProgress
 import { NoteBanner, type Notice } from './NoteHeader'
 import { NotesPaneContext, type NotesPane } from './notesPane'
 import { useNoteFreshness } from '../../../lib/notes/freshness'
+import { QuoteExpiredError } from '../../sign/expired'
 const calls = vi.hoisted(() => ({ prepare: vi.fn(), sign: vi.fn(), receipts: vi.fn(), balance: vi.fn() }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: calls.sign }) }))
 vi.mock('../../../lib/notes/chain/request', () => ({ preparePublicNoteRequest: calls.prepare }))
@@ -101,6 +102,20 @@ describe('public publication review', () => {
         setup(draft, vi.fn(async () => ({ ...draft, localRevision: '5' })))
         await screen.findByText(/Your draft changed in another window, or the note changed, while the publication was prepared. Nothing was sent./)
         expect(screen.queryByRole('dialog')).toBeNull(); expect(calls.sign).not.toHaveBeenCalled(); expect(calls.prepare).not.toHaveBeenCalled()
+    })
+    it('says an expired quote instead of leaving the progress on Approve in Adena, and resumes after a fresh quote', async () => {
+        let expired = true
+        const send = vi.fn(async () => { if (expired) throw new QuoteExpiredError(); return { hash: 'aa'.repeat(32) } })
+        calls.prepare.mockResolvedValue({ warns: [], send })
+        setup(); await approve(); await waitFor(() => expect(calls.sign).toHaveBeenCalledOnce())
+        expect(await screen.findByRole('dialog', { name: 'Publishing' })).toBeVisible()
+        const request = calls.sign.mock.calls[0][0]
+        await act(async () => { await expect(request.send(undefined, async () => () => true)).rejects.toThrow(QuoteExpiredError) })
+        expect(screen.queryByRole('dialog', { name: 'Publishing' })).toBeNull()
+        expect(screen.getByRole('alert')).toHaveTextContent('The price quote expired. Nothing was sent. Your text is kept. Get a fresh quote in the signature sheet, or cancel it.')
+        expired = false
+        await act(async () => { await request.send(undefined, async () => () => true) })
+        expect(screen.getByRole('dialog', { name: 'Publishing' })).toBeVisible(); expect(screen.queryByText(/price quote expired/)).toBeNull()
     })
     it('writes the cap the review states, never below its estimated deposit, into the transaction', async () => {
         setup()

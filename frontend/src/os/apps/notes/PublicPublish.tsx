@@ -15,6 +15,7 @@ import { ugnotInCoinsJson } from '../../../lib/bankBalance'
 import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import type { SettledOutcome, SignRequest } from '../../sign/signer'
 import { useSigner, type SignerApi } from '../../sign/signerContext'
+import { QuoteExpiredError } from '../../sign/expired'
 import { NoteSheet, type Notice } from './NoteHeader'
 import { PUBLISHING, useNotesPane, type NotesPane } from './notesPane'
 
@@ -90,9 +91,19 @@ function sign(request: SignRequest, context: Report & { signer: SignerApi; pane:
     const progress = (step: PublishProgress['step'], extra: Partial<PublishProgress> = {}) => onProgress?.({ kind, title, chainId, step, ...extra })
     const hold = `${PUBLISHING}${newNoteId()}`, release = () => context.pane?.hold(hold, false)
     const { send, onSettled, onDismissed } = request
+    let expiredShown = false
     request.send = async (choice, beforeSign) => {
         progress('approve', { walletSince: Date.now() })
-        const result = await send(choice, beforeSign)
+        if (expiredShown) { expiredShown = false; onNotice?.(null) }
+        let result: Awaited<ReturnType<typeof send>>
+        try { result = await send(choice, beforeSign) } catch (error) {
+            // The signature sheet stays open to quote again: the progress says what happened instead of waiting on Adena.
+            if (error instanceof QuoteExpiredError) {
+                expiredShown = true; onProgress?.(null)
+                onNotice?.({ tone: 'warn', text: `The price quote expired. Nothing was sent.${kind === 'delete' ? '' : ` ${kept}`} Get a fresh quote in the signature sheet, or cancel it.` })
+            }
+            throw error
+        }
         progress('sending')
         return result
     }
