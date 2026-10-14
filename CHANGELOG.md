@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
 - Notes history reads follow the storage-cut Notes realm (samcrew-deployer#363): an archived body is read by the history event that recorded its version (`public-history-body/v2`) and stays bound to that version's body revision and digest; draft rebasing reads the base version first, then its body.
-- The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts, featured-note releases and digests all use it, and a receipt or release naming another path is refused; there is no default path. Notes remains disabled pending deployment and reviewed activation.
+- The Notes realm path now comes from each network's deployment entry. Reads, messages, quotes, signing sheets, receipts, featured-note releases and digests all use it, and a receipt or release naming another path is refused; there is no default path. The Onyx canary now reads the release candidate `gno.land/r/samcrew/memba_notes_rc1`; mainnet will use `gno.land/r/samcrew/memba_notes_v1`. Notes remains disabled pending deployment and reviewed activation.
 
 ### Desktop: a note shortcut follows its published title (#1622, 2026-10-14)
 - A note shortcut pinned before its note was published, or while the note was private, now takes the note's public title as soon as this tab confirms the publication or a rename, instead of showing "Note" until the next visit. The read waits for the announced revision when the network node is behind. A note that is still private keeps its lock and never shows or stores a title.

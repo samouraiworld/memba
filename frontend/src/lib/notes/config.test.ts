@@ -10,7 +10,7 @@ describe("Notes release and title boundaries", () => {
         const config = await import("./config")
         expect(config.NOTES_ENABLED).toBe(local === "true")
         const open = local === "true" && chain === "true"
-        expect(config.notesDeployment("onyx-1")).toEqual(open ? { realm: "gno.land/r/samcrew/memba_notes_v1", version: 1 } : null)
+        expect(config.notesDeployment("onyx-1")).toEqual(open ? { realm: "gno.land/r/samcrew/memba_notes_rc1", version: 1 } : null)
         for (const id of ["gnoland-1", "unknown", "__proto__", "constructor", "toString", "hasOwnProperty"]) expect(config.notesDeployment(id)).toBeNull()
     })
     it("names a valid Notes realm path in every deployment entry, read back unflagged for receipts", () => {
