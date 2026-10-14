@@ -8,10 +8,12 @@ import { boundedNotesQuote } from './quote'
  * - AddComment stores its anchor and body plus ~20,500 bytes of comment, index and author records
  *   (a fresh author's one-line comment measured up to 2,010,900 ugnot; the largest, 4,600 bytes, 2,508,500);
  * - Hide/Resolve/DeleteComment store at most ~5,000 bytes (440,200 / 436,000 / 409,500 measured).
- * The signed cap is 1.2x the expected deposit, rounded up to 0.1 GNOT: at least 20% above every measured receipt.
+ * The signed cap is 1.2x the expected deposit, rounded up to 0.1 GNOT: at least 20% above every measured receipt,
+ * also after ~410 comments on a note (growth run: worst one-line 2,032,800, largest 2,519,600).
  * No refund is assumed. Gas: keeper gas grows with the comments already on a note (a largest comment used
- * 80.7M after ~43 comments, a one-line one 45.4M after 30), so the limit is 80M + 10,000 per stored byte for a
- * post (81M one-line, 126M largest: 1.5x the worst sample) and 60M for the other actions (29.6M measured).
+ * 80.7M after ~43 comments and 92.8M after ~410, a one-line one 45.4M after 30 and 56.8M by 400), so the limit is
+ * 80M + 10,000 per stored byte for a post (81M one-line, 126M largest: 1.5x the samples up to ~43 comments,
+ * 1.35x after ~410) and 60M for the other actions (29.6M measured).
  */
 const ADD_OVERHEAD_BYTES = 20_500
 const ACTION_OVERHEAD_BYTES = 5_000

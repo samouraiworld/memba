@@ -32,6 +32,9 @@ Full changelogs are split by version range for easier navigation:
 
 ### Notes Onyx deployment selection (#1604, 2026-10-14)
 - Select the Notes realm published on the Onyx testnet for the two-wallet canary. It only takes effect in builds where both Notes release switches are on; production keeps Notes disabled and has no mainnet deployment entry.
+### Notes: a posted comment is never offered again (2026-10-14)
+- Once the wallet has sent a comment, its text leaves every comment box for that note in the tab, including one opened before the comment is confirmed, so it cannot be posted and paid for twice. If the comment is not confirmed, the text comes back to an empty box, and its receipt still blocks a resend until it is checked. Checking a receipt that turns out to be the comment in the box clears the box.
+- The comment cost tests now include the growth run (up to about 410 comments on one note): the signed cap stays at least 1.2× every measured deposit and the gas limit at least 1.35× the measured gas.
 
 ### Notes: Share menu, and History and Comments beside the note (#1610, 2026-10-12)
 - A Share button in the note header opens one menu: the note's link with Copy, who can read it, who can edit it and who can comment. The owner switches editing between "Only me" and "Everyone with a wallet" there, sees the expected storage deposit (large) and the signed cap (small) before signing, both from the Notes quote module, applies it with Adena and follows the change to its confirmation in the menu. Everyone else sees the same facts, read-only.

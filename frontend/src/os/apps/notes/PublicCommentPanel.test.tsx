@@ -1,5 +1,7 @@
 import { StrictMode } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { NotesStore } from '../../../lib/notes/drafts'
@@ -8,7 +10,7 @@ import type { PublicComment } from '../../../lib/notes/chain/comments'
 import { PublicCommentPanel } from './PublicCommentPanel'
 import { announceNoteChange } from '../../../lib/notes/freshness'
 import { mayCloseWindow } from '../../shell/closeGuards'
-const mocks = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), recover: vi.fn(), list: vi.fn(), sign: vi.fn(), dismiss: vi.fn(), settle: vi.fn(), version: 0, next: 0 }))
+const mocks = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), recover: vi.fn(), list: vi.fn(), sign: vi.fn(), send: vi.fn(), dismiss: vi.fn(), settle: vi.fn(), version: 0, next: 0 }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: mocks.sign, version: mocks.version }) }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({}), newNoteId: () => (++mocks.next).toString(16).padStart(32, '0') }))
 vi.mock('../../../lib/notes/chain/comments', async importOriginal => ({ ...await importOriginal<typeof import('../../../lib/notes/chain/comments')>(), readPublicComments: mocks.read }))
@@ -42,11 +44,17 @@ function select(root: HTMLElement, passage: string) {
     window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(range)
     fireEvent.mouseUp(root)
 }
+/** The wallet returned a transaction hash for the review being signed: sent, not yet confirmed. */
+const broadcast = (call = 0) => act(async () => { await mocks.sign.mock.calls[call][0].send(undefined, async () => {}) })
+const digest = (value: string) => bytesToHex(sha256(new TextEncoder().encode(value)))
+async function post() {
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' })); await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+}
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 beforeEach(() => {
     vi.clearAllMocks(); mocks.next = 0; mocks.version = 0; sessionStorage.clear(); document.querySelectorAll('article[data-test-preview]').forEach(node => node.remove())
     mocks.read.mockResolvedValue({ items: [row()], nextCursor: '' }); mocks.list.mockResolvedValue([]); mocks.recover.mockResolvedValue('unknown')
-    mocks.prepare.mockResolvedValue({ onDismissed: mocks.dismiss, onSettled: mocks.settle }); mocks.sign.mockReturnValue(true)
+    mocks.prepare.mockResolvedValue({ onDismissed: mocks.dismiss, onSettled: mocks.settle, send: mocks.send }); mocks.sign.mockReturnValue(true); mocks.send.mockResolvedValue({ hash: 'aa'.repeat(32) })
 })
 describe('public-only comment controls', () => {
     it('can prepare a fresh comment review after StrictMode effect replay', async () => {
@@ -219,6 +227,58 @@ describe('public-only comment controls', () => {
         fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Newer unsent edit' } })
         act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
         expect(screen.getByLabelText('Comment')).toHaveValue('Newer unsent edit')
+    })
+})
+
+describe('a sent comment is never offered again', () => {
+    it('leaves every composer for the note once broadcast, and stays gone after confirmation', async () => {
+        const first = setup(); await compose()
+        // A second composer for the same note in this tab (another window, or a remount) restored the text.
+        const second = setup(), a = within(first.container), b = within(second.container)
+        expect(b.getByLabelText('Comment')).toHaveValue('My public reply')
+        fireEvent.click(a.getByRole('button', { name: 'Comment' })); await waitFor(() => expect(mocks.sign).toHaveBeenCalledOnce())
+        await broadcast()
+        expect(a.getByLabelText('Comment')).toHaveValue(''); expect(b.getByLabelText('Comment')).toHaveValue('')
+        act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
+        expect(a.getByLabelText('Comment')).toHaveValue(''); expect(b.getByLabelText('Comment')).toHaveValue(''); expect(sessionStorage.length).toBe(0)
+    })
+    it('is not restored by a composer reopened between broadcast and confirmation', async () => {
+        const view = setup(); await compose(); await post(); await broadcast(); view.unmount()
+        setup(); expect(screen.getByLabelText('Comment')).toHaveValue('')
+        act(() => mocks.sign.mock.calls[0][0].onSettled('confirmed', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue(''); expect(sessionStorage.length).toBe(0)
+    })
+    it.each(['submitted', 'failed', 'unknown'] as const)('comes back behind its receipt when the sent comment ends %s', async outcome => {
+        const view = setup(); await compose(); await post(); await broadcast(); view.unmount()
+        setup(); expect(screen.getByLabelText('Comment')).toHaveValue('')
+        mocks.list.mockResolvedValue([pending])
+        act(() => mocks.sign.mock.calls[0][0].onSettled(outcome, undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+        expect(await screen.findByRole('button', { name: 'Check comment outcome' })).toBeVisible()
+        expect(screen.getByRole('button', { name: 'Comment' })).toBeDisabled()
+    })
+    it('keeps the text when nothing was sent', async () => {
+        setup(); await compose(); await post()
+        act(() => mocks.sign.mock.calls[0][0].onSettled('cancelled', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+    })
+    it('keeps a newer edit when the sent comment comes back', async () => {
+        setup(); await compose(); await post(); await broadcast()
+        fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Newer unsent edit' } })
+        act(() => mocks.sign.mock.calls[0][0].onSettled('submitted', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue('Newer unsent edit')
+    })
+    it('forgets composer text that a checked receipt shows was posted, and keeps other text', async () => {
+        const receipt = { ...pending, action: 'addComment', verification: { kind: 'comment-v1', bodySha256: digest('Keep this thought'), anchorSha256: digest('') } }
+        mocks.list.mockResolvedValueOnce([receipt]).mockResolvedValue([]); mocks.recover.mockResolvedValue('confirmed')
+        const view = setup(); fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Keep this thought' } })
+        fireEvent.click(await screen.findByRole('button', { name: 'Check comment outcome' }))
+        await waitFor(() => expect(screen.getByLabelText('Comment')).toHaveValue('')); expect(sessionStorage.length).toBe(0)
+        view.unmount(); mocks.list.mockResolvedValueOnce([receipt]).mockResolvedValue([]); setup()
+        fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'A different thought' } })
+        fireEvent.click(await screen.findByRole('button', { name: 'Check comment outcome' }))
+        expect(await screen.findByText(/text in your composer was kept/)).toBeVisible()
+        expect(screen.getByLabelText('Comment')).toHaveValue('A different thought')
     })
 })
 

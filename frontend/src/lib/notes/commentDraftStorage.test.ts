@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { readCommentDraft, writeCommentDraft } from './commentDraftStorage'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearCommentDrafts, holdSentComment, readCommentDraft, settleSentComment, takeCommentDraft, writeCommentDraft } from './commentDraftStorage'
 
 const scope = { chainId: 'gnoland-1', owner: 'g1member', noteId: '01'.repeat(16) }
 const quote = { text: 'Bamboo mat', bodyRevision: '5', confirmedFor: '5' }
@@ -24,5 +24,20 @@ describe('unsent comment text', () => {
         const setItem = Storage.prototype.setItem
         Storage.prototype.setItem = () => { throw new Error('quota') }
         try { expect(() => writeCommentDraft(scope, { body: 'kept in memory', quote })).not.toThrow() } finally { Storage.prototype.setItem = setItem }
+    })
+    it('holds a sent comment aside until its outcome, and gives it back after a reload', async () => {
+        writeCommentDraft(scope, { body: 'Sent text', quote }); holdSentComment(scope, 'op1', { body: 'Sent text', quote })
+        expect(takeCommentDraft(scope)).toBeNull()
+        settleSentComment(scope, 'op2', { body: 'Sent text', quote }, false); expect(takeCommentDraft(scope)).toBeNull()
+        // A reload loses the request that would have settled it: the text comes back (its receipt still blocks a resend).
+        vi.resetModules(); const reloaded = await import('./commentDraftStorage')
+        expect(reloaded.takeCommentDraft(scope)).toEqual({ body: 'Sent text', quote })
+        expect(reloaded.takeCommentDraft({ ...scope, owner: 'g1other' })).toBeNull()
+    })
+    it('forgets a posted comment and an explicit disconnect forgets held ones', () => {
+        holdSentComment(scope, 'op1', { body: 'Sent text', quote }); settleSentComment(scope, 'op1', { body: 'Sent text', quote }, true)
+        expect(sessionStorage.length).toBe(0)
+        holdSentComment(scope, 'op2', { body: 'Other', quote }); clearCommentDrafts()
+        expect(sessionStorage.length).toBe(0); settleSentComment(scope, 'op2', { body: 'Other', quote }, false); expect(readCommentDraft(scope)).toBeNull()
     })
 })
