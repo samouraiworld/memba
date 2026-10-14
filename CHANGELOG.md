@@ -23,6 +23,7 @@ Full changelogs are split by version range for easier navigation:
 ### Notes: the version chooser shows each side in its own column (#1623, 2026-10-14)
 - When a newer published version overlaps your edit, "See changes" showed your lines under the other author's revision and theirs under "Your version". The choices themselves were right; the columns now show the right text. Found in the Onyx canary. Notes remains disabled in production.
 ### Notes: "Use as draft" restores over a draft with nothing unpublished (2026-10-14)
+### Notes: "Use as draft" restores over a draft with nothing unpublished (#1624, 2026-10-14)
 - History's "Use as draft" refused whenever this device held a draft of the note, even one identical to the published text, so restoring an earlier version was impossible after any edit. It now replaces a draft that has no unpublished changes; a draft with unpublished changes is still kept and the message says how to publish or discard it first. Found in the Onyx canary. Notes remains disabled in production.
 
 ### Notes: archived bodies by history seq, realm path per network (#1621, 2026-10-14)
