@@ -68,22 +68,21 @@ describe('product-calibrated public estimates', () => {
         expect(budget.gasWanted).toBeLessThanOrEqual(500000000)
     })
     // Growth run (comment-economics.json "growth"): up to ~410 comments on one note. Deposits grow by at most ~1.5%,
-    // so the 1.2x cap still covers every receipt; keeper gas grows, and the computed limit keeps at least 1.35x.
+    // so the 1.2x cap still covers every receipt; keeper gas grows, and the limit keeps the same 1.5x as the rows above.
     it.each(comments.growth.rows)('keeps cap and gas above growth receipt $case', row => {
         const budget = publicCommentBudget(commentMessage(row.func, row.anchorBytes, row.bodyBytes))
         expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(row.storageDepositDeltaUgnot * 1.2)
-        expect(budget.gasWanted).toBeGreaterThanOrEqual(row.keeperGas * 1.35)
+        expect(budget.gasWanted).toBeGreaterThanOrEqual(row.keeperGas * 1.5)
     })
-    it('keeps the cap 1.2x above the worst one-line receipt of the growth run', () => {
+    it('keeps cap and gas above the worst one-line receipt of the growth run', () => {
         const worst = comments.growth.oneLineMax, budget = publicCommentBudget(commentMessage('AddComment', worst.anchorBytes, worst.bodyBytes))
-        expect(worst.of).toBe(400)
         expect(Number(budget.suggestedCapUgnot)).toBeGreaterThanOrEqual(worst.storageDepositDeltaUgnot * 1.2)
-        expect(budget.gasWanted).toBeGreaterThanOrEqual(worst.keeperGas * 1.35)
+        expect(budget.gasWanted).toBeGreaterThanOrEqual(worst.keeperGas * 1.5)
     })
     it.each([
-        ['one-line comment', 'AddComment', 0, 37, 2_053_700, 2_500_000, 81_000_000],
-        ['one-line comment with a 120 B quote', 'AddComment', 120, 37, 2_065_700, 2_500_000, 82_000_000],
-        ['largest comment', 'AddComment', 600, 4000, 2_510_000, 3_100_000, 126_000_000],
+        ['one-line comment', 'AddComment', 0, 37, 2_053_700, 2_500_000, 87_000_000],
+        ['one-line comment with a 120 B quote', 'AddComment', 120, 37, 2_065_700, 2_500_000, 88_000_000],
+        ['largest comment', 'AddComment', 600, 4000, 2_510_000, 3_100_000, 142_000_000],
         ['hide', 'HideComment', 0, 0, 500_000, 600_000, 60_000_000],
         ['resolve', 'ResolveComment', 0, 0, 500_000, 600_000, 60_000_000],
         ['delete', 'DeleteComment', 0, 0, 500_000, 600_000, 60_000_000],

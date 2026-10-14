@@ -10,10 +10,12 @@ import { boundedNotesQuote } from './quote'
  * - Hide/Resolve/DeleteComment store at most ~5,000 bytes (440,200 / 436,000 / 409,500 measured).
  * The signed cap is 1.2x the expected deposit, rounded up to 0.1 GNOT: at least 20% above every measured receipt,
  * also after ~410 comments on a note (growth run: worst one-line 2,032,800, largest 2,519,600).
- * No refund is assumed. Gas: keeper gas grows with the comments already on a note (a largest comment used
- * 80.7M after ~43 comments and 92.8M after ~410, a one-line one 45.4M after 30 and 56.8M by 400), so the limit is
- * 80M + 10,000 per stored byte for a post (81M one-line, 126M largest: 1.5x the samples up to ~43 comments,
- * 1.35x after ~410) and 60M for the other actions (29.6M measured).
+ * No refund is assumed. Gas: keeper gas grows with the comments already on a note. Measured on notes holding up to
+ * ~410 comments, the worst post used 56.8M (one-line) and 92.8M (largest, after ~410). A post's limit is 86M + 12,000
+ * per stored byte, rounded up to 1M: 87M one-line, 142M largest, 1.5x those maxima. Not measured beyond ~410
+ * comments on one note: from ~50 to ~410 the largest comment grew by ~0.025M per comment, so the margin narrows
+ * on busier notes (at that rate 142M is reached after roughly 2,000 more).
+ * Hide/Resolve/DeleteComment get 60M (29.6M measured).
  */
 const ADD_OVERHEAD_BYTES = 20_500
 const ACTION_OVERHEAD_BYTES = 5_000
@@ -26,7 +28,7 @@ export function publicCommentBudget(message: AminoMsg) {
     let bytes = 0, overhead = ACTION_OVERHEAD_BYTES, gasWanted = 60_000_000
     if (func === 'AddComment') {
         check(args.length === 8); bytes = blob(args[5], 600).length + blob(args[6], 4000).length
-        overhead = ADD_OVERHEAD_BYTES; gasWanted = Math.ceil((80_000_000 + bytes * 10_000) / 1_000_000) * 1_000_000
+        overhead = ADD_OVERHEAD_BYTES; gasWanted = Math.ceil((86_000_000 + bytes * 12_000) / 1_000_000) * 1_000_000
     }
     else if (func === 'DeleteComment') check(args.length === 4)
     else if (func === 'HideComment' || func === 'ResolveComment') check(args.length === 5)

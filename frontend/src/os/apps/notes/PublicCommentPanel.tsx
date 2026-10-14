@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
 import { createDraftSession, type NotesStore } from '../../../lib/notes/drafts'
 import { NotesIntents, type NotesIntent } from '../../../lib/notes/intents'
 import { notesDeployment, newNoteId } from '../../../lib/notes/config'
@@ -13,7 +11,7 @@ import { publicCommentBudget, publicCommentQuote } from '../../../lib/notes/chai
 import { gnotAmount } from '../../../lib/notes/chain/quote'
 import { approxGnot } from '../../../lib/notes/chain/costText'
 import type { PublicComment } from '../../../lib/notes/chain/comments'
-import { holdSentComment, settleSentComment, subscribeCommentText, takeCommentDraft, writeCommentDraft, type StoredCommentDraft } from '../../../lib/notes/commentDraftStorage'
+import { commentPosted, holdSentComment, isPostedComment, mergeReturned, settleSentComment, subscribeCommentText, takeCommentDraft, writeCommentDraft, type StoredCommentDraft } from '../../../lib/notes/commentDraftStorage'
 import { useSigner } from '../../sign/signerContext'
 import { PublicComments } from './PublicComments'
 import { useUnsavedText } from './notesPane'
@@ -28,7 +26,6 @@ const NO_QUOTE: Quote = { text: '', bodyRevision: '', confirmedFor: '' }
 const MAX_QUOTE_BYTES = 600
 /** Pricing only: a comment's storage does not depend on its identifiers' values. */
 const PRICE_ID = 'f1'.repeat(16)
-const digest = (value: string) => bytesToHex(sha256(new TextEncoder().encode(value)))
 const short = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
 
 export function PublicCommentPanel(props: PublicCommentPanelProps) {
@@ -47,14 +44,20 @@ function useCommentDraft(chainId: string, owner: string | null, noteId: string) 
     const [carried, setCarried] = useState('')
     /** Bumped when a comment for this note was sent, posted or given back in this tab: receipts are read again. */
     const [changed, setChanged] = useState(0)
-    const current = useRef(body)
-    useLayoutEffect(() => { current.current = body }, [body])
+    const current = useRef({ body, quote })
+    useLayoutEffect(() => { current.current = { body, quote } }, [body, quote])
     useEffect(() => { if (scope) writeCommentDraft(scope, { body, quote }) }, [scope, body, quote])
-    // Sent text leaves this composer (also when another composer for the note sent it); text that was not posted comes back if the composer is empty.
-    useEffect(() => scope ? subscribeCommentText(scope, ({ kind, draft }) => {
-        if (kind === 'returned') {
-            if (!current.current) { setBody(draft.body); setQuote(draft.quote); setParent((draft.parent as PublicComment | null | undefined) ?? null) }
-        } else if (current.current === draft.body) { setBody(''); setQuote(value => value.text === draft.quote.text ? NO_QUOTE : value); setParent(null) }
+    // Sent text leaves this composer (also when another composer for the note sent it), and so does a posted comment's
+    // (same body and quote digests). Text that was not posted comes back, above anything written meanwhile.
+    useEffect(() => scope ? subscribeCommentText(scope, event => {
+        const now = current.current
+        if (event.kind === 'returned') {
+            const merged = mergeReturned(now, event.draft)
+            setBody(merged.body); setQuote(merged.quote); setParent(value => value ?? (event.draft.parent as PublicComment | null | undefined) ?? null)
+        } else if (event.kind === 'sent' ? now.body === event.draft.body : isPostedComment(now, event.digests)) {
+            const sentQuote = event.kind === 'sent' ? event.draft.quote.text : now.quote.text
+            setBody(''); setQuote(value => value.text === sentQuote ? NO_QUOTE : value); setParent(null)
+        }
         setChanged(value => value + 1)
     }) : undefined, [scope])
     return { scope, body, setBody, quote, setQuote, parent, setParent, carried, setCarried, changed }
@@ -143,16 +146,20 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
             const common = { client, maxDepositUgnot: priced.suggestedCapUgnot, session, intents: new NotesIntents(store), isWriteEnabled: () => !!notesDeployment(client.chainId) }
             const request = await preparePublicCommentRequest({ ...common, operation, quote: publicCommentQuote(client, priced.suggestedCapUgnot) })
             if (guard.signal.aborted) { request.onDismissed?.(); return }
+            let settled = false
             const settle = request.onSettled, scope = draft.scope, sent = { body: action.kind === 'add' ? action.body : '', quote }
             if (action.kind === 'add' && scope) {
                 // Sent is not confirmed, but from here the text must not be offered again: it is held aside until the outcome.
                 const send = request.send, replyTo = parent
                 request.send = async (choice, beforeSign) => {
                     const result = await send(choice, beforeSign)
-                    holdSentComment(scope, operation.operationId, { ...sent, parent: replyTo }); return result
+                    // A hash the wallet returns after the outcome was given (the chain watch answered first) holds nothing.
+                    if (!settled) holdSentComment(scope, operation.operationId, { ...sent, parent: replyTo })
+                    return result
                 }
             }
             request.onSettled = (outcome, choice) => {
+                settled = true
                 settle?.(outcome, choice)
                 // Also when the review outlived the panel that started it (a note refresh remounted it, or the window closed).
                 if (action.kind === 'add' && scope) settleSentComment(scope, operation.operationId, sent, outcome === 'confirmed')
@@ -173,10 +180,10 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
         try {
             const result = await recoverPublicCommentIntent(client, new NotesIntents(store), intent, session)
             if (guard.signal.aborted) return
-            const v = intent.verification, scope = draft.scope
-            // The confirmed comment is the one in the composer: it is forgotten, never posted twice.
-            const mine = result === 'confirmed' && intent.action === 'addComment' && !!scope && !!body && digest(body) === v.bodySha256 && digest(quote.text) === v.anchorSha256
-            if (mine) settleSentComment(scope, intent.operationId, { body, quote }, true)
+            const v = intent.verification, scope = draft.scope, posted = result === 'confirmed' && intent.action === 'addComment'
+            const digests = { bodySha256: v.bodySha256, anchorSha256: v.anchorSha256 }, mine = posted && isPostedComment({ body, quote }, digests)
+            // Every composer for the note holding the confirmed comment lets it go, not only this one: it is never posted twice.
+            if (posted && scope) commentPosted(scope, digests, intent.operationId)
             setNotice(mine ? 'Comment posted. It was the text in your composer, which was cleared.'
                 : result === 'confirmed' ? 'Comment action confirmed. The text in your composer was kept; compare it before posting again.' : 'The outcome remains unknown. Nothing was resent.')
             refresh(value => value + 1)

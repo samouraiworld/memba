@@ -10,6 +10,7 @@ import type { PublicComment } from '../../../lib/notes/chain/comments'
 import { PublicCommentPanel } from './PublicCommentPanel'
 import { announceNoteChange } from '../../../lib/notes/freshness'
 import { mayCloseWindow } from '../../shell/closeGuards'
+import { clearCommentDrafts } from '../../../lib/notes/commentDraftStorage'
 const mocks = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), recover: vi.fn(), list: vi.fn(), sign: vi.fn(), send: vi.fn(), dismiss: vi.fn(), settle: vi.fn(), version: 0, next: 0 }))
 vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: mocks.sign, version: mocks.version }) }))
 vi.mock('../../../lib/notes/config', () => ({ notesDeployment: () => ({}), newNoteId: () => (++mocks.next).toString(16).padStart(32, '0') }))
@@ -262,11 +263,60 @@ describe('a sent comment is never offered again', () => {
         act(() => mocks.sign.mock.calls[0][0].onSettled('cancelled', undefined))
         expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
     })
-    it('keeps a newer edit when the sent comment comes back', async () => {
+    it('keeps a newer edit when the sent comment comes back, with the returned text above it', async () => {
         setup(); await compose(); await post(); await broadcast()
         fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Newer unsent edit' } })
         act(() => mocks.sign.mock.calls[0][0].onSettled('submitted', undefined))
-        expect(screen.getByLabelText('Comment')).toHaveValue('Newer unsent edit')
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply\n\nNewer unsent edit')
+        expect(JSON.parse(sessionStorage.getItem(sessionStorage.key(0)!)!).body).toBe('My public reply\n\nNewer unsent edit')
+    })
+    it('never replaces a quote selected while the comment was out', async () => {
+        const root = preview('Intro. First passage. Second passage.')
+        setup('member', { ...note, body: text('Intro. First passage. Second passage.') }, false, root); await compose()
+        select(root, 'First passage'); await post(); await broadcast()
+        expect(screen.queryByText('First passage', { selector: 'blockquote' })).toBeNull()
+        select(root, 'Second passage')
+        act(() => mocks.sign.mock.calls[0][0].onSettled('submitted', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+        expect(screen.getByText('Second passage', { selector: 'blockquote' })).toBeVisible()
+    })
+    it('ignores a wallet hash that arrives after the outcome was already given', async () => {
+        const late = deferred<{ hash: string }>(); mocks.send.mockReturnValueOnce(late.promise)
+        const view = setup(); await compose(); await post()
+        let sending!: Promise<unknown>
+        act(() => { sending = mocks.sign.mock.calls[0][0].send(undefined, async () => {}) })
+        act(() => mocks.sign.mock.calls[0][0].onSettled('unknown', undefined))
+        await act(async () => { late.resolve({ hash: 'bb'.repeat(32) }); await sending })
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+        view.unmount(); setup(); expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+    })
+    it('keeps the text when sending fails after the wallet returned a hash', async () => {
+        mocks.send.mockRejectedValueOnce(new Error('receipt storage refused'))
+        setup(); await compose(); await post()
+        await act(async () => { await expect(mocks.sign.mock.calls[0][0].send(undefined, async () => {})).rejects.toThrow() })
+        mocks.list.mockResolvedValue([pending])
+        act(() => mocks.sign.mock.calls[0][0].onSettled('unknown', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue('My public reply')
+    })
+    it('forgets held text on an explicit disconnect', async () => {
+        setup(); await compose(); await post(); await broadcast()
+        clearCommentDrafts()
+        act(() => mocks.sign.mock.calls[0][0].onSettled('submitted', undefined))
+        expect(screen.getByLabelText('Comment')).toHaveValue(''); expect(sessionStorage.length).toBe(0)
+    })
+    it('clears the posted text from another composer when Check is used in one holding different text', async () => {
+        const first = setup(); await compose(); await post(); await broadcast()
+        const second = setup(), a = within(first.container), b = within(second.container)
+        fireEvent.change(a.getByLabelText('Comment'), { target: { value: 'A newer edit' } })
+        const receipt = { ...pending, action: 'addComment', verification: { kind: 'comment-v1', bodySha256: digest('My public reply'), anchorSha256: digest('') } }
+        mocks.list.mockResolvedValue([receipt]); mocks.recover.mockResolvedValue('confirmed')
+        act(() => mocks.sign.mock.calls[0][0].onSettled('submitted', undefined))
+        expect(b.getByLabelText('Comment')).toHaveValue('My public reply')
+        fireEvent.change(a.getByLabelText('Comment'), { target: { value: 'Only my newer edit' } })
+        mocks.list.mockResolvedValueOnce([receipt]).mockResolvedValue([])
+        fireEvent.click(await a.findByRole('button', { name: 'Check comment outcome' }))
+        await waitFor(() => expect(b.getByLabelText('Comment')).toHaveValue(''))
+        expect(a.getByLabelText('Comment')).toHaveValue('Only my newer edit')
     })
     it('forgets composer text that a checked receipt shows was posted, and keeps other text', async () => {
         const receipt = { ...pending, action: 'addComment', verification: { kind: 'comment-v1', bodySha256: digest('Keep this thought'), anchorSha256: digest('') } }

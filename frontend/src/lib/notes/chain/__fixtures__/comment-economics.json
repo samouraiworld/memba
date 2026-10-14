@@ -394,7 +394,11 @@
   }
  ],
  "growth": {
-  "source": "Keeper receipts from the PR 1610 growth run (TestPR1610Growth, growth.log) on the same runtime and realm as rows: 400 one-line comments by fresh authors on one note, with a largest comment (600 B quote, 4,000 B body) on that note and a one-line comment on a second note at each checkpoint (422 calls). commentsBefore counts the comments already on the note.",
+  "source": "Keeper receipts from the PR 1610 growth run (TestPR1610Growth): 400 one-line comments (37 B) by fresh authors on one note; at the 1st-3rd and every 50th, also a largest comment (600 B quote, 4,000 B body) on that note and a one-line comment on a second note (422 calls). commentsBefore counts the comments already on the note. Synthetic keeper; excludes ante.",
+  "runtime": "e75fef82c02876a4df92ad6e325c5479b9532168",
+  "realm": "samouraiworld/samcrew-deployer 6d2739b449afde7717781858ac753668e644100c (projects/memba/realms/memba_notes_v1)",
+  "harness": "gnolang/gno at runtime, extracted with git archive; samcrew-deployer at realm as NOTES_DEPLOYER_ROOT; its projects/memba/tests/notes_v1/notes_realms_test.go (nrHarness helpers) and a TestPR1610Growth test added to gno.land/pkg/sdk/vm. Each call runs vm.Call in a cache context with a 500M gas meter and MaxDeposit 9000000ugnot at StoragePrice 100ugnot, then commits; the receipt is the change of the realm's storage-deposit address balance and the gas consumed.",
+  "reproduce": "cd <gno at runtime> && NOTES_DEPLOYER_ROOT=<samcrew-deployer at realm> GOPROXY=off GOTOOLCHAIN=go1.25.9 go test -count=1 -timeout 30m -run '^TestPR1610Growth$' -v ./gno.land/pkg/sdk/vm",
   "logSha256": "0875812b508b6bbcea58bb80815c0dd7da93e8abd678d05dd4313e2cfe5e9755",
   "oneLineMax": {
    "of": 400,
