@@ -6,6 +6,8 @@ export function MarkdownPreview({ body, noteId, onRoot }: { body: string; noteId
     const [rendered, setRendered] = useState<{ body: string; noteId: string; result: NotesRenderResult } | null>(null)
     const windowId = useId().replace(/[^a-zA-Z0-9_-]/g, "")
     const result = rendered?.body === body && rendered.noteId === noteId ? rendered.result : null
+    // While a render is pending, keep this note's previous one; before the first, a skeleton (never the Markdown source).
+    const shown = result ?? (rendered?.noteId === noteId ? rendered.result : null)
     useEffect(() => {
         const controller = new AbortController()
         const renderer = createNotesRenderer()
@@ -24,5 +26,6 @@ export function MarkdownPreview({ body, noteId, onRoot }: { body: string; noteId
             const target = Array.from(event.currentTarget.querySelectorAll("[id]")).find(node => node.id === href.slice(1))
             target?.scrollIntoView({ block: "nearest" })
         }
-    }}>{result?.kind === "html" ? <div dangerouslySetInnerHTML={{ __html: result.html }} /> : <pre>{result?.kind === "text" ? result.text : body}</pre>}</article>
+    }}>{shown?.kind === "html" ? <div dangerouslySetInnerHTML={{ __html: shown.html }} /> : shown ? <pre>{shown.text}</pre>
+        : <div className="os-notes-skeleton" role="status" aria-busy="true"><span className="os-notes-sr">Loading preview…</span><i style={{ width: "88%" }} /><i /><i style={{ width: "72%" }} /></div>}</article>
 }

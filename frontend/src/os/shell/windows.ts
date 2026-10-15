@@ -209,6 +209,13 @@ function place(spec: WindowSpec, n: number, desk: DeskSize, center: boolean) {
     }
 }
 
+/** A saved window at the minimum size (a stale record) reopens at its app's default size when the desk has room for more. */
+export function restoredGeometry<G extends Pick<OsWindow, "x" | "y" | "width" | "height">>(spec: WindowSpec, geom: G, desk: DeskSize): G {
+    if (geom.width > MIN_W || geom.height > MIN_H) return geom
+    const fresh = place(spec, 0, desk, true)
+    return fresh.width > MIN_W || fresh.height > MIN_H ? { ...geom, ...fresh } : geom
+}
+
 /** A link with no query of its own (a ?w= token, the dock) keeps the page's current query; another page starts clean. */
 function keepQuery(next: OsTarget | null, prev: OsTarget | null): OsTarget | null {
     // The active Meet room lives only in window memory. A URL/dock navigation

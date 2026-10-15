@@ -17,7 +17,8 @@ describe("shared Markdown preview lifecycle", () => {
         const firstSignal = renderer.render.mock.calls[0][1].signal as AbortSignal
         view.rerender(<MarkdownPreview body="New body" noteId={"ab".repeat(16)} />)
         expect(firstSignal.aborted).toBe(true)
-        expect(screen.getByText("New body")).toBeVisible()
+        expect(screen.queryByText("New body")).toBeNull()
+        expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true")
         await act(async () => { finish[0]({ kind: "html", html: "<h1>Stale rendered</h1>" }); vi.advanceTimersByTime(180) })
         expect(screen.queryByText("Stale rendered")).toBeNull()
         await act(async () => { finish[1]({ kind: "text", text: "Safe text fallback", reason: "timeout", truncated: false }) })
@@ -26,6 +27,20 @@ describe("shared Markdown preview lifecycle", () => {
         view.unmount()
         expect(activeSignal.aborted).toBe(true)
         expect(renderer.dispose).toHaveBeenCalledTimes(2)
+    })
+    it("shows a skeleton, then keeps the previous render while the next one is pending, never the Markdown source", async () => {
+        vi.useFakeTimers()
+        const finish: ((value: NotesRenderResult) => void)[] = []
+        renderer.render.mockImplementation(() => new Promise(resolve => finish.push(resolve)))
+        const view = render(<MarkdownPreview body="- one" noteId={"ab".repeat(16)} />)
+        expect(screen.queryByText("- one")).toBeNull()
+        expect(screen.getByLabelText("Note preview")).toHaveAttribute("data-rendered", "loading")
+        await act(async () => { vi.advanceTimersByTime(180) })
+        await act(async () => { finish[0]({ kind: "html", html: "<ul><li>one</li></ul>" }) })
+        view.rerender(<MarkdownPreview body={"- one\n- two"} noteId={"ab".repeat(16)} />)
+        expect(screen.getByText("one")).toBeVisible()
+        expect(screen.queryByText(/- two/)).toBeNull()
+        expect(screen.getByLabelText("Note preview")).toHaveAttribute("data-rendered", "loading")
     })
     it("namespaces previews of the same note independently", async () => {
         vi.useFakeTimers()

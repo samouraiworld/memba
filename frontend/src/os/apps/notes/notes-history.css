@@ -12,6 +12,8 @@
 .os-notes-app .os-notes-pane-side-host { display:contents; }
 .os-notes-app .os-notes-pane-side { flex:none; width:clamp(260px, 34%, 360px); position:sticky; top:0; height:max(320px, calc(100cqh - 8px)); display:flex; }
 .os-notes-app .os-notes-pane-side:empty { display:none; }
+/* A footnote or heading link scrolls its target above the tab bar, not under it. */
+.os-notes-app .os-notes-main:has(> .os-notes-pane:not([hidden])) { scroll-padding-bottom:64px; }
 
 .os-notes-side { --os-notes-sheet:0; display:flex; flex-direction:column; width:100%; min-height:0; background:var(--os-opaque); color:var(--os-ink); border:1px solid var(--os-line); border-radius:var(--os-radius-win); overflow:hidden; }
 .os-notes-side[hidden], .os-notes-side-body[hidden] { display:none; }
@@ -72,6 +74,8 @@
 @keyframes os-notes-rise { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 .os-notes-composer { flex:none; display:flex; flex-direction:column; gap:8px; padding:12px 16px 14px; border-top:1px solid var(--os-line); background:var(--os-opaque); }
 .os-notes-composer-hint { margin:0; font-size:12.5px; color:var(--os-mut); }
+/* A guest's "Connect your wallet to comment" sits where the composer would. */
+.os-notes-comment-panel > .os-notes-composer-hint { flex:none; padding:12px 16px 14px; border-top:1px solid var(--os-line); }
 .os-notes-public .os-notes-composer textarea { min-height:64px; border-radius:var(--os-radius-ctl); font:14px/1.5 var(--os-font); resize:none; }
 .os-notes-composer-foot { display:flex; align-items:center; gap:10px; }
 .os-notes-cost { flex:1; margin:0; font-size:12px; color:var(--os-mut); }
@@ -109,9 +113,10 @@
  */
 @container (max-width: 720px) {
     .os-notes-app .os-notes-pane:not([hidden]) { flex-direction:column; align-items:stretch; gap:0; }
-    .os-notes-app .os-notes-pane-side { width:auto; height:auto; top:auto; bottom:0; z-index:5; }
-    /* The note column scrolls with its padding (16px above, 24px below): the sheet fills all of it. */
-    .os-notes-app .os-notes-pane-side:has(> .os-notes-side[data-sheet]) { top:0; height:max(360px, calc(100cqh + 32px)); }
+    /* Flush with the column's bottom edge (under its 24px padding): no line of the note shows below the tabs. */
+    .os-notes-app .os-notes-pane-side { width:auto; height:auto; top:auto; bottom:-24px; z-index:5; }
+    /* The sheet fills the whole visible column, its paddings included (16px above, 24px below): no line of the note shows around it. */
+    .os-notes-app .os-notes-pane-side:has(> .os-notes-side[data-sheet]) { top:-16px; height:max(360px, calc(100cqh + 40px)); }
     /* Read by the panel: a tab opens the sheet only in this layout. */
     .os-notes-side { --os-notes-sheet:1; border-width:1px 0 0; border-radius:0; }
     .os-notes-side:not([data-sheet]) .os-notes-side-body { display:none; }

@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: reading and preview finish (#1632, 2026-10-15)
+- A note opens on a skeleton until its Markdown is rendered, instead of flashing the raw source; while a draft's preview re-renders, the previous render stays.
+- Lists keep their bullets and numbers in the read view and the draft Preview (the global reset had removed their indent, so markers were clipped or showed through the History sheet).
+- In a narrow note column, the History | Comments bar sits flush with the bottom edge and an open sheet covers the whole column: no line of the note shows around them; footnote and heading links scroll their target above the bar.
+- A guest's "Connect your wallet to comment" sits in a padded footer of the Comments sheet instead of being cut off at its edge.
+- A window saved at the minimum size (320×220) reopens at its app's default size when the desk has room for more.
+- A guest's untouched blank draft is no longer listed in My notes; it appears once it holds text.
+
 ### Notes: public Notes transactions released (#1631, 2026-10-14)
 - VITE_ENABLE_NOTES_CHAIN is no longer safety-gated, so a production build may turn on public Notes transactions (publishing, comments, collaboration). With VITE_ENABLE_NOTES and VITE_ENABLE_NOTES_CHAIN on, gnoland-1 writes to `gno.land/r/samcrew/memba_notes_v1` and onyx-1 to `memba_notes_rc1`; other networks have no Notes realm. Released after the realm cost cuts (samcrew-deployer#363), the `memba_notes_rc1` two-wallet canary on Onyx, and the mainnet publish by the samcrew 2-of-3 (samcrew-deployer#365, read back byte-identical). A Netlify deploy-preview or branch-deploy build with VITE_ENABLE_NOTES_CHAIN on now fails, since previews run unreviewed code against gnoland-1. Private (encrypted) notes and the vault reveal stay gated; the Netlify values are unchanged by this PR.
 
