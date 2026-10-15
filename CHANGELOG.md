@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: private key setup, unlock and lock (#1635, 2026-10-15)
+- A "Private notes" entry in the Notes sidebar, only for a connected account where private notes are open (onyx-1 with every switch on; never guests, never gnoland-1). Its UI and CSS load only with the lazy `privateNotes` chunk.
+- One guided sheet sets up the key: what it does and its cost shown once (≈1.45 GNOT locked, at most 1.8 GNOT, network fee separately), Standard mode with two matching Adena unlock signatures, the 24-word recovery phrase shown then re-entered (paste allowed), the recovery file, and one RegisterKey + SetSeedBackup transaction through the OS signing sheet. A saved setup receipt is checked against the chain after a reload and never signed again.
+- Unlock only on an explicit click (never an automatic wallet prompt), recovery with the phrase and file, and Lock. The key is zeroed on Lock, page close, account or network switch, Memba lock and window close (one controller per network, realm and account). A key changed, turned off or registered outside Memba is shown read only.
+- Key setup quote recalibrated from the M0 keeper measurement (1,412,400 ugnot for every identity after the first): estimate 1.45 GNOT (was 1.2), per-call caps RegisterKey 0.6 GNOT and SetSeedBackup 1.2 GNOT (were 1 + 1; the backup cap had 7 % headroom), gas 60M unchanged.
+
 ### Notes: private notes runtime gate (#1633, 2026-10-15)
 - Private (encrypted) notes now have one runtime gate in `lib/notes/config.ts`: `PRIVATE_NOTES_BUILD` (compile-time `VITE_ENABLE_NOTES_ENCRYPTED`), the frozen network allowlist `PRIVATE_CHAINS = ["onyx-1"]`, `privateNotesDeployment(chainId)` (Notes deployment, build switch and allowlist) and `vaultRevealEnabled(chainId)` (adds `VITE_ENABLE_NOTES_VAULT_REVEAL`). gnoland-1 stays closed even with every switch on; both private switches stay safety-gated.
 - The Notes identity controller refuses every entry point (refresh, wallet unlock, recovery, key setup, key use) unless private notes are open for its exact network and realm, checked again after every await and before every wallet prompt. The key setup request (RegisterKey + SetSeedBackup) checks the same gate at the start, after every await and right before the wallet opens.
