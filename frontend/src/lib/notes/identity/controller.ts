@@ -153,7 +153,8 @@ export class NotesIdentityController {
           const first = await requestNotesUnlock(wallet, { chainId: this.c.chainId, signer: this.c.address }, () => this.guard(token))
           material = first.ikm
           const second = await requestNotesUnlock(wallet, { chainId: this.c.chainId, signer: this.c.address }, () => this.guard(token))
-          try { if (!equalBytes(material, second.ikm)) throw new NotesCryptoError('signature') }
+          // Two valid signatures that differ: this wallet cannot unlock a Standard key reliably (not a bad or wrong-network reply).
+          try { if (!equalBytes(material, second.ikm)) throw new NotesCryptoError('mismatch') }
           finally { second.ikm.fill(0) }
         }
         const vaultBackup = await sealBackup(seed, entropy, { ...binding, mode: 'vault' }); this.assert(token)

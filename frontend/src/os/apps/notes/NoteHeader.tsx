@@ -126,7 +126,7 @@ export function NoteBanner({ notice }: { notice: Notice | null }) {
 export function NoteSheet({ label, onClose, children }: { label: string; onClose?(): void; children: ReactNode }) {
     const pane = useNotesPane(), dialog = useRef<HTMLDivElement>(null)
     const shown = pane?.shown ?? true
-    useDialogKeys(dialog, shown, 'button:not(:disabled), input:not(:disabled), summary, select:not(:disabled)', onClose)
+    useDialogKeys(dialog, shown, 'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), summary, select:not(:disabled)', onClose)
     // Focus moves into the sheet (unless a control in it took it, e.g. autoFocus) and returns where it was on close.
     useEffect(() => {
         if (!shown) return

@@ -93,7 +93,14 @@ export interface NotesIntentInput {
     verification?: AccessIntentVerification | PublicIntentVerification | CommentIntentVerification | PrivateCommentIntentVerification | PrivateIntentVerification | IdentityIntentVerification
 }
 export type NotesIntentPhase = "prepared" | "submitted" | "unknown" | "confirmed" | "failed" | "not-sent"
-export interface NotesIntent extends NotesIntentInput { schema: 1; phase: NotesIntentPhase; txHash?: string; createdAt: number; updatedAt: number }
+export interface NotesIntent extends NotesIntentInput {
+    schema: 1; phase: NotesIntentPhase; txHash?: string; createdAt: number; updatedAt: number
+    /**
+     * Identity setup only: the member chose, explicitly, to set up again while this one could still take effect. It no
+     * longer blocks a new setup, but is still checked against the chain like any open receipt (see `supersede`).
+     */
+    superseded?: true
+}
 /** Normalized, verified observation; this is not an assumption about a realm getter API. */
 export interface NotesOperationEvidence {
     scope: NotesScope
@@ -226,6 +233,7 @@ function validIntent(value: unknown): value is NotesIntent {
     if (!value || typeof value !== "object") return false
     const intent = value as NotesIntent
     return intent.schema === 1 && validInput(intent) && phases.includes(intent.phase) && (intent.txHash === undefined || TX_HASH.test(intent.txHash))
+        && (intent.superseded === undefined || (intent.superseded === true && intent.action === "identity-setup"))
         && Number.isSafeInteger(intent.createdAt) && intent.createdAt >= 0 && Number.isSafeInteger(intent.updatedAt) && intent.updatedAt >= intent.createdAt
 }
 function record(value: NotesIntent): NotesIntent {
@@ -235,6 +243,7 @@ function record(value: NotesIntent): NotesIntent {
         expectedEpoch: value.expectedEpoch, ownerGeneration: value.ownerGeneration, draftLocalRevision: value.draftLocalRevision,
         ...(value.verification ? { verification: { ...value.verification } } : {}),
         phase: value.phase, createdAt: value.createdAt, updatedAt: value.updatedAt, ...(value.txHash ? { txHash: value.txHash } : {}),
+        ...(value.superseded ? { superseded: true as const } : {}),
     }
 }
 /** A later last-operation observation confirms nothing about this intention. */
@@ -277,7 +286,7 @@ export class NotesIntents {
                 notesRequest(store.index("partition").getAll(notesPartitionKey(next.scope)), tx, (receipts: unknown[]) => {
                     if (receipts.some(receipt => !validIntent(receipt))) { finish({ status: "invalid" }); return }
                     const blocked = (receipts as NotesIntent[]).some(receipt => notesKey(receipt.scope) === notesKey(next.scope)
-                        && ["prepared", "submitted", "unknown"].includes(receipt.phase)
+                        && ["prepared", "submitted", "unknown"].includes(receipt.phase) && !receipt.superseded
                         && BigInt(receipt.expectedStateRevision) >= BigInt(next.expectedStateRevision))
                     if (blocked) { finish({ status: "conflict" }); return }
                     store.add({ ...next, key: key(next.scope, next.operationId), partition: notesPartitionKey(next.scope) })
@@ -296,6 +305,14 @@ export class NotesIntents {
             if (current.phase === "submitted" && phase === "not-sent") return null
             return { ...current, phase, ...(txHash ? { txHash: txHash.toUpperCase() } : {}) }
         })
+    }
+    /**
+     * Identity setup only, on an explicit and acknowledged "Set up again": an open receipt stops blocking a new setup. Its
+     * phase is unchanged and it is still reconciled; the realm's compare-and-swap lets at most one of the two apply.
+     */
+    supersede(scope: NotesScope, operationId: string, session: DraftWriteGuard): Promise<NotesWriteResult<NotesIntent>> {
+        return this.update(scope, operationId, session, current => current.action !== "identity-setup" || current.superseded
+            || !["prepared", "submitted", "unknown"].includes(current.phase) ? null : { ...current, superseded: true })
     }
     /** Does not delete a draft or receipt. The caller may separately CAS-delete that exact draft. */
     confirm(scope: NotesScope, operationId: string, evidence: NotesOperationEvidence, session: DraftWriteGuard): Promise<NotesWriteResult<NotesIntent>> {

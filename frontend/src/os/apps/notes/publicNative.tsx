@@ -67,7 +67,9 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
         // The controller belongs to this effect lifetime, including StrictMode remounts.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIdentity({ controller, session })
-        return () => { session.invalidate(); controller.dispose(); setIdentity(null) }
+        // Closing or leaving the page (bfcache included) zeroes the key at once, whatever the window shows.
+        window.addEventListener('pagehide', controller.lock)
+        return () => { window.removeEventListener('pagehide', controller.lock); session.invalidate(); controller.dispose(); setIdentity(null) }
     }, [privateOn, privateModule, read.client, owner])
     // Stable identities: effects keyed on scope must not re-run on unrelated parent renders.
     const realm = deployment?.realm ?? null, noteId = section !== null && NOTE_ID.test(section) ? section : null

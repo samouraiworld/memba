@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import type { NativeViewProps } from '../../native/types'
@@ -6,7 +6,7 @@ import { createNotesStore, type NotesStore } from '../../../lib/notes/drafts'
 import { PublicNotesApp } from './publicNative'
 
 // The Notes window around the private panel: who sees the entry, and the key controller's lifetime.
-type Controller = { owner: string; chainId: string; dispose: ReturnType<typeof vi.fn> }
+type Controller = { owner: string; chainId: string; dispose: ReturnType<typeof vi.fn>; lock: ReturnType<typeof vi.fn> }
 const mocks = vi.hoisted(() => ({ build: true, open: true, controllers: [] as Controller[], loads: 0, store: null as unknown as NotesStore }))
 const deployment = { realm: 'gno.land/r/samcrew/memba_notes_rc1', version: 1 as const }
 vi.mock('../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../lib/notes/config')>(),
@@ -16,7 +16,7 @@ vi.mock('../../../lib/notes/config', async original => ({ ...await original<type
         return mocks.build ? async () => {
             mocks.loads++
             return {
-                createIdentityController: (client: { chainId: string }, owner: string) => { const c = { owner, chainId: client.chainId, dispose: vi.fn() }; mocks.controllers.push(c); return c },
+                createIdentityController: (client: { chainId: string }, owner: string) => { const c = { owner, chainId: client.chainId, dispose: vi.fn(), lock: vi.fn() }; mocks.controllers.push(c); return c },
                 PrivateNotesPanel: ({ owner, controller }: { owner: string; controller: Controller }) => <p>Private panel for {owner} on {controller.chainId}</p>,
             }
         } : null
@@ -78,5 +78,18 @@ describe('private notes entry in the Notes window', () => {
         view.unmount()
         expect(mocks.controllers[2].dispose).toHaveBeenCalledTimes(1)
         expect(mocks.controllers.every(c => c.dispose.mock.calls.length === 1)).toBe(true)
+    })
+    it('locks the key when the page is hidden or left, even while another note is on screen', async () => {
+        const view = render(<PublicNotesApp {...props({})} />)
+        fireEvent.click(await screen.findByRole('button', { name: /Private notes/ }))
+        expect(await screen.findByText('Private panel for g1owner on onyx-1')).toBeVisible()
+        // Explore: the private panel unmounts, the controller stays with the window.
+        fireEvent.click(screen.getByRole('button', { name: /Public notes/ }))
+        await waitFor(() => expect(screen.queryByText(/Private panel/)).toBeNull())
+        act(() => { window.dispatchEvent(new Event('pagehide')) })
+        expect(mocks.controllers[0].lock).toHaveBeenCalledTimes(1)
+        // A disposed controller no longer listens.
+        view.unmount(); act(() => { window.dispatchEvent(new Event('pagehide')) })
+        expect(mocks.controllers[0].lock).toHaveBeenCalledTimes(1)
     })
 })

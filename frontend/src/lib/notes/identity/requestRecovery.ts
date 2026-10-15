@@ -4,7 +4,7 @@ import type { DraftSession } from '../drafts'
 import { validIdentityVerification } from '../intents'
 import type { IdentityIntentVerification, NotesIntent, NotesIntentInput, NotesIntents, NotesOperationEvidence } from '../intents'
 import type { NotesReadClient } from '../chain/client'
-import { check, NOTES_REGISTRY } from '../chain/schema'
+import { check, decimal, NOTES_REGISTRY, record } from '../chain/schema'
 import { parseBackup } from '../crypto/backup'
 import type { IdentityChainState, IdentitySetupPlan } from './controller'
 import { readChainIdentity } from './chain'
@@ -48,4 +48,36 @@ export async function recoverIdentityIntent(client: NotesReadClient, intents: No
     const result = await intents.confirm(scope, operationId, evidence, guard); current()
     return result.status === 'saved' ? 'confirmed' : 'unknown'
   } catch { return 'unknown' }
+}
+
+/**
+ * Whether a saved setup receipt can still take effect. RegisterKey and SetSeedBackup are compare-and-swap calls on the
+ * registry generation and the backup revision, both only ever grow and both are one atomic transaction: the setup can
+ * apply only while the chain still shows the generation and revision it expected.
+ * - `confirmed`: the exact receipts of this operation are on chain (recoverIdentityIntent).
+ * - `pending`: it may still apply; nothing else is offered for this receipt and nothing is signed again.
+ * - `failed`: provably never applied (generation+1 went to another operation, or the backup revision moved while the
+ *   generation did not); settled through the failed-evidence path, the receipt is kept.
+ * - `superseded`: it can never apply any more; whether it applied earlier is not decided, so it is not settled.
+ * No wallet; a read that fails keeps the receipt `pending`.
+ */
+export async function identityIntentStanding(client: NotesReadClient, intents: NotesIntents, intent: NotesIntent, session: DraftSession): Promise<'confirmed' | 'pending' | 'failed' | 'superseded'> {
+  if (await recoverIdentityIntent(client, intents, intent, session) === 'confirmed') return 'confirmed'
+  const guard = session.capture(), current = () => { check(!guard.signal.aborted); client.assertCurrent() }
+  try {
+    current()
+    const stored = await intents.get(intent.scope, intent.operationId); current()
+    if (!stored || stored.action !== 'identity-setup' || !['prepared', 'submitted', 'unknown'].includes(stored.phase)) return stored?.phase === 'confirmed' ? 'confirmed' : 'superseded'
+    const [key, raw] = await Promise.all([client.key(stored.scope.owner), client.seedBackupRaw(stored.scope.owner)]); current()
+    const generation = BigInt(key.generation), expected = BigInt(stored.expectedStateRevision), expectedRevision = BigInt(stored.expectedEpoch)
+    const revision = raw === null ? 0n : BigInt(decimal(record(raw, ['mode', 'suite', 'generation', 'revision', 'public_key_hash', 'op_id', 'actor', 'height', 'record']).revision, 64, true))
+    if (generation < expected || (generation === expected && revision <= expectedRevision)) return 'pending'
+    if ((generation === expected + 1n && key.operationId !== stored.operationId) || generation === expected) {
+      const height = await client.height(); current()
+      const result = await intents.confirm(stored.scope, stored.operationId, { scope: { ...stored.scope }, operationId: stored.operationId, actor: stored.actor,
+        stateRevision: stored.resultingStateRevision, height: decimal(height, 63, true), outcome: 'failed' }, guard); current()
+      return result.status === 'saved' ? 'failed' : 'pending'
+    }
+    return 'superseded'
+  } catch { return 'pending' }
 }

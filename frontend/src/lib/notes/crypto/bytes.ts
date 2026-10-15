@@ -2,7 +2,7 @@
 import { validNotesRealm } from '../chain/schema'
 
 export class NotesCryptoError extends Error {
-  constructor(readonly code: 'format' | 'decrypt' | 'identity' | 'signature' | 'busy' | 'wallet') {
+  constructor(readonly code: 'format' | 'decrypt' | 'identity' | 'signature' | 'busy' | 'wallet' | 'mismatch') {
     super(`Notes crypto: ${code}`)
     this.name = 'NotesCryptoError'
   }

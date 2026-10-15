@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
-import { recoverIdentityIntent } from '../../../../lib/notes/identity/requestRecovery'
+import { identityIntentStanding } from '../../../../lib/notes/identity/requestRecovery'
 import { IDENTITY_ESTIMATE_UGNOT } from '../../../../lib/notes/identity/quote'
 import type { NotesReadClient } from '../../../../lib/notes/chain/client'
 import { NOTES_REGISTRY } from '../../../../lib/notes/chain/schema'
@@ -29,7 +29,8 @@ type Problem = 'read' | 'changed' | null
 const adenaWallet = (): unknown => (window as unknown as { adena?: unknown }).adena
 function unlockProblem(error: unknown): string {
     if (error instanceof NotesCryptoError && error.code === 'wallet') return 'Adena did not sign. Your key stays locked.'
-    if (error instanceof NotesCryptoError && (error.code === 'decrypt' || error.code === 'signature')) return 'This signature does not open your key. Use your recovery phrase and file instead.'
+    if (error instanceof NotesCryptoError && error.code === 'signature') return 'Adena\u2019s signature could not be checked. Make sure Adena is on this network with this account, then try again. Your key stays locked.'
+    if (error instanceof NotesCryptoError && error.code === 'decrypt') return 'This signature does not open your key. Use your recovery phrase and file instead.'
     return 'Your key could not be unlocked. Nothing was changed. Try again.'
 }
 function Panel({ controller, client, store, owner, requestSession, walletChainId }: PrivateNotesPanelProps) {
@@ -39,6 +40,8 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
     useLayoutEffect(() => () => session.invalidate(), [session])
     const [problem, setProblem] = useState<Problem>(null), [receipt, setReceipt] = useState<NotesIntent | null>(null), [ready, setReady] = useState(false)
     const [notice, setNotice] = useState(''), [working, setWorking] = useState(false), [sheet, setSheet] = useState<'setup' | 'recover' | null>(null), [again, checkAgain] = useState(0)
+    // "Set up again" (explicit, acknowledged): earlier setups that may still land, and the one that did if it won.
+    const [redo, setRedo] = useState(false), [ack, setAck] = useState(false), [firstOpen, setFirstOpen] = useState(false), [firstKey, setFirstKey] = useState<string | null>(null)
     const refresh = useCallback(async () => {
         const guard = session.capture()
         try { await controller.refresh(); if (!guard.signal.aborted) setProblem(null) }
@@ -48,20 +51,29 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
             setProblem(error instanceof NotesCryptoError && error.code === 'identity' ? 'changed' : 'read')
         }
     }, [controller, session])
-    // A saved setup receipt is checked against the chain (no wallet, never sent again) before anything else is offered.
+    // Saved setup receipts are checked against the chain (no wallet, never sent again). One blocks setting up only while
+    // it can still take effect (identityIntentStanding); one that provably never applied is settled as failed.
     useEffect(() => {
         const guard = session.capture(), intents = new NotesIntents(store)
         void (async () => {
-            let open = (await intents.list({ chainId, realm: NOTES_REGISTRY, owner })).find(intent => intent.action === 'identity-setup' && ['prepared', 'submitted', 'unknown'].includes(intent.phase)) ?? null
-            if (open && await recoverIdentityIntent(client, intents, open, session) === 'confirmed') open = null
+            let open: NotesIntent | null = null, failed = 0, stillOpen = false
+            for (const intent of await intents.list({ chainId, realm: NOTES_REGISTRY, owner })) {
+                if (intent.action !== 'identity-setup' || !['prepared', 'submitted', 'unknown'].includes(intent.phase)) continue
+                // Superseded receipts are still checked against the chain; they only stop blocking.
+                const standing = await identityIntentStanding(client, intents, intent, session)
+                if (standing === 'failed') failed++
+                if (standing === 'pending') { if (intent.superseded) stillOpen = true; else open ??= intent }
+            }
+            const won = (await intents.list({ chainId, realm: NOTES_REGISTRY, owner })).find(intent => intent.superseded && intent.phase === 'confirmed')
+            setFirstOpen(stillOpen); setFirstKey(won?.resultingStateRevision ?? null)
+            // Settled once, said once, even when this run was superseded meanwhile (a later run finds it already failed).
+            if (failed) setNotice('An earlier key setup from this device did not take effect on the network. Its receipt was kept.')
             if (guard.signal.aborted) return
-            setReceipt(open)
+            setReceipt(open); if (!open) { setRedo(false); setAck(false) }
             if (!open && controller.getSnapshot().phase === 'prepared') await controller.confirmSetup().catch(() => false)
             await refresh()
         })().catch(() => { if (!guard.signal.aborted) setProblem('read') }).finally(() => { if (!guard.signal.aborted) setReady(true) })
     }, [session, store, client, chainId, owner, controller, refresh, version, again])
-    // Closing the page clears the key at once; account, network, Shell lock and window close dispose the controller.
-    useEffect(() => { window.addEventListener('pagehide', controller.lock); return () => window.removeEventListener('pagehide', controller.lock) }, [controller])
     const heading = useRef<HTMLHeadingElement>(null)
     const busy = working || state.busy
     const walletProblem = walletChainId && walletChainId !== chainId ? `Adena is on ${walletChainId}. Switch it to ${chainId} first.` : ''
@@ -69,6 +81,17 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         const guard = session.capture(); setNotice(''); setWorking(true)
         try { await work(); if (!guard.signal.aborted) setNotice(done) }
         catch (error) { if (!guard.signal.aborted) setNotice(failed(error)) }
+        finally { if (!guard.signal.aborted) setWorking(false) }
+    }
+    /** Only while the receipt can still apply, and only after the acknowledgement: never the same operation ID again. */
+    async function setUpAgain(intent: NotesIntent) {
+        const guard = session.capture(); setWorking(true); setNotice('')
+        try {
+            const saved = await new NotesIntents(store).supersede(intent.scope, intent.operationId, guard)
+            if (guard.signal.aborted) return
+            if (saved.status !== 'saved') { setNotice('This device could not record your choice, so nothing changed. Check again first.'); checkAgain(n => n + 1); return }
+            setRedo(false); setAck(false); setReceipt(null); setFirstOpen(true); setSheet('setup')
+        } catch { if (!guard.signal.aborted) setNotice('This device could not record your choice, so nothing changed.') }
         finally { if (!guard.signal.aborted) setWorking(false) }
     }
     const unlock = () => void act(() => controller.unlockStandard(adenaWallet()), 'Unlocked in this window.', unlockProblem)
@@ -82,17 +105,25 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
     else if (state.phase === 'unlocked') body = <>
         <p><b>Unlocked in this window.</b> It locks again when you press Lock, switch account or network, lock Memba, or close this window.</p>
         <div className="os-notes-private-actions"><button type="button" className="os-btn" onClick={lock}>Lock</button></div></>
-    else if (receipt) body = <>
+    // A receipt never hides a usable key: Unlock stays reachable (the receipt is still checked each time).
+    else if (receipt && !(state.phase === 'locked' && state.mode)) body = <>
         <p><b>{receipt.phase === 'submitted' ? 'Your key setup was sent.' : 'The result of your key setup is not known yet.'}</b> {receipt.phase === 'submitted'
             ? 'Memba is waiting to see it on the network; it usually appears within a minute.'
-            : 'Memba cannot tell whether Adena sent it. It will not ask you to sign it again on this device until the network shows the result.'}</p>
+            : 'Adena may have sent it before it closed or answered, so it can still reach the network. Memba will not ask you to sign another setup on this device while that is possible, and checks the network each time you open this.'}</p>
         <p className="os-notes-hint">Operation {receipt.operationId}</p>
-        <div className="os-notes-private-actions"><button type="button" className="os-btn" disabled={busy} onClick={() => checkAgain(n => n + 1)}>Check again</button></div></>
+        <div className="os-notes-private-actions"><button type="button" className="os-btn" disabled={busy} onClick={() => checkAgain(n => n + 1)}>Check again</button>
+            {!redo && <button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => setRedo(true)}>Set up again…</button>}</div>
+        {redo && <div className="os-notes-private-redo">
+            <p>Your first setup may still go through. If it does, this new one is refused and your first key stays yours. Keep the recovery phrase and file from your first setup until this one is confirmed.</p>
+            <label><input type="checkbox" checked={ack} onChange={event => setAck(event.target.checked)} /> I understand, and I keep my first recovery phrase and file.</label>
+            <div className="os-notes-private-actions"><button type="button" className="os-btn os-quiet" onClick={() => { setRedo(false); setAck(false) }}>Cancel</button>
+                <button type="button" className="os-btn" disabled={busy || !ack} onClick={() => void setUpAgain(receipt)}>Set up again</button></div>
+        </div>}</>
     else if (problem === 'read') body = <>
         <p>Memba could not read your private key from {chainId}. Nothing was changed.</p>
         <div className="os-notes-private-actions"><button type="button" className="os-btn" disabled={busy} onClick={() => checkAgain(n => n + 1)}>Try again</button></div></>
     else if (state.phase === 'empty' || state.phase === 'prepared') body = <>
-        <p>Private notes are encrypted in this browser before they are sent. Only you, and the people you share them with, can read them. Who you share with, sizes and times stay visible on the network.</p>
+        <p>Private notes are encrypted in this browser before they are sent. Only you can read them, as long as no one else gets your Adena unlock signature, or your recovery phrase and file together. Sizes and times stay visible on the network.</p>
         <p>They need a private key for this account. You set it up once; it locks about {gnotAmount(IDENTITY_ESTIMATE_UGNOT)}.</p>
         <div className="os-notes-private-actions"><button type="button" className="os-btn" disabled={busy} onClick={() => setSheet('setup')}>{state.phase === 'prepared' ? 'Continue setup' : 'Set up private notes'}</button></div></>
     else if (state.phase === 'revoked') body = <p><b>Your private key was turned off outside Memba.</b> Private notes encrypted for it stay on the network, but a turned-off key cannot open them in Memba. Memba changed nothing and does not replace keys on its own.</p>
@@ -108,7 +139,10 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         </div></>
     return <section className="os-notes-private" aria-labelledby="os-notes-private-title" aria-busy={busy}>
         <header><h2 id="os-notes-private-title" ref={heading} tabIndex={-1}>Private notes</h2><p className="os-sub">On {chainId}, for {owner.slice(0, 10)}…{owner.slice(-4)}</p></header>
-        <div className="os-notes-private-state">{body}</div>
+        <div className="os-notes-private-state">
+            {firstKey !== null && state.generation === firstKey && <p className="os-notes-private-first"><b>Your first key setup took effect.</b> The recovery phrase and file from that first setup are the ones that open this key; a later setup was refused.</p>}
+            {firstOpen && firstKey === null && <p className="os-notes-private-first">Your first key setup may still reach the network. If it does, a new setup is refused and the first key stays yours: keep the recovery phrase and file from your first setup until a setup is confirmed.</p>}
+            {body}</div>
         <p className="os-notes-private-notice" role="status" aria-live="polite">{notice}</p>
         {sheet === 'setup' && <PrivateKeySetup controller={controller} client={client} store={store} owner={owner} requestSession={requestSession} wallet={adenaWallet}
             walletProblem={walletProblem} onClose={() => { setSheet(null); checkAgain(n => n + 1); heading.current?.focus() }} />}
