@@ -55,6 +55,8 @@ type Props = {
     client: NotesReadClient; store: NotesStore; scope: NotesScope
     /** The network Adena is on, when known. */
     walletChainId?: string
+    /** A private note's reader (lazy private chunk); without it, the plain "Private note" placeholder. */
+    encrypted?(note: ChainNote, refresh: () => void): ReactNode
 }
 const settled = () => {}
 export function PublicAuthoring(props: Props) {
@@ -63,7 +65,7 @@ export function PublicAuthoring(props: Props) {
     return <Workspace key={JSON.stringify([lease.id, props.scope])} {...props} />
 }
 /** The published note is the page; Edit turns the same page into its editor, Publish brings it back. */
-function Workspace({ client, store, scope, walletChainId }: Props) {
+function Workspace({ client, store, scope, walletChainId, encrypted }: Props) {
     const [session] = useState(createDraftSession), working = useRef(false), updating = useRef(false), pane = useNotesPane()
     const [start, setStart] = useState<'checking' | 'ready'>('checking'), [saved, setSaved] = useState<Saved | null>(null), [savedTick, reread] = useState(0)
     const [opened, setOpened] = useState(false), [editing, setEditing] = useState(false)
@@ -288,7 +290,7 @@ function Workspace({ client, store, scope, walletChainId }: Props) {
         {!editing && saved && (unread || (opened && live.failed)) && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',
             actions: <button type="button" className="os-btn" disabled={busy} onClick={() => opened ? setEditing(true) : void prepare()}>Open my draft</button> }} />}
         <div hidden={editing}>
-            <PublicNote id={scope.noteId} client={client} owner={scope.owner} status={changes}
+            <PublicNote id={scope.noteId} client={client} owner={scope.owner} status={changes} encrypted={encrypted}
                 banner={!editing && <><NoteBanner notice={notice} />{behind && ('deleted' in behind
                     ? <NoteBanner notice={{ tone: 'info', text: 'This note was deleted. Your draft of it is still on this device.',
                         actions: <><button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => void prepare()}>Open my draft</button>

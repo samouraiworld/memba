@@ -13,6 +13,7 @@ import { privateNotesDeployment } from '../../../../lib/notes/config'
 import { useSigner } from '../../../sign/signerContext'
 import { NoteSheet } from '../NoteHeader'
 import { PrivateKeySetup } from './PrivateKeySetup'
+import { adenaWallet, unlockProblem } from './unlock'
 import { setupInFlight, setupsInFlightVersion, subscribeSetupsInFlight } from './setupInFlight'
 import './notes-private.css'
 
@@ -27,14 +28,6 @@ export function PrivateNotesPanel(props: PrivateNotesPanelProps) {
     return <Panel {...props} />
 }
 type Problem = 'read' | 'changed' | null
-/** Adena, for the unlock signatures: read at the click, never on load. */
-const adenaWallet = (): unknown => (window as unknown as { adena?: unknown }).adena
-function unlockProblem(error: unknown): string {
-    if (error instanceof NotesCryptoError && error.code === 'wallet') return 'Adena did not sign. Your key stays locked.'
-    if (error instanceof NotesCryptoError && error.code === 'signature') return 'Adena\u2019s signature could not be checked. Make sure Adena is on this network with this account, then try again. Your key stays locked.'
-    if (error instanceof NotesCryptoError && error.code === 'decrypt') return 'This signature does not open your key. Use your recovery phrase and file instead.'
-    return 'Your key could not be unlocked. Nothing was changed. Try again.'
-}
 function Panel({ controller, client, store, owner, requestSession, walletChainId }: PrivateNotesPanelProps) {
     const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
     const { version, pending } = useSigner(), chainId = client.chainId
@@ -163,7 +156,7 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
 }
 
 /** A second device, or a wallet that no longer gives the same signature: the 24 words and the recovery file. */
-function RecoverySheet({ controller, fileNeeded, onClose }: { controller: NotesIdentityController; fileNeeded: boolean; onClose(done: boolean): void }) {
+export function RecoverySheet({ controller, fileNeeded, onClose }: { controller: NotesIdentityController; fileNeeded: boolean; onClose(done: boolean): void }) {
     const [phrase, setPhrase] = useState(''), [file, setFile] = useState<string | null>(null), [error, setError] = useState(''), [working, setWorking] = useState(false)
     const live = useRef(true)
     useEffect(() => { live.current = true; return () => { live.current = false } }, [])

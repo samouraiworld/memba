@@ -18,6 +18,8 @@ vi.mock('../../../lib/notes/config', async original => ({ ...await original<type
             return {
                 createIdentityController: (client: { chainId: string }, owner: string) => { const c = { owner, chainId: client.chainId, dispose: vi.fn(), lock: vi.fn() }; mocks.controllers.push(c); return c },
                 PrivateNotesPanel: ({ owner, controller }: { owner: string; controller: Controller }) => <p>Private panel for {owner} on {controller.chainId}</p>,
+                PrivateNoteView: ({ note, controller }: { note: { id: string }; controller: Controller }) => <p>Private reader of {note.id.slice(0, 4)} for {controller.owner}</p>,
+                SharedWithMe: ({ owner }: { owner: string }) => <p>Shared with {owner}</p>,
             }
         } : null
     },
@@ -33,7 +35,9 @@ vi.mock('../../../lib/notes/chain/client', () => ({ NotesReadClient: class {
     constructor(context: { chainId: string }) { this.chainId = context.chainId }
     assertCurrent() {}
 } }))
-vi.mock('./PublicAuthoring', () => ({ PublicAuthoring: () => <p>Public authoring</p> }))
+// A private note on chain: the window hands its reader to the authoring page (the plain placeholder when it hands none).
+vi.mock('./PublicAuthoring', () => ({ PublicAuthoring: ({ encrypted }: { encrypted?(note: { id: string; mode: number }): unknown }) =>
+    <><p>Public authoring</p>{encrypted ? <>{encrypted({ id: 'ab'.repeat(16), mode: 0 }) as never}</> : <p>Private note placeholder</p>}</> }))
 vi.mock('./PublicOperationStatus', () => ({ PublicOperationStatus: () => null }))
 const id = 'ab'.repeat(16)
 function props(session: Partial<NativeViewProps['session']>, chainId = 'onyx-1') {
@@ -48,10 +52,11 @@ describe('private notes entry in the Notes window', () => {
         const view = render(<PublicNotesApp {...props({})} />)
         expect(await screen.findByText('Public authoring')).toBeVisible()
         expect(screen.queryByRole('button', { name: /Private notes/ })).toBeNull(); expect(screen.queryByText('Private')).toBeNull()
+        expect(screen.getByText('Private note placeholder')).toBeVisible(); expect(screen.queryByText(/Shared with/)).toBeNull()
         mocks.build = true; mocks.open = false
         view.rerender(<PublicNotesApp {...props({}, 'gnoland-1')} />)
         expect(await screen.findByText('Public authoring')).toBeVisible()
-        expect(screen.queryByRole('button', { name: /Private notes/ })).toBeNull()
+        expect(screen.queryByRole('button', { name: /Private notes/ })).toBeNull(); expect(screen.getByText('Private note placeholder')).toBeVisible()
         mocks.open = true
         view.rerender(<PublicNotesApp {...props({ status: 'guest', address: '' })} />)
         await waitFor(() => expect(screen.queryByText('Public authoring')).toBeNull())
@@ -91,5 +96,12 @@ describe('private notes entry in the Notes window', () => {
         // A disposed controller no longer listens.
         view.unmount(); act(() => { window.dispatchEvent(new Event('pagehide')) })
         expect(mocks.controllers[0].lock).toHaveBeenCalledTimes(1)
+    })
+    it('opens a private note in the private reader with the window\'s key controller, and lists notes shared with this account', async () => {
+        render(<PublicNotesApp {...props({})} />)
+        expect(await screen.findByText('Private reader of abab for g1owner')).toBeVisible()
+        expect(screen.queryByText('Private note placeholder')).toBeNull()
+        expect(screen.getByText('Shared with g1owner')).toBeVisible()
+        expect(mocks.controllers).toHaveLength(1)
     })
 })
