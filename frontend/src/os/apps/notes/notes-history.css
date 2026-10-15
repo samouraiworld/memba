@@ -125,7 +125,9 @@
     .os-notes-side-tabs [role="tab"] { height:48px; }
 }
 @container notes-app (max-width: 640px) {
-    .os-notes-share-pop { position:fixed; left:16px; right:16px; top:56px; width:auto; max-height:calc(100% - 72px); overflow:auto; }
+    /* Fixed under the sticky note header, which is its containing block (backdrop-filter): a percentage height would
+       follow that header (about 60 px), so the menu is sized from the screen. */
+    .os-notes-share-pop { position:fixed; left:16px; right:16px; top:56px; width:auto; max-height:max(160px, calc(100dvh - 360px)); overflow:auto; overscroll-behavior:contain; }
     /*
      * A phone scrolls the whole screen, not the note column: an open sheet replaces the note (and its Back to the
      * list) instead of following it, so nothing of the note shows around it and it opens at its first entry.
@@ -139,3 +141,5 @@
     .memba-os .os-notes-comment-actions > .os-btn, .memba-os .os-notes-comment-actions .os-notes-icon.os-btn { min-height:44px; }
     .memba-os .os-notes-comment-actions .os-notes-icon.os-btn { width:44px; }
 }
+/* On a phone the Notes app is as tall as its note and clips the Share menu: while the menu is open, it takes the screen. */
+@media (max-width: 640px) { .os-notes-app:has(.os-notes-share-pop:not([hidden])) { min-height:calc(100dvh - 160px); } }

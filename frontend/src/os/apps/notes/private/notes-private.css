@@ -37,13 +37,6 @@
 .os-notes-more { align-self:flex-start; margin:4px 0 0 8px; }
 /* With a review open the menu grows: it scrolls inside the window instead of running past it (a phone already scrolls it). */
 @container notes-app (min-width: 641px) { .os-notes-share-pop:has(.os-notes-share-review) { max-height:calc(100dvh - 220px); overflow-y:auto; overscroll-behavior:contain; } }
-/* On a phone the Share menu hangs from the sticky note header (its percentage height follows that header) inside the
-   Notes app, which is as tall as a short note: while a private note's menu is open, the app takes the screen and the
-   menu is sized from it. */
-@media (max-width: 640px) {
-    .os-notes-app:has(.os-notes-private-note .os-notes-share-pop:not([hidden])) { min-height:calc(100dvh - 160px); }
-    .os-notes-private-note .os-notes-share-pop { max-height:calc(100dvh - 360px); }
-}
 @container notes-app (max-width: 640px) {
     /* A phone window grows with its content: room for the sheets, which cover only the note side. */
     .os-notes-app .os-notes-private { min-height:calc(100dvh - 220px); }
