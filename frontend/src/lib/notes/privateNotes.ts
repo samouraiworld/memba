@@ -1,6 +1,6 @@
 // Private-notes entry, its own lazy chunk (privateNotes-*.js): load it only through loadPrivateNotes (./config.ts).
 // The private UI is exported from here too, so its code and CSS arrive with this chunk and never with public Notes.
-import { createDraftSession, type DraftSession, type NotesScope, type NotesStore } from './drafts'
+import { createDraftSession, type DraftSession, type NotesStore } from './drafts'
 import type { NotesIntent, NotesIntents } from './intents'
 import type { NotesReadClient } from './chain/client'
 import { NotesIdentityController } from './identity/controller'
@@ -19,17 +19,15 @@ import { recoverAccessIntent } from './chain/accessRequest'
 /**
  * Private receipts, checked against the chain and never resent: an encrypted note's own (private-v1) or its deletion
  * (access-v1). A deletion confirmed here (not in the session that sent it) also removes this device's encrypted draft of
- * the note, at the revision just read and only if it did not change after the deletion was prepared.
+ * the note: exactly the revision its Delete sheet read (the receipt's draftLocalRevision), compare-and-swap, so a draft
+ * changed after that read is kept, as in the session that sent it.
  */
 export async function recoverPrivateIntent(client: NotesReadClient, intents: NotesIntents, intent: NotesIntent, session: DraftSession, store?: NotesStore): Promise<'confirmed' | 'unknown'> {
     if (intent.verification?.kind !== 'access-v1') return recoverNoteIntent(client, intents, intent, session)
     const result = await recoverAccessIntent(client, intents, intent, session)
-    if (result === 'confirmed' && intent.action === 'access-delete' && store) await removeDeletedDraft(store, intent.scope, intent.createdAt).catch(() => {})
+    if (result === 'confirmed' && intent.action === 'access-delete' && store && intent.draftLocalRevision !== '0')
+        await store.deleteDraft(intent.scope, intent.draftLocalRevision, createDraftSession()).catch(() => {})
     return result
-}
-async function removeDeletedDraft(store: NotesStore, scope: NotesScope, preparedAt: number): Promise<void> {
-    const draft = await store.getDraft(scope)
-    if (draft?.payload.kind === 'encrypted' && draft.updatedAt <= preparedAt) await store.deleteDraft(scope, draft.localRevision, createDraftSession())
 }
 
 /**

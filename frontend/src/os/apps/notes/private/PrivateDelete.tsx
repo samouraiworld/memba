@@ -44,7 +44,7 @@ export function PrivateDelete({ note, client, store, owner, walletChainId, repor
         setBusy(true); setProblem('')
         const guard = session.capture()
         try {
-            const pending = prepareAccessRequest({ client, operation: operation(), maxDepositUgnot: budget.suggestedCapUgnot,
+            const pending = prepareAccessRequest({ client, operation: operation(), maxDepositUgnot: budget.suggestedCapUgnot, draftLocalRevision: costs.draft ?? '0',
                 // The request outlives this sheet (it closes when the signature sheet opens): never this sheet's session.
                 session: report?.requestSession ?? createDraftSession(),
                 intents: new NotesIntents(store), quote: accessQuote(client, budget.suggestedCapUgnot), isWriteEnabled: () => !!notesDeployment(client.chainId) })

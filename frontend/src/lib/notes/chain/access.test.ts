@@ -121,18 +121,33 @@ describe('private Delete signing flow', () => {
     s.deleted(); expect(await recoverAccessIntent(s.client, s.intents, intent, s.session)).toBe('confirmed')
     expect(wallet.send).toHaveBeenCalledOnce()
   })
-  it('a deletion confirmed later by "Check outcome" also removes the encrypted draft, unless it changed after the deletion was prepared', async () => {
-    for (const changedLater of [false, true]) {
+  it('a deletion confirmed later by "Check outcome" removes exactly the encrypted draft revision the Delete sheet read (no clock)', async () => {
+    // edit: none; 'before-send' = changed after the sheet read it but before Send (another window); 'after' = changed later.
+    for (const edit of ['none', 'before-send', 'after'] as const) {
       const s = setup(), envelope = new Uint8Array(1400).fill(3)
       expect((await s.store.saveDraft(s.scope, '0', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
-      const request = await prepareAccessRequest(s.options)
+      const read = (await s.store.getDraft(s.scope))!.localRevision
+      if (edit === 'before-send') expect((await s.store.saveDraft(s.scope, read, { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
+      const request = await prepareAccessRequest({ ...s.options, draftLocalRevision: read })
       wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('transport lost') })
       await expect(request.send(undefined, async () => {})).rejects.toThrow('transport lost')
       const intent = (await s.intents.get(s.scope, operationId))!
-      if (changedLater) { await new Promise(resolve => setTimeout(resolve, 5)); expect((await s.store.saveDraft(s.scope, '1', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved') }
+      expect(intent.draftLocalRevision).toBe(read)
+      if (edit === 'after') expect((await s.store.saveDraft(s.scope, read, { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
       s.deleted()
       expect(await recoverPrivateIntent(s.client, s.intents, intent, s.session, s.store)).toBe('confirmed')
-      expect(await s.store.getDraft(s.scope)).toEqual(changedLater ? expect.objectContaining({ localRevision: '2' }) : null)
+      expect(await s.store.getDraft(s.scope)).toEqual(edit === 'none' ? null : expect.objectContaining({ localRevision: '2' }))
     }
+  })
+  it('a deletion prepared without a draft never removes one made later', async () => {
+    const s = setup(), request = await prepareAccessRequest(s.options)
+    wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('transport lost') })
+    await expect(request.send(undefined, async () => {})).rejects.toThrow('transport lost')
+    const intent = (await s.intents.get(s.scope, operationId))!
+    expect(intent.draftLocalRevision).toBe('0')
+    expect((await s.store.saveDraft(s.scope, '0', { kind: 'encrypted', envelope: new Uint8Array(1400).fill(3) }, createDraftSession())).status).toBe('saved')
+    s.deleted()
+    expect(await recoverPrivateIntent(s.client, s.intents, intent, s.session, s.store)).toBe('confirmed')
+    expect(await s.store.getDraft(s.scope)).toEqual(expect.objectContaining({ localRevision: '1' }))
   })
 })

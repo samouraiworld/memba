@@ -220,7 +220,9 @@ function validInput(value: NotesIntentInput): boolean {
             || (validAccessVerification(value.verification)
                 && notesRealmScope(value.scope)
                 && ["access-addWriter", "access-removeWriter", "access-proposeOwner", "access-cancelOwner", "access-acceptOwner", "access-delete"].includes(value.action)
-                && value.expectedStateRevision !== "0" && value.ownerGeneration !== "0" && value.draftLocalRevision === "0"
+                && value.expectedStateRevision !== "0" && value.ownerGeneration !== "0"
+                // Only a deletion names a draft: the encrypted draft its sheet read, removed once the deletion is confirmed.
+                && (value.action === "access-delete" || value.draftLocalRevision === "0")
                 && BigInt(value.resultingStateRevision) === BigInt(value.expectedStateRevision) + 1n)
             || (validIdentityVerification(value.verification)
                 && value.action === "identity-setup" && value.scope.realm === NOTES_REGISTRY
