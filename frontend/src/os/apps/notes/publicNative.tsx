@@ -9,7 +9,7 @@ import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import { PublicLibrary } from './PublicLibrary'
 import { NoteSkeleton, PublicNote } from './PublicNote'
 import { PublicAuthoring } from './PublicAuthoring'
-import type { PrivateCreate } from './PublicPublish'
+import type { NoteReport, PrivateCreate } from './PublicPublish'
 import { PublicOperationStatus } from './PublicOperationStatus'
 import { NoteSharePopover } from './NoteSharePopover'
 import { NoteSidePanel } from './NoteSidePanel'
@@ -138,7 +138,7 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
     // networks and builds without the switch keep the plain "Private note" placeholder.
     const PrivateView = privateModule?.PrivateNoteView, Shared = privateModule?.SharedWithMe
     const encrypted = !privateOn || !owner || privateFailed ? undefined
-        : PrivateView && identity ? (note: ChainNote) => <PrivateView note={note} controller={identity.controller} client={reader} owner={owner} walletChainId={session.walletChainId} />
+        : PrivateView && identity ? (note: ChainNote, _refresh: () => void, report?: NoteReport) => <PrivateView note={note} controller={identity.controller} client={reader} owner={owner} walletChainId={session.walletChainId} store={store} report={report} />
         : () => <NoteSkeleton label="Opening private note…" />
     // Publishing privately: the key's state decides whether the choice opens; every builder checks the gate again.
     const privateCreate = privateCreateFor(privateOn && owner && !privateFailed && identity ? privateModule : null, identity?.controller, reader, owner, () => { setExploring(false); setPrivateView(true) })
@@ -208,7 +208,7 @@ function PaneFrame({ hidden, children }: { hidden: boolean; children(side: HTMLE
     </div>
 }
 type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean; shown: boolean
-    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string; encrypted?(note: ChainNote): ReactNode; privateCreate?: PrivateCreate
+    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string; encrypted?(note: ChainNote, refresh: () => void, report?: NoteReport): ReactNode; privateCreate?: PrivateCreate
     hold(note: string, source: string, unsaved: boolean): void; saved(bump: (value: number) => number): void; removed(note: string, published: boolean): void; titleFocused(value: null): void }
 function NotePane({ client, partition, noteId, owner, focusTitle, shown, side, overlay, walletChainId, encrypted, privateCreate, hold, saved, removed, titleFocused }: PaneProps) {
     const scope = useMemo(() => ({ ...partition, noteId }), [partition, noteId])
