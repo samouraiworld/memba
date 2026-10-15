@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import type { NativeViewProps } from '../../native/types'
 import { createDraftSession, createNotesStore, type NotesPartition } from '../../../lib/notes/drafts'
-import { NOTE_ID, NOTES_ENABLED, notesDeployment } from '../../../lib/notes/config'
+import { loadPrivateNotes, NOTE_ID, NOTES_ENABLED, notesDeployment, PRIVATE_CHAINS } from '../../../lib/notes/config'
 import { NotesReadClient } from '../../../lib/notes/chain/client'
 import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import { PublicLibrary } from './PublicLibrary'
@@ -43,6 +43,10 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
         } catch { setRead({ client: null, error: true }) }
         return () => lifetime.abort()
     }, [chainId, deployment, attempt])
+    // The lazy boundary of private notes, keyed on the build switch alone: a build without VITE_ENABLE_NOTES_ENCRYPTED
+    // has no loader and no private code (check:bundle:notes-private). Every private entry point checks
+    // privateNotesDeployment itself before it reads a key or opens the wallet.
+    useEffect(() => { if (owner && PRIVATE_CHAINS.includes(chainId)) void loadPrivateNotes?.().catch(() => {}) }, [owner, chainId])
     // Stable identities: effects keyed on scope must not re-run on unrelated parent renders.
     const realm = deployment?.realm ?? null, noteId = section !== null && NOTE_ID.test(section) ? section : null
     const partition = useMemo(() => realm ? { chainId, realm, owner: owner ?? 'guest' } : null, [chainId, realm, owner])

@@ -222,6 +222,27 @@ jobs:
         # loaded when a Safe screen first needs them (never on wallet connect).
         run: npm run check:bundle:safe
 
+      - name: "Bundle gate: no private Notes code in the flag-off build"
+        # Private (encrypted) notes live only in the lazy privateNotes chunk behind
+        # VITE_ENABLE_NOTES_ENCRYPTED: no chunk, unlock text or key-setup call may ship here.
+        run: npm run check:bundle:notes-private
+
+      - name: "Bundle gate: private Notes in the Notes builds (flag off, then on)"
+        # Flag off: the production Notes build (public Notes transactions on) must carry no
+        # private chunk and no private marker. Flag on (deploy-preview context, where the safety
+        # gate allows it, so without VITE_ENABLE_NOTES_CHAIN): the privateNotes chunk must exist
+        # with every marker (positive control: the gate still sees them), lazy and precache-excluded.
+        if: matrix.node-version == '22'
+        env:
+          VITE_MEMBA_OS: 'true'
+          MEMBA_OS_BETA_SITE: 'true'
+          VITE_ENABLE_NOTES: 'true'
+        run: |
+          CONTEXT=production VITE_ENABLE_NOTES_CHAIN=true node ./node_modules/.bin/vite build --logLevel warn --outDir dist-notes --emptyOutDir
+          node scripts/check-lazy-chunk.mjs notes-private dist-notes
+          CONTEXT=deploy-preview VITE_ENABLE_NOTES_ENCRYPTED=true node ./node_modules/.bin/vite build --logLevel warn --outDir dist-notes-private --emptyOutDir
+          VITE_ENABLE_NOTES_ENCRYPTED=true node scripts/check-lazy-chunk.mjs notes-private dist-notes-private --expect-present
+
       - name: "Bundle gate: EVM adapter in the Memba OS builds (flag off, then on)"
         # The build above has no Memba OS, so it cannot see EVM code that stopped
         # folding away inside the OS chunk. Build the OS beta site twice. Flag off:

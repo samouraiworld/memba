@@ -18,6 +18,13 @@ import golden from './__fixtures__/backup-standard.json'
 const network = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn(), kdf: vi.fn() }))
 vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => network.kdf(...args) }))
 vi.mock('../../grc20', () => ({ MAX_GAS_WANTED: 500000000, doContractBroadcast: (...args: unknown[]) => network.send(...args), freshFeeForGasWanted: (...args: unknown[]) => network.fee(...args), assertFeeStillCovers: async (fee: number, fresh: () => Promise<number>) => { if (await fresh() > fee) throw new Error('fee changed') } }))
+// The fixture network is no release network: these tests open the private-notes gate for it themselves.
+// gate.test.ts runs the controller and the request builder against the real switches and allowlist.
+const gate = vi.hoisted(() => ({ open: true }))
+vi.mock('../config', async original => ({
+  ...await original<typeof import('../config')>(),
+  privateNotesDeployment: (chainId: string) => gate.open && chainId === 'test-chain-id' ? { realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 } : null,
+}))
 const owner = bech32Encode('g', hexToBytes(golden.addressHex)), op = '44'.repeat(16)
 const stores: NotesStore[] = []
 function setup() {
@@ -40,12 +47,48 @@ async function realSetup() {
   return { ...s, controller, output, options: { ...s.options, controller } }
 }
 beforeEach(() => {
-  vi.clearAllMocks(); network.fee.mockResolvedValue(90000)
+  vi.clearAllMocks(); gate.open = true; network.fee.mockResolvedValue(90000)
   network.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
   network.send.mockImplementation(async (_messages, _memo, options) => { await options.beforeSign(); return { hash: 'aa'.repeat(32) } })
 })
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(stores.splice(0).map(store => store.close())) })
 describe('atomic identity setup signing', () => {
+  it('refuses before the wallet opens whenever private notes close between review and signature', async () => {
+    const disabled = { name: 'NotesChainError', code: 'disabled' }
+    gate.open = false
+    await expect(prepareIdentitySetupRequest(setup().options)).rejects.toMatchObject(disabled)
+    gate.open = true
+    // Closed during the journal read, the first await of the review.
+    const r = setup(), get = r.intents.get.bind(r.intents)
+    vi.spyOn(r.intents, 'get').mockImplementationOnce(async (scope, id) => { const value = await get(scope, id); gate.open = false; return value })
+    await expect(prepareIdentitySetupRequest(r.options)).rejects.toMatchObject(disabled)
+    gate.open = true
+    let opened = 0
+    network.send.mockImplementation(async (_messages, _memo, options) => { const guard = await options.beforeSign(); opened++; expect(guard()).toBe(true); return { hash: 'aa'.repeat(32) } })
+    // Closed after review, before Send.
+    const s = setup(), request = await prepareIdentitySetupRequest(s.options), wallet = vi.fn(async () => () => true)
+    gate.open = false
+    await expect(request.send(undefined, wallet)).rejects.toMatchObject(disabled)
+    await expect(request.recheck!(undefined)).rejects.toMatchObject(disabled)
+    expect(network.send).not.toHaveBeenCalled(); expect(await s.intents.get(s.scope, op)).toBeNull()
+    // Closed by the last step before the wallet (the signing driver's own beforeSign), and during the final recheck.
+    for (const close of ['driver', 'recheck'] as const) {
+      gate.open = true
+      const t = setup(), next = await prepareIdentitySetupRequest(t.options)
+      const driver = vi.fn(async () => { if (close === 'driver') gate.open = false; return () => true })
+      if (close === 'recheck') network.fee.mockImplementationOnce(async () => { gate.open = false; return 90000 })
+      await expect(next.send(undefined, driver)).rejects.toMatchObject(disabled)
+      expect(driver).toHaveBeenCalledTimes(close === 'driver' ? 1 : 0)
+      expect((await t.intents.get(t.scope, op))?.phase).toBe('not-sent')
+    }
+    expect(opened).toBe(0)
+    // The wallet's own guard turns false if the gate closes after the wallet opened.
+    gate.open = true
+    let walletGuard: () => boolean = () => true
+    network.send.mockImplementationOnce(async (_messages, _memo, options) => { walletGuard = await options.beforeSign(); return { hash: 'aa'.repeat(32) } })
+    const u = setup(); await (await prepareIdentitySetupRequest(u.options)).send(undefined, async () => () => true)
+    expect(walletGuard()).toBe(true); gate.open = false; expect(walletGuard()).toBe(false)
+  })
   it('reviews a new operation after a proven pre-wallet fee failure without replacing recovery material', async () => {
     const s = await realSetup(), original = s.controller.preparedPlan(), first = await prepareIdentitySetupRequest(s.options)
     const wallet = vi.fn(async () => () => true)

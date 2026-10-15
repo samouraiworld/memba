@@ -8,6 +8,8 @@ import { parseBackup, recoverIdentity, sealBackup } from '../crypto/backup'
 import type { BackupBinding, BackupMode } from '../crypto/backup'
 import { requestNotesUnlock } from '../crypto/signer'
 import { equalBytes, networkBytes, NotesCryptoError, randomBytes, requireBytes } from '../crypto/bytes'
+import { privateNotesDeployment } from '../config'
+import { NotesChainError } from '../chain/schema'
 import { readRecoveryFile, recoveryEntropy, recoveryFile, recoveryPhrase } from './recovery'
 
 export interface IdentityChainState {
@@ -63,8 +65,13 @@ export class NotesIdentityController {
     })
     this.listeners.forEach(listener => listener())
   }
-  private guard(token: number): boolean { return !this.dead && !this.signal.aborted && token === this.epoch && this.c.isCurrent() }
-  private assert(token: number): void { if (!this.guard(token)) throw new NotesCryptoError('identity') }
+  /** Private notes open on this network and realm: checked on entry, after every await and before every wallet prompt. */
+  private allowed(): boolean { return privateNotesDeployment(this.c.chainId)?.realm === this.c.realm }
+  private guard(token: number): boolean { return this.allowed() && !this.dead && !this.signal.aborted && token === this.epoch && this.c.isCurrent() }
+  private assert(token: number): void {
+    if (!this.allowed()) throw new NotesChainError('disabled')
+    if (!this.guard(token)) throw new NotesCryptoError('identity')
+  }
   private async run<T>(action: (token: number) => Promise<T>): Promise<T> {
     if (this.busy) throw new NotesCryptoError('busy')
     const token = this.epoch; this.assert(token); this.busy = true; this.emit()

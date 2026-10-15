@@ -2,13 +2,15 @@
 /**
  * Bundle CI gate for heavy vendor stacks that must stay in a lazy async chunk.
  *
- * Usage: node scripts/check-lazy-chunk.mjs <three|evm|safe> [distDir] [--expect-present]
- *   three  BARRICADE 3D renderer (three / react-three-fiber / postprocessing)
- *   evm    EVM network adapter (viem / wagmi), behind VITE_ENABLE_EVM
- *   safe   Safe{Core} SDK (protocol-kit / api-kit), behind VITE_ENABLE_EVM
+ * Usage: node scripts/check-lazy-chunk.mjs <three|evm|safe|notes-private> [distDir] [--expect-present]
+ *   three          BARRICADE 3D renderer (three / react-three-fiber / postprocessing)
+ *   evm            EVM network adapter (viem / wagmi), behind VITE_ENABLE_EVM
+ *   safe           Safe{Core} SDK (protocol-kit / api-kit), behind VITE_ENABLE_EVM
+ *   notes-private  private Notes (key setup, @noble/post-quantum), behind VITE_ENABLE_NOTES_ENCRYPTED
  *   distDir          the build to check (default: dist)
  *   --expect-present positive control: also FAIL when the chunk is missing, for a
- *                    build with the flag on (proves the gate still sees the chunk)
+ *                    build with the flag on (proves the gate still sees the chunk);
+ *                    a gate with `expectMarkers` also FAILS unless every marker is found
  *
  * FAILS the build if the `vendor-<name>` chunk:
  *   1) is loaded by the EAGER entry graph (index.html script/modulepreload, or a
@@ -41,6 +43,16 @@ const GATES = {
   // The Safe{Core} SDK's own strings (api-kit's default host, protocol-kit's contract keys) and
   // Memba's Transaction Service proxy route (lib/chain/evm/safe/sdk.ts).
   safe: { chunk: "vendor-safe-", flag: "VITE_ENABLE_EVM", markers: ["api.safe.global", "safeSingletonL2Version", "/api/safe-tx/"] },
+  // Private notes: the lazy chunk of lib/notes/privateNotes.ts (it carries @noble/post-quantum, no vendor
+  // chunk of its own), the wallet unlock text (lib/notes/crypto/signer.ts), the key setup calls
+  // (lib/notes/identity/chain.ts) and an ML-KEM error of @noble/post-quantum. Every marker must be found
+  // in a build with the flag on, so a marker that stops matching fails the positive control.
+  "notes-private": {
+    chunk: "privateNotes-",
+    flag: "VITE_ENABLE_NOTES_ENCRYPTED",
+    markers: ["Memba Notes unlock v1", "RegisterKey", "SetSeedBackup", "sampleCBD"],
+    expectMarkers: true,
+  },
 }
 const args = process.argv.slice(2)
 const expectPresent = args.includes("--expect-present")
@@ -50,7 +62,7 @@ if (!gate) {
   console.error(`usage: check-lazy-chunk.mjs <${Object.keys(GATES).join("|")}> [distDir] [--expect-present]`)
   process.exit(2)
 }
-const { chunk: CHUNK, flag: flagVar, markers: MARKERS } = gate
+const { chunk: CHUNK, flag: flagVar, markers: MARKERS, expectMarkers = false } = gate
 
 const DIST = resolve(process.cwd(), distArg || "dist")
 const ASSETS = join(DIST, "assets")
@@ -69,6 +81,11 @@ const chunks = jsFiles.filter((f) => f.startsWith(CHUNK))
 // ---- Positive control: a flag-on build must contain the chunk -------------
 if (expectPresent && chunks.length === 0) {
   fail(`--expect-present: ${DIST} has no ${CHUNK}* chunk — the build did not include the gated code, so the checks below prove nothing.`)
+}
+if (expectPresent && expectMarkers) {
+  const code = jsFiles.map((file) => readFileSync(join(ASSETS, file), "utf8"))
+  const missing = MARKERS.filter((m) => !code.some((c) => c.includes(m)))
+  if (missing.length > 0) fail(`--expect-present: no JS in ${DIST} contains ${missing.map((m) => `"${m}"`).join(", ")} — the marker check below would prove nothing.`)
 }
 
 // ---- Check 3: a flag-off build must not contain the chunk -----------------

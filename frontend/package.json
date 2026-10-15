@@ -12,6 +12,7 @@
     "check:bundle": "node scripts/check-lazy-chunk.mjs three",
     "check:bundle:evm": "node scripts/check-lazy-chunk.mjs evm",
     "check:bundle:safe": "node scripts/check-lazy-chunk.mjs safe",
+    "check:bundle:notes-private": "node scripts/check-lazy-chunk.mjs notes-private",
     "check:bundle:os": "node scripts/check-os-chunk.mjs",
     "audit:ci": "node scripts/audit-ci.mjs",
     "audit:ci:dev": "node scripts/audit-ci.mjs --include-dev",
