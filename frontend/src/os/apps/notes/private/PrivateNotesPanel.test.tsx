@@ -17,6 +17,7 @@ import type { NotesIdentityController } from '../../../../lib/notes/identity/con
 import type { SignRequest } from '../../../sign/signer'
 import { SignerContext, type SignerApi } from '../../../sign/signerContext'
 import golden from '../../../../lib/notes/identity/__fixtures__/backup-standard.json'
+import { IDENTITY_SETUP_LABEL } from '../../../../lib/notes/identity/request'
 import { PrivateNotesPanel } from './PrivateNotesPanel'
 
 // Cheap deterministic KDF (real Argon2/AEAD vectors live in crypto/identity.test.ts); Adena's unlock signature is mocked.
@@ -343,13 +344,31 @@ describe('setting up again while a first setup may still land', () => {
         const later = Date.now() + 61_000, now = vi.spyOn(Date, 'now').mockImplementation(() => later)
         try {
             cleanup(); controller.dispose(); controller = undefined as unknown as NotesIdentityController
-            show(undefined, 0, [{ id: 1, label: 'Set up Notes identity' }])
+            show(undefined, 0, [{ id: 1, label: IDENTITY_SETUP_LABEL }])
             expect(await screen.findByText('Your key setup was sent.')).toBeVisible()
             expect(screen.queryByRole('button', { name: 'Set up again…' })).toBeNull()
             cleanup(); controller.dispose(); controller = undefined as unknown as NotesIdentityController
             show()
             expect(await screen.findByRole('button', { name: 'Set up again…' })).toBeVisible()
         } finally { now.mockRestore() }
+    })
+    it('treats a setup hidden while Adena still holds it as in flight until its request settles', async () => {
+        show(); await toReview()
+        fireEvent.click(screen.getByRole('button', { name: 'Set up with Adena' }))
+        await waitFor(() => expect(requests).toHaveLength(1))
+        // The driver sent it to Adena, which has not answered: the receipt is saved, nothing is verified yet.
+        let answer: ((error: Error) => void) | null = null
+        io.send.mockImplementationOnce(async (_messages: Msgs, _memo: string, options: { beforeSign(): Promise<unknown> }) => {
+            await options.beforeSign(); return new Promise((_resolve, reject) => { answer = reject })
+        })
+        const sent = requests[0].send(undefined, async () => () => true).catch(() => requests[0].onSettled?.('unknown', undefined))
+        await waitFor(() => expect(answer).not.toBeNull())
+        fireEvent.click(screen.getByRole('button', { name: 'Hide' }))
+        expect(await screen.findByText('The result of your key setup is not known yet.')).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'Set up again…' })).toBeNull()
+        // Adena closes without an answer: the request settles, and the explicit choice becomes available.
+        await act(async () => { answer!(new Error('Adena closed')); await sent })
+        expect(await screen.findByRole('button', { name: 'Set up again…' })).toBeVisible()
     })
     it('drops the first attempt\'s prepared key when setting up again in the same session', async () => {
         show(); await toReview()

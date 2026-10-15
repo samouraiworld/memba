@@ -17,6 +17,7 @@ import { getRpcUrlsInOrder } from '../../../../lib/rpcFallback'
 import type { SettledOutcome } from '../../../sign/signer'
 import { useSigner } from '../../../sign/signerContext'
 import { NoteSheet } from '../NoteHeader'
+import { holdSetup } from './setupInFlight'
 
 type Step = 'intro' | 'checking' | 'signing' | 'phrase' | 'confirm' | 'review' | 'sending' | 'done'
 export interface PrivateKeySetupProps {
@@ -110,8 +111,10 @@ export function PrivateKeySetup({ controller, client, store, owner, requestSessi
             const operationId = controller.preparedPlan().operationId
             request.title = 'Set up private notes'
             const { onSettled, onDismissed } = request
+            // In flight from here until the driver settles or dismisses it, even after this sheet is hidden.
+            const release = holdSetup(operationId)
             request.onSettled = (outcome, choice) => {
-                onSettled?.(outcome, choice)
+                onSettled?.(outcome, choice); release()
                 if (!live.current) return
                 if (outcome === 'confirmed') { setStep('done'); return }
                 // What the saved receipt says decides: only "not sent" may be tried again from here. Anything Adena may
@@ -122,7 +125,7 @@ export function PrivateKeySetup({ controller, client, store, owner, requestSessi
                     else onClose()
                 })
             }
-            request.onDismissed = () => { onDismissed?.(); if (live.current) { setStep('review'); setError('Nothing was sent.') } }
+            request.onDismissed = () => { onDismissed?.(); release(); if (live.current) { setStep('review'); setError('Nothing was sent.') } }
             if (!signer.sign(request)) { request.onDismissed(); setError('The signature window could not open. Close any other signature request, then try again.') }
         } catch (problem) {
             if (!live.current) return
