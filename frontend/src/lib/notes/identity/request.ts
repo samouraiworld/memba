@@ -30,7 +30,8 @@ export async function prepareIdentitySetupRequest(options: IdentityRequestOption
   // Runs at the start, after every await and in beforeSign, right before the wallet opens.
   const enabled = () => {
     current()
-    if (!options.isWriteEnabled() || privateNotesDeployment(client.chainId)?.realm !== client.realm) throw new NotesChainError('disabled')
+    const d = privateNotesDeployment(client.chainId)
+    if (!options.isWriteEnabled() || d === null || d.realm !== client.realm) throw new NotesChainError('disabled')
   }
   enabled()
   let plan = controller.preparedPlan()

@@ -169,6 +169,13 @@ describe('RAM-only identity lifecycle', () => {
     gate.open = false; await expect(s.controller.use(() => 1)).rejects.toMatchObject(disabled)
     s.controller.dispose()
   })
+  it('never matches a closed gate through a missing realm (undefined === undefined)', async () => {
+    const s = setup(); gate.open = false
+    ;(s.controller as unknown as { c: { realm?: string } }).c.realm = undefined
+    await expect(s.controller.refresh()).rejects.toMatchObject({ code: 'disabled' })
+    await expect(s.controller.prepareSetup('vault')).rejects.toMatchObject({ code: 'disabled' })
+    expect(s.read).not.toHaveBeenCalled()
+  })
   it('discards a wallet unlock and a prepared plan once the gate closes mid-operation', async () => {
     const s = setup()
     dependencies.unlock.mockImplementationOnce(async (_wallet: unknown, _context: unknown, current: () => boolean) => {

@@ -28,7 +28,10 @@ export function notesDeployment(chainId: string): NotesDeploymentEntry | null {
 export const PRIVATE_NOTES_BUILD = import.meta.env.VITE_ENABLE_NOTES_ENCRYPTED === "true"
 /** Networks where private notes may open; gnoland-1 joins only through its own release review. */
 export const PRIVATE_CHAINS: readonly string[] = Object.freeze(["onyx-1"])
-/** The deployment private notes use on this network, or null: every private read, key and signing path checks it. */
+/**
+ * The deployment private notes use on this network, or null. Every key operation and signing path checks
+ * it; public on-chain reads (readChainIdentity: registered key and encrypted backup) are not gated.
+ */
 export function privateNotesDeployment(chainId: string): NotesDeploymentEntry | null {
     return PRIVATE_NOTES_BUILD && PRIVATE_CHAINS.includes(chainId) ? notesDeployment(chainId) : null
 }

@@ -46,6 +46,26 @@ describe("bundle gate: notes-private", () => {
       expect(gate(dist({ "privateNotes-b.js": partial, "apps-c.js": lazyApp }), true, "--expect-present"), marker).toBe(1)
     }
   })
+  it("--expect-present fails when a marker is also outside the private chunk, eager or lazy", () => {
+    for (const marker of MARKERS) {
+      for (const file of ["index-a.js", "apps-c.js"]) {
+        const leak = { "privateNotes-b.js": privateChunk, "apps-c.js": lazyApp, [file]: `${lazyApp}const m=${JSON.stringify(marker)};` }
+        expect(gate(dist(leak), true, "--expect-present"), `${marker} in ${file}`).toBe(1)
+      }
+    }
+    // Every marker only in a non-private file: the chunk exists but carries none of them.
+    expect(gate(dist({ "privateNotes-b.js": "export const t=1;", "apps-c.js": `${lazyApp}${privateChunk}` }), true, "--expect-present")).toBe(1)
+  })
+  it("never passes vacuously: no index.html, or no JS in assets/", () => {
+    for (const on of [false, true]) {
+      const noHtml = dist({}); rmSync(join(noHtml, "index.html"))
+      expect(gate(noHtml, on), "no index.html").toBe(1)
+      const noJs = dist({}); rmSync(join(noJs, "assets", "index-a.js"))
+      expect(gate(noJs, on), "no JS").toBe(1)
+      const noAssets = dist({}); rmSync(join(noAssets, "assets"), { recursive: true })
+      expect(gate(noAssets, on), "no assets/").toBe(1)
+    }
+  })
   it("fails a flag-on build that loads the private chunk eagerly or precaches it", () => {
     const eager = '<script type="module" src="/assets/index-a.js"></script><link rel="modulepreload" href="/assets/privateNotes-b.js">'
     expect(gate(dist({ "privateNotes-b.js": privateChunk }, eager), true, "--expect-present")).toBe(1)

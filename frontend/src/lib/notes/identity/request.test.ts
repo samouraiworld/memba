@@ -82,6 +82,10 @@ describe('atomic identity setup signing', () => {
       expect((await t.intents.get(t.scope, op))?.phase).toBe('not-sent')
     }
     expect(opened).toBe(0)
+    // A client without a realm never matches a closed gate (undefined === undefined).
+    gate.open = false
+    const v = setup(); (v.options.client as unknown as { realm?: string }).realm = undefined
+    await expect(prepareIdentitySetupRequest(v.options)).rejects.toMatchObject(disabled)
     // The wallet's own guard turns false if the gate closes after the wallet opened.
     gate.open = true
     let walletGuard: () => boolean = () => true

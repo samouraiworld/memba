@@ -11,6 +11,7 @@
  *   --expect-present positive control: also FAIL when the chunk is missing, for a
  *                    build with the flag on (proves the gate still sees the chunk);
  *                    a gate with `expectMarkers` also FAILS unless every marker is found
+ *                    in that chunk and in no other JS file
  *
  * FAILS the build if the `vendor-<name>` chunk:
  *   1) is loaded by the EAGER entry graph (index.html script/modulepreload, or a
@@ -22,7 +23,8 @@
  *      (strings only the gated code holds, so app code that stopped folding
  *      away is caught even when it imports no vendor module).
  *
- * Run after `vite build` (needs dist/). Inert-but-passing while no such chunk exists.
+ * Run after `vite build` (needs dist/ with index.html and assets/*.js, else it FAILS).
+ * Inert-but-passing while no such chunk exists.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs"
 import { join, resolve } from "node:path"
@@ -74,18 +76,29 @@ function fail(msg) {
 }
 
 if (!existsSync(DIST)) fail("dist/ not found — run `npm run build` first.")
+// No vacuous pass: a directory that is not a build would satisfy every check below.
+const indexPath = join(DIST, "index.html")
+if (!existsSync(indexPath)) fail(`${DIST} has no index.html — not a build, so the checks below prove nothing.`)
 
 const jsFiles = existsSync(ASSETS) ? readdirSync(ASSETS).filter((f) => f.endsWith(".js")) : []
+if (jsFiles.length === 0) fail(`${ASSETS} has no .js file — not a build, so the checks below prove nothing.`)
 const chunks = jsFiles.filter((f) => f.startsWith(CHUNK))
 
 // ---- Positive control: a flag-on build must contain the chunk -------------
 if (expectPresent && chunks.length === 0) {
   fail(`--expect-present: ${DIST} has no ${CHUNK}* chunk — the build did not include the gated code, so the checks below prove nothing.`)
 }
+// Every marker must be in the gated chunk, and only there: the same string in any other file
+// (eager or another lazy chunk) means gated code escaped its boundary.
 if (expectPresent && expectMarkers) {
-  const code = jsFiles.map((file) => readFileSync(join(ASSETS, file), "utf8"))
-  const missing = MARKERS.filter((m) => !code.some((c) => c.includes(m)))
-  if (missing.length > 0) fail(`--expect-present: no JS in ${DIST} contains ${missing.map((m) => `"${m}"`).join(", ")} — the marker check below would prove nothing.`)
+  const read = (file) => readFileSync(join(ASSETS, file), "utf8")
+  const gated = chunks.map(read)
+  const missing = MARKERS.filter((m) => !gated.some((c) => c.includes(m)))
+  if (missing.length > 0) fail(`--expect-present: no ${CHUNK}* chunk contains ${missing.map((m) => `"${m}"`).join(", ")} — the marker check would prove nothing.`)
+  for (const file of jsFiles.filter((f) => !f.startsWith(CHUNK))) {
+    const marker = MARKERS.find((m) => read(file).includes(m))
+    if (marker) fail(`--expect-present: ${file} contains "${marker}" outside the ${CHUNK}* chunk — gated code escaped its lazy boundary.`)
+  }
 }
 
 // ---- Check 3: a flag-off build must not contain the chunk -----------------
@@ -102,8 +115,7 @@ if (flagVar && process.env[flagVar] !== "true") {
 // ---- Check 1: the chunk must not be in the EAGER entry graph ---------------
 // Vite emits <script type=module src> for the entry and <link rel=modulepreload>
 // for its STATIC import graph. A lazily-imported chunk appears in neither.
-const indexPath = join(DIST, "index.html")
-const indexHtml = existsSync(indexPath) ? readFileSync(indexPath, "utf8") : ""
+const indexHtml = readFileSync(indexPath, "utf8")
 if (CHUNK_RE.test(indexHtml)) {
   fail(`${CHUNK}* is referenced by index.html (script/modulepreload) — it must be lazy-imported only.`)
 }
