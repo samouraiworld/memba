@@ -104,7 +104,7 @@ describe('RAM-only identity lifecycle', () => {
   it('refuses nondeterministic Standard signatures without creating a fallback identity', async () => {
     const s = setup(empty())
     dependencies.unlock.mockResolvedValueOnce({ ikm: new Uint8Array(64).fill(1) }).mockResolvedValueOnce({ ikm: new Uint8Array(64).fill(2) })
-    await expect(s.controller.prepareSetup('standard', {})).rejects.toThrow('signature')
+    await expect(s.controller.prepareSetup('standard', {})).rejects.toMatchObject({ code: 'mismatch' })
     expect(s.controller.getSnapshot().phase).toBe('empty'); expect(dependencies.kdf).not.toHaveBeenCalled()
   })
   it('renews only the prepared operation and recovers the same identity with the original export', async () => {
