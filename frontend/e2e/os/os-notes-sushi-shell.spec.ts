@@ -69,3 +69,14 @@ test('Notes is one window: opening it again keeps the same note; a phone shows t
     await page.getByRole('button', { name: 'Back to notes', exact: true }).click()
     await expect(list).toBeVisible(); await expect(composer).toBeHidden()
 })
+test('a phone shows the whole Share menu: sized from the screen, not from the sticky note header', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    const sheetBack = page.getByRole('button', { name: 'Back to the note', exact: true })
+    if (await sheetBack.isVisible()) await sheetBack.click()
+    await page.getByRole('button', { name: 'Share', exact: true }).click()
+    const menu = page.getByRole('dialog', { name: /^Share / })
+    await expect(menu.getByRole('button', { name: 'Copy link', exact: true })).toBeInViewport({ ratio: 1 })
+    await expect(menu.getByRole('heading', { name: 'Who can comment', exact: true })).toBeInViewport({ ratio: 1 })
+    // Before the fix the menu was cut to about 36 px (its percentage height followed the 60 px header).
+    expect((await menu.boundingBox())!.height).toBeGreaterThan(300)
+})

@@ -58,6 +58,9 @@ export function accessIntentEvidence(input: NotesIntentInput, expected: AccessIn
 export interface AccessRequestOptions {
   client: NotesReadClient; operation: AccessOperation; maxDepositUgnot: string; session: DraftSession; intents: NotesIntents
   quote: NotesQuoteProvider; isWriteEnabled(): boolean
+  /** The local revision of this device's encrypted draft of the note, as read by the Delete sheet ('0' for none): a later
+   * "Check outcome" removes exactly that revision (compare-and-swap), never a draft changed after it was read. */
+  draftLocalRevision?: string
 }
 const saved = <T,>(value: NotesWriteResult<T>): T => { if (value.status !== 'saved') throw new NotesChainError('storage'); return value.value }
 /** Persist the exact expected metadata and ACL before opening the wallet. */
@@ -69,6 +72,7 @@ export async function prepareAccessRequest(options: AccessRequestOptions): Promi
     current(); if (privateNotesDeployment(client.chainId)?.realm !== client.realm || !options.isWriteEnabled()) throw new NotesChainError('disabled')
   }
   allowed(); const cap = decimal(options.maxDepositUgnot, 63), message = accessMessage(op, client.realm, cap)
+  const draftLocalRevision = decimal(options.draftLocalRevision ?? '0')
   const read = () => readAccessState(client, op.noteId, guard.signal)
   const base = await read(); allowed(); permitted(op, base)
   const height = await client.height(); allowed()
@@ -77,7 +81,7 @@ export async function prepareAccessRequest(options: AccessRequestOptions): Promi
   validateNotesQuote(quote, { chainId: client.chainId, requestDigest: digest, height }, cap)
   const input: NotesIntentInput = { scope: { chainId: client.chainId, realm: client.realm, owner: op.caller, noteId: op.noteId }, operationId: op.operationId,
     actor: op.caller, action: `access-${op.action.kind}`, requestDigest: digest, expectedStateRevision: op.revision,
-    resultingStateRevision: (BigInt(op.revision) + 1n).toString(), expectedEpoch: base.note.epoch, ownerGeneration: op.ownerGeneration, draftLocalRevision: '0', verification: expected }
+    resultingStateRevision: (BigInt(op.revision) + 1n).toString(), expectedEpoch: base.note.epoch, ownerGeneration: op.ownerGeneration, draftLocalRevision, verification: expected }
   let started = false, begun = false, walletMayHaveOpened = false
   const recheck = async () => {
     allowed(); const next = await read(); allowed(); permitted(op, next)

@@ -13,20 +13,21 @@ const hash = (bytes: Uint8Array) => bytesToHex(sha256(bytes))
 const increment = (value: string) => decimal((BigInt(value) + 1n).toString(), 64, true)
 /**
  * Hashes ONLY ciphertext and envelopes (F07): no plaintext, no plaintext hash and no key enters the durable receipt.
- * A Commit (10-09 rule) expects the changed fields at their next revision, the unchanged ones as they were, and the
- * same envelopes.
+ * The 10-09 rules: a Commit expects the changed fields at their next revision, the unchanged ones as they were, and the
+ * same envelopes; an Access the same ciphertexts and epoch with the new envelopes and mode; a Rotate the whole next
+ * epoch (its ciphertexts, envelopes and commitment) and no pending owner.
  */
 export function privateVerification(operation: PrivateNoteOperation, base: ChainNote | null, quoteHeight: string, maxDepositUgnot: string): PrivateIntentVerification {
-  const a = operation.action, p = a.kind === 'create' ? a.prepared : null
-  check(p ? base === null : !!base && !base.deleted && base.body !== undefined)
+  const a = operation.action, p = a.kind === 'create' || a.kind === 'rotate' ? a.prepared : null
+  check(a.kind === 'create' ? base === null : !!base && !base.deleted && base.body !== undefined)
   const commit = a.kind === 'commit' ? a : null
   const value: PrivateIntentVerification = {
-    kind: 'private-v1', mode: p ? p.mode : base!.mode, epoch: p ? String(p.epoch) : base!.epoch, owner: p ? operation.caller : base!.owner,
-    pendingOwner: p ? '' : base!.pendingOwner, ownerGeneration: base?.ownerGeneration ?? '1',
-    titleRevision: p ? String(p.titleRevision) : commit!.title ? increment(base!.titleRevision) : base!.titleRevision,
-    bodyRevision: p ? String(p.bodyRevision) : commit!.body ? increment(base!.bodyRevision) : base!.bodyRevision,
-    titleBlobSha256: hash(p ? p.title : commit!.title ?? base!.title), bodyBlobSha256: hash(p ? p.body : commit!.body ?? base!.body!),
-    commitmentSha256: hash(p ? p.commitment : base!.commitment), manifestSha256: hash(p ? p.manifest : commit!.previousManifest),
+    kind: 'private-v1', mode: p ? p.mode : a.kind === 'access' ? a.mode : base!.mode, epoch: p ? String(p.epoch) : base!.epoch,
+    owner: a.kind === 'create' ? operation.caller : base!.owner, pendingOwner: p ? '' : base!.pendingOwner, ownerGeneration: base?.ownerGeneration ?? '1',
+    titleRevision: p ? String(p.titleRevision) : commit?.title ? increment(base!.titleRevision) : base!.titleRevision,
+    bodyRevision: p ? String(p.bodyRevision) : commit?.body ? increment(base!.bodyRevision) : base!.bodyRevision,
+    titleBlobSha256: hash(p ? p.title : commit?.title ?? base!.title), bodyBlobSha256: hash(p ? p.body : commit?.body ?? base!.body!),
+    commitmentSha256: hash(p ? p.commitment : base!.commitment), manifestSha256: hash(p ? p.manifest : a.kind === 'access' ? a.manifest : commit!.previousManifest),
     revealedEpoch: '0', revealedCommitment: '', quoteHeight, maxDepositUgnot,
   }
   check(validPrivateVerification(value)); return value
@@ -35,7 +36,7 @@ export function privateVerification(operation: PrivateNoteOperation, base: Chain
 export async function privateIntentEvidence(client: NotesReadClient, input: NotesIntentInput, note: ChainNote | null, signal: AbortSignal): Promise<NotesOperationEvidence | null> {
   const current = () => { check(!signal.aborted); client.assertCurrent() }
   current(); const v = input.verification
-  if (!validPrivateVerification(v) || !['private-create', 'private-commit'].includes(input.action) || !note || input.scope.chainId !== client.chainId || input.scope.realm !== client.realm || note.id !== input.scope.noteId
+  if (!validPrivateVerification(v) || !['private-create', 'private-commit', 'private-access', 'private-rotate'].includes(input.action) || !note || input.scope.chainId !== client.chainId || input.scope.realm !== client.realm || note.id !== input.scope.noteId
     || note.deleted || note.operationId !== input.operationId || note.actor !== input.actor || note.owner !== v.owner || note.pendingOwner !== v.pendingOwner
     || note.ownerGeneration !== input.ownerGeneration || note.ownerGeneration !== v.ownerGeneration || note.stateRevision !== input.resultingStateRevision
     || note.mode !== v.mode || note.epoch !== v.epoch || note.titleRevision !== v.titleRevision || note.bodyRevision !== v.bodyRevision

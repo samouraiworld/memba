@@ -8,6 +8,7 @@ import { privateNotesDeployment } from '../../../../lib/notes/config'
 import { parseWrap, PrivateNoteNoAccess, readEncryptedNote } from '../../../../lib/notes/private'
 import { MarkdownPreview } from '../MarkdownPreview'
 import { NoteHeader, NoteStatus, type NoteMenuItem } from '../NoteHeader'
+import { NoteSharePopover } from '../NoteSharePopover'
 import type { NoteReport } from '../PublicPublish'
 import { NoteSkeleton } from '../PublicNote'
 import { shortAddress } from '../notesFormat'
@@ -16,6 +17,7 @@ import { adenaWallet, unlockProblem } from './unlock'
 import { withKey } from './keyQueue'
 import { PrivateDraftEditor } from './PrivateDraftEditor'
 import { PrivateDelete } from './PrivateDelete'
+import { PrivateReaders } from './PrivateReaders'
 import './notes-private.css'
 
 export interface PrivateNoteViewProps {
@@ -124,6 +126,8 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
         ...store && draft ? [{ label: 'Remove my draft on this device…', run: () => void removeDraft() }] : []]
     return <section className="os-notes-document os-notes-reader os-notes-private-note" aria-label="Private note">
         <NoteHeader noteId={note.id} status={<NoteStatus kind="private">Private · revision {note.stateRevision} · by {by}{draft ? ' · draft on this device' : ''}</NoteStatus>} menu={menu}
+            share={store && <NoteSharePopover note={note} client={client} store={store} owner={owner} onChanged={() => {}}
+                privateReaders={() => <PrivateReaders note={note} client={client} controller={controller} owner={owner} store={store} walletChainId={walletChainId} requestSession={report?.requestSession} />} />}
             actions={phase === 'unlocked' && <button type="button" className="os-btn os-quiet" onClick={() => controller.lock()}>Lock</button>}
             primary={shown && writable && <button type="button" className="os-btn" onClick={() => setEditing(true)}>Edit</button>} />
         {body}
