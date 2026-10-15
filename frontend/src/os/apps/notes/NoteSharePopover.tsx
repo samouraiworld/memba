@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { ACTIVE_NETWORK_KEY } from '../../../lib/config'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { publicText, type ChainNote } from '../../../lib/notes/chain/schema'
@@ -8,7 +8,9 @@ import './notes-history.css'
 
 type Props = { note: ChainNote; client: NotesReadClient; store: NotesStore; owner: string | null; onChanged(): void
     /** The network in the link; Notes reads only the active network (the client is bound to it). */
-    networkKey?: string }
+    networkKey?: string
+    /** A private note's "Who can read" (lazy private chunk), rendered once the menu was first opened. */
+    privateReaders?(): ReactNode }
 
 function noteTitle(note: ChainNote) { try { return publicText(note.title, true) } catch { return 'note' } }
 
@@ -17,7 +19,7 @@ function noteTitle(note: ChainNote) { try { return publicText(note.title, true) 
  * with its cost, and follows it to confirmation) and who can comment. The panel stays mounted
  * while closed, so a change being signed keeps its progress when the menu is reopened.
  */
-export function NoteSharePopover({ note, client, store, owner, networkKey = ACTIVE_NETWORK_KEY, onChanged }: Props) {
+export function NoteSharePopover({ note, client, store, owner, networkKey = ACTIVE_NETWORK_KEY, onChanged, privateReaders }: Props) {
     const [open, setOpen] = useState(false), [copied, setCopied] = useState<'' | 'yes' | 'no'>('')
     /** Read on first open only; then kept, so a change being signed survives closing the menu. */
     const [used, setUsed] = useState(false)
@@ -55,10 +57,11 @@ export function NoteSharePopover({ note, client, store, owner, networkKey = ACTI
                     <button type="button" className="os-btn os-quiet" aria-label={copied === 'yes' ? 'Copied' : 'Copy link'} onClick={() => void copy()}>{copied === 'yes' ? 'Copied' : 'Copy'}</button>
                 </div>
                 {copied === 'no' && <p role="status">Your browser blocked the clipboard. Select the link to copy it.</p>}
-                <p className="os-notes-share-note">Public note: anyone, with or without a wallet, can read it. Chosen when it was first published.</p>
+                <p className="os-notes-share-note">{note.mode < 3 ? 'Private note: the link opens it only for its owner and the people it is shared with, after they unlock their private key.'
+                    : 'Public note: anyone, with or without a wallet, can read it. Chosen when it was first published.'}</p>
             </section>
-            {used && <PublicCollaborationControls note={note} client={client} store={store} owner={owner} onChanged={onChanged} />}
-            {!note.deleted && <section className="os-notes-share-part" aria-label="Who can comment">
+            {used && (note.mode < 3 ? privateReaders?.() : <PublicCollaborationControls note={note} client={client} store={store} owner={owner} onChanged={onChanged} />)}
+            {!note.deleted && note.mode >= 3 && <section className="os-notes-share-part" aria-label="Who can comment">
                 <h3 className="os-notes-share-k">Who can comment</h3>
                 {/* As the realm's comment check (mayComment). Restricting comments also closes community editing there. */}
                 <p><strong>{note.mode === 4 ? 'Everyone with a wallet' : 'The owner, the named writers, governance members when governance owns the note, and wallets the note\'s comment policy allows'}</strong></p>

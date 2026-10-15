@@ -4,12 +4,14 @@ import { address, check, NotesChainError, publicText } from '../chain/schema'
 import type { ChainNote } from '../chain/schema'
 import { equalBytes } from '../crypto/bytes'
 import { keyCommitment, openField, sealField } from '../crypto/content'
+import type { EpochContext } from '../crypto/content'
 import { encodeManifest } from '../crypto/manifest'
 import type { Recipient } from '../crypto/manifest'
 import { unwrapForReader } from '../crypto/wrap'
 import { addressBytes } from '../identity/chain'
 import type { NotesIdentityController } from '../identity/controller'
-import { encodePrivateText, noteContext, OpenPrivateNote } from './engine'
+import { encodePrivateText, noteContext, OpenPrivateNote, prepareEncryptedEpoch, recipientManifest } from './engine'
+import type { EncryptedEpoch, EpochRecipient } from './engine'
 import { parseEpochPage, parseReaders, parseWrap } from './schema'
 
 /**
@@ -62,11 +64,12 @@ export async function readEncryptedNote(client: NotesReadClient, noteId: string,
 }
 
 /**
- * An edit of the note as reviewed (`note`, the caller's fresh read): its current epoch key is opened once, with the same
- * checks as readEncryptedNote, the current title and body are compared with the edited text, and only the fields that
- * differ are sealed, at their next field revision. Neither the key nor any plaintext leaves; nothing is stored.
+ * The current epoch key of the note as reviewed (`note`, the caller's fresh read), opened once with the same checks as
+ * readEncryptedNote (unrevealed epoch with the note's commitment, this key's own envelope, key commitment) and handed to
+ * `seal` inside the key use; it is zeroed right after, and a final metadata re-read refuses a note that moved meanwhile.
+ * `role` says whose write this is: the owner's only, or the owner's or a writer's.
  */
-export async function sealEncryptedChanges(client: NotesReadClient, note: ChainNote, edited: { title: string; body: string }, options: { access: Access; signal: AbortSignal }): Promise<{ title?: Uint8Array; body?: Uint8Array }> {
+async function withEpochKey<T>(client: NotesReadClient, note: ChainNote, options: { access: Access; signal: AbortSignal }, role: 'owner' | 'writer', seal: (key: Uint8Array, context: EpochContext) => T): Promise<T> {
   const { access, signal } = options, who = address(access.owner), generation = access.identity.getSnapshot().generation
   const assert = () => {
     client.assertCurrent()
@@ -79,13 +82,25 @@ export async function sealEncryptedChanges(client: NotesReadClient, note: ChainN
   if (raw === null) throw new PrivateNoteNoAccess('none')
   const wrap = parseWrap(raw, note.epoch, who)
   if (generation !== wrap.generation) throw new PrivateNoteNoAccess('other-key')
-  check(wrap.writer || note.owner === who)
+  check(note.owner === who || (role === 'writer' && wrap.writer))
   const sealed = await access.identity.use(identity => {
     if (!equalBytes(sha256(identity.publicKey), wrap.publicKeyHash)) throw new PrivateNoteNoAccess('other-key')
-    const context = noteContext(client.chainId, client.realm, note), parts: Uint8Array[] = []
+    const context = noteContext(client.chainId, client.realm, note)
     const key = unwrapForReader(wrap.wrap, identity.secretKey, identity.publicKey, { ...context, reader: who, generation: BigInt(wrap.generation) })
+    try { check(equalBytes(keyCommitment(key, context), note.commitment)); return seal(key, context) } finally { key.fill(0) }
+  }); assert()
+  const final = await client.noteMetadata(note.id); assert()
+  if (!final || final.stateRevision !== note.stateRevision || final.epoch !== note.epoch || final.ownerGeneration !== note.ownerGeneration) throw new NotesChainError('stale')
+  return sealed
+}
+/**
+ * An edit of the note as reviewed: the current title and body are compared with the edited text, and only the fields
+ * that differ are sealed, at their next field revision. Neither the key nor any plaintext leaves; nothing is stored.
+ */
+export async function sealEncryptedChanges(client: NotesReadClient, note: ChainNote, edited: { title: string; body: string }, options: { access: Access; signal: AbortSignal }): Promise<{ title?: Uint8Array; body?: Uint8Array }> {
+  return withEpochKey(client, note, options, 'writer', (key, context) => {
+    const parts: Uint8Array[] = []
     try {
-      check(equalBytes(keyCommitment(key, context), note.commitment))
       const seal = (field: 'title' | 'body', value: string, current: Uint8Array, revision: string) => {
         // The decrypted field joins the zeroing list before the edit is encoded, which may throw.
         const before = openField(key, { ...context, field, fieldRevision: BigInt(revision) }, current); parts.push(before)
@@ -94,11 +109,32 @@ export async function sealEncryptedChanges(client: NotesReadClient, note: ChainN
       }
       const title = seal('title', edited.title, note.title, note.titleRevision), body = seal('body', edited.body, note.body!, note.bodyRevision)
       return { ...(title ? { title } : {}), ...(body ? { body } : {}) }
-    } finally { key.fill(0); parts.forEach(part => part.fill(0)) }
-  }); assert()
-  const final = await client.noteMetadata(note.id); assert()
-  if (!final || final.stateRevision !== note.stateRevision || final.epoch !== note.epoch || final.ownerGeneration !== note.ownerGeneration) throw new NotesChainError('stale')
-  return sealed
+    } finally { parts.forEach(part => part.fill(0)) }
+  })
+}
+/**
+ * The owner shares the note's CURRENT epoch (ApplyAccess): its key, opened once, wrapped for every recipient's registry
+ * key (the current ones re-wrapped, the added ones new). A recipient can therefore read the epoch's current version and
+ * its earlier versions of the same epoch (chain history), never an earlier epoch: those have their own keys.
+ */
+export async function sealAccessManifest(client: NotesReadClient, note: ChainNote, mode: 0 | 1, recipients: readonly EpochRecipient[], options: { access: Access; signal: AbortSignal }): Promise<Uint8Array> {
+  return withEpochKey(client, note, options, 'owner', (key, context) => recipientManifest(key, context, mode, note.owner, recipients))
+}
+/**
+ * The owner moves the note to its next epoch for `recipients` (Rotate): the current title and body, opened at their
+ * current revisions, sealed again under a FRESH key at their next revisions, with envelopes for these recipients only.
+ * Whoever is left out gets no envelope, and so no key, for this epoch or any later one.
+ */
+export async function sealRotation(client: NotesReadClient, note: ChainNote, mode: 0 | 1, recipients: readonly EpochRecipient[], options: { access: Access; signal: AbortSignal }): Promise<EncryptedEpoch> {
+  return withEpochKey(client, note, options, 'owner', (key, context) => {
+    const parts: Uint8Array[] = []
+    try {
+      const open = (field: 'title' | 'body', current: Uint8Array, revision: string) => { const plain = openField(key, { ...context, field, fieldRevision: BigInt(revision) }, current); parts.push(plain); return plain }
+      const title = publicText(open('title', note.title, note.titleRevision), true), body = publicText(open('body', note.body!, note.bodyRevision))
+      return prepareEncryptedEpoch({ chainId: client.chainId, realm: client.realm, noteId: note.id, epoch: context.epoch + 1, titleRevision: BigInt(note.titleRevision) + 1n,
+        bodyRevision: BigInt(note.bodyRevision) + 1n, mode, owner: note.owner, recipients, title, body })
+    } finally { parts.forEach(part => part.fill(0)) }
+  })
 }
 
 /**
