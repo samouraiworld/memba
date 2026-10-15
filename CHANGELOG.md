@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes: delete a private note (#NNNN, 2026-10-15)
+### Notes: delete a private note (#1639, 2026-10-15)
 - The owner of a private note can delete it from the note's menu. The sheet and the signing review say what happens and what it costs, from the M0 measurement: "Delete returns about half of what this note locked; the rest stays locked." No deposit is taken (the transaction allows at most 0.1 GNOT), only the network fee (gas 100 M, at least 1.37× the measured maximum). Purge is not offered yet.
 - Ported the reviewed 10-09 `chain/access{Messages,Quote,Request}` for Delete only, on the per-network realm and behind the private-notes gate (start, after every await, before the wallet and in its final guard); the receipt holds the exact expected metadata and is confirmed or recovered from the chain alone ("Operation receipts" can check it).
 - Once the deletion is confirmed, this device's encrypted draft of the note is removed (compare-and-swap on the revision read before the review); a deletion confirmed later through "Check outcome" removes it too, unless the draft changed after the deletion was prepared. The balance check covers the written maximum plus the network fee.
