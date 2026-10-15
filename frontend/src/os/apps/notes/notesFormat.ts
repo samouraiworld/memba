@@ -1,4 +1,8 @@
 import { noteExportFilename } from '../../../lib/notes/exportFilename'
+import { abciQueryText } from '../../../lib/dao/packageStatus'
+import { ugnotInCoinsJson } from '../../../lib/bankBalance'
+import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
+import { withTimeout } from '../../../lib/notes/freshness'
 
 /** g1abc…wxyz: enough to recognise an account in a sentence. */
 export const shortAddress = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
@@ -26,4 +30,9 @@ export function differingLines(mine: string, theirs: string): { mine: string[]; 
     while (start < a.length && start < b.length && a[start] === b[start]) start++
     while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++
     return { mine: a.slice(start, a.length - end), theirs: b.slice(start, b.length - end) }
+}
+/** The account's ugnot balance, or null when it cannot be read (which blocks nothing). */
+export async function balanceOf(chainId: string, address: string): Promise<bigint | null> {
+    const urls = getRpcUrlsInOrder()
+    return withTimeout(abciQueryText({ chainId, rpcUrl: urls[0], rpcUrls: urls }, `bank/balances/${address}`, '').then(ugnotInCoinsJson), 5000).catch(() => null)
 }

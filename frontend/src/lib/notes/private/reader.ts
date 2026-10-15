@@ -4,10 +4,13 @@ import { address, check, NotesChainError, publicText } from '../chain/schema'
 import type { ChainNote } from '../chain/schema'
 import { equalBytes } from '../crypto/bytes'
 import { keyCommitment, openField } from '../crypto/content'
+import { encodeManifest } from '../crypto/manifest'
+import type { Recipient } from '../crypto/manifest'
 import { unwrapForReader } from '../crypto/wrap'
+import { addressBytes } from '../identity/chain'
 import type { NotesIdentityController } from '../identity/controller'
 import { noteContext, OpenPrivateNote } from './engine'
-import { parseEpochPage, parseWrap } from './schema'
+import { parseEpochPage, parseReaders, parseWrap } from './schema'
 
 /**
  * This account cannot open the note with its current key: no envelope for it in the current epoch (`none`), or one made
@@ -97,4 +100,18 @@ export async function readEncryptedTitles(client: NotesReadClient, notes: readon
     }
   }); assert()
   return titles
+}
+/** The note's current envelopes, rebuilt as the manifest bytes they were written from: public reads, no key. */
+export async function readPrivateAccess(client: NotesReadClient, note: ChainNote, signal: AbortSignal): Promise<Uint8Array> {
+  const assert = () => { client.assertCurrent(); if (signal.aborted) throw new NotesChainError('session') }
+  assert(); check(!note.deleted && note.mode <= 2)
+  const readers = parseReaders(await client.readersRaw(note.id)); assert()
+  const entries: Recipient[] = []
+  for (const reader of readers) {
+    const entry = parseWrap(await client.wrapRaw(note.id, note.epoch, reader), note.epoch, reader); assert()
+    entries.push({ address: addressBytes(reader), writer: entry.writer, generation: BigInt(entry.generation), publicKeyHash: entry.publicKeyHash, wrap: entry.wrap })
+  }
+  const final = await client.noteMetadata(note.id); assert()
+  if (!final || final.stateRevision !== note.stateRevision || final.epoch !== note.epoch || final.ownerGeneration !== note.ownerGeneration) throw new NotesChainError('stale')
+  return encodeManifest(entries, Number(note.epoch))
 }

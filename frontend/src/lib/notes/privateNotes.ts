@@ -12,6 +12,8 @@ export { addressBytes, readChainIdentity } from './identity/chain'
 export { PrivateNotesPanel } from '../../os/apps/notes/private/PrivateNotesPanel'
 export { PrivateNoteView } from '../../os/apps/notes/private/PrivateNoteView'
 export { SharedWithMe } from '../../os/apps/notes/private/SharedWithMe'
+export { PrivateChoice, PrivateReview } from '../../os/apps/notes/private/PrivatePublish'
+export { recoverPrivateIntent } from './private/recovery'
 
 /**
  * The one key controller of a Notes window for (network, realm, account). The caller disposes it when that

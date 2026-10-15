@@ -13,7 +13,7 @@ import type { NotesIdentityController } from '../identity/controller'
 import { noteContext, OpenPrivateNote } from './engine'
 import { PrivateNoteNoAccess, readEncryptedNote, readEncryptedTitles } from './reader'
 import { parseEpochPage, parseReaders, parseWrap } from './schema'
-import { sealPrivateNote } from './__fixtures__/seal'
+import { prepareEncryptedEpoch as sealPrivateNote } from './engine'
 import keeper from './__fixtures__/keeper-encrypted.json'
 import sealed from './__fixtures__/sealed-note.json'
 
@@ -74,6 +74,29 @@ describe('private epoch engine', () => {
       const wrong = identityFromSeed(hexToBytes(seed === sealed.ownerSeedHex ? sealed.readerSeedHex : sealed.ownerSeedHex))
       expect(() => unwrapForReader(blob(wrap, 1238), wrong.secretKey, identity.publicKey, { ...context, reader: who, generation: 1n })).toThrow()
     }
+  })
+  it('re-seals the fixture context with the ported sealer: same headers, sizes and envelope bindings, and both open', () => {
+    // sealed-note.json stays the cross-version vector: made by the 10-09 format, opened by today's reader, matched by today's sealer.
+    const owner = identityFromSeed(hexToBytes(sealed.ownerSeedHex)), reader = identityFromSeed(hexToBytes(sealed.readerSeedHex))
+    const keys = [[sealed.owner, owner], [sealed.reader, reader]] as const
+    const fresh = sealPrivateNote({ chainId: sealed.chainId, realm: sealed.realm, noteId: sealed.noteId, epoch: 1, titleRevision: 1n, bodyRevision: 1n, mode: 1, owner: sealed.owner,
+      recipients: keys.map(([address, identity], i) => ({ key: { address, generation: '1', active: true, publicKey: identity.publicKey, operationId: '02'.repeat(16), height: '1' }, writer: i === 0 })),
+      title: sealed.title, body: sealed.body })
+    for (const [value, golden] of [[fresh.title, blob(sealed.titleBase64, 231)], [fresh.body, blob(sealed.bodyBase64, 135223)]]) {
+      expect(value.length).toBe(golden.length); expect(value.subarray(0, 15)).toEqual(golden.subarray(0, 15)); expect(value).not.toEqual(golden)
+    }
+    const entries = decodeManifest(fresh.manifest, 1)
+    expect(entries.map(entry => [bech32Encode('g', entry.address), entry.generation, entry.writer])).toEqual([[sealed.owner, 1n, true], [sealed.reader, 1n, false]])
+    for (const [i, golden] of [sealed.ownerWrapBase64, sealed.readerWrapBase64].entries()) expect(entries[i].wrap.subarray(0, 46)).toEqual(blob(golden, 1238).subarray(0, 46))
+    const note: ChainNote = { id: sealed.noteId, owner: sealed.owner, pendingOwner: '', ownerGeneration: '1', mode: 1, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '1',
+      title: fresh.title, body: fresh.body, commitment: fresh.commitment, deleted: false, listed: false, createdHeight: '1', operationId: '02'.repeat(16), actor: sealed.owner, height: '1' }
+    const context = noteContext(sealed.chainId, sealed.realm, note)
+    for (const [i, [who, identity]] of keys.entries()) {
+      const key = unwrapForReader(entries[i].wrap, identity.secretKey, identity.publicKey, { ...context, reader: who, generation: 1n })
+      const view = new OpenPrivateNote(sealed.chainId, sealed.realm, note, key, false, () => true)
+      expect(view.text()).toEqual({ title: sealed.title, body: sealed.body }); view.dispose(); key.fill(0)
+    }
+    owner.secretKey.fill(0); reader.secretKey.fill(0)
   })
 })
 describe('private read lifetime', () => {
