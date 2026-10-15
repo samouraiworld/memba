@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Notes: share a private note with readers, and remove them (#NNNN, 2026-10-15)
+### Notes: share a private note with readers, and remove them (#1640, 2026-10-15)
 - A private note's **Share** menu now has **Who can read**: everyone sees the readers (public on the network); the owner, once the key is unlocked, adds a reader by @username or g1 address, or removes one. Someone without a private-notes key is refused before anything is encrypted: "They need to set up private notes first".
 - Adding a reader (ApplyAccess) wraps the note's current key for their registered key; the review says their address becomes public on the network as a reader, and that they can read the note as it is now and its earlier versions since its key last changed, never older ones. Removing a reader (Rotate) gives the note a new key and encrypts its current text again for the others: "They keep what they already read; new versions are hidden from them". Removing the last reader makes the note "only me" again.
 - Quotes from the M0 keeper rows, simulation first (a node that says the deposit exceeds the cap refuses before the wallet; gas at least 60 M): adding a reader ≈ 0.38 GNOT (at most 0.5; measured 0.36-0.37), removing one ≈ 0.53 GNOT for 2 → 1 (at most 0.7; measured 0.27) and 0.66 for 3 → 2 (at most 0.8; measured 0.40); gas 60 M + 2,200 per byte + 12 M per envelope. The balance is checked against the maximum plus the network fee.
