@@ -43,10 +43,10 @@ function client(): NotesReadClient {
         seedBackupRaw: async () => chain.backup && { mode: 1, suite: 'xwing-v1', generation: chain.backup.generation ?? chain.generation, revision: '1', public_key_hash: encode64(chain.backup.hash), op_id: chain.backup.opId, actor: owner, height: chain.height, record: chain.backup.record },
     } as unknown as NotesReadClient
 }
-function show(walletChainId?: string, version = 0) {
+function show(walletChainId?: string, version = 0, pending: SignerApi['pending'] = []) {
     const reader = client()
     controller ??= createIdentityController(reader, owner, createDraftSession())
-    const signer: SignerApi = { sign: req => { requests.push(req); return true }, pending: [], notices: [], unread: 0, markRead: () => {}, version }
+    const signer: SignerApi = { sign: req => { requests.push(req); return true }, pending, notices: [], unread: 0, markRead: () => {}, version }
     // StrictMode, as the dev server runs it: effects mount, unmount and mount again.
     return render(<StrictMode><SignerContext.Provider value={signer}><PrivateNotesPanel controller={controller} client={reader} store={store} owner={owner} requestSession={createDraftSession()} walletChainId={walletChainId} /></SignerContext.Provider></StrictMode>)
 }
@@ -62,11 +62,11 @@ function land(messages: Msgs): void {
     if (backup[0] !== (chain.backup ? '1' : '0')) throw new Error('notes: stale backup revision')
     chain = { generation: String(BigInt(chain.generation) + 1n), active: true, publicKey: pk, operationId: op, height: String(11 + Number(chain.generation)), backup: { record: backup[1], opId: op, hash: sha256(pk) } }
 }
-async function approve(request: SignRequest, outcome: 'land' | 'wallet-unknown' | 'refused') {
+async function approve(request: SignRequest, outcome: 'land' | 'sent' | 'wallet-unknown' | 'refused') {
     io.send.mockImplementationOnce(async (messages: Msgs, _memo: string, options: { beforeSign(): Promise<unknown> }) => {
         await options.beforeSign()
-        if (outcome !== 'land') throw new Error(outcome === 'refused' ? 'refused by the node' : 'Adena closed')
-        land(messages)
+        if (outcome === 'refused' || outcome === 'wallet-unknown') throw new Error(outcome === 'refused' ? 'refused by the node' : 'Adena closed')
+        if (outcome === 'land') land(messages)
         return { hash: 'AA'.repeat(32) }
     })
     await act(async () => {
@@ -331,5 +331,35 @@ describe('setting up again while a first setup may still land', () => {
         expect(screen.getByText(/recovery phrase and file from that first setup are the ones that open this key/)).toBeVisible()
         expect(screen.getByRole('button', { name: 'Unlock' })).toBeEnabled(); expect(io.unlock).not.toHaveBeenCalled()
         expect((await receipts())[0]).toMatchObject({ phase: 'confirmed', superseded: true })
+    })
+    it('waits while a setup was just sent or the signing driver still holds one, and restarts a same-session setup at the intro', async () => {
+        show(); await toReview()
+        fireEvent.click(screen.getByRole('button', { name: 'Set up with Adena' }))
+        await waitFor(() => expect(requests).toHaveLength(1))
+        await approve(requests[0], 'sent')
+        expect(await screen.findByText('Your key setup was sent.')).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'Set up again…' })).toBeNull()
+        // A minute later it may be offered, unless the driver still holds a setup (Adena open, or verifying).
+        const later = Date.now() + 61_000, now = vi.spyOn(Date, 'now').mockImplementation(() => later)
+        try {
+            cleanup(); controller.dispose(); controller = undefined as unknown as NotesIdentityController
+            show(undefined, 0, [{ id: 1, label: 'Set up Notes identity' }])
+            expect(await screen.findByText('Your key setup was sent.')).toBeVisible()
+            expect(screen.queryByRole('button', { name: 'Set up again…' })).toBeNull()
+            cleanup(); controller.dispose(); controller = undefined as unknown as NotesIdentityController
+            show()
+            expect(await screen.findByRole('button', { name: 'Set up again…' })).toBeVisible()
+        } finally { now.mockRestore() }
+    })
+    it('drops the first attempt\'s prepared key when setting up again in the same session', async () => {
+        show(); await toReview()
+        fireEvent.click(screen.getByRole('button', { name: 'Set up with Adena' }))
+        await waitFor(() => expect(requests).toHaveLength(1))
+        await approve(requests[0], 'wallet-unknown')
+        expect(await screen.findByText('The result of your key setup is not known yet.')).toBeVisible()
+        expect(controller.getSnapshot()).toMatchObject({ phase: 'prepared', recoveryConfirmed: true })
+        await acknowledge()
+        expect(screen.getByRole('heading', { name: 'Set up private notes' })).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'Set up with Adena' })).toBeNull(); expect(controller.getSnapshot().phase).toBe('empty')
     })
 })

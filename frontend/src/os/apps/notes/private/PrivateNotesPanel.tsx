@@ -35,13 +35,15 @@ function unlockProblem(error: unknown): string {
 }
 function Panel({ controller, client, store, owner, requestSession, walletChainId }: PrivateNotesPanelProps) {
     const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
-    const { version } = useSigner(), chainId = client.chainId
+    const { version, pending } = useSigner(), chainId = client.chainId
     const [session] = useState(createDraftSession)
     useLayoutEffect(() => () => session.invalidate(), [session])
     const [problem, setProblem] = useState<Problem>(null), [receipt, setReceipt] = useState<NotesIntent | null>(null), [ready, setReady] = useState(false)
     const [notice, setNotice] = useState(''), [working, setWorking] = useState(false), [sheet, setSheet] = useState<'setup' | 'recover' | null>(null), [again, checkAgain] = useState(0)
     // "Set up again" (explicit, acknowledged): earlier setups that may still land, and the one that did if it won.
     const [redo, setRedo] = useState(false), [ack, setAck] = useState(false), [firstOpen, setFirstOpen] = useState(false), [firstKey, setFirstKey] = useState<string | null>(null)
+    // Milliseconds a sent setup stays "fresh" (it usually lands within them): no "Set up again" meanwhile.
+    const [fresh, setFresh] = useState(0)
     const refresh = useCallback(async () => {
         const guard = session.capture()
         try { await controller.refresh(); if (!guard.signal.aborted) setProblem(null) }
@@ -70,6 +72,7 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
             if (failed) setNotice('An earlier key setup from this device did not take effect on the network. Its receipt was kept.')
             if (guard.signal.aborted) return
             setReceipt(open); if (!open) { setRedo(false); setAck(false) }
+            setFresh(open?.phase === 'submitted' ? Math.max(0, open.updatedAt + 60_000 - Date.now()) : 0)
             if (!open && controller.getSnapshot().phase === 'prepared') await controller.confirmSetup().catch(() => false)
             await refresh()
         })().catch(() => { if (!guard.signal.aborted) setProblem('read') }).finally(() => { if (!guard.signal.aborted) setReady(true) })
@@ -83,9 +86,14 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         catch (error) { if (!guard.signal.aborted) setNotice(failed(error)) }
         finally { if (!guard.signal.aborted) setWorking(false) }
     }
+    // "Set up again" waits while the signing driver still holds a setup, and for a sent setup that usually lands in seconds.
+    const signing = pending.some(entry => entry.label === 'Set up Notes identity')
+    useEffect(() => { if (!fresh) return; const timer = setTimeout(() => checkAgain(n => n + 1), fresh); return () => clearTimeout(timer) }, [fresh])
     /** Only while the receipt can still apply, and only after the acknowledgement: never the same operation ID again. */
     async function setUpAgain(intent: NotesIntent) {
         const guard = session.capture(); setWorking(true); setNotice('')
+        // The first attempt's prepared key (still in memory in this session) is dropped: the new setup starts from the intro.
+        if (controller.getSnapshot().phase === 'prepared') controller.lock()
         try {
             const saved = await new NotesIntents(store).supersede(intent.scope, intent.operationId, guard)
             if (guard.signal.aborted) return
@@ -112,8 +120,8 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
             : 'Adena may have sent it before it closed or answered, so it can still reach the network. Memba will not ask you to sign another setup on this device while that is possible, and checks the network each time you open this.'}</p>
         <p className="os-notes-hint">Operation {receipt.operationId}</p>
         <div className="os-notes-private-actions"><button type="button" className="os-btn" disabled={busy} onClick={() => checkAgain(n => n + 1)}>Check again</button>
-            {!redo && <button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => setRedo(true)}>Set up again…</button>}</div>
-        {redo && <div className="os-notes-private-redo">
+            {!redo && !signing && !fresh && <button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => setRedo(true)}>Set up again…</button>}</div>
+        {redo && !signing && !fresh && <div className="os-notes-private-redo">
             <p>Your first setup may still go through. If it does, this new one is refused and your first key stays yours. Keep the recovery phrase and file from your first setup until this one is confirmed.</p>
             <label><input type="checkbox" checked={ack} onChange={event => setAck(event.target.checked)} /> I understand, and I keep my first recovery phrase and file.</label>
             <div className="os-notes-private-actions"><button type="button" className="os-btn os-quiet" onClick={() => { setRedo(false); setAck(false) }}>Cancel</button>
