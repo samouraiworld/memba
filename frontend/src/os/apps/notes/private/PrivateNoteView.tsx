@@ -15,11 +15,12 @@ import { RecoverySheet } from './PrivateNotesPanel'
 import { adenaWallet, unlockProblem } from './unlock'
 import { withKey } from './keyQueue'
 import { PrivateDraftEditor } from './PrivateDraftEditor'
+import { PrivateDelete } from './PrivateDelete'
 import './notes-private.css'
 
 export interface PrivateNoteViewProps {
     note: ChainNote; controller: NotesIdentityController; client: NotesReadClient; owner: string; walletChainId?: string
-    /** This device's drafts: an owner or writer edits here, encrypted. Without it, read only. */
+    /** This device's drafts: an owner or writer edits here, encrypted; the owner deletes the note. Without it, read only. */
     store?: NotesStore; report?: NoteReport
 }
 /** Whether this account holds an envelope in the note's current epoch: a public read, before any key or wallet. */
@@ -41,7 +42,7 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
     const [access, setAccess] = useState<Access | null>(null), [opened, setOpened] = useState<Opened | null>(null), [problem, setProblem] = useState<Problem | null>(null)
     const [attempt, retry] = useState(0), [working, setWorking] = useState(false), [notice, setNotice] = useState(''), [recover, setRecover] = useState(false)
     // Editing survives a lock (the editor stores its text encrypted and unmounts); Unlock reopens it.
-    const [editing, setEditing] = useState(false), [draft, setDraft] = useState<string | null>(null), [drafts, reread] = useState(0)
+    const [editing, setEditing] = useState(false), [deleting, setDeleting] = useState(false), [draft, setDraft] = useState<string | null>(null), [drafts, reread] = useState(0)
     const scope = { chainId, realm: client.realm, owner, noteId: note.id }
     // Whether this device holds a draft of the note (no decryption): the status says so and the menu offers to remove it.
     useEffect(() => {
@@ -118,13 +119,15 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
         <MarkdownPreview key={note.id} body={shown.body} noteId={note.id} />
     </>
     const by = note.actor === owner ? 'you' : shortAddress(note.actor)
-    const menu: NoteMenuItem[] = store && draft ? [{ label: 'Remove my draft on this device…', run: () => void removeDraft() }] : []
+    const menu: NoteMenuItem[] = [...store && note.owner === owner ? [{ label: 'Delete note…', danger: true, run: () => setDeleting(true) }] : [],
+        ...store && draft ? [{ label: 'Remove my draft on this device…', run: () => void removeDraft() }] : []]
     return <section className="os-notes-document os-notes-reader os-notes-private-note" aria-label="Private note">
         <NoteHeader noteId={note.id} status={<NoteStatus kind="private">Private · revision {note.stateRevision} · by {by}{draft ? ' · draft on this device' : ''}</NoteStatus>} menu={menu}
             actions={phase === 'unlocked' && <button type="button" className="os-btn os-quiet" onClick={() => controller.lock()}>Lock</button>}
             primary={shown && writable && <button type="button" className="os-btn" onClick={() => setEditing(true)}>Edit</button>} />
         {body}
         {notice && <p className="os-notes-private-notice" role="status">{notice}</p>}
+        {deleting && store && <PrivateDelete note={note} client={client} store={store} owner={owner} walletChainId={walletChainId} report={report} onClose={() => setDeleting(false)} />}
         {recover && <RecoverySheet controller={controller} fileNeeded={state.mode === 'standard'} onClose={() => setRecover(false)} />}
     </section>
 }
