@@ -8,6 +8,7 @@ import type { NotesIntents, NotesIntentInput } from '../intents'
 import { validIdentityVerification } from '../intents'
 import type { NotesReadClient } from '../chain/client'
 import { decimal, NOTES_REGISTRY, NotesChainError } from '../chain/schema'
+import { privateNotesDeployment } from '../config'
 import { validateNotesQuote } from '../chain/request'
 import type { NotesQuote } from '../chain/request'
 import { identitySetupMessages, readChainIdentity } from './chain'
@@ -26,7 +27,12 @@ function saved<T>(value: NotesWriteResult<T>): T { if (value.status !== 'saved')
 export async function prepareIdentitySetupRequest(options: IdentityRequestOptions): Promise<SignRequest> {
   const { client, controller, intents, owner } = options, guard = options.session.capture()
   const current = () => { client.assertCurrent(); if (guard.signal.aborted) throw new NotesChainError('session') }
-  const enabled = () => { current(); if (!options.isWriteEnabled()) throw new NotesChainError('disabled') }
+  // Runs at the start, after every await and in beforeSign, right before the wallet opens.
+  const enabled = () => {
+    current()
+    const d = privateNotesDeployment(client.chainId)
+    if (!options.isWriteEnabled() || d === null || d.realm !== client.realm) throw new NotesChainError('disabled')
+  }
   enabled()
   let plan = controller.preparedPlan()
   const caps = { ...options.caps }, scope = identityIntentScope(client.chainId, owner)

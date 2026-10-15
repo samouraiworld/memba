@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: private notes runtime gate (#1633, 2026-10-15)
+- Private (encrypted) notes now have one runtime gate in `lib/notes/config.ts`: `PRIVATE_NOTES_BUILD` (compile-time `VITE_ENABLE_NOTES_ENCRYPTED`), the frozen network allowlist `PRIVATE_CHAINS = ["onyx-1"]`, `privateNotesDeployment(chainId)` (Notes deployment, build switch and allowlist) and `vaultRevealEnabled(chainId)` (adds `VITE_ENABLE_NOTES_VAULT_REVEAL`). gnoland-1 stays closed even with every switch on; both private switches stay safety-gated.
+- The Notes identity controller refuses every entry point (refresh, wallet unlock, recovery, key setup, key use) unless private notes are open for its exact network and realm, checked again after every await and before every wallet prompt. The key setup request (RegisterKey + SetSeedBackup) checks the same gate at the start, after every await and right before the wallet opens.
+- Private code is reachable only through a lazy `privateNotes` chunk, absent from a build without the switch and excluded from the offline precache. New bundle gate `check:bundle:notes-private` (CI): a flag-off build must carry no private chunk and none of the unlock text, `RegisterKey`, `SetSeedBackup` or ML-KEM markers; a flag-on build must contain all of them, only in the `privateNotes` chunk (`--expect-present`); a directory without `index.html` or JS fails instead of passing. Nothing changes for users with the switches off or on.
+
 ### Notes: reading and preview finish (#1632, 2026-10-15)
 - A note opens on a skeleton until its Markdown is rendered, instead of flashing the raw source; while a draft's preview re-renders, the previous render stays.
 - Lists keep their bullets and numbers in the read view and the draft Preview (the global reset had removed their indent, so markers were clipped or showed through the History sheet).

@@ -21,6 +21,26 @@ export const DEPLOYMENTS: Readonly<Record<string, NotesDeploymentEntry>> = Objec
 export function notesDeployment(chainId: string): NotesDeploymentEntry | null {
     return NOTES_ENABLED && import.meta.env.VITE_ENABLE_NOTES_CHAIN === "true" ? deploymentRealmEntry(chainId) : null
 }
+/**
+ * Private (encrypted) notes. A compile-time switch: a build without it has no private code at all
+ * (check-lazy-chunk.mjs notes-private). Both private switches stay in SAFETY_GATED_FLAGS.
+ */
+export const PRIVATE_NOTES_BUILD = import.meta.env.VITE_ENABLE_NOTES_ENCRYPTED === "true"
+/** Networks where private notes may open; gnoland-1 joins only through its own release review. */
+export const PRIVATE_CHAINS: readonly string[] = Object.freeze(["onyx-1"])
+/**
+ * The deployment private notes use on this network, or null. Every key operation and signing path checks
+ * it; public on-chain reads (readChainIdentity: registered key and encrypted backup) are not gated.
+ */
+export function privateNotesDeployment(chainId: string): NotesDeploymentEntry | null {
+    return PRIVATE_NOTES_BUILD && PRIVATE_CHAINS.includes(chainId) ? notesDeployment(chainId) : null
+}
+/** Vault mode, Reveal and publishing a private note publicly: a second switch on top of private notes. */
+export function vaultRevealEnabled(chainId: string): boolean {
+    return privateNotesDeployment(chainId) !== null && import.meta.env.VITE_ENABLE_NOTES_VAULT_REVEAL === "true"
+}
+/** The only way into the private-notes code: a lazy chunk, and no import at all in a build without the switch. */
+export const loadPrivateNotes: (() => Promise<typeof import("./privateNotes")>) | null = PRIVATE_NOTES_BUILD ? () => import("./privateNotes") : null
 /** The reviewed realm path of a network, whatever the release switches say: durable receipts are checked against it. */
 export function deploymentRealm(chainId: string): string | null { return deploymentRealmEntry(chainId)?.realm ?? null }
 function deploymentRealmEntry(chainId: string): NotesDeploymentEntry | null {

@@ -16,6 +16,13 @@ import golden from './__fixtures__/backup-standard.json'
 const dependencies = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn() }))
 vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => dependencies.kdf(...args) }))
 vi.mock('../crypto/signer', () => ({ requestNotesUnlock: (...args: unknown[]) => dependencies.unlock(...args) }))
+// The fixture network is no release network: these tests open the private-notes gate for it themselves.
+// gate.test.ts runs the controller and the request builder against the real switches and allowlist.
+const gate = vi.hoisted(() => ({ open: true }))
+vi.mock('../config', async original => ({
+  ...await original<typeof import('../config')>(),
+  privateNotesDeployment: (chainId: string) => gate.open && chainId === 'test-chain-id' ? { realm: 'gno.land/r/samcrew/memba_notes_v1', version: 1 } : null,
+}))
 const pk = () => blob(golden.publicKeyBase64, 1216), backup = () => blob(golden.recordBase64, 365)
 const who = bech32Encode('g', hexToBytes(golden.addressHex))
 function registered(): IdentityChainState { return { generation: 1n, active: true, publicKey: pk(), keyOperationId: '11'.repeat(16), keyHeight: 1n, backup: { revision: 1n, record: backup(), operationId: '11'.repeat(16), height: 1n } } }
@@ -27,7 +34,7 @@ function setup(initial = registered()) {
   return { controller, session, read, setChain: (next: IdentityChainState) => { chain = next } }
 }
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.clearAllMocks(); gate.open = true
   dependencies.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
   dependencies.unlock.mockImplementation(async () => ({ ikm: hexToBytes(golden.materialHex), publicKey: new Uint8Array(33) }))
 })
@@ -144,6 +151,44 @@ describe('RAM-only identity lifecycle', () => {
     expect(records.map(value => parseBackup(value.backup).binding.generation)).toEqual([2n, 1n])
     expect(parseBackup(plan.backup).binding.mode).toBe('vault')
     expect(() => identitySetupMessages({ ...plan, generation: 3n }, who, { chainId: golden.chainId, realm: NOTES_REALM }, { registryUgnot: '0', backupUgnot: '0' })).toThrow()
+  })
+  it('refuses every entry point while private notes are closed on its network, before any read, KDF or wallet prompt', async () => {
+    const s = setup(); gate.open = false
+    const disabled = { name: 'NotesChainError', code: 'disabled' }
+    for (const attempt of [() => s.controller.refresh(), () => s.controller.unlockStandard({}), () => s.controller.recover(recoveryPhrase(new Uint8Array(32))),
+      () => s.controller.prepareSetup('standard', {}), () => s.controller.prepareSetup('vault'), () => s.controller.use(() => 1), () => s.controller.confirmSetup()]) {
+      await expect(attempt()).rejects.toMatchObject(disabled)
+    }
+    for (const attempt of [() => s.controller.preparedPlan(), () => s.controller.confirmRecovery(recoveryPhrase(new Uint8Array(32))), () => s.controller.renewPreparedOperation('11'.repeat(16))]) {
+      expect(attempt).toThrow(expect.objectContaining(disabled))
+    }
+    expect(s.read).not.toHaveBeenCalled(); expect(dependencies.unlock).not.toHaveBeenCalled(); expect(dependencies.kdf).not.toHaveBeenCalled()
+    expect(s.controller.getSnapshot()).toMatchObject({ phase: 'unknown', busy: false })
+    gate.open = true; await s.controller.unlockStandard({})
+    expect(s.controller.getSnapshot().phase).toBe('unlocked')
+    gate.open = false; await expect(s.controller.use(() => 1)).rejects.toMatchObject(disabled)
+    s.controller.dispose()
+  })
+  it('never matches a closed gate through a missing realm (undefined === undefined)', async () => {
+    const s = setup(); gate.open = false
+    ;(s.controller as unknown as { c: { realm?: string } }).c.realm = undefined
+    await expect(s.controller.refresh()).rejects.toMatchObject({ code: 'disabled' })
+    await expect(s.controller.prepareSetup('vault')).rejects.toMatchObject({ code: 'disabled' })
+    expect(s.read).not.toHaveBeenCalled()
+  })
+  it('discards a wallet unlock and a prepared plan once the gate closes mid-operation', async () => {
+    const s = setup()
+    dependencies.unlock.mockImplementationOnce(async (_wallet: unknown, _context: unknown, current: () => boolean) => {
+      gate.open = false; expect(current()).toBe(false); return { ikm: hexToBytes(golden.materialHex) }
+    })
+    await expect(s.controller.unlockStandard({})).rejects.toMatchObject({ code: 'disabled' })
+    expect(s.controller.getSnapshot().phase).toBe('locked')
+    gate.open = true
+    const t = setup(empty()), output = await t.controller.prepareSetup('vault'); t.controller.confirmRecovery(output.phrase)
+    expect(t.controller.preparedPlan().generation).toBe(1n)
+    gate.open = false; expect(() => t.controller.preparedPlan()).toThrow(expect.objectContaining({ code: 'disabled' }))
+    t.read.mockClear(); await expect(t.controller.confirmSetup()).rejects.toMatchObject({ code: 'disabled' }); expect(t.read).not.toHaveBeenCalled()
+    s.controller.dispose(); t.controller.dispose()
   })
   it('fails closed for missing backups, invalid recovery files and disposed controllers', async () => {
     const s = setup({ ...registered(), backup: null }); await s.controller.refresh()
