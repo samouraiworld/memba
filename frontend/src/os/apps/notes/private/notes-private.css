@@ -1,0 +1,28 @@
+/* Private notes (lazy chunk only): the key panel in the Notes window, and its setup and recovery sheets. */
+.os-notes-app .os-notes-private { width:100%; max-width:640px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+.os-notes-app .os-notes-private > header { padding:4px 0 14px; border-bottom:1px solid var(--os-line); }
+.os-notes-app .os-notes-private h2 { margin:0; font-size:24px; font-weight:800; line-height:1.2; outline:none; }
+.os-notes-app .os-notes-private > header .os-sub { margin:4px 0 0; font-size:12.5px; overflow-wrap:anywhere; }
+.os-notes-private-state { display:flex; flex-direction:column; gap:12px; font-size:14.5px; line-height:1.55; }
+.os-notes-private-state p { margin:0; }
+.os-notes-private-state .os-notes-hint { font-size:12.5px; color:var(--os-mut); overflow-wrap:anywhere; }
+.os-notes-private-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.os-notes-private-notice { margin:0; min-height:1.5em; font-size:13.5px; color:var(--os-mut); }
+.os-notes-private-notice:empty { min-height:0; }
+.os-notes-private-sheet { display:flex; flex-direction:column; gap:16px; }
+.os-notes-private-sheet h2 { outline:none; }
+.os-notes-private-sheet .os-notes-hint { font-size:12.5px; color:var(--os-mut); }
+/* The 24 words: numbered, three columns, two on a narrow window. */
+.os-notes-private-words { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 14px; margin:0; padding:12px 14px 12px 40px; border-radius:10px; background:var(--os-hover); font:600 14px/1.6 var(--os-mono); user-select:all; }
+.os-notes-private-words li { padding-left:4px; }
+.os-notes-private-words li::marker { color:var(--os-mut); font-weight:500; }
+.os-notes-private-field { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:var(--os-mut); }
+.os-notes-private-field textarea { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--os-line); border-radius:var(--os-radius-ctl); background:var(--os-card); color:var(--os-ink); font:500 14px/1.5 var(--os-mono); resize:vertical; }
+.os-notes-private-field textarea:focus-visible, .os-notes-private-field input:focus-visible { outline:2px solid var(--os-acc); outline-offset:1px; }
+.os-notes-private-field input[type="file"] { font:500 13px var(--os-font); color:var(--os-ink); }
+@container notes-app (max-width: 640px) {
+    /* A phone window grows with its content: room for the sheets, which cover only the note side. */
+    .os-notes-app .os-notes-private { min-height:calc(100dvh - 220px); }
+    .os-notes-private-words { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .memba-os .os-notes-private-actions .os-btn, .memba-os .os-notes-private-sheet .os-btn { min-height:44px; }
+}
