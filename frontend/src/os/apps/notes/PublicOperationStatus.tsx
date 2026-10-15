@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createDraftSession, type NotesPartition, type NotesStore } from '../../../lib/notes/drafts'
+import { createDraftSession, type DraftSession, type NotesPartition, type NotesStore } from '../../../lib/notes/drafts'
 import { newNoteId } from '../../../lib/notes/config'
 import { NotesIntents, type NotesIntent } from '../../../lib/notes/intents'
 import { recoverPublicIntent } from '../../../lib/notes/chain/recovery'
@@ -7,13 +7,15 @@ import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import { useSigner } from '../../sign/signerContext'
 import { announceNoteChange } from '../../../lib/notes/freshness'
 
-type Props = { client: NotesReadClient; store: NotesStore; partition: NotesPartition; onOpen(id: string): void }
+type Props = { client: NotesReadClient; store: NotesStore; partition: NotesPartition; onOpen(id: string): void
+    /** Private receipts (lazy private chunk, where private notes are open): checked against the chain, never resent. */
+    recoverPrivate?(client: NotesReadClient, intents: NotesIntents, intent: NotesIntent, session: DraftSession): Promise<'confirmed' | 'unknown'> }
 export function PublicOperationStatus(props: Props) {
     const { client, store } = props
     const lease = useMemo(() => ({ client, store, id: newNoteId() }), [client, store])
     return <Receipts key={JSON.stringify([lease.id, props.partition])} {...props} />
 }
-function Receipts({ client, store, partition, onOpen }: Props) {
+function Receipts({ client, store, partition, onOpen, recoverPrivate }: Props) {
     const [session] = useState(createDraftSession), working = useRef(false)
     const [items, setItems] = useState<NotesIntent[]>([]), [limit, setLimit] = useState(20)
     const [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [reload, refresh] = useState(0)
@@ -28,11 +30,12 @@ function Receipts({ client, store, partition, onOpen }: Props) {
         return () => { alive = false; window.removeEventListener('focus', load) }
     }, [store, chainId, realm, owner, session, reload, version])
     async function check(intent: NotesIntent) {
-        if (working.current || intent.verification?.kind !== 'public-v1') return
+        const recover = intent.verification?.kind === 'public-v1' ? recoverPublicIntent : intent.verification?.kind === 'private-v1' ? recoverPrivate : undefined
+        if (working.current || !recover) return
         working.current = true; setBusy(true)
         const guard = session.capture()
         try {
-            const result = await recoverPublicIntent(client, new NotesIntents(store), intent, session)
+            const result = await recover(client, new NotesIntents(store), intent, session)
             if (guard.signal.aborted) return
             if (result === 'confirmed') announceNoteChange({ chainId: intent.scope.chainId, noteId: intent.scope.noteId, stateRevision: intent.resultingStateRevision })
             setNotice(result === 'confirmed' ? 'Publication confirmed. Your local draft was kept; it is updated to the latest revision when you edit it.' : 'The outcome remains unknown. The receipt and draft were kept; nothing was resent.')
@@ -45,7 +48,7 @@ function Receipts({ client, store, partition, onOpen }: Props) {
         {items.slice(0, limit).map(intent => <div key={intent.operationId}>
             <p>Outcome unknown · Operation {intent.operationId}</p>
             <button className="os-btn" onClick={() => onOpen(intent.scope.noteId)}>Open note</button>
-            {intent.verification?.kind === 'public-v1' ? <button className="os-btn" disabled={busy} onClick={() => void check(intent)}>Check outcome</button>
+            {intent.verification?.kind === 'public-v1' || (intent.verification?.kind === 'private-v1' && recoverPrivate) ? <button className="os-btn" disabled={busy} onClick={() => void check(intent)}>Check outcome</button>
                 : <p>This saved operation is unsupported in this public view. Its receipt was kept; nothing was resent.</p>}
         </div>)}
         {items.length > limit && <button className="os-btn" onClick={() => setLimit(value => value + 20)}>Show more operations</button>}

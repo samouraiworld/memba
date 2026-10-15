@@ -11,7 +11,7 @@ import { NotesTimeoutError, readFresh, useNoteRefresh, withTimeout } from '../..
 import { copyTitle, trimPublicTitle } from '../../../lib/notes/publicFields'
 import type { ConflictLine } from '../../../lib/notes/merge'
 import { DraftEditor, type EditorActions } from './DraftEditor'
-import { PublicDelete, PublicPublish, PublishProgressSheet, type PublishProgress } from './PublicPublish'
+import { PublicDelete, PublicPublish, PublishProgressSheet, type PrivateCreate, type PublishProgress } from './PublicPublish'
 import { NoteSkeleton, PublicNote } from './PublicNote'
 import { PublicEditButton } from './PublicEditButton'
 import type { ArchivedPublicDraft } from './PublicHistory'
@@ -57,6 +57,8 @@ type Props = {
     walletChainId?: string
     /** A private note's reader (lazy private chunk); without it, the plain "Private note" placeholder. */
     encrypted?(note: ChainNote, refresh: () => void): ReactNode
+    /** Publishing a new note privately (lazy private chunk); without it, the private choice stays unavailable. */
+    privateCreate?: PrivateCreate
 }
 const settled = () => {}
 export function PublicAuthoring(props: Props) {
@@ -65,7 +67,7 @@ export function PublicAuthoring(props: Props) {
     return <Workspace key={JSON.stringify([lease.id, props.scope])} {...props} />
 }
 /** The published note is the page; Edit turns the same page into its editor, Publish brings it back. */
-function Workspace({ client, store, scope, walletChainId, encrypted }: Props) {
+function Workspace({ client, store, scope, walletChainId, encrypted, privateCreate }: Props) {
     const [session] = useState(createDraftSession), working = useRef(false), updating = useRef(false), pane = useNotesPane()
     const [start, setStart] = useState<'checking' | 'ready'>('checking'), [saved, setSaved] = useState<Saved | null>(null), [savedTick, reread] = useState(0)
     const [opened, setOpened] = useState(false), [editing, setEditing] = useState(false)
@@ -269,7 +271,8 @@ function Workspace({ client, store, scope, walletChainId, encrypted }: Props) {
         }
         return {
             // A draft without a baseline is a creation: never offer it for a note that already exists.
-            primary: (base || !exists) && <PublicPublish draft={draft} client={client} store={store} requestSession={session} walletChainId={walletChainId}
+            primary: (base || !exists) && <PublicPublish draft={draft} client={client} store={store} requestSession={session} walletChainId={walletChainId} privateCreate={base ? undefined : privateCreate}
+                onPrivatePublished={() => reread(value => value + 1)}
                 beforeReview={base ? () => update(draft, true) : undefined} titleProblem={editor.titleProblem} onNotice={setNotice} onProgress={report}
                 onPublished={confirmed => {
                     void editor.published(draftBase(confirmed), draft.localRevision).then(done => { if (!done) setNotice(info(`Published as revision ${confirmed.stateRevision}. Your draft changed meanwhile; it is updated to the latest revision before your next publication.`)) },
@@ -285,12 +288,17 @@ function Workspace({ client, store, scope, walletChainId, encrypted }: Props) {
         : note.deleted ? <NoteStatus kind="draft">Draft on this device</NoteStatus>
         : saved.base && BigInt(note.stateRevision) > BigInt(saved.base.stateRevision) ? <NoteStatus kind="draft">Draft on this device · based on revision {saved.base.stateRevision}</NoteStatus>
         : <NoteStatus kind="changes">Unpublished changes{saved.base ? ` · based on revision ${saved.base.stateRevision}` : ''}</NoteStatus>
+    // D1 leaves the plaintext draft of a note published privately on this device, and says so (D2 encrypts it).
+    const unencrypted = saved && encrypted ? (note: ChainNote, refresh: () => void) => <>
+        {!note.deleted && <NoteBanner notice={{ tone: 'warn', text: 'An unencrypted copy of this note’s text is still on this device, from before it was published privately.',
+            actions: <button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => void discardBehind('Remove the unencrypted copy of this note from this device? The private note on the network does not change.')}>Remove this copy</button> }} />}
+        {encrypted(note, refresh)}</> : encrypted
     if (start === 'checking') return <NoteSkeleton />
     return <div className="os-notes-authoring">
         {!editing && saved && (unread || (opened && live.failed)) && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',
             actions: <button type="button" className="os-btn" disabled={busy} onClick={() => opened ? setEditing(true) : void prepare()}>Open my draft</button> }} />}
         <div hidden={editing}>
-            <PublicNote id={scope.noteId} client={client} owner={scope.owner} status={changes} encrypted={encrypted}
+            <PublicNote id={scope.noteId} client={client} owner={scope.owner} status={changes} encrypted={unencrypted}
                 banner={!editing && <><NoteBanner notice={notice} />{behind && ('deleted' in behind
                     ? <NoteBanner notice={{ tone: 'info', text: 'This note was deleted. Your draft of it is still on this device.',
                         actions: <><button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => void prepare()}>Open my draft</button>

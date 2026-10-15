@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createDraftSession, type DraftRecord, type DraftSession, type NotesStore } from '../../../lib/notes/drafts'
 import { NotesIntents } from '../../../lib/notes/intents'
 import { notesDeployment, newNoteId } from '../../../lib/notes/config'
@@ -10,17 +10,15 @@ import { preparePublicNoteRequest } from '../../../lib/notes/chain/request'
 import { NotesChainError, publicText, type ChainNote } from '../../../lib/notes/chain/schema'
 import { announceNoteChange, NotesTimeoutError, withTimeout } from '../../../lib/notes/freshness'
 import { publicBodyProblem, publicTitleProblem, trimPublicTitle } from '../../../lib/notes/publicFields'
-import { abciQueryText } from '../../../lib/dao/packageStatus'
-import { ugnotInCoinsJson } from '../../../lib/bankBalance'
-import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import type { SettledOutcome, SignRequest } from '../../sign/signer'
 import { useSigner, type SignerApi } from '../../sign/signerContext'
 import { QuoteExpiredError } from '../../sign/expired'
 import { NoteSheet, type Notice } from './NoteHeader'
 import { PUBLISHING, useNotesPane, type NotesPane } from './notesPane'
+import { balanceOf } from './notesFormat'
 
 /** Where a signed publication stands. The workspace shows it: it outlives the control that started it. */
-export interface PublishProgress { kind: 'publish' | 'delete'; title: string; chainId: string; step: 'approve' | 'sending' | 'done'; revision?: string; walletSince?: number }
+export interface PublishProgress { kind: 'publish' | 'delete'; title: string; chainId: string; step: 'approve' | 'sending' | 'done'; revision?: string; walletSince?: number; encrypted?: boolean }
 type Report = { onProgress?(progress: PublishProgress | null): void; onNotice?(notice: Notice | null): void }
 type PublicPublishProps = Report & {
     draft: DraftRecord; client: NotesReadClient; store: NotesStore
@@ -36,6 +34,22 @@ type PublicPublishProps = Report & {
     titleProblem?(message: string): void
     /** The network Adena is on, when known. */
     walletChainId?: string
+    /** Private (encrypted) publication, from the lazy private chunk: absent where private notes are closed. */
+    privateCreate?: PrivateCreate
+    /** The verified private note this publication created; the local draft is left as it is. */
+    onPrivatePublished?(note: ChainNote): void
+}
+/** What the review of a private publication hands back: the prepared request, signed through the OS signature sheet. */
+export interface PrivateReviewProps {
+    draft: DraftRecord; title: string; requestSession: DraftSession; walletChainId?: string
+    onBack(): void; onClose(): void; onNotice?(notice: Notice | null): void
+    /** Opens the OS signature sheet for this request; false when it could not open. */
+    submit(request: SignRequest, confirmed: () => ChainNote | null): boolean
+}
+export interface PrivateCreate {
+    /** The Visibility choice: enabled only when this account's private key can be used here. */
+    Choice(props: { checked: boolean; disabled: boolean; onChoose(): void }): ReactNode
+    Review(props: PrivateReviewProps): ReactNode
 }
 const kept = 'Your text is kept.'
 function failure(error: unknown): Notice {
@@ -77,18 +91,14 @@ function changeLines(operation: PublicNoteOperation, published: ChainNote | null
 }
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const fieldMask = (a: PublicNoteOperation['action']) => a.kind !== 'commit' ? null : a.title !== undefined && a.body !== undefined ? 'title and body (mask 3)' : a.title !== undefined ? 'title only (mask 1)' : 'body only (mask 2)'
-async function balanceOf(chainId: string, address: string): Promise<bigint | null> {
-    const urls = getRpcUrlsInOrder()
-    return withTimeout(abciQueryText({ chainId, rpcUrl: urls[0], rpcUrls: urls }, `bank/balances/${address}`, '').then(ugnotInCoinsJson), 5000).catch(() => null)
-}
 
 /**
  * Hands a prepared request to the OS signature sheet and reports its progress. The note pane stays
  * mounted (hidden) until it settles, so the confirmation and baseline move complete after switching notes.
  */
-function sign(request: SignRequest, context: Report & { signer: SignerApi; pane: NotesPane | null; kind: PublishProgress['kind']; title: string; chainId: string; noteId: string; revision: string; confirmed(): ChainNote | null; onConfirmed?(note: ChainNote): void }): boolean {
+function sign(request: SignRequest, context: Report & { signer: SignerApi; pane: NotesPane | null; kind: PublishProgress['kind']; title: string; chainId: string; noteId: string; revision: string; confirmed(): ChainNote | null; onConfirmed?(note: ChainNote): void; encrypted?: boolean }): boolean {
     const { onProgress, onNotice, kind, title, chainId, revision } = context
-    const progress = (step: PublishProgress['step'], extra: Partial<PublishProgress> = {}) => onProgress?.({ kind, title, chainId, step, ...extra })
+    const progress = (step: PublishProgress['step'], extra: Partial<PublishProgress> = {}) => onProgress?.({ kind, title, chainId, step, ...context.encrypted ? { encrypted: true } : {}, ...extra })
     const hold = `${PUBLISHING}${newNoteId()}`, release = () => context.pane?.hold(hold, false)
     const { send, onSettled, onDismissed } = request
     let expiredShown = false
@@ -141,11 +151,11 @@ export function PublicPublish(props: PublicPublishProps) {
     return <PublicPublishSession key={JSON.stringify([lease.id, client.chainId, props.draft.scope.chainId, props.draft.scope.realm, props.draft.scope.owner, props.draft.scope.noteId, props.draft.localRevision])} {...props} />
 }
 /** Publish: a sheet in the window says what changes, who sees it and what it costs, then Adena signs. */
-function PublicPublishSession({ draft, client, store, requestSession, beforeReview, onPublished, onProgress, onNotice, titleProblem, walletChainId }: PublicPublishProps) {
+function PublicPublishSession({ draft, client, store, requestSession, beforeReview, onPublished, onProgress, onNotice, titleProblem, walletChainId, privateCreate, onPrivatePublished }: PublicPublishProps) {
     const pane = useNotesPane(), signer = useSigner()
     const [session] = useState(createDraftSession), working = useRef(false)
     const [sheet, setSheet] = useState<Sheet>({ phase: 'closed' })
-    const [mode, setMode] = useState<3 | 4>(3), [details, setDetails] = useState(false), [copied, setCopied] = useState(false)
+    const [mode, setMode] = useState<3 | 4>(3), [details, setDetails] = useState(false), [copied, setCopied] = useState(false), [encrypted, setEncrypted] = useState(false)
     useLayoutEffect(() => () => session.invalidate(), [session])
     const payload = draft.payload.kind === 'public' ? draft.payload : null
     const title = payload ? trimPublicTitle(payload.title) : ''
@@ -220,7 +230,8 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
             } else onNotice?.(failure(error))
         } finally { if (!guard.signal.aborted) working.current = false }
     }
-    const close = () => { if (sheet.phase !== 'signing') { session.invalidate(); working.current = false; setSheet({ phase: 'closed' }) } }
+    const close = () => { if (sheet.phase !== 'signing') { session.invalidate(); working.current = false; setEncrypted(false); setSheet({ phase: 'closed' }) } }
+    const PrivateReview = privateCreate?.Review, PrivateChoice = privateCreate?.Choice
     const shown = sheet.phase === 'review' || sheet.phase === 'signing' ? sheet.review : null
     const wrongNetwork = !!walletChainId && walletChainId !== client.chainId
     const short = shown && shown.balance !== null && shown.balance < BigInt(shown.expected) + BigInt(shown.fee)
@@ -231,7 +242,12 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
             <div className="os-notes-sheet-wait" role="status"><span className="os-spin" aria-hidden="true" />Checking the latest revision…</div>
             <div className="os-notes-sheet-actions"><button type="button" className="os-btn os-quiet" onClick={close}>Keep editing</button></div>
         </NoteSheet>}
-        {shown && a && <NoteSheet label="Publish" onClose={close}>
+        {shown && a?.kind === 'create' && encrypted && PrivateReview && <NoteSheet label="Publish privately" onClose={close}>
+            <PrivateReview draft={draft} title={title} requestSession={requestSession ?? session} walletChainId={walletChainId} onNotice={onNotice} onBack={() => setEncrypted(false)} onClose={close}
+                submit={(request, confirmed) => { setEncrypted(false); setSheet({ phase: 'closed' })
+                    return sign(request, { signer, pane, kind: 'publish', title, chainId: client.chainId, noteId: draft.scope.noteId, revision: '1', confirmed, onConfirmed: onPrivatePublished, onProgress, onNotice, encrypted: true }) }} />
+        </NoteSheet>}
+        {shown && a && !(a.kind === 'create' && encrypted && PrivateReview) && <NoteSheet label="Publish" onClose={close}>
             <h2>{a.kind === 'create' ? `Publish “${title}”?` : `Publish your changes to “${title}”?`}</h2>
             <dl className="os-notes-facts">
                 <div><dt>What changes</dt><dd>{changeLines(shown.operation, shown.published).map(line => <span key={line}>{line}</span>)}</dd></div>
@@ -243,7 +259,8 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
             {a.kind === 'create' && <fieldset className="os-notes-choices">
                 <legend>Visibility</legend>
                 <label><input type="radio" name="visibility" checked readOnly /> Public · everyone can read</label>
-                <label><input type="radio" name="visibility" disabled /> Private · encrypted, only you <small>Not available yet</small></label>
+                {PrivateChoice ? <PrivateChoice checked={false} disabled={sheet.phase === 'signing'} onChoose={() => setEncrypted(true)} />
+                    : <label><input type="radio" name="visibility" disabled /> Private · encrypted, only you <small>Not available yet</small></label>}
                 <label className="os-notes-select">Who can comment<select value={mode} disabled={sheet.phase === 'signing'} onChange={event => setMode(Number(event.target.value) as 3 | 4)}>
                     <option value={3}>Only people who can edit</option><option value={4}>Everyone</option></select></label>
             </fieldset>}
@@ -333,7 +350,7 @@ export function PublishProgressSheet({ progress, onHide, onView }: { progress: P
         <div className="os-notes-done">
             <svg className="os-notes-check" viewBox="0 0 100 100" role="img" aria-label={deleted ? 'Deleted' : 'Published'}><circle cx="50" cy="50" r="45" /><path d="M30 52 l13 13 l27 -28" /></svg>
             <h2>{deleted ? 'Deleted' : 'Published'}{progress.revision ? ` · revision ${progress.revision}` : ''}</h2>
-            <p>{deleted ? 'Readers now see that this note was deleted.' : 'Everyone now sees your change. History and comments are up to date.'}</p>
+            <p>{deleted ? 'Readers now see that this note was deleted.' : progress.encrypted ? 'Your note is encrypted on the network. Only you can read it, after unlocking your private key.' : 'Everyone now sees your change. History and comments are up to date.'}</p>
             <button type="button" className="os-btn" autoFocus onClick={onView}>View note</button>
         </div>
     </NoteSheet>

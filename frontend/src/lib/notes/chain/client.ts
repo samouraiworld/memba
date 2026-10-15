@@ -1,6 +1,6 @@
 import { GNO_CHAIN_ID } from '../../config'
 import { assertRpcChain } from '../../dao/chainIdentity'
-import { directRpcCall, getRpcUrlsInOrder, resilientAbciQueryDetailed } from '../../rpcFallback'
+import { abciErrorPresent, directRpcCall, getRpcUrlsInOrder, resilientAbciQueryDetailed, resilientFetch } from '../../rpcFallback'
 import { address, blob, check, cursor, decimal, decodeResponse, encode64, id, KEY_SUITE, NOTES_REGISTRY, NotesChainError, parseConfig, parseKey, parseNote, parsePage, realmPath, record } from './schema'
 import type { ChainNote, NotesPage } from './schema'
 import { parsePublicCapabilities } from './capabilities'
@@ -34,17 +34,30 @@ export class NotesReadClient {
     if (!this.isCurrent()) throw new NotesChainError('session')
     if (this.chainId !== GNO_CHAIN_ID) throw new NotesChainError('network')
   }
+  /** Only this session's configured nodes, each proven to serve this network before it is asked. */
+  private readonly verified = async (url: string): Promise<void> => {
+    this.assertCurrent()
+    if (!this.rpcUrls.has(url) || !getRpcUrlsInOrder().includes(url)) throw new NotesChainError('network')
+    await assertRpcChain(url, this.chainId)
+    this.assertCurrent()
+  }
   private async query(realm: string, expression: string): Promise<unknown> {
     this.assertCurrent()
-    const result = await resilientAbciQueryDetailed('vm/qeval', `${realm}.${expression}`, async url => {
-      this.assertCurrent()
-      if (!this.rpcUrls.has(url) || !getRpcUrlsInOrder().includes(url)) throw new NotesChainError('network')
-      await assertRpcChain(url, this.chainId)
-      this.assertCurrent()
-    })
+    const result = await resilientAbciQueryDetailed('vm/qeval', `${realm}.${expression}`, this.verified)
     this.assertCurrent()
     if (result.kind !== 'ok') throw new NotesChainError('unavailable')
     return decodeResponse(result.text)
+  }
+  /** `.app/simulate` of an unsigned transaction (chain/simulate.ts): the node's amino `sdk.Result` bytes. Nothing is broadcast. */
+  async simulateRaw(tx: Uint8Array): Promise<Uint8Array> {
+    this.assertCurrent(); check(tx.length > 0 && tx.length <= 400_000)
+    const response = await resilientFetch(url => ({ url, init: { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 'memba-notes', method: 'abci_query', params: { path: '.app/simulate', data: encode64(tx) } }) } }), undefined, this.verified)
+    const json = await response.json() as { error?: unknown; result?: { response?: { ResponseBase?: { Error?: unknown }; Value?: unknown } } }
+    this.assertCurrent()
+    const answer = json?.result?.response
+    if (json?.error || !answer?.ResponseBase || abciErrorPresent(answer.ResponseBase.Error) || typeof answer.Value !== 'string') throw new NotesChainError('unavailable')
+    return blob(answer.Value, 1_000_000)
   }
   async note(noteId: string): Promise<ChainNote | null> {
     const wanted = id(noteId), expression = `NoteMetaJSON("${wanted}")`
