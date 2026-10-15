@@ -30,7 +30,7 @@ function Receipts({ client, store, partition, onOpen, recoverPrivate }: Props) {
         return () => { alive = false; window.removeEventListener('focus', load) }
     }, [store, chainId, realm, owner, session, reload, version])
     async function check(intent: NotesIntent) {
-        const recover = intent.verification?.kind === 'public-v1' ? recoverPublicIntent : intent.verification?.kind === 'private-v1' ? recoverPrivate : undefined
+        const kind = intent.verification?.kind, recover = kind === 'public-v1' ? recoverPublicIntent : kind === 'private-v1' || kind === 'access-v1' ? recoverPrivate : undefined
         if (working.current || !recover) return
         working.current = true; setBusy(true)
         const guard = session.capture()
@@ -48,7 +48,7 @@ function Receipts({ client, store, partition, onOpen, recoverPrivate }: Props) {
         {items.slice(0, limit).map(intent => <div key={intent.operationId}>
             <p>Outcome unknown · Operation {intent.operationId}</p>
             <button className="os-btn" onClick={() => onOpen(intent.scope.noteId)}>Open note</button>
-            {intent.verification?.kind === 'public-v1' || (intent.verification?.kind === 'private-v1' && recoverPrivate) ? <button className="os-btn" disabled={busy} onClick={() => void check(intent)}>Check outcome</button>
+            {intent.verification?.kind === 'public-v1' || ((intent.verification?.kind === 'private-v1' || intent.verification?.kind === 'access-v1') && recoverPrivate) ? <button className="os-btn" disabled={busy} onClick={() => void check(intent)}>Check outcome</button>
                 : <p>This saved operation is unsupported in this public view. Its receipt was kept; nothing was resent.</p>}
         </div>)}
         {items.length > limit && <button className="os-btn" onClick={() => setLimit(value => value + 20)}>Show more operations</button>}

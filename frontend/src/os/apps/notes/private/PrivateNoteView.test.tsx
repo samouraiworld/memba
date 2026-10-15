@@ -7,6 +7,7 @@ import { bech32Encode } from '../../../../lib/dao/realmAddress'
 import { IDBFactory } from 'fake-indexeddb'
 import { createDraftSession, createNotesStore, type NotesStore } from '../../../../lib/notes/drafts'
 import { sealPrivateDraft } from '../../../../lib/notes/private/localDraft'
+import type { SignRequest } from '../../../sign/signer'
 import type { NotesReadClient } from '../../../../lib/notes/chain/client'
 import { blob, encode64, type ChainNote } from '../../../../lib/notes/chain/schema'
 import { NOTES_REALM } from '../../../../lib/notes/chain/__fixtures__/deployment'
@@ -21,11 +22,16 @@ import { SharedWithMe } from './SharedWithMe'
 
 // The real key controller, unlocked from the real Standard backup (only the KDF and Adena's signature are mocked),
 // and a note sealed with real X-Wing wraps and content AEAD for that key.
-const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), open: true }))
+const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), open: true, sign: vi.fn(), balance: null as string | null }))
+vi.mock('../../../sign/signerContext', () => ({ useSigner: () => ({ sign: io.sign }) }))
+vi.mock('../../../../lib/grc20', async original => ({ ...await original<typeof import('../../../../lib/grc20')>(), freshFeeForGasWanted: async (gas: number) => Math.ceil(gas * 1.2 / 1000),
+    assertFeeStillCovers: async () => {}, doContractBroadcast: async (_msgs: unknown, _memo: string, options: { beforeSign(): Promise<unknown> }) => { await options.beforeSign(); return { hash: 'aa'.repeat(32) } } }))
+vi.mock('../../../../lib/dao/packageStatus', () => ({ abciQueryText: async (_ctx: unknown, path: string) => { if (path === 'params/vm:p:storage_price') return '"100ugnot"'; if (path.startsWith('bank/balances/') && io.balance !== null) return JSON.stringify(io.balance); throw new Error('offline') } }))
 vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => io.kdf(...args) }))
 vi.mock('../../../../lib/notes/crypto/signer', () => ({ requestNotesUnlock: (...args: unknown[]) => io.unlock(...args) }))
 vi.mock('../../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../../lib/notes/config')>(),
     deploymentRealm: () => NOTES_REALM,
+    notesDeployment: (chainId: string) => chainId === 'test-chain-id' ? { realm: NOTES_REALM, version: 1 } : null,
     privateNotesDeployment: (chainId: string) => io.open && chainId === 'test-chain-id' ? { realm: NOTES_REALM, version: 1 } : null }))
 vi.mock('../../terminal/CodeEditor', () => ({ CodeEditor: ({ value, onChange }: { value: string; onChange(value: string): void }) => <textarea aria-label="Markdown editor" value={value} onChange={event => onChange(event.target.value)} /> }))
 // The Markdown worker is not part of this test: the preview shows the decrypted body as text.
@@ -60,7 +66,7 @@ function show(reader = client()) {
         <nav aria-label="Notes list"><SharedWithMe controller={controller} client={reader} owner={owner} selected={null} onOpen={() => {}} /></nav></StrictMode>)
 }
 beforeEach(() => {
-    vi.clearAllMocks(); io.open = true; controller = undefined as unknown as NotesIdentityController; seal()
+    vi.clearAllMocks(); io.open = true; io.balance = null; controller = undefined as unknown as NotesIdentityController; seal()
     io.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
     io.unlock.mockImplementation(async () => ({ ikm: hexToBytes(golden.materialHex), publicKey: new Uint8Array(33) }))
 })
@@ -166,5 +172,54 @@ describe('editing and this device\'s private drafts (D2)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Remove my draft on this device…' }))
         expect(await screen.findByText('Your draft was removed from this device.')).toBeVisible()
         expect(await store.getDraft(scope)).toBeNull(); expect(io.unlock).not.toHaveBeenCalled()
+    })
+    it('lets the owner delete, says the refund honestly, and removes the encrypted draft once the deletion is confirmed', async () => {
+        own()
+        const envelope = sealPrivateDraft(scope, 1n, 1n, publicKey, { title: 'x', body: 'y', mode: 0 })
+        expect((await store.saveDraft(scope, '0', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
+        io.sign.mockReturnValue(true)
+        const reader = client()
+        Object.assign(reader, { writersRaw: async () => [], config: async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false }) })
+        edit(reader)
+        await screen.findByText(/draft on this device/)
+        fireEvent.click(screen.getByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Delete note…' }))
+        const sheet = await screen.findByRole('dialog', { name: 'Delete private note' })
+        expect(sheet).toHaveTextContent('Delete returns about half of what this note locked; the rest stays locked.')
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeEnabled())
+        expect(sheet).toHaveTextContent('Your encrypted draft of this note is removed from this device once the deletion is confirmed.')
+        fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest
+        expect(request.title).toBe('Delete private note'); expect(request.prepare(undefined).msgs[0].value).toMatchObject({ func: 'Delete', pkg_path: NOTES_REALM, max_deposit: '100000ugnot' })
+        await request.send(undefined, async () => () => true)
+        const operationId = Buffer.from(request.prepare(undefined).msgs[0].value.args[2], 'base64').toString('hex')
+        note = { ...note, stateRevision: '2', deleted: true, title: new Uint8Array(), bodyBytes: 0, commitment: new Uint8Array(), operationId, actor: owner, height: '11', ownerListed: false, govWriters: false }
+        expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+        expect(await store.getDraft(scope)).toBeNull()
+    })
+    it('refuses the deletion before the signature sheet when private notes close during the review', async () => {
+        own()
+        const reader = client(); Object.assign(reader, { writersRaw: async () => [] })
+        edit(reader)
+        fireEvent.click(await screen.findByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Delete note…' }))
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeEnabled())
+        io.open = false; fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
+        expect(await screen.findByText('Private notes are not available on this network right now. Nothing was sent.')).toBeVisible()
+        await new Promise(resolve => setTimeout(resolve, 50)); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('refuses a balance below the written maximum (cap + network fee), as the other private flows do', async () => {
+        own(); io.balance = '150000ugnot'
+        const reader = client(); Object.assign(reader, { writersRaw: async () => [] })
+        edit(reader)
+        fireEvent.click(await screen.findByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Delete note…' }))
+        expect(await screen.findByText(/This can cost up to 0\.22 GNOT; your balance is 0\.15 GNOT\./)).toBeVisible()
+        expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeDisabled(); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('offers Delete to no one but the owner', async () => {
+        edit()
+        expect(await screen.findByText('This note is encrypted.')).toBeVisible()
+        const more = screen.queryByRole('button', { name: 'More actions' })
+        if (more) fireEvent.click(more)
+        expect(screen.queryByRole('menuitem', { name: 'Delete note…' })).toBeNull()
     })
 })

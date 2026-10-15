@@ -87,8 +87,9 @@ export async function sealEncryptedChanges(client: NotesReadClient, note: ChainN
     try {
       check(equalBytes(keyCommitment(key, context), note.commitment))
       const seal = (field: 'title' | 'body', value: string, current: Uint8Array, revision: string) => {
-        const before = openField(key, { ...context, field, fieldRevision: BigInt(revision) }, current), after = encodePrivateText(value, field === 'title')
-        parts.push(before, after)
+        // The decrypted field joins the zeroing list before the edit is encoded, which may throw.
+        const before = openField(key, { ...context, field, fieldRevision: BigInt(revision) }, current); parts.push(before)
+        const after = encodePrivateText(value, field === 'title'); parts.push(after)
         return equalBytes(before, after) ? undefined : sealField(key, { ...context, field, fieldRevision: BigInt(revision) + 1n }, after)
       }
       const title = seal('title', edited.title, note.title, note.titleRevision), body = seal('body', edited.body, note.body!, note.bodyRevision)

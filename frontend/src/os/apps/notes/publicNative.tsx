@@ -179,7 +179,7 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
                 <button type="button" className="os-btn os-quiet os-notes-back" aria-label="Back to notes" onClick={() => { setExploring(false); setPrivateView(false); if (noteId) onShowList() }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>Notes
                 </button>
-                {owner && <PublicOperationStatus client={reader} store={store} partition={partition} onOpen={open} recoverPrivate={privateOn && !privateFailed ? privateModule?.recoverPrivateIntent : undefined} />}
+                {owner && <PublicOperationStatus client={reader} store={store} partition={partition} onOpen={open} recoverPrivate={privateOn && !privateFailed && privateModule ? (c, intents, intent, s) => privateModule.recoverPrivateIntent(c, intents, intent, s, store) : undefined} />}
                 {exploring && <PublicLibrary client={reader} filter={query} onOpen={open} />}
                 {showPrivate && (PrivatePanel && identity && owner ? <NotesPaneContext.Provider value={privatePane}>
                     <PrivatePanel controller={identity.controller} requestSession={identity.session} client={reader} store={store} owner={owner} walletChainId={session.walletChainId} />
