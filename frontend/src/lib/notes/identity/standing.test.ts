@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import { createDraftSession, createNotesStore, type NotesStore } from '../drafts'
 import { createNotesIntents, type NotesIntents } from '../intents'
@@ -45,5 +45,24 @@ describe('identity setup receipt standing', () => {
         expect(await standing({ generation: '2', operationId: other }, { revision: '2', opId: other })).toEqual({ result: 'superseded', phase: 'unknown' })
         expect(await standing({ generation: '0', operationId: '' }, { revision: '2', opId: other })).toEqual({ result: 'superseded', phase: 'unknown' })
         expect(await standing({ generation: '1', operationId: op }, { revision: '1', opId: op })).toEqual({ result: 'superseded', phase: 'unknown' })
+    })
+    it('reads a receipt the chain moved past once per read client, but keeps re-reading one that can still confirm', async () => {
+        const { intents, scope } = await receipt(), [intent] = await intents.list({ chainId, realm: scope.realm, owner })
+        const moved = client({ generation: '2', operationId: other }, { revision: '2', opId: other }), reads = vi.spyOn(moved, 'key')
+        expect(await identityIntentStanding(moved, intents, intent, createDraftSession())).toBe('superseded')
+        const first = reads.mock.calls.length
+        expect(first).toBeGreaterThan(0)
+        expect(await identityIntentStanding(moved, intents, intent, createDraftSession())).toBe('superseded')
+        expect(reads).toHaveBeenCalledTimes(first)
+        // Another read client (a new network session) reads it again.
+        const fresh = client({ generation: '2', operationId: other }, { revision: '2', opId: other }), again = vi.spyOn(fresh, 'key')
+        expect(await identityIntentStanding(fresh, intents, intent, createDraftSession())).toBe('superseded'); expect(again).toHaveBeenCalled()
+        // This operation's own expected+1 without exact evidence may still confirm: never remembered.
+        const own = client({ generation: '1', operationId: op }, { revision: '1', opId: op }), ownReads = vi.spyOn(own, 'key')
+        expect(await identityIntentStanding(own, intents, intent, createDraftSession())).toBe('superseded')
+        const once = ownReads.mock.calls.length
+        expect(await identityIntentStanding(own, intents, intent, createDraftSession())).toBe('superseded')
+        expect(ownReads.mock.calls.length).toBeGreaterThan(once)
+        expect((await intents.get(scope, op))!.phase).toBe('unknown')
     })
 })

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { identityIntentStanding } from '../../../../lib/notes/identity/requestRecovery'
 import { IDENTITY_ESTIMATE_UGNOT } from '../../../../lib/notes/identity/quote'
+import { IDENTITY_SETUP_LABEL } from '../../../../lib/notes/identity/request'
 import type { NotesReadClient } from '../../../../lib/notes/chain/client'
 import { NOTES_REGISTRY } from '../../../../lib/notes/chain/schema'
 import { gnotAmount } from '../../../../lib/notes/chain/quote'
@@ -12,6 +13,8 @@ import { privateNotesDeployment } from '../../../../lib/notes/config'
 import { useSigner } from '../../../sign/signerContext'
 import { NoteSheet } from '../NoteHeader'
 import { PrivateKeySetup } from './PrivateKeySetup'
+import { adenaWallet, unlockProblem } from './unlock'
+import { setupInFlight, setupsInFlightVersion, subscribeSetupsInFlight } from './setupInFlight'
 import './notes-private.css'
 
 export interface PrivateNotesPanelProps {
@@ -25,14 +28,6 @@ export function PrivateNotesPanel(props: PrivateNotesPanelProps) {
     return <Panel {...props} />
 }
 type Problem = 'read' | 'changed' | null
-/** Adena, for the unlock signatures: read at the click, never on load. */
-const adenaWallet = (): unknown => (window as unknown as { adena?: unknown }).adena
-function unlockProblem(error: unknown): string {
-    if (error instanceof NotesCryptoError && error.code === 'wallet') return 'Adena did not sign. Your key stays locked.'
-    if (error instanceof NotesCryptoError && error.code === 'signature') return 'Adena\u2019s signature could not be checked. Make sure Adena is on this network with this account, then try again. Your key stays locked.'
-    if (error instanceof NotesCryptoError && error.code === 'decrypt') return 'This signature does not open your key. Use your recovery phrase and file instead.'
-    return 'Your key could not be unlocked. Nothing was changed. Try again.'
-}
 function Panel({ controller, client, store, owner, requestSession, walletChainId }: PrivateNotesPanelProps) {
     const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
     const { version, pending } = useSigner(), chainId = client.chainId
@@ -86,8 +81,10 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         catch (error) { if (!guard.signal.aborted) setNotice(failed(error)) }
         finally { if (!guard.signal.aborted) setWorking(false) }
     }
-    // "Set up again" waits while the signing driver still holds a setup, and for a sent setup that usually lands in seconds.
-    const signing = pending.some(entry => entry.label === 'Set up Notes identity')
+    // "Set up again" waits while the signing driver still holds this setup (review, open wallet, or verifying, even after
+    // its sheet was hidden), while it verifies any setup, and for a sent setup that usually lands in seconds.
+    useSyncExternalStore(subscribeSetupsInFlight, setupsInFlightVersion, setupsInFlightVersion)
+    const signing = (receipt !== null && setupInFlight(receipt.operationId)) || pending.some(entry => entry.label === IDENTITY_SETUP_LABEL)
     useEffect(() => { if (!fresh) return; const timer = setTimeout(() => checkAgain(n => n + 1), fresh); return () => clearTimeout(timer) }, [fresh])
     /** Only while the receipt can still apply, and only after the acknowledgement: never the same operation ID again. */
     async function setUpAgain(intent: NotesIntent) {
@@ -159,7 +156,7 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
 }
 
 /** A second device, or a wallet that no longer gives the same signature: the 24 words and the recovery file. */
-function RecoverySheet({ controller, fileNeeded, onClose }: { controller: NotesIdentityController; fileNeeded: boolean; onClose(done: boolean): void }) {
+export function RecoverySheet({ controller, fileNeeded, onClose }: { controller: NotesIdentityController; fileNeeded: boolean; onClose(done: boolean): void }) {
     const [phrase, setPhrase] = useState(''), [file, setFile] = useState<string | null>(null), [error, setError] = useState(''), [working, setWorking] = useState(false)
     const live = useRef(true)
     useEffect(() => { live.current = true; return () => { live.current = false } }, [])

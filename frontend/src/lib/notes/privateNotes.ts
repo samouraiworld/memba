@@ -10,6 +10,8 @@ export { identityIntentScope, prepareIdentitySetupRequest } from './identity/req
 export type { IdentityQuoteInput, IdentityQuoteProvider, IdentityRequestOptions } from './identity/request'
 export { addressBytes, readChainIdentity } from './identity/chain'
 export { PrivateNotesPanel } from '../../os/apps/notes/private/PrivateNotesPanel'
+export { PrivateNoteView } from '../../os/apps/notes/private/PrivateNoteView'
+export { SharedWithMe } from '../../os/apps/notes/private/SharedWithMe'
 
 /**
  * The one key controller of a Notes window for (network, realm, account). The caller disposes it when that

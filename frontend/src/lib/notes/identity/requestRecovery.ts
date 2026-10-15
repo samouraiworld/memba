@@ -51,6 +51,11 @@ export async function recoverIdentityIntent(client: NotesReadClient, intents: No
 }
 
 /**
+ * Receipts whose chain values moved past expected+1, per read client (one network session): that standing is final,
+ * so they are not read again on every panel open. Only `superseded` is remembered, never a blocking or settling answer.
+ */
+const stableSuperseded = new WeakMap<NotesReadClient, Set<string>>()
+/**
  * Whether a saved setup receipt can still take effect. RegisterKey and SetSeedBackup are compare-and-swap calls on the
  * registry generation and the backup revision: each only grows, each value is written once, and both calls are one
  * atomic transaction. The key and backup reads are not pinned to one height, so every decision rests on ONE read:
@@ -64,6 +69,8 @@ export async function recoverIdentityIntent(client: NotesReadClient, intents: No
  * No wallet.
  */
 export async function identityIntentStanding(client: NotesReadClient, intents: NotesIntents, intent: NotesIntent, session: DraftSession): Promise<'confirmed' | 'pending' | 'failed' | 'superseded'> {
+  const entry = `${intent.scope.owner}\u0000${intent.operationId}`
+  if (stableSuperseded.get(client)?.has(entry)) return 'superseded'
   if (await recoverIdentityIntent(client, intents, intent, session) === 'confirmed') return 'confirmed'
   const guard = session.capture(), current = () => { check(!guard.signal.aborted); client.assertCurrent() }
   try {
@@ -80,7 +87,13 @@ export async function identityIntentStanding(client: NotesReadClient, intents: N
         stateRevision: stored.resultingStateRevision, height: decimal(height, 63, true), outcome: 'failed' }, guard); current()
       return result.status === 'saved' ? 'failed' : 'pending'
     }
-    if (generation > expected + 1n || revision > expectedRevision + 1n || (generation === expected + 1n && key.operationId === op)) return 'superseded'
+    if (generation > expected + 1n || revision > expectedRevision + 1n) {
+      // Both values only grow: this answer can never change for this read client, so it is not read again.
+      stableSuperseded.set(client, (stableSuperseded.get(client) ?? new Set<string>()).add(entry))
+      return 'superseded'
+    }
+    // This operation's own expected+1 without exact evidence (a torn or stale read can still confirm it later): read again.
+    if (generation === expected + 1n && key.operationId === op) return 'superseded'
     return 'pending'
   } catch { return 'pending' }
 }

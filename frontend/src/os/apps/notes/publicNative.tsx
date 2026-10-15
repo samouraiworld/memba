@@ -4,9 +4,10 @@ import { createDraftSession, createNotesStore, type DraftSession, type NotesPart
 import { loadPrivateNotes, NOTE_ID, NOTES_ENABLED, notesDeployment, PRIVATE_CHAINS, privateNotesDeployment } from '../../../lib/notes/config'
 import type { NotesIdentityController } from '../../../lib/notes/identity/controller'
 import { NotesReadClient } from '../../../lib/notes/chain/client'
+import type { ChainNote } from '../../../lib/notes/chain/schema'
 import { getRpcUrlsInOrder } from '../../../lib/rpcFallback'
 import { PublicLibrary } from './PublicLibrary'
-import { PublicNote } from './PublicNote'
+import { NoteSkeleton, PublicNote } from './PublicNote'
 import { PublicAuthoring } from './PublicAuthoring'
 import { PublicOperationStatus } from './PublicOperationStatus'
 import { NoteSharePopover } from './NoteSharePopover'
@@ -132,6 +133,12 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
     const reader = read.client, writable = partition
     function open(id: string) { if (NOTE_ID.test(id)) { setExploring(false); setPrivateView(false); onOpenNote(id) } }
     const showPrivate = privateView && privateOn, aside = exploring || showPrivate, PrivatePanel = privateModule?.PrivateNotesPanel
+    // A private note opens in the private reader (lazy chunk) for a member where the gate is open; guests, other
+    // networks and builds without the switch keep the plain "Private note" placeholder.
+    const PrivateView = privateModule?.PrivateNoteView, Shared = privateModule?.SharedWithMe
+    const encrypted = !privateOn || !owner || privateFailed ? undefined
+        : PrivateView && identity ? (note: ChainNote) => <PrivateView note={note} controller={identity.controller} client={reader} owner={owner} walletChainId={session.walletChainId} />
+        : () => <NoteSkeleton label="Opening private note…" />
     async function create() {
         if (creating) return
         setCreating(true); setNotice('')
@@ -157,7 +164,8 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
             {privateOn && <><h2 className="os-notes-group">Private</h2>
                 <button type="button" className="os-notes-row" aria-current={showPrivate ? 'true' : undefined} onClick={() => { setExploring(false); setPrivateView(true) }}>
                     <span className="os-notes-row-title">Private notes</span><span className="os-notes-row-meta">Encrypted with your own key</span>
-                </button></>}
+                </button>
+                {Shared && identity && owner && <Shared controller={identity.controller} client={reader} owner={owner} selected={aside ? null : selected} onOpen={open} />}</>}
             <h2 className="os-notes-group">Explore</h2>
             <button type="button" className="os-notes-row" aria-current={exploring ? 'true' : undefined} onClick={() => { setPrivateView(false); setExploring(true) }}>
                 <span className="os-notes-row-title">Public notes</span><span className="os-notes-row-meta">Read what others published</span>
@@ -177,7 +185,7 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
                 {/* Keyed by note: hidden panes keep their text; a pane unmounts only once nothing in it is unsaved. */}
                 {panes.map(id => <PaneFrame key={id} hidden={aside || id !== selected}>{side =>
                     <NotePane client={reader} partition={partition} noteId={id} owner={owner} focusTitle={active && focusNote === id} shown={!aside && id === selected}
-                        side={side} overlay={overlay} walletChainId={session.walletChainId} hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} />
+                        side={side} overlay={overlay} walletChainId={session.walletChainId} hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} encrypted={encrypted} />
                 }</PaneFrame>)}
             </section>
             <div ref={setOverlay} className="os-notes-overlay" />
@@ -197,16 +205,16 @@ function PaneFrame({ hidden, children }: { hidden: boolean; children(side: HTMLE
     </div>
 }
 type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean; shown: boolean
-    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string
+    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string; encrypted?(note: ChainNote): ReactNode
     hold(note: string, source: string, unsaved: boolean): void; saved(bump: (value: number) => number): void; removed(note: string, published: boolean): void; titleFocused(value: null): void }
-function NotePane({ client, partition, noteId, owner, focusTitle, shown, side, overlay, walletChainId, hold, saved, removed, titleFocused }: PaneProps) {
+function NotePane({ client, partition, noteId, owner, focusTitle, shown, side, overlay, walletChainId, encrypted, hold, saved, removed, titleFocused }: PaneProps) {
     const scope = useMemo(() => ({ ...partition, noteId }), [partition, noteId])
     const pane = useMemo<NotesPane>(() => ({
         hold: (source, unsaved) => hold(noteId, source, unsaved), saved: () => saved(value => value + 1),
         deleted: published => removed(noteId, published), focusTitle, titleFocused: () => titleFocused(null), shown, side, overlay,
     }), [noteId, focusTitle, shown, side, overlay, hold, saved, removed, titleFocused])
     // Guests write local drafts too; a note without one opens in the public reader.
-    return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} walletChainId={walletChainId} />
+    return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} walletChainId={walletChainId} encrypted={encrypted} />
         : <DraftEditor store={store} scope={scope} onSaved={noop} remote={<PublicNote id={noteId} client={client} owner={null}
             share={note => <NoteSharePopover note={note} client={client} store={store} owner={null} onChanged={noop} />}>
             {(note, _refresh, previewRoot) => note.mode >= 3 && <NoteSidePanel note={note} client={client} owner={null} store={store} previewRoot={previewRoot} />}

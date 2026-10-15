@@ -17,6 +17,8 @@ import type { NotesIdentityController } from './controller'
 import { identityIntentScope, identityVerification, identityIntentEvidence } from './requestRecovery'
 export { identityIntentScope } from './requestRecovery'
 
+/** The signing driver's label for an identity setup (tray, notifications, and the panel's "still with the driver" check). */
+export const IDENTITY_SETUP_LABEL = 'Set up Notes identity'
 export interface IdentityQuoteInput { chainId: string; messages: AminoMsg[]; requestDigest: string; height: string }
 export type IdentityQuoteProvider = (input: IdentityQuoteInput) => Promise<NotesQuote>
 export interface IdentityRequestOptions {
@@ -74,7 +76,7 @@ export async function prepareIdentitySetupRequest(options: IdentityRequestOption
     await assertFeeStillCovers(quote.networkFeeUgnot, () => freshFeeForGasWanted(quote.gasWanted)); enabled()
   }
   return {
-    title: plan.migrationPartial ? 'Move Notes identity to Vault' : 'Set up Notes identity',
+    title: plan.migrationPartial ? 'Move Notes identity to Vault' : IDENTITY_SETUP_LABEL,
     summary: `Register ${plan.mode === 'vault' ? 'Vault' : 'Standard'} encryption identity, generation ${plan.generation}`,
     lines: () => [
       ['Account', owner], ['Network', client.chainId], ['Identity generation', plan.generation.toString()],
@@ -87,7 +89,7 @@ export async function prepareIdentitySetupRequest(options: IdentityRequestOption
       : plan.mode === 'standard' ? ['A matching wallet unlock signature can recover this identity from its on-chain backup. Keep your Notes recovery phrase and encrypted recovery file.']
         : ['Keep your Notes recovery phrase and encrypted recovery file. Losing them can permanently lose access.'],
     acks: ['I saved the Notes recovery phrase and encrypted recovery file separately.'],
-    label: () => 'Set up Notes identity', prepare: () => ({ msgs: structuredClone(messages) }), recheck,
+    label: () => IDENTITY_SETUP_LABEL, prepare: () => ({ msgs: structuredClone(messages) }), recheck,
     send: async (_choice, beforeSign) => {
       reviewed(); if (attempted) throw new NotesChainError('stale'); attempted = true
       saved(await intents.begin(input, guard)); begun = true

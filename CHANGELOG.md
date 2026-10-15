@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: read private notes (#1636, 2026-10-15)
+- A private note opens in a private reader, only for a connected account where private notes are open (onyx-1 with every switch on). It checks first, without any key or wallet, that this account has an envelope in the note's current epoch; otherwise it says "You don't have access to this private note". Locked, it offers an explicit Unlock (or the recovery phrase) with the window's key; unlocked, it decrypts the title and body into the read-only Markdown preview. Guests, gnoland-1 and builds without the switch keep the plain "Private note" placeholder.
+- A "Shared with me" group in the Notes sidebar lists the private notes shared with the account ("Private note" while locked); unlocked, their titles are decrypted in one key use. Decrypted titles and text live only in the reader and the list, never on the desk, in the address or in telemetry, and are cleared on Lock, Shell lock, account or network switch, page hide and window close.
+- Ported the reviewed private reader (`lib/notes/private/{schema,engine,reader}`) to the per-network realm, reading only, with real-crypto tests and a sealed golden fixture. All of it stays in the lazy `privateNotes` chunk.
+- Key setup panel: a setup hidden while Adena still holds it now counts as in flight until its request settles, and setup receipts the chain has moved past are no longer read again on every panel open.
+
 ### Notes: private key setup, unlock and lock (#1635, 2026-10-15)
 - A "Private notes" entry in the Notes sidebar, only for a connected account where private notes are open (onyx-1 with every switch on; never guests, never gnoland-1). Its UI and CSS load only with the lazy `privateNotes` chunk.
 - One guided sheet sets up the key: what it does and its cost shown once (≈1.45 GNOT locked, at most 1.8 GNOT, network fee at most ≈0.07 GNOT), a balance check before any signature, Standard mode with two matching Adena unlock signatures (with Stop waiting), the 24-word recovery phrase shown then re-entered (paste allowed), a recovery file named per attempt, and one RegisterKey + SetSeedBackup transaction through the OS signing sheet.
