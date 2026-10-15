@@ -37,7 +37,8 @@ export function PrivateDelete({ note, client, store, owner, walletChainId, repor
         // eslint-disable-next-line react-hooks/exhaustive-deps -- One review per note revision (the sheet is keyed by it).
     }, [session, client, owner, store])
     const wrongNetwork = !!walletChainId && walletChainId !== client.chainId
-    const short = !!costs && costs.fee !== null && costs.balance !== null && costs.balance < BigInt(costs.fee)
+    // As the other private flows: against the written maximum (the deposit cap) plus the network fee.
+    const total = BigInt(budget.suggestedCapUgnot) + BigInt(costs?.fee ?? 0), short = !!costs && costs.balance !== null && costs.balance < total
     async function remove() {
         if (busy || !costs || wrongNetwork || short) return
         setBusy(true); setProblem('')
@@ -68,7 +69,7 @@ export function PrivateDelete({ note, client, store, owner, walletChainId, repor
             {costs?.draft && <div><dt>On this device</dt><dd>Your encrypted draft of this note is removed from this device once the deletion is confirmed.</dd></div>}
         </dl>
         {wrongNetwork && <p className="os-notes-field-error" role="alert"><b>Adena is on {walletChainId}, this note lives on {client.chainId}.</b> Switch Adena to {client.chainId}, then delete.</p>}
-        {short && <p className="os-notes-field-error" role="alert"><b>The network fee can be up to {gnotAmount(costs!.fee!)}; your balance is {gnotAmount(String(costs!.balance))}.</b> Nothing was sent.</p>}
+        {short && <p className="os-notes-field-error" role="alert"><b>This can cost up to {gnotAmount(String(total))}; your balance is {gnotAmount(String(costs!.balance))}.</b> Nothing was sent.</p>}
         {problem && <p className="os-notes-field-error" role="alert">{problem}</p>}
         <div className="os-notes-sheet-actions">
             <button type="button" className="os-btn os-quiet" disabled={busy} onClick={onClose}>Keep the note</button>

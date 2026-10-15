@@ -51,9 +51,9 @@ function client(): NotesReadClient {
         simulateRaw: async () => { throw new Error('offline') } } as unknown as NotesReadClient
 }
 /** As PrivateNoteView renders it: only while the key is unlocked. */
-function Harness({ reader }: { reader: NotesReadClient }) {
+function Harness({ reader, onUnsaved }: { reader: NotesReadClient; onUnsaved?(): void }) {
     const now = useSyncExternalStore(controller.subscribe, () => controller.getSnapshot().phase)
-    return now === 'unlocked' ? <PrivateDraftEditor store={store} client={reader} controller={controller} owner={owner} note={note} published={published} onClose={() => {}} /> : <p>Locked</p>
+    return now === 'unlocked' ? <PrivateDraftEditor store={store} client={reader} controller={controller} owner={owner} note={note} published={published} onClose={() => {}} onUnsaved={onUnsaved} /> : <p>Locked</p>
 }
 /** Every record of the device's Notes database, as the text an attacker with the disk would see. */
 async function disk(): Promise<string> {
@@ -70,8 +70,8 @@ async function stored() {
     expect(record.payload.kind).toBe('encrypted')
     return { record, text: openPrivateDraft(scope, BigInt(record.localRevision), 1n, identity, (record.payload as { envelope: Uint8Array }).envelope) }
 }
-async function opened(reader = client()) {
-    render(<Harness reader={reader} />)
+async function opened(reader = client(), onUnsaved?: () => void) {
+    render(<Harness reader={reader} onUnsaved={onUnsaved} />)
     return await screen.findByLabelText('Markdown editor', {}, { timeout: 3000 })
 }
 beforeEach(() => { indexedDB = new IDBFactory(); store = createNotesStore({ indexedDB }); phase = 'unlocked'; listeners.clear(); io.open = true; vi.clearAllMocks(); io.sign.mockReturnValue(true) })
@@ -105,6 +105,23 @@ describe('editing a private note on this device', () => {
         act(() => { phase = 'locked'; listeners.forEach(fn => fn()) })
         expect(screen.queryByLabelText('Markdown editor')).toBeNull(); expect(document.body.textContent).not.toContain(TYPED)
         await waitFor(async () => expect((await stored()).text.body).toBe(TYPED))
+        for (const trace of traces(TYPED)) expect(await disk()).not.toContain(trace)
+    })
+    it('keeps the text of a leftover unencrypted copy (it may hold unpublished edits): encrypted as it is, never replaced by the published text', async () => {
+        expect((await store.saveDraft(scope, '0', { kind: 'public', title: published.title, body: TYPED }, createDraftSession())).status).toBe('saved')
+        expect(await opened()).toHaveValue(TYPED)
+        expect(screen.getByText('The unencrypted copy of this note on this device is now encrypted, with its text kept.')).toBeVisible()
+        expect((await stored()).text).toEqual({ title: published.title, body: TYPED, mode: 0, base: { stateRevision: '1', epoch: '1', ownerGeneration: '1', titleRevision: '1', bodyRevision: '1' } })
+        for (const trace of traces(TYPED)) expect(await disk()).not.toContain(trace)
+    })
+    it('says so when the save at a lock cannot land (another window saved meanwhile): nothing is stored unencrypted', async () => {
+        const unsaved = vi.fn(), editor = await opened(client(), unsaved), { record } = await stored()
+        const other = sealPrivateDraft(scope, BigInt(record.localRevision) + 1n, 1n, identity.publicKey, { title: 'Other window', body: 'Saved elsewhere', mode: 0 })
+        expect((await store.saveDraft(scope, record.localRevision, { kind: 'encrypted', envelope: other }, createDraftSession())).status).toBe('saved')
+        fireEvent.change(editor, { target: { value: TYPED } })
+        act(() => { phase = 'locked'; listeners.forEach(fn => fn()) })
+        await waitFor(() => expect(unsaved).toHaveBeenCalledOnce())
+        expect((await stored()).text.body).toBe('Saved elsewhere')
         for (const trace of traces(TYPED)) expect(await disk()).not.toContain(trace)
     })
     it('saves nothing once private notes close: the edits are dropped, never stored unencrypted', async () => {

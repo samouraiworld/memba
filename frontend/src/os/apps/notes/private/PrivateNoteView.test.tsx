@@ -22,11 +22,11 @@ import { SharedWithMe } from './SharedWithMe'
 
 // The real key controller, unlocked from the real Standard backup (only the KDF and Adena's signature are mocked),
 // and a note sealed with real X-Wing wraps and content AEAD for that key.
-const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), open: true, sign: vi.fn() }))
+const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), open: true, sign: vi.fn(), balance: null as string | null }))
 vi.mock('../../../sign/signerContext', () => ({ useSigner: () => ({ sign: io.sign }) }))
 vi.mock('../../../../lib/grc20', async original => ({ ...await original<typeof import('../../../../lib/grc20')>(), freshFeeForGasWanted: async (gas: number) => Math.ceil(gas * 1.2 / 1000),
     assertFeeStillCovers: async () => {}, doContractBroadcast: async (_msgs: unknown, _memo: string, options: { beforeSign(): Promise<unknown> }) => { await options.beforeSign(); return { hash: 'aa'.repeat(32) } } }))
-vi.mock('../../../../lib/dao/packageStatus', () => ({ abciQueryText: async (_ctx: unknown, path: string) => { if (path === 'params/vm:p:storage_price') return '"100ugnot"'; throw new Error('offline') } }))
+vi.mock('../../../../lib/dao/packageStatus', () => ({ abciQueryText: async (_ctx: unknown, path: string) => { if (path === 'params/vm:p:storage_price') return '"100ugnot"'; if (path.startsWith('bank/balances/') && io.balance !== null) return JSON.stringify(io.balance); throw new Error('offline') } }))
 vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => io.kdf(...args) }))
 vi.mock('../../../../lib/notes/crypto/signer', () => ({ requestNotesUnlock: (...args: unknown[]) => io.unlock(...args) }))
 vi.mock('../../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../../lib/notes/config')>(),
@@ -66,7 +66,7 @@ function show(reader = client()) {
         <nav aria-label="Notes list"><SharedWithMe controller={controller} client={reader} owner={owner} selected={null} onOpen={() => {}} /></nav></StrictMode>)
 }
 beforeEach(() => {
-    vi.clearAllMocks(); io.open = true; controller = undefined as unknown as NotesIdentityController; seal()
+    vi.clearAllMocks(); io.open = true; io.balance = null; controller = undefined as unknown as NotesIdentityController; seal()
     io.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
     io.unlock.mockImplementation(async () => ({ ikm: hexToBytes(golden.materialHex), publicKey: new Uint8Array(33) }))
 })
@@ -206,6 +206,14 @@ describe('editing and this device\'s private drafts (D2)', () => {
         io.open = false; fireEvent.click(screen.getByRole('button', { name: 'Delete with Adena' }))
         expect(await screen.findByText('Private notes are not available on this network right now. Nothing was sent.')).toBeVisible()
         await new Promise(resolve => setTimeout(resolve, 50)); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('refuses a balance below the written maximum (cap + network fee), as the other private flows do', async () => {
+        own(); io.balance = '150000ugnot'
+        const reader = client(); Object.assign(reader, { writersRaw: async () => [] })
+        edit(reader)
+        fireEvent.click(await screen.findByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Delete note…' }))
+        expect(await screen.findByText(/This can cost up to 0\.22 GNOT; your balance is 0\.15 GNOT\./)).toBeVisible()
+        expect(screen.getByRole('button', { name: 'Delete with Adena' })).toBeDisabled(); expect(io.sign).not.toHaveBeenCalled()
     })
     it('offers Delete to no one but the owner', async () => {
         edit()

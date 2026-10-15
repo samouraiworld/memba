@@ -11,6 +11,7 @@ import type { NotesQuoteProvider } from './request'
 import { accessMessage, type AccessOperation } from './accessMessages'
 import { accessBudget, accessQuote } from './accessQuote'
 import { prepareAccessRequest, recoverAccessIntent, type AccessRequestOptions } from './accessRequest'
+import { recoverPrivateIntent } from '../privateNotes'
 
 // PR D2b: deleting a private note (owner only), ported from the reviewed 10-09 access path, Delete only.
 const wallet = vi.hoisted(() => ({ send: vi.fn(), fee: vi.fn(), price: vi.fn() }))
@@ -35,7 +36,7 @@ function setup(patch: Partial<ChainNote> = {}) {
   const options: AccessRequestOptions = { client, operation, maxDepositUgnot: '100000', session, intents, quote, isWriteEnabled: () => true }
   /** The note as the realm leaves it (notes.gno mutateDelete). */
   const deleted = (extra: Partial<ChainNote> = {}) => { note = { ...note, stateRevision: '4', deleted: true, listed: false, ownerListed: false, title: new Uint8Array(), bodyBytes: 0, commitment: new Uint8Array(), pendingOwner: '', govWriters: false, operationId, actor: owner, height: '101', ...extra } }
-  return { client, intents, session, options, deleted, scope: { chainId: 'test-chain', realm: NOTES_REALM, owner, noteId } }
+  return { client, store, intents, session, options, deleted, scope: { chainId: 'test-chain', realm: NOTES_REALM, owner, noteId } }
 }
 beforeEach(() => {
   vi.clearAllMocks(); gate.open = true; wallet.fee.mockResolvedValue(120_000); wallet.price.mockResolvedValue('"100ugnot"')
@@ -119,5 +120,19 @@ describe('private Delete signing flow', () => {
     expect(await recoverAccessIntent(s.client, s.intents, intent, s.session)).toBe('unknown')
     s.deleted(); expect(await recoverAccessIntent(s.client, s.intents, intent, s.session)).toBe('confirmed')
     expect(wallet.send).toHaveBeenCalledOnce()
+  })
+  it('a deletion confirmed later by "Check outcome" also removes the encrypted draft, unless it changed after the deletion was prepared', async () => {
+    for (const changedLater of [false, true]) {
+      const s = setup(), envelope = new Uint8Array(1400).fill(3)
+      expect((await s.store.saveDraft(s.scope, '0', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
+      const request = await prepareAccessRequest(s.options)
+      wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('transport lost') })
+      await expect(request.send(undefined, async () => {})).rejects.toThrow('transport lost')
+      const intent = (await s.intents.get(s.scope, operationId))!
+      if (changedLater) { await new Promise(resolve => setTimeout(resolve, 5)); expect((await s.store.saveDraft(s.scope, '1', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved') }
+      s.deleted()
+      expect(await recoverPrivateIntent(s.client, s.intents, intent, s.session, s.store)).toBe('confirmed')
+      expect(await s.store.getDraft(s.scope)).toEqual(changedLater ? expect.objectContaining({ localRevision: '2' }) : null)
+    }
   })
 })

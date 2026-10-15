@@ -26,19 +26,23 @@ import { afterConfirmed, privateOpen, sealConfirmedDraft, type DraftKey } from '
 import { withKey } from './keyQueue'
 
 type Text = { title: string; body: string }
+/** The baseline of a creation draft: the note as its first publication wrote it. */
+const CREATED: DraftBase = { stateRevision: '1', epoch: '1', ownerGeneration: '1', titleRevision: '1', bodyRevision: '1' }
 type Opened = { revision: string; key: DraftKey; base: DraftBase; mode: 0 | 1 | 2 }
 type State = 'loading' | 'saved' | 'dirty' | 'saving' | 'conflict' | 'unavailable' | 'failed'
 export interface PrivateEditorProps {
     store: NotesStore; client: NotesReadClient; controller: NotesIdentityController; owner: string; walletChainId?: string
     /** The private note as read, and its decrypted text: the draft starts from it and Publish compares with it. */
     note: ChainNote; published: Text; report?: NoteReport; onClose(): void
+    /** The edits stored at unmount (a lock) could not be saved: the page says so, since this editor is gone. */
+    onUnsaved?(): void
 }
 /**
  * Editing a private note, rendered only while the key is unlocked. The text is kept on this device encrypted for the
  * account's registered key (a fresh data key per save, compare-and-swap on the local revision); only its public half is
  * needed to save, so a lock (which unmounts this editor) still stores the last edits encrypted, then drops the plaintext.
  */
-export function PrivateDraftEditor({ store, client, controller, owner, walletChainId, note, published, report, onClose }: PrivateEditorProps) {
+export function PrivateDraftEditor({ store, client, controller, owner, walletChainId, note, published, report, onClose, onUnsaved }: PrivateEditorProps) {
     const scope = useMemo(() => ({ chainId: client.chainId, realm: client.realm, owner, noteId: note.id }), [client, owner, note.id])
     const [session] = useState(createDraftSession), [keep] = useState(createDraftSession), pane = useNotesPane(), descriptionId = useId()
     const [text, setText] = useState<Text | null>(null), [state, setState] = useState<State>('loading'), [reload, setReload] = useState(0)
@@ -64,7 +68,7 @@ export function PrivateDraftEditor({ store, client, controller, owner, walletCha
         running.current = run.catch(() => false); return run
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Unmount (lock, Cancel, another note): the edits are stored encrypted first.
-    useLayoutEffect(() => () => { session.invalidate(); trackDraftFlush(scope, save()) }, [])
+    useLayoutEffect(() => () => { session.invalidate(); trackDraftFlush(scope, save().then(ok => { if (!ok) onUnsaved?.() }, () => onUnsaved?.())) }, [])
     useEffect(() => {
         const guard = session.capture(), generation = controller.getSnapshot().generation
         void (async () => {
@@ -80,14 +84,20 @@ export function PrivateDraftEditor({ store, client, controller, owner, walletCha
             }))
             if (guard.signal.aborted) return
             const o: Opened = { revision: slot.draft?.localRevision ?? slot.revision, key: { generation, publicKey: registered.publicKey.slice() }, base: value?.base ?? draftBase(note), mode: note.mode as 0 | 1 | 2 }
-            let current: Text = value ?? published
-            // No encrypted draft yet (a plaintext copy is replaced), or one that holds exactly the published text: it follows the note.
-            if (!value || (value.base?.stateRevision !== note.stateRevision && value.title === published.title && value.body === published.body)) {
-                current = published; o.base = draftBase(note)
+            // A plaintext copy left on this device (its replacement after publication was refused, so it may hold unpublished
+            // edits) becomes the encrypted draft with its own text, never the published text in its place.
+            const plain = slot.draft?.payload.kind === 'public' ? slot.draft.payload : null
+            const same = (text: Text) => trimPublicTitle(text.title) === published.title && text.body === published.body
+            const current: Text = value ?? (plain ? { title: plain.title, body: plain.body } : published)
+            // No encrypted draft yet, or one that holds exactly the published text: it follows the note.
+            if (!value || (value.base?.stateRevision !== note.stateRevision && same(value))) {
+                // A copy that differs from the note keeps its own baseline (a creation draft: revision 1), so "behind" asks first.
+                o.base = plain && !same(current) ? plain.base ?? CREATED : draftBase(note)
                 const result = await saveDraftBounded(store, scope, o.revision, sealed(o, current), guard)
                 if (guard.signal.aborted) return
                 if (result.status !== 'saved') { setState(result.status === 'conflict' ? 'conflict' : 'unavailable'); return }
                 o.revision = result.value.localRevision; pane?.saved()
+                if (plain) setNotice(same(current) ? 'The unencrypted copy of this note on this device was replaced by an encrypted one.' : 'The unencrypted copy of this note on this device is now encrypted, with its text kept.')
             }
             opened.current = o; draft.current = { ...current, changes: 0 }; stored.current = 0
             setText(current); setBehind(o.base.stateRevision === note.stateRevision ? null : o.base.stateRevision); setState('saved')
@@ -161,7 +171,7 @@ function problemText(error: unknown): string {
 }
 type Review = { operation: PrivateNoteOperation; note: ChainNote; sizes: PrivateCommitSizes; generation: string; cap: string; estimate: string; networkFee: number | null; balance: bigint | null; title?: number; body?: number }
 /** The review of a Commit: encrypted here, priced from M0 (simulation first at signing), then the OS signature sheet. */
-function PrivateCommit({ store, client, controller, owner, walletChainId, note, report, text, revision, draftKey, onBack, onSent }: Omit<PrivateEditorProps, 'published' | 'onClose'> & {
+function PrivateCommit({ store, client, controller, owner, walletChainId, note, report, text, revision, draftKey, onBack, onSent }: Omit<PrivateEditorProps, 'published' | 'onClose' | 'onUnsaved'> & {
     text: Text; revision: string; draftKey: DraftKey; onBack(): void; onSent(): void
 }) {
     const signer = useSigner(), pane = useNotesPane(), [session] = useState(createDraftSession)
@@ -215,7 +225,7 @@ function PrivateCommit({ store, client, controller, owner, walletChainId, note, 
         {review && <dl className="os-notes-facts">
             <div><dt>What changes</dt><dd>The new version of {fields}, encrypted in this browser. Only the people who can open this note can read it.</dd></div>
             <div><dt>Public on the network</dt><dd>That revision {Number(review.note.stateRevision) + 1} exists, its encrypted sizes ({[review.title !== undefined && `title ${review.title} bytes`, review.body !== undefined && `text ${review.body} bytes`].filter(Boolean).join(', ')}) and when. Not the title or the text.</dd></div>
-            <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {gnotAmount(review.estimate)}</strong> locked as storage deposit, for the extra size only; no publication fee. Encrypted notes keep no earlier versions.
+            <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {gnotAmount(review.estimate)}</strong> locked as storage deposit, for the extra size only; no publication fee. The note keeps no earlier versions in its storage (earlier encrypted versions stay in chain history).
                 <small>At most {gnotAmount(review.cap)}, written in the transaction. Network fee at most {review.networkFee === null ? 'what Adena shows' : gnotAmount(review.networkFee)}; Adena usually charges less.</small></dd></div>
         </dl>}
         {walletProblem && <p className="os-notes-field-error" role="alert">{walletProblem}</p>}

@@ -86,7 +86,8 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
     const shown = phase === 'unlocked' && opened?.note === note.id ? opened : null
     const writable = !!store && !!known && 'writer' in known && (known.writer || note.owner === owner) && !shown?.exposed
     if (editing && shown && writable && store) return <PrivateDraftEditor key={`${generation}:${note.stateRevision}`} store={store} client={client} controller={controller} owner={owner} walletChainId={walletChainId}
-        note={note} published={{ title: shown.title, body: shown.body }} report={report} onClose={() => setEditing(false)} />
+        note={note} published={{ title: shown.title, body: shown.body }} report={report} onClose={() => setEditing(false)}
+        onUnsaved={() => setNotice('Your last edits could not be stored encrypted on this device (another window changed the draft, storage refused, or private notes closed). The previous encrypted save is kept; nothing was stored unencrypted.')} />
     /** Removes this device's encrypted draft at the revision read before asking (compare-and-swap), without decrypting it. */
     async function removeDraft() {
         const revision = draft
