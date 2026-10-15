@@ -23,9 +23,11 @@ export interface PrivateReadersProps {
     /** Lifetime of a signed change's confirmation; the workspace's, so a remount never cancels it. */
     requestSession?: DraftSession
 }
-type Review = { kind: 'add' | 'remove'; who: string; name?: string; action: PrivateNoteAction; note: ChainNote; base: PrivateCommitSizes | PrivateAccessBase
+type Review = { kind: 'add' | 'remove'; who: string | null; name?: string; off: string[]; action: PrivateNoteAction; note: ChainNote; base: PrivateCommitSizes | PrivateAccessBase
     generation: string; cap: string; estimate: string; fee: number | null; balance: bigint | null; remaining: number }
 class Refusal extends Error {}
+/** Adding is refused while some holder's key is turned off (the realm validates every envelope): offer to remove them. */
+class KeysOff extends Refusal {}
 const MAX_READERS = 32
 
 /**
@@ -44,7 +46,7 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
     const signer = useSigner(), { phase, generation } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
     const [readers, setReaders] = useState<string[] | null>(null), [failed, setFailed] = useState(false), [reload, retry] = useState(0)
     const [input, setInput] = useState(''), [busy, setBusy] = useState(false), [signing, setSigning] = useState(false)
-    const [prepared, setReview] = useState<Review | null>(null), [problem, setProblem] = useState('')
+    const [prepared, setReview] = useState<Review | null>(null), [problem, setProblem] = useState(''), [keysOff, setKeysOff] = useState(false)
     // This list's own session: it ends with the list (another revision, account, network, a closed window).
     const [life] = useState(createDraftSession)
     useLayoutEffect(() => () => life.invalidate(), [life])
@@ -57,7 +59,8 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         void withTimeout(client.readersRaw(note.id)).then(raw => { if (alive) { setReaders(parseReaders(raw)); setFailed(false) } }, () => { if (alive) setFailed(true) })
         return () => { alive = false }
     }, [client, note.id, reload])
-    async function prepare(signal: AbortSignal, kind: 'add' | 'remove', who: string, name?: string, added?: ChainKey) {
+    /** `who` null: remove only the holders whose private-notes key is turned off. */
+    async function prepare(signal: AbortSignal, kind: 'add' | 'remove', who: string | null, name?: string, added?: ChainKey) {
         const generation = controller.getSnapshot().generation
         if (!generation || controller.getSnapshot().phase !== 'unlocked') throw new NotesChainError('session')
         const pending = await withTimeout(new NotesIntents(store).list({ chainId: client.chainId, realm: client.realm, owner }))
@@ -67,12 +70,16 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         if (!fresh || fresh.deleted || fresh.mode > 1 || fresh.owner !== owner || fresh.stateRevision !== note.stateRevision) throw new NotesChainError('stale')
         const [epoch, previousManifest] = await withTimeout(Promise.all([client.epochMetadataRaw(fresh.id, fresh.epoch), readPrivateAccess(client, fresh, signal)]))
         const current = decodeManifest(previousManifest, Number(fresh.epoch)).map(entry => ({ who: bech32Encode('g', entry.address), writer: entry.writer }))
-        const kept = current.filter(entry => kind === 'add' || entry.who !== who)
-        // Every envelope is made again for its holder's registry key now: one that is turned off cannot be included.
-        const keys = await withTimeout(Promise.all(kept.map(entry => client.key(entry.who))))
-        const off = kept.filter((_, i) => !keys[i].active)
-        if (off.length) throw new Refusal(`${off.map(entry => shortAddress(entry.who)).join(', ')} turned off their private key. Remove them first.`)
-        const recipients = [...kept.map((entry, i) => ({ key: keys[i], writer: entry.writer })), ...added ? [{ key: added, writer: false }] : []]
+        // Every envelope is made again for its holder's registry key now, and the realm accepts only active keys. A removal
+        // therefore also drops every holder whose key is turned off (named in the review); an addition cannot (ApplyAccess
+        // never removes anyone), so it is refused with the way out.
+        const others = current.filter(entry => entry.who !== who)
+        const keys = await withTimeout(Promise.all(others.map(entry => client.key(entry.who))))
+        const off = others.filter((entry, i) => !keys[i].active && entry.who !== owner).map(entry => entry.who)
+        if (kind === 'add' && off.length) throw new KeysOff(`${off.map(shortAddress).join(', ')} turned off their private-notes key, so nobody can be added until they are removed. Nothing was sent.`)
+        if (who === null && !off.length) throw new NotesChainError('stale')
+        const kept = others.map((entry, i) => ({ ...entry, key: keys[i] })).filter(entry => !off.includes(entry.who))
+        const recipients = [...kept.map(entry => ({ key: entry.key, writer: entry.writer })), ...added ? [{ key: added, writer: false }] : []]
         const access = { kind: 'identity' as const, owner, identity: controller }
         let action: PrivateNoteAction, base: PrivateCommitSizes | PrivateAccessBase
         if (kind === 'add') {
@@ -88,13 +95,13 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         const operation = { chainId: client.chainId, caller: owner, noteId: fresh.id, operationId: newNoteId(), action }
         const budget = privateNoteBudget(privateNoteMessage(operation, client.realm, '0', { note: fresh, epoch: parseEpochPage(epoch, fresh.epoch) }), base)
         const [fee, balance] = await Promise.all([freshFeeForGasWanted(budget.gasWanted).catch(() => null), balanceOf(client.chainId, owner)])
-        if (!signal.aborted) setReview({ kind, who, name, action, note: fresh, base, generation, cap: budget.suggestedCapUgnot, estimate: budget.estimatedDepositUgnot, fee, balance, remaining: recipients.length - 1 })
+        if (!signal.aborted) setReview({ kind, who, name, off, action, note: fresh, base, generation, cap: budget.suggestedCapUgnot, estimate: budget.estimatedDepositUgnot, fee, balance, remaining: recipients.length - 1 })
     }
     async function run(step: (signal: AbortSignal) => Promise<void>) {
         if (busy) return
         const { signal } = life.capture()
-        setBusy(true); setProblem(''); setDone('')
-        try { await step(signal) } catch (error) { if (!signal.aborted) setProblem(problemText(error)) } finally { if (!signal.aborted) setBusy(false) }
+        setBusy(true); setProblem(''); setKeysOff(false); setDone('')
+        try { await step(signal) } catch (error) { if (!signal.aborted) { setProblem(problemText(error)); setKeysOff(error instanceof KeysOff) } } finally { if (!signal.aborted) setBusy(false) }
     }
     const add = () => run(async signal => {
         const target = await resolveRecipient(input)
@@ -122,7 +129,7 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
                 reviewed: current.note, maxDepositUgnot: current.cap, draftLocalRevision: '0', session, intents: new NotesIntents(store), quote: privateNoteQuote(client, current.cap, current.base),
                 isWriteEnabled: () => !!notesDeployment(client.chainId), isPrivateSessionCurrent: () => !lease.signal.aborted, privateSignal: lease.signal })
             const request = await withTimeout(pending).catch(error => { void pending.then(late => late.onDismissed?.(), () => {}); throw error })
-            const { onSettled, onDismissed } = request, next = String(BigInt(current.note.stateRevision) + 1n), who = current.name ? `@${current.name}` : shortAddress(current.who)
+            const { onSettled, onDismissed } = request, next = String(BigInt(current.note.stateRevision) + 1n), who = [current.who && (current.name ? `@${current.name}` : shortAddress(current.who)), ...current.off.map(shortAddress)].filter(Boolean).join(', ')
             request.onDismissed = () => { stop(); onDismissed?.(); if (!signal.aborted) setSigning(false) }
             request.onSettled = (outcome, choice) => {
                 stop(); onSettled?.(outcome, choice)
@@ -143,7 +150,7 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
     const others = readers?.filter(who => who !== note.owner) ?? []
     const walletProblem = walletChainId && walletChainId !== client.chainId ? `Adena is on ${walletChainId}, this note lives on ${client.chainId}. Switch Adena to ${client.chainId} first.` : ''
     const total = review && BigInt(review.cap) + BigInt(review.fee ?? 0), short = !!review && total !== null && review.balance !== null && review.balance < total
-    const target = review && (review.name ? `@${review.name} (${shortAddress(review.who)})` : shortAddress(review.who))
+    const target = review?.who ? review.name ? `@${review.name} (${shortAddress(review.who)})` : shortAddress(review.who) : null
     return <section className="os-notes-share-part" aria-label="Who can read">
         <h3 className="os-notes-share-k">Who can read</h3>
         {failed ? <><p role="alert">Who can read this note could not be checked.</p><button type="button" className="os-btn os-quiet" onClick={() => retry(n => n + 1)}>Retry</button></>
@@ -160,12 +167,15 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         </form>}
         {manage && <p className="os-notes-share-note">A reader’s address becomes public on the network, as a reader of this note. They need their own private notes key.</p>}
         {review && <div className="os-notes-share-review" role="group" aria-label={review.kind === 'add' ? 'Share review' : 'Removal review'}>
-            <p><b>{review.kind === 'add' ? `Share with ${target}?` : `Remove ${target}?`}</b></p>
+            <p><b>{review.kind === 'add' ? `Share with ${target}?` : target ? `Remove ${target}?` : 'Remove the readers whose key is turned off?'}</b></p>
             <dl className="os-notes-facts">
                 {review.kind === 'add' ? <>
                     <div><dt>What they can read</dt><dd>This note as it is now, and its earlier versions since its key last changed (they stay in chain history). Not versions from before that.</dd></div>
                     <div><dt>Public on the network</dt><dd>Their address, as a reader of this note. Not the title or the text.</dd></div>
-                </> : <div><dt>What changes</dt><dd>They keep what they already read; new versions are hidden from them. The note gets a new key, and its current text is encrypted again for {review.remaining ? `you and ${review.remaining === 1 ? 'the other reader' : `the ${review.remaining} other readers`}` : 'you only'}.</dd></div>}
+                </> : <>
+                    {review.off.length > 0 && <div><dt>Also removed</dt><dd>{review.off.map(shortAddress).join(', ')}, because their private-notes key is turned off: a new key cannot be made for them.</dd></div>}
+                    <div><dt>What changes</dt><dd>They keep what they already read; new versions are hidden from them. The note gets a new key, and its current text is encrypted again for {review.remaining ? `you and ${review.remaining === 1 ? 'the other reader' : `the ${review.remaining} other readers`}` : 'you only'}. Added back later, a reader can read only the versions from then on.</dd></div>
+                </>}
                 <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {approxGnot(review.estimate)}</strong> locked as storage deposit; no publication fee.
                     <small>At most {gnotAmount(review.cap)}, written in the transaction. Network fee at most {review.fee === null ? 'what Adena shows' : gnotAmount(review.fee)}; Adena usually charges less.</small></dd></div>
             </dl>
@@ -180,6 +190,7 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         {signing && <p className="os-notes-share-progress" role="status"><span className="os-spin" aria-hidden="true" /> Waiting for your signature in the review sheet and Adena…</p>}
         {done && <p className="os-notes-share-done" role="status">{done}</p>}
         {problem && <p className="os-notes-field-error" role="alert">{problem}</p>}
+        {keysOff && manage && unlocked && !review && <button type="button" className="os-btn os-quiet" disabled={busy || signing} onClick={() => void run(signal => prepare(signal, 'remove', null))}>Remove them…</button>}
     </section>
 }
 function problemText(error: unknown): string {

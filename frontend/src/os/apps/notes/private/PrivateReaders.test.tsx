@@ -36,12 +36,15 @@ vi.mock('../../../../lib/notes/config', async original => ({ ...await original<t
 vi.mock('../../../../lib/notes/render', () => ({ createNotesRenderer: () => ({ render: async (body: string) => ({ kind: 'text', text: body, reason: 'timeout', truncated: false }), dispose: () => {} }) }))
 
 const owner = bech32Encode('g', hexToBytes(golden.addressHex)), reader = bech32Encode('g', new Uint8Array(20).fill(5)), nokey = bech32Encode('g', new Uint8Array(20).fill(6))
+/** Readers whose private-notes key was turned off after the note was shared with them. */
+const off1 = bech32Encode('g', new Uint8Array(20).fill(7)), off2 = bech32Encode('g', new Uint8Array(20).fill(8))
+const newcomer = bech32Encode('g', new Uint8Array(20).fill(9)), newcomerKey = identityFromSeed(new Uint8Array(32).fill(13)).publicKey
 const publicKey = blob(golden.publicKeyBase64, 1216), readerKey = identityFromSeed(new Uint8Array(32).fill(3)).publicKey, noteId = 'cd'.repeat(16)
 const key = (address: string, pk: Uint8Array) => ({ address, generation: '1', active: true, publicKey: pk, operationId: '11'.repeat(16), height: '5' })
 let note: ChainNote, manifest: Uint8Array, controller: NotesIdentityController, store: NotesStore
 /** A note of `noteOwner`, sealed for its owner and `readers`. */
 function seal(noteOwner = owner, readers: string[] = []) {
-    const keys: Record<string, Uint8Array> = { [owner]: publicKey, [reader]: readerKey }
+    const keys: Record<string, Uint8Array> = { [owner]: publicKey, [reader]: readerKey, [off1]: identityFromSeed(new Uint8Array(32).fill(11)).publicKey, [off2]: identityFromSeed(new Uint8Array(32).fill(12)).publicKey }
     const sealed = prepareEncryptedEpoch({ chainId: golden.chainId, realm: NOTES_REALM, noteId, epoch: 1, titleRevision: 1n, bodyRevision: 1n, mode: readers.length ? 1 : 0, owner: noteOwner,
         recipients: [{ key: key(noteOwner, keys[noteOwner]), writer: true }, ...readers.map(who => ({ key: key(who, keys[who]), writer: false }))], title: 'Tuna tataki', body: 'Sear **30 seconds** a side.' })
     manifest = sealed.manifest
@@ -52,12 +55,14 @@ function client(): NotesReadClient {
     const entries = () => decodeManifest(manifest, 1)
     return { chainId: golden.chainId, realm: NOTES_REALM, assertCurrent: () => {}, height: async () => '10',
         config: async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false }),
-        key: async (who: string) => who === owner ? key(owner, publicKey) : who === reader ? key(reader, readerKey) : { address: who, generation: '0', active: false, publicKey: new Uint8Array(), operationId: '', height: '0' },
+        key: async (who: string) => who === owner ? key(owner, publicKey) : who === reader ? key(reader, readerKey) : who === newcomer ? key(newcomer, newcomerKey)
+            : [off1, off2].includes(who) ? { address: who, generation: '1', active: false, publicKey: new Uint8Array(), operationId: '11'.repeat(16), height: '6' }
+            : { address: who, generation: '0', active: false, publicKey: new Uint8Array(), operationId: '', height: '0' },
         seedBackupRaw: async () => ({ mode: 1, suite: 'xwing-v1', generation: '1', revision: '1', public_key_hash: encode64(hexToBytes(golden.publicKeyHashHex)), op_id: '11'.repeat(16), actor: owner, height: '5', record: golden.recordBase64 }),
         note: async () => note, noteMetadata: async () => note, readersRaw: async () => entries().map(entry => bech32Encode('g', entry.address)),
         wrapRaw: async (_id: string, _epoch: string, who: string) => {
             const entry = entries().find(e => bech32Encode('g', e.address) === who)
-            return entry ? { address: who, epoch: '1', writer: entry.writer, generation: '1', public_key_hash: encode64(sha256(who === owner ? publicKey : readerKey)), wrap: encode64(entry.wrap) } : null
+            return entry ? { address: who, epoch: '1', writer: entry.writer, generation: '1', public_key_hash: encode64(entry.publicKeyHash), wrap: encode64(entry.wrap) } : null
         },
         epochMetadataRaw: async () => ({ items: [{ epoch: '1', commitment: encode64(note.commitment), revealed_key: '' }], next_cursor: '1' }),
         sharedWith: vi.fn(async () => ({ items: [], nextCursor: '' })),
@@ -141,6 +146,39 @@ describe('Who can read (owner)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Lock' }))
         await waitFor(() => expect(part.queryByRole('group', { name: 'Share review' })).toBeNull())
         expect(io.sign).not.toHaveBeenCalled()
+    })
+})
+
+describe('Who can read with readers whose key is turned off (review P2: no deadlock)', () => {
+    it('removing an active reader also removes every turned-off one, named in the review and the signing sheet', async () => {
+        seal(owner, [reader, off1, off2]); show()
+        const part = await openShare()
+        fireEvent.click(await part.findByTitle(reader).then(row => within(row.parentElement!).getByRole('button', { name: 'Remove…' })))
+        const review = within(await part.findByRole('group', { name: 'Removal review' }))
+        expect(review.getByText(/because their private-notes key is turned off/)).toHaveTextContent(`${off1.slice(0, 5)}…${off1.slice(-4)}, ${off2.slice(0, 5)}…${off2.slice(-4)}`)
+        fireEvent.click(review.getByRole('button', { name: 'Remove with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(message.value.func).toBe('Rotate'); expect(message.value.args[3]).toBe('0')
+        expect(decodeManifest(blob(message.value.args[6], 41570), 2).map(entry => bech32Encode('g', entry.address))).toEqual([owner])
+        expect(request.lines(undefined)).toContainEqual(['Removes', reader])
+        expect(request.lines(undefined)).toContainEqual(['Also removed because their private-notes key is turned off', [off1, off2].join(', ')])
+    })
+    it('adding stays a pure ApplyAccess: refused with the way out, which removes only the turned-off readers', async () => {
+        seal(owner, [reader, off1, off2]); show()
+        const part = await openShare()
+        fireEvent.change(part.getByRole('textbox', { name: 'Add a reader' }), { target: { value: newcomer } })
+        fireEvent.click(part.getByRole('button', { name: 'Add…' }))
+        expect(await part.findByText(/turned off their private-notes key, so nobody can be added until they are removed/)).toBeVisible()
+        fireEvent.click(part.getByRole('button', { name: 'Remove them…' }))
+        const review = within(await part.findByRole('group', { name: 'Removal review' }))
+        expect(review.getByText('Remove the readers whose key is turned off?')).toBeVisible()
+        fireEvent.click(review.getByRole('button', { name: 'Remove with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(message.value.args[3]).toBe('1')
+        expect(decodeManifest(blob(message.value.args[6], 41570), 2).map(entry => bech32Encode('g', entry.address)).sort()).toEqual([owner, reader].sort())
+        expect(request.lines(undefined).some(([name]) => name === 'Removes')).toBe(false)
     })
 })
 

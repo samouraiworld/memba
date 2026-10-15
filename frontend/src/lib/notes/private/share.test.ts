@@ -260,6 +260,19 @@ describe('removing a reader (Rotate)', () => {
     expect(bytesToHex(keyCommitment(old, context('2')))).not.toBe(bytesToHex(s.note().commitment))
     expect(await s.read(C)).toEqual({ title: TITLE, body: BODY }); expect(await s.read(A)).toEqual({ title: TITLE, body: BODY })
   })
+  it('two turned-off readers never block a removal: one Rotate drops them with the chosen reader, and the sheet names them apart', async () => {
+    const s = setup([2, 3, 4]), previousManifest = await readPrivateAccess(s.client, s.note(), SIGNAL)
+    for (const address of [B, C]) s.registry.set(address, { ...s.registry.get(address)!, active: false, publicKey: new Uint8Array() })
+    // Keeping B or C is impossible (no active key to wrap for, and the realm validates every envelope).
+    await expect(sealRotation(s.client, s.note(), 1, [{ key: s.registry.get(A)!, writer: true }, { key: s.registry.get(B)!, writer: false }], s.access())).rejects.toThrow()
+    const prepared = await sealRotation(s.client, s.note(), 0, [{ key: s.registry.get(A)!, writer: true }], s.access())
+    const request = await s.run({ chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'rotate', prepared, previousManifest } })
+    expect(request.lines(undefined)).toContainEqual(['Removes', D])
+    expect(request.lines(undefined)).toContainEqual(['Also removed because their private-notes key is turned off', [B, C].join(', ')])
+    expect(s.note()).toMatchObject({ mode: 0, epoch: '2' }); expect(s.entries().map(entry => bech32Encode('g', entry.address))).toEqual([A])
+    for (const address of [B, C, D]) await expect(s.read(address)).rejects.toBeInstanceOf(PrivateNoteNoAccess)
+    expect(await s.read(A)).toEqual({ title: TITLE, body: BODY })
+  })
   it('removing the last reader makes the note Private (only me) again', async () => {
     const s = setup([2])
     await s.run((await s.revoke(B)).operation)

@@ -83,6 +83,18 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
     return { note, epoch, config }
   }
   const base = await state(), message: AminoMsg = privateNoteMessage(operation, client.realm, cap, base)
+  // A rotation also drops every holder whose private-notes key is turned off (the realm accepts only active keys): the
+  // sheet names them apart, from the registry as read now.
+  const off = new Set<string>()
+  if (action.kind === 'rotate') {
+    const kept = decodeManifest(action.prepared.manifest, action.prepared.epoch).map(entry => bech32Encode('g', entry.address))
+    for (const entry of decodeManifest(action.previousManifest, Number(base.note!.epoch))) {
+      const who = bech32Encode('g', entry.address)
+      if (kept.includes(who)) continue
+      const key = await client.key(who); current()
+      if (!key.active) off.add(who)
+    }
+  }
   const height = await client.height(); current()
   const quoteInput: NotesQuoteInput = { chainId: client.chainId, message, requestDigest: notesRequestDigest(client.chainId, message), height }
   const quote = copy(await options.quote(copy(quoteInput))); current(); validateNotesQuote(quote, quoteInput, cap)
@@ -107,7 +119,7 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
   // The readers this operation adds or removes (none for a create or an edit).
   const after = envelopes.map(entry => bech32Encode('g', entry.address))
   const before = action.kind === 'access' || action.kind === 'rotate' ? decodeManifest(action.previousManifest, Number(base.note!.epoch)).map(entry => bech32Encode('g', entry.address)) : after
-  const added = after.filter(who => !before.includes(who)), removed = before.filter(who => !after.includes(who))
+  const added = after.filter(who => !before.includes(who)), removed = before.filter(who => !after.includes(who)), chosen = removed.filter(who => !off.has(who))
   const changed = sealed ?? (action.kind === 'commit' ? action : null)
   const sizes = [changed?.title && `title ${changed.title.length} B`, changed?.body && `body ${changed.body.length} B`, manifest && `envelopes ${manifest.length} B`].filter(Boolean).join(', ')
   const others = (list: string[]) => list.filter(who => who !== operation.caller)
@@ -116,7 +128,7 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
     create: { title: 'Publish private note', summary: 'Publish an encrypted note that only you can read', pending: 'Waiting for this exact operation, its ciphertexts and your envelope on chain. Nothing is sent again.',
       warn: 'The storage deposit stays locked while the note exists: deleting it returns about half; the rest stays locked.', who: `Only you · your key, generation ${envelopes[0]?.generation}` },
     commit: { title: 'Publish private changes', summary: 'Publish encrypted changes to your private note', pending: 'Waiting for this exact operation, revision and ciphertexts on chain. Nothing is sent again.',
-      warn: 'Only the growth of the encrypted text is locked as deposit; the note keeps no earlier versions.', who: 'Unchanged by this edit' },
+      warn: 'Only the growth of the encrypted text is locked as deposit; the note keeps no earlier versions in its storage (earlier encrypted versions stay in chain history).', who: 'Unchanged by this edit' },
     access: { title: 'Share private note', summary: 'Share your private note with another reader', pending: 'Waiting for this exact operation, revision and envelopes on chain. Nothing is sent again.',
       warn: `${added.join(', ')} can read this note as it is now, and its earlier versions since its key last changed (they stay in chain history). Their address becomes public on the network as a reader of this note.`, who: readers(after) },
     rotate: { title: 'Remove a reader', summary: 'Remove a reader from your private note', pending: 'Waiting for this exact operation, its new key, ciphertexts and envelopes on chain. Nothing is sent again.',
@@ -127,7 +139,7 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
     warns: ['The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.', texts.warn],
     lines: () => [['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm], ['Note', operation.noteId], ['Operation', operation.operationId],
       ...creating ? [] : [['Revision', `${revision} → ${input.resultingStateRevision}`] as [string, string]],
-      ...added.length ? [['Adds', added.join(', ')] as [string, string]] : [], ...removed.length ? [['Removes', removed.join(', ')] as [string, string]] : [],
+      ...added.length ? [['Adds', added.join(', ')] as [string, string]] : [], ...chosen.length ? [['Removes', chosen.join(', ')] as [string, string]] : [], ...off.size ? [['Also removed because their private-notes key is turned off', [...off].join(', ')] as [string, string]] : [],
       ['Who can read', texts.who], ['Public on the network', `${manifest && !creating ? 'Owner and reader addresses' : 'Owner address'}, encrypted sizes (${sizes}), times`],
       ['Publication fee', gnotAmount(creating ? base.config!.createFeeUgnot : '0')],
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Estimated storage deposit', gnotAmount(quote.estimatedDepositUgnot)],
