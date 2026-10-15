@@ -26,3 +26,8 @@ export function parseReaders(value: unknown): string[] {
   check(Array.isArray(value) && value.length >= 1 && value.length <= 32)
   const readers = value.map(who => address(who)); check(new Set(readers).size === readers.length); return readers
 }
+/** WritersJSON: the note's writers other than its owner (a private note's writer flags), possibly none. */
+export function parseWriters(value: unknown): string[] {
+  check(Array.isArray(value) && value.length <= 32)
+  const writers = value.map(who => address(who)); check(new Set(writers).size === writers.length); return writers
+}

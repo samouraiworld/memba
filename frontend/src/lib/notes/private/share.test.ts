@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { bech32Encode } from '../../dao/realmAddress'
 import type { AminoMsg } from '../../grc20'
 import { createDraftSession, createNotesStore, type NotesStore } from '../drafts'
 import { createNotesIntents } from '../intents'
+import { accessVerification } from '../chain/accessRequest'
 import type { NotesReadClient } from '../chain/client'
 import { blob, encode64, type ChainKey, type ChainNote } from '../chain/schema'
 import { NOTES_REALM } from '../chain/__fixtures__/deployment'
@@ -68,18 +69,32 @@ function setup(readers: number[] = []) {
   const controller = (address: string) => ({ getSnapshot: () => ({ phase: phases.get(address) ?? 'unlocked', generation: registry.get(address)?.generation }), subscribe: () => () => {},
     use: async (fn: (value: NotesIdentity) => unknown) => fn(identities.get(address)!) }) as unknown as NotesIdentityController
   const access = (address = A) => ({ access: { kind: 'identity' as const, owner: address, identity: controller(address) }, signal: SIGNAL })
-  /** The realm applying a signed ApplyAccess or Rotate (epochs.gno mutateApplyAccess / mutateRotate). */
+  /**
+   * The realm applying a signed ApplyAccess, Rotate or Commit (epochs.gno mutateApplyAccess / mutateRotate, notes.gno
+   * mutateCommit with acl.gno canWrite): owner-only access changes, no writer downgrade without a new epoch, and a Commit
+   * only by the owner or a writer flag of the current manifest.
+   */
   function apply(message: AminoMsg) {
-    const { func, args } = message.value, op = bytesToHex(blob(args[args.length - 1], 16))
+    const { func, args, caller } = message.value, op = bytesToHex(blob(args[args.length - 1], 16))
+    if (args[1] !== note.stateRevision) throw new Error('notes: stale revision')
+    if (func !== 'Commit' && caller !== note.owner) throw new Error('notes: owner required')
     height++
-    if (func === 'ApplyAccess') {
+    if (func === 'Commit') {
+      if (caller !== note.owner && !entries().some(entry => bech32Encode('g', entry.address) === caller && entry.writer)) throw new Error('notes: writer required')
+      if (args[2] !== note.epoch) throw new Error('notes: stale epoch')
+      const mask = Number(args[3])
+      note = { ...note, ...mask & 1 ? { title: blob(args[4], 231), titleRevision: String(BigInt(note.titleRevision) + 1n) } : {}, ...mask & 2 ? { body: blob(args[5], 135223), bodyRevision: String(BigInt(note.bodyRevision) + 1n) } : {},
+        stateRevision: String(BigInt(note.stateRevision) + 1n), operationId: op, actor: caller, height: String(height) }
+    } else if (func === 'ApplyAccess') {
+      const next = decodeManifest(blob(args[4], 41570), Number(note.epoch))
+      if (entries().some(old => old.writer && !next.some(entry => bech32Encode('g', entry.address) === bech32Encode('g', old.address) && entry.writer))) throw new Error('notes: writer removal requires rotation')
       epochs.get(note.epoch)!.manifest = blob(args[4], 41570)
-      note = { ...note, mode: Number(args[3]) as 0 | 1, stateRevision: String(BigInt(note.stateRevision) + 1n), operationId: op, actor: A, height: String(height) }
+      note = { ...note, mode: Number(args[3]) as 0 | 1, stateRevision: String(BigInt(note.stateRevision) + 1n), operationId: op, actor: caller, height: String(height) }
     } else {
       const epoch = String(Number(note.epoch) + 1), commitment = blob(args[7], 32)
       epochs.set(epoch, { commitment, manifest: blob(args[6], 41570) })
       note = { ...note, mode: Number(args[3]) as 0 | 1, epoch, title: blob(args[4], 231), body: blob(args[5], 135223), commitment, titleRevision: String(BigInt(note.titleRevision) + 1n),
-        bodyRevision: String(BigInt(note.bodyRevision) + 1n), stateRevision: String(BigInt(note.stateRevision) + 1n), operationId: op, actor: A, height: String(height) }
+        bodyRevision: String(BigInt(note.bodyRevision) + 1n), stateRevision: String(BigInt(note.stateRevision) + 1n), operationId: op, actor: caller, height: String(height) }
     }
   }
   const members = async () => decodeManifest(await readPrivateAccess(client, note, SIGNAL), Number(note.epoch)).map(entry => ({ key: registry.get(bech32Encode('g', entry.address))!, writer: entry.writer }))
@@ -95,6 +110,24 @@ function setup(readers: number[] = []) {
     const previousManifest = await readPrivateAccess(client, note, SIGNAL), kept = (await members()).filter(entry => !removed.includes(entry.key.address))
     const prepared = await sealRotation(client, note, kept.length === 1 ? 0 : 1, kept, access())
     return { operation: { chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'rotate', prepared, previousManifest } }, base: { title: note.title.length, body: note.body!.length } }
+  }
+  /** The owner makes `address` (a current reader) a writer: ApplyAccess, same holders, its writer flag set. */
+  async function promote(address: string): Promise<{ operation: PrivateNoteOperation; base: PrivateAccessBase }> {
+    const previousManifest = await readPrivateAccess(client, note, SIGNAL), current = await members()
+    const manifest = await sealAccessManifest(client, note, 1, current.map(entry => entry.key.address === address ? { ...entry, writer: true } : entry), access())
+    return { operation: { chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'access', mode: 1, manifest, previousManifest, acknowledgeEpochHistory: true } },
+      base: { envelopes: current.length, writers: current.filter(entry => entry.writer).length } }
+  }
+  /** The owner makes the writer `address` a reader again: Rotate keeping every holder, its writer flag cleared. */
+  async function demote(address: string): Promise<{ operation: PrivateNoteOperation; base: PrivateCommitSizes }> {
+    const previousManifest = await readPrivateAccess(client, note, SIGNAL), kept = (await members()).map(entry => entry.key.address === address ? { ...entry, writer: false } : entry)
+    const prepared = await sealRotation(client, note, 1, kept, access())
+    return { operation: { chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'rotate', prepared, previousManifest } }, base: { title: note.title.length, body: note.body!.length } }
+  }
+  /** `address` edits the body (owner or writer): only the changed field, sealed with the real current epoch key. */
+  async function edit(address: string, body: string): Promise<PrivateNoteOperation> {
+    const previousManifest = await readPrivateAccess(client, note, SIGNAL), changes = await sealEncryptedChanges(client, note, { title: TITLE, body }, access(address))
+    return { chainId: 'test-chain', caller: address, noteId, operationId: nextId(), action: { kind: 'commit', ...changes, previousManifest } }
   }
   const quote: NotesQuoteProvider = async input => ({ chainId: input.chainId, requestDigest: input.requestDigest, atHeight: input.height, expiresAtHeight: String(Number(input.height) + 20), expiresAtMs: Date.now() + 60000,
     source: 'bounded-estimate', estimatedDepositUgnot: '400000', maxDepositUgnot: '900000', gasWanted: 90_000_000, networkFeeUgnot: 108_000 })
@@ -119,7 +152,7 @@ function setup(readers: number[] = []) {
     const identity = identities.get(address)!
     return unwrapForReader(entry.wrap, identity.secretKey, identity.publicKey, { ...noteContext('test-chain', NOTES_REALM, { id: noteId, epoch }), reader: address, generation: entry.generation })
   }
-  return { client, store, indexedDB, intents, registry, phases, access, apply, share, revoke, options, run, read, epochKey, entries, quote, scope: { chainId: 'test-chain', realm: NOTES_REALM, owner: A, noteId },
+  return { client, store, indexedDB, intents, registry, phases, access, apply, share, revoke, promote, demote, edit, options, run, read, epochKey, entries, quote, scope: (owner = A) => ({ chainId: 'test-chain', realm: NOTES_REALM, owner, noteId }),
     note: () => note, set: (next: Partial<ChainNote>) => { note = { ...note, ...next } } }
 }
 const epochState = async (s: ReturnType<typeof setup>) => ({ note: s.note(), epoch: parseEpochPage(await s.client.epochMetadataRaw(noteId, s.note().epoch), s.note().epoch) })
@@ -305,7 +338,7 @@ describe('signing guards (both operations)', () => {
       const opened = vi.fn()
       wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); opened(); return { hash: 'aa'.repeat(32) } })
       await expect(request.send(undefined, async () => {})).rejects.toThrow('stale')
-      expect(opened).not.toHaveBeenCalled(); expect((await s.intents.get(s.scope, operation.operationId))?.phase).toBe('not-sent')
+      expect(opened).not.toHaveBeenCalled(); expect((await s.intents.get(s.scope(), operation.operationId))?.phase).toBe('not-sent')
     }
   })
   it('refuses before the wallet when the private-notes gate closes or the key locks', async () => {
@@ -335,7 +368,7 @@ describe('signing guards (both operations)', () => {
       }
       wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('transport lost') })
       await expect(request.send(undefined, async () => {})).rejects.toThrow('transport lost')
-      const intent = (await s.intents.get(s.scope, operation.operationId))!
+      const intent = (await s.intents.get(s.scope(), operation.operationId))!
       expect(intent.phase).toBe('unknown'); expect(await recoverPrivateIntent(s.client, s.intents, intent, createDraftSession())).toBe('unknown')
       s.apply(wallet.send.mock.calls.at(-1)![0][0])
       expect(await recoverPrivateIntent(s.client, s.intents, intent, createDraftSession())).toBe('confirmed')
@@ -343,5 +376,145 @@ describe('signing guards (both operations)', () => {
     const disk = await rawRecords(s.indexedDB)
     for (const trace of [...traces(BODY), ...traces(TITLE)]) expect(disk).not.toContain(trace)
     expect(s.note()).toMatchObject({ epoch: '2' }); expect(s.entries().map(entry => bech32Encode('g', entry.address))).toEqual([A, C])
+  })
+})
+
+// E2: private co-writers. A writer is the writer flag of their envelope in the epoch manifest: set by ApplyAccess (same
+// holders), cleared only by Rotate (the realm refuses a writer downgrade without a new epoch). AddWriter/RemoveWriter are
+// public-note calls (acl.gno: "encrypted ACL requires atomic manifest").
+describe('co-writers (E2)', () => {
+  it('quotes against the keeper rows: reader → writer 42,600 / 49,800 ugnot, 56.9 / 57.1 M; writer → reader (Rotate, same holders) 589,800 / 583,800, 58.2 M', async () => {
+    const s = setup([2]), promoted = await s.promote(B), up = privateNoteBudget(privateNoteMessage(promoted.operation, NOTES_REALM, '0', await epochState(s)), promoted.base)
+    expect(up).toEqual({ gasWanted: 90_000_000, estimatedDepositUgnot: '60000', suggestedCapUgnot: '100000' })
+    expect(Number(up.estimatedDepositUgnot)).toBeGreaterThanOrEqual(49_800); expect(up.gasWanted).toBeGreaterThanOrEqual(57_100_000 * 1.5)
+    await s.run(promoted.operation)
+    const demoted = await s.demote(B), down = privateNoteBudget(privateNoteMessage(demoted.operation, NOTES_REALM, '0', await epochState(s)), demoted.base)
+    expect(Number(down.estimatedDepositUgnot)).toBeGreaterThanOrEqual(589_800); expect(down.suggestedCapUgnot).toBe('800000')
+    expect(down.gasWanted).toBeGreaterThanOrEqual(58_200_000 * 1.5); expect(down.gasWanted).toBeLessThanOrEqual(500_000_000)
+  })
+  it('the owner makes reader B a writer (ApplyAccess, same epoch, every envelope bound to its holder’s registry key); B then edits with real crypto and the owner reads it', async () => {
+    const s = setup([2, 3])
+    await expect(s.edit(B, 'not yet')).rejects.toThrow()
+    const { operation } = await s.promote(B), request = await s.run(operation)
+    expect(request.title).toBe('Let a reader edit'); expect(request.lines(undefined)).toContainEqual(['Can edit from now on', B])
+    expect(request.lines(undefined)).toContainEqual(['Who can edit', `You and ${B}`])
+    expect(request.warns.join(' ')).toContain('Their address becomes public on the network as a writer of this note.')
+    expect(request.warns.join(' ')).toContain('only you share it, remove readers, change who can edit or delete it')
+    expect(request.prepare(undefined).msgs[0].value.func).toBe('ApplyAccess')
+    expect(s.note()).toMatchObject({ mode: 1, epoch: '1', stateRevision: '2', titleRevision: '1', bodyRevision: '1' })
+    expect(s.entries().map(entry => [bech32Encode('g', entry.address), entry.writer, entry.generation])).toEqual([[A, true, 1n], [B, true, 1n], [C, false, 1n]])
+    for (const entry of s.entries()) expect(bytesToHex(entry.publicKeyHash)).toBe(bytesToHex(sha256(s.registry.get(bech32Encode('g', entry.address))!.publicKey)))
+    // B's Commit: sealed with B's own envelope of the current epoch, signed by B (scope and actor B), applied by the realm.
+    const commit = await s.edit(B, 'Edited by B'), signed = await s.run(commit)
+    expect(signed.summary).toBe('Publish encrypted changes to a private note you can edit'); expect(signed.lines(undefined)).toContainEqual(['Owner', A])
+    expect(signed.warns[0]).toContain('the owner’s address, your address as the one who changed it'); expect(signed.lines(undefined).find(([name]) => name === 'Public on the network')?.[1]).toMatch(/^Owner and writer addresses/)
+    expect(s.note()).toMatchObject({ actor: B, stateRevision: '3', bodyRevision: '2', titleRevision: '1', epoch: '1' })
+    expect((await s.intents.get(s.scope(B), commit.operationId))?.phase).toBe('confirmed')
+    for (const reader of [A, B, C]) expect(await s.read(reader)).toEqual({ title: TITLE, body: 'Edited by B' })
+  })
+  it('a reader without the writer flag cannot commit: refused before any wallet (sealing and message) and by the realm', async () => {
+    const s = setup([2]), state = await epochState(s)
+    await expect(s.edit(B, 'by a reader')).rejects.toThrow()
+    // A well-formed body ciphertext at the next revision (as B's real epoch key would seal it): the message builder still
+    // refuses a Commit from a reader.
+    const body = prepareEncryptedEpoch({ chainId: 'test-chain', realm: NOTES_REALM, noteId, epoch: 1, titleRevision: 1n, bodyRevision: 2n, mode: 1, owner: A, recipients: [{ key: s.registry.get(A)!, writer: true }], title: TITLE, body: 'x' }).body
+    const previousManifest = await readPrivateAccess(s.client, s.note(), SIGNAL)
+    const forged: PrivateNoteOperation = { chainId: 'test-chain', caller: B, noteId, operationId: nextId(), action: { kind: 'commit', body, previousManifest } }
+    expect(() => privateNoteMessage(forged, NOTES_REALM, '0', state)).toThrow()
+    await expect(preparePrivateNoteRequest(s.options(forged))).rejects.toThrow()
+    expect(wallet.send).not.toHaveBeenCalled()
+    // The realm (acl.gno canWrite) refuses it too.
+    const message = privateNoteMessage({ ...forged, caller: A }, NOTES_REALM, '0', state)
+    expect(() => s.apply({ ...message, value: { ...message.value, caller: B } })).toThrow('notes: writer required')
+  })
+  it('the owner makes writer B a reader again with a new epoch: B still reads, B can no longer commit, B’s request prepared before is refused before the wallet', async () => {
+    const s = setup([2, 3])
+    await s.run((await s.promote(B)).operation)
+    const before = await preparePrivateNoteRequest(s.options(await s.edit(B, 'B, before demotion')))
+    // The realm refuses a writer downgrade in place (ApplyAccess): the client never builds one.
+    const current = await readPrivateAccess(s.client, s.note(), SIGNAL), epoch1 = await epochState(s)
+    const inPlace = await sealAccessManifest(s.client, s.note(), 1, decodeManifest(current, 1).map(entry => ({ key: s.registry.get(bech32Encode('g', entry.address))!, writer: bech32Encode('g', entry.address) === A })), s.access())
+    const downgrade: PrivateNoteOperation = { chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'access', mode: 1, manifest: inPlace, previousManifest: current, acknowledgeEpochHistory: true } }
+    expect(() => privateNoteMessage(downgrade, NOTES_REALM, '0', epoch1)).toThrow()
+    const raw = { type: 'vm/MsgCall', value: { caller: A, send: '', pkg_path: NOTES_REALM, func: 'ApplyAccess', args: [encode64(hexToBytes(noteId)), s.note().stateRevision, '1', '1', encode64(inPlace), encode64(hexToBytes(nextId()))], max_deposit: '0ugnot' } }
+    expect(() => s.apply(raw as AminoMsg)).toThrow('notes: writer removal requires rotation')
+    const { operation } = await s.demote(B), request = await s.run(operation)
+    expect(request.title).toBe('Stop a writer editing'); expect(request.lines(undefined)).toContainEqual(['Can no longer edit', B])
+    expect(request.lines(undefined).some(([name]) => name === 'Removes')).toBe(false)
+    expect(request.warns.join(' ')).toContain('can still read this note but can no longer publish changes')
+    expect(request.prepare(undefined).msgs[0].value.func).toBe('Rotate')
+    expect(s.note()).toMatchObject({ mode: 1, epoch: '2', stateRevision: '3', titleRevision: '2', bodyRevision: '2' })
+    // Every holder kept, each envelope for its current registry key; B's flag cleared; a fresh key.
+    expect(s.entries('2').map(entry => [bech32Encode('g', entry.address), entry.writer])).toEqual([[A, true], [B, false], [C, false]])
+    expect(bytesToHex(s.note().commitment)).not.toBe(bytesToHex(parseEpochPage(await s.client.epochMetadataRaw(noteId, '1'), '1').commitment))
+    for (const reader of [A, B, C]) expect(await s.read(reader)).toEqual({ title: TITLE, body: BODY })
+    // B's request prepared under epoch 1 as a writer: stale before any wallet opens; nothing sent.
+    const opened = vi.fn()
+    wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); opened(); return { hash: 'aa'.repeat(32) } })
+    await expect(before.send(undefined, async () => {})).rejects.toThrow('stale'); expect(opened).not.toHaveBeenCalled()
+    // A new edit by B is refused before any wallet (B's envelope is a reader's), and the realm refuses it.
+    await expect(s.edit(B, 'B, after demotion')).rejects.toThrow()
+    const owners = await s.edit(A, 'Owner edit'), message = privateNoteMessage(owners, NOTES_REALM, '0', await epochState(s))
+    expect(() => s.apply({ ...message, value: { ...message.value, caller: B } })).toThrow('notes: writer required')
+    await s.run(owners); expect(await s.read(B)).toEqual({ title: TITLE, body: 'Owner edit' })
+  })
+  it('a writer cannot do owner-only actions: share, change roles, remove, rotate or delete', async () => {
+    const s = setup([2, 3]); await s.run((await s.promote(B)).operation)
+    const state = await epochState(s), members = decodeManifest(await readPrivateAccess(s.client, s.note(), SIGNAL), 1).map(entry => ({ key: s.registry.get(bech32Encode('g', entry.address))!, writer: entry.writer }))
+    // No owner key use for a writer: sealing an access change or a rotation is refused before anything is signed.
+    await expect(sealAccessManifest(s.client, s.note(), 1, [...members, { key: s.registry.get(D)!, writer: false }], s.access(B))).rejects.toThrow()
+    await expect(sealRotation(s.client, s.note(), 1, members.filter(entry => entry.key.address !== C), s.access(B))).rejects.toThrow()
+    // Even with the owner's own sealed operations, the message builder refuses them from B, and so does the realm.
+    for (const operation of [(await s.share(D)).operation, (await s.promote(C)).operation, (await s.revoke(C)).operation, (await s.demote(B)).operation]) {
+      expect(() => privateNoteMessage({ ...operation, caller: B }, NOTES_REALM, '0', state)).toThrow()
+      const message = privateNoteMessage(operation, NOTES_REALM, '0', state)
+      expect(() => s.apply({ ...message, value: { ...message.value, caller: B } })).toThrow('notes: owner required')
+    }
+    // Delete (accessRequest): owner only.
+    const deletion = { caller: B, noteId, operationId: nextId(), revision: s.note().stateRevision, ownerGeneration: '1', action: { kind: 'delete' as const } }
+    expect(() => accessVerification(deletion, { note: s.note(), writers: [B] }, '1')).toThrow()
+    expect(() => accessVerification({ ...deletion, caller: A }, { note: s.note(), writers: [B] }, '1')).not.toThrow()
+  })
+  it('message rules: one role change at a time, never with an addition, never the owner, a writer flag only on a current reader, and only a Rotate lowers it', async () => {
+    const s = setup([2, 3]), state = await epochState(s), previous = await readPrivateAccess(s.client, s.note(), SIGNAL)
+    const key = new Uint8Array(32), context = noteContext('test-chain', NOTES_REALM, { id: noteId, epoch: '1' }), r = (address: string, writer = false) => ({ key: s.registry.get(address)!, writer })
+    const access = (list: { key: ChainKey; writer: boolean }[], caller = A, previousManifest = previous) => privateNoteMessage({ chainId: 'test-chain', caller, noteId, operationId: nextId(),
+      action: { kind: 'access', mode: 1, manifest: recipientManifest(key, context, 1, A, list), previousManifest, acknowledgeEpochHistory: true } }, NOTES_REALM, '0', state)
+    expect(access([r(A, true), r(B, true), r(C)]).value.func).toBe('ApplyAccess')
+    expect(() => access([r(A, true), r(B, true), r(C, true)])).toThrow()
+    expect(() => access([r(A, true), r(B, true), r(C), r(D)])).toThrow()
+    expect(() => access([r(A, true), r(B), r(C), r(D, true)])).toThrow()
+    expect(() => access([r(A, true), r(B), r(C)])).toThrow()
+    expect(() => access([r(A, false), r(B, true), r(C)])).toThrow()
+    expect(() => access([r(A, true), r(B, true), r(C)], B)).toThrow()
+    const writers = recipientManifest(key, context, 1, A, [r(A, true), r(B, true), r(C, true)])
+    expect(() => access([r(A, true), r(B), r(C, true)], A, writers)).toThrow()
+    const rotate = (list: { key: ChainKey; writer: boolean }[], previousManifest = writers) => privateNoteMessage({ chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'rotate', previousManifest,
+      prepared: prepareEncryptedEpoch({ chainId: 'test-chain', realm: NOTES_REALM, noteId, epoch: 2, titleRevision: 2n, bodyRevision: 2n, mode: 1, owner: A, recipients: list, title: TITLE, body: BODY }) } }, NOTES_REALM, '0', state)
+    expect(rotate([r(A, true), r(B), r(C, true)]).value.func).toBe('Rotate')
+    expect(rotate([r(A, true), r(B)]).value.func).toBe('Rotate')
+    expect(() => rotate([r(A, true), r(B), r(C)])).toThrow()
+    expect(() => rotate([r(A, true), r(B, true), r(C, true), r(D)])).toThrow()
+    expect(() => rotate([r(A, true), r(B, true), r(C)], previous)).toThrow()
+    expect(() => rotate([r(A, true), r(B, true), r(C, true)])).toThrow()
+  })
+  it('no plaintext in the message, the quote input, the receipt or the device store, for a role change and a writer’s edit; recovery confirms from the chain alone', async () => {
+    const s = setup([2]), quoted = vi.fn(s.quote)
+    for (const step of [async () => (await s.promote(B)).operation, () => s.edit(B, 'Edited by B'), async () => (await s.demote(B)).operation]) {
+      const operation = await step(), request = await preparePrivateNoteRequest({ ...s.options(operation), quote: quoted })
+      for (const trace of [...traces(BODY), ...traces(TITLE), ...traces('Edited by B')]) {
+        expect(JSON.stringify(request.prepare(undefined).msgs)).not.toContain(trace)
+        expect(JSON.stringify(quoted.mock.calls.at(-1))).not.toContain(trace)
+      }
+      wallet.send.mockImplementationOnce(async (_msgs, _memo, options) => { await options.beforeSign(); throw new Error('transport lost') })
+      await expect(request.send(undefined, async () => {})).rejects.toThrow('transport lost')
+      const intent = (await s.intents.get(s.scope(operation.caller), operation.operationId))!
+      expect(intent.phase).toBe('unknown'); expect(await recoverPrivateIntent(s.client, s.intents, intent, createDraftSession())).toBe('unknown')
+      s.apply(wallet.send.mock.calls.at(-1)![0][0])
+      expect(await recoverPrivateIntent(s.client, s.intents, intent, createDraftSession())).toBe('confirmed')
+    }
+    const disk = await rawRecords(s.indexedDB)
+    for (const trace of [...traces(BODY), ...traces(TITLE), ...traces('Edited by B')]) expect(disk).not.toContain(trace)
+    expect(s.note()).toMatchObject({ epoch: '2', actor: A }); expect(s.entries().map(entry => [bech32Encode('g', entry.address), entry.writer])).toEqual([[A, true], [B, false]])
   })
 })

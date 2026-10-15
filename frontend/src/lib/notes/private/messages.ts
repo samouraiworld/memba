@@ -3,15 +3,17 @@ import type { AminoMsg } from '../../grc20'
 import type { ChainConfig, ChainNote } from '../chain/schema'
 import { address, check, decimal, encode64, id, realmPath } from '../chain/schema'
 import { equalBytes, requireBytes, u32, u64 } from '../crypto/bytes'
-import { decodeManifest } from '../crypto/manifest'
+import { decodeManifest, type Recipient } from '../crypto/manifest'
 import { addressBytes } from '../identity/chain'
 import type { EncryptedEpoch } from './engine'
 import type { PrivateEpoch } from './schema'
 
 /**
- * Create ("only me"), Commit (an edit, by the owner or a writer), and the owner's reader changes: Access (ApplyAccess:
- * the current epoch is wrapped for one more reader) and Rotate (a new epoch for the remaining readers, which removes
- * one). Writers, reveal and publish arrive with their own reviews.
+ * Create ("only me"), Commit (an edit, by the owner or a writer), and the owner's access changes. Access (ApplyAccess,
+ * the current epoch): wraps it for more readers, or makes ONE current reader a writer. Rotate (a new epoch): removes
+ * readers, or makes ONE writer a reader again (the realm refuses a writer downgrade without a new epoch). A private
+ * note's writers are only these manifest flags: AddWriter/RemoveWriter are public-note calls on the realm. Reveal and
+ * publish arrive with their own reviews.
  */
 export type PrivateNoteAction = { kind: 'create'; prepared: EncryptedEpoch; maxFeeUgnot: string }
   | { kind: 'commit'; title?: Uint8Array; body?: Uint8Array; previousManifest: Uint8Array }
@@ -30,6 +32,11 @@ function accessManifest(data: Uint8Array, epoch: number, mode: number, owner: st
   const list = decodeManifest(data, epoch), who = addressBytes(owner)
   check(list.some(r => equalBytes(r.address, who) && r.writer) && (mode !== 0 || list.length === 1) && (mode !== 2 || list.every(r => r.writer)))
   return list
+}
+const same = (x: Recipient, y: Recipient) => equalBytes(x.address, y.address)
+/** The envelopes of `after` whose holder was in `before` with the other role: made writers (`writer`) or readers. */
+export function changedRole(before: readonly Recipient[], after: readonly Recipient[], writer: boolean): Recipient[] {
+  return after.filter(next => next.writer === writer && before.some(old => same(old, next) && old.writer !== writer))
 }
 /**
  * Pure MsgCall construction for this deployment's realm (`realm`, the client's). Signers must bind this exact message
@@ -62,21 +69,25 @@ export function privateNoteMessage(operation: PrivateNoteOperation, realm: strin
       const mask = (a.title === undefined ? 0 : 1) | (a.body === undefined ? 0 : 2)
       func = 'Commit'; args = [noteArg, revision, String(epoch), String(mask), a.title === undefined ? '' : cipher(a.title, epoch, 1, BigInt(note.titleRevision) + 1n), a.body === undefined ? '' : cipher(a.body, epoch, 2, BigInt(note.bodyRevision) + 1n), op]
     } else if (a.kind === 'access') {
-      // Owner only; Private may become Shared. Every current envelope stays with its role (the realm refuses a removal or
-      // a writer downgrade), and this version only ADDS readers: a new envelope is never a writer.
+      // Owner only; Private may become Shared. Every current envelope stays (the realm refuses a removal or a writer
+      // downgrade), and exactly one of: readers ADDED (a new envelope is never a writer, every role kept), or the same
+      // holders with ONE reader made a writer.
       check(caller === note.owner && a.acknowledgeEpochHistory === true && (a.mode === 0 || a.mode === 1) && (a.mode === note.mode || (note.mode === 0 && a.mode === 1)))
-      const after = accessManifest(a.manifest, epoch, a.mode, note.owner)
-      check(after.length > before.length && before.every(old => after.some(next => equalBytes(old.address, next.address) && old.writer === next.writer))
-        && after.every(next => !next.writer || before.some(old => equalBytes(old.address, next.address))))
+      const after = accessManifest(a.manifest, epoch, a.mode, note.owner), promoted = changedRole(before, after, true)
+      check(before.every(old => after.some(next => same(old, next) && (old.writer === next.writer || promoted.includes(next))))
+        && after.every(next => !next.writer || before.some(old => same(old, next)))
+        && (after.length > before.length ? promoted.length === 0 : after.length === before.length && promoted.length === 1))
       func = 'ApplyAccess'; args = [noteArg, revision, String(epoch), String(a.mode), encode64(a.manifest), op]
     } else {
-      // Owner only: the whole next epoch (fresh key and commitment, both fields at their next revision). This version only
-      // REMOVES readers: every remaining envelope was in the reviewed epoch with the same role, and at least one is gone.
+      // Owner only: the whole next epoch (fresh key and commitment, both fields at their next revision). Every remaining
+      // envelope was in the reviewed epoch, and exactly one of: holders REMOVED (every role kept), or ONE writer made a
+      // reader again (holders whose key is turned off may go in the same epoch: the realm accepts only active keys).
       const p = a.prepared
       check(caller === note.owner && p.chainId === operation.chainId && p.realm === pkg && p.noteId === noteId && p.epoch === epoch + 1 && (p.mode === 0 || p.mode === 1)
         && p.titleRevision === BigInt(note.titleRevision) + 1n && p.bodyRevision === BigInt(note.bodyRevision) + 1n && !equalBytes(requireBytes(p.commitment, 32), note.commitment))
-      const after = accessManifest(p.manifest, p.epoch, p.mode, note.owner)
-      check(after.length < before.length && after.every(next => before.some(old => equalBytes(old.address, next.address) && old.writer === next.writer)))
+      const after = accessManifest(p.manifest, p.epoch, p.mode, note.owner), demoted = changedRole(before, after, false)
+      check(after.every(next => before.some(old => same(old, next) && (old.writer === next.writer || demoted.includes(next))))
+        && (demoted.length === 0 ? after.length < before.length : demoted.length === 1 && after.length <= before.length))
       func = 'Rotate'; args = [noteArg, revision, String(epoch), String(p.mode), cipher(p.title, p.epoch, 1, p.titleRevision), cipher(p.body, p.epoch, 2, p.bodyRevision), encode64(p.manifest), encode64(p.commitment), op]
     }
   }
