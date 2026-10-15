@@ -16,6 +16,12 @@ import { readSimulation, unsignedCallTx } from '../chain/simulate'
  * - gas = 60 M + 2,200 per argument byte + 12 M per envelope, rounded up to 1 M, at most MAX_GAS_WANTED (500 M):
  *   ≥ 1.7× every M0 create row (42.5-44.9 M); 373 M for create1max (43.7 M), 500 M for create32max (349 M).
  */
+/** A simulation (readable, from a verified node) says the note needs more storage deposit than the reviewed cap. */
+export class PrivateStorageAboveCap extends Error {
+  constructor(readonly requiredUgnot: string) { super('Notes private: storage deposit above the cap'); this.name = 'PrivateStorageAboveCap' }
+}
+/** Simulated gas is trusted only upward: never below 60 M (the M0 creates used 42.5-44.9 M), whatever a node reports. */
+const SIMULATED_GAS_FLOOR = 60_000_000
 const CREATE_OVERHEAD_BYTES = 15_300, PER_EXTRA_ENVELOPE_BYTES = 2_400, STORAGE_PRICE_UGNOT = 100, CAP_STEP_UGNOT = 100_000
 export function privateNoteBudget(message: AminoMsg): { gasWanted: number; estimatedDepositUgnot: string; suggestedCapUgnot: string } {
   check(message.type === 'vm/MsgCall' && validNotesRealm(message.value.pkg_path))
@@ -31,8 +37,9 @@ export function privateNoteBudget(message: AminoMsg): { gasWanted: number; estim
 }
 /**
  * Simulation first: the node runs the exact unsigned message (`.app/simulate`), which gives the deposit it locks and the
- * gas it uses (wanted = used × 1.2, never above the bound). Any simulation failure falls back to the bounded estimate,
- * labelled as such. Either way the storage price must be 100 ugnot/B and the deposit must fit the reviewed cap.
+ * gas it uses (wanted = used × 1.2, at least 60 M, never above the bound). A readable answer that the deposit exceeds the
+ * cap refuses (PrivateStorageAboveCap); any other simulation failure falls back to the bounded estimate, labelled as such.
+ * Either way the storage price must be 100 ugnot/B and the deposit must fit the reviewed cap.
  */
 export function privateNoteQuote(client: NotesReadClient, maxDepositUgnot: string): NotesQuoteProvider {
   const cap = decimal(maxDepositUgnot, 63)
@@ -46,12 +53,14 @@ export function privateNoteQuote(client: NotesReadClient, maxDepositUgnot: strin
     client.assertCurrent()
     // A changed network price invalidates the measured profile, rather than silently raising a budget.
     check(price.length < 64 && JSON.parse(price) === '100ugnot')
-    let measured: { gasUsed: number; depositUgnot: bigint } | null = null
+    let measured: ReturnType<typeof readSimulation> | null = null
     try { measured = readSimulation(await client.simulateRaw(unsignedCallTx(input.message, bound.gasWanted, boundFee)), BigInt(STORAGE_PRICE_UGNOT)) }
     catch { measured = null }
     client.assertCurrent()
-    const simulated = measured !== null && measured.depositUgnot > 0n && measured.depositUgnot <= BigInt(cap) && measured.gasUsed < bound.gasWanted
-    const gasWanted = simulated ? Math.min(bound.gasWanted, Math.ceil(measured!.gasUsed * 1.2 / 1_000_000) * 1_000_000) : bound.gasWanted
+    // A readable answer that the deposit exceeds the cap refuses: never a fallback the node predicts will fail on chain.
+    if (measured && (measured.aboveCap || measured.depositUgnot > BigInt(cap))) throw new PrivateStorageAboveCap(measured.depositUgnot.toString())
+    const simulated = measured !== null && measured.depositUgnot > 0n && measured.gasUsed < bound.gasWanted
+    const gasWanted = simulated ? Math.min(bound.gasWanted, Math.max(SIMULATED_GAS_FLOOR, Math.ceil(measured!.gasUsed * 1.2 / 1_000_000) * 1_000_000)) : bound.gasWanted
     const networkFeeUgnot = gasWanted === bound.gasWanted ? boundFee : await freshFeeForGasWanted(gasWanted)
     client.assertCurrent()
     return {

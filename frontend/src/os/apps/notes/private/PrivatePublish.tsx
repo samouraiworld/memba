@@ -8,7 +8,7 @@ import { NotesIntents } from '../../../../lib/notes/intents'
 import { newNoteId, notesDeployment, privateNotesDeployment } from '../../../../lib/notes/config'
 import { NotesTimeoutError, withTimeout } from '../../../../lib/notes/freshness'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
-import { PrivateNoteNoAccess, prepareEncryptedEpoch, preparePrivateNoteRequest, privateNoteBudget, privateNoteMessage, privateNoteQuote } from '../../../../lib/notes/private'
+import { PrivateNoteNoAccess, PrivateStorageAboveCap, prepareEncryptedEpoch, preparePrivateNoteRequest, privateNoteBudget, privateNoteMessage, privateNoteQuote } from '../../../../lib/notes/private'
 import type { PrivateNoteOperation } from '../../../../lib/notes/private'
 import { freshFeeForGasWanted } from '../../../../lib/grc20'
 import type { PrivateReviewProps } from '../PublicPublish'
@@ -38,6 +38,7 @@ export function PrivateChoice({ controller, client, checked, disabled, onChoose,
 
 type Sealed = { operation: PrivateNoteOperation; generation: string; cap: string; estimate: string; fee: string; networkFee: number | null; balance: bigint | null }
 function problemText(error: unknown): string {
+    if (error instanceof PrivateStorageAboveCap) return 'This note needs more storage than Memba can approve. Nothing was sent. Your text is kept.'
     if (error instanceof PrivateNoteNoAccess) return 'Your unlocked key is not the one registered for this account on the network. Nothing was encrypted or sent.'
     if (error instanceof NotesChainError && error.code === 'stale') return 'Your draft or the note changed meanwhile. Nothing was sent. Go back, then publish again.'
     if (error instanceof NotesChainError && error.code === 'disabled') return 'Private notes are not available on this network right now. Nothing was sent.'
@@ -101,7 +102,8 @@ function Review({ controller, client, store, owner, draft, title, requestSession
         } catch (error) { stop(); setProblem(problemText(error)); setWorking(false) }
     }
     const walletProblem = walletChainId && walletChainId !== client.chainId ? `Adena is on ${walletChainId}, this note lives on ${client.chainId}. Switch Adena to ${client.chainId} first.` : ''
-    const total = sealed && BigInt(sealed.estimate) + BigInt(sealed.fee) + BigInt(sealed.networkFee ?? 0)
+    // Checked against the written maximum (the deposit cap), as the key setup does: the chain may lock up to it.
+    const total = sealed && BigInt(sealed.cap) + BigInt(sealed.fee) + BigInt(sealed.networkFee ?? 0)
     const short = sealed && total !== null && sealed.balance !== null && sealed.balance < total
     let content
     if (body === null) content = <p>This draft cannot be published privately.</p>
@@ -121,7 +123,7 @@ function Review({ controller, client, store, owner, draft, title, requestSession
             <div><dt>On this device</dt><dd>Your unencrypted draft stays on this device after publishing. You can remove it from the note afterwards.</dd></div>
         </dl>
             {walletProblem && <p className="os-notes-field-error" role="alert">{walletProblem}</p>}
-            {short && <p className="os-notes-field-error" role="alert"><b>This costs ≈ {gnotAmount(String(total))}; your balance is {gnotAmount(String(sealed.balance))}.</b> Nothing was sent. Your text is kept.</p>}</>
+            {short && <p className="os-notes-field-error" role="alert"><b>This can cost up to {gnotAmount(String(total))}; your balance is {gnotAmount(String(sealed.balance))}.</b> Nothing was sent. Your text is kept.</p>}</>
     }
     return <div className="os-notes-private-sheet">
         <h2>Publish “{title}” privately?</h2>

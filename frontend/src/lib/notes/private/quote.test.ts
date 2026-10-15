@@ -9,7 +9,7 @@ import simulation from '../chain/__fixtures__/simulate-onyx.json'
 import { identityFromSeed } from '../crypto/identity'
 import { prepareEncryptedEpoch } from './engine'
 import { privateNoteMessage } from './messages'
-import { privateNoteBudget, privateNoteQuote } from './quote'
+import { privateNoteBudget, privateNoteQuote, PrivateStorageAboveCap } from './quote'
 
 const network = vi.hoisted(() => ({ price: vi.fn(), fee: vi.fn() }))
 vi.mock('../../dao/packageStatus', () => ({ abciQueryText: (...args: unknown[]) => network.price(...args) }))
@@ -23,6 +23,15 @@ function create(bodyBytes: number, cap = '0'): AminoMsg {
   const prepared = prepareEncryptedEpoch({ chainId, realm: NOTES_REALM, noteId: '11'.repeat(16), epoch: 1, titleRevision: 1n, bodyRevision: 1n, mode: 0, owner,
     recipients: [{ key, writer: true }], title: 't'.repeat(40), body: 'b'.repeat(bodyBytes) })
   return privateNoteMessage({ chainId, caller: owner, noteId: '11'.repeat(16), operationId: '22'.repeat(16), action: { kind: 'create', prepared, maxFeeUgnot: '100000' } }, NOTES_REALM, cap, { note: null, epoch: null, config })
+}
+/** A minimal `sdk.Result`: one deposit event on the realm (bytes) and the gas used; or, with `error`, an error and its log. */
+function simulated(bytes: bigint, gasUsed: bigint, error?: string): Uint8Array {
+  const varint = (value: bigint) => { const out: number[] = []; for (; value > 127n; value >>= 7n) out.push(Number(value & 127n) | 128); out.push(Number(value)); return out }
+  const field = (n: number, value: Uint8Array | number[]) => [...varint(BigInt(n << 3 | 2)), ...varint(BigInt(value.length)), ...value]
+  const text = (value: string) => [...new TextEncoder().encode(value)]
+  const base = error ? [...field(1, field(1, text('/abci.StringError'))), ...field(4, text(error))]
+    : field(3, [...field(1, text('/tm.StorageDepositEvent')), ...field(2, [...varint(8n), ...varint(bytes * 2n), ...field(2, text(`${bytes * 100n}ugnot`)), ...field(3, text(NOTES_REALM))])])
+  return Uint8Array.from([...field(1, base), ...varint(16n), ...varint(gasUsed * 4n), ...varint(24n), ...varint(gasUsed * 2n)])
 }
 const synthetic = (title: number, body: number, envelopes: number): AminoMsg => ({ type: 'vm/MsgCall', value: { caller: owner, send: '100000ugnot', pkg_path: NOTES_REALM, func: 'CreateNote',
   args: ['', '0', encode64(new Uint8Array(title)), encode64(new Uint8Array(body)), encode64(new Uint8Array(2 + 1299 * envelopes)), encode64(new Uint8Array(32)), '100000', ''], max_deposit: '0ugnot' } })
@@ -69,9 +78,16 @@ describe('simulation (`.app/simulate`)', () => {
   })
   it('reads the deposit and gas from the live onyx-1 answer, and only at 100 ugnot per byte', () => {
     const result = blob(simulation.resultBase64, 4096)
-    expect(readSimulation(result, 100n)).toEqual({ gasUsed: 19_515_248, depositUgnot: 1_917_700n })
+    expect(readSimulation(result, 100n)).toEqual({ gasUsed: 19_515_248, depositUgnot: 1_917_700n, aboveCap: false })
     expect(() => readSimulation(result, 99n)).toThrow('unavailable')
     expect(() => readSimulation(result.subarray(0, 300), 100n)).toThrow('unavailable')
+  })
+  it('reads the live onyx-1 refusal of a cap below the deposit as "above the cap", with the deposit the node requires', () => {
+    expect(encode64(unsignedCallTx({ ...simulation.message, value: { ...simulation.message.value, max_deposit: simulation.overCap.maxDeposit } } as AminoMsg, simulation.gasWanted, simulation.feeUgnot))).toBe(simulation.overCap.txBase64)
+    const refused = readSimulation(blob(simulation.overCap.resultBase64, 4096), 100n)
+    expect(refused).toMatchObject({ depositUgnot: 1_917_700n, aboveCap: true }); expect(refused.gasUsed).toBeGreaterThan(0)
+    // Any other error is no answer at all.
+    expect(() => readSimulation(simulated(0n, 1000n, 'out of gas'), 100n)).toThrow('unavailable')
   })
 })
 
@@ -80,19 +96,33 @@ describe('private create quote provider', () => {
   const client = (simulateRaw: () => Promise<Uint8Array>) => ({ chainId, realm: NOTES_REALM, assertCurrent: vi.fn(), simulateRaw: vi.fn(simulateRaw) }) as unknown as NotesReadClient
   const input = (message: AminoMsg) => ({ chainId, message, requestDigest: 'aa'.repeat(32), height: '100' })
   it('quotes the simulated deposit and 1.2 × the simulated gas, the exact message simulated', async () => {
-    const c = client(async () => result), message = create(1024, '2200000')
+    const c = client(async () => simulated(17_848n, 62_000_000n)), message = create(1024, '2200000')
     const quote = await privateNoteQuote(c, '2200000')(input(message))
-    expect(quote).toMatchObject({ source: 'simulation', estimatedDepositUgnot: '1917700', maxDepositUgnot: '2200000', gasWanted: 24_000_000, networkFeeUgnot: 28_800 })
+    expect(quote).toMatchObject({ source: 'simulation', estimatedDepositUgnot: '1784800', maxDepositUgnot: '2200000', gasWanted: 75_000_000, networkFeeUgnot: 90_000 })
     expect(vi.mocked(c.simulateRaw).mock.calls[0][0]).toEqual(unsignedCallTx(message, 78_000_000, 93_600))
+  })
+  it('never asks less than 60 M gas, whatever gas a node reports', async () => {
+    for (const used of [19_515_248n, 1n]) {
+      const quote = await privateNoteQuote(client(async () => simulated(17_848n, used)), '2200000')(input(create(1024, '2200000')))
+      expect(quote).toMatchObject({ source: 'simulation', gasWanted: 60_000_000, networkFeeUgnot: 72_000 })
+    }
+    expect((await privateNoteQuote(client(async () => result), '2200000')(input(create(1024, '2200000')))).gasWanted).toBe(60_000_000)
+  })
+  it.each([
+    ['the node refuses the cap (live onyx-1 answer)', async () => blob(simulation.overCap.resultBase64, 4096)],
+    ['the readable simulated deposit exceeds the cap', async () => result],
+  ])('refuses, with nothing to sign, when %s', async (_name, simulate) => {
+    const pending = privateNoteQuote(client(simulate), '1800000')(input(create(1024, '1800000')))
+    await expect(pending).rejects.toBeInstanceOf(PrivateStorageAboveCap)
+    await expect(pending).rejects.toMatchObject({ requiredUgnot: '1917700' })
   })
   it.each([
     ['the node cannot simulate', async () => { throw new Error('offline') }],
-    ['the simulation reports an error', async () => Uint8Array.from([0x0a, 0x16, 0x0a, 0x14, 0x0a, 0x12, ...new TextEncoder().encode('/std.InternalError'), 0x18, 0x02])],
-    ['the simulated deposit exceeds the cap', async () => result],
-  ])('falls back to the bounded estimate when %s', async (name, simulate) => {
-    const cap = name.includes('exceeds') ? '1800000' : '2200000'
-    const quote = await privateNoteQuote(client(simulate), cap)(input(create(1024, cap)))
-    expect(quote).toMatchObject({ source: 'bounded-estimate', estimatedDepositUgnot: '1787500', maxDepositUgnot: cap, gasWanted: 78_000_000, networkFeeUgnot: 93_600 })
+    ['the simulation reports another error', async () => Uint8Array.from([0x0a, 0x16, 0x0a, 0x14, 0x0a, 0x12, ...new TextEncoder().encode('/std.InternalError'), 0x18, 0x02])],
+    ['the answer is unreadable', async () => result.subarray(0, 300)],
+  ])('falls back to the bounded estimate when %s', async (_name, simulate) => {
+    const quote = await privateNoteQuote(client(simulate), '2200000')(input(create(1024, '2200000')))
+    expect(quote).toMatchObject({ source: 'bounded-estimate', estimatedDepositUgnot: '1787500', maxDepositUgnot: '2200000', gasWanted: 78_000_000, networkFeeUgnot: 93_600 })
   })
   it('refuses another storage price, a cap below the estimate, and a message for another cap or realm', async () => {
     const c = client(async () => result)

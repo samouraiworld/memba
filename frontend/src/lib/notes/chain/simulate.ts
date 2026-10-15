@@ -43,17 +43,26 @@ function fields(buffer: Uint8Array): Field[] {
 const unzigzag = (value: bigint) => (value & 1n) ? -((value + 1n) >> 1n) : value >> 1n
 const text = (value: Uint8Array | undefined) => new TextDecoder('utf-8', { fatal: true }).decode(value ?? new Uint8Array())
 /**
- * The deposit (`/tm.StorageDepositEvent`, bytes × price, summed over every realm) and gas the node measured. A result that
- * carries an error, frees storage or cannot be read is refused (`unavailable`): the caller falls back to its bound.
+ * The deposit (`/tm.StorageDepositEvent`, bytes × price, summed over every realm) and gas the node measured. A node that
+ * refuses the call because `max_deposit` is too small says how much it requires: that is read too (`aboveCap`), so the
+ * caller can refuse rather than sign a transaction the node predicts will fail. Any other error, a storage unlock or
+ * unreadable bytes is refused (`unavailable`): the caller falls back to its bound.
  */
-export function readSimulation(result: Uint8Array, storagePriceUgnot: bigint): { gasUsed: number; depositUgnot: bigint } {
+export function readSimulation(result: Uint8Array, storagePriceUgnot: bigint): { gasUsed: number; depositUgnot: bigint; aboveCap: boolean } {
   try {
     let gasUsed = -1n, deposit = 0n, base: Field[] = []
     for (const field of fields(result)) {
       if (field.n === 1 && field.bytes) base = fields(field.bytes)
       if (field.n === 3 && field.varint !== undefined) gasUsed = unzigzag(field.varint)
     }
-    check(!base.some(field => field.n === 1) && gasUsed > 0n && gasUsed <= BigInt(Number.MAX_SAFE_INTEGER))
+    check(gasUsed > 0n && gasUsed <= BigInt(Number.MAX_SAFE_INTEGER))
+    const error = base.find(field => field.n === 1)
+    if (error) {
+      const log = new TextDecoder().decode(base.find(field => field.n === 4)?.bytes ?? new Uint8Array())
+      const short = /not enough deposit to cover the storage usage: requires ([0-9]{1,18})ugnot for ([0-9]{1,15}) bytes/.exec(log)
+      check(short && BigInt(short[1]) === BigInt(short[2]) * storagePriceUgnot)
+      return { gasUsed: Number(gasUsed), depositUgnot: BigInt(short![1]), aboveCap: true }
+    }
     for (const event of base.filter(field => field.n === 3 && field.bytes)) {
       const any = fields(event.bytes!), type = text(any.find(field => field.n === 1)?.bytes)
       check(type !== '/tm.StorageUnlockEvent')
@@ -63,6 +72,6 @@ export function readSimulation(result: Uint8Array, storagePriceUgnot: bigint): {
       check(bytes > 0n && text(body.find(field => field.n === 2)?.bytes) === `${amount}ugnot`)
       deposit += amount
     }
-    return { gasUsed: Number(gasUsed), depositUgnot: deposit }
+    return { gasUsed: Number(gasUsed), depositUgnot: deposit, aboveCap: false }
   } catch { throw new NotesChainError('unavailable') }
 }

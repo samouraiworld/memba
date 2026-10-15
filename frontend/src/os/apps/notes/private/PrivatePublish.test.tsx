@@ -11,18 +11,23 @@ import { NOTES_REALM } from '../../../../lib/notes/chain/__fixtures__/deployment
 import { createIdentityController } from '../../../../lib/notes/privateNotes'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import golden from '../../../../lib/notes/identity/__fixtures__/backup-standard.json'
+import simulation from '../../../../lib/notes/chain/__fixtures__/simulate-onyx.json'
 import type { SignRequest } from '../../../sign/signer'
 import { PublicPublish, type PrivateCreate } from '../PublicPublish'
 import { PrivateChoice, PrivateReview } from './PrivatePublish'
 
 // The real key controller unlocked from the real Standard backup (only the KDF and Adena's signature are mocked), the
 // real sealer and request builder; the signature sheet, the network fee and the balance read are stubs.
-const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), sign: vi.fn(), open: true, keyActive: true }))
+const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), sign: vi.fn(), open: true, keyActive: true, balance: null as string | null, simulate: null as (() => Promise<Uint8Array>) | null }))
 vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => io.kdf(...args) }))
 vi.mock('../../../../lib/notes/crypto/signer', () => ({ requestNotesUnlock: (...args: unknown[]) => io.unlock(...args) }))
 vi.mock('../../../sign/signerContext', () => ({ useSigner: () => ({ sign: io.sign }) }))
 vi.mock('../../../../lib/grc20', async original => ({ ...await original<typeof import('../../../../lib/grc20')>(), freshFeeForGasWanted: async (gas: number) => Math.ceil(gas * 1.2 / 1000) }))
-vi.mock('../../../../lib/dao/packageStatus', () => ({ abciQueryText: async (_ctx: unknown, path: string) => { if (path === 'params/vm:p:storage_price') return '"100ugnot"'; throw new Error('offline') } }))
+vi.mock('../../../../lib/dao/packageStatus', () => ({ abciQueryText: async (_ctx: unknown, path: string) => {
+    if (path === 'params/vm:p:storage_price') return '"100ugnot"'
+    if (path.startsWith('bank/balances/') && io.balance !== null) return JSON.stringify(io.balance)
+    throw new Error('offline')
+} }))
 vi.mock('../../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../../lib/notes/config')>(),
     notesDeployment: (chainId: string) => chainId === 'test-chain-id' ? { realm: NOTES_REALM, version: 1 } : null,
     deploymentRealm: () => NOTES_REALM,
@@ -35,7 +40,7 @@ function client(): NotesReadClient {
     return { chainId: golden.chainId, realm: NOTES_REALM, assertCurrent: () => {}, height: async () => '10', note: async () => null,
         config: async () => ({ realm: NOTES_REALM, admin: owner, pendingAdmin: '', treasury: owner, createFeeUgnot: '100000', paused: false }),
         key: async () => io.keyActive ? { address: owner, generation: '1', active: true, publicKey, operationId: '11'.repeat(16), height: '5' } : { address: owner, generation: '0', active: false, publicKey: new Uint8Array(), operationId: '', height: '0' },
-        seedBackupRaw: async () => io.keyActive ? backup : null, simulateRaw: async () => { throw new Error('offline') },
+        seedBackupRaw: async () => io.keyActive ? backup : null, simulateRaw: async () => { if (io.simulate) return io.simulate(); throw new Error('offline') },
     } as unknown as NotesReadClient
 }
 let controller: NotesIdentityController, store: NotesStore
@@ -53,7 +58,7 @@ async function review(privateCreate?: PrivateCreate, reader = client()) {
 const privateRadio = () => screen.getByRole('radio', { name: /Private · encrypted, only you/ })
 beforeEach(() => {
     store = createNotesStore({ indexedDB: new IDBFactory() })
-    vi.clearAllMocks(); io.open = true; io.keyActive = true; io.sign.mockReturnValue(true)
+    vi.clearAllMocks(); io.open = true; io.keyActive = true; io.balance = null; io.simulate = null; io.sign.mockReturnValue(true)
     io.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
     io.unlock.mockImplementation(async () => ({ ikm: hexToBytes(golden.materialHex), publicKey: new Uint8Array(33) }))
 })
@@ -107,6 +112,27 @@ describe('publishing privately', () => {
         const text = JSON.stringify(message) + JSON.stringify(request.lines(undefined))
         for (const secret of ['Saved content', encode64(new TextEncoder().encode(draft.payload.kind === 'public' ? draft.payload.body : '')), 'Field guide']) expect(text).not.toContain(secret)
         expect(request.lines(undefined)).toContainEqual(['Estimated storage deposit', '1.6791 GNOT'])
+    })
+    it('refuses a balance below the written maximum (cap + fees), even when it covers the estimate', async () => {
+        io.balance = '2000000ugnot'
+        const reader = client(); controller = createIdentityController(reader, owner, createDraftSession())
+        await review(slot(reader))
+        await waitFor(() => expect(privateRadio()).toBeEnabled())
+        fireEvent.click(privateRadio()); fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        // ≈ 1.6791 + 0.1 + 0.0912 = 1.8703 GNOT is covered; the maximum 2.1 + 0.1 + 0.0912 is not.
+        expect(await screen.findByText(/This can cost up to 2\.2912 GNOT; your balance is 2 GNOT\./)).toBeVisible()
+        expect(screen.getByRole('button', { name: 'Publish privately with Adena' })).toBeDisabled(); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('refuses, before the signature sheet, a note the node says needs more storage than the cap', async () => {
+        io.simulate = async () => blob(simulation.overCap.resultBase64, 4096)
+        const reader = client(); controller = createIdentityController(reader, owner, createDraftSession())
+        await review(slot(reader))
+        await waitFor(() => expect(privateRadio()).toBeEnabled())
+        fireEvent.click(privateRadio()); fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Publish privately with Adena' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Publish privately with Adena' }))
+        expect(await screen.findByText('This note needs more storage than Memba can approve. Nothing was sent. Your text is kept.')).toBeVisible()
+        expect(io.sign).not.toHaveBeenCalled()
     })
     it('drops the encrypted copy and asks to unlock again when the key locks before signing', async () => {
         const reader = client(); controller = createIdentityController(reader, owner, createDraftSession())
