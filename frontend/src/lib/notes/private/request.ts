@@ -15,11 +15,15 @@ import { equalBytes } from '../crypto/bytes'
 import { decodeManifest } from '../crypto/manifest'
 import { privateNotesDeployment } from '../config'
 import { privateNoteMessage } from './messages'
+import { readPrivateAccess } from './reader'
+import { parseEpochPage } from './schema'
 import type { PrivateNoteOperation, PrivateOperationState } from './messages'
 import { privateIntentEvidence, privateVerification } from './recovery'
 
+/** The note revision an edit was reviewed against (null for a create): any change on chain makes the request stale. */
+export type PrivateReviewedState = Pick<ChainNote, 'id' | 'stateRevision' | 'epoch' | 'ownerGeneration' | 'titleRevision' | 'bodyRevision' | 'owner' | 'mode'>
 export interface PrivateRequestOptions {
-  client: NotesReadClient; operation: PrivateNoteOperation
+  client: NotesReadClient; operation: PrivateNoteOperation; reviewed: PrivateReviewedState | null
   maxDepositUgnot: string; draftLocalRevision: string; session: DraftSession; intents: NotesIntents; quote: NotesQuoteProvider
   /** Central Notes deployment/rollout gate, checked again immediately before wallet access. */
   isWriteEnabled: () => boolean
@@ -35,13 +39,17 @@ function copy<T>(value: T): T {
   return value
 }
 function saved<T>(value: NotesWriteResult<T>): T { if (value.status !== 'saved') throw new NotesChainError('storage'); return value.value }
+function sameBase(note: ChainNote | null, expected: PrivateReviewedState | null): boolean {
+  if (!expected) return note === null
+  return !!note && !note.deleted && (['id', 'stateRevision', 'epoch', 'ownerGeneration', 'titleRevision', 'bodyRevision', 'owner', 'mode'] as const).every(key => note[key] === expected[key])
+}
 /**
- * Creates a private note ("only me"). All signing inputs are immutable snapshots; neither key material nor plaintext
+ * Creates a private note ("only me") or commits an edit to one. All signing inputs are immutable snapshots; neither key material nor plaintext
  * enters the message, the quote input or the durable intention (ciphertext and envelopes only). No wallet opens here.
  */
 export async function preparePrivateNoteRequest(options: PrivateRequestOptions): Promise<SignRequest> {
   const session = options.session.capture(), { signal } = session, { client, intents, privateSignal } = options
-  const operation = copy(options.operation), action = operation.action
+  const operation = copy(options.operation), action = operation.action, reviewed = copy(options.reviewed)
   let dismissed = false
   const cap = decimal(options.maxDepositUgnot, 63)
   // Runs at the start, after every await and in beforeSign: the private-notes gate for this very deployment, and the
@@ -52,11 +60,17 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
     if (privateNotesDeployment(client.chainId)?.realm !== client.realm) throw new NotesChainError('disabled')
   }
   const writable = () => { current(); if (!options.isWriteEnabled()) throw new NotesChainError('disabled') }
-  writable(); check(operation.chainId === client.chainId && action.kind === 'create')
+  writable(); check(operation.chainId === client.chainId && (action.kind === 'create') === (reviewed === null))
   const draftLocalRevision = decimal(options.draftLocalRevision)
   async function state(): Promise<PrivateOperationState> {
     const [note, config] = await Promise.all([client.note(operation.noteId), client.config()]); current()
-    if (note !== null || config.paused) throw new NotesChainError('stale')
+    if (!sameBase(note, reviewed) || (action.kind === 'create' && config.paused)) throw new NotesChainError('stale')
+    if (action.kind === 'commit') {
+      // The epoch as reviewed, and the very envelopes the edit was checked against (who may write).
+      const epoch = parseEpochPage(await client.epochMetadataRaw(note!.id, note!.epoch), note!.epoch); current()
+      if (!equalBytes(await readPrivateAccess(client, note!, signal), action.previousManifest)) throw new NotesChainError('stale')
+      current(); return { note, epoch, config }
+    }
     // Every envelope is for the registry key it names: active, same generation, same public key.
     for (const entry of decodeManifest(action.prepared.manifest, action.prepared.epoch)) {
       const who = bech32Encode('g', entry.address), key = await client.key(who); current()
@@ -68,10 +82,12 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
   const height = await client.height(); current()
   const quoteInput: NotesQuoteInput = { chainId: client.chainId, message, requestDigest: notesRequestDigest(client.chainId, message), height }
   const quote = copy(await options.quote(copy(quoteInput))); current(); validateNotesQuote(quote, quoteInput, cap)
+  const revision = base.note?.stateRevision ?? '0'
   const input: NotesIntentInput = {
     scope: { chainId: client.chainId, realm: client.realm, owner: operation.caller, noteId: operation.noteId }, operationId: operation.operationId,
-    actor: operation.caller, action: 'private-create', requestDigest: quoteInput.requestDigest, expectedStateRevision: '0', resultingStateRevision: '1',
-    expectedEpoch: '0', ownerGeneration: '1', draftLocalRevision, verification: privateVerification(operation, height, cap),
+    actor: operation.caller, action: `private-${action.kind}`, requestDigest: quoteInput.requestDigest, expectedStateRevision: revision,
+    resultingStateRevision: decimal((BigInt(revision) + 1n).toString(), 64, true), expectedEpoch: base.note?.epoch ?? '0',
+    ownerGeneration: base.note?.ownerGeneration ?? '1', draftLocalRevision, verification: privateVerification(operation, base.note, height, cap),
   }
   let begun = false, started = false, walletMayHaveOpened = false
   const recheck = async () => {
@@ -80,15 +96,19 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
       || notesRequestDigest(client.chainId, privateNoteMessage(operation, client.realm, cap, next)) !== quoteInput.requestDigest) throw new NotesChainError('stale')
     await assertFeeStillCovers(quote.networkFeeUgnot, () => freshFeeForGasWanted(quote.gasWanted)); writable()
   }
-  const [envelope] = decodeManifest(action.prepared.manifest, 1)
-  const p = action.prepared, sizes = `title ${p.title.length} B, body ${p.body.length} B, envelope ${p.manifest.length} B`
+  const creating = action.kind === 'create'
+  const envelope = creating ? decodeManifest(action.prepared.manifest, 1)[0] : null
+  const changed = creating ? action.prepared : action
+  const sizes = [changed.title && `title ${changed.title.length} B`, changed.body && `body ${changed.body.length} B`, creating && `envelope ${action.prepared.manifest.length} B`].filter(Boolean).join(', ')
   const request: SignRequest = {
-    title: 'Publish private note', summary: 'Publish an encrypted note that only you can read', label: () => 'Publish private note',
+    title: creating ? 'Publish private note' : 'Publish private changes', summary: creating ? 'Publish an encrypted note that only you can read' : 'Publish encrypted changes to your private note',
+    label: () => creating ? 'Publish private note' : 'Publish private changes',
     warns: ['The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.',
-      'The storage deposit stays locked while the note exists: deleting it returns about half; the rest stays locked.'],
+      creating ? 'The storage deposit stays locked while the note exists: deleting it returns about half; the rest stays locked.' : 'Only the growth of the encrypted text is locked as deposit; the note keeps no earlier versions.'],
     lines: () => [['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm], ['Note', operation.noteId], ['Operation', operation.operationId],
-      ['Who can read', `Only you · your key, generation ${envelope.generation}`], ['Public on the network', `Owner address, encrypted sizes (${sizes}), times`],
-      ['Publication fee', gnotAmount(base.config!.createFeeUgnot)],
+      ...creating ? [] : [['Revision', `${revision} → ${input.resultingStateRevision}`] as [string, string]],
+      ['Who can read', creating ? `Only you · your key, generation ${envelope!.generation}` : 'Unchanged by this edit'], ['Public on the network', `Owner address, encrypted sizes (${sizes}), times`],
+      ['Publication fee', gnotAmount(creating ? base.config!.createFeeUgnot : '0')],
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Estimated storage deposit', gnotAmount(quote.estimatedDepositUgnot)],
       ['Maximum storage deposit', gnotAmount(cap)], ['Network fee, at most', gnotAmount(quote.networkFeeUgnot)]],
     prepare: () => { current(); return { msgs: [copy(message)] } }, recheck,
@@ -124,7 +144,7 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
       if (begun && outcome === 'unknown') void intents.settle(input.scope, input.operationId, 'unknown', session).catch(() => {})
     },
     onDismissed: () => { dismissed = true },
-    pendingNote: () => 'Waiting for this exact operation, its ciphertexts and your envelope on chain. Nothing is sent again.',
+    pendingNote: () => creating ? 'Waiting for this exact operation, its ciphertexts and your envelope on chain. Nothing is sent again.' : 'Waiting for this exact operation, revision and ciphertexts on chain. Nothing is sent again.',
   }
   return request
 }

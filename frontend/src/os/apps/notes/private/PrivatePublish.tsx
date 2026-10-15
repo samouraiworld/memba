@@ -9,12 +9,13 @@ import { newNoteId, notesDeployment, privateNotesDeployment } from '../../../../
 import { NotesTimeoutError, withTimeout } from '../../../../lib/notes/freshness'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { PrivateNoteNoAccess, PrivateStorageAboveCap, prepareEncryptedEpoch, preparePrivateNoteRequest, privateNoteBudget, privateNoteMessage, privateNoteQuote } from '../../../../lib/notes/private'
-import type { PrivateNoteOperation } from '../../../../lib/notes/private'
+import type { EncryptedEpoch, PrivateNoteOperation } from '../../../../lib/notes/private'
 import { freshFeeForGasWanted } from '../../../../lib/grc20'
 import type { PrivateReviewProps } from '../PublicPublish'
 import { balanceOf } from '../notesFormat'
 import { adenaWallet, unlockProblem } from './unlock'
 import { withKey } from './keyQueue'
+import { afterConfirmed, sealConfirmedDraft, type DraftKey } from './encryptedDraft'
 import './notes-private.css'
 
 type Bound = { controller: NotesIdentityController; client: NotesReadClient; store: NotesStore; owner: string }
@@ -36,7 +37,7 @@ export function PrivateChoice({ controller, client, checked, disabled, onChoose,
     </div>
 }
 
-type Sealed = { operation: PrivateNoteOperation; generation: string; cap: string; estimate: string; fee: string; networkFee: number | null; balance: bigint | null }
+type Sealed = { operation: PrivateNoteOperation; prepared: EncryptedEpoch; key: DraftKey; generation: string; cap: string; estimate: string; fee: string; networkFee: number | null; balance: bigint | null }
 function problemText(error: unknown): string {
     if (error instanceof PrivateStorageAboveCap) return 'This note needs more storage than Memba can approve. Nothing was sent. Your text is kept.'
     if (error instanceof PrivateNoteNoAccess) return 'Your unlocked key is not the one registered for this account on the network. Nothing was encrypted or sent.'
@@ -72,7 +73,7 @@ function Review({ controller, client, store, owner, draft, title, requestSession
             const budget = privateNoteBudget(privateNoteMessage(operation, client.realm, '0', { note: null, epoch: null, config }))
             const [networkFee, balance, durable] = await Promise.all([freshFeeForGasWanted(budget.gasWanted).catch(() => null), balanceOf(client.chainId, owner), withTimeout(store.getDraft(draft.scope))])
             if (!durable || durable.localRevision !== draft.localRevision) throw new NotesChainError('stale')
-            if (!lifetime.signal.aborted) setSealed({ operation, generation, cap: budget.suggestedCapUgnot, estimate: budget.estimatedDepositUgnot, fee: config.createFeeUgnot, networkFee, balance })
+            if (!lifetime.signal.aborted) setSealed({ operation, prepared, key: { generation, publicKey: key.publicKey.slice() }, generation, cap: budget.suggestedCapUgnot, estimate: budget.estimatedDepositUgnot, fee: config.createFeeUgnot, networkFee, balance })
         })().catch(error => { if (!lifetime.signal.aborted) setProblem(problemText(error)) })
         return () => { lifetime.abort(); setSealed(null) }
     }, [phase, generation, body, title, draft, controller, client, owner, store])
@@ -89,7 +90,7 @@ function Review({ controller, client, store, owner, draft, title, requestSession
         const stop = controller.subscribe(() => { const now = controller.getSnapshot(); if (now.phase !== 'unlocked' || now.generation !== current.generation) lease.abort() })
         let confirmed: ChainNote | null = null
         try {
-            const pending = preparePrivateNoteRequest({ client, operation: current.operation, maxDepositUgnot: current.cap, draftLocalRevision: draft.localRevision,
+            const pending = preparePrivateNoteRequest({ client, operation: current.operation, reviewed: null, maxDepositUgnot: current.cap, draftLocalRevision: draft.localRevision,
                 session: requestSession, intents: new NotesIntents(store), quote: privateNoteQuote(client, current.cap), isWriteEnabled: () => !!notesDeployment(client.chainId),
                 isPrivateSessionCurrent: () => !lease.signal.aborted, privateSignal: lease.signal, onConfirmed: note => { confirmed = note } })
             // A late request after a timeout is dismissed; it has recorded nothing and opened no wallet.
@@ -98,6 +99,9 @@ function Review({ controller, client, store, owner, draft, title, requestSession
             request.onSettled = (outcome, choice) => { stop(); onSettled?.(outcome, choice) }
             request.onDismissed = () => { stop(); onDismissed?.() }
             request.sub = `“${title}”, encrypted: only you can read it.`
+            // Confirmed: the plaintext draft this note was published from becomes its encrypted draft (a draft changed
+            // meanwhile is kept, and the note page offers to remove it).
+            afterConfirmed(request, () => confirmed ? sealConfirmedDraft(store, client, draft.scope, draft.localRevision, current.key, { title, body: body! }, confirmed) : Promise.resolve(false))
             if (!submit(request, () => confirmed)) stop()
         } catch (error) { stop(); setProblem(problemText(error)); setWorking(false) }
     }
@@ -114,13 +118,13 @@ function Review({ controller, client, store, owner, draft, title, requestSession
     else if (phase !== 'unlocked') content = <p>Unlock your private key in Private notes (with your recovery phrase), then publish again. Nothing was sent.</p>
     else if (!sealed && !problem) content = <div className="os-notes-sheet-wait" role="status"><span className="os-spin" aria-hidden="true" />Encrypting in this browser…</div>
     else if (sealed) {
-        const p = sealed.operation.action.prepared
+        const p = sealed.prepared
         content = <><dl className="os-notes-facts">
             <div><dt>What is stored</dt><dd>The title and text, encrypted in this browser. Only your private key can open them.</dd></div>
             <div><dt>Public on the network</dt><dd>Your address as the owner, the encrypted sizes (title {p.title.length} bytes, text {p.body.length} bytes) and when it was published. Not the title or the text.</dd></div>
             <div><dt>Cost</dt><dd><strong className="os-notes-cost">≈ {gnotAmount(sealed.estimate)}</strong> locked as storage deposit, plus a {gnotAmount(sealed.fee)} publication fee that is not returned. Deleting the note later returns about half of the deposit; the rest stays locked.
                 <small>At most {gnotAmount(sealed.cap)}, written in the transaction. Network fee at most {sealed.networkFee === null ? 'what Adena shows' : gnotAmount(sealed.networkFee)}; Adena usually charges less.</small></dd></div>
-            <div><dt>On this device</dt><dd>Your unencrypted draft stays on this device after publishing. You can remove it from the note afterwards.</dd></div>
+            <div><dt>On this device</dt><dd>Once published, your draft on this device is replaced by an encrypted copy.</dd></div>
         </dl>
             {walletProblem && <p className="os-notes-field-error" role="alert">{walletProblem}</p>}
             {short && <p className="os-notes-field-error" role="alert"><b>This can cost up to {gnotAmount(String(total))}; your balance is {gnotAmount(String(sealed.balance))}.</b> Nothing was sent. Your text is kept.</p>}</>

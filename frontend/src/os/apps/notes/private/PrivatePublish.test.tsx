@@ -2,7 +2,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { hexToBytes } from '@noble/hashes/utils.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import { decodeManifest } from '../../../../lib/notes/crypto/manifest'
+import { openPrivateDraft } from '../../../../lib/notes/private/localDraft'
 import { bech32Encode } from '../../../../lib/dao/realmAddress'
 import { createDraftSession, createNotesStore, type DraftRecord, type NotesStore } from '../../../../lib/notes/drafts'
 import type { NotesReadClient } from '../../../../lib/notes/chain/client'
@@ -22,7 +24,8 @@ const io = vi.hoisted(() => ({ kdf: vi.fn(), unlock: vi.fn(), sign: vi.fn(), ope
 vi.mock('@noble/hashes/argon2.js', () => ({ argon2idAsync: (...args: unknown[]) => io.kdf(...args) }))
 vi.mock('../../../../lib/notes/crypto/signer', () => ({ requestNotesUnlock: (...args: unknown[]) => io.unlock(...args) }))
 vi.mock('../../../sign/signerContext', () => ({ useSigner: () => ({ sign: io.sign }) }))
-vi.mock('../../../../lib/grc20', async original => ({ ...await original<typeof import('../../../../lib/grc20')>(), freshFeeForGasWanted: async (gas: number) => Math.ceil(gas * 1.2 / 1000) }))
+vi.mock('../../../../lib/grc20', async original => ({ ...await original<typeof import('../../../../lib/grc20')>(), freshFeeForGasWanted: async (gas: number) => Math.ceil(gas * 1.2 / 1000),
+    assertFeeStillCovers: async () => {}, doContractBroadcast: async (_msgs: unknown, _memo: string, options: { beforeSign(): Promise<unknown> }) => { await options.beforeSign(); return { hash: 'aa'.repeat(32) } } }))
 vi.mock('../../../../lib/dao/packageStatus', () => ({ abciQueryText: async (_ctx: unknown, path: string) => {
     if (path === 'params/vm:p:storage_price') return '"100ugnot"'
     if (path.startsWith('bank/balances/') && io.balance !== null) return JSON.stringify(io.balance)
@@ -102,7 +105,7 @@ describe('publishing privately', () => {
         const sheet = screen.getByRole('dialog', { name: 'Publish privately' })
         expect(sheet).toHaveTextContent('≈ 1.6791 GNOT locked as storage deposit, plus a 0.1 GNOT publication fee that is not returned. Deleting the note later returns about half of the deposit; the rest stays locked.')
         expect(sheet).toHaveTextContent('At most 2.1 GNOT, written in the transaction. Network fee at most 0.0912 GNOT; Adena usually charges less.')
-        expect(sheet).toHaveTextContent('Your unencrypted draft stays on this device after publishing.')
+        expect(sheet).toHaveTextContent('Once published, your draft on this device is replaced by an encrypted copy.')
         expect(io.unlock).toHaveBeenCalledOnce(); expect(io.sign).not.toHaveBeenCalled()
         fireEvent.click(screen.getByRole('button', { name: 'Publish privately with Adena' }))
         await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
@@ -143,5 +146,28 @@ describe('publishing privately', () => {
         act(() => controller.lock())
         expect(await screen.findByText('Unlock your private key to encrypt this note.')).toBeVisible()
         expect(screen.getByRole('button', { name: 'Publish privately with Adena' })).toBeDisabled(); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('replaces the plaintext draft it was published from with an encrypted copy once the publication is confirmed', async () => {
+        const reader = client(); controller = createIdentityController(reader, owner, createDraftSession())
+        await review(slot(reader))
+        await waitFor(() => expect(privateRadio()).toBeEnabled())
+        fireEvent.click(privateRadio()); fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Publish privately with Adena' })).toBeEnabled())
+        fireEvent.click(screen.getByRole('button', { name: 'Publish privately with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, { args } = request.prepare(undefined).msgs[0].value
+        await request.send(undefined, async () => () => true)
+        const manifest = blob(args[4], 41570), entry = decodeManifest(manifest, 1)[0]
+        const confirmed = { id: noteId, owner, pendingOwner: '', ownerGeneration: '1', mode: 0 as const, stateRevision: '1', titleRevision: '1', bodyRevision: '1', epoch: '1', title: blob(args[2], 231), body: blob(args[3], 135223),
+            commitment: blob(args[5], 32), deleted: false, listed: false, createdHeight: '11', operationId: bytesToHex(blob(args[7], 16)), actor: owner, height: '11' }
+        Object.assign(reader, { note: async () => confirmed, noteMetadata: async () => confirmed, readersRaw: async () => [owner],
+            wrapRaw: async () => ({ address: owner, epoch: '1', writer: true, generation: '1', public_key_hash: encode64(entry.publicKeyHash), wrap: encode64(entry.wrap) }) })
+        expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+        const record = (await store.getDraft(draft.scope))!
+        expect(record.payload.kind).toBe('encrypted'); expect(record.localRevision).toBe('2')
+        const envelope = (record.payload as { envelope: Uint8Array }).envelope
+        expect(new TextDecoder().decode(envelope)).not.toContain('Saved content')
+        expect(await controller.use(identity => openPrivateDraft(draft.scope, 2n, 1n, identity, envelope))).toEqual({ title: 'Field guide', body: 'Saved content, never public', mode: 0,
+            base: { stateRevision: '1', epoch: '1', ownerGeneration: '1', titleRevision: '1', bodyRevision: '1' } })
     })
 })

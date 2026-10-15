@@ -3,13 +3,13 @@ import type { NotesReadClient } from '../chain/client'
 import { address, check, NotesChainError, publicText } from '../chain/schema'
 import type { ChainNote } from '../chain/schema'
 import { equalBytes } from '../crypto/bytes'
-import { keyCommitment, openField } from '../crypto/content'
+import { keyCommitment, openField, sealField } from '../crypto/content'
 import { encodeManifest } from '../crypto/manifest'
 import type { Recipient } from '../crypto/manifest'
 import { unwrapForReader } from '../crypto/wrap'
 import { addressBytes } from '../identity/chain'
 import type { NotesIdentityController } from '../identity/controller'
-import { noteContext, OpenPrivateNote } from './engine'
+import { encodePrivateText, noteContext, OpenPrivateNote } from './engine'
 import { parseEpochPage, parseReaders, parseWrap } from './schema'
 
 /**
@@ -59,6 +59,45 @@ export async function readEncryptedNote(client: NotesReadClient, noteId: string,
     delivered = true; return view
   } catch (error) { opened?.dispose(); throw error }
   finally { if (!delivered) { unsubscribe(); signal.removeEventListener('abort', invalidate) }; key?.fill(0) }
+}
+
+/**
+ * An edit of the note as reviewed (`note`, the caller's fresh read): its current epoch key is opened once, with the same
+ * checks as readEncryptedNote, the current title and body are compared with the edited text, and only the fields that
+ * differ are sealed, at their next field revision. Neither the key nor any plaintext leaves; nothing is stored.
+ */
+export async function sealEncryptedChanges(client: NotesReadClient, note: ChainNote, edited: { title: string; body: string }, options: { access: Access; signal: AbortSignal }): Promise<{ title?: Uint8Array; body?: Uint8Array }> {
+  const { access, signal } = options, who = address(access.owner), generation = access.identity.getSnapshot().generation
+  const assert = () => {
+    client.assertCurrent()
+    if (signal.aborted || access.identity.getSnapshot().phase !== 'unlocked' || access.identity.getSnapshot().generation !== generation) throw new NotesChainError('session')
+  }
+  assert(); check(!note.deleted && note.mode <= 2 && note.body)
+  const epoch = parseEpochPage(await client.epochMetadataRaw(note.id, note.epoch), note.epoch); assert()
+  check(equalBytes(epoch.commitment, note.commitment) && epoch.revealedKey.length === 0)
+  const raw = await client.wrapRaw(note.id, note.epoch, who); assert()
+  if (raw === null) throw new PrivateNoteNoAccess('none')
+  const wrap = parseWrap(raw, note.epoch, who)
+  if (generation !== wrap.generation) throw new PrivateNoteNoAccess('other-key')
+  check(wrap.writer || note.owner === who)
+  const sealed = await access.identity.use(identity => {
+    if (!equalBytes(sha256(identity.publicKey), wrap.publicKeyHash)) throw new PrivateNoteNoAccess('other-key')
+    const context = noteContext(client.chainId, client.realm, note), parts: Uint8Array[] = []
+    const key = unwrapForReader(wrap.wrap, identity.secretKey, identity.publicKey, { ...context, reader: who, generation: BigInt(wrap.generation) })
+    try {
+      check(equalBytes(keyCommitment(key, context), note.commitment))
+      const seal = (field: 'title' | 'body', value: string, current: Uint8Array, revision: string) => {
+        const before = openField(key, { ...context, field, fieldRevision: BigInt(revision) }, current), after = encodePrivateText(value, field === 'title')
+        parts.push(before, after)
+        return equalBytes(before, after) ? undefined : sealField(key, { ...context, field, fieldRevision: BigInt(revision) + 1n }, after)
+      }
+      const title = seal('title', edited.title, note.title, note.titleRevision), body = seal('body', edited.body, note.body!, note.bodyRevision)
+      return { ...(title ? { title } : {}), ...(body ? { body } : {}) }
+    } finally { key.fill(0); parts.forEach(part => part.fill(0)) }
+  }); assert()
+  const final = await client.noteMetadata(note.id); assert()
+  if (!final || final.stateRevision !== note.stateRevision || final.epoch !== note.epoch || final.ownerGeneration !== note.ownerGeneration) throw new NotesChainError('stale')
+  return sealed
 }
 
 /**

@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: edit a private note, with its draft encrypted on this device (#1638, 2026-10-15)
+- The owner (or a writer) of a private note gets **Edit** once the key is unlocked. The draft on this device is encrypted for the account's registered key (a fresh data key per save, bound to the network, its realm, the account, the note and the local revision, which is compare-and-swapped): no plaintext, plaintext hash or plaintext base64 reaches IndexedDB, and a draft another window saved is never overwritten.
+- Locking (the editor's Lock, the note's Lock, Shell lock, account or network switch) first stores the last edits encrypted, then clears the text from the screen; Unlock reopens them. A closed private-notes switch saves nothing.
+- **Publish** commits the changed title and/or text, sealed in the browser at their next revision. Commit pays only for growth: the M0-based bound is (ciphertext growth + 500 B) × 100 with a cap of 1.2 × rounded up to 0.1 GNOT, gas 60 M + 2,200 per byte; the exact transaction is simulated first, and a node that says the deposit exceeds the cap refuses it before the wallet.
+- After a confirmed private publication or edit, this device's draft becomes the encrypted copy of the new revision (the D1 "unencrypted copy" banner then disappears; a leftover copy keeps "Remove this copy"). "Remove my draft on this device" deletes an encrypted draft without decrypting it, only at the revision read before asking.
+- Ported `lib/notes/private/localDraft.ts` and the reviewed Commit path (`messages`, `request`, `recovery`) to the per-network realm; all of it stays in the lazy `privateNotes` chunk.
+
 ### Notes: publish a private note, only for you (#1637, 2026-10-15)
 - The publish sheet's "Private · encrypted, only you" choice opens for a new note where private notes are open (onyx-1 with every switch on) and this account has a private key Memba can unlock; otherwise it stays unavailable, or says "Set up private notes first" with a link to the Private notes panel.
 - Publishing privately needs an explicit Unlock. The title and text are then encrypted in the browser for the account's registered key, and the review says what stays public (owner address, encrypted sizes, times), the cost ("locked; deleting returns about half, the rest stays locked"), the cap and the network fee (the balance is checked against the maximum), before the OS signature sheet. Once confirmed, the note opens in the private reader.

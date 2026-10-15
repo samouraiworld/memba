@@ -15,6 +15,8 @@ import { readSimulation, unsignedCallTx } from '../chain/simulate'
  * - cap (max_deposit) = estimate × 1.2, rounded up to 0.1 GNOT; a cap is a ceiling, never charged.
  * - gas = 60 M + 2,200 per argument byte + 12 M per envelope, rounded up to 1 M, at most MAX_GAS_WANTED (500 M):
  *   ≥ 1.7× every M0 create row (42.5-44.9 M); 373 M for create1max (43.7 M), 500 M for create32max (349 M).
+ * Commit (M0 rows 21.2-21.9 M gas): deposit ≈ (ciphertext growth + 500 B) × 100, the same cap rule and gas formula
+ * (no envelope): 63-65 M for 1-2 KB bodies, ≥ 2.9× the M0 rows.
  */
 /** A simulation (readable, from a verified node) says the note needs more storage deposit than the reviewed cap. */
 export class PrivateStorageAboveCap extends Error {
@@ -22,15 +24,31 @@ export class PrivateStorageAboveCap extends Error {
 }
 /** Simulated gas is trusted only upward: never below 60 M (the M0 creates used 42.5-44.9 M), whatever a node reports. */
 const SIMULATED_GAS_FLOOR = 60_000_000
-const CREATE_OVERHEAD_BYTES = 15_300, PER_EXTRA_ENVELOPE_BYTES = 2_400, STORAGE_PRICE_UGNOT = 100, CAP_STEP_UGNOT = 100_000
-export function privateNoteBudget(message: AminoMsg): { gasWanted: number; estimatedDepositUgnot: string; suggestedCapUgnot: string } {
+const CREATE_OVERHEAD_BYTES = 15_300, PER_EXTRA_ENVELOPE_BYTES = 2_400, COMMIT_MARGIN_BYTES = 500, STORAGE_PRICE_UGNOT = 100, CAP_STEP_UGNOT = 100_000
+/** The note's current ciphertext sizes: a Commit only pays for growth (encrypted notes keep no history). */
+export interface PrivateCommitSizes { title: number; body: number }
+export function privateNoteBudget(message: AminoMsg, previous?: PrivateCommitSizes): { gasWanted: number; estimatedDepositUgnot: string; suggestedCapUgnot: string } {
   check(message.type === 'vm/MsgCall' && validNotesRealm(message.value.pkg_path))
-  const { func, args } = message.value; check(func === 'CreateNote' && Array.isArray(args) && args.length === 8)
-  const title = blob(args[2], 231).length, body = blob(args[3], 135223).length, manifest = blob(args[4], 41570).length, commitment = blob(args[5], 32).length
-  const envelopes = (manifest - 2) / 1299
-  check(commitment === 32 && Number.isInteger(envelopes) && envelopes >= 1 && envelopes <= 32)
-  const bytes = title + body + manifest + commitment
-  const estimate = (bytes + CREATE_OVERHEAD_BYTES + PER_EXTRA_ENVELOPE_BYTES * (envelopes - 1)) * STORAGE_PRICE_UGNOT
+  const { func, args } = message.value; check(Array.isArray(args))
+  let bytes: number, estimate: number, envelopes = 0
+  if (func === 'CreateNote') {
+    check(args.length === 8)
+    const title = blob(args[2], 231).length, body = blob(args[3], 135223).length, manifest = blob(args[4], 41570).length, commitment = blob(args[5], 32).length
+    envelopes = (manifest - 2) / 1299
+    check(commitment === 32 && Number.isInteger(envelopes) && envelopes >= 1 && envelopes <= 32)
+    bytes = title + body + manifest + commitment
+    estimate = (bytes + CREATE_OVERHEAD_BYTES + PER_EXTRA_ENVELOPE_BYTES * (envelopes - 1)) * STORAGE_PRICE_UGNOT
+  } else {
+    // M0 Commit rows: 18 B for the same size, exactly the ciphertext growth otherwise (1 KB → 2 KB: 1,088 B), 0 for a
+    // title + body rewrite at the same size. Estimate = (growth of the changed fields, never below 0, + 500 B) × 100.
+    check(func === 'Commit' && args.length === 7 && ['1', '2', '3'].includes(args[3]) && previous !== undefined
+      && [previous.title, previous.body].every(size => Number.isSafeInteger(size) && size >= 0 && size <= 135223))
+    const title = args[3] === '2' ? 0 : blob(args[4], 231).length, body = args[3] === '1' ? 0 : blob(args[5], 135223).length
+    check((args[3] === '2') === (args[4] === '') && (args[3] === '1') === (args[5] === ''))
+    bytes = title + body
+    const growth = (args[3] === '2' ? 0 : title - previous!.title) + (args[3] === '1' ? 0 : body - previous!.body)
+    estimate = (Math.max(0, growth) + COMMIT_MARGIN_BYTES) * STORAGE_PRICE_UGNOT
+  }
   // Capped at the transaction ceiling, which stays above the 10-08 maxima (create32max 349 M).
   const gasWanted = Math.min(MAX_GAS_WANTED, Math.ceil((60_000_000 + bytes * 2_200 + envelopes * 12_000_000) / 1_000_000) * 1_000_000)
   return { gasWanted, estimatedDepositUgnot: String(estimate), suggestedCapUgnot: String(Math.ceil(estimate * 1.2 / CAP_STEP_UGNOT) * CAP_STEP_UGNOT) }
@@ -41,11 +59,11 @@ export function privateNoteBudget(message: AminoMsg): { gasWanted: number; estim
  * cap refuses (PrivateStorageAboveCap); any other simulation failure falls back to the bounded estimate, labelled as such.
  * Either way the storage price must be 100 ugnot/B and the deposit must fit the reviewed cap.
  */
-export function privateNoteQuote(client: NotesReadClient, maxDepositUgnot: string): NotesQuoteProvider {
+export function privateNoteQuote(client: NotesReadClient, maxDepositUgnot: string, previous?: PrivateCommitSizes): NotesQuoteProvider {
   const cap = decimal(maxDepositUgnot, 63)
   return async input => {
     client.assertCurrent(); check(input.chainId === client.chainId && input.message.value.pkg_path === client.realm && input.message.value.max_deposit === `${cap}ugnot`)
-    const bound = privateNoteBudget(input.message)
+    const bound = privateNoteBudget(input.message, previous)
     if (BigInt(cap) < BigInt(bound.estimatedDepositUgnot)) throw new NotesChainError('format')
     const urls = getRpcUrlsInOrder()
     const [price, boundFee] = await Promise.all([

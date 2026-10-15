@@ -11,7 +11,7 @@ import { NotesTimeoutError, readFresh, useNoteRefresh, withTimeout } from '../..
 import { copyTitle, trimPublicTitle } from '../../../lib/notes/publicFields'
 import type { ConflictLine } from '../../../lib/notes/merge'
 import { DraftEditor, type EditorActions } from './DraftEditor'
-import { PublicDelete, PublicPublish, PublishProgressSheet, type PrivateCreate, type PublishProgress } from './PublicPublish'
+import { PublicDelete, PublicPublish, PublishProgressSheet, type NoteReport, type PrivateCreate, type PublishProgress } from './PublicPublish'
 import { NoteSkeleton, PublicNote } from './PublicNote'
 import { PublicEditButton } from './PublicEditButton'
 import type { ArchivedPublicDraft } from './PublicHistory'
@@ -55,8 +55,8 @@ type Props = {
     client: NotesReadClient; store: NotesStore; scope: NotesScope
     /** The network Adena is on, when known. */
     walletChainId?: string
-    /** A private note's reader (lazy private chunk); without it, the plain "Private note" placeholder. */
-    encrypted?(note: ChainNote, refresh: () => void): ReactNode
+    /** A private note's reader and editor (lazy private chunk); without it, the plain "Private note" placeholder. */
+    encrypted?(note: ChainNote, refresh: () => void, report: NoteReport): ReactNode
     /** Publishing a new note privately (lazy private chunk); without it, the private choice stays unavailable. */
     privateCreate?: PrivateCreate
 }
@@ -288,11 +288,13 @@ function Workspace({ client, store, scope, walletChainId, encrypted, privateCrea
         : note.deleted ? <NoteStatus kind="draft">Draft on this device</NoteStatus>
         : saved.base && BigInt(note.stateRevision) > BigInt(saved.base.stateRevision) ? <NoteStatus kind="draft">Draft on this device · based on revision {saved.base.stateRevision}</NoteStatus>
         : <NoteStatus kind="changes">Unpublished changes{saved.base ? ` · based on revision ${saved.base.stateRevision}` : ''}</NoteStatus>
-    // D1 leaves the plaintext draft of a note published privately on this device, and says so (D2 encrypts it).
-    const unencrypted = saved && encrypted ? (note: ChainNote, refresh: () => void) => <>
-        {!note.deleted && <NoteBanner notice={{ tone: 'warn', text: 'An unencrypted copy of this note’s text is still on this device, from before it was published privately.',
+    // A confirmed private publication replaces its plaintext draft with an encrypted one; a plaintext copy left over
+    // (the draft changed meanwhile, or an earlier version) is named here and can be removed. The private page reports here.
+    const unencrypted = encrypted && ((note: ChainNote, refresh: () => void) => <>
+        {saved && !note.deleted && <NoteBanner notice={{ tone: 'warn', text: 'An unencrypted copy of this note’s text is still on this device, from before it was published privately.',
             actions: <button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => void discardBehind('Remove the unencrypted copy of this note from this device? The private note on the network does not change.')}>Remove this copy</button> }} />}
-        {encrypted(note, refresh)}</> : encrypted
+        <NoteBanner notice={notice} />
+        {encrypted(note, refresh, { onProgress: report, onNotice: setNotice, requestSession: session })}</>)
     if (start === 'checking') return <NoteSkeleton />
     return <div className="os-notes-authoring">
         {!editing && saved && (unread || (opened && live.failed)) && <NoteBanner notice={{ tone: 'warn', text: 'The published note could not be read. Your draft on this device is kept; publishing checks the network again.',

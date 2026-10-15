@@ -20,6 +20,8 @@ import { balanceOf } from './notesFormat'
 /** Where a signed publication stands. The workspace shows it: it outlives the control that started it. */
 export interface PublishProgress { kind: 'publish' | 'delete'; title: string; chainId: string; step: 'approve' | 'sending' | 'done'; revision?: string; walletSince?: number; encrypted?: boolean }
 type Report = { onProgress?(progress: PublishProgress | null): void; onNotice?(notice: Notice | null): void }
+/** Where a private edit or deletion reports its progress and outcome: the note's page (lazy private chunk). */
+export type NoteReport = Report & { requestSession?: DraftSession }
 type PublicPublishProps = Report & {
     draft: DraftRecord; client: NotesReadClient; store: NotesStore
     /**
@@ -96,7 +98,9 @@ const fieldMask = (a: PublicNoteOperation['action']) => a.kind !== 'commit' ? nu
  * Hands a prepared request to the OS signature sheet and reports its progress. The note pane stays
  * mounted (hidden) until it settles, so the confirmation and baseline move complete after switching notes.
  */
-function sign(request: SignRequest, context: Report & { signer: SignerApi; pane: NotesPane | null; kind: PublishProgress['kind']; title: string; chainId: string; noteId: string; revision: string; confirmed(): ChainNote | null; onConfirmed?(note: ChainNote): void; encrypted?: boolean }): boolean {
+// Shared with the private chunk's edit and delete (the same progress sheet and outcome notices).
+// eslint-disable-next-line react-refresh/only-export-components
+export function sign(request: SignRequest, context: Report & { signer: SignerApi; pane: NotesPane | null; kind: PublishProgress['kind']; title: string; chainId: string; noteId: string; revision: string; confirmed(): ChainNote | null; onConfirmed?(note: ChainNote): void; encrypted?: boolean }): boolean {
     const { onProgress, onNotice, kind, title, chainId, revision } = context
     const progress = (step: PublishProgress['step'], extra: Partial<PublishProgress> = {}) => onProgress?.({ kind, title, chainId, step, ...context.encrypted ? { encrypted: true } : {}, ...extra })
     const hold = `${PUBLISHING}${newNoteId()}`, release = () => context.pane?.hold(hold, false)
