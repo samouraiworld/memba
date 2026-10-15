@@ -50,7 +50,7 @@ import { MeetStage } from "../apps/meet/MeetStage"
 import { normaliseRoomId } from "../apps/meet/rooms"
 import { MeetStageContext } from "../apps/meet/stageContext"
 import {
-    appSpec, EMPTY_WINDOWS, newDaoSpec, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
+    appSpec, EMPTY_WINDOWS, newDaoSpec, restoredGeometry, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
     type DeskSize, type OsWindow, type WindowSpec, type WindowsState,
 } from "./windows"
 
@@ -104,13 +104,14 @@ function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: bo
                 // token has no query, so recover its saved page state.
                 const restoredTarget = w.target?.kind === "app" && w.target.query === undefined && target.kind === "app"
                     ? target : w.target
-                return { ...w, target: restoredTarget, x: geom.x, y: geom.y, width: geom.width, height: geom.height, max: geom.max }
+                const { x, y, width, height } = restoredGeometry(w, geom, desk)
+                return { ...w, target: restoredTarget, x, y, width, height, max: geom.max }
             }),
         }
     }
     const wins: OsWindow[] = saved.flatMap(({ target, geom }, i) => {
         const spec = specForTarget(target)
-        return spec ? [{ ...spec, ...geom, id: `w${i + 1}` }] : []
+        return spec ? [{ ...spec, ...restoredGeometry(spec, geom, desk), id: `w${i + 1}` }] : []
     })
     return windowsReducer(EMPTY_WINDOWS, { type: "restore", wins })
 }

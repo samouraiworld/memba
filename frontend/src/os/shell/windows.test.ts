@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { urlForWindows } from "./urlSync"
 import { parseOsPath } from "./osPath"
 import {
-    appSpec, daoSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, maxGeometry, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
+    appSpec, daoSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, maxGeometry, restoredGeometry, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
     type WindowsAction, type WindowsState,
 } from "./windows"
 
@@ -426,5 +426,13 @@ describe("saved windows", () => {
         const parked = { ...appSpec("notes", "cd".repeat(16)), id: "w2", x: 20, y: 20, z: 5, min: true, max: false }
         expect(windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: [shown, parked] }).wins.map((w) => w.id)).toEqual(["w1"])
         expect(windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: [parked, shown] }).wins.map((w) => w.id)).toEqual(["w1"])
+    })
+    it("reopens a window saved at the minimum size at its app's default size on a large desk", () => {
+        const notes = appSpec("notes", "ab".repeat(16))
+        const tiny = { x: 40, y: 30, width: 320, height: 220, z: 1, min: false, max: false }
+        expect(restoredGeometry(notes, tiny, { w: 1440, h: 870 })).toMatchObject({ width: 960, height: 660, z: 1 })
+        // A size the user chose above the minimum, and a desk with no room for more, keep the saved geometry.
+        expect(restoredGeometry(notes, { ...tiny, width: 321 }, desk)).toEqual({ ...tiny, width: 321 })
+        expect(restoredGeometry(notes, tiny, { w: 330, h: 300 })).toEqual(tiny)
     })
 })

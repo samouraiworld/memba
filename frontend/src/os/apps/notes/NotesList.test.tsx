@@ -74,6 +74,15 @@ describe('My notes list', () => {
         view.rerender(<NotesList store={store} partition={partition} client={client} owner="owner" query="" selected={null} refresh={0} onOpen={vi.fn()} />)
         expect(await screen.findByText('No notes yet.')).toBeVisible(); expect(screen.queryByRole('button', { name: /New note/ })).toBeNull()
     })
+    it('never lists a guest\'s untouched blank draft, even on screen; it appears once it holds text (F12)', async () => {
+        const { store, session, client } = setup(), blank = 'aa'.repeat(16), guest = { ...partition, owner: 'guest' }
+        await store.saveDraft({ ...guest, noteId: blank }, '0', { kind: 'public', title: '', body: '' }, session)
+        const view = render(<NotesList store={store} partition={guest} client={client} owner={null} query="" selected={blank} refresh={0} onOpen={vi.fn()} />)
+        expect(await screen.findByText('No notes yet.')).toBeVisible(); expect(screen.queryByRole('button', { name: /New note/ })).toBeNull()
+        expect(await store.saveDraft({ ...guest, noteId: blank }, '1', { kind: 'public', title: '', body: 'Rice' }, session)).toMatchObject({ status: 'saved' })
+        view.rerender(<NotesList store={store} partition={guest} client={client} owner={null} query="" selected={blank} refresh={1} onOpen={vi.fn()} />)
+        expect(await screen.findByRole('button', { name: /New note/ })).toHaveAttribute('aria-current', 'true')
+    })
     it('keeps a blank draft listed while it holds unsaved text, even when another note is open (F12)', async () => {
         const { store, session, client } = setup(), blank = 'aa'.repeat(16)
         await store.saveDraft({ ...partition, noteId: blank }, '0', { kind: 'public', title: '', body: '' }, session)

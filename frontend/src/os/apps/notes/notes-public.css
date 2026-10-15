@@ -14,5 +14,8 @@
 .os-notes-public .os-notes-preview pre { white-space:pre-wrap; background:var(--os-card); padding:12px; }
 .os-notes-public .os-notes-preview table { display:block; overflow:auto; }
 .os-notes-public .os-notes-preview th, .os-notes-public .os-notes-preview td { padding:5px 10px; border:1px solid var(--os-line); }
+/* The global reset strips list padding: markers would hang outside the note (clipped, or showing through the History sheet). */
+.os-notes-public .os-notes-preview :is(ul, ol) { padding-inline-start:1.6em; }
+.os-notes-public .os-notes-preview li:has(> input[type="checkbox"]) { list-style:none; }
 .os-notes-public .os-notes-preview blockquote { border-left:3px solid var(--os-line); padding-left:15px; color:var(--os-mut); }
 .os-notes-public textarea, .os-notes-public input { background:var(--os-card); color:var(--os-ink); border:1px solid var(--os-line); padding:8px; border-radius:5px; }

@@ -37,6 +37,9 @@ test('guest opens the real reader and Worker-rendered full recipe without a sign
     await page.screenshot({ path: testInfo.outputPath('sushi-reading.png'), fullPage: true })
     const stored = await page.evaluate(storageKey => JSON.parse(localStorage.getItem(storageKey)!), key)
     expect(stored.version).toBe(3); expect(stored.releases).toEqual({ 'sushi-v1': { status: 'seeded', noteId: '71'.repeat(16) } })
+    // Under the app's global reset (index.css), list markers still sit inside the note, never clipped or hanging outside it.
+    await page.addStyleTag({ content: '*, *::before, *::after { margin:0; padding:0; }' })
+    await expect.poll(() => preview.locator('ol').first().evaluate(list => parseFloat(getComputedStyle(list).paddingInlineStart))).toBeGreaterThan(0)
 })
 test('reload preserves one icon, dismissal remains absent after reload', async ({ page }) => {
     await openSushi(page); await page.reload()

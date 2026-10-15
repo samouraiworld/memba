@@ -33,7 +33,7 @@ function newer(known: ReadonlyMap<string, ChainNote>, note: ChainNote): Readonly
     const shown = known.get(note.id)
     return shown && BigInt(shown.stateRevision) > BigInt(note.stateRevision) ? known : new Map(known).set(note.id, note)
 }
-/** An untouched blank draft (first open, New note): listed only while it is the note on screen (F12). */
+/** An untouched blank draft (first open, New note): listed only while it is a member's note on screen; a guest reading never sees one (F12). */
 const blank = (draft: DraftRecord) => draft.payload.kind === 'public' && !draft.payload.title && !draft.payload.body && !draft.payload.base
 function rows({ items, now }: Drafts, published: ChainNote[], unsaved: ReadonlySet<string>, complete: boolean, fresh: ReadonlyMap<string, ChainNote>, texts: ReadonlyMap<string, Text>, selected: string | null): Row[] {
     const onChain = new Map(published.map(note => [note.id, note]))
@@ -175,7 +175,7 @@ export function NotesList({ store, partition, client, owner, query, selected, un
         } finally { if (!controller.signal.aborted) busy.current = false }
     }
     const needle = query.trim().toLocaleLowerCase()
-    const all = rows(drafts, chain.items, new Set(unsaved), !chain.loading, fresh, texts, selected), shown = needle ? all.filter(row => row.title.toLocaleLowerCase().includes(needle)) : all
+    const all = rows(drafts, chain.items, new Set(unsaved), !chain.loading, fresh, texts, owner ? selected : null), shown = needle ? all.filter(row => row.title.toLocaleLowerCase().includes(needle)) : all
     return <>
         <ul className="os-notes-rows">{shown.map(row => <li key={row.id}>
             <button type="button" className="os-notes-row" aria-current={row.id === selected ? 'true' : undefined} onClick={() => onOpen(row.id)}>
