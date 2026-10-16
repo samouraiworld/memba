@@ -114,6 +114,15 @@ test('editing: the draft is encrypted at rest, a lock keeps it encrypted, Unlock
     await noPlaintextOnPage(page); await noPlaintextStored(page)
     await note(page).getByRole('button', { name: 'Unlock', exact: true }).click()
     await expect(page.getByRole('textbox', { name: 'Markdown editor' })).toContainText(DRAFT, { timeout: 60000 })
+    // Its signature review names the note by its decrypted title: a page hide removes that subtitle in the same flush.
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await page.getByRole('button', { name: 'Publish with Adena', exact: true }).click()
+    const review = page.getByRole('dialog').filter({ hasText: 'Adena should show' })
+    await expect(review).toContainText(`“${TITLE}”`, { timeout: 60000 })
+    const left = await page.evaluate(() => { window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); return document.body.innerText + document.body.innerHTML })
+    for (const marker of MARKERS) expect(left, marker).not.toContain(marker)
+    await expect(review).toHaveCount(0)
+    await noPlaintextStored(page)
 })
 
 test('sharing: the review names the reader, says their address is public, and signs nothing until asked', async ({ page }) => {

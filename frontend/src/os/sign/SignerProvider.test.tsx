@@ -57,16 +57,16 @@ describe("a request that can no longer be signed", () => {
         const ending = new AbortController(), dismissed = vi.fn()
         let shown: [string, string][] = [["Comment (sent encrypted)", "DECRYPTED_MARKER"]]
         ending.signal.addEventListener("abort", () => { shown = [] })
-        const closing = { ...request, lines: () => shown, closed: ending.signal, onDismissed: dismissed }
+        const closing = { ...request, sub: "“SUBTITLE_MARKER”, encrypted in this browser.", lines: () => shown, closed: ending.signal, onDismissed: dismissed }
         function ClosingReview() {
             const signer = useSigner()
             return <button type="button" onClick={() => signer.sign(closing)}>Open closing review</button>
         }
         render(<SignerProvider session={session("member")} toast={vi.fn()}><ClosingReview /></SignerProvider>)
         fireEvent.click(screen.getByRole("button", { name: "Open closing review" }))
-        expect(screen.getByText("DECRYPTED_MARKER")).toBeVisible()
+        expect(screen.getByText("DECRYPTED_MARKER")).toBeVisible(); expect(screen.getByText(/SUBTITLE_MARKER/)).toBeVisible()
         flushSync(() => ending.abort())
-        expect(document.body.textContent).not.toContain("DECRYPTED_MARKER")
+        expect(document.body.textContent).not.toContain("DECRYPTED_MARKER"); expect(document.body.textContent).not.toContain("SUBTITLE_MARKER")
         await waitFor(() => expect(dismissed).toHaveBeenCalledOnce())
         expect(screen.queryByRole("button", { name: "Sign in Adena" })).toBeNull()
         cleanup()

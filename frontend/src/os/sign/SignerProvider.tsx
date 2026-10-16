@@ -340,7 +340,8 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onRequote, onCanc
                         <div className="os-rvh">
                             <div className="os-mhd os-flush">Review · {req.title}</div>
                             <h2 className="os-rv-title">{req.summary}</h2>
-                            {req.sub && <div className="os-sub">{req.sub}</div>}
+                            {/* A closed request's subtitle (a private note's title) goes in the same flush as its lines. */}
+                            {req.sub && !review.closed && <div className="os-sub">{req.sub}</div>}
                         </div>
                         <div className="os-rvb">
                             {req.choice && (
