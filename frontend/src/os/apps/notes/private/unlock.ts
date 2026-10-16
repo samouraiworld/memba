@@ -8,3 +8,5 @@ export function unlockProblem(error: unknown): string {
     if (error instanceof NotesCryptoError && error.code === 'decrypt') return 'This signature does not open your key. Use your recovery phrase and file instead.'
     return 'Your key could not be unlocked. Nothing was changed. Try again.'
 }
+/** Another app re-keyed this account in the shared key registry (controller phase `changed`): every private view is read only. */
+export const KEY_CHANGED = 'Your private key changed outside Memba.'

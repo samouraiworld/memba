@@ -18,6 +18,7 @@ import { sealPrivateDraft } from '../../../../lib/notes/private/localDraft'
 import { sealPrivateComment } from '../../../../lib/notes/private/comments'
 import golden from '../../../../lib/notes/identity/__fixtures__/backup-standard.json'
 import { PrivateNoteView } from './PrivateNoteView'
+import { PrivateChoice } from './PrivatePublish'
 import { SharedWithMe } from './SharedWithMe'
 
 // PR E: "Who can read" in a private note's Share menu, with the real key controller (unlocked from the real Standard
@@ -396,8 +397,17 @@ describe('encrypted comments', () => {
         const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
         expect(request.title).toBe('Post encrypted comment'); expect(request.lines(undefined)).toContainEqual(['Comment (sent encrypted)', 'Agreed, a little.'])
         expect(message.value.func).toBe('AddComment'); expect(message.value.args[5]).toBe(''); expect(JSON.stringify(message)).not.toContain('Agreed')
-        request.onDismissed?.()
+        // The review is still open: a lock ends it (the signature sheet closes and drops the decrypted lines).
+        expect(request.closed?.aborted).toBe(false)
+        // The unsent comment exists only in memory: Lock asks first, and a refusal keeps the key and the text.
+        const ask = vi.spyOn(window, 'confirm').mockReturnValue(false)
         fireEvent.click(screen.getByRole('button', { name: 'Lock' }))
+        expect(ask).toHaveBeenCalledWith(expect.stringMatching(/^An encrypted comment you wrote is not posted yet, and locking discards it/))
+        expect(panel.getByText('Add wasabi')).toBeVisible(); expect(composer.getByLabelText('Encrypted comment')).toHaveValue('Agreed, a little.')
+        ask.mockReturnValue(true)
+        fireEvent.click(screen.getByRole('button', { name: 'Lock' }))
+        ask.mockRestore()
+        expect(request.closed?.aborted).toBe(true); expect(request.lines(undefined).flat()).not.toContain('Agreed, a little.')
         await waitFor(() => expect(panel.queryByText('Add wasabi')).toBeNull())
         expect(panel.getByText('Encrypted comment')).toBeVisible(); expect(screen.queryByRole('form', { name: 'Write an encrypted comment' })).toBeNull()
     })
@@ -425,5 +435,28 @@ describe('Shared with me paging', () => {
         fireEvent.click(list.getByRole('button', { name: 'Show more' }))
         await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(2))
         expect(list.queryByRole('button', { name: 'Show more' })).toBeNull()
+    })
+})
+
+describe('a key changed outside Memba', () => {
+    it('the note, Share, comments and the publish choice are read only: an explanation, no Unlock, no Delete, no change to readers or comments', async () => {
+        seal(owner, [reader])
+        // Another app registered generation 2 for this account in the shared registry; Notes still holds the generation 1 backup.
+        const base = client(), changed = { ...base, key: async (who: string) => who === owner ? { ...key(owner, new Uint8Array(1216).fill(9)), generation: '2' } : base.key(who) } as unknown as NotesReadClient
+        show(changed)
+        expect(await screen.findByText('Your private key changed outside Memba.', { selector: 'b' })).toBeVisible()
+        expect(screen.getByText(/Memba cannot open this note with it and changed nothing/)).toBeVisible()
+        for (const name of ['Unlock', 'Use recovery phrase', 'Edit']) expect(screen.queryByRole('button', { name })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+        expect(screen.queryByRole('menuitem', { name: 'Delete note…' })).toBeNull()
+        fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+        expect(screen.getByText(/Its comments stay encrypted; Memba cannot read, post or change them with it\./)).toBeVisible()
+        const part = await openShare(false)
+        expect(await part.findByText(/Who can read stays as it is: Memba changes nothing here/)).toBeVisible()
+        expect(part.queryByRole('textbox')).toBeNull(); expect(part.getByRole('button', { name: 'Remove…' })).toBeDisabled()
+        expect(io.unlock).not.toHaveBeenCalled(); expect(io.sign).not.toHaveBeenCalled()
+        render(<PrivateChoice controller={controller} client={changed} store={store} owner={owner} checked={false} disabled={false} onChoose={vi.fn()} onSetUp={vi.fn()} />)
+        expect(screen.getByText('Your private key changed outside Memba')).toBeVisible()
+        expect(screen.getByRole('radio', { name: /Private · encrypted/ })).toBeDisabled()
     })
 })

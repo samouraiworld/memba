@@ -14,7 +14,7 @@ import { useSigner } from '../../../sign/signerContext'
 import { NoteSheet } from '../NoteHeader'
 import { useNotesPane } from '../notesPane'
 import { balanceOf } from '../notesFormat'
-import { sign, type NoteReport } from '../PublicPublish'
+import { PRIVATE_TITLE, sign, type NoteReport } from '../PublicPublish'
 import { afterConfirmed } from './encryptedDraft'
 
 /** M0 rows 8: Delete returns 40-50 % of what the note locked; Purge (not offered yet) would free the rest but a tombstone. */
@@ -53,7 +53,7 @@ export function PrivateDelete({ note, client, store, owner, walletChainId, repor
             const draft = costs.draft
             if (draft) afterConfirmed(request, () => withTimeout(store.deleteDraft(scope, draft, createDraftSession())))
             onClose()
-            sign(request, { signer, pane, kind: 'delete', title: 'Private note', chainId: client.chainId, noteId: note.id, revision: String(BigInt(note.stateRevision) + 1n), confirmed: () => null, onProgress: report?.onProgress, onNotice: report?.onNotice })
+            sign(request, { signer, pane, kind: 'delete', title: PRIVATE_TITLE, chainId: client.chainId, noteId: note.id, revision: String(BigInt(note.stateRevision) + 1n), confirmed: () => null, onProgress: report?.onProgress, onNotice: report?.onNotice })
         } catch (error) {
             if (!guard.signal.aborted) setProblem(error instanceof NotesChainError && error.code === 'stale' ? 'The note changed meanwhile. Nothing was sent; read the latest revision first.'
                 : error instanceof NotesChainError && error.code === 'disabled' ? 'Private notes are not available on this network right now. Nothing was sent.'

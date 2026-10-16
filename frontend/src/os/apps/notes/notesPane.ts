@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect } from 'react'
-import { registerCloseGuard } from '../../shell/closeGuards'
+import { mayCloseWindow, registerCloseGuard } from '../../shell/closeGuards'
 
 /** The single Notes window (windows.ts `appSpec('notes')`): its close guards live under this key. */
 export const NOTES_WINDOW_KEY = 'app:notes'
@@ -27,12 +27,20 @@ export const PUBLISHING = 'publishing:'
 export const NotesPaneContext = createContext<NotesPane | null>(null)
 export function useNotesPane(): NotesPane | null { return useContext(NotesPaneContext) }
 
-/** Text not stored anywhere: never dropped silently by switching notes, and asked about before the window closes. */
-export function useUnsavedText(unsaved: boolean, question: string): void {
+/** Guards of private text a key lock discards (it exists only in memory while unlocked), asked by the Lock buttons. */
+const PRIVATE_LOCK_KEY = 'notes:private-lock'
+/** Whether the private key may lock now: each holder of unsent private text is asked first. A page hide never asks. */
+export function mayLockPrivateNotes(): boolean { return mayCloseWindow(PRIVATE_LOCK_KEY) }
+/**
+ * Text not stored anywhere: never dropped silently by switching notes, and asked about before the window closes.
+ * With `lockQuestion`, a private key lock (which discards it) asks too.
+ */
+export function useUnsavedText(unsaved: boolean, question: string, lockQuestion?: string): void {
     const pane = useNotesPane(), source = useId()
     useEffect(() => { pane?.hold(source, unsaved) }, [pane, source, unsaved])
     useEffect(() => () => pane?.hold(source, false), [pane, source])
     useLayoutEffect(() => unsaved ? registerCloseGuard(NOTES_WINDOW_KEY, () => window.confirm(question)) : undefined, [unsaved, question])
+    useLayoutEffect(() => unsaved && lockQuestion ? registerCloseGuard(PRIVATE_LOCK_KEY, () => window.confirm(lockQuestion)) : undefined, [unsaved, lockQuestion])
     // A reload or leaving the page bypasses the window's close guard: the browser asks instead.
     useEffect(() => {
         if (!unsaved) return

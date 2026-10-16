@@ -64,6 +64,11 @@ export interface SignRequest<C extends string = string> {
      * so `lines` and `prepare` show the new figures for another review. Throws a plain-language reason when it cannot.
      */
     requote?: (choice: C | undefined) => Promise<void>
+    /**
+     * Fires once this request can no longer be signed (its private key was locked, its window closed): an open review
+     * closes as a Cancel would, and a review already checking or waiting on the wallet re-reads its lines at once.
+     */
+    closed?: AbortSignal
     /** Sends exactly the prepared messages; must pass `beforeSign` to the broadcaster. */
     send: (choice: C | undefined, beforeSign: () => Promise<void | (() => boolean)>) => Promise<{ hash: string; result?: unknown }>
     /** After sending: what the chain shows. `true`: the result is there; `false`: not yet; `"failed"`: the chain ran

@@ -30,9 +30,9 @@ vi.mock("./ConnectModal", () => ({ ConnectModal: () => null }))
 vi.mock("../evm/EvmConnectModal", () => ({ EvmConnectModal: () => null }))
 vi.mock("./Dock", () => ({ Dock: () => null }))
 vi.mock("./Launcher", () => ({ Launcher: () => null }))
-vi.mock("./MenuBar", () => ({ MenuBar: (p: { wins: OsWindow[]; closeWin: (id: string) => void; closeAll: () => void }) => <nav aria-label="Menu">
+vi.mock("./MenuBar", () => ({ MenuBar: (p: { wins: OsWindow[]; closeWin: (id: string) => void; closeAll: () => void; lock: () => void }) => <nav aria-label="Menu">
     <button onClick={() => p.wins.forEach((w) => p.closeWin(w.id))}>Close window</button>
-    <button onClick={p.closeAll}>Close all</button></nav> }))
+    <button onClick={p.closeAll}>Close all</button><button onClick={p.lock}>Disconnect & lock</button></nav> }))
 vi.mock("../community/CommunityNews", () => ({ CommunityNewsPrompt: () => null }))
 vi.mock("../apps/live/LiveProvider", () => ({ LiveActivityProvider: ({ children }: { children: ReactNode }) => children }))
 vi.mock("../apps/meet/MeetStage", () => ({ MeetStage: () => null }))
@@ -76,3 +76,16 @@ for (const item of ["Close window", "Close all"]) {
         expect(screen.queryByTestId("app:notes")).toBeNull()
     })
 }
+
+it("Disconnect & lock asks the same guards first: a refusal keeps the account and every window; once allowed, it locks", () => {
+    mountShell()
+    fireEvent.click(within(desktop()).getByRole("button", { name: "Note shortcut: Sushi" }))
+    const ask = vi.fn(() => false)
+    unguard = registerCloseGuard("app:notes", ask)
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Menu" })).getByRole("button", { name: "Disconnect & lock" }))
+    expect(ask).toHaveBeenCalledOnce(); expect(fixture.session.disconnect).not.toHaveBeenCalled()
+    expect(screen.getByTestId("app:notes")).toBeInTheDocument()
+    ask.mockReturnValue(true)
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Menu" })).getByRole("button", { name: "Disconnect & lock" }))
+    expect(fixture.session.disconnect).toHaveBeenCalledOnce(); expect(screen.queryByTestId("app:notes")).toBeNull()
+})

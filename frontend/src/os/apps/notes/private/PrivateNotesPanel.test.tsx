@@ -100,6 +100,15 @@ beforeEach(() => {
 afterEach(async () => { cleanup(); controller?.dispose(); vi.restoreAllMocks(); await store.close() })
 
 describe('private notes key panel', () => {
+    it('explains what is encrypted and what is not, from the panel, without any wallet prompt', async () => {
+        show()
+        fireEvent.click(await screen.findByRole('button', { name: 'About private notes' }))
+        const about = within(screen.getByRole('dialog', { name: 'About private notes' }))
+        for (const text of [/addresses of readers and writers, the encrypted sizes, when the note changes/, /its author and time \(so how many there are\)/, /simulates its transaction on a network node first/,
+            /deleting a note returns about half of what it locked/, /Keep both offline/, /until it compacts its files/, /publish text that no one can decrypt/, /delay a reader’s removal/]) expect(about.getByText(text)).toBeVisible()
+        fireEvent.click(about.getByRole('button', { name: 'Close' }))
+        expect(screen.queryByRole('dialog', { name: 'About private notes' })).toBeNull(); expect(io.unlock).not.toHaveBeenCalled()
+    })
     it('renders nothing while the private gate is closed for this network', async () => {
         io.open = false
         const view = show()

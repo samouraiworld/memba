@@ -81,6 +81,22 @@ describe('RAM-only identity lifecycle', () => {
     await expect(s.controller.refresh()).rejects.toThrow()
     expect(s.controller.getSnapshot().phase).not.toBe('unlocked')
   })
+  it('a key changed outside Memba (registry re-keyed past its backup) zeroes the unlocked key and is a read-only phase every entry point refuses', async () => {
+    const s = setup(); await s.controller.unlockStandard({})
+    let exposed: Uint8Array = new Uint8Array(), finish!: () => void
+    const used = s.controller.use(async identity => { exposed = identity.secretKey; await new Promise<void>(resolve => { finish = resolve }) })
+    await vi.waitFor(() => expect(exposed.length).toBeGreaterThan(0)); finish(); await used
+    // Another app registered generation 2 in the shared registry; this realm still holds the generation 1 backup.
+    s.setChain({ ...registered(), generation: 2n, publicKey: new Uint8Array(1216).fill(7) })
+    await expect(s.controller.refresh()).rejects.toThrow()
+    expect(s.controller.getSnapshot()).toMatchObject({ phase: 'changed', busy: false })
+    await expect(s.controller.use(() => {})).rejects.toThrow(); await expect(s.controller.unlockStandard({})).rejects.toThrow()
+    await expect(s.controller.prepareSetup('standard', {})).rejects.toThrow(); await expect(s.controller.recover('abandon '.repeat(23) + 'art')).rejects.toThrow()
+    expect(s.controller.getSnapshot().phase).toBe('changed'); expect(dependencies.unlock).toHaveBeenCalledTimes(1)
+    // A backup for the registered key again (set up in Memba elsewhere): the read-only state ends by itself.
+    s.setChain(registered()); await s.controller.refresh()
+    expect(s.controller.getSnapshot()).toMatchObject({ phase: 'locked', generation: '1' })
+  })
   it('prepares a new identity only explicitly, requires recovery confirmation, and waits for both receipts', async () => {
     const s = setup(empty()), output = await s.controller.prepareSetup('standard', {})
     expect(dependencies.unlock).toHaveBeenCalledTimes(2)

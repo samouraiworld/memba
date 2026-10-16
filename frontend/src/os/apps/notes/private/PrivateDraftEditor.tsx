@@ -19,9 +19,9 @@ import { useSigner } from '../../../sign/signerContext'
 import { CodeEditor } from '../../terminal/CodeEditor'
 import { MarkdownPreview } from '../MarkdownPreview'
 import { NoteBanner, NoteHeader, NoteSheet, NoteStatus } from '../NoteHeader'
-import { useNotesPane, useUnsavedText } from '../notesPane'
+import { mayLockPrivateNotes, useNotesPane, useUnsavedText } from '../notesPane'
 import { balanceOf, downloadMarkdown, readPreviewChoice, writePreviewChoice } from '../notesFormat'
-import { sign, type NoteReport } from '../PublicPublish'
+import { PRIVATE_TITLE, sign, type NoteReport } from '../PublicPublish'
 import { afterConfirmed, privateOpen, sealConfirmedDraft, type DraftKey } from './encryptedDraft'
 import { withKey } from './keyQueue'
 
@@ -48,7 +48,8 @@ export function PrivateDraftEditor({ store, client, controller, owner, walletCha
     const [text, setText] = useState<Text | null>(null), [state, setState] = useState<State>('loading'), [reload, setReload] = useState(0)
     const [behind, setBehind] = useState<string | null>(null), [notice, setNotice] = useState(''), [preview, setPreview] = useState(readPreviewChoice), [review, setReview] = useState<{ revision: string; key: DraftKey; text: Text } | null>(null)
     const opened = useRef<Opened | null>(null), draft = useRef({ title: '', body: '', changes: 0 }), stored = useRef(0), running = useRef<Promise<unknown>>(Promise.resolve())
-    useUnsavedText(state === 'conflict' || state === 'unavailable', 'This private note has edits that could not be saved on this device. Leave without saving them? Choose Cancel to keep editing.')
+    useUnsavedText(state === 'conflict' || state === 'unavailable', 'This private note has edits that could not be saved on this device. Leave without saving them? Choose Cancel to keep editing.',
+        'This private note has edits that could not be saved encrypted on this device, and locking discards them. Lock anyway? Choose Cancel to keep editing.')
     const sealed = (o: Opened, value: Text) => ({ kind: 'encrypted' as const, envelope: sealPrivateDraft(scope, BigInt(o.revision) + 1n, BigInt(o.key.generation), o.key.publicKey, { ...value, mode: o.mode, base: o.base }) })
     /** Saves the latest text once the running save settled; `keep` is never aborted, so a lock or unmount still lands it. */
     function save(): Promise<boolean> {
@@ -137,7 +138,7 @@ export function PrivateDraftEditor({ store, client, controller, owner, walletCha
         <NoteHeader noteId={note.id} status={<NoteStatus kind="private">{changed ? 'Unpublished changes' : 'No unpublished changes'} · {saving} · based on revision {behind ?? note.stateRevision}</NoteStatus>}
             actions={<>
                 <button type="button" role="switch" aria-checked={preview} className="os-notes-switch" onClick={togglePreview}><span aria-hidden="true" />Preview</button>
-                <button type="button" className="os-btn os-quiet" onClick={() => controller.lock()}>Lock</button>
+                <button type="button" className="os-btn os-quiet" onClick={() => { if (mayLockPrivateNotes()) controller.lock() }}>Lock</button>
                 <button type="button" className="os-btn os-quiet" onClick={onClose}>Done</button>
             </>}
             primary={<button type="button" className="os-btn" disabled={state !== 'saved' || !!behind || !changed || !!titleProblem} title={titleProblem ?? undefined} onClick={() => { const o = opened.current; if (o) setReview({ revision: o.revision, key: o.key, text: { title, body: text.body } }) }}>Publish</button>}
@@ -212,7 +213,7 @@ function PrivateCommit({ store, client, controller, owner, walletChainId, note, 
             // Confirmed: this device's encrypted draft follows the new revision (unless it changed meanwhile).
             afterConfirmed(request, () => confirmed ? sealConfirmedDraft(store, client, { chainId: client.chainId, realm: client.realm, owner, noteId: note.id }, revision, draftKey, text, confirmed) : Promise.resolve(false))
             const next = String(BigInt(current.note.stateRevision) + 1n)
-            if (sign(request, { signer, pane, kind: 'publish', title: text.title, chainId: client.chainId, noteId: note.id, revision: next, confirmed: () => confirmed, onProgress: report?.onProgress, onNotice: report?.onNotice, encrypted: true })) onSent()
+            if (sign(request, { signer, pane, kind: 'publish', title: PRIVATE_TITLE, chainId: client.chainId, noteId: note.id, revision: next, confirmed: () => confirmed, onProgress: report?.onProgress, onNotice: report?.onNotice, encrypted: true })) onSent()
             else { stop(); setWorking(false) }
         } catch (error) { stop(); setProblem(problemText(error)); setWorking(false) }
     }
