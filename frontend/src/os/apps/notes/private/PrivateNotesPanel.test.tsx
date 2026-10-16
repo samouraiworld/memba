@@ -105,7 +105,7 @@ describe('private notes key panel', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'About private notes' }))
         const about = within(screen.getByRole('dialog', { name: 'About private notes' }))
         for (const text of [/addresses of readers and writers, the encrypted sizes, when the note changes/, /its author and time \(so how many there are\)/, /simulates its transaction on a network node first/,
-            /deleting a note returns about half of what it locked/, /Keep both offline/, /until it compacts its files/, /publish text that no one can decrypt/, /delay a reader’s removal/]) expect(about.getByText(text)).toBeVisible()
+            /deleting a note returns about half of what it locked/, /Keep both offline/, /until it compacts its files/, /publish text that no one can decrypt/, /delay a reader’s removal/, /Someone you add can also read the earlier versions since the note’s key last changed/]) expect(about.getByText(text)).toBeVisible()
         fireEvent.click(about.getByRole('button', { name: 'Close' }))
         expect(screen.queryByRole('dialog', { name: 'About private notes' })).toBeNull(); expect(io.unlock).not.toHaveBeenCalled()
     })

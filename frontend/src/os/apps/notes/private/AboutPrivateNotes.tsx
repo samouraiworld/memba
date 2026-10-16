@@ -21,7 +21,7 @@ export function AboutPrivateNotes({ onClose }: { onClose(): void }) {
                 <dt>This browser</dt>
                 <dd>Drafts of private notes are stored encrypted. The browser&rsquo;s storage may still keep bytes of earlier drafts, including the unencrypted draft of a note you published privately, until it compacts its files; clearing this site&rsquo;s data removes them.</dd>
                 <dt>Readers and writers</dt>
-                <dd>Someone you remove keeps what they already read. Someone you let edit can publish text that no one can decrypt (as the owner you can then replace it, or delete the note) and can delay a reader&rsquo;s removal by publishing edits at the same time.</dd>
+                <dd>Someone you add can also read the earlier versions since the note&rsquo;s key last changed (they stay in chain history). Someone you remove keeps what they already read. Someone you let edit can publish text that no one can decrypt (as the owner you can then replace it, or delete the note) and can delay a reader&rsquo;s removal by publishing edits at the same time.</dd>
             </dl>
             <div className="os-notes-sheet-actions"><button type="button" className="os-btn" onClick={onClose}>Close</button></div>
         </div>
