@@ -69,7 +69,7 @@ export async function preparePrivateCommentRequest(options: PrivateCommentReques
       const opened = (await openPrivateComments(client, op.noteId, [{ id: op.commentId, author: op.caller, parent: a0.parent ?? '', bodyRevision: a0.bodyRevision, epoch: a0.epoch,
         ciphertext: a0.ciphertext, deleted: false, hidden: false } as PrivateComment], access)).get(op.commentId); allowed()
       if (opened?.status !== 'open') throw new NotesChainError('format')
-      preview = [['Comment (encrypted)', opened.body], ...opened.quote ? [['Quote (encrypted)', opened.quote] as [string, string]] : []]
+      preview = [['Comment (sent encrypted)', opened.body], ...opened.quote ? [['Quote (sent encrypted)', opened.quote] as [string, string]] : []]
     }
     const read = async () => {
       const a = op.action

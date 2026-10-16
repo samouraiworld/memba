@@ -394,7 +394,7 @@ describe('encrypted comments', () => {
         fireEvent.click(post)
         await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
         const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
-        expect(request.title).toBe('Post encrypted comment'); expect(request.lines(undefined)).toContainEqual(['Comment (encrypted)', 'Agreed, a little.'])
+        expect(request.title).toBe('Post encrypted comment'); expect(request.lines(undefined)).toContainEqual(['Comment (sent encrypted)', 'Agreed, a little.'])
         expect(message.value.func).toBe('AddComment'); expect(message.value.args[5]).toBe(''); expect(JSON.stringify(message)).not.toContain('Agreed')
         request.onDismissed?.()
         fireEvent.click(screen.getByRole('button', { name: 'Lock' }))
