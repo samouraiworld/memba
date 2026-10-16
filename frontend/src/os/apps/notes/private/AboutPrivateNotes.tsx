@@ -23,7 +23,7 @@ export function AboutPrivateNotes({ onClose }: { onClose(): void }) {
                 <dt>Readers and writers</dt>
                 <dd>Someone you remove keeps what they already read. Someone you let edit can publish text that no one can decrypt (as the owner you can then replace it, or delete the note) and can delay a reader&rsquo;s removal by publishing edits at the same time.</dd>
             </dl>
-            <div className="os-notes-sheet-actions"><button type="button" className="os-btn" autoFocus onClick={onClose}>Close</button></div>
+            <div className="os-notes-sheet-actions"><button type="button" className="os-btn" onClick={onClose}>Close</button></div>
         </div>
     </NoteSheet>
 }

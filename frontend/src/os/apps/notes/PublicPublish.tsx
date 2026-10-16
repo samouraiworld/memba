@@ -95,7 +95,6 @@ const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const fieldMask = (a: PublicNoteOperation['action']) => a.kind !== 'commit' ? null : a.title !== undefined && a.body !== undefined ? 'title and body (mask 3)' : a.title !== undefined ? 'title only (mask 1)' : 'body only (mask 2)'
 
 /** What a private note's progress sheet and notices call it: its title is plaintext only inside the unlocked view, and the sheet outlives a lock. */
-// eslint-disable-next-line react-refresh/only-export-components
 export const PRIVATE_TITLE = 'Private note'
 /**
  * Hands a prepared request to the OS signature sheet and reports its progress. The note pane stays
