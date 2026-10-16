@@ -1,4 +1,5 @@
 import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import type { NotesReadClient } from '../chain/client'
 import { address, check, NotesChainError, publicText } from '../chain/schema'
 import type { ChainNote } from '../chain/schema'
@@ -28,6 +29,31 @@ export class PrivateNoteNoAccess extends Error {
  */
 export class PrivateNoteUnreadable extends Error {
   constructor(readonly actor: string, readonly fields: readonly ('title' | 'body')[]) { super('Notes private: the current text cannot be decrypted'); this.name = 'PrivateNoteUnreadable' }
+}
+/** Two reads of the note's latest text did not return the same ciphertext (another node, or the same one again). */
+export class PrivateNoteDisagreement extends Error {
+  constructor() { super('Notes private: network answers disagree'); this.name = 'PrivateNoteDisagreement' }
+}
+/** SHA-256 (hex) of the given fields' ciphertext. */
+export function fieldHashes(note: ChainNote, fields: readonly ('title' | 'body')[]): Partial<Record<'title' | 'body', string>> {
+  return Object.fromEntries(fields.map(field => [field, bytesToHex(sha256(field === 'title' ? note.title : note.body ?? new Uint8Array()))]))
+}
+/**
+ * Before the owner is offered to replace an unreadable text: the failing fields are read again, from the first two of the
+ * session's verified nodes when it has more than one (one of them is not the node that answered first), otherwise once
+ * more from any; every answer must be the same revision with the same ciphertext hash. A node that serves other bytes
+ * than the read that failed to decrypt is not believed (PrivateNoteDisagreement). Returns the agreed hashes.
+ */
+export async function confirmUnreadable(client: NotesReadClient, note: ChainNote, fields: readonly ('title' | 'body')[], signal: AbortSignal): Promise<Partial<Record<'title' | 'body', string>>> {
+  const assert = () => { client.assertCurrent(); if (signal.aborted) throw new NotesChainError('session') }
+  assert(); check(fields.length > 0)
+  const expected = fieldHashes(note, fields), nodes = client.nodes()
+  for (const via of nodes.length > 1 ? nodes.slice(0, 2) : [undefined]) {
+    const again = await client.note(note.id, via); assert()
+    if (!again || again.deleted || again.stateRevision !== note.stateRevision || again.epoch !== note.epoch
+      || JSON.stringify(fieldHashes(again, fields)) !== JSON.stringify(expected)) throw new PrivateNoteDisagreement()
+  }
+  return expected
 }
 /** The notice that replaces an unreadable field when the owner has no draft of the note on this device. */
 export const UNREADABLE_REPLACEMENT = { title: 'Unreadable note replaced', body: 'This note’s latest text could not be decrypted and was replaced by its owner.' }

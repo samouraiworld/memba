@@ -36,3 +36,12 @@ export async function balanceOf(chainId: string, address: string): Promise<bigin
     const urls = getRpcUrlsInOrder()
     return withTimeout(abciQueryText({ chainId, rpcUrl: urls[0], rpcUrls: urls }, `bank/balances/${address}`, '').then(ugnotInCoinsJson), 5000).catch(() => null)
 }
+/** Text selected inside the note, when the selection lies entirely in it. */
+export function selectedQuote(root: HTMLElement): string | null {
+    const selection = root.ownerDocument.defaultView?.getSelection()
+    if (!selection || selection.isCollapsed || !selection.rangeCount) return null
+    const range = selection.getRangeAt(0)
+    if (!root.contains(range.commonAncestorContainer)) return null
+    const text = selection.toString().trim()
+    return text || null
+}

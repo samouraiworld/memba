@@ -9,6 +9,7 @@ import { parseWrap, PrivateNoteNoAccess, PrivateNoteUnreadable, readEncryptedNot
 import { MarkdownPreview } from '../MarkdownPreview'
 import { NoteHeader, NoteStatus, type NoteMenuItem } from '../NoteHeader'
 import { NoteSharePopover } from '../NoteSharePopover'
+import { NoteSidePanel } from '../NoteSidePanel'
 import type { NoteReport } from '../PublicPublish'
 import { NoteSkeleton } from '../PublicNote'
 import { shortAddress } from '../notesFormat'
@@ -18,6 +19,7 @@ import { withKey } from './keyQueue'
 import { PrivateDraftEditor } from './PrivateDraftEditor'
 import { PrivateDelete } from './PrivateDelete'
 import { PrivateReaders } from './PrivateReaders'
+import { PrivateCommentPanel } from './PrivateCommentPanel'
 import './notes-private.css'
 
 export interface PrivateNoteViewProps {
@@ -45,6 +47,7 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
     const [attempt, retry] = useState(0), [working, setWorking] = useState(false), [notice, setNotice] = useState(''), [recover, setRecover] = useState(false)
     // Editing survives a lock (the editor stores its text encrypted and unmounts); Unlock reopens it.
     const [editing, setEditing] = useState(false), [deleting, setDeleting] = useState(false), [draft, setDraft] = useState<string | null>(null), [drafts, reread] = useState(0)
+    const [previewRoot, setPreviewRoot] = useState<HTMLElement | null>(null)
     const scope = { chainId, realm: client.realm, owner, noteId: note.id }
     // Whether this device holds a draft of the note (no decryption): the status says so and the menu offers to remove it.
     useEffect(() => {
@@ -122,7 +125,7 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
     else body = <>
         <h1 className="os-notes-title">{shown.title}</h1>
         <p className="os-notes-hint">Encrypted · only its owner and the people it is shared with can read it{shown.exposed ? ' · its key for this version was made public' : ''}</p>
-        <MarkdownPreview key={note.id} body={shown.body} noteId={note.id} />
+        <MarkdownPreview key={note.id} body={shown.body} noteId={note.id} onRoot={setPreviewRoot} />
     </>
     const by = note.actor === owner ? 'you' : shortAddress(note.actor)
     const menu: NoteMenuItem[] = [...store && note.owner === owner ? [{ label: 'Delete note…', danger: true, run: () => setDeleting(true) }] : [],
@@ -137,5 +140,7 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
         {notice && <p className="os-notes-private-notice" role="status">{notice}</p>}
         {deleting && store && <PrivateDelete note={note} client={client} store={store} owner={owner} walletChainId={walletChainId} report={report} onClose={() => setDeleting(false)} />}
         {recover && <RecoverySheet controller={controller} fileNeeded={state.mode === 'standard'} onClose={() => setRecover(false)} />}
+        {store && <NoteSidePanel note={note} client={client} store={store} owner={owner} previewRoot={shown ? previewRoot : null}
+            privateComments={onCount => <PrivateCommentPanel note={note} client={client} controller={controller} owner={owner} store={store} walletChainId={walletChainId} previewRoot={shown ? previewRoot : null} onCount={onCount} />} />}
     </section>
 }

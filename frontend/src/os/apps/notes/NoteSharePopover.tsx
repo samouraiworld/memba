@@ -61,6 +61,12 @@ export function NoteSharePopover({ note, client, store, owner, networkKey = ACTI
                     : 'Public note: anyone, with or without a wallet, can read it. Chosen when it was first published.'}</p>
             </section>
             {used && (note.mode < 3 ? privateReaders?.() : <PublicCollaborationControls note={note} client={client} store={store} owner={owner} onChanged={onChanged} />)}
+            {!note.deleted && note.mode < 3 && privateReaders && <section className="os-notes-share-part" aria-label="Who can comment">
+                <h3 className="os-notes-share-k">Who can comment</h3>
+                {/* As the realm's comment check (mayComment): a Shared note's readers; a note only its owner reads takes none. */}
+                <p><strong>{note.mode === 1 ? 'The people it is shared with: its owner, readers and writers' : 'Nobody yet: comments open once the note is shared'}</strong></p>
+                <p className="os-notes-share-note">Comments are encrypted with the note’s key, for the same people. Their authors, times and sizes are public on the network.</p>
+            </section>}
             {!note.deleted && note.mode >= 3 && <section className="os-notes-share-part" aria-label="Who can comment">
                 <h3 className="os-notes-share-k">Who can comment</h3>
                 {/* As the realm's comment check (mayComment). Restricting comments also closes community editing there. */}

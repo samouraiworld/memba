@@ -16,7 +16,7 @@ import { NoteSkeleton, PublicNote } from './PublicNote'
 import { PublicEditButton } from './PublicEditButton'
 import type { ArchivedPublicDraft } from './PublicHistory'
 import { NoteSharePopover } from './NoteSharePopover'
-import { NoteSidePanel } from './NoteSidePanel'
+import { NoteSidePanel, type PrivateComments } from './NoteSidePanel'
 import { NoteBanner, NoteStatus, type Notice } from './NoteHeader'
 import { useNotesPane } from './notesPane'
 import { differingLines, shortAddress } from './notesFormat'
@@ -59,6 +59,8 @@ type Props = {
     encrypted?(note: ChainNote, refresh: () => void, report: NoteReport): ReactNode
     /** Publishing a new note privately (lazy private chunk); without it, the private choice stays unavailable. */
     privateCreate?: PrivateCreate
+    /** A deleted private note's comments: its author can still delete theirs, without a key. */
+    privateComments?: PrivateComments
 }
 const settled = () => {}
 export function PublicAuthoring(props: Props) {
@@ -67,7 +69,7 @@ export function PublicAuthoring(props: Props) {
     return <Workspace key={JSON.stringify([lease.id, props.scope])} {...props} />
 }
 /** The published note is the page; Edit turns the same page into its editor, Publish brings it back. */
-function Workspace({ client, store, scope, walletChainId, encrypted, privateCreate }: Props) {
+function Workspace({ client, store, scope, walletChainId, encrypted, privateCreate, privateComments }: Props) {
     const [session] = useState(createDraftSession), working = useRef(false), updating = useRef(false), pane = useNotesPane()
     const [start, setStart] = useState<'checking' | 'ready'>('checking'), [saved, setSaved] = useState<Saved | null>(null), [savedTick, reread] = useState(0)
     const [opened, setOpened] = useState(false), [editing, setEditing] = useState(false)
@@ -312,8 +314,8 @@ function Workspace({ client, store, scope, walletChainId, encrypted, privateCrea
                 /* A confirmed change announces the note's new revision, which re-reads this reader. */
                 share={note => !editing && <NoteSharePopover note={note} client={client} store={store} owner={scope.owner} onChanged={settled} />}
                 menu={note => note.owner === scope.owner ? [{ label: 'Delete note…', danger: true, run: () => setDeleting(note) }] : []}>
-                {(note, _refresh, previewRoot) => note.mode >= 3 && <NoteSidePanel note={note} client={client} owner={scope.owner} store={store} previewRoot={previewRoot}
-                    hidden={editing} onRestore={draft => prepare(draft)} />}
+                {(note, _refresh, previewRoot) => (note.mode >= 3 || privateComments !== undefined) && <NoteSidePanel note={note} client={client} owner={scope.owner} store={store} previewRoot={previewRoot}
+                    hidden={editing} onRestore={draft => prepare(draft)} privateComments={note.mode < 3 && privateComments ? onCount => privateComments(note, onCount) : undefined} />}
             </PublicNote>
         </div>
         {opened && <div hidden={!editing}>

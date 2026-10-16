@@ -15,6 +15,7 @@ import { createIdentityController } from '../../../../lib/notes/privateNotes'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { prepareEncryptedEpoch } from '../../../../lib/notes/private/engine'
 import { sealPrivateDraft } from '../../../../lib/notes/private/localDraft'
+import { sealPrivateComment } from '../../../../lib/notes/private/comments'
 import golden from '../../../../lib/notes/identity/__fixtures__/backup-standard.json'
 import { PrivateNoteView } from './PrivateNoteView'
 import { SharedWithMe } from './SharedWithMe'
@@ -43,6 +44,10 @@ const newcomer = bech32Encode('g', new Uint8Array(20).fill(9)), newcomerKey = id
 const publicKey = blob(golden.publicKeyBase64, 1216), readerKey = identityFromSeed(new Uint8Array(32).fill(3)).publicKey, noteId = 'cd'.repeat(16)
 const key = (address: string, pk: Uint8Array) => ({ address, generation: '1', active: true, publicKey: pk, operationId: '11'.repeat(16), height: '5' })
 let note: ChainNote, manifest: Uint8Array, controller: NotesIdentityController, store: NotesStore
+/** The session's verified nodes, and what a node pinned by `via` serves instead of `note` (a dishonest or lagging one). */
+let nodes: string[] = ['https://rpc.one'], served: Record<string, ChainNote> = {}
+/** The note's comments as CommentsJSON returns them. */
+let comments: Record<string, unknown>[] = []
 /** A note of `noteOwner`, sealed for its owner and `readers` (those in `writers` with the writer flag). */
 function seal(noteOwner = owner, readers: string[] = [], writers: string[] = []) {
     const keys: Record<string, Uint8Array> = { [owner]: publicKey, [reader]: readerKey, [off1]: identityFromSeed(new Uint8Array(32).fill(11)).publicKey, [off2]: identityFromSeed(new Uint8Array(32).fill(12)).publicKey }
@@ -60,14 +65,14 @@ function client(): NotesReadClient {
             : [off1, off2].includes(who) ? { address: who, generation: '1', active: false, publicKey: new Uint8Array(), operationId: '11'.repeat(16), height: '6' }
             : { address: who, generation: '0', active: false, publicKey: new Uint8Array(), operationId: '', height: '0' },
         seedBackupRaw: async () => ({ mode: 1, suite: 'xwing-v1', generation: '1', revision: '1', public_key_hash: encode64(hexToBytes(golden.publicKeyHashHex)), op_id: '11'.repeat(16), actor: owner, height: '5', record: golden.recordBase64 }),
-        note: async () => note, noteMetadata: async () => note, readersRaw: async () => entries().map(entry => bech32Encode('g', entry.address)),
+        nodes: () => nodes, note: async (_id: string, via?: string) => via && served[via] ? served[via] : note, noteMetadata: async () => note, readersRaw: async () => entries().map(entry => bech32Encode('g', entry.address)),
         writersRaw: async () => entries().filter(entry => entry.writer).map(entry => bech32Encode('g', entry.address)).filter(who => who !== note.owner),
         wrapRaw: async (_id: string, _epoch: string, who: string) => {
             const entry = entries().find(e => bech32Encode('g', e.address) === who)
             return entry ? { address: who, epoch: '1', writer: entry.writer, generation: '1', public_key_hash: encode64(entry.publicKeyHash), wrap: encode64(entry.wrap) } : null
         },
         epochMetadataRaw: async () => ({ items: [{ epoch: '1', commitment: encode64(note.commitment), revealed_key: '' }], next_cursor: '1' }),
-        sharedWith: vi.fn(async () => ({ items: [], nextCursor: '' })),
+        sharedWith: vi.fn(async () => ({ items: [], nextCursor: '' })), commentsRaw: async () => ({ items: comments, next_cursor: '' }), getCommentRaw: async (_id: string, cid: string) => comments.find(c => c.id === cid) ?? null,
     } as unknown as NotesReadClient
 }
 function show(reader = client()) {
@@ -80,7 +85,7 @@ async function openShare(unlock = true) {
     return within(await screen.findByRole('region', { name: 'Who can read' }))
 }
 beforeEach(() => {
-    vi.clearAllMocks(); io.open = true; controller = undefined as unknown as NotesIdentityController; store = createNotesStore({ indexedDB: new IDBFactory() }); seal()
+    vi.clearAllMocks(); io.open = true; nodes = ['https://rpc.one']; served = {}; comments = []; controller = undefined as unknown as NotesIdentityController; store = createNotesStore({ indexedDB: new IDBFactory() }); seal()
     io.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
     io.unlock.mockImplementation(async () => ({ ikm: hexToBytes(golden.materialHex), publicKey: new Uint8Array(33) }))
     io.sign.mockReturnValue(true)
@@ -96,7 +101,7 @@ describe('Who can read (owner)', () => {
         expect(part.getByText('Unlock this note to add or remove readers, or to change who can edit.')).toBeVisible()
         expect(part.queryByRole('textbox')).toBeNull(); expect(part.getByRole('button', { name: 'Remove…' })).toBeDisabled()
         expect(part.getByRole('checkbox', { name: 'Can edit' })).toBeDisabled(); expect(part.getByRole('checkbox', { name: 'Can edit' })).not.toBeChecked()
-        expect(io.unlock).not.toHaveBeenCalled(); expect(document.body).not.toHaveTextContent('Comment')
+        expect(io.unlock).not.toHaveBeenCalled(); expect(screen.queryByRole('form', { name: 'Write an encrypted comment' })).toBeNull()
         expect(screen.getByText(/the link opens it only for its owner and the people it is shared with/)).toBeVisible()
     })
     it('refuses, before any encryption or wallet, someone who has no private notes key, a bad address and themselves', async () => {
@@ -329,11 +334,81 @@ describe('an unreadable latest version (E2 review P2)', () => {
         expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${reader} → your draft on this device`])
         expect(JSON.stringify(request.prepare(undefined).msgs)).not.toContain('My own draft')
     })
+    // E2 round-2 P3: one node's answer is never enough to offer replacing a text.
+    it('a second verified node serving other bytes for the unreadable field: no replacement offered, only Try again', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader)
+        nodes = ['https://rpc.one', 'https://rpc.two']; served = { 'https://rpc.two': { ...note, body: note.body!.map((b, i) => i > 20 ? b ^ 1 : b) } }
+        show(); await unlocked()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Remove…' }))
+        expect(await part.findByText(/answers about this note’s latest text disagree, so Memba does not offer to replace it/)).toBeVisible()
+        expect(part.queryByRole('button', { name: 'Replace the text and continue…' })).toBeNull()
+        // The nodes agree again (the lagging one caught up): the offer comes back.
+        served = {}; fireEvent.click(part.getByRole('button', { name: 'Try again' }))
+        expect(await part.findByRole('button', { name: 'Replace the text and continue…' })).toBeVisible(); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('with one node, a fresh read must return the same ciphertext; bytes changed before the replacement is prepared refuse it', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader); show(); await unlocked()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Remove…' }))
+        const offer = await part.findByRole('button', { name: 'Replace the text and continue…' })
+        // Another undecryptable body, same revision (what a node switching answers would look like): not the bytes confirmed.
+        note = { ...note, body: note.body!.map((b, i) => i > 20 ? b ^ 2 : b) }
+        fireEvent.click(offer)
+        expect(await part.findByText(/answers about this note’s latest text disagree/)).toBeVisible()
+        expect(part.queryByRole('group', { name: 'Removal review' })).toBeNull(); expect(io.sign).not.toHaveBeenCalled()
+    })
     it('a reader is told who published it and that its owner can replace it; nothing is offered to them', async () => {
         seal(reader, [owner]); sabotage(reader); show()
         await unlocked()
         expect(screen.getByText(new RegExp(`published by ${reader.slice(0, 5)}.*Its owner can replace it`))).toBeVisible()
         expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    })
+})
+
+// PR F: a private note's encrypted comments in its side panel, with the real key controller and real comment AEAD.
+describe('encrypted comments', () => {
+    /** `reader` comments on the current epoch (their own key seals it), as the realm then lists it. */
+    async function readerComments(body: string) {
+        const id = 'ee'.repeat(16), identity = identityFromSeed(new Uint8Array(32).fill(3))
+        const sealer = { getSnapshot: () => ({ phase: 'unlocked', generation: '1' }), subscribe: () => () => {}, use: async (fn: (value: typeof identity) => unknown) => fn(identity) } as unknown as NotesIdentityController
+        const ciphertext = await sealPrivateComment(client(), note, { id, author: reader, parent: '', bodyRevision: '1', epoch: '1' }, { body, quote: '', prefix: '', suffix: '' }, { owner: reader, identity: sealer, signal: new AbortController().signal })
+        comments = [{ id, parent: '0'.repeat(32), author: reader, encrypted: true, body_revision: '1', epoch: '1', revision: '1', anchor_blob: '', body_blob: encode64(ciphertext),
+            created_height: '8', op_id: '44'.repeat(16), actor: reader, height: '8', deleted: false, hidden: false, resolved: false }]
+    }
+    it('locked: placeholders with author only; unlocked: the text, and a composer that encrypts before the signing sheet; a lock drops both', async () => {
+        seal(owner, [reader]); await readerComments('Add wasabi'); show()
+        const panel = within(await screen.findByRole('region', { name: 'Encrypted comments' }))
+        expect(await panel.findByText('Encrypted comment')).toBeVisible(); expect(panel.getByText(`${reader.slice(0, 5)}…${reader.slice(-4)}`)).toBeVisible()
+        expect(panel.queryByText('Add wasabi')).toBeNull(); expect(panel.queryByText(/on the current text/)).toBeNull()
+        expect(screen.getByText('Unlock your private key to read and write the comments.')).toBeVisible()
+        fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        expect(await panel.findByText('Add wasabi')).toBeVisible()
+        const composer = within(await screen.findByRole('form', { name: 'Write an encrypted comment' }))
+        fireEvent.change(composer.getByLabelText('Encrypted comment'), { target: { value: 'Agreed, a little.' } })
+        expect(composer.getByText(/≈ 1\.0[0-3] GNOT/)).toBeVisible(); expect(composer.getByText('At most 1.3 GNOT')).toBeVisible()
+        // Enabled once this note's comment receipts were read (none unresolved).
+        const post = composer.getByRole('button', { name: 'Comment' }); await waitFor(() => expect(post).toBeEnabled())
+        fireEvent.click(post)
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(request.title).toBe('Post encrypted comment'); expect(request.lines(undefined)).toContainEqual(['Comment (encrypted)', 'Agreed, a little.'])
+        expect(message.value.func).toBe('AddComment'); expect(message.value.args[5]).toBe(''); expect(JSON.stringify(message)).not.toContain('Agreed')
+        request.onDismissed?.()
+        fireEvent.click(screen.getByRole('button', { name: 'Lock' }))
+        await waitFor(() => expect(panel.queryByText('Add wasabi')).toBeNull())
+        expect(panel.getByText('Encrypted comment')).toBeVisible(); expect(screen.queryByRole('form', { name: 'Write an encrypted comment' })).toBeNull()
+    })
+    it('Who can comment, in the Share menu, follows the realm: the people it is shared with, or nobody before it is shared', async () => {
+        seal(owner, [reader]); show()
+        fireEvent.click(await screen.findByRole('button', { name: 'Share' }))
+        expect(within(await screen.findByRole('region', { name: 'Who can comment' })).getByText('The people it is shared with: its owner, readers and writers')).toBeVisible()
+        cleanup(); seal(); controller.dispose(); controller = undefined as unknown as NotesIdentityController; show()
+        fireEvent.click(await screen.findByRole('button', { name: 'Share' }))
+        expect(within(await screen.findByRole('region', { name: 'Who can comment' })).getByText('Nobody yet: comments open once the note is shared')).toBeVisible()
+        expect(screen.getByText(/Comments open once this note is shared/)).toBeVisible()
     })
 })
 

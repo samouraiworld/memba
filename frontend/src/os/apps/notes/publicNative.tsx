@@ -12,7 +12,7 @@ import { PublicAuthoring } from './PublicAuthoring'
 import type { NoteReport, PrivateCreate } from './PublicPublish'
 import { PublicOperationStatus } from './PublicOperationStatus'
 import { NoteSharePopover } from './NoteSharePopover'
-import { NoteSidePanel } from './NoteSidePanel'
+import { NoteSidePanel, type PrivateComments } from './NoteSidePanel'
 import { DraftEditor } from './DraftEditor'
 import { NotesList } from './NotesList'
 import { clearLastNote, openBlankDraft, readLastNote, writeLastNote } from './notesWorkspace'
@@ -140,6 +140,11 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
     const encrypted = !privateOn || !owner || privateFailed ? undefined
         : PrivateView && identity ? (note: ChainNote, _refresh: () => void, report?: NoteReport) => <PrivateView note={note} controller={identity.controller} client={reader} owner={owner} walletChainId={session.walletChainId} store={store} report={report} />
         : () => <NoteSkeleton label="Opening private note…" />
+    const PrivateCommentPanel = privateModule?.PrivateCommentPanel
+    // A private note's comments where this deployment's gate is open: a member's encrypted panel, else (guests too) placeholders.
+    const commentsGate = privateNotesDeployment(reader.chainId)
+    const privateComments: PrivateComments | undefined = !commentsGate || commentsGate.realm !== deployment?.realm ? undefined : privateOn && PrivateCommentPanel && identity && owner && !privateFailed
+        ? (note, onCount) => <PrivateCommentPanel note={note} client={reader} controller={identity.controller} owner={owner} store={store} walletChainId={session.walletChainId} onCount={onCount} /> : null
     // Publishing privately: the key's state decides whether the choice opens; every builder checks the gate again.
     const privateCreate = privateCreateFor(privateOn && owner && !privateFailed && identity ? privateModule : null, identity?.controller, reader, owner, () => { setExploring(false); setPrivateView(true) })
     async function create() {
@@ -188,7 +193,7 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
                 {/* Keyed by note: hidden panes keep their text; a pane unmounts only once nothing in it is unsaved. */}
                 {panes.map(id => <PaneFrame key={id} hidden={aside || id !== selected}>{side =>
                     <NotePane client={reader} partition={partition} noteId={id} owner={owner} focusTitle={active && focusNote === id} shown={!aside && id === selected}
-                        side={side} overlay={overlay} walletChainId={session.walletChainId} hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} encrypted={encrypted} privateCreate={privateCreate} />
+                        side={side} overlay={overlay} walletChainId={session.walletChainId} hold={hold} saved={setRefresh} removed={removed} titleFocused={setFocusNote} encrypted={encrypted} privateCreate={privateCreate} privateComments={privateComments} />
                 }</PaneFrame>)}
             </section>
             <div ref={setOverlay} className="os-notes-overlay" />
@@ -208,19 +213,19 @@ function PaneFrame({ hidden, children }: { hidden: boolean; children(side: HTMLE
     </div>
 }
 type PaneProps = { client: NotesReadClient; partition: NotesPartition; noteId: string; owner: string | null; focusTitle: boolean; shown: boolean
-    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string; encrypted?(note: ChainNote, refresh: () => void, report?: NoteReport): ReactNode; privateCreate?: PrivateCreate
+    side: HTMLElement; overlay: HTMLElement | null; walletChainId?: string; encrypted?(note: ChainNote, refresh: () => void, report?: NoteReport): ReactNode; privateCreate?: PrivateCreate; privateComments?: PrivateComments
     hold(note: string, source: string, unsaved: boolean): void; saved(bump: (value: number) => number): void; removed(note: string, published: boolean): void; titleFocused(value: null): void }
-function NotePane({ client, partition, noteId, owner, focusTitle, shown, side, overlay, walletChainId, encrypted, privateCreate, hold, saved, removed, titleFocused }: PaneProps) {
+function NotePane({ client, partition, noteId, owner, focusTitle, shown, side, overlay, walletChainId, encrypted, privateCreate, privateComments, hold, saved, removed, titleFocused }: PaneProps) {
     const scope = useMemo(() => ({ ...partition, noteId }), [partition, noteId])
     const pane = useMemo<NotesPane>(() => ({
         hold: (source, unsaved) => hold(noteId, source, unsaved), saved: () => saved(value => value + 1),
         deleted: published => removed(noteId, published), focusTitle, titleFocused: () => titleFocused(null), shown, side, overlay,
     }), [noteId, focusTitle, shown, side, overlay, hold, saved, removed, titleFocused])
     // Guests write local drafts too; a note without one opens in the public reader.
-    return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} walletChainId={walletChainId} encrypted={encrypted} privateCreate={privateCreate} />
+    return <NotesPaneContext.Provider value={pane}>{owner ? <PublicAuthoring client={client} store={store} scope={scope} walletChainId={walletChainId} encrypted={encrypted} privateCreate={privateCreate} privateComments={privateComments} />
         : <DraftEditor store={store} scope={scope} onSaved={noop} remote={<PublicNote id={noteId} client={client} owner={null}
             share={note => <NoteSharePopover note={note} client={client} store={store} owner={null} onChanged={noop} />}>
-            {(note, _refresh, previewRoot) => note.mode >= 3 && <NoteSidePanel note={note} client={client} owner={null} store={store} previewRoot={previewRoot} />}
+            {(note, _refresh, previewRoot) => (note.mode >= 3 || privateComments !== undefined) && <NoteSidePanel note={note} client={client} owner={null} store={store} previewRoot={previewRoot} />}
         </PublicNote>} />}</NotesPaneContext.Provider>
 }
 const noop = () => {}

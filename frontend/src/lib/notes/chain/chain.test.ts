@@ -6,9 +6,9 @@ import { blob, decodeResponse, encode64, parseConfig, parseKey, parseNote, parse
 import { NOTES_REALM } from './__fixtures__/deployment'
 import keeper from './__fixtures__/keeper-public.json'
 
-const rpc = vi.hoisted(() => ({ query: vi.fn(), identity: vi.fn(), direct: vi.fn(), url: 'https://rpc.test' }))
+const rpc = vi.hoisted(() => ({ query: vi.fn(), identity: vi.fn(), direct: vi.fn(), url: 'https://rpc.test', second: null as string | null }))
 vi.mock('../../config', () => ({ GNO_CHAIN_ID: 'test-chain' }))
-vi.mock('../../rpcFallback', () => ({ getRpcUrlsInOrder: () => [rpc.url], resilientAbciQueryDetailed: (...args: unknown[]) => rpc.query(...args), directRpcCall: (...args: unknown[]) => rpc.direct(...args) }))
+vi.mock('../../rpcFallback', () => ({ getRpcUrlsInOrder: () => rpc.second ? [rpc.url, rpc.second] : [rpc.url], resilientAbciQueryDetailed: (...args: unknown[]) => rpc.query(...args), directRpcCall: (...args: unknown[]) => rpc.direct(...args) }))
 vi.mock('../../dao/chainIdentity', () => ({ assertRpcChain: (...args: unknown[]) => rpc.identity(...args) }))
 const owner = bech32Encode('g', new Uint8Array(20).fill(1)), other = bech32Encode('g', new Uint8Array(20).fill(2))
 const noteId = '01'.repeat(16), operationId = '02'.repeat(16)
@@ -41,6 +41,21 @@ it('bounds private metadata/wrap expressions and rejects query injection before 
   await expect(c.epochMetadataRaw(noteId, '0')).rejects.toThrow()
   await expect(c.wrapRaw(noteId, '2', 'bad"),Foo()')).rejects.toThrow()
   expect(rpc.query).toHaveBeenCalledTimes(3)
+})
+it('a note read pinned to one node (via) refuses every other node, for the metadata, each body chunk and the final re-read', async () => {
+  rpc.second = 'https://rpc2.test'
+  try {
+    const asked: string[] = [], replies = chunkReplies()
+    rpc.query.mockImplementation(async (path: string, data: string, verify: (url: string) => Promise<void>) => {
+      // The first configured node, verified fine otherwise, is refused: only the pinned one may answer.
+      await expect(verify(rpc.url)).rejects.toThrow('network')
+      asked.push(data); return replies(path, data, async () => verify(rpc.second!))
+    })
+    const c = new NotesReadClient({ chainId: 'test-chain', deployment: { realm: NOTES_REALM, version: 1 }, rpcUrls: [rpc.url, rpc.second], isCurrent: () => true })
+    expect(c.nodes()).toEqual([rpc.url, rpc.second])
+    expect((await c.note(noteId, rpc.second))?.stateRevision).toBe('9007199254740993')
+    expect(asked.length).toBe(3); expect(rpc.identity).toHaveBeenCalledWith(rpc.second, 'test-chain'); expect(rpc.identity).not.toHaveBeenCalledWith(rpc.url, 'test-chain')
+  } finally { rpc.second = null }
 })
 describe('strict getter schemas', () => {
   it('parses actual keeper e75 qeval outputs from the realm integration suite', () => {

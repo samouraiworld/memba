@@ -7,7 +7,7 @@ import { PublicNotesApp } from './publicNative'
 
 // The Notes window around the private panel: who sees the entry, and the key controller's lifetime.
 type Controller = { owner: string; chainId: string; dispose: ReturnType<typeof vi.fn>; lock: ReturnType<typeof vi.fn> }
-const mocks = vi.hoisted(() => ({ build: true, open: true, controllers: [] as Controller[], loads: 0, store: null as unknown as NotesStore }))
+const mocks = vi.hoisted(() => ({ build: true, open: true, controllers: [] as Controller[], loads: 0, store: null as unknown as NotesStore, note: null as unknown }))
 const deployment = { realm: 'gno.land/r/samcrew/memba_notes_rc1', version: 1 as const }
 vi.mock('../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../lib/notes/config')>(),
     NOTES_ENABLED: true, PRIVATE_CHAINS: ['onyx-1', 'test-chain'], notesDeployment: () => deployment,
@@ -31,7 +31,7 @@ vi.mock('../../../lib/notes/drafts', async original => {
 })
 vi.mock('../../../lib/rpcFallback', () => ({ getRpcUrlsInOrder: () => ['https://rpc.invalid'] }))
 vi.mock('../../../lib/notes/chain/client', () => ({ NotesReadClient: class {
-    chainId: string; realm = deployment.realm; note = async () => null; byOwner = async () => ({ items: [], nextCursor: '' }); publicNotes = async () => ({ items: [], nextCursor: '' })
+    chainId: string; realm = deployment.realm; note = async () => mocks.note; commentsRaw = async () => ({ items: [], next_cursor: '' }); byOwner = async () => ({ items: [], nextCursor: '' }); publicNotes = async () => ({ items: [], nextCursor: '' })
     constructor(context: { chainId: string }) { this.chainId = context.chainId }
     assertCurrent() {}
 } }))
@@ -39,14 +39,25 @@ vi.mock('../../../lib/notes/chain/client', () => ({ NotesReadClient: class {
 vi.mock('./PublicAuthoring', () => ({ PublicAuthoring: ({ encrypted }: { encrypted?(note: { id: string; mode: number }): unknown }) =>
     <><p>Public authoring</p>{encrypted ? <>{encrypted({ id: 'ab'.repeat(16), mode: 0 }) as never}</> : <p>Private note placeholder</p>}</> }))
 vi.mock('./PublicOperationStatus', () => ({ PublicOperationStatus: () => null }))
+vi.mock('../../sign/signerContext', () => ({ useSigner: () => ({ sign: () => false, version: 0 }) }))
 const id = 'ab'.repeat(16)
 function props(session: Partial<NativeViewProps['session']>, chainId = 'onyx-1') {
     return { session: { status: 'member', address: 'g1owner', network: { chainId }, ...session } as NativeViewProps['session'], section: id, fallback: <p>Fallback</p>, onOpenNote: vi.fn(), onShowList: vi.fn(), active: true }
 }
-beforeEach(() => { mocks.build = true; mocks.open = true; mocks.controllers = []; mocks.loads = 0; mocks.store = createNotesStore({ indexedDB: new IDBFactory() }) })
+beforeEach(() => { mocks.note = null; mocks.build = true; mocks.open = true; mocks.controllers = []; mocks.loads = 0; mocks.store = createNotesStore({ indexedDB: new IDBFactory() }) })
 afterEach(async () => { cleanup(); await mocks.store.close() })
 
 describe('private notes entry in the Notes window', () => {
+    it('a guest on a private note sees its encrypted comments as placeholders where the gate is open, and nothing where it is closed', async () => {
+        mocks.note = { id, owner: 'g1owner', pendingOwner: '', ownerGeneration: '1', mode: 1, stateRevision: '3', titleRevision: '1', bodyRevision: '1', epoch: '1', title: new Uint8Array(99), body: new Uint8Array(99),
+            commitment: new Uint8Array(32), deleted: false, listed: false, createdHeight: '1', operationId: '22'.repeat(16), actor: 'g1owner', height: '2' }
+        const view = render(<PublicNotesApp {...props({ status: 'guest', address: '' })} />)
+        expect(await screen.findByRole('region', { name: 'Encrypted comments' })).toBeVisible(); expect(screen.getByRole('tab', { name: /Comments/ })).toBeVisible()
+        expect(screen.queryByRole('tab', { name: 'History' })).toBeNull()
+        cleanup(); mocks.open = false
+        view.unmount(); render(<PublicNotesApp {...props({ status: 'guest', address: '' })} />)
+        expect(await screen.findByText(/This private note is encrypted/)).toBeVisible(); expect(screen.queryByRole('tab', { name: /Comments/ })).toBeNull()
+    })
     it('shows nothing private without the build switch, on a closed network, or to a guest', async () => {
         mocks.build = false
         const view = render(<PublicNotesApp {...props({})} />)

@@ -87,10 +87,14 @@ export function privateNoteBudget(message: AminoMsg, previous?: PrivateCommitSiz
  * Either way the storage price must be 100 ugnot/B and the deposit must fit the reviewed cap.
  */
 export function privateNoteQuote(client: NotesReadClient, maxDepositUgnot: string, previous?: PrivateCommitSizes | PrivateAccessBase): NotesQuoteProvider {
+  return simulationFirstQuote(client, maxDepositUgnot, message => privateNoteBudget(message, previous))
+}
+/** The same simulation-first rules for any private-notes message, with `budget` as its bounded fallback. */
+export function simulationFirstQuote(client: NotesReadClient, maxDepositUgnot: string, budget: (message: AminoMsg) => ReturnType<typeof privateNoteBudget>): NotesQuoteProvider {
   const cap = decimal(maxDepositUgnot, 63)
   return async input => {
     client.assertCurrent(); check(input.chainId === client.chainId && input.message.value.pkg_path === client.realm && input.message.value.max_deposit === `${cap}ugnot`)
-    const bound = privateNoteBudget(input.message, previous)
+    const bound = budget(input.message)
     if (BigInt(cap) < BigInt(bound.estimatedDepositUgnot)) throw new NotesChainError('format')
     const urls = getRpcUrlsInOrder()
     const [price, boundFee] = await Promise.all([

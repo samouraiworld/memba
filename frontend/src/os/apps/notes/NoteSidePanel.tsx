@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
 import type { ChainNote } from '../../../lib/notes/chain/schema'
@@ -11,20 +11,29 @@ import { useNotesPane } from './notesPane'
 import './notes-history.css'
 
 type Tab = 'history' | 'comments'
+/**
+ * Where the private-notes gate is open for this deployment: a member's encrypted comments panel for a note (lazy private
+ * chunk), or null (a guest, a key not available yet): placeholders. Undefined where the gate is closed: no panel at all.
+ */
+export type PrivateComments = ((note: ChainNote, onCount: (count: number, more: boolean) => void) => ReactNode) | null
 type Props = {
     note: ChainNote; client: NotesReadClient; store: NotesStore; owner: string | null; previewRoot: HTMLElement | null
     /** "Use as draft" from History: copies archived content into the editor, never signs. */
     onRestore?: HistoryRestore
     /** Kept mounted (an unsent comment stays) but not shown, e.g. while the note is being edited. */
     hidden?: boolean
+    /** A private note's encrypted comments (lazy private chunk). Without it a private note lists them as placeholders. */
+    privateComments?(onCount: (count: number, more: boolean) => void): ReactNode
 }
 
 /**
  * History | Comments beside the note. At phone width the tabs sit under the note and open a
  * full-screen sheet with Back. Both tabs stay mounted, so switching never drops a comment.
  */
-export function NoteSidePanel({ note, client, store, owner, previewRoot, onRestore, hidden }: Props) {
-    const [tab, setTab] = useState<Tab>('history'), [sheet, setSheet] = useState(false)
+export function NoteSidePanel({ note, client, store, owner, previewRoot, onRestore, hidden, privateComments }: Props) {
+    // A private note keeps no public history: only its comments.
+    const encrypted = note.mode < 3
+    const [tab, setTab] = useState<Tab>(encrypted ? 'comments' : 'history'), [sheet, setSheet] = useState(false)
     const [count, setCount] = useState<{ n: number; more: boolean } | null>(null)
     const id = useId(), side = useNotesPane()?.side, aside = useRef<HTMLElement>(null), back = useRef<HTMLButtonElement>(null)
     /** Where the note was scrolled when the sheet opened: closing the sheet goes back there. */
@@ -53,8 +62,7 @@ export function NoteSidePanel({ note, client, store, owner, previewRoot, onResto
         setSheet(false)
         aside.current?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${id}-${tab}`)}`)?.focus({ preventScroll: true })
     }
-    const comments = note.mode >= 3
-    const tabs: Tab[] = comments ? ['history', 'comments'] : ['history']
+    const tabs: Tab[] = encrypted ? ['comments'] : ['history', 'comments']
     // The sheet only exists in a narrow note column (the stylesheet says which): a wide one never keeps one open for later.
     function choose(next: Tab) {
         const open = !!aside.current && getComputedStyle(aside.current).getPropertyValue('--os-notes-sheet').trim() === '1'
@@ -79,12 +87,13 @@ export function NoteSidePanel({ note, client, store, owner, previewRoot, onResto
             {tabs.map(value => <button key={value} type="button" role="tab" id={`${id}-${value}`} aria-controls={`${id}-${value}-panel`} aria-selected={tab === value}
                 tabIndex={tab === value ? 0 : -1} onKeyDown={keys} onClick={() => choose(value)}>{label(value)}</button>)}
         </div>
-        <div className="os-notes-side-body" role="tabpanel" id={`${id}-history-panel`} aria-labelledby={`${id}-history`} hidden={tab !== 'history'}>
+        {!encrypted && <div className="os-notes-side-body" role="tabpanel" id={`${id}-history-panel`} aria-labelledby={`${id}-history`} hidden={tab !== 'history'}>
             <PublicHistory noteId={note.id} client={client} onRestore={onRestore} viewer={owner} />
-        </div>
-        {comments && <div className="os-notes-side-body" role="tabpanel" id={`${id}-comments-panel`} aria-labelledby={`${id}-comments`} hidden={tab !== 'comments'}>
-            <PublicCommentPanel note={note} client={client} owner={owner} store={store} previewRoot={previewRoot} onCount={(n, more) => setCount({ n, more })} />
         </div>}
+        <div className="os-notes-side-body" role="tabpanel" id={`${id}-comments-panel`} aria-labelledby={`${id}-comments`} hidden={tab !== 'comments'}>
+            {encrypted && privateComments ? privateComments((n, more) => setCount({ n, more }))
+                : <PublicCommentPanel note={note} client={client} owner={owner} store={store} previewRoot={previewRoot} onCount={(n, more) => setCount({ n, more })} />}
+        </div>
     </aside>
     return side ? createPortal(panel, side) : panel
 }

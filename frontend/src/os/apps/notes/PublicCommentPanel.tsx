@@ -15,6 +15,7 @@ import { commentPosted, holdSentComment, isPostedComment, mergeReturned, settleS
 import { useSigner } from '../../sign/signerContext'
 import { PublicComments } from './PublicComments'
 import { useUnsavedText } from './notesPane'
+import { selectedQuote } from './notesFormat'
 
 type PublicCommentPanelProps = {
     note: ChainNote; client: NotesReadClient; owner: string | null; store: NotesStore; previewRoot?: HTMLElement | null
@@ -68,15 +69,6 @@ function PublicCommentScope(props: PublicCommentPanelProps) {
     const n = props.note, draft = useCommentDraft(props.client.chainId, props.owner, n.id)
     useUnsavedText(!!draft.body.trim(), 'A comment you wrote is not posted yet. Leave without posting it? Choose Cancel to keep editing.')
     return <PublicCommentPanelSession key={JSON.stringify([n.owner, n.stateRevision, n.ownerGeneration, n.mode, n.epoch, n.deleted])} {...props} draft={draft} />
-}
-/** Text selected inside the note, when the selection lies entirely in it. */
-function selectedQuote(root: HTMLElement): string | null {
-    const selection = root.ownerDocument.defaultView?.getSelection()
-    if (!selection || selection.isCollapsed || !selection.rangeCount) return null
-    const range = selection.getRangeAt(0)
-    if (!root.contains(range.commonAncestorContainer)) return null
-    const text = selection.toString().trim()
-    return text || null
 }
 function PublicCommentPanelSession({ note, client, owner, store, previewRoot, onCount, draft }: PublicCommentPanelProps & { draft: ReturnType<typeof useCommentDraft> }) {
     const signer = useSigner(), [session] = useState(createDraftSession)
@@ -202,7 +194,7 @@ function PublicCommentPanelSession({ note, client, owner, store, previewRoot, on
     return <div className="os-notes-comment-panel">
         <div className="os-notes-comment-list">
             <PublicComments previewRoot={previewRoot} key={reload} refreshToken={fresh} client={client} noteId={note.id} epoch={note.epoch} bodyRevision={note.bodyRevision} viewer={owner}
-                allowEncryptedActions={false} canResolve={!note.deleted && owner === note.owner} canHide={!note.deleted && owner === note.owner} onCount={onCount}
+                allowEncryptedActions={false} encryptedNote={note.mode < 3} canResolve={!note.deleted && owner === note.owner} canHide={!note.deleted && owner === note.owner} onCount={onCount}
                 onReply={canPost ? comment => { setParent(comment); setNotice('') } : undefined}
                 // While busy the menus stay with disabled items, so the focus never falls back to the page.
                 actionsDisabled={!actionsReady}

@@ -31,6 +31,20 @@ describe('public comments', () => {
     expect(screen.queryByRole('button', { name: 'Reply' })).toBeNull(); expect(callback).not.toHaveBeenCalled()
     expect(client.commentsRaw).toHaveBeenCalledExactlyOnceWith(noteId, '', 5)
   })
+  it('a private note: author and time only until opened; opened text, "earlier version" and undecryptable states; a new decrypt function drops the text', async () => {
+    const enc = (n: number, epoch = '2') => ({ ...row(n), encrypted: true, epoch, anchor_blob: '', body_blob: encode64(new Uint8Array(59)) })
+    const client = { commentsRaw: vi.fn(async () => page([enc(1), enc(2, '1'), enc(3)])) }
+    const view = render(<PublicComments client={client} noteId={noteId} epoch="2" bodyRevision="1" encryptedNote />)
+    expect(await screen.findAllByText('Encrypted comment')).toHaveLength(3); expect(screen.getByRole('region', { name: 'Encrypted comments' })).toBeVisible()
+    expect(screen.queryByText(/on the current text/)).toBeNull(); expect(screen.queryByText(/Earlier epoch/)).toBeNull()
+    const ids = [row(1).id, row(2).id, row(3).id]
+    const decrypt = vi.fn(async () => new Map([[ids[0], { status: 'open' as const, body: 'Opened text', quote: 'Passage' }], [ids[1], { status: 'no-key' as const }], [ids[2], { status: 'unavailable' as const }]]))
+    view.rerender(<PublicComments client={client} noteId={noteId} epoch="2" bodyRevision="1" encryptedNote decrypt={decrypt} />)
+    expect(await screen.findByText('Opened text')).toBeVisible(); expect(screen.getByText('Passage')).toBeVisible()
+    expect(screen.getByText('Comment from an earlier version you can’t open')).toBeVisible(); expect(screen.getByText('This encrypted comment could not be decrypted.')).toBeVisible()
+    view.rerender(<PublicComments client={client} noteId={noteId} epoch="2" bodyRevision="1" encryptedNote />)
+    await waitFor(() => expect(screen.queryByText('Opened text')).toBeNull()); expect(screen.getAllByText('Encrypted comment')).toHaveLength(3)
+  })
   it('paginates chronologically with bounded visible rows and retries the failed page without losing the current one', async () => {
     const rows = Array.from({ length: 5 }, (_, i) => row(i + 1)), cursor = '00000000000000000005:' + row(5).id
     const client = { commentsRaw: vi.fn().mockResolvedValueOnce(page(rows, cursor)).mockRejectedValueOnce(new Error(noteId))
