@@ -9,6 +9,8 @@ export interface PublicComment {
   deleted: boolean; hidden: boolean; resolved: boolean
 }
 export interface CommentsPage { items: PublicComment[]; nextCursor: string }
+/** A private note's comment as the lazy private chunk opened it: its text, or why it is not shown. */
+export type OpenedComment = { status: 'open'; body: string; quote: string } | { status: 'no-key' } | { status: 'unavailable' }
 export type CommentsClient = Pick<NotesReadClient, 'commentsRaw'>
 const ZERO_ID = '0'.repeat(32)
 const KEYS = ['id', 'parent', 'author', 'encrypted', 'body_revision', 'epoch', 'revision', 'anchor_blob', 'body_blob', 'created_height', 'op_id', 'actor', 'height', 'deleted', 'hidden', 'resolved']

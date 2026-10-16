@@ -68,6 +68,7 @@ export function PublicNote({ id, client, owner, primary, status, menu, share, ba
         <NoteHeader noteId={id} status={<NoteStatus kind="private">Private · revision {note.stateRevision}</NoteStatus>} />
         {failed}{banner}
         <p className="os-notes-hint">This private note is encrypted. Opening private notes is not available in this version.</p>
+        {children?.(note, refresh, null)}
     </section>
     const title = publicText(note.title, true), body = publicText(note.body!)
     const action = primary ? primary(note) : owner === note.owner && onEdit && <button className="os-btn" onClick={() => onEdit(structuredClone(note))}>Edit</button>

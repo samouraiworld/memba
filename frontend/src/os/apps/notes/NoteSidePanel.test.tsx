@@ -55,11 +55,18 @@ describe('History and comments panel', () => {
         expect(screen.getByRole('main')).toBeEmptyDOMElement()
         side.remove()
     })
-    it('passes the restore path to History, and has no comment tab for an encrypted note', () => {
+    it('passes the restore path to History', () => {
         const onRestore = vi.fn()
-        render(<NoteSidePanel {...props} note={{ ...note, mode: 1 }} onRestore={onRestore} />)
+        render(<NoteSidePanel {...props} onRestore={onRestore} />)
         expect(seen.restore).toBe(onRestore)
-        expect(screen.queryByRole('tab', { name: /Comments/ })).toBeNull()
+    })
+    it('a private note has Comments only (no public history): the private panel when given, else the placeholders', () => {
+        const view = render(<NoteSidePanel {...props} note={{ ...note, mode: 1 }} />)
+        expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Comments']); expect(screen.queryByText(/History for/)).toBeNull()
+        expect(screen.getByLabelText('Comment')).toBeVisible()
+        view.rerender(<NoteSidePanel {...props} note={{ ...note, mode: 1 }} privateComments={onCount => <button onClick={() => onCount(2, false)}>Encrypted panel</button>} />)
+        fireEvent.click(screen.getByRole('button', { name: 'Encrypted panel' }))
+        expect(screen.getByRole('tab', { name: 'Comments · 2' })).toHaveAttribute('aria-selected', 'true'); expect(screen.queryByLabelText('Comment')).toBeNull()
     })
     it('opens the sheet at its top and, on Back, returns the note to where it was scrolled', () => {
         let top = 300

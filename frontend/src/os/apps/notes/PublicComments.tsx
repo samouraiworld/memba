@@ -4,7 +4,7 @@ import { ActionMenu, type NoteMenuItem } from './NoteHeader'
 import { useBlockTimes } from './blockTimes'
 import { check } from '../../../lib/notes/chain/schema'
 import type { NotesReadClient } from '../../../lib/notes/chain/client'
-import { isRedactedComment, readPublicComments, type CommentsClient, type PublicComment } from '../../../lib/notes/chain/comments'
+import { isRedactedComment, readPublicComments, type CommentsClient, type OpenedComment, type PublicComment } from '../../../lib/notes/chain/comments'
 
 /** Block times are optional: a client without them shows comments without "… ago". */
 type Client = CommentsClient & Partial<Pick<NotesReadClient, 'chainId' | 'blockTimeMs'>>
@@ -22,6 +22,10 @@ export interface PublicCommentsProps {
   allowEncryptedActions?: boolean
   onReply?(comment: PublicComment): void; onDelete?(comment: PublicComment): void
   onResolve?(comment: PublicComment, resolved: boolean): void; onHide?(comment: PublicComment, hidden: boolean): void
+  /** A private note: its comments are encrypted. Without `decrypt` (a guest, a locked key) each shows its author and time only. */
+  encryptedNote?: boolean
+  /** Opens the shown page's comments with the unlocked key (lazy private chunk); a new function (a lock) drops what it opened. */
+  decrypt?(items: PublicComment[], cursor: string, signal: AbortSignal): Promise<ReadonlyMap<string, OpenedComment>>
 }
 type Page = { key: string; client: Client; items: PublicComment[]; cursor: string; next: string; history: string[]; loading: boolean; error: boolean }
 const short = (address: string) => address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-4)}` : address
@@ -77,18 +81,34 @@ export function PublicComments(props: PublicCommentsProps) {
   const visible = page.key === key && page.client === client ? page : empty()
   const when = useBlockTimes(client, visible.items.map(comment => comment.createdHeight))
   const copy = (comment: PublicComment) => ({ ...comment })
-  return <section className="os-notes-comments" aria-label="Public comments">
-    <header><h2>Comments</h2><p className="os-sub">Oldest first · Public: comments stay in chain history unless a moderator removes them.</p>
+  // Decrypted text lives in this state only while the same `decrypt` (the same unlocked key) and the same page are shown.
+  const { decrypt, encryptedNote } = props
+  const [opened, setOpened] = useState<{ decrypt: PublicCommentsProps['decrypt']; items: PublicComment[]; map: ReadonlyMap<string, OpenedComment> } | null>(null)
+  useEffect(() => {
+    if (!decrypt || !page.items.length) return
+    const controller = new AbortController(), items = page.items
+    void decrypt(items, page.cursor, controller.signal).then(map => { if (!controller.signal.aborted) setOpened({ decrypt, items, map }) }, () => {})
+    return () => { controller.abort(); setOpened(null) }
+  }, [decrypt, page.items, page.cursor])
+  const texts = opened && opened.decrypt === decrypt && opened.items === visible.items ? opened.map : null
+  return <section className="os-notes-comments" aria-label={encryptedNote ? 'Encrypted comments' : 'Public comments'}>
+    <header><h2>Comments</h2><p className="os-sub">{encryptedNote ? 'Oldest first · Encrypted: only the people this note is shared with can read them. Authors and times are public.'
+      : 'Oldest first · Public: comments stay in chain history unless a moderator removes them.'}</p>
       <button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh</button></header>
-    <ol>{visible.items.map(comment => { const who = viewer && viewer === comment.author ? 'You' : short(comment.author), ago = when(comment.createdHeight); return <li key={comment.id}>
+    <ol>{visible.items.map(comment => { const who = viewer && viewer === comment.author ? 'You' : short(comment.author), ago = when(comment.createdHeight)
+      // An encrypted comment not opened here shows who wrote it and when, nothing else.
+      const text = comment.encrypted ? texts?.get(comment.id) : undefined, open = !comment.encrypted || text?.status === 'open'
+      const body = text?.status === 'open' ? text.body : comment.body, quote = text?.status === 'open' ? text.quote : comment.anchor
+      return <li key={comment.id}>
       <article className="os-notes-comment" aria-label={`Comment by ${who}`}>
-        <header><strong title={comment.author}>{who}</strong><span> · {comment.bodyRevision === bodyRevision ? 'on the current text' : 'on an earlier text'}</span>{ago && <span> · {ago}</span>}{comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
-        {comment.parent && <p className="os-sub">Reply to {comment.parent}</p>}
-        {comment.deleted ? <p>Deleted by the author</p> : isRedactedComment(comment) ? <p>Removed by moderation</p> : comment.hidden ? <p>Hidden by moderation</p> : comment.encrypted ? <p>Encrypted comment</p> : <>
-          {comment.anchor && <AnchorQuote quote={comment.anchor} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}
-          <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{comment.body}</p>
+        <header><strong title={comment.author}>{who}</strong>{open && <span> · {comment.bodyRevision === bodyRevision ? 'on the current text' : 'on an earlier text'}</span>}{ago && <span> · {ago}</span>}{open && comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
+        {open && comment.parent && <p className="os-sub">Reply to {comment.parent}</p>}
+        {comment.deleted ? <p>Deleted by the author</p> : isRedactedComment(comment) ? <p>Removed by moderation</p> : comment.hidden ? <p>Hidden by moderation</p>
+          : !open ? <p>{text?.status === 'no-key' ? comment.epoch !== epoch ? 'Comment from an earlier version you can’t open' : 'Encrypted comment you can’t open with your key' : text?.status === 'unavailable' ? 'This encrypted comment could not be decrypted.' : 'Encrypted comment'}</p> : <>
+          {quote && <AnchorQuote quote={quote} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}
+          <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{body}</p>
         </>}
-        {viewer && <CommentActions comment={comment} who={who} ago={ago} viewer={viewer} props={props} copy={copy} />}
+        {viewer && <CommentActions comment={comment} who={who} ago={ago} viewer={viewer} props={props} copy={copy} opened={open} />}
       </article>
     </li> })}</ol>
     {visible.loading && <p role="status">Loading comments…</p>}
@@ -100,9 +120,9 @@ export function PublicComments(props: PublicCommentsProps) {
 }
 
 /** Reply stays one click away; the author's and the owner's actions sit in the card's ⋯ menu. */
-function CommentActions({ comment, who, ago, viewer, props, copy }: { comment: PublicComment; who: string; ago: string; viewer: string; props: PublicCommentsProps; copy(comment: PublicComment): PublicComment }) {
+function CommentActions({ comment, who, ago, viewer, props, copy, opened }: { comment: PublicComment; who: string; ago: string; viewer: string; props: PublicCommentsProps; copy(comment: PublicComment): PublicComment; opened: boolean }) {
   const allowed = !comment.encrypted || props.allowEncryptedActions !== false
-  const reply = !comment.deleted && !comment.hidden && !comment.encrypted && props.onReply
+  const reply = !comment.deleted && !comment.hidden && opened && props.onReply
   const items: NoteMenuItem[] = [], danger: NoteMenuItem[] = []
   const disabled = !!props.actionsDisabled
   if (allowed && props.canResolve && props.onResolve) items.push({ label: comment.resolved ? 'Reopen thread' : 'Resolve thread', disabled, run: () => props.onResolve?.(copy(comment), !comment.resolved) })
