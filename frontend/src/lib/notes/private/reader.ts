@@ -21,6 +21,24 @@ import { parseEpochPage, parseReaders, parseWrap } from './schema'
 export class PrivateNoteNoAccess extends Error {
   constructor(readonly reason: 'none' | 'other-key') { super(`Notes private: no access (${reason})`); this.name = 'PrivateNoteNoAccess' }
 }
+/**
+ * The epoch key opened and matched the note's key commitment, but the current title or body does not decrypt to valid
+ * text: the realm checks only a ciphertext's header, so whoever published that revision (`actor`, the owner or a writer)
+ * sealed bytes nobody can read. The owner can rotate it away with a replacement text (sealRotation).
+ */
+export class PrivateNoteUnreadable extends Error {
+  constructor(readonly actor: string, readonly fields: readonly ('title' | 'body')[]) { super('Notes private: the current text cannot be decrypted'); this.name = 'PrivateNoteUnreadable' }
+}
+/** The notice that replaces an unreadable field when the owner has no draft of the note on this device. */
+export const UNREADABLE_REPLACEMENT = { title: 'Unreadable note replaced', body: 'This note’s latest text could not be decrypted and was replaced by its owner.' }
+/** Opens one current field, or reports it unreadable (a caller error such as a stale session still propagates). */
+function openCurrent(key: Uint8Array, context: EpochContext, note: ChainNote, field: 'title' | 'body'): Uint8Array | null {
+  let plain: Uint8Array | undefined
+  try {
+    plain = openField(key, { ...context, field, fieldRevision: BigInt(field === 'title' ? note.titleRevision : note.bodyRevision) }, field === 'title' ? note.title : note.body!)
+    publicText(plain, field === 'title'); return plain
+  } catch { plain?.fill(0); return null }
+}
 type Access = { kind: 'identity'; owner: string; identity: NotesIdentityController }
 /** Captures the caller's abort signal before any RPC. */
 export async function readEncryptedNote(client: NotesReadClient, noteId: string, options: { access: Access; signal: AbortSignal }): Promise<OpenPrivateNote> {
@@ -55,6 +73,12 @@ export async function readEncryptedNote(client: NotesReadClient, noteId: string,
     const final = await client.noteMetadata(note.id); assert()
     if (!final || final.stateRevision !== note.stateRevision || final.epoch !== note.epoch || final.ownerGeneration !== note.ownerGeneration) throw new NotesChainError('stale')
     check(key)
+    // The key matches the note's commitment, yet a field does not open: an unreadable revision, named by its author.
+    const context = noteContext(client.chainId, client.realm, note)
+    if (equalBytes(keyCommitment(key, context), note.commitment)) {
+      const failed = (['title', 'body'] as const).filter(field => { const plain = openCurrent(key!, context, note, field); plain?.fill(0); return !plain })
+      if (failed.length) throw new PrivateNoteUnreadable(note.actor, failed)
+    }
     opened = new OpenPrivateNote(client.chainId, client.realm, note, key, epoch.revealedKey.length === 32, current)
     const view = opened
     view.attachCleanup(() => { signal.removeEventListener('abort', invalidate); unsubscribe() }); assert()
@@ -124,13 +148,19 @@ export async function sealAccessManifest(client: NotesReadClient, note: ChainNot
  * The owner moves the note to its next epoch for `recipients` (Rotate): the current title and body, opened at their
  * current revisions, sealed again under a FRESH key at their next revisions, with envelopes for these recipients only.
  * Whoever is left out gets no envelope, and so no key, for this epoch or any later one.
+ * A current field that does not decrypt (PrivateNoteUnreadable) is replaced only by an explicit `replacement`, and a
+ * replacement is refused while both fields decrypt: readable text is never overwritten this way.
  */
-export async function sealRotation(client: NotesReadClient, note: ChainNote, mode: 0 | 1, recipients: readonly EpochRecipient[], options: { access: Access; signal: AbortSignal }): Promise<EncryptedEpoch> {
+export async function sealRotation(client: NotesReadClient, note: ChainNote, mode: 0 | 1, recipients: readonly EpochRecipient[], options: { access: Access; signal: AbortSignal }, replacement?: { title: string; body: string }): Promise<EncryptedEpoch> {
   return withEpochKey(client, note, options, 'owner', (key, context) => {
     const parts: Uint8Array[] = []
     try {
-      const open = (field: 'title' | 'body', current: Uint8Array, revision: string) => { const plain = openField(key, { ...context, field, fieldRevision: BigInt(revision) }, current); parts.push(plain); return plain }
-      const title = publicText(open('title', note.title, note.titleRevision), true), body = publicText(open('body', note.body!, note.bodyRevision))
+      const opened = { title: openCurrent(key, context, note, 'title'), body: openCurrent(key, context, note, 'body') }
+      for (const plain of [opened.title, opened.body]) if (plain) parts.push(plain)
+      const failed = (['title', 'body'] as const).filter(field => !opened[field])
+      if (failed.length && !replacement) throw new PrivateNoteUnreadable(note.actor, failed)
+      check(!replacement || failed.length > 0)
+      const title = opened.title ? publicText(opened.title, true) : replacement!.title, body = opened.body ? publicText(opened.body) : replacement!.body
       return prepareEncryptedEpoch({ chainId: client.chainId, realm: client.realm, noteId: note.id, epoch: context.epoch + 1, titleRevision: BigInt(note.titleRevision) + 1n,
         bodyRevision: BigInt(note.bodyRevision) + 1n, mode, owner: note.owner, recipients, title, body })
     } finally { parts.forEach(part => part.fill(0)) }

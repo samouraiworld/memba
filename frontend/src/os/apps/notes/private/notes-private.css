@@ -27,6 +27,11 @@
 .os-notes-readers { display:flex; flex-direction:column; gap:2px; margin:0 0 10px; padding:0; list-style:none; }
 .os-notes-readers li { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:34px; padding:2px 0; font:500 13.5px var(--os-mono); }
 .os-notes-readers li small { margin-left:6px; font:600 11.5px var(--os-font); color:var(--os-mut); }
+.os-notes-readers li > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+/* The owner's "Can edit" switch for a reader: a 44 px touch row, next to Remove. */
+.os-notes-reader-edit { display:inline-flex; align-items:center; gap:6px; min-height:44px; font:600 12.5px var(--os-font); color:var(--os-ink); white-space:nowrap; cursor:pointer; }
+.os-notes-reader-edit input { width:18px; height:18px; margin:0; accent-color:var(--os-acc); }
+.os-notes-reader-edit:has(input:disabled) { color:var(--os-mut); cursor:default; }
 .os-notes-share-add { display:flex; align-items:flex-end; gap:8px; margin-bottom:8px; }
 .os-notes-share-add label { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:var(--os-mut); }
 .os-notes-share-add input { width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--os-line); border-radius:var(--os-radius-ctl); background:var(--os-card); color:var(--os-ink); font:500 13.5px var(--os-mono); }

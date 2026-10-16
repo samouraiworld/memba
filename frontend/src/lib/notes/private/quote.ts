@@ -19,10 +19,13 @@ import { decodeManifest } from '../crypto/manifest'
  * Commit (M0 rows 21.2-21.9 M gas): deposit ≈ (ciphertext growth + 500 B) × 100, the same cap rule and gas formula
  * (no envelope): 63-65 M for 1-2 KB bodies, ≥ 2.9× the M0 rows.
  * ApplyAccess (M0 rows 4: +1 reader 363,000 / 370,800 ugnot, 54.9 / 65.5 M gas; 10-08 1 → 32: 11,652,800, 367 M):
- * deposit ≈ (3,800 B per added envelope + 500 B per new writer flag, at least 500 B) × 100, the same cap rule and gas
- * formula over the manifest: 90 M at 2 envelopes, 105 M at 3 (≥ 1.6×), 500 M at 32.
+ * deposit ≈ (3,800 B per added envelope + 600 B per new writer flag, at least 500 B) × 100, the same cap rule and gas
+ * formula over the manifest: 90 M at 2 envelopes, 105 M at 3 (≥ 1.6×), 500 M at 32. A reader made a writer (M0 row 6
+ * and the E2 keeper rows, same harness: 42,600 / 49,800 ugnot, 56.9 / 57.1 M) costs 600 B: 60,000, cap 0.1 GNOT, 90 M.
  * Rotate (M0 rows 5: 2 → 1 267,000, 3 → 2 403,100 ugnot, 48.1 / 57.7 M gas; 10-08 rotate32max 4,532,400, 390 M):
  * deposit ≈ (new manifest + 4,000 B + ciphertext growth) × 100: 530,100 for 2 → 1, 660,000 for 3 → 2, 4,557,000 at 32.
+ * A writer made a reader again is a Rotate that keeps both holders (E2 keeper rows: 589,800 / 583,800 ugnot, 58.2 M):
+ * 660,000, cap 0.8 GNOT, 93 M for a 1 KB body.
  */
 /** A simulation (readable, from a verified node) says the note needs more storage deposit than the reviewed cap. */
 export class PrivateStorageAboveCap extends Error {
@@ -31,7 +34,7 @@ export class PrivateStorageAboveCap extends Error {
 /** Simulated gas is trusted only upward: never below 60 M (the M0 creates used 42.5-44.9 M), whatever a node reports. */
 const SIMULATED_GAS_FLOOR = 60_000_000
 const CREATE_OVERHEAD_BYTES = 15_300, PER_EXTRA_ENVELOPE_BYTES = 2_400, COMMIT_MARGIN_BYTES = 500, STORAGE_PRICE_UGNOT = 100, CAP_STEP_UGNOT = 100_000
-const ADDED_ENVELOPE_BYTES = 3_800, NEW_WRITER_BYTES = 500, ROTATE_OVERHEAD_BYTES = 4_000
+const ADDED_ENVELOPE_BYTES = 3_800, NEW_WRITER_BYTES = 600, ROTATE_OVERHEAD_BYTES = 4_000
 /** The note's current ciphertext sizes: a Commit or a Rotate only pays for growth (encrypted notes keep no history). */
 export interface PrivateCommitSizes { title: number; body: number }
 /** The note's current envelopes (and how many write): ApplyAccess pays per added envelope and new writer flag. */

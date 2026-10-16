@@ -12,9 +12,9 @@ import { notesRequestDigest, validateNotesQuote } from '../chain/request'
 import type { NotesQuoteInput, NotesQuoteProvider } from '../chain/request'
 import { gnotAmount } from '../chain/quote'
 import { equalBytes } from '../crypto/bytes'
-import { decodeManifest } from '../crypto/manifest'
+import { decodeManifest, type Recipient } from '../crypto/manifest'
 import { privateNotesDeployment } from '../config'
-import { privateNoteMessage } from './messages'
+import { changedRole, privateNoteMessage } from './messages'
 import { readPrivateAccess } from './reader'
 import { parseEpochPage } from './schema'
 import type { PrivateNoteOperation, PrivateOperationState } from './messages'
@@ -44,8 +44,8 @@ function sameBase(note: ChainNote | null, expected: PrivateReviewedState | null)
   return !!note && !note.deleted && (['id', 'stateRevision', 'epoch', 'ownerGeneration', 'titleRevision', 'bodyRevision', 'owner', 'mode'] as const).every(key => note[key] === expected[key])
 }
 /**
- * Creates a private note ("only me"), commits an edit to one, or (owner) adds a reader (ApplyAccess) or removes one
- * (Rotate, a new epoch). All signing inputs are immutable snapshots; neither key material nor plaintext
+ * Creates a private note ("only me"), commits an edit to one (owner or writer), or (owner) adds a reader or makes one a
+ * writer (ApplyAccess), or removes one or makes a writer a reader again (Rotate, a new epoch). All signing inputs are immutable snapshots; neither key material nor plaintext
  * enters the message, the quote input or the durable intention (ciphertext and envelopes only). No wallet opens here.
  */
 export async function preparePrivateNoteRequest(options: PrivateRequestOptions): Promise<SignRequest> {
@@ -116,31 +116,46 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
   const sealed = action.kind === 'create' || action.kind === 'rotate' ? action.prepared : null
   const manifest = sealed ? sealed.manifest : action.kind === 'access' ? action.manifest : null
   const envelopes = manifest ? decodeManifest(manifest, sealed ? sealed.epoch : Number(base.note!.epoch)) : []
-  // The readers this operation adds or removes (none for a create or an edit).
-  const after = envelopes.map(entry => bech32Encode('g', entry.address))
-  const before = action.kind === 'access' || action.kind === 'rotate' ? decodeManifest(action.previousManifest, Number(base.note!.epoch)).map(entry => bech32Encode('g', entry.address)) : after
+  // The readers this operation adds or removes, and the holders it makes writers or readers (none for a create or an edit).
+  const previous = action.kind === 'access' || action.kind === 'rotate' ? decodeManifest(action.previousManifest, Number(base.note!.epoch)) : envelopes
+  const names = (list: readonly Recipient[]) => list.map(entry => bech32Encode('g', entry.address))
+  const after = names(envelopes), before = names(previous), writers = names(envelopes.filter(entry => entry.writer))
   const added = after.filter(who => !before.includes(who)), removed = before.filter(who => !after.includes(who)), chosen = removed.filter(who => !off.has(who))
+  const promoted = names(changedRole(previous, envelopes, true)), demoted = names(changedRole(previous, envelopes, false))
   const changed = sealed ?? (action.kind === 'commit' ? action : null)
   const sizes = [changed?.title && `title ${changed.title.length} B`, changed?.body && `body ${changed.body.length} B`, manifest && `envelopes ${manifest.length} B`].filter(Boolean).join(', ')
   const others = (list: string[]) => list.filter(who => who !== operation.caller)
   const readers = (list: string[]) => others(list).length ? `You and ${others(list).join(', ')}` : 'Only you'
+  const owner = base.note?.owner ?? operation.caller, ownNote = owner === operation.caller
+  const editors = writers.filter(who => who !== owner)
+  const replaced = action.kind === 'rotate' ? action.replaced : undefined
+  const replacedText = replaced && `The latest ${replaced.fields.join(' and ')} of this note, published by ${replaced.actor}, cannot be decrypted by anyone. In the new key it is replaced by ${replaced.source === 'draft' ? 'your draft of this note on this device' : 'a short notice that it could not be decrypted'}.`
   const texts = {
     create: { title: 'Publish private note', summary: 'Publish an encrypted note that only you can read', pending: 'Waiting for this exact operation, its ciphertexts and your envelope on chain. Nothing is sent again.',
       warn: 'The storage deposit stays locked while the note exists: deleting it returns about half; the rest stays locked.', who: `Only you · your key, generation ${envelopes[0]?.generation}` },
-    commit: { title: 'Publish private changes', summary: 'Publish encrypted changes to your private note', pending: 'Waiting for this exact operation, revision and ciphertexts on chain. Nothing is sent again.',
+    commit: { title: 'Publish private changes', summary: ownNote ? 'Publish encrypted changes to your private note' : 'Publish encrypted changes to a private note you can edit', pending: 'Waiting for this exact operation, revision and ciphertexts on chain. Nothing is sent again.',
       warn: 'Only the growth of the encrypted text is locked as deposit; the note keeps no earlier versions in its storage (earlier encrypted versions stay in chain history).', who: 'Unchanged by this edit' },
     access: { title: 'Share private note', summary: 'Share your private note with another reader', pending: 'Waiting for this exact operation, revision and envelopes on chain. Nothing is sent again.',
       warn: `${added.join(', ')} can read this note as it is now, and its earlier versions since its key last changed (they stay in chain history). Their address becomes public on the network as a reader of this note.`, who: readers(after) },
     rotate: { title: 'Remove a reader', summary: 'Remove a reader from your private note', pending: 'Waiting for this exact operation, its new key, ciphertexts and envelopes on chain. Nothing is sent again.',
       warn: `${removed.join(', ')} keep what they already read; new versions are hidden from them. The note gets a new key, and its current text is encrypted again for the remaining readers.`, who: readers(after) },
-  }[kind]
+    promote: { title: 'Let a reader edit', summary: 'Let a reader of your private note edit it', pending: 'Waiting for this exact operation, revision and envelopes on chain. Nothing is sent again.',
+      warn: `${promoted.join(', ')} can change the title and the text of this note and publish those changes, signed and paid by them. You stay the owner: only you share it, remove readers, change who can edit or delete it. Their address becomes public on the network as a writer of this note.`, who: readers(after) },
+    demote: { title: 'Stop a writer editing', summary: 'Stop a writer of your private note editing it', pending: 'Waiting for this exact operation, its new key, ciphertexts and envelopes on chain. Nothing is sent again.',
+      warn: `${demoted.join(', ')} can still read this note but can no longer publish changes. The network allows this only with a new key: the note's current text is encrypted again for everyone who can read it.`, who: readers(after) },
+  }[kind === 'access' && promoted.length ? 'promote' : kind === 'rotate' && demoted.length ? 'demote' : kind]
   const request: SignRequest = {
     title: texts.title, summary: texts.summary, label: () => texts.title,
-    warns: ['The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.', texts.warn],
+    warns: [...replacedText ? [replacedText] : [], ownNote ? 'The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.'
+      : 'The text is encrypted in this browser. The network still shows the owner’s address, your address as the one who changed it, the note’s sizes and when it changes.', texts.warn],
     lines: () => [['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm], ['Note', operation.noteId], ['Operation', operation.operationId],
       ...creating ? [] : [['Revision', `${revision} → ${input.resultingStateRevision}`] as [string, string]],
       ...added.length ? [['Adds', added.join(', ')] as [string, string]] : [], ...chosen.length ? [['Removes', chosen.join(', ')] as [string, string]] : [], ...off.size ? [['Also removed because their private-notes key is turned off', [...off].join(', ')] as [string, string]] : [],
-      ['Who can read', texts.who], ['Public on the network', `${manifest && !creating ? 'Owner and reader addresses' : 'Owner address'}, encrypted sizes (${sizes}), times`],
+      ...promoted.length ? [['Can edit from now on', promoted.join(', ')] as [string, string]] : [], ...demoted.length ? [['Can no longer edit', demoted.join(', ')] as [string, string]] : [],
+      ...!ownNote ? [['Owner', owner] as [string, string]] : [],
+      ...replaced ? [['Replaces the unreadable latest text', `${replaced.fields.join(' and ')} by ${replaced.actor} → ${replaced.source === 'draft' ? 'your draft on this device' : 'a notice'}`] as [string, string]] : [],
+      ['Who can read', texts.who], ...manifest && !creating ? [['Who can edit', editors.length ? `${ownNote ? 'You' : 'The owner'} and ${editors.join(', ')}` : ownNote ? 'Only you' : 'Only the owner'] as [string, string]] : [],
+      ['Public on the network', `${manifest && !creating ? editors.length || demoted.length ? 'Owner, reader and writer addresses' : 'Owner and reader addresses' : ownNote ? 'Owner address' : 'Owner and writer addresses'}, encrypted sizes (${sizes}), times`],
       ['Publication fee', gnotAmount(creating ? base.config!.createFeeUgnot : '0')],
       [quote.source === 'simulation' ? 'Simulated storage deposit' : 'Estimated storage deposit', gnotAmount(quote.estimatedDepositUgnot)],
       ['Maximum storage deposit', gnotAmount(cap)], ['Network fee, at most', gnotAmount(quote.networkFeeUgnot)]],

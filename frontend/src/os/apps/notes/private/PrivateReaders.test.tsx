@@ -14,6 +14,7 @@ import { decodeManifest } from '../../../../lib/notes/crypto/manifest'
 import { createIdentityController } from '../../../../lib/notes/privateNotes'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { prepareEncryptedEpoch } from '../../../../lib/notes/private/engine'
+import { sealPrivateDraft } from '../../../../lib/notes/private/localDraft'
 import golden from '../../../../lib/notes/identity/__fixtures__/backup-standard.json'
 import { PrivateNoteView } from './PrivateNoteView'
 import { SharedWithMe } from './SharedWithMe'
@@ -42,11 +43,11 @@ const newcomer = bech32Encode('g', new Uint8Array(20).fill(9)), newcomerKey = id
 const publicKey = blob(golden.publicKeyBase64, 1216), readerKey = identityFromSeed(new Uint8Array(32).fill(3)).publicKey, noteId = 'cd'.repeat(16)
 const key = (address: string, pk: Uint8Array) => ({ address, generation: '1', active: true, publicKey: pk, operationId: '11'.repeat(16), height: '5' })
 let note: ChainNote, manifest: Uint8Array, controller: NotesIdentityController, store: NotesStore
-/** A note of `noteOwner`, sealed for its owner and `readers`. */
-function seal(noteOwner = owner, readers: string[] = []) {
+/** A note of `noteOwner`, sealed for its owner and `readers` (those in `writers` with the writer flag). */
+function seal(noteOwner = owner, readers: string[] = [], writers: string[] = []) {
     const keys: Record<string, Uint8Array> = { [owner]: publicKey, [reader]: readerKey, [off1]: identityFromSeed(new Uint8Array(32).fill(11)).publicKey, [off2]: identityFromSeed(new Uint8Array(32).fill(12)).publicKey }
     const sealed = prepareEncryptedEpoch({ chainId: golden.chainId, realm: NOTES_REALM, noteId, epoch: 1, titleRevision: 1n, bodyRevision: 1n, mode: readers.length ? 1 : 0, owner: noteOwner,
-        recipients: [{ key: key(noteOwner, keys[noteOwner]), writer: true }, ...readers.map(who => ({ key: key(who, keys[who]), writer: false }))], title: 'Tuna tataki', body: 'Sear **30 seconds** a side.' })
+        recipients: [{ key: key(noteOwner, keys[noteOwner]), writer: true }, ...readers.map(who => ({ key: key(who, keys[who]), writer: writers.includes(who) }))], title: 'Tuna tataki', body: 'Sear **30 seconds** a side.' })
     manifest = sealed.manifest
     note = { id: noteId, owner: noteOwner, pendingOwner: '', ownerGeneration: '1', mode: sealed.mode, stateRevision: '3', titleRevision: '1', bodyRevision: '1', epoch: '1', title: sealed.title, body: sealed.body,
         commitment: sealed.commitment, deleted: false, listed: false, createdHeight: '1', operationId: '22'.repeat(16), actor: noteOwner, height: '9', bodyBytes: sealed.body.length }
@@ -60,6 +61,7 @@ function client(): NotesReadClient {
             : { address: who, generation: '0', active: false, publicKey: new Uint8Array(), operationId: '', height: '0' },
         seedBackupRaw: async () => ({ mode: 1, suite: 'xwing-v1', generation: '1', revision: '1', public_key_hash: encode64(hexToBytes(golden.publicKeyHashHex)), op_id: '11'.repeat(16), actor: owner, height: '5', record: golden.recordBase64 }),
         note: async () => note, noteMetadata: async () => note, readersRaw: async () => entries().map(entry => bech32Encode('g', entry.address)),
+        writersRaw: async () => entries().filter(entry => entry.writer).map(entry => bech32Encode('g', entry.address)).filter(who => who !== note.owner),
         wrapRaw: async (_id: string, _epoch: string, who: string) => {
             const entry = entries().find(e => bech32Encode('g', e.address) === who)
             return entry ? { address: who, epoch: '1', writer: entry.writer, generation: '1', public_key_hash: encode64(entry.publicKeyHash), wrap: encode64(entry.wrap) } : null
@@ -91,8 +93,9 @@ describe('Who can read (owner)', () => {
         const part = await openShare(false)
         await waitFor(() => expect(part.getByText('You')).toBeVisible())
         expect(part.getByTitle(reader)).toHaveTextContent(`${reader.slice(0, 5)}…${reader.slice(-4)}`)
-        expect(part.getByText('Unlock this note to add or remove readers.')).toBeVisible()
+        expect(part.getByText('Unlock this note to add or remove readers, or to change who can edit.')).toBeVisible()
         expect(part.queryByRole('textbox')).toBeNull(); expect(part.getByRole('button', { name: 'Remove…' })).toBeDisabled()
+        expect(part.getByRole('checkbox', { name: 'Can edit' })).toBeDisabled(); expect(part.getByRole('checkbox', { name: 'Can edit' })).not.toBeChecked()
         expect(io.unlock).not.toHaveBeenCalled(); expect(document.body).not.toHaveTextContent('Comment')
         expect(screen.getByText(/the link opens it only for its owner and the people it is shared with/)).toBeVisible()
     })
@@ -186,9 +189,151 @@ describe('Who can read (a reader)', () => {
     it('shows the list without any control', async () => {
         seal(reader, [owner]); show()
         const part = await openShare(false)
-        await waitFor(() => expect(part.getByText('owner')).toBeVisible())
-        expect(part.queryByRole('button', { name: 'Remove…' })).toBeNull(); expect(part.queryByRole('textbox')).toBeNull()
-        expect(part.queryByText('Unlock this note to add or remove readers.')).toBeNull()
+        await waitFor(() => expect(part.getByText('owner · can edit')).toBeVisible())
+        expect(part.queryByRole('button', { name: 'Remove…' })).toBeNull(); expect(part.queryByRole('textbox')).toBeNull(); expect(part.queryByRole('checkbox')).toBeNull()
+        expect(part.queryByText(/Unlock this note to add or remove readers/)).toBeNull(); expect(part.queryByText('can edit')).toBeNull()
+    })
+})
+
+// E2: "Can edit" for a reader (owner only). Real envelopes; nothing is signed (the flow stops at the OS signature sheet).
+describe('Who can edit (owner)', () => {
+    it('makes a reader a writer: ApplyAccess with their writer flag, the review says what they can do and that the owner keeps the rest, with the keeper cost', async () => {
+        seal(owner, [reader]); show()
+        const part = await openShare()
+        const toggle = await part.findByRole('checkbox', { name: 'Can edit' })
+        await waitFor(() => expect(toggle).toBeEnabled()); expect(toggle).not.toBeChecked()
+        fireEvent.click(toggle)
+        const review = within(await part.findByRole('group', { name: 'Editing review' }))
+        expect(review.getByText(new RegExp(`^Let ${reader.slice(0, 5)}.*edit\\?$`))).toBeVisible()
+        expect(review.getByText(/Change the title and the text, and publish those changes/)).toBeVisible()
+        expect(review.getByText(/only you share the note, remove readers, change who can edit or delete it/)).toBeVisible()
+        expect(review.getByText('Their address, as a writer of this note. Not the title or the text.')).toBeVisible()
+        expect(review.getByText('≈ 0.06 GNOT')).toBeVisible(); expect(review.getByText(/At most 0.1 GNOT/)).toBeVisible()
+        // The list still shows the chain's role until the change is confirmed.
+        expect(part.getByRole('checkbox', { name: 'Can edit' })).not.toBeChecked()
+        fireEvent.click(review.getByRole('button', { name: 'Allow editing with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(request.title).toBe('Let a reader edit'); expect(message.value.func).toBe('ApplyAccess'); expect(message.value.args[3]).toBe('1')
+        expect(decodeManifest(blob(message.value.args[4], 41570), 1).map(entry => [bech32Encode('g', entry.address), entry.writer]).sort()).toEqual([[owner, true], [reader, true]].sort())
+        expect(request.lines(undefined)).toContainEqual(['Can edit from now on', reader]); expect(request.lines(undefined)).toContainEqual(['Who can edit', `You and ${reader}`])
+        expect(JSON.stringify(message)).not.toContain('Tuna')
+    })
+    it('makes a writer a reader again with a new key (Rotate, every holder kept): they still read, they can no longer publish changes', async () => {
+        seal(owner, [reader], [reader]); show()
+        const part = await openShare()
+        const toggle = await part.findByRole('checkbox', { name: 'Can edit' })
+        await waitFor(() => expect(toggle).toBeEnabled()); expect(toggle).toBeChecked()
+        fireEvent.click(toggle)
+        const review = within(await part.findByRole('group', { name: 'End of editing review' }))
+        expect(review.getByText(/They can still read the note, but can no longer publish changes/)).toBeVisible()
+        expect(review.getByText(/only with a new key: the current text is encrypted again for you and them/)).toBeVisible()
+        expect(review.getByText(/At most 0.8 GNOT/)).toBeVisible()
+        fireEvent.click(review.getByRole('button', { name: 'Stop editing with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(request.title).toBe('Stop a writer editing'); expect(message.value.func).toBe('Rotate'); expect(message.value.args[3]).toBe('1')
+        expect(decodeManifest(blob(message.value.args[6], 41570), 2).map(entry => [bech32Encode('g', entry.address), entry.writer]).sort()).toEqual([[owner, true], [reader, false]].sort())
+        expect(request.lines(undefined)).toContainEqual(['Can no longer edit', reader]); expect(request.lines(undefined).some(([name]) => name === 'Removes')).toBe(false)
+        expect(JSON.stringify(message)).not.toContain('Tuna')
+    })
+    it('a new writer is a pure ApplyAccess: refused while a holder’s key is turned off, with the way out; ending editing drops them in the same Rotate, named', async () => {
+        seal(owner, [reader, off1]); show()
+        const part = await openShare()
+        const row = within((await part.findByTitle(reader)).parentElement!)
+        await waitFor(() => expect(row.getByRole('checkbox', { name: 'Can edit' })).toBeEnabled())
+        fireEvent.click(row.getByRole('checkbox', { name: 'Can edit' }))
+        expect(await part.findByText(/turned off their private-notes key, so nobody can be made a writer until they are removed/)).toBeVisible()
+        expect(part.getByRole('button', { name: 'Remove them…' })).toBeVisible(); expect(io.sign).not.toHaveBeenCalled()
+        // The turned-off holder's own role cannot change: remove them instead.
+        fireEvent.click(within(part.getByTitle(off1).parentElement!).getByRole('checkbox', { name: 'Can edit' }))
+        expect(await part.findByText(/Their private-notes key is turned off, so their access cannot change: remove them instead/)).toBeVisible()
+        cleanup(); controller.dispose(); controller = undefined as unknown as NotesIdentityController
+        seal(owner, [reader, off1], [reader]); show()
+        const again = await openShare()
+        const writerRow = within((await again.findByTitle(reader)).parentElement!)
+        await waitFor(() => expect(writerRow.getByRole('checkbox', { name: 'Can edit' })).toBeEnabled())
+        fireEvent.click(writerRow.getByRole('checkbox', { name: 'Can edit' }))
+        const review = within(await again.findByRole('group', { name: 'End of editing review' }))
+        expect(review.getByText(/because their private-notes key is turned off/)).toHaveTextContent(`${off1.slice(0, 5)}…${off1.slice(-4)}`)
+        fireEvent.click(review.getByRole('button', { name: 'Stop editing with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest
+        expect(request.lines(undefined)).toContainEqual(['Also removed because their private-notes key is turned off', off1]); expect(request.lines(undefined)).toContainEqual(['Can no longer edit', reader])
+    })
+})
+
+describe('Who can edit (a writer, a reader)', () => {
+    it('a writer edits, sees who can edit, and has no owner action: no Share controls, no Delete', async () => {
+        seal(reader, [owner], [owner]); show()
+        expect(await screen.findByRole('button', { name: 'Unlock' })).toBeVisible()
+        const part = await openShare()
+        await waitFor(() => expect(part.getByText('can edit')).toBeVisible())
+        expect(part.queryByRole('checkbox')).toBeNull(); expect(part.queryByRole('button', { name: 'Remove…' })).toBeNull(); expect(part.queryByRole('textbox')).toBeNull()
+        expect(screen.getByRole('button', { name: 'Edit' })).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+        expect(screen.queryByRole('menuitem', { name: 'Delete note…' })).toBeNull()
+    })
+    it('a reader without the writer flag gets no Edit', async () => {
+        seal(reader, [owner]); show()
+        fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        expect(await screen.findByRole('heading', { name: 'Tuna tataki' })).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    })
+})
+
+// E2 review P2: a writer published a body nobody can decrypt (the realm checks only the header). Never a dead end.
+describe('an unreadable latest version (E2 review P2)', () => {
+    /** The note's body replaced by header-valid ciphertext that does not decrypt, published by `by`. */
+    function sabotage(by: string) {
+        const body = new Uint8Array(300).map((_, i) => (i * 37 + 11) & 255); body.set([1, 1, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 2])
+        note = { ...note, body, bodyBytes: body.length, bodyRevision: '2', actor: by }
+    }
+    async function unlocked() {
+        fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        expect(await screen.findByText('The latest version of this note cannot be decrypted.')).toBeVisible()
+    }
+    it('the owner sees who published it, then stops that writer editing with a recovery Rotate that replaces the text with the notice, named in the review and the sheet', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader); show()
+        await unlocked()
+        expect(screen.getByText(new RegExp(`published by ${reader.slice(0, 5)}.*You can replace it`))).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        const toggle = await part.findByRole('checkbox', { name: 'Can edit' }); await waitFor(() => expect(toggle).toBeEnabled())
+        fireEvent.click(toggle)
+        expect(await part.findByText(/cannot be decrypted by anyone, so it cannot be encrypted again for a new key/)).toBeVisible(); expect(io.sign).not.toHaveBeenCalled()
+        fireEvent.click(part.getByRole('button', { name: 'Replace the text and continue…' }))
+        const review = within(await part.findByRole('group', { name: 'End of editing review' }))
+        expect(review.getByText(/it cannot be decrypted by anyone\. In the new key its body is replaced by a short notice/)).toBeVisible()
+        fireEvent.click(review.getByRole('button', { name: 'Stop editing with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(message.value.func).toBe('Rotate'); expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${reader} → a notice`])
+        expect(request.lines(undefined)).toContainEqual(['Can no longer edit', reader])
+    })
+    it('with the owner’s encrypted draft of the note on this device, the draft replaces the unreadable text', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader)
+        const scope = { chainId: golden.chainId, realm: NOTES_REALM, owner, noteId }
+        const envelope = sealPrivateDraft(scope, 1n, 1n, publicKey, { title: 'Tuna tataki', body: 'My own draft of the recipe', mode: 1 })
+        expect((await store.saveDraft(scope, '0', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
+        show(); await unlocked()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Remove…' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Replace the text and continue…' }))
+        const review = within(await part.findByRole('group', { name: 'Removal review' }))
+        expect(review.getByText(/replaced by your draft of this note on this device/)).toBeVisible()
+        fireEvent.click(review.getByRole('button', { name: 'Remove with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest
+        expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${reader} → your draft on this device`])
+        expect(JSON.stringify(request.prepare(undefined).msgs)).not.toContain('My own draft')
+    })
+    it('a reader is told who published it and that its owner can replace it; nothing is offered to them', async () => {
+        seal(reader, [owner]); sabotage(reader); show()
+        await unlocked()
+        expect(screen.getByText(new RegExp(`published by ${reader.slice(0, 5)}.*Its owner can replace it`))).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     })
 })
 

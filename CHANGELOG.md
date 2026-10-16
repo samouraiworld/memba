@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: private co-writers, a reader can be made a writer and back (#1641, 2026-10-15)
+- In a private note's **Share** menu, every reader has a **Can edit** switch (owner only, key unlocked); everyone else sees who can edit. A co-writer changes the title and the text and publishes encrypted changes, signed and paid by them; only the owner shares, removes readers, changes who can edit or deletes the note.
+- Making a reader a writer (ApplyAccess) sets the writer flag of their envelope in the current epoch, every envelope bound to its holder's current key; the review says their address becomes public as a writer. Making a writer a reader again needs a new key on the network (Rotate): they still read, they can no longer publish changes, and the realm refuses their later edits.
+- A writer's published text that nobody can decrypt (the network checks only its envelope) is never a dead end: readers are told who published it, and the owner's removal or end of editing replaces it, with the owner's draft of the note on this device or a short notice, named in the review and the signing sheet.
+- Quotes from keeper rows on the mainnet realm source, simulation first: a new writer ≈ 0.06 GNOT (at most 0.1; measured 0.043-0.050), ending editing ≈ 0.66 GNOT for 2 holders (at most 0.8; measured 0.58-0.59).
+- Phone: the Share menu keeps a `vh` bound before its `dvh` one, so browsers without `dvh` no longer show it unbounded.
+
 ### Notes: share a private note with readers, and remove them (#1640, 2026-10-15)
 - A private note's **Share** menu now has **Who can read**: everyone sees the readers (public on the network); the owner, once the key is unlocked, adds a reader by @username or g1 address, or removes one. Someone without a private-notes key is refused before anything is encrypted: "They need to set up private notes first".
 - Adding a reader (ApplyAccess) wraps the note's current key for their registered key; the review says their address becomes public on the network as a reader, and that they can read the note as it is now and its earlier versions since its key last changed, never older ones. Removing a reader (Rotate) gives the note a new key and encrypts its current text again for the others: "They keep what they already read; new versions are hidden from them". Removing the last reader makes the note "only me" again.
