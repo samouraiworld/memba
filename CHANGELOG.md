@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: private notes in the whole workspace, locks and read-only states (#1643, 2026-10-16)
+- **Key changed outside Memba**: when another app registers a new key for the account in the shared key registry, every private screen (note, Share, comments, publishing, Private notes) explains it and stays read only; Memba deletes, shares or re-keys nothing.
+- Locking asks before it discards text that exists only in memory: **Lock** for an unsent encrypted comment or edits that could not be saved encrypted, **Disconnect & lock** for anything a window would ask about on close. A lock also closes an open signature review; leaving the page clears decrypted text before the browser can keep the page.
+- Private notes never show their title outside the unlocked note: desktop and phone shortcuts say "Private note", and so do the publishing progress sheets.
+- **About private notes**, from the Private notes panel: what is encrypted and what stays public, the simulation before signing, costs, the recovery phrase and file, old bytes in browser storage, and what co-writers can do.
+- Comments: the signing sheet says "Comment (sent encrypted)", the list says a realm moderator can hide comments too, and a reply names its parent's author.
+- A browser acceptance of private notes in the real Shell (Chromium and Firefox, no retries) runs in CI against simulated onyx-1 reads; nothing is signed.
+
 ### Notes: encrypted comments on private notes (#1642, 2026-10-16)
 - A private note's side panel now has **Comments**. Guests and locked members see each comment as "Encrypted comment", with its author and time only. Once the key is unlocked, each comment opens under the key of its own version; one from a version this account was never given shows "Comment from an earlier version you can't open".
 - The people a note is shared with comment on it: owner, readers and writers, as the network allows. A comment and its quote (selected in the decrypted note) are encrypted in the browser with the note's current key; the text stays in memory and goes with a lock. The author deletes their comment at any time, without the key; the owner or a writer resolves, the owner hides. **Who can comment** is back in the Share menu.
