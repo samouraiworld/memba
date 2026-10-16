@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import type { NativeViewProps } from '../../native/types'
 import { createDraftSession, createNotesStore, type DraftSession, type NotesPartition } from '../../../lib/notes/drafts'
 import { loadPrivateNotes, NOTE_ID, NOTES_ENABLED, notesDeployment, PRIVATE_CHAINS, privateNotesDeployment } from '../../../lib/notes/config'
@@ -69,9 +70,11 @@ function PublicWorkspace({ session, section, owner, onOpenNote, onShowList, acti
         // The controller belongs to this effect lifetime, including StrictMode remounts.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIdentity({ controller, session })
-        // Closing or leaving the page (bfcache included) zeroes the key at once, whatever the window shows.
-        window.addEventListener('pagehide', controller.lock)
-        return () => { window.removeEventListener('pagehide', controller.lock); session.invalidate(); controller.dispose(); setIdentity(null) }
+        // Closing or leaving the page (bfcache included) zeroes the key at once, whatever the window shows, and the views
+        // re-render before the page is frozen: a page kept in the back/forward cache holds no decrypted text in its DOM.
+        const hide = () => flushSync(controller.lock)
+        window.addEventListener('pagehide', hide)
+        return () => { window.removeEventListener('pagehide', hide); session.invalidate(); controller.dispose(); setIdentity(null) }
     }, [privateOn, privateModule, read.client, owner])
     // Stable identities: effects keyed on scope must not re-run on unrelated parent renders.
     const realm = deployment?.realm ?? null, noteId = section !== null && NOTE_ID.test(section) ? section : null

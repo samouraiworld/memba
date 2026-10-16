@@ -52,6 +52,9 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
   const session = options.session.capture(), { signal } = session, { client, intents, privateSignal } = options
   const operation = copy(options.operation), action = operation.action, reviewed = copy(options.reviewed)
   let dismissed = false
+  // The signature sheet closes when the account session or the identity lease ends (a lock, another key, the window gone).
+  const closing = new AbortController(), close = () => closing.abort()
+  for (const ending of [signal, privateSignal]) ending.addEventListener('abort', close, { once: true })
   const cap = decimal(options.maxDepositUgnot, 63)
   // Runs at the start, after every await and in beforeSign: the private-notes gate for this very deployment, and the
   // captured account session and identity lease.
@@ -145,7 +148,7 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
       warn: `${demoted.join(', ')} can still read this note but can no longer publish changes. The network allows this only with a new key: the note's current text is encrypted again for everyone who can read it.`, who: readers(after) },
   }[kind === 'access' && promoted.length ? 'promote' : kind === 'rotate' && demoted.length ? 'demote' : kind]
   const request: SignRequest = {
-    title: texts.title, summary: texts.summary, label: () => texts.title,
+    title: texts.title, summary: texts.summary, label: () => texts.title, closed: closing.signal,
     warns: [...replacedText ? [replacedText] : [], ownNote ? 'The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.'
       : 'The text is encrypted in this browser. The network still shows the owner’s address, your address as the one who changed it, the note’s sizes and when it changes.', texts.warn],
     lines: () => [['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm], ['Note', operation.noteId], ['Operation', operation.operationId],

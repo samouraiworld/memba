@@ -25,7 +25,8 @@ export interface IdentitySetupPlan {
   mode: BackupMode; publicKey: Uint8Array; backup: Uint8Array; migrationPartial: boolean
 }
 export interface IdentitySnapshot {
-  phase: 'unknown' | 'empty' | 'revoked' | 'locked' | 'unlocked' | 'prepared'; busy: boolean
+  /** `changed`: the registry holds a key that is not the one this realm's backup is for (re-keyed outside Memba): read only. */
+  phase: 'unknown' | 'empty' | 'revoked' | 'locked' | 'unlocked' | 'prepared' | 'changed'; busy: boolean
   generation?: string; mode?: BackupMode; recoveryConfirmed: boolean; migrationPartial: boolean
 }
 interface Pending { plan: IdentitySetupPlan; seed: Uint8Array; recovery: Uint8Array; confirmed: boolean }
@@ -45,6 +46,7 @@ export class NotesIdentityController {
   private pending: Pending | null = null
   private readonly exposedKeys = new Set<Uint8Array>()
   private migrationPartial = false
+  private changed = false
   private snapshot: IdentitySnapshot = { phase: 'unknown', busy: false, recoveryConfirmed: false, migrationPartial: false }
   constructor(context: IdentityContext) {
     networkBytes(context)
@@ -59,7 +61,7 @@ export class NotesIdentityController {
     const state = this.observed
     const mode = this.pending?.plan.mode ?? (state?.backup ? parseBackup(state.backup.record).binding.mode : undefined)
     this.snapshot = Object.freeze({
-      phase: this.pending ? 'prepared' : this.seed ? 'unlocked' : !state ? 'unknown' : state.active ? 'locked' : state.generation === 0n ? 'empty' : 'revoked',
+      phase: this.pending ? 'prepared' : this.seed ? 'unlocked' : this.changed ? 'changed' : !state ? 'unknown' : state.active ? 'locked' : state.generation === 0n ? 'empty' : 'revoked',
       busy: this.busy, generation: state?.generation.toString(), mode,
       recoveryConfirmed: this.pending?.confirmed ?? false, migrationPartial: this.pending?.plan.migrationPartial ?? this.migrationPartial,
     })
@@ -83,19 +85,17 @@ export class NotesIdentityController {
     if (typeof value.generation !== 'bigint' || value.generation < 0n || value.generation > MAX_GENERATION || typeof value.active !== 'boolean'
       || (value.active && value.generation === 0n) || value.publicKey.length !== (value.active ? 1216 : 0) || (value.backup && value.backup.record.length > 365)) throw new NotesCryptoError('identity')
     const state = { ...value, publicKey: new Uint8Array(value.publicKey), backup: value.backup ? { ...value.backup, record: new Uint8Array(value.backup.record) } : null }
-    if (this.seed && (!state.active || state.generation !== this.unlockedGeneration || (this.observed && !equalBytes(state.publicKey, this.observed.publicKey)))) {
-      this.seed.fill(0); this.seed = null; this.unlockedGeneration = null
-      this.exposedKeys.forEach(key => key.fill(0))
-    }
+    if (this.seed && (!state.active || state.generation !== this.unlockedGeneration || (this.observed && !equalBytes(state.publicKey, this.observed.publicKey)))) this.forget()
     if (state.backup) {
       const binding = parseBackup(state.backup.record).binding
       if (state.backup.revision < 1n || state.backup.revision > MAX_GENERATION || state.backup.height < 1n
         || binding.chainId !== this.c.chainId || binding.realm !== this.c.realm || !equalBytes(binding.address, this.c.addressBytes)
         || binding.generation > state.generation) throw new NotesCryptoError('identity')
-      if (state.active && (binding.generation !== state.generation || !equalBytes(binding.publicKeyHash, sha256(state.publicKey)))) throw new NotesCryptoError('identity')
+      // Another app re-keyed the shared registry: the key there is not the one this backup opens. Read only, never repaired here.
+      if (state.active && (binding.generation !== state.generation || !equalBytes(binding.publicKeyHash, sha256(state.publicKey)))) { this.forget(); this.changed = true; throw new NotesCryptoError('identity') }
       if (binding.mode === 'vault' && binding.generation > 1n) this.migrationPartial = true
     }
-    this.observed = state; return state
+    this.changed = false; this.observed = state; return state
   }
   private binding(mode: BackupMode, generation: bigint, publicKey: Uint8Array): BackupBinding {
     return { mode, chainId: this.c.chainId, realm: this.c.realm, address: this.c.addressBytes.slice(), generation, publicKeyHash: sha256(publicKey) }
@@ -215,6 +215,10 @@ export class NotesIdentityController {
       try { const result = await action(identity); this.assert(token); return result }
       finally { identity.secretKey.fill(0); this.exposedKeys.delete(identity.secretKey) }
     })
+  }
+  private forget(): void {
+    this.seed?.fill(0); this.seed = null; this.unlockedGeneration = null
+    this.exposedKeys.forEach(key => key.fill(0))
   }
   lock = (): void => {
     this.epoch++; this.busy = false; this.seed?.fill(0); this.seed = null; this.unlockedGeneration = null

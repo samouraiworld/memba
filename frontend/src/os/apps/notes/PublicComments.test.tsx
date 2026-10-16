@@ -27,9 +27,19 @@ describe('public comments', () => {
     expect(view.container.querySelector('img,script')).toBeNull()
     expect(screen.queryByText('Moderated payload')).toBeNull()
     for (const text of ['Hidden by moderation', 'Deleted by the author', 'Encrypted comment']) expect(screen.getByText(text)).toBeVisible()
-    expect(screen.getByText(`Reply to ${row().id}`)).toBeVisible(); expect(screen.getByText(/Resolved/)).toBeVisible()
+    expect(screen.getByText(`Reply to a comment by ${owner.slice(0, 5)}…${owner.slice(-4)}`)).toBeVisible(); expect(screen.queryByText(new RegExp(row().id))).toBeNull(); expect(screen.getByText(/Resolved/)).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Reply' })).toBeNull(); expect(callback).not.toHaveBeenCalled()
     expect(client.commentsRaw).toHaveBeenCalledExactlyOnceWith(noteId, '', 5)
+  })
+  it('a reply names its parent by author ("you" for the viewer), never by raw id; the encrypted header says moderators can hide too', async () => {
+    const other = bech32Encode('g', new Uint8Array(20).fill(2))
+    const rows = [{ ...row(1), author: other }, { ...row(2), parent: row(1).id }, { ...row(3), parent: row(2).id }, { ...row(4), parent: '0f'.repeat(16) }]
+    render(<PublicComments client={{ commentsRaw: vi.fn(async () => page(rows)) }} noteId={noteId} epoch="0" bodyRevision="1" viewer={owner} />)
+    expect(await screen.findByText(`Reply to a comment by ${other.slice(0, 5)}…${other.slice(-4)}`)).toBeVisible()
+    expect(screen.getByText('Reply to a comment by you')).toBeVisible(); expect(screen.getByText('Reply to an earlier comment')).toBeVisible()
+    for (const id of [row(1).id, row(2).id, '0f'.repeat(16)]) expect(screen.queryByText(new RegExp(id))).toBeNull()
+    render(<PublicComments client={{ commentsRaw: vi.fn(async () => page([])) }} noteId={noteId} epoch="1" bodyRevision="1" encryptedNote />)
+    expect(await screen.findByText(/Its owner or a realm moderator can hide a comment\./)).toBeVisible()
   })
   it('a private note: author and time only until opened; opened text, "earlier version" and undecryptable states; a new decrypt function drops the text', async () => {
     const enc = (n: number, epoch = '2') => ({ ...row(n), encrypted: true, epoch, anchor_blob: '', body_blob: encode64(new Uint8Array(59)) })

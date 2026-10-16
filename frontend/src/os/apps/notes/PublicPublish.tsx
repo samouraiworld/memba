@@ -94,6 +94,8 @@ function changeLines(operation: PublicNoteOperation, published: ChainNote | null
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const fieldMask = (a: PublicNoteOperation['action']) => a.kind !== 'commit' ? null : a.title !== undefined && a.body !== undefined ? 'title and body (mask 3)' : a.title !== undefined ? 'title only (mask 1)' : 'body only (mask 2)'
 
+/** What a private note's progress sheet and notices call it: its title is plaintext only inside the unlocked view, and the sheet outlives a lock. */
+export const PRIVATE_TITLE = 'Private note'
 /**
  * Hands a prepared request to the OS signature sheet and reports its progress. The note pane stays
  * mounted (hidden) until it settles, so the confirmation and baseline move complete after switching notes.
@@ -249,7 +251,7 @@ function PublicPublishSession({ draft, client, store, requestSession, beforeRevi
         {shown && a?.kind === 'create' && encrypted && PrivateReview && <NoteSheet label="Publish privately" onClose={close}>
             <PrivateReview draft={draft} title={title} requestSession={requestSession ?? session} walletChainId={walletChainId} onNotice={onNotice} onBack={() => setEncrypted(false)} onClose={close}
                 submit={(request, confirmed) => { setEncrypted(false); setSheet({ phase: 'closed' })
-                    return sign(request, { signer, pane, kind: 'publish', title, chainId: client.chainId, noteId: draft.scope.noteId, revision: '1', confirmed, onConfirmed: onPrivatePublished, onProgress, onNotice, encrypted: true }) }} />
+                    return sign(request, { signer, pane, kind: 'publish', title: PRIVATE_TITLE, chainId: client.chainId, noteId: draft.scope.noteId, revision: '1', confirmed, onConfirmed: onPrivatePublished, onProgress, onNotice, encrypted: true }) }} />
         </NoteSheet>}
         {shown && a && !(a.kind === 'create' && encrypted && PrivateReview) && <NoteSheet label="Publish" onClose={close}>
             <h2>{a.kind === 'create' ? `Publish “${title}”?` : `Publish your changes to “${title}”?`}</h2>
@@ -367,6 +369,6 @@ export function PublishProgressSheet({ progress, onHide, onView }: { progress: P
             <div><b>{i === 2 ? `${label} to ${progress.chainId}` : label}</b>
                 {i === at && <span>{i === 1 && silent ? 'No answer from Adena after 30 seconds. Adena may be locked or its window hidden. Nothing is sent until you approve.' : help}</span>}</div>
         </li>)}</ol>
-        <div className="os-notes-sheet-actions"><span className="os-notes-hint">{deleted ? 'You can keep reading meanwhile.' : 'Your text stays saved on this device.'}</span><button type="button" className="os-btn os-quiet" onClick={onHide}>Hide</button></div>
+        <div className="os-notes-sheet-actions"><span className="os-notes-hint">{deleted ? 'You can keep reading meanwhile.' : progress.encrypted ? 'Your text stays saved on this device, encrypted.' : 'Your text stays saved on this device.'}</span><button type="button" className="os-btn os-quiet" onClick={onHide}>Hide</button></div>
     </NoteSheet>
 }

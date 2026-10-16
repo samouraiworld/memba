@@ -30,7 +30,7 @@ export function PrivateChoice({ controller, client, checked, disabled, onChoose,
     const setUp = open(client) && (state.phase === 'empty' || state.phase === 'prepared')
     const hint = !open(client) ? 'Not available on this network' : usable ? 'Encrypted in this browser before it is sent'
         : setUp ? 'Set up private notes first' : state.phase === 'unknown' ? (unreadable ? 'Your private key could not be checked' : 'Checking your private key…')
-        : 'Your private key cannot be used in Memba'
+        : state.phase === 'changed' ? 'Your private key changed outside Memba' : 'Your private key cannot be used in Memba'
     return <div className="os-notes-private-choice">
         <label><input type="radio" name="visibility" checked={checked} disabled={disabled || !usable} onChange={onChoose} /> Private · encrypted, only you <small>{hint}</small></label>
         {setUp && <button type="button" className="os-notes-link" onClick={onSetUp}>Open Private notes</button>}

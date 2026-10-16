@@ -401,6 +401,9 @@ export function Shell({ freePlayConfiguration = null }: { freePlayConfiguration?
         markLocked(false); setExplicitlyLocked(false); setLocked(false)
     }
     const lock = () => {
+        // Locking closes every window: text held only in memory (an unsent encrypted comment, edits storage refused)
+        // is asked about first, exactly as closing its window would.
+        if (!currentWins.every((w) => mayCloseWindow(w.key))) return
         skipLockWrite.current = true
         if (member) session.disconnect()
         win.closeAll()
