@@ -12,7 +12,7 @@ import { createDraftSession, type DraftSession, type NotesStore } from '../../..
 import { announceNoteChange, NotesTimeoutError, withTimeout } from '../../../../lib/notes/freshness'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { NotesIntents } from '../../../../lib/notes/intents'
-import { encodePrivateText, openPrivateDraft, parseEpochPage, parseReaders, parseWriters, preparePrivateNoteRequest, PrivateNoteNoAccess, PrivateNoteUnreadable, PrivateStorageAboveCap, privateNoteBudget, privateNoteMessage,
+import { confirmUnreadable, encodePrivateText, fieldHashes, openPrivateDraft, parseEpochPage, parseReaders, parseWriters, preparePrivateNoteRequest, PrivateNoteDisagreement, PrivateNoteNoAccess, PrivateNoteUnreadable, PrivateStorageAboveCap, privateNoteBudget, privateNoteMessage,
     privateNoteQuote, readPrivateAccess, sealAccessManifest, sealRotation, UNREADABLE_REPLACEMENT, type PrivateAccessBase, type PrivateCommitSizes, type PrivateNoteAction } from '../../../../lib/notes/private'
 import { readDraftSlot } from '../../../../lib/notes/draftSlot'
 import { useSigner } from '../../../sign/signerContext'
@@ -31,7 +31,11 @@ class Refusal extends Error {}
 /** Adding is refused while some holder's key is turned off (the realm validates every envelope): offer to remove them. */
 class KeysOff extends Refusal {}
 /** A Rotate cannot re-encrypt a current text that does not decrypt: offer to replace it in the same Rotate (review P2). */
-class Unreadable extends Refusal { constructor(message: string, readonly retry: { kind: Kind; who: string | null; name?: string }) { super(message) } }
+type Retry = { kind: Kind; who: string | null; name?: string }
+type Hashes = Partial<Record<'title' | 'body', string>>
+class Unreadable extends Refusal { constructor(message: string, readonly retry: Retry & { hashes: Hashes }) { super(message) } }
+/** Two reads of the latest text disagree (a node served other bytes): no replacement is offered, only another try. */
+class Disagree extends Refusal { constructor(readonly retry: Retry) { super('The network’s answers about this note’s latest text disagree, so Memba does not offer to replace it. Nothing was sent. Try again in a moment.') } }
 const MAX_READERS = 32
 
 /**
@@ -52,7 +56,7 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
     const signer = useSigner(), { phase, generation } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
     const [readers, setReaders] = useState<{ all: string[]; writers: string[] } | null>(null), [failed, setFailed] = useState(false), [reload, retry] = useState(0)
     const [input, setInput] = useState(''), [busy, setBusy] = useState(false), [signing, setSigning] = useState(false)
-    const [prepared, setReview] = useState<Review | null>(null), [problem, setProblem] = useState(''), [keysOff, setKeysOff] = useState(false), [recovery, setRecovery] = useState<Unreadable['retry'] | null>(null)
+    const [prepared, setReview] = useState<Review | null>(null), [problem, setProblem] = useState(''), [keysOff, setKeysOff] = useState(false), [recovery, setRecovery] = useState<Unreadable['retry'] | null>(null), [again, setAgain] = useState<Retry | null>(null)
     // This list's own session: it ends with the list (another revision, account, network, a closed window).
     const [life] = useState(createDraftSession)
     useLayoutEffect(() => () => life.invalidate(), [life])
@@ -85,7 +89,8 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         } catch { if (signal.aborted) throw new NotesChainError('session') }
         return { text: UNREADABLE_REPLACEMENT, source: 'notice' }
     }
-    async function prepare(signal: AbortSignal, kind: Kind, who: string | null, name?: string, added?: ChainKey, recover = false) {
+    /** `recover`: the agreed hashes of the unreadable fields; the owner chose to replace them (and only them). */
+    async function prepare(signal: AbortSignal, kind: Kind, who: string | null, name?: string, added?: ChainKey, recover?: Hashes) {
         const generation = controller.getSnapshot().generation
         if (!generation || controller.getSnapshot().phase !== 'unlocked') throw new NotesChainError('session')
         const pending = await withTimeout(new NotesIntents(store).list({ chainId: client.chainId, realm: client.realm, owner }))
@@ -122,7 +127,13 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
             try { prepared = await rotate() } catch (error) {
                 if (!(error instanceof PrivateNoteUnreadable)) throw error
                 // The epoch key opened and matched, but the latest text does not decrypt: never a dead end, never silent.
-                if (!recover) throw new Unreadable(`The latest ${error.fields.join(' and ')} of this note, published by ${error.actor === owner ? 'you' : shortAddress(error.actor)}, cannot be decrypted by anyone, so it cannot be encrypted again for a new key. You can replace it in the same change: with your draft of this note on this device if there is one, otherwise with a short notice. Nothing was sent.`, { kind, who, name })
+                // Never on one answer: the same ciphertext must come back again (another node when there is one), and the
+                // replacement prepared later must be for exactly those bytes.
+                if (!recover) {
+                    const hashes = await confirmUnreadable(client, fresh, error.fields, signal).catch(failure => { throw failure instanceof PrivateNoteDisagreement ? new Disagree({ kind, who, name }) : failure })
+                    throw new Unreadable(`The latest ${error.fields.join(' and ')} of this note, published by ${error.actor === owner ? 'you' : shortAddress(error.actor)}, cannot be decrypted by anyone, so it cannot be encrypted again for a new key. You can replace it in the same change: with your draft of this note on this device if there is one, otherwise with a short notice. Nothing was sent.`, { kind, who, name, hashes })
+                }
+                if (JSON.stringify(fieldHashes(fresh, error.fields)) !== JSON.stringify(recover)) throw new Disagree({ kind, who, name })
                 const replacement = await replacementText(signal)
                 prepared = await rotate(replacement.text); replaced = { actor: error.actor, fields: error.fields, source: replacement.source }
             }
@@ -137,8 +148,10 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
     async function run(step: (signal: AbortSignal) => Promise<void>) {
         if (busy) return
         const { signal } = life.capture()
-        setBusy(true); setProblem(''); setKeysOff(false); setRecovery(null); setDone('')
-        try { await step(signal) } catch (error) { if (!signal.aborted) { setProblem(problemText(error)); setKeysOff(error instanceof KeysOff); setRecovery(error instanceof Unreadable ? error.retry : null) } } finally { if (!signal.aborted) setBusy(false) }
+        setBusy(true); setProblem(''); setKeysOff(false); setRecovery(null); setAgain(null); setDone('')
+        try { await step(signal) } catch (error) {
+            if (!signal.aborted) { setProblem(problemText(error)); setKeysOff(error instanceof KeysOff); setRecovery(error instanceof Unreadable ? error.retry : null); setAgain(error instanceof Disagree ? error.retry : null) }
+        } finally { if (!signal.aborted) setBusy(false) }
     }
     const add = () => run(async signal => {
         const target = await resolveRecipient(input)
@@ -240,7 +253,8 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
         {signing && <p className="os-notes-share-progress" role="status"><span className="os-spin" aria-hidden="true" /> Waiting for your signature in the review sheet and Adena…</p>}
         {done && <p className="os-notes-share-done" role="status">{done}</p>}
         {problem && <p className="os-notes-field-error" role="alert">{problem}</p>}
-        {recovery && manage && unlocked && !review && <button type="button" className="os-btn" disabled={busy || signing} onClick={() => void run(signal => prepare(signal, recovery.kind, recovery.who, recovery.name, undefined, true))}>Replace the text and continue…</button>}
+        {recovery && manage && unlocked && !review && <button type="button" className="os-btn" disabled={busy || signing} onClick={() => void run(signal => prepare(signal, recovery.kind, recovery.who, recovery.name, undefined, recovery.hashes))}>Replace the text and continue…</button>}
+        {again && manage && unlocked && !review && <button type="button" className="os-btn os-quiet" disabled={busy || signing} onClick={() => void run(signal => prepare(signal, again.kind, again.who, again.name))}>Try again</button>}
         {keysOff && manage && unlocked && !review && <button type="button" className="os-btn os-quiet" disabled={busy || signing} onClick={() => void run(signal => prepare(signal, 'remove', null))}>Remove them…</button>}
     </section>
 }

@@ -41,9 +41,13 @@ export class NotesReadClient {
     await assertRpcChain(url, this.chainId)
     this.assertCurrent()
   }
-  private async query(realm: string, expression: string): Promise<unknown> {
+  /** This session's configured nodes, in the order reads try them. */
+  nodes(): string[] { return getRpcUrlsInOrder().filter(url => this.rpcUrls.has(url)) }
+  /** `via`: ask only that node (one of nodes()), still proven to serve this network first. */
+  private async query(realm: string, expression: string, via?: string): Promise<unknown> {
     this.assertCurrent()
-    const result = await resilientAbciQueryDetailed('vm/qeval', `${realm}.${expression}`, this.verified)
+    const verify = via === undefined ? this.verified : async (url: string) => { if (url !== via) throw new NotesChainError('network'); await this.verified(url) }
+    const result = await resilientAbciQueryDetailed('vm/qeval', `${realm}.${expression}`, verify)
     this.assertCurrent()
     if (result.kind !== 'ok') throw new NotesChainError('unavailable')
     return decodeResponse(result.text)
@@ -59,15 +63,16 @@ export class NotesReadClient {
     if (json?.error || !answer?.ResponseBase || abciErrorPresent(answer.ResponseBase.Error) || typeof answer.Value !== 'string') throw new NotesChainError('unavailable')
     return blob(answer.Value, 1_000_000)
   }
-  async note(noteId: string): Promise<ChainNote | null> {
+  /** `via` pins every read of the note (metadata, body chunks, final re-read) to one of nodes(). */
+  async note(noteId: string, via?: string): Promise<ChainNote | null> {
     const wanted = id(noteId), expression = `NoteMetaJSON("${wanted}")`
-    const value = await this.query(this.realm, expression)
+    const value = await this.query(this.realm, expression, via)
     if (value === null) return null
     const note = parseNote(value, false); check(note.id === wanted && note.bodyBytes !== undefined)
     const body = new Uint8Array(note.bodyBytes)
     try {
       for (let offset = 0; offset < body.length;) {
-        const raw = await this.query(this.realm, `NoteBodyChunkJSON("${wanted}",${note.stateRevision},${offset},8192)`)
+        const raw = await this.query(this.realm, `NoteBodyChunkJSON("${wanted}",${note.stateRevision},${offset},8192)`, via)
         const chunk = record(raw, ['id', 'state_revision', 'body_revision', 'epoch', 'offset', 'total', 'next_offset', 'chunk_blob'])
         if (id(chunk.id) !== wanted || decimal(chunk.state_revision, 64, true) !== note.stateRevision || decimal(chunk.body_revision, 64, true) !== note.bodyRevision || decimal(chunk.epoch, 32) !== note.epoch) throw new NotesChainError('stale')
         check(decimal(chunk.offset, 32) === String(offset) && decimal(chunk.total, 32) === String(body.length))
@@ -75,7 +80,7 @@ export class NotesReadClient {
         check(bytes.length === Math.min(8192, body.length - offset) && decimal(chunk.next_offset, 32) === String(next))
         body.set(bytes, offset); offset = next
       }
-      const final = await this.query(this.realm, expression)
+      const final = await this.query(this.realm, expression, via)
       if (final === null || JSON.stringify(parseNote(final, false)) !== JSON.stringify(note)) throw new NotesChainError('stale')
       // UTF-8 validation happens only after concatenation: chunks may split a code point.
       return parseNote({ ...(value as Record<string, unknown>), body_blob: encode64(body) })

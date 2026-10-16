@@ -43,6 +43,8 @@ const newcomer = bech32Encode('g', new Uint8Array(20).fill(9)), newcomerKey = id
 const publicKey = blob(golden.publicKeyBase64, 1216), readerKey = identityFromSeed(new Uint8Array(32).fill(3)).publicKey, noteId = 'cd'.repeat(16)
 const key = (address: string, pk: Uint8Array) => ({ address, generation: '1', active: true, publicKey: pk, operationId: '11'.repeat(16), height: '5' })
 let note: ChainNote, manifest: Uint8Array, controller: NotesIdentityController, store: NotesStore
+/** The session's verified nodes, and what a node pinned by `via` serves instead of `note` (a dishonest or lagging one). */
+let nodes: string[] = ['https://rpc.one'], served: Record<string, ChainNote> = {}
 /** A note of `noteOwner`, sealed for its owner and `readers` (those in `writers` with the writer flag). */
 function seal(noteOwner = owner, readers: string[] = [], writers: string[] = []) {
     const keys: Record<string, Uint8Array> = { [owner]: publicKey, [reader]: readerKey, [off1]: identityFromSeed(new Uint8Array(32).fill(11)).publicKey, [off2]: identityFromSeed(new Uint8Array(32).fill(12)).publicKey }
@@ -60,7 +62,7 @@ function client(): NotesReadClient {
             : [off1, off2].includes(who) ? { address: who, generation: '1', active: false, publicKey: new Uint8Array(), operationId: '11'.repeat(16), height: '6' }
             : { address: who, generation: '0', active: false, publicKey: new Uint8Array(), operationId: '', height: '0' },
         seedBackupRaw: async () => ({ mode: 1, suite: 'xwing-v1', generation: '1', revision: '1', public_key_hash: encode64(hexToBytes(golden.publicKeyHashHex)), op_id: '11'.repeat(16), actor: owner, height: '5', record: golden.recordBase64 }),
-        note: async () => note, noteMetadata: async () => note, readersRaw: async () => entries().map(entry => bech32Encode('g', entry.address)),
+        nodes: () => nodes, note: async (_id: string, via?: string) => via && served[via] ? served[via] : note, noteMetadata: async () => note, readersRaw: async () => entries().map(entry => bech32Encode('g', entry.address)),
         writersRaw: async () => entries().filter(entry => entry.writer).map(entry => bech32Encode('g', entry.address)).filter(who => who !== note.owner),
         wrapRaw: async (_id: string, _epoch: string, who: string) => {
             const entry = entries().find(e => bech32Encode('g', e.address) === who)
@@ -80,7 +82,7 @@ async function openShare(unlock = true) {
     return within(await screen.findByRole('region', { name: 'Who can read' }))
 }
 beforeEach(() => {
-    vi.clearAllMocks(); io.open = true; controller = undefined as unknown as NotesIdentityController; store = createNotesStore({ indexedDB: new IDBFactory() }); seal()
+    vi.clearAllMocks(); io.open = true; nodes = ['https://rpc.one']; served = {}; controller = undefined as unknown as NotesIdentityController; store = createNotesStore({ indexedDB: new IDBFactory() }); seal()
     io.kdf.mockImplementation(async (secret: Uint8Array, salt: Uint8Array) => sha256(Uint8Array.from([...secret, ...salt])))
     io.unlock.mockImplementation(async () => ({ ikm: hexToBytes(golden.materialHex), publicKey: new Uint8Array(33) }))
     io.sign.mockReturnValue(true)
@@ -328,6 +330,32 @@ describe('an unreadable latest version (E2 review P2)', () => {
         const request = io.sign.mock.calls[0][0] as SignRequest
         expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${reader} → your draft on this device`])
         expect(JSON.stringify(request.prepare(undefined).msgs)).not.toContain('My own draft')
+    })
+    // E2 round-2 P3: one node's answer is never enough to offer replacing a text.
+    it('a second verified node serving other bytes for the unreadable field: no replacement offered, only Try again', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader)
+        nodes = ['https://rpc.one', 'https://rpc.two']; served = { 'https://rpc.two': { ...note, body: note.body!.map((b, i) => i > 20 ? b ^ 1 : b) } }
+        show(); await unlocked()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Remove…' }))
+        expect(await part.findByText(/answers about this note’s latest text disagree, so Memba does not offer to replace it/)).toBeVisible()
+        expect(part.queryByRole('button', { name: 'Replace the text and continue…' })).toBeNull()
+        // The nodes agree again (the lagging one caught up): the offer comes back.
+        served = {}; fireEvent.click(part.getByRole('button', { name: 'Try again' }))
+        expect(await part.findByRole('button', { name: 'Replace the text and continue…' })).toBeVisible(); expect(io.sign).not.toHaveBeenCalled()
+    })
+    it('with one node, a fresh read must return the same ciphertext; bytes changed before the replacement is prepared refuse it', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader); show(); await unlocked()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Remove…' }))
+        const offer = await part.findByRole('button', { name: 'Replace the text and continue…' })
+        // Another undecryptable body, same revision (what a node switching answers would look like): not the bytes confirmed.
+        note = { ...note, body: note.body!.map((b, i) => i > 20 ? b ^ 2 : b) }
+        fireEvent.click(offer)
+        expect(await part.findByText(/answers about this note’s latest text disagree/)).toBeVisible()
+        expect(part.queryByRole('group', { name: 'Removal review' })).toBeNull(); expect(io.sign).not.toHaveBeenCalled()
     })
     it('a reader is told who published it and that its owner can replace it; nothing is offered to them', async () => {
         seal(reader, [owner]); sabotage(reader); show()

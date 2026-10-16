@@ -1,4 +1,4 @@
-export { readEncryptedNote, readEncryptedTitles, readPrivateAccess, sealAccessManifest, sealEncryptedChanges, sealRotation, PrivateNoteNoAccess, PrivateNoteUnreadable, UNREADABLE_REPLACEMENT } from './reader'
+export { readEncryptedNote, readEncryptedTitles, readPrivateAccess, sealAccessManifest, sealEncryptedChanges, sealRotation, PrivateNoteNoAccess, PrivateNoteUnreadable, UNREADABLE_REPLACEMENT, PrivateNoteDisagreement, confirmUnreadable, fieldHashes } from './reader'
 export { OpenPrivateNote, noteContext, encodePrivateText, prepareEncryptedEpoch, recipientManifest } from './engine'
 export type { EncryptedEpoch, EpochRecipient } from './engine'
 export { parseEpochPage, parseReaders, parseWrap, parseWriters } from './schema'
