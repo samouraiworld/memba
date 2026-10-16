@@ -128,6 +128,8 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
   const readers = (list: string[]) => others(list).length ? `You and ${others(list).join(', ')}` : 'Only you'
   const owner = base.note?.owner ?? operation.caller, ownNote = owner === operation.caller
   const editors = writers.filter(who => who !== owner)
+  const replaced = action.kind === 'rotate' ? action.replaced : undefined
+  const replacedText = replaced && `The latest ${replaced.fields.join(' and ')} of this note, published by ${replaced.actor}, cannot be decrypted by anyone. In the new key it is replaced by ${replaced.source === 'draft' ? 'your draft of this note on this device' : 'a short notice that it could not be decrypted'}.`
   const texts = {
     create: { title: 'Publish private note', summary: 'Publish an encrypted note that only you can read', pending: 'Waiting for this exact operation, its ciphertexts and your envelope on chain. Nothing is sent again.',
       warn: 'The storage deposit stays locked while the note exists: deleting it returns about half; the rest stays locked.', who: `Only you · your key, generation ${envelopes[0]?.generation}` },
@@ -144,13 +146,14 @@ export async function preparePrivateNoteRequest(options: PrivateRequestOptions):
   }[kind === 'access' && promoted.length ? 'promote' : kind === 'rotate' && demoted.length ? 'demote' : kind]
   const request: SignRequest = {
     title: texts.title, summary: texts.summary, label: () => texts.title,
-    warns: [ownNote ? 'The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.'
+    warns: [...replacedText ? [replacedText] : [], ownNote ? 'The text is encrypted in this browser. The network still shows your address as the owner, the note’s sizes and when it changes.'
       : 'The text is encrypted in this browser. The network still shows the owner’s address, your address as the one who changed it, the note’s sizes and when it changes.', texts.warn],
     lines: () => [['Account', operation.caller], ['Network', client.chainId], ['Realm', client.realm], ['Note', operation.noteId], ['Operation', operation.operationId],
       ...creating ? [] : [['Revision', `${revision} → ${input.resultingStateRevision}`] as [string, string]],
       ...added.length ? [['Adds', added.join(', ')] as [string, string]] : [], ...chosen.length ? [['Removes', chosen.join(', ')] as [string, string]] : [], ...off.size ? [['Also removed because their private-notes key is turned off', [...off].join(', ')] as [string, string]] : [],
       ...promoted.length ? [['Can edit from now on', promoted.join(', ')] as [string, string]] : [], ...demoted.length ? [['Can no longer edit', demoted.join(', ')] as [string, string]] : [],
       ...!ownNote ? [['Owner', owner] as [string, string]] : [],
+      ...replaced ? [['Replaces the unreadable latest text', `${replaced.fields.join(' and ')} by ${replaced.actor} → ${replaced.source === 'draft' ? 'your draft on this device' : 'a notice'}`] as [string, string]] : [],
       ['Who can read', texts.who], ...manifest && !creating ? [['Who can edit', editors.length ? `${ownNote ? 'You' : 'The owner'} and ${editors.join(', ')}` : ownNote ? 'Only you' : 'Only the owner'] as [string, string]] : [],
       ['Public on the network', `${manifest && !creating ? editors.length || demoted.length ? 'Owner, reader and writer addresses' : 'Owner and reader addresses' : ownNote ? 'Owner address' : 'Owner and writer addresses'}, encrypted sizes (${sizes}), times`],
       ['Publication fee', gnotAmount(creating ? base.config!.createFeeUgnot : '0')],

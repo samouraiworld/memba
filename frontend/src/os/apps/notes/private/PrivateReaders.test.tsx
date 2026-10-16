@@ -14,6 +14,7 @@ import { decodeManifest } from '../../../../lib/notes/crypto/manifest'
 import { createIdentityController } from '../../../../lib/notes/privateNotes'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { prepareEncryptedEpoch } from '../../../../lib/notes/private/engine'
+import { sealPrivateDraft } from '../../../../lib/notes/private/localDraft'
 import golden from '../../../../lib/notes/identity/__fixtures__/backup-standard.json'
 import { PrivateNoteView } from './PrivateNoteView'
 import { SharedWithMe } from './SharedWithMe'
@@ -277,6 +278,61 @@ describe('Who can edit (a writer, a reader)', () => {
         seal(reader, [owner]); show()
         fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
         expect(await screen.findByRole('heading', { name: 'Tuna tataki' })).toBeVisible()
+        expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    })
+})
+
+// E2 review P2: a writer published a body nobody can decrypt (the realm checks only the header). Never a dead end.
+describe('an unreadable latest version (E2 review P2)', () => {
+    /** The note's body replaced by header-valid ciphertext that does not decrypt, published by `by`. */
+    function sabotage(by: string) {
+        const body = new Uint8Array(300).map((_, i) => (i * 37 + 11) & 255); body.set([1, 1, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 2])
+        note = { ...note, body, bodyBytes: body.length, bodyRevision: '2', actor: by }
+    }
+    async function unlocked() {
+        fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+        expect(await screen.findByText('The latest version of this note cannot be decrypted.')).toBeVisible()
+    }
+    it('the owner sees who published it, then stops that writer editing with a recovery Rotate that replaces the text with the notice, named in the review and the sheet', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader); show()
+        await unlocked()
+        expect(screen.getByText(new RegExp(`published by ${reader.slice(0, 5)}.*You can replace it`))).toBeVisible()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        const toggle = await part.findByRole('checkbox', { name: 'Can edit' }); await waitFor(() => expect(toggle).toBeEnabled())
+        fireEvent.click(toggle)
+        expect(await part.findByText(/cannot be decrypted by anyone, so it cannot be encrypted again for a new key/)).toBeVisible(); expect(io.sign).not.toHaveBeenCalled()
+        fireEvent.click(part.getByRole('button', { name: 'Replace the text and continue…' }))
+        const review = within(await part.findByRole('group', { name: 'End of editing review' }))
+        expect(review.getByText(/it cannot be decrypted by anyone\. In the new key its body is replaced by a short notice/)).toBeVisible()
+        fireEvent.click(review.getByRole('button', { name: 'Stop editing with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest, [message] = request.prepare(undefined).msgs
+        expect(message.value.func).toBe('Rotate'); expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${reader} → a notice`])
+        expect(request.lines(undefined)).toContainEqual(['Can no longer edit', reader])
+    })
+    it('with the owner’s encrypted draft of the note on this device, the draft replaces the unreadable text', async () => {
+        seal(owner, [reader], [reader]); sabotage(reader)
+        const scope = { chainId: golden.chainId, realm: NOTES_REALM, owner, noteId }
+        const envelope = sealPrivateDraft(scope, 1n, 1n, publicKey, { title: 'Tuna tataki', body: 'My own draft of the recipe', mode: 1 })
+        expect((await store.saveDraft(scope, '0', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
+        show(); await unlocked()
+        fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+        const part = within(await screen.findByRole('region', { name: 'Who can read' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Remove…' }))
+        fireEvent.click(await part.findByRole('button', { name: 'Replace the text and continue…' }))
+        const review = within(await part.findByRole('group', { name: 'Removal review' }))
+        expect(review.getByText(/replaced by your draft of this note on this device/)).toBeVisible()
+        fireEvent.click(review.getByRole('button', { name: 'Remove with Adena' }))
+        await waitFor(() => expect(io.sign).toHaveBeenCalledOnce())
+        const request = io.sign.mock.calls[0][0] as SignRequest
+        expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${reader} → your draft on this device`])
+        expect(JSON.stringify(request.prepare(undefined).msgs)).not.toContain('My own draft')
+    })
+    it('a reader is told who published it and that its owner can replace it; nothing is offered to them', async () => {
+        seal(reader, [owner]); sabotage(reader); show()
+        await unlocked()
+        expect(screen.getByText(new RegExp(`published by ${reader.slice(0, 5)}.*Its owner can replace it`))).toBeVisible()
         expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     })
 })

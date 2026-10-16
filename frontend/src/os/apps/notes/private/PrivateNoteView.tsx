@@ -5,7 +5,7 @@ import { createDraftSession, type NotesStore } from '../../../../lib/notes/draft
 import { withTimeout } from '../../../../lib/notes/freshness'
 import type { NotesIdentityController } from '../../../../lib/notes/identity/controller'
 import { privateNotesDeployment } from '../../../../lib/notes/config'
-import { parseWrap, PrivateNoteNoAccess, readEncryptedNote } from '../../../../lib/notes/private'
+import { parseWrap, PrivateNoteNoAccess, PrivateNoteUnreadable, readEncryptedNote } from '../../../../lib/notes/private'
 import { MarkdownPreview } from '../MarkdownPreview'
 import { NoteHeader, NoteStatus, type NoteMenuItem } from '../NoteHeader'
 import { NoteSharePopover } from '../NoteSharePopover'
@@ -28,7 +28,7 @@ export interface PrivateNoteViewProps {
 /** Whether this account holds an envelope in the note's current epoch: a public read, before any key or wallet. */
 type Access = { note: string; epoch: string; generation: string | null; writer: boolean } | { note: string; epoch: string; none: true } | { note: string; epoch: string; failed: true }
 type Opened = { note: string; revision: string; title: string; body: string; exposed: boolean }
-type Problem = { note: string; revision: string; kind: 'other-key' | 'failed' }
+type Problem = { note: string; revision: string; kind: 'other-key' | 'failed' } | { note: string; revision: string; kind: 'unreadable'; actor: string }
 
 /** A private note in the Notes reader: locked, unlocked (read only), or not shared with this account. */
 export function PrivateNoteView(props: PrivateNoteViewProps) {
@@ -76,7 +76,8 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
             } finally { view.dispose() }
         }).catch(error => {
             if (lifetime.signal.aborted || (error instanceof NotesChainError && error.code === 'session')) return
-            setProblem({ note: note.id, revision: note.stateRevision, kind: error instanceof PrivateNoteNoAccess ? 'other-key' : 'failed' })
+            setProblem(error instanceof PrivateNoteUnreadable ? { note: note.id, revision: note.stateRevision, kind: 'unreadable', actor: error.actor }
+                : { note: note.id, revision: note.stateRevision, kind: error instanceof PrivateNoteNoAccess ? 'other-key' : 'failed' })
         })
         return () => { lifetime.abort(); setOpened(null) }
     }, [phase, readable, controller, client, note.id, note.stateRevision, owner, attempt])
@@ -97,7 +98,7 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
         const result = await store.deleteDraft(scope, revision, createDraftSession()).catch(() => null)
         setNotice(result?.status === 'saved' ? 'Your draft was removed from this device.' : 'Your draft changed in another window or could not be removed, so it was kept.'); reread(n => n + 1)
     }
-    const failed = problem && problem.note === note.id && problem.revision === note.stateRevision ? problem.kind : null
+    const current = problem && problem.note === note.id && problem.revision === note.stateRevision ? problem : null, failed = current?.kind ?? null
     const message = (title: string, text: string, actions?: ReactNode) => <div className="os-notes-private-state"><p><b>{title}</b> {text}</p>{actions && <div className="os-notes-private-actions">{actions}</div>}</div>
     let body: ReactNode
     if (known && 'none' in known) body = message('You don’t have access to this private note.', 'Only its owner and the people it is shared with can read it.')
@@ -114,6 +115,8 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
             {state.mode === 'standard' && <button type="button" className="os-btn" disabled={working || state.busy || !!walletProblem} onClick={() => void unlock()}>{working ? 'Waiting for Adena…' : 'Unlock'}</button>}
             <button type="button" className={state.mode === 'standard' ? 'os-btn os-quiet' : 'os-btn'} disabled={working} onClick={() => setRecover(true)}>Use recovery phrase</button>
         </div></div>
+    else if (current?.kind === 'unreadable') body = message('The latest version of this note cannot be decrypted.', `It was published by ${current.actor === owner ? 'you' : shortAddress(current.actor)}, and its text does not open with the note’s key, for anyone. `
+        + (note.owner === owner ? 'You can replace it: in Share, remove that writer or stop them editing, and choose to replace the text; or delete the note.' : 'Its owner can replace it. Memba changed nothing.'))
     else if (failed === 'failed') body = message('This private note could not be opened.', 'Nothing was changed.', <button type="button" className="os-btn" onClick={() => retry(n => n + 1)}>Try again</button>)
     else if (!shown) body = <NoteSkeleton label="Decrypting…" />
     else body = <>

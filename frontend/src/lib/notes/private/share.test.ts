@@ -19,7 +19,8 @@ import type { NotesIdentityController } from '../identity/controller'
 import { noteContext, prepareEncryptedEpoch, recipientManifest, type EncryptedEpoch } from './engine'
 import { privateNoteMessage, type PrivateNoteOperation } from './messages'
 import { privateNoteBudget, type PrivateAccessBase, type PrivateCommitSizes } from './quote'
-import { PrivateNoteNoAccess, readEncryptedNote, readPrivateAccess, sealAccessManifest, sealEncryptedChanges, sealRotation } from './reader'
+import { PrivateNoteNoAccess, PrivateNoteUnreadable, readEncryptedNote, readPrivateAccess, sealAccessManifest, sealEncryptedChanges, sealRotation, UNREADABLE_REPLACEMENT } from './reader'
+import { u32, u64 } from '../crypto/bytes'
 import { recoverPrivateIntent } from './recovery'
 import { preparePrivateNoteRequest } from './request'
 import { parseEpochPage } from './schema'
@@ -516,5 +517,56 @@ describe('co-writers (E2)', () => {
     const disk = await rawRecords(s.indexedDB)
     for (const trace of [...traces(BODY), ...traces(TITLE), ...traces('Edited by B')]) expect(disk).not.toContain(trace)
     expect(s.note()).toMatchObject({ epoch: '2', actor: A }); expect(s.entries().map(entry => [bech32Encode('g', entry.address), entry.writer])).toEqual([[A, true], [B, false]])
+  })
+})
+
+// Review P2: the realm checks only a ciphertext's header, so a writer (any client) can publish bytes nobody can read.
+// The owner is never stuck: a Rotate replaces the unreadable field (their draft text, else the fixed notice), named.
+describe('an unreadable revision published by a writer (E2 review P2)', () => {
+  /** Header-valid ciphertext for the note's next body revision that does not decrypt. */
+  const garbage = (epoch: number, revision: bigint) => { const bytes = new Uint8Array(300).map((_, i) => (i * 37 + 11) & 255); bytes.set([1, 1, ...u32(epoch), 2, ...u64(revision)]); return bytes }
+  async function sabotaged() {
+    const s = setup([2, 3]); await s.run((await s.promote(B)).operation)
+    const previousManifest = await readPrivateAccess(s.client, s.note(), SIGNAL)
+    s.apply(privateNoteMessage({ chainId: 'test-chain', caller: B, noteId, operationId: nextId(), action: { kind: 'commit', body: garbage(1, 2n), previousManifest } }, NOTES_REALM, '0', await epochState(s)))
+    expect(s.note()).toMatchObject({ actor: B, bodyRevision: '2' })
+    return s
+  }
+  async function recover(s: ReturnType<typeof setup>, replacement: { title: string; body: string }, source: 'draft' | 'notice') {
+    const previousManifest = await readPrivateAccess(s.client, s.note(), SIGNAL)
+    const kept = decodeManifest(previousManifest, Number(s.note().epoch)).map(entry => ({ key: s.registry.get(bech32Encode('g', entry.address))!, writer: bech32Encode('g', entry.address) === A }))
+    const failure = await sealRotation(s.client, s.note(), 1, kept, s.access()).catch(error => error)
+    expect(failure).toBeInstanceOf(PrivateNoteUnreadable); expect(failure).toMatchObject({ actor: B, fields: ['body'] })
+    const prepared = await sealRotation(s.client, s.note(), 1, kept, s.access(), replacement)
+    return { chainId: 'test-chain', caller: A, noteId, operationId: nextId(), action: { kind: 'rotate', prepared, previousManifest, replaced: { actor: B, fields: ['body'], source } } } satisfies PrivateNoteOperation
+  }
+  it('readers and the owner get PrivateNoteUnreadable naming the writer; a plain Rotate (demote or remove) is refused before anything is signed', async () => {
+    const s = await sabotaged()
+    for (const reader of [A, B, C]) await expect(s.read(reader)).rejects.toMatchObject({ name: 'PrivateNoteUnreadable', actor: B, fields: ['body'] })
+    await expect(s.demote(B)).rejects.toBeInstanceOf(PrivateNoteUnreadable); await expect(s.revoke(C)).rejects.toBeInstanceOf(PrivateNoteUnreadable)
+    // Only the earlier promotion reached a wallet.
+    expect(wallet.send).toHaveBeenCalledTimes(1)
+  })
+  for (const [source, replacement] of [['draft', { title: TITLE, body: 'The owner’s own draft' }], ['notice', UNREADABLE_REPLACEMENT]] as const) {
+    it(`the owner demotes the writer with a recovery Rotate (${source}): sealed under the new epoch, named in the sheet; owner and readers open it; the demoted writer cannot commit`, async () => {
+      const s = await sabotaged(), operation = await recover(s, replacement, source), request = await s.run(operation)
+      expect(request.title).toBe('Stop a writer editing'); expect(request.lines(undefined)).toContainEqual(['Can no longer edit', B])
+      expect(request.lines(undefined)).toContainEqual(['Replaces the unreadable latest text', `body by ${B} → ${source === 'draft' ? 'your draft on this device' : 'a notice'}`])
+      expect(request.warns[0]).toContain(`The latest body of this note, published by ${B}, cannot be decrypted by anyone`)
+      expect(s.note()).toMatchObject({ epoch: '2', bodyRevision: '3', titleRevision: '2', actor: A })
+      // The title still opened, so it was kept; only the unreadable body was replaced.
+      for (const reader of [A, B, C]) expect(await s.read(reader)).toEqual({ title: TITLE, body: replacement.body })
+      await expect(s.edit(B, 'B again')).rejects.toThrow()
+    })
+  }
+  it('a replacement is refused while the text decrypts (never a silent overwrite), and the replacement leaves no plaintext in the receipt or the device store', async () => {
+    const s = setup([2]), owner = { key: s.registry.get(A)!, writer: true }
+    await expect(sealRotation(s.client, s.note(), 0, [owner], s.access(), UNREADABLE_REPLACEMENT)).rejects.toThrow()
+    const t = await sabotaged(), operation = await recover(t, { title: TITLE, body: 'Draft text kept private' }, 'draft'), quoted = vi.fn(t.quote)
+    const request = await preparePrivateNoteRequest({ ...t.options(operation), quote: quoted })
+    for (const trace of traces('Draft text kept private')) { expect(JSON.stringify(request.prepare(undefined).msgs)).not.toContain(trace); expect(JSON.stringify(quoted.mock.calls.at(-1))).not.toContain(trace) }
+    await request.send(undefined, async () => {}); t.apply(wallet.send.mock.calls.at(-1)![0][0]); expect(await request.verify!(undefined, 'aa'.repeat(32), undefined)).toBe(true)
+    const disk = await rawRecords(t.indexedDB)
+    for (const trace of [...traces('Draft text kept private'), ...traces(BODY)]) expect(disk).not.toContain(trace)
   })
 })

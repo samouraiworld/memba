@@ -18,7 +18,9 @@ import type { PrivateEpoch } from './schema'
 export type PrivateNoteAction = { kind: 'create'; prepared: EncryptedEpoch; maxFeeUgnot: string }
   | { kind: 'commit'; title?: Uint8Array; body?: Uint8Array; previousManifest: Uint8Array }
   | { kind: 'access'; mode: 0 | 1; manifest: Uint8Array; previousManifest: Uint8Array; acknowledgeEpochHistory: boolean }
-  | { kind: 'rotate'; prepared: EncryptedEpoch; previousManifest: Uint8Array }
+  | { kind: 'rotate'; prepared: EncryptedEpoch; previousManifest: Uint8Array
+      /** Review metadata only (never in the message): the current text did not decrypt, `actor` published it, and the new epoch carries a replacement. */
+      replaced?: { actor: string; fields: readonly ('title' | 'body')[]; source: 'draft' | 'notice' } }
 export interface PrivateNoteOperation { chainId: string; caller: string; noteId: string; operationId: string; action: PrivateNoteAction }
 export interface PrivateOperationState { note: ChainNote | null; epoch: PrivateEpoch | null; config?: ChainConfig }
 function cipher(value: Uint8Array, epoch: number, field: 1 | 2, revision: bigint): string {
