@@ -31,9 +31,13 @@ test('real public stage survives desktop/mobile changes and minimize restore wit
 test('disconnect and lock destroys the parked public comment stage and reconnect starts empty', async ({ page }) => {
     await page.getByRole('button', { name: 'Minimise Notes', exact: true }).click()
     await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toBeHidden()
+    // Locking discards the unsent comment, so it asks first, as closing the window would.
+    const asked: string[] = []
+    page.once('dialog', dialog => { asked.push(dialog.message()); void dialog.accept() })
     await page.getByRole('button', { name: 'Memba menu', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Disconnect & lock', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Welcome to Memba' })).toBeVisible()
+    expect(asked).toEqual([expect.stringContaining('A comment you wrote is not posted yet')])
     await expect(page.locator('.os-notes-stage')).toHaveCount(0)
     expect(await audit(page)).toMatchObject({ disconnects: 1, liveClients: 0 })
     expect(await page.locator('body').textContent()).not.toContain(text)
