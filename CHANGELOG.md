@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: encrypted comments on private notes (#1642, 2026-10-16)
+- A private note's side panel now has **Comments**. Guests and locked members see each comment as "Encrypted comment", with its author and time only. Once the key is unlocked, each comment opens under the key of its own version; one from a version this account was never given shows "Comment from an earlier version you can't open".
+- The people a note is shared with comment on it: owner, readers and writers, as the network allows. A comment and its quote (selected in the decrypted note) are encrypted in the browser with the note's current key; the text stays in memory and goes with a lock. The author deletes their comment at any time, without the key; the owner or a writer resolves, the owner hides. **Who can comment** is back in the Share menu.
+- Quotes from keeper measurements, simulation first: a short comment ≈ 1.03 GNOT (at most 1.3; measured 0.79-1.0), down from ≈ 2.37 GNOT; deleting returns part of the deposit.
+- Before offering to replace an unreadable text, Memba reads the note again (from a second node when there is one) and requires the same encrypted bytes; otherwise it says the network's answers disagree.
+
 ### Notes: private co-writers, a reader can be made a writer and back (#1641, 2026-10-15)
 - In a private note's **Share** menu, every reader has a **Can edit** switch (owner only, key unlocked); everyone else sees who can edit. A co-writer changes the title and the text and publishes encrypted changes, signed and paid by them; only the owner shares, removes readers, changes who can edit or deletes the note.
 - Making a reader a writer (ApplyAccess) sets the writer flag of their envelope in the current epoch, every envelope bound to its holder's current key; the review says their address becomes public as a writer. Making a writer a reader again needs a new key on the network (Rotate): they still read, they can no longer publish changes, and the realm refuses their later edits.
