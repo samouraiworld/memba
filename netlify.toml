@@ -7,6 +7,37 @@
 [context.deploy-preview.environment]
   VITE_ENABLE_PRO_APP = "true"
 
+# Retired classic host → memba.club (docs/DEPLOYMENT.md, "Retiring memba.samourai.app").
+# Host-qualified, so they never fire on memba.club or deploy previews. They must stay
+# above every other rule. memba.club opens each classic path in its Memba OS window, so
+# the path is kept as is; the query string is forwarded and the browser keeps the fragment.
+# A returning visitor's service worker answers from cache and would never see the redirect:
+# /sw.js serves the kill switch, which unregisters it and reloads the tab into the redirect.
+# 302 until the move has settled, then 301.
+[[redirects]]
+  from = "https://memba.samourai.app/sw.js"
+  to = "/sw-retire.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/sw.js"
+  to = "/sw-retire.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://memba.samourai.app/*"
+  to = "https://memba.club/:splat"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://memba-multisig.netlify.app/*"
+  to = "https://memba.club/:splat"
+  status = 302
+  force = true
+
 [[redirects]]
   from = "/api/radio-meta"
   to = "https://gnoradio.xyz/api/meta"
