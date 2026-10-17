@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### memba.samourai.app redirects to memba.club (2026-10-16)
+- Every address on memba.samourai.app now opens the same address on memba.club, query string and fragment kept, and memba.club opens it in its Memba OS window: `/gnolove/report` opens the Dev Report, `/dao/gno.land~r~samcrew~memba_dao` the Memba DAO, `/validators` the Validators. No click needed.
+- A returning visitor whose browser kept the old site offline gets the same redirect: the old site's service worker is replaced by one that removes itself and reloads the tab.
+- Saved settings, drafts and the sign-in of the old address stay there; on memba.club, sign in again.
+
 ### Notes: encrypted comments on private notes (#1642, 2026-10-16)
 - A private note's side panel now has **Comments**. Guests and locked members see each comment as "Encrypted comment", with its author and time only. Once the key is unlocked, each comment opens under the key of its own version; one from a version this account was never given shows "Comment from an earlier version you can't open".
 - The people a note is shared with comment on it: owner, readers and writers, as the network allows. A comment and its quote (selected in the decrypted note) are encrypted in the browser with the note's current key; the text stays in memory and goes with a lock. The author deletes their comment at any time, without the key; the owner or a writer resolves, the owner hides. **Who can comment** is back in the Share menu.
