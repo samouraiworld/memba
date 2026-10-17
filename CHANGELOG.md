@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### memba.samourai.app redirect made permanent (2026-10-17)
+- The redirect from memba.samourai.app (and memba-multisig.netlify.app) to the same address on memba.club is now permanent (`301`): browsers and search engines remember it and go straight to memba.club. The old site's service-worker kill switch stays in place.
+- Removed the "Memba has moved to memba.club" banner: no page of the old address is served any more, so nobody could see it.
+
 ### memba.samourai.app redirects to memba.club (2026-10-16)
 - Every address on memba.samourai.app now opens the same address on memba.club, query string and fragment kept, and memba.club opens it in its Memba OS window: `/gnolove/report` opens the Dev Report, `/dao/gno.land~r~samcrew~memba_dao` the Memba DAO, `/validators` the Validators. No click needed.
 - A returning visitor whose browser kept the old site offline gets the same redirect: the old site's service worker is replaced by one that removes itself and reloads the tab.

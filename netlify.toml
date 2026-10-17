@@ -13,7 +13,7 @@
 # the path is kept as is; the query string is forwarded and the browser keeps the fragment.
 # A returning visitor's service worker answers from cache and would never see the redirect:
 # /sw.js serves the kill switch, which unregisters it and reloads the tab into the redirect.
-# 302 until the move has settled, then 301.
+# 301 since the move settled (it was a 302 first, which browsers do not cache for good).
 [[redirects]]
   from = "https://memba.samourai.app/sw.js"
   to = "/sw-retire.js"
@@ -29,13 +29,13 @@
 [[redirects]]
   from = "https://memba.samourai.app/*"
   to = "https://memba.club/:splat"
-  status = 302
+  status = 301
   force = true
 
 [[redirects]]
   from = "https://memba-multisig.netlify.app/*"
   to = "https://memba.club/:splat"
-  status = 302
+  status = 301
   force = true
 
 [[redirects]]
