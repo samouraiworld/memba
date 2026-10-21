@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as shared from "./dao/shared"
-import { GNO_RPC_URL } from "./config"
+import { GNO_RPC_URL, validatorScoresRealmFor } from "./config"
 import {
     arenaLabel,
     byScoreThenMoniker,
@@ -11,6 +11,7 @@ import {
     formatSelectionScore,
     parseSelectionScores,
     selectionScoreFor,
+    selectionScoresQuery,
     selectionScoresQueryKey,
     SELECTION_SCORES_STALE_MS,
 } from "./validatorSelectionScores"
@@ -163,5 +164,26 @@ describe("ordering", () => {
     it("shares one cache entry per network, fresh for five minutes", () => {
         expect(selectionScoresQueryKey("mainnet")).toEqual(["validators", "selection-scores", "mainnet"])
         expect(SELECTION_SCORES_STALE_MS).toBe(300_000)
+    })
+})
+
+describe("selectionScoresQuery", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("carries the shared key and freshness, and reads the network's realm", async () => {
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue(qeval(latest()))
+        const query = selectionScoresQuery("mainnet")
+        expect(query.queryKey).toEqual(selectionScoresQueryKey("mainnet"))
+        expect(query.staleTime).toBe(SELECTION_SCORES_STALE_MS)
+        const realm = validatorScoresRealmFor("mainnet")
+        await query.queryFn()
+        if (realm) expect(qe).toHaveBeenCalledWith(GNO_RPC_URL, realm, "LatestJSON()")
+        else expect(qe).not.toHaveBeenCalled()
+    })
+
+    it("reads nothing on a network without the realm", async () => {
+        const qe = vi.spyOn(shared, "queryEval")
+        await expect(selectionScoresQuery("no-such-network").queryFn()).resolves.toBeNull()
+        expect(qe).not.toHaveBeenCalled()
     })
 })

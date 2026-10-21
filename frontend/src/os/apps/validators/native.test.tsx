@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { MonitoringValidatorData } from "../../../lib/gnomonitoring"
 import type { NetworkStats, ValidatorInfo } from "../../../lib/validators"
 import type { ValoperWithStatus } from "../../../lib/valopers"
+import type { SelectionScoreEdition, SelectionScoreEntry } from "../../../lib/validatorSelectionScores"
 import { classicForSection } from "../../page/classicRoute"
 import { urlForWindow, type WindowSpec } from "../../shell/windows"
 import ValidatorsWindow from "./native"
@@ -13,6 +14,7 @@ import ValidatorsWindow from "./native"
 // roster assembly, the merges and the health engine under them are the real ones.
 const read = vi.hoisted(() => ({
     snapshot: vi.fn(), validators: vi.fn(), stats: vi.fn(), monikers: vi.fn(), signatures: vi.fn(), monitoring: vi.fn(), valopers: vi.fn(),
+    scoresRealm: vi.fn(), scores: vi.fn(),
 }))
 vi.mock("../../../lib/validators", async (actual) => ({
     ...await actual<typeof import("../../../lib/validators")>(),
@@ -27,6 +29,23 @@ vi.mock("../../../lib/valopers", async (actual) => ({
     ...await actual<typeof import("../../../lib/valopers")>(),
     fetchValopers: read.valopers,
 }))
+// The realm path per network and the scores read are replaced at the module boundary too.
+vi.mock("../../../lib/config", async (actual) => ({
+    ...await actual<typeof import("../../../lib/config")>(),
+    validatorScoresRealmFor: read.scoresRealm,
+}))
+// The module's own query options call its reader directly, so the stand-in rides on them: real key and
+// freshness, with the read and the realm path going through the doubles.
+vi.mock("../../../lib/validatorSelectionScores", async (actual) => {
+    const real = await actual<typeof import("../../../lib/validatorSelectionScores")>()
+    return {
+        ...real,
+        fetchLatestSelectionScores: read.scores,
+        selectionScoresQuery: (network: string) => ({
+            ...real.selectionScoresQuery(network), queryFn: () => read.scores(read.scoresRealm(network) ?? ""),
+        }),
+    }
+})
 
 const address = (letter: string) => `g1${letter.repeat(38)}`
 // Three validators whose rank, name, uptime and health each order them differently.
@@ -98,6 +117,9 @@ beforeEach(() => {
     read.signatures.mockResolvedValue(new Map([[BASALT, allSigned], [NAMELESS, [false, ...allSigned.slice(1)]]]))
     read.monitoring.mockResolvedValue(new Map([monitored(BASALT, 99.5, 99.2), monitored(ALDER, 97, 100)]))
     read.valopers.mockResolvedValue([])
+    // No realm on this network unless a test says so: the lists stay as they were.
+    read.scoresRealm.mockReturnValue(null)
+    read.scores.mockResolvedValue(null)
 })
 afterEach(() => { vi.useRealTimers() })
 
@@ -477,5 +499,124 @@ describe("Validators window · candidates", () => {
         show(null, "tab=candidates")
         expect(await screen.findByText("No registered operator is outside the consensus set.")).toBeInTheDocument()
         expect(screen.queryByRole("table")).toBeNull()
+    })
+})
+
+describe("Validators window · candidates · selection scores", () => {
+    const REALM = "gno.land/r/samcrew/validator_scores"
+    const ZED = address("z")
+    const ACME = address("m")
+    const BRAVO = address("p")
+    const BASALT_OPS = address("n")
+    /** An edition from [operator, total in hundredths, rank] rows. */
+    const edition = (rows: Array<[string, number, number]>): SelectionScoreEdition => ({
+        number: 1, computedAt: "2026-10-13T09:00:00Z", scorecardSHA256: "ab".repeat(32), arenas: ["challenge", "firedrill"],
+        candidates: new Map(rows.map(([operator, total, rank]): [string, SelectionScoreEntry] =>
+            [operator, { operator, moniker: "", total, rank, github: 0, arenaScores: [total, total] }])),
+    })
+    const headers = () => screen.getAllByRole("columnheader").map((th) => th.textContent)
+
+    beforeEach(() => {
+        read.valopers.mockResolvedValue([
+            operator("Zed Ops", "z", address("y"), "data-center"),
+            operator("Basalt Ops", "n", BASALT, "cloud"),
+            operator("Acme", "m", "", ""),
+            operator("Bravo", "p", address("q"), "constructor"),
+        ])
+        read.scoresRealm.mockReturnValue(REALM)
+    })
+
+    it("adds a Score column, total and rank with one decimal, and opens sorted by score, then by name", async () => {
+        read.scores.mockResolvedValue(edition([[ZED, 8743, 3], [BRAVO, 9120, 1], [ACME, 8743, 2], [BASALT_OPS, 9900, 1]]))
+        show(null, "tab=candidates")
+        expect(await screen.findByRole("button", { name: "Score" })).toBeInTheDocument()
+        expect(headers()).toEqual(["Operator", "Score", "Hosting", "Operator address"])
+        // Equal totals fall back to the name; Basalt Ops validates, so it is not a candidate here.
+        expect(column(0)).toEqual(["Bravo", "Acme", "Zed Ops"])
+        expect(column(1)).toEqual(["91.2 · #1", "87.4 · #2", "87.4 · #3"])
+        expect(read.scoresRealm).toHaveBeenCalledWith("mainnet")
+        expect(read.scores).toHaveBeenCalledWith(REALM)
+        expect(screen.getByText(/edition 1, 13 Oct 2026/)).toBeInTheDocument()
+        expect(screen.getByRole("table").closest(".os-validators-candidates")).toHaveAttribute("data-scored")
+    })
+
+    it("shows a dash that says so for an operator with no published score, never a zero, and lists it last", async () => {
+        read.scores.mockResolvedValue(edition([[ZED, 8743, 3], [BRAVO, 0, 9]]))
+        show(null, "tab=candidates")
+        await screen.findByRole("button", { name: "Score" })
+        expect(column(0)).toEqual(["Zed Ops", "Bravo", "Acme"])
+        expect(cells("Open operator Acme")).toEqual(["Acme", "—No selection score", "—Not stated", ACME])
+        // A published total of zero is a score, and is shown as one.
+        expect(cells("Open operator Bravo")[1]).toBe("0.0 · #9")
+    })
+
+    it("sorts by the Score header, a missing score below every real one", async () => {
+        read.scores.mockResolvedValue(edition([[ZED, 8743, 3], [BRAVO, 9120, 1]]))
+        show(null, "tab=candidates")
+        const header = await screen.findByRole("button", { name: "Score" })
+        fireEvent.click(header)
+        expect(column(0)).toEqual(["Acme", "Zed Ops", "Bravo"])
+        expect(header.closest("th")).toHaveAttribute("aria-sort", "ascending")
+        fireEvent.click(header)
+        expect(column(0)).toEqual(["Bravo", "Zed Ops", "Acme"])
+        expect(header.closest("th")).toHaveAttribute("aria-sort", "descending")
+    })
+
+    it("lists the candidates while the scores are still being read, and adds the column when they arrive", async () => {
+        let arrive: (value: SelectionScoreEdition | null) => void = () => undefined
+        read.scores.mockReturnValue(new Promise<SelectionScoreEdition | null>((resolve) => { arrive = resolve }))
+        show(null, "tab=candidates")
+        await screen.findByRole("button", { name: "Open operator Zed Ops" })
+        expect(screen.queryByRole("button", { name: "Score" })).toBeNull()
+        expect(screen.queryByRole("alert")).toBeNull()
+        expect(column(0)).toEqual(["Acme", "Bravo", "Zed Ops"])
+        await act(async () => arrive(edition([[ZED, 8743, 3]])))
+        expect(await screen.findByRole("button", { name: "Score" })).toBeInTheDocument()
+        expect(column(0)).toEqual(["Zed Ops", "Acme", "Bravo"])
+    })
+
+    it("orders every candidate before paging: the best scores on page 1, operators without a score after them", async () => {
+        const many: ValoperWithStatus[] = Array.from({ length: 30 }, (_, i) => ({
+            moniker: `Op ${String(i).padStart(2, "0")}`, description: "", operatorAddress: `g1${String(i).padStart(38, "0")}`,
+            signingAddress: "", signingPubKey: "", serverType: "", status: "candidate",
+        }))
+        read.valopers.mockResolvedValue(many)
+        // Op 10 to Op 29 have a score that grows with the number; Op 00 to Op 09 have none.
+        read.scores.mockResolvedValue(edition(many.slice(10).map((o, i): [string, number, number] => [o.operatorAddress, 1000 + i * 10, 20 - i])))
+        show(null, "tab=candidates")
+        await screen.findByRole("button", { name: "Score" })
+        const name = (i: number) => `Op ${String(i).padStart(2, "0")}`
+        expect(column(0)).toEqual([...Array.from({ length: 20 }, (_, k) => name(29 - k)), ...[0, 1, 2, 3, 4].map(name)])
+        fireEvent.click(screen.getByRole("button", { name: "Next" }))
+        expect(column(0)).toEqual([5, 6, 7, 8, 9].map(name))
+    })
+
+    it("keeps the list without a Score column when no edition can be read", async () => {
+        read.scores.mockResolvedValue(null)
+        show(null, "tab=candidates")
+        await screen.findByRole("button", { name: "Open operator Zed Ops" })
+        // Wait until the read has settled and rendered, so the absence below is not checked too early.
+        await waitFor(() => expect(read.scores).toHaveReturned())
+        await act(async () => {})
+        expect(screen.queryByRole("button", { name: "Score" })).toBeNull()
+        expect(headers()).toEqual(["Operator", "Hosting", "Operator address"])
+        expect(column(0)).toEqual(["Acme", "Bravo", "Zed Ops"])
+        expect(screen.queryByText(/edition/)).toBeNull()
+    })
+
+    it("reads nothing and shows no Score column on a network without the realm", async () => {
+        read.scoresRealm.mockReturnValue(null)
+        show(null, "tab=candidates")
+        await screen.findByRole("button", { name: "Open operator Zed Ops" })
+        expect(read.scores).not.toHaveBeenCalled()
+        expect(screen.queryByRole("button", { name: "Score" })).toBeNull()
+    })
+
+    it("never adds a score column to the active set", async () => {
+        read.scores.mockResolvedValue(edition([[ZED, 8743, 3]]))
+        show()
+        await screen.findByRole("table")
+        expect(headers()).toEqual(["Rank", "Validator", "Voting power", "Share", "Participation", "Uptime", "Health"])
+        expect(read.scores).not.toHaveBeenCalled()
     })
 })

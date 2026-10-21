@@ -21,8 +21,10 @@
 /* A narrow window keeps rank, name, share and health. Columns leave by position
    (native.tsx COLUMNS): voting power (3) and participation (5) first, since share
    ranks the same way, then uptime (6) and the address under a name; a candidate's
-   address (3) goes with them. The validator's or operator's own page has every
-   figure dropped here, and the search still finds a validator by its address. */
+   address goes with them: third column, or fourth after the selection score
+   (native.tsx CANDIDATE_COLUMNS, data-scored). The validator's or operator's own
+   page has every figure dropped here, and the search still finds a validator by
+   its address. */
 @container os-window (max-width: 720px) {
   .memba-os .os-validators-set .os-t :is(th, td):is(:nth-child(3), :nth-child(5)) { display: none; }
   .memba-os .os-validators-search { max-width: none; }
@@ -30,7 +32,8 @@
 @container os-window (max-width: 440px) {
   .memba-os .os-validators-set .os-t :is(th, td):nth-child(6) { display: none; }
   .memba-os .os-validators-sub { display: none; }
-  .memba-os .os-validators-candidates .os-t :is(th, td):nth-child(3) { display: none; }
+  .memba-os .os-validators-candidates:not([data-scored]) .os-t :is(th, td):nth-child(3),
+  .memba-os .os-validators-candidates[data-scored] .os-t :is(th, td):nth-child(4) { display: none; }
   /* Two figures a row, down to a 320px phone. */
   .memba-os .os-validators .os-grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* 16px stops iOS zooming the sheet when the field takes focus. */

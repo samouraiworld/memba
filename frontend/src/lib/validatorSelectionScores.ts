@@ -13,7 +13,7 @@
  *
  * @module lib/validatorSelectionScores
  */
-import { GNO_RPC_URL } from "./config"
+import { GNO_RPC_URL, validatorScoresRealmFor } from "./config"
 import { parseQevalJSON, queryEval } from "./dao/shared"
 
 /** How long a read stays fresh: an edition changes a few times at most, ever. */
@@ -152,3 +152,10 @@ export function byScoreThenMoniker(edition: SelectionScoreEdition): (a: ScoredRo
 
 /** One cache entry per network, shared by the Validators window and the validator page. */
 export const selectionScoresQueryKey = (networkKey: string) => ["validators", "selection-scores", networkKey] as const
+
+/** The read behind that cache entry; a network without the realm reads nothing and gives null. */
+export const selectionScoresQuery = (networkKey: string) => ({
+    queryKey: selectionScoresQueryKey(networkKey),
+    queryFn: () => fetchLatestSelectionScores(validatorScoresRealmFor(networkKey) ?? ""),
+    staleTime: SELECTION_SCORES_STALE_MS,
+})
