@@ -26,3 +26,18 @@ export const LOCAL_GNOWEB_URL = "http://localhost:8888"
 export function localNetworkEnabled(mode: string, flag: string | undefined): boolean {
     return mode !== "test" && flag === "true"
 }
+
+/** The connect-src sources inside index.html's CSP meta (not the comment above it). */
+const CSP_CONNECT_SRC = /(<meta\s+http-equiv="Content-Security-Policy"\s+content="[^"]*?\bconnect-src\s+)([^;"]*)/
+
+/**
+ * index.html's CSP meta is the policy `vite dev` enforces, and its connect-src
+ * does not list the local node. The dev server adds it there when the local
+ * network is on (vite.config.ts localNetworkCspPlugin); built files and
+ * netlify.toml never change. A page without that meta, or already listing the
+ * node, is returned unchanged.
+ */
+export function withLocalRpcInCsp(html: string): string {
+    return html.replace(CSP_CONNECT_SRC, (whole, head: string, sources: string) =>
+        sources.trim().split(/\s+/).includes(LOCAL_RPC_URL) ? whole : `${head}${sources.trimEnd()} ${LOCAL_RPC_URL}`)
+}
