@@ -11,7 +11,7 @@ overrides:
   qs: '>=6.16.0'
   ip-address: '>=10.3.1'
   nanoid: '>=3.3.17 <4'
-  vite: '>=8.3.3 <9'
+  vite: '>=8.3.3'
   esbuild: '>=0.28.1'
   postcss: '>=8.5.18'
   vitest: '>=4.1.11 <5'
@@ -198,7 +198,7 @@ packages:
     resolution: {integrity: sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==}
     peerDependencies:
       msw: ^2.4.9
-      vite: '>=8.3.3 <9'
+      vite: '>=8.3.3'
     peerDependenciesMeta:
       msw:
         optional: true
@@ -797,7 +797,7 @@ packages:
       '@vitest/ui': 4.1.11
       happy-dom: '*'
       jsdom: '*'
-      vite: '>=8.3.3 <9'
+      vite: '>=8.3.3'
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
