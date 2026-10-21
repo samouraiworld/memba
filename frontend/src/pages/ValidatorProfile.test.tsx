@@ -39,7 +39,24 @@ vi.mock("../lib/config", async (orig) => ({
     ...(await orig<typeof import("../lib/config")>()),
     isReviewsAvailable: vi.fn(() => false),
     isReviewsValid: vi.fn(() => true),
+    // No selection scores realm unless a test says so.
+    validatorScoresRealmFor: vi.fn(() => null),
 }))
+// The module's own query options call its reader directly, so the stand-in rides on them: real key and
+// freshness, with the realm path and the read going through the doubles.
+vi.mock("../lib/validatorSelectionScores", async (orig) => {
+    const real = await orig<typeof import("../lib/validatorSelectionScores")>()
+    const { validatorScoresRealmFor } = await import("../lib/config")
+    const fetchLatestSelectionScores = vi.fn()
+    return {
+        ...real,
+        fetchLatestSelectionScores,
+        selectionScoresQuery: (network: string) => ({
+            ...real.selectionScoresQuery(network),
+            queryFn: () => fetchLatestSelectionScores(validatorScoresRealmFor(network) ?? ""),
+        }),
+    }
+})
 vi.mock("../hooks/useAddressActivity", () => ({ useAddressActivity: vi.fn() }))
 vi.mock("../lib/quests", async (orig) => ({
     ...(await orig<typeof import("../lib/quests")>()),
@@ -61,7 +78,8 @@ vi.mock("../hooks/gnolove/useGnoloveTeams", () => ({ useGnoloveTeam: vi.fn(() =>
 import ValidatorProfile from "./ValidatorProfile"
 import { findValoperForProfile } from "../lib/valopers"
 import { getValidators } from "../lib/validators"
-import { isReviewsValid } from "../lib/config"
+import { isReviewsValid, validatorScoresRealmFor } from "../lib/config"
+import { fetchLatestSelectionScores, type SelectionScoreEdition, type SelectionScoreEntry } from "../lib/validatorSelectionScores"
 import { fetchUserProfile, updateBackendProfile } from "../lib/profile"
 import { useAddressActivity } from "../hooks/useAddressActivity"
 import { loadQuestProgress, fetchUserQuests } from "../lib/quests"
@@ -722,5 +740,78 @@ describe("ValidatorProfile — a read that outlives the RPC timeout", () => {
         expect(await screen.findByText("The network took too long to answer.")).toBeInTheDocument()
         expect(screen.queryByText(/scan incomplete/)).toBeNull()
         expect(findValoperForProfile).toHaveBeenCalledTimes(2)
+    })
+})
+
+describe("ValidatorProfile — selection score (testnets)", () => {
+    const REALM = "gno.land/r/samcrew/validator_scores"
+    const TITLE = "Selection score (testnets)"
+    const scored = (operators: string[]): SelectionScoreEdition => ({
+        number: 1, computedAt: "2026-10-13T09:00:00Z", scorecardSHA256: "ab".repeat(32), arenas: ["challenge", "firedrill"],
+        candidates: new Map(operators.map((operator): [string, SelectionScoreEntry] =>
+            [operator, { operator, moniker: MONIKER, total: 8743, rank: 3, github: 230, arenaScores: [9000, 7500] }])),
+    })
+    // The read has returned and its result has rendered, so an absence below is not just "not yet".
+    const settled = async () => {
+        await waitFor(() => expect(fetchLatestSelectionScores).toHaveReturned())
+        await act(async () => {})
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(fetchUserProfile).mockResolvedValue(null)
+        setActivity()
+        vi.mocked(validatorScoresRealmFor).mockReturnValue(REALM)
+    })
+    afterEach(() => { vi.mocked(validatorScoresRealmFor).mockReturnValue(null) })
+
+    it("shows a registered candidate's entry on Overview, read for the active network", async () => {
+        vi.mocked(fetchLatestSelectionScores).mockResolvedValue(scored([OPERATOR]))
+        setData([valoper()])
+        renderAt(OPERATOR)
+        const card = await screen.findByRole("region", { name: TITLE })
+        expect(within(screen.getByTestId("vp-tab-overview")).getByRole("region", { name: TITLE })).toBe(card)
+        expect(within(card).getByText("87.4")).toBeInTheDocument()
+        expect(within(card).getByText("#3")).toBeInTheDocument()
+        expect(within(card).getByRole("link", { name: "View the on-chain record ↗" }))
+            .toHaveAttribute("href", "https://test13.testnets.gno.land/r/samcrew/validator_scores")
+        expect(validatorScoresRealmFor).toHaveBeenCalledWith("test13")
+        expect(fetchLatestSelectionScores).toHaveBeenCalledWith(REALM)
+    })
+
+    it("shows it for an active validator too, next to its live performance", async () => {
+        vi.mocked(fetchLatestSelectionScores).mockResolvedValue(scored([OPERATOR]))
+        setData([valoper({ status: "active" })], [SIGN])
+        renderAt(OPERATOR)
+        expect(await screen.findByRole("region", { name: TITLE })).toBeInTheDocument()
+        expect(screen.getByTestId("perf-panel")).toBeInTheDocument()
+    })
+
+    it("shows no card for an operator without an entry", async () => {
+        vi.mocked(fetchLatestSelectionScores).mockResolvedValue(scored(["g1other0000000000000000000000000000000000"]))
+        setData([valoper()])
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        await settled()
+        expect(screen.queryByRole("region", { name: TITLE })).toBeNull()
+    })
+
+    it("reads nothing for a genesis validator, which has no operator record to key a score by", async () => {
+        setData([], [GENESIS])
+        renderAt(GENESIS)
+        await screen.findByTestId("vp-genesis-note")
+        await act(async () => {})
+        expect(fetchLatestSelectionScores).not.toHaveBeenCalled()
+        expect(screen.queryByRole("region", { name: TITLE })).toBeNull()
+    })
+
+    it("reads nothing where the network has no selection scores realm", async () => {
+        vi.mocked(validatorScoresRealmFor).mockReturnValue(null)
+        setData([valoper()])
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        await act(async () => {})
+        expect(fetchLatestSelectionScores).not.toHaveBeenCalled()
+        expect(screen.queryByRole("region", { name: TITLE })).toBeNull()
     })
 })
