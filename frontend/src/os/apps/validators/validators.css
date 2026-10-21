@@ -18,6 +18,9 @@
 /* The table's scroll box holds those hidden labels, so none can widen the window. */
 .memba-os .os-validators .os-tw { position: relative; }
 
+/* The right-aligned Rank would touch the left-aligned Hosting text: leave a gap after it. */
+.memba-os .os-validators-candidates[data-scored] .os-t :is(th, td):nth-child(3) { padding-right: 24px; }
+
 /* A narrow window keeps rank, name, share and health. Columns leave by position
    (native.tsx COLUMNS): voting power (3) and participation (5) first, since share
    ranks the same way, then uptime (6) and the address under a name; a candidate's
