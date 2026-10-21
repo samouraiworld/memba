@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validators: selection scores from the testnets (2026-10-20)
+- The Candidates list of the Validators window gets **Score** and **Rank** columns once the validator selection ranking is published on chain (`gno.land/r/samcrew/validator_scores`): each operator's total (`87.4`) and rank (`3`), and a dash for an operator with no published score. The list then opens sorted by score, highest first, then by name.
+- A validator's page shows a **Selection score (testnets)** card when its operator has a published score: edition date, total, rank, the score of each arena, the GitHub bonus, and a link to the on-chain record.
+- Hidden until the realm is deployed on gno.land mainnet; the active-set list gets no score column.
+- Developers: `VITE_ENABLE_LOCAL_NETWORK=true` on the dev server adds a `local` network (gnodev at `http://localhost:26657`, chain `dev`) for testing against a local realm. Production builds never include it.
+
 ### memba.samourai.app redirect made permanent (2026-10-17)
 - The redirect from memba.samourai.app (and memba-multisig.netlify.app) to the same address on memba.club is now permanent (`301`): browsers and search engines remember it and go straight to memba.club. The old site's service-worker kill switch stays in place.
 - Removed the "Memba has moved to memba.club" banner: no page of the old address is served any more, so nobody could see it.

@@ -114,6 +114,8 @@ export interface GnoRpcCall {
 export async function fulfillOnchainReads(
     page: Page,
     respond: (call: GnoRpcCall) => string | object | null | undefined,
+    /** More RPC hosts to answer, e.g. the dev-only local gnodev node (http://localhost:26657). */
+    extraHosts: readonly RegExp[] = [],
 ): Promise<void> {
     const abciEnvelope = (id: unknown, dataB64: string) => ({
         jsonrpc: '2.0',
@@ -123,7 +125,7 @@ export async function fulfillOnchainReads(
 
     await page.route('**/*', async route => {
         const req = route.request()
-        if (!isOnchainRead(req.url())) return route.fallback()
+        if (!isOnchainRead(req.url()) && !extraHosts.some(re => re.test(req.url()))) return route.fallback()
 
         let body: { id?: unknown; method?: string; params?: { path?: string; data?: string } } = {}
         try { body = JSON.parse(req.postData() || '{}') } catch { /* GET-style read or non-JSON body */ }

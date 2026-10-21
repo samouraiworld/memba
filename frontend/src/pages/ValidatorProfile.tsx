@@ -17,12 +17,13 @@ import { GNOLOVE_ONCHAIN_DATA_ENABLED, GNOLOVE_ONCHAIN_UNAVAILABLE } from "../li
  *  redirects here. */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, Navigate, useLocation, useOutletContext, useParams } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import {
     Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple,
     Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise,
 } from "@phosphor-icons/react"
-import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, MEMBA_DAO, NETWORKS, getExplorerBaseUrl, isReviewsAvailable, isReviewsValid } from "../lib/config"
+import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, MEMBA_DAO, NETWORKS, getExplorerBaseUrl, isReviewsAvailable, isReviewsValid, validatorScoresRealmFor } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import {
     findValoperForProfile,
@@ -49,6 +50,8 @@ import { loadQuestProgress, fetchUserQuests, completeQuest, trackPageVisit, type
 import { getQuestById, calculateRank, xpToNextRank } from "../lib/gnobuilders"
 import { ValoperEditDialog } from "../components/validators/ValoperEditDialog"
 import { ValidatorPerformancePanel } from "../components/validators/ValidatorPerformancePanel"
+import { ValidatorSelectionScoreCard } from "../components/validators/ValidatorSelectionScoreCard"
+import { selectionScoresQuery } from "../lib/validatorSelectionScores"
 import type { LayoutContext } from "../types/layout"
 import "../components/validators/hacker-mode.css"
 import "./validator-detail.css"
@@ -358,6 +361,15 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
     }, [load])
 
     const valoper = resolution?.valoper ?? null
+
+    // The validator selection ranking (testnets): read once a registered operator is
+    // known (scores are keyed by operator address), and only where the network has the
+    // realm. Same cache entry as the Validators window's Candidates list.
+    const scoresRealm = validatorScoresRealmFor(ACTIVE_NETWORK_KEY)
+    const selectionScores = useQuery({
+        ...selectionScoresQuery(ACTIVE_NETWORK_KEY),
+        enabled: scoresRealm !== null && valoper !== null,
+    })
     // Name precedence: valoper record → on-chain genesis moniker → curated gnolove identity
     // label (e.g. a genesis validator we know by team) → truncated address.
     const moniker = valoper?.moniker || genesisMoniker || mappedIdentity?.label || (address ? truncateValidatorAddr(address) : "")
@@ -556,6 +568,12 @@ function ValidatorProfileForAddress({ address }: { address?: string }) {
 
                     {/* Live performance metrics, surfaced by default (was an isolated tab). */}
                     <ValidatorPerformancePanel signingAddress={resolution.performanceAddress} isActive={isActive} />
+
+                    {/* The published selection ranking, beside the live score; nothing without an entry. */}
+                    {valoper && scoresRealm && (
+                        <ValidatorSelectionScoreCard edition={selectionScores.data} operatorAddress={valoper.operatorAddress}
+                            realmUrl={`${getExplorerBaseUrl()}${scoresRealm.replace(/^gno\.land/, "")}`} />
+                    )}
 
                     <div className="vp-peek">
                         <button type="button" className="vp-peek__link" onClick={() => setTab("Activity")}>View activity →</button>
