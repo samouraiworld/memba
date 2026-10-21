@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as shared from "./dao/shared"
-import { GNO_RPC_URL, validatorScoresRealmFor } from "./config"
+import { GNO_RPC_URL } from "./config"
 import {
     arenaLabel,
     byScoreThenMoniker,
@@ -15,6 +15,14 @@ import {
     selectionScoresQueryKey,
     SELECTION_SCORES_STALE_MS,
 } from "./validatorSelectionScores"
+
+// Real config, except the realm path per network, which a test can pin.
+const config = vi.hoisted(() => ({ realmFor: vi.fn() }))
+vi.mock("./config", async (actual) => {
+    const real = await actual<typeof import("./config")>()
+    config.realmFor.mockImplementation(real.validatorScoresRealmFor)
+    return { ...real, validatorScoresRealmFor: config.realmFor }
+})
 
 const REALM = "gno.land/r/samcrew/validator_scores"
 const AVIAONE = `g1${"a".repeat(38)}`
@@ -171,14 +179,13 @@ describe("selectionScoresQuery", () => {
     afterEach(() => vi.restoreAllMocks())
 
     it("carries the shared key and freshness, and reads the network's realm", async () => {
+        config.realmFor.mockImplementation((network: string) => network === "mainnet" ? REALM : null)
         const qe = vi.spyOn(shared, "queryEval").mockResolvedValue(qeval(latest()))
         const query = selectionScoresQuery("mainnet")
         expect(query.queryKey).toEqual(selectionScoresQueryKey("mainnet"))
         expect(query.staleTime).toBe(SELECTION_SCORES_STALE_MS)
-        const realm = validatorScoresRealmFor("mainnet")
-        await query.queryFn()
-        if (realm) expect(qe).toHaveBeenCalledWith(GNO_RPC_URL, realm, "LatestJSON()")
-        else expect(qe).not.toHaveBeenCalled()
+        expect((await query.queryFn())?.number).toBe(1)
+        expect(qe).toHaveBeenCalledWith(GNO_RPC_URL, REALM, "LatestJSON()")
     })
 
     it("reads nothing on a network without the realm", async () => {
