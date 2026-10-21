@@ -67,21 +67,25 @@ async function openCandidates(page: Page) {
 test('Candidates show the published selection score, sorted by score then name, with a dash for an operator without one', async ({ page }) => {
     await fixture(page, 960)
     const win = await openCandidates(page)
-    await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Hosting', 'Operator address'])
+    await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Rank', 'Hosting', 'Operator address'])
     await expect(win.getByRole('button', { name: /^Open operator / })).toHaveText(['Pike', 'Orca', 'Acme'])
-    await expect(win.locator('tr', { hasText: 'Pike' })).toContainText('91.2 · #1')
-    await expect(win.locator('tr', { hasText: 'Orca' })).toContainText('87.4 · #3')
+    await expect(win.locator('tr', { hasText: 'Pike' }).locator('td').nth(1)).toHaveText('91.2')
+    await expect(win.locator('tr', { hasText: 'Pike' }).locator('td').nth(2)).toHaveText('1')
+    await expect(win.locator('tr', { hasText: 'Orca' }).locator('td').nth(1)).toHaveText('87.4')
+    await expect(win.locator('tr', { hasText: 'Orca' }).locator('td').nth(2)).toHaveText('3')
     const acme = win.locator('tr', { hasText: 'Acme' })
     await expect(acme).toContainText('—')
-    await expect(acme).not.toContainText('·')
+    await expect(acme.locator('td').nth(1)).toContainText('No selection score')
+    await expect(acme.locator('td').nth(2)).toContainText('No selection rank')
+    await expect(win.getByText('Rank among all scored candidates. A dash: no published score.', { exact: false })).toBeVisible()
     await expect(win.getByText(/edition 1, 13 Oct 2026/)).toBeVisible()
 })
 
-test('A 360 px window keeps the operator, its score and hosting, and fits', async ({ page }) => {
+test('A 360 px window keeps the operator, its score, rank and hosting, and fits', async ({ page }) => {
     await fixture(page, 360)
     const win = await openCandidates(page)
     await expect(win.getByRole('button', { name: 'Open operator Orca' })).toBeVisible()
-    await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Hosting'])
+    await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Rank', 'Hosting'])
     const fit = await page.locator('.os-wbody').first().evaluate(body => {
         const edge = body.getBoundingClientRect().right
         return {
@@ -101,7 +105,7 @@ test('A scored operator\'s page shows the Selection score (testnets) card; an op
     const card = profile.getByRole('region', { name: 'Selection score (testnets)' })
     await expect(card).toContainText('Edition 1 · computed 13 Oct 2026')
     await expect(card).toContainText('87.4')
-    await expect(card).toContainText('#3')
+    await expect(card).toContainText('Rank')
     await expect(card).toContainText('Fire drill')
     await expect(card.getByRole('link', { name: 'View the on-chain record ↗' })).toHaveAttribute('href', 'http://localhost:8888/r/samcrew/validator_scores')
 

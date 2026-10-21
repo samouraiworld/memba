@@ -34,7 +34,7 @@ describe("ValidatorSelectionScoreCard", () => {
     it("shows the total, the rank, every arena and the GitHub bonus, one decimal each", () => {
         renderCard(edition())
         expect(figures()).toEqual([
-            ["Total", "87.4"], ["Rank", "#3"],
+            ["Total", "87.4"], ["Rank", "3"],
             ["Challenge", "90.0"], ["Test13", "85.0"], ["Topaz", "80.0"], ["Sapphire", "91.0"], ["Pearl", "88.0"], ["Fire drill", "75.0"],
             ["GitHub bonus", "2.3"],
         ])

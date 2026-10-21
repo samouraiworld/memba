@@ -8,7 +8,6 @@ import {
     fetchLatestSelectionScores,
     formatEditionDate,
     formatHundredths,
-    formatSelectionScore,
     parseSelectionScores,
     selectionScoreFor,
     selectionScoresQuery,
@@ -130,10 +129,6 @@ describe("formatting", () => {
     it("shows hundredths with one decimal, rounding half away from zero with no float drift", () => {
         expect([8743, 8745, 8749, 0, 4, 5, 10000, -15, -4].map(formatHundredths))
             .toEqual(["87.4", "87.5", "87.5", "0.0", "0.0", "0.1", "100.0", "-0.2", "0.0"])
-    })
-
-    it("writes a score as total and rank", () => {
-        expect(formatSelectionScore({ total: 8743, rank: 3 })).toBe("87.4 · #3")
     })
 
     it("dates an edition by its UTC day, and keeps text that is not a date", () => {

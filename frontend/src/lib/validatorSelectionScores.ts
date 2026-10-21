@@ -111,11 +111,6 @@ export function formatHundredths(n: number): string {
     return `${sign}${Math.floor(tenths / 10)}.${tenths % 10}`
 }
 
-/** "87.4 · #3": total and rank. */
-export function formatSelectionScore(entry: Pick<SelectionScoreEntry, "total" | "rank">): string {
-    return `${formatHundredths(entry.total)} · #${entry.rank}`
-}
-
 /** "13 Oct 2026" (UTC day of the computation), or the text as given when it is not a date. */
 export function formatEditionDate(computedAt: string): string {
     const time = Date.parse(computedAt)

@@ -21,7 +21,7 @@ import { fetchValidatorRoster, ROSTER_REFRESH_MS, type ValidatorRoster } from ".
 import { formatBlockTime, formatPercent, formatVotingPower, truncateValidatorAddr, type ValidatorInfo } from "../../../lib/validators"
 import { computeValoperStatus, fetchValopers, type ValoperWithStatus } from "../../../lib/valopers"
 import {
-    byScoreThenMoniker, compareTotals, formatEditionDate, formatSelectionScore, selectionScoreFor, selectionScoresQuery,
+    byScoreThenMoniker, compareTotals, formatEditionDate, formatHundredths, selectionScoreFor, selectionScoresQuery,
     SELECTION_SCORES_STALE_MS, type SelectionScoreEdition,
 } from "../../../lib/validatorSelectionScores"
 import { Chips, Empty, ErrorState, Loading, Pill, Segmented, StatGrid, Table, type Column, type PillTone, type Stat } from "../../kit"
@@ -119,7 +119,7 @@ const COLUMNS: readonly Column<ValidatorInfo>[] = [
 ]
 
 // validators.css drops the operator address by position in a narrow window: third
-// here, fourth once the Score column is in (marked by data-scored). Keep them in step.
+// here, fifth once the Score and Rank columns are in (marked by data-scored). Keep them in step.
 const CANDIDATE_COLUMNS: readonly Column<ValoperWithStatus>[] = [
     { key: "operator", label: "Operator", render: (o) => <span className="os-validators-name">{o.moniker}</span>, sort: (a, b) => a.moniker.localeCompare(b.moniker) },
     // The registry's own word when it is not one of the three the realm documents (never a prototype key).
@@ -127,18 +127,34 @@ const CANDIDATE_COLUMNS: readonly Column<ValoperWithStatus>[] = [
     { key: "address", label: "Operator address", render: (o) => <span className="os-mono os-validators-address">{o.operatorAddress}</span> },
 ]
 
-/** The candidates' columns with the published selection score after the operator's name. */
+/** The candidates' columns with the published selection score and rank after the operator's name. */
 function scoredCandidateColumns(edition: SelectionScoreEdition): readonly Column<ValoperWithStatus>[] {
-    const total = (o: ValoperWithStatus) => selectionScoreFor(edition, o.operatorAddress)?.total ?? null
+    const entryOf = (o: ValoperWithStatus) => selectionScoreFor(edition, o.operatorAddress)
+    const total = (o: ValoperWithStatus) => entryOf(o)?.total ?? null
+    const rank = (o: ValoperWithStatus) => entryOf(o)?.rank ?? null
     const score: Column<ValoperWithStatus> = {
         key: "score", label: "Score", align: "end", sort: (a, b) => compareTotals(total(a), total(b)),
         render: (o) => {
-            const entry = selectionScoreFor(edition, o.operatorAddress)
-            return entry ? formatSelectionScore(entry) : <NoData label="No selection score" />
+            const entry = entryOf(o)
+            return entry ? formatHundredths(entry.total) : <NoData label="No selection score" />
+        },
+    }
+    // Ascending is best first (rank 1), an operator with no rank after every ranked one.
+    const rankColumn: Column<ValoperWithStatus> = {
+        key: "selection-rank", label: "Rank", align: "end",
+        sort: (a, b) => {
+            const ra = rank(a)
+            const rb = rank(b)
+            if (ra === null) return rb === null ? 0 : 1
+            return rb === null ? -1 : ra - rb
+        },
+        render: (o) => {
+            const entry = entryOf(o)
+            return entry ? entry.rank : <NoData label="No selection rank" />
         },
     }
     const [operatorColumn, ...rest] = CANDIDATE_COLUMNS
-    return [operatorColumn, score, ...rest]
+    return [operatorColumn, score, rankColumn, ...rest]
 }
 
 function summary(roster: ValidatorRoster): Stat[] {
@@ -233,8 +249,8 @@ function Candidates({ roster, network, active, onOpen }: { roster: ValidatorRost
         {registry.isError && <ErrorState message="The last read of the operator registry failed: this list may be out of date." onRetry={() => void registry.refetch()} />}
         <p className="os-sub os-validators-foot">Operators registered in gno.land/r/gnops/valopers whose signing key is not in the consensus set.</p>
         {edition && <p className="os-sub os-validators-foot">
-            Score: total and rank in the validator selection ranking from the testnets (edition {edition.number}, {formatEditionDate(edition.computedAt)}),
-            recorded in {scoresRealm}. A dash: no score was published for that operator.
+            <strong>Selection score</strong>: global score over the testnet challenges (edition {edition.number}, {formatEditionDate(edition.computedAt)}).
+            Rank among all scored candidates. A dash: no published score.
         </p>}
         <div className="os-validators-candidates" data-scored={edition ? "true" : undefined}>
             <Table columns={edition ? scoredCandidateColumns(edition) : CANDIDATE_COLUMNS} rows={rows} rowKey={(o) => o.operatorAddress} pageSize={PAGE_SIZE}

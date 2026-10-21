@@ -772,7 +772,7 @@ describe("ValidatorProfile — selection score (testnets)", () => {
         const card = await screen.findByRole("region", { name: TITLE })
         expect(within(screen.getByTestId("vp-tab-overview")).getByRole("region", { name: TITLE })).toBe(card)
         expect(within(card).getByText("87.4")).toBeInTheDocument()
-        expect(within(card).getByText("#3")).toBeInTheDocument()
+        expect(within(card).getByText("3")).toBeInTheDocument()
         expect(within(card).getByRole("link", { name: "View the on-chain record ↗" }))
             .toHaveAttribute("href", "https://test13.testnets.gno.land/r/samcrew/validator_scores")
         expect(validatorScoresRealmFor).toHaveBeenCalledWith("test13")

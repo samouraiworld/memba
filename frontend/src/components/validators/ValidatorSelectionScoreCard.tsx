@@ -39,7 +39,7 @@ export function ValidatorSelectionScoreCard({
 
     const figures: Array<[string, string, boolean]> = [
         ["Total", formatHundredths(entry.total), true],
-        ["Rank", `#${entry.rank}`, true],
+        ["Rank", String(entry.rank), true],
         ...edition.arenas.map((arena, i): [string, string, boolean] => [arenaLabel(arena), formatHundredths(entry.arenaScores[i]), false]),
         ["GitHub bonus", formatHundredths(entry.github), false],
     ]

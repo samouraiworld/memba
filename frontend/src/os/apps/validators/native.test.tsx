@@ -526,17 +526,21 @@ describe("Validators window · candidates · selection scores", () => {
         read.scoresRealm.mockReturnValue(REALM)
     })
 
-    it("adds a Score column, total and rank with one decimal, and opens sorted by score, then by name", async () => {
+    it("adds Score and Rank columns, the total with one decimal and the rank as a plain integer, and opens sorted by score, then by name", async () => {
         read.scores.mockResolvedValue(edition([[ZED, 8743, 3], [BRAVO, 9120, 1], [ACME, 8743, 2], [BASALT_OPS, 9900, 1]]))
         show(null, "tab=candidates")
         expect(await screen.findByRole("button", { name: "Score" })).toBeInTheDocument()
-        expect(headers()).toEqual(["Operator", "Score", "Hosting", "Operator address"])
+        expect(headers()).toEqual(["Operator", "Score", "Rank", "Hosting", "Operator address"])
         // Equal totals fall back to the name; Basalt Ops validates, so it is not a candidate here.
         expect(column(0)).toEqual(["Bravo", "Acme", "Zed Ops"])
-        expect(column(1)).toEqual(["91.2 · #1", "87.4 · #2", "87.4 · #3"])
+        expect(column(1)).toEqual(["91.2", "87.4", "87.4"])
+        expect(column(2)).toEqual(["1", "2", "3"])
         expect(read.scoresRealm).toHaveBeenCalledWith("mainnet")
         expect(read.scores).toHaveBeenCalledWith(REALM)
         expect(screen.getByText(/edition 1, 13 Oct 2026/)).toBeInTheDocument()
+        expect(screen.getByText("Selection score").tagName).toBe("STRONG")
+        expect(screen.getByRole("table").closest(".os-validators-candidates")?.previousElementSibling?.textContent).toBe(
+            "Selection score: global score over the testnet challenges (edition 1, 13 Oct 2026). Rank among all scored candidates. A dash: no published score.")
         expect(screen.getByRole("table").closest(".os-validators-candidates")).toHaveAttribute("data-scored")
     })
 
@@ -545,9 +549,9 @@ describe("Validators window · candidates · selection scores", () => {
         show(null, "tab=candidates")
         await screen.findByRole("button", { name: "Score" })
         expect(column(0)).toEqual(["Zed Ops", "Bravo", "Acme"])
-        expect(cells("Open operator Acme")).toEqual(["Acme", "—No selection score", "—Not stated", ACME])
+        expect(cells("Open operator Acme")).toEqual(["Acme", "—No selection score", "—No selection rank", "—Not stated", ACME])
         // A published total of zero is a score, and is shown as one.
-        expect(cells("Open operator Bravo")[1]).toBe("0.0 · #9")
+        expect(cells("Open operator Bravo").slice(1, 3)).toEqual(["0.0", "9"])
     })
 
     it("sorts by the Score header, a missing score below every real one", async () => {
@@ -559,6 +563,18 @@ describe("Validators window · candidates · selection scores", () => {
         expect(header.closest("th")).toHaveAttribute("aria-sort", "ascending")
         fireEvent.click(header)
         expect(column(0)).toEqual(["Bravo", "Zed Ops", "Acme"])
+        expect(header.closest("th")).toHaveAttribute("aria-sort", "descending")
+    })
+
+    it("sorts by the Rank header, best rank first, an operator with no rank after every ranked one", async () => {
+        read.scores.mockResolvedValue(edition([[ZED, 8743, 3], [BRAVO, 9120, 1]]))
+        show(null, "tab=candidates")
+        const header = await screen.findByRole("button", { name: "Rank" })
+        fireEvent.click(header)
+        expect(column(0)).toEqual(["Bravo", "Zed Ops", "Acme"])
+        expect(header.closest("th")).toHaveAttribute("aria-sort", "ascending")
+        fireEvent.click(header)
+        expect(column(0)).toEqual(["Acme", "Zed Ops", "Bravo"])
         expect(header.closest("th")).toHaveAttribute("aria-sort", "descending")
     })
 
