@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security floors: Go 1.26.10 and patched vite (2026-10-21)
+- Backend builds with Go 1.26.10 (`backend/go.mod` and both `backend/Dockerfile` stages), which fixes GO-2026-6809 (`crypto/x509` no longer trusts the compromised intermediate certificates).
+- The frontend uses vite 7.3.7, and the workspace packages vite 8.3.4 (root override raised to `>=8.3.3`, which admits no vulnerable 8.x release), which fixes GHSA-587h-7wmj-h5pm (the `launch-editor` file check bypass on Windows, dev server only). Nothing changes in the shipped app.
+
 ### memba.samourai.app redirect made permanent (2026-10-17)
 - The redirect from memba.samourai.app (and memba-multisig.netlify.app) to the same address on memba.club is now permanent (`301`): browsers and search engines remember it and go straight to memba.club. The old site's service-worker kill switch stays in place.
 - Removed the "Memba has moved to memba.club" banner: no page of the old address is served any more, so nobody could see it.
