@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Accessible names match the visible text (2026-10-22)
+- Buttons and links whose screen-reader name left out the words on screen now include them (WCAG 2.5.3, Label in Name): Directory "View source" (now "View source of …"), the Create DAO and DAO page back buttons ("Back to DAOs"), the validator cards (named by their content, health included), the Memba OS Validators rows (name and short address), the Explorer realm rows and the Live ticker ("Open Live. …").
+- Test tooling: Playwright 1.64.1, axe-core 4.14 (which now reports these mismatches), typescript-eslint 8.71.2 and four smaller dev-dependency updates.
+
 ### Dependency updates and the last known advisories cleared (2026-10-22)
 - Backend: `golang.org/x/crypto` 0.58.0, `golang.org/x/sync` 0.24.0, `connectrpc.com/connect` 1.21.1, `prometheus/client_golang` 1.25.0.
 - Frontend: React 19.3.1, viem 2.57.7, zod 4.6.7, the Safe kits, marked, CodeMirror, TanStack Query 5.104.4, Sentry 10.76.2, react-three-fiber 9.8.2, vitest 4.1.12.
