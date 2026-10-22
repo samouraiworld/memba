@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependency updates and the last known advisories cleared (2026-10-22)
+- Backend: `golang.org/x/crypto` 0.58.0, `golang.org/x/sync` 0.24.0, `connectrpc.com/connect` 1.21.1, `prometheus/client_golang` 1.25.0.
+- Frontend: React 19.3.1, viem 2.57.7, zod 4.6.7, the Safe kits, marked, CodeMirror, TanStack Query 5.104.4, Sentry 10.76.2, react-three-fiber 9.8.2, vitest 4.1.12.
+- Security floors raised to the patched releases (`fast-uri`, `hono`, `ip-address`, `vitest`): `npm audit` and `pnpm audit` now report no known vulnerability (11 moderate advisories before, all in development or build tooling, none reachable from the shipped app).
+
 ### Security floors: Go 1.26.10 and patched vite (2026-10-21)
 - Backend builds with Go 1.26.10 (`backend/go.mod` and both `backend/Dockerfile` stages), which fixes GO-2026-6809 (`crypto/x509` no longer trusts the compromised intermediate certificates).
 - The frontend uses vite 7.3.7, and the workspace packages vite 8.3.4 (root override raised to `>=8.3.3`, which admits no vulnerable 8.x release), which fixes GHSA-587h-7wmj-h5pm (the `launch-editor` file check bypass on Windows, dev server only). Nothing changes in the shipped app.
