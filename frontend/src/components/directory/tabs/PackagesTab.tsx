@@ -73,7 +73,7 @@ export function PackagesTab({ onOpenDetail }: { onOpenDetail?: (path: string) =>
                                 </div>
                             </div>
                             <div className="dir-card-actions">
-                                <button type="button" className="dir-gnoweb-link" onClick={() => { if (onOpenDetail) onOpenDetail(p.path); else { setDrawerPath(p.path); setDrawerGnowebUrl(p.gnowebUrl) } }} aria-label={`View ${p.name} source`}>View source</button>
+                                <button type="button" className="dir-gnoweb-link" onClick={() => { if (onOpenDetail) onOpenDetail(p.path); else { setDrawerPath(p.path); setDrawerGnowebUrl(p.gnowebUrl) } }} aria-label={`View source of ${p.name}`}>View source</button>
                                 {p.gnowebUrl && (
                                     <a
                                         href={p.gnowebUrl}

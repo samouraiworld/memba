@@ -16,11 +16,11 @@ export function ProSidebar({ connected, address, unvotedCount, notifUnreadCount,
         const active = proRouteActive(pathname, nk, to)
         const count = entry.id === 'dao' ? unvotedCount + notifUnreadCount : entry.id === 'feed' ? feedReplyUnread : 0
         const soon = entry.flag && !navFlagOn(entry.flag)
-        return <Link key={entry.id} to={`/${nk}${to}`} className={`k-sidebar-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined} aria-label={`${entry.label}${soon ? ', coming soon' : ''}${count > 0 ? `, ${count} notifications` : ''}`} title={collapsed ? entry.label : undefined}>
+        return <Link key={entry.id} to={`/${nk}${to}`} className={`k-sidebar-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined} aria-label={`${entry.label}${soon ? ', soon' : ''}${count > 0 ? `, ${count} notifications` : ''}`} title={collapsed ? entry.label : undefined}>
             <span className="k-sidebar-icon"><entry.Icon size={20} aria-hidden="true" /></span>
             <span className="k-sidebar-label">{entry.label}</span>
-            {count > 0 && <span className="k-sidebar-badge" aria-label={`${count} notifications`}>{count > 99 ? '99+' : count}</span>}
-            {soon && <span className="k-sidebar-badge inactive">soon</span>}
+            {count > 0 && <>{' '}<span className="k-sidebar-badge" aria-label={`${count} notifications`}>{count > 99 ? '99+' : count}</span></>}
+            {soon && <>{' '}<span className="k-sidebar-badge inactive">soon</span></>}
         </Link>
     }
     return <nav className={`k-sidebar pro-sidebar${collapsed ? ' collapsed' : ''}`} data-testid="sidebar" aria-label="Main">

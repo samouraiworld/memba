@@ -33,8 +33,8 @@ const address = (letter: string) => `g1${letter.repeat(38)}`
 const BASALT = address("a") // rank 1, monitored, signs every block: healthy
 const ALDER = address("c") // rank 2, monitored at 100% uptime, signed nothing in the window: down
 const NAMELESS = address("e") // rank 3, no moniker, not monitored, missed the latest block: degraded
-const BASALT_CELL = "Basaltg1aaaa…aaaaaa"
-const ALDER_CELL = "Alderg1cccc…cccccc"
+const BASALT_CELL = "Basalt g1aaaa…aaaaaa"
+const ALDER_CELL = "Alder g1cccc…cccccc"
 const NAMELESS_CELL = "g1eeee…eeeeee"
 
 function validator(gnoAddr: string, rank: number, votingPower: number): ValidatorInfo {
@@ -131,9 +131,9 @@ describe("Validators window · the active set", () => {
         show()
         await screen.findByRole("table")
         expect(column()).toEqual([BASALT_CELL, ALDER_CELL, NAMELESS_CELL])
-        expect(cells("Open validator Basalt")).toEqual(["1", BASALT_CELL, "50", "50.0%", "99.5%", "99.2%", "Healthy"])
+        expect(cells("Open validator Basalt, g1aaaa…aaaaaa")).toEqual(["1", BASALT_CELL, "50", "50.0%", "99.5%", "99.2%", "Healthy"])
         // Signing nothing in the window outranks a perfect long-window uptime, and the row says why.
-        expect(cells("Open validator Alder")).toEqual(["2", ALDER_CELL, "30", "30.0%", "97%", "100%", "Down20 consecutive blocks missed"])
+        expect(cells("Open validator Alder, g1cccc…cccccc")).toEqual(["2", ALDER_CELL, "30", "30.0%", "97%", "100%", "Down20 consecutive blocks missed"])
         expect(read.valopers).not.toHaveBeenCalled()
     })
 
@@ -234,7 +234,7 @@ describe("Validators window · the active set", () => {
 
     it("opens a validator's page in the same window as a history entry, carrying the view for the way back", async () => {
         show(null, "q=basalt")
-        fireEvent.click(await screen.findByRole("button", { name: "Open validator Basalt" }))
+        fireEvent.click(await screen.findByRole("button", { name: "Open validator Basalt, g1aaaa…aaaaaa" }))
         expect(opened).not.toHaveBeenCalled()
         const spec = pushed.mock.calls.at(-1)![0]
         expect(spec.key).toBe("app:validators")
@@ -297,7 +297,7 @@ describe("Validators window · when a source is missing", () => {
         expect(screen.queryByText(/healthy/i)).toBeNull()
         expect(screen.queryByRole("group")).toBeNull()
         fireEvent.click(screen.getByRole("button", { name: "Retry" }))
-        expect(await screen.findByRole("button", { name: "Open validator Basalt" })).toBeInTheDocument()
+        expect(await screen.findByRole("button", { name: "Open validator Basalt, g1aaaa…aaaaaa" })).toBeInTheDocument()
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
@@ -307,8 +307,8 @@ describe("Validators window · when a source is missing", () => {
         await screen.findByRole("table")
         expect(screen.getByRole("note")).toHaveTextContent("No monitoring data could be read.")
         expect(screen.getAllByText("No monitoring data")).toHaveLength(6)
-        expect(cells("Open validator Alder")).toEqual(["2", ALDER_CELL, "30", "30.0%", "—No monitoring data", "—No monitoring data", "Down20 consecutive blocks missed"])
-        expect(cells("Open validator Basalt").at(-1)).toBe("Healthy")
+        expect(cells("Open validator Alder, g1cccc…cccccc")).toEqual(["2", ALDER_CELL, "30", "30.0%", "—No monitoring data", "—No monitoring data", "Down20 consecutive blocks missed"])
+        expect(cells("Open validator Basalt, g1aaaa…aaaaaa").at(-1)).toBe("Healthy")
         expect(screen.queryByText("Average uptime")).toBeNull()
     })
 
@@ -316,8 +316,8 @@ describe("Validators window · when a source is missing", () => {
         read.monitoring.mockResolvedValue(new Map([monitored(BASALT, null, 99.2), monitored(ALDER, null, 100)]))
         show()
         await screen.findByRole("table")
-        expect(cells("Open validator Basalt")[4]).toBe("—No monitoring data")
-        expect(cells("Open validator Basalt")[5]).toBe("99.2%")
+        expect(cells("Open validator Basalt, g1aaaa…aaaaaa")[4]).toBe("—No monitoring data")
+        expect(cells("Open validator Basalt, g1aaaa…aaaaaa")[5]).toBe("99.2%")
         expect(screen.getByRole("note")).toHaveTextContent("Participation could not be read from the monitoring service.")
     })
 
@@ -334,7 +334,7 @@ describe("Validators window · when a source is missing", () => {
         show()
         await screen.findByRole("table")
         expect(stat("Healthy")).toHaveTextContent("0 of 30 degraded · 0 down · 3 unknown")
-        expect(cells("Open validator Basalt").at(-1)).toBe("UnknownNo monitoring data available")
+        expect(cells("Open validator Basalt, g1aaaa…aaaaaa").at(-1)).toBe("UnknownNo monitoring data available")
     })
 
     it("keeps the last set on screen and says it is not live when a refresh fails", async () => {

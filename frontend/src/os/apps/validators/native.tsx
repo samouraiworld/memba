@@ -96,7 +96,7 @@ const COLUMNS: readonly Column<ValidatorInfo>[] = [
         key: "validator", label: "Validator", sort: (a, b) => nameOf(a).localeCompare(nameOf(b)),
         render: (v) => <>
             <span className="os-validators-name">{nameOf(v)}</span>
-            {v.moniker && <span className="os-sub os-mono os-validators-sub">{shortAddress(v)}</span>}
+            {v.moniker && <>{" "}<span className="os-sub os-mono os-validators-sub">{shortAddress(v)}</span></>}
         </>,
     },
     { key: "power", label: "Voting power", align: "end", render: (v) => formatVotingPower(v.votingPower), sort: (a, b) => a.votingPower - b.votingPower },
@@ -172,7 +172,7 @@ function ActiveSet({ roster, view, chainId, setView, onOpen }: {
         {monitored && unread.length > 0 && <p className="os-note" role="note">{unread.join(" and ")} could not be read from the monitoring service.</p>}
         <div className="os-validators-set">
             <Table columns={COLUMNS} rows={rows} rowKey={(v) => v.address} openColumn="validator" pageSize={PAGE_SIZE}
-                onRowClick={(v) => onOpen(v.gnoAddr || v.address)} rowLabel={(v) => `Open validator ${nameOf(v)}`}
+                onRowClick={(v) => onOpen(v.gnoAddr || v.address)} rowLabel={(v) => `Open validator ${nameOf(v)}${v.moniker ? `, ${shortAddress(v)}` : ""}`}
                 empty={<Empty title="No validator matches this search and filter."
                     // The button goes with the empty list: focus moves to the search it cleared.
                     action={<button type="button" className="os-btn os-quiet" onClick={() => { setView({ q: "", health: "all" }); search.current?.focus() }}>Clear filters</button>} />} />

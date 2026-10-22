@@ -59,10 +59,10 @@ describe("Live activity", () => {
         expect(screen.getAllByText("Voted on governance")).toHaveLength(2)
         expect(screen.getByText("Block 123")).toBeInTheDocument()
         expect(screen.getByRole("link", { name: /Transaction/ })).toHaveAttribute("href", `https://gnoscan.io/transactions/details?txhash=${"a".repeat(64)}&chainId=gnoland-1`)
-        fireEvent.click(screen.getByRole("button", { name: /Open Live activity/ }))
+        fireEvent.click(screen.getByRole("button", { name: /Open Live\./ }))
         expect(onOpen).toHaveBeenCalledTimes(1)
         expect(mockActivity).toHaveBeenCalledTimes(1)
-        expect(screen.getByRole("button", { name: /Open Live activity/ })).toHaveAccessibleName(/Last transaction 1m ago/)
+        expect(screen.getByRole("button", { name: /Open Live\./ })).toHaveAccessibleName(/Last transaction 1m ago/)
     })
 
     it("labels a halted chain as paused even when the indexer returns data", () => {
