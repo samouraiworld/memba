@@ -51,6 +51,20 @@ The 14 E2E skips are existing test conditions, not exemptions added by this chan
 
 The production/dev npm audit gates and the pnpm fail-closed gate were refreshed after E2E and still pass. Dependency installation/resolution was not repeated, and no source or lockfile changed during validation.
 
+### CI follow-up: synchronize the private-draft removal fixture
+
+On the first PR head (`85cfb3f`), the [Node 22 coverage job](https://github.com/samouraiworld/memba/actions/runs/40477404878/job/122098930641) failed one assertion: the second draft removal still showed the safe conflict notice. Its full result was 12,456 passed / 1 failed / 21 skipped, with 1,049 passing files, one failed file and the skipped generator. The Node 20 compatibility suite passed. CI used Node 22.23.3 / npm 10.9.9; the targeted local checks below use Node 22.22.2 / npm 10.9.7.
+
+The fixture already confirms a concurrent revision-2 write survives the first removal. It then read revision 2 directly from IndexedDB and immediately clicked again, although the component's separate asynchronous read could still hold revision 1. The compare-and-swap guard correctly keeps that draft. The test now delays the real revision-2 read with a controlled promise, waits for the component's reload, and releases/flushes it inside React `act` before confirming the second removal. All original conflict, successful removal and no-unlock assertions remain. The final read also runs inside `act` to flush the removal refresh. No product code, storage guard, dependency or timeout changes accompany this fixture correction.
+
+Final targeted validation:
+
+- Ten separate complete-file runs of `CI=true npx vitest run src/os/apps/notes/private/PrivateNoteView.test.tsx --coverage --maxWorkers=1 --reporter=verbose`: 12/12 passing each (120 total), with no retry or React `act` warnings.
+- `CI=true npx vitest run src/os/apps/notes/private src/lib/notes/private src/lib/notes/drafts.test.ts --maxWorkers=1 --reporter=verbose`: 13 files / 211 tests pass.
+- ESLint on `PrivateNoteView.test.tsx` with zero warnings and `git diff --check`: pass.
+
+These targeted checks validate the later test-only correction; the broader build, backend and E2E evidence above remains from the dependency implementation. Those suites were not repeated for this fixture-only change. The remote pipeline must complete again on the updated PR head before merge.
+
 Initial concurrent local checks were interrupted after host memory pressure caused widespread timeout failures. The sequential rerun exposed a separate local toolchain mismatch: the global `gno` resolves GNOROOT to an August module (`1c6ac026fb7b`) that cannot import `chain/runtime/unsafe`. A CLI built into a task-specific `/tmp` directory from the existing, clean worktree at CI's exact mainnet pin `31b6650a100d9baf14e7669f8f0df924f1f841e0` resolves that probe. Validation uses this binary and matching GNOROOT, without changing the project's pins or the globally installed toolchain. Incomplete runs are not counted as passing.
 
 ### Reproducing the pinned unit-test environment
