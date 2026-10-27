@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependency security fixes (2026-10-27)
+- Updated DOMPurify to 3.4.17 and the affected frontend build dependencies (undici, fast-uri and serialize-javascript) to patched releases.
+- Updated the MCP server's declared Zod dependency to 4.6.7, which its SDK supports, and raised the workspace body-parser and fast-uri security floors. A protocol test verifies the server's advertised schemas, default arguments and rejection of invalid tool input before an RPC call.
+- Both committed dependency trees are regenerated; Playwright remains at 1.63.0. Validation evidence is recorded in `docs/qa/dependency-security-2026-10-27.md`.
+
 ### Accessible names match the visible text (2026-10-22)
 - Buttons and links whose screen-reader name left out the words on screen now include them (WCAG 2.5.3, Label in Name): Directory "View source" (now "View source of …"), the Create DAO and DAO page back buttons ("Back to DAOs"), the validator cards (named by their content, health included), the Memba OS Validators rows (name and short address), the Explorer realm rows and the Live ticker ("Open Live. …").
 - Test tooling: axe-core 4.14 (which now reports these mismatches), typescript-eslint 8.71.2 and four smaller dev-dependency updates. Playwright stays on 1.63.0: 1.64's Linux WebKit stops running animation frames on the test13 Directory, so a click there never completes in CI (Dependabot skips 1.64.x).

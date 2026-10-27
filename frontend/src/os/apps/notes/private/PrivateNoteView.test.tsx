@@ -161,17 +161,34 @@ describe('editing and this device\'s private drafts (D2)', () => {
         const envelope = sealPrivateDraft(scope, 1n, 1n, publicKey, { title: 'x', body: 'y', mode: 0 })
         expect((await store.saveDraft(scope, '0', { kind: 'encrypted', envelope }, createDraftSession())).status).toBe('saved')
         const confirm = vi.spyOn(window, 'confirm')
+        const getDraft = store.getDraft.bind(store)
+        let releaseReload!: () => void
+        const reloadGate = new Promise<void>(resolve => { releaseReload = resolve })
+        const readDraft = vi.spyOn(store, 'getDraft').mockImplementation(async readScope => {
+            const record = await getDraft(readScope)
+            if (record?.localRevision === '2') await reloadGate
+            return record
+        })
         edit()
         expect(await screen.findByText(/draft on this device/)).toBeVisible()
+        const readsBeforeRemoval = readDraft.mock.calls.length
         // Changed in another window while the question is open: kept.
         confirm.mockImplementationOnce(() => { void store.saveDraft(scope, '1', { kind: 'encrypted', envelope: sealPrivateDraft(scope, 2n, 1n, publicKey, { title: 'x', body: 'z', mode: 0 }) }, createDraftSession()); return true })
         fireEvent.click(screen.getByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Remove my draft on this device…' }))
         expect(await screen.findByText('Your draft changed in another window or could not be removed, so it was kept.')).toBeVisible()
+        // The conflict notice renders before the effect has necessarily loaded the new revision.
+        // Wait for that UI read and React's state update before confirming a second removal.
+        await waitFor(() => expect(readDraft.mock.calls.length).toBeGreaterThan(readsBeforeRemoval))
+        await act(async () => {
+            releaseReload()
+            expect((await readDraft.mock.results[readsBeforeRemoval].value)?.localRevision).toBe('2')
+        })
         expect((await store.getDraft(scope))?.localRevision).toBe('2')
         confirm.mockReturnValueOnce(true)
         fireEvent.click(screen.getByRole('button', { name: 'More actions' })); fireEvent.click(screen.getByRole('menuitem', { name: 'Remove my draft on this device…' }))
         expect(await screen.findByText('Your draft was removed from this device.')).toBeVisible()
-        expect(await store.getDraft(scope)).toBeNull(); expect(io.unlock).not.toHaveBeenCalled()
+        await act(async () => { expect(await store.getDraft(scope)).toBeNull() })
+        expect(io.unlock).not.toHaveBeenCalled()
     })
     it('lets the owner delete, says the refund honestly, and removes the encrypted draft once the deletion is confirmed', async () => {
         own()
