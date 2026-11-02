@@ -20,10 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validators: mainnet selection scores activated (2026-11-02)
+- The Validators Candidates list now shows the published selection scores and global ranks for the 36 candidates of edition 1 on gno.land mainnet. Each scored operator's page shows the arena breakdown, GitHub bonus and on-chain record.
+- The first edition was sealed at block 1,267,685 after verification of all six publication transactions. The active validator set keeps its live metrics; operators without a published selection score show a dash in the Candidates list.
+
 ### Validators: selection scores from the testnets (2026-10-20)
 - The Candidates list of the Validators window gets **Score** and **Rank** columns once the validator selection ranking is published on chain (`gno.land/r/samcrew/validator_scores`): each operator's total (`87.4`) and rank (`3`), and a dash for an operator with no published score. The list then opens sorted by score, highest first, then by name.
 - A validator's page shows a **Selection score (testnets)** card when its operator has a published score: edition date, total, rank, the score of each arena, the GitHub bonus, and a link to the on-chain record.
-- Hidden until the realm is deployed on gno.land mainnet; the active-set list gets no score column.
+- Mainnet activation followed the verified deployment and sealing of edition 1 on 2026-11-02; the active-set list gets no score column.
 - Developers: `VITE_ENABLE_LOCAL_NETWORK=true` on the dev server adds a `local` network (gnodev at `http://localhost:26657`, chain `dev`) for testing against a local realm. Production builds never include it.
 ### Dependency security fixes (2026-10-27)
 - Updated DOMPurify to 3.4.17 and the affected frontend build dependencies (undici, fast-uri and serialize-javascript) to patched releases.
