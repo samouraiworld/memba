@@ -11,11 +11,11 @@ describe("validator selection scores realm per network", () => {
         expect(VALIDATOR_SCORES_REALM).toBe("gno.land/r/samcrew/validator_scores")
     })
 
-    it("is hidden on mainnet until the realm is deployed there", () => {
-        // Filling VALIDATOR_SCORES_MAINNET_PATH turns the feature on for everyone:
-        // update this pin in the same commit as the realm-versions.json record.
-        expect(VALIDATOR_SCORES_MAINNET_PATH).toBe("")
-        expect(validatorScoresRealmFor("mainnet")).toBeNull()
+    it("is on for mainnet, where the realm is deployed", () => {
+        // VALIDATOR_SCORES_MAINNET_PATH turns the feature on for everyone: setting it
+        // back to "" hides the scores, and changes this pin in the same commit.
+        expect(VALIDATOR_SCORES_MAINNET_PATH).toBe("gno.land/r/samcrew/validator_scores")
+        expect(validatorScoresRealmFor("mainnet")).toBe("gno.land/r/samcrew/validator_scores")
     })
 
     it("is hidden on every other network, and on keys every object inherits", () => {
@@ -24,8 +24,8 @@ describe("validator selection scores realm per network", () => {
         }
     })
 
-    // Tripwire: passes trivially while the mainnet path is "", and starts checking
-    // the moment someone sets it.
+    // Tripwire: passes trivially while the mainnet path is "", and checks the
+    // record whenever it is set.
     it("tripwire: once the mainnet path is set, realm-versions.json has a mainnet record for it", () => {
         const records = (JSON.parse(readFileSync(resolve(here, "../../../realm-versions.json"), "utf8")) as Record<string, Record<string, unknown>>).mainnet
         const base = VALIDATOR_SCORES_MAINNET_PATH.replace(/^gno\.land\/r\/samcrew\//, "")
@@ -70,8 +70,8 @@ describe("the dev-only local network in config", () => {
         expect(Object.hasOwn(config.VISIBLE_NETWORKS, "local")).toBe(true)
         expect(config.isTrustedRpcDomain("http://localhost:26657")).toBe(true)
         expect(config.validatorScoresRealmFor("local")).toBe("gno.land/r/samcrew/validator_scores")
-        // Mainnet stays hidden whatever the local flag says.
-        expect(config.validatorScoresRealmFor("mainnet")).toBeNull()
+        // The local flag leaves mainnet alone.
+        expect(config.validatorScoresRealmFor("mainnet")).toBe("gno.land/r/samcrew/validator_scores")
     })
 
     it("is absent from production builds, from unit tests and without the flag", async () => {

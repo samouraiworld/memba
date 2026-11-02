@@ -20,6 +20,8 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validators: selection scores on gno.land mainnet (2026-11-02)
+- The Candidates list and validator pages on gnoland-1 now show the selection scores published on chain in `gno.land/r/samcrew/validator_scores`. The realm was published by the samcrew 2-of-3 at height 1262913 and holds edition 1: 36 scored candidates, computed 2026-10-13. Operators without a published score show a dash.
 ### Validators: selection scores from the testnets (2026-10-20)
 - The Candidates list of the Validators window gets **Score** and **Rank** columns once the validator selection ranking is published on chain (`gno.land/r/samcrew/validator_scores`): each operator's total (`87.4`) and rank (`3`), and a dash for an operator with no published score. The list then opens sorted by score, highest first, then by name.
 - A validator's page shows a **Selection score (testnets)** card when its operator has a published score: edition date, total, rank, the score of each arena, the GitHub bonus, and a link to the on-chain record.
