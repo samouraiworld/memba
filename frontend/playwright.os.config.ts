@@ -4,8 +4,8 @@ import { defineConfig, devices } from '@playwright/test'
 // turns on flag-gated features (Feed, the App Store registry, listing submissions, app
 // reviews, profile publishing, a GitHub OAuth client id and a Clerk key for an
 // unreachable test host) so their flows run without changing what the other OS
-// tests see, a fourth runs native multisig broadcast (off by default), and a fifth
-// the EVM network (VITE_ENABLE_EVM).
+// tests see, a fourth runs native multisig broadcast (off by default), a fifth
+// the EVM network (VITE_ENABLE_EVM), and a sixth the dev-only local network.
 const ON_PORT = Number(process.env.MEMBA_OS_ON_TEST_PORT) || 5193
 const OFF_PORT = Number(process.env.MEMBA_OS_OFF_TEST_PORT) || 5194
 export const OS_ON = `http://127.0.0.1:${ON_PORT}`
@@ -20,6 +20,10 @@ export const OS_NATIVE_MSIG = `http://127.0.0.1:${NATIVE_MSIG_PORT}`
 // The EVM network (Base Sepolia) behind VITE_ENABLE_EVM: a fifth server so the other OS tests never see it.
 const EVM_PORT = Number(process.env.MEMBA_OS_EVM_TEST_PORT) || 5198
 export const OS_EVM = `http://127.0.0.1:${EVM_PORT}`
+// The dev-only local gnodev network (VITE_ENABLE_LOCAL_NETWORK): a sixth server so no
+// other OS test sees it in the network menu. Its RPC is answered by the spec itself.
+const LOCAL_PORT = Number(process.env.MEMBA_OS_LOCAL_TEST_PORT) || 5199
+export const OS_LOCAL = `http://127.0.0.1:${LOCAL_PORT}`
 
 export default defineConfig({
     testDir: './e2e/os',
@@ -57,6 +61,11 @@ export default defineConfig({
             command: `npm run dev -- --host 127.0.0.1 --port ${EVM_PORT} --strictPort`,
             env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_EVM: 'true' },
             url: OS_EVM, reuseExistingServer: false, timeout: 120_000,
+        },
+        {
+            command: `npm run dev -- --host 127.0.0.1 --port ${LOCAL_PORT} --strictPort`,
+            env: { VITE_MEMBA_OS: 'true', VITE_ENABLE_LOCAL_NETWORK: 'true' },
+            url: OS_LOCAL, reuseExistingServer: false, timeout: 120_000,
         },
     ],
 })

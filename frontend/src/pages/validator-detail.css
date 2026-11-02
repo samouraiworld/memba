@@ -453,6 +453,11 @@ h1.vd-moniker {
     .vd-score-tab__score { font-size: 1.1rem; }
 }
 
+/* ── Selection score (testnets): the published ranking ──── */
+
+.vd-selection .vd-score-driver--key dd { font-size: 1.3rem; font-weight: 700; line-height: 1.15; }
+.vd-selection .vp-peek__link { align-self: flex-start; }
+
 /* ── Responsive ─────────────────────────────────────────── */
 
 @media (max-width: 768px) {

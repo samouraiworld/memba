@@ -15,6 +15,8 @@
 // nftConfig is dependency-free (zero imports), so this edge is cycle-safe and
 // keeps the v3 market path single-sourced for the isNftMarketV3Valid() predicate.
 import { NFT_MARKETPLACE_V3_PATH } from "./nftConfig"
+// localNetwork is dependency-free too (same cycle-safety as nftConfig).
+import { LOCAL_CHAIN_ID, LOCAL_GNOWEB_URL, LOCAL_NETWORK_KEY, LOCAL_RPC_URL, localNetworkEnabled } from "./localNetwork"
 
 // ── 1. App Identity ──────────────────────────────────────────
 export const APP_VERSION = __APP_VERSION__
@@ -122,6 +124,12 @@ interface NetworkConfig {
     realmsDeployed?: boolean
     userDaos?: { create: boolean; channelsCompanion: boolean }
 }
+
+/** The dev-only gnodev network (lib/localNetwork.ts): the dev server with
+ *  VITE_ENABLE_LOCAL_NETWORK=true only. `import.meta.env.DEV` is the literal
+ *  `false` in a production build, so the bundler drops the network entirely. */
+export const LOCAL_NETWORK_ENABLED =
+    import.meta.env.DEV && localNetworkEnabled(import.meta.env.MODE, import.meta.env.VITE_ENABLE_LOCAL_NETWORK)
 
 /** Available Gno networks for the chain selector. */
 export const NETWORKS: Record<string, NetworkConfig> = {
@@ -253,6 +261,23 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         faucetUrl: "https://faucet.gno.land",
         explorerUrl: "https://onyx.testnets.gno.land",
     },
+    // Dev-only gnodev node (LOCAL_NETWORK_ENABLED). Visible, so Memba OS — whose
+    // URLs carry no network prefix — can run on it from the network menu. No
+    // fallback, no indexer, no faucet; `localhost` is in TRUSTED_RPC_DOMAINS.
+    ...(LOCAL_NETWORK_ENABLED ? {
+        [LOCAL_NETWORK_KEY]: {
+            chainId: LOCAL_CHAIN_ID,
+            userDaos: { create: false, channelsCompanion: false },
+            realmsDeployed: false,
+            isTestnet: true,
+            rpcUrl: LOCAL_RPC_URL,
+            fallbackRpcUrls: [],
+            label: "Local (gnodev)",
+            userRegistryPath: "gno.land/r/sys/users",
+            faucetUrl: "",
+            explorerUrl: LOCAL_GNOWEB_URL,
+        },
+    } : {}),
 }
 
 /** Whether `key` names a network in the registry. Only the registry's own keys
@@ -1063,6 +1088,26 @@ export function connect4PathFor(networkKey: string): string | null {
 const CONNECT4_MAINNET_PATH = "gno.land/r/samcrew/connect4"
 export const isConnect4Live = (): boolean =>
     isConnect4Enabled() && connect4PathFor(ACTIVE_NETWORK_KEY) !== null
+
+/** The validator selection scores realm (samcrew-deployer), written by
+ *  gno-score-validator's `scoresheet publish`. Memba only reads it (vm/qeval),
+ *  so it is not in REALM_ALLOWLIST. */
+export const VALIDATOR_SCORES_REALM = "gno.land/r/samcrew/validator_scores"
+
+/**
+ * The realm on gno.land mainnet. EMPTY until it is deployed (samcrew 2-of-3,
+ * then GPaO enablement). To turn the feature on: set this to
+ * VALIDATOR_SCORES_REALM, add the realm-versions.json `mainnet` record
+ * "validator_scores", and update the pin in config.validatorScores.test.ts.
+ */
+export const VALIDATOR_SCORES_MAINNET_PATH: string = ""
+
+/** The selection scores realm on a network, or null where Memba shows no score. */
+export function validatorScoresRealmFor(networkKey: string): string | null {
+    if (networkKey === "mainnet") return VALIDATOR_SCORES_MAINNET_PATH || null
+    if (networkKey === LOCAL_NETWORK_KEY && LOCAL_NETWORK_ENABLED) return VALIDATOR_SCORES_REALM
+    return null
+}
 
 /** The escrow realm Memba signs for, and the only other one an override may select. */
 export const ESCROW_REALM_PATH_DEFAULT = "gno.land/r/samcrew/escrow_v4"

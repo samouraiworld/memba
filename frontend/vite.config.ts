@@ -9,6 +9,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { assertNotesChainContext, assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { assertOsFlagAllowed } from './src/os/osBuildGate'
+import { localNetworkEnabled, withLocalRpcInCsp } from './src/lib/localNetwork'
 import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES, OS_BRAND_PATH, OS_ORIGIN, osDevIconsEnabled, osIconHtml, osDevBrandFile } from './src/os/osSiteIdentity'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
 import { readdirSync } from 'node:fs'
@@ -203,6 +204,20 @@ const gnotifEnabledFor = (mode: string) => osEnabledFor(mode) && ({ ...loadEnv(m
 const evmEnabledFor = (mode: string) => ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_EVM === 'true'
 
 // https://vite.dev/config/
+// Dev server only: the local gnodev network (VITE_ENABLE_LOCAL_NETWORK,
+// src/lib/localNetwork.ts) reads http://localhost:26657, which index.html's CSP
+// (the policy `vite dev` enforces) does not list. Builds and netlify.toml never
+// carry it.
+function localNetworkCspPlugin(mode: string): PluginOption {
+  const env = { ...loadEnv(mode, '..', 'VITE_'), ...process.env }
+  const enabled = localNetworkEnabled(mode, env.VITE_ENABLE_LOCAL_NETWORK)
+  return {
+    name: 'memba-local-network-csp',
+    apply: 'serve',
+    transformIndexHtml(html) { return enabled ? withLocalRpcInCsp(html) : html },
+  }
+}
+
 export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode); return {
   envDir: '..', // Load .env from repo root (where all VITE_* vars live)
   // EVM builds only: api-kit's Node-only `import("node-fetch")` resolves to the browser's fetch,
@@ -266,6 +281,7 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
     sitemapPlugin(mode),
     professionalBrandPlugin(),
     osIdentityPlugin(mode),
+    localNetworkCspPlugin(mode),
     // PWA: installable manifest + Workbox service worker. SW is OFF in dev
     // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
     // Colors track the real app canvas (--color-k-bg dark = #000000), not a

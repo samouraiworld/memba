@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validators: selection scores from the testnets (2026-10-20)
+- The Candidates list of the Validators window gets **Score** and **Rank** columns once the validator selection ranking is published on chain (`gno.land/r/samcrew/validator_scores`): each operator's total (`87.4`) and rank (`3`), and a dash for an operator with no published score. The list then opens sorted by score, highest first, then by name.
+- A validator's page shows a **Selection score (testnets)** card when its operator has a published score: edition date, total, rank, the score of each arena, the GitHub bonus, and a link to the on-chain record.
+- Hidden until the realm is deployed on gno.land mainnet; the active-set list gets no score column.
+- Developers: `VITE_ENABLE_LOCAL_NETWORK=true` on the dev server adds a `local` network (gnodev at `http://localhost:26657`, chain `dev`) for testing against a local realm. Production builds never include it.
 ### Dependency security fixes (2026-10-27)
 - Updated DOMPurify to 3.4.17 and the affected frontend build dependencies (undici, fast-uri and serialize-javascript) to patched releases.
 - Updated the MCP server's declared Zod dependency to 4.6.7, which its SDK supports, and raised the workspace body-parser and fast-uri security floors. A protocol test verifies the server's advertised schemas, default arguments and rejection of invalid tool input before an RPC call.
