@@ -1095,12 +1095,11 @@ export const isConnect4Live = (): boolean =>
 export const VALIDATOR_SCORES_REALM = "gno.land/r/samcrew/validator_scores"
 
 /**
- * The realm on gno.land mainnet. EMPTY until it is deployed (samcrew 2-of-3,
- * then GPaO enablement). To turn the feature on: set this to
- * VALIDATOR_SCORES_REALM, add the realm-versions.json `mainnet` record
- * "validator_scores", and update the pin in config.validatorScores.test.ts.
+ * The realm on gno.land mainnet, enabled at height 1262914. Edition 1's
+ * 36 candidates were sealed at height 1267685 and independently reconciled.
+ * The deployment receipt is recorded in realm-versions.json `mainnet`.
  */
-export const VALIDATOR_SCORES_MAINNET_PATH: string = ""
+export const VALIDATOR_SCORES_MAINNET_PATH: string = VALIDATOR_SCORES_REALM
 
 /** The selection scores realm on a network, or null where Memba shows no score. */
 export function validatorScoresRealmFor(networkKey: string): string | null {

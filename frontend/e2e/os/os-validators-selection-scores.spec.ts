@@ -1,10 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { OS_LOCAL } from '../../playwright.os.config'
-import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
+import { fulfillOnchainReads, isOnchainRead, mockAppChainStatus } from '../helpers/onchain'
 
-// The dev-only local network (VITE_ENABLE_LOCAL_NETWORK) is the one network with the
-// selection scores realm before its mainnet deploy. This spec stands in for gnodev at
-// http://localhost:26657: the valopers registry and the realm's LatestJSON().
+// The same offline roster exercises mainnet activation and the dev-only local
+// network. Both the valopers registry and LatestJSON() are answered by the fixture.
 const LOCAL_RPC = /^http:\/\/localhost:26657(\/|$)/
 const address = (c: string) => `g1${c.repeat(38)}`
 const VALIDATOR = address('a')
@@ -30,16 +29,17 @@ const detail = (o: typeof ORCA) => [
     `- Operator Address: ${o.operator}`, `- Signing Address: ${o.signing}`, '- Signing PubKey: gpub1test', '- Server Type: cloud',
 ].join('\n')
 
-async function fixture(page: Page, windowWidth: number) {
+async function fixture(page: Page, windowWidth: number, network: "local" | "mainnet") {
+    const chainId = network === "mainnet" ? "gnoland-1" : "dev"
     await page.route('**/*', route => {
         const host = new URL(route.request().url()).hostname
         return host === '127.0.0.1' ? route.continue() : route.abort()
     })
     const now = Date.now()
     await fulfillOnchainReads(page, ({ method, path, arg }) => {
-        if (method === 'status') return { ...mockAppChainStatus('dev'), sync_info: { latest_block_height: '120', latest_block_time: new Date(now).toISOString(), catching_up: false } }
+        if (method === 'status') return { ...mockAppChainStatus(chainId), sync_info: { latest_block_height: '120', latest_block_time: new Date(now).toISOString(), catching_up: false } }
         if (method === 'validators') return { block_height: '120', validators: [{ address: VALIDATOR, pub_key: { '@type': '/tm.PubKeyEd25519', value: 'bW9ja3B1YmtleTAwMDAwMDAwMDAwMDAwMDAwMDAx=' }, voting_power: '10', proposer_priority: '0' }] }
-        if (method === 'block') return { block: { header: { chain_id: 'dev', height: '119', time: new Date(now - 5_000).toISOString() }, last_commit: { precommits: [] } } }
+        if (method === 'block') return { block: { header: { chain_id: chainId, height: '119', time: new Date(now - 5_000).toISOString() }, last_commit: { precommits: [] } } }
         if (method !== 'abci_query') return null
         if (path === 'vm/qeval' && arg === 'gno.land/r/samcrew/validator_scores.LatestJSON()') return qeval(EDITION)
         if (path !== 'vm/qrender') return null
@@ -47,13 +47,13 @@ async function fixture(page: Page, windowWidth: number) {
         const operator = OPERATORS.find(o => arg === `gno.land/r/gnops/valopers:${o.operator}`)
         return operator ? detail(operator) : null
     }, [LOCAL_RPC])
-    await page.addInitScript(width => {
-        localStorage.setItem('memba_network_pref', 'local')
+    await page.addInitScript(({ width, network, chainId }) => {
+        localStorage.setItem('memba_network_pref', network)
         localStorage.setItem('memba_os_seen', '1')
-        localStorage.setItem('memba_os_windows:guest:dev', JSON.stringify([
+        localStorage.setItem(`memba_os_windows:guest:${chainId}`, JSON.stringify([
             { token: 'app.validators', x: 40, y: 20, width, height: 640, z: 1, min: false, max: false },
         ]))
-    }, windowWidth)
+    }, { width: windowWidth, network, chainId })
     await page.setViewportSize({ width: 1280, height: 800 })
 }
 
@@ -64,55 +64,59 @@ async function openCandidates(page: Page) {
     return win
 }
 
-test('Candidates show the published selection score, sorted by score then name, with a dash for an operator without one', async ({ page }) => {
-    await fixture(page, 960)
-    const win = await openCandidates(page)
-    await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Rank', 'Hosting', 'Operator address'])
-    await expect(win.getByRole('button', { name: /^Open operator / })).toHaveText(['Pike', 'Orca', 'Acme'])
-    await expect(win.locator('tr', { hasText: 'Pike' }).locator('td').nth(1)).toHaveText('91.2')
-    await expect(win.locator('tr', { hasText: 'Pike' }).locator('td').nth(2)).toHaveText('1')
-    await expect(win.locator('tr', { hasText: 'Orca' }).locator('td').nth(1)).toHaveText('87.4')
-    await expect(win.locator('tr', { hasText: 'Orca' }).locator('td').nth(2)).toHaveText('3')
-    const acme = win.locator('tr', { hasText: 'Acme' })
-    await expect(acme).toContainText('—')
-    await expect(acme.locator('td').nth(1)).toContainText('No selection score')
-    await expect(acme.locator('td').nth(2)).toContainText('No selection rank')
-    await expect(win.getByText('Rank among all scored candidates. A dash: no published score.', { exact: false })).toBeVisible()
-    await expect(win.getByText(/edition 1, 13 Oct 2026/)).toBeVisible()
-})
+for (const network of ["local", "mainnet"] as const) {
+    test.describe(`${network} selection scores`, () => {
+        test('Candidates show the published selection score, sorted by score then name, with a dash for an operator without one', async ({ page }) => {
+            await fixture(page, 960, network)
+            const win = await openCandidates(page)
+            await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Rank', 'Hosting', 'Operator address'])
+            await expect(win.getByRole('button', { name: /^Open operator / })).toHaveText(['Pike', 'Orca', 'Acme'])
+            await expect(win.locator('tr', { hasText: 'Pike' }).locator('td').nth(1)).toHaveText('91.2')
+            await expect(win.locator('tr', { hasText: 'Pike' }).locator('td').nth(2)).toHaveText('1')
+            await expect(win.locator('tr', { hasText: 'Orca' }).locator('td').nth(1)).toHaveText('87.4')
+            await expect(win.locator('tr', { hasText: 'Orca' }).locator('td').nth(2)).toHaveText('3')
+            const acme = win.locator('tr', { hasText: 'Acme' })
+            await expect(acme).toContainText('—')
+            await expect(acme.locator('td').nth(1)).toContainText('No selection score')
+            await expect(acme.locator('td').nth(2)).toContainText('No selection rank')
+            await expect(win.getByText('Rank among all scored candidates. A dash: no published score.', { exact: false })).toBeVisible()
+            await expect(win.getByText(/edition 1, 13 Oct 2026/)).toBeVisible()
+        })
 
-test('A 360 px window keeps the operator, its score, rank and hosting, and fits', async ({ page }) => {
-    await fixture(page, 360)
-    const win = await openCandidates(page)
-    await expect(win.getByRole('button', { name: 'Open operator Orca' })).toBeVisible()
-    await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Rank', 'Hosting'])
-    const fit = await page.locator('.os-wbody').first().evaluate(body => {
-        const edge = body.getBoundingClientRect().right
-        return {
-            spill: body.scrollWidth - body.clientWidth,
-            table: [...body.querySelectorAll('.os-t')].every(el => el.getBoundingClientRect().right <= edge + 1),
-        }
+        test('A 360 px window keeps the operator, its score, rank and hosting, and fits', async ({ page }) => {
+            await fixture(page, 360, network)
+            const win = await openCandidates(page)
+            await expect(win.getByRole('button', { name: 'Open operator Orca' })).toBeVisible()
+            await expect(win.getByRole('columnheader')).toHaveText(['Operator', 'Score', 'Rank', 'Hosting'])
+            const fit = await page.locator('.os-wbody').first().evaluate(body => {
+                const edge = body.getBoundingClientRect().right
+                return {
+                    spill: body.scrollWidth - body.clientWidth,
+                    table: [...body.querySelectorAll('.os-t')].every(el => el.getBoundingClientRect().right <= edge + 1),
+                }
+            })
+            expect(fit.spill).toBeLessThanOrEqual(1)
+            expect(fit.table).toBe(true)
+        })
+
+        test('A scored operator\'s page shows the Selection score (testnets) card; an operator without an entry shows none', async ({ page }) => {
+            await fixture(page, 960, network)
+            await page.goto(`${OS_LOCAL}/os/validators/${ORCA.operator}`)
+            const win = page.getByRole('region', { name: 'Validators', exact: true })
+            const profile = win.getByTestId('validator-profile-page')
+            const card = profile.getByRole('region', { name: 'Selection score (testnets)' })
+            await expect(card).toContainText('Edition 1 · computed 13 Oct 2026')
+            await expect(card).toContainText('87.4')
+            await expect(card).toContainText('Rank')
+            await expect(card).toContainText('Fire drill')
+            await expect(card.getByRole('link', { name: 'View the on-chain record ↗' })).toHaveAttribute('href', network === 'mainnet' ? 'https://gno.land/r/samcrew/validator_scores' : 'http://localhost:8888/r/samcrew/validator_scores')
+
+            // Wait for the scores read to be answered, so the absence below is not just "not loaded yet".
+            const scoresRead = page.waitForResponse(response => (network === "mainnet" ? isOnchainRead(response.url()) : LOCAL_RPC.test(response.url())) && (response.request().postData() ?? '').includes(LATEST_JSON_B64))
+            await page.goto(`${OS_LOCAL}/os/validators/${ACME.operator}`)
+            await expect(profile.getByRole('heading', { name: 'Acme' })).toBeVisible()
+            await scoresRead
+            await expect(profile.getByRole('region', { name: 'Selection score (testnets)' })).toHaveCount(0)
+        })
     })
-    expect(fit.spill).toBeLessThanOrEqual(1)
-    expect(fit.table).toBe(true)
-})
-
-test('A scored operator\'s page shows the Selection score (testnets) card; an operator without an entry shows none', async ({ page }) => {
-    await fixture(page, 960)
-    await page.goto(`${OS_LOCAL}/os/validators/${ORCA.operator}`)
-    const win = page.getByRole('region', { name: 'Validators', exact: true })
-    const profile = win.getByTestId('validator-profile-page')
-    const card = profile.getByRole('region', { name: 'Selection score (testnets)' })
-    await expect(card).toContainText('Edition 1 · computed 13 Oct 2026')
-    await expect(card).toContainText('87.4')
-    await expect(card).toContainText('Rank')
-    await expect(card).toContainText('Fire drill')
-    await expect(card.getByRole('link', { name: 'View the on-chain record ↗' })).toHaveAttribute('href', 'http://localhost:8888/r/samcrew/validator_scores')
-
-    // Wait for the scores read to be answered, so the absence below is not just "not loaded yet".
-    const scoresRead = page.waitForResponse(response => LOCAL_RPC.test(response.url()) && (response.request().postData() ?? '').includes(LATEST_JSON_B64))
-    await page.goto(`${OS_LOCAL}/os/validators/${ACME.operator}`)
-    await expect(profile.getByRole('heading', { name: 'Acme' })).toBeVisible()
-    await scoresRead
-    await expect(profile.getByRole('region', { name: 'Selection score (testnets)' })).toHaveCount(0)
-})
+}

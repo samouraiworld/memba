@@ -977,6 +977,19 @@
       "verifiedVia": "vm/qfile",
       "fileCount": 6,
       "note": "Published by the samcrew 2-of-3 from samouraiworld/gnoland-packages (the same bytes as onyx-1's seq 36 publish) and enabled at height 658489 (storage deposit 6,534,500 ugnot). Its owner is the deployer, the 2-of-3. No stake cap; house fee 0.1 GNOT per decisive game. Every file byte-equal to the ceremony stage; reconcile ALL_OK."
+    },
+    "validator_scores": {
+      "path": "gno.land/r/samcrew/validator_scores",
+      "version": "v1",
+      "date": "2026-11-02",
+      "sourceCommit": "samcrew-deployer 8a2f6c7529065b30824d72228001592367c3216f",
+      "seq": 80,
+      "height": 1262913,
+      "txHash": "5l+PywUpqjos/027lxx5teKshGme6SBeWyjDGMU+czE=",
+      "verifiedOn": "2026-11-02",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 7,
+      "note": "Published by the Samcrew 2-of-3, enabled at height 1262914; actual storage deposit 3405200ugnot. All seven production files match the reviewed realm; official reconcile ALL_OK=True. Edition 1 with 36 maintainer-confirmed candidates sealed at height 1267685 (tx 24aab7de7a88603d55bc00252cf3ba703b5a2c04d4db3f5b81d96618d54ea224); all six publication calls independently reconciled ALL_OK=True. Admin and publisher remain the Samcrew 2-of-3."
     }
   },
   "_note_stale_networks": "test11, portal-loop, staging removed 2026-06-28 (no Memba realms deployed; test12 retained for historical record).",
