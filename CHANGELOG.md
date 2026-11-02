@@ -25,6 +25,10 @@ Full changelogs are split by version range for easier navigation:
 - A validator's page shows a **Selection score (testnets)** card when its operator has a published score: edition date, total, rank, the score of each arena, the GitHub bonus, and a link to the on-chain record.
 - Hidden until the realm is deployed on gno.land mainnet; the active-set list gets no score column.
 - Developers: `VITE_ENABLE_LOCAL_NETWORK=true` on the dev server adds a `local` network (gnodev at `http://localhost:26657`, chain `dev`) for testing against a local realm. Production builds never include it.
+### Dependency security fixes (2026-10-27)
+- Updated DOMPurify to 3.4.17 and the affected frontend build dependencies (undici, fast-uri and serialize-javascript) to patched releases.
+- Updated the MCP server's declared Zod dependency to 4.6.7, which its SDK supports, and raised the workspace body-parser and fast-uri security floors. A protocol test verifies the server's advertised schemas, default arguments and rejection of invalid tool input before an RPC call.
+- Both committed dependency trees are regenerated; Playwright remains at 1.63.0. Validation evidence is recorded in `docs/qa/dependency-security-2026-10-27.md`.
 
 ### Accessible names match the visible text (2026-10-22)
 - Buttons and links whose screen-reader name left out the words on screen now include them (WCAG 2.5.3, Label in Name): Directory "View source" (now "View source of …"), the Create DAO and DAO page back buttons ("Back to DAOs"), the validator cards (named by their content, health included), the Memba OS Validators rows (name and short address), the Explorer realm rows and the Live ticker ("Open Live. …").

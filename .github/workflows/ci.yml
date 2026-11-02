@@ -441,7 +441,7 @@ jobs:
 
       # `pnpm -r` runs in topological order: @samouraiworld/gno-rpc builds
       # before the MCP servers that depend on it via workspace:*. Packages
-      # without a `test` script (mcp-server) are skipped by `pnpm -r run`.
+      # without a `test` script are skipped by `pnpm -r run`.
       - name: Build all workspaces
         run: pnpm -r build
 
