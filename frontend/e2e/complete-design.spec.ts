@@ -365,7 +365,7 @@ test('discovery drawer keyboard interaction', async ({ page }) => {
     // packages (directorySeeds). Pearl served this until its 2026-09-23
     // retirement; test13 is hidden but still resolves by URL with the seeds.
     await page.goto('/test13/directory')
-    const trigger = page.getByRole('button', { name: 'View GRC20 source', exact: true })
+    const trigger = page.getByRole('button', { name: 'View source of GRC20', exact: true })
     await trigger.focus()
     await page.keyboard.press('Enter')
     const dialog = page.getByRole('dialog')

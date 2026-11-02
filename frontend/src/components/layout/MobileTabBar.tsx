@@ -69,11 +69,11 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
         // the route's Coming-Soon gate.
         const soon = entry.flag ? !navFlagOn(entry.flag) : false
         return (
-            <Link key={entry.id} to={np(to)} className={`k-sidebar-link${PRO_SHELL_ENABLED && isTabActive(to) ? " active" : ""}`} aria-current={PRO_SHELL_ENABLED && isTabActive(to) ? "page" : undefined} aria-label={PRO_SHELL_ENABLED ? `${entry.label}${soon ? ", coming soon" : ""}${entry.id === "feed" && feedReplyUnread > 0 ? `, ${feedReplyUnread} new replies` : ""}` : undefined} onClick={() => setSheetOpen(false)}>
+            <Link key={entry.id} to={np(to)} className={`k-sidebar-link${PRO_SHELL_ENABLED && isTabActive(to) ? " active" : ""}`} aria-current={PRO_SHELL_ENABLED && isTabActive(to) ? "page" : undefined} aria-label={PRO_SHELL_ENABLED ? `${entry.label}${soon ? ", soon" : ""}${entry.id === "feed" && feedReplyUnread > 0 ? `, ${feedReplyUnread} new replies` : ""}` : undefined} onClick={() => setSheetOpen(false)}>
                 <span className="k-sidebar-icon"><Icon size={18} /></span>
                 <span className="k-sidebar-label">{entry.label}</span>
-                {PRO_SHELL_ENABLED && entry.id === "feed" && feedReplyUnread > 0 && <span className="k-sidebar-badge" aria-label={`${feedReplyUnread} new replies`}>{feedReplyUnread > 9 ? "9+" : feedReplyUnread}</span>}
-                {soon && <span className="k-sidebar-badge inactive">soon</span>}
+                {PRO_SHELL_ENABLED && entry.id === "feed" && feedReplyUnread > 0 && <>{" "}<span className="k-sidebar-badge" aria-label={`${feedReplyUnread} new replies`}>{feedReplyUnread > 9 ? "9+" : feedReplyUnread}</span></>}
+                {soon && <>{" "}<span className="k-sidebar-badge inactive">soon</span></>}
             </Link>
         )
     }

@@ -36,10 +36,10 @@ export function ValidatorCard({ v, hasMonitoring, to, fromValidatorsQuery }: Val
             state={{ fromValidatorsQuery }}
             className="val-card"
             data-testid={`validator-card-${v.rank}`}
-            // aria-label overrides everything inside the link, badge included, so it
-            // must carry the health state (and reason) itself — otherwise
-            // screen-reader users hear a name and nothing about whether it's up.
-            aria-label={`View ${name} validator details — ${label}${showReason ? `: ${reason}` : ""}`}
+            // No aria-label: the link is named by its content, which already shows
+            // the health label (and, when something is wrong, the reason). An
+            // aria-label would have to repeat every visible word (WCAG 2.5.3,
+            // axe label-content-name-mismatch) or drop the health state.
         >
             <div className="val-card__head">
                 <span className={`val-rank-badge ${v.rank <= 3 ? "val-top3" : ""}`}>{v.rank}</span>

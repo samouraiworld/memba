@@ -50,7 +50,7 @@ const TABS: readonly { tab: DirectoryTab; name: string; sub: string; icon: IconN
 // Names, paths and descriptions can come from the chain or from saved entries: shown as text,
 // with any invisible character spelled out.
 const COLUMNS: readonly Column<DirectoryRealm>[] = [
-    { key: "realm", label: "Realm", render: (r) => <><span className="os-explorer-name">{visible(r.name)}</span><span className="os-explorer-path">{visible(r.path)}</span></> },
+    { key: "realm", label: "Realm", render: (r) => <><span className="os-explorer-name">{visible(r.name)}</span>{" "}<span className="os-explorer-path">{visible(r.path)}</span></> },
     { key: "about", label: "About", render: (r) => <>{visible(r.description)}<span className="os-sub os-block">{r.category === "unknown" ? "" : `${r.category} · `}{discoveryProvenanceLabel(r)}</span></> },
 ]
 
