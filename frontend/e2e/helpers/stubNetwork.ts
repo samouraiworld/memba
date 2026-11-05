@@ -8,9 +8,8 @@ import type { Page } from '@playwright/test'
  * (`http://localhost:5173/node_modules/.vite/deps/@sentry_react.js`). A bare
  * `/sentry/` pattern matches it too, so aborting it makes main.tsx's top-level
  * `import * as Sentry` fail → React never mounts → the whole page renders
- * blank. The remote patterns below are anchored (`/sentry\./`, `/clerk[.-]/`),
- * and the localhost guard is what actually protects the local bundles. (Clerk
- * is not bundled: its scripts load from its own host, which `/clerk[.-]/` catches.)
+ * blank. The remote patterns below are anchored (`/sentry\./`, `/auth\.kodera\.io/`),
+ * and the localhost guard is what actually protects the local bundles.
  *
  * Order matters:
  *   1. Abort the app's OWN backend ConnectRPC calls first. In dev these are
@@ -24,8 +23,7 @@ import type { Page } from '@playwright/test'
  *
  * Remote egress the anchored patterns are designed to catch:
  *   - Sentry ingest:  o<org>.ingest[.us].sentry.io   → /sentry\./
- *   - Clerk:          <slug>.clerk.accounts.dev, clerk.<domain>,
- *                     clerk-telemetry.com             → /clerk[.-]/
+ *   - Samourai sign-in (Keycloak): auth.kodera.io      → /auth\.kodera\.io/
  */
 
 /** The app's own backend RPC — same-origin in dev, so aborted BEFORE the
@@ -46,7 +44,7 @@ const REMOTE = [
     /samourai\.live/,
     /plausible\.io/,
     /sentry\./,   // o*.ingest[.us].sentry.io — NOT the local @sentry_react.js
-    /clerk[.-]/,  // <slug>.clerk.accounts.dev / clerk.<domain> / clerk-telemetry.com
+    /auth\.kodera\.io/,   // Samourai sign-in (Keycloak)
 ]
 
 export async function stubNetwork(page: Page) {
@@ -57,7 +55,7 @@ export async function stubNetwork(page: Page) {
         if (LOCAL_BACKEND.test(url)) return route.abort()
 
         // 2. Never abort anything else served from a localhost origin — that's
-        //    the dev server's own bundles (incl. @sentry/@clerk vite deps).
+        //    the dev server's own bundles (incl. the @sentry vite dep).
         let host = ''
         try { host = new URL(url).hostname } catch { /* non-URL; fall through */ }
         if (LOCAL_HOSTS.has(host)) return route.continue()

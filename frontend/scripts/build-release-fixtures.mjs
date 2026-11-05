@@ -8,7 +8,7 @@ Object.assign(process.env, {
     // The same release fixture covers the classic route and the beta OS shell.
     VITE_MEMBA_OS: 'true', MEMBA_OS_BETA_SITE: 'true',
     VITE_ENABLE_TREASURY_SPEND: 'false', VITE_ENABLE_AGENT_CREDITS: 'false',
-    VITE_SENTRY_DSN: '', VITE_CLERK_PUBLISHABLE_KEY: '',
+    VITE_SENTRY_DSN: '', VITE_KEYCLOAK_URL: '', VITE_KEYCLOAK_REALM: '', VITE_KEYCLOAK_CLIENT_ID: '',
 })
 rmSync('.release-builds', { recursive: true, force: true })
 for (const release of ['a', 'b']) {

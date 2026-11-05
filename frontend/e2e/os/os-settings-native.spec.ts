@@ -165,14 +165,14 @@ test.describe('native OS Settings', () => {
 
     test('validator alerts live in Notifications: the classic /alerts address, the old OS address and the Validators button all open them', async ({ page }) => {
         // Remote hosts only: a local module path can contain these words too.
-        await page.route((url) => url.hostname !== '127.0.0.1' && /gnomonitoring|clerk[.-]|challenges\.cloudflare\.com/.test(url.hostname), (r) => r.abort())
+        await page.route((url) => url.hostname !== '127.0.0.1' && /gnomonitoring|auth\.kodera\.io/.test(url.hostname), (r) => r.abort())
         const notifications = async () => {
             const win = page.getByRole('region', { name: 'Settings', exact: true })
             await expect(win.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Notifications' })).toHaveAttribute('aria-current', 'true')
             await expect(win.getByRole('heading', { name: 'Validators and GovDAO alerts' })).toBeVisible()
             return win
         }
-        // This build has a Clerk key (an unreachable test host): a guest is asked to sign in only here.
+        // This build has Keycloak settings (auth.kodera.io, refused above): a guest is asked to sign in only here.
         await page.goto(`${OS_FLAGS_ON}/mainnet/alerts`)
         await expect((await notifications()).getByRole('button', { name: 'Sign in to configure alerts' })).toBeVisible()
         await page.goto(`${OS_FLAGS_ON}/os/validators`)

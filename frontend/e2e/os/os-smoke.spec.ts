@@ -14,7 +14,7 @@ const CORE = [
 for (const [width, label] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test.describe(`Memba OS smoke · ${label}`, () => {
         test.beforeEach(async ({ page }) => {
-            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|auth\.kodera\.io/, (r) => r.abort())
             await fulfillGovernance(page)
             await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
             await page.setViewportSize({ width, height: 800 })
@@ -38,7 +38,7 @@ for (const [width, label] of [[1280, 'desktop'], [375, 'phone']] as const) {
 
 test.describe('Memba OS window failure', () => {
     test('a window whose code cannot load fails inside itself; the other windows keep working', async ({ page }) => {
-        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|auth\.kodera\.io/, (r) => r.abort())
         await fulfillGovernance(page)
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })
@@ -60,8 +60,8 @@ test.describe('Memba OS window failure', () => {
 })
 
 test.describe('Memba OS · the optional account', () => {
-    const SIGN_IN = /clerk\.example\.test|challenges\.cloudflare\.com/
-    /** Every attempt to reach Clerk or its bot check: a request, or a script the CSP refused before any request. */
+    const SIGN_IN = /auth\.kodera\.io/
+    /** Every attempt to reach the Samourai sign-in host: a request (any frame), or one the CSP refused before any request. */
     function watchSignIn(page: Page): string[] {
         const seen: string[] = []
         page.on('request', (r) => { if (SIGN_IN.test(new URL(r.url()).hostname)) seen.push(r.url()) })
@@ -69,14 +69,14 @@ test.describe('Memba OS · the optional account', () => {
         return seen
     }
     test.beforeEach(async ({ page }) => {
-        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+        await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|auth\.kodera\.io/, (r) => r.abort())
         await fulfillGovernance(page)
         await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 800 })
     })
 
-    // On the build that has a Clerk key (an unreachable test host): without one, nothing could load anyway.
-    test('a guest who never signs in makes no attempt to reach Clerk or its bot check, whatever they open', async ({ page }) => {
+    // On the build that has Keycloak settings (the real host, refused): without them, nothing could load anyway.
+    test('a guest who never signs in makes no attempt to reach the sign-in host, whatever they open', async ({ page }) => {
         const seen = watchSignIn(page)
         for (const [slug, name] of [...CORE, ['profile', 'Profile']] as const) {
             await page.goto(`${OS_FLAGS_ON}/os/${slug}`)
@@ -85,7 +85,7 @@ test.describe('Memba OS · the optional account', () => {
         expect(seen).toEqual([])
     })
 
-    test('the same watch sees Clerk load once the guest asks to sign in (the control for the case above)', async ({ page }) => {
+    test('the same watch sees the sign-in host once the guest asks to sign in (the control for the case above)', async ({ page }) => {
         const seen = watchSignIn(page)
         await page.goto(`${OS_FLAGS_ON}/os/validators/alerts`)
         await page.getByRole('button', { name: 'Sign in to configure alerts' }).click()
