@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import Keycloak from "keycloak-js"
-import { loadKeycloak, toUser } from "./loadKeycloak"
+import { loadKeycloak, SIGNED_OUT_KEY, toUser } from "./loadKeycloak"
 
 /** One fake keycloak-js instance, reset before each test. */
 const kc = vi.hoisted(() => ({
@@ -132,6 +132,29 @@ describe("loadKeycloak", () => {
             expect(Tracked.withResolvers<number>().promise).toBeInstanceOf(Tracked)
         } finally {
             Object.defineProperty(Promise, "withResolvers", { value: native, writable: true, configurable: true })
+        }
+    })
+
+    it("signs out every open tab: a sign-out elsewhere drops this tab's tokens too", async () => {
+        const c = await loadKeycloak(SETTINGS); const seen: unknown[] = []
+        c.onChange((u) => seen.push(u))
+        kc.authenticated = true; kc.token = "jwt"; kc.tokenParsed = { sub: "kc-1" }
+        window.dispatchEvent(new StorageEvent("storage", { key: SIGNED_OUT_KEY, newValue: "1" }))
+        expect(c.user).toBeNull()
+        expect(seen.at(-1)).toBeNull()
+    })
+
+    it("tells the other tabs before leaving for the sign-out page", async () => {
+        const c = await loadKeycloak(SETTINGS)
+        const setItem = vi.spyOn(window.localStorage, "setItem")
+        try {
+            await c.signOut()
+            expect(setItem).toHaveBeenCalledWith(SIGNED_OUT_KEY, expect.any(String))
+            expect(kc.logout).toHaveBeenCalledOnce()
+            expect(setItem.mock.invocationCallOrder[0]).toBeLessThan(kc.logout.mock.invocationCallOrder[0])
+            expect(localStorage.getItem(SIGNED_OUT_KEY)).toBeNull()
+        } finally {
+            setItem.mockRestore()
         }
     })
 

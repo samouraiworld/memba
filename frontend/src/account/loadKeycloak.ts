@@ -21,6 +21,8 @@ export const ADMIN_ROLE_CLIENT = "gnomonitoring-panel"
 export const TOKEN_MIN_VALIDITY_S = 30
 /** The same-origin page keycloak-js frames for the silent session check. */
 export const SILENT_CHECK_SSO_PATH = "/silent-check-sso.html"
+/** Written on sign-out so that every other open tab drops its tokens too. */
+export const SIGNED_OUT_KEY = "memba_account_signed_out"
 
 /** The part of the account client Memba uses. */
 export interface AccountClient {
@@ -94,6 +96,12 @@ export async function loadKeycloak(settings: KeycloakSettings): Promise<AccountC
     // Offline or 5xx would leave it "authenticated" while the panel says
     // "Sign in", and that click would then do nothing: forget them here too.
     kc.onAuthRefreshError = () => { kc.clearToken(); emit(null) }
+    // Each tab has its own client: a sign-out in another tab ends the session
+    // there, so drop this tab's tokens too (the storage event fires only in
+    // the other tabs).
+    window.addEventListener("storage", (event) => {
+        if (event.key === SIGNED_OUT_KEY && event.newValue !== null) { kc.clearToken(); emit(null) }
+    })
 
     return {
         get user() { return user() },
@@ -112,6 +120,12 @@ export async function loadKeycloak(settings: KeycloakSettings): Promise<AccountC
                 return null
             }
         },
-        signOut: () => kc.logout({ redirectUri: currentPage() }),
+        signOut: () => {
+            try {
+                localStorage.setItem(SIGNED_OUT_KEY, String(Date.now()))
+                localStorage.removeItem(SIGNED_OUT_KEY)
+            } catch { /* storage unavailable: other tabs lose the session at their next refresh */ }
+            return kc.logout({ redirectUri: currentPage() })
+        },
     }
 }
