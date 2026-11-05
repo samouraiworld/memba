@@ -58,6 +58,7 @@
     "dompurify": "^3.4.17",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
+    "keycloak-js": "26.2.4",
     "marked": "18.1.1",
     "marked-footnote": "1.4.0",
     "react": "~19.3.1",
