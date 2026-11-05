@@ -971,11 +971,6 @@ export const GNO_MONITORING_API_URL = resolveTrustedServiceUrl(
     "monitoring API",
 )
 
-/** Clerk publishable key for alerting feature auth.
- *  Shared Clerk app instance for Memba alerting.
- *  Only loaded by the /alerts route (lazy). No impact on other pages. */
-export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ""
-
 /** The Samourai accounts (Keycloak) public client this build signs in with. */
 export interface KeycloakSettings {
     url: string

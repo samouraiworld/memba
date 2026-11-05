@@ -1,20 +1,21 @@
 /**
  * Holds the optional account for the whole app. Mounted once in App.tsx and
- * never re-inserted, so loading Clerk remounts nothing. Clerk loads only on
- * "Sign in" or when a session is remembered on this device; if it fails or
- * takes longer than LOAD_TIMEOUT_MS, the account says it is unavailable and
- * everything else keeps working. (Clerk draws its own UI outside React's
- * tree, so its failures surface here, as a rejected or late load.)
+ * never re-inserted, so loading the sign-in client remounts nothing. The
+ * client (keycloak-js) loads only on "Sign in", when a session is remembered
+ * on this device, or when the page is the return of a sign-in redirect; if it
+ * fails or takes longer than LOAD_TIMEOUT_MS, the account says it is
+ * unavailable and everything else keeps working. Sign-in and sign-out leave
+ * the page for the Samourai sign-in pages and come back.
  *
  * @module account/AccountProvider
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { CLERK_PUBLISHABLE_KEY } from "../lib/config"
-import { AccountContext, type AccountApi, type AccountStatus, type AccountUser } from "./accountContext"
-import type { ClerkClient } from "./loadClerk"
+import { KEYCLOAK_SETTINGS, type KeycloakSettings } from "../lib/config"
+import { AccountContext, hasAuthCallback, type AccountApi, type AccountStatus, type AccountUser } from "./accountContext"
+import type { AccountClient } from "./loadKeycloak"
 
 export const LOAD_TIMEOUT_MS = 10_000
-/** Set while a session exists, so a returning member's Clerk loads at once; a guest never has it. */
+/** Set while a session exists, so a returning member's sign-in client loads at once; a guest never has it. */
 export const SESSION_MARKER = "memba_account_session"
 
 function remembered(): boolean {
@@ -28,23 +29,26 @@ function remember(on: boolean) {
     } catch { /* storage unavailable: the next visit loads on demand */ }
 }
 
-export function AccountProvider({ children, publishableKey = CLERK_PUBLISHABLE_KEY }: { children: ReactNode; publishableKey?: string }) {
-    // A remembered session is "loading" from the first render, so no sign-in prompt flashes before Clerk answers.
-    const [status, setStatus] = useState<AccountStatus>(() => publishableKey && remembered() ? "loading" : "off")
+export function AccountProvider({ children, settings = KEYCLOAK_SETTINGS }: { children: ReactNode; settings?: KeycloakSettings | null }) {
+    // Read once, at the first render: a remembered session, or the return of a
+    // sign-in redirect, loads at once even if the app rewrites the URL later.
+    const [startAtOnce] = useState(() => !!settings && (remembered() || hasAuthCallback(window.location.hash)))
+    // It is "loading" from the first render, so no sign-in prompt flashes before the client answers.
+    const [status, setStatus] = useState<AccountStatus>(() => startAtOnce ? "loading" : "off")
     const [user, setUser] = useState<AccountUser | null>(null)
-    const client = useRef<ClerkClient | null>(null)
-    const loading = useRef<Promise<ClerkClient | null> | null>(null)
+    const client = useRef<AccountClient | null>(null)
+    const loading = useRef<Promise<AccountClient | null> | null>(null)
 
-    const start = useCallback((): Promise<ClerkClient | null> => {
-        if (!publishableKey) return Promise.resolve(null)
+    const start = useCallback((): Promise<AccountClient | null> => {
+        if (!settings) return Promise.resolve(null)
         loading.current ??= (async () => {
             setStatus("loading")
             let timer: ReturnType<typeof setTimeout> | undefined
             try {
-                const { loadClerk } = await import("./loadClerk")
+                const { loadKeycloak } = await import("./loadKeycloak")
                 const c = await Promise.race([
-                    loadClerk(publishableKey),
-                    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Clerk did not load in time")), LOAD_TIMEOUT_MS) }),
+                    loadKeycloak(settings),
+                    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("sign-in did not load in time")), LOAD_TIMEOUT_MS) }),
                 ])
                 client.current = c
                 setUser(c.user)
@@ -62,20 +66,22 @@ export function AccountProvider({ children, publishableKey = CLERK_PUBLISHABLE_K
             }
         })()
         return loading.current
-    }, [publishableKey])
+    }, [settings])
 
     useEffect(() => {
-        if (remembered()) void start()
-    }, [start])
+        if (startAtOnce) void start()
+    }, [startAtOnce, start])
 
     const api = useMemo<AccountApi>(() => ({
-        available: !!publishableKey,
+        available: !!settings,
         status,
         user,
-        openSignIn: () => { void start().then((c) => c?.openSignIn()) },
+        // The silent check may already have found a session: then there is nothing to redirect for.
+        openSignIn: () => { void start().then((c) => { if (!c || c.user) return; remember(true); c.openSignIn() }) },
         getToken: async () => client.current?.getToken() ?? null,
-        signOut: async () => { await client.current?.signOut(); remember(false) },
-    }), [publishableKey, status, user, start])
+        // Forget the session first: the sign-out redirect leaves the page.
+        signOut: async () => { remember(false); await client.current?.signOut() },
+    }), [settings, status, user, start])
 
     return <AccountContext.Provider value={api}>{children}</AccountContext.Provider>
 }

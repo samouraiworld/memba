@@ -22,7 +22,7 @@ export const TOKEN_MIN_VALIDITY_S = 30
 /** The same-origin page keycloak-js frames for the silent session check. */
 export const SILENT_CHECK_SSO_PATH = "/silent-check-sso.html"
 
-/** The part of the account client Memba uses (same members ClerkClient had). */
+/** The part of the account client Memba uses. */
 export interface AccountClient {
     user: AccountUser | null
     onChange: (listener: (user: AccountUser | null) => void) => () => void
