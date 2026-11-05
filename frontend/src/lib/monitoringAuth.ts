@@ -2,7 +2,7 @@
  * monitoringAuth.ts — Authenticated API client for gnomonitoring protected endpoints.
  *
  * Mirrors the pattern from gnomonitoring.ts (public metrics) but adds:
- * - Authorization: Bearer <token> header (Clerk JWT)
+ * - Authorization: Bearer <token> header (Samourai account access token)
  * - No caching (webhook data is mutable, must always be fresh)
  * - 8s timeout with AbortSignal
  * - Graceful null return on failure

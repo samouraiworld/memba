@@ -1,6 +1,6 @@
 import { useAccount } from "../../account/accountContext"
 
-/** Shown only to a signed-in account with the admin role; it never loads Clerk itself. */
+/** Shown only to a signed-in account with the admin role; it never loads the account itself. */
 export function AdminPanelLink() {
     const { user } = useAccount()
     if (!user?.isAdmin) return null

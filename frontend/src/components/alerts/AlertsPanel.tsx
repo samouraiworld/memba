@@ -4,7 +4,7 @@
  * Settings → Notifications; builds without Memba OS (and hidden networks)
  * serve it as the classic /alerts page.
  *
- * - The account (Clerk) comes from AccountProvider; Clerk loads only when someone signs in
+ * - The account (Samourai accounts, Keycloak) comes from AccountProvider; it loads only when someone signs in
  * - AlertErrorBoundary wraps everything for crash isolation
  * - Default export, for lazy import
  *
@@ -287,7 +287,7 @@ function AlertsGate({ children }: { children: React.ReactNode }) {
     )
 }
 
-/** Nobody can sign in: this build has no Clerk key, or Clerk did not load. */
+/** Nobody can sign in: this build has no Keycloak settings, or sign-in did not load. */
 function SignInUnavailable({ text }: { text: string }) {
     return (
         <AlertsGate>
@@ -356,6 +356,9 @@ function AlertsContent({ embedded }: { embedded: boolean }) {
                     </button>
                 <p style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 12 }}>
                     ℹ️ Alerting auth is independent from your Gno wallet
+                </p>
+                <p style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 8 }}>
+                    Sign-in moved to Samourai accounts: use GitHub or Google as before. Used an email address only? Choose “Forgot Password?” on the sign-in page.
                 </p>
             </AlertsGate>
         )

@@ -1,7 +1,7 @@
 /**
  * AlertErrorBoundary — Dedicated error boundary for the alerting feature (F4).
  *
- * Catches Clerk SDK initialization failures, network errors, and any
+ * Catches sign-in initialization failures, network errors, and any
  * unexpected exceptions within the /alerts page. Does NOT crash the
  * entire app — user can navigate away normally.
  *

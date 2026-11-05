@@ -2,7 +2,7 @@
  * OrgContext — Team/workspace context for Memba.
  *
  * Provides org state (active team, personal/team mode) to the app.
- * Uses Memba backend Team RPCs — no Clerk dependency.
+ * Uses Memba backend Team RPCs.
  *
  * When no team is selected, all features operate in personal mode
  * with zero impact on existing functionality.
