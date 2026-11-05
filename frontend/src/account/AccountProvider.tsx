@@ -32,7 +32,12 @@ function remember(on: boolean) {
 export function AccountProvider({ children, settings = KEYCLOAK_SETTINGS }: { children: ReactNode; settings?: KeycloakSettings | null }) {
     // Read once, at the first render: a remembered session, or the return of a
     // sign-in redirect, loads at once even if the app rewrites the URL later.
-    const [startAtOnce] = useState(() => !!settings && (remembered() || hasAuthCallback(window.location.hash)))
+    const [arrival] = useState(() => {
+        const callback = hasAuthCallback(window.location.hash) ? window.location.hash : null
+        return { callback, startAtOnce: !!settings && (remembered() || callback !== null) }
+    })
+    const { startAtOnce } = arrival
+    const pendingCallback = useRef(arrival.callback)
     // It is "loading" from the first render, so no sign-in prompt flashes before the client answers.
     const [status, setStatus] = useState<AccountStatus>(() => startAtOnce ? "loading" : "off")
     const [user, setUser] = useState<AccountUser | null>(null)
@@ -46,6 +51,13 @@ export function AccountProvider({ children, settings = KEYCLOAK_SETTINGS }: { ch
             let timer: ReturnType<typeof setTimeout> | undefined
             try {
                 const { loadKeycloak } = await import("./loadKeycloak")
+                const callback = pendingCallback.current
+                pendingCallback.current = null
+                if (callback && !hasAuthCallback(window.location.hash)) {
+                    // The app rewrote the URL (OS shell, root redirect) before
+                    // keycloak-js could read the sign-in return: put it back.
+                    history.replaceState(history.state, "", window.location.pathname + window.location.search + callback)
+                }
                 const c = await Promise.race([
                     loadKeycloak(settings),
                     new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("sign-in did not load in time")), LOAD_TIMEOUT_MS) }),

@@ -135,6 +135,16 @@ describe("the optional account", () => {
         await waitFor(() => expect(loadKeycloak).toHaveBeenCalledOnce())
     })
 
+    it("hands the sign-in return to the client even when the app rewrote the URL first", async () => {
+        history.replaceState(null, "", "/mainnet/alerts#state=s1&session_state=x&code=c1")
+        let urlSeen = ""
+        vi.mocked(loadKeycloak).mockImplementation(() => { urlSeen = window.location.pathname + window.location.hash; return new Promise<never>(() => {}) })
+        renderWith()
+        history.replaceState(null, "", "/os/settings") // the OS shell's own rewrite, which drops the fragment
+        await waitFor(() => expect(loadKeycloak).toHaveBeenCalledOnce())
+        expect(urlSeen).toBe("/os/settings#state=s1&session_state=x&code=c1")
+    })
+
     it("forgets a remembered session that the silent check does not find", async () => {
         localStorage.setItem(SESSION_MARKER, "1"); vi.mocked(loadKeycloak).mockResolvedValue(fakeClient(null))
         renderWith(); await screen.findByText("status: ready")
