@@ -260,11 +260,6 @@
     line-height: 1.5;
 }
 
-.org-auth-clerk-wrapper {
-    display: flex;
-    justify-content: center;
-}
-
 /* ── Create Wrapper ────────────────────────────────────── */
 
 .org-create-wrapper {

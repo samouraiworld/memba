@@ -1,9 +1,9 @@
 name: Frontend main-push gate
 
 # Production deploys happen via Netlify's NATIVE Git integration (netlify.toml →
-# `npm run build`, publish frontend/dist): it applies the SPA fallback, the
-# CSP/security headers, and the Clerk auth proxy. The old Actions deploy job
-# (nwtgck/actions-netlify) bypassed all three, was hard-disabled 2026-06-25, and
+# `npm run build`, publish frontend/dist): it applies the SPA fallback and the
+# CSP/security headers. The old Actions deploy job (nwtgck/actions-netlify)
+# bypassed both, was hard-disabled 2026-06-25, and
 # was REMOVED 2026-07-11 — it sat one deleted `if:` line from re-arming against
 # prod. This workflow is now purely the push-to-main CI gate for frontend/**.
 

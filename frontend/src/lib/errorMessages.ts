@@ -140,16 +140,6 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         message: "GitHub API rate limit reached. Please wait a few minutes.",
     },
 
-    // ── Clerk / Authentication errors ────────────────────
-    {
-        match: /clerk.*session.*expired/i,
-        message: "Your session has expired. Please sign in again.",
-    },
-    {
-        match: /clerk.*unauthorized/i,
-        message: "Authentication failed. Please sign in again.",
-    },
-
     // ── Channel / Board errors ───────────────────────────
     {
         match: /channel is archived/i,

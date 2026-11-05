@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { OS_ON } from '../../playwright.os.config'
 
 test.beforeEach(async ({ page }) => {
-    await page.route(/visio\.samourai\.app|plausible\.io|sentry\.|clerk[.-]|\.gno\.land/, (route) => route.abort())
+    await page.route(/visio\.samourai\.app|plausible\.io|sentry\.|auth\.kodera\.io|\.gno\.land/, (route) => route.abort())
     await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
 })
 

@@ -16,7 +16,7 @@
 | **Admin Key** | Yes (2-of-2 multisig) | All realm operations, dispute resolution | Key compromise = total system control |
 | **AI Analyst** | Yes | API keys for LLM providers must stay server-side | Backend down = no AI analysis |
 | **IPFS Upload** | Yes | Lighthouse API key proxied through backend | Backend down = no avatar uploads |
-| **Clerk Auth** | Yes | /alerts section authentication | Clerk outage = no alert config |
+| **Samourai accounts (Keycloak, auth.kodera.io)** | Yes | Alerts sign-in (Settings → Notifications, classic /alerts) | Keycloak outage = no alert config |
 
 ### What's Already Decentralized
 

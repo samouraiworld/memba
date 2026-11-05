@@ -36,7 +36,7 @@ describe("embedding policy", () => {
         const netlify = readFileSync(resolve(here, "../../../../../netlify.toml"), "utf8")
         const html = readFileSync(resolve(here, "../../../../index.html"), "utf8")
         for (const source of [netlify, html]) {
-            const frame = source.match(/frame-src (https:[^;]+);/)?.[1] ?? ""
+            const frame = source.match(/frame-src ((?:'self' )?https:[^;]+);/)?.[1] ?? ""
             expect(frame).toContain("https://visio.samourai.app")
             expect(frame).toContain("https://meet.jit.si")
             expect(frame).toContain("https://8x8.vc")

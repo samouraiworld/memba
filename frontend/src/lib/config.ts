@@ -971,10 +971,32 @@ export const GNO_MONITORING_API_URL = resolveTrustedServiceUrl(
     "monitoring API",
 )
 
-/** Clerk publishable key for alerting feature auth.
- *  Shared Clerk app instance for Memba alerting.
- *  Only loaded by the /alerts route (lazy). No impact on other pages. */
-export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ""
+/** The Samourai accounts (Keycloak) public client this build signs in with. */
+export interface KeycloakSettings {
+    url: string
+    realm: string
+    clientId: string
+}
+
+/** Reads the Keycloak build settings. Returns null, so no sign-in at all,
+ *  when the URL, the realm or the client id is missing or blank. */
+export function keycloakSettings(
+    env: Partial<Record<"VITE_KEYCLOAK_URL" | "VITE_KEYCLOAK_REALM" | "VITE_KEYCLOAK_CLIENT_ID", string | undefined>>,
+): KeycloakSettings | null {
+    const url = env.VITE_KEYCLOAK_URL?.trim() ?? ""
+    const realm = env.VITE_KEYCLOAK_REALM?.trim() ?? ""
+    const clientId = env.VITE_KEYCLOAK_CLIENT_ID?.trim() ?? ""
+    if (!url || !realm || !clientId) return null
+    return { url, realm, clientId }
+}
+
+/** The public client this build signs in with (alerts and the admin link).
+ *  Null when any VITE_KEYCLOAK_* value is missing: accounts are then off. */
+export const KEYCLOAK_SETTINGS: KeycloakSettings | null = keycloakSettings({
+    VITE_KEYCLOAK_URL: import.meta.env.VITE_KEYCLOAK_URL,
+    VITE_KEYCLOAK_REALM: import.meta.env.VITE_KEYCLOAK_REALM,
+    VITE_KEYCLOAK_CLIENT_ID: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
+})
 
 // ── 7. RPC Domain Security ───────────────────────────────────
 

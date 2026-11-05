@@ -35,6 +35,7 @@ import {
     isConnect4Enabled,
     connect4PathFor,
     isConnect4Live,
+    keycloakSettings,
 } from './config'
 import { SITEMAP_NETWORK } from './sitemap'
 import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
@@ -1242,5 +1243,17 @@ describe("connect4 realm path", () => {
         expect(isConnect4Live()).toBe(connect4PathFor(ACTIVE_NETWORK_KEY) !== null)
         vi.stubEnv("VITE_ENABLE_CONNECT4", "")
         expect(isConnect4Live()).toBe(false)
+    })
+})
+
+describe("Keycloak build settings", () => {
+    const FULL = { VITE_KEYCLOAK_URL: "https://auth.kodera.io", VITE_KEYCLOAK_REALM: "samourai-app", VITE_KEYCLOAK_CLIENT_ID: "memba-web" }
+    it("are set only when the URL, realm and client id are all present", () => {
+        expect(keycloakSettings(FULL)).toEqual({ url: "https://auth.kodera.io", realm: "samourai-app", clientId: "memba-web" })
+        for (const key of Object.keys(FULL) as (keyof typeof FULL)[]) {
+            expect(keycloakSettings({ ...FULL, [key]: undefined })).toBeNull()
+            expect(keycloakSettings({ ...FULL, [key]: "  " })).toBeNull()
+        }
+        expect(keycloakSettings({})).toBeNull()
     })
 })

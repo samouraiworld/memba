@@ -4,7 +4,7 @@ import { OS_ON } from '../../playwright.os.config'
 
 const telegram = 'https://t.me/+t0xM6gipZcZhNWQ0'
 async function guest(page: Page, phone = false) {
-    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, route => route.abort())
+    await page.route(/memba\.v1\.|\.gno\.land|samourai\.live|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|auth\.kodera\.io/, route => route.abort())
     await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
     await page.setViewportSize(phone ? { width: 390, height: 844 } : { width: 1280, height: 800 })
     await page.clock.install()

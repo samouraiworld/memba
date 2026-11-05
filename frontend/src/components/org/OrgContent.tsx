@@ -2,7 +2,7 @@
  * OrgContent — Memba-native team management UI.
  *
  * Uses Memba backend Team RPCs (CreateTeam, GetMyTeams, JoinTeam,
- * LeaveTeam, UpdateTeamMemberRole) instead of Clerk Organizations.
+ * LeaveTeam, UpdateTeamMemberRole).
  *
  * Sections:
  * 1. Current workspace indicator with switch action

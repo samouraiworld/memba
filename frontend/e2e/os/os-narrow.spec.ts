@@ -63,7 +63,7 @@ test.describe('Memba OS pages in a narrow window', () => {
 
     for (const width of [360, 600]) {
         test(`an App Store page fits a ${width} px window`, async ({ page }) => {
-            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => {
+            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|auth\.kodera\.io/, (r) => {
                 const u = new URL(r.request().url())
                 return u.hostname === '127.0.0.1' && !/memba\.v1\./.test(u.pathname) ? r.continue() : r.abort()
             })
@@ -104,7 +104,7 @@ test.describe('Memba OS pages in a narrow window', () => {
     for (const [app, name, sentinel, display] of PAGES) {
         test(`${name} fits a 360 px window`, async ({ page }) => {
             // Only other hosts are refused: the dev server's own modules must load.
-            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => {
+            await page.route(/memba\.v1\.|https?:\/\/[^/]*gnolove|plausible\.io|sentry\.|auth\.kodera\.io/, (r) => {
                 const u = new URL(r.request().url())
                 return u.hostname === '127.0.0.1' && !/memba\.v1\./.test(u.pathname) ? r.continue() : r.abort()
             })

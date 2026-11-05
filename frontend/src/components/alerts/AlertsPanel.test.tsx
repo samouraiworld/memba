@@ -15,21 +15,24 @@ const monitoring = await import("../../lib/monitoringAuth")
 const withAccount = (account: Partial<AccountApi>) =>
     render(<AccountContext.Provider value={{ ...SIGNED_OUT, available: true, ...account }}><AlertsPanel /></AccountContext.Provider>)
 
-// The test build sets no VITE_CLERK_PUBLISHABLE_KEY, like memba.club before its Clerk setup.
+// The test build sets no VITE_KEYCLOAK_* settings, like a deploy preview.
+const MOVED = "Sign-in moved to Samourai accounts: use GitHub or Google as before. Used an email address only? Choose “Forgot Password?” on the sign-in page."
+
 describe("the Alerts panel", () => {
-    it("says alerts can't be set up without a Clerk key, and keeps the public Telegram bots", async () => {
+    it("says alerts can't be set up without Keycloak settings, and keeps the public Telegram bots", async () => {
         render(<AlertsPanel />)
         expect(await screen.findByText("Sign-in for alerts isn't available on this site yet, so alerts can't be set up here.")).toHaveAttribute("role", "status")
-        expect(screen.queryByText(/VITE_CLERK_PUBLISHABLE_KEY|not configured/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/VITE_KEYCLOAK|not configured/)).not.toBeInTheDocument()
+        expect(screen.queryByText(MOVED)).toBeNull()
         expect(screen.getByText("Telegram Bots")).toBeInTheDocument()
     })
 
-    it("says sign-in is unavailable when Clerk did not load", () => {
+    it("says sign-in is unavailable when sign-in did not load", () => {
         withAccount({ status: "failed" })
         expect(screen.getByText("Sign-in is unavailable right now. Try again later.")).toHaveAttribute("role", "status")
     })
 
-    it("asks a signed-out person to sign in, and opens Clerk only on that click", () => {
+    it("asks a signed-out person to sign in, and starts sign-in only on that click", () => {
         const openSignIn = vi.fn()
         withAccount({ openSignIn })
         expect(openSignIn).not.toHaveBeenCalled()
@@ -40,7 +43,13 @@ describe("the Alerts panel", () => {
     it("provisions the gnomonitoring user here, when the alert settings open signed in", async () => {
         withAccount({ status: "ready", user: { id: "user_1", email: "ada@example.org", fullName: "Ada", isAdmin: false }, getToken: async () => "jwt" })
         await waitFor(() => expect(monitoring.ensureMonitoringUser).toHaveBeenCalledWith("jwt", "Ada", "ada@example.org"))
+        expect(screen.queryByText(MOVED)).toBeNull()
         expect(monitoring.listWebhooks).toHaveBeenCalledWith("jwt", "validator")
+    })
+
+    it("tells a signed-out person that sign-in moved to Samourai accounts", () => {
+        withAccount({})
+        expect(screen.getByText(MOVED)).toBeInTheDocument()
     })
 
     it("tells a returning user in Memba OS that their alerts moved here, only when they have some (GovDAO webhooks count too)", async () => {

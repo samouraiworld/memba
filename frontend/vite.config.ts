@@ -309,7 +309,8 @@ export default defineConfig(({ mode }) => { const evmBuild = evmEnabledFor(mode)
       },
       workbox: {
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/labs\/gnotif(?:\/|$)/],
+        // keycloak-js frames /silent-check-sso.html for the silent sign-in check: it needs the real file, not the app shell.
+        navigateFallbackDenylist: [/^\/labs\/gnotif(?:\/|$)/, /^\/silent-check-sso\.html$/],
         globPatterns: ['**/*.{js,css,html,woff2}'],
         // The BARRICADE 3D renderer chunk is precache-EXCLUDED: globPatterns above
         // precaches **/*.js ≤4MB, so without this every user — including 2D-mode
