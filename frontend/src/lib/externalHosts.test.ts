@@ -92,5 +92,6 @@ describe('the Samourai sign-in host', () => {
         expect(netlifyToml).toMatch(/^\s*X-Frame-Options = "SAMEORIGIN"$/m)
         expect(netlifyToml).not.toMatch(/X-Frame-Options = "DENY"/)
         expect(netlifyToml).not.toMatch(/frame-ancestors\s+'none'/)
+        expect(netlifyCsp).toMatch(/(^|;)\s*frame-ancestors 'self';/)
     })
 })
