@@ -15,7 +15,7 @@
 | Weekly | Read the latest `govulncheck.yml` cron output. If any new CVE landed, file an issue and PR a bump within the SLA (HIGH = 5 BD, CRITICAL = 48h). | Phase 0a |
 | Monthly | Sentry release health review — verify source maps present for the last 4 releases; confirm error rate is within SLO (§3.2). | Phase 0a |
 | Quarterly | Domain renewal check: `memba.club` (Gandi), `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
-| Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk keys, GPG signing keys, admin multisig keys. | Phase 1.12 |
+| Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, GPG signing keys, admin multisig keys. | Phase 1.12 |
 | Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_APP_HARDENING.md` §Custody (renamed from MAINNET_PREPARATION.md, #1129). | Phase 1.11 |
 | Annual | Rollback drill — see §4 below; record results in the internal planning archive (private). | Phase 5 prereq |
 
@@ -75,7 +75,7 @@
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions (legacy) | Netlify deploy | Consumed only by the Actions deploy job removed 2026-07-11; `deploy-frontend.yml` has no Netlify step today. Production deploys are Netlify-native (§3.1). Candidate for removal at the next rotation drill. |
 | `SENTRY_AUTH_TOKEN` | Netlify env | source-map upload | Read by `@sentry/vite-plugin` during the Netlify-native build (no-op when unset); was unwired before `v6.0.2`. `deploy-frontend.yml` carries no Sentry step since 2026-07-11. Frontend only — the backend has no Sentry (§3.3). |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Netlify | Clerk sign-in (validator alerts: Memba OS Settings → Notifications, classic `/alerts`) | The production Clerk instance's publishable key. Its secret key lives in gnomonitoring's server config, which checks the tokens; the Memba backend holds no Clerk secret. Both come from the same instance and environment (test/live). |
+| `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID` | Netlify (Production deploy context only) | Samourai accounts sign-in (validator alerts: Memba OS Settings → Notifications, classic `/alerts`) | Public values (`https://auth.kodera.io`, `samourai-app`, `memba-web`); no secret. The realm is managed in kodera-keycloak; gnomonitoring checks the tokens. |
 | `OPENROUTER_API_KEY` | Fly | AI analyst | Rate-limited; not on the critical path. |
 | `ANALYST_ENABLED` | Fly (backend) | AI analyst kill switch | **Unset / anything but `true` or `1` = off**: `/api/analyst/consensus` answers 503 before any auth. Independent of the frontend `VITE_ENABLE_ANALYST` build flag. |
 | `ANALYST_ADMIN_BEARER` | Fly secret | AI analyst operator | Random value, 32+ bytes. A request with `Authorization: Bearer <value>` may force a report refresh (`?force=1`) and is not capped. Unset = no operator access; wallets can never force a refresh. |
@@ -448,7 +448,7 @@ cd backend && go test -race ./...
 
 # Frontend
 cd frontend && npm audit --audit-level=high --omit=dev
-cd frontend && npm ls @clerk/shared dompurify
+cd frontend && npm ls keycloak-js dompurify
 
 # Fly
 flyctl releases list -a memba-backend

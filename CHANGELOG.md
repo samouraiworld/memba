@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Alerts sign-in moves to Samourai accounts (2026-11-05)
+- Validator and GovDAO alerts (Settings → Notifications, the classic /alerts page) now sign in with a Samourai account instead of Clerk. "Sign in" opens the Samourai sign-in page and comes back; choose GitHub or Google as before. If you used an email address only, choose "Forgot Password?" there to set a password.
+- Your webhooks, alert contacts and daily report hour are unchanged; you only need to sign in once more.
+- The Clerk loader, its CSP hosts (Clerk and its Cloudflare bot check) and `VITE_CLERK_PUBLISHABLE_KEY` are gone. New dependency: keycloak-js 26.2.4, loaded only when someone signs in.
+
 ### Validators: mainnet selection scores activated (2026-11-02)
 - The Validators Candidates list now shows the published selection scores and global ranks for the 36 candidates of edition 1 on gno.land mainnet. Each scored operator's page shows the arena breakdown, GitHub bonus and on-chain record.
 - The first edition was sealed at block 1,267,685 after verification of all six publication transactions. The active validator set keeps its live metrics; operators without a published selection score show a dash in the Candidates list.

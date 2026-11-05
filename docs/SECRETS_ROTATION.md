@@ -69,18 +69,12 @@ flyctl secrets set GROQ_API_KEY=<new> GOOGLE_AI_KEY=<new> --app memba-backend
 
 ---
 
-## Clerk keys (Alerts sign-in)
+## Keycloak client `memba-web` (Alerts sign-in)
 
-The Memba backend holds no Clerk secret. Validator alerts (Memba OS Settings → Notifications; the classic `/alerts` page) sign in with Clerk in the browser, and gnomonitoring checks the session token with its own Clerk secret key (`clerk_secret_key` in its server config).
+Validator alerts (Memba OS Settings → Notifications; the classic `/alerts` page) sign in with a Samourai account: the public Keycloak client `memba-web` (realm `samourai-app` on `auth.kodera.io`, PKCE). It has no secret, so neither Memba nor Netlify holds one. gnomonitoring checks the access tokens against the realm's published keys.
 
-**Impact of compromise:** Attacker can forge Clerk sessions for validator alerts (gnomonitoring webhooks).
-**Impact of rotation:** Users of validator alerts must sign in again.
-
-```bash
-# 1. Rotate in the Clerk dashboard: https://dashboard.clerk.com
-# 2. Put the new secret key in gnomonitoring's server config and restart it
-# 3. If the publishable key changed, update VITE_CLERK_PUBLISHABLE_KEY on Netlify and redeploy
-```
+**Impact of compromise:** None on the Memba side: there is no client secret to leak.
+**Impact of rotation:** A realm signing-key rotation happens on Keycloak; users of validator alerts sign in again.
 
 ---
 
@@ -135,7 +129,6 @@ unset KEY
 | ED25519_SEED | On compromise only | Key leak, suspicious auth activity |
 | LIGHTHOUSE_API_KEY | Annually or on compromise | Quota abuse, key exposure |
 | LLM API Keys | Annually or on compromise | Quota abuse, key exposure |
-| Clerk secret key (gnomonitoring) | Annually or on compromise | Per Clerk recommendation |
 | GITHUB_OAUTH_CLIENT_SECRET | Annually or on compromise | Per GitHub recommendation |
 | MEMBA_CURATION_INBOX_KEY | Never (stored messages become unreadable) | On compromise: unset to turn the inbox off |
 

@@ -18,9 +18,9 @@ updates:
       sentry:
         patterns:
           - "@sentry/*"
-      clerk:
+      keycloak:
         patterns:
-          - "@clerk/*"
+          - "keycloak-js"
       connectrpc:
         patterns:
           - "@connectrpc/*"
@@ -48,7 +48,7 @@ updates:
         exclude-patterns:
           - "@tanstack/*"
           - "@sentry/*"
-          - "@clerk/*"
+          - "keycloak-js"
           - "@connectrpc/*"
           - "@bufbuild/*"
           - "eslint"

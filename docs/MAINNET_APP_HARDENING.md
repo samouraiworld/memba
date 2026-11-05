@@ -48,7 +48,7 @@ The Content-Security-Policy is configured in **two locations** (must be kept in 
 ### script-src Analysis
 
 ```
-script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.samourai.app https://*.clerk.accounts.dev blob:;
+script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://plausible.io blob:;
 ```
 
 | Directive | Why | Risk | Removable? |
@@ -56,8 +56,7 @@ script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.samourai.app 
 | `'self'` | Own scripts | None | No |
 | `'unsafe-inline'` | Vite dev HMR + inline event handlers | Low | When migrating to nonce-based CSP |
 | `'wasm-unsafe-eval'` | Adena wallet WebAssembly (secp256k1 crypto) | Very low — only allows WASM compilation, NOT arbitrary JS eval | When Adena removes WASM dependency |
-| `https://clerk.samourai.app` | Clerk auth SDK | Low | If Clerk removed |
-| `https://*.clerk.accounts.dev` | Clerk dev environments | Low | In production-only mode |
+| `https://plausible.io` | Privacy-friendly analytics script | Low | If analytics removed |
 | `blob:` | Web Worker creation (Jitsi, crypto) | Low | No |
 
 ### Key Clarification
@@ -73,7 +72,6 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 
 1. **`wasm-unsafe-eval`** — Remove when Adena drops WebAssembly dependency (track Adena releases)
 2. **`'unsafe-inline'`** — Replace with nonce-based CSP when build tooling supports it
-3. **Clerk dev domains** — Remove `*.clerk.accounts.dev` in production-only builds
 
 ## ✅ Error Message Hardening (v2.22.1)
 
@@ -115,11 +113,6 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 **Risk:** MEDIUM (single-key, no rotation mechanism).
 The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5 minutes + nonce replay prevention.
 **When:** Post-mainnet, when user base grows. Implement `ED25519_SEED_V{N}` key versioning.
-
-### Separate Clerk Applications — DEFERRED
-
-**Risk:** LOW. Single Clerk app used for dev and prod. Dev sessions don't touch production data.
-**When:** When team grows beyond 3 developers.
 
 ## ✅ Completed
 

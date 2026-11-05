@@ -1,7 +1,7 @@
 # Memba — Dependency Policy
 
 > **Owner**: zxxma (sole maintainer at v7.1)
-> **Last updated**: 2026-08-10 (added the pnpm workspaces to scope and gated them in CI)
+> **Last updated**: 2026-11-05 (alerts sign-in moved to Samourai accounts: keycloak-js)
 > **Scope**: every direct and transitive dependency of `frontend/`, `backend/`, the pnpm workspaces (`packages/*`, `mcp-server/` — resolved through the root `pnpm-lock.yaml`), `.github/workflows/`, `backend/Dockerfile`, `frontend/Dockerfile`. Also covers GitHub Actions used in CI.
 > **Audit trail**: see the internal planning archive (private) (live plan) and the internal planning archive (private) (Phase 0 expert reviews) for the threat model that motivated this policy.
 >
@@ -56,7 +56,7 @@ If the upstream fix is **not yet available** when the SLA clock starts, the oper
 | Backend deps (`backend/go.mod`, `go.sum`) | zxxma | TBD |
 | Docker base images (`backend/Dockerfile`, `frontend/Dockerfile`) | zxxma | TBD |
 | GitHub Actions versions | zxxma | TBD |
-| External services (Sentry, Clerk, Lighthouse, OpenRouter) | zxxma | TBD |
+| External services (Sentry, Keycloak (auth.kodera.io), Lighthouse, OpenRouter) | zxxma | TBD |
 | Disclosure coordination (e.g., Adena) | zxxma | TBD |
 
 Single-owner state is acknowledged as a risk (v7.1 plan R-12) and addressed as part of the post-v7.1 ops.
@@ -69,7 +69,7 @@ Single-owner state is acknowledged as a risk (v7.1 plan R-12) and addressed as p
 |-------|---------|---------------------|
 | `tanstack` | `@tanstack/*` | Yes (patch only) — but only after Phase 3 RQ migration |
 | `sentry` | `@sentry/*` | Yes (patch only) |
-| `clerk` | `@clerk/*` | **No** — Clerk has had advisories; always manually reviewed |
+| `keycloak` | `keycloak-js` | **No** — auth surface; always manually reviewed |
 | `eslint` | `eslint`, `eslint-*`, `@typescript-eslint/*` | No — formatting/style PRs benefit from human review |
 | `dev-deps` | `dependency-type: "development"` | Yes (patch only) |
 | Singletons | everything else | No — single-package PRs reviewed individually |
@@ -85,7 +85,7 @@ For dependencies whose runtime behavior we can pin to a specific risk class, we 
 | Dependency | Risk class | Regression test |
 |------------|-----------|-----------------|
 | `dompurify` | XSS sanitizer | `frontend/src/lib/__tests__/sanitize-regression.test.ts` (30 OWASP-style XSS vectors at the 3 call sites' default config). Locks the 3.4+ baseline and flags any future regression to a vulnerable version. |
-| Clerk (no npm package) | Auth surface | Memba has no Clerk dependency: `frontend/src/account/loadClerk.ts` loads Clerk's client (`@clerk/clerk-js@6`) and sign-in UI (`@clerk/ui@1`) from the instance's own host only when someone signs in or a session is remembered, so the version is the major Clerk serves. Memba calls `load`, `openSignIn`, `addListener`, `session.getToken` and `signOut`: no `has()`, `auth.protect()`, billing, reverification or org-scoped APIs. `src/account/AccountProvider.test.tsx` covers a failed and a hung load. Re-check this row whenever the majors in `loadClerk.ts` change. |
+| `keycloak-js` | Auth surface | Pinned exactly (no caret). Only `frontend/src/account/loadKeycloak.ts` imports it, in a lazy chunk loaded when someone signs in, a session is remembered, or a sign-in redirect returns. Calls used: `init` (`check-sso`, PKCE `S256`, `checkLoginIframe: false`, `silentCheckSsoFallback: false`), `login`, `updateToken`, `logout` and `tokenParsed`. Covered by `src/account/loadKeycloak.test.ts` and `src/account/AccountProvider.test.tsx`. Re-check this row on every bump and with every Keycloak server major. |
 | `golang.org/x/net`, `crypto/x509`, `html/template`, `net/http` | Stdlib | `govulncheck` runs on every PR and weekly cron. The backend's required Go version is declared in [go.mod](../backend/go.mod); check the active toolchain before relying on a historical advisory closeout. |
 
 When adding a new call-site regression test:
@@ -98,7 +98,6 @@ When adding a new call-site regression test:
 
 | Advisory | Affected dep | Memba's call surface | Exploitable today? | Evidence |
 |----------|-------------|----------------------|--------------------|----------|
-| `GHSA-w24r-5266-9c3c` (Clerk auth bypass on org/billing/reverification), `GHSA-vqx2-fgx2-5wq9` (Clerk middleware bypass) | `@clerk/clerk-react ≤ 5.61.5`, `@clerk/shared ≤ 3.47.4` | None since 2026-10: Memba has no Clerk npm package and no `@clerk/shared` override | **No** | `grep -n '@clerk' frontend/package.json` → no hits. |
 | dompurify 3.3.x advisories (4 × ADD_TAGS/RETURN_DOM/SAFE_FOR_TEMPLATES/CUSTOM_ELEMENT_HANDLING) | `dompurify ≤ 3.3.3` | 3 sites: `NFTGallery.tsx:489`, `RealmDetailDrawer.tsx:164`, `SourceCodeView.tsx:116` — all `DOMPurify.sanitize(html)` with **no options** | **No, in default config** — the 4 CVEs require non-default options Memba doesn't pass. Regression suite locks that fact. | `sanitize-regression.test.ts` "the production sanitize helper passes no options" case. |
 
 When a future advisory lands, add a row here with the same evidence shape. The intent is that an external auditor reading this file can confirm the exposure assessment without re-reading the entire codebase.
@@ -149,7 +148,7 @@ When reviewing a dependency PR:
 
 - [ ] CI `Backend (Go)` and `Frontend (React)` are **PASS** (or the PR description explains a pre-existing failure being addressed elsewhere).
 - [ ] `npm ls <bumped-pkg>` resolves to a single version (no peer mismatch surprises).
-- [ ] For Clerk / dompurify / any auth/sanitizer surface: the relevant regression suite in §6 is green.
+- [ ] For keycloak-js / dompurify / any auth/sanitizer surface: the relevant regression suite in §6 is green.
 - [ ] For backend deps with breaking changes: the relevant `_test.go` file ran (e.g., `internal/auth/` after `cosmos-sdk`).
 - [ ] CHANGELOG entry references the GHSA / CVE / advisory IDs if applicable.
 - [ ] No `|| true` or `continue-on-error: true` introduced in workflow YAML.

@@ -81,17 +81,21 @@ VITE_DAO_REALM_PATH = gno.land/r/samcrew/memba_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
 VITE_GNOLOVE_API_URL = https://gnolove-api.samourai.live   (optional: this is the default)
 VITE_GNO_MONITORING_API_URL = https://gnomonitoring.samourai.live   (optional: this is the default)
-VITE_CLERK_PUBLISHABLE_KEY = <Clerk publishable key (pk_live_)>
+VITE_KEYCLOAK_URL = https://auth.kodera.io
+VITE_KEYCLOAK_REALM = samourai-app
+VITE_KEYCLOAK_CLIENT_ID = memba-web
 ```
 
 > **Note**: `VITE_GNOLOVE_API_URL` must point to the gnolove Go API server, not a Next.js frontend.
 > The former gnolove domain lapsed in 2026-09; both services now live on Samourai hosts under
 > `samourai.live`, and `config.ts` ignores an override naming any host outside its allowlists.
 > Each API's CORS must allow every Memba origin (`memba.club`, and `memba.samourai.app` until it redirects).
-> `VITE_CLERK_PUBLISHABLE_KEY` is the production Clerk instance's key. It names the instance's frontend
-> host (`clerk.<primary domain>`): the CSP in `netlify.toml` and `index.html` must allow that host (Memba loads
-> Clerk's scripts from it at sign-in), `accounts.<primary domain>`, and `challenges.cloudflare.com` (Clerk's
-> sign-up bot check). gnomonitoring checks the tokens; the Memba backend holds no Clerk secret.
+> The three `VITE_KEYCLOAK_*` values turn on alerts sign-in with Samourai accounts (Keycloak, public
+> client `memba-web`). Set them for the **Production** deploy context only: deploy previews have no
+> redirect URI on `memba-web`, so accounts stay off there. The CSP in `netlify.toml` and `index.html`
+> must allow `https://auth.kodera.io` in `connect-src` and `frame-src`, and `/silent-check-sso.html`
+> must stay framable by Memba itself (`X-Frame-Options: SAMEORIGIN`). gnomonitoring checks the
+> tokens; the Memba backend holds no secret.
 
 ### Backend — Fly.io
 
