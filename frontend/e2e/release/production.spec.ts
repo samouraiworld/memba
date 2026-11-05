@@ -136,3 +136,10 @@ for (const [name, device] of [['desktop', devices['Desktop Chrome']], ['phone', 
         })
     })
 }
+
+test('the service worker serves the silent sign-in page itself, never the app shell', async ({ page }) => {
+    await ready(page)
+    await page.goto('/silent-check-sso.html')
+    await expect(page.locator('script[src="/silent-check-sso.js"]')).toHaveCount(1)
+    await expect(page.getByTestId('memba-os')).toHaveCount(0)
+})

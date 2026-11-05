@@ -30,6 +30,15 @@ function connectSrc(csp: string): string[] {
     return directive.replace(/^connect-src\s+/, '').split(/\s+/).filter(Boolean)
 }
 
+function frameSrc(csp: string): string[] {
+    const directive = csp
+        .split(';')
+        .map((s) => s.trim())
+        .find((d) => d.startsWith('frame-src'))
+    if (!directive) throw new Error('frame-src directive not found')
+    return directive.replace(/^frame-src\s+/, '').split(/\s+/).filter(Boolean)
+}
+
 const netlifyCsp = netlifyToml.match(/Content-Security-Policy\s*=\s*"([^"]*)"/)?.[1] ?? ''
 const htmlCsp = indexHtml.match(/http-equiv="Content-Security-Policy"\s+content="([^"]*)"/)?.[1] ?? ''
 
@@ -67,4 +76,21 @@ describe('both CSPs let the app reach its external service defaults', () => {
             expect(allows(connectSrc(htmlCsp), host)).toBe(true)
         })
     }
+})
+
+describe('the Samourai sign-in host', () => {
+    it('both CSPs let keycloak-js reach auth.kodera.io and frame it and the silent check page', () => {
+        for (const csp of [netlifyCsp, htmlCsp]) {
+            expect(connectSrc(csp)).toContain('https://auth.kodera.io')
+            expect(frameSrc(csp)).toEqual(expect.arrayContaining(["'self'", 'https://auth.kodera.io']))
+        }
+    })
+    it('no CSP or config names Clerk or its bot check', () => {
+        for (const text of [netlifyToml, indexHtml, configTs]) expect(text).not.toMatch(/clerk|accounts\.(memba\.club|samourai\.app)|challenges\.cloudflare\.com/i)
+    })
+    it('only Memba itself may frame Memba pages', () => {
+        expect(netlifyToml).toMatch(/^\s*X-Frame-Options = "SAMEORIGIN"$/m)
+        expect(netlifyToml).not.toMatch(/X-Frame-Options = "DENY"/)
+        expect(netlifyToml).not.toMatch(/frame-ancestors\s+'none'/)
+    })
 })
