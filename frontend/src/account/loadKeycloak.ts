@@ -13,7 +13,7 @@
  */
 import Keycloak, { type KeycloakTokenParsed } from "keycloak-js"
 import type { KeycloakSettings } from "../lib/config"
-import type { AccountUser } from "./accountContext"
+import { hasAuthCallback, type AccountUser } from "./accountContext"
 
 /** The client whose "admin" role shows the gnomonitoring admin panel link. */
 export const ADMIN_ROLE_CLIENT = "gnomonitoring-panel"
@@ -52,10 +52,11 @@ function ensurePromiseWithResolvers(): void {
     Object.defineProperty(Promise, "withResolvers", {
         configurable: true,
         writable: true,
-        value: function withResolvers<T>() {
+        value: function withResolvers<T>(this: PromiseConstructor) {
+            const C: PromiseConstructor = typeof this === "function" ? this : Promise
             let resolve!: (value: T | PromiseLike<T>) => void
             let reject!: (reason?: unknown) => void
-            const p = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+            const p = new C<T>((res, rej) => { resolve = res; reject = rej })
             return { promise: p, resolve, reject }
         },
     })
@@ -69,15 +70,20 @@ function currentPage(): string {
 export async function loadKeycloak(settings: KeycloakSettings): Promise<AccountClient> {
     ensurePromiseWithResolvers()
     const kc = new Keycloak(settings)
-    await kc.init({
-        onLoad: "check-sso",
-        pkceMethod: "S256",
-        checkLoginIframe: false,
-        silentCheckSsoRedirectUri: window.location.origin + SILENT_CHECK_SSO_PATH,
-        // No fallback to a full-page redirect when third-party cookies are
-        // blocked: the user just looks signed out until they click "Sign in".
-        silentCheckSsoFallback: false,
-    })
+    // The return of a sign-in redirect holds the session itself: finish it at
+    // once. The silent check would first wait for a round trip to the sign-in
+    // host, during which the app may rewrite the URL and drop the fragment.
+    await kc.init(hasAuthCallback(window.location.hash)
+        ? { pkceMethod: "S256", checkLoginIframe: false }
+        : {
+            onLoad: "check-sso",
+            pkceMethod: "S256",
+            checkLoginIframe: false,
+            silentCheckSsoRedirectUri: window.location.origin + SILENT_CHECK_SSO_PATH,
+            // No fallback to a full-page redirect when third-party cookies are
+            // blocked: the user just looks signed out until they click "Sign in".
+            silentCheckSsoFallback: false,
+        })
 
     const listeners = new Set<(user: AccountUser | null) => void>()
     const emit = (user: AccountUser | null) => { for (const listener of listeners) listener(user) }

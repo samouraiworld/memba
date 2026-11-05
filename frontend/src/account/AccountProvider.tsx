@@ -49,13 +49,15 @@ export function AccountProvider({ children, settings = KEYCLOAK_SETTINGS }: { ch
         loading.current ??= (async () => {
             setStatus("loading")
             let timer: ReturnType<typeof setTimeout> | undefined
+            // Only the first attempt may finish the arrival's sign-in return.
+            const callback = pendingCallback.current
+            pendingCallback.current = null
             try {
                 const { loadKeycloak } = await import("./loadKeycloak")
-                const callback = pendingCallback.current
-                pendingCallback.current = null
-                if (callback && !hasAuthCallback(window.location.hash)) {
+                if (callback && !window.location.hash) {
                     // The app rewrote the URL (OS shell, root redirect) before
-                    // keycloak-js could read the sign-in return: put it back.
+                    // keycloak-js could read the sign-in return: put it back,
+                    // unless the app has set a fragment of its own since.
                     history.replaceState(history.state, "", window.location.pathname + window.location.search + callback)
                 }
                 const c = await Promise.race([

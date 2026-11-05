@@ -117,6 +117,24 @@ describe("loadKeycloak", () => {
         }
     })
 
+    it("finishes a sign-in return at once, without the silent check during which the app could drop it", async () => {
+        history.replaceState(null, "", "/os/settings#state=s1&session_state=x&code=c1")
+        await loadKeycloak(SETTINGS)
+        expect(kc.init).toHaveBeenCalledWith({ pkceMethod: "S256", checkLoginIframe: false })
+    })
+
+    it("keeps the polyfill's promises of the class it is called on", async () => {
+        const native = Promise.withResolvers
+        Reflect.deleteProperty(Promise, "withResolvers")
+        try {
+            await loadKeycloak(SETTINGS)
+            class Tracked<T> extends Promise<T> {}
+            expect(Tracked.withResolvers<number>().promise).toBeInstanceOf(Tracked)
+        } finally {
+            Object.defineProperty(Promise, "withResolvers", { value: native, writable: true, configurable: true })
+        }
+    })
+
     it("rejects when init fails, so the provider can say sign-in is unavailable", async () => {
         kc.init.mockRejectedValue(new Error("Timeout when waiting for 3rd party check iframe message."))
         await expect(loadKeycloak(SETTINGS)).rejects.toThrow(/3rd party/)

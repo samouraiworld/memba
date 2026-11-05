@@ -145,6 +145,16 @@ describe("the optional account", () => {
         expect(urlSeen).toBe("/os/settings#state=s1&session_state=x&code=c1")
     })
 
+    it("never puts the sign-in return over a fragment the app set meanwhile", async () => {
+        history.replaceState(null, "", "/mainnet/alerts#state=s1&session_state=x&code=c1")
+        let urlSeen = ""
+        vi.mocked(loadKeycloak).mockImplementation(() => { urlSeen = window.location.pathname + window.location.hash; return new Promise<never>(() => {}) })
+        renderWith()
+        history.replaceState(null, "", "/os/notes#k=secret")
+        await waitFor(() => expect(loadKeycloak).toHaveBeenCalledOnce())
+        expect(urlSeen).toBe("/os/notes#k=secret")
+    })
+
     it("forgets a remembered session that the silent check does not find", async () => {
         localStorage.setItem(SESSION_MARKER, "1"); vi.mocked(loadKeycloak).mockResolvedValue(fakeClient(null))
         renderWith(); await screen.findByText("status: ready")
