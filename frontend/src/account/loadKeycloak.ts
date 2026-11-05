@@ -43,12 +43,31 @@ export function toUser(claims: KeycloakTokenParsed | undefined): AccountUser | n
     }
 }
 
+/** keycloak-js 26 calls Promise.withResolvers to refresh a token. Browsers
+ *  in the build's target lack it (Safari before 17.4, Chrome before 119):
+ *  without this, every refresh would fail while the panel still looks signed in. */
+function ensurePromiseWithResolvers(): void {
+    const promise = Promise as unknown as { withResolvers?: unknown }
+    if (typeof promise.withResolvers === "function") return
+    Object.defineProperty(Promise, "withResolvers", {
+        configurable: true,
+        writable: true,
+        value: function withResolvers<T>() {
+            let resolve!: (value: T | PromiseLike<T>) => void
+            let reject!: (reason?: unknown) => void
+            const p = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+            return { promise: p, resolve, reject }
+        },
+    })
+}
+
 /** Where sign-in and sign-out come back to: this page, without its fragment. */
 function currentPage(): string {
     return window.location.origin + window.location.pathname + window.location.search
 }
 
 export async function loadKeycloak(settings: KeycloakSettings): Promise<AccountClient> {
+    ensurePromiseWithResolvers()
     const kc = new Keycloak(settings)
     await kc.init({
         onLoad: "check-sso",
@@ -65,7 +84,10 @@ export async function loadKeycloak(settings: KeycloakSettings): Promise<AccountC
     const user = () => (kc.authenticated ? toUser(kc.tokenParsed) : null)
     kc.onAuthSuccess = () => emit(user())
     kc.onAuthLogout = () => emit(null)
-    kc.onAuthRefreshError = () => emit(null)
+    // keycloak-js clears the tokens itself only when the refresh answers 400.
+    // Offline or 5xx would leave it "authenticated" while the panel says
+    // "Sign in", and that click would then do nothing: forget them here too.
+    kc.onAuthRefreshError = () => { kc.clearToken(); emit(null) }
 
     return {
         get user() { return user() },
@@ -77,8 +99,7 @@ export async function loadKeycloak(settings: KeycloakSettings): Promise<AccountC
         getToken: async () => {
             if (!kc.authenticated) return null
             try {
-                // Also fails on browsers without Promise.withResolvers, which
-                // keycloak-js uses here: treated as signed out, never thrown.
+                // A failed refresh also signs out (onAuthRefreshError): never thrown.
                 await kc.updateToken(TOKEN_MIN_VALIDITY_S)
                 return kc.token ?? null
             } catch {

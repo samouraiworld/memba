@@ -8,6 +8,7 @@ const kc = vi.hoisted(() => ({
     login: vi.fn(),
     logout: vi.fn(),
     updateToken: vi.fn(),
+    clearToken: vi.fn(),
     authenticated: false as boolean,
     token: undefined as string | undefined,
     tokenParsed: undefined as Record<string, unknown> | undefined,
@@ -26,6 +27,11 @@ beforeEach(() => {
     kc.login.mockReset().mockResolvedValue(undefined)
     kc.logout.mockReset().mockResolvedValue(undefined)
     kc.updateToken.mockReset()
+    // Like keycloak-js: drops the tokens and reports a logout only when a token was held.
+    kc.clearToken.mockReset().mockImplementation(() => {
+        if (!kc.token) return
+        kc.token = undefined; kc.tokenParsed = undefined; kc.authenticated = false; kc.onAuthLogout?.()
+    })
     kc.authenticated = false
     kc.token = undefined
     kc.tokenParsed = undefined
@@ -81,6 +87,34 @@ describe("loadKeycloak", () => {
         kc.onAuthRefreshError?.(); kc.onAuthLogout?.()
         expect(seen).toEqual([{ id: "kc-1", email: null, fullName: null, isAdmin: false }, null, null])
         off(); kc.onAuthLogout?.(); expect(seen).toHaveLength(3)
+    })
+
+    it("forgets the tokens when a refresh fails without ending the session (offline, 5xx), so Sign in redirects again", async () => {
+        const c = await loadKeycloak(SETTINGS); const seen: unknown[] = []
+        c.onChange((u) => seen.push(u))
+        kc.authenticated = true; kc.token = "jwt"; kc.tokenParsed = { sub: "kc-1" }
+        expect(c.user).not.toBeNull()
+        kc.onAuthRefreshError?.()
+        expect(c.user).toBeNull()
+        expect(kc.clearToken).toHaveBeenCalled()
+        expect(seen.at(-1)).toBeNull()
+    })
+
+    it("can refresh tokens on browsers without Promise.withResolvers, which keycloak-js needs for it", async () => {
+        const native = Promise.withResolvers
+        Reflect.deleteProperty(Promise, "withResolvers")
+        try {
+            await loadKeycloak(SETTINGS)
+            expect(typeof Promise.withResolvers).toBe("function")
+            const { promise, resolve } = Promise.withResolvers<number>()
+            resolve(7)
+            expect(await promise).toBe(7)
+            const failed = Promise.withResolvers<number>()
+            failed.reject(new Error("no"))
+            await expect(failed.promise).rejects.toThrow("no")
+        } finally {
+            Object.defineProperty(Promise, "withResolvers", { value: native, writable: true, configurable: true })
+        }
     })
 
     it("rejects when init fails, so the provider can say sign-in is unavailable", async () => {
