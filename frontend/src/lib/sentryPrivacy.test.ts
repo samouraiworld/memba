@@ -230,4 +230,10 @@ describe('Sentry standalone span privacy boundary', () => {
         expect(JSON.stringify(oversized)).not.toContain(room)
         expect(oversized.data).toEqual({})
     })
+    it('drops the sign-in return (code, state, session_state) from URLs', () => {
+        const url = 'https://memba.club/os/settings#state=s-1&session_state=ss-2&iss=https%3A%2F%2Fauth.kodera.io&code=c-3'
+        const result = redactSentryEvent({ request: { url } })
+        expect(result.request?.url).toBe('https://memba.club/os/settings#state=[REDACTED]&session_state=[REDACTED]&iss=https%3A%2F%2Fauth.kodera.io&code=[REDACTED]')
+        expect(redactSentryEvent({ request: { url: 'https://memba.club/x?code=gh-1&tab=2' } }).request?.url).toBe('https://memba.club/x?code=[REDACTED]&tab=2')
+    })
 })

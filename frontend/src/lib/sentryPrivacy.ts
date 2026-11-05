@@ -4,6 +4,8 @@ function redactText(value: string): string {
     value = value.replace(/(?:#|%23)k(?:=|%3d)[A-Za-z0-9_%=-]*/gi, '[REDACTED_NOTE_KEY]')
     value = value.replace(/\/os\/notes(?:\/[^\s?#"'<>]*)?(?:[?#][^\s"'<>]*)?/gi, '/os/notes/[REDACTED]')
     value = value.replace(/g1[a-z0-9]{38}/gi, '[REDACTED_ADDRESS]')
+    // A sign-in return (#state=…&session_state=…&code=…) or an OAuth code.
+    value = value.replace(/(^|[#?&])(code|state|session_state)=[^&#\s"'<>]*/gi, '$1$2=[REDACTED]')
     // Visio room slugs grant access, including when they appear in OS URLs,
     // saved-window query tokens, referrers or an outbound Visio link.
     value = value.replace(/\b[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}\b/gi, '[REDACTED_MEETING]')
