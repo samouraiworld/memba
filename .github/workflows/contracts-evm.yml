@@ -17,7 +17,9 @@ on:
   pull_request:
   push:
     branches: [main]
-  # The daily live manifest check (schedule) is off while EVM work is frozen; run it on demand with workflow_dispatch.
+  # Accepted risk (2026-11-13): the daily live manifest check is off while EVM work is frozen and VITE_ENABLE_EVM is
+  # off in production. Restore `schedule: - cron: '23 5 * * *'` when EVM work resumes (re-examination March 2027);
+  # until then run it on demand with workflow_dispatch before any EVM release.
   workflow_dispatch:
 
 permissions:
