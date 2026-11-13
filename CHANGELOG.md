@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Multisig: transactions ready for the next gno.land upgrade (2026-11-13)
+- Native multisig transactions are now assembled with the gno SDK at gnolang/gno master (`855151c394`), which writes the canonical transaction encoding. At the next coordinated upgrade, gno.land nodes accept only that encoding (gnolang/gno#6406); the previous SDK wrote the master signature's zero session address, which those nodes refuse.
+- A multisig transaction now carries exactly its threshold of signatures, as upcoming nodes require.
+- The `gnokey` binary the backend image uses for Arcade attestations is pinned to the same gno commit.
+- A golden test pins the exact multisig bytes and proves the previous encoding is refused by the canonical decoder; the same bytes were replayed on a v1.7.1 chain application (what gnoland-1 runs today) and accepted.
+
 ### Validators: mainnet selection scores activated (2026-11-02)
 - The Validators Candidates list now shows the published selection scores and global ranks for the 36 candidates of edition 1 on gno.land mainnet. Each scored operator's page shows the arena breakdown, GitHub bonus and on-chain record.
 - The first edition was sealed at block 1,267,685 after verification of all six publication transactions. The active validator set keeps its live metrics; operators without a published selection score show a dash in the Candidates list.
