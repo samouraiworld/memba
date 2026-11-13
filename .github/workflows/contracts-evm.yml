@@ -5,7 +5,7 @@ name: EVM Contracts
 #                 check of the token template, the token artifact rebuild, and canaries proving those gates fail
 #   slither       pinned Slither over src/
 #   fork          every fork suite on Base and Base Sepolia at the pinned blocks, with a vacuity check
-#   manifest-live deployments/evm against both chains at the latest block (on manifest changes and on demand; the daily run is off while EVM is frozen)
+#   manifest-live deployments/evm against both chains at the latest block (on manifest changes and on demand; daily and push runs are off while EVM is frozen)
 # The required check is the aggregate job "Contracts (EVM)": it always reports, and skipped jobs count as passed
 # (a PR that touches nothing here skips the heavy jobs).
 #
@@ -49,10 +49,13 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          # While EVM work is frozen (see the trigger comment above), the live manifest check runs only on demand
+          # (workflow_dispatch) and on PRs that change the manifest or its checker, not on every push to main.
           case "$EVENT" in
             schedule) echo "contracts=false" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
+            workflow_dispatch) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
             pull_request) ;;
-            *) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
+            *) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=false" >>"$GITHUB_OUTPUT"; exit 0 ;;
           esac
           files="$(git diff --name-only "$BASE_SHA"...HEAD)"
           contracts=false
@@ -60,7 +63,7 @@ jobs:
           if grep -qE '^(contracts/evm/|deployments/evm/|\.github/workflows/contracts-evm\.yml$|\.gitmodules$)' <<<"$files"; then
             contracts=true
           fi
-          if grep -qE '^(deployments/evm/|contracts/evm/test/manifest/|contracts/evm/test/RpcUrl\.sol$|contracts/evm/script/(pick-rpc|ci-canaries)\.sh$|contracts/evm/foundry\.toml$|\.github/workflows/contracts-evm\.yml$)' <<<"$files"; then
+          if grep -qE '^(deployments/evm/|contracts/evm/test/manifest/|contracts/evm/test/RpcUrl\.sol$|contracts/evm/script/(pick-rpc|ci-canaries)\.sh$|contracts/evm/foundry\.toml$)' <<<"$files"; then
             manifest=true
           fi
           echo "contracts=$contracts" >>"$GITHUB_OUTPUT"
