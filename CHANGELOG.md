@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security: OpenTelemetry 1.47.0 in the backend (2026-11-13)
+- The OpenTelemetry Go modules the gno SDK pulls into the backend move from 1.45.0 to 1.47.0, which fixes an attribute length limit that a value made of U+FFFD characters could bypass (GHSA-q7gw-24fr-5p69). `govulncheck` finds no backend code path that reaches it; the update closes the advisory anyway.
+
 ### Security: hono and qs advisories cleared (2026-11-13)
 - MCP server and RPC package (pnpm workspace): `hono` 4.13.16 (CSRF check skipped requests sent by hyperlink auditing), `@hono/node-server` 2.1.6 (unhandled socket reset, backslash read as a path separator), `qs` 6.16.1 (uncaught error in comma-format stringify). The override floors are raised to these versions so a later re-resolve cannot fall back below them.
 - Frontend build tooling, not changed: `minimatch` 10.x (denial of service through pattern amplification) has no patched 10.x release, and 11.x breaks `workbox-build`, which then precaches no script or stylesheet. It only reads glob patterns from our own build configuration.
