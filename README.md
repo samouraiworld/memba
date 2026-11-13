@@ -2,6 +2,8 @@
 
 Memba is a Gno application for multisig coordination, DAO governance and community tools, built by [Samouraï Coop](https://samourai.world). It is experimental software; read the [disclaimer](DISCLAIMER.md) before using a wallet.
 
+> **Current status:** see [STATUS.md](STATUS.md), the single source of truth for what runs in production, held flags and decisions. The dated sections below are historical snapshots.
+
 | Site | Current role |
 | --- | --- |
 | [memba.samourai.app](https://memba.samourai.app) | Classic application on gno.land mainnet. |
