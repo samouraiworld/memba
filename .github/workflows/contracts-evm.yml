@@ -5,7 +5,7 @@ name: EVM Contracts
 #                 check of the token template, the token artifact rebuild, and canaries proving those gates fail
 #   slither       pinned Slither over src/
 #   fork          every fork suite on Base and Base Sepolia at the pinned blocks, with a vacuity check
-#   manifest-live deployments/evm against both chains at the latest block (daily, and on manifest changes)
+#   manifest-live deployments/evm against both chains at the latest block (on manifest changes and on demand; the daily run is off while EVM is frozen)
 # The required check is the aggregate job "Contracts (EVM)": it always reports, and skipped jobs count as passed
 # (a PR that touches nothing here skips the heavy jobs).
 #
@@ -17,8 +17,7 @@ on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    - cron: '23 5 * * *' # daily live manifest check: catches upstream proxy upgrades and drift
+  # The daily live manifest check (schedule) is off while EVM work is frozen; run it on demand with workflow_dispatch.
   workflow_dispatch:
 
 permissions:
