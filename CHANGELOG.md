@@ -25,6 +25,7 @@ Full changelogs are split by version range for easier navigation:
 - A multisig transaction now carries exactly its threshold of signatures, as upcoming nodes require.
 - The `gnokey` binary the backend image uses for Arcade attestations is pinned to the same gno commit.
 - A golden test pins the exact multisig bytes and proves the previous encoding is refused by the canonical decoder; the same bytes were replayed on a v1.7.1 chain application (what gnoland-1 runs today) and accepted.
+
 ### Security: Go 1.26.11 (2026-11-13)
 - The backend builds with Go 1.26.11, which fixes the `net/http` vulnerability GO-2026-6859 reported against Go 1.26.10.
 
