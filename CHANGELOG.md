@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security: hono and qs advisories cleared (2026-11-13)
+- MCP server and RPC package (pnpm workspace): `hono` 4.13.16 (CSRF check skipped requests sent by hyperlink auditing), `@hono/node-server` 2.1.6 (unhandled socket reset, backslash read as a path separator), `qs` 6.16.1 (uncaught error in comma-format stringify). The override floors are raised to these versions so a later re-resolve cannot fall back below them.
+- Frontend build tooling, not changed: `minimatch` 10.x (denial of service through pattern amplification) has no patched 10.x release, and 11.x breaks `workbox-build`, which then precaches no script or stylesheet. It only reads glob patterns from our own build configuration.
+- `deepmerge` 4.3.1 (prototype poisoning of merged objects) has no patched release. It is used only by the Rollup node-resolve plugin at build time to merge our own configuration, so no untrusted input reaches it.
+
 ### Chain reads fail over when a node refuses code-running queries (2026-11-13)
 - gno.land nodes can now be run with `rpc.allow_code_execution = false` (gnolang/gno#6413), which refuses `vm/qeval` and `vm/qrender` with a JSON-RPC error (or HTTP 403). Memba now treats such a refusal as "this node won't answer" and asks the next RPC endpoint (rpc.gno.land first, then rpc.mainnet.samourai.live on mainnet), instead of failing the read on the first node.
 - When every endpoint refuses, the read fails with an error that says so; it is no longer shown as empty data (a blank realm, zero balance or empty token list). An error raised by the realm itself, such as a panic in the evaluated expression, is still the chain's answer and is not retried elsewhere.
