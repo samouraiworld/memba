@@ -10,7 +10,7 @@ import { withWalletActivity } from "./walletActivity"
 
 import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
 import { getGasConfig } from "./gasConfig"
-import { getRpcUrlsInOrder } from "./rpcFallback"
+import { getRpcUrlsInOrder, resilientAbciQuery } from "./rpcFallback"
 import { abciQueryText } from "./dao/packageStatus"
 import { assertLiveWalletNetwork } from "./walletNetworkGuard"
 import * as Sentry from "@sentry/react"
@@ -647,7 +647,12 @@ const decimalsCache = new Map<string, number>()
 export async function getTokenDecimals(rpcUrl: string, symbol: string): Promise<number | null> {
     const cached = decimalsCache.get(symbol)
     if (cached !== undefined) return cached
-    const info = await getTokenInfo(rpcUrl, symbol)
+    let info: TokenInfo | null
+    try {
+        info = await getTokenInfo(rpcUrl, symbol)
+    } catch {
+        return null // e.g. every RPC endpoint refused the read: unknown, not a guess
+    }
     if (info === null) return null
     decimalsCache.set(symbol, info.decimals)
     return info.decimals
@@ -936,28 +941,17 @@ async function queryEval(rpcUrl: string, pkgPath: string, expr: string): Promise
     return abciQuery(rpcUrl, "vm/qeval", `${pkgPath}.${expr}`)
 }
 
-/** Low-level ABCI query via JSON-RPC POST. Returns decoded string or null. */
-async function abciQuery(rpcUrl: string, path: string, data: string): Promise<string | null> {
-    try {
-        const b64Data = btoa(data)
-        const res = await fetch(rpcUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba",
-                method: "abci_query",
-                params: { path, data: b64Data },
-            }),
-        })
-        const json = await res.json()
-        // VM queries return data in ResponseBase.Data (not Value)
-        const value = json?.result?.response?.ResponseBase?.Data
-        if (!value) return null
-        return atob(value)
-    } catch {
-        return null
-    }
+/**
+ * Low-level ABCI query. Returns the decoded string, or null when the realm
+ * rendered nothing / errored or every endpoint is unreachable (this module's
+ * long-standing contract). Goes through the shared failover path like
+ * dao/shared.ts, so a node that refuses code-running queries (HTTP 403 or a
+ * JSON-RPC error) hands over to the next endpoint; when EVERY endpoint
+ * refuses, {@link RpcRefusedError} propagates instead of a misleading null.
+ * `_rpcUrl` is the active network's RPC, which the failover list starts from.
+ */
+async function abciQuery(_rpcUrl: string, path: string, data: string): Promise<string | null> {
+    return resilientAbciQuery(path, data, false)
 }
 
 /** Sanitize string for ABCI query (prevent injection). */
