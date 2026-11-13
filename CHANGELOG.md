@@ -24,6 +24,7 @@ Full changelogs are split by version range for easier navigation:
 - gno.land nodes can now be run with `rpc.allow_code_execution = false` (gnolang/gno#6413), which refuses `vm/qeval` and `vm/qrender` with a JSON-RPC error (or HTTP 403). Memba now treats such a refusal as "this node won't answer" and asks the next RPC endpoint (rpc.gno.land first, then rpc.mainnet.samourai.live on mainnet), instead of failing the read on the first node.
 - When every endpoint refuses, the read fails with an error that says so; it is no longer shown as empty data (a blank realm, zero balance or empty token list). An error raised by the realm itself, such as a panic in the evaluated expression, is still the chain's answer and is not retried elsewhere.
 - Token factory reads (token list, token details, balances) now use the same failover path as the rest of the app.
+
 ### Multisig: transactions ready for the next gno.land upgrade (2026-11-13)
 - Native multisig transactions are now assembled with the gno SDK at gnolang/gno master (`855151c394`), which writes the canonical transaction encoding. At the next coordinated upgrade, gno.land nodes accept only that encoding (gnolang/gno#6406); the previous SDK wrote the master signature's zero session address, which those nodes refuse.
 - A multisig transaction now carries exactly its threshold of signatures, as upcoming nodes require.
