@@ -62,6 +62,12 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+      # Playwright 1.64's Linux WebKit stops running requestAnimationFrame on
+      # /test13/directory, so every click there waits forever for "stable"
+      # (complete-design iPhone, CI only; macOS WebKit and 1.63 are fine).
+      # Held at 1.63.0 until a 1.65 release is tried.
+      - dependency-name: "@playwright/test"
+        versions: ["1.64.x"]
 
   - package-ecosystem: "gomod"
     directory: "/backend"

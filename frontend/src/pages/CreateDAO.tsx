@@ -475,8 +475,8 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
     if (!caps.create) {
         return (
             <div className="animate-fade-in cdao-page">
-                <button id="create-dao-back-btn" aria-label="Back to DAO list" onClick={() => navigate("/dao")} className="cdao-back-btn">
-                    ← Back to DAOs
+                <button id="create-dao-back-btn" onClick={() => navigate("/dao")} className="cdao-back-btn">
+                    <span aria-hidden="true">← </span>Back to DAOs
                 </button>
                 <div className="k-card" role="status" style={{ padding: 20 }}>
                     <h2 className="cdao-title">Create a DAO</h2>
@@ -491,11 +491,10 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
             {/* Nav */}
             <button
                 id="create-dao-back-btn"
-                aria-label="Back to DAO list"
                 onClick={() => navigate("/dao")}
                 className="cdao-back-btn"
             >
-                ← Back to DAOs
+                <span aria-hidden="true">← </span>Back to DAOs
             </button>
 
             {draftWarning && <p role="status">{draftWarning}</p>}

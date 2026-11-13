@@ -27,6 +27,41 @@ Full changelogs are split by version range for easier navigation:
 - **About private notes**, from the Private notes panel: what is encrypted and what stays public, the simulation before signing, costs, the recovery phrase and file, old bytes in browser storage, and what co-writers can do.
 - Comments: the signing sheet says "Comment (sent encrypted)", the list says a realm moderator can hide comments too, and a reply names its parent's author.
 - A browser acceptance of private notes in the real Shell (Chromium and Firefox, no retries) runs in CI against simulated onyx-1 reads; nothing is signed.
+### Validators: mainnet selection scores activated (2026-11-02)
+- The Validators Candidates list now shows the published selection scores and global ranks for the 36 candidates of edition 1 on gno.land mainnet. Each scored operator's page shows the arena breakdown, GitHub bonus and on-chain record.
+- The first edition was sealed at block 1,267,685 after verification of all six publication transactions. The active validator set keeps its live metrics; operators without a published selection score show a dash in the Candidates list.
+
+### Validators: selection scores from the testnets (2026-10-20)
+- The Candidates list of the Validators window gets **Score** and **Rank** columns once the validator selection ranking is published on chain (`gno.land/r/samcrew/validator_scores`): each operator's total (`87.4`) and rank (`3`), and a dash for an operator with no published score. The list then opens sorted by score, highest first, then by name.
+- A validator's page shows a **Selection score (testnets)** card when its operator has a published score: edition date, total, rank, the score of each arena, the GitHub bonus, and a link to the on-chain record.
+- Mainnet activation followed the verified deployment and sealing of edition 1 on 2026-11-02; the active-set list gets no score column.
+- Developers: `VITE_ENABLE_LOCAL_NETWORK=true` on the dev server adds a `local` network (gnodev at `http://localhost:26657`, chain `dev`) for testing against a local realm. Production builds never include it.
+### Dependency security fixes (2026-10-27)
+- Updated DOMPurify to 3.4.17 and the affected frontend build dependencies (undici, fast-uri and serialize-javascript) to patched releases.
+- Updated the MCP server's declared Zod dependency to 4.6.7, which its SDK supports, and raised the workspace body-parser and fast-uri security floors. A protocol test verifies the server's advertised schemas, default arguments and rejection of invalid tool input before an RPC call.
+- Both committed dependency trees are regenerated; Playwright remains at 1.63.0. Validation evidence is recorded in `docs/qa/dependency-security-2026-10-27.md`.
+
+### Accessible names match the visible text (2026-10-22)
+- Buttons and links whose screen-reader name left out the words on screen now include them (WCAG 2.5.3, Label in Name): Directory "View source" (now "View source of …"), the Create DAO and DAO page back buttons ("Back to DAOs"), the validator cards (named by their content, health included), the Memba OS Validators rows (name and short address), the Explorer realm rows and the Live ticker ("Open Live. …").
+- Test tooling: axe-core 4.14 (which now reports these mismatches), typescript-eslint 8.71.2 and four smaller dev-dependency updates. Playwright stays on 1.63.0: 1.64's Linux WebKit stops running animation frames on the test13 Directory, so a click there never completes in CI (Dependabot skips 1.64.x).
+
+### Dependency updates and the last known advisories cleared (2026-10-22)
+- Backend: `golang.org/x/crypto` 0.58.0, `golang.org/x/sync` 0.24.0, `connectrpc.com/connect` 1.21.1, `prometheus/client_golang` 1.25.0.
+- Frontend: React 19.3.1, viem 2.57.7, zod 4.6.7, the Safe kits, marked, CodeMirror, TanStack Query 5.104.4, Sentry 10.76.2, react-three-fiber 9.8.2, vitest 4.1.12.
+- Security floors raised to the patched releases (`fast-uri`, `hono`, `ip-address`, `vitest`): `npm audit` and `pnpm audit` now report no known vulnerability (11 moderate advisories before, all in development or build tooling, none reachable from the shipped app).
+
+### Security floors: Go 1.26.10 and patched vite (2026-10-21)
+- Backend builds with Go 1.26.10 (`backend/go.mod` and both `backend/Dockerfile` stages), which fixes GO-2026-6809 (`crypto/x509` no longer trusts the compromised intermediate certificates).
+- The frontend uses vite 7.3.7, and the workspace packages vite 8.3.4 (root override raised to `>=8.3.3`, which admits no vulnerable 8.x release), which fixes GHSA-587h-7wmj-h5pm (the `launch-editor` file check bypass on Windows, dev server only). Nothing changes in the shipped app.
+
+### memba.samourai.app redirect made permanent (2026-10-17)
+- The redirect from memba.samourai.app (and memba-multisig.netlify.app) to the same address on memba.club is now permanent (`301`): browsers and search engines remember it and go straight to memba.club. The old site's service-worker kill switch stays in place.
+- Removed the "Memba has moved to memba.club" banner: no page of the old address is served any more, so nobody could see it.
+
+### memba.samourai.app redirects to memba.club (2026-10-16)
+- Every address on memba.samourai.app now opens the same address on memba.club, query string and fragment kept, and memba.club opens it in its Memba OS window: `/gnolove/report` opens the Dev Report, `/dao/gno.land~r~samcrew~memba_dao` the Memba DAO, `/validators` the Validators. No click needed.
+- A returning visitor whose browser kept the old site offline gets the same redirect: the old site's service worker is replaced by one that removes itself and reloads the tab.
+- Saved settings, drafts and the sign-in of the old address stay there; on memba.club, sign in again.
 
 ### Notes: encrypted comments on private notes (#1642, 2026-10-16)
 - A private note's side panel now has **Comments**. Guests and locked members see each comment as "Encrypted comment", with its author and time only. Once the key is unlocked, each comment opens under the key of its own version; one from a version this account was never given shows "Comment from an earlier version you can't open".

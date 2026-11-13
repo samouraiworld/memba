@@ -42,7 +42,7 @@ export function DAOOverviewCard({
             <div className="dao-breadcrumb">
                 <button
                     id="dao-back-btn"
-                    aria-label="Back to DAO list"
+                    aria-label="Back to DAOs"
                     onClick={() => navigate("/dao")}
                     className="dao-breadcrumb-btn"
                 >

@@ -24,10 +24,10 @@ export function LiveTicker({ onOpen }: { onOpen: () => void }) {
         : checkedAge ? checkedAge === "just now" ? "Indexer checked just now" : `Indexer checked ${checkedAge} ago` : ""
 
     return (
-        <button type="button" className="os-live-ticker os-glass" data-state={state} onClick={onOpen} aria-label={`Open Live activity. ${headline}${ageLabel ? `. ${ageLabel}` : ""}`}>
+        <button type="button" className="os-live-ticker os-glass" data-state={state} onClick={onOpen} aria-label={`Open Live. ${headline}${ageLabel ? `. ${ageLabel}` : ""}`}>
             <span className="os-live-ticker-mark" aria-hidden="true" />
             <span className="os-live-ticker-text">
-                <strong>Live</strong>
+                <strong>Live</strong>{" "}
                 <span>{headline}</span>
             </span>
             {ageLabel && <span className="os-live-ticker-age" aria-hidden="true">{ageLabel}</span>}

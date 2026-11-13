@@ -20,7 +20,7 @@ for (const [width, name] of [[1280, 'desktop'], [375, 'phone']] as const) {
         if (name === 'desktop') {
             await expect(page.getByRole('main', { name: 'Desktop' }).locator('.os-live-ticker')).toHaveCount(0)
             await page.getByRole('button', { name: 'Network: gnoland-1' }).hover()
-            const ticker = page.getByRole('button', { name: /Open Live activity.*Activity could not be refreshed/ })
+            const ticker = page.getByRole('button', { name: /Open Live\. Activity could not be refreshed/ })
             await expect(ticker).toHaveAttribute('data-state', 'error')
         }
         await settleAnimations(page)
