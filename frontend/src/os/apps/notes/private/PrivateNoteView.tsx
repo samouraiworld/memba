@@ -12,9 +12,10 @@ import { NoteSharePopover } from '../NoteSharePopover'
 import { NoteSidePanel } from '../NoteSidePanel'
 import type { NoteReport } from '../PublicPublish'
 import { NoteSkeleton } from '../PublicNote'
+import { mayLockPrivateNotes } from '../notesPane'
 import { shortAddress } from '../notesFormat'
 import { RecoverySheet } from './PrivateNotesPanel'
-import { adenaWallet, unlockProblem } from './unlock'
+import { adenaWallet, KEY_CHANGED, unlockProblem } from './unlock'
 import { withKey } from './keyQueue'
 import { PrivateDraftEditor } from './PrivateDraftEditor'
 import { PrivateDelete } from './PrivateDelete'
@@ -106,6 +107,7 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
     let body: ReactNode
     if (known && 'none' in known) body = message('You don’t have access to this private note.', 'Only its owner and the people it is shared with can read it.')
     else if (known && 'failed' in known) body = message('This private note could not be checked.', 'Nothing was changed.', <button type="button" className="os-btn" onClick={() => retry(n => n + 1)}>Try again</button>)
+    else if (phase === 'changed') body = message(KEY_CHANGED, `Memba cannot open this note with it and changed nothing; the note stays encrypted on the network.${editing ? ' Your edits stay encrypted on this device.' : ''} See Private notes.`)
     else if (!known || phase === 'unknown') body = <NoteSkeleton label="Checking your access…" />
     else if (failed === 'other-key' || (phase !== 'empty' && known.generation !== generation)) body = message('Your current key cannot open this note.', 'It was shared with another private key of this account. Memba changed nothing.')
     else if (phase === 'empty' || phase === 'revoked' || phase === 'prepared') body = message('You don’t have access to this private note.', phase === 'revoked' ? 'Your private key was turned off outside Memba.' : 'Set up private notes first, in Private notes.')
@@ -128,13 +130,14 @@ function View({ note, controller, client, owner, walletChainId, store, report }:
         <MarkdownPreview key={note.id} body={shown.body} noteId={note.id} onRoot={setPreviewRoot} />
     </>
     const by = note.actor === owner ? 'you' : shortAddress(note.actor)
-    const menu: NoteMenuItem[] = [...store && note.owner === owner ? [{ label: 'Delete note…', danger: true, run: () => setDeleting(true) }] : [],
+    // Read only while the key changed outside Memba: nothing on the network or on this device is removed from here.
+    const menu: NoteMenuItem[] = phase === 'changed' ? [] : [...store && note.owner === owner ? [{ label: 'Delete note…', danger: true, run: () => setDeleting(true) }] : [],
         ...store && draft ? [{ label: 'Remove my draft on this device…', run: () => void removeDraft() }] : []]
     return <section className="os-notes-document os-notes-reader os-notes-private-note" aria-label="Private note">
         <NoteHeader noteId={note.id} status={<NoteStatus kind="private">Private · revision {note.stateRevision} · by {by}{draft ? ' · draft on this device' : ''}</NoteStatus>} menu={menu}
             share={store && <NoteSharePopover note={note} client={client} store={store} owner={owner} onChanged={() => {}}
                 privateReaders={() => <PrivateReaders note={note} client={client} controller={controller} owner={owner} store={store} walletChainId={walletChainId} requestSession={report?.requestSession} />} />}
-            actions={phase === 'unlocked' && <button type="button" className="os-btn os-quiet" onClick={() => controller.lock()}>Lock</button>}
+            actions={phase === 'unlocked' && <button type="button" className="os-btn os-quiet" onClick={() => { if (mayLockPrivateNotes()) controller.lock() }}>Lock</button>}
             primary={shown && writable && <button type="button" className="os-btn" onClick={() => setEditing(true)}>Edit</button>} />
         {body}
         {notice && <p className="os-notes-private-notice" role="status">{notice}</p>}

@@ -18,6 +18,7 @@ import { readDraftSlot } from '../../../../lib/notes/draftSlot'
 import { useSigner } from '../../../sign/signerContext'
 import { balanceOf, shortAddress } from '../notesFormat'
 import { withKey } from './keyQueue'
+import { KEY_CHANGED } from './unlock'
 
 export interface PrivateReadersProps {
     note: ChainNote; client: NotesReadClient; controller: NotesIdentityController; owner: string; store: NotesStore; walletChainId?: string
@@ -214,7 +215,8 @@ function Readers({ note, client, controller, owner, store, walletChainId, sessio
                             onChange={() => void run(signal => prepare(signal, writer ? 'demote' : 'promote', who))} /> Can edit</label>}
                         {manage && <button type="button" className="os-btn os-quiet" disabled={!unlocked || busy || signing || !!review} onClick={() => void run(signal => prepare(signal, 'remove', who))}>Remove…</button>}</li> })}
             </ul>}
-        {manage && !unlocked && <p className="os-notes-share-note">Unlock this note to add or remove readers, or to change who can edit.</p>}
+        {manage && !unlocked && <p className="os-notes-share-note">{phase === 'changed' ? `${KEY_CHANGED} Who can read stays as it is: Memba changes nothing here until your key matches its backup again (see Private notes).`
+            : 'Unlock this note to add or remove readers, or to change who can edit.'}</p>}
         {manage && unlocked && !review && <form className="os-notes-share-add" onSubmit={event => { event.preventDefault(); void add() }}>
             <label>Add a reader<input value={input} disabled={busy || signing} onChange={event => setInput(event.target.value)} placeholder="@username or g1 address" autoComplete="off" spellCheck={false} /></label>
             <button type="submit" className="os-btn" disabled={busy || signing || !input.trim() || !readers}>{busy ? 'Encrypting…' : 'Add…'}</button>

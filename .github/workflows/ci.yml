@@ -362,6 +362,13 @@ jobs:
           npx playwright test --config playwright.notes-sushi.config.ts --project=chromium
           npx playwright test --config playwright.notes-sushi-shell.config.ts --project=chromium
           npx playwright test --config playwright.notes-sushi-desk.config.ts --project=chromium
+      # Private notes in the real Shell against simulated onyx-1 reads (nothing is signed). Its dev-only fixture server
+      # defines VITE_ENABLE_NOTES_ENCRYPTED for itself: no build here, so the production bundle gates above are untouched.
+      - name: Private Notes isolated acceptance (chromium, firefox)
+        if: matrix.shard == 4
+        run: |
+          npx playwright install firefox --with-deps
+          npx playwright test --config playwright.notes-private.config.ts --forbid-only --workers=1 --retries=0
       - name: Upload E2E artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7

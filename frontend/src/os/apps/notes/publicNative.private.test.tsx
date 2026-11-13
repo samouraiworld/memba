@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useSyncExternalStore } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import type { NativeViewProps } from '../../native/types'
@@ -6,7 +7,7 @@ import { createNotesStore, type NotesStore } from '../../../lib/notes/drafts'
 import { PublicNotesApp } from './publicNative'
 
 // The Notes window around the private panel: who sees the entry, and the key controller's lifetime.
-type Controller = { owner: string; chainId: string; dispose: ReturnType<typeof vi.fn>; lock: ReturnType<typeof vi.fn> }
+type Controller = { owner: string; chainId: string; dispose: ReturnType<typeof vi.fn>; lock: ReturnType<typeof vi.fn>; phase: string; listeners: Set<() => void>; subscribe(listener: () => void): () => void; getSnapshot(): string }
 const mocks = vi.hoisted(() => ({ build: true, open: true, controllers: [] as Controller[], loads: 0, store: null as unknown as NotesStore, note: null as unknown }))
 const deployment = { realm: 'gno.land/r/samcrew/memba_notes_rc1', version: 1 as const }
 vi.mock('../../../lib/notes/config', async original => ({ ...await original<typeof import('../../../lib/notes/config')>(),
@@ -16,14 +17,20 @@ vi.mock('../../../lib/notes/config', async original => ({ ...await original<type
         return mocks.build ? async () => {
             mocks.loads++
             return {
-                createIdentityController: (client: { chainId: string }, owner: string) => { const c = { owner, chainId: client.chainId, dispose: vi.fn(), lock: vi.fn() }; mocks.controllers.push(c); return c },
+                createIdentityController: (client: { chainId: string }, owner: string) => {
+                    const c: Controller = { owner, chainId: client.chainId, dispose: vi.fn(), phase: 'unlocked', listeners: new Set(), lock: vi.fn(() => { c.phase = 'locked'; c.listeners.forEach(listener => listener()) }),
+                        subscribe: listener => { c.listeners.add(listener); return () => { c.listeners.delete(listener) } }, getSnapshot: () => c.phase }
+                    mocks.controllers.push(c); return c
+                },
                 PrivateNotesPanel: ({ owner, controller }: { owner: string; controller: Controller }) => <p>Private panel for {owner} on {controller.chainId}</p>,
-                PrivateNoteView: ({ note, controller }: { note: { id: string }; controller: Controller }) => <p>Private reader of {note.id.slice(0, 4)} for {controller.owner}</p>,
+                PrivateNoteView: ({ note, controller }: { note: { id: string }; controller: Controller }) => <p>Private reader of {note.id.slice(0, 4)} for {controller.owner}<Plain controller={controller} /></p>,
                 SharedWithMe: ({ owner }: { owner: string }) => <p>Shared with {owner}</p>,
             }
         } : null
     },
 }))
+// Stands in for decrypted text: on screen only while the controller says unlocked.
+function Plain({ controller }: { controller: Controller }) { return useSyncExternalStore(controller.subscribe, controller.getSnapshot) === 'unlocked' ? <span> PLAINTEXT_MARKER</span> : null }
 vi.mock('../../../lib/notes/drafts', async original => {
     const module = await original<typeof import('../../../lib/notes/drafts')>()
     const shared = new Proxy({}, { get: (_, key) => { const value = Reflect.get(mocks.store, key); return typeof value === 'function' ? value.bind(mocks.store) : value } })
@@ -114,5 +121,12 @@ describe('private notes entry in the Notes window', () => {
         expect(screen.queryByText('Private note placeholder')).toBeNull()
         expect(screen.getByText('Shared with g1owner')).toBeVisible()
         expect(mocks.controllers).toHaveLength(1)
+    })
+    it('a page hide removes decrypted text from the page before the handler returns (nothing decrypted is frozen into the back/forward cache)', async () => {
+        render(<PublicNotesApp {...props({})} />)
+        expect(await screen.findByText(/PLAINTEXT_MARKER/)).toBeVisible()
+        // Not wrapped in act: the DOM must already be clear when the event handler returns, as when the browser freezes the page.
+        window.dispatchEvent(new Event('pagehide'))
+        expect(document.body.textContent).not.toContain('PLAINTEXT_MARKER'); expect(mocks.controllers[0].lock).toHaveBeenCalledTimes(1)
     })
 })

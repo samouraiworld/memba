@@ -91,8 +91,10 @@ export function PublicComments(props: PublicCommentsProps) {
     return () => { controller.abort(); setOpened(null) }
   }, [decrypt, page.items, page.cursor])
   const texts = opened && opened.decrypt === decrypt && opened.items === visible.items ? opened.map : null
+  // A reply names its parent's author, as the signing sheet does; a parent on another page stays unnamed.
+  const replyTo = (parent: string) => { const p = visible.items.find(item => item.id === parent); return !p ? 'an earlier comment' : `a comment by ${viewer && viewer === p.author ? 'you' : short(p.author)}` }
   return <section className="os-notes-comments" aria-label={encryptedNote ? 'Encrypted comments' : 'Public comments'}>
-    <header><h2>Comments</h2><p className="os-sub">{encryptedNote ? 'Oldest first · Encrypted: only the people this note is shared with can read them. Authors and times are public.'
+    <header><h2>Comments</h2><p className="os-sub">{encryptedNote ? 'Oldest first · Encrypted: only the people this note is shared with can read them. Authors and times are public. Its owner or a realm moderator can hide a comment.'
       : 'Oldest first · Public: comments stay in chain history unless a moderator removes them.'}</p>
       <button className="os-btn os-quiet" disabled={visible.loading} onClick={() => setReload(value => value + 1)}>Refresh</button></header>
     <ol>{visible.items.map(comment => { const who = viewer && viewer === comment.author ? 'You' : short(comment.author), ago = when(comment.createdHeight)
@@ -102,7 +104,7 @@ export function PublicComments(props: PublicCommentsProps) {
       return <li key={comment.id}>
       <article className="os-notes-comment" aria-label={`Comment by ${who}`}>
         <header><strong title={comment.author}>{who}</strong>{open && <span> · {comment.bodyRevision === bodyRevision ? 'on the current text' : 'on an earlier text'}</span>}{ago && <span> · {ago}</span>}{open && comment.epoch !== epoch && <span> · Earlier epoch</span>}{comment.resolved && <span className="os-notes-pill"> Resolved</span>}</header>
-        {open && comment.parent && <p className="os-sub">Reply to {comment.parent}</p>}
+        {open && comment.parent && <p className="os-sub">Reply to {replyTo(comment.parent)}</p>}
         {comment.deleted ? <p>Deleted by the author</p> : isRedactedComment(comment) ? <p>Removed by moderation</p> : comment.hidden ? <p>Hidden by moderation</p>
           : !open ? <p>{text?.status === 'no-key' ? comment.epoch !== epoch ? 'Comment from an earlier version you can’t open' : 'Encrypted comment you can’t open with your key' : text?.status === 'unavailable' ? 'This encrypted comment could not be decrypted.' : 'Encrypted comment'}</p> : <>
           {quote && <AnchorQuote quote={quote} bodyRevision={comment.bodyRevision} currentBodyRevision={bodyRevision} previewRoot={props.previewRoot} />}

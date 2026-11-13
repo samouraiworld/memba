@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Notes: private notes in the whole workspace, locks and read-only states (#1643, 2026-10-16)
+- **Key changed outside Memba**: when another app registers a new key for the account in the shared key registry, every private screen (note, Share, comments, publishing, Private notes) explains it and stays read only; Memba deletes, shares or re-keys nothing.
+- Locking asks before it discards text that exists only in memory: **Lock** for an unsent encrypted comment or edits that could not be saved encrypted, **Disconnect & lock** for anything a window would ask about on close. A lock also closes an open signature review; leaving the page clears decrypted text before the browser can keep the page.
+- Private notes never show their title outside the unlocked note: desktop and phone shortcuts say "Private note", and so do the publishing progress sheets.
+- **About private notes**, from the Private notes panel: what is encrypted and what stays public, the simulation before signing, costs, the recovery phrase and file, old bytes in browser storage, and what co-writers can do.
+- Comments: the signing sheet says "Comment (sent encrypted)", the list says a realm moderator can hide comments too, and a reply names its parent's author.
+- A browser acceptance of private notes in the real Shell (Chromium and Firefox, no retries) runs in CI against simulated onyx-1 reads; nothing is signed.
+
 ### Chain reads fail over when a node refuses code-running queries (2026-11-13)
 - gno.land nodes can now be run with `rpc.allow_code_execution = false` (gnolang/gno#6413), which refuses `vm/qeval` and `vm/qrender` with a JSON-RPC error (or HTTP 403). Memba now treats such a refusal as "this node won't answer" and asks the next RPC endpoint (rpc.gno.land first, then rpc.mainnet.samourai.live on mainnet), instead of failing the read on the first node.
 - When every endpoint refuses, the read fails with an error that says so; it is no longer shown as empty data (a blank realm, zero balance or empty token list). An error raised by the realm itself, such as a panic in the evaluated expression, is still the chain's answer and is not retried elsewhere.

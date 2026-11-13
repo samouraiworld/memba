@@ -57,12 +57,12 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals() })
 
-it("labels note shortcuts with their known title, or Note with a lock for a private note", () => {
+it("labels note shortcuts with their known title, or Private note with a lock for a private note", () => {
     mountShell()
     const sushi = within(desktop()).getByRole("button", { name: "Note shortcut: Sushi" })
     expect(sushi.querySelector(".os-badge2-note:not([data-private])")).not.toBeNull()
     const locked = within(desktop()).getByRole("button", { name: "Private note shortcut" })
-    expect(locked).toHaveTextContent("Note")
+    expect(locked).toHaveTextContent("Private note")
     expect(locked.querySelector(".os-badge2-note[data-private]")).not.toBeNull()
 })
 

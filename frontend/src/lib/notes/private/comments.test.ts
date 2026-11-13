@@ -148,7 +148,7 @@ describe('encrypted comments: posting and reading', () => {
     const id = nextId(), meta = { id, author: B, parent: '', bodyRevision: '1', epoch: '1' }
     const ciphertext = await sealPrivateComment(s.client, s.note(), meta, { body: 'Shown to sign', quote: '', prefix: '', suffix: '' }, s.access(B))
     const sheet = await s.request(B, id, { kind: 'add', bodyRevision: '1', epoch: '1', ciphertext })
-    expect(sheet.lines(undefined)).toContainEqual(['Comment (encrypted)', 'Shown to sign']); expect(sheet.title).toBe('Post encrypted comment')
+    expect(sheet.lines(undefined)).toContainEqual(['Comment (sent encrypted)', 'Shown to sign']); expect(sheet.title).toBe('Post encrypted comment')
     // The same bytes under another comment id (moved): refused before any wallet.
     await expect(s.request(B, nextId(), { kind: 'add', bodyRevision: '1', epoch: '1', ciphertext })).rejects.toThrow()
   })

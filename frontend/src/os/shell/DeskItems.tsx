@@ -27,8 +27,9 @@ function noteTile(isPrivate: boolean): ReactNode {
 function itemLook(it: DeskItem, noteLabels: Readonly<Record<string, string>>, privateNotes: ReadonlySet<string>): { label: string; tile: ReactNode; name?: string } {
     switch (it.ty) {
         case "note": {
-            const isPrivate = privateNotes.has(it.ref)
-            return { label: noteLabels[it.ref] ?? "Note", tile: noteTile(isPrivate), name: noteShortcutName(noteLabels[it.ref], isPrivate) }
+            // A private note's shortcut never shows a title, whatever a label source holds: its title is ciphertext on chain.
+            const isPrivate = privateNotes.has(it.ref), title = isPrivate ? undefined : noteLabels[it.ref]
+            return { label: isPrivate ? "Private note" : title ?? "Note", tile: noteTile(isPrivate), name: noteShortcutName(title, isPrivate) }
         }
         case "app": return { label: getApp(it.ref as OsAppId).name, tile: <AppTile app={it.ref as OsAppId} /> }
         case "dao": return { label: it.ref, tile: <span className="os-badged"><ThingTile icon="folder" tint={DAO_TINT} /><span className="os-badge2">{initials(it.ref)}</span></span> }

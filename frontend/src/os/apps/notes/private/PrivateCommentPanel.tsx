@@ -23,6 +23,7 @@ import { PublicComments } from '../PublicComments'
 import { useUnsavedText } from '../notesPane'
 import { balanceOf, selectedQuote, shortAddress } from '../notesFormat'
 import { withKey } from './keyQueue'
+import { KEY_CHANGED } from './unlock'
 
 export interface PrivateCommentPanelProps {
     note: ChainNote; client: NotesReadClient; controller: NotesIdentityController; owner: string; store: NotesStore; walletChainId?: string
@@ -122,7 +123,8 @@ function Panel({ note, client, controller, owner, store, walletChainId, previewR
         working.current = false; setBusy(false)
     }
     const walletProblem = walletChainId && walletChainId !== client.chainId ? `Adena is on ${walletChainId}. Switch it to ${client.chainId} first.` : ''
-    const disabled = busy || !!walletProblem || receipts === null
+    // Read only while the key changed outside Memba: no comment is deleted, hidden or resolved from here meanwhile.
+    const disabled = busy || !!walletProblem || receipts === null || phase === 'changed'
     return <div className="os-notes-comment-panel">
         <div className="os-notes-comment-list">
             <PublicComments key={reload} encryptedNote decrypt={decrypt} client={client} noteId={note.id} epoch={note.epoch} bodyRevision={note.bodyRevision} viewer={owner} previewRoot={previewRoot}
@@ -139,13 +141,14 @@ function Panel({ note, client, controller, owner, store, walletChainId, previewR
         {canPost ? <Composer key={generation} note={note} previewRoot={previewRoot} disabled={disabled || !!receipts?.length} busy={busy} reply={reply} onCancelReply={() => setReply(null)}
             onPost={(post, posted) => void submit(post, newNoteId(), posted)} />
             : !note.deleted && <p className="os-notes-composer-hint">{note.mode !== 1 ? 'Comments open once this note is shared: the people it is shared with can then comment, encrypted for each other.'
-                : !unlocked ? 'Unlock your private key to read and write the comments.' : access === undefined ? 'Checking your access…' : 'Only the people this note is shared with can comment.'}</p>}
+                : phase === 'changed' ? `${KEY_CHANGED} Its comments stay encrypted; Memba cannot read, post or change them with it.` : !unlocked ? 'Unlock your private key to read and write the comments.' : access === undefined ? 'Checking your access…' : 'Only the people this note is shared with can comment.'}</p>}
     </div>
 }
 function Composer({ note, previewRoot, disabled, busy, reply, onCancelReply, onPost }: { note: ChainNote; previewRoot?: HTMLElement | null; disabled: boolean; busy: boolean
     reply: PublicComment | null; onCancelReply(): void; onPost(post: Post, posted: () => void): void }) {
     const [body, setBody] = useState(''), [quote, setQuote] = useState<{ text: string; bodyRevision: string } | null>(null), [tooLong, setTooLong] = useState(false)
-    useUnsavedText(!!body.trim(), 'An encrypted comment you wrote is not posted yet. Leave without posting it? Choose Cancel to keep editing.')
+    useUnsavedText(!!body.trim(), 'An encrypted comment you wrote is not posted yet. Leave without posting it? Choose Cancel to keep editing.',
+        'An encrypted comment you wrote is not posted yet, and locking discards it: it is never stored on this device. Lock anyway? Choose Cancel to keep it.')
     // Selecting text in the decrypted note quotes it; the quote is encrypted with the comment, never sent on its own.
     useEffect(() => {
         if (!previewRoot) return

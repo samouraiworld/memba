@@ -33,6 +33,8 @@ interface Review {
     expired?: "offer" | "none"
     /** A fresh quote is being prepared. */
     requoting?: boolean
+    /** The request's `closed` signal fired. */
+    closed?: boolean
 }
 
 let seq = 0
@@ -234,6 +236,18 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         review?.req.onDismissed?.()
     }, [review, closeReview])
 
+    // A request that can no longer be signed leaves the screen: its lines are re-read at once (inside the caller's
+    // flush, so what they showed is gone from the page), then an open review closes as a Cancel would.
+    const closedSignal = review?.req.closed
+    useEffect(() => {
+        if (!closedSignal) return
+        const end = () => setReview((r) => r && r.req.closed === closedSignal ? { ...r, closed: true } : r)
+        if (closedSignal.aborted) end()
+        closedSignal.addEventListener("abort", end)
+        return () => closedSignal.removeEventListener("abort", end)
+    }, [closedSignal])
+    useEffect(() => { if (review?.closed && review.stage === "review" && !review.requoting && !busy.current) cancel() }, [review, cancel])
+
     const api = useMemo<SignerApi>(() => ({
         sign, pending, notices, unread, version, markRead: () => setUnread(0),
     }), [sign, pending, notices, unread, version])
@@ -326,7 +340,8 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onRequote, onCanc
                         <div className="os-rvh">
                             <div className="os-mhd os-flush">Review · {req.title}</div>
                             <h2 className="os-rv-title">{req.summary}</h2>
-                            {req.sub && <div className="os-sub">{req.sub}</div>}
+                            {/* A closed request's subtitle (a private note's title) goes in the same flush as its lines. */}
+                            {req.sub && !review.closed && <div className="os-sub">{req.sub}</div>}
                         </div>
                         <div className="os-rvb">
                             {req.choice && (

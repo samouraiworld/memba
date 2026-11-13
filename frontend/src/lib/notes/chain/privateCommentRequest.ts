@@ -53,7 +53,9 @@ export async function preparePrivateCommentRequest(options: PrivateCommentReques
   const original = options.operation, op: PrivateCommentOperation = { ...original, action: original.action.kind === 'add' ? { ...original.action, ciphertext: original.action.ciphertext.slice() } : { ...original.action } }
   const { client, intents, access } = options, guard = options.session.capture(), generation = access?.identity.getSnapshot().generation
   let closed = false, preview: [string, string][] = []
-  const clean = () => { closed = true; preview = []; access?.signal.removeEventListener('abort', clean); guard.signal.removeEventListener('abort', clean) }
+  // The signature sheet closes once this request ends (a lock, another key, the panel gone): it showed decrypted text.
+  const closing = new AbortController()
+  const clean = () => { closed = true; preview = []; closing.abort(); access?.signal.removeEventListener('abort', clean); guard.signal.removeEventListener('abort', clean) }
   access?.signal.addEventListener('abort', clean); guard.signal.addEventListener('abort', clean)
   const allowed = () => {
     if (closed || guard.signal.aborted || access?.signal.aborted) throw new NotesChainError('session')
@@ -69,7 +71,7 @@ export async function preparePrivateCommentRequest(options: PrivateCommentReques
       const opened = (await openPrivateComments(client, op.noteId, [{ id: op.commentId, author: op.caller, parent: a0.parent ?? '', bodyRevision: a0.bodyRevision, epoch: a0.epoch,
         ciphertext: a0.ciphertext, deleted: false, hidden: false } as PrivateComment], access)).get(op.commentId); allowed()
       if (opened?.status !== 'open') throw new NotesChainError('format')
-      preview = [['Comment (encrypted)', opened.body], ...opened.quote ? [['Quote (encrypted)', opened.quote] as [string, string]] : []]
+      preview = [['Comment (sent encrypted)', opened.body], ...opened.quote ? [['Quote (sent encrypted)', opened.quote] as [string, string]] : []]
     }
     const read = async () => {
       const a = op.action
@@ -115,7 +117,7 @@ export async function preparePrivateCommentRequest(options: PrivateCommentReques
     const targetState: [string, string][] = a.kind === 'resolve' ? [['Thread after confirmation', a.resolved ? 'Resolved' : 'Open']]
       : a.kind === 'hide' ? [['Visibility after confirmation', a.hidden ? 'Hidden' : 'Visible']] : []
     return {
-      title: label, summary: label, label: () => label,
+      title: label, summary: label, label: () => label, closed: closing.signal,
       lines: () => [['Note', 'Private note'], ...preview,
         ...a.kind === 'add' ? [['On', a.bodyRevision === base.note.bodyRevision ? `The current text (revision ${base.note.stateRevision})` : 'An earlier text of the note']] as [string, string][]
           : base.comment ? [['Comment by', short(base.comment.author)]] as [string, string][] : [],

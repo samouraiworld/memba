@@ -15,6 +15,11 @@
 .os-notes-private-sheet { display:flex; flex-direction:column; gap:16px; }
 .os-notes-private-sheet h2 { outline:none; }
 .os-notes-private-sheet .os-notes-hint { font-size:12.5px; color:var(--os-mut); }
+.os-notes-app .os-notes-private > header .os-notes-link { margin-top:8px; }
+/* About private notes: short labelled paragraphs. */
+.os-notes-private-about dl { display:flex; flex-direction:column; gap:4px; margin:0; font-size:14px; line-height:1.55; }
+.os-notes-private-about dt { margin-top:8px; font-weight:800; }
+.os-notes-private-about dd { margin:0; overflow-wrap:anywhere; }
 /* The 24 words: numbered, three columns, two on a narrow window. */
 .os-notes-private-words { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 14px; margin:0; padding:12px 14px 12px 40px; border-radius:10px; background:var(--os-hover); font:600 14px/1.6 var(--os-mono); }
 .os-notes-private-words li { padding-left:4px; }

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
-import { ContextMenu, DeskItems } from './DeskItems'
+import { ContextMenu, DeskIcon, DeskItems } from './DeskItems'
 import type { DeskItem } from './desk'
 
 const note: DeskItem = { ty: 'note', ref: 'ab'.repeat(16), c: 0, r: 0 }
@@ -13,10 +13,11 @@ it('draws a note shortcut as a document with a Notes badge, labelled with its ti
     expect(container.querySelector('.os-badge2-note svg')).not.toBeNull()
 })
 
-it('shows a lock badge on a private note shortcut', () => {
-    render(<DeskItems items={[note]} privateNotes={new Set([note.ref])} deskWidth={1000} onOpen={vi.fn()} onMove={vi.fn()} onMenu={vi.fn()} />)
+it('shows a lock badge and "Private note" on a private note shortcut, never a title even when a label source holds one', () => {
+    const { container } = render(<DeskItems items={[note]} noteLabels={{ [note.ref]: 'SECRET_TITLE' }} privateNotes={new Set([note.ref])} deskWidth={1000} onOpen={vi.fn()} onMove={vi.fn()} onMenu={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Private note shortcut' })).toBeTruthy()
-    expect(screen.getByText('Note')).toBeTruthy()
+    expect(screen.getByText('Private note')).toBeTruthy()
+    expect(container.innerHTML).not.toContain('SECRET_TITLE')
     expect(document.querySelector('.os-badge2-note[data-private]')).not.toBeNull()
 })
 
@@ -36,4 +37,9 @@ it('renders a menu hint as text, not as a menu item', () => {
     expect(screen.getByText('The note itself is not deleted.')).toHaveAttribute('role', 'none')
     expect(screen.getByRole('menuitem', { name: 'Remove from Desktop' })).toHaveAccessibleDescription('The note itself is not deleted.')
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove from Desktop' })); expect(run).toHaveBeenCalledOnce()
+})
+
+it('the phone home screen draws the same private label', () => {
+    const { container } = render(<DeskIcon item={note} noteLabels={{ [note.ref]: 'SECRET_TITLE' }} privateNotes={new Set([note.ref])} />)
+    expect(screen.getByText('Private note')).toBeTruthy(); expect(container.innerHTML).not.toContain('SECRET_TITLE')
 })

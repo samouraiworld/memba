@@ -12,7 +12,9 @@ import { NotesIntents, type NotesIntent } from '../../../../lib/notes/intents'
 import { privateNotesDeployment } from '../../../../lib/notes/config'
 import { useSigner } from '../../../sign/signerContext'
 import { NoteSheet } from '../NoteHeader'
+import { mayLockPrivateNotes } from '../notesPane'
 import { PrivateKeySetup } from './PrivateKeySetup'
+import { AboutPrivateNotes } from './AboutPrivateNotes'
 import { adenaWallet, unlockProblem } from './unlock'
 import { setupInFlight, setupsInFlightVersion, subscribeSetupsInFlight } from './setupInFlight'
 import './notes-private.css'
@@ -27,14 +29,14 @@ export function PrivateNotesPanel(props: PrivateNotesPanelProps) {
     if (privateNotesDeployment(props.client.chainId)?.realm !== props.client.realm) return null
     return <Panel {...props} />
 }
-type Problem = 'read' | 'changed' | null
+type Problem = 'read' | null
 function Panel({ controller, client, store, owner, requestSession, walletChainId }: PrivateNotesPanelProps) {
     const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
     const { version, pending } = useSigner(), chainId = client.chainId
     const [session] = useState(createDraftSession)
     useLayoutEffect(() => () => session.invalidate(), [session])
     const [problem, setProblem] = useState<Problem>(null), [receipt, setReceipt] = useState<NotesIntent | null>(null), [ready, setReady] = useState(false)
-    const [notice, setNotice] = useState(''), [working, setWorking] = useState(false), [sheet, setSheet] = useState<'setup' | 'recover' | null>(null), [again, checkAgain] = useState(0)
+    const [notice, setNotice] = useState(''), [working, setWorking] = useState(false), [sheet, setSheet] = useState<'setup' | 'recover' | 'about' | null>(null), [again, checkAgain] = useState(0)
     // "Set up again" (explicit, acknowledged): earlier setups that may still land, and the one that did if it won.
     const [redo, setRedo] = useState(false), [ack, setAck] = useState(false), [firstOpen, setFirstOpen] = useState(false), [firstKey, setFirstKey] = useState<string | null>(null)
     // Milliseconds a sent setup stays "fresh" (it usually lands within them): no "Set up again" meanwhile.
@@ -44,8 +46,8 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         try { await controller.refresh(); if (!guard.signal.aborted) setProblem(null) }
         catch (error) {
             if (guard.signal.aborted || (error instanceof NotesCryptoError && error.code === 'busy')) return
-            // The registry and this realm's backup disagree: the key changed outside Memba. Read only, never repaired here.
-            setProblem(error instanceof NotesCryptoError && error.code === 'identity' ? 'changed' : 'read')
+            // A key changed outside Memba is the controller's own read-only state (phase `changed`), not a read failure.
+            setProblem(controller.getSnapshot().phase === 'changed' ? null : 'read')
         }
     }, [controller, session])
     // Saved setup receipts are checked against the chain (no wallet, never sent again). One blocks setting up only while
@@ -100,10 +102,10 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         finally { if (!guard.signal.aborted) setWorking(false) }
     }
     const unlock = () => void act(() => controller.unlockStandard(adenaWallet()), 'Unlocked in this window.', unlockProblem)
-    const lock = () => { controller.lock(); setNotice('Locked. Your key was cleared from this window.') }
+    const lock = () => { if (!mayLockPrivateNotes()) return; controller.lock(); setNotice('Locked. Your key was cleared from this window.') }
     let body: ReactNode
     if (!ready || (state.phase === 'unknown' && !problem)) body = <p className="os-notes-sheet-wait"><span className="os-spin" aria-hidden="true" />Checking your private key on {chainId}…</p>
-    else if (problem === 'changed') body = <>
+    else if (state.phase === 'changed') body = <>
         <p><b>Your private key changed outside Memba.</b> The key registered for this account no longer matches its backup in Notes, so Memba stopped using it and changed nothing.</p>
         <p>Private notes encrypted for the earlier key stay on the network. Memba does not replace keys on its own.</p>
         <div className="os-notes-private-actions"><button type="button" className="os-btn os-quiet" disabled={busy} onClick={() => checkAgain(n => n + 1)}>Check again</button></div></>
@@ -143,7 +145,8 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
             <button type="button" className={state.mode === 'standard' ? 'os-btn os-quiet' : 'os-btn'} disabled={busy} onClick={() => setSheet('recover')}>Use recovery phrase</button>
         </div></>
     return <section className="os-notes-private" aria-labelledby="os-notes-private-title" aria-busy={busy}>
-        <header><h2 id="os-notes-private-title" ref={heading} tabIndex={-1}>Private notes</h2><p className="os-sub">On {chainId}, for {owner.slice(0, 10)}…{owner.slice(-4)}</p></header>
+        <header><h2 id="os-notes-private-title" ref={heading} tabIndex={-1}>Private notes</h2><p className="os-sub">On {chainId}, for {owner.slice(0, 10)}…{owner.slice(-4)}</p>
+            <button type="button" className="os-notes-link" onClick={() => setSheet('about')}>About private notes</button></header>
         <div className="os-notes-private-state">
             {firstKey !== null && state.generation === firstKey && <p className="os-notes-private-first"><b>Your first key setup took effect.</b> The recovery phrase and file from that first setup are the ones that open this key; a later setup was refused.</p>}
             {firstOpen && firstKey === null && <p className="os-notes-private-first">Your first key setup may still reach the network. If it does, a new setup is refused and the first key stays yours: keep the recovery phrase and file from your first setup until a setup is confirmed.</p>}
@@ -151,6 +154,7 @@ function Panel({ controller, client, store, owner, requestSession, walletChainId
         <p className="os-notes-private-notice" role="status" aria-live="polite">{notice}</p>
         {sheet === 'setup' && <PrivateKeySetup controller={controller} client={client} store={store} owner={owner} requestSession={requestSession} wallet={adenaWallet}
             walletProblem={walletProblem} onClose={() => { setSheet(null); checkAgain(n => n + 1); heading.current?.focus() }} />}
+        {sheet === 'about' && <AboutPrivateNotes onClose={() => { setSheet(null); heading.current?.focus() }} />}
         {sheet === 'recover' && <RecoverySheet controller={controller} fileNeeded={state.mode === 'standard'} onClose={done => { setSheet(null); if (done) setNotice('Unlocked in this window.'); heading.current?.focus() }} />}
     </section>
 }

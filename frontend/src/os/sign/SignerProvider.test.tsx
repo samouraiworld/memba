@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
@@ -47,6 +48,27 @@ describe("technical details", () => {
         expect(shown).not.toHaveTextContent("QUJD")
         expect(technical).toHaveTextContent("0123abcd"); expect(technical).toHaveTextContent("QUJD")
         expect(screen.getByRole("button", { name: "Sign in Adena" })).toBeEnabled()
+        cleanup()
+    })
+})
+
+describe("a request that can no longer be signed", () => {
+    it("drops what its lines showed within the flush that ended it, then closes as a Cancel would", async () => {
+        const ending = new AbortController(), dismissed = vi.fn()
+        let shown: [string, string][] = [["Comment (sent encrypted)", "DECRYPTED_MARKER"]]
+        ending.signal.addEventListener("abort", () => { shown = [] })
+        const closing = { ...request, sub: "“SUBTITLE_MARKER”, encrypted in this browser.", lines: () => shown, closed: ending.signal, onDismissed: dismissed }
+        function ClosingReview() {
+            const signer = useSigner()
+            return <button type="button" onClick={() => signer.sign(closing)}>Open closing review</button>
+        }
+        render(<SignerProvider session={session("member")} toast={vi.fn()}><ClosingReview /></SignerProvider>)
+        fireEvent.click(screen.getByRole("button", { name: "Open closing review" }))
+        expect(screen.getByText("DECRYPTED_MARKER")).toBeVisible(); expect(screen.getByText(/SUBTITLE_MARKER/)).toBeVisible()
+        flushSync(() => ending.abort())
+        expect(document.body.textContent).not.toContain("DECRYPTED_MARKER"); expect(document.body.textContent).not.toContain("SUBTITLE_MARKER")
+        await waitFor(() => expect(dismissed).toHaveBeenCalledOnce())
+        expect(screen.queryByRole("button", { name: "Sign in Adena" })).toBeNull()
         cleanup()
     })
 })
