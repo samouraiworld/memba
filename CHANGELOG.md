@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security: Go 1.26.11 (2026-11-13)
+- The backend builds with Go 1.26.11, which fixes the `net/http` vulnerability GO-2026-6859 reported against Go 1.26.10.
+
 ### Validators: mainnet selection scores activated (2026-11-02)
 - The Validators Candidates list now shows the published selection scores and global ranks for the 36 candidates of edition 1 on gno.land mainnet. Each scored operator's page shows the arena breakdown, GitHub bonus and on-chain record.
 - The first edition was sealed at block 1,267,685 after verification of all six publication transactions. The active validator set keeps its live metrics; operators without a published selection score show a dash in the Candidates list.
