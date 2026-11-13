@@ -27,6 +27,8 @@ Full changelogs are split by version range for easier navigation:
 - **About private notes**, from the Private notes panel: what is encrypted and what stays public, the simulation before signing, costs, the recovery phrase and file, old bytes in browser storage, and what co-writers can do.
 - Comments: the signing sheet says "Comment (sent encrypted)", the list says a realm moderator can hide comments too, and a reply names its parent's author.
 - A browser acceptance of private notes in the real Shell (Chromium and Firefox, no retries) runs in CI against simulated onyx-1 reads; nothing is signed.
+### Security: Go 1.26.11 (2026-11-13)
+- The backend builds with Go 1.26.11, which fixes the `net/http` vulnerability GO-2026-6859 reported against Go 1.26.10.
 
 ### Validators: mainnet selection scores activated (2026-11-02)
 - The Validators Candidates list now shows the published selection scores and global ranks for the 36 candidates of edition 1 on gno.land mainnet. Each scored operator's page shows the arena breakdown, GitHub bonus and on-chain record.
