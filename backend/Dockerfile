@@ -5,7 +5,7 @@
 # — this Dockerfile is the ONLY place a Go version is pinned by hand, which is
 # why raising go.mod alone fails here and nowhere else. That is what blocked
 # #1044 (cosmos-sdk 0.55.0 requires go >= 1.26.5).
-FROM golang:1.26.10-alpine AS builder
+FROM golang:1.26.11-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.appVersion=${APP_VERSION}" -o
 # backend SDK (go.mod): it must write the canonical transaction encoding that
 # nodes require since gnolang/gno#6406 (v1.1.0 still wrote the zero SessionAddr).
 # It's inert unless MEMBA_ARCADE_ATTESTER_ENABLED + the key are set.
-FROM golang:1.26.10-alpine AS gnokey
+FROM golang:1.26.11-alpine AS gnokey
 RUN apk add --no-cache git
 RUN go install github.com/gnolang/gno/gno.land/cmd/gnokey@v0.0.0-20261113104558-855151c39498
 
