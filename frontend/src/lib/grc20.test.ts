@@ -45,14 +45,15 @@ import {
 import { WalletNetworkError } from './walletNetworkGuard'
 import { ACTIVATION_MEMO, activationMsgs } from './activation'
 import { GNO_CHAIN_ID } from './config'
+import { getRpcUrlsInOrder } from './rpcFallback'
 import { liveWallet } from '../test/walletStub'
 import * as Sentry from '@sentry/react'
 
 vi.mock('@sentry/react', async (original) => ({ ...await original<typeof import('@sentry/react')>(), captureException: vi.fn() }))
 
-// getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which is a
-// module-private fetch() call (not imported from ./dao/shared) — mock fetch
-// directly rather than trying to intercept an internal function reference.
+// getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which goes
+// through rpcFallback's resilientAbciQuery (failover across the network's RPC
+// list) — mock fetch directly rather than intercepting an internal reference.
 function mockRenderResponse(markdown: string) {
     const data = btoa(markdown)
     return {
@@ -963,15 +964,33 @@ describe('getTokenDecimals', () => {
     })
 
     it('does not cache a failed lookup — a later retry can still succeed', async () => {
-        const fetchSpy = vi
-            .fn()
-            .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // transient failure
-            .mockResolvedValueOnce(mockRenderResponse('# Forge ($FORGE)\n\n* **Decimals**: 9\n'))
+        let failing = true // transient failure on every endpoint, then recovery
+        const fetchSpy = vi.fn(async () => failing
+            ? { ok: true, json: async () => ({}) }
+            : mockRenderResponse('# Forge ($FORGE)\n\n* **Decimals**: 9\n'))
         vi.stubGlobal('fetch', fetchSpy)
 
         expect(await getTokenDecimals('http://rpc', 'FORGE')).toBeNull()
+        const callsWhileFailing = fetchSpy.mock.calls.length
+        failing = false
         expect(await getTokenDecimals('http://rpc', 'FORGE')).toBe(9)
-        expect(fetchSpy).toHaveBeenCalledTimes(2) // NOT served from cache after a failure
+        expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsWhileFailing) // NOT served from cache after a failure
+    })
+
+    it('fails over to the next endpoint when one refuses the read (code execution disabled)', async () => {
+        const [first] = getRpcUrlsInOrder()
+        const fetchSpy = vi.fn(async (input: string) => String(input) === first
+            ? { ok: true, json: async () => ({ jsonrpc: '2.0', error: { code: -32603, message: 'code execution is disabled' } }) }
+            : mockRenderResponse('# Forge ($FORGE)\n\n* **Decimals**: 7\n'))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        expect(getRpcUrlsInOrder().length).toBeGreaterThan(1)
+        expect(await getTokenDecimals('http://rpc', 'FORGE')).toBe(7)
+    })
+
+    it('returns null (unknown, never a guess) when every endpoint refuses the read', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({}) }))
+        expect(await getTokenDecimals('http://rpc', 'FORGE')).toBeNull()
     })
 
     it('caches distinct symbols independently', async () => {

@@ -156,7 +156,7 @@ func VerifyPartial(pk multisig.PubKeyMultisigThreshold, f Fields, tx std.Tx, p P
 	return 0, -1, ErrSignature
 }
 
-// Assemble verifies all partials independently, preserves the registered key
+// Assemble takes exactly K partials, verifies each independently, preserves the registered key
 // positions (including sparse slots), then verifies the complete native blob.
 // It has no network, DB, keybase, signing or broadcast side effects.
 func Assemble(pk multisig.PubKeyMultisigThreshold, f Fields, partials []Partial) (std.Tx, []byte, error) {
@@ -164,7 +164,9 @@ func Assemble(pk multisig.PubKeyMultisigThreshold, f Fields, partials []Partial)
 	if err != nil {
 		return tx, nil, err
 	}
-	if uint(len(partials)) < pk.K || len(partials) > len(pk.PubKeys) {
+	// Exactly K: the chain refuses a K-of-N multisignature carrying more
+	// signatures, since dropping the spares would land it under another hash.
+	if uint(len(partials)) != pk.K {
 		return tx, nil, ErrSignature
 	}
 	agg := multisig.NewMultisig(len(pk.PubKeys))

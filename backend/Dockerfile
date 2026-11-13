@@ -19,11 +19,13 @@ ARG APP_VERSION=dev
 RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.appVersion=${APP_VERSION}" -o /memba ./cmd/memba
 
 # gnokey stage — the CLI the BARRICADE day-close attester (internal/arcade) uses
-# to sign + broadcast board attestations. Pinned to the deployer toolchain version.
+# to sign + broadcast board attestations. Pinned to the same gno commit as the
+# backend SDK (go.mod): it must write the canonical transaction encoding that
+# nodes require since gnolang/gno#6406 (v1.1.0 still wrote the zero SessionAddr).
 # It's inert unless MEMBA_ARCADE_ATTESTER_ENABLED + the key are set.
 FROM golang:1.26.11-alpine AS gnokey
 RUN apk add --no-cache git
-RUN go install github.com/gnolang/gno/gno.land/cmd/gnokey@v1.1.0
+RUN go install github.com/gnolang/gno/gno.land/cmd/gnokey@v0.0.0-20261113104558-855151c39498
 
 # Litestream stage
 FROM litestream/litestream:0.3.13 AS litestream
