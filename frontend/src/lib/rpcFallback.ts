@@ -1,8 +1,9 @@
 /**
  * RPC Fallback — resilient fetch with automatic failover to backup RPC endpoints.
  *
- * When the primary RPC is unreachable (502, timeout, network error), tries
- * fallback URLs in order. Once a fallback succeeds, it becomes the preferred
+ * When the primary RPC is unreachable (502, timeout, network error) or refuses
+ * the request (HTTP 403, or a top-level JSON-RPC error on abci_query — e.g. an
+ * operator that disabled code execution), tries fallback URLs in order. Once a fallback succeeds, it becomes the preferred
  * endpoint for subsequent calls (until page reload resets to primary).
  *
  * This module is the single source of truth for RPC resilience. All ABCI
@@ -61,17 +62,52 @@ function orderedRpcUrls(): string[] {
 }
 
 /**
- * Fetch with RPC failover. Tries each URL in order until one succeeds.
- * Returns the Response from the first successful attempt.
- * Throws the last error if all URLs fail.
+ * One node refused to serve a request: HTTP 403, or (for abci_query) an
+ * HTTP 200 body carrying a TOP-LEVEL JSON-RPC error. An operator running with
+ * `rpc.allow_code_execution = false` (gnolang/gno#6413) answers vm/qeval,
+ * vm/qrender and .app/simulate this way. Internal: the failover loop collects
+ * these and moves on to the next endpoint.
  */
-export async function resilientFetch(
+class NodeRefusal extends Error {
+    constructor(reason: string) {
+        super(reason)
+        this.name = "NodeRefusal"
+    }
+}
+
+/**
+ * Every RPC endpoint that answered REFUSED the request (see NodeRefusal); the
+ * rest, if any, were unreachable. Distinct from "all endpoints down" (a plain
+ * Error) and from a realm's own VM-level error ({@link AbciQueryError}): the
+ * chain was never asked, so there is no data — never present this as "empty".
+ */
+export class RpcRefusedError extends Error {
+    readonly refusals: readonly { url: string; reason: string }[]
+
+    constructor(what: string, refusals: { url: string; reason: string }[]) {
+        const detail = refusals.map((r) => `${r.url}: ${r.reason}`).join("; ")
+        super(`${what} was refused by every reachable RPC endpoint — code-running queries may be disabled on these nodes (${detail})`)
+        this.name = "RpcRefusedError"
+        this.refusals = refusals
+    }
+}
+
+/**
+ * Failover loop shared by {@link resilientFetch} and the ABCI reader. Tries
+ * each URL in order; `accept` inspects an HTTP-ok response and may throw: a
+ * NodeRefusal (or any other error) fails over to the next URL without a
+ * same-URL retry. A URL is remembered as working only once `accept` passed.
+ */
+async function resilientRequest<T>(
+    what: string,
     buildRequest: (rpcUrl: string) => { url: string; init: RequestInit },
+    accept: (res: Response) => Promise<T>,
     signal?: AbortSignal,
     verifyEndpoint?: (rpcUrl: string) => Promise<void>,
-): Promise<Response> {
+): Promise<T> {
     const urls = getRpcUrlsInOrder()
     let lastError: Error | null = null
+    const refusals: { url: string; reason: string }[] = []
 
     for (const rpcUrl of urls) {
         // Strict callers can verify the endpoint actually used, including a
@@ -90,6 +126,7 @@ export async function resilientFetch(
         // over to the next url instead.
         for (let attempt = 0; ; attempt++) {
             let retryable = false
+            let res: Response | null = null
             try {
                 const { url, init } = buildRequest(rpcUrl)
                 const controller = new AbortController()
@@ -100,32 +137,46 @@ export async function resilientFetch(
                     signal.addEventListener("abort", () => controller.abort(), { once: true })
                 }
 
-                let res: Response
                 try {
                     res = await fetch(url, { ...init, signal: controller.signal })
                 } finally {
                     clearTimeout(timeout)
                 }
 
-                if (res.ok) {
-                    // Mark this URL as working for future calls
-                    if (rpcUrl !== GNO_RPC_URL) {
-                        _lastWorkingRpcUrl = rpcUrl
+                if (!res.ok) {
+                    if (res.status === 403) {
+                        // The node refuses this request; asking again won't help.
+                        lastError = new NodeRefusal("HTTP 403")
+                        refusals.push({ url: rpcUrl, reason: lastError.message })
                     } else {
-                        // Primary is back — reset fallback preference
-                        _lastWorkingRpcUrl = null
+                        lastError = new Error(`HTTP ${res.status}`)
+                        // 5xx is a server-side transient → worth a same-url retry;
+                        // a 4xx won't change on retry → fail over.
+                        retryable = res.status >= 500
                     }
-                    return res
+                    res = null
                 }
-
-                lastError = new Error(`HTTP ${res.status}`)
-                // 5xx is a server-side transient → worth a same-url retry;
-                // a 4xx won't change on retry → fail over.
-                retryable = res.status >= 500
             } catch (err) {
                 lastError = err instanceof Error ? err : new Error(String(err))
                 // Retry a genuine network error, but not a timeout/abort.
                 retryable = lastError.name !== "AbortError"
+            }
+
+            if (res) {
+                let accepted: T
+                try {
+                    accepted = await accept(res)
+                } catch (err) {
+                    // The node answered, but not with a usable reply (refusal,
+                    // JSON-RPC error, malformed body) → fail over, no retry.
+                    lastError = err instanceof Error ? err : new Error(String(err))
+                    if (err instanceof NodeRefusal) refusals.push({ url: rpcUrl, reason: err.message })
+                    break
+                }
+                // Mark this URL as working for future calls; the primary being
+                // back resets the fallback preference.
+                _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+                return accepted
             }
 
             if (retryable && attempt < SAME_URL_RETRIES) {
@@ -136,7 +187,24 @@ export async function resilientFetch(
         }
     }
 
+    // A refusal is the network's answer for this request, not an outage: say
+    // so rather than surfacing whichever transport error happened to be last.
+    if (refusals.length > 0) throw new RpcRefusedError(what, refusals)
     throw lastError || new Error("All RPC endpoints unreachable")
+}
+
+/**
+ * Fetch with RPC failover. Tries each URL in order until one succeeds.
+ * Returns the Response from the first successful attempt. HTTP 403 counts as
+ * a refusal and fails over; if every reachable URL refused, throws
+ * {@link RpcRefusedError}, otherwise the last error.
+ */
+export async function resilientFetch(
+    buildRequest: (rpcUrl: string) => { url: string; init: RequestInit },
+    signal?: AbortSignal,
+    verifyEndpoint?: (rpcUrl: string) => Promise<void>,
+): Promise<Response> {
+    return resilientRequest("RPC request", buildRequest, async (res) => res, signal, verifyEndpoint)
 }
 
 /**
@@ -223,7 +291,7 @@ async function abciQueryDetailedUncoalesced(
     verifyEndpoint?: (rpcUrl: string) => Promise<void>,
 ): Promise<AbciQueryResult> {
     const b64Data = btoa(data)
-    const res = await resilientFetch((rpcUrl) => ({
+    return resilientRequest<AbciQueryResult>(`abci_query ${path}`, (rpcUrl) => ({
         url: rpcUrl,
         init: {
             method: "POST",
@@ -235,32 +303,36 @@ async function abciQueryDetailedUncoalesced(
                 params: { path, data: b64Data },
             }),
         },
-    }), undefined, verifyEndpoint)
-    const json = await res.json()
-    // A node can answer HTTP 200 with a TOP-LEVEL JSON-RPC error (not synced,
-    // internal error, a proxy's JSON error body). That is a NODE failure, not
-    // a VM answer: it must throw like a transport error — never map to
-    // AbciQueryError (callers read that as the chain saying "not deployed
-    // here" and drop saved entries, B-9) and never read as an empty render.
-    // Mirrors resilientRpcCall below and the backend's render_proxy.
-    if (json?.error) {
-        throw new Error(`RPC error: ${json.error.message || JSON.stringify(json.error)}`)
-    }
-    const base = json?.result?.response?.ResponseBase
-    // No ResponseBase at all is a malformed reply (proxy garbage), not a
-    // legitimate empty render — same transport-class treatment.
-    if (!base) {
-        throw new Error("Malformed abci_query response: missing ResponseBase")
-    }
-    if (abciErrorPresent(base?.Error)) {
-        const log = typeof base?.Log === "string" ? base.Log : ""
-        return { kind: "abci-error", error: new AbciQueryError(path, base.Error, log) }
-    }
-    const value = base?.Data
-    if (!value) return { kind: "empty" } // realm rendered nothing — legitimate
-    const binaryStr = atob(value)
-    const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
-    return { kind: "ok", text: new TextDecoder().decode(bytes) }
+    }), async (res) => {
+        const json = await res.json()
+        // A node can answer HTTP 200 with a TOP-LEVEL JSON-RPC error: code
+        // execution disabled (rpc.allow_code_execution=false), not synced, an
+        // internal error, a proxy's JSON error body. That is THIS NODE refusing,
+        // not a VM answer → fail over to the next endpoint. Never map it to
+        // AbciQueryError (callers read that as the chain saying "not deployed
+        // here" and drop saved entries, B-9) and never read it as an empty render.
+        // Mirrors resilientRpcCall below and the backend's render_proxy.
+        if (json?.error) {
+            throw new NodeRefusal(`JSON-RPC error: ${json.error.message || JSON.stringify(json.error)}`)
+        }
+        const base = json?.result?.response?.ResponseBase
+        // No ResponseBase at all is a malformed reply (proxy garbage), not a
+        // legitimate empty render — same node-failure treatment.
+        if (!base) {
+            throw new Error("Malformed abci_query response: missing ResponseBase")
+        }
+        // ResponseBase.Error is the REALM's answer (missing package, a panic in
+        // the evaluated expression) — the same on every node, so no failover.
+        if (abciErrorPresent(base?.Error)) {
+            const log = typeof base?.Log === "string" ? base.Log : ""
+            return { kind: "abci-error", error: new AbciQueryError(path, base.Error, log) }
+        }
+        const value = base?.Data
+        if (!value) return { kind: "empty" } // realm rendered nothing — legitimate
+        const binaryStr = atob(value)
+        const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
+        return { kind: "ok", text: new TextDecoder().decode(bytes) }
+    }, undefined, verifyEndpoint)
 }
 
 /**
@@ -268,10 +340,14 @@ async function abciQueryDetailedUncoalesced(
  * Drop-in replacement for the direct fetch in shared.ts abciQuery.
  *
  * Back-compat wrapper over {@link resilientAbciQueryDetailed}: non-strict
- * callers still get `null` for both "empty" and any failure; strict callers
- * (the DAO read path) now get an {@link AbciQueryError} for VM-level errors
- * (previously silently `null` — a non-deployed realm looked like a blank
+ * callers still get `null` for both "empty" and a transport/VM failure; strict
+ * callers (the DAO read path) now get an {@link AbciQueryError} for VM-level
+ * errors (previously silently `null` — a non-deployed realm looked like a blank
  * render) in addition to the transport throw they already had (FE-2).
+ *
+ * Every caller, strict or not, gets {@link RpcRefusedError} when every
+ * reachable endpoint refused the query (code execution disabled): that is no
+ * outage to paper over with `null`, and a `null` would read as empty data.
  */
 export async function resilientAbciQuery(
     path: string,
@@ -287,7 +363,7 @@ export async function resilientAbciQuery(
         }
         return null // legitimate empty
     } catch (err) {
-        if (strict) throw err instanceof Error ? err : new Error(String(err))
+        if (strict || err instanceof RpcRefusedError) throw err instanceof Error ? err : new Error(String(err))
         return null
     }
 }

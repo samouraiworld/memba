@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { resilientAbciQuery, resilientAbciQueryDetailed, getRpcUrlsInOrder, AbciQueryError, abciErrorPresent } from "./rpcFallback"
+import { resilientAbciQuery, resilientAbciQueryDetailed, getRpcUrlsInOrder, AbciQueryError, RpcRefusedError, abciErrorPresent } from "./rpcFallback"
 
 afterEach(() => {
     vi.restoreAllMocks()
@@ -232,9 +232,9 @@ describe("resilientAbciQuery — node-level JSON-RPC errors are transport failur
         expect((thrown as Error).message).toMatch(/catching up/)
     })
 
-    it("strict=false: returns null on a top-level JSON-RPC error (unchanged caller contract)", async () => {
+    it("strict=false: a JSON-RPC error on EVERY node rejects — never a null that reads as empty", async () => {
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(rpcErrorResp()))
-        await expect(resilientAbciQuery("vm/qrender", "gno.land/r/nodeerr-b:", false)).resolves.toBeNull()
+        await expect(resilientAbciQuery("vm/qrender", "gno.land/r/nodeerr-b:", false)).rejects.toThrow(RpcRefusedError)
     })
 
     it("strict=true: throws a PLAIN error on a malformed response with no ResponseBase", async () => {
@@ -284,5 +284,122 @@ describe("mainnet failover to the verified fallback node", () => {
         expect(fetchMock.mock.calls.some(([u]) => String(u).startsWith("https://rpc.mainnet.samourai.live"))).toBe(true)
         // The working fallback is tried first for the rest of the session.
         expect(rf.getRpcUrlsInOrder()[0]).toBe("https://rpc.mainnet.samourai.live:443")
+    })
+})
+
+// gnolang/gno#6413: an operator can set rpc.allow_code_execution=false, and the
+// node then refuses vm/qeval, vm/qrender and .app/simulate — HTTP 200 with a
+// TOP-LEVEL JSON-RPC error on a POST, HTTP 403 on a GET. That is one node
+// refusing, not the chain answering: fail over to the next endpoint, and only
+// when every endpoint refuses surface a clear error to every caller. The realm's
+// own error (ResponseBase.Error) is the same on every node: no failover.
+describe("refused code-running queries fail over to the next endpoint", () => {
+    const PRIMARY = "https://rpc.gno.land"
+    const FALLBACK = "https://rpc.mainnet.samourai.live"
+    const refusedResp = () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ jsonrpc: "2.0", id: "memba-dao", error: { code: -32603, message: "code execution is disabled on this node" } }),
+    })
+    const forbiddenResp = () => ({ ok: false, status: 403, json: async () => ({}) })
+    const panicResp = () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ result: { response: { ResponseBase: { Error: { "@type": "/vm.VMError" }, Log: "panic: division by zero", Data: null } } } }),
+    })
+
+    // Hermetic two-node mainnet list (same pattern as the mainnet failover suite),
+    // re-imported per test so the remembered working node never leaks.
+    async function mainnet() {
+        vi.stubEnv("VITE_GNO_CHAIN_ID", "mainnet")
+        window.history.replaceState({}, "", "/mainnet/")
+        vi.resetModules()
+        const rf = await import("./rpcFallback")
+        expect(rf.getRpcUrlsInOrder().map((u) => u.replace(/:443$/, ""))).toEqual([PRIMARY, FALLBACK])
+        return rf
+    }
+    function byNode(primary: () => unknown, fallback: () => unknown) {
+        return vi.fn(async (input: RequestInfo | URL) => (String(input).startsWith(PRIMARY) ? primary() : fallback()))
+    }
+    const callsTo = (mock: ReturnType<typeof vi.fn>, node: string) => mock.mock.calls.filter(([u]) => String(u).startsWith(node)).length
+
+    afterEach(() => {
+        vi.unstubAllEnvs()
+        vi.resetModules()
+        window.history.replaceState({}, "", "/")
+    })
+
+    it("HTTP 200 + top-level JSON-RPC error on node 1 → the result comes from node 2", async () => {
+        const rf = await mainnet()
+        const fetchMock = byNode(refusedResp, () => okData("(42 int)"))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await expect(rf.resilientAbciQueryDetailed("vm/qeval", "gno.land/r/x.Answer()")).resolves.toEqual({ kind: "ok", text: "(42 int)" })
+        expect(callsTo(fetchMock, PRIMARY)).toBe(1) // a refusal is not retried on the same node
+        expect(callsTo(fetchMock, FALLBACK)).toBe(1)
+        // The node that answered is preferred for the rest of the session.
+        expect(rf.getRpcUrlsInOrder()[0].startsWith(FALLBACK)).toBe(true)
+    })
+
+    it("HTTP 403 on node 1 → the result comes from node 2", async () => {
+        const rf = await mainnet()
+        const fetchMock = byNode(forbiddenResp, () => okData("# rendered"))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await expect(rf.resilientAbciQuery("vm/qrender", "gno.land/r/x:", true)).resolves.toBe("# rendered")
+        expect(callsTo(fetchMock, PRIMARY)).toBe(1)
+    })
+
+    it("every node refuses → strict callers get RpcRefusedError naming the refusal", async () => {
+        const rf = await mainnet()
+        vi.stubGlobal("fetch", byNode(refusedResp, forbiddenResp))
+
+        let thrown: unknown
+        try { await rf.resilientAbciQuery("vm/qeval", "gno.land/r/x.Answer()", true) } catch (err) { thrown = err }
+        expect(thrown).toBeInstanceOf(rf.RpcRefusedError)
+        expect(thrown).not.toBeInstanceOf(rf.AbciQueryError) // never "not deployed here"
+        const err = thrown as InstanceType<typeof rf.RpcRefusedError>
+        expect(err.message).toMatch(/refused by every reachable RPC endpoint/)
+        expect(err.message).toMatch(/vm\/qeval/)
+        expect(err.message).toMatch(/code execution is disabled/)
+        expect(err.message).toMatch(/HTTP 403/)
+        expect(err.refusals).toHaveLength(2)
+    })
+
+    it("every node refuses → non-strict callers are rejected too, never handed a silent null", async () => {
+        const rf = await mainnet()
+        vi.stubGlobal("fetch", byNode(refusedResp, refusedResp))
+
+        await expect(rf.resilientAbciQuery("vm/qrender", "gno.land/r/x:", false)).rejects.toThrow(rf.RpcRefusedError)
+        await expect(rf.resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).rejects.toThrow(rf.RpcRefusedError)
+    })
+
+    it("one node refuses and the other is down → still reported as a refusal, not a null", async () => {
+        const rf = await mainnet()
+        vi.stubGlobal("fetch", byNode(refusedResp, () => { throw new TypeError("Failed to fetch") }))
+
+        await expect(rf.resilientAbciQuery("vm/qrender", "gno.land/r/x:", false)).rejects.toThrow(rf.RpcRefusedError)
+    })
+
+    it("every node down (no refusal) keeps the old contract: strict throws, non-strict null", async () => {
+        const rf = await mainnet()
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")))
+
+        await expect(rf.resilientAbciQuery("vm/qrender", "gno.land/r/x:", false)).resolves.toBeNull()
+        const strict = rf.resilientAbciQuery("vm/qrender", "gno.land/r/y:", true)
+        await expect(strict).rejects.toThrow(/Failed to fetch/)
+        await expect(strict).rejects.not.toBeInstanceOf(rf.RpcRefusedError)
+    })
+
+    it("a realm-level ABCI error (panic in the evaluated expression) does NOT fail over", async () => {
+        const rf = await mainnet()
+        const fetchMock = byNode(panicResp, () => okData("must not be read"))
+        vi.stubGlobal("fetch", fetchMock)
+
+        const res = await rf.resilientAbciQueryDetailed("vm/qeval", "gno.land/r/x.Divide(1, 0)")
+        expect(res.kind).toBe("abci-error")
+        if (res.kind === "abci-error") expect(res.error.log).toMatch(/division by zero/)
+        expect(callsTo(fetchMock, FALLBACK)).toBe(0)
+        await expect(rf.resilientAbciQuery("vm/qeval", "gno.land/r/x.Divide(1, 0)", true)).rejects.toThrow(rf.AbciQueryError)
     })
 })
