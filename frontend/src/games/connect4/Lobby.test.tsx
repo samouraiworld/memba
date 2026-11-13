@@ -71,7 +71,8 @@ describe("Lobby", () => {
         renderWithProviders(<Lobby me="g1alice" connected onOpen={vi.fn()} />)
         const input = await screen.findByLabelText("Stake (GNOT)")
         const form = input.closest("form")!
-        expect(within(form).getByRole("checkbox", { name: /Quick play/ })).toBeChecked()
+        // The form renders before the lobby query resolves; the consent needs its fee.
+        expect(await within(form).findByRole("checkbox", { name: /Quick play/ })).toBeChecked()
         fireEvent.change(input, { target: { value: "2" } })
         expect(form).toHaveTextContent("Not enough GNOT left after the stake for Quick play")
         expect(within(form).queryByRole("checkbox", { name: /Quick play/ })).toBeNull()
