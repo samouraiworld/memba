@@ -7,7 +7,7 @@ require (
 	connectrpc.com/cors v0.1.0
 	github.com/cosmos/cosmos-sdk v0.55.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
-	github.com/gnolang/gno v0.0.0-20260914072242-1bf7282dd85e
+	github.com/gnolang/gno v0.0.0-20261113104558-855151c39498
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.25.0
