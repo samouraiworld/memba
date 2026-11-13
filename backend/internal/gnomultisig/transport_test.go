@@ -29,7 +29,7 @@ func TestNativeJSONRPCTransport(t *testing.T) {
 					received = append([]byte(nil), tx...)
 					return "fixture", nil
 				}, "tx"),
-			}, log.NewNoopLogger())
+			}, log.NewNoopLogger(), 1000) // the node default since gnolang/gno#6488
 			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
