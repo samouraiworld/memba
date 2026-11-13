@@ -48,18 +48,25 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
-          # While EVM work is frozen (see the trigger comment above), the live manifest check runs only on demand
-          # (workflow_dispatch) and on PRs that change the manifest or its checker, not on every push to main.
+          # While EVM work is frozen (see the trigger comment above), the live manifest check runs on demand
+          # (workflow_dispatch), and on PRs and pushes to main that change the manifest or its checker; not on
+          # every push. A push whose range cannot be computed runs it, as before.
           case "$EVENT" in
             schedule) echo "contracts=false" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
             workflow_dispatch) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
-            pull_request) ;;
-            *) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=false" >>"$GITHUB_OUTPUT"; exit 0 ;;
+            pull_request) files="$(git diff --name-only "$BASE_SHA"...HEAD)" ;;
+            push)
+              if [ -z "$BEFORE_SHA" ] || ! files="$(git diff --name-only "$BEFORE_SHA"..HEAD 2>/dev/null)"; then
+                echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0
+              fi ;;
+            *) echo "contracts=true" >>"$GITHUB_OUTPUT"; echo "manifest=true" >>"$GITHUB_OUTPUT"; exit 0 ;;
           esac
-          files="$(git diff --name-only "$BASE_SHA"...HEAD)"
           contracts=false
           manifest=false
+          # A push to main always runs the contract gates, as before the freeze.
+          [ "$EVENT" = push ] && contracts=true
           if grep -qE '^(contracts/evm/|deployments/evm/|\.github/workflows/contracts-evm\.yml$|\.gitmodules$)' <<<"$files"; then
             contracts=true
           fi
