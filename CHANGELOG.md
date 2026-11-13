@@ -20,9 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Security: open dependency advisories cleared (2026-11-13)
+### Security: hono and qs advisories cleared (2026-11-13)
 - MCP server and RPC package (pnpm workspace): `hono` 4.13.16 (CSRF check skipped requests sent by hyperlink auditing), `@hono/node-server` 2.1.6 (unhandled socket reset, backslash read as a path separator), `qs` 6.16.1 (uncaught error in comma-format stringify). The override floors are raised to these versions so a later re-resolve cannot fall back below them.
-- Frontend build tooling: `minimatch` 11.0.1 for the copies used by `glob`, `typescript-eslint` and `workbox-build` (denial of service through pattern amplification). Only the vulnerable 7.x–11.0.0 range is overridden; the 3.x and 5.x copies that ESLint and `filelist` need are left as they are.
+- Frontend build tooling, not changed: `minimatch` 10.x (denial of service through pattern amplification) has no patched 10.x release, and 11.x breaks `workbox-build`, which then precaches no script or stylesheet. It only reads glob patterns from our own build configuration.
 - `deepmerge` 4.3.1 (prototype poisoning of merged objects) has no patched release. It is used only by the Rollup node-resolve plugin at build time to merge our own configuration, so no untrusted input reaches it.
 
 ### Chain reads fail over when a node refuses code-running queries (2026-11-13)
