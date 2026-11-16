@@ -64,7 +64,7 @@
     "react-dom": "~19.3.1",
     "react-router-dom": "^7.18.5",
     "recharts": "^2.15.4",
-    "three": "0.186.1",
+    "three": "0.187.0",
     "viem": "2.57.16",
     "zod": "^4.6.7"
   },
@@ -78,7 +78,7 @@
     "@types/node": "^25.9.9",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/three": "0.186.0",
+    "@types/three": "0.187.0",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^9.39.5",
