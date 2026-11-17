@@ -220,6 +220,11 @@ and a deploy activates staged secrets.
 - `MEMBA_ARCADE_REALM` defaults to the mainnet path.
 - `MEMBA_ARCADE_RPC_URL` defaults to `GNO_RPC_URL`. Confirm that node reports
   `node_info.network == "gnoland-1"`.
+- When that node is unreachable, answers an HTTP error, or refuses to run code
+  (`rpc.allow_code_execution`), the attester moves to the backend's failover
+  list (`RPC_FALLBACK_URLS`, else `rpc.gno.land` then the Samourai node). It
+  uses a fallback only once its `/status` reports `GNO_CHAIN_ID`. A realm
+  refusal never fails over.
 - BARRICADE stays out of `MEMBA_ARCADE_GAMES` until its own launch.
 
 Check the boot logs for these three lines:
