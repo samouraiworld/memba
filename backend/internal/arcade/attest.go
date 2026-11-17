@@ -146,9 +146,11 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 }
 
 // attestScoreAt broadcasts through one node. retry reports a failure of the
-// node rather than of the transaction, which the next node may not share. A
-// retry after a broadcast that did land is safe: the realm keeps the best run,
-// so the second attempt is refused as not improved (ErrAlreadyOnChain).
+// node, which the next node may not share, seen before the transaction could
+// have been submitted (see nodeUnavailable). A timeout or a dropped connection
+// is ambiguous, so it never fails over: a second broadcast could land after
+// the first and spend a second fee. Even then the realm keeps the best run and
+// refuses the duplicate as not improved (ErrAlreadyOnChain).
 func (b *gnokeyBroadcaster) attestScoreAt(ctx context.Context, run Run, remote string) (txHash string, retry bool, err error) {
 	// Bound each broadcast: a black-holed RPC would otherwise block this call with
 	// no deadline, and since the batcher is a single goroutine, one hung gnokey
@@ -185,25 +187,24 @@ func (b *gnokeyBroadcaster) attestScoreAt(ctx context.Context, run Run, remote s
 			// A deterministic shape rejection — retrying can never succeed.
 			return "", false, ErrPermanentReject
 		}
-		retry = errors.Is(cctx.Err(), context.DeadlineExceeded) || nodeUnavailable(lo)
+		retry = cctx.Err() == nil && nodeUnavailable(lo)
 		return "", retry, fmt.Errorf("arcade attest via %s: gnokey failed: %w (%s)", remote, err, strings.TrimSpace(out))
 	}
 	return parseTxHash(out), false, nil
 }
 
 // nodeUnavailable reports whether gnokey's output (lowercased) blames the node
-// rather than the transaction: the node could not be reached, answered a
-// non-2xx status (gnokey's RPC client prints "invalid status code received";
-// a node refusing to run code answers 403), or refused to run code.
+// rather than the transaction: the node refused to run code (gnokey's
+// simulation runs before any broadcast; gno v1.8.0 answers it with a 403, which
+// gnokey's RPC client prints as "invalid status code received"), or no
+// connection could be opened to it.
 func nodeUnavailable(lo string) bool {
 	for _, marker := range []string{
 		"does not allow over rpc",
 		"invalid status code received",
 		"connection refused",
-		"connection reset",
 		"no such host",
 		"dial tcp",
-		"i/o timeout",
 		"tls handshake",
 	} {
 		if strings.Contains(lo, marker) {
@@ -224,8 +225,10 @@ func (c AttesterConfig) remotes() []string {
 	return out
 }
 
-// checkChain refuses a fallback node whose /status does not report ChainID:
-// a reachable node is not proof it serves our chain.
+// checkChain refuses a fallback node whose /status does not report ChainID
+// (a reachable node is not proof it serves our chain) or that is catching up,
+// whose state may be behind the chain. A redirect is refused: the answer must
+// come from the configured node.
 func (b *gnokeyBroadcaster) checkChain(ctx context.Context, remote string) error {
 	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -233,7 +236,9 @@ func (b *gnokeyBroadcaster) checkChain(ctx context.Context, remote string) error
 	if err != nil {
 		return err
 	}
-	resp, err := b.client().Do(req)
+	client := *b.client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("arcade fallback %s: %w", remote, err)
 	}
@@ -243,6 +248,9 @@ func (b *gnokeyBroadcaster) checkChain(ctx context.Context, remote string) error
 			NodeInfo struct {
 				Network string `json:"network"`
 			} `json:"node_info"`
+			SyncInfo struct {
+				CatchingUp *bool `json:"catching_up"`
+			} `json:"sync_info"`
 		} `json:"result"`
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -253,6 +261,9 @@ func (b *gnokeyBroadcaster) checkChain(ctx context.Context, remote string) error
 	}
 	if got := st.Result.NodeInfo.Network; got != b.cfg.ChainID {
 		return fmt.Errorf("arcade fallback %s reports %q, not %q", remote, got, b.cfg.ChainID)
+	}
+	if c := st.Result.SyncInfo.CatchingUp; c == nil || *c {
+		return fmt.Errorf("arcade fallback %s is catching up or does not say", remote)
 	}
 	return nil
 }

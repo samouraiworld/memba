@@ -13,19 +13,30 @@ import (
 )
 
 // failoverNodes fakes two RPC nodes by host. Each node answers /status with its
-// network and a vm/qeval POST with its query answer; every request is recorded
-// as "host path".
+// network (and catching_up false unless listed in catchingUp) and a vm/qeval
+// POST with its query answer; every request is recorded as "host path".
 type failoverNodes struct {
-	network map[string]string
-	query   map[string]func() *http.Response
-	seen    []string
+	network    map[string]string
+	catchingUp map[string]bool
+	redirect   map[string]bool
+	query      map[string]func() *http.Response
+	seen       []string
 }
 
 func (n *failoverNodes) client() *http.Client {
 	return &http.Client{Transport: attestRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		n.seen = append(n.seen, req.URL.Host+" "+req.URL.Path)
 		if strings.HasSuffix(req.URL.Path, "/status") {
-			return jsonResponse(http.StatusOK, `{"result":{"node_info":{"network":"`+n.network[req.URL.Host]+`"}}}`), nil
+			if n.redirect[req.URL.Host] {
+				r := jsonResponse(http.StatusFound, "")
+				r.Header.Set("Location", "https://elsewhere.example/status")
+				return r, nil
+			}
+			catching := "false"
+			if n.catchingUp[req.URL.Host] {
+				catching = "true"
+			}
+			return jsonResponse(http.StatusOK, `{"result":{"node_info":{"network":"`+n.network[req.URL.Host]+`"},"sync_info":{"catching_up":`+catching+`}}}`), nil
 		}
 		answer, ok := n.query[req.URL.Host]
 		if !ok {
@@ -161,10 +172,6 @@ func TestGnokeyBroadcaster_AttestFailsOverWhenTheNodeFails(t *testing.T) {
 		"unreachable": func(context.Context) (string, error) {
 			return "post https://primary.example: dial tcp: connection refused", errors.New("exit 1")
 		},
-		"hung": func(ctx context.Context) (string, error) {
-			<-ctx.Done()
-			return "", ctx.Err()
-		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			nodes := &failoverNodes{network: map[string]string{"backup.example": "gnoland-1"}}
@@ -199,6 +206,10 @@ func TestGnokeyBroadcaster_AttestKeepsTransactionFailures(t *testing.T) {
 		// The transaction's own failure, which every node would share. The gas
 		// figure carries "403" on purpose: only gnokey's status line may match.
 		"insufficient funds": {out: "insufficient funds to pay for fees; 4030000ugnot < 5000000ugnot"},
+		// Ambiguous: the transaction may have been submitted before the read
+		// failed, and a second broadcast could spend a second fee.
+		"read timeout":     {out: "post https://primary.example: read tcp: i/o timeout"},
+		"connection reset": {out: "post https://primary.example: read: connection reset by peer"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			b := failoverBroadcaster(&failoverNodes{network: map[string]string{"backup.example": "gnoland-1"}})
@@ -213,6 +224,45 @@ func TestGnokeyBroadcaster_AttestKeepsTransactionFailures(t *testing.T) {
 			}
 			if len(remotes) != 1 {
 				t.Fatalf("remotes = %q, want the primary only", remotes)
+			}
+		})
+	}
+}
+
+func TestGnokeyBroadcaster_AttestKeepsATimedOutBroadcast(t *testing.T) {
+	// A broadcast that hit its deadline may have been submitted: no second node.
+	b := failoverBroadcaster(&failoverNodes{network: map[string]string{"backup.example": "gnoland-1"}})
+	b.cfg.Timeout = 20 * time.Millisecond
+	var remotes []string
+	b.exec = attestExec(map[string]func(context.Context) (string, error){
+		"https://primary.example": func(ctx context.Context) (string, error) {
+			<-ctx.Done()
+			return "", ctx.Err()
+		},
+		"https://backup.example": func(context.Context) (string, error) { return "TX HASH: abc==", nil },
+	}, &remotes)
+	if _, err := b.AttestScore(context.Background(), Run{LogHash: "x"}); err == nil || len(remotes) != 1 {
+		t.Fatalf("err=%v remotes=%q, want an error from the primary only", err, remotes)
+	}
+}
+
+func TestGnokeyBroadcaster_FallbackMustBeSyncedAndDirect(t *testing.T) {
+	for name, nodes := range map[string]*failoverNodes{
+		"catching up": {network: map[string]string{"backup.example": "gnoland-1"}, catchingUp: map[string]bool{"backup.example": true}},
+		"redirected":  {network: map[string]string{"backup.example": "gnoland-1", "elsewhere.example": "gnoland-1"}, redirect: map[string]bool{"backup.example": true}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			nodes.query = map[string]func() *http.Response{
+				"primary.example": func() *http.Response { return jsonResponse(http.StatusForbidden, "") },
+				"backup.example":  entryAnswer,
+			}
+			if _, _, err := failoverBroadcaster(nodes).LookupEntry(context.Background(), Run{Day: "2026-11-17", Addr: "g1alice"}); err == nil {
+				t.Fatal("the fallback must be refused")
+			}
+			for _, r := range nodes.seen {
+				if r == "backup.example " || strings.HasPrefix(r, "elsewhere.example") {
+					t.Fatalf("an unusable fallback was used: %q", nodes.seen)
+				}
 			}
 		})
 	}
