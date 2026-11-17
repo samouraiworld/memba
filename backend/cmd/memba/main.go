@@ -33,6 +33,7 @@ import (
 	"github.com/samouraiworld/memba/backend/internal/launchpadwatch"
 	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
+	"github.com/samouraiworld/memba/backend/internal/rpcnodes"
 	"github.com/samouraiworld/memba/backend/internal/service"
 	_ "modernc.org/sqlite"
 )
@@ -673,7 +674,10 @@ func main() {
 				Realm:   envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
 				ChainID: chainID,
 				Remote:  remote,
-				KeyName: attesterKey,
+				// The backend's failover list (RPC_FALLBACK_URLS, else the
+				// mainnet default); each is used only once it reports chainID.
+				Fallbacks: rpcnodes.URLsInOrder(remote)[1:],
+				KeyName:   attesterKey,
 				// The keyring password gnokey uses to SIGN, fed on stdin. Must match
 				// the password start.sh imported the key with (same env var). On the
 				// ephemeral container-only keyring this is a gnokey formality.

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -58,9 +59,15 @@ type Broadcaster interface {
 // keyring NAME (never a raw secret in this process); the ceremony that funds it
 // and adds it to the realm's attester allowlist is an OWNER step.
 type AttesterConfig struct {
-	Realm     string // e.g. gno.land/r/samcrew/memba_arcade_leaderboard_v1
-	ChainID   string // e.g. test-13
-	Remote    string // RPC endpoint
+	Realm   string // e.g. gno.land/r/samcrew/memba_arcade_leaderboard_v1
+	ChainID string // e.g. test-13
+	Remote  string // RPC endpoint, always tried first
+	// Fallbacks are tried in order when Remote cannot serve a lookup or a
+	// broadcast: it is unreachable, answers an HTTP error, or refuses to run
+	// code (rpc.allow_code_execution, gnolang/gno#6413, refuses vm/qeval and
+	// gnokey's .app/simulate alike). A fallback is used only after its /status
+	// reports ChainID. An answer from the realm itself never fails over.
+	Fallbacks []string
 	KeyName   string // gnokey keyring name of the dedicated low-privilege attester key
 	GnokeyBin string // default "gnokey"
 	// KeyringPassword unlocks the on-disk gnokey keyring to SIGN, fed to gnokey on
@@ -121,6 +128,30 @@ func NewGnokeyBroadcaster(cfg AttesterConfig) Broadcaster {
 }
 
 func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, error) {
+	var lastErr error
+	for i, remote := range b.cfg.remotes() {
+		if i > 0 {
+			if err := b.checkChain(ctx, remote); err != nil {
+				lastErr = err
+				continue
+			}
+		}
+		txHash, retry, err := b.attestScoreAt(ctx, run, remote)
+		if err == nil || !retry || ctx.Err() != nil {
+			return txHash, err
+		}
+		lastErr = err
+	}
+	return "", lastErr
+}
+
+// attestScoreAt broadcasts through one node. retry reports a failure of the
+// node, which the next node may not share, seen before the transaction could
+// have been submitted (see nodeUnavailable). A timeout or a dropped connection
+// is ambiguous, so it never fails over: a second broadcast could land after
+// the first and spend a second fee. Even then the realm keeps the best run and
+// refuses the duplicate as not improved (ErrAlreadyOnChain).
+func (b *gnokeyBroadcaster) attestScoreAt(ctx context.Context, run Run, remote string) (txHash string, retry bool, err error) {
 	// Bound each broadcast: a black-holed RPC would otherwise block this call with
 	// no deadline, and since the batcher is a single goroutine, one hung gnokey
 	// would wedge every later attestation cycle.
@@ -128,7 +159,7 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 	defer cancel()
 	// gnokey reads the keyring password from the first line of stdin (there's no
 	// TTY); the argv carries -insecure-password-stdin.
-	out, err := b.exec(cctx, b.attestScoreArgv(run), b.cfg.KeyringPassword+"\n")
+	out, err := b.exec(cctx, b.attestScoreArgvAt(run, remote), b.cfg.KeyringPassword+"\n")
 	if err != nil {
 		// Classify the realm's rejection so the batcher converges instead of
 		// retrying a deterministically-failing tx forever. These substrings mirror
@@ -142,11 +173,11 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 		switch {
 		case strings.Contains(lo, "existing entry is not improved"):
 			// Benign: our target is already on-chain at an equal-or-better score.
-			return "", ErrAlreadyOnChain
+			return "", false, ErrAlreadyOnChain
 		case strings.Contains(lo, "already bound to another address"),
 			strings.Contains(lo, "already attested for another address"):
 			// The log is bound to a different address — never ours.
-			return "", ErrLogBoundElsewhere
+			return "", false, ErrLogBoundElsewhere
 		case strings.Contains(lo, "out of range"),
 			strings.Contains(lo, "must be non-empty"),
 			strings.Contains(lo, "must be yyyy-mm-dd"),
@@ -154,16 +185,120 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 			strings.Contains(lo, "game must be 1-32 chars of [a-z0-9-]"),
 			strings.Contains(lo, "stats too long"):
 			// A deterministic shape rejection — retrying can never succeed.
-			return "", ErrPermanentReject
+			return "", false, ErrPermanentReject
 		}
-		return "", fmt.Errorf("arcade attest: gnokey failed: %w (%s)", err, strings.TrimSpace(out))
+		retry = cctx.Err() == nil && nodeUnavailable(lo)
+		return "", retry, fmt.Errorf("arcade attest via %s: gnokey failed: %w (%s)", remote, err, strings.TrimSpace(out))
 	}
-	return parseTxHash(out), nil
+	return parseTxHash(out), false, nil
+}
+
+// nodeUnavailable reports whether gnokey's output (lowercased) blames the node
+// rather than the transaction: the node refused to run code (gnokey's
+// simulation runs before any broadcast; gno v1.8.0 answers it with a 403, which
+// gnokey's RPC client prints as "invalid status code received"), or no
+// connection could be opened to it.
+func nodeUnavailable(lo string) bool {
+	for _, marker := range []string{
+		"does not allow over rpc",
+		"invalid status code received",
+		"connection refused",
+		"no such host",
+		"dial tcp",
+		"tls handshake",
+	} {
+		if strings.Contains(lo, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// remotes returns Remote and then each distinct non-empty fallback.
+func (c AttesterConfig) remotes() []string {
+	out := []string{c.Remote}
+	for _, u := range c.Fallbacks {
+		if u = strings.TrimSpace(u); u != "" && !slices.Contains(out, u) {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// checkChain refuses a fallback node whose /status does not report ChainID
+// (a reachable node is not proof it serves our chain) or that is catching up,
+// whose state may be behind the chain. A redirect is refused: the answer must
+// come from the configured node.
+func (b *gnokeyBroadcaster) checkChain(ctx context.Context, remote string) error {
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(cctx, http.MethodGet, strings.TrimRight(remote, "/")+"/status", nil)
+	if err != nil {
+		return err
+	}
+	client := *b.client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("arcade fallback %s: %w", remote, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var st struct {
+		Result struct {
+			NodeInfo struct {
+				Network string `json:"network"`
+			} `json:"node_info"`
+			SyncInfo struct {
+				CatchingUp *bool `json:"catching_up"`
+			} `json:"sync_info"`
+		} `json:"result"`
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("arcade fallback %s: /status HTTP %d", remote, resp.StatusCode)
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&st); err != nil {
+		return fmt.Errorf("arcade fallback %s: /status: %w", remote, err)
+	}
+	if got := st.Result.NodeInfo.Network; got != b.cfg.ChainID {
+		return fmt.Errorf("arcade fallback %s reports %q, not %q", remote, got, b.cfg.ChainID)
+	}
+	if c := st.Result.SyncInfo.CatchingUp; c == nil || *c {
+		return fmt.Errorf("arcade fallback %s is catching up or does not say", remote)
+	}
+	return nil
+}
+
+func (b *gnokeyBroadcaster) client() *http.Client {
+	if b.httpClient != nil {
+		return b.httpClient
+	}
+	return http.DefaultClient
 }
 
 // LookupEntry reads the authoritative realm entry for this address and board.
 // Failure is retryable: the batcher must never invent a receipt from a panic.
 func (b *gnokeyBroadcaster) LookupEntry(ctx context.Context, run Run) (OnChainEntry, bool, error) {
+	var lastErr error
+	for i, remote := range b.cfg.remotes() {
+		if i > 0 {
+			if err := b.checkChain(ctx, remote); err != nil {
+				lastErr = err
+				continue
+			}
+		}
+		entry, found, retry, err := b.lookupEntryAt(ctx, run, remote)
+		if err == nil || !retry || ctx.Err() != nil {
+			return entry, found, err
+		}
+		lastErr = err
+	}
+	return OnChainEntry{}, false, lastErr
+}
+
+// lookupEntryAt queries one node. retry reports a failure of the node (no
+// answer, an HTTP error, or a JSON-RPC error such as a refusal to run code)
+// rather than an answer from the realm.
+func (b *gnokeyBroadcaster) lookupEntryAt(ctx context.Context, run Run, remote string) (entry OnChainEntry, found, retry bool, err error) {
 	expr := fmt.Sprintf("%s.GetEntryJSON(%q,%q,%q)", b.cfg.Realm, gameOrDefault(run.Game), run.Day, run.Addr)
 	payload, err := json.Marshal(struct {
 		JSONRPC string `json:"jsonrpc"`
@@ -178,26 +313,22 @@ func (b *gnokeyBroadcaster) LookupEntry(ctx context.Context, run Run) (OnChainEn
 		Data string `json:"data"`
 	}{Path: "vm/qeval", Data: base64.StdEncoding.EncodeToString([]byte(expr))}})
 	if err != nil {
-		return OnChainEntry{}, false, err
+		return OnChainEntry{}, false, false, err
 	}
 	queryCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(queryCtx, http.MethodPost, b.cfg.Remote, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(queryCtx, http.MethodPost, remote, bytes.NewReader(payload))
 	if err != nil {
-		return OnChainEntry{}, false, err
+		return OnChainEntry{}, false, false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := b.httpClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-	resp, err := client.Do(req)
+	resp, err := b.client().Do(req)
 	if err != nil {
-		return OnChainEntry{}, false, err
+		return OnChainEntry{}, false, true, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return OnChainEntry{}, false, fmt.Errorf("arcade entry lookup: HTTP %d", resp.StatusCode)
+		return OnChainEntry{}, false, true, fmt.Errorf("arcade entry lookup via %s: HTTP %d", remote, resp.StatusCode)
 	}
 	var result struct {
 		Result struct {
@@ -213,17 +344,21 @@ func (b *gnokeyBroadcaster) LookupEntry(ctx context.Context, run Run) (OnChainEn
 		} `json:"error"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&result); err != nil {
-		return OnChainEntry{}, false, err
+		return OnChainEntry{}, false, true, err
+	}
+	if result.Error != nil {
+		return OnChainEntry{}, false, true, fmt.Errorf("arcade entry lookup via %s: %s", remote, result.Error.Message)
 	}
 	rawError := strings.TrimSpace(string(result.Result.Response.ResponseBase.Error))
-	if result.Error != nil || rawError != "" && rawError != "null" && rawError != `""` {
-		return OnChainEntry{}, false, errors.New("arcade entry lookup: realm query failed")
+	if rawError != "" && rawError != "null" && rawError != `""` {
+		return OnChainEntry{}, false, false, errors.New("arcade entry lookup: realm query failed")
 	}
 	data, err := base64.StdEncoding.DecodeString(result.Result.Response.ResponseBase.Data)
 	if err != nil {
-		return OnChainEntry{}, false, err
+		return OnChainEntry{}, false, false, err
 	}
-	return parseOnChainEntry(data)
+	entry, found, err = parseOnChainEntry(data)
+	return entry, found, false, err
 }
 
 // QevalString returns the string result carried by a vm/qeval answer. qeval
@@ -275,6 +410,10 @@ func parseOnChainEntry(data []byte) (OnChainEntry, bool, error) {
 // coerces each string -arg to the function's param type. An empty Game
 // backfills to 'barricade' (a pre-migration row can only be a BARRICADE run).
 func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
+	return b.attestScoreArgvAt(run, b.cfg.Remote)
+}
+
+func (b *gnokeyBroadcaster) attestScoreArgvAt(run Run, remote string) []string {
 	argv := []string{
 		"maketx", "call",
 		"-pkgpath", b.cfg.Realm,
@@ -292,7 +431,7 @@ func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
 		"-gas-wanted", strconv.FormatInt(b.cfg.GasWanted, 10),
 		"-max-deposit", strconv.FormatInt(b.cfg.MaxDepositUgnot, 10) + "ugnot", // never let the chain's 100 GNOT default apply
 		"-chainid", b.cfg.ChainID,
-		"-remote", b.cfg.Remote,
+		"-remote", remote,
 		"-insecure-password-stdin", // read the keyring password from stdin (no TTY)
 		"-broadcast",
 		b.cfg.KeyName,
