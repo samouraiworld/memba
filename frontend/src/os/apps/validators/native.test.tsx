@@ -14,7 +14,7 @@ import ValidatorsWindow from "./native"
 // roster assembly, the merges and the health engine under them are the real ones.
 const read = vi.hoisted(() => ({
     snapshot: vi.fn(), validators: vi.fn(), stats: vi.fn(), monikers: vi.fn(), signatures: vi.fn(), monitoring: vi.fn(), valopers: vi.fn(),
-    scoresRealm: vi.fn(), scores: vi.fn(),
+    scoresRealm: vi.fn(), scores: vi.fn(), health: vi.fn(),
 }))
 vi.mock("../../../lib/validators", async (actual) => ({
     ...await actual<typeof import("../../../lib/validators")>(),
@@ -24,6 +24,11 @@ vi.mock("../../../lib/validators", async (actual) => ({
 vi.mock("../../../lib/gnomonitoring", async (actual) => ({
     ...await actual<typeof import("../../../lib/gnomonitoring")>(),
     fetchAllMonitoringData: read.monitoring,
+}))
+// Chain liveness (the age of the newest block on any node) comes from the shared health check.
+vi.mock("../../../lib/networkStatus", async (actual) => ({
+    ...await actual<typeof import("../../../lib/networkStatus")>(),
+    checkNetworkHealth: read.health,
 }))
 vi.mock("../../../lib/valopers", async (actual) => ({
     ...await actual<typeof import("../../../lib/valopers")>(),
@@ -120,6 +125,7 @@ beforeEach(() => {
     // No realm on this network unless a test says so: the lists stay as they were.
     read.scoresRealm.mockReturnValue(null)
     read.scores.mockResolvedValue(null)
+    read.health.mockResolvedValue({ health: "healthy", chainId: "gnoland-1", latestBlockTime: new Date(0), blockAge: 4 })
 })
 afterEach(() => { vi.useRealTimers() })
 
@@ -184,6 +190,25 @@ describe("Validators window · the active set", () => {
         await screen.findByRole("table")
         expect(screen.queryByText("Average block time")).toBeNull()
         expect(stat("Block height")).toHaveTextContent("The RPC node is still catching up")
+    })
+
+    // gnoland-1, 2026-11-18: at the v1.8.0 halt every node reported itself in sync, and
+    // every validator had signed every block up to it, so the page read as healthy.
+    it("says the chain looks halted when no node has a recent block, though the node reports itself in sync", async () => {
+        read.health.mockResolvedValue({ health: "halted", chainId: "gnoland-1", latestBlockTime: new Date(0), blockAge: 420 })
+        show()
+        await screen.findByRole("table")
+        expect(await screen.findByText(/the chain looks halted\. Health below/)).toHaveTextContent("The newest block on any RPC node is from 7m ago")
+        expect(stat("Block height")).toHaveTextContent("Last block 7m ago: the chain looks halted")
+    })
+
+    it.each(["healthy", "slow", "unreachable"])("shows no halt while the chain reads as %s", async (health) => {
+        read.health.mockResolvedValue({ health, chainId: "gnoland-1", latestBlockTime: new Date(0), blockAge: 30 })
+        show()
+        await screen.findByRole("table")
+        await waitFor(() => expect(read.health).toHaveBeenCalled())
+        expect(screen.queryByText(/looks halted/)).toBeNull()
+        expect(stat("Block height")).toHaveTextContent("The RPC node reports it is in sync")
     })
 
     it("sorts by a column header, ascending then descending, and says so", async () => {

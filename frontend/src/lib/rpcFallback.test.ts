@@ -287,6 +287,38 @@ describe("mainnet failover to the verified fallback node", () => {
     })
 })
 
+describe("preferRpcEndpoint — a stale node found by the health check", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs()
+        vi.resetModules()
+        window.history.replaceState({}, "", "/")
+    })
+
+    async function mainnet() {
+        vi.stubEnv("VITE_GNO_CHAIN_ID", "mainnet")
+        window.history.replaceState({}, "", "/mainnet/")
+        vi.resetModules()
+        return import("./rpcFallback")
+    }
+
+    it("tries the preferred configured node first, and the primary again when preferred back", async () => {
+        const rf = await mainnet()
+        rf.preferRpcEndpoint("https://rpc.mainnet.samourai.live:443")
+        expect(rf.getRpcUrlsInOrder()).toEqual(["https://rpc.mainnet.samourai.live:443", "https://rpc.gno.land:443"])
+        rf.preferRpcEndpoint("https://rpc.gno.land:443")
+        expect(rf.getRpcUrlsInOrder()[0]).toBe("https://rpc.gno.land:443")
+    })
+
+    it("ignores a node that is not configured, or excluded for serving another chain", async () => {
+        const rf = await mainnet()
+        rf.preferRpcEndpoint("https://rpc.attacker.example")
+        expect(rf.getRpcUrlsInOrder()[0]).toBe("https://rpc.gno.land:443")
+        rf.excludeRpcEndpoint("https://rpc.mainnet.samourai.live:443")
+        rf.preferRpcEndpoint("https://rpc.mainnet.samourai.live:443")
+        expect(rf.getRpcUrlsInOrder()).toEqual(["https://rpc.gno.land:443"])
+    })
+})
+
 // gnolang/gno#6413: an operator can set rpc.allow_code_execution=false, and the
 // node then refuses vm/qeval, vm/qrender and .app/simulate — HTTP 200 with a
 // TOP-LEVEL JSON-RPC error on a POST, HTTP 403 on a GET. That is one node

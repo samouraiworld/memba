@@ -62,6 +62,17 @@ function orderedRpcUrls(): string[] {
 }
 
 /**
+ * Make `rpcUrl` the first endpoint tried, as if it had just answered. For a
+ * caller that found the endpoint tried first answering but stale (frozen at an
+ * old height while `rpcUrl` follows the chain): error-based failover never
+ * leaves such a node. Ignored for an excluded or unconfigured endpoint.
+ */
+export function preferRpcEndpoint(rpcUrl: string): void {
+    if (_excludedRpcUrls.has(rpcUrl) || !orderedRpcUrls().includes(rpcUrl)) return
+    _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+}
+
+/**
  * One node refused to serve a request: HTTP 403, or (for abci_query) an
  * HTTP 200 body carrying a TOP-LEVEL JSON-RPC error. An operator running with
  * `rpc.allow_code_execution = false` (gnolang/gno#6413) answers vm/qeval,

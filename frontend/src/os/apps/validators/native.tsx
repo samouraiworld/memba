@@ -15,7 +15,9 @@
  */
 import { useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useChainHealth, type ChainHealth } from "../../../hooks/home/useChainHealth"
 import { GNO_RPC_URL, validatorScoresRealmFor } from "../../../lib/config"
+import { formatBlockAge } from "../../../lib/networkStatus"
 import { ValidatorHealthStatus, healthLabel, type NetworkHealthSummary } from "../../../lib/validatorHealth"
 import { fetchValidatorRoster, ROSTER_REFRESH_MS, type ValidatorRoster } from "../../../lib/validatorRoster"
 import { formatBlockTime, formatPercent, formatVotingPower, truncateValidatorAddr, type ValidatorInfo } from "../../../lib/validators"
@@ -157,10 +159,16 @@ function scoredCandidateColumns(edition: SelectionScoreEdition): readonly Column
     return [operatorColumn, score, rankColumn, ...rest]
 }
 
-function summary(roster: ValidatorRoster): Stat[] {
+/** A node can report itself in sync while the chain makes no block (a halt): the block's age says which. */
+function heightHint(stats: ValidatorRoster["stats"], chain: ChainHealth): string {
+    if (chain.health === "halted") return `Last block ${formatBlockAge(chain.blockAge)}: the chain looks halted`
+    return stats.catchingUp ? "The RPC node is still catching up" : "The RPC node reports it is in sync"
+}
+
+function summary(roster: ValidatorRoster, chain: ChainHealth): Stat[] {
     const { stats, networkHealth: h } = roster
     return [
-        { label: "Block height", value: stats.blockHeight.toLocaleString(), hint: stats.catchingUp ? "The RPC node is still catching up" : "The RPC node reports it is in sync" },
+        { label: "Block height", value: stats.blockHeight.toLocaleString(), hint: heightHint(stats, chain) },
         // 0 means the older block could not be read: no figure rather than a made-up one.
         ...(stats.avgBlockTime > 0 ? [{ label: "Average block time", value: formatBlockTime(stats.avgBlockTime), hint: "Over the last 10 blocks" }] : []),
         { label: "Active validators", value: stats.totalValidators, hint: `${formatVotingPower(stats.totalVotingPower)} total voting power` },
@@ -278,6 +286,7 @@ function Home({ query, session, active, open, push }: Pick<NativeViewProps, "que
         openClassic(`validators/${address}`, from ? new URLSearchParams({ from }).toString() : "")
     }
     const data = roster.data
+    const chain = useChainHealth()
 
     return (
         <div className="os-validators">
@@ -297,7 +306,10 @@ function Home({ query, session, active, open, push }: Pick<NativeViewProps, "que
             {data && <>
                 {roster.isError && <ErrorState onRetry={() => void roster.refetch()}
                     message={`The last refresh failed. This is the validator set as read at ${new Date(roster.dataUpdatedAt).toLocaleTimeString()}: heights and health are not live.`} />}
-                <StatGrid stats={summary(data)} />
+                {chain.health === "halted" && <p className="os-note" role="status">
+                    The newest block on any RPC node is from {formatBlockAge(chain.blockAge)}: the chain looks halted. Health below describes the validators up to that block.
+                </p>}
+                <StatGrid stats={summary(data, chain)} />
                 <Segmented<List> label="Validator lists" options={LISTS} value={view.list} onChange={(list) => setView({ list })} />
                 {view.list === "active"
                     ? <ActiveSet roster={data} view={view} chainId={session.network.chainId} setView={setView} onOpen={openProfile} />
