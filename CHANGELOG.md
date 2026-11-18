@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend: gno SDK v1.8.0 (2026-11-18)
+- The backend now builds against the gno `v1.8.0` release (`fc79041f4c`), the version gnoland-1 runs since it resumed from the 2026-11-18 upgrade halt (height 1651500). It replaces the gnolang/gno master commit `855151c394`, an ancestor of v1.8.0 that already wrote the canonical transaction encoding.
+- The `gnokey` binary in the backend image, used for Arcade attestations, moves to the same `v1.8.0` tag.
+- No backend code changes. Multisig transactions are still assembled with exactly their threshold of signatures, which v1.8.0 nodes require, and the golden test still pins the same bytes.
+
 ### Arcade attester: RPC failover (2026-11-17)
 - The day-close attester, which writes Arcade scores on-chain, used one RPC node only. It now falls back to the backend's failover list when that node cannot be reached or refuses to run code (`rpc.allow_code_execution`, gnolang/gno#6413). A broadcast fails over only on failures seen before the transaction could have been submitted; a timeout stays on the same node. That refusal also blocks gnokey's transaction simulation, so before this change it would have stopped every attestation. A fallback is used only once its own `/status` reports the backend's chain and that it is not catching up. A refusal from the realm itself never fails over.
 
