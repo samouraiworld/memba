@@ -101,8 +101,8 @@ export async function checkNetworkHealth(rpcUrl: string): Promise<NetworkStatusR
     // must not stand in for this one. With none on it, keep the old reading.
     const onChain = answered.filter((r) => r.chainId === GNO_CHAIN_ID)
     const candidates = onChain.length > 0 ? onChain : answered
-    // Highest block first; on a tie, the youngest, then the earlier in order.
-    const best = candidates.reduce((a, b) => (b.height > a.height || (b.height === a.height && b.blockAge < a.blockAge) ? b : a))
+    // The highest block; on a tie (the same block), the node tried first.
+    const best = candidates.reduce((a, b) => (b.height > a.height ? b : a))
 
     const first = readings[0]
     if (

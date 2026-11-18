@@ -68,7 +68,8 @@ function orderedRpcUrls(): string[] {
  * leaves such a node. Ignored for an excluded or unconfigured endpoint.
  */
 export function preferRpcEndpoint(rpcUrl: string): void {
-    if (_excludedRpcUrls.has(rpcUrl) || !orderedRpcUrls().includes(rpcUrl)) return
+    // An excluded endpoint stays out anyway: getRpcUrlsInOrder filters it.
+    if (!orderedRpcUrls().includes(rpcUrl)) return
     _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
 }
 

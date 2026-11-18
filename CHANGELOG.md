@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### A node frozen at an old height, and the halt on Validators (2026-11-18)
+- After gnoland-1's v1.8.0 halt, the chain restarted at 13:20 UTC, but `rpc.gno.land` stayed at the halt height (1651500) and kept answering. RPC failover acts only on errors, so Memba kept reading a stopped chain from it. The network health check now reads every RPC node and judges the chain by the most advanced one on it. When the node tried first is more than a minute stale and another node on the same chain is further ahead and fresh, that node becomes the first one tried for every later RPC call. A node on another chain is never used.
+- The Validators app said "The RPC node reports it is in sync" during the halt, because a halted node is not catching up. When no node has a block from the last five minutes, the page now says the chain looks halted, with the age of the newest block.
+- Not changed: native multisig broadcasts still go to the configured primary node.
+
 ### Arcade attester: RPC failover (2026-11-17)
 - The day-close attester, which writes Arcade scores on-chain, used one RPC node only. It now falls back to the backend's failover list when that node cannot be reached or refuses to run code (`rpc.allow_code_execution`, gnolang/gno#6413). A broadcast fails over only on failures seen before the transaction could have been submitted; a timeout stays on the same node. That refusal also blocks gnokey's transaction simulation, so before this change it would have stopped every attestation. A fallback is used only once its own `/status` reports the backend's chain and that it is not catching up. A refusal from the realm itself never fails over.
 
