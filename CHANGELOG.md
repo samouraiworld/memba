@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependency updates (2026-11-18)
+- Backend: `golang.org/x/crypto` 0.59.0 (with `x/net` 0.62.0, `x/sys` 0.50.0, `x/text` 0.44.0), `modernc.org/sqlite` 1.62.0 (with `modernc.org/libc` 1.80.1).
+- Frontend: TanStack Query 5.107.1, three 0.187.0, `@bufbuild/protobuf` 2.17.0, typescript-eslint 8.72.2, vite 7.3.8, globals 17.14.0, fake-indexeddb 6.2.8. Playwright stays at 1.63.
+
 ### Arcade attester: RPC failover (2026-11-17)
 - The day-close attester, which writes Arcade scores on-chain, used one RPC node only. It now falls back to the backend's failover list when that node cannot be reached or refuses to run code (`rpc.allow_code_execution`, gnolang/gno#6413). A broadcast fails over only on failures seen before the transaction could have been submitted; a timeout stays on the same node. That refusal also blocks gnokey's transaction simulation, so before this change it would have stopped every attestation. A fallback is used only once its own `/status` reports the backend's chain and that it is not catching up. A refusal from the realm itself never fails over.
 
