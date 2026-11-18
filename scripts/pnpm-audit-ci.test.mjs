@@ -198,8 +198,13 @@ describe("pnpm-audit-ci — reconcile (fail-closed on a payload/tally mismatch)"
 })
 
 describe("pnpm-audit-ci — allowlist hygiene", () => {
-    test("the allowlist is empty — any addition must be a visible, reviewed diff", () => {
-        assert.deepEqual(Object.keys(ALLOWLIST), [])
+    test("the allowlist holds exactly the reviewed entries — any addition must be a visible diff", () => {
+        // GHSA-fc5q-39xc-vjpf (picomatch, 2026-11-18): no patched release exists.
+        // Remove it, and this key, once one ships.
+        assert.deepEqual(Object.keys(ALLOWLIST), ["GHSA-fc5q-39xc-vjpf"])
+        for (const entry of Object.values(ALLOWLIST)) {
+            assert.ok(entry.package && entry.reason && /^\d{4}-\d{2}-\d{2}$/.test(entry.added))
+        }
     })
 
     test("flags an allowlist entry that matches no live advisory as stale", () => {
