@@ -116,7 +116,14 @@ Optional repository secrets `BASE_RPC_URL` and `BASE_SEPOLIA_RPC_URL` (archive e
 
 ## Tracks
 
-| Track | Scope | Status |
-|---|---|---|
-| M0 | Flag, bundle gate, Phase 0 fork verification | Done |
-| T1a | Frontend network seam (`frontend/src/lib/chain/`), Base Sepolia in the OS network selector, apps per network family, EVM wallet and sign-in | In progress: network selection, apps per network family, EVM adapter (viem + @wagmi/core, injected wallets), wallet connection, Sign-In with Ethereum, one chain-bound send path for every EVM write (`sendEvmWrite`) |
+Status at the end of 2026-10-07. Everything below is behind `VITE_ENABLE_EVM` (deploy-previews only).
+
+| Track | Scope | Merged | Left for M1 |
+|---|---|---|---|
+| M0 | Flag, bundle gate, Phase 0 fork verification | #1489, #1490 | — |
+| T1a | Network seam, apps per network family, EVM adapter, wallet connection, Sign-In with Ethereum (client), single chain- and account-bound send path | #1494, #1499, #1503, #1507, #1514, #1522, #1527 | EVM Wallet app (balance, send, receive through `sendEvmWrite`); e2e of a chain switch between review and send |
+| T1b | Backend: canonical addresses, SIWE parser and signature checks (EOA, EIP-1271, ERC-6492), SIWE RPCs, EVM-token guard, profile opt-in | #1495, #1497, #1498, #1500, #1505, #1511, #1513 | Enable SIWE on previews (see below) |
+| T2 | Safe multisig: Transaction Service proxy, Safe checks, SDK chunk, read-only view, backend Safe list and names, import | #1496, #1502, #1506, #1510, #1516, #1520, #1524, #1525 | Create a Safe (#1517), propose/sign/execute (#1518) |
+| T3 | Manifest per chain, contracts CI, token template and deploy library, Basenames read and write | #1492, #1493, #1501, #1504, #1508, #1512, #1515, #1526 | Profile window on EVM (lazy loader, register and edit screens); Tokens UI |
+
+**Enabling SIWE on deploy-previews** (backend, all default off): `MEMBA_ENABLE_SIWE=true`, `MEMBA_SIWE_CHAIN_IDS=84532`, `MEMBA_SIWE_DOMAINS=deploy-preview-<n>--membaos.netlify.app`, and add `https://*--membaos.netlify.app` to `CORS_ORIGINS`. Keep fork-PR deploy previews behind manual approval while SIWE is on. Smart-wallet and Safe sign-in additionally need `MEMBA_SIWE_CONTRACT_SIGNERS` and `MEMBA_EVM_RPC_URLS`.
