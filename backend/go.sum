@@ -170,8 +170,8 @@ github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
 github.com/getsentry/sentry-go v0.46.2 h1:1jhYwrKGa3sIpo/y5iDNXS5wDoT7I1KNzMHrnK6ojns=
 github.com/getsentry/sentry-go v0.46.2/go.mod h1:evVbw2qotNUdYG8KxXbAdjOQWWvWIwKxpjdZZIvcIPw=
-github.com/gnolang/gno v0.0.0-20261113104558-855151c39498 h1:6UknuKthF4/ely/Li6Wk/VZkJpZc7RW0xpKBTOvnJC4=
-github.com/gnolang/gno v0.0.0-20261113104558-855151c39498/go.mod h1:XluAEiU4w1MHbi7AsvG5jzgfNB7iQfVAyVn5eDcOvPM=
+github.com/gnolang/gno v1.8.0 h1:5x7vUQz+cFBdk0pFa6sbe04sMUmNlLEPD7U0IWw5PmE=
+github.com/gnolang/gno v1.8.0/go.mod h1:zTdgOa6hCjBVHILFxsZ3O/FEv1IzcUEYh8gohNkLX0E=
 github.com/go-errors/errors v1.4.2 h1:J6MZopCL4uSllY1OfXM374weqZFFItUbrImctkmUxIA=
 github.com/go-errors/errors v1.4.2/go.mod h1:sIVyrIiJhuEF+Pj9Ebtd6P/rEYROXFi3BopGUQ5a5Og=
 github.com/go-kit/kit v0.13.0 h1:OoneCcHKHQ03LfBpoQCUfCluwd2Vt3ohz+kvbJneZAU=

@@ -13,7 +13,7 @@ Update it in the same PR as any change to what runs in production, a feature fla
 | Source (`main`) | `4a67007ff` | `git log -1 origin/main` |
 | Frontend ([memba.club](https://memba.club)) | `4a67007ff` | `https://memba.club/build-info.json` → `commit` |
 | Backend | `4a67007`, Go 1.26.11 | `GET /health` → `version`, `go_version` |
-| gno SDK used by the backend | gnolang/gno master `855151c394` (canonical transaction encoding) | `backend/go.mod` |
+| gno SDK used by the backend | gnolang/gno `v1.8.0` (`fc79041f4c`), the release gnoland-1 runs since the 2026-11-18 upgrade | `backend/go.mod` |
 | Latest release tag | `v7.8.0` (far behind `main`) | `git tag --sort=-creatordate` |
 
 Frontend merges deploy through Netlify; backend merges deploy automatically.
