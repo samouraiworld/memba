@@ -77,8 +77,27 @@ export const ALLOWLIST = {
  * cannot reach the build output.
  */
 export const DEV_ALLOWLIST = {
-    // EMPTY. Both dev-scope highs open in 2026-08 were FIXED, not accepted:
+    // Both dev-scope highs open in 2026-08 were FIXED, not accepted:
     // js-yaml -> 4.3.1 (#1060) and undici -> >=7.29.0 <8 (#1061).
+    //
+    // Added 2026-11-18. picomatch ReDoS through single-branch repeated extglobs
+    // (`+(*)`, `+(*a)`). Every release up to and including 4.0.7, the latest, is
+    // affected, and the advisory lists NO patched version, so no floor can fix
+    // it. picomatch is in this tree only through build and test tooling (vite,
+    // fdir, vitest, tinyglobby, vite-plugin-pwa / workbox-build ->
+    // @rollup/pluginutils). Those tools compile glob patterns that come from our
+    // own config files, never from user input, and they never run in the browser
+    // or the backend. So a crafted pattern cannot reach them and the bundle
+    // cannot be altered through this advisory. The production lane does not
+    // carry picomatch.
+    // ⛔ REMOVE this entry as soon as a patched picomatch ships: a key without a
+    // version bound would keep suppressing the advisory after the fix (see the
+    // LESSON on ALLOWLIST).
+    "GHSA-fc5q-39xc-vjpf": {
+        package: "picomatch",
+        reason: "No patched release exists (<=4.0.7, latest). Dev/build tooling only (vite, vitest, workbox); globs come from our own config, never user input.",
+        added: "2026-11-18",
+    },
 }
 
 /**
