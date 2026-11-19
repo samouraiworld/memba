@@ -24,6 +24,9 @@ Full changelogs are split by version range for easier navigation:
 - After gnoland-1's v1.8.0 halt, the chain restarted at 13:20 UTC, but `rpc.gno.land` stayed at the halt height (1651500) and kept answering. RPC failover acts only on errors, so Memba kept reading a stopped chain from it. The network health check now reads every RPC node and judges the chain by the most advanced one on it. When the node tried first is more than a minute stale and another node on the same chain is further ahead and fresh, that node becomes the first one tried for every later RPC call. A node on another chain is never used.
 - The Validators app said "The RPC node reports it is in sync" during the halt, because a halted node is not catching up. When no node has a block from the last five minutes, the page now says the chain looks halted, with the age of the newest block.
 - Not changed: native multisig broadcasts still go to the configured primary node.
+### Dependency updates (2026-11-18)
+- Backend: `golang.org/x/crypto` 0.59.0 (with `x/net` 0.62.0, `x/sys` 0.50.0, `x/text` 0.44.0), `modernc.org/sqlite` 1.62.0 (with `modernc.org/libc` 1.80.1).
+- Frontend: TanStack Query 5.107.1, three 0.187.0, `@bufbuild/protobuf` 2.17.0, typescript-eslint 8.72.2, vite 7.3.8, globals 17.14.0, fake-indexeddb 6.2.8. Playwright stays at 1.63.
 ### Security gate: picomatch ReDoS acknowledged in build tooling (2026-11-18)
 - GHSA-fc5q-39xc-vjpf (high) affects every `picomatch` release, including 4.0.7, the latest, and has no fix yet, so both audit gates turned red on every PR. picomatch reaches Memba only through build and test tooling (vite, vitest, workbox), which compiles globs from our own config and never sees user input. The advisory is now acknowledged in the dev/build allowlist and in the pnpm workspace allowlist, each with its written justification. The production audit lane is unchanged. Remove both entries once a patched picomatch ships.
 
