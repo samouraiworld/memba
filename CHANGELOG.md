@@ -24,6 +24,9 @@ Full changelogs are split by version range for easier navigation:
 - The backend now builds against the gno `v1.8.0` release (`fc79041f4c`), the version gnoland-1 runs since it resumed from the 2026-11-18 upgrade halt (height 1651500). It replaces the gnolang/gno master commit `855151c394`, an ancestor of v1.8.0 that already wrote the canonical transaction encoding.
 - The `gnokey` binary in the backend image, used for Arcade attestations, moves to the same `v1.8.0` tag.
 - No backend code changes. Multisig transactions are still assembled with exactly their threshold of signatures, which v1.8.0 nodes require, and the golden test still pins the same bytes.
+### Dependency updates (2026-11-18)
+- Backend: `golang.org/x/crypto` 0.59.0 (with `x/net` 0.62.0, `x/sys` 0.50.0, `x/text` 0.44.0), `modernc.org/sqlite` 1.62.0 (with `modernc.org/libc` 1.80.1).
+- Frontend: TanStack Query 5.107.1, three 0.187.0, `@bufbuild/protobuf` 2.17.0, typescript-eslint 8.72.2, vite 7.3.8, globals 17.14.0, fake-indexeddb 6.2.8. Playwright stays at 1.63.
 ### Security gate: picomatch ReDoS acknowledged in build tooling (2026-11-18)
 - GHSA-fc5q-39xc-vjpf (high) affects every `picomatch` release, including 4.0.7, the latest, and has no fix yet, so both audit gates turned red on every PR. picomatch reaches Memba only through build and test tooling (vite, vitest, workbox), which compiles globs from our own config and never sees user input. The advisory is now acknowledged in the dev/build allowlist and in the pnpm workspace allowlist, each with its written justification. The production audit lane is unchanged. Remove both entries once a patched picomatch ships.
 
