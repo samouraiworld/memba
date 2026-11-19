@@ -25,6 +25,10 @@ Full changelogs are split by version range for easier navigation:
 - The Validators app said "The RPC node reports it is in sync" during the halt, because a halted node is not catching up. When no node has a block from the last five minutes, the page now says the chain looks halted, with the age of the newest block.
 - A node whose block time cannot be read, or is more than 30 s past its own clock, neither judges the chain nor becomes the first node tried. A request that was already in flight to the old node when the switch happened no longer undoes the switch when it returns.
 - Not changed: native multisig broadcasts still go to the configured primary node.
+### Backend: gno SDK v1.8.0 (2026-11-18)
+- The backend now builds against the gno `v1.8.0` release (`fc79041f4c`), the version gnoland-1 runs since it resumed from the 2026-11-18 upgrade halt (height 1651500). It replaces the gnolang/gno master commit `855151c394`, an ancestor of v1.8.0 that already wrote the canonical transaction encoding.
+- The `gnokey` binary in the backend image, used for Arcade attestations, moves to the same `v1.8.0` tag.
+- No backend code changes. Multisig transactions are still assembled with exactly their threshold of signatures, which v1.8.0 nodes require, and the golden test still pins the same bytes.
 ### Dependency updates (2026-11-18)
 - Backend: `golang.org/x/crypto` 0.59.0 (with `x/net` 0.62.0, `x/sys` 0.50.0, `x/text` 0.44.0), `modernc.org/sqlite` 1.62.0 (with `modernc.org/libc` 1.80.1).
 - Frontend: TanStack Query 5.107.1, three 0.187.0, `@bufbuild/protobuf` 2.17.0, typescript-eslint 8.72.2, vite 7.3.8, globals 17.14.0, fake-indexeddb 6.2.8. Playwright stays at 1.63.
