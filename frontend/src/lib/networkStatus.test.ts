@@ -196,6 +196,21 @@ describe("checkNetworkHealth — a node left behind", () => {
         expect(rpc.prefer).not.toHaveBeenCalled()
     })
 
+    it("never moves to, nor reads the chain from, a node whose block is from its own future", async () => {
+        nodes({ [PRIMARY]: HALT, [FALLBACK]: { blockTime: "2026-11-18T13:45:00.000Z", height: 9_999_999 } })
+        const result = await checkNetworkHealth(PRIMARY)
+        expect(result.health).toBe("halted")
+        expect(rpc.prefer).not.toHaveBeenCalled()
+    })
+
+    it("ignores a node whose block time cannot be read, so it cannot hide a halt", async () => {
+        nodes({ [PRIMARY]: HALT, [FALLBACK]: { blockTime: "invalid-time", height: 1651900 } })
+        const result = await checkNetworkHealth(PRIMARY)
+        expect(result.health).toBe("halted")
+        expect(result.blockAge).toBe(1386)
+        expect(rpc.prefer).not.toHaveBeenCalled()
+    })
+
     it("is unreachable only when no node answers", async () => {
         nodes({ [PRIMARY]: "down", [FALLBACK]: "down" })
         const result = await checkNetworkHealth(PRIMARY)

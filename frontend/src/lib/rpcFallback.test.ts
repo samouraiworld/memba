@@ -309,6 +309,25 @@ describe("preferRpcEndpoint — a stale node found by the health check", () => {
         expect(rf.getRpcUrlsInOrder()[0]).toBe("https://rpc.gno.land:443")
     })
 
+    it("keeps the preferred node when a request started on the old primary answers afterwards", async () => {
+        const rf = await mainnet()
+        let release!: () => void
+        const gate = new Promise<void>((r) => { release = r })
+        vi.stubGlobal("fetch", vi.fn(async () => {
+            await gate
+            return { ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: 1, result: { ok: true } }) }
+        }))
+        try {
+            const inFlight = rf.resilientFetch((url) => ({ url: `${url}/status`, init: {} }))
+            rf.preferRpcEndpoint("https://rpc.mainnet.samourai.live:443")
+            release()
+            await inFlight
+            expect(rf.getRpcUrlsInOrder()[0]).toBe("https://rpc.mainnet.samourai.live:443")
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     it("ignores a node that is not configured, or excluded for serving another chain", async () => {
         const rf = await mainnet()
         rf.preferRpcEndpoint("https://rpc.attacker.example")

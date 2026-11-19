@@ -23,6 +23,7 @@ Full changelogs are split by version range for easier navigation:
 ### A node frozen at an old height, and the halt on Validators (2026-11-18)
 - After gnoland-1's v1.8.0 halt, the chain restarted at 13:20 UTC, but `rpc.gno.land` stayed at the halt height (1651500) and kept answering. RPC failover acts only on errors, so Memba kept reading a stopped chain from it. The network health check now reads every RPC node and judges the chain by the most advanced one on it. When the node tried first is more than a minute stale and another node on the same chain is further ahead and fresh, that node becomes the first one tried for every later RPC call. A node on another chain is never used.
 - The Validators app said "The RPC node reports it is in sync" during the halt, because a halted node is not catching up. When no node has a block from the last five minutes, the page now says the chain looks halted, with the age of the newest block.
+- A node whose block time cannot be read, or is more than 30 s past its own clock, neither judges the chain nor becomes the first node tried. A request that was already in flight to the old node when the switch happened no longer undoes the switch when it returns.
 - Not changed: native multisig broadcasts still go to the configured primary node.
 ### Dependency updates (2026-11-18)
 - Backend: `golang.org/x/crypto` 0.59.0 (with `x/net` 0.62.0, `x/sys` 0.50.0, `x/text` 0.44.0), `modernc.org/sqlite` 1.62.0 (with `modernc.org/libc` 1.80.1).

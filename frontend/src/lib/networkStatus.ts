@@ -28,9 +28,17 @@ const HALTED_THRESHOLD_SEC = 300 // 5 minutes
  */
 const STALE_NODE_SEC = 60
 
+/**
+ * A block time further than this past the node's own clock is not believable:
+ * such a node could claim any height. It neither judges the chain nor is moved
+ * to first place, unless every node on the chain reads ahead (our clock is off).
+ */
+const FUTURE_SKEW_SEC = 30
+
 interface NodeReading extends NetworkStatusResult {
     url: string
     height: number
+    ahead: boolean
 }
 
 async function readNode(url: string): Promise<NodeReading | null> {
@@ -46,6 +54,8 @@ async function readNode(url: string): Promise<NodeReading | null> {
 
         const chainId = data?.result?.node_info?.network || ""
         const latestBlockTime = new Date(syncInfo.latest_block_time)
+        // An unreadable block time says nothing about the chain: not a reading.
+        if (Number.isNaN(latestBlockTime.getTime())) return null
         const height = Number(syncInfo.latest_block_height)
 
         // Use the serving endpoint's clock (the HTTP `Date` response header from
@@ -67,7 +77,8 @@ async function readNode(url: string): Promise<NodeReading | null> {
             health = "slow"
         }
 
-        return { url, height: Number.isFinite(height) ? height : -1, health, chainId, latestBlockTime, blockAge }
+        const ahead = latestBlockTime.getTime() - nowMs > FUTURE_SKEW_SEC * 1000
+        return { url, height: Number.isFinite(height) ? height : -1, health, chainId, latestBlockTime, blockAge, ahead }
     } catch {
         return null
     }
@@ -100,7 +111,10 @@ export async function checkNetworkHealth(rpcUrl: string): Promise<NetworkStatusR
     // Judge the chain only from nodes on it: a fallback serving another chain
     // must not stand in for this one. With none on it, keep the old reading.
     const onChain = answered.filter((r) => r.chainId === GNO_CHAIN_ID)
-    const candidates = onChain.length > 0 ? onChain : answered
+    // A node whose block is from its own future cannot hide a halt either.
+    // Every node reading ahead means our clock is off (no Date header): use them all.
+    const believable = onChain.filter((r) => !r.ahead)
+    const candidates = believable.length > 0 ? believable : onChain.length > 0 ? onChain : answered
     // The highest block; on a tie (the same block), the node tried first.
     const best = candidates.reduce((a, b) => (b.height > a.height ? b : a))
 

@@ -118,6 +118,10 @@ async function resilientRequest<T>(
     verifyEndpoint?: (rpcUrl: string) => Promise<void>,
 ): Promise<T> {
     const urls = getRpcUrlsInOrder()
+    // The preference this request started from. If it changes while the request
+    // is in flight (preferRpcEndpoint left a stale node), the answer of a node
+    // chosen under the old order must not undo that choice.
+    const preferenceAtStart = _lastWorkingRpcUrl
     let lastError: Error | null = null
     const refusals: { url: string; reason: string }[] = []
 
@@ -186,8 +190,11 @@ async function resilientRequest<T>(
                     break
                 }
                 // Mark this URL as working for future calls; the primary being
-                // back resets the fallback preference.
-                _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+                // back resets the fallback preference. A preference set by
+                // another caller since this request started wins.
+                if (_lastWorkingRpcUrl === preferenceAtStart) {
+                    _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+                }
                 return accepted
             }
 
