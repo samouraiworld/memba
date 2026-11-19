@@ -62,6 +62,18 @@ function orderedRpcUrls(): string[] {
 }
 
 /**
+ * Make `rpcUrl` the first endpoint tried, as if it had just answered. For a
+ * caller that found the endpoint tried first answering but stale (frozen at an
+ * old height while `rpcUrl` follows the chain): error-based failover never
+ * leaves such a node. Ignored for an excluded or unconfigured endpoint.
+ */
+export function preferRpcEndpoint(rpcUrl: string): void {
+    // An excluded endpoint stays out anyway: getRpcUrlsInOrder filters it.
+    if (!orderedRpcUrls().includes(rpcUrl)) return
+    _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+}
+
+/**
  * One node refused to serve a request: HTTP 403, or (for abci_query) an
  * HTTP 200 body carrying a TOP-LEVEL JSON-RPC error. An operator running with
  * `rpc.allow_code_execution = false` (gnolang/gno#6413) answers vm/qeval,
@@ -106,6 +118,10 @@ async function resilientRequest<T>(
     verifyEndpoint?: (rpcUrl: string) => Promise<void>,
 ): Promise<T> {
     const urls = getRpcUrlsInOrder()
+    // The preference this request started from. If it changes while the request
+    // is in flight (preferRpcEndpoint left a stale node), the answer of a node
+    // chosen under the old order must not undo that choice.
+    const preferenceAtStart = _lastWorkingRpcUrl
     let lastError: Error | null = null
     const refusals: { url: string; reason: string }[] = []
 
@@ -174,8 +190,11 @@ async function resilientRequest<T>(
                     break
                 }
                 // Mark this URL as working for future calls; the primary being
-                // back resets the fallback preference.
-                _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+                // back resets the fallback preference. A preference set by
+                // another caller since this request started wins.
+                if (_lastWorkingRpcUrl === preferenceAtStart) {
+                    _lastWorkingRpcUrl = rpcUrl !== GNO_RPC_URL ? rpcUrl : null
+                }
                 return accepted
             }
 
