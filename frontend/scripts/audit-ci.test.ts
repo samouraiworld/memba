@@ -197,8 +197,19 @@ describe("the dev/build-scope audit lane", () => {
         }
     })
 
-    it("the dev allowlist is empty — dev-scope advisories must be fixed too", () => {
-        expect(Object.keys(DEV_ALLOWLIST)).toEqual([])
+    it("the dev allowlist holds exactly the reviewed entries — dev-scope advisories must be fixed too", () => {
+        // GHSA-fc5q-39xc-vjpf (picomatch, 2026-11-18): no patched release exists.
+        // Remove it, and this key, once one ships.
+        expect(Object.keys(DEV_ALLOWLIST)).toEqual(["GHSA-fc5q-39xc-vjpf"])
+        for (const entry of Object.values(DEV_ALLOWLIST) as { package: string; reason: string; added: string }[]) {
+            expect(entry.package).toBeTruthy()
+            expect(entry.reason).toBeTruthy()
+            expect(entry.added).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        }
+    })
+
+    it("the picomatch dev waiver does NOT leak into the production ALLOWLIST", () => {
+        expect(ALLOWLIST).not.toHaveProperty("GHSA-fc5q-39xc-vjpf")
     })
 
     it("🔴 the two allowlists are SEPARATE objects, not aliases", () => {

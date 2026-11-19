@@ -57,12 +57,25 @@ export const GATED_SEVERITIES = new Set(["high", "critical"])
  *       added: "YYYY-MM-DD",
  *   }
  *
- * Intentionally EMPTY: as of this gate landing, every high/critical advisory in
- * pnpm-lock.yaml was fixed by raising its floor rather than acknowledged. A
- * unit test asserts it stays empty, so the first entry is a visible, reviewed
- * diff rather than a quiet default.
+ * When this gate landed, every high/critical advisory in pnpm-lock.yaml was
+ * fixed by raising its floor rather than acknowledged. A unit test pins the
+ * exact set of keys, so every addition is a visible, reviewed diff.
  */
-export const ALLOWLIST = {}
+export const ALLOWLIST = {
+    // Added 2026-11-18. picomatch ReDoS through single-branch repeated extglobs.
+    // Every release up to and including 4.0.7, the latest, is affected, and the
+    // advisory lists NO patched version, so no `pnpm.overrides` floor can fix
+    // it. It reaches this lockfile only as packages/gno-rpc > vitest >
+    // picomatch, a test runner that compiles globs from our own config, never
+    // from user input, and is not shipped by the gno-rpc or MCP server packages.
+    // ⛔ REMOVE as soon as a patched picomatch ships (raise the floor instead).
+    // staleAllowlistKeys() warns once the advisory no longer matches.
+    "GHSA-fc5q-39xc-vjpf": {
+        package: "picomatch",
+        reason: "No patched release exists (<=4.0.7, latest). Reached only via packages/gno-rpc > vitest (dev); globs come from our own config, never user input.",
+        added: "2026-11-18",
+    },
+}
 
 /**
  * A successful `pnpm audit --json` always carries BOTH an `advisories` map and
