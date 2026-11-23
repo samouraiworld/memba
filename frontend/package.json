@@ -58,14 +58,14 @@
     "dompurify": "^3.4.17",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
-    "marked": "18.1.3",
+    "marked": "18.2.1",
     "marked-footnote": "1.4.0",
     "react": "~19.3.1",
     "react-dom": "~19.3.1",
-    "react-router-dom": "^7.18.5",
+    "react-router-dom": "^7.18.6",
     "recharts": "^2.15.4",
     "three": "0.187.0",
-    "viem": "2.57.16",
+    "viem": "2.58.2",
     "zod": "^4.6.7"
   },
   "devDependencies": {
